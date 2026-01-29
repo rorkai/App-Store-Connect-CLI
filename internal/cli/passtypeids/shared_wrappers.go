@@ -40,3 +40,27 @@ func hasInclude(values []string, include string) bool {
 func validateSort(value string, allowed ...string) error {
 	return shared.ValidateSort(value, allowed...)
 }
+
+func certificateFieldsList() []string {
+	return shared.CertificateFieldsList()
+}
+
+func certificateIncludeList() []string {
+	return shared.CertificateIncludeList()
+}
+
+func certificateSortValues() []string {
+	return shared.CertificateSortValues()
+}
+
+func normalizeSelection(value, flagName string, allowed []string) ([]string, error) {
+	return shared.NormalizeSelection(value, flagName, allowed)
+}
+
+func normalizeCertificateFields(value, flagName string) ([]string, error) {
+	return shared.NormalizeCertificateFields(value, flagName)
+}
+
+func normalizeCertificateInclude(value, flagName string) ([]string, error) {
+	return shared.NormalizeCertificateInclude(value, flagName)
+}

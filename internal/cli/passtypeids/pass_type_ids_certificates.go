@@ -46,7 +46,7 @@ func PassTypeIDsCertificatesListCommand() *ffcli.Command {
 	certificateType := fs.String("certificate-type", "", "Filter by certificate type(s), comma-separated")
 	serialNumber := fs.String("serial-number", "", "Filter by certificate serial number(s), comma-separated")
 	certificateID := fs.String("certificate-id", "", "Filter by certificate ID(s), comma-separated")
-	sort := fs.String("sort", "", "Sort by: "+strings.Join(certificateSortValues, ", "))
+	sort := fs.String("sort", "", "Sort by: "+strings.Join(certificateSortValues(), ", "))
 	fields := fs.String("fields", "", "Certificate fields to include: "+strings.Join(certificateFieldsList(), ", "))
 	passTypeFields := fs.String("pass-type-fields", "", "Pass type fields to include: "+strings.Join(passTypeIDFieldsList(), ", "))
 	include := fs.String("include", "", "Include related resources: "+strings.Join(certificateIncludeList(), ", "))
@@ -79,7 +79,7 @@ Examples:
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("pass-type-ids certificates list: %w", err)
 			}
-			if err := validateSort(*sort, certificateSortValues...); err != nil {
+			if err := validateSort(*sort, certificateSortValues()...); err != nil {
 				return fmt.Errorf("pass-type-ids certificates list: %w", err)
 			}
 
@@ -221,15 +221,4 @@ Examples:
 			return printOutput(resp, *output, *pretty)
 		},
 	}
-}
-
-var certificateSortValues = []string{
-	"displayName",
-	"-displayName",
-	"certificateType",
-	"-certificateType",
-	"serialNumber",
-	"-serialNumber",
-	"id",
-	"-id",
 }
