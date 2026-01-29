@@ -71,6 +71,22 @@ func PrintMarkdown(data interface{}) error {
 		return printMarketplaceWebhooksMarkdown(v)
 	case *MarketplaceWebhookResponse:
 		return printMarketplaceWebhookMarkdown(v)
+	case *StatusResponse:
+		return printServerStatusMarkdown(v)
+	case *HistoryResponse:
+		return printServerHistoryMarkdown(v)
+	case *RefundHistoryResponse:
+		return printServerRefundHistoryMarkdown(v)
+	case *TransactionInfoResponse:
+		return printServerTransactionInfoMarkdown(v)
+	case *OrderLookupResponse:
+		return printServerOrderLookupMarkdown(v)
+	case *SendTestNotificationResponse:
+		return printServerSendTestNotificationMarkdown(v)
+	case *CheckTestNotificationResponse:
+		return printServerCheckTestNotificationMarkdown(v)
+	case *NotificationHistoryResponse:
+		return printServerNotificationHistoryMarkdown(v)
 	case *AlternativeDistributionDomainsResponse:
 		return printAlternativeDistributionDomainsMarkdown(v)
 	case *AlternativeDistributionDomainResponse:
@@ -595,6 +611,22 @@ func PrintTable(data interface{}) error {
 		return printMarketplaceWebhooksTable(v)
 	case *MarketplaceWebhookResponse:
 		return printMarketplaceWebhookTable(v)
+	case *StatusResponse:
+		return printServerStatusTable(v)
+	case *HistoryResponse:
+		return printServerHistoryTable(v)
+	case *RefundHistoryResponse:
+		return printServerRefundHistoryTable(v)
+	case *TransactionInfoResponse:
+		return printServerTransactionInfoTable(v)
+	case *OrderLookupResponse:
+		return printServerOrderLookupTable(v)
+	case *SendTestNotificationResponse:
+		return printServerSendTestNotificationTable(v)
+	case *CheckTestNotificationResponse:
+		return printServerCheckTestNotificationTable(v)
+	case *NotificationHistoryResponse:
+		return printServerNotificationHistoryTable(v)
 	case *AlternativeDistributionDomainsResponse:
 		return printAlternativeDistributionDomainsTable(v)
 	case *AlternativeDistributionDomainResponse:

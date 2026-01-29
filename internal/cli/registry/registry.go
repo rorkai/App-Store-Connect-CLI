@@ -48,6 +48,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/reviews"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/routingcoverage"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/sandbox"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/server"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/signing"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/submit"
@@ -90,6 +91,7 @@ func Subcommands(version string) []*ffcli.Command {
 		apps.AppSetupCommand(),
 		apps.AppTagsCommand(),
 		marketplace.MarketplaceCommand(),
+		server.Command(),
 		alternativedistribution.Command(),
 		nominations.NominationsCommand(),
 		bundleids.BundleIDsCommand(),
