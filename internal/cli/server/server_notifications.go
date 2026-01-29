@@ -300,8 +300,9 @@ func watchNotificationHistory(ctx context.Context, client *asc.ServerAPIClient, 
 	defer ticker.Stop()
 
 	currentStart := request.StartDate
+	originalEndDate := request.EndDate
 	for {
-		endValue := request.EndDate
+		endValue := originalEndDate
 		if endValue == nil {
 			now := time.Now().UnixMilli()
 			endValue = &now
