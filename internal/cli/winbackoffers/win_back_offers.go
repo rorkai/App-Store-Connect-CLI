@@ -388,7 +388,7 @@ Examples:
 				return fmt.Errorf("win-back-offers create: %w", err)
 			}
 
-			prices := parseCommaSeparatedIDs(*priceIDs)
+			prices := splitCSV(*priceIDs)
 			if len(prices) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --price is required")
 				return flag.ErrHelp
@@ -746,7 +746,7 @@ Examples:
 			opts := []asc.WinBackOfferPricesOption{
 				asc.WithWinBackOfferPricesLimit(*limit),
 				asc.WithWinBackOfferPricesNextURL(*next),
-				asc.WithWinBackOfferPricesTerritoryFilter(parseCommaSeparatedIDs(*territories)),
+				asc.WithWinBackOfferPricesTerritoryFilter(splitCSV(*territories)),
 				asc.WithWinBackOfferPricesFields(fieldsValue),
 				asc.WithWinBackOfferPricesTerritoryFields(territoryFieldsValue),
 				asc.WithWinBackOfferPricesSubscriptionPricePointFields(pricePointFieldsValue),
