@@ -114,6 +114,11 @@ Examples:
 			}
 
 			id := strings.TrimSpace(*instanceID)
+			if id != "" {
+				if err := validateUUIDFlag("--instance-id", id); err != nil {
+					return fmt.Errorf("analytics instances relationships: %w", err)
+				}
+			}
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --instance-id is required")
 				return flag.ErrHelp
