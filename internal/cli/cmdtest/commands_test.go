@@ -2889,6 +2889,31 @@ func TestAppClipsValidationErrors(t *testing.T) {
 			wantErr: "Error: --locale is required",
 		},
 		{
+			name:    "default experience localizations header image relationship missing localization",
+			args:    []string{"app-clips", "default-experiences", "localizations", "header-image-relationship"},
+			wantErr: "Error: --localization-id is required",
+		},
+		{
+			name:    "default experiences review detail missing experience-id",
+			args:    []string{"app-clips", "default-experiences", "review-detail"},
+			wantErr: "Error: --experience-id is required",
+		},
+		{
+			name:    "default experiences release version missing experience-id",
+			args:    []string{"app-clips", "default-experiences", "release-with-app-store-version"},
+			wantErr: "Error: --experience-id is required",
+		},
+		{
+			name:    "default experiences relationships missing app clip",
+			args:    []string{"app-clips", "default-experiences-relationships"},
+			wantErr: "Error: --app-clip-id is required",
+		},
+		{
+			name:    "advanced experiences relationships missing app clip",
+			args:    []string{"app-clips", "advanced-experiences-relationships"},
+			wantErr: "Error: --app-clip-id is required",
+		},
+		{
 			name:    "advanced experiences create missing link",
 			args:    []string{"app-clips", "advanced-experiences", "create", "--app-clip-id", "CLIP_ID", "--default-language", "EN", "--is-powered-by"},
 			wantErr: "Error: --link is required",
@@ -2916,6 +2941,16 @@ func TestAppClipsValidationErrors(t *testing.T) {
 		{
 			name:    "invocations list missing build bundle",
 			args:    []string{"app-clips", "invocations", "list"},
+			wantErr: "Error: --build-bundle-id is required",
+		},
+		{
+			name:    "domain status cache missing build bundle",
+			args:    []string{"app-clips", "domain-status", "cache"},
+			wantErr: "Error: --build-bundle-id is required",
+		},
+		{
+			name:    "domain status debug missing build bundle",
+			args:    []string{"app-clips", "domain-status", "debug"},
 			wantErr: "Error: --build-bundle-id is required",
 		},
 		{
