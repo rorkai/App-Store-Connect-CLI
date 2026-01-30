@@ -216,11 +216,17 @@ func extractUserIDFromNextURL(nextURL string) (string, error) {
 		return "", fmt.Errorf("invalid --next URL")
 	}
 	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
-	if len(parts) < 4 || parts[0] != "v1" || parts[1] != "users" || parts[3] != "visibleApps" {
+	if len(parts) < 4 || parts[0] != "v1" || parts[1] != "users" {
 		return "", fmt.Errorf("invalid --next URL")
 	}
 	if strings.TrimSpace(parts[2]) == "" {
 		return "", fmt.Errorf("invalid --next URL")
 	}
-	return parts[2], nil
+	if parts[3] == "visibleApps" {
+		return parts[2], nil
+	}
+	if len(parts) >= 5 && parts[3] == "relationships" && parts[4] == "visibleApps" {
+		return parts[2], nil
+	}
+	return "", fmt.Errorf("invalid --next URL")
 }

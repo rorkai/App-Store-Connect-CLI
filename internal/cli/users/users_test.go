@@ -216,6 +216,17 @@ func TestExtractUserIDFromNextURL(t *testing.T) {
 	}
 }
 
+func TestExtractUserIDFromNextURLRelationships(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/users/user-123/relationships/visibleApps?cursor=abc"
+	got, err := extractUserIDFromNextURL(next)
+	if err != nil {
+		t.Fatalf("extractUserIDFromNextURL() error: %v", err)
+	}
+	if got != "user-123" {
+		t.Fatalf("expected user-123, got %q", got)
+	}
+}
+
 func TestExtractUserIDFromNextURL_Invalid(t *testing.T) {
 	_, err := extractUserIDFromNextURL("https://api.appstoreconnect.apple.com/v1/users")
 	if err == nil {
