@@ -38,7 +38,8 @@ func NotifyCommand() *ffcli.Command {
 Examples:
   asc notify slack --webhook $WEBHOOK --message "Build uploaded"
   ASC_SLACK_WEBHOOK=$WEBHOOK asc notify slack --message "Done"`,
-		FlagSet: fs,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SlackCommand(),
 		},
@@ -93,7 +94,10 @@ Examples:
 				return fmt.Errorf("notify slack: failed to marshal payload: %w", err)
 			}
 
-			req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, strings.NewReader(string(body)))
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			req, err := http.NewRequestWithContext(requestCtx, "POST", webhookURL, strings.NewReader(string(body)))
 			if err != nil {
 				return fmt.Errorf("notify slack: failed to create request: %w", err)
 			}
