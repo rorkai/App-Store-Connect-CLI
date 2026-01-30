@@ -229,21 +229,49 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("iap review-screenshots update: failed to fetch: %w", err)
 			}
-			if screenshotResp == nil || len(screenshotResp.Data.Attributes.UploadOperations) == 0 {
-				return fmt.Errorf("iap review-screenshots update: no upload operations returned")
+			if screenshotResp == nil {
+				return fmt.Errorf("iap review-screenshots update: empty screenshot response")
 			}
 
-			if err := asc.UploadAssetFromFile(requestCtx, file, info.Size(), screenshotResp.Data.Attributes.UploadOperations); err != nil {
+			uploadOps := screenshotResp.Data.Attributes.UploadOperations
+			targetScreenshotID := screenshotValue
+			createdReplacement := false
+			if len(uploadOps) == 0 {
+				iapID, err := relationshipResourceID(screenshotResp.Data.Relationships, "inAppPurchaseV2")
+				if err != nil {
+					return fmt.Errorf("iap review-screenshots update: %w", err)
+				}
+
+				created, err := client.CreateInAppPurchaseAppStoreReviewScreenshot(requestCtx, iapID, info.Name(), info.Size())
+				if err != nil {
+					return fmt.Errorf("iap review-screenshots update: failed to create: %w", err)
+				}
+				if created == nil || len(created.Data.Attributes.UploadOperations) == 0 {
+					return fmt.Errorf("iap review-screenshots update: no upload operations returned")
+				}
+
+				uploadOps = created.Data.Attributes.UploadOperations
+				targetScreenshotID = created.Data.ID
+				createdReplacement = true
+			}
+
+			if err := asc.UploadAssetFromFile(requestCtx, file, info.Size(), uploadOps); err != nil {
 				return fmt.Errorf("iap review-screenshots update: upload failed: %w", err)
 			}
 
 			uploaded := true
-			updated, err := client.UpdateInAppPurchaseAppStoreReviewScreenshot(requestCtx, screenshotValue, asc.InAppPurchaseAppStoreReviewScreenshotUpdateAttributes{
+			updated, err := client.UpdateInAppPurchaseAppStoreReviewScreenshot(requestCtx, targetScreenshotID, asc.InAppPurchaseAppStoreReviewScreenshotUpdateAttributes{
 				Uploaded:           &uploaded,
 				SourceFileChecksum: &checksum.Hash,
 			})
 			if err != nil {
 				return fmt.Errorf("iap review-screenshots update: failed to commit upload: %w", err)
+			}
+
+			if createdReplacement {
+				if err := client.DeleteInAppPurchaseAppStoreReviewScreenshot(requestCtx, screenshotValue); err != nil {
+					return fmt.Errorf("iap review-screenshots update: failed to delete previous screenshot: %w", err)
+				}
 			}
 
 			return printOutput(updated, *output, *pretty)

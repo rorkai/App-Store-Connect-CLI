@@ -201,6 +201,8 @@ func PrintMarkdown(data interface{}) error {
 		return printInAppPurchasesMarkdown(&InAppPurchasesV2Response{Data: []Resource[InAppPurchaseV2Attributes]{v.Data}})
 	case *InAppPurchaseLocalizationsResponse:
 		return printInAppPurchaseLocalizationsMarkdown(v)
+	case *InAppPurchaseLocalizationResponse:
+		return printInAppPurchaseLocalizationsMarkdown(&InAppPurchaseLocalizationsResponse{Data: []Resource[InAppPurchaseLocalizationAttributes]{v.Data}})
 	case *InAppPurchaseImagesResponse:
 		return printInAppPurchaseImagesMarkdown(v)
 	case *InAppPurchaseImageResponse:
@@ -923,6 +925,8 @@ func PrintTable(data interface{}) error {
 		return printInAppPurchasesTable(&InAppPurchasesV2Response{Data: []Resource[InAppPurchaseV2Attributes]{v.Data}})
 	case *InAppPurchaseLocalizationsResponse:
 		return printInAppPurchaseLocalizationsTable(v)
+	case *InAppPurchaseLocalizationResponse:
+		return printInAppPurchaseLocalizationsTable(&InAppPurchaseLocalizationsResponse{Data: []Resource[InAppPurchaseLocalizationAttributes]{v.Data}})
 	case *InAppPurchaseImagesResponse:
 		return printInAppPurchaseImagesTable(v)
 	case *InAppPurchaseImageResponse:

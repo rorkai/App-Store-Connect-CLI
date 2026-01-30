@@ -2,6 +2,7 @@ package iap
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -134,6 +135,33 @@ func parsePriceSchedulePrices(value string) ([]asc.InAppPurchasePriceSchedulePri
 	}
 
 	return prices, nil
+}
+
+type relationshipReference struct {
+	Data asc.ResourceData `json:"data"`
+}
+
+func relationshipResourceID(relationships json.RawMessage, key string) (string, error) {
+	if len(relationships) == 0 {
+		return "", fmt.Errorf("missing relationships")
+	}
+
+	var references map[string]relationshipReference
+	if err := json.Unmarshal(relationships, &references); err != nil {
+		return "", fmt.Errorf("parse relationships: %w", err)
+	}
+
+	reference, ok := references[key]
+	if !ok {
+		return "", fmt.Errorf("missing %s relationship", key)
+	}
+
+	id := strings.TrimSpace(reference.Data.ID)
+	if id == "" {
+		return "", fmt.Errorf("missing %s relationship id", key)
+	}
+
+	return id, nil
 }
 
 func normalizeIAPDate(value, label string) (string, error) {

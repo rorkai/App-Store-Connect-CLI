@@ -57,6 +57,54 @@ func TestPrintMarkdown_InAppPurchaseImages(t *testing.T) {
 	}
 }
 
+func TestPrintTable_InAppPurchaseLocalization(t *testing.T) {
+	resp := &InAppPurchaseLocalizationResponse{
+		Data: Resource[InAppPurchaseLocalizationAttributes]{
+			ID: "loc-1",
+			Attributes: InAppPurchaseLocalizationAttributes{
+				Locale:      "en-US",
+				Name:        "Coins",
+				Description: "Premium coins",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Locale") || !strings.Contains(output, "Name") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "Coins") {
+		t.Fatalf("expected name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_InAppPurchaseLocalization(t *testing.T) {
+	resp := &InAppPurchaseLocalizationResponse{
+		Data: Resource[InAppPurchaseLocalizationAttributes]{
+			ID: "loc-1",
+			Attributes: InAppPurchaseLocalizationAttributes{
+				Locale:      "en-US",
+				Name:        "Coins",
+				Description: "Premium coins",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Locale | Name | Description |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "Premium coins") {
+		t.Fatalf("expected description in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_InAppPurchasePricePoints(t *testing.T) {
 	resp := &InAppPurchasePricePointsResponse{
 		Data: []Resource[InAppPurchasePricePointAttributes]{

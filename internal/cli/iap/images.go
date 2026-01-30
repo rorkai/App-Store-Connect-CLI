@@ -296,21 +296,49 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("iap images update: failed to fetch: %w", err)
 			}
-			if imageResp == nil || len(imageResp.Data.Attributes.UploadOperations) == 0 {
-				return fmt.Errorf("iap images update: no upload operations returned")
+			if imageResp == nil {
+				return fmt.Errorf("iap images update: empty image response")
 			}
 
-			if err := asc.UploadAssetFromFile(requestCtx, file, info.Size(), imageResp.Data.Attributes.UploadOperations); err != nil {
+			uploadOps := imageResp.Data.Attributes.UploadOperations
+			targetImageID := imageValue
+			createdReplacement := false
+			if len(uploadOps) == 0 {
+				iapID, err := relationshipResourceID(imageResp.Data.Relationships, "inAppPurchase")
+				if err != nil {
+					return fmt.Errorf("iap images update: %w", err)
+				}
+
+				created, err := client.CreateInAppPurchaseImage(requestCtx, iapID, info.Name(), info.Size())
+				if err != nil {
+					return fmt.Errorf("iap images update: failed to create: %w", err)
+				}
+				if created == nil || len(created.Data.Attributes.UploadOperations) == 0 {
+					return fmt.Errorf("iap images update: no upload operations returned")
+				}
+
+				uploadOps = created.Data.Attributes.UploadOperations
+				targetImageID = created.Data.ID
+				createdReplacement = true
+			}
+
+			if err := asc.UploadAssetFromFile(requestCtx, file, info.Size(), uploadOps); err != nil {
 				return fmt.Errorf("iap images update: upload failed: %w", err)
 			}
 
 			uploaded := true
-			updated, err := client.UpdateInAppPurchaseImage(requestCtx, imageValue, asc.InAppPurchaseImageUpdateAttributes{
+			updated, err := client.UpdateInAppPurchaseImage(requestCtx, targetImageID, asc.InAppPurchaseImageUpdateAttributes{
 				Uploaded:           &uploaded,
 				SourceFileChecksum: &checksum.Hash,
 			})
 			if err != nil {
 				return fmt.Errorf("iap images update: failed to commit upload: %w", err)
+			}
+
+			if createdReplacement {
+				if err := client.DeleteInAppPurchaseImage(requestCtx, imageValue); err != nil {
+					return fmt.Errorf("iap images update: failed to delete previous image: %w", err)
+				}
 			}
 
 			return printOutput(updated, *output, *pretty)
