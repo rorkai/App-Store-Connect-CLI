@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -71,6 +72,13 @@ Examples:
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("users visible-apps list: %w", err)
 			}
+			if idValue == "" && strings.TrimSpace(*next) != "" {
+				derivedID, err := extractUserIDFromNextURL(*next)
+				if err != nil {
+					return fmt.Errorf("users visible-apps list: %w", err)
+				}
+				idValue = derivedID
+			}
 
 			client, err := getASCClient()
 			if err != nil {
@@ -86,6 +94,10 @@ Examples:
 			}
 
 			if *paginate {
+				if idValue == "" {
+					fmt.Fprintln(os.Stderr, "Error: --id is required")
+					return flag.ErrHelp
+				}
 				paginateOpts := append(opts, asc.WithUserVisibleAppsLimit(200))
 				firstPage, err := client.GetUserVisibleApps(requestCtx, idValue, paginateOpts...)
 				if err != nil {
@@ -146,6 +158,13 @@ Examples:
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("users visible-apps get: %w", err)
 			}
+			if idValue == "" && strings.TrimSpace(*next) != "" {
+				derivedID, err := extractUserIDFromNextURL(*next)
+				if err != nil {
+					return fmt.Errorf("users visible-apps get: %w", err)
+				}
+				idValue = derivedID
+			}
 
 			client, err := getASCClient()
 			if err != nil {
@@ -161,6 +180,10 @@ Examples:
 			}
 
 			if *paginate {
+				if idValue == "" {
+					fmt.Fprintln(os.Stderr, "Error: --id is required")
+					return flag.ErrHelp
+				}
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 				firstPage, err := client.GetUserVisibleAppsRelationships(requestCtx, idValue, paginateOpts...)
 				if err != nil {
@@ -185,4 +208,19 @@ Examples:
 			return printOutput(resp, *output, *pretty)
 		},
 	}
+}
+
+func extractUserIDFromNextURL(nextURL string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(nextURL))
+	if err != nil {
+		return "", fmt.Errorf("invalid --next URL")
+	}
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	if len(parts) < 4 || parts[0] != "v1" || parts[1] != "users" || parts[3] != "visibleApps" {
+		return "", fmt.Errorf("invalid --next URL")
+	}
+	if strings.TrimSpace(parts[2]) == "" {
+		return "", fmt.Errorf("invalid --next URL")
+	}
+	return parts[2], nil
 }

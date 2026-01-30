@@ -532,7 +532,8 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*webhookID)
-			if trimmedID == "" && strings.TrimSpace(*next) == "" {
+			trimmedNext := strings.TrimSpace(*next)
+			if trimmedID == "" && trimmedNext == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
 				return flag.ErrHelp
 			}
@@ -541,6 +542,13 @@ Examples:
 			}
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("webhooks deliveries relationships: %w", err)
+			}
+			if trimmedID == "" && trimmedNext != "" {
+				derivedID, err := extractWebhookIDFromNextURL(trimmedNext)
+				if err != nil {
+					return fmt.Errorf("webhooks deliveries relationships: %w", err)
+				}
+				trimmedID = derivedID
 			}
 
 			client, err := getASCClient()

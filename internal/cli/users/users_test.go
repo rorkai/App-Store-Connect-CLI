@@ -205,6 +205,24 @@ func TestUsersVisibleAppsGetCommand_MissingID(t *testing.T) {
 	}
 }
 
+func TestExtractUserIDFromNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/users/user-123/visibleApps?cursor=abc"
+	got, err := extractUserIDFromNextURL(next)
+	if err != nil {
+		t.Fatalf("extractUserIDFromNextURL() error: %v", err)
+	}
+	if got != "user-123" {
+		t.Fatalf("expected user-123, got %q", got)
+	}
+}
+
+func TestExtractUserIDFromNextURL_Invalid(t *testing.T) {
+	_, err := extractUserIDFromNextURL("https://api.appstoreconnect.apple.com/v1/users")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
 func TestUsersCommands_DefaultOutputJSON(t *testing.T) {
 	commands := []*struct {
 		name string

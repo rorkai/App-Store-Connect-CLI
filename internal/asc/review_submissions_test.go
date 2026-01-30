@@ -348,6 +348,38 @@ func TestGetReviewSubmissionItemsRelationships(t *testing.T) {
 	}
 }
 
+func TestGetReviewSubmissionItems(t *testing.T) {
+	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
+		"data": [
+			{
+				"type": "reviewSubmissionItems",
+				"id": "item-456"
+			}
+		]
+	}`)
+
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/reviewSubmissions/submission-456/items" {
+			t.Fatalf("expected path /v1/reviewSubmissions/submission-456/items, got %s", req.URL.Path)
+		}
+	}, response)
+
+	resp, err := client.GetReviewSubmissionItems(context.Background(), "submission-456")
+	if err != nil {
+		t.Fatalf("GetReviewSubmissionItems() error: %v", err)
+	}
+
+	if len(resp.Data) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(resp.Data))
+	}
+	if resp.Data[0].ID != "item-456" {
+		t.Fatalf("expected item ID item-456, got %s", resp.Data[0].ID)
+	}
+}
+
 func TestReviewSubmissionValidationErrors(t *testing.T) {
 	client := newTestClient(t, nil, nil)
 

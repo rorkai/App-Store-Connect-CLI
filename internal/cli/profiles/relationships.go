@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -116,6 +117,13 @@ Examples:
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("profiles relationships certificates: %w", err)
 			}
+			if idValue == "" && strings.TrimSpace(*next) != "" {
+				derivedID, err := extractProfileIDFromNextURL(*next, "certificates")
+				if err != nil {
+					return fmt.Errorf("profiles relationships certificates: %w", err)
+				}
+				idValue = derivedID
+			}
 
 			client, err := getASCClient()
 			if err != nil {
@@ -131,6 +139,10 @@ Examples:
 			}
 
 			if *paginate {
+				if idValue == "" {
+					fmt.Fprintln(os.Stderr, "Error: --id is required")
+					return flag.ErrHelp
+				}
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 				firstPage, err := client.GetProfileCertificatesRelationships(requestCtx, idValue, paginateOpts...)
 				if err != nil {
@@ -191,6 +203,13 @@ Examples:
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("profiles relationships devices: %w", err)
 			}
+			if idValue == "" && strings.TrimSpace(*next) != "" {
+				derivedID, err := extractProfileIDFromNextURL(*next, "devices")
+				if err != nil {
+					return fmt.Errorf("profiles relationships devices: %w", err)
+				}
+				idValue = derivedID
+			}
 
 			client, err := getASCClient()
 			if err != nil {
@@ -206,6 +225,10 @@ Examples:
 			}
 
 			if *paginate {
+				if idValue == "" {
+					fmt.Fprintln(os.Stderr, "Error: --id is required")
+					return flag.ErrHelp
+				}
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 				firstPage, err := client.GetProfileDevicesRelationships(requestCtx, idValue, paginateOpts...)
 				if err != nil {
@@ -230,4 +253,19 @@ Examples:
 			return printOutput(resp, *output, *pretty)
 		},
 	}
+}
+
+func extractProfileIDFromNextURL(nextURL string, relationship string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(nextURL))
+	if err != nil {
+		return "", fmt.Errorf("invalid --next URL")
+	}
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	if len(parts) < 5 || parts[0] != "v1" || parts[1] != "profiles" || parts[3] != "relationships" || parts[4] != relationship {
+		return "", fmt.Errorf("invalid --next URL")
+	}
+	if strings.TrimSpace(parts[2]) == "" {
+		return "", fmt.Errorf("invalid --next URL")
+	}
+	return parts[2], nil
 }

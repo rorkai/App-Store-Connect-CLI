@@ -149,3 +149,21 @@ func TestProfilesRelationshipsDevicesCommand_MissingID(t *testing.T) {
 		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
 	}
 }
+
+func TestExtractProfileIDFromNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/profiles/profile-123/relationships/certificates?cursor=abc"
+	got, err := extractProfileIDFromNextURL(next, "certificates")
+	if err != nil {
+		t.Fatalf("extractProfileIDFromNextURL() error: %v", err)
+	}
+	if got != "profile-123" {
+		t.Fatalf("expected profile-123, got %q", got)
+	}
+}
+
+func TestExtractProfileIDFromNextURL_Invalid(t *testing.T) {
+	_, err := extractProfileIDFromNextURL("https://api.appstoreconnect.apple.com/v1/profiles", "certificates")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}

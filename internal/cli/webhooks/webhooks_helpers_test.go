@@ -14,3 +14,21 @@ func TestNormalizeWebhookEvents(t *testing.T) {
 		t.Fatalf("expected normalized event, got %q", values[0])
 	}
 }
+
+func TestExtractWebhookIDFromNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/webhooks/wh-123/relationships/deliveries?cursor=abc"
+	got, err := extractWebhookIDFromNextURL(next)
+	if err != nil {
+		t.Fatalf("extractWebhookIDFromNextURL() error: %v", err)
+	}
+	if got != "wh-123" {
+		t.Fatalf("expected webhook id wh-123, got %q", got)
+	}
+}
+
+func TestExtractWebhookIDFromNextURL_Invalid(t *testing.T) {
+	_, err := extractWebhookIDFromNextURL("https://api.appstoreconnect.apple.com/v1/webhooks")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
