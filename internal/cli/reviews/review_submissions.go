@@ -226,10 +226,8 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			attrs := asc.ReviewSubmissionUpdateAttributes{}
-			if visited["canceled"] {
-				value := *canceled
-				attrs.Canceled = &value
+			attrs := asc.ReviewSubmissionUpdateAttributes{
+				Canceled: canceled,
 			}
 
 			client, err := getASCClient()
