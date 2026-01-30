@@ -25,7 +25,7 @@ func TestNotifySlackValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "missing message",
-			args:    []string{"notify", "slack", "--webhook", "https://hooks.slack.com/test"},
+			args:    []string{"notify", "slack", "--webhook", "https://hooks.slack.com/services/test"},
 			wantErr: "--message is required",
 		},
 	}
@@ -33,6 +33,7 @@ func TestNotifySlackValidationErrors(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Setenv("ASC_SLACK_WEBHOOK", "")
+			t.Setenv("ASC_SLACK_WEBHOOK_ALLOW_LOCALHOST", "")
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
@@ -69,6 +70,7 @@ func TestNotifySlackSuccess(t *testing.T) {
 	defer server.Close()
 
 	t.Setenv("ASC_SLACK_WEBHOOK", server.URL)
+	t.Setenv("ASC_SLACK_WEBHOOK_ALLOW_LOCALHOST", "1")
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
