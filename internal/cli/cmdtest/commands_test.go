@@ -978,6 +978,191 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			args:    []string{"subscriptions", "availability", "set", "--id", "SUB_ID"},
 			wantErr: "--territory is required",
 		},
+		{
+			name:    "subscriptions localizations list missing subscription-id",
+			args:    []string{"subscriptions", "localizations", "list"},
+			wantErr: "--subscription-id is required",
+		},
+		{
+			name:    "subscriptions localizations create missing locale",
+			args:    []string{"subscriptions", "localizations", "create", "--subscription-id", "SUB_ID", "--name", "Pro"},
+			wantErr: "--locale is required",
+		},
+		{
+			name:    "subscriptions localizations update missing update flags",
+			args:    []string{"subscriptions", "localizations", "update", "--id", "LOC_ID"},
+			wantErr: "at least one update flag is required",
+		},
+		{
+			name:    "subscriptions localizations delete missing confirm",
+			args:    []string{"subscriptions", "localizations", "delete", "--id", "LOC_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "subscriptions images list missing subscription-id",
+			args:    []string{"subscriptions", "images", "list"},
+			wantErr: "--subscription-id is required",
+		},
+		{
+			name:    "subscriptions images create missing file",
+			args:    []string{"subscriptions", "images", "create", "--subscription-id", "SUB_ID"},
+			wantErr: "--file is required",
+		},
+		{
+			name:    "subscriptions images update missing update flags",
+			args:    []string{"subscriptions", "images", "update", "--id", "IMAGE_ID"},
+			wantErr: "at least one update flag is required",
+		},
+		{
+			name:    "subscriptions images delete missing confirm",
+			args:    []string{"subscriptions", "images", "delete", "--id", "IMAGE_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "subscriptions introductory-offers list missing subscription-id",
+			args:    []string{"subscriptions", "introductory-offers", "list"},
+			wantErr: "--subscription-id is required",
+		},
+		{
+			name:    "subscriptions introductory-offers create missing offer-duration",
+			args:    []string{"subscriptions", "introductory-offers", "create", "--subscription-id", "SUB_ID", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1"},
+			wantErr: "--offer-duration is required",
+		},
+		{
+			name:    "subscriptions introductory-offers update missing update flags",
+			args:    []string{"subscriptions", "introductory-offers", "update", "--id", "OFFER_ID"},
+			wantErr: "at least one update flag is required",
+		},
+		{
+			name:    "subscriptions introductory-offers delete missing confirm",
+			args:    []string{"subscriptions", "introductory-offers", "delete", "--id", "OFFER_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "subscriptions promotional-offers list missing subscription-id",
+			args:    []string{"subscriptions", "promotional-offers", "list"},
+			wantErr: "--subscription-id is required",
+		},
+		{
+			name:    "subscriptions promotional-offers create missing prices",
+			args:    []string{"subscriptions", "promotional-offers", "create", "--subscription-id", "SUB_ID", "--offer-code", "SPRING", "--name", "Spring", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1"},
+			wantErr: "--prices is required",
+		},
+		{
+			name:    "subscriptions promotional-offers update missing prices",
+			args:    []string{"subscriptions", "promotional-offers", "update", "--id", "OFFER_ID"},
+			wantErr: "--prices is required",
+		},
+		{
+			name:    "subscriptions promotional-offers delete missing confirm",
+			args:    []string{"subscriptions", "promotional-offers", "delete", "--id", "OFFER_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "subscriptions promotional-offers prices missing id",
+			args:    []string{"subscriptions", "promotional-offers", "prices"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "subscriptions offer-codes list missing subscription-id",
+			args:    []string{"subscriptions", "offer-codes", "list"},
+			wantErr: "--subscription-id is required",
+		},
+		{
+			name:    "subscriptions offer-codes create missing name",
+			args:    []string{"subscriptions", "offer-codes", "create", "--subscription-id", "SUB_ID", "--offer-eligibility", "STACK_WITH_INTRO_OFFERS", "--customer-eligibilities", "NEW", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1", "--prices", "PRICE_ID"},
+			wantErr: "--name is required",
+		},
+		{
+			name:    "subscriptions offer-codes create missing prices",
+			args:    []string{"subscriptions", "offer-codes", "create", "--subscription-id", "SUB_ID", "--name", "Spring", "--offer-eligibility", "STACK_WITH_INTRO_OFFERS", "--customer-eligibilities", "NEW", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1"},
+			wantErr: "--prices is required",
+		},
+		{
+			name:    "subscriptions offer-codes update missing active",
+			args:    []string{"subscriptions", "offer-codes", "update", "--id", "OFFER_ID"},
+			wantErr: "--active is required",
+		},
+		{
+			name:    "subscriptions offer-codes custom-codes missing offer-code-id",
+			args:    []string{"subscriptions", "offer-codes", "custom-codes"},
+			wantErr: "--offer-code-id is required",
+		},
+		{
+			name:    "subscriptions offer-codes one-time-codes missing offer-code-id",
+			args:    []string{"subscriptions", "offer-codes", "one-time-codes"},
+			wantErr: "--offer-code-id is required",
+		},
+		{
+			name:    "subscriptions offer-codes prices missing offer-code-id",
+			args:    []string{"subscriptions", "offer-codes", "prices"},
+			wantErr: "--offer-code-id is required",
+		},
+		{
+			name:    "subscriptions price-points list missing subscription-id",
+			args:    []string{"subscriptions", "price-points", "list"},
+			wantErr: "--subscription-id is required",
+		},
+		{
+			name:    "subscriptions price-points equalizations missing id",
+			args:    []string{"subscriptions", "price-points", "equalizations"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "subscriptions submit missing subscription-id",
+			args:    []string{"subscriptions", "submit", "--confirm"},
+			wantErr: "--subscription-id is required",
+		},
+		{
+			name:    "subscriptions submit missing confirm",
+			args:    []string{"subscriptions", "submit", "--subscription-id", "SUB_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "subscriptions review-screenshots create missing file",
+			args:    []string{"subscriptions", "review-screenshots", "create", "--subscription-id", "SUB_ID"},
+			wantErr: "--file is required",
+		},
+		{
+			name:    "subscriptions review-screenshots update missing update flags",
+			args:    []string{"subscriptions", "review-screenshots", "update", "--id", "SHOT_ID"},
+			wantErr: "at least one update flag is required",
+		},
+		{
+			name:    "subscriptions review-screenshots delete missing confirm",
+			args:    []string{"subscriptions", "review-screenshots", "delete", "--id", "SHOT_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "subscriptions groups localizations list missing group-id",
+			args:    []string{"subscriptions", "groups", "localizations", "list"},
+			wantErr: "--group-id is required",
+		},
+		{
+			name:    "subscriptions groups localizations create missing locale",
+			args:    []string{"subscriptions", "groups", "localizations", "create", "--group-id", "GROUP_ID", "--name", "Premium"},
+			wantErr: "--locale is required",
+		},
+		{
+			name:    "subscriptions groups localizations update missing update flags",
+			args:    []string{"subscriptions", "groups", "localizations", "update", "--id", "LOC_ID"},
+			wantErr: "at least one update flag is required",
+		},
+		{
+			name:    "subscriptions groups localizations delete missing confirm",
+			args:    []string{"subscriptions", "groups", "localizations", "delete", "--id", "LOC_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "subscriptions groups submit missing group-id",
+			args:    []string{"subscriptions", "groups", "submit", "--confirm"},
+			wantErr: "--group-id is required",
+		},
+		{
+			name:    "subscriptions groups submit missing confirm",
+			args:    []string{"subscriptions", "groups", "submit", "--group-id", "GROUP_ID"},
+			wantErr: "--confirm is required",
+		},
 	}
 
 	for _, test := range tests {

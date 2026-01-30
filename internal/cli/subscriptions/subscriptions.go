@@ -40,6 +40,14 @@ Examples:
 			SubscriptionsDeleteCommand(),
 			SubscriptionsPricesCommand(),
 			SubscriptionsAvailabilityCommand(),
+			SubscriptionsLocalizationsCommand(),
+			SubscriptionsImagesCommand(),
+			SubscriptionsIntroductoryOffersCommand(),
+			SubscriptionsPromotionalOffersCommand(),
+			SubscriptionsOfferCodesCommand(),
+			SubscriptionsPricePointsCommand(),
+			SubscriptionsReviewScreenshotsCommand(),
+			SubscriptionsSubmitCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -70,6 +78,8 @@ Examples:
 			SubscriptionsGroupsGetCommand(),
 			SubscriptionsGroupsUpdateCommand(),
 			SubscriptionsGroupsDeleteCommand(),
+			SubscriptionsGroupsLocalizationsCommand(),
+			SubscriptionsGroupsSubmitCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
