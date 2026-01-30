@@ -45,7 +45,8 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("testflight beta-testers metrics: --limit must be between 1 and 200")
+				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
+				return flag.ErrHelp
 			}
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight beta-testers metrics: %w", err)
@@ -61,7 +62,8 @@ Examples:
 
 			periodValue, err := normalizeBetaTesterUsagePeriod(*period)
 			if err != nil {
-				return fmt.Errorf("testflight beta-testers metrics: %w", err)
+				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
+				return flag.ErrHelp
 			}
 
 			resolvedAppID := resolveAppID(*appID)

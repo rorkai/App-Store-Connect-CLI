@@ -58,7 +58,8 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("builds metrics beta-usages: --limit must be between 1 and 200")
+				fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
+				return flag.ErrHelp
 			}
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("builds metrics beta-usages: %w", err)
