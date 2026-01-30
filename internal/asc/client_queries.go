@@ -60,7 +60,6 @@ type appClipsQuery struct {
 type appClipDefaultExperiencesQuery struct {
 	listQuery
 	releaseWithVersionExists *bool
-	include                  []string
 }
 
 type appClipDefaultExperienceQuery struct {
@@ -524,7 +523,6 @@ func buildAppClipDefaultExperiencesQuery(query *appClipDefaultExperiencesQuery) 
 	if query.releaseWithVersionExists != nil {
 		values.Set("exists[releaseWithAppStoreVersion]", strconv.FormatBool(*query.releaseWithVersionExists))
 	}
-	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
