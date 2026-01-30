@@ -191,6 +191,65 @@ Examples:
 	}
 }
 
+// ReviewSubmissionsUpdateCommand returns the review submissions update subcommand.
+func ReviewSubmissionsUpdateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("submissions-update", flag.ExitOnError)
+
+	submissionID := fs.String("id", "", "Review submission ID (required)")
+	canceled := fs.Bool("canceled", false, "Cancel submission (true/false)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "submissions-update",
+		ShortUsage: "asc review submissions-update --id \"SUBMISSION_ID\" --canceled true [flags]",
+		ShortHelp:  "Update a review submission.",
+		LongHelp: `Update a review submission.
+
+Examples:
+  asc review submissions-update --id "SUBMISSION_ID" --canceled true`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			trimmedID := strings.TrimSpace(*submissionID)
+			if trimmedID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			visited := map[string]bool{}
+			fs.Visit(func(f *flag.Flag) {
+				visited[f.Name] = true
+			})
+			if !visited["canceled"] {
+				fmt.Fprintln(os.Stderr, "Error: --canceled is required")
+				return flag.ErrHelp
+			}
+
+			attrs := asc.ReviewSubmissionUpdateAttributes{}
+			if visited["canceled"] {
+				value := *canceled
+				attrs.Canceled = &value
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("review submissions-update: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.UpdateReviewSubmission(requestCtx, trimmedID, attrs)
+			if err != nil {
+				return fmt.Errorf("review submissions-update: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
 // ReviewSubmissionsSubmitCommand returns the review submissions submit subcommand.
 func ReviewSubmissionsSubmitCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submissions-submit", flag.ExitOnError)
@@ -231,6 +290,81 @@ Examples:
 			resp, err := client.SubmitReviewSubmission(requestCtx, strings.TrimSpace(*submissionID))
 			if err != nil {
 				return fmt.Errorf("review submissions-submit: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// ReviewSubmissionsItemsIDsCommand returns the review submission item IDs subcommand.
+func ReviewSubmissionsItemsIDsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("submissions-items-ids", flag.ExitOnError)
+
+	submissionID := fs.String("id", "", "Review submission ID (required)")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Next page URL from a previous response")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "submissions-items-ids",
+		ShortUsage: "asc review submissions-items-ids --id \"SUBMISSION_ID\" [flags]",
+		ShortHelp:  "List review submission item IDs for a submission.",
+		LongHelp: `List review submission item IDs for a submission.
+
+Examples:
+  asc review submissions-items-ids --id "SUBMISSION_ID"
+  asc review submissions-items-ids --id "SUBMISSION_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			trimmedID := strings.TrimSpace(*submissionID)
+			if trimmedID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("review submissions-items-ids: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("review submissions-items-ids: %w", err)
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("review submissions-items-ids: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.LinkagesOption{
+				asc.WithLinkagesLimit(*limit),
+				asc.WithLinkagesNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				firstPage, err := client.GetReviewSubmissionItemsRelationships(requestCtx, trimmedID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("review submissions-items-ids: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetReviewSubmissionItemsRelationships(ctx, trimmedID, asc.WithLinkagesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("review submissions-items-ids: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetReviewSubmissionItemsRelationships(requestCtx, trimmedID, opts...)
+			if err != nil {
+				return fmt.Errorf("review submissions-items-ids: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)

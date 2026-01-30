@@ -138,6 +138,39 @@ func TestSubmitReviewSubmission(t *testing.T) {
 	}
 }
 
+func TestGetReviewSubmissionItem(t *testing.T) {
+	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
+		"data": {
+			"type": "reviewSubmissionItems",
+			"id": "item-123",
+			"attributes": {
+				"state": "READY_FOR_REVIEW"
+			}
+		}
+	}`)
+
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/reviewSubmissionItems/item-123" {
+			t.Fatalf("expected path /v1/reviewSubmissionItems/item-123, got %s", req.URL.Path)
+		}
+	}, response)
+
+	resp, err := client.GetReviewSubmissionItem(context.Background(), "item-123")
+	if err != nil {
+		t.Fatalf("GetReviewSubmissionItem() error: %v", err)
+	}
+
+	if resp.Data.ID != "item-123" {
+		t.Fatalf("expected ID item-123, got %s", resp.Data.ID)
+	}
+	if resp.Data.Attributes.State != "READY_FOR_REVIEW" {
+		t.Fatalf("expected state READY_FOR_REVIEW, got %s", resp.Data.Attributes.State)
+	}
+}
+
 func TestCreateReviewSubmissionItem(t *testing.T) {
 	response := reviewSubmissionsJSONResponse(http.StatusCreated, `{
 		"data": {
@@ -211,6 +244,57 @@ func TestCreateReviewSubmissionItem(t *testing.T) {
 	}
 }
 
+func TestUpdateReviewSubmissionItem(t *testing.T) {
+	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
+		"data": {
+			"type": "reviewSubmissionItems",
+			"id": "item-123",
+			"attributes": {
+				"state": "READY_FOR_REVIEW"
+			}
+		}
+	}`)
+
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/reviewSubmissionItems/item-123" {
+			t.Fatalf("expected path /v1/reviewSubmissionItems/item-123, got %s", req.URL.Path)
+		}
+
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("failed to read request body: %v", err)
+		}
+
+		var payload ReviewSubmissionItemUpdateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("failed to unmarshal request body: %v", err)
+		}
+
+		if payload.Data.Type != ResourceTypeReviewSubmissionItems {
+			t.Fatalf("expected type reviewSubmissionItems, got %s", payload.Data.Type)
+		}
+		if payload.Data.ID != "item-123" {
+			t.Fatalf("expected item ID item-123, got %s", payload.Data.ID)
+		}
+		if payload.Data.Attributes.State == nil || *payload.Data.Attributes.State != "READY_FOR_REVIEW" {
+			t.Fatalf("expected state READY_FOR_REVIEW, got %v", payload.Data.Attributes.State)
+		}
+	}, response)
+
+	state := "READY_FOR_REVIEW"
+	resp, err := client.UpdateReviewSubmissionItem(context.Background(), "item-123", ReviewSubmissionItemUpdateAttributes{State: &state})
+	if err != nil {
+		t.Fatalf("UpdateReviewSubmissionItem() error: %v", err)
+	}
+
+	if resp.Data.ID != "item-123" {
+		t.Fatalf("expected ID item-123, got %s", resp.Data.ID)
+	}
+}
+
 func TestDeleteReviewSubmissionItem(t *testing.T) {
 	response := &http.Response{
 		StatusCode: http.StatusNoContent,
@@ -229,6 +313,38 @@ func TestDeleteReviewSubmissionItem(t *testing.T) {
 
 	if err := client.DeleteReviewSubmissionItem(context.Background(), "item-123"); err != nil {
 		t.Fatalf("DeleteReviewSubmissionItem() error: %v", err)
+	}
+}
+
+func TestGetReviewSubmissionItemsRelationships(t *testing.T) {
+	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
+		"data": [
+			{
+				"type": "reviewSubmissionItems",
+				"id": "item-123"
+			}
+		]
+	}`)
+
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/reviewSubmissions/submission-123/relationships/items" {
+			t.Fatalf("expected path /v1/reviewSubmissions/submission-123/relationships/items, got %s", req.URL.Path)
+		}
+	}, response)
+
+	resp, err := client.GetReviewSubmissionItemsRelationships(context.Background(), "submission-123")
+	if err != nil {
+		t.Fatalf("GetReviewSubmissionItemsRelationships() error: %v", err)
+	}
+
+	if len(resp.Data) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(resp.Data))
+	}
+	if resp.Data[0].ID != "item-123" {
+		t.Fatalf("expected item ID item-123, got %s", resp.Data[0].ID)
 	}
 }
 
@@ -251,6 +367,10 @@ func TestReviewSubmissionValidationErrors(t *testing.T) {
 		t.Fatalf("expected submissionID required error, got nil")
 	}
 
+	if _, err := client.GetReviewSubmissionItem(context.Background(), ""); err == nil {
+		t.Fatalf("expected itemID required error, got nil")
+	}
+
 	if _, err := client.CreateReviewSubmissionItem(context.Background(), "", ReviewSubmissionItemTypeAppStoreVersion, "item-1"); err == nil {
 		t.Fatalf("expected submissionID required error, got nil")
 	}
@@ -265,6 +385,14 @@ func TestReviewSubmissionValidationErrors(t *testing.T) {
 
 	if _, err := client.CreateReviewSubmissionItem(context.Background(), "submission-123", "badType", "item-1"); err == nil {
 		t.Fatalf("expected unsupported itemType error, got nil")
+	}
+
+	if _, err := client.UpdateReviewSubmissionItem(context.Background(), "", ReviewSubmissionItemUpdateAttributes{}); err == nil {
+		t.Fatalf("expected itemID required error, got nil")
+	}
+
+	if _, err := client.GetReviewSubmissionItemsRelationships(context.Background(), ""); err == nil {
+		t.Fatalf("expected submissionID required error, got nil")
 	}
 
 	if err := client.DeleteReviewSubmissionItem(context.Background(), ""); err == nil {

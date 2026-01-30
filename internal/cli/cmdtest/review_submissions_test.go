@@ -42,6 +42,21 @@ func TestReviewCommandSubmissionsValidationErrors(t *testing.T) {
 			args:    []string{"review", "submissions-submit", "--id", "SUBMISSION_123"},
 			wantErr: "--confirm is required to submit",
 		},
+		{
+			name:    "review submissions-update missing id",
+			args:    []string{"review", "submissions-update", "--canceled", "true"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "review submissions-update missing canceled",
+			args:    []string{"review", "submissions-update", "--id", "SUBMISSION_123"},
+			wantErr: "--canceled is required",
+		},
+		{
+			name:    "review submissions-items-ids missing id",
+			args:    []string{"review", "submissions-items-ids"},
+			wantErr: "--id is required",
+		},
 	}
 
 	for _, test := range tests {
@@ -96,6 +111,21 @@ func TestReviewCommandItemsValidationErrors(t *testing.T) {
 			wantErr: "--item-id is required",
 		},
 		{
+			name:    "review items-get missing id",
+			args:    []string{"review", "items-get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "review items-update missing id",
+			args:    []string{"review", "items-update", "--state", "READY_FOR_REVIEW"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "review items-update missing state",
+			args:    []string{"review", "items-update", "--id", "ITEM_ID"},
+			wantErr: "--state is required",
+		},
+		{
 			name:    "review items-remove missing id",
 			args:    []string{"review", "items-remove", "--confirm"},
 			wantErr: "--id is required",
@@ -137,6 +167,20 @@ func TestReviewCommandItemsInvalidItemType(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	if err := root.Parse([]string{"review", "items-add", "--submission", "SUBMISSION_ID", "--item-type", "nope", "--item-id", "ITEM_ID"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	err := root.Run(context.Background())
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	t.Logf("got expected error: %v", err)
+}
+
+func TestReviewCommandItemsInvalidState(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	if err := root.Parse([]string{"review", "items-update", "--id", "ITEM_ID", "--state", "nope"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	err := root.Run(context.Background())

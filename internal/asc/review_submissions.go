@@ -66,6 +66,9 @@ type ReviewSubmissionResponse struct {
 	Included json.RawMessage          `json:"included,omitempty"`
 }
 
+// ReviewSubmissionItemsLinkagesResponse is the response from review submission item linkage endpoints.
+type ReviewSubmissionItemsLinkagesResponse = LinkagesResponse
+
 // ReviewSubmissionCreateAttributes describes attributes for creating a review submission.
 type ReviewSubmissionCreateAttributes struct {
 	Platform Platform `json:"platform"`
@@ -159,6 +162,43 @@ func (c *Client) GetReviewSubmission(ctx context.Context, submissionID string) (
 	var response ReviewSubmissionResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse review submission response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetReviewSubmissionItemsRelationships retrieves item linkages for a review submission.
+func (c *Client) GetReviewSubmissionItemsRelationships(ctx context.Context, submissionID string, opts ...LinkagesOption) (*ReviewSubmissionItemsLinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	var path string
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("reviewSubmissionItemsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else {
+		submissionID = strings.TrimSpace(submissionID)
+		if submissionID == "" {
+			return nil, fmt.Errorf("submissionID is required")
+		}
+		path = fmt.Sprintf("/v1/reviewSubmissions/%s/relationships/items", submissionID)
+		if queryString := buildLinkagesQuery(query); queryString != "" {
+			path += "?" + queryString
+		}
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response ReviewSubmissionItemsLinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse review submission items relationships response: %w", err)
 	}
 
 	return &response, nil

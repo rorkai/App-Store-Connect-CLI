@@ -12,6 +12,49 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
+// ReviewItemsGetCommand returns the review items get subcommand.
+func ReviewItemsGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("items-get", flag.ExitOnError)
+
+	itemID := fs.String("id", "", "Review submission item ID (required)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "items-get",
+		ShortUsage: "asc review items-get --id \"ITEM_ID\" [flags]",
+		ShortHelp:  "Get a review submission item by ID.",
+		LongHelp: `Get a review submission item by ID.
+
+Examples:
+  asc review items-get --id "ITEM_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			trimmedID := strings.TrimSpace(*itemID)
+			if trimmedID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("review items-get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetReviewSubmissionItem(requestCtx, trimmedID)
+			if err != nil {
+				return fmt.Errorf("review items-get: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
 // ReviewItemsListCommand returns the review items list subcommand.
 func ReviewItemsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("items-list", flag.ExitOnError)
@@ -143,6 +186,62 @@ Examples:
 	}
 }
 
+// ReviewItemsUpdateCommand returns the review items update subcommand.
+func ReviewItemsUpdateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("items-update", flag.ExitOnError)
+
+	itemID := fs.String("id", "", "Review submission item ID (required)")
+	state := fs.String("state", "", "Item state: READY_FOR_REVIEW, ACCEPTED, APPROVED, REJECTED, REMOVED (required)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "items-update",
+		ShortUsage: "asc review items-update --id \"ITEM_ID\" --state READY_FOR_REVIEW [flags]",
+		ShortHelp:  "Update a review submission item.",
+		LongHelp: `Update a review submission item.
+
+Examples:
+  asc review items-update --id "ITEM_ID" --state READY_FOR_REVIEW`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			trimmedID := strings.TrimSpace(*itemID)
+			if trimmedID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+			if strings.TrimSpace(*state) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --state is required")
+				return flag.ErrHelp
+			}
+
+			normalizedState, err := normalizeReviewSubmissionItemState(*state)
+			if err != nil {
+				return fmt.Errorf("review items-update: %w", err)
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("review items-update: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			attrs := asc.ReviewSubmissionItemUpdateAttributes{
+				State: &normalizedState,
+			}
+			resp, err := client.UpdateReviewSubmissionItem(requestCtx, trimmedID, attrs)
+			if err != nil {
+				return fmt.Errorf("review items-update: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
 // ReviewItemsRemoveCommand returns the review items remove subcommand.
 func ReviewItemsRemoveCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("items-remove", flag.ExitOnError)
@@ -215,10 +314,39 @@ func reviewSubmissionItemTypeList() []string {
 	}
 }
 
+func normalizeReviewSubmissionItemState(value string) (string, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	if normalized == "" {
+		return "", fmt.Errorf("--state is required")
+	}
+	if _, ok := reviewSubmissionItemStates[normalized]; ok {
+		return normalized, nil
+	}
+	return "", fmt.Errorf("--state must be one of: %s", strings.Join(reviewSubmissionItemStateList(), ", "))
+}
+
+func reviewSubmissionItemStateList() []string {
+	return []string{
+		"READY_FOR_REVIEW",
+		"ACCEPTED",
+		"APPROVED",
+		"REJECTED",
+		"REMOVED",
+	}
+}
+
 var reviewSubmissionItemTypes = map[string]asc.ReviewSubmissionItemType{
 	"appStoreVersions":                    asc.ReviewSubmissionItemTypeAppStoreVersion,
 	"appCustomProductPages":               asc.ReviewSubmissionItemTypeAppCustomProductPage,
 	"appEvents":                           asc.ReviewSubmissionItemTypeAppEvent,
 	"appStoreVersionExperiments":          asc.ReviewSubmissionItemTypeAppStoreVersionExperiment,
 	"appStoreVersionExperimentTreatments": asc.ReviewSubmissionItemTypeAppStoreVersionExperimentTreatment,
+}
+
+var reviewSubmissionItemStates = map[string]struct{}{
+	"READY_FOR_REVIEW": {},
+	"ACCEPTED":         {},
+	"APPROVED":         {},
+	"REJECTED":         {},
+	"REMOVED":          {},
 }

@@ -1140,6 +1140,126 @@ func TestPrintMarkdown_Linkages(t *testing.T) {
 	}
 }
 
+func TestPrintTable_ReviewSubmissions(t *testing.T) {
+	resp := &ReviewSubmissionsResponse{
+		Data: []ReviewSubmissionResource{
+			{
+				ID: "submission-1",
+				Attributes: ReviewSubmissionAttributes{
+					SubmissionState: ReviewSubmissionStateReadyForReview,
+					Platform:        PlatformIOS,
+					SubmittedDate:   "2026-01-20T00:00:00Z",
+				},
+				Relationships: &ReviewSubmissionRelationships{
+					App: &Relationship{Data: ResourceData{Type: ResourceTypeApps, ID: "app-1"}},
+					Items: &RelationshipList{Data: []ResourceData{
+						{Type: ResourceTypeReviewSubmissionItems, ID: "item-1"},
+					}},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "State") {
+		t.Fatalf("expected review submission headers, got: %s", output)
+	}
+	if !strings.Contains(output, "submission-1") || !strings.Contains(output, "READY_FOR_REVIEW") {
+		t.Fatalf("expected review submission values, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_ReviewSubmissions(t *testing.T) {
+	resp := &ReviewSubmissionsResponse{
+		Data: []ReviewSubmissionResource{
+			{
+				ID: "submission-1",
+				Attributes: ReviewSubmissionAttributes{
+					SubmissionState: ReviewSubmissionStateReadyForReview,
+					Platform:        PlatformIOS,
+					SubmittedDate:   "2026-01-20T00:00:00Z",
+				},
+				Relationships: &ReviewSubmissionRelationships{
+					App: &Relationship{Data: ResourceData{Type: ResourceTypeApps, ID: "app-1"}},
+					Items: &RelationshipList{Data: []ResourceData{
+						{Type: ResourceTypeReviewSubmissionItems, ID: "item-1"},
+					}},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | State |") {
+		t.Fatalf("expected review submission markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "submission-1") || !strings.Contains(output, "READY_FOR_REVIEW") {
+		t.Fatalf("expected review submission values, got: %s", output)
+	}
+}
+
+func TestPrintTable_ReviewSubmissionItems(t *testing.T) {
+	resp := &ReviewSubmissionItemsResponse{
+		Data: []ReviewSubmissionItemResource{
+			{
+				ID: "item-1",
+				Attributes: ReviewSubmissionItemAttributes{
+					State: "READY_FOR_REVIEW",
+				},
+				Relationships: &ReviewSubmissionItemRelationships{
+					ReviewSubmission: &Relationship{Data: ResourceData{Type: ResourceTypeReviewSubmissions, ID: "submission-1"}},
+					AppStoreVersion:  &Relationship{Data: ResourceData{Type: ResourceTypeAppStoreVersions, ID: "version-1"}},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Item Type") {
+		t.Fatalf("expected review item headers, got: %s", output)
+	}
+	if !strings.Contains(output, "item-1") || !strings.Contains(output, "appStoreVersions") {
+		t.Fatalf("expected review item values, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_ReviewSubmissionItems(t *testing.T) {
+	resp := &ReviewSubmissionItemsResponse{
+		Data: []ReviewSubmissionItemResource{
+			{
+				ID: "item-1",
+				Attributes: ReviewSubmissionItemAttributes{
+					State: "READY_FOR_REVIEW",
+				},
+				Relationships: &ReviewSubmissionItemRelationships{
+					ReviewSubmission: &Relationship{Data: ResourceData{Type: ResourceTypeReviewSubmissions, ID: "submission-1"}},
+					AppStoreVersion:  &Relationship{Data: ResourceData{Type: ResourceTypeAppStoreVersions, ID: "version-1"}},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | State |") {
+		t.Fatalf("expected review item markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "item-1") || !strings.Contains(output, "appStoreVersions") {
+		t.Fatalf("expected review item values, got: %s", output)
+	}
+}
+
 func TestPrintTable_BetaGroups(t *testing.T) {
 	resp := &BetaGroupsResponse{
 		Data: []Resource[BetaGroupAttributes]{
