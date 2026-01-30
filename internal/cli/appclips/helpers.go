@@ -79,6 +79,13 @@ var appClipLanguages = map[string]asc.AppClipAdvancedExperienceLanguage{
 	string(asc.AppClipAdvancedExperienceLanguageZH): asc.AppClipAdvancedExperienceLanguageZH,
 }
 
+var appClipDefaultExperienceIncludeAliases = map[string]string{
+	"app-clip":                         "appClip",
+	"release-with-app-store-version":   "releaseWithAppStoreVersion",
+	"default-experience-localizations": "appClipDefaultExperienceLocalizations",
+	"review-detail":                    "appClipAppStoreReviewDetail",
+}
+
 func normalizeAppClipAction(value string) (asc.AppClipAction, error) {
 	trimmed := strings.ToUpper(strings.TrimSpace(value))
 	if trimmed == "" {
@@ -126,6 +133,44 @@ func normalizeAppClipLanguage(value string) (asc.AppClipAdvancedExperienceLangua
 		return "", fmt.Errorf("invalid default language %q", value)
 	}
 	return lang, nil
+}
+
+func normalizeAppClipDefaultExperienceInclude(value string) ([]string, error) {
+	include := splitCSV(value)
+	if len(include) == 0 {
+		return nil, nil
+	}
+	allowed := map[string]struct{}{}
+	for _, option := range appClipDefaultExperienceIncludeList() {
+		allowed[option] = struct{}{}
+	}
+
+	normalized := make([]string, 0, len(include))
+	for _, option := range include {
+		trimmed := strings.TrimSpace(option)
+		if trimmed == "" {
+			continue
+		}
+		if mapped, ok := appClipDefaultExperienceIncludeAliases[trimmed]; ok {
+			normalized = append(normalized, mapped)
+			continue
+		}
+		if _, ok := allowed[trimmed]; !ok {
+			return nil, fmt.Errorf("--include must be one of: %s", strings.Join(appClipDefaultExperienceIncludeList(), ", "))
+		}
+		normalized = append(normalized, trimmed)
+	}
+
+	return normalized, nil
+}
+
+func appClipDefaultExperienceIncludeList() []string {
+	return []string{
+		"appClip",
+		"releaseWithAppStoreVersion",
+		"appClipDefaultExperienceLocalizations",
+		"appClipAppStoreReviewDetail",
+	}
 }
 
 func resolveAppClipID(ctx context.Context, client *asc.Client, appID string, appClipID string, bundleID string) (string, error) {

@@ -135,6 +135,12 @@ func PrintMarkdown(data interface{}) error {
 		return printNominationsMarkdown(&NominationsResponse{Data: []Resource[NominationAttributes]{v.Data}})
 	case *LinkagesResponse:
 		return printLinkagesMarkdown(v)
+	case *AppClipDefaultExperienceReviewDetailLinkageResponse:
+		return printLinkagesMarkdown(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse:
+		return printLinkagesMarkdown(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse:
+		return printLinkagesMarkdown(&LinkagesResponse{Data: []ResourceData{v.Data}})
 	case *BundleIDsResponse:
 		return printBundleIDsMarkdown(v)
 	case *BundleIDResponse:
@@ -773,6 +779,12 @@ func PrintTable(data interface{}) error {
 		return printNominationsTable(&NominationsResponse{Data: []Resource[NominationAttributes]{v.Data}})
 	case *LinkagesResponse:
 		return printLinkagesTable(v)
+	case *AppClipDefaultExperienceReviewDetailLinkageResponse:
+		return printLinkagesTable(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse:
+		return printLinkagesTable(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse:
+		return printLinkagesTable(&LinkagesResponse{Data: []ResourceData{v.Data}})
 	case *BundleIDsResponse:
 		return printBundleIDsTable(v)
 	case *BundleIDResponse:

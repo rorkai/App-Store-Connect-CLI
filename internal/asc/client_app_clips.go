@@ -492,8 +492,10 @@ type (
 	AppClipDefaultExperienceResponse              = SingleResponse[AppClipDefaultExperienceAttributes]
 	AppClipDefaultExperienceLocalizationsResponse = Response[AppClipDefaultExperienceLocalizationAttributes]
 	AppClipDefaultExperienceLocalizationResponse  = SingleResponse[AppClipDefaultExperienceLocalizationAttributes]
+	AppClipDefaultExperiencesLinkagesResponse     = LinkagesResponse
 	AppClipAdvancedExperiencesResponse            = Response[AppClipAdvancedExperienceAttributes]
 	AppClipAdvancedExperienceResponse             = SingleResponse[AppClipAdvancedExperienceAttributes]
+	AppClipAdvancedExperiencesLinkagesResponse    = LinkagesResponse
 	AppClipAdvancedExperienceImageResponse        = SingleResponse[AppClipAdvancedExperienceImageAttributes]
 	AppClipHeaderImageResponse                    = SingleResponse[AppClipHeaderImageAttributes]
 	AppClipAppStoreReviewDetailResponse           = SingleResponse[AppClipAppStoreReviewDetailAttributes]
@@ -501,6 +503,24 @@ type (
 	BetaAppClipInvocationLocalizationsResponse    = Response[BetaAppClipInvocationLocalizationAttributes]
 	BetaAppClipInvocationLocalizationResponse     = SingleResponse[BetaAppClipInvocationLocalizationAttributes]
 )
+
+// AppClipDefaultExperienceReviewDetailLinkageResponse is the response for review detail relationships.
+type AppClipDefaultExperienceReviewDetailLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links,omitempty"`
+}
+
+// AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse is the response for release relationship.
+type AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links,omitempty"`
+}
+
+// AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse is the response for header image relationships.
+type AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links,omitempty"`
+}
 
 // AppClipAdvancedExperienceImageUploadResult represents upload results.
 type AppClipAdvancedExperienceImageUploadResult struct {
@@ -655,20 +675,124 @@ func (c *Client) GetAppClipDefaultExperiences(ctx context.Context, appClipID str
 	return &response, nil
 }
 
+// GetAppClipDefaultExperiencesRelationships retrieves default experience linkages for an App Clip.
+func (c *Client) GetAppClipDefaultExperiencesRelationships(ctx context.Context, appClipID string, opts ...LinkagesOption) (*AppClipDefaultExperiencesLinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	appClipID = strings.TrimSpace(appClipID)
+	path := fmt.Sprintf("/v1/appClips/%s/relationships/appClipDefaultExperiences", appClipID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appClipDefaultExperiencesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppClipDefaultExperiencesLinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppClipAdvancedExperiencesRelationships retrieves advanced experience linkages for an App Clip.
+func (c *Client) GetAppClipAdvancedExperiencesRelationships(ctx context.Context, appClipID string, opts ...LinkagesOption) (*AppClipAdvancedExperiencesLinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	appClipID = strings.TrimSpace(appClipID)
+	path := fmt.Sprintf("/v1/appClips/%s/relationships/appClipAdvancedExperiences", appClipID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appClipAdvancedExperiencesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppClipAdvancedExperiencesLinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetAppClipDefaultExperience retrieves a default experience by ID.
-func (c *Client) GetAppClipDefaultExperience(ctx context.Context, experienceID string) (*AppClipDefaultExperienceResponse, error) {
+func (c *Client) GetAppClipDefaultExperience(ctx context.Context, experienceID string, opts ...AppClipDefaultExperienceOption) (*AppClipDefaultExperienceResponse, error) {
+	query := &appClipDefaultExperienceQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
 	experienceID = strings.TrimSpace(experienceID)
 	if experienceID == "" {
 		return nil, fmt.Errorf("experienceID is required")
 	}
 
 	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s", experienceID)
+	if queryString := buildAppClipDefaultExperienceQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	var response AppClipDefaultExperienceResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppClipDefaultExperienceReviewDetailRelationship retrieves the review detail linkage for a default experience.
+func (c *Client) GetAppClipDefaultExperienceReviewDetailRelationship(ctx context.Context, experienceID string) (*AppClipDefaultExperienceReviewDetailLinkageResponse, error) {
+	experienceID = strings.TrimSpace(experienceID)
+	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/appClipAppStoreReviewDetail", experienceID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppClipDefaultExperienceReviewDetailLinkageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppClipDefaultExperienceReleaseWithAppStoreVersionRelationship retrieves releaseWithAppStoreVersion linkage.
+func (c *Client) GetAppClipDefaultExperienceReleaseWithAppStoreVersionRelationship(ctx context.Context, experienceID string) (*AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse, error) {
+	experienceID = strings.TrimSpace(experienceID)
+	path := fmt.Sprintf("/v1/appClipDefaultExperiences/%s/relationships/releaseWithAppStoreVersion", experienceID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -844,6 +968,23 @@ func (c *Client) GetAppClipDefaultExperienceLocalization(ctx context.Context, lo
 	}
 
 	var response AppClipDefaultExperienceLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppClipDefaultExperienceLocalizationHeaderImageRelationship retrieves header image linkage for a localization.
+func (c *Client) GetAppClipDefaultExperienceLocalizationHeaderImageRelationship(ctx context.Context, localizationID string) (*AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	path := fmt.Sprintf("/v1/appClipDefaultExperienceLocalizations/%s/relationships/appClipHeaderImage", localizationID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

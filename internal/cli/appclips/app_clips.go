@@ -35,8 +35,11 @@ Examples:
 			AppClipsGetCommand(),
 			AppClipDefaultExperiencesCommand(),
 			AppClipAdvancedExperiencesCommand(),
+			AppClipDefaultExperiencesRelationshipsCommand(),
+			AppClipAdvancedExperiencesRelationshipsCommand(),
 			AppClipHeaderImagesCommand(),
 			AppClipInvocationsCommand(),
+			AppClipDomainStatusCommand(),
 			AppClipReviewDetailsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {

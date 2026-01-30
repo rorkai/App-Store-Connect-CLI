@@ -60,6 +60,11 @@ type appClipsQuery struct {
 type appClipDefaultExperiencesQuery struct {
 	listQuery
 	releaseWithVersionExists *bool
+	include                  []string
+}
+
+type appClipDefaultExperienceQuery struct {
+	include []string
 }
 
 type appClipDefaultExperienceLocalizationsQuery struct {
@@ -69,8 +74,8 @@ type appClipDefaultExperienceLocalizationsQuery struct {
 
 type appClipAdvancedExperiencesQuery struct {
 	listQuery
-	actions      []string
-	statuses     []string
+	actions       []string
+	statuses      []string
 	placeStatuses []string
 }
 
@@ -116,8 +121,8 @@ type betaAppClipInvocationsQuery struct {
 }
 
 type betaAppClipInvocationQuery struct {
-	include              []string
-	localizationsLimit   int
+	include            []string
+	localizationsLimit int
 }
 
 type subscriptionOfferCodeOneTimeUseCodesQuery struct {
@@ -519,7 +524,14 @@ func buildAppClipDefaultExperiencesQuery(query *appClipDefaultExperiencesQuery) 
 	if query.releaseWithVersionExists != nil {
 		values.Set("exists[releaseWithAppStoreVersion]", strconv.FormatBool(*query.releaseWithVersionExists))
 	}
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppClipDefaultExperienceQuery(query *appClipDefaultExperienceQuery) string {
+	values := url.Values{}
+	addCSV(values, "include", query.include)
 	return values.Encode()
 }
 

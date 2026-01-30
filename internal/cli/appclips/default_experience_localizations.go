@@ -33,6 +33,7 @@ Examples:
 			AppClipDefaultExperienceLocalizationsCreateCommand(),
 			AppClipDefaultExperienceLocalizationsUpdateCommand(),
 			AppClipDefaultExperienceLocalizationsDeleteCommand(),
+			AppClipDefaultExperienceLocalizationHeaderImageRelationshipCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -341,6 +342,49 @@ Examples:
 			}
 
 			return printOutput(result, *output, *pretty)
+		},
+	}
+}
+
+// AppClipDefaultExperienceLocalizationHeaderImageRelationshipCommand returns the header image relationship command.
+func AppClipDefaultExperienceLocalizationHeaderImageRelationshipCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("header-image-relationship", flag.ExitOnError)
+
+	localizationID := fs.String("localization-id", "", "Localization ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "header-image-relationship",
+		ShortUsage: "asc app-clips default-experiences localizations header-image-relationship --localization-id \"LOC_ID\"",
+		ShortHelp:  "Get header image relationship for a localization.",
+		LongHelp: `Get header image relationship for a localization.
+
+Examples:
+  asc app-clips default-experiences localizations header-image-relationship --localization-id "LOC_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			locValue := strings.TrimSpace(*localizationID)
+			if locValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("app-clips default-experiences localizations header-image-relationship: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetAppClipDefaultExperienceLocalizationHeaderImageRelationship(requestCtx, locValue)
+			if err != nil {
+				return fmt.Errorf("app-clips default-experiences localizations header-image-relationship: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }

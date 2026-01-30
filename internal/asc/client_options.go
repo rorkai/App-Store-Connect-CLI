@@ -20,6 +20,9 @@ type AppClipsOption func(*appClipsQuery)
 // AppClipDefaultExperiencesOption is a functional option for GetAppClipDefaultExperiences.
 type AppClipDefaultExperiencesOption func(*appClipDefaultExperiencesQuery)
 
+// AppClipDefaultExperienceOption is a functional option for GetAppClipDefaultExperience.
+type AppClipDefaultExperienceOption func(*appClipDefaultExperienceQuery)
+
 // AppClipDefaultExperienceLocalizationsOption is a functional option for GetAppClipDefaultExperienceLocalizations.
 type AppClipDefaultExperienceLocalizationsOption func(*appClipDefaultExperienceLocalizationsQuery)
 
@@ -1063,6 +1066,20 @@ func WithAppClipDefaultExperiencesNextURL(next string) AppClipDefaultExperiences
 func WithAppClipDefaultExperiencesReleaseWithVersionExists(value bool) AppClipDefaultExperiencesOption {
 	return func(q *appClipDefaultExperiencesQuery) {
 		q.releaseWithVersionExists = &value
+	}
+}
+
+// WithAppClipDefaultExperiencesInclude sets include for default experience list.
+func WithAppClipDefaultExperiencesInclude(include []string) AppClipDefaultExperiencesOption {
+	return func(q *appClipDefaultExperiencesQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithAppClipDefaultExperienceInclude sets include for default experience detail.
+func WithAppClipDefaultExperienceInclude(include []string) AppClipDefaultExperienceOption {
+	return func(q *appClipDefaultExperienceQuery) {
+		q.include = normalizeList(include)
 	}
 }
 
