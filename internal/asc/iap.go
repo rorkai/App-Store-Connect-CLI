@@ -87,6 +87,7 @@ type InAppPurchaseLocalizationAttributes struct {
 	Name        string `json:"name"`
 	Locale      string `json:"locale"`
 	Description string `json:"description,omitempty"`
+	State       string `json:"state,omitempty"`
 }
 
 // InAppPurchasesV2Response is the response from in-app purchase list endpoints.

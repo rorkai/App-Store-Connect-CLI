@@ -201,6 +201,24 @@ func PrintMarkdown(data interface{}) error {
 		return printInAppPurchasesMarkdown(&InAppPurchasesV2Response{Data: []Resource[InAppPurchaseV2Attributes]{v.Data}})
 	case *InAppPurchaseLocalizationsResponse:
 		return printInAppPurchaseLocalizationsMarkdown(v)
+	case *InAppPurchaseImagesResponse:
+		return printInAppPurchaseImagesMarkdown(v)
+	case *InAppPurchaseImageResponse:
+		return printInAppPurchaseImagesMarkdown(&InAppPurchaseImagesResponse{Data: []Resource[InAppPurchaseImageAttributes]{v.Data}})
+	case *InAppPurchasePricePointsResponse:
+		return printInAppPurchasePricePointsMarkdown(v)
+	case *InAppPurchaseOfferCodesResponse:
+		return printInAppPurchaseOfferCodesMarkdown(v)
+	case *InAppPurchaseOfferCodeResponse:
+		return printInAppPurchaseOfferCodesMarkdown(&InAppPurchaseOfferCodesResponse{Data: []Resource[InAppPurchaseOfferCodeAttributes]{v.Data}})
+	case *InAppPurchaseAvailabilityResponse:
+		return printInAppPurchaseAvailabilityMarkdown(v)
+	case *InAppPurchaseContentResponse:
+		return printInAppPurchaseContentMarkdown(v)
+	case *InAppPurchasePriceScheduleResponse:
+		return printInAppPurchasePriceScheduleMarkdown(v)
+	case *InAppPurchaseAppStoreReviewScreenshotResponse:
+		return printInAppPurchaseReviewScreenshotMarkdown(v)
 	case *AppEventsResponse:
 		return printAppEventsMarkdown(v)
 	case *AppEventResponse:
@@ -905,6 +923,24 @@ func PrintTable(data interface{}) error {
 		return printInAppPurchasesTable(&InAppPurchasesV2Response{Data: []Resource[InAppPurchaseV2Attributes]{v.Data}})
 	case *InAppPurchaseLocalizationsResponse:
 		return printInAppPurchaseLocalizationsTable(v)
+	case *InAppPurchaseImagesResponse:
+		return printInAppPurchaseImagesTable(v)
+	case *InAppPurchaseImageResponse:
+		return printInAppPurchaseImagesTable(&InAppPurchaseImagesResponse{Data: []Resource[InAppPurchaseImageAttributes]{v.Data}})
+	case *InAppPurchasePricePointsResponse:
+		return printInAppPurchasePricePointsTable(v)
+	case *InAppPurchaseOfferCodesResponse:
+		return printInAppPurchaseOfferCodesTable(v)
+	case *InAppPurchaseOfferCodeResponse:
+		return printInAppPurchaseOfferCodesTable(&InAppPurchaseOfferCodesResponse{Data: []Resource[InAppPurchaseOfferCodeAttributes]{v.Data}})
+	case *InAppPurchaseAvailabilityResponse:
+		return printInAppPurchaseAvailabilityTable(v)
+	case *InAppPurchaseContentResponse:
+		return printInAppPurchaseContentTable(v)
+	case *InAppPurchasePriceScheduleResponse:
+		return printInAppPurchasePriceScheduleTable(v)
+	case *InAppPurchaseAppStoreReviewScreenshotResponse:
+		return printInAppPurchaseReviewScreenshotTable(v)
 	case *AppEventsResponse:
 		return printAppEventsTable(v)
 	case *AppEventResponse:

@@ -743,7 +743,122 @@ func TestIAPValidationErrors(t *testing.T) {
 		{
 			name:    "iap localizations list missing id",
 			args:    []string{"iap", "localizations", "list"},
-			wantErr: "--id is required",
+			wantErr: "--iap-id is required",
+		},
+		{
+			name:    "iap localizations create missing iap-id",
+			args:    []string{"iap", "localizations", "create", "--name", "Title", "--locale", "en-US"},
+			wantErr: "--iap-id is required",
+		},
+		{
+			name:    "iap localizations update missing localization-id",
+			args:    []string{"iap", "localizations", "update", "--name", "Title"},
+			wantErr: "--localization-id is required",
+		},
+		{
+			name:    "iap localizations delete missing confirm",
+			args:    []string{"iap", "localizations", "delete", "--localization-id", "LOC_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "iap images list missing iap-id",
+			args:    []string{"iap", "images", "list"},
+			wantErr: "--iap-id is required",
+		},
+		{
+			name:    "iap images get missing image-id",
+			args:    []string{"iap", "images", "get"},
+			wantErr: "--image-id is required",
+		},
+		{
+			name:    "iap images create missing file",
+			args:    []string{"iap", "images", "create", "--iap-id", "IAP_ID"},
+			wantErr: "--file is required",
+		},
+		{
+			name:    "iap images update missing image-id",
+			args:    []string{"iap", "images", "update", "--file", "./image.png"},
+			wantErr: "--image-id is required",
+		},
+		{
+			name:    "iap images delete missing confirm",
+			args:    []string{"iap", "images", "delete", "--image-id", "IMG_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "iap review-screenshots get missing ids",
+			args:    []string{"iap", "review-screenshots", "get"},
+			wantErr: "--iap-id or --screenshot-id is required",
+		},
+		{
+			name:    "iap review-screenshots create missing file",
+			args:    []string{"iap", "review-screenshots", "create", "--iap-id", "IAP_ID"},
+			wantErr: "--file is required",
+		},
+		{
+			name:    "iap review-screenshots update missing screenshot-id",
+			args:    []string{"iap", "review-screenshots", "update", "--file", "./review.png"},
+			wantErr: "--screenshot-id is required",
+		},
+		{
+			name:    "iap review-screenshots delete missing confirm",
+			args:    []string{"iap", "review-screenshots", "delete", "--screenshot-id", "SHOT_ID"},
+			wantErr: "--confirm is required",
+		},
+		{
+			name:    "iap availability get missing iap-id",
+			args:    []string{"iap", "availability", "get"},
+			wantErr: "--iap-id is required",
+		},
+		{
+			name:    "iap availability set missing territories",
+			args:    []string{"iap", "availability", "set", "--iap-id", "IAP_ID"},
+			wantErr: "--territories is required",
+		},
+		{
+			name:    "iap content get missing iap-id",
+			args:    []string{"iap", "content", "get"},
+			wantErr: "--iap-id is required",
+		},
+		{
+			name:    "iap price-points list missing iap-id",
+			args:    []string{"iap", "price-points", "list"},
+			wantErr: "--iap-id is required",
+		},
+		{
+			name:    "iap price-schedules get missing iap-id",
+			args:    []string{"iap", "price-schedules", "get"},
+			wantErr: "--iap-id is required",
+		},
+		{
+			name:    "iap price-schedules create missing prices",
+			args:    []string{"iap", "price-schedules", "create", "--iap-id", "IAP_ID", "--base-territory", "USA"},
+			wantErr: "--prices is required",
+		},
+		{
+			name:    "iap offer-codes list missing iap-id",
+			args:    []string{"iap", "offer-codes", "list"},
+			wantErr: "--iap-id is required",
+		},
+		{
+			name:    "iap offer-codes get missing id",
+			args:    []string{"iap", "offer-codes", "get"},
+			wantErr: "--offer-code-id is required",
+		},
+		{
+			name:    "iap offer-codes create missing prices",
+			args:    []string{"iap", "offer-codes", "create", "--iap-id", "IAP_ID", "--name", "SPRING"},
+			wantErr: "--prices is required",
+		},
+		{
+			name:    "iap offer-codes update missing active",
+			args:    []string{"iap", "offer-codes", "update", "--offer-code-id", "CODE_ID"},
+			wantErr: "--active is required",
+		},
+		{
+			name:    "iap submit missing confirm",
+			args:    []string{"iap", "submit", "--iap-id", "IAP_ID"},
+			wantErr: "--confirm is required",
 		},
 	}
 
@@ -769,6 +884,30 @@ func TestIAPValidationErrors(t *testing.T) {
 				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
 			}
 		})
+	}
+}
+
+func TestIAPImagesListRejectsInvalidNextURL(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"iap", "images", "list", "--iap-id", "IAP_ID", "--next", "not-a-url"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("unexpected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 }
 

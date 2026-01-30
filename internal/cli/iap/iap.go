@@ -28,7 +28,10 @@ Examples:
   asc iap create --app "APP_ID" --type CONSUMABLE --ref-name "Pro" --product-id "com.example.pro"
   asc iap update --id "IAP_ID" --ref-name "New Name"
   asc iap delete --id "IAP_ID" --confirm
-  asc iap localizations list --id "IAP_ID"`,
+  asc iap localizations list --iap-id "IAP_ID"
+  asc iap images create --iap-id "IAP_ID" --file "./image.png"
+  asc iap availability set --iap-id "IAP_ID" --territories "USA,CAN"
+  asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --prices "USA:PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -38,6 +41,14 @@ Examples:
 			IAPUpdateCommand(),
 			IAPDeleteCommand(),
 			IAPLocalizationsCommand(),
+			IAPImagesCommand(),
+			IAPReviewScreenshotsCommand(),
+			IAPAvailabilityCommand(),
+			IAPContentCommand(),
+			IAPPricePointsCommand(),
+			IAPPriceSchedulesCommand(),
+			IAPOfferCodesCommand(),
+			IAPSubmitCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -126,7 +137,8 @@ Examples:
 func IAPGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
-	iapID := fs.String("id", "", "In-app purchase ID")
+	iapID := fs.String("iap-id", "", "In-app purchase ID")
+	legacyID := fs.String("id", "", "In-app purchase ID (deprecated)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -358,6 +370,9 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPLocalizationsListCommand(),
+			IAPLocalizationsCreateCommand(),
+			IAPLocalizationsUpdateCommand(),
+			IAPLocalizationsDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -383,14 +398,17 @@ func IAPLocalizationsListCommand() *ffcli.Command {
 		LongHelp: `List in-app purchase localizations.
 
 Examples:
-  asc iap localizations list --id "IAP_ID"
-  asc iap localizations list --id "IAP_ID" --paginate`,
+  asc iap localizations list --iap-id "IAP_ID"
+  asc iap localizations list --iap-id "IAP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			id := strings.TrimSpace(*iapID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+			resolvedID := strings.TrimSpace(*iapID)
+			if resolvedID == "" {
+				resolvedID = strings.TrimSpace(*legacyID)
+			}
+			if resolvedID == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
 				return flag.ErrHelp
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
@@ -415,13 +433,13 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithIAPLocalizationsLimit(200))
-				firstPage, err := client.GetInAppPurchaseLocalizations(requestCtx, id, paginateOpts...)
+				firstPage, err := client.GetInAppPurchaseLocalizations(requestCtx, resolvedID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchaseLocalizations(ctx, id, asc.WithIAPLocalizationsNextURL(nextURL))
+					return client.GetInAppPurchaseLocalizations(ctx, resolvedID, asc.WithIAPLocalizationsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap localizations list: %w", err)
@@ -430,7 +448,7 @@ Examples:
 				return printOutput(resp, *output, *pretty)
 			}
 
-			resp, err := client.GetInAppPurchaseLocalizations(requestCtx, id, opts...)
+			resp, err := client.GetInAppPurchaseLocalizations(requestCtx, resolvedID, opts...)
 			if err != nil {
 				return fmt.Errorf("iap localizations list: failed to fetch: %w", err)
 			}
