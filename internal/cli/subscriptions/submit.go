@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 // SubscriptionsSubmitCommand returns the subscriptions submit subcommand.
