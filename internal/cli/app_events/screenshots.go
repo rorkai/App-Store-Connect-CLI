@@ -29,12 +29,99 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppEventScreenshotsListCommand(),
+			AppEventScreenshotsRelationshipsCommand(),
 			AppEventScreenshotsGetCommand(),
 			AppEventScreenshotsCreateCommand(),
 			AppEventScreenshotsDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
+		},
+	}
+}
+
+// AppEventScreenshotsRelationshipsCommand returns the app event screenshots relationships subcommand.
+func AppEventScreenshotsRelationshipsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("screenshots relationships", flag.ExitOnError)
+
+	eventID := fs.String("event-id", "", "App event ID")
+	localizationID := fs.String("localization-id", "", "App event localization ID")
+	locale := fs.String("locale", "", "Locale (e.g., en-US) when resolving localization")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "relationships",
+		ShortUsage: "asc app-events screenshots relationships [flags]",
+		ShortHelp:  "List screenshot relationships for an in-app event localization.",
+		LongHelp: `List screenshot relationships for an in-app event localization.
+
+Examples:
+  asc app-events screenshots relationships --localization-id "LOC_ID"
+  asc app-events screenshots relationships --event-id "EVENT_ID" --locale "en-US"
+  asc app-events screenshots relationships --event-id "EVENT_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("app-events screenshots relationships: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("app-events screenshots relationships: %w", err)
+			}
+
+			trimmedNext := strings.TrimSpace(*next)
+			if trimmedNext == "" && strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("app-events screenshots relationships: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resolvedLocalizationID := strings.TrimSpace(*localizationID)
+			if trimmedNext == "" {
+				resolvedLocalizationID, err = resolveAppEventLocalizationID(requestCtx, client, *eventID, resolvedLocalizationID, *locale)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					return flag.ErrHelp
+				}
+			}
+
+			opts := []asc.LinkagesOption{
+				asc.WithLinkagesLimit(*limit),
+				asc.WithLinkagesNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
+				firstPage, err := client.GetAppEventScreenshotsRelationships(requestCtx, resolvedLocalizationID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("app-events screenshots relationships: failed to fetch: %w", err)
+				}
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetAppEventScreenshotsRelationships(ctx, resolvedLocalizationID, asc.WithLinkagesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("app-events screenshots relationships: %w", err)
+				}
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetAppEventScreenshotsRelationships(requestCtx, resolvedLocalizationID, opts...)
+			if err != nil {
+				return fmt.Errorf("app-events screenshots relationships: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }

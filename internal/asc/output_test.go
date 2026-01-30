@@ -3901,6 +3901,36 @@ func TestPrintTable_AppEventDeleteResult(t *testing.T) {
 	}
 }
 
+func TestPrintMarkdown_AppEventDeleteResult(t *testing.T) {
+	result := &AppEventDeleteResult{ID: "event-3", Deleted: true}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| ID | Deleted |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "event-3") {
+		t.Fatalf("expected event id in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppEventLocalizationDeleteResult(t *testing.T) {
+	result := &AppEventLocalizationDeleteResult{ID: "loc-3", Deleted: true}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Deleted") {
+		t.Fatalf("expected deleted header, got: %s", output)
+	}
+	if !strings.Contains(output, "loc-3") {
+		t.Fatalf("expected localization id in output, got: %s", output)
+	}
+}
+
 func TestPrintMarkdown_AppEventLocalizationDeleteResult(t *testing.T) {
 	result := &AppEventLocalizationDeleteResult{ID: "loc-3", Deleted: true}
 
