@@ -13,8 +13,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/analytics"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/androidiosmapping"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/app_events"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/apps"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/appclips"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/apps"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/assets"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/backgroundassets"
@@ -38,6 +38,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/merchantids"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/migrate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/nominations"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/notify"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/offercodes"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/passtypeids"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/performance"
@@ -140,6 +141,7 @@ func Subcommands(version string) []*ffcli.Command {
 		encryption.EncryptionCommand(),
 		promotedpurchases.PromotedPurchasesCommand(),
 		migrate.MigrateCommand(),
+		notify.NotifyCommand(),
 		gamecenter.GameCenterCommand(),
 		VersionCommand(version),
 	}
