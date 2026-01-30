@@ -48,6 +48,14 @@ make format     # Format code
 - For new features, begin with CLI-level tests (flags, output, errors) and add unit tests for core logic.
 - Verify the test fails for the right reason before implementing; keep tests green incrementally.
 
+## CLI Implementation Checklist
+
+- Register new commands in `internal/cli/registry/registry.go`.
+- Always set `UsageFunc: shared.DefaultUsageFunc` for command groups and subcommands.
+- For outbound HTTP, use `shared.ContextWithTimeout` (or `shared.ContextWithUploadTimeout`) so `ASC_TIMEOUT` applies.
+- Validate required flags and assert stderr error messages in tests (not just `flag.ErrHelp`).
+- Add `internal/cli/cmdtest` coverage for new commands; use `httptest` for network payload tests.
+
 ## Authentication
 
 API keys are generated at https://appstoreconnect.apple.com/access/integrations/api and stored in the system keychain (with local config fallback). Never commit keys to version control.
