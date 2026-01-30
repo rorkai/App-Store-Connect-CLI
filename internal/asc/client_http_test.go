@@ -4565,6 +4565,27 @@ func TestGetCertificate_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestGetCertificate_WithInclude(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"certificates","id":"c1","attributes":{"name":"Cert","certificateType":"PASS_TYPE_ID"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/certificates/c1" {
+			t.Fatalf("expected path /v1/certificates/c1, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("include") != "passTypeId" {
+			t.Fatalf("expected include=passTypeId, got %q", values.Get("include"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetCertificate(context.Background(), "c1", WithCertificatesInclude([]string{"passTypeId"})); err != nil {
+		t.Fatalf("GetCertificate() error: %v", err)
+	}
+}
+
 func TestRevokeCertificate_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusNoContent, ``)
 	client := newTestClient(t, func(req *http.Request) {
@@ -4716,6 +4737,141 @@ func TestGetProfile_SendsRequest(t *testing.T) {
 
 	if _, err := client.GetProfile(context.Background(), "p1"); err != nil {
 		t.Fatalf("GetProfile() error: %v", err)
+	}
+}
+
+func TestGetProfile_WithInclude(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"profiles","id":"p1","attributes":{"name":"Profile","profileType":"IOS_APP_DEVELOPMENT"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles/p1" {
+			t.Fatalf("expected path /v1/profiles/p1, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("include") != "bundleId,certificates" {
+			t.Fatalf("expected include=bundleId,certificates, got %q", values.Get("include"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetProfile(context.Background(), "p1", WithProfilesInclude([]string{"bundleId", "certificates"})); err != nil {
+		t.Fatalf("GetProfile() error: %v", err)
+	}
+}
+
+func TestGetProfileBundleID_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"bundleIds","id":"b1","attributes":{"name":"Bundle","identifier":"com.example"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles/p1/bundleId" {
+			t.Fatalf("expected path /v1/profiles/p1/bundleId, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetProfileBundleID(context.Background(), "p1"); err != nil {
+		t.Fatalf("GetProfileBundleID() error: %v", err)
+	}
+}
+
+func TestGetProfileCertificates_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"certificates","id":"c1","attributes":{"name":"Cert","certificateType":"IOS_DISTRIBUTION"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles/p1/certificates" {
+			t.Fatalf("expected path /v1/profiles/p1/certificates, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetProfileCertificates(context.Background(), "p1", WithProfileCertificatesLimit(5)); err != nil {
+		t.Fatalf("GetProfileCertificates() error: %v", err)
+	}
+}
+
+func TestGetProfileDevices_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"devices","id":"d1","attributes":{"name":"Device","platform":"IOS","udid":"UDID","status":"ENABLED"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles/p1/devices" {
+			t.Fatalf("expected path /v1/profiles/p1/devices, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "10" {
+			t.Fatalf("expected limit=10, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetProfileDevices(context.Background(), "p1", WithProfileDevicesLimit(10)); err != nil {
+		t.Fatalf("GetProfileDevices() error: %v", err)
+	}
+}
+
+func TestGetProfileBundleIDRelationship_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"bundleIds","id":"b1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles/p1/relationships/bundleId" {
+			t.Fatalf("expected path /v1/profiles/p1/relationships/bundleId, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetProfileBundleIDRelationship(context.Background(), "p1"); err != nil {
+		t.Fatalf("GetProfileBundleIDRelationship() error: %v", err)
+	}
+}
+
+func TestGetProfileCertificatesRelationships_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"certificates","id":"c1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles/p1/relationships/certificates" {
+			t.Fatalf("expected path /v1/profiles/p1/relationships/certificates, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "2" {
+			t.Fatalf("expected limit=2, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetProfileCertificatesRelationships(context.Background(), "p1", WithLinkagesLimit(2)); err != nil {
+		t.Fatalf("GetProfileCertificatesRelationships() error: %v", err)
+	}
+}
+
+func TestGetProfileDevicesRelationships_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"devices","id":"d1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/profiles/p1/relationships/devices" {
+			t.Fatalf("expected path /v1/profiles/p1/relationships/devices, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "3" {
+			t.Fatalf("expected limit=3, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetProfileDevicesRelationships(context.Background(), "p1", WithLinkagesLimit(3)); err != nil {
+		t.Fatalf("GetProfileDevicesRelationships() error: %v", err)
 	}
 }
 
@@ -5256,6 +5412,26 @@ func TestCreateUserInvitation_WithVisibleApps(t *testing.T) {
 	}
 }
 
+func TestGetUser_WithInclude(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"users","id":"user-1","attributes":{"username":"user@example.com","firstName":"Jane","lastName":"Doe","roles":["ADMIN"],"allAppsVisible":true,"provisioningAllowed":false}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/users/user-1" {
+			t.Fatalf("expected path /v1/users/user-1, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("include") != "visibleApps" {
+			t.Fatalf("expected include=visibleApps, got %q", req.URL.Query().Get("include"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetUser(context.Background(), "user-1", WithUsersInclude([]string{"visibleApps"})); err != nil {
+		t.Fatalf("GetUser() error: %v", err)
+	}
+}
+
 func TestGetUserVisibleApps_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"apps","id":"app-1","attributes":{"name":"Demo","bundleId":"com.example.demo","sku":"SKU1"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -5270,6 +5446,26 @@ func TestGetUserVisibleApps_SendsRequest(t *testing.T) {
 
 	if _, err := client.GetUserVisibleApps(context.Background(), "user-1"); err != nil {
 		t.Fatalf("GetUserVisibleApps() error: %v", err)
+	}
+}
+
+func TestGetUserVisibleAppsRelationships_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"apps","id":"app-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/users/user-1/relationships/visibleApps" {
+			t.Fatalf("expected path /v1/users/user-1/relationships/visibleApps, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "7" {
+			t.Fatalf("expected limit=7, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetUserVisibleAppsRelationships(context.Background(), "user-1", WithLinkagesLimit(7)); err != nil {
+		t.Fatalf("GetUserVisibleAppsRelationships() error: %v", err)
 	}
 }
 

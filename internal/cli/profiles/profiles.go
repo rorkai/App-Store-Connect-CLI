@@ -28,14 +28,19 @@ Examples:
   asc profiles list
   asc profiles list --profile-type IOS_APP_DEVELOPMENT
   asc profiles get --id "PROFILE_ID"
+  asc profiles get --id "PROFILE_ID" --include bundleId,certificates,devices
   asc profiles create --name "Profile" --profile-type IOS_APP_DEVELOPMENT --bundle "BUNDLE_ID" --certificate "CERT_ID"
   asc profiles delete --id "PROFILE_ID" --confirm
-  asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision"`,
+  asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision"
+  asc profiles relationships bundle-id --id "PROFILE_ID"
+  asc profiles relationships certificates --id "PROFILE_ID"
+  asc profiles relationships devices --id "PROFILE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ProfilesListCommand(),
 			ProfilesGetCommand(),
+			ProfilesRelationshipsCommand(),
 			ProfilesCreateCommand(),
 			ProfilesDeleteCommand(),
 			ProfilesDownloadCommand(),
@@ -127,6 +132,7 @@ func ProfilesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Profile ID")
+	include := fs.String("include", "", "Include related resources: bundleId, certificates, devices")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -137,7 +143,8 @@ func ProfilesGetCommand() *ffcli.Command {
 		LongHelp: `Get a profile by ID.
 
 Examples:
-  asc profiles get --id "PROFILE_ID"`,
+  asc profiles get --id "PROFILE_ID"
+  asc profiles get --id "PROFILE_ID" --include bundleId,certificates,devices`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -145,6 +152,11 @@ Examples:
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return flag.ErrHelp
+			}
+
+			includeValues, err := normalizeProfileInclude(*include)
+			if err != nil {
+				return fmt.Errorf("profiles get: %w", err)
 			}
 
 			client, err := getASCClient()
@@ -155,7 +167,12 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetProfile(requestCtx, idValue)
+			opts := []asc.ProfilesOption{}
+			if len(includeValues) > 0 {
+				opts = append(opts, asc.WithProfilesInclude(includeValues))
+			}
+
+			resp, err := client.GetProfile(requestCtx, idValue, opts...)
 			if err != nil {
 				return fmt.Errorf("profiles get: failed to fetch: %w", err)
 			}
@@ -364,4 +381,25 @@ func decodeProfileContent(content string) ([]byte, error) {
 		return nil, err
 	}
 	return decoded, nil
+}
+
+func normalizeProfileInclude(value string) ([]string, error) {
+	include := splitCSV(value)
+	if len(include) == 0 {
+		return nil, nil
+	}
+	allowed := map[string]struct{}{}
+	for _, item := range profileIncludeList() {
+		allowed[item] = struct{}{}
+	}
+	for _, item := range include {
+		if _, ok := allowed[item]; !ok {
+			return nil, fmt.Errorf("--include must be one of: %s", strings.Join(profileIncludeList(), ", "))
+		}
+	}
+	return include, nil
+}
+
+func profileIncludeList() []string {
+	return []string{"bundleId", "certificates", "devices"}
 }

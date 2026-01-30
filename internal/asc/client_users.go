@@ -39,9 +39,17 @@ func (c *Client) GetUsers(ctx context.Context, opts ...UsersOption) (*UsersRespo
 }
 
 // GetUser retrieves a single user by ID.
-func (c *Client) GetUser(ctx context.Context, userID string) (*UserResponse, error) {
+func (c *Client) GetUser(ctx context.Context, userID string, opts ...UsersOption) (*UserResponse, error) {
 	userID = strings.TrimSpace(userID)
+	query := &usersQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
 	path := fmt.Sprintf("/v1/users/%s", userID)
+	if queryString := buildUsersQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
@@ -199,15 +207,60 @@ func (c *Client) DeleteUserInvitation(ctx context.Context, inviteID string) erro
 }
 
 // GetUserVisibleApps retrieves the visible apps for a user.
-func (c *Client) GetUserVisibleApps(ctx context.Context, userID string) (*AppsResponse, error) {
+func (c *Client) GetUserVisibleApps(ctx context.Context, userID string, opts ...UserVisibleAppsOption) (*AppsResponse, error) {
 	userID = strings.TrimSpace(userID)
+	query := &userVisibleAppsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
 	path := fmt.Sprintf("/v1/users/%s/visibleApps", userID)
+	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("userVisibleApps: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildUserVisibleAppsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	var response AppsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetUserVisibleAppsRelationships retrieves visible app linkages for a user.
+func (c *Client) GetUserVisibleAppsRelationships(ctx context.Context, userID string, opts ...LinkagesOption) (*UserVisibleAppsLinkagesResponse, error) {
+	userID = strings.TrimSpace(userID)
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/users/%s/relationships/visibleApps", userID)
+	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("userVisibleAppsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response UserVisibleAppsLinkagesResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

@@ -32,3 +32,7 @@ func validateNextURL(next string) error {
 func splitCSVUpper(value string) []string {
 	return shared.SplitCSVUpper(value)
 }
+
+func splitCSV(value string) []string {
+	return shared.SplitCSV(value)
+}

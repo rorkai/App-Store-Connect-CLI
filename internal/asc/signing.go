@@ -183,3 +183,15 @@ type ProfilesResponse = Response[ProfileAttributes]
 
 // ProfileResponse is the response from profile detail endpoint.
 type ProfileResponse = SingleResponse[ProfileAttributes]
+
+// ProfileCertificatesLinkagesResponse is the response from profile certificates linkage endpoint.
+type ProfileCertificatesLinkagesResponse = LinkagesResponse
+
+// ProfileDevicesLinkagesResponse is the response from profile devices linkage endpoint.
+type ProfileDevicesLinkagesResponse = LinkagesResponse
+
+// ProfileBundleIDLinkageResponse is the response from profile bundle ID linkage endpoint.
+type ProfileBundleIDLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links,omitempty"`
+}

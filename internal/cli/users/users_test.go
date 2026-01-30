@@ -181,6 +181,30 @@ func TestUsersInvitesRevokeCommand_MissingID(t *testing.T) {
 	}
 }
 
+func TestUsersVisibleAppsListCommand_MissingID(t *testing.T) {
+	cmd := UsersVisibleAppsListCommand()
+
+	if err := cmd.FlagSet.Parse([]string{}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
+	}
+}
+
+func TestUsersVisibleAppsGetCommand_MissingID(t *testing.T) {
+	cmd := UsersVisibleAppsGetCommand()
+
+	if err := cmd.FlagSet.Parse([]string{}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
+	}
+}
+
 func TestUsersCommands_DefaultOutputJSON(t *testing.T) {
 	commands := []*struct {
 		name string
@@ -194,6 +218,8 @@ func TestUsersCommands_DefaultOutputJSON(t *testing.T) {
 		{"invites list", UsersInvitesListCommand},
 		{"invites get", UsersInvitesGetCommand},
 		{"invites revoke", UsersInvitesRevokeCommand},
+		{"visible-apps list", UsersVisibleAppsListCommand},
+		{"visible-apps get", UsersVisibleAppsGetCommand},
 	}
 
 	for _, tc := range commands {

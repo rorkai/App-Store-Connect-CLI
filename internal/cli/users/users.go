@@ -25,10 +25,13 @@ func UsersCommand() *ffcli.Command {
 Examples:
   asc users list
   asc users get --id "USER_ID"
+  asc users get --id "USER_ID" --include visibleApps
   asc users update --id "USER_ID" --roles "ADMIN"
   asc users delete --id "USER_ID" --confirm
   asc users invite --email "user@example.com" --roles "ADMIN" --all-apps
-  asc users invites list`,
+  asc users invites list
+  asc users visible-apps list --id "USER_ID"
+  asc users visible-apps get --id "USER_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -38,6 +41,7 @@ Examples:
 			UsersDeleteCommand(),
 			UsersInviteCommand(),
 			UsersInvitesCommand(),
+			UsersVisibleAppsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -127,6 +131,7 @@ func UsersGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	id := fs.String("id", "", "User ID")
+	include := fs.String("include", "", "Include related resources: visibleApps")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -137,7 +142,8 @@ func UsersGetCommand() *ffcli.Command {
 		LongHelp: `Get a user by ID.
 
 Examples:
-  asc users get --id "USER_ID"`,
+  asc users get --id "USER_ID"
+  asc users get --id "USER_ID" --include visibleApps`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -145,6 +151,11 @@ Examples:
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return flag.ErrHelp
+			}
+
+			includeValues, err := normalizeUsersInclude(*include)
+			if err != nil {
+				return fmt.Errorf("users get: %w", err)
 			}
 
 			client, err := getASCClient()
@@ -155,7 +166,12 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			user, err := client.GetUser(requestCtx, idValue)
+			opts := []asc.UsersOption{}
+			if len(includeValues) > 0 {
+				opts = append(opts, asc.WithUsersInclude(includeValues))
+			}
+
+			user, err := client.GetUser(requestCtx, idValue, opts...)
 			if err != nil {
 				return fmt.Errorf("users get: failed to fetch: %w", err)
 			}
@@ -570,4 +586,25 @@ Examples:
 			return printOutput(result, *output, *pretty)
 		},
 	}
+}
+
+func normalizeUsersInclude(value string) ([]string, error) {
+	include := splitCSV(value)
+	if len(include) == 0 {
+		return nil, nil
+	}
+	allowed := map[string]struct{}{}
+	for _, item := range usersIncludeList() {
+		allowed[item] = struct{}{}
+	}
+	for _, item := range include {
+		if _, ok := allowed[item]; !ok {
+			return nil, fmt.Errorf("--include must be one of: %s", strings.Join(usersIncludeList(), ", "))
+		}
+	}
+	return include, nil
+}
+
+func usersIncludeList() []string {
+	return []string{"visibleApps"}
 }

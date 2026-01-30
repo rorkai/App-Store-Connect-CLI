@@ -69,8 +69,8 @@ type appClipDefaultExperienceLocalizationsQuery struct {
 
 type appClipAdvancedExperiencesQuery struct {
 	listQuery
-	actions      []string
-	statuses     []string
+	actions       []string
+	statuses      []string
 	placeStatuses []string
 }
 
@@ -116,8 +116,8 @@ type betaAppClipInvocationsQuery struct {
 }
 
 type betaAppClipInvocationQuery struct {
-	include              []string
-	localizationsLimit   int
+	include            []string
+	localizationsLimit int
 }
 
 type subscriptionOfferCodeOneTimeUseCodesQuery struct {
@@ -346,6 +346,7 @@ type passTypeIDCertificatesQuery struct {
 type certificatesQuery struct {
 	listQuery
 	certificateTypes []string
+	include          []string
 }
 
 type merchantIDCertificatesQuery struct {
@@ -364,12 +365,26 @@ type profilesQuery struct {
 	listQuery
 	bundleID     string
 	profileTypes []string
+	include      []string
 }
 
 type usersQuery struct {
 	listQuery
-	email string
-	roles []string
+	email   string
+	roles   []string
+	include []string
+}
+
+type profileCertificatesQuery struct {
+	listQuery
+}
+
+type profileDevicesQuery struct {
+	listQuery
+}
+
+type userVisibleAppsQuery struct {
+	listQuery
 }
 
 type actorsQuery struct {
@@ -760,6 +775,7 @@ func buildBundleIDCapabilitiesQuery(_ *bundleIDCapabilitiesQuery) string {
 func buildCertificatesQuery(query *certificatesQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[certificateType]", query.certificateTypes)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -810,6 +826,7 @@ func buildProfilesQuery(query *profilesQuery) string {
 		values.Set("filter[bundleId]", strings.TrimSpace(query.bundleID))
 	}
 	addCSV(values, "filter[profileType]", query.profileTypes)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -820,6 +837,25 @@ func buildUsersQuery(query *usersQuery) string {
 		values.Set("filter[username]", strings.TrimSpace(query.email))
 	}
 	addCSV(values, "filter[roles]", query.roles)
+	addCSV(values, "include", query.include)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildProfileCertificatesQuery(query *profileCertificatesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildProfileDevicesQuery(query *profileDevicesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildUserVisibleAppsQuery(query *userVisibleAppsQuery) string {
+	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()
 }

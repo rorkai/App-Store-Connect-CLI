@@ -113,3 +113,39 @@ func TestProfilesDownloadCommand_MissingOutput(t *testing.T) {
 		t.Fatalf("expected flag.ErrHelp when --output is missing, got %v", err)
 	}
 }
+
+func TestProfilesRelationshipsBundleIDCommand_MissingID(t *testing.T) {
+	cmd := ProfilesRelationshipsBundleIDCommand()
+
+	if err := cmd.FlagSet.Parse([]string{}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
+	}
+}
+
+func TestProfilesRelationshipsCertificatesCommand_MissingID(t *testing.T) {
+	cmd := ProfilesRelationshipsCertificatesCommand()
+
+	if err := cmd.FlagSet.Parse([]string{}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
+	}
+}
+
+func TestProfilesRelationshipsDevicesCommand_MissingID(t *testing.T) {
+	cmd := ProfilesRelationshipsDevicesCommand()
+
+	if err := cmd.FlagSet.Parse([]string{}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
+	}
+}

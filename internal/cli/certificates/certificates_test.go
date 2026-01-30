@@ -53,3 +53,27 @@ func TestCertificatesRevokeCommand_MissingConfirm(t *testing.T) {
 		t.Fatalf("expected flag.ErrHelp when --confirm is missing, got %v", err)
 	}
 }
+
+func TestCertificatesGetCommand_MissingID(t *testing.T) {
+	cmd := CertificatesGetCommand()
+
+	if err := cmd.FlagSet.Parse([]string{}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
+	}
+}
+
+func TestCertificatesRelationshipsPassTypeIDCommand_MissingID(t *testing.T) {
+	cmd := CertificatesRelationshipsPassTypeIDCommand()
+
+	if err := cmd.FlagSet.Parse([]string{}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), []string{}); err != flag.ErrHelp {
+		t.Fatalf("expected flag.ErrHelp when --id is missing, got %v", err)
+	}
+}

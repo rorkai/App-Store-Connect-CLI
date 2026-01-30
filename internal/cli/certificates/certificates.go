@@ -28,14 +28,18 @@ func CertificatesCommand() *ffcli.Command {
 Examples:
   asc certificates list
   asc certificates list --certificate-type IOS_DISTRIBUTION
+  asc certificates get --id "CERT_ID" --include passTypeId
   asc certificates create --certificate-type IOS_DISTRIBUTION --csr "./cert.csr"
-  asc certificates revoke --id "CERT_ID" --confirm`,
+  asc certificates revoke --id "CERT_ID" --confirm
+  asc certificates relationships pass-type-id --id "CERT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			CertificatesListCommand(),
+			CertificatesGetCommand(),
 			CertificatesCreateCommand(),
 			CertificatesRevokeCommand(),
+			CertificatesRelationshipsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -112,6 +116,61 @@ Examples:
 			resp, err := client.GetCertificates(requestCtx, opts...)
 			if err != nil {
 				return fmt.Errorf("certificates list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// CertificatesGetCommand returns the certificates get subcommand.
+func CertificatesGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("get", flag.ExitOnError)
+
+	id := fs.String("id", "", "Certificate ID")
+	include := fs.String("include", "", "Include related resources: passTypeId")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc certificates get --id \"CERT_ID\" [flags]",
+		ShortHelp:  "Get a signing certificate by ID.",
+		LongHelp: `Get a signing certificate by ID.
+
+Examples:
+  asc certificates get --id "CERT_ID"
+  asc certificates get --id "CERT_ID" --include passTypeId`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			includeValues, err := normalizeCertificatesInclude(*include)
+			if err != nil {
+				return fmt.Errorf("certificates get: %w", err)
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("certificates get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.CertificatesOption{}
+			if len(includeValues) > 0 {
+				opts = append(opts, asc.WithCertificatesInclude(includeValues))
+			}
+
+			resp, err := client.GetCertificate(requestCtx, idValue, opts...)
+			if err != nil {
+				return fmt.Errorf("certificates get: failed to fetch: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
@@ -241,4 +300,25 @@ func readCSRContent(path string) (string, error) {
 		return "", fmt.Errorf("CSR file is empty")
 	}
 	return normalized, nil
+}
+
+func normalizeCertificatesInclude(value string) ([]string, error) {
+	include := splitCSV(value)
+	if len(include) == 0 {
+		return nil, nil
+	}
+	allowed := map[string]struct{}{}
+	for _, item := range certificateIncludeList() {
+		allowed[item] = struct{}{}
+	}
+	for _, item := range include {
+		if _, ok := allowed[item]; !ok {
+			return nil, fmt.Errorf("--include must be one of: %s", strings.Join(certificateIncludeList(), ", "))
+		}
+	}
+	return include, nil
+}
+
+func certificateIncludeList() []string {
+	return []string{"passTypeId"}
 }

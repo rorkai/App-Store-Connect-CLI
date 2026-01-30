@@ -116,6 +116,15 @@ type ProfilesOption func(*profilesQuery)
 // UsersOption is a functional option for GetUsers.
 type UsersOption func(*usersQuery)
 
+// ProfileCertificatesOption is a functional option for GetProfileCertificates.
+type ProfileCertificatesOption func(*profileCertificatesQuery)
+
+// ProfileDevicesOption is a functional option for GetProfileDevices.
+type ProfileDevicesOption func(*profileDevicesQuery)
+
+// UserVisibleAppsOption is a functional option for GetUserVisibleApps.
+type UserVisibleAppsOption func(*userVisibleAppsQuery)
+
 // ActorsOption is a functional option for GetActors.
 type ActorsOption func(*actorsQuery)
 
@@ -2047,6 +2056,13 @@ func WithCertificatesTypes(types []string) CertificatesOption {
 	}
 }
 
+// WithCertificatesInclude sets include for certificate responses.
+func WithCertificatesInclude(include []string) CertificatesOption {
+	return func(q *certificatesQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
 // WithCertificatesFilterType filters certificates by certificate type (supports CSV).
 func WithCertificatesFilterType(certType string) CertificatesOption {
 	return func(q *certificatesQuery) {
@@ -2083,6 +2099,13 @@ func WithProfilesTypes(types []string) ProfilesOption {
 	}
 }
 
+// WithProfilesInclude sets include for profile responses.
+func WithProfilesInclude(include []string) ProfilesOption {
+	return func(q *profilesQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
 // WithProfilesFilterBundleID filters profiles by bundle ID.
 func WithProfilesFilterBundleID(bundleID string) ProfilesOption {
 	return func(q *profilesQuery) {
@@ -2100,6 +2123,42 @@ func WithProfilesFilterType(profileType string) ProfilesOption {
 			return
 		}
 		q.profileTypes = strings.Split(normalized, ",")
+	}
+}
+
+// WithProfileCertificatesLimit sets the max number of profile certificates to return.
+func WithProfileCertificatesLimit(limit int) ProfileCertificatesOption {
+	return func(q *profileCertificatesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithProfileCertificatesNextURL uses a next page URL directly.
+func WithProfileCertificatesNextURL(next string) ProfileCertificatesOption {
+	return func(q *profileCertificatesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithProfileDevicesLimit sets the max number of profile devices to return.
+func WithProfileDevicesLimit(limit int) ProfileDevicesOption {
+	return func(q *profileDevicesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithProfileDevicesNextURL uses a next page URL directly.
+func WithProfileDevicesNextURL(next string) ProfileDevicesOption {
+	return func(q *profileDevicesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
 	}
 }
 
@@ -2132,6 +2191,31 @@ func WithUsersEmail(email string) UsersOption {
 func WithUsersRoles(roles []string) UsersOption {
 	return func(q *usersQuery) {
 		q.roles = normalizeList(roles)
+	}
+}
+
+// WithUsersInclude sets include for user responses.
+func WithUsersInclude(include []string) UsersOption {
+	return func(q *usersQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
+// WithUserVisibleAppsLimit sets the max number of visible apps to return.
+func WithUserVisibleAppsLimit(limit int) UserVisibleAppsOption {
+	return func(q *userVisibleAppsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithUserVisibleAppsNextURL uses a next page URL directly.
+func WithUserVisibleAppsNextURL(next string) UserVisibleAppsOption {
+	return func(q *userVisibleAppsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
 	}
 }
 

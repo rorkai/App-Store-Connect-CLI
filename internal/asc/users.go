@@ -28,6 +28,9 @@ type UsersResponse = Response[UserAttributes]
 // UserResponse is the response from user detail endpoint.
 type UserResponse = SingleResponse[UserAttributes]
 
+// UserVisibleAppsLinkagesResponse is the response from user visible apps linkage endpoint.
+type UserVisibleAppsLinkagesResponse = LinkagesResponse
+
 // UserInvitationsResponse is the response from user invitations endpoint.
 type UserInvitationsResponse = Response[UserInvitationAttributes]
 
