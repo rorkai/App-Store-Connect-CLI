@@ -33,10 +33,6 @@ func normalizeDate(value, flagName string) (string, error) {
 	return shared.NormalizeDate(value, flagName)
 }
 
-func splitCSV(value string) []string {
-	return shared.SplitCSV(value)
-}
-
 func parseCommaSeparatedIDs(value string) []string {
 	return shared.SplitCSV(value)
 }

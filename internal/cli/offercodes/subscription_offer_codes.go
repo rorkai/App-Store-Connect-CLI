@@ -366,7 +366,7 @@ func normalizeOfferCodeEligibility(value string) (asc.SubscriptionOfferEligibili
 }
 
 func normalizeOfferCodeCustomerEligibilities(value string) ([]asc.SubscriptionCustomerEligibility, error) {
-	values := splitCSV(value)
+	values := parseCommaSeparatedIDs(value)
 	if len(values) == 0 {
 		return nil, nil
 	}

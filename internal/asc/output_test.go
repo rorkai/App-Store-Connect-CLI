@@ -249,6 +249,70 @@ func TestPrintMarkdown_OfferCodes(t *testing.T) {
 	}
 }
 
+func TestPrintTable_SubscriptionOfferCode(t *testing.T) {
+	resp := &SubscriptionOfferCodeResponse{
+		Data: Resource[SubscriptionOfferCodeAttributes]{
+			ID: "offer-1",
+			Attributes: SubscriptionOfferCodeAttributes{
+				Name:                  "Launch Offer",
+				CustomerEligibilities: []SubscriptionCustomerEligibility{SubscriptionCustomerEligibilityNew, SubscriptionCustomerEligibilityExisting},
+				OfferEligibility:      SubscriptionOfferEligibilityStackWithIntroOffers,
+				Duration:              SubscriptionOfferDurationOneMonth,
+				OfferMode:             SubscriptionOfferModePayAsYouGo,
+				NumberOfPeriods:       2,
+				TotalNumberOfCodes:    100,
+				ProductionCodeCount:   80,
+				SandboxCodeCount:      20,
+				Active:                true,
+				AutoRenewEnabled:      false,
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Customer Eligibilities") || !strings.Contains(output, "Offer Eligibility") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "Launch Offer") || !strings.Contains(output, "STACK_WITH_INTRO_OFFERS") {
+		t.Fatalf("expected offer code details in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_SubscriptionOfferCode(t *testing.T) {
+	resp := &SubscriptionOfferCodeResponse{
+		Data: Resource[SubscriptionOfferCodeAttributes]{
+			ID: "offer-1",
+			Attributes: SubscriptionOfferCodeAttributes{
+				Name:                  "Launch Offer",
+				CustomerEligibilities: []SubscriptionCustomerEligibility{SubscriptionCustomerEligibilityNew, SubscriptionCustomerEligibilityExisting},
+				OfferEligibility:      SubscriptionOfferEligibilityStackWithIntroOffers,
+				Duration:              SubscriptionOfferDurationOneMonth,
+				OfferMode:             SubscriptionOfferModePayAsYouGo,
+				NumberOfPeriods:       2,
+				TotalNumberOfCodes:    100,
+				ProductionCodeCount:   80,
+				SandboxCodeCount:      20,
+				Active:                true,
+				AutoRenewEnabled:      false,
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Name | Customer Eligibilities |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "Launch Offer") || !strings.Contains(output, "NEW, EXISTING") {
+		t.Fatalf("expected offer code details in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_OfferCodeCustomCodes(t *testing.T) {
 	resp := &SubscriptionOfferCodeCustomCodesResponse{
 		Data: []Resource[SubscriptionOfferCodeCustomCodeAttributes]{
