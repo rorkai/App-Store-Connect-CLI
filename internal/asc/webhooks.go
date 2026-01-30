@@ -104,6 +104,9 @@ type WebhookDeliveryAttributes struct {
 // WebhookDeliveriesResponse is the response from webhook deliveries list endpoints.
 type WebhookDeliveriesResponse = Response[WebhookDeliveryAttributes]
 
+// WebhookDeliveriesLinkagesResponse is the response from webhook delivery relationship endpoints.
+type WebhookDeliveriesLinkagesResponse = LinkagesResponse
+
 // WebhookDeliveryResponse is the response from webhook delivery endpoints.
 type WebhookDeliveryResponse = SingleResponse[WebhookDeliveryAttributes]
 

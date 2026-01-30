@@ -154,6 +154,36 @@ func (c *Client) GetWebhookDeliveries(ctx context.Context, webhookID string, opt
 	return &response, nil
 }
 
+// GetWebhookDeliveriesRelationships retrieves delivery relationships for a webhook.
+func (c *Client) GetWebhookDeliveriesRelationships(ctx context.Context, webhookID string, opts ...LinkagesOption) (*WebhookDeliveriesLinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/webhooks/%s/relationships/deliveries", strings.TrimSpace(webhookID))
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("webhookDeliveries relationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response WebhookDeliveriesLinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse webhook deliveries relationships response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateWebhookDelivery creates a webhook delivery (redelivery) from a template delivery.
 func (c *Client) CreateWebhookDelivery(ctx context.Context, deliveryID string) (*WebhookDeliveryResponse, error) {
 	payload := WebhookDeliveryCreateRequest{

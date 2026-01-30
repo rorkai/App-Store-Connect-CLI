@@ -213,6 +213,42 @@ func TestGetWebhookDeliveries_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestGetWebhookDeliveriesRelationships_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"webhookDeliveries","id":"d1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/webhooks/wh-1/relationships/deliveries" {
+			t.Fatalf("expected path /v1/webhooks/wh-1/relationships/deliveries, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("limit") != "7" {
+			t.Fatalf("expected limit=7, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetWebhookDeliveriesRelationships(context.Background(), "wh-1", WithLinkagesLimit(7)); err != nil {
+		t.Fatalf("GetWebhookDeliveriesRelationships() error: %v", err)
+	}
+}
+
+func TestGetWebhookDeliveriesRelationships_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/webhooks/wh-1/relationships/deliveries?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next url %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetWebhookDeliveriesRelationships(context.Background(), "wh-1", WithLinkagesNextURL(next)); err != nil {
+		t.Fatalf("GetWebhookDeliveriesRelationships() error: %v", err)
+	}
+}
+
 func TestCreateWebhookDelivery_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"webhookDeliveries","id":"d1"}}`)
 	client := newTestClient(t, func(req *http.Request) {

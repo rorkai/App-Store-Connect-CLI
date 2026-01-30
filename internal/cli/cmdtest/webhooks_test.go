@@ -96,6 +96,11 @@ func TestWebhooksValidationErrors(t *testing.T) {
 			wantErr: "--delivery-id is required",
 		},
 		{
+			name:    "deliveries relationships missing webhook id",
+			args:    []string{"webhooks", "deliveries", "relationships"},
+			wantErr: "--webhook-id is required",
+		},
+		{
 			name:    "ping missing webhook id",
 			args:    []string{"webhooks", "ping"},
 			wantErr: "--webhook-id is required",
