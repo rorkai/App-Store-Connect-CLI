@@ -557,10 +557,10 @@ Examples:
 			}
 
 			if *paginate {
-		if trimmedID == "" {
-			fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-			return flag.ErrHelp
-		}
+				if trimmedID == "" {
+					fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
+					return flag.ErrHelp
+				}
 				paginateOpts := append(opts, asc.WithLinkagesLimit(webhooksMaxLimit))
 				firstPage, err := client.GetWebhookDeliveriesRelationships(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
