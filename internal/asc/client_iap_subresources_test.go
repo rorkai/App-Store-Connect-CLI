@@ -305,7 +305,7 @@ func TestCreateInAppPurchaseAvailability(t *testing.T) {
 		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 			t.Fatalf("decode payload error: %v", err)
 		}
-		if payload.Data.Attributes == nil || !payload.Data.Attributes.AvailableInNewTerritories {
+		if !payload.Data.Attributes.AvailableInNewTerritories {
 			t.Fatalf("expected availableInNewTerritories true")
 		}
 		if len(payload.Data.Relationships.AvailableTerritories.Data) != 2 {
