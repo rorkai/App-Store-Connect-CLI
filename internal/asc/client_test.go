@@ -1011,6 +1011,58 @@ func TestBuildSubscriptionOfferCodeOneTimeUseCodesQuery(t *testing.T) {
 	}
 }
 
+func TestBuildSubscriptionOfferCodeCustomCodesQuery(t *testing.T) {
+	query := &subscriptionOfferCodeCustomCodesQuery{}
+	opts := []SubscriptionOfferCodeCustomCodesOption{
+		WithSubscriptionOfferCodeCustomCodesLimit(20),
+		WithSubscriptionOfferCodeCustomCodesNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc"),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	if query.limit != 20 {
+		t.Fatalf("expected limit=20, got %d", query.limit)
+	}
+	if query.nextURL != "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc" {
+		t.Fatalf("expected nextURL to be set, got %q", query.nextURL)
+	}
+
+	values, err := url.ParseQuery(buildSubscriptionOfferCodeCustomCodesQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "20" {
+		t.Fatalf("expected limit=20, got %q", got)
+	}
+}
+
+func TestBuildSubscriptionOfferCodePricesQuery(t *testing.T) {
+	query := &subscriptionOfferCodePricesQuery{}
+	opts := []SubscriptionOfferCodePricesOption{
+		WithSubscriptionOfferCodePricesLimit(30),
+		WithSubscriptionOfferCodePricesNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc"),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	if query.limit != 30 {
+		t.Fatalf("expected limit=30, got %d", query.limit)
+	}
+	if query.nextURL != "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/prices?cursor=abc" {
+		t.Fatalf("expected nextURL to be set, got %q", query.nextURL)
+	}
+
+	values, err := url.ParseQuery(buildSubscriptionOfferCodePricesQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "30" {
+		t.Fatalf("expected limit=30, got %q", got)
+	}
+}
+
 func TestBuildWinBackOffersQuery(t *testing.T) {
 	query := &winBackOffersQuery{}
 	opts := []WinBackOffersOption{

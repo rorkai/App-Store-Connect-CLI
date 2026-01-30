@@ -25,15 +25,25 @@ func OfferCodesCommand() *ffcli.Command {
 		Name:       "offer-codes",
 		ShortUsage: "asc offer-codes <subcommand> [flags]",
 		ShortHelp:  "Manage subscription offer codes.",
-		LongHelp: `Manage one-time use offer codes for subscriptions.
+		LongHelp: `Manage subscription offer codes and related custom or one-time use codes.
 
 Examples:
+  asc offer-codes get --offer-code-id "OFFER_CODE_ID"
+  asc offer-codes create --subscription-id "SUB_ID" --name "SPRING" --customer-eligibilities NEW --offer-eligibility STACK_WITH_INTRO_OFFERS --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --number-of-periods 1 --price-id "PRICE_ID"
+  asc offer-codes update --offer-code-id "OFFER_CODE_ID" --active true
+  asc offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID"
+  asc offer-codes prices list --offer-code-id "OFFER_CODE_ID"
   asc offer-codes list --offer-code "OFFER_CODE_ID"
   asc offer-codes generate --offer-code "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
   asc offer-codes values --id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.txt"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			OfferCodesGetCommand(),
+			OfferCodesCreateCommand(),
+			OfferCodesUpdateCommand(),
+			OfferCodeCustomCodesCommand(),
+			OfferCodePricesCommand(),
 			OfferCodesListCommand(),
 			OfferCodesGenerateCommand(),
 			OfferCodesValuesCommand(),

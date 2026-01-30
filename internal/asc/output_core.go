@@ -257,6 +257,8 @@ func PrintMarkdown(data interface{}) error {
 		return printBetaAppClipInvocationLocalizationsMarkdown(&BetaAppClipInvocationLocalizationsResponse{Data: []Resource[BetaAppClipInvocationLocalizationAttributes]{v.Data}})
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return printOfferCodesMarkdown(v)
+	case *SubscriptionOfferCodeCustomCodesResponse:
+		return printOfferCodeCustomCodesMarkdown(v)
 	case *WinBackOffersResponse:
 		return printWinBackOffersMarkdown(v)
 	case *WinBackOfferResponse:
@@ -273,8 +275,12 @@ func PrintMarkdown(data interface{}) error {
 		return printAppClipDomainStatusResultMarkdown(v)
 	case *SubscriptionOfferCodeOneTimeUseCodeResponse:
 		return printOfferCodesMarkdown(&SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}})
+	case *SubscriptionOfferCodeCustomCodeResponse:
+		return printOfferCodeCustomCodesMarkdown(&SubscriptionOfferCodeCustomCodesResponse{Data: []Resource[SubscriptionOfferCodeCustomCodeAttributes]{v.Data}})
 	case *WinBackOfferDeleteResult:
 		return printWinBackOfferDeleteResultMarkdown(v)
+	case *SubscriptionOfferCodePricesResponse:
+		return printOfferCodePricesMarkdown(v)
 	case *AppAvailabilityV2Response:
 		return printAppAvailabilityMarkdown(v)
 	case *TerritoryAvailabilitiesResponse:
@@ -961,6 +967,8 @@ func PrintTable(data interface{}) error {
 		return printBetaAppClipInvocationLocalizationsTable(&BetaAppClipInvocationLocalizationsResponse{Data: []Resource[BetaAppClipInvocationLocalizationAttributes]{v.Data}})
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		return printOfferCodesTable(v)
+	case *SubscriptionOfferCodeCustomCodesResponse:
+		return printOfferCodeCustomCodesTable(v)
 	case *WinBackOffersResponse:
 		return printWinBackOffersTable(v)
 	case *WinBackOfferResponse:
@@ -977,8 +985,12 @@ func PrintTable(data interface{}) error {
 		return printAppClipDomainStatusResultTable(v)
 	case *SubscriptionOfferCodeOneTimeUseCodeResponse:
 		return printOfferCodesTable(&SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}})
+	case *SubscriptionOfferCodeCustomCodeResponse:
+		return printOfferCodeCustomCodesTable(&SubscriptionOfferCodeCustomCodesResponse{Data: []Resource[SubscriptionOfferCodeCustomCodeAttributes]{v.Data}})
 	case *WinBackOfferDeleteResult:
 		return printWinBackOfferDeleteResultTable(v)
+	case *SubscriptionOfferCodePricesResponse:
+		return printOfferCodePricesTable(v)
 	case *AppAvailabilityV2Response:
 		return printAppAvailabilityTable(v)
 	case *TerritoryAvailabilitiesResponse:

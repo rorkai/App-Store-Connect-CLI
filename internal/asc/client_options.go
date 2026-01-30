@@ -56,6 +56,12 @@ type BetaAppClipInvocationsOption func(*betaAppClipInvocationsQuery)
 // SubscriptionOfferCodeOneTimeUseCodesOption is a functional option for GetSubscriptionOfferCodeOneTimeUseCodes.
 type SubscriptionOfferCodeOneTimeUseCodesOption func(*subscriptionOfferCodeOneTimeUseCodesQuery)
 
+// SubscriptionOfferCodeCustomCodesOption is a functional option for custom codes list endpoints.
+type SubscriptionOfferCodeCustomCodesOption func(*subscriptionOfferCodeCustomCodesQuery)
+
+// SubscriptionOfferCodePricesOption is a functional option for offer code prices list endpoints.
+type SubscriptionOfferCodePricesOption func(*subscriptionOfferCodePricesQuery)
+
 // WinBackOffersOption is a functional option for win-back offer list endpoints.
 type WinBackOffersOption func(*winBackOffersQuery)
 
@@ -400,6 +406,42 @@ func WithSubscriptionOfferCodeOneTimeUseCodesLimit(limit int) SubscriptionOfferC
 // WithSubscriptionOfferCodeOneTimeUseCodesNextURL uses a next page URL directly.
 func WithSubscriptionOfferCodeOneTimeUseCodesNextURL(next string) SubscriptionOfferCodeOneTimeUseCodesOption {
 	return func(q *subscriptionOfferCodeOneTimeUseCodesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithSubscriptionOfferCodeCustomCodesLimit sets the max number of custom codes to return.
+func WithSubscriptionOfferCodeCustomCodesLimit(limit int) SubscriptionOfferCodeCustomCodesOption {
+	return func(q *subscriptionOfferCodeCustomCodesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithSubscriptionOfferCodeCustomCodesNextURL uses a next page URL directly.
+func WithSubscriptionOfferCodeCustomCodesNextURL(next string) SubscriptionOfferCodeCustomCodesOption {
+	return func(q *subscriptionOfferCodeCustomCodesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithSubscriptionOfferCodePricesLimit sets the max number of offer code prices to return.
+func WithSubscriptionOfferCodePricesLimit(limit int) SubscriptionOfferCodePricesOption {
+	return func(q *subscriptionOfferCodePricesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithSubscriptionOfferCodePricesNextURL uses a next page URL directly.
+func WithSubscriptionOfferCodePricesNextURL(next string) SubscriptionOfferCodePricesOption {
+	return func(q *subscriptionOfferCodePricesQuery) {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}
