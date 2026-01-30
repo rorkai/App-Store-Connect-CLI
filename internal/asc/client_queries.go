@@ -113,11 +113,28 @@ type buildsQuery struct {
 	preReleaseVersionID string
 }
 
+type buildUploadsQuery struct {
+	listQuery
+	cfBundleShortVersions []string
+	cfBundleVersions      []string
+	platforms             []string
+	states                []string
+	sort                  string
+}
+
 type buildBundlesQuery struct {
 	limit int
 }
 
 type buildBundleFileSizesQuery struct {
+	listQuery
+}
+
+type buildUploadFilesQuery struct {
+	listQuery
+}
+
+type buildIndividualTestersQuery struct {
 	listQuery
 }
 
@@ -244,9 +261,25 @@ type appStoreVersionLocalizationsQuery struct {
 	locales []string
 }
 
+type betaAppLocalizationsQuery struct {
+	listQuery
+	locales []string
+	appIDs  []string
+}
+
 type betaBuildLocalizationsQuery struct {
 	listQuery
 	locales []string
+}
+
+type betaBuildUsagesQuery struct {
+	listQuery
+}
+
+type betaTesterUsagesQuery struct {
+	listQuery
+	period string
+	appID  string
 }
 
 type appInfoLocalizationsQuery struct {
@@ -1028,6 +1061,31 @@ func buildBuildBundleFileSizesQuery(query *buildBundleFileSizesQuery) string {
 	return values.Encode()
 }
 
+func buildBuildUploadsQuery(query *buildUploadsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[cfBundleShortVersionString]", query.cfBundleShortVersions)
+	addCSV(values, "filter[cfBundleVersion]", query.cfBundleVersions)
+	addCSV(values, "filter[platform]", query.platforms)
+	addCSV(values, "filter[state]", query.states)
+	if query.sort != "" {
+		values.Set("sort", query.sort)
+	}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBuildUploadFilesQuery(query *buildUploadFilesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBuildIndividualTestersQuery(query *buildIndividualTestersQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 func buildBetaAppClipInvocationsQuery(query *betaAppClipInvocationsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -1220,9 +1278,35 @@ func buildAppStoreVersionLocalizationsQuery(query *appStoreVersionLocalizationsQ
 	return values.Encode()
 }
 
+func buildBetaAppLocalizationsQuery(query *betaAppLocalizationsQuery) string {
+	values := url.Values{}
+	addCSV(values, "filter[locale]", query.locales)
+	addCSV(values, "filter[app]", query.appIDs)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
 func buildBetaBuildLocalizationsQuery(query *betaBuildLocalizationsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[locale]", query.locales)
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBetaBuildUsagesQuery(query *betaBuildUsagesQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildBetaTesterUsagesQuery(query *betaTesterUsagesQuery) string {
+	values := url.Values{}
+	if strings.TrimSpace(query.period) != "" {
+		values.Set("period", strings.TrimSpace(query.period))
+	}
+	if strings.TrimSpace(query.appID) != "" {
+		values.Set("filter[apps]", strings.TrimSpace(query.appID))
+	}
 	addLimit(values, query.limit)
 	return values.Encode()
 }

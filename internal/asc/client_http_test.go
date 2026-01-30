@@ -2036,6 +2036,148 @@ func TestDeleteBetaBuildLocalization_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestGetBetaAppLocalizations_WithFilters(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaAppLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaAppLocalizations" {
+			t.Fatalf("expected path /v1/betaAppLocalizations, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[app]") != "app-1" {
+			t.Fatalf("expected filter[app]=app-1, got %q", values.Get("filter[app]"))
+		}
+		if values.Get("filter[locale]") != "en-US" {
+			t.Fatalf("expected filter[locale]=en-US, got %q", values.Get("filter[locale]"))
+		}
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBetaAppLocalizations(
+		context.Background(),
+		WithBetaAppLocalizationAppIDs([]string{"app-1"}),
+		WithBetaAppLocalizationLocales([]string{"en-US"}),
+		WithBetaAppLocalizationsLimit(5),
+	); err != nil {
+		t.Fatalf("GetBetaAppLocalizations() error: %v", err)
+	}
+}
+
+func TestGetBetaAppLocalization_ByID(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"betaAppLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaAppLocalizations/loc-1" {
+			t.Fatalf("expected path /v1/betaAppLocalizations/loc-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBetaAppLocalization(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetBetaAppLocalization() error: %v", err)
+	}
+}
+
+func TestCreateBetaAppLocalization_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"betaAppLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaAppLocalizations" {
+			t.Fatalf("expected path /v1/betaAppLocalizations, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload BetaAppLocalizationCreateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeBetaAppLocalizations {
+			t.Fatalf("expected type betaAppLocalizations, got %q", payload.Data.Type)
+		}
+		if payload.Data.Attributes.Locale != "en-US" {
+			t.Fatalf("expected locale en-US, got %q", payload.Data.Attributes.Locale)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.App == nil {
+			t.Fatalf("expected app relationship")
+		}
+		if payload.Data.Relationships.App.Data.ID != "app-1" {
+			t.Fatalf("expected app id app-1, got %q", payload.Data.Relationships.App.Data.ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := BetaAppLocalizationAttributes{
+		Locale:        "en-US",
+		Description:   "Test details",
+		FeedbackEmail: "tester@example.com",
+	}
+	if _, err := client.CreateBetaAppLocalization(context.Background(), "app-1", attrs); err != nil {
+		t.Fatalf("CreateBetaAppLocalization() error: %v", err)
+	}
+}
+
+func TestUpdateBetaAppLocalization_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"betaAppLocalizations","id":"loc-1","attributes":{"description":"Updated"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaAppLocalizations/loc-1" {
+			t.Fatalf("expected path /v1/betaAppLocalizations/loc-1, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload BetaAppLocalizationUpdateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != ResourceTypeBetaAppLocalizations {
+			t.Fatalf("expected type betaAppLocalizations, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "loc-1" {
+			t.Fatalf("expected id loc-1, got %q", payload.Data.ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := BetaAppLocalizationUpdateAttributes{
+		Description: func() *string { v := "Updated"; return &v }(),
+	}
+	if _, err := client.UpdateBetaAppLocalization(context.Background(), "loc-1", attrs); err != nil {
+		t.Fatalf("UpdateBetaAppLocalization() error: %v", err)
+	}
+}
+
+func TestDeleteBetaAppLocalization_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaAppLocalizations/loc-1" {
+			t.Fatalf("expected path /v1/betaAppLocalizations/loc-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteBetaAppLocalization(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("DeleteBetaAppLocalization() error: %v", err)
+	}
+}
+
 func TestGetAppInfoLocalizations_WithFilters(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -2638,6 +2780,242 @@ func TestUpdateBuildUploadFile(t *testing.T) {
 	}
 	if result.Data.ID != "FILE_123" {
 		t.Fatalf("expected file ID FILE_123, got %s", result.Data.ID)
+	}
+}
+
+func TestGetBuildUploads_WithFilters(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"buildUploads","id":"UPLOAD_123","attributes":{"cfBundleShortVersionString":"1.0.0"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/buildUploads" {
+			t.Fatalf("expected path /v1/apps/app-1/buildUploads, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[cfBundleShortVersionString]") != "1.0.0,1.0.1" {
+			t.Fatalf("expected filter[cfBundleShortVersionString]=1.0.0,1.0.1, got %q", values.Get("filter[cfBundleShortVersionString]"))
+		}
+		if values.Get("filter[cfBundleVersion]") != "100" {
+			t.Fatalf("expected filter[cfBundleVersion]=100, got %q", values.Get("filter[cfBundleVersion]"))
+		}
+		if values.Get("filter[platform]") != "IOS,MAC_OS" {
+			t.Fatalf("expected filter[platform]=IOS,MAC_OS, got %q", values.Get("filter[platform]"))
+		}
+		if values.Get("filter[state]") != "UPLOADED,FAILED" {
+			t.Fatalf("expected filter[state]=UPLOADED,FAILED, got %q", values.Get("filter[state]"))
+		}
+		if values.Get("sort") != "uploadedDate" {
+			t.Fatalf("expected sort=uploadedDate, got %q", values.Get("sort"))
+		}
+		if values.Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	_, err := client.GetBuildUploads(context.Background(), "app-1",
+		WithBuildUploadsCFBundleShortVersionStrings([]string{"1.0.0", "1.0.1"}),
+		WithBuildUploadsCFBundleVersions([]string{"100"}),
+		WithBuildUploadsPlatforms([]string{"ios", "mac_os"}),
+		WithBuildUploadsStates([]string{"uploaded", "failed"}),
+		WithBuildUploadsSort("uploadedDate"),
+		WithBuildUploadsLimit(5),
+	)
+	if err != nil {
+		t.Fatalf("GetBuildUploads() error: %v", err)
+	}
+}
+
+func TestDeleteBuildUpload(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/buildUploads/UPLOAD_123" {
+			t.Fatalf("expected path /v1/buildUploads/UPLOAD_123, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteBuildUpload(context.Background(), "UPLOAD_123"); err != nil {
+		t.Fatalf("DeleteBuildUpload() error: %v", err)
+	}
+}
+
+func TestGetBuildUploadFiles_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"buildUploadFiles","id":"FILE_123","attributes":{"fileName":"app.ipa","fileSize":1234,"uti":"com.apple.ipa","assetType":"ASSET"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/buildUploads/UPLOAD_123/buildUploadFiles" {
+			t.Fatalf("expected path /v1/buildUploads/UPLOAD_123/buildUploadFiles, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "15" {
+			t.Fatalf("expected limit=15, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBuildUploadFiles(context.Background(), "UPLOAD_123", WithBuildUploadFilesLimit(15)); err != nil {
+		t.Fatalf("GetBuildUploadFiles() error: %v", err)
+	}
+}
+
+func TestGetBuildUploadFile(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"FILE_123","attributes":{"fileName":"app.ipa","fileSize":1234,"uti":"com.apple.ipa","assetType":"ASSET"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/buildUploadFiles/FILE_123" {
+			t.Fatalf("expected path /v1/buildUploadFiles/FILE_123, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBuildUploadFile(context.Background(), "FILE_123"); err != nil {
+		t.Fatalf("GetBuildUploadFile() error: %v", err)
+	}
+}
+
+func TestGetBuildIndividualTesters_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"betaTesters","id":"TESTER_1","attributes":{"email":"tester@example.com"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds/BUILD_123/individualTesters" {
+			t.Fatalf("expected path /v1/builds/BUILD_123/individualTesters, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "10" {
+			t.Fatalf("expected limit=10, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBuildIndividualTesters(context.Background(), "BUILD_123", WithBuildIndividualTestersLimit(10)); err != nil {
+		t.Fatalf("GetBuildIndividualTesters() error: %v", err)
+	}
+}
+
+func TestAddIndividualTestersToBuild(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds/BUILD_123/relationships/individualTesters" {
+			t.Fatalf("expected path /v1/builds/BUILD_123/relationships/individualTesters, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload RelationshipRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if len(payload.Data) != 2 {
+			t.Fatalf("expected 2 data entries, got %d", len(payload.Data))
+		}
+		if payload.Data[0].Type != ResourceTypeBetaTesters || payload.Data[0].ID != "TESTER_1" {
+			t.Fatalf("unexpected first tester linkage: %+v", payload.Data[0])
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.AddIndividualTestersToBuild(context.Background(), "BUILD_123", []string{"TESTER_1", "TESTER_2"}); err != nil {
+		t.Fatalf("AddIndividualTestersToBuild() error: %v", err)
+	}
+}
+
+func TestRemoveIndividualTestersFromBuild(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, "")
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds/BUILD_123/relationships/individualTesters" {
+			t.Fatalf("expected path /v1/builds/BUILD_123/relationships/individualTesters, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload RelationshipRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if len(payload.Data) != 1 || payload.Data[0].ID != "TESTER_1" {
+			t.Fatalf("unexpected relationship payload: %+v", payload.Data)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.RemoveIndividualTestersFromBuild(context.Background(), "BUILD_123", []string{"TESTER_1"}); err != nil {
+		t.Fatalf("RemoveIndividualTestersFromBuild() error: %v", err)
+	}
+}
+
+func TestGetBuildBetaUsagesMetrics_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"value":"1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds/build-1/metrics/betaBuildUsages" {
+			t.Fatalf("expected path /v1/builds/build-1/metrics/betaBuildUsages, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "7" {
+			t.Fatalf("expected limit=7, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	resp, err := client.GetBuildBetaUsagesMetrics(context.Background(), "build-1", WithBetaBuildUsagesLimit(7))
+	if err != nil {
+		t.Fatalf("GetBuildBetaUsagesMetrics() error: %v", err)
+	}
+	if len(resp.Data) == 0 {
+		t.Fatalf("expected response data")
+	}
+}
+
+func TestGetBetaTesterUsagesMetrics_WithFilters(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"value":"1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaTesters/tester-1/metrics/betaTesterUsages" {
+			t.Fatalf("expected path /v1/betaTesters/tester-1/metrics/betaTesterUsages, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("period") != "P30D" {
+			t.Fatalf("expected period=P30D, got %q", values.Get("period"))
+		}
+		if values.Get("filter[apps]") != "app-1" {
+			t.Fatalf("expected filter[apps]=app-1, got %q", values.Get("filter[apps]"))
+		}
+		if values.Get("limit") != "20" {
+			t.Fatalf("expected limit=20, got %q", values.Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	resp, err := client.GetBetaTesterUsagesMetrics(context.Background(), "tester-1",
+		WithBetaTesterUsagesPeriod("P30D"),
+		WithBetaTesterUsagesAppID("app-1"),
+		WithBetaTesterUsagesLimit(20),
+	)
+	if err != nil {
+		t.Fatalf("GetBetaTesterUsagesMetrics() error: %v", err)
+	}
+	if len(resp.Data) == 0 {
+		t.Fatalf("expected response data")
 	}
 }
 

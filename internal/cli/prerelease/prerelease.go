@@ -19,11 +19,16 @@ func PreReleaseVersionsCommand() *ffcli.Command {
 		Name:       "pre-release-versions",
 		ShortUsage: "asc pre-release-versions <subcommand> [flags]",
 		ShortHelp:  "Manage TestFlight pre-release versions.",
-		LongHelp:   `Manage TestFlight pre-release versions.`,
-		UsageFunc:  DefaultUsageFunc,
+		LongHelp: `Manage TestFlight pre-release versions.
+
+Examples:
+  asc pre-release-versions list --app "APP_ID"
+  asc pre-release-versions relationships get --id "PR_ID" --type "app"`,
+		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PreReleaseVersionsListCommand(),
 			PreReleaseVersionsGetCommand(),
+			PreReleaseVersionsRelationshipsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

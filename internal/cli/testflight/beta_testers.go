@@ -19,19 +19,19 @@ func BetaTestersCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "beta-testers",
-		ShortUsage: "asc beta-testers <subcommand> [flags]",
+		ShortUsage: "asc testflight beta-testers <subcommand> [flags]",
 		ShortHelp:  "Manage TestFlight beta testers.",
 		LongHelp: `Manage TestFlight beta testers.
 
 Examples:
-  asc beta-testers list --app "APP_ID"
-  asc beta-testers get --id "TESTER_ID"
-  asc beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
-  asc beta-testers remove --app "APP_ID" --email "tester@example.com"
-  asc beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID"
-  asc beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID"
-  asc beta-testers invite --app "APP_ID" --email "tester@example.com"
-  asc beta-testers invite --app "APP_ID" --email "tester@example.com" --group "Beta"`,
+  asc testflight beta-testers list --app "APP_ID"
+  asc testflight beta-testers get --id "TESTER_ID"
+  asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
+  asc testflight beta-testers remove --app "APP_ID" --email "tester@example.com"
+  asc testflight beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID"
+  asc testflight beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID"
+  asc testflight beta-testers invite --app "APP_ID" --email "tester@example.com"
+  asc testflight beta-testers invite --app "APP_ID" --email "tester@example.com" --group "Beta"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -41,6 +41,8 @@ Examples:
 			BetaTestersRemoveCommand(),
 			BetaTestersAddGroupsCommand(),
 			BetaTestersRemoveGroupsCommand(),
+			BetaTestersRelationshipsCommand(),
+			BetaTestersMetricsCommand(),
 			BetaTestersInviteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -65,16 +67,16 @@ func BetaTestersListCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc beta-testers list [flags]",
+		ShortUsage: "asc testflight beta-testers list [flags]",
 		ShortHelp:  "List TestFlight beta testers for an app.",
 		LongHelp: `List TestFlight beta testers for an app.
 
 Examples:
-  asc beta-testers list --app "APP_ID"
-  asc beta-testers list --app "APP_ID" --build "BUILD_ID"
-  asc beta-testers list --app "APP_ID" --group "Beta"
-  asc beta-testers list --app "APP_ID" --limit 25
-  asc beta-testers list --app "APP_ID" --paginate`,
+  asc testflight beta-testers list --app "APP_ID"
+  asc testflight beta-testers list --app "APP_ID" --build "BUILD_ID"
+  asc testflight beta-testers list --app "APP_ID" --group "Beta"
+  asc testflight beta-testers list --app "APP_ID" --limit 25
+  asc testflight beta-testers list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -159,12 +161,12 @@ func BetaTestersGetCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc beta-testers get [flags]",
+		ShortUsage: "asc testflight beta-testers get [flags]",
 		ShortHelp:  "Get a TestFlight beta tester by ID.",
 		LongHelp: `Get a TestFlight beta tester by ID.
 
 Examples:
-  asc beta-testers get --id "TESTER_ID"`,
+  asc testflight beta-testers get --id "TESTER_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -206,12 +208,12 @@ func BetaTestersAddCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "add",
-		ShortUsage: "asc beta-testers add [flags]",
+		ShortUsage: "asc testflight beta-testers add [flags]",
 		ShortHelp:  "Add a TestFlight beta tester.",
 		LongHelp: `Add a TestFlight beta tester.
 
 Examples:
-  asc beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"`,
+  asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -263,12 +265,12 @@ func BetaTestersRemoveCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "remove",
-		ShortUsage: "asc beta-testers remove [flags]",
+		ShortUsage: "asc testflight beta-testers remove [flags]",
 		ShortHelp:  "Remove a TestFlight beta tester.",
 		LongHelp: `Remove a TestFlight beta tester.
 
 Examples:
-  asc beta-testers remove --app "APP_ID" --email "tester@example.com"`,
+  asc testflight beta-testers remove --app "APP_ID" --email "tester@example.com"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -324,13 +326,13 @@ func BetaTestersAddGroupsCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "add-groups",
-		ShortUsage: "asc beta-testers add-groups --id TESTER_ID --group GROUP_ID[,GROUP_ID...]",
+		ShortUsage: "asc testflight beta-testers add-groups --id TESTER_ID --group GROUP_ID[,GROUP_ID...]",
 		ShortHelp:  "Add a beta tester to beta groups.",
 		LongHelp: `Add a beta tester to beta groups.
 
 Examples:
-  asc beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID"
-  asc beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID_1,GROUP_ID_2"`,
+  asc testflight beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID"
+  asc testflight beta-testers add-groups --id "TESTER_ID" --group "GROUP_ID_1,GROUP_ID_2"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -385,13 +387,13 @@ func BetaTestersRemoveGroupsCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "remove-groups",
-		ShortUsage: "asc beta-testers remove-groups --id TESTER_ID --group GROUP_ID[,GROUP_ID...]",
+		ShortUsage: "asc testflight beta-testers remove-groups --id TESTER_ID --group GROUP_ID[,GROUP_ID...]",
 		ShortHelp:  "Remove a beta tester from beta groups.",
 		LongHelp: `Remove a beta tester from beta groups.
 
 Examples:
-  asc beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID"
-  asc beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID_1,GROUP_ID_2"`,
+  asc testflight beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID"
+  asc testflight beta-testers remove-groups --id "TESTER_ID" --group "GROUP_ID_1,GROUP_ID_2"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -447,13 +449,13 @@ func BetaTestersInviteCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "invite",
-		ShortUsage: "asc beta-testers invite [flags]",
+		ShortUsage: "asc testflight beta-testers invite [flags]",
 		ShortHelp:  "Invite a TestFlight beta tester.",
 		LongHelp: `Invite a TestFlight beta tester.
 
 Examples:
-  asc beta-testers invite --app "APP_ID" --email "tester@example.com"
-  asc beta-testers invite --app "APP_ID" --email "tester@example.com" --group "Beta"`,
+  asc testflight beta-testers invite --app "APP_ID" --email "tester@example.com"
+  asc testflight beta-testers invite --app "APP_ID" --email "tester@example.com" --group "Beta"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

@@ -18,13 +18,13 @@ func BetaGroupsCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "beta-groups",
-		ShortUsage: "asc beta-groups <subcommand> [flags]",
+		ShortUsage: "asc testflight beta-groups <subcommand> [flags]",
 		ShortHelp:  "Manage TestFlight beta groups.",
 		LongHelp: `Manage TestFlight beta groups.
 
 Examples:
-  asc beta-groups list --app "APP_ID"
-  asc beta-groups create --app "APP_ID" --name "Beta Testers"`,
+  asc testflight beta-groups list --app "APP_ID"
+  asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -34,6 +34,7 @@ Examples:
 			BetaGroupsUpdateCommand(),
 			BetaGroupsAddTestersCommand(),
 			BetaGroupsRemoveTestersCommand(),
+			BetaGroupsRelationshipsCommand(),
 			BetaGroupsDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -55,14 +56,14 @@ func BetaGroupsListCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc beta-groups list [flags]",
+		ShortUsage: "asc testflight beta-groups list [flags]",
 		ShortHelp:  "List TestFlight beta groups for an app.",
 		LongHelp: `List TestFlight beta groups for an app.
 
 Examples:
-  asc beta-groups list --app "APP_ID"
-  asc beta-groups list --app "APP_ID" --limit 10
-  asc beta-groups list --app "APP_ID" --paginate`,
+  asc testflight beta-groups list --app "APP_ID"
+  asc testflight beta-groups list --app "APP_ID" --limit 10
+  asc testflight beta-groups list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -132,12 +133,12 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "create",
-		ShortUsage: "asc beta-groups create [flags]",
+		ShortUsage: "asc testflight beta-groups create [flags]",
 		ShortHelp:  "Create a TestFlight beta group.",
 		LongHelp: `Create a TestFlight beta group.
 
 Examples:
-  asc beta-groups create --app "APP_ID" --name "Beta Testers"`,
+  asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -179,12 +180,12 @@ func BetaGroupsGetCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc beta-groups get [flags]",
+		ShortUsage: "asc testflight beta-groups get [flags]",
 		ShortHelp:  "Get a TestFlight beta group by ID.",
 		LongHelp: `Get a TestFlight beta group by ID.
 
 Examples:
-  asc beta-groups get --id "GROUP_ID"`,
+  asc testflight beta-groups get --id "GROUP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -228,14 +229,14 @@ func BetaGroupsUpdateCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "update",
-		ShortUsage: "asc beta-groups update [flags]",
+		ShortUsage: "asc testflight beta-groups update [flags]",
 		ShortHelp:  "Update a TestFlight beta group.",
 		LongHelp: `Update a TestFlight beta group.
 
 Examples:
-  asc beta-groups update --id "GROUP_ID" --name "New Name"
-  asc beta-groups update --id "GROUP_ID" --public-link-enabled --public-link-limit 100
-  asc beta-groups update --id "GROUP_ID" --feedback-enabled --internal`,
+  asc testflight beta-groups update --id "GROUP_ID" --name "New Name"
+  asc testflight beta-groups update --id "GROUP_ID" --public-link-enabled --public-link-limit 100
+  asc testflight beta-groups update --id "GROUP_ID" --feedback-enabled --internal`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -337,12 +338,12 @@ func BetaGroupsDeleteCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "delete",
-		ShortUsage: "asc beta-groups delete --id \"GROUP_ID\" --confirm",
+		ShortUsage: "asc testflight beta-groups delete --id \"GROUP_ID\" --confirm",
 		ShortHelp:  "Delete a TestFlight beta group.",
 		LongHelp: `Delete a TestFlight beta group.
 
 Examples:
-  asc beta-groups delete --id "GROUP_ID" --confirm`,
+  asc testflight beta-groups delete --id "GROUP_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -382,13 +383,13 @@ func BetaGroupsAddTestersCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "add-testers",
-		ShortUsage: "asc beta-groups add-testers --group \"GROUP_ID\" --tester \"TESTER_ID[,TESTER_ID...]\"",
+		ShortUsage: "asc testflight beta-groups add-testers --group \"GROUP_ID\" --tester \"TESTER_ID[,TESTER_ID...]\"",
 		ShortHelp:  "Add beta testers to a beta group.",
 		LongHelp: `Add beta testers to a beta group.
 
 Examples:
-  asc beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID"
-  asc beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2"`,
+  asc testflight beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID"
+  asc testflight beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -431,13 +432,13 @@ func BetaGroupsRemoveTestersCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "remove-testers",
-		ShortUsage: "asc beta-groups remove-testers --group \"GROUP_ID\" --tester \"TESTER_ID[,TESTER_ID...]\"",
+		ShortUsage: "asc testflight beta-groups remove-testers --group \"GROUP_ID\" --tester \"TESTER_ID[,TESTER_ID...]\"",
 		ShortHelp:  "Remove beta testers from a beta group.",
 		LongHelp: `Remove beta testers from a beta group.
 
 Examples:
-  asc beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID"
-  asc beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2"`,
+  asc testflight beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID"
+  asc testflight beta-groups remove-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

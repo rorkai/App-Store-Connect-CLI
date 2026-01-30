@@ -24,11 +24,15 @@ func TestFlightCommand() *ffcli.Command {
 
 Examples:
   asc testflight apps list
-  asc testflight apps get --app "APP_ID"`,
+  asc testflight apps get --app "APP_ID"
+  asc testflight beta-groups list --app "APP_ID"
+  asc testflight beta-testers list --app "APP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightAppsCommand(),
+			BetaGroupsCommand(),
+			BetaTestersCommand(),
 			TestFlightReviewCommand(),
 			TestFlightBetaDetailsCommand(),
 			TestFlightRecruitmentCommand(),

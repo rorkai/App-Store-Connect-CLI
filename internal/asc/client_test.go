@@ -850,6 +850,32 @@ func TestBuildAppStoreVersionLocalizationsQuery(t *testing.T) {
 	}
 }
 
+func TestBuildBetaAppLocalizationsQuery(t *testing.T) {
+	query := &betaAppLocalizationsQuery{}
+	opts := []BetaAppLocalizationsOption{
+		WithBetaAppLocalizationsLimit(12),
+		WithBetaAppLocalizationLocales([]string{"en-US", "fr-FR"}),
+		WithBetaAppLocalizationAppIDs([]string{"app-1", "app-2"}),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildBetaAppLocalizationsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("filter[locale]"); got != "en-US,fr-FR" {
+		t.Fatalf("expected filter[locale]=en-US,fr-FR, got %q", got)
+	}
+	if got := values.Get("filter[app]"); got != "app-1,app-2" {
+		t.Fatalf("expected filter[app]=app-1,app-2, got %q", got)
+	}
+	if got := values.Get("limit"); got != "12" {
+		t.Fatalf("expected limit=12, got %q", got)
+	}
+}
+
 func TestBuildBetaBuildLocalizationsQuery(t *testing.T) {
 	query := &betaBuildLocalizationsQuery{}
 	opts := []BetaBuildLocalizationsOption{
@@ -869,6 +895,124 @@ func TestBuildBetaBuildLocalizationsQuery(t *testing.T) {
 	}
 	if got := values.Get("limit"); got != "25" {
 		t.Fatalf("expected limit=25, got %q", got)
+	}
+}
+
+func TestBuildBuildUploadsQuery(t *testing.T) {
+	query := &buildUploadsQuery{}
+	opts := []BuildUploadsOption{
+		WithBuildUploadsCFBundleShortVersionStrings([]string{"1.0", "1.1"}),
+		WithBuildUploadsCFBundleVersions([]string{"100", "200"}),
+		WithBuildUploadsPlatforms([]string{"ios", "MAC_OS"}),
+		WithBuildUploadsStates([]string{"processing"}),
+		WithBuildUploadsSort("-uploadedDate"),
+		WithBuildUploadsLimit(15),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildBuildUploadsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("filter[cfBundleShortVersionString]"); got != "1.0,1.1" {
+		t.Fatalf("expected filter[cfBundleShortVersionString]=1.0,1.1, got %q", got)
+	}
+	if got := values.Get("filter[cfBundleVersion]"); got != "100,200" {
+		t.Fatalf("expected filter[cfBundleVersion]=100,200, got %q", got)
+	}
+	if got := values.Get("filter[platform]"); got != "IOS,MAC_OS" {
+		t.Fatalf("expected filter[platform]=IOS,MAC_OS, got %q", got)
+	}
+	if got := values.Get("filter[state]"); got != "PROCESSING" {
+		t.Fatalf("expected filter[state]=PROCESSING, got %q", got)
+	}
+	if got := values.Get("sort"); got != "-uploadedDate" {
+		t.Fatalf("expected sort=-uploadedDate, got %q", got)
+	}
+	if got := values.Get("limit"); got != "15" {
+		t.Fatalf("expected limit=15, got %q", got)
+	}
+}
+
+func TestBuildBuildUploadFilesQuery(t *testing.T) {
+	query := &buildUploadFilesQuery{}
+	opts := []BuildUploadFilesOption{
+		WithBuildUploadFilesLimit(20),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildBuildUploadFilesQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "20" {
+		t.Fatalf("expected limit=20, got %q", got)
+	}
+}
+
+func TestBuildBuildIndividualTestersQuery(t *testing.T) {
+	query := &buildIndividualTestersQuery{}
+	opts := []BuildIndividualTestersOption{
+		WithBuildIndividualTestersLimit(30),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildBuildIndividualTestersQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "30" {
+		t.Fatalf("expected limit=30, got %q", got)
+	}
+}
+
+func TestBuildBetaBuildUsagesQuery(t *testing.T) {
+	query := &betaBuildUsagesQuery{}
+	opts := []BetaBuildUsagesOption{
+		WithBetaBuildUsagesLimit(40),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildBetaBuildUsagesQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "40" {
+		t.Fatalf("expected limit=40, got %q", got)
+	}
+}
+
+func TestBuildBetaTesterUsagesQuery(t *testing.T) {
+	query := &betaTesterUsagesQuery{}
+	opts := []BetaTesterUsagesOption{
+		WithBetaTesterUsagesPeriod("P7D"),
+		WithBetaTesterUsagesAppID("app-1"),
+		WithBetaTesterUsagesLimit(10),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	values, err := url.ParseQuery(buildBetaTesterUsagesQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("period"); got != "P7D" {
+		t.Fatalf("expected period=P7D, got %q", got)
+	}
+	if got := values.Get("filter[apps]"); got != "app-1" {
+		t.Fatalf("expected filter[apps]=app-1, got %q", got)
+	}
+	if got := values.Get("limit"); got != "10" {
+		t.Fatalf("expected limit=10, got %q", got)
 	}
 }
 

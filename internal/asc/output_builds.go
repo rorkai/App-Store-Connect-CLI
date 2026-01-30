@@ -26,6 +26,19 @@ type BuildBetaGroupsUpdateResult struct {
 	Action   string   `json:"action"`
 }
 
+// BuildIndividualTestersUpdateResult represents CLI output for build individual tester updates.
+type BuildIndividualTestersUpdateResult struct {
+	BuildID   string   `json:"buildId"`
+	TesterIDs []string `json:"testerIds"`
+	Action    string   `json:"action"`
+}
+
+// BuildUploadDeleteResult represents CLI output for build upload deletions.
+type BuildUploadDeleteResult struct {
+	ID      string `json:"id"`
+	Deleted bool   `json:"deleted"`
+}
+
 // BuildExpireAllItem represents a build selected for expiration.
 type BuildExpireAllItem struct {
 	ID           string `json:"id"`
@@ -78,6 +91,102 @@ func printBuildsMarkdown(resp *BuildsResponse) error {
 			escapeMarkdown(item.Attributes.UploadedDate),
 			escapeMarkdown(item.Attributes.ProcessingState),
 			item.Attributes.Expired,
+		)
+	}
+	return nil
+}
+
+func buildUploadState(attr BuildUploadAttributes) string {
+	if attr.State == nil || attr.State.State == nil {
+		return ""
+	}
+	return *attr.State.State
+}
+
+func buildUploadTimestamp(attr BuildUploadAttributes) string {
+	if attr.UploadedDate != nil {
+		return *attr.UploadedDate
+	}
+	if attr.CreatedDate != nil {
+		return *attr.CreatedDate
+	}
+	return ""
+}
+
+func printBuildUploadsTable(resp *BuildUploadsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tVersion\tBuild\tPlatform\tState\tUploaded")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+			item.ID,
+			item.Attributes.CFBundleShortVersionString,
+			item.Attributes.CFBundleVersion,
+			string(item.Attributes.Platform),
+			buildUploadState(item.Attributes),
+			buildUploadTimestamp(item.Attributes),
+		)
+	}
+	return w.Flush()
+}
+
+func printBuildUploadsMarkdown(resp *BuildUploadsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Version | Build | Platform | State | Uploaded |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(item.Attributes.CFBundleShortVersionString),
+			escapeMarkdown(item.Attributes.CFBundleVersion),
+			escapeMarkdown(string(item.Attributes.Platform)),
+			escapeMarkdown(buildUploadState(item.Attributes)),
+			escapeMarkdown(buildUploadTimestamp(item.Attributes)),
+		)
+	}
+	return nil
+}
+
+func buildUploadFileState(attr BuildUploadFileAttributes) string {
+	if attr.AssetDeliveryState == nil || attr.AssetDeliveryState.State == nil {
+		return ""
+	}
+	return *attr.AssetDeliveryState.State
+}
+
+func printBuildUploadFilesTable(resp *BuildUploadFilesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tAsset Type\tState\tUploaded")
+	for _, item := range resp.Data {
+		uploaded := ""
+		if item.Attributes.Uploaded != nil {
+			uploaded = fmt.Sprintf("%t", *item.Attributes.Uploaded)
+		}
+		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%s\n",
+			item.ID,
+			item.Attributes.FileName,
+			item.Attributes.FileSize,
+			string(item.Attributes.AssetType),
+			buildUploadFileState(item.Attributes),
+			uploaded,
+		)
+	}
+	return w.Flush()
+}
+
+func printBuildUploadFilesMarkdown(resp *BuildUploadFilesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | File Name | File Size | Asset Type | State | Uploaded |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		uploaded := ""
+		if item.Attributes.Uploaded != nil {
+			uploaded = fmt.Sprintf("%t", *item.Attributes.Uploaded)
+		}
+		fmt.Fprintf(os.Stdout, "| %s | %s | %d | %s | %s | %s |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(item.Attributes.FileName),
+			item.Attributes.FileSize,
+			escapeMarkdown(string(item.Attributes.AssetType)),
+			escapeMarkdown(buildUploadFileState(item.Attributes)),
+			escapeMarkdown(uploaded),
 		)
 	}
 	return nil
@@ -245,5 +354,41 @@ func printBuildBetaGroupsUpdateMarkdown(result *BuildBetaGroupsUpdateResult) err
 		escapeMarkdown(strings.Join(result.GroupIDs, ", ")),
 		escapeMarkdown(result.Action),
 	)
+	return nil
+}
+
+func printBuildIndividualTestersUpdateTable(result *BuildIndividualTestersUpdateResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Build ID\tTester IDs\tAction")
+	fmt.Fprintf(w, "%s\t%s\t%s\n",
+		result.BuildID,
+		strings.Join(result.TesterIDs, ", "),
+		result.Action,
+	)
+	return w.Flush()
+}
+
+func printBuildIndividualTestersUpdateMarkdown(result *BuildIndividualTestersUpdateResult) error {
+	fmt.Fprintln(os.Stdout, "| Build ID | Tester IDs | Action |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+		escapeMarkdown(result.BuildID),
+		escapeMarkdown(strings.Join(result.TesterIDs, ", ")),
+		escapeMarkdown(result.Action),
+	)
+	return nil
+}
+
+func printBuildUploadDeleteResultTable(result *BuildUploadDeleteResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tDeleted")
+	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
+	return w.Flush()
+}
+
+func printBuildUploadDeleteResultMarkdown(result *BuildUploadDeleteResult) error {
+	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
+	fmt.Fprintln(os.Stdout, "| --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
 	return nil
 }

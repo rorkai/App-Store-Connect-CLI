@@ -2428,6 +2428,80 @@ func TestPrintMarkdown_BuildBetaGroupsUpdateResult(t *testing.T) {
 	}
 }
 
+func TestPrintTable_BuildIndividualTestersUpdateResult(t *testing.T) {
+	resp := &BuildIndividualTestersUpdateResult{
+		BuildID:   "BUILD_456",
+		TesterIDs: []string{"TESTER_1", "TESTER_2"},
+		Action:    "added",
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Tester IDs") {
+		t.Fatalf("expected tester IDs header, got: %s", output)
+	}
+	if !strings.Contains(output, "TESTER_1, TESTER_2") {
+		t.Fatalf("expected tester IDs in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_BuildIndividualTestersUpdateResult(t *testing.T) {
+	resp := &BuildIndividualTestersUpdateResult{
+		BuildID:   "BUILD_456",
+		TesterIDs: []string{"TESTER_1", "TESTER_2"},
+		Action:    "removed",
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| Build ID | Tester IDs | Action |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "TESTER_1, TESTER_2") {
+		t.Fatalf("expected tester IDs in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_BuildUploadDeleteResult(t *testing.T) {
+	result := &BuildUploadDeleteResult{
+		ID:      "upload-1",
+		Deleted: true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Deleted") {
+		t.Fatalf("expected deleted header, got: %s", output)
+	}
+	if !strings.Contains(output, "upload-1") {
+		t.Fatalf("expected upload ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_BuildUploadDeleteResult(t *testing.T) {
+	result := &BuildUploadDeleteResult{
+		ID:      "upload-2",
+		Deleted: true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| ID | Deleted |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "upload-2") {
+		t.Fatalf("expected upload ID in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_PromotedPurchaseDeleteResult(t *testing.T) {
 	result := &PromotedPurchaseDeleteResult{
 		ID:      "promo-1",

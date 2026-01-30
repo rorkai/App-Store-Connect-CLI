@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // BuildAttributes describes a build resource.
@@ -31,6 +32,7 @@ type BuildUploadAttributes struct {
 	CFBundleVersion            string              `json:"cfBundleVersion"`
 	Platform                   Platform            `json:"platform"`
 	CreatedDate                *string             `json:"createdDate,omitempty"`
+	UploadedDate               *string             `json:"uploadedDate,omitempty"`
 	State                      *AppMediaAssetState `json:"state,omitempty"`
 }
 
@@ -51,6 +53,9 @@ type BuildUploadCreateData struct {
 type BuildUploadCreateRequest struct {
 	Data BuildUploadCreateData `json:"data"`
 }
+
+// BuildUploadsResponse is the response from build uploads list endpoint.
+type BuildUploadsResponse = Response[BuildUploadAttributes]
 
 // BuildUploadResponse is the response from build upload endpoint.
 type BuildUploadResponse = SingleResourceResponse[BuildUploadAttributes]
@@ -84,6 +89,9 @@ type BuildUploadFileCreateData struct {
 type BuildUploadFileCreateRequest struct {
 	Data BuildUploadFileCreateData `json:"data"`
 }
+
+// BuildUploadFilesResponse is the response from build upload files list endpoint.
+type BuildUploadFilesResponse = Response[BuildUploadFileAttributes]
 
 // BuildUploadFileResponse is the response from build upload file endpoint.
 type BuildUploadFileResponse = SingleResourceResponse[BuildUploadFileAttributes]
@@ -319,6 +327,142 @@ func (c *Client) RemoveBetaGroupsFromBuild(ctx context.Context, buildID string, 
 	return nil
 }
 
+// GetBuildIndividualTesters retrieves individual testers assigned to a build.
+func (c *Client) GetBuildIndividualTesters(ctx context.Context, buildID string, opts ...BuildIndividualTestersOption) (*BetaTestersResponse, error) {
+	query := &buildIndividualTestersQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	buildID = strings.TrimSpace(buildID)
+	if query.nextURL == "" && buildID == "" {
+		return nil, fmt.Errorf("buildID is required")
+	}
+
+	path := fmt.Sprintf("/v1/builds/%s/individualTesters", buildID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("buildIndividualTesters: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildBuildIndividualTestersQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BetaTestersResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// AddIndividualTestersToBuild adds individual testers to a build.
+func (c *Client) AddIndividualTestersToBuild(ctx context.Context, buildID string, testerIDs []string) error {
+	buildID = strings.TrimSpace(buildID)
+	testerIDs = normalizeList(testerIDs)
+	if buildID == "" {
+		return fmt.Errorf("buildID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("testerIDs are required")
+	}
+
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, len(testerIDs)),
+	}
+	for i, id := range testerIDs {
+		payload.Data[i] = RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   id,
+		}
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/builds/%s/relationships/individualTesters", buildID)
+	if _, err := c.do(ctx, "POST", path, body); err != nil {
+		return err
+	}
+	return nil
+}
+
+// RemoveIndividualTestersFromBuild removes individual testers from a build.
+func (c *Client) RemoveIndividualTestersFromBuild(ctx context.Context, buildID string, testerIDs []string) error {
+	buildID = strings.TrimSpace(buildID)
+	testerIDs = normalizeList(testerIDs)
+	if buildID == "" {
+		return fmt.Errorf("buildID is required")
+	}
+	if len(testerIDs) == 0 {
+		return fmt.Errorf("testerIDs are required")
+	}
+
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, len(testerIDs)),
+	}
+	for i, id := range testerIDs {
+		payload.Data[i] = RelationshipData{
+			Type: ResourceTypeBetaTesters,
+			ID:   id,
+		}
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/builds/%s/relationships/individualTesters", buildID)
+	if _, err := c.do(ctx, "DELETE", path, body); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetBuildUploads retrieves build uploads for an app.
+func (c *Client) GetBuildUploads(ctx context.Context, appID string, opts ...BuildUploadsOption) (*BuildUploadsResponse, error) {
+	query := &buildUploadsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	appID = strings.TrimSpace(appID)
+	if query.nextURL == "" && appID == "" {
+		return nil, fmt.Errorf("appID is required")
+	}
+
+	path := fmt.Sprintf("/v1/apps/%s/buildUploads", appID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("buildUploads: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildBuildUploadsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildUploadsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateBuildUpload creates a new build upload record.
 func (c *Client) CreateBuildUpload(ctx context.Context, req BuildUploadCreateRequest) (*BuildUploadResponse, error) {
 	body, err := BuildRequestBody(req)
@@ -339,6 +483,16 @@ func (c *Client) CreateBuildUpload(ctx context.Context, req BuildUploadCreateReq
 	return &response, nil
 }
 
+// DeleteBuildUpload deletes a build upload by ID.
+func (c *Client) DeleteBuildUpload(ctx context.Context, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("id is required")
+	}
+	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/buildUploads/%s", id), nil)
+	return err
+}
+
 // GetBuildUpload retrieves a build upload by ID.
 func (c *Client) GetBuildUpload(ctx context.Context, id string) (*BuildUploadResponse, error) {
 	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/buildUploads/%s", id), nil)
@@ -347,6 +501,61 @@ func (c *Client) GetBuildUpload(ctx context.Context, id string) (*BuildUploadRes
 	}
 
 	var response BuildUploadResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetBuildUploadFiles retrieves upload files for a build upload.
+func (c *Client) GetBuildUploadFiles(ctx context.Context, uploadID string, opts ...BuildUploadFilesOption) (*BuildUploadFilesResponse, error) {
+	query := &buildUploadFilesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	uploadID = strings.TrimSpace(uploadID)
+	if query.nextURL == "" && uploadID == "" {
+		return nil, fmt.Errorf("uploadID is required")
+	}
+
+	path := fmt.Sprintf("/v1/buildUploads/%s/buildUploadFiles", uploadID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("buildUploadFiles: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildBuildUploadFilesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildUploadFilesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetBuildUploadFile retrieves a build upload file by ID.
+func (c *Client) GetBuildUploadFile(ctx context.Context, id string) (*BuildUploadFileResponse, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+
+	data, err := c.do(ctx, "GET", fmt.Sprintf("/v1/buildUploadFiles/%s", id), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildUploadFileResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

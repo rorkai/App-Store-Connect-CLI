@@ -325,9 +325,13 @@ Examples:
   asc builds expire --build "BUILD_ID"
   asc builds expire-all --app "123456789" --older-than 90d --dry-run
   asc builds upload --app "123456789" --ipa "app.ipa"
+  asc builds uploads list --app "123456789"
   asc builds test-notes list --build "BUILD_ID"
+  asc builds individual-testers list --build "BUILD_ID"
   asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
-  asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"`,
+  asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
+  asc builds relationships get --build "BUILD_ID" --type "app"
+  asc builds metrics beta-usages --build "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -337,9 +341,13 @@ Examples:
 			BuildsExpireCommand(),
 			BuildsExpireAllCommand(),
 			BuildsUploadCommand(),
+			BuildsUploadsCommand(),
 			BuildsTestNotesCommand(),
 			BuildsAddGroupsCommand(),
 			BuildsRemoveGroupsCommand(),
+			BuildsIndividualTestersCommand(),
+			BuildsRelationshipsCommand(),
+			BuildsMetricsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

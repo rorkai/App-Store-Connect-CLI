@@ -20,6 +20,10 @@ func PrintPrettyJSON(data interface{}) error {
 		return printPrettyRawJSON(v.Data)
 	case *DiagnosticLogsResponse:
 		return printPrettyRawJSON(v.Data)
+	case *BetaBuildUsagesResponse:
+		return printPrettyRawJSON(v.Data)
+	case *BetaTesterUsagesResponse:
+		return printPrettyRawJSON(v.Data)
 	}
 
 	enc := json.NewEncoder(os.Stdout)
@@ -161,6 +165,16 @@ func PrintMarkdown(data interface{}) error {
 		return printLinkagesMarkdown(&LinkagesResponse{Data: []ResourceData{v.Data}})
 	case *AppStoreVersionGameCenterAppVersionLinkageResponse:
 		return printLinkagesMarkdown(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *BuildAppLinkageResponse:
+		return printLinkagesMarkdown(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *BuildAppStoreVersionLinkageResponse:
+		return printLinkagesMarkdown(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *BuildBuildBetaDetailLinkageResponse:
+		return printLinkagesMarkdown(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *BuildPreReleaseVersionLinkageResponse:
+		return printLinkagesMarkdown(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *PreReleaseVersionAppLinkageResponse:
+		return printLinkagesMarkdown(&LinkagesResponse{Data: []ResourceData{v.Data}})
 	case *AppInfoAgeRatingDeclarationLinkageResponse:
 		return printLinkagesMarkdown(&LinkagesResponse{Data: []ResourceData{v.Data}})
 	case *AppInfoPrimaryCategoryLinkageResponse:
@@ -269,6 +283,14 @@ func PrintMarkdown(data interface{}) error {
 		return printPreReleaseVersionsMarkdown(v)
 	case *BuildResponse:
 		return printBuildsMarkdown(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *BuildUploadsResponse:
+		return printBuildUploadsMarkdown(v)
+	case *BuildUploadResponse:
+		return printBuildUploadsMarkdown(&BuildUploadsResponse{Data: []Resource[BuildUploadAttributes]{v.Data}})
+	case *BuildUploadFilesResponse:
+		return printBuildUploadFilesMarkdown(v)
+	case *BuildUploadFileResponse:
+		return printBuildUploadFilesMarkdown(&BuildUploadFilesResponse{Data: []Resource[BuildUploadFileAttributes]{v.Data}})
 	case *AppClipDomainStatusResult:
 		return printAppClipDomainStatusResultMarkdown(v)
 	case *SubscriptionOfferCodeOneTimeUseCodeResponse:
@@ -287,6 +309,10 @@ func PrintMarkdown(data interface{}) error {
 		return printAppStoreVersionLocalizationsMarkdown(v)
 	case *AppStoreVersionLocalizationResponse:
 		return printAppStoreVersionLocalizationsMarkdown(&AppStoreVersionLocalizationsResponse{Data: []Resource[AppStoreVersionLocalizationAttributes]{v.Data}})
+	case *BetaAppLocalizationsResponse:
+		return printBetaAppLocalizationsMarkdown(v)
+	case *BetaAppLocalizationResponse:
+		return printBetaAppLocalizationsMarkdown(&BetaAppLocalizationsResponse{Data: []Resource[BetaAppLocalizationAttributes]{v.Data}})
 	case *BetaBuildLocalizationsResponse:
 		return printBetaBuildLocalizationsMarkdown(v)
 	case *BetaBuildLocalizationResponse:
@@ -487,6 +513,10 @@ func PrintMarkdown(data interface{}) error {
 		return printAppStoreVersionPhasedReleaseDeleteResultMarkdown(v)
 	case *BuildBetaGroupsUpdateResult:
 		return printBuildBetaGroupsUpdateMarkdown(v)
+	case *BuildIndividualTestersUpdateResult:
+		return printBuildIndividualTestersUpdateMarkdown(v)
+	case *BuildUploadDeleteResult:
+		return printBuildUploadDeleteResultMarkdown(v)
 	case *InAppPurchaseDeleteResult:
 		return printInAppPurchaseDeleteResultMarkdown(v)
 	case *AppEventDeleteResult:
@@ -571,6 +601,8 @@ func PrintMarkdown(data interface{}) error {
 		return printBetaTesterGroupsUpdateResultMarkdown(v)
 	case *AppStoreVersionLocalizationDeleteResult:
 		return printAppStoreVersionLocalizationDeleteResultMarkdown(v)
+	case *BetaAppLocalizationDeleteResult:
+		return printBetaAppLocalizationDeleteResultMarkdown(v)
 	case *BetaBuildLocalizationDeleteResult:
 		return printBetaBuildLocalizationDeleteResultMarkdown(v)
 	case *BetaTesterInvitationResult:
@@ -865,6 +897,16 @@ func PrintTable(data interface{}) error {
 		return printLinkagesTable(&LinkagesResponse{Data: []ResourceData{v.Data}})
 	case *AppStoreVersionGameCenterAppVersionLinkageResponse:
 		return printLinkagesTable(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *BuildAppLinkageResponse:
+		return printLinkagesTable(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *BuildAppStoreVersionLinkageResponse:
+		return printLinkagesTable(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *BuildBuildBetaDetailLinkageResponse:
+		return printLinkagesTable(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *BuildPreReleaseVersionLinkageResponse:
+		return printLinkagesTable(&LinkagesResponse{Data: []ResourceData{v.Data}})
+	case *PreReleaseVersionAppLinkageResponse:
+		return printLinkagesTable(&LinkagesResponse{Data: []ResourceData{v.Data}})
 	case *AppInfoAgeRatingDeclarationLinkageResponse:
 		return printLinkagesTable(&LinkagesResponse{Data: []ResourceData{v.Data}})
 	case *AppInfoPrimaryCategoryLinkageResponse:
@@ -973,6 +1015,14 @@ func PrintTable(data interface{}) error {
 		return printPreReleaseVersionsTable(v)
 	case *BuildResponse:
 		return printBuildsTable(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
+	case *BuildUploadsResponse:
+		return printBuildUploadsTable(v)
+	case *BuildUploadResponse:
+		return printBuildUploadsTable(&BuildUploadsResponse{Data: []Resource[BuildUploadAttributes]{v.Data}})
+	case *BuildUploadFilesResponse:
+		return printBuildUploadFilesTable(v)
+	case *BuildUploadFileResponse:
+		return printBuildUploadFilesTable(&BuildUploadFilesResponse{Data: []Resource[BuildUploadFileAttributes]{v.Data}})
 	case *AppClipDomainStatusResult:
 		return printAppClipDomainStatusResultTable(v)
 	case *SubscriptionOfferCodeOneTimeUseCodeResponse:
@@ -991,6 +1041,10 @@ func PrintTable(data interface{}) error {
 		return printAppStoreVersionLocalizationsTable(v)
 	case *AppStoreVersionLocalizationResponse:
 		return printAppStoreVersionLocalizationsTable(&AppStoreVersionLocalizationsResponse{Data: []Resource[AppStoreVersionLocalizationAttributes]{v.Data}})
+	case *BetaAppLocalizationsResponse:
+		return printBetaAppLocalizationsTable(v)
+	case *BetaAppLocalizationResponse:
+		return printBetaAppLocalizationsTable(&BetaAppLocalizationsResponse{Data: []Resource[BetaAppLocalizationAttributes]{v.Data}})
 	case *BetaBuildLocalizationsResponse:
 		return printBetaBuildLocalizationsTable(v)
 	case *BetaBuildLocalizationResponse:
@@ -1191,6 +1245,10 @@ func PrintTable(data interface{}) error {
 		return printAppStoreVersionPhasedReleaseDeleteResultTable(v)
 	case *BuildBetaGroupsUpdateResult:
 		return printBuildBetaGroupsUpdateTable(v)
+	case *BuildIndividualTestersUpdateResult:
+		return printBuildIndividualTestersUpdateTable(v)
+	case *BuildUploadDeleteResult:
+		return printBuildUploadDeleteResultTable(v)
 	case *InAppPurchaseDeleteResult:
 		return printInAppPurchaseDeleteResultTable(v)
 	case *AppEventDeleteResult:
@@ -1275,6 +1333,8 @@ func PrintTable(data interface{}) error {
 		return printBetaTesterGroupsUpdateResultTable(v)
 	case *AppStoreVersionLocalizationDeleteResult:
 		return printAppStoreVersionLocalizationDeleteResultTable(v)
+	case *BetaAppLocalizationDeleteResult:
+		return printBetaAppLocalizationDeleteResultTable(v)
 	case *BetaBuildLocalizationDeleteResult:
 		return printBetaBuildLocalizationDeleteResultTable(v)
 	case *BetaTesterInvitationResult:

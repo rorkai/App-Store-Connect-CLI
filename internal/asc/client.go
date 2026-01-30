@@ -64,6 +64,12 @@ type AppStoreVersionLocalizationsResponse = Response[AppStoreVersionLocalization
 // AppStoreVersionLocalizationResponse is the response from app store version localization detail/creates.
 type AppStoreVersionLocalizationResponse = SingleResponse[AppStoreVersionLocalizationAttributes]
 
+// BetaAppLocalizationsResponse is the response from beta app localization endpoints.
+type BetaAppLocalizationsResponse = Response[BetaAppLocalizationAttributes]
+
+// BetaAppLocalizationResponse is the response from beta app localization detail/creates.
+type BetaAppLocalizationResponse = SingleResponse[BetaAppLocalizationAttributes]
+
 // BetaBuildLocalizationsResponse is the response from beta build localization endpoints.
 type BetaBuildLocalizationsResponse = Response[BetaBuildLocalizationAttributes]
 
@@ -106,6 +112,16 @@ type AppStoreVersionLocalizationAttributes struct {
 	PromotionalText string `json:"promotionalText,omitempty"`
 	SupportURL      string `json:"supportUrl,omitempty"`
 	WhatsNew        string `json:"whatsNew,omitempty"`
+}
+
+// BetaAppLocalizationAttributes describes TestFlight app localization metadata.
+type BetaAppLocalizationAttributes struct {
+	FeedbackEmail     string `json:"feedbackEmail,omitempty"`
+	MarketingURL      string `json:"marketingUrl,omitempty"`
+	PrivacyPolicyURL  string `json:"privacyPolicyUrl,omitempty"`
+	TvOsPrivacyPolicy string `json:"tvOsPrivacyPolicy,omitempty"`
+	Description       string `json:"description,omitempty"`
+	Locale            string `json:"locale,omitempty"`
 }
 
 // BetaBuildLocalizationAttributes describes TestFlight build localization notes.
@@ -195,6 +211,44 @@ type AppStoreVersionLocalizationUpdateRequest struct {
 // AppStoreVersionLocalizationRelationships describes relationships for version localizations.
 type AppStoreVersionLocalizationRelationships struct {
 	AppStoreVersion *Relationship `json:"appStoreVersion"`
+}
+
+// BetaAppLocalizationCreateData is the data portion of a beta app localization create request.
+type BetaAppLocalizationCreateData struct {
+	Type          ResourceType                   `json:"type"`
+	Attributes    BetaAppLocalizationAttributes  `json:"attributes"`
+	Relationships *BetaAppLocalizationRelationships `json:"relationships"`
+}
+
+// BetaAppLocalizationCreateRequest is a request to create a beta app localization.
+type BetaAppLocalizationCreateRequest struct {
+	Data BetaAppLocalizationCreateData `json:"data"`
+}
+
+// BetaAppLocalizationUpdateAttributes describes attributes for updating beta app localizations.
+type BetaAppLocalizationUpdateAttributes struct {
+	FeedbackEmail     *string `json:"feedbackEmail,omitempty"`
+	MarketingURL      *string `json:"marketingUrl,omitempty"`
+	PrivacyPolicyURL  *string `json:"privacyPolicyUrl,omitempty"`
+	TvOsPrivacyPolicy *string `json:"tvOsPrivacyPolicy,omitempty"`
+	Description       *string `json:"description,omitempty"`
+}
+
+// BetaAppLocalizationUpdateData is the data portion of a beta app localization update request.
+type BetaAppLocalizationUpdateData struct {
+	Type       ResourceType                   `json:"type"`
+	ID         string                         `json:"id"`
+	Attributes *BetaAppLocalizationUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// BetaAppLocalizationUpdateRequest is a request to update a beta app localization.
+type BetaAppLocalizationUpdateRequest struct {
+	Data BetaAppLocalizationUpdateData `json:"data"`
+}
+
+// BetaAppLocalizationRelationships describes relationships for beta app localizations.
+type BetaAppLocalizationRelationships struct {
+	App *Relationship `json:"app"`
 }
 
 // BetaBuildLocalizationCreateData is the data portion of a beta build localization create request.

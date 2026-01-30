@@ -50,6 +50,15 @@ type BuildBundlesOption func(*buildBundlesQuery)
 // BuildBundleFileSizesOption is a functional option for GetBuildBundleFileSizes.
 type BuildBundleFileSizesOption func(*buildBundleFileSizesQuery)
 
+// BuildUploadsOption is a functional option for GetBuildUploads.
+type BuildUploadsOption func(*buildUploadsQuery)
+
+// BuildUploadFilesOption is a functional option for GetBuildUploadFiles.
+type BuildUploadFilesOption func(*buildUploadFilesQuery)
+
+// BuildIndividualTestersOption is a functional option for GetBuildIndividualTesters.
+type BuildIndividualTestersOption func(*buildIndividualTestersQuery)
+
 // BetaAppClipInvocationsOption is a functional option for GetBuildBundleBetaAppClipInvocations.
 type BetaAppClipInvocationsOption func(*betaAppClipInvocationsQuery)
 
@@ -88,6 +97,9 @@ type BetaGroupTestersOption func(*betaGroupTestersQuery)
 
 // BetaTestersOption is a functional option for GetBetaTesters.
 type BetaTestersOption func(*betaTestersQuery)
+
+// BetaTesterUsagesOption is a functional option for beta tester usage metrics.
+type BetaTesterUsagesOption func(*betaTesterUsagesQuery)
 
 // BundleIDsOption is a functional option for GetBundleIDs.
 type BundleIDsOption func(*bundleIDsQuery)
@@ -155,8 +167,14 @@ type BetaRecruitmentCriterionOptionsOption func(*betaRecruitmentCriterionOptions
 // AppStoreVersionLocalizationsOption is a functional option for version localizations.
 type AppStoreVersionLocalizationsOption func(*appStoreVersionLocalizationsQuery)
 
+// BetaAppLocalizationsOption is a functional option for beta app localizations.
+type BetaAppLocalizationsOption func(*betaAppLocalizationsQuery)
+
 // BetaBuildLocalizationsOption is a functional option for beta build localizations.
 type BetaBuildLocalizationsOption func(*betaBuildLocalizationsQuery)
+
+// BetaBuildUsagesOption is a functional option for beta build usage metrics.
+type BetaBuildUsagesOption func(*betaBuildUsagesQuery)
 
 // AppInfoLocalizationsOption is a functional option for app info localizations.
 type AppInfoLocalizationsOption func(*appInfoLocalizationsQuery)
@@ -1434,6 +1452,97 @@ func WithBuildBundleFileSizesNextURL(next string) BuildBundleFileSizesOption {
 	}
 }
 
+// WithBuildUploadsLimit sets the max number of build uploads to return.
+func WithBuildUploadsLimit(limit int) BuildUploadsOption {
+	return func(q *buildUploadsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBuildUploadsNextURL uses a next page URL directly.
+func WithBuildUploadsNextURL(next string) BuildUploadsOption {
+	return func(q *buildUploadsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBuildUploadsCFBundleShortVersionStrings filters build uploads by CFBundleShortVersionString.
+func WithBuildUploadsCFBundleShortVersionStrings(values []string) BuildUploadsOption {
+	return func(q *buildUploadsQuery) {
+		q.cfBundleShortVersions = normalizeList(values)
+	}
+}
+
+// WithBuildUploadsCFBundleVersions filters build uploads by CFBundleVersion.
+func WithBuildUploadsCFBundleVersions(values []string) BuildUploadsOption {
+	return func(q *buildUploadsQuery) {
+		q.cfBundleVersions = normalizeList(values)
+	}
+}
+
+// WithBuildUploadsPlatforms filters build uploads by platform(s).
+func WithBuildUploadsPlatforms(platforms []string) BuildUploadsOption {
+	return func(q *buildUploadsQuery) {
+		q.platforms = normalizeUpperList(platforms)
+	}
+}
+
+// WithBuildUploadsStates filters build uploads by upload state(s).
+func WithBuildUploadsStates(states []string) BuildUploadsOption {
+	return func(q *buildUploadsQuery) {
+		q.states = normalizeUpperList(states)
+	}
+}
+
+// WithBuildUploadsSort sets the sort order for build uploads.
+func WithBuildUploadsSort(sort string) BuildUploadsOption {
+	return func(q *buildUploadsQuery) {
+		if strings.TrimSpace(sort) != "" {
+			q.sort = strings.TrimSpace(sort)
+		}
+	}
+}
+
+// WithBuildUploadFilesLimit sets the max number of build upload files to return.
+func WithBuildUploadFilesLimit(limit int) BuildUploadFilesOption {
+	return func(q *buildUploadFilesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBuildUploadFilesNextURL uses a next page URL directly.
+func WithBuildUploadFilesNextURL(next string) BuildUploadFilesOption {
+	return func(q *buildUploadFilesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBuildIndividualTestersLimit sets the max number of build individual testers to return.
+func WithBuildIndividualTestersLimit(limit int) BuildIndividualTestersOption {
+	return func(q *buildIndividualTestersQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBuildIndividualTestersNextURL uses a next page URL directly.
+func WithBuildIndividualTestersNextURL(next string) BuildIndividualTestersOption {
+	return func(q *buildIndividualTestersQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
 // WithBetaAppClipInvocationsLimit sets the max number of App Clip invocations to return.
 func WithBetaAppClipInvocationsLimit(limit int) BetaAppClipInvocationsOption {
 	return func(q *betaAppClipInvocationsQuery) {
@@ -1683,6 +1792,42 @@ func WithBetaTestersGroupIDs(ids []string) BetaTestersOption {
 func WithBetaTestersBuildID(buildID string) BetaTestersOption {
 	return func(q *betaTestersQuery) {
 		q.filterBuilds = strings.TrimSpace(buildID)
+	}
+}
+
+// WithBetaTesterUsagesLimit sets the max number of beta tester usage records to return.
+func WithBetaTesterUsagesLimit(limit int) BetaTesterUsagesOption {
+	return func(q *betaTesterUsagesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBetaTesterUsagesNextURL uses a next page URL directly.
+func WithBetaTesterUsagesNextURL(next string) BetaTesterUsagesOption {
+	return func(q *betaTesterUsagesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBetaTesterUsagesPeriod sets the reporting period for beta tester usage metrics.
+func WithBetaTesterUsagesPeriod(period string) BetaTesterUsagesOption {
+	return func(q *betaTesterUsagesQuery) {
+		if strings.TrimSpace(period) != "" {
+			q.period = strings.TrimSpace(period)
+		}
+	}
+}
+
+// WithBetaTesterUsagesAppID filters beta tester usage metrics by app ID.
+func WithBetaTesterUsagesAppID(appID string) BetaTesterUsagesOption {
+	return func(q *betaTesterUsagesQuery) {
+		if strings.TrimSpace(appID) != "" {
+			q.appID = strings.TrimSpace(appID)
+		}
 	}
 }
 
@@ -2564,6 +2709,38 @@ func WithAppStoreVersionLocalizationLocales(locales []string) AppStoreVersionLoc
 	}
 }
 
+// WithBetaAppLocalizationsLimit sets the max number of beta app localizations to return.
+func WithBetaAppLocalizationsLimit(limit int) BetaAppLocalizationsOption {
+	return func(q *betaAppLocalizationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBetaAppLocalizationsNextURL uses a next page URL directly.
+func WithBetaAppLocalizationsNextURL(next string) BetaAppLocalizationsOption {
+	return func(q *betaAppLocalizationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithBetaAppLocalizationLocales filters beta app localizations by locale.
+func WithBetaAppLocalizationLocales(locales []string) BetaAppLocalizationsOption {
+	return func(q *betaAppLocalizationsQuery) {
+		q.locales = normalizeList(locales)
+	}
+}
+
+// WithBetaAppLocalizationAppIDs filters beta app localizations by app ID(s).
+func WithBetaAppLocalizationAppIDs(ids []string) BetaAppLocalizationsOption {
+	return func(q *betaAppLocalizationsQuery) {
+		q.appIDs = normalizeList(ids)
+	}
+}
+
 // WithBetaBuildLocalizationsLimit sets the max number of beta build localizations to return.
 func WithBetaBuildLocalizationsLimit(limit int) BetaBuildLocalizationsOption {
 	return func(q *betaBuildLocalizationsQuery) {
@@ -2586,6 +2763,24 @@ func WithBetaBuildLocalizationsNextURL(next string) BetaBuildLocalizationsOption
 func WithBetaBuildLocalizationLocales(locales []string) BetaBuildLocalizationsOption {
 	return func(q *betaBuildLocalizationsQuery) {
 		q.locales = normalizeList(locales)
+	}
+}
+
+// WithBetaBuildUsagesLimit sets the max number of beta build usage records to return.
+func WithBetaBuildUsagesLimit(limit int) BetaBuildUsagesOption {
+	return func(q *betaBuildUsagesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithBetaBuildUsagesNextURL uses a next page URL directly.
+func WithBetaBuildUsagesNextURL(next string) BetaBuildUsagesOption {
+	return func(q *betaBuildUsagesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
 	}
 }
 

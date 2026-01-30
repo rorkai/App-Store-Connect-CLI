@@ -522,132 +522,132 @@ func TestBetaManagementValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "beta-groups list missing app",
-			args:    []string{"beta-groups", "list"},
+			args:    []string{"testflight", "beta-groups", "list"},
 			wantErr: "--app is required",
 		},
 		{
 			name:    "beta-groups create missing app",
-			args:    []string{"beta-groups", "create", "--name", "Beta"},
+			args:    []string{"testflight", "beta-groups", "create", "--name", "Beta"},
 			wantErr: "--app is required",
 		},
 		{
 			name:    "beta-groups create missing name",
-			args:    []string{"beta-groups", "create", "--app", "APP_ID"},
+			args:    []string{"testflight", "beta-groups", "create", "--app", "APP_ID"},
 			wantErr: "--name is required",
 		},
 		{
 			name:    "beta-testers list missing app",
-			args:    []string{"beta-testers", "list"},
+			args:    []string{"testflight", "beta-testers", "list"},
 			wantErr: "--app is required",
 		},
 		{
 			name:    "beta-testers add missing app",
-			args:    []string{"beta-testers", "add", "--email", "tester@example.com", "--group", "Beta"},
+			args:    []string{"testflight", "beta-testers", "add", "--email", "tester@example.com", "--group", "Beta"},
 			wantErr: "--app is required",
 		},
 		{
 			name:    "beta-testers add missing email",
-			args:    []string{"beta-testers", "add", "--app", "APP_ID", "--group", "Beta"},
+			args:    []string{"testflight", "beta-testers", "add", "--app", "APP_ID", "--group", "Beta"},
 			wantErr: "--email is required",
 		},
 		{
 			name:    "beta-testers add missing group",
-			args:    []string{"beta-testers", "add", "--app", "APP_ID", "--email", "tester@example.com"},
+			args:    []string{"testflight", "beta-testers", "add", "--app", "APP_ID", "--email", "tester@example.com"},
 			wantErr: "--group is required",
 		},
 		{
 			name:    "beta-testers remove missing app",
-			args:    []string{"beta-testers", "remove", "--email", "tester@example.com"},
+			args:    []string{"testflight", "beta-testers", "remove", "--email", "tester@example.com"},
 			wantErr: "--app is required",
 		},
 		{
 			name:    "beta-testers remove missing email",
-			args:    []string{"beta-testers", "remove", "--app", "APP_ID"},
+			args:    []string{"testflight", "beta-testers", "remove", "--app", "APP_ID"},
 			wantErr: "--email is required",
 		},
 		{
 			name:    "beta-testers add-groups missing id",
-			args:    []string{"beta-testers", "add-groups", "--group", "GROUP_ID"},
+			args:    []string{"testflight", "beta-testers", "add-groups", "--group", "GROUP_ID"},
 			wantErr: "--id is required",
 		},
 		{
 			name:    "beta-testers add-groups missing group",
-			args:    []string{"beta-testers", "add-groups", "--id", "TESTER_ID"},
+			args:    []string{"testflight", "beta-testers", "add-groups", "--id", "TESTER_ID"},
 			wantErr: "--group is required",
 		},
 		{
 			name:    "beta-testers remove-groups missing id",
-			args:    []string{"beta-testers", "remove-groups", "--group", "GROUP_ID"},
+			args:    []string{"testflight", "beta-testers", "remove-groups", "--group", "GROUP_ID"},
 			wantErr: "--id is required",
 		},
 		{
 			name:    "beta-testers remove-groups missing group",
-			args:    []string{"beta-testers", "remove-groups", "--id", "TESTER_ID"},
+			args:    []string{"testflight", "beta-testers", "remove-groups", "--id", "TESTER_ID"},
 			wantErr: "--group is required",
 		},
 		{
 			name:    "beta-testers invite missing app",
-			args:    []string{"beta-testers", "invite", "--email", "tester@example.com"},
+			args:    []string{"testflight", "beta-testers", "invite", "--email", "tester@example.com"},
 			wantErr: "--app is required",
 		},
 		{
 			name:    "beta-testers invite missing email",
-			args:    []string{"beta-testers", "invite", "--app", "APP_ID"},
+			args:    []string{"testflight", "beta-testers", "invite", "--app", "APP_ID"},
 			wantErr: "--email is required",
 		},
 		{
 			name:    "beta-testers get missing id",
-			args:    []string{"beta-testers", "get"},
+			args:    []string{"testflight", "beta-testers", "get"},
 			wantErr: "--id is required",
 		},
 		{
 			name:    "beta-groups get missing id",
-			args:    []string{"beta-groups", "get"},
+			args:    []string{"testflight", "beta-groups", "get"},
 			wantErr: "--id is required",
 		},
 		{
 			name:    "beta-groups update missing id",
-			args:    []string{"beta-groups", "update"},
+			args:    []string{"testflight", "beta-groups", "update"},
 			wantErr: "--id is required",
 		},
 		{
 			name:    "beta-groups update missing update flags",
-			args:    []string{"beta-groups", "update", "--id", "GROUP_ID"},
+			args:    []string{"testflight", "beta-groups", "update", "--id", "GROUP_ID"},
 			wantErr: "at least one update flag is required",
 		},
 		{
 			name:    "beta-groups update public-link-limit out of range",
-			args:    []string{"beta-groups", "update", "--id", "GROUP_ID", "--public-link-limit", "50000"},
+			args:    []string{"testflight", "beta-groups", "update", "--id", "GROUP_ID", "--public-link-limit", "50000"},
 			wantErr: "--public-link-limit must be between 1 and 10000",
 		},
 		{
 			name:    "beta-groups add-testers missing group",
-			args:    []string{"beta-groups", "add-testers"},
+			args:    []string{"testflight", "beta-groups", "add-testers"},
 			wantErr: "--group is required",
 		},
 		{
 			name:    "beta-groups add-testers missing tester",
-			args:    []string{"beta-groups", "add-testers", "--group", "GROUP_ID"},
+			args:    []string{"testflight", "beta-groups", "add-testers", "--group", "GROUP_ID"},
 			wantErr: "--tester is required",
 		},
 		{
 			name:    "beta-groups remove-testers missing group",
-			args:    []string{"beta-groups", "remove-testers"},
+			args:    []string{"testflight", "beta-groups", "remove-testers"},
 			wantErr: "--group is required",
 		},
 		{
 			name:    "beta-groups remove-testers missing tester",
-			args:    []string{"beta-groups", "remove-testers", "--group", "GROUP_ID"},
+			args:    []string{"testflight", "beta-groups", "remove-testers", "--group", "GROUP_ID"},
 			wantErr: "--tester is required",
 		},
 		{
 			name:    "beta-groups delete missing id",
-			args:    []string{"beta-groups", "delete"},
+			args:    []string{"testflight", "beta-groups", "delete"},
 			wantErr: "--id is required",
 		},
 		{
 			name:    "beta-groups delete missing confirm",
-			args:    []string{"beta-groups", "delete", "--id", "GROUP_ID"},
+			args:    []string{"testflight", "beta-groups", "delete", "--id", "GROUP_ID"},
 			wantErr: "--confirm is required to delete",
 		},
 	}
@@ -2188,7 +2188,7 @@ func TestBetaTestersListAcceptsBuildFilter(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	if err := root.Parse([]string{"beta-testers", "list", "--app", "X", "--build", "Y"}); err != nil {
+	if err := root.Parse([]string{"testflight", "beta-testers", "list", "--app", "X", "--build", "Y"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 }

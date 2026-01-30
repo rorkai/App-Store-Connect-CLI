@@ -18,6 +18,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/assets"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/backgroundassets"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/betaapplocalizations"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/betabuildlocalizations"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/buildbundles"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/buildlocalizations"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/builds"
@@ -126,8 +128,8 @@ func Subcommands(version string) []*ffcli.Command {
 		assets.AssetsCommand(),
 		backgroundassets.BackgroundAssetsCommand(),
 		buildlocalizations.BuildLocalizationsCommand(),
-		testflight.BetaGroupsCommand(),
-		testflight.BetaTestersCommand(),
+		betaapplocalizations.BetaAppLocalizationsCommand(),
+		betabuildlocalizations.BetaBuildLocalizationsCommand(),
 		sandbox.SandboxCommand(),
 		signing.SigningCommand(),
 		iap.IAPCommand(),
