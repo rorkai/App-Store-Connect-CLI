@@ -679,12 +679,25 @@ func (c *Client) DeleteAppCustomProductPageLocalizationSearchKeywords(ctx contex
 }
 
 // GetAppCustomProductPageLocalizationPreviewSets retrieves preview sets for a localization.
-func (c *Client) GetAppCustomProductPageLocalizationPreviewSets(ctx context.Context, localizationID string) (*AppPreviewSetsResponse, error) {
+func (c *Client) GetAppCustomProductPageLocalizationPreviewSets(ctx context.Context, localizationID string, opts ...AppCustomProductPageLocalizationPreviewSetsOption) (*AppPreviewSetsResponse, error) {
+	query := &appCustomProductPageLocalizationPreviewSetsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
 	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
+	if query.nextURL == "" && localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
 	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/appPreviewSets", localizationID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appPreviewSets: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildAppCustomProductPageLocalizationPreviewSetsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
@@ -699,12 +712,25 @@ func (c *Client) GetAppCustomProductPageLocalizationPreviewSets(ctx context.Cont
 }
 
 // GetAppCustomProductPageLocalizationScreenshotSets retrieves screenshot sets for a localization.
-func (c *Client) GetAppCustomProductPageLocalizationScreenshotSets(ctx context.Context, localizationID string) (*AppScreenshotSetsResponse, error) {
+func (c *Client) GetAppCustomProductPageLocalizationScreenshotSets(ctx context.Context, localizationID string, opts ...AppCustomProductPageLocalizationScreenshotSetsOption) (*AppScreenshotSetsResponse, error) {
+	query := &appCustomProductPageLocalizationScreenshotSetsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
 	localizationID = strings.TrimSpace(localizationID)
-	if localizationID == "" {
+	if query.nextURL == "" && localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
 	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/appScreenshotSets", localizationID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appScreenshotSets: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildAppCustomProductPageLocalizationScreenshotSetsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err

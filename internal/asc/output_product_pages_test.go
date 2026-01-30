@@ -345,6 +345,30 @@ func TestPrintMarkdown_AppPreviewSets(t *testing.T) {
 	}
 }
 
+func TestPrintTable_AppPreviewSets_Empty(t *testing.T) {
+	resp := &AppPreviewSetsResponse{Data: []Resource[AppPreviewSetAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Preview Type") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppPreviewSets_Empty(t *testing.T) {
+	resp := &AppPreviewSetsResponse{Data: []Resource[AppPreviewSetAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Preview Type |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+}
+
 func TestPrintTable_AppScreenshotSets(t *testing.T) {
 	resp := &AppScreenshotSetsResponse{
 		Data: []Resource[AppScreenshotSetAttributes]{
@@ -390,6 +414,30 @@ func TestPrintMarkdown_AppScreenshotSets(t *testing.T) {
 	}
 	if !strings.Contains(output, "APP_IPHONE_65") {
 		t.Fatalf("expected display type in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppScreenshotSets_Empty(t *testing.T) {
+	resp := &AppScreenshotSetsResponse{Data: []Resource[AppScreenshotSetAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Display Type") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppScreenshotSets_Empty(t *testing.T) {
+	resp := &AppScreenshotSetsResponse{Data: []Resource[AppScreenshotSetAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Display Type |") {
+		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
 

@@ -373,6 +373,41 @@ func TestGetAppCustomProductPageLocalizationPreviewSets_SendsRequest(t *testing.
 	}
 }
 
+func TestGetAppCustomProductPageLocalizationPreviewSets_SendsRequestWithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appCustomProductPageLocalizations/loc-1/appPreviewSets" {
+			t.Fatalf("expected path /v1/appCustomProductPageLocalizations/loc-1/appPreviewSets, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppCustomProductPageLocalizationPreviewSets(context.Background(), "loc-1", WithAppCustomProductPageLocalizationPreviewSetsLimit(5)); err != nil {
+		t.Fatalf("GetAppCustomProductPageLocalizationPreviewSets() error: %v", err)
+	}
+}
+
+func TestGetAppCustomProductPageLocalizationPreviewSets_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/appCustomProductPageLocalizations/loc-1/appPreviewSets?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next url %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppCustomProductPageLocalizationPreviewSets(context.Background(), "", WithAppCustomProductPageLocalizationPreviewSetsNextURL(next)); err != nil {
+		t.Fatalf("GetAppCustomProductPageLocalizationPreviewSets() error: %v", err)
+	}
+}
+
 func TestGetAppCustomProductPageLocalizationScreenshotSets_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -386,6 +421,41 @@ func TestGetAppCustomProductPageLocalizationScreenshotSets_SendsRequest(t *testi
 	}, response)
 
 	if _, err := client.GetAppCustomProductPageLocalizationScreenshotSets(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetAppCustomProductPageLocalizationScreenshotSets() error: %v", err)
+	}
+}
+
+func TestGetAppCustomProductPageLocalizationScreenshotSets_SendsRequestWithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appCustomProductPageLocalizations/loc-1/appScreenshotSets" {
+			t.Fatalf("expected path /v1/appCustomProductPageLocalizations/loc-1/appScreenshotSets, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "7" {
+			t.Fatalf("expected limit=7, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppCustomProductPageLocalizationScreenshotSets(context.Background(), "loc-1", WithAppCustomProductPageLocalizationScreenshotSetsLimit(7)); err != nil {
+		t.Fatalf("GetAppCustomProductPageLocalizationScreenshotSets() error: %v", err)
+	}
+}
+
+func TestGetAppCustomProductPageLocalizationScreenshotSets_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/appCustomProductPageLocalizations/loc-1/appScreenshotSets?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next url %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppCustomProductPageLocalizationScreenshotSets(context.Background(), "", WithAppCustomProductPageLocalizationScreenshotSetsNextURL(next)); err != nil {
 		t.Fatalf("GetAppCustomProductPageLocalizationScreenshotSets() error: %v", err)
 	}
 }

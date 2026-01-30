@@ -255,6 +255,14 @@ type appCustomProductPageLocalizationsQuery struct {
 	listQuery
 }
 
+type appCustomProductPageLocalizationPreviewSetsQuery struct {
+	listQuery
+}
+
+type appCustomProductPageLocalizationScreenshotSetsQuery struct {
+	listQuery
+}
+
 type appStoreVersionExperimentsQuery struct {
 	listQuery
 	states []string
@@ -1201,6 +1209,18 @@ func buildAppCustomProductPageVersionsQuery(query *appCustomProductPageVersionsQ
 }
 
 func buildAppCustomProductPageLocalizationsQuery(query *appCustomProductPageLocalizationsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppCustomProductPageLocalizationPreviewSetsQuery(query *appCustomProductPageLocalizationPreviewSetsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildAppCustomProductPageLocalizationScreenshotSetsQuery(query *appCustomProductPageLocalizationScreenshotSetsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()

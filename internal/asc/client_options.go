@@ -164,6 +164,12 @@ type AppCustomProductPageVersionsOption func(*appCustomProductPageVersionsQuery)
 // AppCustomProductPageLocalizationsOption is a functional option for custom product page localization list endpoints.
 type AppCustomProductPageLocalizationsOption func(*appCustomProductPageLocalizationsQuery)
 
+// AppCustomProductPageLocalizationPreviewSetsOption is a functional option for preview set list endpoints.
+type AppCustomProductPageLocalizationPreviewSetsOption func(*appCustomProductPageLocalizationPreviewSetsQuery)
+
+// AppCustomProductPageLocalizationScreenshotSetsOption is a functional option for screenshot set list endpoints.
+type AppCustomProductPageLocalizationScreenshotSetsOption func(*appCustomProductPageLocalizationScreenshotSetsQuery)
+
 // AppStoreVersionExperimentsOption is a functional option for app store version experiment list endpoints (v1).
 type AppStoreVersionExperimentsOption func(*appStoreVersionExperimentsQuery)
 
@@ -2770,6 +2776,42 @@ func WithAppCustomProductPageLocalizationsLimit(limit int) AppCustomProductPageL
 // WithAppCustomProductPageLocalizationsNextURL uses a next page URL directly.
 func WithAppCustomProductPageLocalizationsNextURL(next string) AppCustomProductPageLocalizationsOption {
 	return func(q *appCustomProductPageLocalizationsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppCustomProductPageLocalizationPreviewSetsLimit sets the max number of preview sets to return.
+func WithAppCustomProductPageLocalizationPreviewSetsLimit(limit int) AppCustomProductPageLocalizationPreviewSetsOption {
+	return func(q *appCustomProductPageLocalizationPreviewSetsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppCustomProductPageLocalizationPreviewSetsNextURL uses a next page URL directly.
+func WithAppCustomProductPageLocalizationPreviewSetsNextURL(next string) AppCustomProductPageLocalizationPreviewSetsOption {
+	return func(q *appCustomProductPageLocalizationPreviewSetsQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithAppCustomProductPageLocalizationScreenshotSetsLimit sets the max number of screenshot sets to return.
+func WithAppCustomProductPageLocalizationScreenshotSetsLimit(limit int) AppCustomProductPageLocalizationScreenshotSetsOption {
+	return func(q *appCustomProductPageLocalizationScreenshotSetsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithAppCustomProductPageLocalizationScreenshotSetsNextURL uses a next page URL directly.
+func WithAppCustomProductPageLocalizationScreenshotSetsNextURL(next string) AppCustomProductPageLocalizationScreenshotSetsOption {
+	return func(q *appCustomProductPageLocalizationScreenshotSetsQuery) {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}

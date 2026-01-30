@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 // CustomPageLocalizationsPreviewSetsCommand returns the preview sets command group.
@@ -38,6 +40,9 @@ func CustomPageLocalizationsPreviewSetsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations preview-sets list", flag.ExitOnError)
 
 	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -53,9 +58,16 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
-			if trimmedID == "" {
+			trimmedNext := strings.TrimSpace(*next)
+			if trimmedID == "" && trimmedNext == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
 				return flag.ErrHelp
+			}
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("custom-pages localizations preview-sets list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("custom-pages localizations preview-sets list: %w", err)
 			}
 
 			client, err := getASCClient()
@@ -66,7 +78,27 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetAppCustomProductPageLocalizationPreviewSets(requestCtx, trimmedID)
+			opts := []asc.AppCustomProductPageLocalizationPreviewSetsOption{
+				asc.WithAppCustomProductPageLocalizationPreviewSetsLimit(*limit),
+				asc.WithAppCustomProductPageLocalizationPreviewSetsNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithAppCustomProductPageLocalizationPreviewSetsLimit(200))
+				firstPage, err := client.GetAppCustomProductPageLocalizationPreviewSets(requestCtx, trimmedID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("custom-pages localizations preview-sets list: failed to fetch: %w", err)
+				}
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetAppCustomProductPageLocalizationPreviewSets(ctx, trimmedID, asc.WithAppCustomProductPageLocalizationPreviewSetsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("custom-pages localizations preview-sets list: %w", err)
+				}
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetAppCustomProductPageLocalizationPreviewSets(requestCtx, trimmedID, opts...)
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations preview-sets list: failed to fetch: %w", err)
 			}
@@ -104,6 +136,9 @@ func CustomPageLocalizationsScreenshotSetsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations screenshot-sets list", flag.ExitOnError)
 
 	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -119,9 +154,16 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*localizationID)
-			if trimmedID == "" {
+			trimmedNext := strings.TrimSpace(*next)
+			if trimmedID == "" && trimmedNext == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
 				return flag.ErrHelp
+			}
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("custom-pages localizations screenshot-sets list: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("custom-pages localizations screenshot-sets list: %w", err)
 			}
 
 			client, err := getASCClient()
@@ -132,7 +174,27 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetAppCustomProductPageLocalizationScreenshotSets(requestCtx, trimmedID)
+			opts := []asc.AppCustomProductPageLocalizationScreenshotSetsOption{
+				asc.WithAppCustomProductPageLocalizationScreenshotSetsLimit(*limit),
+				asc.WithAppCustomProductPageLocalizationScreenshotSetsNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithAppCustomProductPageLocalizationScreenshotSetsLimit(200))
+				firstPage, err := client.GetAppCustomProductPageLocalizationScreenshotSets(requestCtx, trimmedID, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("custom-pages localizations screenshot-sets list: failed to fetch: %w", err)
+				}
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetAppCustomProductPageLocalizationScreenshotSets(ctx, trimmedID, asc.WithAppCustomProductPageLocalizationScreenshotSetsNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("custom-pages localizations screenshot-sets list: %w", err)
+				}
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetAppCustomProductPageLocalizationScreenshotSets(requestCtx, trimmedID, opts...)
 			if err != nil {
 				return fmt.Errorf("custom-pages localizations screenshot-sets list: failed to fetch: %w", err)
 			}

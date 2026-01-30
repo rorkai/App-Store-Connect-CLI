@@ -181,6 +181,138 @@ func TestProductPagesCustomPagesListRejectsInvalidNextURL(t *testing.T) {
 	}
 }
 
+func TestProductPagesCustomPagesLocalizationsPreviewSetsListRejectsInvalidLimit(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	tests := []struct {
+		name  string
+		limit string
+	}{
+		{
+			name:  "limit below range",
+			limit: "-1",
+		},
+		{
+			name:  "limit above range",
+			limit: "201",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{"product-pages", "custom-pages", "localizations", "preview-sets", "list", "--localization-id", "loc-1", "--limit", test.limit}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("unexpected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
+	}
+}
+
+func TestProductPagesCustomPagesLocalizationsPreviewSetsListRejectsInvalidNextURL(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"product-pages", "custom-pages", "localizations", "preview-sets", "list", "--localization-id", "loc-1", "--next", "not-a-url"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("unexpected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestProductPagesCustomPagesLocalizationsScreenshotSetsListRejectsInvalidLimit(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	tests := []struct {
+		name  string
+		limit string
+	}{
+		{
+			name:  "limit below range",
+			limit: "-1",
+		},
+		{
+			name:  "limit above range",
+			limit: "201",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list", "--localization-id", "loc-1", "--limit", test.limit}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("unexpected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
+	}
+}
+
+func TestProductPagesCustomPagesLocalizationsScreenshotSetsListRejectsInvalidNextURL(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list", "--localization-id", "loc-1", "--next", "not-a-url"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("unexpected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
 func TestProductPagesCustomPagesLocalizationsSearchKeywordsListRequiresLocalizationID(t *testing.T) {
 	root := RootCommand("1.2.3")
 
