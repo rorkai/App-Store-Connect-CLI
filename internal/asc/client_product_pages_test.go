@@ -276,6 +276,120 @@ func TestGetAppCustomProductPageLocalization_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestGetAppCustomProductPageLocalizationSearchKeywords_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appKeywords","id":"keyword-1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appCustomProductPageLocalizations/loc-1/searchKeywords" {
+			t.Fatalf("expected path /v1/appCustomProductPageLocalizations/loc-1/searchKeywords, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppCustomProductPageLocalizationSearchKeywords(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetAppCustomProductPageLocalizationSearchKeywords() error: %v", err)
+	}
+}
+
+func TestAddAppCustomProductPageLocalizationSearchKeywords_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appCustomProductPageLocalizations/loc-1/relationships/searchKeywords" {
+			t.Fatalf("expected path /v1/appCustomProductPageLocalizations/loc-1/relationships/searchKeywords, got %s", req.URL.Path)
+		}
+		var payload RelationshipRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if len(payload.Data) != 2 {
+			t.Fatalf("expected 2 keywords, got %d", len(payload.Data))
+		}
+		if payload.Data[0].Type != ResourceTypeAppKeywords {
+			t.Fatalf("expected type appKeywords, got %q", payload.Data[0].Type)
+		}
+		if payload.Data[0].ID != "kw-1" {
+			t.Fatalf("expected keyword kw-1, got %q", payload.Data[0].ID)
+		}
+		if payload.Data[1].ID != "kw-2" {
+			t.Fatalf("expected keyword kw-2, got %q", payload.Data[1].ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.AddAppCustomProductPageLocalizationSearchKeywords(context.Background(), "loc-1", []string{"kw-1", "kw-2"}); err != nil {
+		t.Fatalf("AddAppCustomProductPageLocalizationSearchKeywords() error: %v", err)
+	}
+}
+
+func TestDeleteAppCustomProductPageLocalizationSearchKeywords_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusNoContent, ``)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodDelete {
+			t.Fatalf("expected DELETE, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appCustomProductPageLocalizations/loc-1/relationships/searchKeywords" {
+			t.Fatalf("expected path /v1/appCustomProductPageLocalizations/loc-1/relationships/searchKeywords, got %s", req.URL.Path)
+		}
+		var payload RelationshipRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if len(payload.Data) != 1 {
+			t.Fatalf("expected 1 keyword, got %d", len(payload.Data))
+		}
+		if payload.Data[0].Type != ResourceTypeAppKeywords {
+			t.Fatalf("expected type appKeywords, got %q", payload.Data[0].Type)
+		}
+		if payload.Data[0].ID != "kw-1" {
+			t.Fatalf("expected keyword kw-1, got %q", payload.Data[0].ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if err := client.DeleteAppCustomProductPageLocalizationSearchKeywords(context.Background(), "loc-1", []string{"kw-1"}); err != nil {
+		t.Fatalf("DeleteAppCustomProductPageLocalizationSearchKeywords() error: %v", err)
+	}
+}
+
+func TestGetAppCustomProductPageLocalizationPreviewSets_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appPreviewSets","id":"set-1","attributes":{"previewType":"IPHONE_65"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appCustomProductPageLocalizations/loc-1/appPreviewSets" {
+			t.Fatalf("expected path /v1/appCustomProductPageLocalizations/loc-1/appPreviewSets, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppCustomProductPageLocalizationPreviewSets(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetAppCustomProductPageLocalizationPreviewSets() error: %v", err)
+	}
+}
+
+func TestGetAppCustomProductPageLocalizationScreenshotSets_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appCustomProductPageLocalizations/loc-1/appScreenshotSets" {
+			t.Fatalf("expected path /v1/appCustomProductPageLocalizations/loc-1/appScreenshotSets, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppCustomProductPageLocalizationScreenshotSets(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetAppCustomProductPageLocalizationScreenshotSets() error: %v", err)
+	}
+}
+
 func TestGetAppCustomProductPages_RequiresAppID(t *testing.T) {
 	client := &Client{}
 	if _, err := client.GetAppCustomProductPages(context.Background(), ""); err == nil {
@@ -314,6 +428,55 @@ func TestGetAppCustomProductPageLocalizations_RequiresVersionID(t *testing.T) {
 func TestGetAppCustomProductPageLocalization_RequiresID(t *testing.T) {
 	client := &Client{}
 	if _, err := client.GetAppCustomProductPageLocalization(context.Background(), ""); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestGetAppCustomProductPageLocalizationSearchKeywords_RequiresLocalizationID(t *testing.T) {
+	client := &Client{}
+	if _, err := client.GetAppCustomProductPageLocalizationSearchKeywords(context.Background(), ""); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestAddAppCustomProductPageLocalizationSearchKeywords_RequiresLocalizationID(t *testing.T) {
+	client := &Client{}
+	if err := client.AddAppCustomProductPageLocalizationSearchKeywords(context.Background(), "", []string{"kw-1"}); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestAddAppCustomProductPageLocalizationSearchKeywords_RequiresKeywords(t *testing.T) {
+	client := &Client{}
+	if err := client.AddAppCustomProductPageLocalizationSearchKeywords(context.Background(), "loc-1", nil); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestDeleteAppCustomProductPageLocalizationSearchKeywords_RequiresLocalizationID(t *testing.T) {
+	client := &Client{}
+	if err := client.DeleteAppCustomProductPageLocalizationSearchKeywords(context.Background(), "", []string{"kw-1"}); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestDeleteAppCustomProductPageLocalizationSearchKeywords_RequiresKeywords(t *testing.T) {
+	client := &Client{}
+	if err := client.DeleteAppCustomProductPageLocalizationSearchKeywords(context.Background(), "loc-1", nil); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestGetAppCustomProductPageLocalizationPreviewSets_RequiresLocalizationID(t *testing.T) {
+	client := &Client{}
+	if _, err := client.GetAppCustomProductPageLocalizationPreviewSets(context.Background(), ""); err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestGetAppCustomProductPageLocalizationScreenshotSets_RequiresLocalizationID(t *testing.T) {
+	client := &Client{}
+	if _, err := client.GetAppCustomProductPageLocalizationScreenshotSets(context.Background(), ""); err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }

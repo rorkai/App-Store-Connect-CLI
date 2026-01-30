@@ -178,3 +178,150 @@ func TestProductPagesCustomPagesListRejectsInvalidNextURL(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 }
+
+func TestProductPagesCustomPagesLocalizationsSearchKeywordsListRequiresLocalizationID(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"product-pages", "custom-pages", "localizations", "search-keywords", "list"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--localization-id is required") {
+		t.Fatalf("expected missing localization-id error, got %q", stderr)
+	}
+}
+
+func TestProductPagesCustomPagesLocalizationsSearchKeywordsAddRequiresLocalizationID(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"product-pages", "custom-pages", "localizations", "search-keywords", "add", "--keywords", "kw-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--localization-id is required") {
+		t.Fatalf("expected missing localization-id error, got %q", stderr)
+	}
+}
+
+func TestProductPagesCustomPagesLocalizationsSearchKeywordsAddRequiresKeywords(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"product-pages", "custom-pages", "localizations", "search-keywords", "add", "--localization-id", "loc-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--keywords is required") {
+		t.Fatalf("expected missing keywords error, got %q", stderr)
+	}
+}
+
+func TestProductPagesCustomPagesLocalizationsSearchKeywordsDeleteRequiresConfirm(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"product-pages", "custom-pages", "localizations", "search-keywords", "delete", "--localization-id", "loc-1", "--keywords", "kw-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--confirm is required") {
+		t.Fatalf("expected missing confirm error, got %q", stderr)
+	}
+}
+
+func TestProductPagesCustomPagesLocalizationsSearchKeywordsDeleteRequiresKeywords(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"product-pages", "custom-pages", "localizations", "search-keywords", "delete", "--localization-id", "loc-1", "--confirm"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--keywords is required") {
+		t.Fatalf("expected missing keywords error, got %q", stderr)
+	}
+}
+
+func TestProductPagesCustomPagesLocalizationsPreviewSetsListRequiresLocalizationID(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"product-pages", "custom-pages", "localizations", "preview-sets", "list"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--localization-id is required") {
+		t.Fatalf("expected missing localization-id error, got %q", stderr)
+	}
+}
+
+func TestProductPagesCustomPagesLocalizationsScreenshotSetsListRequiresLocalizationID(t *testing.T) {
+	root := RootCommand("1.2.3")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"product-pages", "custom-pages", "localizations", "screenshot-sets", "list"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--localization-id is required") {
+		t.Fatalf("expected missing localization-id error, got %q", stderr)
+	}
+}

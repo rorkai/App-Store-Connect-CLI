@@ -231,6 +231,168 @@ func TestPrintMarkdown_AppCustomProductPageLocalizations_Empty(t *testing.T) {
 	}
 }
 
+func TestPrintTable_AppKeywords(t *testing.T) {
+	resp := &AppKeywordsResponse{
+		Data: []Resource[AppKeywordAttributes]{
+			{
+				ID: "keyword-1",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "ID") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "keyword-1") {
+		t.Fatalf("expected keyword in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppKeywords(t *testing.T) {
+	resp := &AppKeywordsResponse{
+		Data: []Resource[AppKeywordAttributes]{
+			{
+				ID: "keyword-1",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "keyword-1") {
+		t.Fatalf("expected keyword in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppKeywords_Empty(t *testing.T) {
+	resp := &AppKeywordsResponse{Data: []Resource[AppKeywordAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "ID") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppKeywords_Empty(t *testing.T) {
+	resp := &AppKeywordsResponse{Data: []Resource[AppKeywordAttributes]{}}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppPreviewSets(t *testing.T) {
+	resp := &AppPreviewSetsResponse{
+		Data: []Resource[AppPreviewSetAttributes]{
+			{
+				ID: "preview-set-1",
+				Attributes: AppPreviewSetAttributes{
+					PreviewType: "IPHONE_65",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Preview Type") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "preview-set-1") {
+		t.Fatalf("expected set ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppPreviewSets(t *testing.T) {
+	resp := &AppPreviewSetsResponse{
+		Data: []Resource[AppPreviewSetAttributes]{
+			{
+				ID: "preview-set-1",
+				Attributes: AppPreviewSetAttributes{
+					PreviewType: "IPHONE_65",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Preview Type |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "IPHONE_65") {
+		t.Fatalf("expected preview type in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppScreenshotSets(t *testing.T) {
+	resp := &AppScreenshotSetsResponse{
+		Data: []Resource[AppScreenshotSetAttributes]{
+			{
+				ID: "screenshot-set-1",
+				Attributes: AppScreenshotSetAttributes{
+					ScreenshotDisplayType: "APP_IPHONE_65",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Display Type") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "screenshot-set-1") {
+		t.Fatalf("expected set ID in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_AppScreenshotSets(t *testing.T) {
+	resp := &AppScreenshotSetsResponse{
+		Data: []Resource[AppScreenshotSetAttributes]{
+			{
+				ID: "screenshot-set-1",
+				Attributes: AppScreenshotSetAttributes{
+					ScreenshotDisplayType: "APP_IPHONE_65",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Display Type |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "APP_IPHONE_65") {
+		t.Fatalf("expected display type in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_AppStoreVersionExperiments(t *testing.T) {
 	resp := &AppStoreVersionExperimentsResponse{
 		Data: []Resource[AppStoreVersionExperimentAttributes]{
