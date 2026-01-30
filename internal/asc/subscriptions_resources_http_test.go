@@ -435,9 +435,6 @@ func TestCreateSubscriptionPromotionalOffer(t *testing.T) {
 		if payload.Data.Attributes.Name != "Spring" || payload.Data.Attributes.OfferCode != "SPRING" {
 			t.Fatalf("unexpected attributes: %+v", payload.Data.Attributes)
 		}
-		if payload.Data.Relationships == nil || payload.Data.Relationships.Subscription == nil || payload.Data.Relationships.Prices == nil {
-			t.Fatalf("expected subscription and prices relationships")
-		}
 		if payload.Data.Relationships.Subscription.Data.ID != "sub-1" {
 			t.Fatalf("unexpected subscription relationship: %+v", payload.Data.Relationships.Subscription.Data)
 		}
@@ -475,7 +472,7 @@ func TestUpdateSubscriptionPromotionalOffer(t *testing.T) {
 		if payload.Data.Type != ResourceTypeSubscriptionPromotionalOffers || payload.Data.ID != "offer-1" {
 			t.Fatalf("unexpected payload: %+v", payload.Data)
 		}
-		if payload.Data.Relationships == nil || payload.Data.Relationships.Prices == nil || len(payload.Data.Relationships.Prices.Data) != 1 {
+		if payload.Data.Relationships == nil || len(payload.Data.Relationships.Prices.Data) != 1 {
 			t.Fatalf("expected prices relationship")
 		}
 		if payload.Data.Relationships.Prices.Data[0].ID != "price-1" {
@@ -581,9 +578,6 @@ func TestCreateSubscriptionOfferCode(t *testing.T) {
 		}
 		if payload.Data.Attributes.Name != "Spring" {
 			t.Fatalf("unexpected attributes: %+v", payload.Data.Attributes)
-		}
-		if payload.Data.Relationships == nil || payload.Data.Relationships.Subscription == nil || payload.Data.Relationships.Prices == nil {
-			t.Fatalf("expected subscription and prices relationships")
 		}
 		if payload.Data.Relationships.Subscription.Data.ID != "sub-1" {
 			t.Fatalf("unexpected subscription relationship: %+v", payload.Data.Relationships.Subscription.Data)
