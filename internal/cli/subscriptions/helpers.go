@@ -143,7 +143,3 @@ func openSubscriptionImageFile(path string) (*os.File, os.FileInfo, error) {
 	return file, info, nil
 }
 
-type deleteResult struct {
-	ID      string `json:"id"`
-	Deleted bool   `json:"deleted"`
-}

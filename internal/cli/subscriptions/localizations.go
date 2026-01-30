@@ -327,7 +327,7 @@ Examples:
 				return fmt.Errorf("subscriptions localizations delete: failed to delete: %w", err)
 			}
 
-			result := &deleteResult{ID: id, Deleted: true}
+			result := &asc.AssetDeleteResult{ID: id, Deleted: true}
 			return printOutput(result, *output, *pretty)
 		},
 	}
