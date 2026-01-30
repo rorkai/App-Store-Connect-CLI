@@ -72,6 +72,7 @@ const (
 	ResourceTypeSandboxTestersClearHistory                      ResourceType = "sandboxTestersClearPurchaseHistoryRequest"
 	ResourceTypeAppClipDomainStatuses                           ResourceType = "appClipDomainStatuses"
 	ResourceTypeAppStoreVersionLocalizations                    ResourceType = "appStoreVersionLocalizations"
+	ResourceTypeAppKeywords                                     ResourceType = "appKeywords"
 	ResourceTypeAppInfoLocalizations                            ResourceType = "appInfoLocalizations"
 	ResourceTypeAppInfos                                        ResourceType = "appInfos"
 	ResourceTypeAgeRatingDeclarations                           ResourceType = "ageRatingDeclarations"

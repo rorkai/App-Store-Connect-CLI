@@ -130,6 +130,12 @@ type AppCustomProductPageLocalizationsResponse = Response[AppCustomProductPageLo
 // AppCustomProductPageLocalizationResponse is the response from custom product page localization endpoints.
 type AppCustomProductPageLocalizationResponse = SingleResponse[AppCustomProductPageLocalizationAttributes]
 
+// AppKeywordAttributes describes an app keyword resource.
+type AppKeywordAttributes struct{}
+
+// AppKeywordsResponse is the response from app keyword list endpoints.
+type AppKeywordsResponse = Response[AppKeywordAttributes]
+
 // AppCustomProductPageLocalizationCreateAttributes describes create payload attributes.
 type AppCustomProductPageLocalizationCreateAttributes struct {
 	Locale          string `json:"locale"`
@@ -588,4 +594,126 @@ func (c *Client) DeleteAppCustomProductPageLocalization(ctx context.Context, loc
 	}
 	_, err := c.do(ctx, "DELETE", fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s", localizationID), nil)
 	return err
+}
+
+// GetAppCustomProductPageLocalizationSearchKeywords retrieves search keywords for a localization.
+func (c *Client) GetAppCustomProductPageLocalizationSearchKeywords(ctx context.Context, localizationID string) (*AppKeywordsResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/searchKeywords", localizationID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppKeywordsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// AddAppCustomProductPageLocalizationSearchKeywords adds search keywords to a localization.
+func (c *Client) AddAppCustomProductPageLocalizationSearchKeywords(ctx context.Context, localizationID string, keywords []string) error {
+	localizationID = strings.TrimSpace(localizationID)
+	keywords = normalizeList(keywords)
+	if localizationID == "" {
+		return fmt.Errorf("localizationID is required")
+	}
+	if len(keywords) == 0 {
+		return fmt.Errorf("keywords are required")
+	}
+
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(keywords)),
+	}
+	for _, keyword := range keywords {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeAppKeywords,
+			ID:   keyword,
+		})
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID)
+	_, err = c.do(ctx, "POST", path, body)
+	return err
+}
+
+// DeleteAppCustomProductPageLocalizationSearchKeywords removes search keywords from a localization.
+func (c *Client) DeleteAppCustomProductPageLocalizationSearchKeywords(ctx context.Context, localizationID string, keywords []string) error {
+	localizationID = strings.TrimSpace(localizationID)
+	keywords = normalizeList(keywords)
+	if localizationID == "" {
+		return fmt.Errorf("localizationID is required")
+	}
+	if len(keywords) == 0 {
+		return fmt.Errorf("keywords are required")
+	}
+
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, 0, len(keywords)),
+	}
+	for _, keyword := range keywords {
+		payload.Data = append(payload.Data, RelationshipData{
+			Type: ResourceTypeAppKeywords,
+			ID:   keyword,
+		})
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/relationships/searchKeywords", localizationID)
+	_, err = c.do(ctx, "DELETE", path, body)
+	return err
+}
+
+// GetAppCustomProductPageLocalizationPreviewSets retrieves preview sets for a localization.
+func (c *Client) GetAppCustomProductPageLocalizationPreviewSets(ctx context.Context, localizationID string) (*AppPreviewSetsResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/appPreviewSets", localizationID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppPreviewSetsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppCustomProductPageLocalizationScreenshotSets retrieves screenshot sets for a localization.
+func (c *Client) GetAppCustomProductPageLocalizationScreenshotSets(ctx context.Context, localizationID string) (*AppScreenshotSetsResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+	path := fmt.Sprintf("/v1/appCustomProductPageLocalizations/%s/appScreenshotSets", localizationID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppScreenshotSetsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
 }

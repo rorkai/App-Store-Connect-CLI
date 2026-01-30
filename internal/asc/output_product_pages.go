@@ -88,6 +88,24 @@ func printAppCustomProductPageLocalizationsMarkdown(resp *AppCustomProductPageLo
 	return nil
 }
 
+func printAppKeywordsTable(resp *AppKeywordsResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\n", item.ID)
+	}
+	return w.Flush()
+}
+
+func printAppKeywordsMarkdown(resp *AppKeywordsResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID |")
+	fmt.Fprintln(os.Stdout, "| --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s |\n", escapeMarkdown(item.ID))
+	}
+	return nil
+}
+
 func printAppStoreVersionExperimentsTable(resp *AppStoreVersionExperimentsResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tName\tTraffic Proportion\tState")

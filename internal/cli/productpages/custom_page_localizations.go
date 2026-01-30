@@ -25,7 +25,9 @@ func CustomPageLocalizationsCommand() *ffcli.Command {
 Examples:
   asc product-pages custom-pages localizations list --custom-page-version-id "VERSION_ID"
   asc product-pages custom-pages localizations create --custom-page-version-id "VERSION_ID" --locale "en-US"
-  asc product-pages custom-pages localizations delete --localization-id "LOCALIZATION_ID" --confirm`,
+  asc product-pages custom-pages localizations delete --localization-id "LOCALIZATION_ID" --confirm
+  asc product-pages custom-pages localizations search-keywords list --localization-id "LOCALIZATION_ID"
+  asc product-pages custom-pages localizations preview-sets list --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -34,6 +36,9 @@ Examples:
 			CustomPageLocalizationsCreateCommand(),
 			CustomPageLocalizationsUpdateCommand(),
 			CustomPageLocalizationsDeleteCommand(),
+			CustomPageLocalizationsSearchKeywordsCommand(),
+			CustomPageLocalizationsPreviewSetsCommand(),
+			CustomPageLocalizationsScreenshotSetsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
