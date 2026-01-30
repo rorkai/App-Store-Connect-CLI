@@ -325,6 +325,41 @@ func (c *Client) GetAppEventLocalizations(ctx context.Context, eventID string, o
 	return &response, nil
 }
 
+// GetAppEventLocalizationsRelationships retrieves localization linkages for an app event.
+func (c *Client) GetAppEventLocalizationsRelationships(ctx context.Context, eventID string, opts ...LinkagesOption) (*AppEventLocalizationsLinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	eventID = strings.TrimSpace(eventID)
+	if query.nextURL == "" && eventID == "" {
+		return nil, fmt.Errorf("eventID is required")
+	}
+
+	path := fmt.Sprintf("/v1/appEvents/%s/relationships/localizations", eventID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appEventLocalizationsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppEventLocalizationsLinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetAppEventLocalization retrieves an app event localization by ID.
 func (c *Client) GetAppEventLocalization(ctx context.Context, localizationID string) (*AppEventLocalizationResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)
@@ -457,6 +492,41 @@ func (c *Client) GetAppEventScreenshots(ctx context.Context, localizationID stri
 	}
 
 	var response AppEventScreenshotsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppEventScreenshotsRelationships retrieves screenshot linkages for an app event localization.
+func (c *Client) GetAppEventScreenshotsRelationships(ctx context.Context, localizationID string, opts ...LinkagesOption) (*AppEventLocalizationScreenshotsLinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	localizationID = strings.TrimSpace(localizationID)
+	if query.nextURL == "" && localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+
+	path := fmt.Sprintf("/v1/appEventLocalizations/%s/relationships/appEventScreenshots", localizationID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appEventScreenshotsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppEventLocalizationScreenshotsLinkagesResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -603,6 +673,41 @@ func (c *Client) GetAppEventVideoClips(ctx context.Context, localizationID strin
 	}
 
 	var response AppEventVideoClipsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppEventVideoClipsRelationships retrieves video clip linkages for an app event localization.
+func (c *Client) GetAppEventVideoClipsRelationships(ctx context.Context, localizationID string, opts ...LinkagesOption) (*AppEventLocalizationVideoClipsLinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	localizationID = strings.TrimSpace(localizationID)
+	if query.nextURL == "" && localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+
+	path := fmt.Sprintf("/v1/appEventLocalizations/%s/relationships/appEventVideoClips", localizationID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appEventVideoClipsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppEventLocalizationVideoClipsLinkagesResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

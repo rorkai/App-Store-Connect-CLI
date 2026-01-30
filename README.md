@@ -30,6 +30,7 @@ A **fast**, **lightweight**, and **AI-agent friendly** CLI for App Store Connect
   - [Devices](#devices)
   - [App Store](#app-store)
   - [App Tags](#app-tags)
+  - [App Events](#app-events)
   - [Alternative Distribution](#alternative-distribution)
   - [Analytics & Sales](#analytics--sales)
   - [Finance Reports](#finance-reports)
@@ -382,6 +383,27 @@ asc app-tags territories-relationships --id "TAG_ID"
 
 # List tag relationships for an app
 asc app-tags relationships --app "APP_ID"
+```
+
+### App Events
+
+```bash
+# List in-app events for an app
+asc app-events list --app "APP_ID"
+
+# List localizations for an event
+asc app-events localizations list --event-id "EVENT_ID"
+
+# List localization screenshots and video clips
+asc app-events localizations screenshots list --localization-id "LOC_ID"
+asc app-events localizations video-clips list --localization-id "LOC_ID"
+
+# List localization relationships for an event
+asc app-events relationships --event-id "EVENT_ID"
+
+# List localization media relationships
+asc app-events localizations screenshots-relationships --localization-id "LOC_ID"
+asc app-events localizations video-clips-relationships --localization-id "LOC_ID"
 ```
 
 ### Alternative Distribution

@@ -212,6 +212,26 @@ func TestGetAppEventLocalizations_WithLimit(t *testing.T) {
 	}
 }
 
+func TestGetAppEventLocalizationsRelationships_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEvents/event-1/relationships/localizations" {
+			t.Fatalf("expected path /v1/appEvents/event-1/relationships/localizations, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "3" {
+			t.Fatalf("expected limit=3, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppEventLocalizationsRelationships(context.Background(), "event-1", WithLinkagesLimit(3)); err != nil {
+		t.Fatalf("GetAppEventLocalizationsRelationships() error: %v", err)
+	}
+}
+
 func TestGetAppEventLocalization(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEventLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -320,6 +340,26 @@ func TestGetAppEventScreenshots_WithLimit(t *testing.T) {
 
 	if _, err := client.GetAppEventScreenshots(context.Background(), "loc-1", WithAppEventScreenshotsLimit(25)); err != nil {
 		t.Fatalf("GetAppEventScreenshots() error: %v", err)
+	}
+}
+
+func TestGetAppEventScreenshotsRelationships_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEventLocalizations/loc-1/relationships/appEventScreenshots" {
+			t.Fatalf("expected path /v1/appEventLocalizations/loc-1/relationships/appEventScreenshots, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "8" {
+			t.Fatalf("expected limit=8, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppEventScreenshotsRelationships(context.Background(), "loc-1", WithLinkagesLimit(8)); err != nil {
+		t.Fatalf("GetAppEventScreenshotsRelationships() error: %v", err)
 	}
 }
 
@@ -432,6 +472,26 @@ func TestGetAppEventVideoClips_WithLimit(t *testing.T) {
 
 	if _, err := client.GetAppEventVideoClips(context.Background(), "loc-1", WithAppEventVideoClipsLimit(7)); err != nil {
 		t.Fatalf("GetAppEventVideoClips() error: %v", err)
+	}
+}
+
+func TestGetAppEventVideoClipsRelationships_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEventLocalizations/loc-1/relationships/appEventVideoClips" {
+			t.Fatalf("expected path /v1/appEventLocalizations/loc-1/relationships/appEventVideoClips, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "6" {
+			t.Fatalf("expected limit=6, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppEventVideoClipsRelationships(context.Background(), "loc-1", WithLinkagesLimit(6)); err != nil {
+		t.Fatalf("GetAppEventVideoClipsRelationships() error: %v", err)
 	}
 }
 
@@ -557,6 +617,15 @@ func TestAppEventListMethods_InvalidNextURL(t *testing.T) {
 	if _, err := client.GetAppEventVideoClips(context.Background(), "loc-1", WithAppEventVideoClipsNextURL(next)); err == nil {
 		t.Fatal("expected error for invalid next URL")
 	}
+	if _, err := client.GetAppEventLocalizationsRelationships(context.Background(), "event-1", WithLinkagesNextURL(next)); err == nil {
+		t.Fatal("expected error for invalid next URL")
+	}
+	if _, err := client.GetAppEventScreenshotsRelationships(context.Background(), "loc-1", WithLinkagesNextURL(next)); err == nil {
+		t.Fatal("expected error for invalid next URL")
+	}
+	if _, err := client.GetAppEventVideoClipsRelationships(context.Background(), "loc-1", WithLinkagesNextURL(next)); err == nil {
+		t.Fatal("expected error for invalid next URL")
+	}
 }
 
 func TestAppEventMethodsRequireIDs(t *testing.T) {
@@ -593,6 +662,10 @@ func TestAppEventMethodsRequireIDs(t *testing.T) {
 			_, err := client.GetAppEventLocalizations(context.Background(), "")
 			return err
 		}},
+		{"GetAppEventLocalizationsRelationships", func() error {
+			_, err := client.GetAppEventLocalizationsRelationships(context.Background(), "")
+			return err
+		}},
 		{"GetAppEventLocalization", func() error {
 			_, err := client.GetAppEventLocalization(context.Background(), "")
 			return err
@@ -612,6 +685,10 @@ func TestAppEventMethodsRequireIDs(t *testing.T) {
 			_, err := client.GetAppEventScreenshots(context.Background(), "")
 			return err
 		}},
+		{"GetAppEventScreenshotsRelationships", func() error {
+			_, err := client.GetAppEventScreenshotsRelationships(context.Background(), "")
+			return err
+		}},
 		{"GetAppEventScreenshot", func() error {
 			_, err := client.GetAppEventScreenshot(context.Background(), "")
 			return err
@@ -629,6 +706,10 @@ func TestAppEventMethodsRequireIDs(t *testing.T) {
 		}},
 		{"GetAppEventVideoClips", func() error {
 			_, err := client.GetAppEventVideoClips(context.Background(), "")
+			return err
+		}},
+		{"GetAppEventVideoClipsRelationships", func() error {
+			_, err := client.GetAppEventVideoClipsRelationships(context.Background(), "")
 			return err
 		}},
 		{"GetAppEventVideoClip", func() error {
@@ -687,6 +768,10 @@ func TestAppEventMethodsReturnAPIError(t *testing.T) {
 			_, err := client.GetAppEventLocalizations(context.Background(), "event-1")
 			return err
 		}},
+		{"GetAppEventLocalizationsRelationships", func(client *Client) error {
+			_, err := client.GetAppEventLocalizationsRelationships(context.Background(), "event-1")
+			return err
+		}},
 		{"GetAppEventLocalization", func(client *Client) error {
 			_, err := client.GetAppEventLocalization(context.Background(), "loc-1")
 			return err
@@ -707,6 +792,10 @@ func TestAppEventMethodsReturnAPIError(t *testing.T) {
 			_, err := client.GetAppEventScreenshots(context.Background(), "loc-1")
 			return err
 		}},
+		{"GetAppEventScreenshotsRelationships", func(client *Client) error {
+			_, err := client.GetAppEventScreenshotsRelationships(context.Background(), "loc-1")
+			return err
+		}},
 		{"GetAppEventScreenshot", func(client *Client) error {
 			_, err := client.GetAppEventScreenshot(context.Background(), "shot-1")
 			return err
@@ -724,6 +813,10 @@ func TestAppEventMethodsReturnAPIError(t *testing.T) {
 		}},
 		{"GetAppEventVideoClips", func(client *Client) error {
 			_, err := client.GetAppEventVideoClips(context.Background(), "loc-1")
+			return err
+		}},
+		{"GetAppEventVideoClipsRelationships", func(client *Client) error {
+			_, err := client.GetAppEventVideoClipsRelationships(context.Background(), "loc-1")
 			return err
 		}},
 		{"GetAppEventVideoClip", func(client *Client) error {

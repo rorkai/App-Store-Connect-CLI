@@ -200,6 +200,9 @@ type (
 	AppEventScreenshotResponse     = SingleResponse[AppEventScreenshotAttributes]
 	AppEventVideoClipsResponse     = Response[AppEventVideoClipAttributes]
 	AppEventVideoClipResponse      = SingleResponse[AppEventVideoClipAttributes]
+	AppEventLocalizationsLinkagesResponse        = LinkagesResponse
+	AppEventLocalizationScreenshotsLinkagesResponse = LinkagesResponse
+	AppEventLocalizationVideoClipsLinkagesResponse  = LinkagesResponse
 )
 
 // AppEventsOption is a functional option for app event list endpoints.

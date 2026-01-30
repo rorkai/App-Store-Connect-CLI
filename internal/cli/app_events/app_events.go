@@ -27,7 +27,8 @@ Examples:
   asc app-events get --event-id "EVENT_ID"
   asc app-events create --app "APP_ID" --name "Summer Challenge" --event-type CHALLENGE --start "2026-06-01T00:00:00Z" --end "2026-06-30T23:59:59Z"
   asc app-events update --event-id "EVENT_ID" --priority HIGH
-  asc app-events delete --event-id "EVENT_ID" --confirm`,
+  asc app-events delete --event-id "EVENT_ID" --confirm
+  asc app-events relationships --event-id "EVENT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -37,6 +38,7 @@ Examples:
 			AppEventsUpdateCommand(),
 			AppEventsDeleteCommand(),
 			AppEventLocalizationsCommand(),
+			AppEventsRelationshipsCommand(),
 			AppEventScreenshotsCommand(),
 			AppEventVideoClipsCommand(),
 			AppEventsSubmitCommand(),

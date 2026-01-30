@@ -24,12 +24,17 @@ func AppEventLocalizationsCommand() *ffcli.Command {
 
 Examples:
   asc app-events localizations list --event-id "EVENT_ID"
-  asc app-events localizations get --localization-id "LOC_ID"`,
+  asc app-events localizations get --localization-id "LOC_ID"
+  asc app-events localizations screenshots list --localization-id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppEventLocalizationsListCommand(),
 			AppEventLocalizationsGetCommand(),
+			AppEventLocalizationScreenshotsCommand(),
+			AppEventLocalizationVideoClipsCommand(),
+			AppEventLocalizationScreenshotsRelationshipsCommand(),
+			AppEventLocalizationVideoClipsRelationshipsCommand(),
 			AppEventLocalizationsCreateCommand(),
 			AppEventLocalizationsUpdateCommand(),
 			AppEventLocalizationsDeleteCommand(),
