@@ -137,8 +137,7 @@ Examples:
 func IAPGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
-	iapID := fs.String("iap-id", "", "In-app purchase ID")
-	legacyID := fs.String("id", "", "In-app purchase ID (deprecated)")
+	iapID := fs.String("id", "", "In-app purchase ID")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -365,7 +364,7 @@ func IAPLocalizationsCommand() *ffcli.Command {
 		LongHelp: `Manage in-app purchase localizations.
 
 Examples:
-  asc iap localizations list --id "IAP_ID"`,
+  asc iap localizations list --iap-id "IAP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -384,7 +383,8 @@ Examples:
 func IAPLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations list", flag.ExitOnError)
 
-	iapID := fs.String("id", "", "In-app purchase ID")
+	iapID := fs.String("iap-id", "", "In-app purchase ID")
+	legacyID := fs.String("id", "", "In-app purchase ID (deprecated)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
