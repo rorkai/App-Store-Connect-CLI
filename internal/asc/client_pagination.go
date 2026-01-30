@@ -110,6 +110,26 @@ func PaginateAll(ctx context.Context, firstPage PaginatedResponse, fetchNext Pag
 		result = &BetaAppClipInvocationLocalizationsResponse{Links: Links{}}
 	case *SubscriptionOfferCodeOneTimeUseCodesResponse:
 		result = &SubscriptionOfferCodeOneTimeUseCodesResponse{Links: Links{}}
+	case *SubscriptionLocalizationsResponse:
+		result = &SubscriptionLocalizationsResponse{Links: Links{}}
+	case *SubscriptionImagesResponse:
+		result = &SubscriptionImagesResponse{Links: Links{}}
+	case *SubscriptionIntroductoryOffersResponse:
+		result = &SubscriptionIntroductoryOffersResponse{Links: Links{}}
+	case *SubscriptionPromotionalOffersResponse:
+		result = &SubscriptionPromotionalOffersResponse{Links: Links{}}
+	case *SubscriptionPromotionalOfferPricesResponse:
+		result = &SubscriptionPromotionalOfferPricesResponse{Links: Links{}}
+	case *SubscriptionOfferCodesResponse:
+		result = &SubscriptionOfferCodesResponse{Links: Links{}}
+	case *SubscriptionOfferCodeCustomCodesResponse:
+		result = &SubscriptionOfferCodeCustomCodesResponse{Links: Links{}}
+	case *SubscriptionOfferCodePricesResponse:
+		result = &SubscriptionOfferCodePricesResponse{Links: Links{}}
+	case *SubscriptionPricePointsResponse:
+		result = &SubscriptionPricePointsResponse{Links: Links{}}
+	case *SubscriptionGroupLocalizationsResponse:
+		result = &SubscriptionGroupLocalizationsResponse{Links: Links{}}
 	case *WinBackOffersResponse:
 		result = &WinBackOffersResponse{Links: Links{}}
 	case *WinBackOfferPricesResponse:

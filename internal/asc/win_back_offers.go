@@ -37,6 +37,23 @@ const (
 	SubscriptionOfferModeFreeTrial  SubscriptionOfferMode = "FREE_TRIAL"
 )
 
+// SubscriptionOfferEligibility represents how offer codes interact with intro offers.
+type SubscriptionOfferEligibility string
+
+const (
+	SubscriptionOfferEligibilityStackWithIntroOffers SubscriptionOfferEligibility = "STACK_WITH_INTRO_OFFERS"
+	SubscriptionOfferEligibilityReplaceIntroOffers   SubscriptionOfferEligibility = "REPLACE_INTRO_OFFERS"
+)
+
+// SubscriptionCustomerEligibility represents eligible customer types for offers.
+type SubscriptionCustomerEligibility string
+
+const (
+	SubscriptionCustomerEligibilityNew      SubscriptionCustomerEligibility = "NEW"
+	SubscriptionCustomerEligibilityExisting SubscriptionCustomerEligibility = "EXISTING"
+	SubscriptionCustomerEligibilityExpired  SubscriptionCustomerEligibility = "EXPIRED"
+)
+
 // WinBackOfferPriority represents win-back offer priority.
 type WinBackOfferPriority string
 
