@@ -43,6 +43,36 @@ func printInAppPurchasesMarkdown(resp *InAppPurchasesV2Response) error {
 	return nil
 }
 
+func printLegacyInAppPurchasesTable(resp *InAppPurchasesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tReference Name\tProduct ID\tType\tState")
+	for _, item := range resp.Data {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			item.ID,
+			compactWhitespace(item.Attributes.ReferenceName),
+			item.Attributes.ProductID,
+			item.Attributes.InAppPurchaseType,
+			item.Attributes.State,
+		)
+	}
+	return w.Flush()
+}
+
+func printLegacyInAppPurchasesMarkdown(resp *InAppPurchasesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Reference Name | Product ID | Type | State |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(item.Attributes.ReferenceName),
+			escapeMarkdown(item.Attributes.ProductID),
+			escapeMarkdown(item.Attributes.InAppPurchaseType),
+			escapeMarkdown(item.Attributes.State),
+		)
+	}
+	return nil
+}
+
 func printInAppPurchaseLocalizationsTable(resp *InAppPurchaseLocalizationsResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tLocale\tName\tDescription")
@@ -207,6 +237,74 @@ func printInAppPurchaseOfferCodesMarkdown(resp *InAppPurchaseOfferCodesResponse)
 			item.Attributes.Active,
 			item.Attributes.ProductionCodeCount,
 			item.Attributes.SandboxCodeCount,
+		)
+	}
+	return nil
+}
+
+func printInAppPurchaseOfferCodeCustomCodesTable(resp *InAppPurchaseOfferCodeCustomCodesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tCustom Code\tCodes\tExpires\tCreated\tActive")
+	for _, item := range resp.Data {
+		attrs := item.Attributes
+		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%t\n",
+			sanitizeTerminal(item.ID),
+			sanitizeTerminal(attrs.CustomCode),
+			attrs.NumberOfCodes,
+			sanitizeTerminal(attrs.ExpirationDate),
+			sanitizeTerminal(attrs.CreatedDate),
+			attrs.Active,
+		)
+	}
+	return w.Flush()
+}
+
+func printInAppPurchaseOfferCodeCustomCodesMarkdown(resp *InAppPurchaseOfferCodeCustomCodesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Custom Code | Codes | Expires | Created | Active |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		attrs := item.Attributes
+		fmt.Fprintf(os.Stdout, "| %s | %s | %d | %s | %s | %t |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(attrs.CustomCode),
+			attrs.NumberOfCodes,
+			escapeMarkdown(attrs.ExpirationDate),
+			escapeMarkdown(attrs.CreatedDate),
+			attrs.Active,
+		)
+	}
+	return nil
+}
+
+func printInAppPurchaseOfferCodeOneTimeUseCodesTable(resp *InAppPurchaseOfferCodeOneTimeUseCodesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tCodes\tExpires\tCreated\tActive\tEnvironment")
+	for _, item := range resp.Data {
+		attrs := item.Attributes
+		fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%t\t%s\n",
+			sanitizeTerminal(item.ID),
+			attrs.NumberOfCodes,
+			sanitizeTerminal(attrs.ExpirationDate),
+			sanitizeTerminal(attrs.CreatedDate),
+			attrs.Active,
+			sanitizeTerminal(attrs.Environment),
+		)
+	}
+	return w.Flush()
+}
+
+func printInAppPurchaseOfferCodeOneTimeUseCodesMarkdown(resp *InAppPurchaseOfferCodeOneTimeUseCodesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Codes | Expires | Created | Active | Environment |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
+	for _, item := range resp.Data {
+		attrs := item.Attributes
+		fmt.Fprintf(os.Stdout, "| %s | %d | %s | %s | %t | %s |\n",
+			escapeMarkdown(item.ID),
+			attrs.NumberOfCodes,
+			escapeMarkdown(attrs.ExpirationDate),
+			escapeMarkdown(attrs.CreatedDate),
+			attrs.Active,
+			escapeMarkdown(attrs.Environment),
 		)
 	}
 	return nil

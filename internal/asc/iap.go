@@ -33,6 +33,14 @@ type InAppPurchaseV2Attributes struct {
 	AvailableInAllTerritories bool   `json:"availableInAllTerritories,omitempty"`
 }
 
+// InAppPurchaseAttributes represents a legacy in-app purchase resource.
+type InAppPurchaseAttributes struct {
+	ReferenceName    string `json:"referenceName"`
+	ProductID        string `json:"productId"`
+	InAppPurchaseType string `json:"inAppPurchaseType"`
+	State            string `json:"state,omitempty"`
+}
+
 // InAppPurchaseV2CreateAttributes describes attributes for creating an IAP.
 type InAppPurchaseV2CreateAttributes struct {
 	Name                      string `json:"name"`
@@ -98,6 +106,12 @@ type InAppPurchaseV2Response = SingleResponse[InAppPurchaseV2Attributes]
 
 // InAppPurchaseLocalizationsResponse is the response from localization endpoints.
 type InAppPurchaseLocalizationsResponse = Response[InAppPurchaseLocalizationAttributes]
+
+// InAppPurchasesResponse is the response from legacy in-app purchase list endpoints.
+type InAppPurchasesResponse = Response[InAppPurchaseAttributes]
+
+// InAppPurchaseResponse is the response from legacy in-app purchase detail endpoints.
+type InAppPurchaseResponse = SingleResponse[InAppPurchaseAttributes]
 
 // IAPOption is a functional option for GetInAppPurchasesV2.
 type IAPOption func(*inAppPurchasesQuery)

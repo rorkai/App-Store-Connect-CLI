@@ -38,6 +38,36 @@ func (c *Client) GetInAppPurchasesV2(ctx context.Context, appID string, opts ...
 	return &response, nil
 }
 
+// GetInAppPurchases retrieves the legacy list of in-app purchases for an app.
+func (c *Client) GetInAppPurchases(ctx context.Context, appID string, opts ...IAPOption) (*InAppPurchasesResponse, error) {
+	query := &inAppPurchasesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/apps/%s/inAppPurchases", strings.TrimSpace(appID))
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("in-app-purchases: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildInAppPurchasesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchasesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetInAppPurchaseV2 retrieves an in-app purchase by ID.
 func (c *Client) GetInAppPurchaseV2(ctx context.Context, iapID string) (*InAppPurchaseV2Response, error) {
 	path := fmt.Sprintf("/v2/inAppPurchases/%s", strings.TrimSpace(iapID))
@@ -47,6 +77,22 @@ func (c *Client) GetInAppPurchaseV2(ctx context.Context, iapID string) (*InAppPu
 	}
 
 	var response InAppPurchaseV2Response
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchase retrieves a legacy in-app purchase by ID.
+func (c *Client) GetInAppPurchase(ctx context.Context, iapID string) (*InAppPurchaseResponse, error) {
+	path := fmt.Sprintf("/v1/inAppPurchases/%s", strings.TrimSpace(iapID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchaseResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

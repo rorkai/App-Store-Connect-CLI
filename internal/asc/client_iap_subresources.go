@@ -416,6 +416,27 @@ func (c *Client) GetInAppPurchaseAvailability(ctx context.Context, iapID string)
 	return &response, nil
 }
 
+// GetInAppPurchaseAvailabilityByID retrieves an in-app purchase availability by ID.
+func (c *Client) GetInAppPurchaseAvailabilityByID(ctx context.Context, availabilityID string) (*InAppPurchaseAvailabilityResponse, error) {
+	availabilityID = strings.TrimSpace(availabilityID)
+	if availabilityID == "" {
+		return nil, fmt.Errorf("availabilityID is required")
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchaseAvailabilities/%s", availabilityID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchaseAvailabilityResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetInAppPurchaseAvailabilityAvailableTerritories lists available territories for an availability.
 func (c *Client) GetInAppPurchaseAvailabilityAvailableTerritories(ctx context.Context, availabilityID string, opts ...IAPAvailabilityTerritoriesOption) (*TerritoriesResponse, error) {
 	query := &iapAvailabilityTerritoriesQuery{}
@@ -528,6 +549,27 @@ func (c *Client) GetInAppPurchaseContent(ctx context.Context, iapID string) (*In
 	return &response, nil
 }
 
+// GetInAppPurchaseContentByID retrieves an in-app purchase content resource by ID.
+func (c *Client) GetInAppPurchaseContentByID(ctx context.Context, contentID string) (*InAppPurchaseContentResponse, error) {
+	contentID = strings.TrimSpace(contentID)
+	if contentID == "" {
+		return nil, fmt.Errorf("contentID is required")
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchaseContents/%s", contentID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchaseContentResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetInAppPurchasePricePoints retrieves price points for an in-app purchase.
 func (c *Client) GetInAppPurchasePricePoints(ctx context.Context, iapID string, opts ...IAPPricePointsOption) (*InAppPurchasePricePointsResponse, error) {
 	query := &iapPricePointsQuery{}
@@ -598,6 +640,48 @@ func (c *Client) GetInAppPurchasePriceSchedule(ctx context.Context, iapID string
 	}
 
 	var response InAppPurchasePriceScheduleResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchasePriceScheduleByID retrieves an in-app purchase price schedule by ID.
+func (c *Client) GetInAppPurchasePriceScheduleByID(ctx context.Context, scheduleID string) (*InAppPurchasePriceScheduleResponse, error) {
+	scheduleID = strings.TrimSpace(scheduleID)
+	if scheduleID == "" {
+		return nil, fmt.Errorf("scheduleID is required")
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s", scheduleID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchasePriceScheduleResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchasePromotedPurchase retrieves the promoted purchase for an in-app purchase.
+func (c *Client) GetInAppPurchasePromotedPurchase(ctx context.Context, iapID string) (*PromotedPurchaseResponse, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+
+	path := fmt.Sprintf("/v2/inAppPurchases/%s/promotedPurchase", iapID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response PromotedPurchaseResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

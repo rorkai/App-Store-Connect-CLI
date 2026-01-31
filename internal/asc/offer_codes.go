@@ -23,6 +23,11 @@ type SubscriptionOfferCodeOneTimeUseCodesResponse = Response[SubscriptionOfferCo
 // SubscriptionOfferCodeOneTimeUseCodeResponse is the response from detail endpoints.
 type SubscriptionOfferCodeOneTimeUseCodeResponse = SingleResponse[SubscriptionOfferCodeOneTimeUseCodeAttributes]
 
+// OfferCodeValuesResult represents parsed offer code values output.
+type OfferCodeValuesResult struct {
+	Codes []string `json:"codes"`
+}
+
 // SubscriptionOfferCodeOneTimeUseCodeCreateAttributes describes attributes for generating offer codes.
 type SubscriptionOfferCodeOneTimeUseCodeCreateAttributes struct {
 	NumberOfCodes  int    `json:"numberOfCodes"`
@@ -120,6 +125,20 @@ func (c *Client) CreateSubscriptionOfferCodeOneTimeUseCode(ctx context.Context, 
 func (c *Client) GetSubscriptionOfferCodeOneTimeUseCodeValues(ctx context.Context, oneTimeUseCodeID string) ([]string, error) {
 	oneTimeUseCodeID = strings.TrimSpace(oneTimeUseCodeID)
 	path := fmt.Sprintf("/v1/subscriptionOfferCodeOneTimeUseCodes/%s/values", oneTimeUseCodeID)
+
+	resp, err := c.doStream(ctx, "GET", path, nil, "text/csv")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return parseSubscriptionOfferCodeOneTimeUseCodeValues(resp.Body)
+}
+
+// GetInAppPurchaseOfferCodeOneTimeUseCodeValues retrieves offer code values as a list of codes.
+func (c *Client) GetInAppPurchaseOfferCodeOneTimeUseCodeValues(ctx context.Context, oneTimeUseCodeID string) ([]string, error) {
+	oneTimeUseCodeID = strings.TrimSpace(oneTimeUseCodeID)
+	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodeOneTimeUseCodes/%s/values", oneTimeUseCodeID)
 
 	resp, err := c.doStream(ctx, "GET", path, nil, "text/csv")
 	if err != nil {

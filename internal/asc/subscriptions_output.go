@@ -159,6 +159,32 @@ func printSubscriptionAvailabilityMarkdown(resp *SubscriptionAvailabilityRespons
 	return nil
 }
 
+func printSubscriptionGracePeriodTable(resp *SubscriptionGracePeriodResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tOpt In\tSandbox Opt In\tDuration\tRenewal Type")
+	fmt.Fprintf(w, "%s\t%t\t%t\t%s\t%s\n",
+		resp.Data.ID,
+		resp.Data.Attributes.OptIn,
+		resp.Data.Attributes.SandboxOptIn,
+		resp.Data.Attributes.Duration,
+		resp.Data.Attributes.RenewalType,
+	)
+	return w.Flush()
+}
+
+func printSubscriptionGracePeriodMarkdown(resp *SubscriptionGracePeriodResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Opt In | Sandbox Opt In | Duration | Renewal Type |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
+	fmt.Fprintf(os.Stdout, "| %s | %t | %t | %s | %s |\n",
+		escapeMarkdown(resp.Data.ID),
+		resp.Data.Attributes.OptIn,
+		resp.Data.Attributes.SandboxOptIn,
+		escapeMarkdown(resp.Data.Attributes.Duration),
+		escapeMarkdown(resp.Data.Attributes.RenewalType),
+	)
+	return nil
+}
+
 func printSubscriptionGroupDeleteResultTable(result *SubscriptionGroupDeleteResult) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tDeleted")

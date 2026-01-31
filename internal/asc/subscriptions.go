@@ -192,11 +192,18 @@ type SubscriptionGroupsOption func(*subscriptionGroupsQuery)
 // SubscriptionsOption is a functional option for GetSubscriptions.
 type SubscriptionsOption func(*subscriptionsQuery)
 
+// SubscriptionAvailabilityTerritoriesOption is a functional option for availability territory listings.
+type SubscriptionAvailabilityTerritoriesOption func(*subscriptionAvailabilityTerritoriesQuery)
+
 type subscriptionGroupsQuery struct {
 	listQuery
 }
 
 type subscriptionsQuery struct {
+	listQuery
+}
+
+type subscriptionAvailabilityTerritoriesQuery struct {
 	listQuery
 }
 
@@ -236,6 +243,24 @@ func WithSubscriptionsNextURL(next string) SubscriptionsOption {
 	}
 }
 
+// WithSubscriptionAvailabilityTerritoriesLimit sets the max number of territories to return.
+func WithSubscriptionAvailabilityTerritoriesLimit(limit int) SubscriptionAvailabilityTerritoriesOption {
+	return func(q *subscriptionAvailabilityTerritoriesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithSubscriptionAvailabilityTerritoriesNextURL uses a next page URL directly.
+func WithSubscriptionAvailabilityTerritoriesNextURL(next string) SubscriptionAvailabilityTerritoriesOption {
+	return func(q *subscriptionAvailabilityTerritoriesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
 func buildSubscriptionGroupsQuery(query *subscriptionGroupsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
@@ -243,6 +268,12 @@ func buildSubscriptionGroupsQuery(query *subscriptionGroupsQuery) string {
 }
 
 func buildSubscriptionsQuery(query *subscriptionsQuery) string {
+	values := url.Values{}
+	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildSubscriptionAvailabilityTerritoriesQuery(query *subscriptionAvailabilityTerritoriesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
 	return values.Encode()

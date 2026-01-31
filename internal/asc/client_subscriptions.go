@@ -364,3 +364,122 @@ func (c *Client) CreateSubscriptionAvailability(ctx context.Context, subID strin
 
 	return &response, nil
 }
+
+// GetSubscriptionAvailability retrieves a subscription availability by ID.
+func (c *Client) GetSubscriptionAvailability(ctx context.Context, availabilityID string) (*SubscriptionAvailabilityResponse, error) {
+	availabilityID = strings.TrimSpace(availabilityID)
+	if availabilityID == "" {
+		return nil, fmt.Errorf("availabilityID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionAvailabilities/%s", availabilityID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response SubscriptionAvailabilityResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionAvailabilityForSubscription retrieves availability for a subscription.
+func (c *Client) GetSubscriptionAvailabilityForSubscription(ctx context.Context, subID string) (*SubscriptionAvailabilityResponse, error) {
+	subID = strings.TrimSpace(subID)
+	if subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/subscriptionAvailability", subID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response SubscriptionAvailabilityResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionAvailabilityAvailableTerritories lists available territories for an availability.
+func (c *Client) GetSubscriptionAvailabilityAvailableTerritories(ctx context.Context, availabilityID string, opts ...SubscriptionAvailabilityTerritoriesOption) (*TerritoriesResponse, error) {
+	query := &subscriptionAvailabilityTerritoriesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	availabilityID = strings.TrimSpace(availabilityID)
+	if query.nextURL == "" && availabilityID == "" {
+		return nil, fmt.Errorf("availabilityID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionAvailabilities/%s/availableTerritories", availabilityID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscription-availability-territories: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildSubscriptionAvailabilityTerritoriesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response TerritoriesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionAppStoreReviewScreenshotForSubscription retrieves the review screenshot for a subscription.
+func (c *Client) GetSubscriptionAppStoreReviewScreenshotForSubscription(ctx context.Context, subID string) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
+	subID = strings.TrimSpace(subID)
+	if subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/appStoreReviewScreenshot", subID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response SubscriptionAppStoreReviewScreenshotResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionPromotedPurchase retrieves the promoted purchase for a subscription.
+func (c *Client) GetSubscriptionPromotedPurchase(ctx context.Context, subID string) (*PromotedPurchaseResponse, error) {
+	subID = strings.TrimSpace(subID)
+	if subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/promotedPurchase", subID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response PromotedPurchaseResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}

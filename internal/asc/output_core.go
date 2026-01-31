@@ -209,6 +209,10 @@ func PrintMarkdown(data interface{}) error {
 		return printProfilesMarkdown(v)
 	case *ProfileResponse:
 		return printProfilesMarkdown(&ProfilesResponse{Data: []Resource[ProfileAttributes]{v.Data}})
+	case *InAppPurchasesResponse:
+		return printLegacyInAppPurchasesMarkdown(v)
+	case *InAppPurchaseResponse:
+		return printLegacyInAppPurchasesMarkdown(&InAppPurchasesResponse{Data: []Resource[InAppPurchaseAttributes]{v.Data}})
 	case *InAppPurchasesV2Response:
 		return printInAppPurchasesMarkdown(v)
 	case *InAppPurchaseV2Response:
@@ -229,6 +233,14 @@ func PrintMarkdown(data interface{}) error {
 		return printInAppPurchaseOfferCodesMarkdown(v)
 	case *InAppPurchaseOfferCodeResponse:
 		return printInAppPurchaseOfferCodesMarkdown(&InAppPurchaseOfferCodesResponse{Data: []Resource[InAppPurchaseOfferCodeAttributes]{v.Data}})
+	case *InAppPurchaseOfferCodeCustomCodesResponse:
+		return printInAppPurchaseOfferCodeCustomCodesMarkdown(v)
+	case *InAppPurchaseOfferCodeCustomCodeResponse:
+		return printInAppPurchaseOfferCodeCustomCodesMarkdown(&InAppPurchaseOfferCodeCustomCodesResponse{Data: []Resource[InAppPurchaseOfferCodeCustomCodeAttributes]{v.Data}})
+	case *InAppPurchaseOfferCodeOneTimeUseCodesResponse:
+		return printInAppPurchaseOfferCodeOneTimeUseCodesMarkdown(v)
+	case *InAppPurchaseOfferCodeOneTimeUseCodeResponse:
+		return printInAppPurchaseOfferCodeOneTimeUseCodesMarkdown(&InAppPurchaseOfferCodeOneTimeUseCodesResponse{Data: []Resource[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]{v.Data}})
 	case *InAppPurchaseAvailabilityResponse:
 		return printInAppPurchaseAvailabilityMarkdown(v)
 	case *InAppPurchaseContentResponse:
@@ -271,8 +283,12 @@ func PrintMarkdown(data interface{}) error {
 		return printSubscriptionPriceMarkdown(v)
 	case *SubscriptionAvailabilityResponse:
 		return printSubscriptionAvailabilityMarkdown(v)
+	case *SubscriptionGracePeriodResponse:
+		return printSubscriptionGracePeriodMarkdown(v)
 	case *TerritoriesResponse:
 		return printTerritoriesMarkdown(v)
+	case *OfferCodeValuesResult:
+		return printOfferCodeValuesMarkdown(v)
 	case *AppPricePointsV3Response:
 		return printAppPricePointsMarkdown(v)
 	case *AppPriceScheduleResponse:
@@ -1069,6 +1085,10 @@ func PrintTable(data interface{}) error {
 		return printProfilesTable(v)
 	case *ProfileResponse:
 		return printProfilesTable(&ProfilesResponse{Data: []Resource[ProfileAttributes]{v.Data}})
+	case *InAppPurchasesResponse:
+		return printLegacyInAppPurchasesTable(v)
+	case *InAppPurchaseResponse:
+		return printLegacyInAppPurchasesTable(&InAppPurchasesResponse{Data: []Resource[InAppPurchaseAttributes]{v.Data}})
 	case *InAppPurchasesV2Response:
 		return printInAppPurchasesTable(v)
 	case *InAppPurchaseV2Response:
@@ -1089,6 +1109,14 @@ func PrintTable(data interface{}) error {
 		return printInAppPurchaseOfferCodesTable(v)
 	case *InAppPurchaseOfferCodeResponse:
 		return printInAppPurchaseOfferCodesTable(&InAppPurchaseOfferCodesResponse{Data: []Resource[InAppPurchaseOfferCodeAttributes]{v.Data}})
+	case *InAppPurchaseOfferCodeCustomCodesResponse:
+		return printInAppPurchaseOfferCodeCustomCodesTable(v)
+	case *InAppPurchaseOfferCodeCustomCodeResponse:
+		return printInAppPurchaseOfferCodeCustomCodesTable(&InAppPurchaseOfferCodeCustomCodesResponse{Data: []Resource[InAppPurchaseOfferCodeCustomCodeAttributes]{v.Data}})
+	case *InAppPurchaseOfferCodeOneTimeUseCodesResponse:
+		return printInAppPurchaseOfferCodeOneTimeUseCodesTable(v)
+	case *InAppPurchaseOfferCodeOneTimeUseCodeResponse:
+		return printInAppPurchaseOfferCodeOneTimeUseCodesTable(&InAppPurchaseOfferCodeOneTimeUseCodesResponse{Data: []Resource[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]{v.Data}})
 	case *InAppPurchaseAvailabilityResponse:
 		return printInAppPurchaseAvailabilityTable(v)
 	case *InAppPurchaseContentResponse:
@@ -1131,8 +1159,12 @@ func PrintTable(data interface{}) error {
 		return printSubscriptionPriceTable(v)
 	case *SubscriptionAvailabilityResponse:
 		return printSubscriptionAvailabilityTable(v)
+	case *SubscriptionGracePeriodResponse:
+		return printSubscriptionGracePeriodTable(v)
 	case *TerritoriesResponse:
 		return printTerritoriesTable(v)
+	case *OfferCodeValuesResult:
+		return printOfferCodeValuesTable(v)
 	case *AppPricePointsV3Response:
 		return printAppPricePointsTable(v)
 	case *AppPriceScheduleResponse:

@@ -81,3 +81,21 @@ func offerCodePriceRelationshipIDs(raw json.RawMessage) (string, string, error) 
 	}
 	return relationships.Territory.Data.ID, relationships.SubscriptionPricePoint.Data.ID, nil
 }
+
+func printOfferCodeValuesTable(result *OfferCodeValuesResult) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "Code")
+	for _, code := range result.Codes {
+		fmt.Fprintf(w, "%s\n", sanitizeTerminal(code))
+	}
+	return w.Flush()
+}
+
+func printOfferCodeValuesMarkdown(result *OfferCodeValuesResult) error {
+	fmt.Fprintln(os.Stdout, "| Code |")
+	fmt.Fprintln(os.Stdout, "| --- |")
+	for _, code := range result.Codes {
+		fmt.Fprintf(os.Stdout, "| %s |\n", escapeMarkdown(code))
+	}
+	return nil
+}

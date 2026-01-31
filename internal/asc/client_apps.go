@@ -87,6 +87,27 @@ func (c *Client) GetApp(ctx context.Context, appID string) (*AppResponse, error)
 	return &response, nil
 }
 
+// GetAppSubscriptionGracePeriod retrieves the subscription grace period for an app.
+func (c *Client) GetAppSubscriptionGracePeriod(ctx context.Context, appID string) (*SubscriptionGracePeriodResponse, error) {
+	appID = strings.TrimSpace(appID)
+	if appID == "" {
+		return nil, fmt.Errorf("app ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/apps/%s/subscriptionGracePeriod", appID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response SubscriptionGracePeriodResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // UpdateApp updates an app by ID.
 func (c *Client) UpdateApp(ctx context.Context, appID string, attrs AppUpdateAttributes) (*AppResponse, error) {
 	appID = strings.TrimSpace(appID)
