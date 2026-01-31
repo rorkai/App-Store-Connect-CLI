@@ -947,6 +947,94 @@ func TestDeleteSubscriptionAppStoreReviewScreenshot(t *testing.T) {
 	}
 }
 
+func TestGetSubscriptionAvailability(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionAvailabilities/avail-1" {
+			t.Fatalf("expected path /v1/subscriptionAvailabilities/avail-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionAvailability(context.Background(), "avail-1"); err != nil {
+		t.Fatalf("GetSubscriptionAvailability() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionAvailabilityForSubscription(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":false}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptions/sub-1/subscriptionAvailability" {
+			t.Fatalf("expected path /v1/subscriptions/sub-1/subscriptionAvailability, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionAvailabilityForSubscription(context.Background(), "sub-1"); err != nil {
+		t.Fatalf("GetSubscriptionAvailabilityForSubscription() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionAvailabilityAvailableTerritories(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionAvailabilities/avail-1/availableTerritories" {
+			t.Fatalf("expected path /v1/subscriptionAvailabilities/avail-1/availableTerritories, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionAvailabilityAvailableTerritories(context.Background(), "avail-1", WithSubscriptionAvailabilityTerritoriesLimit(5)); err != nil {
+		t.Fatalf("GetSubscriptionAvailabilityAvailableTerritories() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionAppStoreReviewScreenshotForSubscription(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"shot.png"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptions/sub-1/appStoreReviewScreenshot" {
+			t.Fatalf("expected path /v1/subscriptions/sub-1/appStoreReviewScreenshot, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionAppStoreReviewScreenshotForSubscription(context.Background(), "sub-1"); err != nil {
+		t.Fatalf("GetSubscriptionAppStoreReviewScreenshotForSubscription() error: %v", err)
+	}
+}
+
+func TestGetSubscriptionPromotedPurchase(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"promotedPurchases","id":"promo-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptions/sub-1/promotedPurchase" {
+			t.Fatalf("expected path /v1/subscriptions/sub-1/promotedPurchase, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscriptionPromotedPurchase(context.Background(), "sub-1"); err != nil {
+		t.Fatalf("GetSubscriptionPromotedPurchase() error: %v", err)
+	}
+}
+
 func TestGetSubscriptionGroupLocalizations_WithLimit(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionGroupLocalizations","id":"loc-1","attributes":{"name":"Premium","locale":"en-US"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {

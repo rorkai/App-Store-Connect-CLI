@@ -156,6 +156,31 @@ func TestGetAppPriceSchedule(t *testing.T) {
 	}
 }
 
+func TestGetAppPriceScheduleByID(t *testing.T) {
+	resp := AppPriceScheduleResponse{
+		Data: Resource[AppPriceScheduleAttributes]{
+			Type: ResourceTypeAppPriceSchedules,
+			ID:   "schedule-1",
+		},
+	}
+	body, _ := json.Marshal(resp)
+
+	client := newTestClient(t, func(req *http.Request) {
+		assertAuthorized(t, req)
+		if req.URL.Path != "/v1/appPriceSchedules/schedule-1" {
+			t.Fatalf("expected path /v1/appPriceSchedules/schedule-1, got %s", req.URL.Path)
+		}
+	}, jsonResponse(http.StatusOK, string(body)))
+
+	result, err := client.GetAppPriceScheduleByID(context.Background(), "schedule-1")
+	if err != nil {
+		t.Fatalf("GetAppPriceScheduleByID() error: %v", err)
+	}
+	if result.Data.ID != "schedule-1" {
+		t.Fatalf("expected schedule ID schedule-1, got %q", result.Data.ID)
+	}
+}
+
 func TestGetAppPriceScheduleManualPrices(t *testing.T) {
 	resp := AppPricesResponse{
 		Data: []Resource[AppPriceAttributes]{{Type: ResourceTypeAppPrices, ID: "price-1"}},
@@ -293,6 +318,30 @@ func TestGetAppAvailabilityV2(t *testing.T) {
 
 	if _, err := client.GetAppAvailabilityV2(context.Background(), "app-1"); err != nil {
 		t.Fatalf("GetAppAvailabilityV2() error: %v", err)
+	}
+}
+
+func TestGetAppAvailabilityV2ByID(t *testing.T) {
+	resp := AppAvailabilityV2Response{
+		Data: Resource[AppAvailabilityV2Attributes]{
+			Type: ResourceTypeAppAvailabilities,
+			ID:   "availability-1",
+			Attributes: AppAvailabilityV2Attributes{
+				AvailableInNewTerritories: true,
+			},
+		},
+	}
+	body, _ := json.Marshal(resp)
+
+	client := newTestClient(t, func(req *http.Request) {
+		assertAuthorized(t, req)
+		if req.URL.Path != "/v2/appAvailabilities/availability-1" {
+			t.Fatalf("expected path /v2/appAvailabilities/availability-1, got %s", req.URL.Path)
+		}
+	}, jsonResponse(http.StatusOK, string(body)))
+
+	if _, err := client.GetAppAvailabilityV2ByID(context.Background(), "availability-1"); err != nil {
+		t.Fatalf("GetAppAvailabilityV2ByID() error: %v", err)
 	}
 }
 

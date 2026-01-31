@@ -1207,6 +1207,32 @@ func TestBuildSubscriptionOfferCodePricesQuery(t *testing.T) {
 	}
 }
 
+func TestBuildSubscriptionAvailabilityTerritoriesQuery(t *testing.T) {
+	query := &subscriptionAvailabilityTerritoriesQuery{}
+	opts := []SubscriptionAvailabilityTerritoriesOption{
+		WithSubscriptionAvailabilityTerritoriesLimit(15),
+		WithSubscriptionAvailabilityTerritoriesNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionAvailabilities/123/availableTerritories?cursor=abc"),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	if query.limit != 15 {
+		t.Fatalf("expected limit=15, got %d", query.limit)
+	}
+	if query.nextURL != "https://api.appstoreconnect.apple.com/v1/subscriptionAvailabilities/123/availableTerritories?cursor=abc" {
+		t.Fatalf("expected nextURL to be set, got %q", query.nextURL)
+	}
+
+	values, err := url.ParseQuery(buildSubscriptionAvailabilityTerritoriesQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("limit"); got != "15" {
+		t.Fatalf("expected limit=15, got %q", got)
+	}
+}
+
 func TestBuildWinBackOffersQuery(t *testing.T) {
 	query := &winBackOffersQuery{}
 	opts := []WinBackOffersOption{

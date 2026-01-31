@@ -645,6 +645,34 @@ func TestGetSubscriptionOfferCodeOneTimeUseCodeValues(t *testing.T) {
 	}
 }
 
+func TestGetInAppPurchaseOfferCodeOneTimeUseCodeValues(t *testing.T) {
+	response := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader("code\nIAP123\nIAP456\n")),
+		Header:     http.Header{},
+	}
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/inAppPurchaseOfferCodeOneTimeUseCodes/code-1/values" {
+			t.Fatalf("expected path /v1/inAppPurchaseOfferCodeOneTimeUseCodes/code-1/values, got %s", req.URL.Path)
+		}
+		if req.Header.Get("Accept") != "text/csv" {
+			t.Fatalf("expected Accept=text/csv, got %q", req.Header.Get("Accept"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	values, err := client.GetInAppPurchaseOfferCodeOneTimeUseCodeValues(context.Background(), "code-1")
+	if err != nil {
+		t.Fatalf("GetInAppPurchaseOfferCodeOneTimeUseCodeValues() error: %v", err)
+	}
+	if len(values) != 2 || values[0] != "IAP123" || values[1] != "IAP456" {
+		t.Fatalf("expected codes to parse, got %v", values)
+	}
+}
+
 func TestGetSubscriptionOfferCodeCustomCodes_UsesNextURL(t *testing.T) {
 	next := "https://api.appstoreconnect.apple.com/v1/subscriptionOfferCodes/123/customCodes?cursor=abc"
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
@@ -4816,6 +4844,58 @@ func TestGetInAppPurchasesV2_UsesNextURL(t *testing.T) {
 
 	if _, err := client.GetInAppPurchasesV2(context.Background(), "123", WithIAPNextURL(next)); err != nil {
 		t.Fatalf("GetInAppPurchasesV2() error: %v", err)
+	}
+}
+
+func TestGetInAppPurchases_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"referenceName":"Pro","productId":"com.example.pro","inAppPurchaseType":"CONSUMABLE"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/123/inAppPurchases" {
+			t.Fatalf("expected path /v1/apps/123/inAppPurchases, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "10" {
+			t.Fatalf("expected limit=10, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetInAppPurchases(context.Background(), "123", WithIAPLimit(10)); err != nil {
+		t.Fatalf("GetInAppPurchases() error: %v", err)
+	}
+}
+
+func TestGetInAppPurchases_UsesNextURL(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v1/apps/123/inAppPurchases?cursor=abc"
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.String() != next {
+			t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetInAppPurchases(context.Background(), "123", WithIAPNextURL(next)); err != nil {
+		t.Fatalf("GetInAppPurchases() error: %v", err)
+	}
+}
+
+func TestGetInAppPurchase(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"inAppPurchases","id":"iap-1","attributes":{"referenceName":"Pro","productId":"com.example.pro"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/inAppPurchases/iap-1" {
+			t.Fatalf("expected path /v1/inAppPurchases/iap-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetInAppPurchase(context.Background(), "iap-1"); err != nil {
+		t.Fatalf("GetInAppPurchase() error: %v", err)
 	}
 }
 

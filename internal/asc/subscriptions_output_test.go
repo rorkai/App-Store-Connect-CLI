@@ -83,3 +83,47 @@ func TestPrintMarkdown_SubscriptionPriceDeleteResult(t *testing.T) {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
+
+func TestPrintTable_SubscriptionGracePeriod(t *testing.T) {
+	resp := &SubscriptionGracePeriodResponse{
+		Data: Resource[SubscriptionGracePeriodAttributes]{
+			ID: "grace-1",
+			Attributes: SubscriptionGracePeriodAttributes{
+				OptIn:        true,
+				SandboxOptIn: false,
+				Duration:     "DAY_16",
+				RenewalType:  "ALL_RENEWALS",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Renewal Type") || !strings.Contains(output, "DAY_16") {
+		t.Fatalf("expected grace period fields in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_SubscriptionGracePeriod(t *testing.T) {
+	resp := &SubscriptionGracePeriodResponse{
+		Data: Resource[SubscriptionGracePeriodAttributes]{
+			ID: "grace-1",
+			Attributes: SubscriptionGracePeriodAttributes{
+				OptIn:        true,
+				SandboxOptIn: true,
+				Duration:     "DAY_28",
+				RenewalType:  "PAID_TO_PAID_ONLY",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Opt In |") || !strings.Contains(output, "DAY_28") {
+		t.Fatalf("expected grace period fields in output, got: %s", output)
+	}
+}

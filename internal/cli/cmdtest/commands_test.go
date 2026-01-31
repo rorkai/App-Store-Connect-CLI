@@ -811,6 +811,16 @@ func TestIAPValidationErrors(t *testing.T) {
 			wantErr: "--iap-id is required",
 		},
 		{
+			name:    "iap availabilities get missing id",
+			args:    []string{"iap", "availabilities", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "iap availabilities available-territories missing id",
+			args:    []string{"iap", "availabilities", "available-territories"},
+			wantErr: "--id is required",
+		},
+		{
 			name:    "iap availability set missing territories",
 			args:    []string{"iap", "availability", "set", "--iap-id", "IAP_ID"},
 			wantErr: "--territories is required",
@@ -818,7 +828,7 @@ func TestIAPValidationErrors(t *testing.T) {
 		{
 			name:    "iap content get missing iap-id",
 			args:    []string{"iap", "content", "get"},
-			wantErr: "--iap-id is required",
+			wantErr: "--iap-id or --content-id is required",
 		},
 		{
 			name:    "iap price-points list missing iap-id",
@@ -833,7 +843,7 @@ func TestIAPValidationErrors(t *testing.T) {
 		{
 			name:    "iap price-schedules get missing iap-id",
 			args:    []string{"iap", "price-schedules", "get"},
-			wantErr: "--iap-id is required",
+			wantErr: "--iap-id or --schedule-id is required",
 		},
 		{
 			name:    "iap price-schedules create missing prices",
@@ -869,6 +879,36 @@ func TestIAPValidationErrors(t *testing.T) {
 			name:    "iap offer-codes update missing active",
 			args:    []string{"iap", "offer-codes", "update", "--offer-code-id", "CODE_ID"},
 			wantErr: "--active is required",
+		},
+		{
+			name:    "iap offer-codes custom-codes list missing offer-code-id",
+			args:    []string{"iap", "offer-codes", "custom-codes", "list"},
+			wantErr: "--offer-code-id is required",
+		},
+		{
+			name:    "iap offer-codes custom-codes get missing custom-code-id",
+			args:    []string{"iap", "offer-codes", "custom-codes", "get"},
+			wantErr: "--custom-code-id is required",
+		},
+		{
+			name:    "iap offer-codes one-time-codes list missing offer-code-id",
+			args:    []string{"iap", "offer-codes", "one-time-codes", "list"},
+			wantErr: "--offer-code-id is required",
+		},
+		{
+			name:    "iap offer-codes one-time-codes get missing one-time-code-id",
+			args:    []string{"iap", "offer-codes", "one-time-codes", "get"},
+			wantErr: "--one-time-code-id is required",
+		},
+		{
+			name:    "iap offer-codes one-time-codes values missing one-time-code-id",
+			args:    []string{"iap", "offer-codes", "one-time-codes", "values"},
+			wantErr: "--one-time-code-id is required",
+		},
+		{
+			name:    "iap promoted-purchase get missing id",
+			args:    []string{"iap", "promoted-purchase", "get"},
+			wantErr: "--id is required",
 		},
 		{
 			name:    "iap submit missing confirm",
@@ -1148,6 +1188,31 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			wantErr: "--territory is required",
 		},
 		{
+			name:    "subscriptions availability get missing id",
+			args:    []string{"subscriptions", "availability", "get"},
+			wantErr: "--id or --subscription-id is required",
+		},
+		{
+			name:    "subscriptions availability available-territories missing id",
+			args:    []string{"subscriptions", "availability", "available-territories"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "subscriptions app-store-review-screenshot get missing id",
+			args:    []string{"subscriptions", "app-store-review-screenshot", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "subscriptions promoted-purchase get missing id",
+			args:    []string{"subscriptions", "promoted-purchase", "get"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "subscriptions grace-periods get missing id",
+			args:    []string{"subscriptions", "grace-periods", "get"},
+			wantErr: "--id is required",
+		},
+		{
 			name:    "subscriptions localizations list missing subscription-id",
 			args:    []string{"subscriptions", "localizations", "list"},
 			wantErr: "--subscription-id is required",
@@ -1331,6 +1396,11 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			name:    "subscriptions groups submit missing confirm",
 			args:    []string{"subscriptions", "groups", "submit", "--group-id", "GROUP_ID"},
 			wantErr: "--confirm is required",
+		},
+		{
+			name:    "apps subscription-grace-period get missing app",
+			args:    []string{"apps", "subscription-grace-period", "get"},
+			wantErr: "--app is required",
 		},
 	}
 

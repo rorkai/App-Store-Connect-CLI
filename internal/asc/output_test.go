@@ -369,6 +369,190 @@ func TestPrintMarkdown_OfferCodeCustomCodes(t *testing.T) {
 	}
 }
 
+func TestPrintTable_IAPOfferCodeCustomCodes(t *testing.T) {
+	resp := &InAppPurchaseOfferCodeCustomCodesResponse{
+		Data: []Resource[InAppPurchaseOfferCodeCustomCodeAttributes]{
+			{
+				ID: "custom-1",
+				Attributes: InAppPurchaseOfferCodeCustomCodeAttributes{
+					CustomCode:     "IAP2026",
+					NumberOfCodes:  20,
+					CreatedDate:    "2026-02-01T00:00:00Z",
+					ExpirationDate: "2026-02-28",
+					Active:         true,
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Custom Code") || !strings.Contains(output, "Expires") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "IAP2026") {
+		t.Fatalf("expected custom code in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_IAPOfferCodeCustomCodes(t *testing.T) {
+	resp := &InAppPurchaseOfferCodeCustomCodesResponse{
+		Data: []Resource[InAppPurchaseOfferCodeCustomCodeAttributes]{
+			{
+				ID: "custom-1",
+				Attributes: InAppPurchaseOfferCodeCustomCodeAttributes{
+					CustomCode:     "IAP2026",
+					NumberOfCodes:  20,
+					CreatedDate:    "2026-02-01T00:00:00Z",
+					ExpirationDate: "2026-02-28",
+					Active:         true,
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Custom Code |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "IAP2026") {
+		t.Fatalf("expected custom code in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_IAPOfferCodeOneTimeUseCodes(t *testing.T) {
+	resp := &InAppPurchaseOfferCodeOneTimeUseCodesResponse{
+		Data: []Resource[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]{
+			{
+				ID: "code-1",
+				Attributes: InAppPurchaseOfferCodeOneTimeUseCodeAttributes{
+					NumberOfCodes:  5,
+					CreatedDate:    "2026-02-10T00:00:00Z",
+					ExpirationDate: "2026-03-01",
+					Active:         true,
+					Environment:    "SANDBOX",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Environment") || !strings.Contains(output, "Expires") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "SANDBOX") {
+		t.Fatalf("expected environment in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_IAPOfferCodeOneTimeUseCodes(t *testing.T) {
+	resp := &InAppPurchaseOfferCodeOneTimeUseCodesResponse{
+		Data: []Resource[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]{
+			{
+				ID: "code-1",
+				Attributes: InAppPurchaseOfferCodeOneTimeUseCodeAttributes{
+					NumberOfCodes:  5,
+					CreatedDate:    "2026-02-10T00:00:00Z",
+					ExpirationDate: "2026-03-01",
+					Active:         true,
+					Environment:    "SANDBOX",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Codes |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "SANDBOX") {
+		t.Fatalf("expected environment in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_OfferCodeValuesResult(t *testing.T) {
+	result := &OfferCodeValuesResult{Codes: []string{"CODE1", "CODE2"}}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Code") || !strings.Contains(output, "CODE1") {
+		t.Fatalf("expected codes in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_OfferCodeValuesResult(t *testing.T) {
+	result := &OfferCodeValuesResult{Codes: []string{"CODE1", "CODE2"}}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+
+	if !strings.Contains(output, "| Code |") || !strings.Contains(output, "CODE2") {
+		t.Fatalf("expected codes in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_InAppPurchases(t *testing.T) {
+	resp := &InAppPurchasesResponse{
+		Data: []Resource[InAppPurchaseAttributes]{
+			{
+				ID: "iap-1",
+				Attributes: InAppPurchaseAttributes{
+					ReferenceName:   "Legacy Pro",
+					ProductID:       "com.example.legacy",
+					InAppPurchaseType: "CONSUMABLE",
+					State:           "APPROVED",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Reference Name") || !strings.Contains(output, "Legacy Pro") {
+		t.Fatalf("expected reference name in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_InAppPurchases(t *testing.T) {
+	resp := &InAppPurchasesResponse{
+		Data: []Resource[InAppPurchaseAttributes]{
+			{
+				ID: "iap-1",
+				Attributes: InAppPurchaseAttributes{
+					ReferenceName:   "Legacy Pro",
+					ProductID:       "com.example.legacy",
+					InAppPurchaseType: "CONSUMABLE",
+					State:           "APPROVED",
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Reference Name |") || !strings.Contains(output, "Legacy Pro") {
+		t.Fatalf("expected reference name in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_OfferCodePrices(t *testing.T) {
 	relationships := SubscriptionOfferCodePriceRelationships{
 		Territory: Relationship{
