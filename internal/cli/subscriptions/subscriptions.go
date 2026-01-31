@@ -47,6 +47,9 @@ Examples:
 			SubscriptionsOfferCodesCommand(),
 			SubscriptionsPricePointsCommand(),
 			SubscriptionsReviewScreenshotsCommand(),
+			SubscriptionsAppStoreReviewScreenshotCommand(),
+			SubscriptionsPromotedPurchaseCommand(),
+			SubscriptionsGracePeriodsCommand(),
 			SubscriptionsSubmitCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -881,14 +884,152 @@ func SubscriptionsAvailabilityCommand() *ffcli.Command {
 		LongHelp: `Manage subscription availability.
 
 Examples:
-  asc subscriptions availability set --id "SUB_ID" --territory "USA,CAN"`,
+  asc subscriptions availability get --id "AVAILABILITY_ID"
+  asc subscriptions availability set --id "SUB_ID" --territory "USA,CAN"
+  asc subscriptions availability available-territories --id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			SubscriptionsAvailabilityGetCommand(),
+			SubscriptionsAvailabilityAvailableTerritoriesCommand(),
 			SubscriptionsAvailabilitySetCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
+		},
+	}
+}
+
+// SubscriptionsAvailabilityGetCommand returns the availability get subcommand.
+func SubscriptionsAvailabilityGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("availability get", flag.ExitOnError)
+
+	availabilityID := fs.String("id", "", "Subscription availability ID")
+	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc subscriptions availability get --id \"AVAILABILITY_ID\"",
+		ShortHelp:  "Get subscription availability by ID or subscription.",
+		LongHelp: `Get subscription availability by ID or subscription.
+
+Examples:
+  asc subscriptions availability get --id "AVAILABILITY_ID"
+  asc subscriptions availability get --subscription-id "SUB_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			availabilityValue := strings.TrimSpace(*availabilityID)
+			subscriptionValue := strings.TrimSpace(*subscriptionID)
+			if availabilityValue == "" && subscriptionValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id or --subscription-id is required")
+				return flag.ErrHelp
+			}
+			if availabilityValue != "" && subscriptionValue != "" {
+				fmt.Fprintln(os.Stderr, "Error: --id and --subscription-id are mutually exclusive")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("subscriptions availability get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			if availabilityValue != "" {
+				resp, err := client.GetSubscriptionAvailability(requestCtx, availabilityValue)
+				if err != nil {
+					return fmt.Errorf("subscriptions availability get: failed to fetch: %w", err)
+				}
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetSubscriptionAvailabilityForSubscription(requestCtx, subscriptionValue)
+			if err != nil {
+				return fmt.Errorf("subscriptions availability get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// SubscriptionsAvailabilityAvailableTerritoriesCommand returns the available territories subcommand.
+func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("availability available-territories", flag.ExitOnError)
+
+	availabilityID := fs.String("id", "", "Subscription availability ID")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "available-territories",
+		ShortUsage: "asc subscriptions availability available-territories --id \"AVAILABILITY_ID\"",
+		ShortHelp:  "List available territories for a subscription availability.",
+		LongHelp: `List available territories for a subscription availability.
+
+Examples:
+  asc subscriptions availability available-territories --id "AVAILABILITY_ID"
+  asc subscriptions availability available-territories --id "AVAILABILITY_ID" --paginate`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("subscriptions availability available-territories: --limit must be between 1 and 200")
+			}
+			if err := validateNextURL(*next); err != nil {
+				return fmt.Errorf("subscriptions availability available-territories: %w", err)
+			}
+
+			id := strings.TrimSpace(*availabilityID)
+			if id == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("subscriptions availability available-territories: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			opts := []asc.SubscriptionAvailabilityTerritoriesOption{
+				asc.WithSubscriptionAvailabilityTerritoriesLimit(*limit),
+				asc.WithSubscriptionAvailabilityTerritoriesNextURL(*next),
+			}
+
+			if *paginate {
+				paginateOpts := append(opts, asc.WithSubscriptionAvailabilityTerritoriesLimit(200))
+				firstPage, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, id, paginateOpts...)
+				if err != nil {
+					return fmt.Errorf("subscriptions availability available-territories: failed to fetch: %w", err)
+				}
+
+				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, id, asc.WithSubscriptionAvailabilityTerritoriesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("subscriptions availability available-territories: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			resp, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, id, opts...)
+			if err != nil {
+				return fmt.Errorf("subscriptions availability available-territories: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }

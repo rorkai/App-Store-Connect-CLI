@@ -45,6 +45,7 @@ func IAPPriceSchedulesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-schedules get", flag.ExitOnError)
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
+	scheduleID := fs.String("schedule-id", "", "Price schedule ID")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -55,13 +56,19 @@ func IAPPriceSchedulesGetCommand() *ffcli.Command {
 		LongHelp: `Get in-app purchase price schedule.
 
 Examples:
-  asc iap price-schedules get --iap-id "IAP_ID"`,
+  asc iap price-schedules get --iap-id "IAP_ID"
+  asc iap price-schedules get --schedule-id "SCHEDULE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
-			if iapValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
+			scheduleValue := strings.TrimSpace(*scheduleID)
+			if iapValue == "" && scheduleValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --iap-id or --schedule-id is required")
+				return flag.ErrHelp
+			}
+			if iapValue != "" && scheduleValue != "" {
+				fmt.Fprintln(os.Stderr, "Error: --iap-id and --schedule-id are mutually exclusive")
 				return flag.ErrHelp
 			}
 
@@ -72,6 +79,15 @@ Examples:
 
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
+
+			if scheduleValue != "" {
+				resp, err := client.GetInAppPurchasePriceScheduleByID(requestCtx, scheduleValue)
+				if err != nil {
+					return fmt.Errorf("iap price-schedules get: failed to fetch: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
 
 			resp, err := client.GetInAppPurchasePriceSchedule(requestCtx, iapValue)
 			if err != nil {

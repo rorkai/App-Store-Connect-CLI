@@ -44,6 +44,8 @@ Examples:
 			IAPImagesCommand(),
 			IAPReviewScreenshotsCommand(),
 			IAPAvailabilityCommand(),
+			IAPAvailabilitiesCommand(),
+			IAPPromotedPurchaseCommand(),
 			IAPContentCommand(),
 			IAPPricePointsCommand(),
 			IAPPriceSchedulesCommand(),
@@ -64,6 +66,7 @@ func IAPListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchases endpoint")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -76,7 +79,8 @@ func IAPListCommand() *ffcli.Command {
 Examples:
   asc iap list --app "APP_ID"
   asc iap list --app "APP_ID" --limit 50
-  asc iap list --app "APP_ID" --paginate`,
+  asc iap list --app "APP_ID" --paginate
+  asc iap list --app "APP_ID" --legacy`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -108,6 +112,22 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithIAPLimit(200))
+				if *legacy {
+					firstPage, err := client.GetInAppPurchases(requestCtx, resolvedAppID, paginateOpts...)
+					if err != nil {
+						return fmt.Errorf("iap list: failed to fetch: %w", err)
+					}
+
+					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.GetInAppPurchases(ctx, resolvedAppID, asc.WithIAPNextURL(nextURL))
+					})
+					if err != nil {
+						return fmt.Errorf("iap list: %w", err)
+					}
+
+					return printOutput(resp, *output, *pretty)
+				}
+
 				firstPage, err := client.GetInAppPurchasesV2(requestCtx, resolvedAppID, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("iap list: failed to fetch: %w", err)
@@ -118,6 +138,15 @@ Examples:
 				})
 				if err != nil {
 					return fmt.Errorf("iap list: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
+
+			if *legacy {
+				resp, err := client.GetInAppPurchases(requestCtx, resolvedAppID, opts...)
+				if err != nil {
+					return fmt.Errorf("iap list: failed to fetch: %w", err)
 				}
 
 				return printOutput(resp, *output, *pretty)
@@ -138,6 +167,7 @@ func IAPGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	iapID := fs.String("id", "", "In-app purchase ID")
+	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchase endpoint")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -148,7 +178,8 @@ func IAPGetCommand() *ffcli.Command {
 		LongHelp: `Get an in-app purchase by ID.
 
 Examples:
-  asc iap get --id "IAP_ID"`,
+  asc iap get --id "IAP_ID"
+  asc iap get --id "IAP_ID" --legacy`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -165,6 +196,15 @@ Examples:
 
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
+
+			if *legacy {
+				resp, err := client.GetInAppPurchase(requestCtx, id)
+				if err != nil {
+					return fmt.Errorf("iap get: failed to fetch: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
 
 			resp, err := client.GetInAppPurchaseV2(requestCtx, id)
 			if err != nil {

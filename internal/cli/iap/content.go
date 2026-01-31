@@ -38,6 +38,7 @@ func IAPContentGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("content get", flag.ExitOnError)
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
+	contentID := fs.String("content-id", "", "In-app purchase content ID")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -53,8 +54,13 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			iapValue := strings.TrimSpace(*iapID)
-			if iapValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
+			contentValue := strings.TrimSpace(*contentID)
+			if iapValue == "" && contentValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --iap-id or --content-id is required")
+				return flag.ErrHelp
+			}
+			if iapValue != "" && contentValue != "" {
+				fmt.Fprintln(os.Stderr, "Error: --iap-id and --content-id are mutually exclusive")
 				return flag.ErrHelp
 			}
 
@@ -65,6 +71,15 @@ Examples:
 
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
+
+			if contentValue != "" {
+				resp, err := client.GetInAppPurchaseContentByID(requestCtx, contentValue)
+				if err != nil {
+					return fmt.Errorf("iap content get: failed to fetch: %w", err)
+				}
+
+				return printOutput(resp, *output, *pretty)
+			}
 
 			resp, err := client.GetInAppPurchaseContent(requestCtx, iapValue)
 			if err != nil {

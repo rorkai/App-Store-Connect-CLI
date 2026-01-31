@@ -41,6 +41,8 @@ Examples:
 			IAPOfferCodesGetCommand(),
 			IAPOfferCodesCreateCommand(),
 			IAPOfferCodesUpdateCommand(),
+			IAPOfferCodesCustomCodesCommand(),
+			IAPOfferCodesOneTimeCodesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
