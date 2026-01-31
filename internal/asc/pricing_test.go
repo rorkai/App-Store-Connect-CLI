@@ -181,6 +181,18 @@ func TestGetAppPriceScheduleByID(t *testing.T) {
 	}
 }
 
+func TestGetAppPriceScheduleByID_RequiresID(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+
+	_, err := client.GetAppPriceScheduleByID(context.Background(), " ")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "scheduleID is required") {
+		t.Fatalf("expected scheduleID required error, got %v", err)
+	}
+}
+
 func TestGetAppPriceScheduleManualPrices(t *testing.T) {
 	resp := AppPricesResponse{
 		Data: []Resource[AppPriceAttributes]{{Type: ResourceTypeAppPrices, ID: "price-1"}},
@@ -342,6 +354,18 @@ func TestGetAppAvailabilityV2ByID(t *testing.T) {
 
 	if _, err := client.GetAppAvailabilityV2ByID(context.Background(), "availability-1"); err != nil {
 		t.Fatalf("GetAppAvailabilityV2ByID() error: %v", err)
+	}
+}
+
+func TestGetAppAvailabilityV2ByID_RequiresID(t *testing.T) {
+	client := newTestClient(t, nil, nil)
+
+	_, err := client.GetAppAvailabilityV2ByID(context.Background(), " ")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "availabilityID is required") {
+		t.Fatalf("expected availabilityID required error, got %v", err)
 	}
 }
 

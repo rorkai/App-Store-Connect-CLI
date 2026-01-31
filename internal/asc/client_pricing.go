@@ -135,6 +135,9 @@ func (c *Client) GetAppPriceSchedule(ctx context.Context, appID string) (*AppPri
 // GetAppPriceScheduleByID retrieves an app price schedule by ID.
 func (c *Client) GetAppPriceScheduleByID(ctx context.Context, scheduleID string) (*AppPriceScheduleResponse, error) {
 	scheduleID = strings.TrimSpace(scheduleID)
+	if scheduleID == "" {
+		return nil, fmt.Errorf("scheduleID is required")
+	}
 	path := fmt.Sprintf("/v1/appPriceSchedules/%s", scheduleID)
 
 	data, err := c.do(ctx, "GET", path, nil)
@@ -305,6 +308,9 @@ func (c *Client) GetAppAvailabilityV2(ctx context.Context, appID string) (*AppAv
 // GetAppAvailabilityV2ByID retrieves app availability by ID.
 func (c *Client) GetAppAvailabilityV2ByID(ctx context.Context, availabilityID string) (*AppAvailabilityV2Response, error) {
 	availabilityID = strings.TrimSpace(availabilityID)
+	if availabilityID == "" {
+		return nil, fmt.Errorf("availabilityID is required")
+	}
 	path := fmt.Sprintf("/v2/appAvailabilities/%s", availabilityID)
 
 	data, err := c.do(ctx, "GET", path, nil)
