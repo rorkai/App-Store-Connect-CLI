@@ -33,6 +33,8 @@ Examples:
   asc game-center activities list --app "APP_ID"
   asc game-center groups list --app "APP_ID"
   asc game-center app-versions list --app "APP_ID"
+  asc game-center enabled-versions list --app "APP_ID"
+  asc game-center enabled-versions compatible-versions --id "ENABLED_VERSION_ID"
   asc game-center details list --app "APP_ID"
   asc game-center details achievements-v2 list --id "DETAILS_ID"
   asc game-center matchmaking queues list`,
@@ -46,6 +48,7 @@ Examples:
 			GameCenterActivitiesCommand(),
 			GameCenterGroupsCommand(),
 			GameCenterAppVersionsCommand(),
+			GameCenterEnabledVersionsCommand(),
 			GameCenterDetailsCommand(),
 			GameCenterMatchmakingCommand(),
 		},
