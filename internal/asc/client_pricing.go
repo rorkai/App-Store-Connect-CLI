@@ -132,8 +132,8 @@ func (c *Client) GetAppPriceSchedule(ctx context.Context, appID string) (*AppPri
 	return &response, nil
 }
 
-// getAppPriceScheduleByID retrieves an app price schedule by ID.
-func (c *Client) getAppPriceScheduleByID(ctx context.Context, scheduleID string) (*AppPriceScheduleResponse, error) {
+// GetAppPriceScheduleByID retrieves an app price schedule by ID.
+func (c *Client) GetAppPriceScheduleByID(ctx context.Context, scheduleID string) (*AppPriceScheduleResponse, error) {
 	scheduleID = strings.TrimSpace(scheduleID)
 	if scheduleID == "" {
 		return nil, fmt.Errorf("scheduleID is required")
@@ -305,8 +305,8 @@ func (c *Client) GetAppAvailabilityV2(ctx context.Context, appID string) (*AppAv
 	return &response, nil
 }
 
-// getAppAvailabilityV2ByID retrieves app availability by ID.
-func (c *Client) getAppAvailabilityV2ByID(ctx context.Context, availabilityID string) (*AppAvailabilityV2Response, error) {
+// GetAppAvailabilityV2ByID retrieves app availability by ID.
+func (c *Client) GetAppAvailabilityV2ByID(ctx context.Context, availabilityID string) (*AppAvailabilityV2Response, error) {
 	availabilityID = strings.TrimSpace(availabilityID)
 	if availabilityID == "" {
 		return nil, fmt.Errorf("availabilityID is required")

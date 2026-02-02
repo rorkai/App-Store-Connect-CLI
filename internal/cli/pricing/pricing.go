@@ -28,10 +28,12 @@ Examples:
   asc pricing price-points get --price-point "PRICE_POINT_ID"
   asc pricing price-points equalizations --price-point "PRICE_POINT_ID"
   asc pricing schedule get --app "123456789"
+  asc pricing schedule get --id "SCHEDULE_ID"
   asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID"
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID"
   asc pricing availability get --app "123456789"
+  asc pricing availability get --id "AVAILABILITY_ID"
   asc pricing availability set --app "123456789" --territory "USA,GBR,DEU" --available true
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"`,
 		UsageFunc: DefaultUsageFunc,
@@ -317,6 +319,7 @@ func PricingScheduleCommand() *ffcli.Command {
 
 Examples:
   asc pricing schedule get --app "123456789"
+  asc pricing schedule get --id "SCHEDULE_ID"
   asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --start-date "2024-03-01"
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID"
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID"`,
@@ -338,23 +341,33 @@ func PricingScheduleGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing schedule get", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
+	id := fs.String("id", "", "App price schedule ID")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc pricing schedule get [flags]",
+		ShortUsage: "asc pricing schedule get --app \"APP_ID\" | asc pricing schedule get --id \"SCHEDULE_ID\"",
 		ShortHelp:  "Get the current app price schedule.",
 		LongHelp: `Get the current app price schedule.
 
 Examples:
-  asc pricing schedule get --app "123456789"`,
+  asc pricing schedule get --app "123456789"
+  asc pricing schedule get --id "SCHEDULE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+			idValue := strings.TrimSpace(*id)
+			appValue := ""
+			if idValue == "" {
+				appValue = resolveAppID(*appID)
+			}
+			if idValue == "" && appValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app or --id is required (or set ASC_APP_ID)")
+				return flag.ErrHelp
+			}
+			if idValue != "" && strings.TrimSpace(*appID) != "" {
+				fmt.Fprintln(os.Stderr, "Error: --id and --app are mutually exclusive")
 				return flag.ErrHelp
 			}
 
@@ -366,7 +379,12 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetAppPriceSchedule(requestCtx, resolvedAppID)
+			var resp *asc.AppPriceScheduleResponse
+			if idValue != "" {
+				resp, err = client.GetAppPriceScheduleByID(requestCtx, idValue)
+			} else {
+				resp, err = client.GetAppPriceSchedule(requestCtx, appValue)
+			}
 			if err != nil {
 				return fmt.Errorf("pricing schedule get: %w", err)
 			}
@@ -489,6 +507,7 @@ func PricingAvailabilityCommand() *ffcli.Command {
 
 Examples:
   asc pricing availability get --app "123456789"
+  asc pricing availability get --id "AVAILABILITY_ID"
   asc pricing availability set --app "123456789" --territory "USA,GBR,DEU" --available true
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"`,
 		UsageFunc: DefaultUsageFunc,
@@ -508,23 +527,33 @@ func PricingAvailabilityGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing availability get", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
+	id := fs.String("id", "", "App availability ID")
 	output := fs.String("output", "json", "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc pricing availability get [flags]",
+		ShortUsage: "asc pricing availability get --app \"APP_ID\" | asc pricing availability get --id \"AVAILABILITY_ID\"",
 		ShortHelp:  "Get app availability.",
 		LongHelp: `Get app availability.
 
 Examples:
-  asc pricing availability get --app "123456789"`,
+  asc pricing availability get --app "123456789"
+  asc pricing availability get --id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := resolveAppID(*appID)
-			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+			idValue := strings.TrimSpace(*id)
+			appValue := ""
+			if idValue == "" {
+				appValue = resolveAppID(*appID)
+			}
+			if idValue == "" && appValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app or --id is required (or set ASC_APP_ID)")
+				return flag.ErrHelp
+			}
+			if idValue != "" && strings.TrimSpace(*appID) != "" {
+				fmt.Fprintln(os.Stderr, "Error: --id and --app are mutually exclusive")
 				return flag.ErrHelp
 			}
 
@@ -536,10 +565,15 @@ Examples:
 			requestCtx, cancel := contextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetAppAvailabilityV2(requestCtx, resolvedAppID)
+			var resp *asc.AppAvailabilityV2Response
+			if idValue != "" {
+				resp, err = client.GetAppAvailabilityV2ByID(requestCtx, idValue)
+			} else {
+				resp, err = client.GetAppAvailabilityV2(requestCtx, appValue)
+			}
 			if err != nil {
-				if isAppAvailabilityMissing(err) {
-					return fmt.Errorf("pricing availability get: app availability not found for app %q", resolvedAppID)
+				if idValue == "" && isAppAvailabilityMissing(err) {
+					return fmt.Errorf("pricing availability get: app availability not found for app %q", appValue)
 				}
 				return fmt.Errorf("pricing availability get: %w", err)
 			}

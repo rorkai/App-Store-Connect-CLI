@@ -172,7 +172,7 @@ func TestGetAppPriceScheduleByID(t *testing.T) {
 		}
 	}, jsonResponse(http.StatusOK, string(body)))
 
-	result, err := client.getAppPriceScheduleByID(context.Background(), "schedule-1")
+	result, err := client.GetAppPriceScheduleByID(context.Background(), "schedule-1")
 	if err != nil {
 		t.Fatalf("GetAppPriceScheduleByID() error: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestGetAppPriceScheduleByID(t *testing.T) {
 func TestGetAppPriceScheduleByID_RequiresID(t *testing.T) {
 	client := newTestClient(t, nil, nil)
 
-	_, err := client.getAppPriceScheduleByID(context.Background(), " ")
+	_, err := client.GetAppPriceScheduleByID(context.Background(), " ")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -349,7 +349,7 @@ func TestGetAppAvailabilityV2ByID(t *testing.T) {
 		}
 	}, jsonResponse(http.StatusOK, string(body)))
 
-	if _, err := client.getAppAvailabilityV2ByID(context.Background(), "availability-1"); err != nil {
+	if _, err := client.GetAppAvailabilityV2ByID(context.Background(), "availability-1"); err != nil {
 		t.Fatalf("GetAppAvailabilityV2ByID() error: %v", err)
 	}
 }
@@ -357,7 +357,7 @@ func TestGetAppAvailabilityV2ByID(t *testing.T) {
 func TestGetAppAvailabilityV2ByID_RequiresID(t *testing.T) {
 	client := newTestClient(t, nil, nil)
 
-	_, err := client.getAppAvailabilityV2ByID(context.Background(), " ")
+	_, err := client.GetAppAvailabilityV2ByID(context.Background(), " ")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
