@@ -401,9 +401,34 @@ Examples:
 	}
 }
 
-// SubscriptionsOfferCodesOneTimeCodesCommand returns the offer code one-time use codes subcommand.
+// SubscriptionsOfferCodesOneTimeCodesCommand returns the offer code one-time use codes command group.
 func SubscriptionsOfferCodesOneTimeCodesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes one-time-codes", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "one-time-codes",
+		ShortUsage: "asc subscriptions offer-codes one-time-codes <subcommand> [flags]",
+		ShortHelp:  "Manage one-time use code batches for an offer code.",
+		LongHelp: `Manage one-time use code batches for an offer code.
+
+Examples:
+  asc subscriptions offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID"
+  asc subscriptions offer-codes one-time-codes get --id "ONE_TIME_USE_CODE_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			SubscriptionsOfferCodesOneTimeCodesListCommand(),
+			SubscriptionsOfferCodesOneTimeCodesGetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// SubscriptionsOfferCodesOneTimeCodesListCommand returns the offer code one-time use codes list subcommand.
+func SubscriptionsOfferCodesOneTimeCodesListCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("offer-codes one-time-codes list", flag.ExitOnError)
 
 	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -413,21 +438,22 @@ func SubscriptionsOfferCodesOneTimeCodesCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "one-time-codes",
-		ShortUsage: "asc subscriptions offer-codes one-time-codes --offer-code-id \"OFFER_CODE_ID\" [flags]",
+		Name:       "list",
+		ShortUsage: "asc subscriptions offer-codes one-time-codes list --offer-code-id \"OFFER_CODE_ID\" [flags]",
 		ShortHelp:  "List one-time use code batches for an offer code.",
 		LongHelp: `List one-time use code batches for an offer code.
 
 Examples:
-  asc subscriptions offer-codes one-time-codes --offer-code-id "OFFER_CODE_ID"`,
+  asc subscriptions offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID"
+  asc subscriptions offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("subscriptions offer-codes one-time-codes: --limit must be between 1 and 200")
+				return fmt.Errorf("subscriptions offer-codes one-time-codes list: --limit must be between 1 and 200")
 			}
 			if err := validateNextURL(*next); err != nil {
-				return fmt.Errorf("subscriptions offer-codes one-time-codes: %w", err)
+				return fmt.Errorf("subscriptions offer-codes one-time-codes list: %w", err)
 			}
 
 			id := strings.TrimSpace(*offerCodeID)
@@ -438,7 +464,7 @@ Examples:
 
 			client, err := getASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions offer-codes one-time-codes: %w", err)
+				return fmt.Errorf("subscriptions offer-codes one-time-codes list: %w", err)
 			}
 
 			requestCtx, cancel := contextWithTimeout(ctx)
@@ -453,14 +479,14 @@ Examples:
 				paginateOpts := append(opts, asc.WithSubscriptionOfferCodeOneTimeUseCodesLimit(200))
 				firstPage, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(requestCtx, id, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("subscriptions offer-codes one-time-codes: failed to fetch: %w", err)
+					return fmt.Errorf("subscriptions offer-codes one-time-codes list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					return client.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, id, asc.WithSubscriptionOfferCodeOneTimeUseCodesNextURL(nextURL))
 				})
 				if err != nil {
-					return fmt.Errorf("subscriptions offer-codes one-time-codes: %w", err)
+					return fmt.Errorf("subscriptions offer-codes one-time-codes list: %w", err)
 				}
 
 				return printOutput(resp, *output, *pretty)
@@ -468,7 +494,50 @@ Examples:
 
 			resp, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(requestCtx, id, opts...)
 			if err != nil {
-				return fmt.Errorf("subscriptions offer-codes one-time-codes: failed to fetch: %w", err)
+				return fmt.Errorf("subscriptions offer-codes one-time-codes list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// SubscriptionsOfferCodesOneTimeCodesGetCommand returns the offer code one-time use codes get subcommand.
+func SubscriptionsOfferCodesOneTimeCodesGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("offer-codes one-time-codes get", flag.ExitOnError)
+
+	oneTimeCodeID := fs.String("id", "", "One-time use code batch ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc subscriptions offer-codes one-time-codes get --id \"ONE_TIME_USE_CODE_ID\"",
+		ShortHelp:  "Get a one-time use code batch by ID.",
+		LongHelp: `Get a one-time use code batch by ID.
+
+Examples:
+  asc subscriptions offer-codes one-time-codes get --id "ONE_TIME_USE_CODE_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*oneTimeCodeID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("subscriptions offer-codes one-time-codes get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetSubscriptionOfferCodeOneTimeUseCode(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("subscriptions offer-codes one-time-codes get: failed to fetch: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)

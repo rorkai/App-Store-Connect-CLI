@@ -511,10 +511,10 @@ func TestPrintTable_InAppPurchases(t *testing.T) {
 			{
 				ID: "iap-1",
 				Attributes: InAppPurchaseAttributes{
-					ReferenceName:   "Legacy Pro",
-					ProductID:       "com.example.legacy",
+					ReferenceName:     "Legacy Pro",
+					ProductID:         "com.example.legacy",
 					InAppPurchaseType: "CONSUMABLE",
-					State:           "APPROVED",
+					State:             "APPROVED",
 				},
 			},
 		},
@@ -535,10 +535,10 @@ func TestPrintMarkdown_InAppPurchases(t *testing.T) {
 			{
 				ID: "iap-1",
 				Attributes: InAppPurchaseAttributes{
-					ReferenceName:   "Legacy Pro",
-					ProductID:       "com.example.legacy",
+					ReferenceName:     "Legacy Pro",
+					ProductID:         "com.example.legacy",
 					InAppPurchaseType: "CONSUMABLE",
-					State:           "APPROVED",
+					State:             "APPROVED",
 				},
 			},
 		},
@@ -630,6 +630,130 @@ func TestPrintMarkdown_OfferCodePrices(t *testing.T) {
 	}
 	if !strings.Contains(output, "PRICE-1") {
 		t.Fatalf("expected price point in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_IAPOfferCodePrices(t *testing.T) {
+	relationships := InAppPurchaseOfferPriceInlineRelationships{
+		Territory: Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeTerritories,
+				ID:   "USA",
+			},
+		},
+		PricePoint: Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeInAppPurchasePricePoints,
+				ID:   "PRICE-1",
+			},
+		},
+	}
+	raw, err := json.Marshal(relationships)
+	if err != nil {
+		t.Fatalf("marshal relationships error: %v", err)
+	}
+	resp := &InAppPurchaseOfferPricesResponse{
+		Data: []Resource[InAppPurchaseOfferPriceAttributes]{
+			{
+				ID:            "price-1",
+				Relationships: raw,
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Price Point") {
+		t.Fatalf("expected header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "PRICE-1") {
+		t.Fatalf("expected price point in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_IAPOfferCodePrices(t *testing.T) {
+	relationships := InAppPurchaseOfferPriceInlineRelationships{
+		Territory: Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeTerritories,
+				ID:   "USA",
+			},
+		},
+		PricePoint: Relationship{
+			Data: ResourceData{
+				Type: ResourceTypeInAppPurchasePricePoints,
+				ID:   "PRICE-1",
+			},
+		},
+	}
+	raw, err := json.Marshal(relationships)
+	if err != nil {
+		t.Fatalf("marshal relationships error: %v", err)
+	}
+	resp := &InAppPurchaseOfferPricesResponse{
+		Data: []Resource[InAppPurchaseOfferPriceAttributes]{
+			{
+				ID:            "price-1",
+				Relationships: raw,
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Territory | Price Point |") {
+		t.Fatalf("expected markdown header, got: %s", output)
+	}
+	if !strings.Contains(output, "PRICE-1") {
+		t.Fatalf("expected price point in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_TerritoryResponse(t *testing.T) {
+	resp := &TerritoryResponse{
+		Data: Resource[TerritoryAttributes]{
+			ID: "USA",
+			Attributes: TerritoryAttributes{
+				Currency: "USD",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Currency") {
+		t.Fatalf("expected currency header, got: %s", output)
+	}
+	if !strings.Contains(output, "USD") {
+		t.Fatalf("expected currency in output, got: %s", output)
+	}
+}
+
+func TestPrintMarkdown_TerritoryResponse(t *testing.T) {
+	resp := &TerritoryResponse{
+		Data: Resource[TerritoryAttributes]{
+			ID: "USA",
+			Attributes: TerritoryAttributes{
+				Currency: "USD",
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(resp)
+	})
+
+	if !strings.Contains(output, "| ID | Currency |") {
+		t.Fatalf("expected currency header, got: %s", output)
+	}
+	if !strings.Contains(output, "USD") {
+		t.Fatalf("expected currency in output, got: %s", output)
 	}
 }
 

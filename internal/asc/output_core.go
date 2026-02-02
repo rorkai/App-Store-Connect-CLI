@@ -243,6 +243,8 @@ func PrintMarkdown(data interface{}) error {
 		return printInAppPurchasePricePointsMarkdown(v)
 	case *InAppPurchasePricesResponse:
 		return printInAppPurchasePricesMarkdown(v)
+	case *InAppPurchaseOfferPricesResponse:
+		return printInAppPurchaseOfferCodePricesMarkdown(v)
 	case *InAppPurchaseOfferCodesResponse:
 		return printInAppPurchaseOfferCodesMarkdown(v)
 	case *InAppPurchaseOfferCodeResponse:
@@ -301,6 +303,8 @@ func PrintMarkdown(data interface{}) error {
 		return printSubscriptionGracePeriodMarkdown(v)
 	case *TerritoriesResponse:
 		return printTerritoriesMarkdown(v)
+	case *TerritoryResponse:
+		return printTerritoriesMarkdown(&TerritoriesResponse{Data: []Resource[TerritoryAttributes]{v.Data}})
 	case *TerritoryAgeRatingsResponse:
 		return printTerritoryAgeRatingsMarkdown(v)
 	case *OfferCodeValuesResult:
@@ -1171,6 +1175,8 @@ func PrintTable(data interface{}) error {
 		return printInAppPurchasePricePointsTable(v)
 	case *InAppPurchasePricesResponse:
 		return printInAppPurchasePricesTable(v)
+	case *InAppPurchaseOfferPricesResponse:
+		return printInAppPurchaseOfferCodePricesTable(v)
 	case *InAppPurchaseOfferCodesResponse:
 		return printInAppPurchaseOfferCodesTable(v)
 	case *InAppPurchaseOfferCodeResponse:
@@ -1229,6 +1235,8 @@ func PrintTable(data interface{}) error {
 		return printSubscriptionGracePeriodTable(v)
 	case *TerritoriesResponse:
 		return printTerritoriesTable(v)
+	case *TerritoryResponse:
+		return printTerritoriesTable(&TerritoriesResponse{Data: []Resource[TerritoryAttributes]{v.Data}})
 	case *TerritoryAgeRatingsResponse:
 		return printTerritoryAgeRatingsTable(v)
 	case *OfferCodeValuesResult:

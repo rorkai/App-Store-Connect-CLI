@@ -43,6 +43,7 @@ Examples:
 			IAPOfferCodesUpdateCommand(),
 			IAPOfferCodesCustomCodesCommand(),
 			IAPOfferCodesOneTimeCodesCommand(),
+			IAPOfferCodesPricesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

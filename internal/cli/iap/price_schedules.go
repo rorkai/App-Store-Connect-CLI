@@ -30,6 +30,7 @@ Examples:
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPPriceSchedulesGetCommand(),
+			IAPPriceSchedulesBaseTerritoryCommand(),
 			IAPPriceSchedulesCreateCommand(),
 			IAPPriceSchedulesManualPricesCommand(),
 			IAPPriceSchedulesAutomaticPricesCommand(),
@@ -92,6 +93,49 @@ Examples:
 			resp, err := client.GetInAppPurchasePriceSchedule(requestCtx, iapValue)
 			if err != nil {
 				return fmt.Errorf("iap price-schedules get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// IAPPriceSchedulesBaseTerritoryCommand returns the price schedules base territory subcommand.
+func IAPPriceSchedulesBaseTerritoryCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("price-schedules base-territory", flag.ExitOnError)
+
+	scheduleID := fs.String("schedule-id", "", "Price schedule ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "base-territory",
+		ShortUsage: "asc iap price-schedules base-territory --schedule-id \"SCHEDULE_ID\"",
+		ShortHelp:  "Get base territory for a price schedule.",
+		LongHelp: `Get base territory for a price schedule.
+
+Examples:
+  asc iap price-schedules base-territory --schedule-id "SCHEDULE_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			id := strings.TrimSpace(*scheduleID)
+			if id == "" {
+				fmt.Fprintln(os.Stderr, "Error: --schedule-id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("iap price-schedules base-territory: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetInAppPurchasePriceScheduleBaseTerritory(requestCtx, id)
+			if err != nil {
+				return fmt.Errorf("iap price-schedules base-territory: failed to fetch: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)

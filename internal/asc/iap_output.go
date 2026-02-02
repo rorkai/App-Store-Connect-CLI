@@ -212,6 +212,40 @@ func printInAppPurchasePricesMarkdown(resp *InAppPurchasePricesResponse) error {
 	return nil
 }
 
+func printInAppPurchaseOfferCodePricesTable(resp *InAppPurchaseOfferPricesResponse) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tTerritory\tPrice Point")
+	for _, item := range resp.Data {
+		territoryID, pricePointID, err := inAppPurchaseOfferPriceRelationshipIDs(item.Relationships)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\n",
+			sanitizeTerminal(item.ID),
+			sanitizeTerminal(territoryID),
+			sanitizeTerminal(pricePointID),
+		)
+	}
+	return w.Flush()
+}
+
+func printInAppPurchaseOfferCodePricesMarkdown(resp *InAppPurchaseOfferPricesResponse) error {
+	fmt.Fprintln(os.Stdout, "| ID | Territory | Price Point |")
+	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
+	for _, item := range resp.Data {
+		territoryID, pricePointID, err := inAppPurchaseOfferPriceRelationshipIDs(item.Relationships)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
+			escapeMarkdown(item.ID),
+			escapeMarkdown(territoryID),
+			escapeMarkdown(pricePointID),
+		)
+	}
+	return nil
+}
+
 func printInAppPurchaseOfferCodesTable(resp *InAppPurchaseOfferCodesResponse) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tName\tActive\tProd Codes\tSandbox Codes")
@@ -387,6 +421,17 @@ func inAppPurchasePriceRelationshipIDs(raw json.RawMessage) (string, string, err
 		pricePointID = relationships.InAppPurchasePricePoint.Data.ID
 	}
 	return territoryID, pricePointID, nil
+}
+
+func inAppPurchaseOfferPriceRelationshipIDs(raw json.RawMessage) (string, string, error) {
+	if len(raw) == 0 {
+		return "", "", nil
+	}
+	var relationships InAppPurchaseOfferPriceInlineRelationships
+	if err := json.Unmarshal(raw, &relationships); err != nil {
+		return "", "", fmt.Errorf("decode in-app purchase offer price relationships: %w", err)
+	}
+	return relationships.Territory.Data.ID, relationships.PricePoint.Data.ID, nil
 }
 
 func printInAppPurchaseReviewScreenshotTable(resp *InAppPurchaseAppStoreReviewScreenshotResponse) error {

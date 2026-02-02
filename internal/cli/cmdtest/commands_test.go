@@ -942,6 +942,11 @@ func TestIAPValidationErrors(t *testing.T) {
 			wantErr: "--iap-id or --schedule-id is required",
 		},
 		{
+			name:    "iap price-schedules base-territory missing schedule-id",
+			args:    []string{"iap", "price-schedules", "base-territory"},
+			wantErr: "--schedule-id is required",
+		},
+		{
 			name:    "iap price-schedules create missing prices",
 			args:    []string{"iap", "price-schedules", "create", "--iap-id", "IAP_ID", "--base-territory", "USA"},
 			wantErr: "--prices is required",
@@ -1000,6 +1005,11 @@ func TestIAPValidationErrors(t *testing.T) {
 			name:    "iap offer-codes one-time-codes values missing one-time-code-id",
 			args:    []string{"iap", "offer-codes", "one-time-codes", "values"},
 			wantErr: "--one-time-code-id is required",
+		},
+		{
+			name:    "iap offer-codes prices missing offer-code-id",
+			args:    []string{"iap", "offer-codes", "prices"},
+			wantErr: "--offer-code-id is required",
 		},
 		{
 			name:    "iap promoted-purchase get missing id",
@@ -1450,8 +1460,13 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "subscriptions offer-codes one-time-codes missing offer-code-id",
-			args:    []string{"subscriptions", "offer-codes", "one-time-codes"},
+			args:    []string{"subscriptions", "offer-codes", "one-time-codes", "list"},
 			wantErr: "--offer-code-id is required",
+		},
+		{
+			name:    "subscriptions offer-codes one-time-codes get missing id",
+			args:    []string{"subscriptions", "offer-codes", "one-time-codes", "get"},
+			wantErr: "--id is required",
 		},
 		{
 			name:    "subscriptions offer-codes prices missing offer-code-id",
