@@ -749,7 +749,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			TestFlightRecruitmentOptionsCommand(),
 			TestFlightRecruitmentSetCommand(),
-		TestFlightRecruitmentDeleteCommand(),
+			TestFlightRecruitmentDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
