@@ -67,11 +67,6 @@ Examples:
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center enabled-versions list: %w", err)
 			}
-			format, err := normalizeEnabledVersionsOutput(*output, *pretty)
-			if err != nil {
-				return fmt.Errorf("game-center enabled-versions list: %w", err)
-			}
-
 			resolvedAppID := resolveAppID(*appID)
 			nextURL := strings.TrimSpace(*next)
 			if resolvedAppID == "" && nextURL == "" {
@@ -109,7 +104,7 @@ Examples:
 					return fmt.Errorf("game-center enabled-versions list: %w", err)
 				}
 
-				return printOutput(resp, format, *pretty)
+				return printOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetAppGameCenterEnabledVersions(requestCtx, resolvedAppID, opts...)
@@ -117,7 +112,7 @@ Examples:
 				return fmt.Errorf("game-center enabled-versions list: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, format, *pretty)
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }
@@ -152,11 +147,6 @@ Examples:
 			if err := validateNextURL(*next); err != nil {
 				return fmt.Errorf("game-center enabled-versions compatible-versions: %w", err)
 			}
-			format, err := normalizeEnabledVersionsOutput(*output, *pretty)
-			if err != nil {
-				return fmt.Errorf("game-center enabled-versions compatible-versions: %w", err)
-			}
-
 			id := strings.TrimSpace(*enabledVersionID)
 			nextURL := strings.TrimSpace(*next)
 			if id == "" && nextURL == "" {
@@ -194,7 +184,7 @@ Examples:
 					return fmt.Errorf("game-center enabled-versions compatible-versions: %w", err)
 				}
 
-				return printOutput(resp, format, *pretty)
+				return printOutput(resp, *output, *pretty)
 			}
 
 			resp, err := client.GetGameCenterEnabledVersionCompatibleVersions(requestCtx, id, opts...)
@@ -202,29 +192,7 @@ Examples:
 				return fmt.Errorf("game-center enabled-versions compatible-versions: failed to fetch: %w", err)
 			}
 
-			return printOutput(resp, format, *pretty)
+			return printOutput(resp, *output, *pretty)
 		},
-	}
-}
-
-func normalizeEnabledVersionsOutput(output string, pretty bool) (string, error) {
-	format := strings.ToLower(strings.TrimSpace(output))
-	if format == "" {
-		format = "json"
-	}
-	if format == "md" {
-		format = "markdown"
-	}
-
-	switch format {
-	case "json":
-		return format, nil
-	case "table", "markdown":
-		if pretty {
-			return "", fmt.Errorf("--pretty is only valid with JSON output")
-		}
-		return format, nil
-	default:
-		return "", fmt.Errorf("unsupported format: %s", format)
 	}
 }
