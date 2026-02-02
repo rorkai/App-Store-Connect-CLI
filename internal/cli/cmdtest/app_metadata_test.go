@@ -129,6 +129,11 @@ func TestLocalizationsMediaSetsValidationErrors(t *testing.T) {
 			wantErr: "--localization-id is required",
 		},
 		{
+			name:    "preview sets get missing id",
+			args:    []string{"localizations", "preview-sets", "get"},
+			wantErr: "--id is required",
+		},
+		{
 			name:    "screenshot sets list missing localization",
 			args:    []string{"localizations", "screenshot-sets", "list"},
 			wantErr: "--localization-id is required",
@@ -137,6 +142,11 @@ func TestLocalizationsMediaSetsValidationErrors(t *testing.T) {
 			name:    "screenshot sets relationships missing localization",
 			args:    []string{"localizations", "screenshot-sets", "relationships"},
 			wantErr: "--localization-id is required",
+		},
+		{
+			name:    "screenshot sets get missing id",
+			args:    []string{"localizations", "screenshot-sets", "get"},
+			wantErr: "--id is required",
 		},
 	}
 
@@ -161,6 +171,53 @@ func TestLocalizationsMediaSetsValidationErrors(t *testing.T) {
 			if !strings.Contains(stderr, test.wantErr) {
 				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
 			}
+		})
+	}
+}
+
+func TestLocalizationsMediaSetsOutputErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "preview sets get unsupported output",
+			args: []string{"localizations", "preview-sets", "get", "--id", "SET_ID", "--output", "yaml"},
+		},
+		{
+			name: "preview sets get pretty with table",
+			args: []string{"localizations", "preview-sets", "get", "--id", "SET_ID", "--output", "table", "--pretty"},
+		},
+		{
+			name: "screenshot sets get unsupported output",
+			args: []string{"localizations", "screenshot-sets", "get", "--id", "SET_ID", "--output", "yaml"},
+		},
+		{
+			name: "screenshot sets get pretty with markdown",
+			args: []string{"localizations", "screenshot-sets", "get", "--id", "SET_ID", "--output", "markdown", "--pretty"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected non-help error, got %v", err)
+				}
+			})
+
+			_ = stdout
+			_ = stderr
 		})
 	}
 }

@@ -24,11 +24,13 @@ func LocalizationsPreviewSetsCommand() *ffcli.Command {
 
 Examples:
   asc localizations preview-sets list --localization-id "LOCALIZATION_ID"
+  asc localizations preview-sets get --id "PREVIEW_SET_ID"
   asc localizations preview-sets relationships --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			LocalizationsPreviewSetsListCommand(),
+			LocalizationsPreviewSetsGetCommand(),
 			LocalizationsPreviewSetsRelationshipsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -103,6 +105,49 @@ Examples:
 			resp, err := client.GetAppStoreVersionLocalizationPreviewSets(requestCtx, trimmedID, opts...)
 			if err != nil {
 				return fmt.Errorf("localizations preview-sets list: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
+		},
+	}
+}
+
+// LocalizationsPreviewSetsGetCommand returns the preview sets get subcommand.
+func LocalizationsPreviewSetsGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("localizations preview-sets get", flag.ExitOnError)
+
+	setID := fs.String("id", "", "App preview set ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc localizations preview-sets get --id \"PREVIEW_SET_ID\"",
+		ShortHelp:  "Get an app preview set by ID.",
+		LongHelp: `Get an app preview set by ID.
+
+Examples:
+  asc localizations preview-sets get --id "PREVIEW_SET_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			trimmedID := strings.TrimSpace(*setID)
+			if trimmedID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("localizations preview-sets get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetAppPreviewSet(requestCtx, trimmedID)
+			if err != nil {
+				return fmt.Errorf("localizations preview-sets get: failed to fetch: %w", err)
 			}
 
 			return printOutput(resp, *output, *pretty)
@@ -195,15 +240,60 @@ func LocalizationsScreenshotSetsCommand() *ffcli.Command {
 
 Examples:
   asc localizations screenshot-sets list --localization-id "LOCALIZATION_ID"
+  asc localizations screenshot-sets get --id "SCREENSHOT_SET_ID"
   asc localizations screenshot-sets relationships --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			LocalizationsScreenshotSetsListCommand(),
+			LocalizationsScreenshotSetsGetCommand(),
 			LocalizationsScreenshotSetsRelationshipsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
+		},
+	}
+}
+
+// LocalizationsScreenshotSetsGetCommand returns the screenshot sets get subcommand.
+func LocalizationsScreenshotSetsGetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("localizations screenshot-sets get", flag.ExitOnError)
+
+	setID := fs.String("id", "", "App screenshot set ID")
+	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+
+	return &ffcli.Command{
+		Name:       "get",
+		ShortUsage: "asc localizations screenshot-sets get --id \"SCREENSHOT_SET_ID\"",
+		ShortHelp:  "Get an app screenshot set by ID.",
+		LongHelp: `Get an app screenshot set by ID.
+
+Examples:
+  asc localizations screenshot-sets get --id "SCREENSHOT_SET_ID"`,
+		FlagSet:   fs,
+		UsageFunc: DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			trimmedID := strings.TrimSpace(*setID)
+			if trimmedID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+
+			client, err := getASCClient()
+			if err != nil {
+				return fmt.Errorf("localizations screenshot-sets get: %w", err)
+			}
+
+			requestCtx, cancel := contextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.GetAppScreenshotSet(requestCtx, trimmedID)
+			if err != nil {
+				return fmt.Errorf("localizations screenshot-sets get: failed to fetch: %w", err)
+			}
+
+			return printOutput(resp, *output, *pretty)
 		},
 	}
 }

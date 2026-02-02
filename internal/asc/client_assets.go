@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // AppScreenshotSetRelationships describes relationships for screenshot sets.
@@ -119,6 +120,27 @@ func (c *Client) GetAppScreenshotSets(ctx context.Context, localizationID string
 	}
 
 	var response AppScreenshotSetsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppScreenshotSet retrieves a screenshot set by ID.
+func (c *Client) GetAppScreenshotSet(ctx context.Context, setID string) (*AppScreenshotSetResponse, error) {
+	setID = strings.TrimSpace(setID)
+	if setID == "" {
+		return nil, fmt.Errorf("setID is required")
+	}
+
+	path := fmt.Sprintf("/v1/appScreenshotSets/%s", setID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppScreenshotSetResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -285,6 +307,27 @@ func (c *Client) GetAppPreviewSets(ctx context.Context, localizationID string) (
 	}
 
 	var response AppPreviewSetsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetAppPreviewSet retrieves a preview set by ID.
+func (c *Client) GetAppPreviewSet(ctx context.Context, setID string) (*AppPreviewSetResponse, error) {
+	setID = strings.TrimSpace(setID)
+	if setID == "" {
+		return nil, fmt.Errorf("setID is required")
+	}
+
+	path := fmt.Sprintf("/v1/appPreviewSets/%s", setID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppPreviewSetResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

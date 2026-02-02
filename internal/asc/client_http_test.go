@@ -3285,6 +3285,27 @@ func TestGetAppScreenshotSets(t *testing.T) {
 	}
 }
 
+func TestGetAppScreenshotSet(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appScreenshotSets","id":"SET_123","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appScreenshotSets/SET_123" {
+			t.Fatalf("expected path /v1/appScreenshotSets/SET_123, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	result, err := client.GetAppScreenshotSet(context.Background(), "SET_123")
+	if err != nil {
+		t.Fatalf("GetAppScreenshotSet() error: %v", err)
+	}
+	if result.Data.ID != "SET_123" {
+		t.Fatalf("expected set ID SET_123, got %s", result.Data.ID)
+	}
+}
+
 func TestCreateAppScreenshotSet(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"appScreenshotSets","id":"SET_123","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -3443,6 +3464,27 @@ func TestGetAppPreviewSets(t *testing.T) {
 	}
 	if len(result.Data) != 1 {
 		t.Fatalf("expected 1 set, got %d", len(result.Data))
+	}
+}
+
+func TestGetAppPreviewSet(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appPreviewSets","id":"SET_123","attributes":{"previewType":"IPHONE_65"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appPreviewSets/SET_123" {
+			t.Fatalf("expected path /v1/appPreviewSets/SET_123, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	result, err := client.GetAppPreviewSet(context.Background(), "SET_123")
+	if err != nil {
+		t.Fatalf("GetAppPreviewSet() error: %v", err)
+	}
+	if result.Data.ID != "SET_123" {
+		t.Fatalf("expected set ID SET_123, got %s", result.Data.ID)
 	}
 }
 
