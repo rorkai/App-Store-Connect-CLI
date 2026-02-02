@@ -3264,6 +3264,61 @@ func TestGetBetaTesterUsagesMetrics_WithFilters(t *testing.T) {
 	}
 }
 
+func TestGetAppBetaTesterUsagesMetrics_WithPeriodAndLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"value":"1"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-1/metrics/betaTesterUsages" {
+			t.Fatalf("expected path /v1/apps/app-1/metrics/betaTesterUsages, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("period") != "P90D" {
+			t.Fatalf("expected period=P90D, got %q", values.Get("period"))
+		}
+		if values.Get("limit") != "12" {
+			t.Fatalf("expected limit=12, got %q", values.Get("limit"))
+		}
+		if values.Get("filter[apps]") != "" {
+			t.Fatalf("expected filter[apps] to be empty, got %q", values.Get("filter[apps]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	resp, err := client.GetAppBetaTesterUsagesMetrics(context.Background(), "app-1",
+		WithBetaTesterUsagesPeriod("P90D"),
+		WithBetaTesterUsagesLimit(12),
+	)
+	if err != nil {
+		t.Fatalf("GetAppBetaTesterUsagesMetrics() error: %v", err)
+	}
+	if len(resp.Data) == 0 {
+		t.Fatalf("expected response data")
+	}
+}
+
+func TestGetBetaCrashLog(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"betaCrashLogs","id":"log-1","attributes":{"logText":"crash log"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaCrashLogs/log-1" {
+			t.Fatalf("expected path /v1/betaCrashLogs/log-1, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	resp, err := client.GetBetaCrashLog(context.Background(), "log-1")
+	if err != nil {
+		t.Fatalf("GetBetaCrashLog() error: %v", err)
+	}
+	if resp.Data.ID != "log-1" {
+		t.Fatalf("expected log ID log-1, got %q", resp.Data.ID)
+	}
+}
+
 func TestGetAppScreenshotSets(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"SET_123","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {
