@@ -28,7 +28,9 @@ Examples:
   asc testflight beta-groups list --app "APP_ID"
   asc testflight beta-groups app get --group-id "GROUP_ID"
   asc testflight beta-testers list --app "APP_ID"
-  asc testflight beta-feedback crash-submissions get --id "SUBMISSION_ID"`,
+  asc testflight beta-feedback crash-submissions get --id "SUBMISSION_ID"
+  asc testflight metrics beta-tester-usages --app "APP_ID"
+  asc testflight beta-crash-logs get --id "CRASH_LOG_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -36,6 +38,7 @@ Examples:
 			BetaGroupsCommand(),
 			BetaTestersCommand(),
 			BetaFeedbackCommand(),
+			BetaCrashLogsCommand(),
 			BetaLicenseAgreementsCommand(),
 			BetaNotificationsCommand(),
 			TestFlightReviewCommand(),

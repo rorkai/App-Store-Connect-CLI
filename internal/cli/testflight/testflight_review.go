@@ -895,12 +895,14 @@ func TestFlightMetricsCommand() *ffcli.Command {
 
 Examples:
   asc testflight metrics public-link --group "GROUP_ID"
-  asc testflight metrics testers --group "GROUP_ID"`,
+  asc testflight metrics testers --group "GROUP_ID"
+  asc testflight metrics beta-tester-usages --app "APP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightMetricsPublicLinkCommand(),
 			TestFlightMetricsTestersCommand(),
+			TestFlightMetricsBetaTesterUsagesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
