@@ -39,6 +39,7 @@ A repo-local ./.asc/config.json (if present) takes precedence.`,
 			AuthSwitchCommand(),
 			AuthLogoutCommand(),
 			AuthStatusCommand(),
+			AuthDoctorCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) == 0 {

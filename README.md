@@ -776,6 +776,10 @@ Note: When using `--paginate`, the response `links` field is cleared to avoid co
 # Check authentication status
 asc auth status
 
+# Offline auth/config diagnostics (no Apple API calls)
+asc auth doctor --local
+asc auth doctor --json
+
 # Logout
 asc auth logout
 ```
@@ -847,6 +851,7 @@ make lint
 make test
 make build
 ./asc --help
+./asc auth doctor --local
 ```
 
 ## Security
