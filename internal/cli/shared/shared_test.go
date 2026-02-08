@@ -73,6 +73,86 @@ func captureOutput(t *testing.T, fn func()) (string, string) {
 	return stdout, stderr
 }
 
+func TestDefaultOutputFormat_ReturnsJSON(t *testing.T) {
+	t.Setenv("ASC_DEFAULT_OUTPUT", "")
+	if got := DefaultOutputFormat(); got != "json" {
+		t.Fatalf("expected json, got %q", got)
+	}
+}
+
+func TestDefaultOutputFormat_UnsetReturnsJSON(t *testing.T) {
+	// Unset via t.Setenv to empty string (os.Unsetenv behavior is handled by env)
+	t.Setenv("ASC_DEFAULT_OUTPUT", "")
+	os.Unsetenv("ASC_DEFAULT_OUTPUT")
+	if got := DefaultOutputFormat(); got != "json" {
+		t.Fatalf("expected json, got %q", got)
+	}
+}
+
+func TestDefaultOutputFormat_Table(t *testing.T) {
+	t.Setenv("ASC_DEFAULT_OUTPUT", "table")
+	if got := DefaultOutputFormat(); got != "table" {
+		t.Fatalf("expected table, got %q", got)
+	}
+}
+
+func TestDefaultOutputFormat_Markdown(t *testing.T) {
+	t.Setenv("ASC_DEFAULT_OUTPUT", "markdown")
+	if got := DefaultOutputFormat(); got != "markdown" {
+		t.Fatalf("expected markdown, got %q", got)
+	}
+}
+
+func TestDefaultOutputFormat_MD(t *testing.T) {
+	t.Setenv("ASC_DEFAULT_OUTPUT", "md")
+	if got := DefaultOutputFormat(); got != "md" {
+		t.Fatalf("expected md, got %q", got)
+	}
+}
+
+func TestDefaultOutputFormat_JSON(t *testing.T) {
+	t.Setenv("ASC_DEFAULT_OUTPUT", "json")
+	if got := DefaultOutputFormat(); got != "json" {
+		t.Fatalf("expected json, got %q", got)
+	}
+}
+
+func TestDefaultOutputFormat_CaseInsensitive(t *testing.T) {
+	for _, value := range []string{"TABLE", "Table", "tAbLe", "MARKDOWN", "JSON"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("ASC_DEFAULT_OUTPUT", value)
+			got := DefaultOutputFormat()
+			expected := strings.ToLower(value)
+			if got != expected {
+				t.Fatalf("expected %q, got %q", expected, got)
+			}
+		})
+	}
+}
+
+func TestDefaultOutputFormat_WhitespaceHandled(t *testing.T) {
+	t.Setenv("ASC_DEFAULT_OUTPUT", "  table  ")
+	if got := DefaultOutputFormat(); got != "table" {
+		t.Fatalf("expected table, got %q", got)
+	}
+}
+
+func TestDefaultOutputFormat_InvalidFallsBackToJSON(t *testing.T) {
+	t.Setenv("ASC_DEFAULT_OUTPUT", "xml")
+	stdout, stderr := captureOutput(t, func() {
+		got := DefaultOutputFormat()
+		if got != "json" {
+			t.Fatalf("expected json fallback, got %q", got)
+		}
+	})
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "invalid ASC_DEFAULT_OUTPUT value") {
+		t.Fatalf("expected warning on stderr, got %q", stderr)
+	}
+}
+
 func TestProgressEnabled_RespectsNoProgressFlag(t *testing.T) {
 	prevNoProgress := noProgress
 	prevIsTerminal := isTerminal

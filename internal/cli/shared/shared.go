@@ -33,6 +33,7 @@ const (
 	privateKeyBase64EnvVar = "ASC_PRIVATE_KEY_B64"
 	profileEnvVar          = "ASC_PROFILE"
 	strictAuthEnvVar       = "ASC_STRICT_AUTH"
+	defaultOutputEnvVar    = "ASC_DEFAULT_OUTPUT"
 )
 
 const (
@@ -568,6 +569,23 @@ func isAppAvailabilityMissing(err error) bool {
 		}
 	}
 	return false
+}
+
+// DefaultOutputFormat returns the default output format for CLI commands.
+// It checks the ASC_DEFAULT_OUTPUT environment variable first, falling back to "json".
+// Valid values are "json", "table", "markdown", and "md".
+func DefaultOutputFormat() string {
+	if env := strings.TrimSpace(os.Getenv(defaultOutputEnvVar)); env != "" {
+		normalized := strings.ToLower(env)
+		switch normalized {
+		case "json", "table", "markdown", "md":
+			return normalized
+		default:
+			fmt.Fprintf(os.Stderr, "Warning: invalid %s value %q (expected json, table, or markdown); using json\n", defaultOutputEnvVar, env)
+			return "json"
+		}
+	}
+	return "json"
 }
 
 func resolveAppID(appID string) string {
