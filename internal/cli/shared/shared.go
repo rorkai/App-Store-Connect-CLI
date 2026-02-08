@@ -210,11 +210,15 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 			tw := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
 			c.FlagSet.VisitAll(func(f *flag.Flag) {
 				def := f.DefValue
+				usage := f.Usage
+				if f.Name == "output" {
+					usage = strings.Replace(usage, "json (default),", "json,", 1)
+				}
 				if def != "" {
-					fmt.Fprintf(tw, "  --%-12s %s (default: %s)\n", f.Name, f.Usage, def)
+					fmt.Fprintf(tw, "  --%-12s %s (default: %s)\n", f.Name, usage, def)
 					return
 				}
-				fmt.Fprintf(tw, "  --%-12s %s\n", f.Name, f.Usage)
+				fmt.Fprintf(tw, "  --%-12s %s\n", f.Name, usage)
 			})
 			tw.Flush()
 			b.WriteString("\n")
@@ -603,7 +607,7 @@ func resolveDefaultOutput() string {
 	case "json", "table", "markdown", "md":
 		return normalized
 	default:
-		fmt.Fprintf(os.Stderr, "Warning: invalid %s value %q (expected json, table, or markdown); using json\n", defaultOutputEnvVar, env)
+		fmt.Fprintf(os.Stderr, "Warning: invalid %s value %q (expected json, table, markdown, or md); using json\n", defaultOutputEnvVar, env)
 		return "json"
 	}
 }

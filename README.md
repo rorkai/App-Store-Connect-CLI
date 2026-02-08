@@ -219,7 +219,7 @@ Retry behavior env:
 - Retry errors include `retry after` in the final error message when available
 
 Output format:
-- `ASC_DEFAULT_OUTPUT` sets the default `--output` format (e.g., `table`, `markdown`, `json`)
+- `ASC_DEFAULT_OUTPUT` sets the default `--output` format (`json`, `table`, `markdown`, or `md`)
 - Explicit `--output` flags always override the environment variable
 
 Debug logging:

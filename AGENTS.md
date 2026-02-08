@@ -86,8 +86,10 @@ API keys are generated at https://appstoreconnect.apple.com/access/integrations/
 | `ASC_UPLOAD_TIMEOUT` | Upload timeout (e.g., `60s`, `2m`) |
 | `ASC_UPLOAD_TIMEOUT_SECONDS` | Upload timeout in seconds (alternative) |
 | `ASC_DEBUG` | Enable debug logging (set to `api` for HTTP requests/responses) |
-| `ASC_DEFAULT_OUTPUT` | Default output format: `json`, `table`, or `markdown` |
+| `ASC_DEFAULT_OUTPUT` | Default output format: `json`, `table`, `markdown`, or `md` |
 | `ASC_NO_UPDATE` | Disable update checks and auto-update |
+
+Explicit `--output` flags always override `ASC_DEFAULT_OUTPUT`.
 
 ## References
 
