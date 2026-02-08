@@ -4,20 +4,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func printTerritoryAgeRatingsTable(resp *TerritoryAgeRatingsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tTerritory\tApp Store Age Rating")
+	headers := []string{"ID", "Territory", "App Store Age Rating"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		territoryID, err := territoryAgeRatingTerritoryID(item.Relationships)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n", item.ID, territoryID, string(item.Attributes.AppStoreAgeRating))
+		rows = append(rows, []string{item.ID, territoryID, string(item.Attributes.AppStoreAgeRating)})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printTerritoryAgeRatingsMarkdown(resp *TerritoryAgeRatingsResponse) error {

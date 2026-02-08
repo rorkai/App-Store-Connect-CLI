@@ -4,21 +4,21 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 func printAlternativeDistributionDomainsTable(resp *AlternativeDistributionDomainsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDomain\tReference Name\tCreated Date")
+	headers := []string{"ID", "Domain", "Reference Name", "Created Date"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Domain),
 			compactWhitespace(item.Attributes.ReferenceName),
 			item.Attributes.CreatedDate,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAlternativeDistributionDomainsMarkdown(resp *AlternativeDistributionDomainsResponse) error {
@@ -36,15 +36,16 @@ func printAlternativeDistributionDomainsMarkdown(resp *AlternativeDistributionDo
 }
 
 func printAlternativeDistributionKeysTable(resp *AlternativeDistributionKeysResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tPublic Key")
+	headers := []string{"ID", "Public Key"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.PublicKey),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAlternativeDistributionKeysMarkdown(resp *AlternativeDistributionKeysResponse) error {
@@ -60,19 +61,20 @@ func printAlternativeDistributionKeysMarkdown(resp *AlternativeDistributionKeysR
 }
 
 func printAlternativeDistributionPackageVersionsTable(resp *AlternativeDistributionPackageVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tState\tFile Checksum\tURL\tURL Expiration Date")
+	headers := []string{"ID", "Version", "State", "File Checksum", "URL", "URL Expiration Date"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Version),
 			compactWhitespace(string(item.Attributes.State)),
 			compactWhitespace(item.Attributes.FileChecksum),
 			compactWhitespace(item.Attributes.URL),
 			compactWhitespace(item.Attributes.URLExpirationDate),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAlternativeDistributionPackageVersionsMarkdown(resp *AlternativeDistributionPackageVersionsResponse) error {
@@ -92,18 +94,19 @@ func printAlternativeDistributionPackageVersionsMarkdown(resp *AlternativeDistri
 }
 
 func printAlternativeDistributionPackageVariantsTable(resp *AlternativeDistributionPackageVariantsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tURL\tURL Expiration Date\tKey Blob\tFile Checksum")
+	headers := []string{"ID", "URL", "URL Expiration Date", "Key Blob", "File Checksum"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.URL),
 			compactWhitespace(item.Attributes.URLExpirationDate),
 			compactWhitespace(item.Attributes.AlternativeDistributionKeyBlob),
 			compactWhitespace(item.Attributes.FileChecksum),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAlternativeDistributionPackageVariantsMarkdown(resp *AlternativeDistributionPackageVariantsResponse) error {
@@ -122,18 +125,19 @@ func printAlternativeDistributionPackageVariantsMarkdown(resp *AlternativeDistri
 }
 
 func printAlternativeDistributionPackageDeltasTable(resp *AlternativeDistributionPackageDeltasResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tURL\tURL Expiration Date\tKey Blob\tFile Checksum")
+	headers := []string{"ID", "URL", "URL Expiration Date", "Key Blob", "File Checksum"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.URL),
 			compactWhitespace(item.Attributes.URLExpirationDate),
 			compactWhitespace(item.Attributes.AlternativeDistributionKeyBlob),
 			compactWhitespace(item.Attributes.FileChecksum),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAlternativeDistributionPackageDeltasMarkdown(resp *AlternativeDistributionPackageDeltasResponse) error {
@@ -152,13 +156,13 @@ func printAlternativeDistributionPackageDeltasMarkdown(resp *AlternativeDistribu
 }
 
 func printAlternativeDistributionPackageTable(resp *AlternativeDistributionPackageResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tSource File Checksum")
-	fmt.Fprintf(w, "%s\t%s\n",
+	headers := []string{"ID", "Source File Checksum"}
+	rows := [][]string{{
 		resp.Data.ID,
 		compactWhitespace(formatAlternativeDistributionChecksums(resp.Data.Attributes.SourceFileChecksum)),
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAlternativeDistributionPackageMarkdown(resp *AlternativeDistributionPackageResponse) error {
@@ -196,10 +200,10 @@ func formatAlternativeDistributionChecksum(label string, checksum *Checksum) str
 }
 
 func printAlternativeDistributionDeleteResultTable(id string, deleted bool) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", id, deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{id, fmt.Sprintf("%t", deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAlternativeDistributionDeleteResultMarkdown(id string, deleted bool) error {

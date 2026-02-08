@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // SubscriptionGroupDeleteResult represents CLI output for group deletions.
@@ -26,15 +25,16 @@ type SubscriptionPriceDeleteResult struct {
 }
 
 func printSubscriptionGroupsTable(resp *SubscriptionGroupsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name")
+	headers := []string{"ID", "Reference Name"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.ReferenceName),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSubscriptionGroupsMarkdown(resp *SubscriptionGroupsResponse) error {
@@ -50,18 +50,19 @@ func printSubscriptionGroupsMarkdown(resp *SubscriptionGroupsResponse) error {
 }
 
 func printSubscriptionsTable(resp *SubscriptionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tProduct ID\tPeriod\tState")
+	headers := []string{"ID", "Name", "Product ID", "Period", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			item.Attributes.ProductID,
 			item.Attributes.SubscriptionPeriod,
 			item.Attributes.State,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSubscriptionsMarkdown(resp *SubscriptionsResponse) error {
@@ -80,14 +81,14 @@ func printSubscriptionsMarkdown(resp *SubscriptionsResponse) error {
 }
 
 func printSubscriptionPriceTable(resp *SubscriptionPriceResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tStart Date\tPreserved")
-	fmt.Fprintf(w, "%s\t%s\t%t\n",
+	headers := []string{"ID", "Start Date", "Preserved"}
+	rows := [][]string{{
 		resp.Data.ID,
 		resp.Data.Attributes.StartDate,
-		resp.Data.Attributes.Preserved,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", resp.Data.Attributes.Preserved),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSubscriptionPriceMarkdown(resp *SubscriptionPriceResponse) error {
@@ -102,22 +103,23 @@ func printSubscriptionPriceMarkdown(resp *SubscriptionPriceResponse) error {
 }
 
 func printSubscriptionPricesTable(resp *SubscriptionPricesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tTerritory\tPrice Point\tStart Date\tPreserved")
+	headers := []string{"ID", "Territory", "Price Point", "Start Date", "Preserved"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		territoryID, pricePointID, err := subscriptionPriceRelationshipIDs(item.Relationships)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
 			territoryID,
 			pricePointID,
 			item.Attributes.StartDate,
-			item.Attributes.Preserved,
-		)
+			fmt.Sprintf("%t", item.Attributes.Preserved),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSubscriptionPricesMarkdown(resp *SubscriptionPricesResponse) error {
@@ -140,13 +142,13 @@ func printSubscriptionPricesMarkdown(resp *SubscriptionPricesResponse) error {
 }
 
 func printSubscriptionAvailabilityTable(resp *SubscriptionAvailabilityResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tAvailable In New Territories")
-	fmt.Fprintf(w, "%s\t%t\n",
+	headers := []string{"ID", "Available In New Territories"}
+	rows := [][]string{{
 		resp.Data.ID,
-		resp.Data.Attributes.AvailableInNewTerritories,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", resp.Data.Attributes.AvailableInNewTerritories),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSubscriptionAvailabilityMarkdown(resp *SubscriptionAvailabilityResponse) error {
@@ -160,16 +162,16 @@ func printSubscriptionAvailabilityMarkdown(resp *SubscriptionAvailabilityRespons
 }
 
 func printSubscriptionGracePeriodTable(resp *SubscriptionGracePeriodResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tOpt In\tSandbox Opt In\tDuration\tRenewal Type")
-	fmt.Fprintf(w, "%s\t%t\t%t\t%s\t%s\n",
+	headers := []string{"ID", "Opt In", "Sandbox Opt In", "Duration", "Renewal Type"}
+	rows := [][]string{{
 		resp.Data.ID,
-		resp.Data.Attributes.OptIn,
-		resp.Data.Attributes.SandboxOptIn,
+		fmt.Sprintf("%t", resp.Data.Attributes.OptIn),
+		fmt.Sprintf("%t", resp.Data.Attributes.SandboxOptIn),
 		resp.Data.Attributes.Duration,
 		resp.Data.Attributes.RenewalType,
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSubscriptionGracePeriodMarkdown(resp *SubscriptionGracePeriodResponse) error {
@@ -186,10 +188,10 @@ func printSubscriptionGracePeriodMarkdown(resp *SubscriptionGracePeriodResponse)
 }
 
 func printSubscriptionGroupDeleteResultTable(result *SubscriptionGroupDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSubscriptionGroupDeleteResultMarkdown(result *SubscriptionGroupDeleteResult) error {
@@ -203,10 +205,10 @@ func printSubscriptionGroupDeleteResultMarkdown(result *SubscriptionGroupDeleteR
 }
 
 func printSubscriptionDeleteResultTable(result *SubscriptionDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSubscriptionDeleteResultMarkdown(result *SubscriptionDeleteResult) error {
@@ -220,10 +222,10 @@ func printSubscriptionDeleteResultMarkdown(result *SubscriptionDeleteResult) err
 }
 
 func printSubscriptionPriceDeleteResultTable(result *SubscriptionPriceDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSubscriptionPriceDeleteResultMarkdown(result *SubscriptionPriceDeleteResult) error {

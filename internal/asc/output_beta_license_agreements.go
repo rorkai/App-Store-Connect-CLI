@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func betaLicenseAgreementAppID(resource BetaLicenseAgreementResource) string {
@@ -14,16 +13,17 @@ func betaLicenseAgreementAppID(resource BetaLicenseAgreementResource) string {
 }
 
 func printBetaLicenseAgreementsTable(resp *BetaLicenseAgreementsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tApp ID\tAgreement Text")
+	headers := []string{"ID", "App ID", "Agreement Text"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			betaLicenseAgreementAppID(item),
 			compactWhitespace(item.Attributes.AgreementText),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaLicenseAgreementsMarkdown(resp *BetaLicenseAgreementsResponse) error {

@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 func printAppClipsTable(resp *AppClipsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tBundle ID")
+	headers := []string{"ID", "Bundle ID"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n", item.ID, item.Attributes.BundleID)
+		rows = append(rows, []string{item.ID, item.Attributes.BundleID})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipsMarkdown(resp *AppClipsResponse) error {
@@ -29,12 +29,13 @@ func printAppClipsMarkdown(resp *AppClipsResponse) error {
 }
 
 func printAppClipDefaultExperiencesTable(resp *AppClipDefaultExperiencesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tAction")
+	headers := []string{"ID", "Action"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n", item.ID, item.Attributes.Action)
+		rows = append(rows, []string{item.ID, string(item.Attributes.Action)})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipDefaultExperiencesMarkdown(resp *AppClipDefaultExperiencesResponse) error {
@@ -50,16 +51,17 @@ func printAppClipDefaultExperiencesMarkdown(resp *AppClipDefaultExperiencesRespo
 }
 
 func printAppClipDefaultExperienceLocalizationsTable(resp *AppClipDefaultExperienceLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale\tSubtitle")
+	headers := []string{"ID", "Locale", "Subtitle"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Subtitle),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipDefaultExperienceLocalizationsMarkdown(resp *AppClipDefaultExperienceLocalizationsResponse) error {
@@ -76,20 +78,21 @@ func printAppClipDefaultExperienceLocalizationsMarkdown(resp *AppClipDefaultExpe
 }
 
 func printAppClipAdvancedExperiencesTable(resp *AppClipAdvancedExperiencesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tAction\tStatus\tBusiness Category\tDefault Language\tPowered By\tLink")
+	headers := []string{"ID", "Action", "Status", "Business Category", "Default Language", "Powered By", "Link"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%t\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Action,
+			string(item.Attributes.Action),
 			item.Attributes.Status,
-			item.Attributes.BusinessCategory,
-			item.Attributes.DefaultLanguage,
-			item.Attributes.IsPoweredBy,
+			string(item.Attributes.BusinessCategory),
+			string(item.Attributes.DefaultLanguage),
+			fmt.Sprintf("%t", item.Attributes.IsPoweredBy),
 			item.Attributes.Link,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipAdvancedExperiencesMarkdown(resp *AppClipAdvancedExperiencesResponse) error {
@@ -110,16 +113,17 @@ func printAppClipAdvancedExperiencesMarkdown(resp *AppClipAdvancedExperiencesRes
 }
 
 func printBetaAppClipInvocationLocalizationsTable(resp *BetaAppClipInvocationLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale\tTitle")
+	headers := []string{"ID", "Locale", "Title"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Title),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaAppClipInvocationLocalizationsMarkdown(resp *BetaAppClipInvocationLocalizationsResponse) error {
@@ -136,17 +140,17 @@ func printBetaAppClipInvocationLocalizationsMarkdown(resp *BetaAppClipInvocation
 }
 
 func printAppClipAdvancedExperienceImageUploadResultTable(result *AppClipAdvancedExperienceImageUploadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tExperience ID\tFile Name\tFile Size\tState\tUploaded")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%t\n",
+	headers := []string{"ID", "Experience ID", "File Name", "File Size", "State", "Uploaded"}
+	rows := [][]string{{
 		result.ID,
 		result.ExperienceID,
 		result.FileName,
-		result.FileSize,
+		fmt.Sprintf("%d", result.FileSize),
 		result.AssetDeliveryState,
-		result.Uploaded,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", result.Uploaded),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipAdvancedExperienceImageUploadResultMarkdown(result *AppClipAdvancedExperienceImageUploadResult) error {
@@ -164,19 +168,19 @@ func printAppClipAdvancedExperienceImageUploadResultMarkdown(result *AppClipAdva
 }
 
 func printAppClipAdvancedExperienceImageTable(resp *AppClipAdvancedExperienceImageResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tState")
+	headers := []string{"ID", "File Name", "File Size", "State"}
 	state := ""
 	if resp.Data.Attributes.AssetDeliveryState != nil {
 		state = resp.Data.Attributes.AssetDeliveryState.State
 	}
-	fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+	rows := [][]string{{
 		resp.Data.ID,
 		resp.Data.Attributes.FileName,
-		resp.Data.Attributes.FileSize,
+		fmt.Sprintf("%d", resp.Data.Attributes.FileSize),
 		state,
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipAdvancedExperienceImageMarkdown(resp *AppClipAdvancedExperienceImageResponse) error {
@@ -196,17 +200,17 @@ func printAppClipAdvancedExperienceImageMarkdown(resp *AppClipAdvancedExperience
 }
 
 func printAppClipHeaderImageUploadResultTable(result *AppClipHeaderImageUploadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocalization ID\tFile Name\tFile Size\tState\tUploaded")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%t\n",
+	headers := []string{"ID", "Localization ID", "File Name", "File Size", "State", "Uploaded"}
+	rows := [][]string{{
 		result.ID,
 		result.LocalizationID,
 		result.FileName,
-		result.FileSize,
+		fmt.Sprintf("%d", result.FileSize),
 		result.AssetDeliveryState,
-		result.Uploaded,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", result.Uploaded),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipHeaderImageUploadResultMarkdown(result *AppClipHeaderImageUploadResult) error {
@@ -224,19 +228,19 @@ func printAppClipHeaderImageUploadResultMarkdown(result *AppClipHeaderImageUploa
 }
 
 func printAppClipHeaderImageTable(resp *AppClipHeaderImageResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tState")
+	headers := []string{"ID", "File Name", "File Size", "State"}
 	state := ""
 	if resp.Data.Attributes.AssetDeliveryState != nil {
 		state = resp.Data.Attributes.AssetDeliveryState.State
 	}
-	fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+	rows := [][]string{{
 		resp.Data.ID,
 		resp.Data.Attributes.FileName,
-		resp.Data.Attributes.FileSize,
+		fmt.Sprintf("%d", resp.Data.Attributes.FileSize),
 		state,
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipHeaderImageMarkdown(resp *AppClipHeaderImageResponse) error {
@@ -256,10 +260,10 @@ func printAppClipHeaderImageMarkdown(resp *AppClipHeaderImageResponse) error {
 }
 
 func printAppClipDefaultExperienceDeleteResultTable(result *AppClipDefaultExperienceDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipDefaultExperienceDeleteResultMarkdown(result *AppClipDefaultExperienceDeleteResult) error {
@@ -273,10 +277,10 @@ func printAppClipDefaultExperienceDeleteResultMarkdown(result *AppClipDefaultExp
 }
 
 func printAppClipDefaultExperienceLocalizationDeleteResultTable(result *AppClipDefaultExperienceLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipDefaultExperienceLocalizationDeleteResultMarkdown(result *AppClipDefaultExperienceLocalizationDeleteResult) error {
@@ -290,10 +294,10 @@ func printAppClipDefaultExperienceLocalizationDeleteResultMarkdown(result *AppCl
 }
 
 func printAppClipAdvancedExperienceDeleteResultTable(result *AppClipAdvancedExperienceDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipAdvancedExperienceDeleteResultMarkdown(result *AppClipAdvancedExperienceDeleteResult) error {
@@ -307,10 +311,10 @@ func printAppClipAdvancedExperienceDeleteResultMarkdown(result *AppClipAdvancedE
 }
 
 func printAppClipAdvancedExperienceImageDeleteResultTable(result *AppClipAdvancedExperienceImageDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipAdvancedExperienceImageDeleteResultMarkdown(result *AppClipAdvancedExperienceImageDeleteResult) error {
@@ -324,10 +328,10 @@ func printAppClipAdvancedExperienceImageDeleteResultMarkdown(result *AppClipAdva
 }
 
 func printAppClipHeaderImageDeleteResultTable(result *AppClipHeaderImageDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipHeaderImageDeleteResultMarkdown(result *AppClipHeaderImageDeleteResult) error {
@@ -341,10 +345,10 @@ func printAppClipHeaderImageDeleteResultMarkdown(result *AppClipHeaderImageDelet
 }
 
 func printBetaAppClipInvocationDeleteResultTable(result *BetaAppClipInvocationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaAppClipInvocationDeleteResultMarkdown(result *BetaAppClipInvocationDeleteResult) error {
@@ -358,10 +362,10 @@ func printBetaAppClipInvocationDeleteResultMarkdown(result *BetaAppClipInvocatio
 }
 
 func printBetaAppClipInvocationLocalizationDeleteResultTable(result *BetaAppClipInvocationLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaAppClipInvocationLocalizationDeleteResultMarkdown(result *BetaAppClipInvocationLocalizationDeleteResult) error {
@@ -375,11 +379,11 @@ func printBetaAppClipInvocationLocalizationDeleteResultMarkdown(result *BetaAppC
 }
 
 func printAppClipAppStoreReviewDetailTable(resp *AppClipAppStoreReviewDetailResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tInvocation URLs")
+	headers := []string{"ID", "Invocation URLs"}
 	urls := strings.Join(resp.Data.Attributes.InvocationURLs, ", ")
-	fmt.Fprintf(w, "%s\t%s\n", resp.Data.ID, compactWhitespace(urls))
-	return w.Flush()
+	rows := [][]string{{resp.Data.ID, compactWhitespace(urls)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppClipAppStoreReviewDetailMarkdown(resp *AppClipAppStoreReviewDetailResponse) error {

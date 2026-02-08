@@ -3,16 +3,16 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func printLinkagesTable(resp *LinkagesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Type\tID")
+	headers := []string{"Type", "ID"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n", item.Type, item.ID)
+		rows = append(rows, []string{string(item.Type), item.ID})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printLinkagesMarkdown(resp *LinkagesResponse) error {

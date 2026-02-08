@@ -2,44 +2,40 @@ package asc
 
 import (
 	"fmt"
-	"os"
-	"text/tabwriter"
 )
 
 func printNotarySubmissionStatusTable(resp *NotarySubmissionStatusResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tSTATUS\tNAME\tCREATED")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+	headers := []string{"ID", "STATUS", "NAME", "CREATED"}
+	rows := [][]string{{
 		resp.Data.ID,
-		resp.Data.Attributes.Status,
+		string(resp.Data.Attributes.Status),
 		compactWhitespace(resp.Data.Attributes.Name),
 		resp.Data.Attributes.CreatedDate,
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printNotarySubmissionsListTable(resp *NotarySubmissionsListResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tSTATUS\tNAME\tCREATED")
+	headers := []string{"ID", "STATUS", "NAME", "CREATED"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Status,
+			string(item.Attributes.Status),
 			compactWhitespace(item.Attributes.Name),
 			item.Attributes.CreatedDate,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printNotarySubmissionLogsTable(resp *NotarySubmissionLogsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDEVELOPER LOG URL")
-	fmt.Fprintf(w, "%s\t%s\n",
-		resp.Data.ID,
-		resp.Data.Attributes.DeveloperLogURL,
-	)
-	return w.Flush()
+	headers := []string{"ID", "DEVELOPER LOG URL"}
+	rows := [][]string{{resp.Data.ID, resp.Data.Attributes.DeveloperLogURL}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printNotarySubmissionStatusMarkdown(resp *NotarySubmissionStatusResponse) error {

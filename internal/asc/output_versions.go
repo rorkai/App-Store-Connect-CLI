@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // AppStoreVersionSubmissionResult represents CLI output for submissions.
@@ -61,35 +60,37 @@ type AppStoreVersionReleaseRequestResult struct {
 }
 
 func printAppStoreVersionsTable(resp *AppStoreVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tPlatform\tState\tCreated")
+	headers := []string{"ID", "Version", "Platform", "State", "Created"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		state := item.Attributes.AppVersionState
 		if state == "" {
 			state = item.Attributes.AppStoreState
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.VersionString,
 			string(item.Attributes.Platform),
 			state,
 			item.Attributes.CreatedDate,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printPreReleaseVersionsTable(resp *PreReleaseVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tPlatform")
+	headers := []string{"ID", "Version", "Platform"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Version),
 			string(item.Attributes.Platform),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionsMarkdown(resp *AppStoreVersionsResponse) error {
@@ -125,105 +126,85 @@ func printPreReleaseVersionsMarkdown(resp *PreReleaseVersionsResponse) error {
 }
 
 func printAppStoreVersionSubmissionTable(result *AppStoreVersionSubmissionResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Submission ID\tCreated Date")
+	headers := []string{"Submission ID", "Created Date"}
 	createdDate := ""
 	if result.CreatedDate != nil {
 		createdDate = *result.CreatedDate
 	}
-	fmt.Fprintf(w, "%s\t%s\n", result.SubmissionID, createdDate)
-	return w.Flush()
+	rows := [][]string{{result.SubmissionID, createdDate}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionSubmissionCreateTable(result *AppStoreVersionSubmissionCreateResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Submission ID\tVersion ID\tBuild ID\tCreated Date")
+	headers := []string{"Submission ID", "Version ID", "Build ID", "Created Date"}
 	createdDate := ""
 	if result.CreatedDate != nil {
 		createdDate = *result.CreatedDate
 	}
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-		result.SubmissionID,
-		result.VersionID,
-		result.BuildID,
-		createdDate,
-	)
-	return w.Flush()
+	rows := [][]string{{result.SubmissionID, result.VersionID, result.BuildID, createdDate}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionSubmissionStatusTable(result *AppStoreVersionSubmissionStatusResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Submission ID\tVersion ID\tVersion\tPlatform\tState\tCreated Date")
+	headers := []string{"Submission ID", "Version ID", "Version", "Platform", "State", "Created Date"}
 	createdDate := ""
 	if result.CreatedDate != nil {
 		createdDate = *result.CreatedDate
 	}
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
-		result.ID,
-		result.VersionID,
-		result.VersionString,
-		result.Platform,
-		result.State,
-		createdDate,
-	)
-	return w.Flush()
+	rows := [][]string{{result.ID, result.VersionID, result.VersionString, result.Platform, result.State, createdDate}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionSubmissionCancelTable(result *AppStoreVersionSubmissionCancelResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Submission ID\tCancelled")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Cancelled)
-	return w.Flush()
+	headers := []string{"Submission ID", "Cancelled"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Cancelled)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionDetailTable(result *AppStoreVersionDetailResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Version ID\tVersion\tPlatform\tState\tBuild ID\tBuild Version\tSubmission ID")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-		result.ID,
-		result.VersionString,
-		result.Platform,
-		result.State,
-		result.BuildID,
-		result.BuildVersion,
-		result.SubmissionID,
-	)
-	return w.Flush()
+	headers := []string{"Version ID", "Version", "Platform", "State", "Build ID", "Build Version", "Submission ID"}
+	rows := [][]string{{result.ID, result.VersionString, result.Platform, result.State, result.BuildID, result.BuildVersion, result.SubmissionID}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionPhasedReleaseTable(resp *AppStoreVersionPhasedReleaseResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Phased Release ID\tState\tStart Date\tCurrent Day\tTotal Pause Duration")
+	headers := []string{"Phased Release ID", "State", "Start Date", "Current Day", "Total Pause Duration"}
 	attrs := resp.Data.Attributes
-	fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%d\n",
+	rows := [][]string{{
 		resp.Data.ID,
-		attrs.PhasedReleaseState,
+		string(attrs.PhasedReleaseState),
 		attrs.StartDate,
-		attrs.CurrentDayNumber,
-		attrs.TotalPauseDuration,
-	)
-	return w.Flush()
+		fmt.Sprintf("%d", attrs.CurrentDayNumber),
+		fmt.Sprintf("%d", attrs.TotalPauseDuration),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionPhasedReleaseDeleteResultTable(result *AppStoreVersionPhasedReleaseDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Phased Release ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"Phased Release ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionAttachBuildTable(result *AppStoreVersionAttachBuildResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Version ID\tBuild ID\tAttached")
-	fmt.Fprintf(w, "%s\t%s\t%t\n", result.VersionID, result.BuildID, result.Attached)
-	return w.Flush()
+	headers := []string{"Version ID", "Build ID", "Attached"}
+	rows := [][]string{{result.VersionID, result.BuildID, fmt.Sprintf("%t", result.Attached)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionReleaseRequestTable(result *AppStoreVersionReleaseRequestResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Release Request ID\tVersion ID")
-	fmt.Fprintf(w, "%s\t%s\n", result.ReleaseRequestID, result.VersionID)
-	return w.Flush()
+	headers := []string{"Release Request ID", "Version ID"}
+	rows := [][]string{{result.ReleaseRequestID, result.VersionID}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionSubmissionMarkdown(result *AppStoreVersionSubmissionResult) error {

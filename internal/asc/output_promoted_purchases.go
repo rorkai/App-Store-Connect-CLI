@@ -5,7 +5,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 )
 
 // PromotedPurchaseDeleteResult represents CLI output for promoted purchase deletions.
@@ -29,17 +28,18 @@ func promotedPurchaseBool(value *bool) string {
 }
 
 func printPromotedPurchasesTable(resp *PromotedPurchasesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVisible For All Users\tEnabled\tState")
+	headers := []string{"ID", "Visible For All Users", "Enabled", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			promotedPurchaseBool(item.Attributes.VisibleForAllUsers),
 			promotedPurchaseBool(item.Attributes.Enabled),
 			item.Attributes.State,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printPromotedPurchasesMarkdown(resp *PromotedPurchasesResponse) error {
@@ -57,10 +57,10 @@ func printPromotedPurchasesMarkdown(resp *PromotedPurchasesResponse) error {
 }
 
 func printPromotedPurchaseDeleteResultTable(result *PromotedPurchaseDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printPromotedPurchaseDeleteResultMarkdown(result *PromotedPurchaseDeleteResult) error {
@@ -71,14 +71,14 @@ func printPromotedPurchaseDeleteResultMarkdown(result *PromotedPurchaseDeleteRes
 }
 
 func printAppPromotedPurchasesLinkResultTable(result *AppPromotedPurchasesLinkResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "App ID\tPromoted Purchase IDs\tAction")
-	fmt.Fprintf(w, "%s\t%s\t%s\n",
+	headers := []string{"App ID", "Promoted Purchase IDs", "Action"}
+	rows := [][]string{{
 		result.AppID,
 		strings.Join(result.PromotedPurchaseIDs, ", "),
 		result.Action,
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppPromotedPurchasesLinkResultMarkdown(result *AppPromotedPurchasesLinkResult) error {

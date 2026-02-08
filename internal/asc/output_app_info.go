@@ -3,25 +3,23 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func printAppInfosTable(resp *AppInfosResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tApp Store State\tState\tAge Rating\tKids Age Band")
+	headers := []string{"ID", "App Store State", "State", "Age Rating", "Kids Age Band"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, info := range resp.Data {
 		attrs := info.Attributes
-		fmt.Fprintf(
-			w,
-			"%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			info.ID,
 			appInfoAttrString(attrs, "appStoreState"),
 			appInfoAttrString(attrs, "state"),
 			appInfoAttrString(attrs, "appStoreAgeRating"),
 			appInfoAttrString(attrs, "kidsAgeBand"),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppInfosMarkdown(resp *AppInfosResponse) error {

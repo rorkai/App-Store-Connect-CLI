@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 // BuildUploadResult represents CLI output for build upload operations.
@@ -82,18 +81,19 @@ func formatEncryptionStatus(usesNonExempt *bool) string {
 }
 
 func printBuildsTable(resp *BuildsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Version\tUploaded\tProcessing\tExpired\tEncryption")
+	headers := []string{"Version", "Uploaded", "Processing", "Expired", "Encryption"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%t\t%s\n",
+		rows = append(rows, []string{
 			item.Attributes.Version,
 			item.Attributes.UploadedDate,
 			item.Attributes.ProcessingState,
-			item.Attributes.Expired,
+			fmt.Sprintf("%t", item.Attributes.Expired),
 			formatEncryptionStatus(item.Attributes.UsesNonExemptEncryption),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBuildsMarkdown(resp *BuildsResponse) error {
@@ -119,18 +119,19 @@ func buildIconAssetURL(attr BuildIconAttributes) string {
 }
 
 func printBuildIconsTable(resp *BuildIconsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tType\tMasked\tAsset URL")
+	headers := []string{"ID", "Name", "Type", "Masked", "Asset URL"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%t\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			string(item.Attributes.IconType),
-			item.Attributes.Masked,
+			fmt.Sprintf("%t", item.Attributes.Masked),
 			sanitizeTerminal(buildIconAssetURL(item.Attributes)),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBuildIconsMarkdown(resp *BuildIconsResponse) error {
@@ -166,19 +167,20 @@ func buildUploadTimestamp(attr BuildUploadAttributes) string {
 }
 
 func printBuildUploadsTable(resp *BuildUploadsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tBuild\tPlatform\tState\tUploaded")
+	headers := []string{"ID", "Version", "Build", "Platform", "State", "Uploaded"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.CFBundleShortVersionString,
 			item.Attributes.CFBundleVersion,
 			string(item.Attributes.Platform),
 			buildUploadState(item.Attributes),
 			buildUploadTimestamp(item.Attributes),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBuildUploadsMarkdown(resp *BuildUploadsResponse) error {
@@ -205,23 +207,24 @@ func buildUploadFileState(attr BuildUploadFileAttributes) string {
 }
 
 func printBuildUploadFilesTable(resp *BuildUploadFilesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tAsset Type\tState\tUploaded")
+	headers := []string{"ID", "File Name", "File Size", "Asset Type", "State", "Uploaded"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		uploaded := ""
 		if item.Attributes.Uploaded != nil {
 			uploaded = fmt.Sprintf("%t", *item.Attributes.Uploaded)
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.FileName,
-			item.Attributes.FileSize,
+			fmt.Sprintf("%d", item.Attributes.FileSize),
 			string(item.Attributes.AssetType),
 			buildUploadFileState(item.Attributes),
 			uploaded,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBuildUploadFilesMarkdown(resp *BuildUploadFilesResponse) error {
@@ -245,7 +248,6 @@ func printBuildUploadFilesMarkdown(resp *BuildUploadFilesResponse) error {
 }
 
 func printBuildUploadResultTable(result *BuildUploadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	headers := []string{"Upload ID", "File ID", "File Name", "File Size"}
 	values := []string{
 		result.UploadID,
@@ -261,26 +263,23 @@ func printBuildUploadResultTable(result *BuildUploadResult) error {
 		headers = append(headers, "Checksum Verified")
 		values = append(values, fmt.Sprintf("%t", *result.ChecksumVerified))
 	}
-	fmt.Fprintln(w, strings.Join(headers, "\t"))
-	fmt.Fprintln(w, strings.Join(values, "\t"))
-	if err := w.Flush(); err != nil {
-		return err
-	}
+	RenderTable(headers, [][]string{values})
 	if len(result.Operations) == 0 {
 		return nil
 	}
 	fmt.Fprintln(os.Stdout, "\nUpload Operations")
-	opsWriter := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(opsWriter, "Method\tURL\tLength\tOffset")
+	opsHeaders := []string{"Method", "URL", "Length", "Offset"}
+	opsRows := make([][]string, 0, len(result.Operations))
 	for _, op := range result.Operations {
-		fmt.Fprintf(opsWriter, "%s\t%s\t%d\t%d\n",
+		opsRows = append(opsRows, []string{
 			op.Method,
 			op.URL,
-			op.Length,
-			op.Offset,
-		)
+			fmt.Sprintf("%d", op.Length),
+			fmt.Sprintf("%d", op.Offset),
+		})
 	}
-	return opsWriter.Flush()
+	RenderTable(opsHeaders, opsRows)
+	return nil
 }
 
 func printBuildUploadResultMarkdown(result *BuildUploadResult) error {
@@ -323,37 +322,36 @@ func printBuildUploadResultMarkdown(result *BuildUploadResult) error {
 }
 
 func printBuildExpireAllResultTable(result *BuildExpireAllResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	status := "expired"
 	if result.DryRun {
 		status = "would-expire"
 	}
-	fmt.Fprintln(w, "ID\tVersion\tUploaded\tAge Days\tStatus")
+	headers := []string{"ID", "Version", "Uploaded", "Age Days", "Status"}
+	rows := make([][]string, 0, len(result.Builds))
 	for _, item := range result.Builds {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Version,
 			item.UploadedDate,
-			item.AgeDays,
+			fmt.Sprintf("%d", item.AgeDays),
 			status,
-		)
+		})
 	}
-	if err := w.Flush(); err != nil {
-		return err
-	}
+	RenderTable(headers, rows)
 	if len(result.Failures) == 0 {
 		return nil
 	}
 	fmt.Fprintln(os.Stdout, "\nFailures")
-	failuresWriter := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(failuresWriter, "ID\tError")
+	failHeaders := []string{"ID", "Error"}
+	failRows := make([][]string, 0, len(result.Failures))
 	for _, failure := range result.Failures {
-		fmt.Fprintf(failuresWriter, "%s\t%s\n",
+		failRows = append(failRows, []string{
 			failure.ID,
 			compactWhitespace(failure.Error),
-		)
+		})
 	}
-	return failuresWriter.Flush()
+	RenderTable(failHeaders, failRows)
+	return nil
 }
 
 func printBuildExpireAllResultMarkdown(result *BuildExpireAllResult) error {
@@ -388,14 +386,10 @@ func printBuildExpireAllResultMarkdown(result *BuildExpireAllResult) error {
 }
 
 func printBuildBetaGroupsUpdateTable(result *BuildBetaGroupsUpdateResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Build ID\tGroup IDs\tAction")
-	fmt.Fprintf(w, "%s\t%s\t%s\n",
-		result.BuildID,
-		strings.Join(result.GroupIDs, ", "),
-		result.Action,
-	)
-	return w.Flush()
+	headers := []string{"Build ID", "Group IDs", "Action"}
+	rows := [][]string{{result.BuildID, strings.Join(result.GroupIDs, ", "), result.Action}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBuildBetaGroupsUpdateMarkdown(result *BuildBetaGroupsUpdateResult) error {
@@ -410,14 +404,10 @@ func printBuildBetaGroupsUpdateMarkdown(result *BuildBetaGroupsUpdateResult) err
 }
 
 func printBuildIndividualTestersUpdateTable(result *BuildIndividualTestersUpdateResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Build ID\tTester IDs\tAction")
-	fmt.Fprintf(w, "%s\t%s\t%s\n",
-		result.BuildID,
-		strings.Join(result.TesterIDs, ", "),
-		result.Action,
-	)
-	return w.Flush()
+	headers := []string{"Build ID", "Tester IDs", "Action"}
+	rows := [][]string{{result.BuildID, strings.Join(result.TesterIDs, ", "), result.Action}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBuildIndividualTestersUpdateMarkdown(result *BuildIndividualTestersUpdateResult) error {
@@ -432,10 +422,10 @@ func printBuildIndividualTestersUpdateMarkdown(result *BuildIndividualTestersUpd
 }
 
 func printBuildUploadDeleteResultTable(result *BuildUploadDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBuildUploadDeleteResultMarkdown(result *BuildUploadDeleteResult) error {

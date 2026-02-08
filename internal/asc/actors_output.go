@@ -3,23 +3,23 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func printActorsTable(resp *ActorsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tType\tName\tEmail\tAPI Key ID")
+	headers := []string{"ID", "Type", "Name", "Email", "API Key ID"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attr := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(attr.ActorType),
 			compactWhitespace(formatPersonName(attr.UserFirstName, attr.UserLastName)),
 			compactWhitespace(attr.UserEmail),
 			compactWhitespace(attr.APIKeyID),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printActorsMarkdown(resp *ActorsResponse) error {

@@ -3,21 +3,21 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func printAppCustomProductPagesTable(resp *AppCustomProductPagesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tVisible\tURL")
+	headers := []string{"ID", "Name", "Visible", "URL"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			boolValue(item.Attributes.Visible),
 			compactWhitespace(item.Attributes.URL),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppCustomProductPagesMarkdown(resp *AppCustomProductPagesResponse) error {
@@ -35,17 +35,18 @@ func printAppCustomProductPagesMarkdown(resp *AppCustomProductPagesResponse) err
 }
 
 func printAppCustomProductPageVersionsTable(resp *AppCustomProductPageVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tState\tDeep Link")
+	headers := []string{"ID", "Version", "State", "Deep Link"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Version),
 			compactWhitespace(item.Attributes.State),
 			compactWhitespace(item.Attributes.DeepLink),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppCustomProductPageVersionsMarkdown(resp *AppCustomProductPageVersionsResponse) error {
@@ -63,16 +64,17 @@ func printAppCustomProductPageVersionsMarkdown(resp *AppCustomProductPageVersion
 }
 
 func printAppCustomProductPageLocalizationsTable(resp *AppCustomProductPageLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale\tPromotional Text")
+	headers := []string{"ID", "Locale", "Promotional Text"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Locale),
 			compactWhitespace(item.Attributes.PromotionalText),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppCustomProductPageLocalizationsMarkdown(resp *AppCustomProductPageLocalizationsResponse) error {
@@ -89,12 +91,13 @@ func printAppCustomProductPageLocalizationsMarkdown(resp *AppCustomProductPageLo
 }
 
 func printAppKeywordsTable(resp *AppKeywordsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID")
+	headers := []string{"ID"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\n", item.ID)
+		rows = append(rows, []string{item.ID})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppKeywordsMarkdown(resp *AppKeywordsResponse) error {
@@ -107,17 +110,18 @@ func printAppKeywordsMarkdown(resp *AppKeywordsResponse) error {
 }
 
 func printAppStoreVersionExperimentsTable(resp *AppStoreVersionExperimentsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tTraffic Proportion\tState")
+	headers := []string{"ID", "Name", "Traffic Proportion", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			formatOptionalInt(item.Attributes.TrafficProportion),
 			compactWhitespace(item.Attributes.State),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionExperimentsMarkdown(resp *AppStoreVersionExperimentsResponse) error {
@@ -135,18 +139,19 @@ func printAppStoreVersionExperimentsMarkdown(resp *AppStoreVersionExperimentsRes
 }
 
 func printAppStoreVersionExperimentsV2Table(resp *AppStoreVersionExperimentsV2Response) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tPlatform\tTraffic Proportion\tState")
+	headers := []string{"ID", "Name", "Platform", "Traffic Proportion", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			string(item.Attributes.Platform),
 			formatOptionalInt(item.Attributes.TrafficProportion),
 			compactWhitespace(item.Attributes.State),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionExperimentsV2Markdown(resp *AppStoreVersionExperimentsV2Response) error {
@@ -165,17 +170,18 @@ func printAppStoreVersionExperimentsV2Markdown(resp *AppStoreVersionExperimentsV
 }
 
 func printAppStoreVersionExperimentTreatmentsTable(resp *AppStoreVersionExperimentTreatmentsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tApp Icon Name\tPromoted Date")
+	headers := []string{"ID", "Name", "App Icon Name", "Promoted Date"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			compactWhitespace(item.Attributes.AppIconName),
 			compactWhitespace(item.Attributes.PromotedDate),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionExperimentTreatmentsMarkdown(resp *AppStoreVersionExperimentTreatmentsResponse) error {
@@ -193,15 +199,16 @@ func printAppStoreVersionExperimentTreatmentsMarkdown(resp *AppStoreVersionExper
 }
 
 func printAppStoreVersionExperimentTreatmentLocalizationsTable(resp *AppStoreVersionExperimentTreatmentLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale")
+	headers := []string{"ID", "Locale"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Locale),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionExperimentTreatmentLocalizationsMarkdown(resp *AppStoreVersionExperimentTreatmentLocalizationsResponse) error {
@@ -217,10 +224,10 @@ func printAppStoreVersionExperimentTreatmentLocalizationsMarkdown(resp *AppStore
 }
 
 func printAppCustomProductPageDeleteResultTable(result *AppCustomProductPageDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppCustomProductPageDeleteResultMarkdown(result *AppCustomProductPageDeleteResult) error {
@@ -231,10 +238,10 @@ func printAppCustomProductPageDeleteResultMarkdown(result *AppCustomProductPageD
 }
 
 func printAppCustomProductPageLocalizationDeleteResultTable(result *AppCustomProductPageLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppCustomProductPageLocalizationDeleteResultMarkdown(result *AppCustomProductPageLocalizationDeleteResult) error {
@@ -245,10 +252,10 @@ func printAppCustomProductPageLocalizationDeleteResultMarkdown(result *AppCustom
 }
 
 func printAppStoreVersionExperimentDeleteResultTable(result *AppStoreVersionExperimentDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionExperimentDeleteResultMarkdown(result *AppStoreVersionExperimentDeleteResult) error {
@@ -259,10 +266,10 @@ func printAppStoreVersionExperimentDeleteResultMarkdown(result *AppStoreVersionE
 }
 
 func printAppStoreVersionExperimentTreatmentDeleteResultTable(result *AppStoreVersionExperimentTreatmentDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionExperimentTreatmentDeleteResultMarkdown(result *AppStoreVersionExperimentTreatmentDeleteResult) error {
@@ -273,10 +280,10 @@ func printAppStoreVersionExperimentTreatmentDeleteResultMarkdown(result *AppStor
 }
 
 func printAppStoreVersionExperimentTreatmentLocalizationDeleteResultTable(result *AppStoreVersionExperimentTreatmentLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionExperimentTreatmentLocalizationDeleteResultMarkdown(result *AppStoreVersionExperimentTreatmentLocalizationDeleteResult) error {

@@ -5,7 +5,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 )
 
 type ageRatingField struct {
@@ -15,12 +14,13 @@ type ageRatingField struct {
 
 func printAgeRatingDeclarationTable(resp *AgeRatingDeclarationResponse) error {
 	fields := ageRatingFields(resp)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Field\tValue")
+	headers := []string{"Field", "Value"}
+	rows := make([][]string, 0, len(fields))
 	for _, field := range fields {
-		fmt.Fprintf(w, "%s\t%s\n", field.Name, field.Value)
+		rows = append(rows, []string{field.Name, field.Value})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAgeRatingDeclarationMarkdown(resp *AgeRatingDeclarationResponse) error {

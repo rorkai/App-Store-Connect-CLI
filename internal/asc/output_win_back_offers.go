@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"text/tabwriter"
 )
 
 // WinBackOfferDeleteResult represents CLI output for win-back offer deletions.
@@ -15,11 +14,11 @@ type WinBackOfferDeleteResult struct {
 }
 
 func printWinBackOffersTable(resp *WinBackOffersResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name\tOffer ID\tDuration\tMode\tPeriods\tPaid Months\tLast Subscribed\tWait Months\tStart Date\tEnd Date\tPriority\tPromotion Intent")
+	headers := []string{"ID", "Reference Name", "Offer ID", "Duration", "Mode", "Periods", "Paid Months", "Last Subscribed", "Wait Months", "Start Date", "End Date", "Priority", "Promotion Intent"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(attrs.ReferenceName),
 			attrs.OfferID,
@@ -33,9 +32,10 @@ func printWinBackOffersTable(resp *WinBackOffersResponse) error {
 			formatOptionalString(attrs.EndDate),
 			string(attrs.Priority),
 			formatPromotionIntent(attrs.PromotionIntent),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printWinBackOffersMarkdown(resp *WinBackOffersResponse) error {
@@ -63,16 +63,17 @@ func printWinBackOffersMarkdown(resp *WinBackOffersResponse) error {
 }
 
 func printWinBackOfferPricesTable(resp *WinBackOfferPricesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tTerritory\tPrice Point")
+	headers := []string{"ID", "Territory", "Price Point"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		territoryID, pricePointID, err := winBackOfferPriceRelationshipIDs(item.Relationships)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n", item.ID, territoryID, pricePointID)
+		rows = append(rows, []string{item.ID, territoryID, pricePointID})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printWinBackOfferPricesMarkdown(resp *WinBackOfferPricesResponse) error {
@@ -93,10 +94,10 @@ func printWinBackOfferPricesMarkdown(resp *WinBackOfferPricesResponse) error {
 }
 
 func printWinBackOfferDeleteResultTable(result *WinBackOfferDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printWinBackOfferDeleteResultMarkdown(result *WinBackOfferDeleteResult) error {

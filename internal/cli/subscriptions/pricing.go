@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"text/tabwriter"
 	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -501,12 +500,10 @@ func printSubscriptionPricingResult(result *subscriptionPricingResult, format st
 }
 
 func printSubscriptionPricingTable(result *subscriptionPricingResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tProduct ID\tPeriod\tState\tGroup\tCurrent Price\tProceeds\tProceeds Y2")
+	headers := []string{"ID", "Name", "Product ID", "Period", "State", "Group", "Current Price", "Proceeds", "Proceeds Y2"}
+	rows := make([][]string, 0, len(result.Subscriptions))
 	for _, item := range result.Subscriptions {
-		fmt.Fprintf(
-			w,
-			"%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactSubText(item.Name),
 			item.ProductID,
@@ -516,9 +513,10 @@ func printSubscriptionPricingTable(result *subscriptionPricingResult) error {
 			formatSubMoney(item.CurrentPrice),
 			formatSubMoney(item.Proceeds),
 			formatSubMoney(item.ProceedsYear2),
-		)
+		})
 	}
-	return w.Flush()
+	asc.RenderTable(headers, rows)
+	return nil
 }
 
 func printSubscriptionPricingMarkdown(result *subscriptionPricingResult) error {

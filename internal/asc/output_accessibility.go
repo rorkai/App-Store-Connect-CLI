@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 type accessibilityDeclarationField struct {
@@ -12,11 +11,11 @@ type accessibilityDeclarationField struct {
 }
 
 func printAccessibilityDeclarationsTable(resp *AccessibilityDeclarationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDevice Family\tState\tAudio Descriptions\tCaptions\tDark Interface\tDifferentiate Without Color\tLarger Text\tReduced Motion\tSufficient Contrast\tVoice Control\tVoiceover")
+	headers := []string{"ID", "Device Family", "State", "Audio Descriptions", "Captions", "Dark Interface", "Differentiate Without Color", "Larger Text", "Reduced Motion", "Sufficient Contrast", "Voice Control", "Voiceover"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
 			sanitizeTerminal(fallbackValue(string(attrs.DeviceFamily))),
 			sanitizeTerminal(fallbackValue(string(attrs.State))),
@@ -29,9 +28,10 @@ func printAccessibilityDeclarationsTable(resp *AccessibilityDeclarationsResponse
 			formatOptionalBool(attrs.SupportsSufficientContrast),
 			formatOptionalBool(attrs.SupportsVoiceControl),
 			formatOptionalBool(attrs.SupportsVoiceover),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAccessibilityDeclarationsMarkdown(resp *AccessibilityDeclarationsResponse) error {
@@ -59,12 +59,13 @@ func printAccessibilityDeclarationsMarkdown(resp *AccessibilityDeclarationsRespo
 
 func printAccessibilityDeclarationTable(resp *AccessibilityDeclarationResponse) error {
 	fields := accessibilityDeclarationFields(resp)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Field\tValue")
+	headers := []string{"Field", "Value"}
+	rows := make([][]string, 0, len(fields))
 	for _, field := range fields {
-		fmt.Fprintf(w, "%s\t%s\n", field.Name, field.Value)
+		rows = append(rows, []string{field.Name, field.Value})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAccessibilityDeclarationMarkdown(resp *AccessibilityDeclarationResponse) error {
@@ -100,13 +101,10 @@ func accessibilityDeclarationFields(resp *AccessibilityDeclarationResponse) []ac
 }
 
 func printAccessibilityDeclarationDeleteResultTable(result *AccessibilityDeclarationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n",
-		result.ID,
-		result.Deleted,
-	)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAccessibilityDeclarationDeleteResultMarkdown(result *AccessibilityDeclarationDeleteResult) error {

@@ -2,8 +2,8 @@ package migrate
 
 import (
 	"fmt"
-	"os"
-	"text/tabwriter"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func printMigrateImportResultMarkdown(result *MigrateImportResult) error {
@@ -72,26 +72,28 @@ func printMigrateImportResultTable(result *MigrateImportResult) error {
 
 	// Version localizations
 	fmt.Println("Version Localizations:")
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "LOCALE\tFIELDS\tSTATUS")
-	for _, loc := range result.Localizations {
-		status := "found"
-		for _, u := range result.Uploaded {
-			if u.Locale == loc.Locale {
-				status = "uploaded"
-				break
+	{
+		headers := []string{"Locale", "Fields", "Status"}
+		rows := make([][]string, 0, len(result.Localizations))
+		for _, loc := range result.Localizations {
+			status := "found"
+			for _, u := range result.Uploaded {
+				if u.Locale == loc.Locale {
+					status = "uploaded"
+					break
+				}
 			}
+			rows = append(rows, []string{loc.Locale, fmt.Sprintf("%d", countNonEmptyFields(loc)), status})
 		}
-		fmt.Fprintf(w, "%s\t%d\t%s\n", loc.Locale, countNonEmptyFields(loc), status)
+		asc.RenderTable(headers, rows)
 	}
-	w.Flush()
 
 	// App Info localizations
 	if len(result.AppInfoLocalizations) > 0 {
 		fmt.Println()
 		fmt.Println("App Info Localizations:")
-		w2 := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w2, "LOCALE\tNAME\tSUBTITLE\tSTATUS")
+		headers := []string{"Locale", "Name", "Subtitle", "Status"}
+		rows := make([][]string, 0, len(result.AppInfoLocalizations))
 		for _, loc := range result.AppInfoLocalizations {
 			status := "found"
 			for _, u := range result.AppInfoUploaded {
@@ -108,9 +110,9 @@ func printMigrateImportResultTable(result *MigrateImportResult) error {
 			if loc.Subtitle != "" {
 				subtitle = "yes"
 			}
-			fmt.Fprintf(w2, "%s\t%s\t%s\t%s\n", loc.Locale, name, subtitle, status)
+			rows = append(rows, []string{loc.Locale, name, subtitle, status})
 		}
-		w2.Flush()
+		asc.RenderTable(headers, rows)
 	}
 
 	return nil
@@ -131,12 +133,12 @@ func printMigrateExportResultMarkdown(result *MigrateExportResult) error {
 func printMigrateExportResultTable(result *MigrateExportResult) error {
 	fmt.Printf("Version ID: %s\n", result.VersionID)
 	fmt.Printf("Output Dir: %s\n\n", result.OutputDir)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "LOCALE")
+	headers := []string{"Locale"}
+	rows := make([][]string, 0, len(result.Locales))
 	for _, locale := range result.Locales {
-		fmt.Fprintf(w, "%s\n", locale)
+		rows = append(rows, []string{locale})
 	}
-	w.Flush()
+	asc.RenderTable(headers, rows)
 	fmt.Printf("\nTotal Files: %d\n", result.TotalFiles)
 	return nil
 }
@@ -191,8 +193,8 @@ func printMigrateValidateResultTable(result *MigrateValidateResult) error {
 
 	if len(result.Issues) > 0 {
 		fmt.Println()
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "LOCALE\tFIELD\tSEVERITY\tMESSAGE\tLENGTH\tLIMIT")
+		headers := []string{"Locale", "Field", "Severity", "Message", "Length", "Limit"}
+		rows := make([][]string, 0, len(result.Issues))
 		for _, issue := range result.Issues {
 			length := "-"
 			limit := "-"
@@ -202,10 +204,9 @@ func printMigrateValidateResultTable(result *MigrateValidateResult) error {
 			if issue.Limit > 0 {
 				limit = fmt.Sprintf("%d", issue.Limit)
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
-				issue.Locale, issue.Field, issue.Severity, issue.Message, length, limit)
+			rows = append(rows, []string{issue.Locale, issue.Field, issue.Severity, issue.Message, length, limit})
 		}
-		w.Flush()
+		asc.RenderTable(headers, rows)
 	}
 
 	return nil

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // PerformanceDownloadResult represents CLI output for performance downloads.
@@ -102,15 +101,15 @@ func printPerfPowerMetricsTable(resp *PerfPowerMetricsResponse) error {
 		return err
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Version\tProducts\tTrending Up\tRegressions")
-	fmt.Fprintf(w, "%s\t%d\t%d\t%d\n",
+	headers := []string{"Version", "Products", "Trending Up", "Regressions"}
+	rows := [][]string{{
 		summary.Version,
-		summary.ProductCount,
-		summary.TrendingUpCount,
-		summary.RegressionCount,
-	)
-	return w.Flush()
+		fmt.Sprintf("%d", summary.ProductCount),
+		fmt.Sprintf("%d", summary.TrendingUpCount),
+		fmt.Sprintf("%d", summary.RegressionCount),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printPerfPowerMetricsMarkdown(resp *PerfPowerMetricsResponse) error {
@@ -131,22 +130,23 @@ func printPerfPowerMetricsMarkdown(resp *PerfPowerMetricsResponse) error {
 }
 
 func printDiagnosticSignaturesTable(resp *DiagnosticSignaturesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tType\tWeight\tInsight\tSignature")
+	headers := []string{"ID", "Type", "Weight", "Insight", "Signature"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		insight := ""
 		if item.Attributes.Insight != nil {
 			insight = string(item.Attributes.Insight.Direction)
 		}
-		fmt.Fprintf(w, "%s\t%s\t%.2f\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.DiagnosticType,
-			item.Attributes.Weight,
+			string(item.Attributes.DiagnosticType),
+			fmt.Sprintf("%.2f", item.Attributes.Weight),
 			insight,
 			item.Attributes.Signature,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printDiagnosticSignaturesMarkdown(resp *DiagnosticSignaturesResponse) error {
@@ -174,15 +174,15 @@ func printDiagnosticLogsTable(resp *DiagnosticLogsResponse) error {
 		return err
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Version\tProducts\tLogs\tInsights")
-	fmt.Fprintf(w, "%s\t%d\t%d\t%d\n",
+	headers := []string{"Version", "Products", "Logs", "Insights"}
+	rows := [][]string{{
 		summary.Version,
-		summary.ProductCount,
-		summary.LogCount,
-		summary.InsightCount,
-	)
-	return w.Flush()
+		fmt.Sprintf("%d", summary.ProductCount),
+		fmt.Sprintf("%d", summary.LogCount),
+		fmt.Sprintf("%d", summary.InsightCount),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printDiagnosticLogsMarkdown(resp *DiagnosticLogsResponse) error {
@@ -203,19 +203,19 @@ func printDiagnosticLogsMarkdown(resp *DiagnosticLogsResponse) error {
 }
 
 func printPerformanceDownloadResultTable(result *PerformanceDownloadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Type\tApp ID\tBuild ID\tDiagnostic ID\tCompressed File\tCompressed Size\tDecompressed File\tDecompressed Size")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d\t%s\t%d\n",
+	headers := []string{"Type", "App ID", "Build ID", "Diagnostic ID", "Compressed File", "Compressed Size", "Decompressed File", "Decompressed Size"}
+	rows := [][]string{{
 		result.DownloadType,
 		result.AppID,
 		result.BuildID,
 		result.DiagnosticSignatureID,
 		result.FilePath,
-		result.FileSize,
+		fmt.Sprintf("%d", result.FileSize),
 		result.DecompressedPath,
-		result.DecompressedSize,
-	)
-	return w.Flush()
+		fmt.Sprintf("%d", result.DecompressedSize),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printPerformanceDownloadResultMarkdown(result *PerformanceDownloadResult) error {

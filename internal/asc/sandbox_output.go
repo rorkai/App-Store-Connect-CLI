@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 // SandboxTesterClearHistoryResult represents CLI output for clear history requests.
@@ -19,17 +18,18 @@ func formatSandboxTesterName(attr SandboxTesterAttributes) string {
 }
 
 func printSandboxTestersTable(resp *SandboxTestersResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tEmail\tName\tTerritory")
+	headers := []string{"ID", "Email", "Name", "Territory"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			sandboxTesterEmail(item.Attributes),
 			formatSandboxTesterName(item.Attributes),
 			sandboxTesterTerritory(item.Attributes),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSandboxTestersMarkdown(resp *SandboxTestersResponse) error {
@@ -47,14 +47,14 @@ func printSandboxTestersMarkdown(resp *SandboxTestersResponse) error {
 }
 
 func printSandboxTesterClearHistoryResultTable(result *SandboxTesterClearHistoryResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Request ID\tTester ID\tCleared")
-	fmt.Fprintf(w, "%s\t%s\t%t\n",
+	headers := []string{"Request ID", "Tester ID", "Cleared"}
+	rows := [][]string{{
 		result.RequestID,
 		result.TesterID,
-		result.Cleared,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", result.Cleared),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSandboxTesterClearHistoryResultMarkdown(result *SandboxTesterClearHistoryResult) error {

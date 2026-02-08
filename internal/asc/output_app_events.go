@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // AppEventDeleteResult represents CLI output for app event deletions.
@@ -29,20 +28,21 @@ type AppEventSubmissionResult struct {
 }
 
 func printAppEventsTable(resp *AppEventsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name\tType\tState\tPrimary Locale\tPriority")
+	headers := []string{"ID", "Reference Name", "Type", "State", "Primary Locale", "Priority"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
 			compactWhitespace(attrs.ReferenceName),
 			sanitizeTerminal(attrs.Badge),
 			sanitizeTerminal(attrs.EventState),
 			sanitizeTerminal(attrs.PrimaryLocale),
 			sanitizeTerminal(attrs.Priority),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppEventsMarkdown(resp *AppEventsResponse) error {
@@ -63,19 +63,20 @@ func printAppEventsMarkdown(resp *AppEventsResponse) error {
 }
 
 func printAppEventLocalizationsTable(resp *AppEventLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale\tName\tShort Description\tLong Description")
+	headers := []string{"ID", "Locale", "Name", "Short Description", "Long Description"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
 			sanitizeTerminal(attrs.Locale),
 			compactWhitespace(attrs.Name),
 			compactWhitespace(attrs.ShortDescription),
 			compactWhitespace(attrs.LongDescription),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppEventLocalizationsMarkdown(resp *AppEventLocalizationsResponse) error {
@@ -95,19 +96,20 @@ func printAppEventLocalizationsMarkdown(resp *AppEventLocalizationsResponse) err
 }
 
 func printAppEventScreenshotsTable(resp *AppEventScreenshotsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tAsset Type\tState")
+	headers := []string{"ID", "File Name", "File Size", "Asset Type", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
 			sanitizeTerminal(attrs.FileName),
-			attrs.FileSize,
+			fmt.Sprintf("%d", attrs.FileSize),
 			sanitizeTerminal(attrs.AppEventAssetType),
 			sanitizeTerminal(formatAppMediaAssetState(attrs.AssetDeliveryState)),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppEventScreenshotsMarkdown(resp *AppEventScreenshotsResponse) error {
@@ -127,19 +129,20 @@ func printAppEventScreenshotsMarkdown(resp *AppEventScreenshotsResponse) error {
 }
 
 func printAppEventVideoClipsTable(resp *AppEventVideoClipsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tAsset Type\tState")
+	headers := []string{"ID", "File Name", "File Size", "Asset Type", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
 			sanitizeTerminal(attrs.FileName),
-			attrs.FileSize,
+			fmt.Sprintf("%d", attrs.FileSize),
 			sanitizeTerminal(attrs.AppEventAssetType),
 			sanitizeTerminal(formatAppMediaVideoState(attrs.VideoDeliveryState, attrs.AssetDeliveryState)),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppEventVideoClipsMarkdown(resp *AppEventVideoClipsResponse) error {
@@ -159,10 +162,10 @@ func printAppEventVideoClipsMarkdown(resp *AppEventVideoClipsResponse) error {
 }
 
 func printAppEventDeleteResultTable(result *AppEventDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppEventDeleteResultMarkdown(result *AppEventDeleteResult) error {
@@ -176,10 +179,10 @@ func printAppEventDeleteResultMarkdown(result *AppEventDeleteResult) error {
 }
 
 func printAppEventLocalizationDeleteResultTable(result *AppEventLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppEventLocalizationDeleteResultMarkdown(result *AppEventLocalizationDeleteResult) error {
@@ -193,21 +196,21 @@ func printAppEventLocalizationDeleteResultMarkdown(result *AppEventLocalizationD
 }
 
 func printAppEventSubmissionResultTable(result *AppEventSubmissionResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Submission ID\tItem ID\tEvent ID\tApp ID\tPlatform\tSubmitted Date")
+	headers := []string{"Submission ID", "Item ID", "Event ID", "App ID", "Platform", "Submitted Date"}
 	submittedDate := ""
 	if result.SubmittedDate != nil {
 		submittedDate = *result.SubmittedDate
 	}
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+	rows := [][]string{{
 		sanitizeTerminal(result.SubmissionID),
 		sanitizeTerminal(result.ItemID),
 		sanitizeTerminal(result.EventID),
 		sanitizeTerminal(result.AppID),
 		sanitizeTerminal(result.Platform),
 		sanitizeTerminal(submittedDate),
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppEventSubmissionResultMarkdown(result *AppEventSubmissionResult) error {

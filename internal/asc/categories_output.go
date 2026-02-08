@@ -2,9 +2,7 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 // formatPlatforms converts a slice of Platform to a comma-separated string.
@@ -26,10 +24,11 @@ func printAppCategoriesMarkdown(resp *AppCategoriesResponse) error {
 }
 
 func printAppCategoriesTable(resp *AppCategoriesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tPLATFORMS")
+	headers := []string{"ID", "PLATFORMS"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, cat := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n", cat.ID, formatPlatforms(cat.Attributes.Platforms))
+		rows = append(rows, []string{cat.ID, formatPlatforms(cat.Attributes.Platforms)})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }

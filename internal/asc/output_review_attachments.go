@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 type appStoreReviewAttachmentField struct {
@@ -12,19 +11,20 @@ type appStoreReviewAttachmentField struct {
 }
 
 func printAppStoreReviewAttachmentsTable(resp *AppStoreReviewAttachmentsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tChecksum\tDelivery State")
+	headers := []string{"ID", "File Name", "File Size", "Checksum", "Delivery State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
 			sanitizeTerminal(fallbackValue(attrs.FileName)),
 			formatAttachmentFileSize(attrs.FileSize),
 			sanitizeTerminal(fallbackValue(attrs.SourceFileChecksum)),
 			sanitizeTerminal(formatAssetDeliveryState(attrs.AssetDeliveryState)),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreReviewAttachmentsMarkdown(resp *AppStoreReviewAttachmentsResponse) error {
@@ -45,12 +45,13 @@ func printAppStoreReviewAttachmentsMarkdown(resp *AppStoreReviewAttachmentsRespo
 
 func printAppStoreReviewAttachmentTable(resp *AppStoreReviewAttachmentResponse) error {
 	fields := appStoreReviewAttachmentFields(resp)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Field\tValue")
+	headers := []string{"Field", "Value"}
+	rows := make([][]string, 0, len(fields))
 	for _, field := range fields {
-		fmt.Fprintf(w, "%s\t%s\n", field.Name, field.Value)
+		rows = append(rows, []string{field.Name, field.Value})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreReviewAttachmentMarkdown(resp *AppStoreReviewAttachmentResponse) error {
@@ -79,10 +80,10 @@ func appStoreReviewAttachmentFields(resp *AppStoreReviewAttachmentResponse) []ap
 }
 
 func printAppStoreReviewAttachmentDeleteResultTable(result *AppStoreReviewAttachmentDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreReviewAttachmentDeleteResultMarkdown(result *AppStoreReviewAttachmentDeleteResult) error {

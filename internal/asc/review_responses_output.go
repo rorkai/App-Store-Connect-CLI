@@ -3,19 +3,18 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func printCustomerReviewResponseTable(resp *CustomerReviewResponseResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tState\tLast Modified\tResponse Body")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+	headers := []string{"ID", "State", "Last Modified", "Response Body"}
+	rows := [][]string{{
 		resp.Data.ID,
 		sanitizeTerminal(resp.Data.Attributes.State),
 		sanitizeTerminal(resp.Data.Attributes.LastModified),
 		compactWhitespace(resp.Data.Attributes.ResponseBody),
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCustomerReviewResponseMarkdown(resp *CustomerReviewResponseResponse) error {
@@ -31,13 +30,10 @@ func printCustomerReviewResponseMarkdown(resp *CustomerReviewResponseResponse) e
 }
 
 func printCustomerReviewResponseDeleteResultTable(result *CustomerReviewResponseDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n",
-		result.ID,
-		result.Deleted,
-	)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCustomerReviewResponseDeleteResultMarkdown(result *CustomerReviewResponseDeleteResult) error {

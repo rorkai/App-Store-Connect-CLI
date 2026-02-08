@@ -4,25 +4,25 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"text/tabwriter"
 )
 
 func printReviewSubmissionsTable(resp *ReviewSubmissionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tState\tPlatform\tSubmitted Date\tApp ID\tItems")
+	headers := []string{"ID", "State", "Platform", "Submitted Date", "App ID", "Items"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		appID := reviewSubmissionAppID(item.Relationships)
 		itemCount := reviewSubmissionItemCount(item.Relationships)
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			sanitizeTerminal(string(item.Attributes.SubmissionState)),
 			sanitizeTerminal(string(item.Attributes.Platform)),
 			sanitizeTerminal(item.Attributes.SubmittedDate),
 			sanitizeTerminal(appID),
 			itemCount,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printReviewSubmissionsMarkdown(resp *ReviewSubmissionsResponse) error {
@@ -44,20 +44,21 @@ func printReviewSubmissionsMarkdown(resp *ReviewSubmissionsResponse) error {
 }
 
 func printReviewSubmissionItemsTable(resp *ReviewSubmissionItemsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tState\tItem Type\tItem ID\tSubmission ID")
+	headers := []string{"ID", "State", "Item Type", "Item ID", "Submission ID"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		itemType, itemID := reviewSubmissionItemTarget(item.Relationships)
 		submissionID := reviewSubmissionItemSubmissionID(item.Relationships)
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			sanitizeTerminal(item.Attributes.State),
 			sanitizeTerminal(itemType),
 			sanitizeTerminal(itemID),
 			sanitizeTerminal(submissionID),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printReviewSubmissionItemsMarkdown(resp *ReviewSubmissionItemsResponse) error {
@@ -78,13 +79,10 @@ func printReviewSubmissionItemsMarkdown(resp *ReviewSubmissionItemsResponse) err
 }
 
 func printReviewSubmissionItemDeleteResultTable(result *ReviewSubmissionItemDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n",
-		result.ID,
-		result.Deleted,
-	)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printReviewSubmissionItemDeleteResultMarkdown(result *ReviewSubmissionItemDeleteResult) error {

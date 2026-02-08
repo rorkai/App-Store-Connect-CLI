@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 func feedbackHasScreenshots(resp *FeedbackResponse) bool {
@@ -31,59 +30,63 @@ func formatScreenshotURLs(images []FeedbackScreenshotImage) string {
 }
 
 func printFeedbackTable(resp *FeedbackResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	hasScreenshots := feedbackHasScreenshots(resp)
+	var headers []string
 	if hasScreenshots {
-		fmt.Fprintln(w, "Created\tEmail\tComment\tScreenshots")
+		headers = []string{"Created", "Email", "Comment", "Screenshots"}
 	} else {
-		fmt.Fprintln(w, "Created\tEmail\tComment")
+		headers = []string{"Created", "Email", "Comment"}
 	}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		if hasScreenshots {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+			rows = append(rows, []string{
 				sanitizeTerminal(item.Attributes.CreatedDate),
 				sanitizeTerminal(item.Attributes.Email),
 				compactWhitespace(item.Attributes.Comment),
 				sanitizeTerminal(formatScreenshotURLs(item.Attributes.Screenshots)),
-			)
+			})
 			continue
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.Attributes.CreatedDate),
 			sanitizeTerminal(item.Attributes.Email),
 			compactWhitespace(item.Attributes.Comment),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCrashesTable(resp *CrashesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Created\tEmail\tDevice\tOS\tComment")
+	headers := []string{"Created", "Email", "Device", "OS", "Comment"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.Attributes.CreatedDate),
 			sanitizeTerminal(item.Attributes.Email),
 			sanitizeTerminal(item.Attributes.DeviceModel),
 			sanitizeTerminal(item.Attributes.OSVersion),
 			compactWhitespace(item.Attributes.Comment),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printReviewsTable(resp *ReviewsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Created\tRating\tTerritory\tTitle")
+	headers := []string{"Created", "Rating", "Territory", "Title"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%d\t%s\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.Attributes.CreatedDate),
-			item.Attributes.Rating,
+			fmt.Sprintf("%d", item.Attributes.Rating),
 			sanitizeTerminal(item.Attributes.Territory),
 			compactWhitespace(item.Attributes.Title),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printFeedbackMarkdown(resp *FeedbackResponse) error {

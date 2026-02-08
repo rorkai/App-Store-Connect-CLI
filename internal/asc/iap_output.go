@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // InAppPurchaseDeleteResult represents CLI output for IAP deletions.
@@ -14,18 +13,19 @@ type InAppPurchaseDeleteResult struct {
 }
 
 func printInAppPurchasesTable(resp *InAppPurchasesV2Response) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tProduct ID\tType\tState")
+	headers := []string{"ID", "Name", "Product ID", "Type", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			item.Attributes.ProductID,
 			item.Attributes.InAppPurchaseType,
 			item.Attributes.State,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchasesMarkdown(resp *InAppPurchasesV2Response) error {
@@ -44,18 +44,19 @@ func printInAppPurchasesMarkdown(resp *InAppPurchasesV2Response) error {
 }
 
 func printLegacyInAppPurchasesTable(resp *InAppPurchasesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name\tProduct ID\tType\tState")
+	headers := []string{"ID", "Reference Name", "Product ID", "Type", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.ReferenceName),
 			item.Attributes.ProductID,
 			item.Attributes.InAppPurchaseType,
 			item.Attributes.State,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printLegacyInAppPurchasesMarkdown(resp *InAppPurchasesResponse) error {
@@ -74,17 +75,18 @@ func printLegacyInAppPurchasesMarkdown(resp *InAppPurchasesResponse) error {
 }
 
 func printInAppPurchaseLocalizationsTable(resp *InAppPurchaseLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale\tName\tDescription")
+	headers := []string{"ID", "Locale", "Name", "Description"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Name),
 			compactWhitespace(item.Attributes.Description),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchaseLocalizationsMarkdown(resp *InAppPurchaseLocalizationsResponse) error {
@@ -102,10 +104,10 @@ func printInAppPurchaseLocalizationsMarkdown(resp *InAppPurchaseLocalizationsRes
 }
 
 func printInAppPurchaseDeleteResultTable(result *InAppPurchaseDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchaseDeleteResultMarkdown(result *InAppPurchaseDeleteResult) error {
@@ -119,17 +121,18 @@ func printInAppPurchaseDeleteResultMarkdown(result *InAppPurchaseDeleteResult) e
 }
 
 func printInAppPurchaseImagesTable(resp *InAppPurchaseImagesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tState")
+	headers := []string{"ID", "File Name", "File Size", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.FileName,
-			item.Attributes.FileSize,
+			fmt.Sprintf("%d", item.Attributes.FileSize),
 			item.Attributes.State,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchaseImagesMarkdown(resp *InAppPurchaseImagesResponse) error {
@@ -147,16 +150,17 @@ func printInAppPurchaseImagesMarkdown(resp *InAppPurchaseImagesResponse) error {
 }
 
 func printInAppPurchasePricePointsTable(resp *InAppPurchasePricePointsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tCustomer Price\tProceeds")
+	headers := []string{"ID", "Customer Price", "Proceeds"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.CustomerPrice,
 			item.Attributes.Proceeds,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchasePricePointsMarkdown(resp *InAppPurchasePricePointsResponse) error {
@@ -173,23 +177,24 @@ func printInAppPurchasePricePointsMarkdown(resp *InAppPurchasePricePointsRespons
 }
 
 func printInAppPurchasePricesTable(resp *InAppPurchasePricesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tTerritory\tPrice Point\tStart Date\tEnd Date\tManual")
+	headers := []string{"ID", "Territory", "Price Point", "Start Date", "End Date", "Manual"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		territoryID, pricePointID, err := inAppPurchasePriceRelationshipIDs(item.Relationships)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
 			territoryID,
 			pricePointID,
 			item.Attributes.StartDate,
 			item.Attributes.EndDate,
-			item.Attributes.Manual,
-		)
+			fmt.Sprintf("%t", item.Attributes.Manual),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchasePricesMarkdown(resp *InAppPurchasePricesResponse) error {
@@ -213,20 +218,21 @@ func printInAppPurchasePricesMarkdown(resp *InAppPurchasePricesResponse) error {
 }
 
 func printInAppPurchaseOfferCodePricesTable(resp *InAppPurchaseOfferPricesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tTerritory\tPrice Point")
+	headers := []string{"ID", "Territory", "Price Point"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		territoryID, pricePointID, err := inAppPurchaseOfferPriceRelationshipIDs(item.Relationships)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
 			sanitizeTerminal(territoryID),
 			sanitizeTerminal(pricePointID),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchaseOfferCodePricesMarkdown(resp *InAppPurchaseOfferPricesResponse) error {
@@ -247,18 +253,19 @@ func printInAppPurchaseOfferCodePricesMarkdown(resp *InAppPurchaseOfferPricesRes
 }
 
 func printInAppPurchaseOfferCodesTable(resp *InAppPurchaseOfferCodesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tActive\tProd Codes\tSandbox Codes")
+	headers := []string{"ID", "Name", "Active", "Prod Codes", "Sandbox Codes"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%t\t%d\t%d\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
-			item.Attributes.Active,
-			item.Attributes.ProductionCodeCount,
-			item.Attributes.SandboxCodeCount,
-		)
+			fmt.Sprintf("%t", item.Attributes.Active),
+			fmt.Sprintf("%d", item.Attributes.ProductionCodeCount),
+			fmt.Sprintf("%d", item.Attributes.SandboxCodeCount),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchaseOfferCodesMarkdown(resp *InAppPurchaseOfferCodesResponse) error {
@@ -277,20 +284,21 @@ func printInAppPurchaseOfferCodesMarkdown(resp *InAppPurchaseOfferCodesResponse)
 }
 
 func printInAppPurchaseOfferCodeCustomCodesTable(resp *InAppPurchaseOfferCodeCustomCodesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tCustom Code\tCodes\tExpires\tCreated\tActive")
+	headers := []string{"ID", "Custom Code", "Codes", "Expires", "Created", "Active"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%t\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
 			sanitizeTerminal(attrs.CustomCode),
-			attrs.NumberOfCodes,
+			fmt.Sprintf("%d", attrs.NumberOfCodes),
 			sanitizeTerminal(attrs.ExpirationDate),
 			sanitizeTerminal(attrs.CreatedDate),
-			attrs.Active,
-		)
+			fmt.Sprintf("%t", attrs.Active),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchaseOfferCodeCustomCodesMarkdown(resp *InAppPurchaseOfferCodeCustomCodesResponse) error {
@@ -311,20 +319,21 @@ func printInAppPurchaseOfferCodeCustomCodesMarkdown(resp *InAppPurchaseOfferCode
 }
 
 func printInAppPurchaseOfferCodeOneTimeUseCodesTable(resp *InAppPurchaseOfferCodeOneTimeUseCodesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tCodes\tExpires\tCreated\tActive\tEnvironment")
+	headers := []string{"ID", "Codes", "Expires", "Created", "Active", "Environment"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%t\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
-			attrs.NumberOfCodes,
+			fmt.Sprintf("%d", attrs.NumberOfCodes),
 			sanitizeTerminal(attrs.ExpirationDate),
 			sanitizeTerminal(attrs.CreatedDate),
-			attrs.Active,
+			fmt.Sprintf("%t", attrs.Active),
 			sanitizeTerminal(attrs.Environment),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchaseOfferCodeOneTimeUseCodesMarkdown(resp *InAppPurchaseOfferCodeOneTimeUseCodesResponse) error {
@@ -345,10 +354,10 @@ func printInAppPurchaseOfferCodeOneTimeUseCodesMarkdown(resp *InAppPurchaseOffer
 }
 
 func printInAppPurchaseAvailabilityTable(resp *InAppPurchaseAvailabilityResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tAvailable In New Territories")
-	fmt.Fprintf(w, "%s\t%t\n", resp.Data.ID, resp.Data.Attributes.AvailableInNewTerritories)
-	return w.Flush()
+	headers := []string{"ID", "Available In New Territories"}
+	rows := [][]string{{resp.Data.ID, fmt.Sprintf("%t", resp.Data.Attributes.AvailableInNewTerritories)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchaseAvailabilityMarkdown(resp *InAppPurchaseAvailabilityResponse) error {
@@ -362,16 +371,16 @@ func printInAppPurchaseAvailabilityMarkdown(resp *InAppPurchaseAvailabilityRespo
 }
 
 func printInAppPurchaseContentTable(resp *InAppPurchaseContentResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tLast Modified\tURL")
-	fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n",
+	headers := []string{"ID", "File Name", "File Size", "Last Modified", "URL"}
+	rows := [][]string{{
 		resp.Data.ID,
 		resp.Data.Attributes.FileName,
-		resp.Data.Attributes.FileSize,
+		fmt.Sprintf("%d", resp.Data.Attributes.FileSize),
 		resp.Data.Attributes.LastModifiedDate,
 		resp.Data.Attributes.URL,
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchaseContentMarkdown(resp *InAppPurchaseContentResponse) error {
@@ -388,10 +397,10 @@ func printInAppPurchaseContentMarkdown(resp *InAppPurchaseContentResponse) error
 }
 
 func printInAppPurchasePriceScheduleTable(resp *InAppPurchasePriceScheduleResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID")
-	fmt.Fprintf(w, "%s\n", resp.Data.ID)
-	return w.Flush()
+	headers := []string{"ID"}
+	rows := [][]string{{resp.Data.ID}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchasePriceScheduleMarkdown(resp *InAppPurchasePriceScheduleResponse) error {
@@ -435,15 +444,15 @@ func inAppPurchaseOfferPriceRelationshipIDs(raw json.RawMessage) (string, string
 }
 
 func printInAppPurchaseReviewScreenshotTable(resp *InAppPurchaseAppStoreReviewScreenshotResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tAsset Type")
-	fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+	headers := []string{"ID", "File Name", "File Size", "Asset Type"}
+	rows := [][]string{{
 		resp.Data.ID,
 		resp.Data.Attributes.FileName,
-		resp.Data.Attributes.FileSize,
+		fmt.Sprintf("%d", resp.Data.Attributes.FileSize),
 		resp.Data.Attributes.AssetType,
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printInAppPurchaseReviewScreenshotMarkdown(resp *InAppPurchaseAppStoreReviewScreenshotResponse) error {

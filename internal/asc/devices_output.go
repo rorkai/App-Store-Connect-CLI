@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // DeviceLocalUDIDResult represents CLI output for local device UDID lookup.
@@ -13,10 +12,10 @@ type DeviceLocalUDIDResult struct {
 }
 
 func printDeviceLocalUDIDTable(result *DeviceLocalUDIDResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "UDID\tPlatform")
-	fmt.Fprintf(w, "%s\t%s\n", result.UDID, result.Platform)
-	return w.Flush()
+	headers := []string{"UDID", "Platform"}
+	rows := [][]string{{result.UDID, result.Platform}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printDeviceLocalUDIDMarkdown(result *DeviceLocalUDIDResult) error {
@@ -30,10 +29,10 @@ func printDeviceLocalUDIDMarkdown(result *DeviceLocalUDIDResult) error {
 }
 
 func printDevicesTable(resp *DevicesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tUDID\tPlatform\tStatus\tClass\tModel\tAdded")
+	headers := []string{"ID", "Name", "UDID", "Platform", "Status", "Class", "Model", "Added"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			compactWhitespace(item.Attributes.UDID),
@@ -42,9 +41,10 @@ func printDevicesTable(resp *DevicesResponse) error {
 			compactWhitespace(string(item.Attributes.DeviceClass)),
 			compactWhitespace(item.Attributes.Model),
 			compactWhitespace(item.Attributes.AddedDate),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printDevicesMarkdown(resp *DevicesResponse) error {

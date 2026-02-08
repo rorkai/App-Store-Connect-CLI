@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // AppSetupInfoResult represents CLI output for app-setup info updates.
@@ -14,25 +13,27 @@ type AppSetupInfoResult struct {
 }
 
 func printAppSetupInfoResultTable(result *AppSetupInfoResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Resource\tID\tLocale\tName\tSubtitle\tBundle ID\tPrimary Locale\tPrivacy Policy URL")
+	headers := []string{"Resource", "ID", "Locale", "Name", "Subtitle", "Bundle ID", "Primary Locale", "Privacy Policy URL"}
+	var rows [][]string
 	if result.App != nil {
 		attrs := result.App.Data.Attributes
-		fmt.Fprintf(w, "app\t%s\t\t\t\t%s\t%s\t\n", result.App.Data.ID, attrs.BundleID, attrs.PrimaryLocale)
+		rows = append(rows, []string{"app", result.App.Data.ID, "", "", "", attrs.BundleID, attrs.PrimaryLocale, ""})
 	}
 	if result.AppInfoLocalization != nil {
 		attrs := result.AppInfoLocalization.Data.Attributes
-		fmt.Fprintf(
-			w,
-			"appInfoLocalization\t%s\t%s\t%s\t%s\t\t\t%s\n",
+		rows = append(rows, []string{
+			"appInfoLocalization",
 			result.AppInfoLocalization.Data.ID,
 			attrs.Locale,
 			compactWhitespace(attrs.Name),
 			compactWhitespace(attrs.Subtitle),
+			"",
+			"",
 			attrs.PrivacyPolicyURL,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppSetupInfoResultMarkdown(result *AppSetupInfoResult) error {

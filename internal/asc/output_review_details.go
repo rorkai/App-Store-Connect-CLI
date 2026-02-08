@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 func formatReviewDetailContactName(attr AppStoreReviewDetailAttributes) string {
@@ -23,19 +22,19 @@ func formatReviewDetailContactName(attr AppStoreReviewDetailAttributes) string {
 }
 
 func printAppStoreReviewDetailTable(resp *AppStoreReviewDetailResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tContact\tEmail\tPhone\tDemo Required\tDemo Account\tNotes")
+	headers := []string{"ID", "Contact", "Email", "Phone", "Demo Required", "Demo Account", "Notes"}
 	attr := resp.Data.Attributes
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%t\t%s\t%s\n",
+	rows := [][]string{{
 		resp.Data.ID,
 		compactWhitespace(formatReviewDetailContactName(attr)),
 		compactWhitespace(attr.ContactEmail),
 		compactWhitespace(attr.ContactPhone),
-		attr.DemoAccountRequired,
+		fmt.Sprintf("%t", attr.DemoAccountRequired),
 		compactWhitespace(attr.DemoAccountName),
 		compactWhitespace(attr.Notes),
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreReviewDetailMarkdown(resp *AppStoreReviewDetailResponse) error {

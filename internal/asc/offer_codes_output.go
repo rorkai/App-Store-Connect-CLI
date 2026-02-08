@@ -4,23 +4,23 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 func printOfferCodesTable(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tCodes\tExpires\tCreated\tActive")
+	headers := []string{"ID", "Codes", "Expires", "Created", "Active"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%t\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
-			attrs.NumberOfCodes,
+			fmt.Sprintf("%d", attrs.NumberOfCodes),
 			sanitizeTerminal(attrs.ExpirationDate),
 			sanitizeTerminal(attrs.CreatedDate),
-			attrs.Active,
-		)
+			fmt.Sprintf("%t", attrs.Active),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printOfferCodesMarkdown(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) error {
@@ -40,24 +40,24 @@ func printOfferCodesMarkdown(resp *SubscriptionOfferCodeOneTimeUseCodesResponse)
 }
 
 func printSubscriptionOfferCodeTable(resp *SubscriptionOfferCodeResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tCustomer Eligibilities\tOffer Eligibility\tDuration\tMode\tPeriods\tTotal Codes\tProduction Codes\tSandbox Codes\tActive\tAuto Renew")
+	headers := []string{"ID", "Name", "Customer Eligibilities", "Offer Eligibility", "Duration", "Mode", "Periods", "Total Codes", "Production Codes", "Sandbox Codes", "Active", "Auto Renew"}
 	attrs := resp.Data.Attributes
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%t\t%s\n",
+	rows := [][]string{{
 		sanitizeTerminal(resp.Data.ID),
 		compactWhitespace(attrs.Name),
 		sanitizeTerminal(formatOfferCodeCustomerEligibilities(attrs.CustomerEligibilities)),
 		sanitizeTerminal(string(attrs.OfferEligibility)),
 		sanitizeTerminal(string(attrs.Duration)),
 		sanitizeTerminal(string(attrs.OfferMode)),
-		attrs.NumberOfPeriods,
-		attrs.TotalNumberOfCodes,
-		attrs.ProductionCodeCount,
-		attrs.SandboxCodeCount,
-		attrs.Active,
+		fmt.Sprintf("%d", attrs.NumberOfPeriods),
+		fmt.Sprintf("%d", attrs.TotalNumberOfCodes),
+		fmt.Sprintf("%d", attrs.ProductionCodeCount),
+		fmt.Sprintf("%d", attrs.SandboxCodeCount),
+		fmt.Sprintf("%t", attrs.Active),
 		formatOptionalBool(attrs.AutoRenewEnabled),
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSubscriptionOfferCodeMarkdown(resp *SubscriptionOfferCodeResponse) error {

@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 type routingAppCoverageField struct {
@@ -13,12 +12,13 @@ type routingAppCoverageField struct {
 
 func printRoutingAppCoverageTable(resp *RoutingAppCoverageResponse) error {
 	fields := routingAppCoverageFields(resp)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Field\tValue")
+	headers := []string{"Field", "Value"}
+	rows := make([][]string, 0, len(fields))
 	for _, field := range fields {
-		fmt.Fprintf(w, "%s\t%s\n", field.Name, field.Value)
+		rows = append(rows, []string{field.Name, field.Value})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printRoutingAppCoverageMarkdown(resp *RoutingAppCoverageResponse) error {
@@ -47,10 +47,10 @@ func routingAppCoverageFields(resp *RoutingAppCoverageResponse) []routingAppCove
 }
 
 func printRoutingAppCoverageDeleteResultTable(result *RoutingAppCoverageDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printRoutingAppCoverageDeleteResultMarkdown(result *RoutingAppCoverageDeleteResult) error {

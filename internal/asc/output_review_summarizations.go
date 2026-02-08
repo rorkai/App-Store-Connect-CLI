@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func customerReviewSummarizationTerritoryID(resource CustomerReviewSummarizationResource) string {
@@ -14,19 +13,20 @@ func customerReviewSummarizationTerritoryID(resource CustomerReviewSummarization
 }
 
 func printCustomerReviewSummarizationsTable(resp *CustomerReviewSummarizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale\tPlatform\tTerritory\tCreated\tText")
+	headers := []string{"ID", "Locale", "Platform", "Territory", "Created", "Text"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Locale),
 			compactWhitespace(string(item.Attributes.Platform)),
 			compactWhitespace(customerReviewSummarizationTerritoryID(item)),
 			compactWhitespace(item.Attributes.CreatedDate),
 			compactWhitespace(item.Attributes.Text),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCustomerReviewSummarizationsMarkdown(resp *CustomerReviewSummarizationsResponse) error {

@@ -4,22 +4,21 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 func printTestFlightPublishResultTable(result *TestFlightPublishResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Build ID\tVersion\tBuild Number\tProcessing\tGroups\tUploaded\tNotified")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%t\t%t\n",
+	headers := []string{"Build ID", "Version", "Build Number", "Processing", "Groups", "Uploaded", "Notified"}
+	rows := [][]string{{
 		result.BuildID,
 		result.BuildVersion,
 		result.BuildNumber,
 		result.ProcessingState,
 		strings.Join(result.GroupIDs, ", "),
-		result.Uploaded,
-		result.Notified,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", result.Uploaded),
+		fmt.Sprintf("%t", result.Notified),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printTestFlightPublishResultMarkdown(result *TestFlightPublishResult) error {
@@ -38,17 +37,17 @@ func printTestFlightPublishResultMarkdown(result *TestFlightPublishResult) error
 }
 
 func printAppStorePublishResultTable(result *AppStorePublishResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Build ID\tVersion ID\tSubmission ID\tUploaded\tAttached\tSubmitted")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%t\t%t\t%t\n",
+	headers := []string{"Build ID", "Version ID", "Submission ID", "Uploaded", "Attached", "Submitted"}
+	rows := [][]string{{
 		result.BuildID,
 		result.VersionID,
 		result.SubmissionID,
-		result.Uploaded,
-		result.Attached,
-		result.Submitted,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", result.Uploaded),
+		fmt.Sprintf("%t", result.Attached),
+		fmt.Sprintf("%t", result.Submitted),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStorePublishResultMarkdown(result *AppStorePublishResult) error {

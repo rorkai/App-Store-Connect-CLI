@@ -4,21 +4,21 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 func printBackgroundAssetsTable(resp *BackgroundAssetsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tAsset Pack Identifier\tArchived\tCreated Date")
+	headers := []string{"ID", "Asset Pack Identifier", "Archived", "Created Date"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%t\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.AssetPackIdentifier),
-			item.Attributes.Archived,
+			fmt.Sprintf("%t", item.Attributes.Archived),
 			item.Attributes.CreatedDate,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBackgroundAssetsMarkdown(resp *BackgroundAssetsResponse) error {
@@ -36,18 +36,19 @@ func printBackgroundAssetsMarkdown(resp *BackgroundAssetsResponse) error {
 }
 
 func printBackgroundAssetVersionsTable(resp *BackgroundAssetVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tState\tPlatforms\tCreated Date")
+	headers := []string{"ID", "Version", "State", "Platforms", "Created Date"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Version),
 			compactWhitespace(item.Attributes.State),
 			formatPlatforms(item.Attributes.Platforms),
 			item.Attributes.CreatedDate,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBackgroundAssetVersionsMarkdown(resp *BackgroundAssetVersionsResponse) error {
@@ -66,22 +67,23 @@ func printBackgroundAssetVersionsMarkdown(resp *BackgroundAssetVersionsResponse)
 }
 
 func printBackgroundAssetUploadFilesTable(resp *BackgroundAssetUploadFilesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tAsset Type\tFile Size\tState")
+	headers := []string{"ID", "File Name", "Asset Type", "File Size", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		state := ""
 		if item.Attributes.AssetDeliveryState != nil && item.Attributes.AssetDeliveryState.State != nil {
 			state = *item.Attributes.AssetDeliveryState.State
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.FileName),
 			string(item.Attributes.AssetType),
-			item.Attributes.FileSize,
+			fmt.Sprintf("%d", item.Attributes.FileSize),
 			state,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBackgroundAssetUploadFilesMarkdown(resp *BackgroundAssetUploadFilesResponse) error {
@@ -104,10 +106,10 @@ func printBackgroundAssetUploadFilesMarkdown(resp *BackgroundAssetUploadFilesRes
 }
 
 func printBackgroundAssetVersionStateTable(id string, state string) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tState")
-	fmt.Fprintf(w, "%s\t%s\n", id, state)
-	return w.Flush()
+	headers := []string{"ID", "State"}
+	rows := [][]string{{id, state}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBackgroundAssetVersionStateMarkdown(id string, state string) error {

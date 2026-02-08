@@ -5,7 +5,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"text/tabwriter"
 )
 
 func formatBetaReviewContactName(attr BetaAppReviewDetailAttributes) string {
@@ -24,20 +23,21 @@ func formatBetaReviewContactName(attr BetaAppReviewDetailAttributes) string {
 }
 
 func printBetaAppReviewDetailsTable(resp *BetaAppReviewDetailsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tContact\tEmail\tPhone\tDemo Required\tDemo Account\tNotes")
+	headers := []string{"ID", "Contact", "Email", "Phone", "Demo Required", "Demo Account", "Notes"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%t\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(formatBetaReviewContactName(item.Attributes)),
 			compactWhitespace(item.Attributes.ContactEmail),
 			compactWhitespace(item.Attributes.ContactPhone),
-			item.Attributes.DemoAccountRequired,
+			fmt.Sprintf("%t", item.Attributes.DemoAccountRequired),
 			compactWhitespace(item.Attributes.DemoAccountName),
 			compactWhitespace(item.Attributes.Notes),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaAppReviewDetailTable(resp *BetaAppReviewDetailResponse) error {
@@ -70,16 +70,17 @@ func printBetaAppReviewDetailMarkdown(resp *BetaAppReviewDetailResponse) error {
 }
 
 func printBetaAppReviewSubmissionsTable(resp *BetaAppReviewSubmissionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tState\tSubmitted Date")
+	headers := []string{"ID", "State", "Submitted Date"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.BetaReviewState),
 			compactWhitespace(item.Attributes.SubmittedDate),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaAppReviewSubmissionTable(resp *BetaAppReviewSubmissionResponse) error {
@@ -108,17 +109,18 @@ func printBetaAppReviewSubmissionMarkdown(resp *BetaAppReviewSubmissionResponse)
 }
 
 func printBuildBetaDetailsTable(resp *BuildBetaDetailsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tAuto Notify\tInternal State\tExternal State")
+	headers := []string{"ID", "Auto Notify", "Internal State", "External State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%t\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.AutoNotifyEnabled,
+			fmt.Sprintf("%t", item.Attributes.AutoNotifyEnabled),
 			compactWhitespace(item.Attributes.InternalBuildState),
 			compactWhitespace(item.Attributes.ExternalBuildState),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBuildBetaDetailTable(resp *BuildBetaDetailResponse) error {
@@ -148,15 +150,16 @@ func printBuildBetaDetailMarkdown(resp *BuildBetaDetailResponse) error {
 }
 
 func printBetaRecruitmentCriterionOptionsTable(resp *BetaRecruitmentCriterionOptionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDevice Family OS Versions")
+	headers := []string{"ID", "Device Family OS Versions"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(formatDeviceFamilyOsVersions(item.Attributes.DeviceFamilyOsVersions)),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaRecruitmentCriterionOptionsMarkdown(resp *BetaRecruitmentCriterionOptionsResponse) error {
@@ -172,14 +175,14 @@ func printBetaRecruitmentCriterionOptionsMarkdown(resp *BetaRecruitmentCriterion
 }
 
 func printBetaRecruitmentCriteriaTable(resp *BetaRecruitmentCriteriaResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLast Modified\tFilters")
-	fmt.Fprintf(w, "%s\t%s\t%s\n",
+	headers := []string{"ID", "Last Modified", "Filters"}
+	rows := [][]string{{
 		resp.Data.ID,
 		compactWhitespace(resp.Data.Attributes.LastModifiedDate),
 		compactWhitespace(formatDeviceFamilyOsVersionFilters(resp.Data.Attributes.DeviceFamilyOsVersionFilters)),
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaRecruitmentCriteriaMarkdown(resp *BetaRecruitmentCriteriaResponse) error {
@@ -194,13 +197,10 @@ func printBetaRecruitmentCriteriaMarkdown(resp *BetaRecruitmentCriteriaResponse)
 }
 
 func printBetaRecruitmentCriteriaDeleteResultTable(result *BetaRecruitmentCriteriaDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n",
-		result.ID,
-		result.Deleted,
-	)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaRecruitmentCriteriaDeleteResultMarkdown(result *BetaRecruitmentCriteriaDeleteResult) error {
@@ -272,15 +272,16 @@ func formatMetricAttributes(attrs BetaGroupMetricAttributes) string {
 }
 
 func printBetaGroupMetricsTable(items []Resource[BetaGroupMetricAttributes]) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tAttributes")
+	headers := []string{"ID", "Attributes"}
+	rows := make([][]string, 0, len(items))
 	for _, item := range items {
-		fmt.Fprintf(w, "%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(formatMetricAttributes(item.Attributes)),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaGroupMetricsMarkdown(items []Resource[BetaGroupMetricAttributes]) error {

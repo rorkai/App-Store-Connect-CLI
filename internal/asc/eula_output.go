@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 func endUserLicenseAgreementAppID(resource EndUserLicenseAgreementResource) string {
@@ -36,15 +35,15 @@ func formatEndUserLicenseAgreementTerritories(resource EndUserLicenseAgreementRe
 }
 
 func printEndUserLicenseAgreementTable(resp *EndUserLicenseAgreementResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tApp ID\tTerritories\tAgreement Text")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+	headers := []string{"ID", "App ID", "Territories", "Agreement Text"}
+	rows := [][]string{{
 		resp.Data.ID,
 		compactWhitespace(endUserLicenseAgreementAppID(resp.Data)),
 		compactWhitespace(formatEndUserLicenseAgreementTerritories(resp.Data)),
 		compactWhitespace(resp.Data.Attributes.AgreementText),
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printEndUserLicenseAgreementMarkdown(resp *EndUserLicenseAgreementResponse) error {
@@ -60,13 +59,10 @@ func printEndUserLicenseAgreementMarkdown(resp *EndUserLicenseAgreementResponse)
 }
 
 func printEndUserLicenseAgreementDeleteResultTable(result *EndUserLicenseAgreementDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n",
-		result.ID,
-		result.Deleted,
-	)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printEndUserLicenseAgreementDeleteResultMarkdown(result *EndUserLicenseAgreementDeleteResult) error {

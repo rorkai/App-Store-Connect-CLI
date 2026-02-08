@@ -3,16 +3,16 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func printTerritoriesTable(resp *TerritoriesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tCurrency")
+	headers := []string{"ID", "Currency"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n", item.ID, item.Attributes.Currency)
+		rows = append(rows, []string{item.ID, item.Attributes.Currency})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printTerritoriesMarkdown(resp *TerritoriesResponse) error {
@@ -28,16 +28,17 @@ func printTerritoriesMarkdown(resp *TerritoriesResponse) error {
 }
 
 func printAppPricePointsTable(resp *AppPricePointsV3Response) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tCustomer Price\tProceeds")
+	headers := []string{"ID", "Customer Price", "Proceeds"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.CustomerPrice,
 			item.Attributes.Proceeds,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppPricePointsMarkdown(resp *AppPricePointsV3Response) error {
@@ -54,17 +55,18 @@ func printAppPricePointsMarkdown(resp *AppPricePointsV3Response) error {
 }
 
 func printAppPricesTable(resp *AppPricesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tStart Date\tEnd Date\tManual")
+	headers := []string{"ID", "Start Date", "End Date", "Manual"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.StartDate),
 			compactWhitespace(item.Attributes.EndDate),
-			item.Attributes.Manual,
-		)
+			fmt.Sprintf("%t", item.Attributes.Manual),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppPricesMarkdown(resp *AppPricesResponse) error {
@@ -82,10 +84,10 @@ func printAppPricesMarkdown(resp *AppPricesResponse) error {
 }
 
 func printAppPriceScheduleTable(resp *AppPriceScheduleResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID")
-	fmt.Fprintf(w, "%s\n", resp.Data.ID)
-	return w.Flush()
+	headers := []string{"ID"}
+	rows := [][]string{{resp.Data.ID}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppPriceScheduleMarkdown(resp *AppPriceScheduleResponse) error {
@@ -96,10 +98,10 @@ func printAppPriceScheduleMarkdown(resp *AppPriceScheduleResponse) error {
 }
 
 func printAppAvailabilityTable(resp *AppAvailabilityV2Response) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tAvailable In New Territories")
-	fmt.Fprintf(w, "%s\t%t\n", resp.Data.ID, resp.Data.Attributes.AvailableInNewTerritories)
-	return w.Flush()
+	headers := []string{"ID", "Available In New Territories"}
+	rows := [][]string{{resp.Data.ID, fmt.Sprintf("%t", resp.Data.Attributes.AvailableInNewTerritories)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppAvailabilityMarkdown(resp *AppAvailabilityV2Response) error {
@@ -113,17 +115,18 @@ func printAppAvailabilityMarkdown(resp *AppAvailabilityV2Response) error {
 }
 
 func printTerritoryAvailabilitiesTable(resp *TerritoryAvailabilitiesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tAvailable\tRelease Date\tPreorder Enabled")
+	headers := []string{"ID", "Available", "Release Date", "Preorder Enabled"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%t\t%s\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Available,
+			fmt.Sprintf("%t", item.Attributes.Available),
 			compactWhitespace(item.Attributes.ReleaseDate),
-			item.Attributes.PreOrderEnabled,
-		)
+			fmt.Sprintf("%t", item.Attributes.PreOrderEnabled),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printTerritoryAvailabilitiesMarkdown(resp *TerritoryAvailabilitiesResponse) error {

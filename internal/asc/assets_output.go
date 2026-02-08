@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // AppScreenshotSetWithScreenshots groups a set with its screenshots.
@@ -61,12 +60,13 @@ type AssetDeleteResult struct {
 }
 
 func printAppScreenshotSetsTable(resp *AppScreenshotSetsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDisplay Type")
+	headers := []string{"ID", "Display Type"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n", item.ID, item.Attributes.ScreenshotDisplayType)
+		rows = append(rows, []string{item.ID, item.Attributes.ScreenshotDisplayType})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppScreenshotSetsMarkdown(resp *AppScreenshotSetsResponse) error {
@@ -82,21 +82,22 @@ func printAppScreenshotSetsMarkdown(resp *AppScreenshotSetsResponse) error {
 }
 
 func printAppScreenshotsTable(resp *AppScreenshotsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tState")
+	headers := []string{"ID", "File Name", "File Size", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		state := ""
 		if item.Attributes.AssetDeliveryState != nil {
 			state = item.Attributes.AssetDeliveryState.State
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.FileName,
-			item.Attributes.FileSize,
+			fmt.Sprintf("%d", item.Attributes.FileSize),
 			state,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppScreenshotsMarkdown(resp *AppScreenshotsResponse) error {
@@ -118,12 +119,13 @@ func printAppScreenshotsMarkdown(resp *AppScreenshotsResponse) error {
 }
 
 func printAppPreviewSetsTable(resp *AppPreviewSetsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tPreview Type")
+	headers := []string{"ID", "Preview Type"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n", item.ID, item.Attributes.PreviewType)
+		rows = append(rows, []string{item.ID, item.Attributes.PreviewType})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppPreviewSetsMarkdown(resp *AppPreviewSetsResponse) error {
@@ -139,21 +141,22 @@ func printAppPreviewSetsMarkdown(resp *AppPreviewSetsResponse) error {
 }
 
 func printAppPreviewsTable(resp *AppPreviewsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tState")
+	headers := []string{"ID", "File Name", "File Size", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		state := ""
 		if item.Attributes.AssetDeliveryState != nil {
 			state = item.Attributes.AssetDeliveryState.State
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.FileName,
-			item.Attributes.FileSize,
+			fmt.Sprintf("%d", item.Attributes.FileSize),
 			state,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppPreviewsMarkdown(resp *AppPreviewsResponse) error {
@@ -175,12 +178,12 @@ func printAppPreviewsMarkdown(resp *AppPreviewsResponse) error {
 }
 
 func printAppScreenshotListResultTable(result *AppScreenshotListResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Set ID\tDisplay Type\tScreenshot ID\tFile Name\tFile Size\tState")
+	headers := []string{"Set ID", "Display Type", "Screenshot ID", "File Name", "File Size", "State"}
+	var rows [][]string
 	for _, set := range result.Sets {
 		displayType := set.Set.Attributes.ScreenshotDisplayType
 		if len(set.Screenshots) == 0 {
-			fmt.Fprintf(w, "%s\t%s\t\t\t\t\n", set.Set.ID, displayType)
+			rows = append(rows, []string{set.Set.ID, displayType, "", "", "", ""})
 			continue
 		}
 		for _, item := range set.Screenshots {
@@ -188,17 +191,18 @@ func printAppScreenshotListResultTable(result *AppScreenshotListResult) error {
 			if item.Attributes.AssetDeliveryState != nil {
 				state = item.Attributes.AssetDeliveryState.State
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n",
+			rows = append(rows, []string{
 				set.Set.ID,
 				displayType,
 				item.ID,
 				item.Attributes.FileName,
-				item.Attributes.FileSize,
+				fmt.Sprintf("%d", item.Attributes.FileSize),
 				state,
-			)
+			})
 		}
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppScreenshotListResultMarkdown(result *AppScreenshotListResult) error {
@@ -232,12 +236,12 @@ func printAppScreenshotListResultMarkdown(result *AppScreenshotListResult) error
 }
 
 func printAppPreviewListResultTable(result *AppPreviewListResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Set ID\tPreview Type\tPreview ID\tFile Name\tFile Size\tState")
+	headers := []string{"Set ID", "Preview Type", "Preview ID", "File Name", "File Size", "State"}
+	var rows [][]string
 	for _, set := range result.Sets {
 		previewType := set.Set.Attributes.PreviewType
 		if len(set.Previews) == 0 {
-			fmt.Fprintf(w, "%s\t%s\t\t\t\t\n", set.Set.ID, previewType)
+			rows = append(rows, []string{set.Set.ID, previewType, "", "", "", ""})
 			continue
 		}
 		for _, item := range set.Previews {
@@ -245,17 +249,18 @@ func printAppPreviewListResultTable(result *AppPreviewListResult) error {
 			if item.Attributes.AssetDeliveryState != nil {
 				state = item.Attributes.AssetDeliveryState.State
 			}
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n",
+			rows = append(rows, []string{
 				set.Set.ID,
 				previewType,
 				item.ID,
 				item.Attributes.FileName,
-				item.Attributes.FileSize,
+				fmt.Sprintf("%d", item.Attributes.FileSize),
 				state,
-			)
+			})
 		}
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppPreviewListResultMarkdown(result *AppPreviewListResult) error {
@@ -289,22 +294,20 @@ func printAppPreviewListResultMarkdown(result *AppPreviewListResult) error {
 }
 
 func printAppScreenshotUploadResultTable(result *AppScreenshotUploadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Localization ID\tSet ID\tDisplay Type")
-	fmt.Fprintf(w, "%s\t%s\t%s\n", result.VersionLocalizationID, result.SetID, result.DisplayType)
-	if err := w.Flush(); err != nil {
-		return err
-	}
+	headers := []string{"Localization ID", "Set ID", "Display Type"}
+	rows := [][]string{{result.VersionLocalizationID, result.SetID, result.DisplayType}}
+	RenderTable(headers, rows)
 	if len(result.Results) == 0 {
 		return nil
 	}
 	fmt.Fprintln(os.Stdout, "\nScreenshots")
-	items := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(items, "File Name\tAsset ID\tState")
+	itemHeaders := []string{"File Name", "Asset ID", "State"}
+	itemRows := make([][]string, 0, len(result.Results))
 	for _, item := range result.Results {
-		fmt.Fprintf(items, "%s\t%s\t%s\n", item.FileName, item.AssetID, item.State)
+		itemRows = append(itemRows, []string{item.FileName, item.AssetID, item.State})
 	}
-	return items.Flush()
+	RenderTable(itemHeaders, itemRows)
+	return nil
 }
 
 func printAppScreenshotUploadResultMarkdown(result *AppScreenshotUploadResult) error {
@@ -331,22 +334,20 @@ func printAppScreenshotUploadResultMarkdown(result *AppScreenshotUploadResult) e
 }
 
 func printAppPreviewUploadResultTable(result *AppPreviewUploadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Localization ID\tSet ID\tPreview Type")
-	fmt.Fprintf(w, "%s\t%s\t%s\n", result.VersionLocalizationID, result.SetID, result.PreviewType)
-	if err := w.Flush(); err != nil {
-		return err
-	}
+	headers := []string{"Localization ID", "Set ID", "Preview Type"}
+	rows := [][]string{{result.VersionLocalizationID, result.SetID, result.PreviewType}}
+	RenderTable(headers, rows)
 	if len(result.Results) == 0 {
 		return nil
 	}
 	fmt.Fprintln(os.Stdout, "\nPreviews")
-	items := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(items, "File Name\tAsset ID\tState")
+	itemHeaders := []string{"File Name", "Asset ID", "State"}
+	itemRows := make([][]string, 0, len(result.Results))
 	for _, item := range result.Results {
-		fmt.Fprintf(items, "%s\t%s\t%s\n", item.FileName, item.AssetID, item.State)
+		itemRows = append(itemRows, []string{item.FileName, item.AssetID, item.State})
 	}
-	return items.Flush()
+	RenderTable(itemHeaders, itemRows)
+	return nil
 }
 
 func printAppPreviewUploadResultMarkdown(result *AppPreviewUploadResult) error {
@@ -373,10 +374,10 @@ func printAppPreviewUploadResultMarkdown(result *AppPreviewUploadResult) error {
 }
 
 func printAssetDeleteResultTable(result *AssetDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAssetDeleteResultMarkdown(result *AssetDeleteResult) error {

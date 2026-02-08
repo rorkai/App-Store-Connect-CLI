@@ -3,14 +3,13 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func printBuildBetaNotificationTable(resp *BuildBetaNotificationResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID")
-	fmt.Fprintf(w, "%s\n", resp.Data.ID)
-	return w.Flush()
+	headers := []string{"ID"}
+	rows := [][]string{{resp.Data.ID}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBuildBetaNotificationMarkdown(resp *BuildBetaNotificationResponse) error {

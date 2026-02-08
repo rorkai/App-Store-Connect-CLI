@@ -4,24 +4,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func printOfferCodeCustomCodesTable(resp *SubscriptionOfferCodeCustomCodesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tCustom Code\tCodes\tExpires\tCreated\tActive")
+	headers := []string{"ID", "Custom Code", "Codes", "Expires", "Created", "Active"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%t\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
 			sanitizeTerminal(attrs.CustomCode),
-			attrs.NumberOfCodes,
+			fmt.Sprintf("%d", attrs.NumberOfCodes),
 			sanitizeTerminal(attrs.ExpirationDate),
 			sanitizeTerminal(attrs.CreatedDate),
-			attrs.Active,
-		)
+			fmt.Sprintf("%t", attrs.Active),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printOfferCodeCustomCodesMarkdown(resp *SubscriptionOfferCodeCustomCodesResponse) error {
@@ -42,16 +42,17 @@ func printOfferCodeCustomCodesMarkdown(resp *SubscriptionOfferCodeCustomCodesRes
 }
 
 func printOfferCodePricesTable(resp *SubscriptionOfferCodePricesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tTerritory\tPrice Point")
+	headers := []string{"ID", "Territory", "Price Point"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		territoryID, pricePointID, err := offerCodePriceRelationshipIDs(item.Relationships)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n", sanitizeTerminal(item.ID), sanitizeTerminal(territoryID), sanitizeTerminal(pricePointID))
+		rows = append(rows, []string{sanitizeTerminal(item.ID), sanitizeTerminal(territoryID), sanitizeTerminal(pricePointID)})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printOfferCodePricesMarkdown(resp *SubscriptionOfferCodePricesResponse) error {
@@ -83,12 +84,13 @@ func offerCodePriceRelationshipIDs(raw json.RawMessage) (string, string, error) 
 }
 
 func printOfferCodeValuesTable(result *OfferCodeValuesResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Code")
+	headers := []string{"Code"}
+	rows := make([][]string, 0, len(result.Codes))
 	for _, code := range result.Codes {
-		fmt.Fprintf(w, "%s\n", sanitizeTerminal(code))
+		rows = append(rows, []string{sanitizeTerminal(code)})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printOfferCodeValuesMarkdown(result *OfferCodeValuesResult) error {

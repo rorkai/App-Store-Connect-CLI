@@ -5,24 +5,24 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 func printGameCenterAchievementsTable(resp *GameCenterAchievementsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name\tVendor ID\tPoints\tShow Before Earned\tRepeatable\tArchived")
+	headers := []string{"ID", "Reference Name", "Vendor ID", "Points", "Show Before Earned", "Repeatable", "Archived"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%t\t%t\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.ReferenceName),
 			item.Attributes.VendorIdentifier,
-			item.Attributes.Points,
-			item.Attributes.ShowBeforeEarned,
-			item.Attributes.Repeatable,
-			item.Attributes.Archived,
-		)
+			fmt.Sprintf("%d", item.Attributes.Points),
+			fmt.Sprintf("%t", item.Attributes.ShowBeforeEarned),
+			fmt.Sprintf("%t", item.Attributes.Repeatable),
+			fmt.Sprintf("%t", item.Attributes.Archived),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterAchievementsMarkdown(resp *GameCenterAchievementsResponse) error {
@@ -43,10 +43,10 @@ func printGameCenterAchievementsMarkdown(resp *GameCenterAchievementsResponse) e
 }
 
 func printGameCenterAchievementDeleteResultTable(result *GameCenterAchievementDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterAchievementDeleteResultMarkdown(result *GameCenterAchievementDeleteResult) error {
@@ -60,20 +60,21 @@ func printGameCenterAchievementDeleteResultMarkdown(result *GameCenterAchievemen
 }
 
 func printGameCenterLeaderboardsTable(resp *GameCenterLeaderboardsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name\tVendor ID\tFormatter\tSort\tSubmission Type\tArchived")
+	headers := []string{"ID", "Reference Name", "Vendor ID", "Formatter", "Sort", "Submission Type", "Archived"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.ReferenceName),
 			item.Attributes.VendorIdentifier,
 			item.Attributes.DefaultFormatter,
 			item.Attributes.ScoreSortType,
 			item.Attributes.SubmissionType,
-			item.Attributes.Archived,
-		)
+			fmt.Sprintf("%t", item.Attributes.Archived),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardsMarkdown(resp *GameCenterLeaderboardsResponse) error {
@@ -94,10 +95,10 @@ func printGameCenterLeaderboardsMarkdown(resp *GameCenterLeaderboardsResponse) e
 }
 
 func printGameCenterLeaderboardDeleteResultTable(result *GameCenterLeaderboardDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardDeleteResultMarkdown(result *GameCenterLeaderboardDeleteResult) error {
@@ -111,16 +112,17 @@ func printGameCenterLeaderboardDeleteResultMarkdown(result *GameCenterLeaderboar
 }
 
 func printGameCenterLeaderboardSetsTable(resp *GameCenterLeaderboardSetsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name\tVendor ID")
+	headers := []string{"ID", "Reference Name", "Vendor ID"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.ReferenceName),
 			item.Attributes.VendorIdentifier,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardSetsMarkdown(resp *GameCenterLeaderboardSetsResponse) error {
@@ -137,10 +139,10 @@ func printGameCenterLeaderboardSetsMarkdown(resp *GameCenterLeaderboardSetsRespo
 }
 
 func printGameCenterLeaderboardSetDeleteResultTable(result *GameCenterLeaderboardSetDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardSetDeleteResultMarkdown(result *GameCenterLeaderboardSetDeleteResult) error {
@@ -154,10 +156,10 @@ func printGameCenterLeaderboardSetDeleteResultMarkdown(result *GameCenterLeaderb
 }
 
 func printGameCenterLeaderboardLocalizationsTable(resp *GameCenterLeaderboardLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale\tName\tFormatter Override\tFormatter Suffix\tFormatter Suffix Singular\tDescription")
+	headers := []string{"ID", "Locale", "Name", "Formatter Override", "Formatter Suffix", "Formatter Suffix Singular", "Description"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Name),
@@ -165,9 +167,10 @@ func printGameCenterLeaderboardLocalizationsTable(resp *GameCenterLeaderboardLoc
 			formatOptionalString(item.Attributes.FormatterSuffix),
 			formatOptionalString(item.Attributes.FormatterSuffixSingular),
 			formatOptionalString(item.Attributes.Description),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardLocalizationsMarkdown(resp *GameCenterLeaderboardLocalizationsResponse) error {
@@ -188,10 +191,10 @@ func printGameCenterLeaderboardLocalizationsMarkdown(resp *GameCenterLeaderboard
 }
 
 func printGameCenterLeaderboardLocalizationDeleteResultTable(result *GameCenterLeaderboardLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardLocalizationDeleteResultMarkdown(result *GameCenterLeaderboardLocalizationDeleteResult) error {
@@ -205,15 +208,16 @@ func printGameCenterLeaderboardLocalizationDeleteResultMarkdown(result *GameCent
 }
 
 func printGameCenterLeaderboardReleasesTable(resp *GameCenterLeaderboardReleasesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLive")
+	headers := []string{"ID", "Live"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Live,
-		)
+			fmt.Sprintf("%t", item.Attributes.Live),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardReleasesMarkdown(resp *GameCenterLeaderboardReleasesResponse) error {
@@ -229,10 +233,10 @@ func printGameCenterLeaderboardReleasesMarkdown(resp *GameCenterLeaderboardRelea
 }
 
 func printGameCenterLeaderboardReleaseDeleteResultTable(result *GameCenterLeaderboardReleaseDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardReleaseDeleteResultMarkdown(result *GameCenterLeaderboardReleaseDeleteResult) error {
@@ -246,15 +250,16 @@ func printGameCenterLeaderboardReleaseDeleteResultMarkdown(result *GameCenterLea
 }
 
 func printGameCenterAchievementReleasesTable(resp *GameCenterAchievementReleasesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLive")
+	headers := []string{"ID", "Live"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Live,
-		)
+			fmt.Sprintf("%t", item.Attributes.Live),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterAchievementReleasesMarkdown(resp *GameCenterAchievementReleasesResponse) error {
@@ -270,10 +275,10 @@ func printGameCenterAchievementReleasesMarkdown(resp *GameCenterAchievementRelea
 }
 
 func printGameCenterAchievementReleaseDeleteResultTable(result *GameCenterAchievementReleaseDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterAchievementReleaseDeleteResultMarkdown(result *GameCenterAchievementReleaseDeleteResult) error {
@@ -287,15 +292,16 @@ func printGameCenterAchievementReleaseDeleteResultMarkdown(result *GameCenterAch
 }
 
 func printGameCenterLeaderboardSetReleasesTable(resp *GameCenterLeaderboardSetReleasesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLive")
+	headers := []string{"ID", "Live"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Live,
-		)
+			fmt.Sprintf("%t", item.Attributes.Live),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardSetReleasesMarkdown(resp *GameCenterLeaderboardSetReleasesResponse) error {
@@ -311,10 +317,10 @@ func printGameCenterLeaderboardSetReleasesMarkdown(resp *GameCenterLeaderboardSe
 }
 
 func printGameCenterLeaderboardSetReleaseDeleteResultTable(result *GameCenterLeaderboardSetReleaseDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardSetReleaseDeleteResultMarkdown(result *GameCenterLeaderboardSetReleaseDeleteResult) error {
@@ -328,16 +334,17 @@ func printGameCenterLeaderboardSetReleaseDeleteResultMarkdown(result *GameCenter
 }
 
 func printGameCenterLeaderboardSetLocalizationsTable(resp *GameCenterLeaderboardSetLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale\tName")
+	headers := []string{"ID", "Locale", "Name"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Name),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardSetLocalizationsMarkdown(resp *GameCenterLeaderboardSetLocalizationsResponse) error {
@@ -354,10 +361,10 @@ func printGameCenterLeaderboardSetLocalizationsMarkdown(resp *GameCenterLeaderbo
 }
 
 func printGameCenterLeaderboardSetLocalizationDeleteResultTable(result *GameCenterLeaderboardSetLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardSetLocalizationDeleteResultMarkdown(result *GameCenterLeaderboardSetLocalizationDeleteResult) error {
@@ -371,18 +378,19 @@ func printGameCenterLeaderboardSetLocalizationDeleteResultMarkdown(result *GameC
 }
 
 func printGameCenterAchievementLocalizationsTable(resp *GameCenterAchievementLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale\tName\tBefore Earned Description\tAfter Earned Description")
+	headers := []string{"ID", "Locale", "Name", "Before Earned Description", "After Earned Description"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Name),
 			compactWhitespace(item.Attributes.BeforeEarnedDescription),
 			compactWhitespace(item.Attributes.AfterEarnedDescription),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterAchievementLocalizationsMarkdown(resp *GameCenterAchievementLocalizationsResponse) error {
@@ -401,10 +409,10 @@ func printGameCenterAchievementLocalizationsMarkdown(resp *GameCenterAchievement
 }
 
 func printGameCenterAchievementLocalizationDeleteResultTable(result *GameCenterAchievementLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterAchievementLocalizationDeleteResultMarkdown(result *GameCenterAchievementLocalizationDeleteResult) error {
@@ -418,17 +426,17 @@ func printGameCenterAchievementLocalizationDeleteResultMarkdown(result *GameCent
 }
 
 func printGameCenterLeaderboardImageUploadResultTable(result *GameCenterLeaderboardImageUploadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocalization ID\tFile Name\tFile Size\tDelivery State\tUploaded")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%t\n",
+	headers := []string{"ID", "Localization ID", "File Name", "File Size", "Delivery State", "Uploaded"}
+	rows := [][]string{{
 		result.ID,
 		result.LocalizationID,
 		result.FileName,
-		result.FileSize,
+		fmt.Sprintf("%d", result.FileSize),
 		result.AssetDeliveryState,
-		result.Uploaded,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", result.Uploaded),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardImageUploadResultMarkdown(result *GameCenterLeaderboardImageUploadResult) error {
@@ -446,10 +454,10 @@ func printGameCenterLeaderboardImageUploadResultMarkdown(result *GameCenterLeade
 }
 
 func printGameCenterLeaderboardImageDeleteResultTable(result *GameCenterLeaderboardImageDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardImageDeleteResultMarkdown(result *GameCenterLeaderboardImageDeleteResult) error {
@@ -463,17 +471,17 @@ func printGameCenterLeaderboardImageDeleteResultMarkdown(result *GameCenterLeade
 }
 
 func printGameCenterAchievementImageUploadResultTable(result *GameCenterAchievementImageUploadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocalization ID\tFile Name\tFile Size\tDelivery State\tUploaded")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%t\n",
+	headers := []string{"ID", "Localization ID", "File Name", "File Size", "Delivery State", "Uploaded"}
+	rows := [][]string{{
 		result.ID,
 		result.LocalizationID,
 		result.FileName,
-		result.FileSize,
+		fmt.Sprintf("%d", result.FileSize),
 		result.AssetDeliveryState,
-		result.Uploaded,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", result.Uploaded),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterAchievementImageUploadResultMarkdown(result *GameCenterAchievementImageUploadResult) error {
@@ -491,10 +499,10 @@ func printGameCenterAchievementImageUploadResultMarkdown(result *GameCenterAchie
 }
 
 func printGameCenterAchievementImageDeleteResultTable(result *GameCenterAchievementImageDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterAchievementImageDeleteResultMarkdown(result *GameCenterAchievementImageDeleteResult) error {
@@ -508,17 +516,17 @@ func printGameCenterAchievementImageDeleteResultMarkdown(result *GameCenterAchie
 }
 
 func printGameCenterLeaderboardSetImageUploadResultTable(result *GameCenterLeaderboardSetImageUploadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocalization ID\tFile Name\tFile Size\tDelivery State\tUploaded")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%t\n",
+	headers := []string{"ID", "Localization ID", "File Name", "File Size", "Delivery State", "Uploaded"}
+	rows := [][]string{{
 		result.ID,
 		result.LocalizationID,
 		result.FileName,
-		result.FileSize,
+		fmt.Sprintf("%d", result.FileSize),
 		result.AssetDeliveryState,
-		result.Uploaded,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", result.Uploaded),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardSetImageUploadResultMarkdown(result *GameCenterLeaderboardSetImageUploadResult) error {
@@ -536,10 +544,10 @@ func printGameCenterLeaderboardSetImageUploadResultMarkdown(result *GameCenterLe
 }
 
 func printGameCenterLeaderboardSetImageDeleteResultTable(result *GameCenterLeaderboardSetImageDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardSetImageDeleteResultMarkdown(result *GameCenterLeaderboardSetImageDeleteResult) error {
@@ -553,19 +561,20 @@ func printGameCenterLeaderboardSetImageDeleteResultMarkdown(result *GameCenterLe
 }
 
 func printGameCenterChallengesTable(resp *GameCenterChallengesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name\tVendor ID\tType\tRepeatable\tArchived")
+	headers := []string{"ID", "Reference Name", "Vendor ID", "Type", "Repeatable", "Archived"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%t\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.ReferenceName),
 			item.Attributes.VendorIdentifier,
 			item.Attributes.ChallengeType,
-			item.Attributes.Repeatable,
-			item.Attributes.Archived,
-		)
+			fmt.Sprintf("%t", item.Attributes.Repeatable),
+			fmt.Sprintf("%t", item.Attributes.Archived),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterChallengesMarkdown(resp *GameCenterChallengesResponse) error {
@@ -585,10 +594,10 @@ func printGameCenterChallengesMarkdown(resp *GameCenterChallengesResponse) error
 }
 
 func printGameCenterChallengeDeleteResultTable(result *GameCenterChallengeDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterChallengeDeleteResultMarkdown(result *GameCenterChallengeDeleteResult) error {
@@ -599,16 +608,17 @@ func printGameCenterChallengeDeleteResultMarkdown(result *GameCenterChallengeDel
 }
 
 func printGameCenterAchievementVersionsTable(resp *GameCenterAchievementVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tState")
+	headers := []string{"ID", "Version", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Version,
-			item.Attributes.State,
-		)
+			fmt.Sprintf("%d", item.Attributes.Version),
+			string(item.Attributes.State),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterAchievementVersionsMarkdown(resp *GameCenterAchievementVersionsResponse) error {
@@ -625,16 +635,17 @@ func printGameCenterAchievementVersionsMarkdown(resp *GameCenterAchievementVersi
 }
 
 func printGameCenterLeaderboardVersionsTable(resp *GameCenterLeaderboardVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tState")
+	headers := []string{"ID", "Version", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Version,
-			item.Attributes.State,
-		)
+			fmt.Sprintf("%d", item.Attributes.Version),
+			string(item.Attributes.State),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardVersionsMarkdown(resp *GameCenterLeaderboardVersionsResponse) error {
@@ -651,16 +662,17 @@ func printGameCenterLeaderboardVersionsMarkdown(resp *GameCenterLeaderboardVersi
 }
 
 func printGameCenterLeaderboardSetVersionsTable(resp *GameCenterLeaderboardSetVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tState")
+	headers := []string{"ID", "Version", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Version,
-			item.Attributes.State,
-		)
+			fmt.Sprintf("%d", item.Attributes.Version),
+			string(item.Attributes.State),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardSetVersionsMarkdown(resp *GameCenterLeaderboardSetVersionsResponse) error {
@@ -677,16 +689,17 @@ func printGameCenterLeaderboardSetVersionsMarkdown(resp *GameCenterLeaderboardSe
 }
 
 func printGameCenterChallengeVersionsTable(resp *GameCenterChallengeVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tState")
+	headers := []string{"ID", "Version", "State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Version,
-			item.Attributes.State,
-		)
+			fmt.Sprintf("%d", item.Attributes.Version),
+			string(item.Attributes.State),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterChallengeVersionsMarkdown(resp *GameCenterChallengeVersionsResponse) error {
@@ -703,17 +716,18 @@ func printGameCenterChallengeVersionsMarkdown(resp *GameCenterChallengeVersionsR
 }
 
 func printGameCenterChallengeLocalizationsTable(resp *GameCenterChallengeLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale\tName\tDescription")
+	headers := []string{"ID", "Locale", "Name", "Description"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Name),
 			compactWhitespace(item.Attributes.Description),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterChallengeLocalizationsMarkdown(resp *GameCenterChallengeLocalizationsResponse) error {
@@ -731,10 +745,10 @@ func printGameCenterChallengeLocalizationsMarkdown(resp *GameCenterChallengeLoca
 }
 
 func printGameCenterChallengeLocalizationDeleteResultTable(result *GameCenterChallengeLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterChallengeLocalizationDeleteResultMarkdown(result *GameCenterChallengeLocalizationDeleteResult) error {
@@ -745,21 +759,22 @@ func printGameCenterChallengeLocalizationDeleteResultMarkdown(result *GameCenter
 }
 
 func printGameCenterChallengeImagesTable(resp *GameCenterChallengeImagesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tDelivery State")
+	headers := []string{"ID", "File Name", "File Size", "Delivery State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		state := ""
 		if item.Attributes.AssetDeliveryState != nil {
 			state = item.Attributes.AssetDeliveryState.State
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.FileName,
-			item.Attributes.FileSize,
+			fmt.Sprintf("%d", item.Attributes.FileSize),
 			state,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterChallengeImagesMarkdown(resp *GameCenterChallengeImagesResponse) error {
@@ -781,17 +796,17 @@ func printGameCenterChallengeImagesMarkdown(resp *GameCenterChallengeImagesRespo
 }
 
 func printGameCenterChallengeImageUploadResultTable(result *GameCenterChallengeImageUploadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocalization ID\tFile Name\tFile Size\tDelivery State\tUploaded")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%t\n",
+	headers := []string{"ID", "Localization ID", "File Name", "File Size", "Delivery State", "Uploaded"}
+	rows := [][]string{{
 		result.ID,
 		result.LocalizationID,
 		result.FileName,
-		result.FileSize,
+		fmt.Sprintf("%d", result.FileSize),
 		result.AssetDeliveryState,
-		result.Uploaded,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", result.Uploaded),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterChallengeImageUploadResultMarkdown(result *GameCenterChallengeImageUploadResult) error {
@@ -809,10 +824,10 @@ func printGameCenterChallengeImageUploadResultMarkdown(result *GameCenterChallen
 }
 
 func printGameCenterChallengeImageDeleteResultTable(result *GameCenterChallengeImageDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterChallengeImageDeleteResultMarkdown(result *GameCenterChallengeImageDeleteResult) error {
@@ -823,12 +838,13 @@ func printGameCenterChallengeImageDeleteResultMarkdown(result *GameCenterChallen
 }
 
 func printGameCenterChallengeReleasesTable(resp *GameCenterChallengeVersionReleasesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID")
+	headers := []string{"ID"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\n", item.ID)
+		rows = append(rows, []string{item.ID})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterChallengeReleasesMarkdown(resp *GameCenterChallengeVersionReleasesResponse) error {
@@ -841,10 +857,10 @@ func printGameCenterChallengeReleasesMarkdown(resp *GameCenterChallengeVersionRe
 }
 
 func printGameCenterChallengeReleaseDeleteResultTable(result *GameCenterChallengeVersionReleaseDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterChallengeReleaseDeleteResultMarkdown(result *GameCenterChallengeVersionReleaseDeleteResult) error {
@@ -855,21 +871,22 @@ func printGameCenterChallengeReleaseDeleteResultMarkdown(result *GameCenterChall
 }
 
 func printGameCenterActivitiesTable(resp *GameCenterActivitiesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name\tVendor ID\tPlay Style\tMin Players\tMax Players\tParty Code\tArchived")
+	headers := []string{"ID", "Reference Name", "Vendor ID", "Play Style", "Min Players", "Max Players", "Party Code", "Archived"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%t\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.ReferenceName),
 			item.Attributes.VendorIdentifier,
 			item.Attributes.PlayStyle,
-			item.Attributes.MinimumPlayersCount,
-			item.Attributes.MaximumPlayersCount,
-			item.Attributes.SupportsPartyCode,
-			item.Attributes.Archived,
-		)
+			fmt.Sprintf("%d", item.Attributes.MinimumPlayersCount),
+			fmt.Sprintf("%d", item.Attributes.MaximumPlayersCount),
+			fmt.Sprintf("%t", item.Attributes.SupportsPartyCode),
+			fmt.Sprintf("%t", item.Attributes.Archived),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterActivitiesMarkdown(resp *GameCenterActivitiesResponse) error {
@@ -891,10 +908,10 @@ func printGameCenterActivitiesMarkdown(resp *GameCenterActivitiesResponse) error
 }
 
 func printGameCenterActivityDeleteResultTable(result *GameCenterActivityDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterActivityDeleteResultMarkdown(result *GameCenterActivityDeleteResult) error {
@@ -905,17 +922,18 @@ func printGameCenterActivityDeleteResultMarkdown(result *GameCenterActivityDelet
 }
 
 func printGameCenterActivityVersionsTable(resp *GameCenterActivityVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tState\tFallback URL")
+	headers := []string{"ID", "Version", "State", "Fallback URL"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%d\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Version,
-			item.Attributes.State,
+			fmt.Sprintf("%d", item.Attributes.Version),
+			string(item.Attributes.State),
 			item.Attributes.FallbackURL,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterActivityVersionsMarkdown(resp *GameCenterActivityVersionsResponse) error {
@@ -933,17 +951,18 @@ func printGameCenterActivityVersionsMarkdown(resp *GameCenterActivityVersionsRes
 }
 
 func printGameCenterActivityLocalizationsTable(resp *GameCenterActivityLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocale\tName\tDescription")
+	headers := []string{"ID", "Locale", "Name", "Description"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Name),
 			compactWhitespace(item.Attributes.Description),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterActivityLocalizationsMarkdown(resp *GameCenterActivityLocalizationsResponse) error {
@@ -961,10 +980,10 @@ func printGameCenterActivityLocalizationsMarkdown(resp *GameCenterActivityLocali
 }
 
 func printGameCenterActivityLocalizationDeleteResultTable(result *GameCenterActivityLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterActivityLocalizationDeleteResultMarkdown(result *GameCenterActivityLocalizationDeleteResult) error {
@@ -975,21 +994,22 @@ func printGameCenterActivityLocalizationDeleteResultMarkdown(result *GameCenterA
 }
 
 func printGameCenterActivityImagesTable(resp *GameCenterActivityImagesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tFile Name\tFile Size\tDelivery State")
+	headers := []string{"ID", "File Name", "File Size", "Delivery State"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		state := ""
 		if item.Attributes.AssetDeliveryState != nil {
 			state = item.Attributes.AssetDeliveryState.State
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.FileName,
-			item.Attributes.FileSize,
+			fmt.Sprintf("%d", item.Attributes.FileSize),
 			state,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterActivityImagesMarkdown(resp *GameCenterActivityImagesResponse) error {
@@ -1011,17 +1031,17 @@ func printGameCenterActivityImagesMarkdown(resp *GameCenterActivityImagesRespons
 }
 
 func printGameCenterActivityImageUploadResultTable(result *GameCenterActivityImageUploadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tLocalization ID\tFile Name\tFile Size\tDelivery State\tUploaded")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\t%t\n",
+	headers := []string{"ID", "Localization ID", "File Name", "File Size", "Delivery State", "Uploaded"}
+	rows := [][]string{{
 		result.ID,
 		result.LocalizationID,
 		result.FileName,
-		result.FileSize,
+		fmt.Sprintf("%d", result.FileSize),
 		result.AssetDeliveryState,
-		result.Uploaded,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", result.Uploaded),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterActivityImageUploadResultMarkdown(result *GameCenterActivityImageUploadResult) error {
@@ -1039,10 +1059,10 @@ func printGameCenterActivityImageUploadResultMarkdown(result *GameCenterActivity
 }
 
 func printGameCenterActivityImageDeleteResultTable(result *GameCenterActivityImageDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterActivityImageDeleteResultMarkdown(result *GameCenterActivityImageDeleteResult) error {
@@ -1053,12 +1073,13 @@ func printGameCenterActivityImageDeleteResultMarkdown(result *GameCenterActivity
 }
 
 func printGameCenterActivityReleasesTable(resp *GameCenterActivityVersionReleasesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID")
+	headers := []string{"ID"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\n", item.ID)
+		rows = append(rows, []string{item.ID})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterActivityReleasesMarkdown(resp *GameCenterActivityVersionReleasesResponse) error {
@@ -1071,10 +1092,10 @@ func printGameCenterActivityReleasesMarkdown(resp *GameCenterActivityVersionRele
 }
 
 func printGameCenterActivityReleaseDeleteResultTable(result *GameCenterActivityVersionReleaseDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterActivityReleaseDeleteResultMarkdown(result *GameCenterActivityVersionReleaseDeleteResult) error {
@@ -1085,15 +1106,16 @@ func printGameCenterActivityReleaseDeleteResultMarkdown(result *GameCenterActivi
 }
 
 func printGameCenterGroupsTable(resp *GameCenterGroupsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name")
+	headers := []string{"ID", "Reference Name"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.ReferenceName),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterGroupsMarkdown(resp *GameCenterGroupsResponse) error {
@@ -1109,10 +1131,10 @@ func printGameCenterGroupsMarkdown(resp *GameCenterGroupsResponse) error {
 }
 
 func printGameCenterGroupDeleteResultTable(result *GameCenterGroupDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterGroupDeleteResultMarkdown(result *GameCenterGroupDeleteResult) error {
@@ -1123,12 +1145,13 @@ func printGameCenterGroupDeleteResultMarkdown(result *GameCenterGroupDeleteResul
 }
 
 func printGameCenterAppVersionsTable(resp *GameCenterAppVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tEnabled")
+	headers := []string{"ID", "Enabled"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%t\n", item.ID, item.Attributes.Enabled)
+		rows = append(rows, []string{item.ID, fmt.Sprintf("%t", item.Attributes.Enabled)})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterAppVersionsMarkdown(resp *GameCenterAppVersionsResponse) error {
@@ -1141,21 +1164,22 @@ func printGameCenterAppVersionsMarkdown(resp *GameCenterAppVersionsResponse) err
 }
 
 func printGameCenterEnabledVersionsTable(resp *GameCenterEnabledVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tPlatform\tVersion\tIcon Template URL")
+	headers := []string{"ID", "Platform", "Version", "Icon Template URL"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		iconURL := ""
 		if item.Attributes.IconAsset != nil {
 			iconURL = item.Attributes.IconAsset.TemplateURL
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Platform,
+			string(item.Attributes.Platform),
 			item.Attributes.VersionString,
 			iconURL,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterEnabledVersionsMarkdown(resp *GameCenterEnabledVersionsResponse) error {
@@ -1177,21 +1201,22 @@ func printGameCenterEnabledVersionsMarkdown(resp *GameCenterEnabledVersionsRespo
 }
 
 func printGameCenterDetailsTable(resp *GameCenterDetailsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tArcade Enabled\tChallenge Enabled\tLeaderboard Enabled\tLeaderboard Set Enabled\tAchievement Enabled\tMultiplayer Session\tTurn-Based Session")
+	headers := []string{"ID", "Arcade Enabled", "Challenge Enabled", "Leaderboard Enabled", "Leaderboard Set Enabled", "Achievement Enabled", "Multiplayer Session", "Turn-Based Session"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%t\t%t\t%t\t%t\t%t\t%t\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.ArcadeEnabled,
-			item.Attributes.ChallengeEnabled,
-			item.Attributes.LeaderboardEnabled,
-			item.Attributes.LeaderboardSetEnabled,
-			item.Attributes.AchievementEnabled,
-			item.Attributes.MultiplayerSessionEnabled,
-			item.Attributes.MultiplayerTurnBasedSessionEnabled,
-		)
+			fmt.Sprintf("%t", item.Attributes.ArcadeEnabled),
+			fmt.Sprintf("%t", item.Attributes.ChallengeEnabled),
+			fmt.Sprintf("%t", item.Attributes.LeaderboardEnabled),
+			fmt.Sprintf("%t", item.Attributes.LeaderboardSetEnabled),
+			fmt.Sprintf("%t", item.Attributes.AchievementEnabled),
+			fmt.Sprintf("%t", item.Attributes.MultiplayerSessionEnabled),
+			fmt.Sprintf("%t", item.Attributes.MultiplayerTurnBasedSessionEnabled),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterDetailsMarkdown(resp *GameCenterDetailsResponse) error {
@@ -1213,16 +1238,17 @@ func printGameCenterDetailsMarkdown(resp *GameCenterDetailsResponse) error {
 }
 
 func printGameCenterMatchmakingQueuesTable(resp *GameCenterMatchmakingQueuesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name\tClassic Bundle IDs")
+	headers := []string{"ID", "Reference Name", "Classic Bundle IDs"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.ReferenceName),
 			formatStringList(item.Attributes.ClassicMatchmakingBundleIDs),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterMatchmakingQueuesMarkdown(resp *GameCenterMatchmakingQueuesResponse) error {
@@ -1239,10 +1265,10 @@ func printGameCenterMatchmakingQueuesMarkdown(resp *GameCenterMatchmakingQueuesR
 }
 
 func printGameCenterMatchmakingQueueDeleteResultTable(result *GameCenterMatchmakingQueueDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterMatchmakingQueueDeleteResultMarkdown(result *GameCenterMatchmakingQueueDeleteResult) error {
@@ -1253,18 +1279,19 @@ func printGameCenterMatchmakingQueueDeleteResultMarkdown(result *GameCenterMatch
 }
 
 func printGameCenterMatchmakingRuleSetsTable(resp *GameCenterMatchmakingRuleSetsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name\tLanguage\tMin Players\tMax Players")
+	headers := []string{"ID", "Reference Name", "Language", "Min Players", "Max Players"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%d\t%d\t%d\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.ReferenceName),
-			item.Attributes.RuleLanguageVersion,
-			item.Attributes.MinPlayers,
-			item.Attributes.MaxPlayers,
-		)
+			fmt.Sprintf("%d", item.Attributes.RuleLanguageVersion),
+			fmt.Sprintf("%d", item.Attributes.MinPlayers),
+			fmt.Sprintf("%d", item.Attributes.MaxPlayers),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterMatchmakingRuleSetsMarkdown(resp *GameCenterMatchmakingRuleSetsResponse) error {
@@ -1283,10 +1310,10 @@ func printGameCenterMatchmakingRuleSetsMarkdown(resp *GameCenterMatchmakingRuleS
 }
 
 func printGameCenterMatchmakingRuleSetDeleteResultTable(result *GameCenterMatchmakingRuleSetDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterMatchmakingRuleSetDeleteResultMarkdown(result *GameCenterMatchmakingRuleSetDeleteResult) error {
@@ -1297,17 +1324,18 @@ func printGameCenterMatchmakingRuleSetDeleteResultMarkdown(result *GameCenterMat
 }
 
 func printGameCenterMatchmakingRulesTable(resp *GameCenterMatchmakingRulesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name\tType\tWeight")
+	headers := []string{"ID", "Reference Name", "Type", "Weight"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%g\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.ReferenceName),
 			item.Attributes.Type,
-			item.Attributes.Weight,
-		)
+			fmt.Sprintf("%g", item.Attributes.Weight),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterMatchmakingRulesMarkdown(resp *GameCenterMatchmakingRulesResponse) error {
@@ -1325,10 +1353,10 @@ func printGameCenterMatchmakingRulesMarkdown(resp *GameCenterMatchmakingRulesRes
 }
 
 func printGameCenterMatchmakingRuleDeleteResultTable(result *GameCenterMatchmakingRuleDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterMatchmakingRuleDeleteResultMarkdown(result *GameCenterMatchmakingRuleDeleteResult) error {
@@ -1339,17 +1367,18 @@ func printGameCenterMatchmakingRuleDeleteResultMarkdown(result *GameCenterMatchm
 }
 
 func printGameCenterMatchmakingTeamsTable(resp *GameCenterMatchmakingTeamsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReference Name\tMin Players\tMax Players")
+	headers := []string{"ID", "Reference Name", "Min Players", "Max Players"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%d\t%d\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.ReferenceName),
-			item.Attributes.MinPlayers,
-			item.Attributes.MaxPlayers,
-		)
+			fmt.Sprintf("%d", item.Attributes.MinPlayers),
+			fmt.Sprintf("%d", item.Attributes.MaxPlayers),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterMatchmakingTeamsMarkdown(resp *GameCenterMatchmakingTeamsResponse) error {
@@ -1367,10 +1396,10 @@ func printGameCenterMatchmakingTeamsMarkdown(resp *GameCenterMatchmakingTeamsRes
 }
 
 func printGameCenterMatchmakingTeamDeleteResultTable(result *GameCenterMatchmakingTeamDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterMatchmakingTeamDeleteResultMarkdown(result *GameCenterMatchmakingTeamDeleteResult) error {
@@ -1381,20 +1410,21 @@ func printGameCenterMatchmakingTeamDeleteResultMarkdown(result *GameCenterMatchm
 }
 
 func printGameCenterMetricsTable(resp *GameCenterMetricsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Start\tEnd\tGranularity\tValues\tDimensions")
+	headers := []string{"Start", "End", "Granularity", "Values", "Dimensions"}
+	var rows [][]string
 	for _, item := range resp.Data {
 		for _, point := range item.DataPoints {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+			rows = append(rows, []string{
 				point.Start,
 				point.End,
 				formatMetricGranularity(item.Granularity),
 				formatMetricJSON(point.Values),
 				formatMetricJSON(item.Dimensions),
-			)
+			})
 		}
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterMetricsMarkdown(resp *GameCenterMetricsResponse) error {
@@ -1415,10 +1445,10 @@ func printGameCenterMetricsMarkdown(resp *GameCenterMetricsResponse) error {
 }
 
 func printGameCenterMatchmakingRuleSetTestTable(resp *GameCenterMatchmakingRuleSetTestResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID")
-	fmt.Fprintf(w, "%s\n", resp.Data.ID)
-	return w.Flush()
+	headers := []string{"ID"}
+	rows := [][]string{{resp.Data.ID}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterMatchmakingRuleSetTestMarkdown(resp *GameCenterMatchmakingRuleSetTestResponse) error {
@@ -1429,22 +1459,22 @@ func printGameCenterMatchmakingRuleSetTestMarkdown(resp *GameCenterMatchmakingRu
 }
 
 func printGameCenterLeaderboardEntrySubmissionTable(resp *GameCenterLeaderboardEntrySubmissionResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVendor ID\tScore\tBundle ID\tScoped Player ID\tSubmitted Date")
 	attrs := resp.Data.Attributes
 	submittedDate := ""
 	if attrs.SubmittedDate != nil {
 		submittedDate = *attrs.SubmittedDate
 	}
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+	headers := []string{"ID", "Vendor ID", "Score", "Bundle ID", "Scoped Player ID", "Submitted Date"}
+	rows := [][]string{{
 		resp.Data.ID,
 		compactWhitespace(attrs.VendorIdentifier),
 		compactWhitespace(attrs.Score),
 		compactWhitespace(attrs.BundleID),
 		compactWhitespace(attrs.ScopedPlayerID),
 		compactWhitespace(submittedDate),
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterLeaderboardEntrySubmissionMarkdown(resp *GameCenterLeaderboardEntrySubmissionResponse) error {
@@ -1467,22 +1497,22 @@ func printGameCenterLeaderboardEntrySubmissionMarkdown(resp *GameCenterLeaderboa
 }
 
 func printGameCenterPlayerAchievementSubmissionTable(resp *GameCenterPlayerAchievementSubmissionResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVendor ID\tPercent\tBundle ID\tScoped Player ID\tSubmitted Date")
 	attrs := resp.Data.Attributes
 	submittedDate := ""
 	if attrs.SubmittedDate != nil {
 		submittedDate = *attrs.SubmittedDate
 	}
-	fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\t%s\n",
+	headers := []string{"ID", "Vendor ID", "Percent", "Bundle ID", "Scoped Player ID", "Submitted Date"}
+	rows := [][]string{{
 		resp.Data.ID,
 		compactWhitespace(attrs.VendorIdentifier),
-		attrs.PercentageAchieved,
+		fmt.Sprintf("%d", attrs.PercentageAchieved),
 		compactWhitespace(attrs.BundleID),
 		compactWhitespace(attrs.ScopedPlayerID),
 		compactWhitespace(submittedDate),
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printGameCenterPlayerAchievementSubmissionMarkdown(resp *GameCenterPlayerAchievementSubmissionResponse) error {

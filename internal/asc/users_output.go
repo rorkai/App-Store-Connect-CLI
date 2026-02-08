@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 func formatPersonName(firstName, lastName string) string {
@@ -31,19 +30,20 @@ func formatUserUsername(attr UserAttributes) string {
 }
 
 func printUsersTable(resp *UsersResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tUsername\tName\tRoles\tAll Apps\tProvisioning")
+	headers := []string{"ID", "Username", "Name", "Roles", "All Apps", "Provisioning"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%t\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(formatUserUsername(item.Attributes)),
 			compactWhitespace(formatPersonName(item.Attributes.FirstName, item.Attributes.LastName)),
 			compactWhitespace(strings.Join(item.Attributes.Roles, ",")),
-			item.Attributes.AllAppsVisible,
-			item.Attributes.ProvisioningAllowed,
-		)
+			fmt.Sprintf("%t", item.Attributes.AllAppsVisible),
+			fmt.Sprintf("%t", item.Attributes.ProvisioningAllowed),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printUsersMarkdown(resp *UsersResponse) error {
@@ -63,20 +63,21 @@ func printUsersMarkdown(resp *UsersResponse) error {
 }
 
 func printUserInvitationsTable(resp *UserInvitationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tEmail\tName\tRoles\tAll Apps\tProvisioning\tExpires")
+	headers := []string{"ID", "Email", "Name", "Roles", "All Apps", "Provisioning", "Expires"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%t\t%t\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Email),
 			compactWhitespace(formatPersonName(item.Attributes.FirstName, item.Attributes.LastName)),
 			compactWhitespace(strings.Join(item.Attributes.Roles, ",")),
-			item.Attributes.AllAppsVisible,
-			item.Attributes.ProvisioningAllowed,
+			fmt.Sprintf("%t", item.Attributes.AllAppsVisible),
+			fmt.Sprintf("%t", item.Attributes.ProvisioningAllowed),
 			compactWhitespace(item.Attributes.ExpirationDate),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printUserInvitationsMarkdown(resp *UserInvitationsResponse) error {
@@ -97,10 +98,10 @@ func printUserInvitationsMarkdown(resp *UserInvitationsResponse) error {
 }
 
 func printUserDeleteResultTable(result *UserDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printUserDeleteResultMarkdown(result *UserDeleteResult) error {
@@ -111,10 +112,10 @@ func printUserDeleteResultMarkdown(result *UserDeleteResult) error {
 }
 
 func printUserInvitationRevokeResultTable(result *UserInvitationRevokeResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tRevoked")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Revoked)
-	return w.Flush()
+	headers := []string{"ID", "Revoked"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Revoked)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printUserInvitationRevokeResultMarkdown(result *UserInvitationRevokeResult) error {

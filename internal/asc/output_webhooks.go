@@ -5,7 +5,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"text/tabwriter"
 )
 
 // WebhookDeleteResult represents CLI output for webhook deletions.
@@ -26,18 +25,19 @@ func webhookEventTypes(values []WebhookEventType) string {
 }
 
 func printWebhooksTable(resp *WebhooksResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tEnabled\tURL\tEvents")
+	headers := []string{"ID", "Name", "Enabled", "URL", "Events"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			strconv.FormatBool(item.Attributes.Enabled),
 			compactWhitespace(item.Attributes.URL),
 			compactWhitespace(webhookEventTypes(item.Attributes.EventTypes)),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printWebhooksMarkdown(resp *WebhooksResponse) error {
@@ -56,18 +56,19 @@ func printWebhooksMarkdown(resp *WebhooksResponse) error {
 }
 
 func printWebhookDeliveriesTable(resp *WebhookDeliveriesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tState\tCreated\tSent\tError")
+	headers := []string{"ID", "State", "Created", "Sent", "Error"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.DeliveryState),
 			compactWhitespace(item.Attributes.CreatedDate),
 			compactWhitespace(item.Attributes.SentDate),
 			compactWhitespace(item.Attributes.ErrorMessage),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printWebhookDeliveriesMarkdown(resp *WebhookDeliveriesResponse) error {
@@ -86,10 +87,10 @@ func printWebhookDeliveriesMarkdown(resp *WebhookDeliveriesResponse) error {
 }
 
 func printWebhookDeleteResultTable(result *WebhookDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printWebhookDeleteResultMarkdown(result *WebhookDeleteResult) error {
@@ -100,10 +101,10 @@ func printWebhookDeleteResultMarkdown(result *WebhookDeleteResult) error {
 }
 
 func printWebhookPingTable(resp *WebhookPingResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID")
-	fmt.Fprintf(w, "%s\n", resp.Data.ID)
-	return w.Flush()
+	headers := []string{"ID"}
+	rows := [][]string{{resp.Data.ID}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printWebhookPingMarkdown(resp *WebhookPingResponse) error {

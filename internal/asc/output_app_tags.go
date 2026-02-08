@@ -3,20 +3,20 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func printAppTagsTable(resp *AppTagsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tVisible In App Store")
+	headers := []string{"ID", "Name", "Visible In App Store"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
-			item.Attributes.VisibleInAppStore,
-		)
+			fmt.Sprintf("%t", item.Attributes.VisibleInAppStore),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppTagsMarkdown(resp *AppTagsResponse) error {

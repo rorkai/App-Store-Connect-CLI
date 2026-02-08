@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 // BetaTesterInvitationResult represents CLI output for invitations.
@@ -57,18 +56,19 @@ type BetaFeedbackSubmissionDeleteResult struct {
 }
 
 func printBetaGroupsTable(resp *BetaGroupsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tInternal\tPublic Link Enabled\tPublic Link")
+	headers := []string{"ID", "Name", "Internal", "Public Link Enabled", "Public Link"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%t\t%t\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
-			item.Attributes.IsInternalGroup,
-			item.Attributes.PublicLinkEnabled,
+			fmt.Sprintf("%t", item.Attributes.IsInternalGroup),
+			fmt.Sprintf("%t", item.Attributes.PublicLinkEnabled),
 			item.Attributes.PublicLink,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func formatBetaTesterName(attr BetaTesterAttributes) string {
@@ -87,18 +87,19 @@ func formatBetaTesterName(attr BetaTesterAttributes) string {
 }
 
 func printBetaTestersTable(resp *BetaTestersResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tEmail\tName\tState\tInvite")
+	headers := []string{"ID", "Email", "Name", "State", "Invite"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Email,
 			compactWhitespace(formatBetaTesterName(item.Attributes)),
 			string(item.Attributes.State),
 			string(item.Attributes.InviteType),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaTesterTable(resp *BetaTesterResponse) error {
@@ -144,14 +145,10 @@ func printBetaTesterMarkdown(resp *BetaTesterResponse) error {
 }
 
 func printBetaTesterDeleteResultTable(result *BetaTesterDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tEmail\tDeleted")
-	fmt.Fprintf(w, "%s\t%s\t%t\n",
-		result.ID,
-		result.Email,
-		result.Deleted,
-	)
-	return w.Flush()
+	headers := []string{"ID", "Email", "Deleted"}
+	rows := [][]string{{result.ID, result.Email, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaTesterDeleteResultMarkdown(result *BetaTesterDeleteResult) error {
@@ -166,14 +163,10 @@ func printBetaTesterDeleteResultMarkdown(result *BetaTesterDeleteResult) error {
 }
 
 func printBetaTesterGroupsUpdateResultTable(result *BetaTesterGroupsUpdateResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Tester ID\tGroup IDs\tAction")
-	fmt.Fprintf(w, "%s\t%s\t%s\n",
-		result.TesterID,
-		strings.Join(result.GroupIDs, ","),
-		result.Action,
-	)
-	return w.Flush()
+	headers := []string{"Tester ID", "Group IDs", "Action"}
+	rows := [][]string{{result.TesterID, strings.Join(result.GroupIDs, ","), result.Action}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaTesterGroupsUpdateResultMarkdown(result *BetaTesterGroupsUpdateResult) error {
@@ -188,14 +181,10 @@ func printBetaTesterGroupsUpdateResultMarkdown(result *BetaTesterGroupsUpdateRes
 }
 
 func printBetaTesterAppsUpdateResultTable(result *BetaTesterAppsUpdateResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Tester ID\tApp IDs\tAction")
-	fmt.Fprintf(w, "%s\t%s\t%s\n",
-		result.TesterID,
-		strings.Join(result.AppIDs, ","),
-		result.Action,
-	)
-	return w.Flush()
+	headers := []string{"Tester ID", "App IDs", "Action"}
+	rows := [][]string{{result.TesterID, strings.Join(result.AppIDs, ","), result.Action}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaTesterAppsUpdateResultMarkdown(result *BetaTesterAppsUpdateResult) error {
@@ -210,14 +199,10 @@ func printBetaTesterAppsUpdateResultMarkdown(result *BetaTesterAppsUpdateResult)
 }
 
 func printBetaTesterBuildsUpdateResultTable(result *BetaTesterBuildsUpdateResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Tester ID\tBuild IDs\tAction")
-	fmt.Fprintf(w, "%s\t%s\t%s\n",
-		result.TesterID,
-		strings.Join(result.BuildIDs, ","),
-		result.Action,
-	)
-	return w.Flush()
+	headers := []string{"Tester ID", "Build IDs", "Action"}
+	rows := [][]string{{result.TesterID, strings.Join(result.BuildIDs, ","), result.Action}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaTesterBuildsUpdateResultMarkdown(result *BetaTesterBuildsUpdateResult) error {
@@ -232,14 +217,10 @@ func printBetaTesterBuildsUpdateResultMarkdown(result *BetaTesterBuildsUpdateRes
 }
 
 func printAppBetaTestersUpdateResultTable(result *AppBetaTestersUpdateResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "App ID\tTester IDs\tAction")
-	fmt.Fprintf(w, "%s\t%s\t%s\n",
-		result.AppID,
-		strings.Join(result.TesterIDs, ","),
-		result.Action,
-	)
-	return w.Flush()
+	headers := []string{"App ID", "Tester IDs", "Action"}
+	rows := [][]string{{result.AppID, strings.Join(result.TesterIDs, ","), result.Action}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppBetaTestersUpdateResultMarkdown(result *AppBetaTestersUpdateResult) error {
@@ -254,13 +235,10 @@ func printAppBetaTestersUpdateResultMarkdown(result *AppBetaTestersUpdateResult)
 }
 
 func printBetaFeedbackSubmissionDeleteResultTable(result *BetaFeedbackSubmissionDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n",
-		result.ID,
-		result.Deleted,
-	)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaFeedbackSubmissionDeleteResultMarkdown(result *BetaFeedbackSubmissionDeleteResult) error {
@@ -274,15 +252,10 @@ func printBetaFeedbackSubmissionDeleteResultMarkdown(result *BetaFeedbackSubmiss
 }
 
 func printBetaTesterInvitationResultTable(result *BetaTesterInvitationResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Invitation ID\tTester ID\tApp ID\tEmail")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-		result.InvitationID,
-		result.TesterID,
-		result.AppID,
-		result.Email,
-	)
-	return w.Flush()
+	headers := []string{"Invitation ID", "Tester ID", "App ID", "Email"}
+	rows := [][]string{{result.InvitationID, result.TesterID, result.AppID, result.Email}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaTesterInvitationResultMarkdown(result *BetaTesterInvitationResult) error {

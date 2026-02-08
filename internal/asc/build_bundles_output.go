@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func stringValue(value *string) string {
@@ -35,20 +34,21 @@ func buildBundleTypeValue(value *BuildBundleType) string {
 }
 
 func printBuildBundlesTable(resp *BuildBundlesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tBundle ID\tType\tFile Name\tSDK Build\tPlatform Build")
+	headers := []string{"ID", "Bundle ID", "Type", "File Name", "SDK Build", "Platform Build"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			stringValue(attrs.BundleID),
 			buildBundleTypeValue(attrs.BundleType),
 			stringValue(attrs.FileName),
 			stringValue(attrs.SDKBuild),
 			stringValue(attrs.PlatformBuild),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBuildBundlesMarkdown(resp *BuildBundlesResponse) error {
@@ -69,19 +69,20 @@ func printBuildBundlesMarkdown(resp *BuildBundlesResponse) error {
 }
 
 func printBuildBundleFileSizesTable(resp *BuildBundleFileSizesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDevice Model\tOS Version\tDownload Bytes\tInstall Bytes")
+	headers := []string{"ID", "Device Model", "OS Version", "Download Bytes", "Install Bytes"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			stringValue(attrs.DeviceModel),
 			stringValue(attrs.OSVersion),
 			int64Value(attrs.DownloadBytes),
 			int64Value(attrs.InstallBytes),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBuildBundleFileSizesMarkdown(resp *BuildBundleFileSizesResponse) error {
@@ -101,12 +102,13 @@ func printBuildBundleFileSizesMarkdown(resp *BuildBundleFileSizesResponse) error
 }
 
 func printBetaAppClipInvocationsTable(resp *BetaAppClipInvocationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tURL")
+	headers := []string{"ID", "URL"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n", item.ID, stringValue(item.Attributes.URL))
+		rows = append(rows, []string{item.ID, stringValue(item.Attributes.URL)})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaAppClipInvocationsMarkdown(resp *BetaAppClipInvocationsResponse) error {
@@ -122,32 +124,30 @@ func printBetaAppClipInvocationsMarkdown(resp *BetaAppClipInvocationsResponse) e
 }
 
 func printAppClipDomainStatusResultTable(result *AppClipDomainStatusResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Build Bundle ID\tAvailable\tStatus ID\tLast Updated")
-	fmt.Fprintf(w, "%s\t%t\t%s\t%s\n",
+	headers := []string{"Build Bundle ID", "Available", "Status ID", "Last Updated"}
+	rows := [][]string{{
 		result.BuildBundleID,
-		result.Available,
+		fmt.Sprintf("%t", result.Available),
 		result.StatusID,
 		stringValue(result.LastUpdatedDate),
-	)
-	if err := w.Flush(); err != nil {
-		return err
-	}
+	}}
+	RenderTable(headers, rows)
 	if len(result.Domains) == 0 {
 		return nil
 	}
 	fmt.Fprintln(os.Stdout, "\nDomains")
-	domains := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(domains, "Domain\tValid\tLast Updated\tError")
+	domainHeaders := []string{"Domain", "Valid", "Last Updated", "Error"}
+	domainRows := make([][]string, 0, len(result.Domains))
 	for _, domain := range result.Domains {
-		fmt.Fprintf(domains, "%s\t%s\t%s\t%s\n",
+		domainRows = append(domainRows, []string{
 			stringValue(domain.Domain),
 			boolValue(domain.IsValid),
 			stringValue(domain.LastUpdatedDate),
 			stringValue(domain.ErrorCode),
-		)
+		})
 	}
-	return domains.Flush()
+	RenderTable(domainHeaders, domainRows)
+	return nil
 }
 
 func printAppClipDomainStatusResultMarkdown(result *AppClipDomainStatusResult) error {

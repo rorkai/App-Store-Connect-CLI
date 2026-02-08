@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // FinanceReportResult represents CLI output for finance report downloads.
@@ -20,19 +19,19 @@ type FinanceReportResult struct {
 }
 
 func printFinanceReportResultTable(result *FinanceReportResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Vendor\tType\tRegion\tDate\tCompressed File\tCompressed Size\tDecompressed File\tDecompressed Size")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%d\t%s\t%d\n",
+	headers := []string{"Vendor", "Type", "Region", "Date", "Compressed File", "Compressed Size", "Decompressed File", "Decompressed Size"}
+	rows := [][]string{{
 		result.VendorNumber,
 		result.ReportType,
 		result.RegionCode,
 		result.ReportDate,
 		result.FilePath,
-		result.Bytes,
+		fmt.Sprintf("%d", result.Bytes),
 		result.DecompressedPath,
-		result.DecompressedBytes,
-	)
-	return w.Flush()
+		fmt.Sprintf("%d", result.DecompressedBytes),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printFinanceReportResultMarkdown(result *FinanceReportResult) error {
@@ -52,17 +51,18 @@ func printFinanceReportResultMarkdown(result *FinanceReportResult) error {
 }
 
 func printFinanceRegionsTable(result *FinanceRegionsResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Region\tCurrency\tCode\tCountries or Regions")
+	headers := []string{"Region", "Currency", "Code", "Countries or Regions"}
+	rows := make([][]string, 0, len(result.Regions))
 	for _, region := range result.Regions {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			region.ReportRegion,
 			region.ReportCurrency,
 			region.RegionCode,
 			region.CountriesOrRegions,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printFinanceRegionsMarkdown(result *FinanceRegionsResult) error {

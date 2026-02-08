@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // AppStoreVersionPromotionCreateResult represents CLI output for promotion creation.
@@ -14,10 +13,10 @@ type AppStoreVersionPromotionCreateResult struct {
 }
 
 func printAppStoreVersionPromotionCreateTable(result *AppStoreVersionPromotionCreateResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Promotion ID\tVersion ID\tTreatment ID")
-	fmt.Fprintf(w, "%s\t%s\t%s\n", result.PromotionID, result.VersionID, result.TreatmentID)
-	return w.Flush()
+	headers := []string{"Promotion ID", "Version ID", "Treatment ID"}
+	rows := [][]string{{result.PromotionID, result.VersionID, result.TreatmentID}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionPromotionCreateMarkdown(result *AppStoreVersionPromotionCreateResult) error {

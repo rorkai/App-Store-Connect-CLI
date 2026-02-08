@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // SalesReportResult represents CLI output for sales report downloads.
@@ -85,9 +84,8 @@ type AnalyticsReportGetSegment struct {
 }
 
 func printSalesReportResultTable(result *SalesReportResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Vendor\tType\tSubtype\tFrequency\tDate\tVersion\tCompressed File\tCompressed Size\tDecompressed File\tDecompressed Size")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s\t%d\n",
+	headers := []string{"Vendor", "Type", "Subtype", "Frequency", "Date", "Version", "Compressed File", "Compressed Size", "Decompressed File", "Decompressed Size"}
+	rows := [][]string{{
 		result.VendorNumber,
 		result.ReportType,
 		result.ReportSubType,
@@ -95,11 +93,12 @@ func printSalesReportResultTable(result *SalesReportResult) error {
 		result.ReportDate,
 		result.Version,
 		result.FilePath,
-		result.FileSize,
+		fmt.Sprintf("%d", result.FileSize),
 		result.DecompressedPath,
-		result.DecompressedSize,
-	)
-	return w.Flush()
+		fmt.Sprintf("%d", result.DecompressedSize),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSalesReportResultMarkdown(result *SalesReportResult) error {
@@ -121,16 +120,10 @@ func printSalesReportResultMarkdown(result *SalesReportResult) error {
 }
 
 func printAnalyticsReportRequestResultTable(result *AnalyticsReportRequestResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Request ID\tApp ID\tAccess Type\tState\tCreated Date")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
-		result.RequestID,
-		result.AppID,
-		result.AccessType,
-		result.State,
-		result.CreatedDate,
-	)
-	return w.Flush()
+	headers := []string{"Request ID", "App ID", "Access Type", "State", "Created Date"}
+	rows := [][]string{{result.RequestID, result.AppID, result.AccessType, result.State, result.CreatedDate}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAnalyticsReportRequestResultMarkdown(result *AnalyticsReportRequestResult) error {
@@ -147,10 +140,10 @@ func printAnalyticsReportRequestResultMarkdown(result *AnalyticsReportRequestRes
 }
 
 func printAnalyticsReportRequestDeleteResultTable(result *AnalyticsReportRequestDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Request ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.RequestID, result.Deleted)
-	return w.Flush()
+	headers := []string{"Request ID", "Deleted"}
+	rows := [][]string{{result.RequestID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAnalyticsReportRequestDeleteResultMarkdown(result *AnalyticsReportRequestDeleteResult) error {
@@ -164,22 +157,23 @@ func printAnalyticsReportRequestDeleteResultMarkdown(result *AnalyticsReportRequ
 }
 
 func printAnalyticsReportRequestsTable(resp *AnalyticsReportRequestsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tAccess Type\tState\tCreated Date\tApp ID")
+	headers := []string{"ID", "Access Type", "State", "Created Date", "App ID"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		appID := ""
 		if item.Relationships != nil && item.Relationships.App != nil {
 			appID = item.Relationships.App.Data.ID
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			string(item.Attributes.AccessType),
 			string(item.Attributes.State),
 			item.Attributes.CreatedDate,
 			appID,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAnalyticsReportRequestsMarkdown(resp *AnalyticsReportRequestsResponse) error {
@@ -202,18 +196,18 @@ func printAnalyticsReportRequestsMarkdown(resp *AnalyticsReportRequestsResponse)
 }
 
 func printAnalyticsReportDownloadResultTable(result *AnalyticsReportDownloadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Request ID\tInstance ID\tSegment ID\tCompressed File\tCompressed Size\tDecompressed File\tDecompressed Size")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\t%d\n",
+	headers := []string{"Request ID", "Instance ID", "Segment ID", "Compressed File", "Compressed Size", "Decompressed File", "Decompressed Size"}
+	rows := [][]string{{
 		result.RequestID,
 		result.InstanceID,
 		result.SegmentID,
 		result.FilePath,
-		result.FileSize,
+		fmt.Sprintf("%d", result.FileSize),
 		result.DecompressedPath,
-		result.DecompressedSize,
-	)
-	return w.Flush()
+		fmt.Sprintf("%d", result.DecompressedSize),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAnalyticsReportDownloadResultMarkdown(result *AnalyticsReportDownloadResult) error {
@@ -232,24 +226,25 @@ func printAnalyticsReportDownloadResultMarkdown(result *AnalyticsReportDownloadR
 }
 
 func printAnalyticsReportGetResultTable(result *AnalyticsReportGetResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Report ID\tName\tCategory\tGranularity\tInstances\tSegments")
+	headers := []string{"Report ID", "Name", "Category", "Granularity", "Instances", "Segments"}
+	rows := make([][]string, 0, len(result.Data))
 	for _, report := range result.Data {
 		name := report.Name
 		if name == "" {
 			name = report.ReportType
 		}
 		segments := countSegments(report.Instances)
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\n",
+		rows = append(rows, []string{
 			report.ID,
 			name,
 			report.Category,
 			report.Granularity,
-			len(report.Instances),
-			segments,
-		)
+			fmt.Sprintf("%d", len(report.Instances)),
+			fmt.Sprintf("%d", segments),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAnalyticsReportGetResultMarkdown(result *AnalyticsReportGetResult) error {
@@ -274,19 +269,20 @@ func printAnalyticsReportGetResultMarkdown(result *AnalyticsReportGetResult) err
 }
 
 func printAnalyticsReportsTable(resp *AnalyticsReportsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tReport Type\tCategory\tSubcategory\tGranularity")
+	headers := []string{"ID", "Name", "Report Type", "Category", "Subcategory", "Granularity"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Name,
 			item.Attributes.ReportType,
 			item.Attributes.Category,
 			item.Attributes.SubCategory,
 			item.Attributes.Granularity,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAnalyticsReportsMarkdown(resp *AnalyticsReportsResponse) error {
@@ -306,18 +302,19 @@ func printAnalyticsReportsMarkdown(resp *AnalyticsReportsResponse) error {
 }
 
 func printAnalyticsReportInstancesTable(resp *AnalyticsReportInstancesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tReport Date\tProcessing Date\tGranularity\tVersion")
+	headers := []string{"ID", "Report Date", "Processing Date", "Granularity", "Version"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.ReportDate,
 			item.Attributes.ProcessingDate,
 			item.Attributes.Granularity,
 			item.Attributes.Version,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAnalyticsReportInstancesMarkdown(resp *AnalyticsReportInstancesResponse) error {
@@ -336,18 +333,19 @@ func printAnalyticsReportInstancesMarkdown(resp *AnalyticsReportInstancesRespons
 }
 
 func printAnalyticsReportSegmentsTable(resp *AnalyticsReportSegmentsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDownload URL\tChecksum\tSize (bytes)\tURL Expires")
+	headers := []string{"ID", "Download URL", "Checksum", "Size (bytes)", "URL Expires"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.URL,
 			item.Attributes.Checksum,
-			item.Attributes.SizeInBytes,
+			fmt.Sprintf("%d", item.Attributes.SizeInBytes),
 			item.Attributes.URLExpirationDate,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAnalyticsReportSegmentsMarkdown(resp *AnalyticsReportSegmentsResponse) error {

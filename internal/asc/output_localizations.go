@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // AppStoreVersionLocalizationDeleteResult represents CLI output for localization deletions.
@@ -58,58 +57,62 @@ type LocalizationUploadResult struct {
 }
 
 func printAppStoreVersionLocalizationsTable(resp *AppStoreVersionLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Locale\tWhats New\tKeywords")
+	headers := []string{"Locale", "Whats New", "Keywords"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.WhatsNew),
 			compactWhitespace(item.Attributes.Keywords),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaAppLocalizationsTable(resp *BetaAppLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Locale\tDescription\tFeedback Email\tMarketing URL\tPrivacy Policy URL\tTVOS Privacy Policy")
+	headers := []string{"Locale", "Description", "Feedback Email", "Marketing URL", "Privacy Policy URL", "TVOS Privacy Policy"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Description),
 			item.Attributes.FeedbackEmail,
 			item.Attributes.MarketingURL,
 			item.Attributes.PrivacyPolicyURL,
 			item.Attributes.TvOsPrivacyPolicy,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaBuildLocalizationsTable(resp *BetaBuildLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Locale\tWhat to Test")
+	headers := []string{"Locale", "What to Test"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n",
+		rows = append(rows, []string{
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.WhatsNew),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppInfoLocalizationsTable(resp *AppInfoLocalizationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Locale\tName\tSubtitle\tPrivacy Policy URL")
+	headers := []string{"Locale", "Name", "Subtitle", "Privacy Policy URL"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Name),
 			compactWhitespace(item.Attributes.Subtitle),
 			item.Attributes.PrivacyPolicyURL,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionLocalizationsMarkdown(resp *AppStoreVersionLocalizationsResponse) error {
@@ -168,12 +171,13 @@ func printAppInfoLocalizationsMarkdown(resp *AppInfoLocalizationsResponse) error
 }
 
 func printLocalizationDownloadResultTable(result *LocalizationDownloadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Locale\tPath")
+	headers := []string{"Locale", "Path"}
+	rows := make([][]string, 0, len(result.Files))
 	for _, file := range result.Files {
-		fmt.Fprintf(w, "%s\t%s\n", file.Locale, file.Path)
+		rows = append(rows, []string{file.Locale, file.Path})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printLocalizationDownloadResultMarkdown(result *LocalizationDownloadResult) error {
@@ -189,16 +193,17 @@ func printLocalizationDownloadResultMarkdown(result *LocalizationDownloadResult)
 }
 
 func printLocalizationUploadResultTable(result *LocalizationUploadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Locale\tAction\tLocalization ID")
+	headers := []string{"Locale", "Action", "Localization ID"}
+	rows := make([][]string, 0, len(result.Results))
 	for _, item := range result.Results {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.Locale,
 			item.Action,
 			item.LocalizationID,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printLocalizationUploadResultMarkdown(result *LocalizationUploadResult) error {
@@ -215,10 +220,10 @@ func printLocalizationUploadResultMarkdown(result *LocalizationUploadResult) err
 }
 
 func printAppStoreVersionLocalizationDeleteResultTable(result *AppStoreVersionLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppStoreVersionLocalizationDeleteResultMarkdown(result *AppStoreVersionLocalizationDeleteResult) error {
@@ -232,10 +237,10 @@ func printAppStoreVersionLocalizationDeleteResultMarkdown(result *AppStoreVersio
 }
 
 func printBetaAppLocalizationDeleteResultTable(result *BetaAppLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaAppLocalizationDeleteResultMarkdown(result *BetaAppLocalizationDeleteResult) error {
@@ -249,10 +254,10 @@ func printBetaAppLocalizationDeleteResultMarkdown(result *BetaAppLocalizationDel
 }
 
 func printBetaBuildLocalizationDeleteResultTable(result *BetaBuildLocalizationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBetaBuildLocalizationDeleteResultMarkdown(result *BetaBuildLocalizationDeleteResult) error {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 // BundleIDDeleteResult represents CLI output for bundle ID deletions.
@@ -40,18 +39,19 @@ type ProfileDownloadResult struct {
 }
 
 func printBundleIDsTable(resp *BundleIDsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tIdentifier\tPlatform\tSeed ID")
+	headers := []string{"ID", "Name", "Identifier", "Platform", "Seed ID"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			item.Attributes.Identifier,
-			item.Attributes.Platform,
+			string(item.Attributes.Platform),
 			item.Attributes.SeedID,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBundleIDsMarkdown(resp *BundleIDsResponse) error {
@@ -70,16 +70,17 @@ func printBundleIDsMarkdown(resp *BundleIDsResponse) error {
 }
 
 func printBundleIDCapabilitiesTable(resp *BundleIDCapabilitiesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tCapability\tSettings")
+	headers := []string{"ID", "Capability", "Settings"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.CapabilityType,
 			formatCapabilitySettings(item.Attributes.Settings),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBundleIDCapabilitiesMarkdown(resp *BundleIDCapabilitiesResponse) error {
@@ -96,10 +97,10 @@ func printBundleIDCapabilitiesMarkdown(resp *BundleIDCapabilitiesResponse) error
 }
 
 func printBundleIDDeleteResultTable(result *BundleIDDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBundleIDDeleteResultMarkdown(result *BundleIDDeleteResult) error {
@@ -113,10 +114,10 @@ func printBundleIDDeleteResultMarkdown(result *BundleIDDeleteResult) error {
 }
 
 func printBundleIDCapabilityDeleteResultTable(result *BundleIDCapabilityDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printBundleIDCapabilityDeleteResultMarkdown(result *BundleIDCapabilityDeleteResult) error {
@@ -130,18 +131,19 @@ func printBundleIDCapabilityDeleteResultMarkdown(result *BundleIDCapabilityDelet
 }
 
 func printCertificatesTable(resp *CertificatesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tType\tExpiration\tSerial")
+	headers := []string{"ID", "Name", "Type", "Expiration", "Serial"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(certificateDisplayName(item.Attributes)),
 			item.Attributes.CertificateType,
 			item.Attributes.ExpirationDate,
 			item.Attributes.SerialNumber,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCertificatesMarkdown(resp *CertificatesResponse) error {
@@ -160,10 +162,10 @@ func printCertificatesMarkdown(resp *CertificatesResponse) error {
 }
 
 func printCertificateRevokeResultTable(result *CertificateRevokeResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tRevoked")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Revoked)
-	return w.Flush()
+	headers := []string{"ID", "Revoked"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Revoked)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCertificateRevokeResultMarkdown(result *CertificateRevokeResult) error {
@@ -177,18 +179,19 @@ func printCertificateRevokeResultMarkdown(result *CertificateRevokeResult) error
 }
 
 func printProfilesTable(resp *ProfilesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tType\tState\tExpiration")
+	headers := []string{"ID", "Name", "Type", "State", "Expiration"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			item.Attributes.ProfileType,
-			item.Attributes.ProfileState,
+			string(item.Attributes.ProfileState),
 			item.Attributes.ExpirationDate,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printProfilesMarkdown(resp *ProfilesResponse) error {
@@ -207,10 +210,10 @@ func printProfilesMarkdown(resp *ProfilesResponse) error {
 }
 
 func printProfileDeleteResultTable(result *ProfileDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printProfileDeleteResultMarkdown(result *ProfileDeleteResult) error {
@@ -224,14 +227,14 @@ func printProfileDeleteResultMarkdown(result *ProfileDeleteResult) error {
 }
 
 func printProfileDownloadResultTable(result *ProfileDownloadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tOutput Path")
-	fmt.Fprintf(w, "%s\t%s\t%s\n",
+	headers := []string{"ID", "Name", "Output Path"}
+	rows := [][]string{{
 		result.ID,
 		compactWhitespace(result.Name),
 		result.OutputPath,
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printProfileDownloadResultMarkdown(result *ProfileDownloadResult) error {
@@ -253,9 +256,8 @@ func joinSigningList(values []string) string {
 }
 
 func printSigningFetchResultTable(result *SigningFetchResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Bundle ID\tBundle ID Resource\tProfile Type\tProfile ID\tProfile File\tCertificate IDs\tCertificate Files\tCreated")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%t\n",
+	headers := []string{"Bundle ID", "Bundle ID Resource", "Profile Type", "Profile ID", "Profile File", "Certificate IDs", "Certificate Files", "Created"}
+	rows := [][]string{{
 		result.BundleID,
 		result.BundleIDResource,
 		result.ProfileType,
@@ -263,9 +265,10 @@ func printSigningFetchResultTable(result *SigningFetchResult) error {
 		result.ProfileFile,
 		joinSigningList(result.CertificateIDs),
 		joinSigningList(result.CertificateFiles),
-		result.Created,
-	)
-	return w.Flush()
+		fmt.Sprintf("%t", result.Created),
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printSigningFetchResultMarkdown(result *SigningFetchResult) error {

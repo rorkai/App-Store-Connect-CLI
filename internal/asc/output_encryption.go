@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 type appEncryptionDeclarationField struct {
@@ -18,11 +17,11 @@ type appEncryptionDeclarationDocumentField struct {
 }
 
 func printAppEncryptionDeclarationsTable(resp *AppEncryptionDeclarationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tState\tExempt\tProprietary Crypto\tThird-Party Crypto\tFrench Store\tCreated\tCode")
+	headers := []string{"ID", "State", "Exempt", "Proprietary Crypto", "Third-Party Crypto", "French Store", "Created", "Code"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
 			sanitizeTerminal(fallbackValue(string(attrs.AppEncryptionDeclarationState))),
 			formatOptionalBool(attrs.Exempt),
@@ -31,9 +30,10 @@ func printAppEncryptionDeclarationsTable(resp *AppEncryptionDeclarationsResponse
 			formatOptionalBool(attrs.AvailableOnFrenchStore),
 			sanitizeTerminal(fallbackValue(attrs.CreatedDate)),
 			sanitizeTerminal(fallbackValue(attrs.CodeValue)),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppEncryptionDeclarationsMarkdown(resp *AppEncryptionDeclarationsResponse) error {
@@ -57,12 +57,13 @@ func printAppEncryptionDeclarationsMarkdown(resp *AppEncryptionDeclarationsRespo
 
 func printAppEncryptionDeclarationTable(resp *AppEncryptionDeclarationResponse) error {
 	fields := appEncryptionDeclarationFields(resp)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Field\tValue")
+	headers := []string{"Field", "Value"}
+	rows := make([][]string, 0, len(fields))
 	for _, field := range fields {
-		fmt.Fprintf(w, "%s\t%s\n", field.Name, field.Value)
+		rows = append(rows, []string{field.Name, field.Value})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppEncryptionDeclarationMarkdown(resp *AppEncryptionDeclarationResponse) error {
@@ -102,12 +103,13 @@ func appEncryptionDeclarationFields(resp *AppEncryptionDeclarationResponse) []ap
 
 func printAppEncryptionDeclarationDocumentTable(resp *AppEncryptionDeclarationDocumentResponse) error {
 	fields := appEncryptionDeclarationDocumentFields(resp)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Field\tValue")
+	headers := []string{"Field", "Value"}
+	rows := make([][]string, 0, len(fields))
 	for _, field := range fields {
-		fmt.Fprintf(w, "%s\t%s\n", field.Name, field.Value)
+		rows = append(rows, []string{field.Name, field.Value})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppEncryptionDeclarationDocumentMarkdown(resp *AppEncryptionDeclarationDocumentResponse) error {
@@ -138,14 +140,14 @@ func appEncryptionDeclarationDocumentFields(resp *AppEncryptionDeclarationDocume
 }
 
 func printAppEncryptionDeclarationBuildsUpdateResultTable(result *AppEncryptionDeclarationBuildsUpdateResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Declaration ID\tBuild IDs\tAction")
-	fmt.Fprintf(w, "%s\t%s\t%s\n",
+	headers := []string{"Declaration ID", "Build IDs", "Action"}
+	rows := [][]string{{
 		sanitizeTerminal(result.DeclarationID),
 		sanitizeTerminal(strings.Join(result.BuildIDs, ",")),
 		sanitizeTerminal(result.Action),
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printAppEncryptionDeclarationBuildsUpdateResultMarkdown(result *AppEncryptionDeclarationBuildsUpdateResult) error {

@@ -3,19 +3,19 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func printMarketplaceSearchDetailsTable(resp *MarketplaceSearchDetailsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tCatalog URL")
+	headers := []string{"ID", "Catalog URL"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.CatalogURL),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printMarketplaceSearchDetailsMarkdown(resp *MarketplaceSearchDetailsResponse) error {
@@ -43,15 +43,16 @@ func printMarketplaceSearchDetailMarkdown(resp *MarketplaceSearchDetailResponse)
 }
 
 func printMarketplaceWebhooksTable(resp *MarketplaceWebhooksResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tEndpoint URL")
+	headers := []string{"ID", "Endpoint URL"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.EndpointURL),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printMarketplaceWebhooksMarkdown(resp *MarketplaceWebhooksResponse) error {
@@ -79,10 +80,10 @@ func printMarketplaceWebhookMarkdown(resp *MarketplaceWebhookResponse) error {
 }
 
 func printMarketplaceSearchDetailDeleteResultTable(result *MarketplaceSearchDetailDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printMarketplaceSearchDetailDeleteResultMarkdown(result *MarketplaceSearchDetailDeleteResult) error {
@@ -96,10 +97,10 @@ func printMarketplaceSearchDetailDeleteResultMarkdown(result *MarketplaceSearchD
 }
 
 func printMarketplaceWebhookDeleteResultTable(result *MarketplaceWebhookDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printMarketplaceWebhookDeleteResultMarkdown(result *MarketplaceWebhookDeleteResult) error {

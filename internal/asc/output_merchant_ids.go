@@ -3,7 +3,6 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 // MerchantIDDeleteResult represents CLI output for merchant ID deletions.
@@ -13,16 +12,17 @@ type MerchantIDDeleteResult struct {
 }
 
 func printMerchantIDsTable(resp *MerchantIDsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tIdentifier")
+	headers := []string{"ID", "Name", "Identifier"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Name),
 			item.Attributes.Identifier,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printMerchantIDsMarkdown(resp *MerchantIDsResponse) error {
@@ -39,10 +39,10 @@ func printMerchantIDsMarkdown(resp *MerchantIDsResponse) error {
 }
 
 func printMerchantIDDeleteResultTable(result *MerchantIDDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printMerchantIDDeleteResultMarkdown(result *MerchantIDDeleteResult) error {

@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"text/tabwriter"
 	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -987,12 +986,10 @@ func printIAPPricesResult(result *iapPricesResult, format string, pretty bool) e
 }
 
 func printIAPPricesTable(result *iapPricesResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tProduct ID\tType\tBase Territory\tCurrent Price\tEstimated Proceeds\tScheduled Changes")
+	headers := []string{"ID", "Name", "Product ID", "Type", "Base Territory", "Current Price", "Estimated Proceeds", "Scheduled Changes"}
+	rows := make([][]string, 0, len(result.IAPs))
 	for _, item := range result.IAPs {
-		fmt.Fprintf(
-			w,
-			"%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			compactIAPText(item.Name),
 			item.ProductID,
@@ -1001,9 +998,10 @@ func printIAPPricesTable(result *iapPricesResult) error {
 			formatIAPMoney(item.CurrentPrice),
 			formatIAPMoney(item.EstimatedProceeds),
 			formatScheduledChanges(item.ScheduledChanges),
-		)
+		})
 	}
-	return w.Flush()
+	asc.RenderTable(headers, rows)
+	return nil
 }
 
 func printIAPPricesMarkdown(result *iapPricesResult) error {

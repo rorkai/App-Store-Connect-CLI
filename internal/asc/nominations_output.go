@@ -3,24 +3,24 @@ package asc
 import (
 	"fmt"
 	"os"
-	"text/tabwriter"
 )
 
 func printNominationsTable(resp *NominationsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tType\tState\tPublish Start\tPublish End")
+	headers := []string{"ID", "Name", "Type", "State", "Publish Start", "Publish End"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		attrs := item.Attributes
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
 			compactWhitespace(fallbackValue(attrs.Name)),
 			sanitizeTerminal(fallbackValue(string(attrs.Type))),
 			sanitizeTerminal(fallbackValue(string(attrs.State))),
 			sanitizeTerminal(fallbackValue(attrs.PublishStartDate)),
 			sanitizeTerminal(fallbackValue(attrs.PublishEndDate)),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printNominationsMarkdown(resp *NominationsResponse) error {
@@ -41,10 +41,10 @@ func printNominationsMarkdown(resp *NominationsResponse) error {
 }
 
 func printNominationDeleteResultTable(result *NominationDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printNominationDeleteResultMarkdown(result *NominationDeleteResult) error {

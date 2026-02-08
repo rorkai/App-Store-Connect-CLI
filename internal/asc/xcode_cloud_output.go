@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 )
 
 // CiArtifactDownloadResult represents CLI output for artifact downloads.
@@ -30,11 +29,10 @@ type CiProductDeleteResult struct {
 }
 
 func printXcodeCloudRunResultTable(result *XcodeCloudRunResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Build Run ID\tBuild #\tWorkflow ID\tWorkflow Name\tGit Ref ID\tGit Ref Name\tProgress\tStatus\tStart Reason\tCreated")
-	fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+	headers := []string{"Build Run ID", "Build #", "Workflow ID", "Workflow Name", "Git Ref ID", "Git Ref Name", "Progress", "Status", "Start Reason", "Created"}
+	rows := [][]string{{
 		result.BuildRunID,
-		result.BuildNumber,
+		fmt.Sprintf("%d", result.BuildNumber),
 		result.WorkflowID,
 		result.WorkflowName,
 		result.GitReferenceID,
@@ -43,8 +41,9 @@ func printXcodeCloudRunResultTable(result *XcodeCloudRunResult) error {
 		result.CompletionStatus,
 		result.StartReason,
 		result.CreatedDate,
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printXcodeCloudRunResultMarkdown(result *XcodeCloudRunResult) error {
@@ -66,11 +65,10 @@ func printXcodeCloudRunResultMarkdown(result *XcodeCloudRunResult) error {
 }
 
 func printXcodeCloudStatusResultTable(result *XcodeCloudStatusResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Build Run ID\tBuild #\tWorkflow ID\tProgress\tStatus\tStart Reason\tCancel Reason\tCreated\tStarted\tFinished")
-	fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+	headers := []string{"Build Run ID", "Build #", "Workflow ID", "Progress", "Status", "Start Reason", "Cancel Reason", "Created", "Started", "Finished"}
+	rows := [][]string{{
 		result.BuildRunID,
-		result.BuildNumber,
+		fmt.Sprintf("%d", result.BuildNumber),
 		result.WorkflowID,
 		result.ExecutionProgress,
 		result.CompletionStatus,
@@ -79,8 +77,9 @@ func printXcodeCloudStatusResultTable(result *XcodeCloudStatusResult) error {
 		result.CreatedDate,
 		result.StartedDate,
 		result.FinishedDate,
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printXcodeCloudStatusResultMarkdown(result *XcodeCloudStatusResult) error {
@@ -102,18 +101,19 @@ func printXcodeCloudStatusResultMarkdown(result *XcodeCloudStatusResult) error {
 }
 
 func printCiProductsTable(resp *CiProductsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tBundle ID\tType\tCreated")
+	headers := []string{"ID", "Name", "Bundle ID", "Type", "Created"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Name,
 			item.Attributes.BundleID,
 			item.Attributes.ProductType,
 			item.Attributes.CreatedDate,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCiProductsMarkdown(resp *CiProductsResponse) error {
@@ -132,17 +132,18 @@ func printCiProductsMarkdown(resp *CiProductsResponse) error {
 }
 
 func printCiWorkflowsTable(resp *CiWorkflowsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tEnabled\tLast Modified")
+	headers := []string{"ID", "Name", "Enabled", "Last Modified"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%t\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Name,
-			item.Attributes.IsEnabled,
+			fmt.Sprintf("%t", item.Attributes.IsEnabled),
 			item.Attributes.LastModifiedDate,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCiWorkflowsMarkdown(resp *CiWorkflowsResponse) error {
@@ -160,19 +161,20 @@ func printCiWorkflowsMarkdown(resp *CiWorkflowsResponse) error {
 }
 
 func printScmRepositoriesTable(resp *ScmRepositoriesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tOwner\tRepository\tHTTP URL\tSSH URL\tLast Accessed")
+	headers := []string{"ID", "Owner", "Repository", "HTTP URL", "SSH URL", "Last Accessed"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.OwnerName,
 			item.Attributes.RepositoryName,
 			item.Attributes.HTTPCloneURL,
 			item.Attributes.SSHCloneURL,
 			item.Attributes.LastAccessedDate,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printScmRepositoriesMarkdown(resp *ScmRepositoriesResponse) error {
@@ -192,16 +194,17 @@ func printScmRepositoriesMarkdown(resp *ScmRepositoriesResponse) error {
 }
 
 func printScmProvidersTable(resp *ScmProvidersResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tProvider Type\tURL")
+	headers := []string{"ID", "Provider Type", "URL"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			formatScmProviderType(item.Attributes.ScmProviderType),
 			item.Attributes.URL,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printScmProvidersMarkdown(resp *ScmProvidersResponse) error {
@@ -228,18 +231,19 @@ func formatScmProviderType(providerType *ScmProviderType) string {
 }
 
 func printScmGitReferencesTable(resp *ScmGitReferencesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tCanonical Name\tKind\tDeleted")
+	headers := []string{"ID", "Name", "Canonical Name", "Kind", "Deleted"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%t\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Name,
 			item.Attributes.CanonicalName,
 			item.Attributes.Kind,
-			item.Attributes.IsDeleted,
-		)
+			fmt.Sprintf("%t", item.Attributes.IsDeleted),
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printScmGitReferencesMarkdown(resp *ScmGitReferencesResponse) error {
@@ -258,21 +262,22 @@ func printScmGitReferencesMarkdown(resp *ScmGitReferencesResponse) error {
 }
 
 func printScmPullRequestsTable(resp *ScmPullRequestsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNumber\tTitle\tSource\tDestination\tClosed\tCross Repo\tWeb URL")
+	headers := []string{"ID", "Number", "Title", "Source", "Destination", "Closed", "Cross Repo", "Web URL"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\t%t\t%t\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Number,
+			fmt.Sprintf("%d", item.Attributes.Number),
 			item.Attributes.Title,
 			formatScmRef(item.Attributes.SourceRepositoryOwner, item.Attributes.SourceRepositoryName, item.Attributes.SourceBranchName),
 			formatScmRef(item.Attributes.DestinationRepositoryOwner, item.Attributes.DestinationRepositoryName, item.Attributes.DestinationBranchName),
-			item.Attributes.IsClosed,
-			item.Attributes.IsCrossRepository,
+			fmt.Sprintf("%t", item.Attributes.IsClosed),
+			fmt.Sprintf("%t", item.Attributes.IsCrossRepository),
 			item.Attributes.WebURL,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printScmPullRequestsMarkdown(resp *ScmPullRequestsResponse) error {
@@ -294,16 +299,17 @@ func printScmPullRequestsMarkdown(resp *ScmPullRequestsResponse) error {
 }
 
 func printCiMacOsVersionsTable(resp *CiMacOsVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tName")
+	headers := []string{"ID", "Version", "Name"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Version,
 			item.Attributes.Name,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCiMacOsVersionsMarkdown(resp *CiMacOsVersionsResponse) error {
@@ -320,16 +326,17 @@ func printCiMacOsVersionsMarkdown(resp *CiMacOsVersionsResponse) error {
 }
 
 func printCiXcodeVersionsTable(resp *CiXcodeVersionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tVersion\tName")
+	headers := []string{"ID", "Version", "Name"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.Version,
 			item.Attributes.Name,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCiXcodeVersionsMarkdown(resp *CiXcodeVersionsResponse) error {
@@ -367,21 +374,22 @@ func formatScmRepo(owner, repo string) string {
 }
 
 func printCiBuildRunsTable(resp *CiBuildRunsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tBuild #\tProgress\tStatus\tStart Reason\tCreated\tStarted\tFinished")
+	headers := []string{"ID", "Build #", "Progress", "Status", "Start Reason", "Created", "Started", "Finished"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
-			item.Attributes.Number,
+			fmt.Sprintf("%d", item.Attributes.Number),
 			string(item.Attributes.ExecutionProgress),
 			string(item.Attributes.CompletionStatus),
 			item.Attributes.StartReason,
 			item.Attributes.CreatedDate,
 			item.Attributes.StartedDate,
 			item.Attributes.FinishedDate,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCiBuildRunsMarkdown(resp *CiBuildRunsResponse) error {
@@ -403,8 +411,8 @@ func printCiBuildRunsMarkdown(resp *CiBuildRunsResponse) error {
 }
 
 func printCiBuildActionsTable(resp *CiBuildActionsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "Name\tType\tProgress\tStatus\tErrors\tWarnings\tStarted\tFinished")
+	headers := []string{"Name", "Type", "Progress", "Status", "Errors", "Warnings", "Started", "Finished"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		errors := 0
 		warnings := 0
@@ -412,18 +420,19 @@ func printCiBuildActionsTable(resp *CiBuildActionsResponse) error {
 			errors = item.Attributes.IssueCounts.Errors
 			warnings = item.Attributes.IssueCounts.Warnings
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%d\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.Attributes.Name,
 			item.Attributes.ActionType,
 			string(item.Attributes.ExecutionProgress),
 			string(item.Attributes.CompletionStatus),
-			errors,
-			warnings,
+			fmt.Sprintf("%d", errors),
+			fmt.Sprintf("%d", warnings),
 			item.Attributes.StartedDate,
 			item.Attributes.FinishedDate,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCiBuildActionsMarkdown(resp *CiBuildActionsResponse) error {
@@ -451,18 +460,19 @@ func printCiBuildActionsMarkdown(resp *CiBuildActionsResponse) error {
 }
 
 func printCiArtifactsTable(resp *CiArtifactsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tType\tSize\tDownload URL")
+	headers := []string{"ID", "Name", "Type", "Size", "Download URL"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.FileName,
 			item.Attributes.FileType,
-			item.Attributes.FileSize,
+			fmt.Sprintf("%d", item.Attributes.FileSize),
 			item.Attributes.DownloadURL,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCiArtifactsMarkdown(resp *CiArtifactsResponse) error {
@@ -489,18 +499,19 @@ func printCiArtifactMarkdown(resp *CiArtifactResponse) error {
 }
 
 func printCiTestResultsTable(resp *CiTestResultsResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tClass\tName\tStatus\tDuration")
+	headers := []string{"ID", "Class", "Name", "Status", "Duration"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.ClassName,
 			item.Attributes.Name,
 			string(item.Attributes.Status),
 			formatTestDuration(item),
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCiTestResultsMarkdown(resp *CiTestResultsResponse) error {
@@ -527,19 +538,20 @@ func printCiTestResultMarkdown(resp *CiTestResultResponse) error {
 }
 
 func printCiIssuesTable(resp *CiIssuesResponse) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tType\tFile\tLine\tMessage")
+	headers := []string{"ID", "Type", "File", "Line", "Message"}
+	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		filePath, lineNumber := formatFileLocation(item.Attributes.FileSource)
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.IssueType,
 			filePath,
 			lineNumber,
 			item.Attributes.Message,
-		)
+		})
 	}
-	return w.Flush()
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCiIssuesMarkdown(resp *CiIssuesResponse) error {
@@ -567,17 +579,17 @@ func printCiIssueMarkdown(resp *CiIssueResponse) error {
 }
 
 func printCiArtifactDownloadResultTable(result *CiArtifactDownloadResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tName\tType\tSize\tBytes Written\tOutput Path")
-	fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%d\t%s\n",
+	headers := []string{"ID", "Name", "Type", "Size", "Bytes Written", "Output Path"}
+	rows := [][]string{{
 		result.ID,
 		result.FileName,
 		result.FileType,
-		result.FileSize,
-		result.BytesWritten,
+		fmt.Sprintf("%d", result.FileSize),
+		fmt.Sprintf("%d", result.BytesWritten),
 		result.OutputPath,
-	)
-	return w.Flush()
+	}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCiArtifactDownloadResultMarkdown(result *CiArtifactDownloadResult) error {
@@ -595,10 +607,10 @@ func printCiArtifactDownloadResultMarkdown(result *CiArtifactDownloadResult) err
 }
 
 func printCiWorkflowDeleteResultTable(result *CiWorkflowDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCiWorkflowDeleteResultMarkdown(result *CiWorkflowDeleteResult) error {
@@ -609,10 +621,10 @@ func printCiWorkflowDeleteResultMarkdown(result *CiWorkflowDeleteResult) error {
 }
 
 func printCiProductDeleteResultTable(result *CiProductDeleteResult) error {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tDeleted")
-	fmt.Fprintf(w, "%s\t%t\n", result.ID, result.Deleted)
-	return w.Flush()
+	headers := []string{"ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	RenderTable(headers, rows)
+	return nil
 }
 
 func printCiProductDeleteResultMarkdown(result *CiProductDeleteResult) error {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/itunes"
 )
@@ -230,15 +231,23 @@ func printHistogramRows(histogram map[int]int64) {
 		total += count
 	}
 
+	headers := []string{"Stars", "Count", "Percentage", "Bar"}
+	rows := make([][]string, 0, 5)
 	for star := 5; star >= 1; star-- {
 		count := histogram[star]
 		pct := float64(0)
 		if total > 0 {
 			pct = float64(count) / float64(total) * 100
 		}
-		bar := strings.Repeat("█", int(pct/5)) // 20 chars max
-		fmt.Printf("  %d★ %8s (%5.1f%%) %s\n", star, formatNumber(count), pct, bar)
+		bar := strings.Repeat("█", int(pct/5))
+		rows = append(rows, []string{
+			fmt.Sprintf("%d★", star),
+			formatNumber(count),
+			fmt.Sprintf("%.1f%%", pct),
+			bar,
+		})
 	}
+	asc.RenderTable(headers, rows)
 }
 
 func printHistogramMarkdown(histogram map[int]int64) {
