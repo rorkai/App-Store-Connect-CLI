@@ -111,6 +111,13 @@ func SetSelectedProfile(value string) {
 	selectedProfile = value
 }
 
+// ResetDefaultOutputFormat clears the cached default output format so that
+// DefaultOutputFormat() re-reads ASC_DEFAULT_OUTPUT on its next call. Tests only.
+func ResetDefaultOutputFormat() {
+	defaultOutputOnce = sync.Once{}
+	defaultOutputValue = ""
+}
+
 // CleanupTempPrivateKey removes any temporary private key created from env values.
 // Deprecated: use CleanupTempPrivateKeys to remove all tracked temp keys.
 func CleanupTempPrivateKey() {
@@ -571,21 +578,34 @@ func isAppAvailabilityMissing(err error) bool {
 	return false
 }
 
+var (
+	defaultOutputOnce  sync.Once
+	defaultOutputValue string
+)
+
 // DefaultOutputFormat returns the default output format for CLI commands.
 // It checks the ASC_DEFAULT_OUTPUT environment variable first, falling back to "json".
 // Valid values are "json", "table", "markdown", and "md".
 func DefaultOutputFormat() string {
-	if env := strings.TrimSpace(os.Getenv(defaultOutputEnvVar)); env != "" {
-		normalized := strings.ToLower(env)
-		switch normalized {
-		case "json", "table", "markdown", "md":
-			return normalized
-		default:
-			fmt.Fprintf(os.Stderr, "Warning: invalid %s value %q (expected json, table, or markdown); using json\n", defaultOutputEnvVar, env)
-			return "json"
-		}
+	defaultOutputOnce.Do(func() {
+		defaultOutputValue = resolveDefaultOutput()
+	})
+	return defaultOutputValue
+}
+
+func resolveDefaultOutput() string {
+	env := strings.TrimSpace(os.Getenv(defaultOutputEnvVar))
+	if env == "" {
+		return "json"
 	}
-	return "json"
+	normalized := strings.ToLower(env)
+	switch normalized {
+	case "json", "table", "markdown", "md":
+		return normalized
+	default:
+		fmt.Fprintf(os.Stderr, "Warning: invalid %s value %q (expected json, table, or markdown); using json\n", defaultOutputEnvVar, env)
+		return "json"
+	}
 }
 
 func resolveAppID(appID string) string {

@@ -73,7 +73,16 @@ func captureOutput(t *testing.T, fn func()) (string, string) {
 	return stdout, stderr
 }
 
+func resetDefaultOutput(t *testing.T) {
+	t.Helper()
+	ResetDefaultOutputFormat()
+	t.Cleanup(func() {
+		ResetDefaultOutputFormat()
+	})
+}
+
 func TestDefaultOutputFormat_ReturnsJSON(t *testing.T) {
+	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "")
 	if got := DefaultOutputFormat(); got != "json" {
 		t.Fatalf("expected json, got %q", got)
@@ -81,7 +90,7 @@ func TestDefaultOutputFormat_ReturnsJSON(t *testing.T) {
 }
 
 func TestDefaultOutputFormat_UnsetReturnsJSON(t *testing.T) {
-	// Unset via t.Setenv to empty string (os.Unsetenv behavior is handled by env)
+	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "")
 	os.Unsetenv("ASC_DEFAULT_OUTPUT")
 	if got := DefaultOutputFormat(); got != "json" {
@@ -90,6 +99,7 @@ func TestDefaultOutputFormat_UnsetReturnsJSON(t *testing.T) {
 }
 
 func TestDefaultOutputFormat_Table(t *testing.T) {
+	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "table")
 	if got := DefaultOutputFormat(); got != "table" {
 		t.Fatalf("expected table, got %q", got)
@@ -97,6 +107,7 @@ func TestDefaultOutputFormat_Table(t *testing.T) {
 }
 
 func TestDefaultOutputFormat_Markdown(t *testing.T) {
+	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "markdown")
 	if got := DefaultOutputFormat(); got != "markdown" {
 		t.Fatalf("expected markdown, got %q", got)
@@ -104,6 +115,7 @@ func TestDefaultOutputFormat_Markdown(t *testing.T) {
 }
 
 func TestDefaultOutputFormat_MD(t *testing.T) {
+	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "md")
 	if got := DefaultOutputFormat(); got != "md" {
 		t.Fatalf("expected md, got %q", got)
@@ -111,6 +123,7 @@ func TestDefaultOutputFormat_MD(t *testing.T) {
 }
 
 func TestDefaultOutputFormat_JSON(t *testing.T) {
+	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "json")
 	if got := DefaultOutputFormat(); got != "json" {
 		t.Fatalf("expected json, got %q", got)
@@ -120,6 +133,7 @@ func TestDefaultOutputFormat_JSON(t *testing.T) {
 func TestDefaultOutputFormat_CaseInsensitive(t *testing.T) {
 	for _, value := range []string{"TABLE", "Table", "tAbLe", "MARKDOWN", "JSON"} {
 		t.Run(value, func(t *testing.T) {
+			resetDefaultOutput(t)
 			t.Setenv("ASC_DEFAULT_OUTPUT", value)
 			got := DefaultOutputFormat()
 			expected := strings.ToLower(value)
@@ -131,6 +145,7 @@ func TestDefaultOutputFormat_CaseInsensitive(t *testing.T) {
 }
 
 func TestDefaultOutputFormat_WhitespaceHandled(t *testing.T) {
+	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "  table  ")
 	if got := DefaultOutputFormat(); got != "table" {
 		t.Fatalf("expected table, got %q", got)
@@ -138,6 +153,7 @@ func TestDefaultOutputFormat_WhitespaceHandled(t *testing.T) {
 }
 
 func TestDefaultOutputFormat_InvalidFallsBackToJSON(t *testing.T) {
+	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "xml")
 	stdout, stderr := captureOutput(t, func() {
 		got := DefaultOutputFormat()
