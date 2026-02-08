@@ -8,15 +8,3 @@ func linkagesRows(resp *LinkagesResponse) ([]string, [][]string) {
 	}
 	return headers, rows
 }
-
-func printLinkagesTable(resp *LinkagesResponse) error {
-	h, r := linkagesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printLinkagesMarkdown(resp *LinkagesResponse) error {
-	h, r := linkagesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}

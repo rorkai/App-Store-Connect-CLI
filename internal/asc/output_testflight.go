@@ -38,30 +38,6 @@ func betaAppReviewDetailsRows(resp *BetaAppReviewDetailsResponse) ([]string, [][
 	return headers, rows
 }
 
-func printBetaAppReviewDetailsTable(resp *BetaAppReviewDetailsResponse) error {
-	h, r := betaAppReviewDetailsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaAppReviewDetailTable(resp *BetaAppReviewDetailResponse) error {
-	return printBetaAppReviewDetailsTable(&BetaAppReviewDetailsResponse{
-		Data: []Resource[BetaAppReviewDetailAttributes]{resp.Data},
-	})
-}
-
-func printBetaAppReviewDetailsMarkdown(resp *BetaAppReviewDetailsResponse) error {
-	h, r := betaAppReviewDetailsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
-func printBetaAppReviewDetailMarkdown(resp *BetaAppReviewDetailResponse) error {
-	return printBetaAppReviewDetailsMarkdown(&BetaAppReviewDetailsResponse{
-		Data: []Resource[BetaAppReviewDetailAttributes]{resp.Data},
-	})
-}
-
 func betaAppReviewSubmissionsRows(resp *BetaAppReviewSubmissionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "State", "Submitted Date"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -73,30 +49,6 @@ func betaAppReviewSubmissionsRows(resp *BetaAppReviewSubmissionsResponse) ([]str
 		})
 	}
 	return headers, rows
-}
-
-func printBetaAppReviewSubmissionsTable(resp *BetaAppReviewSubmissionsResponse) error {
-	h, r := betaAppReviewSubmissionsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaAppReviewSubmissionTable(resp *BetaAppReviewSubmissionResponse) error {
-	return printBetaAppReviewSubmissionsTable(&BetaAppReviewSubmissionsResponse{
-		Data: []Resource[BetaAppReviewSubmissionAttributes]{resp.Data},
-	})
-}
-
-func printBetaAppReviewSubmissionsMarkdown(resp *BetaAppReviewSubmissionsResponse) error {
-	h, r := betaAppReviewSubmissionsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
-func printBetaAppReviewSubmissionMarkdown(resp *BetaAppReviewSubmissionResponse) error {
-	return printBetaAppReviewSubmissionsMarkdown(&BetaAppReviewSubmissionsResponse{
-		Data: []Resource[BetaAppReviewSubmissionAttributes]{resp.Data},
-	})
 }
 
 func buildBetaDetailsRows(resp *BuildBetaDetailsResponse) ([]string, [][]string) {
@@ -113,30 +65,6 @@ func buildBetaDetailsRows(resp *BuildBetaDetailsResponse) ([]string, [][]string)
 	return headers, rows
 }
 
-func printBuildBetaDetailsTable(resp *BuildBetaDetailsResponse) error {
-	h, r := buildBetaDetailsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBuildBetaDetailTable(resp *BuildBetaDetailResponse) error {
-	return printBuildBetaDetailsTable(&BuildBetaDetailsResponse{
-		Data: []Resource[BuildBetaDetailAttributes]{resp.Data},
-	})
-}
-
-func printBuildBetaDetailsMarkdown(resp *BuildBetaDetailsResponse) error {
-	h, r := buildBetaDetailsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
-func printBuildBetaDetailMarkdown(resp *BuildBetaDetailResponse) error {
-	return printBuildBetaDetailsMarkdown(&BuildBetaDetailsResponse{
-		Data: []Resource[BuildBetaDetailAttributes]{resp.Data},
-	})
-}
-
 func betaRecruitmentCriterionOptionsRows(resp *BetaRecruitmentCriterionOptionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Device Family OS Versions"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -149,18 +77,6 @@ func betaRecruitmentCriterionOptionsRows(resp *BetaRecruitmentCriterionOptionsRe
 	return headers, rows
 }
 
-func printBetaRecruitmentCriterionOptionsTable(resp *BetaRecruitmentCriterionOptionsResponse) error {
-	h, r := betaRecruitmentCriterionOptionsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaRecruitmentCriterionOptionsMarkdown(resp *BetaRecruitmentCriterionOptionsResponse) error {
-	h, r := betaRecruitmentCriterionOptionsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func betaRecruitmentCriteriaRows(resp *BetaRecruitmentCriteriaResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Last Modified", "Filters"}
 	rows := [][]string{{
@@ -171,34 +87,10 @@ func betaRecruitmentCriteriaRows(resp *BetaRecruitmentCriteriaResponse) ([]strin
 	return headers, rows
 }
 
-func printBetaRecruitmentCriteriaTable(resp *BetaRecruitmentCriteriaResponse) error {
-	h, r := betaRecruitmentCriteriaRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaRecruitmentCriteriaMarkdown(resp *BetaRecruitmentCriteriaResponse) error {
-	h, r := betaRecruitmentCriteriaRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func betaRecruitmentCriteriaDeleteResultRows(result *BetaRecruitmentCriteriaDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printBetaRecruitmentCriteriaDeleteResultTable(result *BetaRecruitmentCriteriaDeleteResult) error {
-	h, r := betaRecruitmentCriteriaDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaRecruitmentCriteriaDeleteResultMarkdown(result *BetaRecruitmentCriteriaDeleteResult) error {
-	h, r := betaRecruitmentCriteriaDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func formatDeviceFamilyOsVersions(items []BetaRecruitmentCriterionOptionDeviceFamily) string {
@@ -269,16 +161,4 @@ func betaGroupMetricsRows(items []Resource[BetaGroupMetricAttributes]) ([]string
 		})
 	}
 	return headers, rows
-}
-
-func printBetaGroupMetricsTable(items []Resource[BetaGroupMetricAttributes]) error {
-	h, r := betaGroupMetricsRows(items)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaGroupMetricsMarkdown(items []Resource[BetaGroupMetricAttributes]) error {
-	h, r := betaGroupMetricsRows(items)
-	RenderMarkdown(h, r)
-	return nil
 }

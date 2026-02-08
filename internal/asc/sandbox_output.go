@@ -30,18 +30,6 @@ func sandboxTestersRows(resp *SandboxTestersResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printSandboxTestersTable(resp *SandboxTestersResponse) error {
-	h, r := sandboxTestersRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSandboxTestersMarkdown(resp *SandboxTestersResponse) error {
-	h, r := sandboxTestersRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func sandboxTesterClearHistoryResultRows(result *SandboxTesterClearHistoryResult) ([]string, [][]string) {
 	headers := []string{"Request ID", "Tester ID", "Cleared"}
 	rows := [][]string{{
@@ -50,16 +38,4 @@ func sandboxTesterClearHistoryResultRows(result *SandboxTesterClearHistoryResult
 		fmt.Sprintf("%t", result.Cleared),
 	}}
 	return headers, rows
-}
-
-func printSandboxTesterClearHistoryResultTable(result *SandboxTesterClearHistoryResult) error {
-	h, r := sandboxTesterClearHistoryResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSandboxTesterClearHistoryResultMarkdown(result *SandboxTesterClearHistoryResult) error {
-	h, r := sandboxTesterClearHistoryResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

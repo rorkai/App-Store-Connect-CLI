@@ -21,18 +21,6 @@ func offerCodesRows(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) ([]strin
 	return headers, rows
 }
 
-func printOfferCodesTable(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) error {
-	h, r := offerCodesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printOfferCodesMarkdown(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) error {
-	h, r := offerCodesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func subscriptionOfferCodeRows(resp *SubscriptionOfferCodeResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Customer Eligibilities", "Offer Eligibility", "Duration", "Mode", "Periods", "Total Codes", "Production Codes", "Sandbox Codes", "Active", "Auto Renew"}
 	attrs := resp.Data.Attributes
@@ -51,18 +39,6 @@ func subscriptionOfferCodeRows(resp *SubscriptionOfferCodeResponse) ([]string, [
 		formatOptionalBool(attrs.AutoRenewEnabled),
 	}}
 	return headers, rows
-}
-
-func printSubscriptionOfferCodeTable(resp *SubscriptionOfferCodeResponse) error {
-	h, r := subscriptionOfferCodeRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSubscriptionOfferCodeMarkdown(resp *SubscriptionOfferCodeResponse) error {
-	h, r := subscriptionOfferCodeRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func formatOfferCodeCustomerEligibilities(values []SubscriptionCustomerEligibility) string {

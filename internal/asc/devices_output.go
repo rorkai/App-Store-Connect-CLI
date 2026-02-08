@@ -12,18 +12,6 @@ func deviceLocalUDIDRows(result *DeviceLocalUDIDResult) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printDeviceLocalUDIDTable(result *DeviceLocalUDIDResult) error {
-	h, r := deviceLocalUDIDRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printDeviceLocalUDIDMarkdown(result *DeviceLocalUDIDResult) error {
-	h, r := deviceLocalUDIDRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func devicesRows(resp *DevicesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "UDID", "Platform", "Status", "Class", "Model", "Added"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -40,16 +28,4 @@ func devicesRows(resp *DevicesResponse) ([]string, [][]string) {
 		})
 	}
 	return headers, rows
-}
-
-func printDevicesTable(resp *DevicesResponse) error {
-	h, r := devicesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printDevicesMarkdown(resp *DevicesResponse) error {
-	h, r := devicesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }

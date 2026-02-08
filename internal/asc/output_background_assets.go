@@ -19,18 +19,6 @@ func backgroundAssetsRows(resp *BackgroundAssetsResponse) ([]string, [][]string)
 	return headers, rows
 }
 
-func printBackgroundAssetsTable(resp *BackgroundAssetsResponse) error {
-	h, r := backgroundAssetsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBackgroundAssetsMarkdown(resp *BackgroundAssetsResponse) error {
-	h, r := backgroundAssetsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func backgroundAssetVersionsRows(resp *BackgroundAssetVersionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Version", "State", "Platforms", "Created Date"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -44,18 +32,6 @@ func backgroundAssetVersionsRows(resp *BackgroundAssetVersionsResponse) ([]strin
 		})
 	}
 	return headers, rows
-}
-
-func printBackgroundAssetVersionsTable(resp *BackgroundAssetVersionsResponse) error {
-	h, r := backgroundAssetVersionsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBackgroundAssetVersionsMarkdown(resp *BackgroundAssetVersionsResponse) error {
-	h, r := backgroundAssetVersionsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func backgroundAssetUploadFilesRows(resp *BackgroundAssetUploadFilesResponse) ([]string, [][]string) {
@@ -77,56 +53,8 @@ func backgroundAssetUploadFilesRows(resp *BackgroundAssetUploadFilesResponse) ([
 	return headers, rows
 }
 
-func printBackgroundAssetUploadFilesTable(resp *BackgroundAssetUploadFilesResponse) error {
-	h, r := backgroundAssetUploadFilesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBackgroundAssetUploadFilesMarkdown(resp *BackgroundAssetUploadFilesResponse) error {
-	h, r := backgroundAssetUploadFilesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func backgroundAssetVersionStateRows(id string, state string) ([]string, [][]string) {
 	headers := []string{"ID", "State"}
 	rows := [][]string{{id, state}}
 	return headers, rows
-}
-
-func printBackgroundAssetVersionStateTable(id string, state string) error {
-	h, r := backgroundAssetVersionStateRows(id, state)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBackgroundAssetVersionStateMarkdown(id string, state string) error {
-	h, r := backgroundAssetVersionStateRows(id, state)
-	RenderMarkdown(h, r)
-	return nil
-}
-
-func printBackgroundAssetVersionAppStoreReleaseTable(resp *BackgroundAssetVersionAppStoreReleaseResponse) error {
-	return printBackgroundAssetVersionStateTable(resp.Data.ID, resp.Data.Attributes.State)
-}
-
-func printBackgroundAssetVersionAppStoreReleaseMarkdown(resp *BackgroundAssetVersionAppStoreReleaseResponse) error {
-	return printBackgroundAssetVersionStateMarkdown(resp.Data.ID, resp.Data.Attributes.State)
-}
-
-func printBackgroundAssetVersionExternalBetaReleaseTable(resp *BackgroundAssetVersionExternalBetaReleaseResponse) error {
-	return printBackgroundAssetVersionStateTable(resp.Data.ID, resp.Data.Attributes.State)
-}
-
-func printBackgroundAssetVersionExternalBetaReleaseMarkdown(resp *BackgroundAssetVersionExternalBetaReleaseResponse) error {
-	return printBackgroundAssetVersionStateMarkdown(resp.Data.ID, resp.Data.Attributes.State)
-}
-
-func printBackgroundAssetVersionInternalBetaReleaseTable(resp *BackgroundAssetVersionInternalBetaReleaseResponse) error {
-	return printBackgroundAssetVersionStateTable(resp.Data.ID, resp.Data.Attributes.State)
-}
-
-func printBackgroundAssetVersionInternalBetaReleaseMarkdown(resp *BackgroundAssetVersionInternalBetaReleaseResponse) error {
-	return printBackgroundAssetVersionStateMarkdown(resp.Data.ID, resp.Data.Attributes.State)
 }

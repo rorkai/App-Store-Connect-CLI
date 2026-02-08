@@ -22,18 +22,6 @@ func offerCodeCustomCodesRows(resp *SubscriptionOfferCodeCustomCodesResponse) ([
 	return headers, rows
 }
 
-func printOfferCodeCustomCodesTable(resp *SubscriptionOfferCodeCustomCodesResponse) error {
-	h, r := offerCodeCustomCodesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printOfferCodeCustomCodesMarkdown(resp *SubscriptionOfferCodeCustomCodesResponse) error {
-	h, r := offerCodeCustomCodesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func offerCodePricesRows(resp *SubscriptionOfferCodePricesResponse) ([]string, [][]string, error) {
 	headers := []string{"ID", "Territory", "Price Point"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -45,24 +33,6 @@ func offerCodePricesRows(resp *SubscriptionOfferCodePricesResponse) ([]string, [
 		rows = append(rows, []string{sanitizeTerminal(item.ID), sanitizeTerminal(territoryID), sanitizeTerminal(pricePointID)})
 	}
 	return headers, rows, nil
-}
-
-func printOfferCodePricesTable(resp *SubscriptionOfferCodePricesResponse) error {
-	h, r, err := offerCodePricesRows(resp)
-	if err != nil {
-		return err
-	}
-	RenderTable(h, r)
-	return nil
-}
-
-func printOfferCodePricesMarkdown(resp *SubscriptionOfferCodePricesResponse) error {
-	h, r, err := offerCodePricesRows(resp)
-	if err != nil {
-		return err
-	}
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func offerCodePriceRelationshipIDs(raw json.RawMessage) (string, string, error) {
@@ -83,16 +53,4 @@ func offerCodeValuesRows(result *OfferCodeValuesResult) ([]string, [][]string) {
 		rows = append(rows, []string{sanitizeTerminal(code)})
 	}
 	return headers, rows
-}
-
-func printOfferCodeValuesTable(result *OfferCodeValuesResult) error {
-	h, r := offerCodeValuesRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printOfferCodeValuesMarkdown(result *OfferCodeValuesResult) error {
-	h, r := offerCodeValuesRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

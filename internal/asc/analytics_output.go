@@ -97,52 +97,16 @@ func salesReportResultRows(result *SalesReportResult) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printSalesReportResultTable(result *SalesReportResult) error {
-	h, r := salesReportResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSalesReportResultMarkdown(result *SalesReportResult) error {
-	h, r := salesReportResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func analyticsReportRequestResultRows(result *AnalyticsReportRequestResult) ([]string, [][]string) {
 	headers := []string{"Request ID", "App ID", "Access Type", "State", "Created Date"}
 	rows := [][]string{{result.RequestID, result.AppID, result.AccessType, result.State, result.CreatedDate}}
 	return headers, rows
 }
 
-func printAnalyticsReportRequestResultTable(result *AnalyticsReportRequestResult) error {
-	h, r := analyticsReportRequestResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAnalyticsReportRequestResultMarkdown(result *AnalyticsReportRequestResult) error {
-	h, r := analyticsReportRequestResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func analyticsReportRequestDeleteResultRows(result *AnalyticsReportRequestDeleteResult) ([]string, [][]string) {
 	headers := []string{"Request ID", "Deleted"}
 	rows := [][]string{{result.RequestID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printAnalyticsReportRequestDeleteResultTable(result *AnalyticsReportRequestDeleteResult) error {
-	h, r := analyticsReportRequestDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAnalyticsReportRequestDeleteResultMarkdown(result *AnalyticsReportRequestDeleteResult) error {
-	h, r := analyticsReportRequestDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func analyticsReportRequestsRows(resp *AnalyticsReportRequestsResponse) ([]string, [][]string) {
@@ -164,18 +128,6 @@ func analyticsReportRequestsRows(resp *AnalyticsReportRequestsResponse) ([]strin
 	return headers, rows
 }
 
-func printAnalyticsReportRequestsTable(resp *AnalyticsReportRequestsResponse) error {
-	h, r := analyticsReportRequestsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAnalyticsReportRequestsMarkdown(resp *AnalyticsReportRequestsResponse) error {
-	h, r := analyticsReportRequestsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func analyticsReportDownloadResultRows(result *AnalyticsReportDownloadResult) ([]string, [][]string) {
 	headers := []string{"Request ID", "Instance ID", "Segment ID", "Compressed File", "Compressed Size", "Decompressed File", "Decompressed Size"}
 	rows := [][]string{{
@@ -188,18 +140,6 @@ func analyticsReportDownloadResultRows(result *AnalyticsReportDownloadResult) ([
 		fmt.Sprintf("%d", result.DecompressedSize),
 	}}
 	return headers, rows
-}
-
-func printAnalyticsReportDownloadResultTable(result *AnalyticsReportDownloadResult) error {
-	h, r := analyticsReportDownloadResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAnalyticsReportDownloadResultMarkdown(result *AnalyticsReportDownloadResult) error {
-	h, r := analyticsReportDownloadResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func analyticsReportGetResultRows(result *AnalyticsReportGetResult) ([]string, [][]string) {
@@ -223,18 +163,6 @@ func analyticsReportGetResultRows(result *AnalyticsReportGetResult) ([]string, [
 	return headers, rows
 }
 
-func printAnalyticsReportGetResultTable(result *AnalyticsReportGetResult) error {
-	h, r := analyticsReportGetResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAnalyticsReportGetResultMarkdown(result *AnalyticsReportGetResult) error {
-	h, r := analyticsReportGetResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func analyticsReportsRows(resp *AnalyticsReportsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Report Type", "Category", "Subcategory", "Granularity"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -249,18 +177,6 @@ func analyticsReportsRows(resp *AnalyticsReportsResponse) ([]string, [][]string)
 		})
 	}
 	return headers, rows
-}
-
-func printAnalyticsReportsTable(resp *AnalyticsReportsResponse) error {
-	h, r := analyticsReportsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAnalyticsReportsMarkdown(resp *AnalyticsReportsResponse) error {
-	h, r := analyticsReportsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func analyticsReportInstancesRows(resp *AnalyticsReportInstancesResponse) ([]string, [][]string) {
@@ -278,18 +194,6 @@ func analyticsReportInstancesRows(resp *AnalyticsReportInstancesResponse) ([]str
 	return headers, rows
 }
 
-func printAnalyticsReportInstancesTable(resp *AnalyticsReportInstancesResponse) error {
-	h, r := analyticsReportInstancesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAnalyticsReportInstancesMarkdown(resp *AnalyticsReportInstancesResponse) error {
-	h, r := analyticsReportInstancesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func analyticsReportSegmentsRows(resp *AnalyticsReportSegmentsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Download URL", "Checksum", "Size (bytes)", "URL Expires"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -303,18 +207,6 @@ func analyticsReportSegmentsRows(resp *AnalyticsReportSegmentsResponse) ([]strin
 		})
 	}
 	return headers, rows
-}
-
-func printAnalyticsReportSegmentsTable(resp *AnalyticsReportSegmentsResponse) error {
-	h, r := analyticsReportSegmentsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAnalyticsReportSegmentsMarkdown(resp *AnalyticsReportSegmentsResponse) error {
-	h, r := analyticsReportSegmentsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func countSegments(instances []AnalyticsReportGetInstance) int {

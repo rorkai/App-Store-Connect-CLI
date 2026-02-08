@@ -44,18 +44,6 @@ func xcodeCloudRunResultRows(result *XcodeCloudRunResult) ([]string, [][]string)
 	return headers, rows
 }
 
-func printXcodeCloudRunResultTable(result *XcodeCloudRunResult) error {
-	h, r := xcodeCloudRunResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printXcodeCloudRunResultMarkdown(result *XcodeCloudRunResult) error {
-	h, r := xcodeCloudRunResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func xcodeCloudStatusResultRows(result *XcodeCloudStatusResult) ([]string, [][]string) {
 	headers := []string{"Build Run ID", "Build #", "Workflow ID", "Progress", "Status", "Start Reason", "Cancel Reason", "Created", "Started", "Finished"}
 	rows := [][]string{{
@@ -73,18 +61,6 @@ func xcodeCloudStatusResultRows(result *XcodeCloudStatusResult) ([]string, [][]s
 	return headers, rows
 }
 
-func printXcodeCloudStatusResultTable(result *XcodeCloudStatusResult) error {
-	h, r := xcodeCloudStatusResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printXcodeCloudStatusResultMarkdown(result *XcodeCloudStatusResult) error {
-	h, r := xcodeCloudStatusResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func ciProductsRows(resp *CiProductsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Bundle ID", "Type", "Created"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -100,18 +76,6 @@ func ciProductsRows(resp *CiProductsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printCiProductsTable(resp *CiProductsResponse) error {
-	h, r := ciProductsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCiProductsMarkdown(resp *CiProductsResponse) error {
-	h, r := ciProductsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func ciWorkflowsRows(resp *CiWorkflowsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Enabled", "Last Modified"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -124,18 +88,6 @@ func ciWorkflowsRows(resp *CiWorkflowsResponse) ([]string, [][]string) {
 		})
 	}
 	return headers, rows
-}
-
-func printCiWorkflowsTable(resp *CiWorkflowsResponse) error {
-	h, r := ciWorkflowsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCiWorkflowsMarkdown(resp *CiWorkflowsResponse) error {
-	h, r := ciWorkflowsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func scmRepositoriesRows(resp *ScmRepositoriesResponse) ([]string, [][]string) {
@@ -154,18 +106,6 @@ func scmRepositoriesRows(resp *ScmRepositoriesResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printScmRepositoriesTable(resp *ScmRepositoriesResponse) error {
-	h, r := scmRepositoriesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printScmRepositoriesMarkdown(resp *ScmRepositoriesResponse) error {
-	h, r := scmRepositoriesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func scmProvidersRows(resp *ScmProvidersResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Provider Type", "URL"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -177,18 +117,6 @@ func scmProvidersRows(resp *ScmProvidersResponse) ([]string, [][]string) {
 		})
 	}
 	return headers, rows
-}
-
-func printScmProvidersTable(resp *ScmProvidersResponse) error {
-	h, r := scmProvidersRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printScmProvidersMarkdown(resp *ScmProvidersResponse) error {
-	h, r := scmProvidersRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func formatScmProviderType(providerType *ScmProviderType) string {
@@ -216,18 +144,6 @@ func scmGitReferencesRows(resp *ScmGitReferencesResponse) ([]string, [][]string)
 	return headers, rows
 }
 
-func printScmGitReferencesTable(resp *ScmGitReferencesResponse) error {
-	h, r := scmGitReferencesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printScmGitReferencesMarkdown(resp *ScmGitReferencesResponse) error {
-	h, r := scmGitReferencesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func scmPullRequestsRows(resp *ScmPullRequestsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Number", "Title", "Source", "Destination", "Closed", "Cross Repo", "Web URL"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -246,18 +162,6 @@ func scmPullRequestsRows(resp *ScmPullRequestsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printScmPullRequestsTable(resp *ScmPullRequestsResponse) error {
-	h, r := scmPullRequestsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printScmPullRequestsMarkdown(resp *ScmPullRequestsResponse) error {
-	h, r := scmPullRequestsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func ciMacOsVersionsRows(resp *CiMacOsVersionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Version", "Name"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -271,18 +175,6 @@ func ciMacOsVersionsRows(resp *CiMacOsVersionsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printCiMacOsVersionsTable(resp *CiMacOsVersionsResponse) error {
-	h, r := ciMacOsVersionsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCiMacOsVersionsMarkdown(resp *CiMacOsVersionsResponse) error {
-	h, r := ciMacOsVersionsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func ciXcodeVersionsRows(resp *CiXcodeVersionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Version", "Name"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -294,18 +186,6 @@ func ciXcodeVersionsRows(resp *CiXcodeVersionsResponse) ([]string, [][]string) {
 		})
 	}
 	return headers, rows
-}
-
-func printCiXcodeVersionsTable(resp *CiXcodeVersionsResponse) error {
-	h, r := ciXcodeVersionsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCiXcodeVersionsMarkdown(resp *CiXcodeVersionsResponse) error {
-	h, r := ciXcodeVersionsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func formatScmRef(owner, repo, branch string) string {
@@ -347,18 +227,6 @@ func ciBuildRunsRows(resp *CiBuildRunsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printCiBuildRunsTable(resp *CiBuildRunsResponse) error {
-	h, r := ciBuildRunsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCiBuildRunsMarkdown(resp *CiBuildRunsResponse) error {
-	h, r := ciBuildRunsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func ciBuildActionsRows(resp *CiBuildActionsResponse) ([]string, [][]string) {
 	headers := []string{"Name", "Type", "Progress", "Status", "Errors", "Warnings", "Started", "Finished"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -383,18 +251,6 @@ func ciBuildActionsRows(resp *CiBuildActionsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printCiBuildActionsTable(resp *CiBuildActionsResponse) error {
-	h, r := ciBuildActionsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCiBuildActionsMarkdown(resp *CiBuildActionsResponse) error {
-	h, r := ciBuildActionsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func ciArtifactsRows(resp *CiArtifactsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Type", "Size", "Download URL"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -410,26 +266,6 @@ func ciArtifactsRows(resp *CiArtifactsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printCiArtifactsTable(resp *CiArtifactsResponse) error {
-	h, r := ciArtifactsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCiArtifactsMarkdown(resp *CiArtifactsResponse) error {
-	h, r := ciArtifactsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
-func printCiArtifactTable(resp *CiArtifactResponse) error {
-	return printCiArtifactsTable(&CiArtifactsResponse{Data: []CiArtifactResource{resp.Data}})
-}
-
-func printCiArtifactMarkdown(resp *CiArtifactResponse) error {
-	return printCiArtifactsMarkdown(&CiArtifactsResponse{Data: []CiArtifactResource{resp.Data}})
-}
-
 func ciTestResultsRows(resp *CiTestResultsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Class", "Name", "Status", "Duration"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -443,26 +279,6 @@ func ciTestResultsRows(resp *CiTestResultsResponse) ([]string, [][]string) {
 		})
 	}
 	return headers, rows
-}
-
-func printCiTestResultsTable(resp *CiTestResultsResponse) error {
-	h, r := ciTestResultsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCiTestResultsMarkdown(resp *CiTestResultsResponse) error {
-	h, r := ciTestResultsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
-func printCiTestResultTable(resp *CiTestResultResponse) error {
-	return printCiTestResultsTable(&CiTestResultsResponse{Data: []CiTestResultResource{resp.Data}})
-}
-
-func printCiTestResultMarkdown(resp *CiTestResultResponse) error {
-	return printCiTestResultsMarkdown(&CiTestResultsResponse{Data: []CiTestResultResource{resp.Data}})
 }
 
 func ciIssuesRows(resp *CiIssuesResponse) ([]string, [][]string) {
@@ -481,26 +297,6 @@ func ciIssuesRows(resp *CiIssuesResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printCiIssuesTable(resp *CiIssuesResponse) error {
-	h, r := ciIssuesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCiIssuesMarkdown(resp *CiIssuesResponse) error {
-	h, r := ciIssuesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
-func printCiIssueTable(resp *CiIssueResponse) error {
-	return printCiIssuesTable(&CiIssuesResponse{Data: []CiIssueResource{resp.Data}})
-}
-
-func printCiIssueMarkdown(resp *CiIssueResponse) error {
-	return printCiIssuesMarkdown(&CiIssuesResponse{Data: []CiIssueResource{resp.Data}})
-}
-
 func ciArtifactDownloadResultRows(result *CiArtifactDownloadResult) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Type", "Size", "Bytes Written", "Output Path"}
 	rows := [][]string{{
@@ -514,52 +310,16 @@ func ciArtifactDownloadResultRows(result *CiArtifactDownloadResult) ([]string, [
 	return headers, rows
 }
 
-func printCiArtifactDownloadResultTable(result *CiArtifactDownloadResult) error {
-	h, r := ciArtifactDownloadResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCiArtifactDownloadResultMarkdown(result *CiArtifactDownloadResult) error {
-	h, r := ciArtifactDownloadResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func ciWorkflowDeleteResultRows(result *CiWorkflowDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
-func printCiWorkflowDeleteResultTable(result *CiWorkflowDeleteResult) error {
-	h, r := ciWorkflowDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCiWorkflowDeleteResultMarkdown(result *CiWorkflowDeleteResult) error {
-	h, r := ciWorkflowDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func ciProductDeleteResultRows(result *CiProductDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printCiProductDeleteResultTable(result *CiProductDeleteResult) error {
-	h, r := ciProductDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCiProductDeleteResultMarkdown(result *CiProductDeleteResult) error {
-	h, r := ciProductDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func formatTestDuration(result CiTestResultResource) string {

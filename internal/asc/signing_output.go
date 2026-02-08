@@ -52,18 +52,6 @@ func bundleIDsRows(resp *BundleIDsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printBundleIDsTable(resp *BundleIDsResponse) error {
-	h, r := bundleIDsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBundleIDsMarkdown(resp *BundleIDsResponse) error {
-	h, r := bundleIDsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func bundleIDCapabilitiesRows(resp *BundleIDCapabilitiesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Capability", "Settings"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -77,52 +65,16 @@ func bundleIDCapabilitiesRows(resp *BundleIDCapabilitiesResponse) ([]string, [][
 	return headers, rows
 }
 
-func printBundleIDCapabilitiesTable(resp *BundleIDCapabilitiesResponse) error {
-	h, r := bundleIDCapabilitiesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBundleIDCapabilitiesMarkdown(resp *BundleIDCapabilitiesResponse) error {
-	h, r := bundleIDCapabilitiesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func bundleIDDeleteResultRows(result *BundleIDDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
-func printBundleIDDeleteResultTable(result *BundleIDDeleteResult) error {
-	h, r := bundleIDDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBundleIDDeleteResultMarkdown(result *BundleIDDeleteResult) error {
-	h, r := bundleIDDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func bundleIDCapabilityDeleteResultRows(result *BundleIDCapabilityDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printBundleIDCapabilityDeleteResultTable(result *BundleIDCapabilityDeleteResult) error {
-	h, r := bundleIDCapabilityDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBundleIDCapabilityDeleteResultMarkdown(result *BundleIDCapabilityDeleteResult) error {
-	h, r := bundleIDCapabilityDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func certificatesRows(resp *CertificatesResponse) ([]string, [][]string) {
@@ -140,34 +92,10 @@ func certificatesRows(resp *CertificatesResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printCertificatesTable(resp *CertificatesResponse) error {
-	h, r := certificatesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCertificatesMarkdown(resp *CertificatesResponse) error {
-	h, r := certificatesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func certificateRevokeResultRows(result *CertificateRevokeResult) ([]string, [][]string) {
 	headers := []string{"ID", "Revoked"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Revoked)}}
 	return headers, rows
-}
-
-func printCertificateRevokeResultTable(result *CertificateRevokeResult) error {
-	h, r := certificateRevokeResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCertificateRevokeResultMarkdown(result *CertificateRevokeResult) error {
-	h, r := certificateRevokeResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func profilesRows(resp *ProfilesResponse) ([]string, [][]string) {
@@ -185,34 +113,10 @@ func profilesRows(resp *ProfilesResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printProfilesTable(resp *ProfilesResponse) error {
-	h, r := profilesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printProfilesMarkdown(resp *ProfilesResponse) error {
-	h, r := profilesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func profileDeleteResultRows(result *ProfileDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printProfileDeleteResultTable(result *ProfileDeleteResult) error {
-	h, r := profileDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printProfileDeleteResultMarkdown(result *ProfileDeleteResult) error {
-	h, r := profileDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func profileDownloadResultRows(result *ProfileDownloadResult) ([]string, [][]string) {
@@ -223,18 +127,6 @@ func profileDownloadResultRows(result *ProfileDownloadResult) ([]string, [][]str
 		result.OutputPath,
 	}}
 	return headers, rows
-}
-
-func printProfileDownloadResultTable(result *ProfileDownloadResult) error {
-	h, r := profileDownloadResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printProfileDownloadResultMarkdown(result *ProfileDownloadResult) error {
-	h, r := profileDownloadResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func joinSigningList(values []string) string {
@@ -257,18 +149,6 @@ func signingFetchResultRows(result *SigningFetchResult) ([]string, [][]string) {
 		fmt.Sprintf("%t", result.Created),
 	}}
 	return headers, rows
-}
-
-func printSigningFetchResultTable(result *SigningFetchResult) error {
-	h, r := signingFetchResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSigningFetchResultMarkdown(result *SigningFetchResult) error {
-	h, r := signingFetchResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func formatCapabilitySettings(settings []CapabilitySetting) string {

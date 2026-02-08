@@ -18,24 +18,6 @@ func territoryAgeRatingsRows(resp *TerritoryAgeRatingsResponse) ([]string, [][]s
 	return headers, rows, nil
 }
 
-func printTerritoryAgeRatingsTable(resp *TerritoryAgeRatingsResponse) error {
-	h, r, err := territoryAgeRatingsRows(resp)
-	if err != nil {
-		return err
-	}
-	RenderTable(h, r)
-	return nil
-}
-
-func printTerritoryAgeRatingsMarkdown(resp *TerritoryAgeRatingsResponse) error {
-	h, r, err := territoryAgeRatingsRows(resp)
-	if err != nil {
-		return err
-	}
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func territoryAgeRatingTerritoryID(raw json.RawMessage) (string, error) {
 	if len(raw) == 0 {
 		return "", nil

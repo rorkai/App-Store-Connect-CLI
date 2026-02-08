@@ -2,7 +2,6 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -95,18 +94,6 @@ func buildsRows(resp *BuildsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printBuildsTable(resp *BuildsResponse) error {
-	h, r := buildsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBuildsMarkdown(resp *BuildsResponse) error {
-	h, r := buildsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func buildIconAssetURL(attr BuildIconAttributes) string {
 	if attr.IconAsset == nil {
 		return ""
@@ -127,18 +114,6 @@ func buildIconsRows(resp *BuildIconsResponse) ([]string, [][]string) {
 		})
 	}
 	return headers, rows
-}
-
-func printBuildIconsTable(resp *BuildIconsResponse) error {
-	h, r := buildIconsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBuildIconsMarkdown(resp *BuildIconsResponse) error {
-	h, r := buildIconsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func buildUploadState(attr BuildUploadAttributes) string {
@@ -174,18 +149,6 @@ func buildUploadsRows(resp *BuildUploadsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printBuildUploadsTable(resp *BuildUploadsResponse) error {
-	h, r := buildUploadsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBuildUploadsMarkdown(resp *BuildUploadsResponse) error {
-	h, r := buildUploadsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func buildUploadFileState(attr BuildUploadFileAttributes) string {
 	if attr.AssetDeliveryState == nil || attr.AssetDeliveryState.State == nil {
 		return ""
@@ -213,16 +176,18 @@ func buildUploadFilesRows(resp *BuildUploadFilesResponse) ([]string, [][]string)
 	return headers, rows
 }
 
-func printBuildUploadFilesTable(resp *BuildUploadFilesResponse) error {
-	h, r := buildUploadFilesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBuildUploadFilesMarkdown(resp *BuildUploadFilesResponse) error {
-	h, r := buildUploadFilesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
+func buildUploadOperationsRows(operations []UploadOperation) ([]string, [][]string) {
+	headers := []string{"Method", "URL", "Length", "Offset"}
+	rows := make([][]string, 0, len(operations))
+	for _, op := range operations {
+		rows = append(rows, []string{
+			op.Method,
+			op.URL,
+			fmt.Sprintf("%d", op.Length),
+			fmt.Sprintf("%d", op.Offset),
+		})
+	}
+	return headers, rows
 }
 
 func buildUploadResultRows(result *BuildUploadResult) ([]string, [][]string) {
@@ -244,44 +209,6 @@ func buildUploadResultRows(result *BuildUploadResult) ([]string, [][]string) {
 	return headers, [][]string{values}
 }
 
-func buildUploadOperationsRows(operations []UploadOperation) ([]string, [][]string) {
-	headers := []string{"Method", "URL", "Length", "Offset"}
-	rows := make([][]string, 0, len(operations))
-	for _, op := range operations {
-		rows = append(rows, []string{
-			op.Method,
-			op.URL,
-			fmt.Sprintf("%d", op.Length),
-			fmt.Sprintf("%d", op.Offset),
-		})
-	}
-	return headers, rows
-}
-
-func printBuildUploadResultTable(result *BuildUploadResult) error {
-	h, r := buildUploadResultRows(result)
-	RenderTable(h, r)
-	if len(result.Operations) == 0 {
-		return nil
-	}
-	fmt.Fprintln(os.Stdout, "\nUpload Operations")
-	oh, or := buildUploadOperationsRows(result.Operations)
-	RenderTable(oh, or)
-	return nil
-}
-
-func printBuildUploadResultMarkdown(result *BuildUploadResult) error {
-	h, r := buildUploadResultRows(result)
-	RenderMarkdown(h, r)
-	if len(result.Operations) == 0 {
-		return nil
-	}
-	fmt.Fprintln(os.Stdout, "\nUpload Operations")
-	oh, or := buildUploadOperationsRows(result.Operations)
-	RenderMarkdown(oh, or)
-	return nil
-}
-
 func buildExpireAllResultRows(result *BuildExpireAllResult) ([]string, [][]string) {
 	status := "expired"
 	if result.DryRun {
@@ -301,58 +228,10 @@ func buildExpireAllResultRows(result *BuildExpireAllResult) ([]string, [][]strin
 	return headers, rows
 }
 
-func buildExpireAllFailureRows(failures []BuildExpireAllFailure) ([]string, [][]string) {
-	headers := []string{"ID", "Error"}
-	rows := make([][]string, 0, len(failures))
-	for _, failure := range failures {
-		rows = append(rows, []string{
-			failure.ID,
-			compactWhitespace(failure.Error),
-		})
-	}
-	return headers, rows
-}
-
-func printBuildExpireAllResultTable(result *BuildExpireAllResult) error {
-	h, r := buildExpireAllResultRows(result)
-	RenderTable(h, r)
-	if len(result.Failures) == 0 {
-		return nil
-	}
-	fmt.Fprintln(os.Stdout, "\nFailures")
-	fh, fr := buildExpireAllFailureRows(result.Failures)
-	RenderTable(fh, fr)
-	return nil
-}
-
-func printBuildExpireAllResultMarkdown(result *BuildExpireAllResult) error {
-	h, r := buildExpireAllResultRows(result)
-	RenderMarkdown(h, r)
-	if len(result.Failures) == 0 {
-		return nil
-	}
-	fmt.Fprintln(os.Stdout, "\nFailures")
-	fh, fr := buildExpireAllFailureRows(result.Failures)
-	RenderMarkdown(fh, fr)
-	return nil
-}
-
 func buildBetaGroupsUpdateRows(result *BuildBetaGroupsUpdateResult) ([]string, [][]string) {
 	headers := []string{"Build ID", "Group IDs", "Action"}
 	rows := [][]string{{result.BuildID, strings.Join(result.GroupIDs, ", "), result.Action}}
 	return headers, rows
-}
-
-func printBuildBetaGroupsUpdateTable(result *BuildBetaGroupsUpdateResult) error {
-	h, r := buildBetaGroupsUpdateRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBuildBetaGroupsUpdateMarkdown(result *BuildBetaGroupsUpdateResult) error {
-	h, r := buildBetaGroupsUpdateRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func buildIndividualTestersUpdateRows(result *BuildIndividualTestersUpdateResult) ([]string, [][]string) {
@@ -361,32 +240,8 @@ func buildIndividualTestersUpdateRows(result *BuildIndividualTestersUpdateResult
 	return headers, rows
 }
 
-func printBuildIndividualTestersUpdateTable(result *BuildIndividualTestersUpdateResult) error {
-	h, r := buildIndividualTestersUpdateRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBuildIndividualTestersUpdateMarkdown(result *BuildIndividualTestersUpdateResult) error {
-	h, r := buildIndividualTestersUpdateRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func buildUploadDeleteResultRows(result *BuildUploadDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printBuildUploadDeleteResultTable(result *BuildUploadDeleteResult) error {
-	h, r := buildUploadDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBuildUploadDeleteResultMarkdown(result *BuildUploadDeleteResult) error {
-	h, r := buildUploadDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

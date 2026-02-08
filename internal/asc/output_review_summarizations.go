@@ -22,15 +22,3 @@ func customerReviewSummarizationsRows(resp *CustomerReviewSummarizationsResponse
 	}
 	return headers, rows
 }
-
-func printCustomerReviewSummarizationsTable(resp *CustomerReviewSummarizationsResponse) error {
-	h, r := customerReviewSummarizationsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCustomerReviewSummarizationsMarkdown(resp *CustomerReviewSummarizationsResponse) error {
-	h, r := customerReviewSummarizationsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}

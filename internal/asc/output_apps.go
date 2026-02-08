@@ -13,15 +13,3 @@ func appsRows(resp *AppsResponse) ([]string, [][]string) {
 	}
 	return headers, rows
 }
-
-func printAppsTable(resp *AppsResponse) error {
-	h, r := appsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppsMarkdown(resp *AppsResponse) error {
-	h, r := appsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}

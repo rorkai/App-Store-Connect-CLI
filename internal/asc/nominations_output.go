@@ -19,32 +19,8 @@ func nominationsRows(resp *NominationsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printNominationsTable(resp *NominationsResponse) error {
-	h, r := nominationsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printNominationsMarkdown(resp *NominationsResponse) error {
-	h, r := nominationsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func nominationDeleteResultRows(result *NominationDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printNominationDeleteResultTable(result *NominationDeleteResult) error {
-	h, r := nominationDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printNominationDeleteResultMarkdown(result *NominationDeleteResult) error {
-	h, r := nominationDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

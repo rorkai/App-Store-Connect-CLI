@@ -20,18 +20,6 @@ func ageRatingDeclarationRows(resp *AgeRatingDeclarationResponse) ([]string, [][
 	return headers, rows
 }
 
-func printAgeRatingDeclarationTable(resp *AgeRatingDeclarationResponse) error {
-	h, r := ageRatingDeclarationRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAgeRatingDeclarationMarkdown(resp *AgeRatingDeclarationResponse) error {
-	h, r := ageRatingDeclarationRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func ageRatingFields(resp *AgeRatingDeclarationResponse) []ageRatingField {
 	if resp == nil {
 		return nil

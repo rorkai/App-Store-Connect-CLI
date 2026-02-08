@@ -21,32 +21,8 @@ func merchantIDsRows(resp *MerchantIDsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printMerchantIDsTable(resp *MerchantIDsResponse) error {
-	h, r := merchantIDsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printMerchantIDsMarkdown(resp *MerchantIDsResponse) error {
-	h, r := merchantIDsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func merchantIDDeleteResultRows(result *MerchantIDDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printMerchantIDDeleteResultTable(result *MerchantIDDeleteResult) error {
-	h, r := merchantIDDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printMerchantIDDeleteResultMarkdown(result *MerchantIDDeleteResult) error {
-	h, r := merchantIDDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

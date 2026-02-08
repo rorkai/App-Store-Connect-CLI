@@ -19,15 +19,3 @@ func appCategoriesRows(resp *AppCategoriesResponse) ([]string, [][]string) {
 	}
 	return headers, rows
 }
-
-func printAppCategoriesTable(resp *AppCategoriesResponse) error {
-	h, r := appCategoriesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppCategoriesMarkdown(resp *AppCategoriesResponse) error {
-	h, r := appCategoriesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}

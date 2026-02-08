@@ -40,34 +40,10 @@ func promotedPurchasesRows(resp *PromotedPurchasesResponse) ([]string, [][]strin
 	return headers, rows
 }
 
-func printPromotedPurchasesTable(resp *PromotedPurchasesResponse) error {
-	h, r := promotedPurchasesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printPromotedPurchasesMarkdown(resp *PromotedPurchasesResponse) error {
-	h, r := promotedPurchasesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func promotedPurchaseDeleteResultRows(result *PromotedPurchaseDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printPromotedPurchaseDeleteResultTable(result *PromotedPurchaseDeleteResult) error {
-	h, r := promotedPurchaseDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printPromotedPurchaseDeleteResultMarkdown(result *PromotedPurchaseDeleteResult) error {
-	h, r := promotedPurchaseDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func appPromotedPurchasesLinkResultRows(result *AppPromotedPurchasesLinkResult) ([]string, [][]string) {
@@ -78,16 +54,4 @@ func appPromotedPurchasesLinkResultRows(result *AppPromotedPurchasesLinkResult) 
 		result.Action,
 	}}
 	return headers, rows
-}
-
-func printAppPromotedPurchasesLinkResultTable(result *AppPromotedPurchasesLinkResult) error {
-	h, r := appPromotedPurchasesLinkResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppPromotedPurchasesLinkResultMarkdown(result *AppPromotedPurchasesLinkResult) error {
-	h, r := appPromotedPurchasesLinkResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

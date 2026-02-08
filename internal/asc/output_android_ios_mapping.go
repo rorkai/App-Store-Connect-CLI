@@ -24,34 +24,10 @@ func androidToIosAppMappingDetailsRows(resp *AndroidToIosAppMappingDetailsRespon
 	return headers, rows
 }
 
-func printAndroidToIosAppMappingDetailsTable(resp *AndroidToIosAppMappingDetailsResponse) error {
-	h, r := androidToIosAppMappingDetailsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAndroidToIosAppMappingDetailsMarkdown(resp *AndroidToIosAppMappingDetailsResponse) error {
-	h, r := androidToIosAppMappingDetailsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func androidToIosAppMappingDeleteResultRows(result *AndroidToIosAppMappingDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printAndroidToIosAppMappingDeleteResultTable(result *AndroidToIosAppMappingDeleteResult) error {
-	h, r := androidToIosAppMappingDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAndroidToIosAppMappingDeleteResultMarkdown(result *AndroidToIosAppMappingDeleteResult) error {
-	h, r := androidToIosAppMappingDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func formatAndroidToIosFingerprints(values []string) string {

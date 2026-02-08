@@ -31,18 +31,6 @@ func appEncryptionDeclarationsRows(resp *AppEncryptionDeclarationsResponse) ([]s
 	return headers, rows
 }
 
-func printAppEncryptionDeclarationsTable(resp *AppEncryptionDeclarationsResponse) error {
-	h, r := appEncryptionDeclarationsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppEncryptionDeclarationsMarkdown(resp *AppEncryptionDeclarationsResponse) error {
-	h, r := appEncryptionDeclarationsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appEncryptionDeclarationRows(resp *AppEncryptionDeclarationResponse) ([]string, [][]string) {
 	fields := appEncryptionDeclarationFields(resp)
 	headers := []string{"Field", "Value"}
@@ -51,18 +39,6 @@ func appEncryptionDeclarationRows(resp *AppEncryptionDeclarationResponse) ([]str
 		rows = append(rows, []string{field.Name, field.Value})
 	}
 	return headers, rows
-}
-
-func printAppEncryptionDeclarationTable(resp *AppEncryptionDeclarationResponse) error {
-	h, r := appEncryptionDeclarationRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppEncryptionDeclarationMarkdown(resp *AppEncryptionDeclarationResponse) error {
-	h, r := appEncryptionDeclarationRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func appEncryptionDeclarationFields(resp *AppEncryptionDeclarationResponse) []appEncryptionDeclarationField {
@@ -100,18 +76,6 @@ func appEncryptionDeclarationDocumentRows(resp *AppEncryptionDeclarationDocument
 	return headers, rows
 }
 
-func printAppEncryptionDeclarationDocumentTable(resp *AppEncryptionDeclarationDocumentResponse) error {
-	h, r := appEncryptionDeclarationDocumentRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppEncryptionDeclarationDocumentMarkdown(resp *AppEncryptionDeclarationDocumentResponse) error {
-	h, r := appEncryptionDeclarationDocumentRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appEncryptionDeclarationDocumentFields(resp *AppEncryptionDeclarationDocumentResponse) []appEncryptionDeclarationDocumentField {
 	if resp == nil {
 		return nil
@@ -137,16 +101,4 @@ func appEncryptionDeclarationBuildsUpdateResultRows(result *AppEncryptionDeclara
 		sanitizeTerminal(result.Action),
 	}}
 	return headers, rows
-}
-
-func printAppEncryptionDeclarationBuildsUpdateResultTable(result *AppEncryptionDeclarationBuildsUpdateResult) error {
-	h, r := appEncryptionDeclarationBuildsUpdateResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppEncryptionDeclarationBuildsUpdateResultMarkdown(result *AppEncryptionDeclarationBuildsUpdateResult) error {
-	h, r := appEncryptionDeclarationBuildsUpdateResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

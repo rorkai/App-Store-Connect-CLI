@@ -30,18 +30,6 @@ func financeReportResultRows(result *FinanceReportResult) ([]string, [][]string)
 	return headers, rows
 }
 
-func printFinanceReportResultTable(result *FinanceReportResult) error {
-	h, r := financeReportResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printFinanceReportResultMarkdown(result *FinanceReportResult) error {
-	h, r := financeReportResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func financeRegionsRows(result *FinanceRegionsResult) ([]string, [][]string) {
 	headers := []string{"Region", "Currency", "Code", "Countries or Regions"}
 	rows := make([][]string, 0, len(result.Regions))
@@ -54,16 +42,4 @@ func financeRegionsRows(result *FinanceRegionsResult) ([]string, [][]string) {
 		})
 	}
 	return headers, rows
-}
-
-func printFinanceRegionsTable(result *FinanceRegionsResult) error {
-	h, r := financeRegionsRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printFinanceRegionsMarkdown(result *FinanceRegionsResult) error {
-	h, r := financeRegionsRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

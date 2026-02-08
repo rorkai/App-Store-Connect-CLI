@@ -30,18 +30,6 @@ func accessibilityDeclarationsRows(resp *AccessibilityDeclarationsResponse) ([]s
 	return headers, rows
 }
 
-func printAccessibilityDeclarationsTable(resp *AccessibilityDeclarationsResponse) error {
-	h, r := accessibilityDeclarationsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAccessibilityDeclarationsMarkdown(resp *AccessibilityDeclarationsResponse) error {
-	h, r := accessibilityDeclarationsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func accessibilityDeclarationRows(resp *AccessibilityDeclarationResponse) ([]string, [][]string) {
 	fields := accessibilityDeclarationFields(resp)
 	headers := []string{"Field", "Value"}
@@ -50,18 +38,6 @@ func accessibilityDeclarationRows(resp *AccessibilityDeclarationResponse) ([]str
 		rows = append(rows, []string{field.Name, field.Value})
 	}
 	return headers, rows
-}
-
-func printAccessibilityDeclarationTable(resp *AccessibilityDeclarationResponse) error {
-	h, r := accessibilityDeclarationRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAccessibilityDeclarationMarkdown(resp *AccessibilityDeclarationResponse) error {
-	h, r := accessibilityDeclarationRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func accessibilityDeclarationFields(resp *AccessibilityDeclarationResponse) []accessibilityDeclarationField {
@@ -90,16 +66,4 @@ func accessibilityDeclarationDeleteResultRows(result *AccessibilityDeclarationDe
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printAccessibilityDeclarationDeleteResultTable(result *AccessibilityDeclarationDeleteResult) error {
-	h, r := accessibilityDeclarationDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAccessibilityDeclarationDeleteResultMarkdown(result *AccessibilityDeclarationDeleteResult) error {
-	h, r := accessibilityDeclarationDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

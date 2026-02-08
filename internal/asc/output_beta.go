@@ -84,18 +84,6 @@ func betaGroupsRows(resp *BetaGroupsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printBetaGroupsTable(resp *BetaGroupsResponse) error {
-	h, r := betaGroupsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaGroupsMarkdown(resp *BetaGroupsResponse) error {
-	h, r := betaGroupsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func betaTestersRows(resp *BetaTestersResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Email", "Name", "State", "Invite"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -111,46 +99,10 @@ func betaTestersRows(resp *BetaTestersResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printBetaTestersTable(resp *BetaTestersResponse) error {
-	h, r := betaTestersRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaTesterTable(resp *BetaTesterResponse) error {
-	return printBetaTestersTable(&BetaTestersResponse{
-		Data: []Resource[BetaTesterAttributes]{resp.Data},
-	})
-}
-
-func printBetaTestersMarkdown(resp *BetaTestersResponse) error {
-	h, r := betaTestersRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
-func printBetaTesterMarkdown(resp *BetaTesterResponse) error {
-	return printBetaTestersMarkdown(&BetaTestersResponse{
-		Data: []Resource[BetaTesterAttributes]{resp.Data},
-	})
-}
-
 func betaTesterDeleteResultRows(result *BetaTesterDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Email", "Deleted"}
 	rows := [][]string{{result.ID, result.Email, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printBetaTesterDeleteResultTable(result *BetaTesterDeleteResult) error {
-	h, r := betaTesterDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaTesterDeleteResultMarkdown(result *BetaTesterDeleteResult) error {
-	h, r := betaTesterDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func betaTesterGroupsUpdateResultRows(result *BetaTesterGroupsUpdateResult) ([]string, [][]string) {
@@ -159,34 +111,10 @@ func betaTesterGroupsUpdateResultRows(result *BetaTesterGroupsUpdateResult) ([]s
 	return headers, rows
 }
 
-func printBetaTesterGroupsUpdateResultTable(result *BetaTesterGroupsUpdateResult) error {
-	h, r := betaTesterGroupsUpdateResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaTesterGroupsUpdateResultMarkdown(result *BetaTesterGroupsUpdateResult) error {
-	h, r := betaTesterGroupsUpdateResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func betaTesterAppsUpdateResultRows(result *BetaTesterAppsUpdateResult) ([]string, [][]string) {
 	headers := []string{"Tester ID", "App IDs", "Action"}
 	rows := [][]string{{result.TesterID, strings.Join(result.AppIDs, ","), result.Action}}
 	return headers, rows
-}
-
-func printBetaTesterAppsUpdateResultTable(result *BetaTesterAppsUpdateResult) error {
-	h, r := betaTesterAppsUpdateResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaTesterAppsUpdateResultMarkdown(result *BetaTesterAppsUpdateResult) error {
-	h, r := betaTesterAppsUpdateResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func betaTesterBuildsUpdateResultRows(result *BetaTesterBuildsUpdateResult) ([]string, [][]string) {
@@ -195,34 +123,10 @@ func betaTesterBuildsUpdateResultRows(result *BetaTesterBuildsUpdateResult) ([]s
 	return headers, rows
 }
 
-func printBetaTesterBuildsUpdateResultTable(result *BetaTesterBuildsUpdateResult) error {
-	h, r := betaTesterBuildsUpdateResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaTesterBuildsUpdateResultMarkdown(result *BetaTesterBuildsUpdateResult) error {
-	h, r := betaTesterBuildsUpdateResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appBetaTestersUpdateResultRows(result *AppBetaTestersUpdateResult) ([]string, [][]string) {
 	headers := []string{"App ID", "Tester IDs", "Action"}
 	rows := [][]string{{result.AppID, strings.Join(result.TesterIDs, ","), result.Action}}
 	return headers, rows
-}
-
-func printAppBetaTestersUpdateResultTable(result *AppBetaTestersUpdateResult) error {
-	h, r := appBetaTestersUpdateResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppBetaTestersUpdateResultMarkdown(result *AppBetaTestersUpdateResult) error {
-	h, r := appBetaTestersUpdateResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func betaFeedbackSubmissionDeleteResultRows(result *BetaFeedbackSubmissionDeleteResult) ([]string, [][]string) {
@@ -231,32 +135,8 @@ func betaFeedbackSubmissionDeleteResultRows(result *BetaFeedbackSubmissionDelete
 	return headers, rows
 }
 
-func printBetaFeedbackSubmissionDeleteResultTable(result *BetaFeedbackSubmissionDeleteResult) error {
-	h, r := betaFeedbackSubmissionDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaFeedbackSubmissionDeleteResultMarkdown(result *BetaFeedbackSubmissionDeleteResult) error {
-	h, r := betaFeedbackSubmissionDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func betaTesterInvitationResultRows(result *BetaTesterInvitationResult) ([]string, [][]string) {
 	headers := []string{"Invitation ID", "Tester ID", "App ID", "Email"}
 	rows := [][]string{{result.InvitationID, result.TesterID, result.AppID, result.Email}}
 	return headers, rows
-}
-
-func printBetaTesterInvitationResultTable(result *BetaTesterInvitationResult) error {
-	h, r := betaTesterInvitationResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaTesterInvitationResultMarkdown(result *BetaTesterInvitationResult) error {
-	h, r := betaTesterInvitationResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

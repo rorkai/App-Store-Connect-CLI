@@ -36,18 +36,6 @@ func winBackOffersRows(resp *WinBackOffersResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printWinBackOffersTable(resp *WinBackOffersResponse) error {
-	h, r := winBackOffersRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printWinBackOffersMarkdown(resp *WinBackOffersResponse) error {
-	h, r := winBackOffersRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func winBackOfferPricesRows(resp *WinBackOfferPricesResponse) ([]string, [][]string, error) {
 	headers := []string{"ID", "Territory", "Price Point"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -61,40 +49,10 @@ func winBackOfferPricesRows(resp *WinBackOfferPricesResponse) ([]string, [][]str
 	return headers, rows, nil
 }
 
-func printWinBackOfferPricesTable(resp *WinBackOfferPricesResponse) error {
-	h, r, err := winBackOfferPricesRows(resp)
-	if err != nil {
-		return err
-	}
-	RenderTable(h, r)
-	return nil
-}
-
-func printWinBackOfferPricesMarkdown(resp *WinBackOfferPricesResponse) error {
-	h, r, err := winBackOfferPricesRows(resp)
-	if err != nil {
-		return err
-	}
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func winBackOfferDeleteResultRows(result *WinBackOfferDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printWinBackOfferDeleteResultTable(result *WinBackOfferDeleteResult) error {
-	h, r := winBackOfferDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printWinBackOfferDeleteResultMarkdown(result *WinBackOfferDeleteResult) error {
-	h, r := winBackOfferDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func winBackOfferPriceRelationshipIDs(raw json.RawMessage) (string, string, error) {

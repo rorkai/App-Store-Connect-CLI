@@ -19,15 +19,3 @@ func betaLicenseAgreementsRows(resp *BetaLicenseAgreementsResponse) ([]string, [
 	}
 	return headers, rows
 }
-
-func printBetaLicenseAgreementsTable(resp *BetaLicenseAgreementsResponse) error {
-	h, r := betaLicenseAgreementsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaLicenseAgreementsMarkdown(resp *BetaLicenseAgreementsResponse) error {
-	h, r := betaLicenseAgreementsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}

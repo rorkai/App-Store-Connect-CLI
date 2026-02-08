@@ -29,15 +29,3 @@ func appSetupInfoResultRows(result *AppSetupInfoResult) ([]string, [][]string) {
 	}
 	return headers, rows
 }
-
-func printAppSetupInfoResultTable(result *AppSetupInfoResult) error {
-	h, r := appSetupInfoResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppSetupInfoResultMarkdown(result *AppSetupInfoResult) error {
-	h, r := appSetupInfoResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}

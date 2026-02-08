@@ -14,15 +14,3 @@ func appTagsRows(resp *AppTagsResponse) ([]string, [][]string) {
 	}
 	return headers, rows
 }
-
-func printAppTagsTable(resp *AppTagsResponse) error {
-	h, r := appTagsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppTagsMarkdown(resp *AppTagsResponse) error {
-	h, r := appTagsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}

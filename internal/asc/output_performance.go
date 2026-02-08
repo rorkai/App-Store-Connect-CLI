@@ -109,24 +109,6 @@ func perfPowerMetricsRows(resp *PerfPowerMetricsResponse) ([]string, [][]string,
 	return headers, rows, nil
 }
 
-func printPerfPowerMetricsTable(resp *PerfPowerMetricsResponse) error {
-	h, r, err := perfPowerMetricsRows(resp)
-	if err != nil {
-		return err
-	}
-	RenderTable(h, r)
-	return nil
-}
-
-func printPerfPowerMetricsMarkdown(resp *PerfPowerMetricsResponse) error {
-	h, r, err := perfPowerMetricsRows(resp)
-	if err != nil {
-		return err
-	}
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func diagnosticSignaturesRows(resp *DiagnosticSignaturesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Type", "Weight", "Insight", "Signature"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -146,18 +128,6 @@ func diagnosticSignaturesRows(resp *DiagnosticSignaturesResponse) ([]string, [][
 	return headers, rows
 }
 
-func printDiagnosticSignaturesTable(resp *DiagnosticSignaturesResponse) error {
-	h, r := diagnosticSignaturesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printDiagnosticSignaturesMarkdown(resp *DiagnosticSignaturesResponse) error {
-	h, r := diagnosticSignaturesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func diagnosticLogsRows(resp *DiagnosticLogsResponse) ([]string, [][]string, error) {
 	summary, err := summarizeDiagnosticLogs(resp)
 	if err != nil {
@@ -173,24 +143,6 @@ func diagnosticLogsRows(resp *DiagnosticLogsResponse) ([]string, [][]string, err
 	return headers, rows, nil
 }
 
-func printDiagnosticLogsTable(resp *DiagnosticLogsResponse) error {
-	h, r, err := diagnosticLogsRows(resp)
-	if err != nil {
-		return err
-	}
-	RenderTable(h, r)
-	return nil
-}
-
-func printDiagnosticLogsMarkdown(resp *DiagnosticLogsResponse) error {
-	h, r, err := diagnosticLogsRows(resp)
-	if err != nil {
-		return err
-	}
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func performanceDownloadResultRows(result *PerformanceDownloadResult) ([]string, [][]string) {
 	headers := []string{"Type", "App ID", "Build ID", "Diagnostic ID", "Compressed File", "Compressed Size", "Decompressed File", "Decompressed Size"}
 	rows := [][]string{{
@@ -204,16 +156,4 @@ func performanceDownloadResultRows(result *PerformanceDownloadResult) ([]string,
 		fmt.Sprintf("%d", result.DecompressedSize),
 	}}
 	return headers, rows
-}
-
-func printPerformanceDownloadResultTable(result *PerformanceDownloadResult) error {
-	h, r := performanceDownloadResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printPerformanceDownloadResultMarkdown(result *PerformanceDownloadResult) error {
-	h, r := performanceDownloadResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

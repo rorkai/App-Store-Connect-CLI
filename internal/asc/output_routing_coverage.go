@@ -17,18 +17,6 @@ func routingAppCoverageRows(resp *RoutingAppCoverageResponse) ([]string, [][]str
 	return headers, rows
 }
 
-func printRoutingAppCoverageTable(resp *RoutingAppCoverageResponse) error {
-	h, r := routingAppCoverageRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printRoutingAppCoverageMarkdown(resp *RoutingAppCoverageResponse) error {
-	h, r := routingAppCoverageRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func routingAppCoverageFields(resp *RoutingAppCoverageResponse) []routingAppCoverageField {
 	if resp == nil {
 		return nil
@@ -48,16 +36,4 @@ func routingAppCoverageDeleteResultRows(result *RoutingAppCoverageDeleteResult) 
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printRoutingAppCoverageDeleteResultTable(result *RoutingAppCoverageDeleteResult) error {
-	h, r := routingAppCoverageDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printRoutingAppCoverageDeleteResultMarkdown(result *RoutingAppCoverageDeleteResult) error {
-	h, r := routingAppCoverageDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

@@ -23,18 +23,6 @@ func reviewSubmissionsRows(resp *ReviewSubmissionsResponse) ([]string, [][]strin
 	return headers, rows
 }
 
-func printReviewSubmissionsTable(resp *ReviewSubmissionsResponse) error {
-	h, r := reviewSubmissionsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printReviewSubmissionsMarkdown(resp *ReviewSubmissionsResponse) error {
-	h, r := reviewSubmissionsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func reviewSubmissionItemsRows(resp *ReviewSubmissionItemsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "State", "Item Type", "Item ID", "Submission ID"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -52,34 +40,10 @@ func reviewSubmissionItemsRows(resp *ReviewSubmissionItemsResponse) ([]string, [
 	return headers, rows
 }
 
-func printReviewSubmissionItemsTable(resp *ReviewSubmissionItemsResponse) error {
-	h, r := reviewSubmissionItemsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printReviewSubmissionItemsMarkdown(resp *ReviewSubmissionItemsResponse) error {
-	h, r := reviewSubmissionItemsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func reviewSubmissionItemDeleteResultRows(result *ReviewSubmissionItemDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printReviewSubmissionItemDeleteResultTable(result *ReviewSubmissionItemDeleteResult) error {
-	h, r := reviewSubmissionItemDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printReviewSubmissionItemDeleteResultMarkdown(result *ReviewSubmissionItemDeleteResult) error {
-	h, r := reviewSubmissionItemDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func reviewSubmissionAppID(rel *ReviewSubmissionRelationships) string {

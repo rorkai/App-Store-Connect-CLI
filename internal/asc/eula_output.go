@@ -44,32 +44,8 @@ func endUserLicenseAgreementRows(resp *EndUserLicenseAgreementResponse) ([]strin
 	return headers, rows
 }
 
-func printEndUserLicenseAgreementTable(resp *EndUserLicenseAgreementResponse) error {
-	h, r := endUserLicenseAgreementRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printEndUserLicenseAgreementMarkdown(resp *EndUserLicenseAgreementResponse) error {
-	h, r := endUserLicenseAgreementRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func endUserLicenseAgreementDeleteResultRows(result *EndUserLicenseAgreementDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printEndUserLicenseAgreementDeleteResultTable(result *EndUserLicenseAgreementDeleteResult) error {
-	h, r := endUserLicenseAgreementDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printEndUserLicenseAgreementDeleteResultMarkdown(result *EndUserLicenseAgreementDeleteResult) error {
-	h, r := endUserLicenseAgreementDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

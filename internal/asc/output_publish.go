@@ -19,18 +19,6 @@ func testFlightPublishResultRows(result *TestFlightPublishResult) ([]string, [][
 	return headers, rows
 }
 
-func printTestFlightPublishResultTable(result *TestFlightPublishResult) error {
-	h, r := testFlightPublishResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printTestFlightPublishResultMarkdown(result *TestFlightPublishResult) error {
-	h, r := testFlightPublishResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appStorePublishResultRows(result *AppStorePublishResult) ([]string, [][]string) {
 	headers := []string{"Build ID", "Version ID", "Submission ID", "Uploaded", "Attached", "Submitted"}
 	rows := [][]string{{
@@ -42,16 +30,4 @@ func appStorePublishResultRows(result *AppStorePublishResult) ([]string, [][]str
 		fmt.Sprintf("%t", result.Submitted),
 	}}
 	return headers, rows
-}
-
-func printAppStorePublishResultTable(result *AppStorePublishResult) error {
-	h, r := appStorePublishResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppStorePublishResultMarkdown(result *AppStorePublishResult) error {
-	h, r := appStorePublishResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

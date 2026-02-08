@@ -23,18 +23,6 @@ func appStoreReviewAttachmentsRows(resp *AppStoreReviewAttachmentsResponse) ([]s
 	return headers, rows
 }
 
-func printAppStoreReviewAttachmentsTable(resp *AppStoreReviewAttachmentsResponse) error {
-	h, r := appStoreReviewAttachmentsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppStoreReviewAttachmentsMarkdown(resp *AppStoreReviewAttachmentsResponse) error {
-	h, r := appStoreReviewAttachmentsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appStoreReviewAttachmentRows(resp *AppStoreReviewAttachmentResponse) ([]string, [][]string) {
 	fields := appStoreReviewAttachmentFields(resp)
 	headers := []string{"Field", "Value"}
@@ -43,18 +31,6 @@ func appStoreReviewAttachmentRows(resp *AppStoreReviewAttachmentResponse) ([]str
 		rows = append(rows, []string{field.Name, field.Value})
 	}
 	return headers, rows
-}
-
-func printAppStoreReviewAttachmentTable(resp *AppStoreReviewAttachmentResponse) error {
-	h, r := appStoreReviewAttachmentRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppStoreReviewAttachmentMarkdown(resp *AppStoreReviewAttachmentResponse) error {
-	h, r := appStoreReviewAttachmentRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func appStoreReviewAttachmentFields(resp *AppStoreReviewAttachmentResponse) []appStoreReviewAttachmentField {
@@ -76,18 +52,6 @@ func appStoreReviewAttachmentDeleteResultRows(result *AppStoreReviewAttachmentDe
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printAppStoreReviewAttachmentDeleteResultTable(result *AppStoreReviewAttachmentDeleteResult) error {
-	h, r := appStoreReviewAttachmentDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppStoreReviewAttachmentDeleteResultMarkdown(result *AppStoreReviewAttachmentDeleteResult) error {
-	h, r := appStoreReviewAttachmentDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func formatAssetDeliveryState(state *AppMediaAssetState) string {

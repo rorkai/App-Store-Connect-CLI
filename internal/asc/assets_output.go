@@ -1,9 +1,6 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
 // AppScreenshotSetWithScreenshots groups a set with its screenshots.
 type AppScreenshotSetWithScreenshots struct {
@@ -68,18 +65,6 @@ func appScreenshotSetsRows(resp *AppScreenshotSetsResponse) ([]string, [][]strin
 	return headers, rows
 }
 
-func printAppScreenshotSetsTable(resp *AppScreenshotSetsResponse) error {
-	h, r := appScreenshotSetsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppScreenshotSetsMarkdown(resp *AppScreenshotSetsResponse) error {
-	h, r := appScreenshotSetsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appScreenshotsRows(resp *AppScreenshotsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "File Name", "File Size", "State"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -98,18 +83,6 @@ func appScreenshotsRows(resp *AppScreenshotsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printAppScreenshotsTable(resp *AppScreenshotsResponse) error {
-	h, r := appScreenshotsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppScreenshotsMarkdown(resp *AppScreenshotsResponse) error {
-	h, r := appScreenshotsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appPreviewSetsRows(resp *AppPreviewSetsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Preview Type"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -117,18 +90,6 @@ func appPreviewSetsRows(resp *AppPreviewSetsResponse) ([]string, [][]string) {
 		rows = append(rows, []string{item.ID, item.Attributes.PreviewType})
 	}
 	return headers, rows
-}
-
-func printAppPreviewSetsTable(resp *AppPreviewSetsResponse) error {
-	h, r := appPreviewSetsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppPreviewSetsMarkdown(resp *AppPreviewSetsResponse) error {
-	h, r := appPreviewSetsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func appPreviewsRows(resp *AppPreviewsResponse) ([]string, [][]string) {
@@ -147,18 +108,6 @@ func appPreviewsRows(resp *AppPreviewsResponse) ([]string, [][]string) {
 		})
 	}
 	return headers, rows
-}
-
-func printAppPreviewsTable(resp *AppPreviewsResponse) error {
-	h, r := appPreviewsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppPreviewsMarkdown(resp *AppPreviewsResponse) error {
-	h, r := appPreviewsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func appScreenshotListResultRows(result *AppScreenshotListResult) ([]string, [][]string) {
@@ -188,18 +137,6 @@ func appScreenshotListResultRows(result *AppScreenshotListResult) ([]string, [][
 	return headers, rows
 }
 
-func printAppScreenshotListResultTable(result *AppScreenshotListResult) error {
-	h, r := appScreenshotListResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppScreenshotListResultMarkdown(result *AppScreenshotListResult) error {
-	h, r := appScreenshotListResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appPreviewListResultRows(result *AppPreviewListResult) ([]string, [][]string) {
 	headers := []string{"Set ID", "Preview Type", "Preview ID", "File Name", "File Size", "State"}
 	var rows [][]string
@@ -227,18 +164,6 @@ func appPreviewListResultRows(result *AppPreviewListResult) ([]string, [][]strin
 	return headers, rows
 }
 
-func printAppPreviewListResultTable(result *AppPreviewListResult) error {
-	h, r := appPreviewListResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppPreviewListResultMarkdown(result *AppPreviewListResult) error {
-	h, r := appPreviewListResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appScreenshotUploadResultMainRows(result *AppScreenshotUploadResult) ([]string, [][]string) {
 	headers := []string{"Localization ID", "Set ID", "Display Type"}
 	rows := [][]string{{result.VersionLocalizationID, result.SetID, result.DisplayType}}
@@ -260,68 +185,8 @@ func assetUploadResultItemRows(results []AssetUploadResultItem) ([]string, [][]s
 	return headers, rows
 }
 
-func printAppScreenshotUploadResultTable(result *AppScreenshotUploadResult) error {
-	h, r := appScreenshotUploadResultMainRows(result)
-	RenderTable(h, r)
-	if len(result.Results) == 0 {
-		return nil
-	}
-	fmt.Fprintln(os.Stdout, "\nScreenshots")
-	ih, ir := assetUploadResultItemRows(result.Results)
-	RenderTable(ih, ir)
-	return nil
-}
-
-func printAppScreenshotUploadResultMarkdown(result *AppScreenshotUploadResult) error {
-	h, r := appScreenshotUploadResultMainRows(result)
-	RenderMarkdown(h, r)
-	if len(result.Results) == 0 {
-		return nil
-	}
-	fmt.Fprintln(os.Stdout)
-	ih, ir := assetUploadResultItemRows(result.Results)
-	RenderMarkdown(ih, ir)
-	return nil
-}
-
-func printAppPreviewUploadResultTable(result *AppPreviewUploadResult) error {
-	h, r := appPreviewUploadResultMainRows(result)
-	RenderTable(h, r)
-	if len(result.Results) == 0 {
-		return nil
-	}
-	fmt.Fprintln(os.Stdout, "\nPreviews")
-	ih, ir := assetUploadResultItemRows(result.Results)
-	RenderTable(ih, ir)
-	return nil
-}
-
-func printAppPreviewUploadResultMarkdown(result *AppPreviewUploadResult) error {
-	h, r := appPreviewUploadResultMainRows(result)
-	RenderMarkdown(h, r)
-	if len(result.Results) == 0 {
-		return nil
-	}
-	fmt.Fprintln(os.Stdout)
-	ih, ir := assetUploadResultItemRows(result.Results)
-	RenderMarkdown(ih, ir)
-	return nil
-}
-
 func assetDeleteResultRows(result *AssetDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printAssetDeleteResultTable(result *AssetDeleteResult) error {
-	h, r := assetDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAssetDeleteResultMarkdown(result *AssetDeleteResult) error {
-	h, r := assetDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

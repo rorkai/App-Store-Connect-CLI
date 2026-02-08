@@ -41,18 +41,6 @@ func appEventsRows(resp *AppEventsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printAppEventsTable(resp *AppEventsResponse) error {
-	h, r := appEventsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppEventsMarkdown(resp *AppEventsResponse) error {
-	h, r := appEventsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appEventLocalizationsRows(resp *AppEventLocalizationsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Locale", "Name", "Short Description", "Long Description"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -67,18 +55,6 @@ func appEventLocalizationsRows(resp *AppEventLocalizationsResponse) ([]string, [
 		})
 	}
 	return headers, rows
-}
-
-func printAppEventLocalizationsTable(resp *AppEventLocalizationsResponse) error {
-	h, r := appEventLocalizationsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppEventLocalizationsMarkdown(resp *AppEventLocalizationsResponse) error {
-	h, r := appEventLocalizationsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func appEventScreenshotsRows(resp *AppEventScreenshotsResponse) ([]string, [][]string) {
@@ -97,18 +73,6 @@ func appEventScreenshotsRows(resp *AppEventScreenshotsResponse) ([]string, [][]s
 	return headers, rows
 }
 
-func printAppEventScreenshotsTable(resp *AppEventScreenshotsResponse) error {
-	h, r := appEventScreenshotsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppEventScreenshotsMarkdown(resp *AppEventScreenshotsResponse) error {
-	h, r := appEventScreenshotsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appEventVideoClipsRows(resp *AppEventVideoClipsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "File Name", "File Size", "Asset Type", "State"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -125,52 +89,16 @@ func appEventVideoClipsRows(resp *AppEventVideoClipsResponse) ([]string, [][]str
 	return headers, rows
 }
 
-func printAppEventVideoClipsTable(resp *AppEventVideoClipsResponse) error {
-	h, r := appEventVideoClipsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppEventVideoClipsMarkdown(resp *AppEventVideoClipsResponse) error {
-	h, r := appEventVideoClipsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appEventDeleteResultRows(result *AppEventDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
 }
 
-func printAppEventDeleteResultTable(result *AppEventDeleteResult) error {
-	h, r := appEventDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppEventDeleteResultMarkdown(result *AppEventDeleteResult) error {
-	h, r := appEventDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appEventLocalizationDeleteResultRows(result *AppEventLocalizationDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printAppEventLocalizationDeleteResultTable(result *AppEventLocalizationDeleteResult) error {
-	h, r := appEventLocalizationDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppEventLocalizationDeleteResultMarkdown(result *AppEventLocalizationDeleteResult) error {
-	h, r := appEventLocalizationDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func appEventSubmissionResultRows(result *AppEventSubmissionResult) ([]string, [][]string) {
@@ -188,18 +116,6 @@ func appEventSubmissionResultRows(result *AppEventSubmissionResult) ([]string, [
 		sanitizeTerminal(submittedDate),
 	}}
 	return headers, rows
-}
-
-func printAppEventSubmissionResultTable(result *AppEventSubmissionResult) error {
-	h, r := appEventSubmissionResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppEventSubmissionResultMarkdown(result *AppEventSubmissionResult) error {
-	h, r := appEventSubmissionResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func formatAppMediaAssetState(state *AppMediaAssetState) string {

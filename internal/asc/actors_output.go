@@ -15,15 +15,3 @@ func actorsRows(resp *ActorsResponse) ([]string, [][]string) {
 	}
 	return headers, rows
 }
-
-func printActorsTable(resp *ActorsResponse) error {
-	h, r := actorsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printActorsMarkdown(resp *ActorsResponse) error {
-	h, r := actorsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}

@@ -18,18 +18,6 @@ func appInfosRows(resp *AppInfosResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printAppInfosTable(resp *AppInfosResponse) error {
-	h, r := appInfosRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppInfosMarkdown(resp *AppInfosResponse) error {
-	h, r := appInfosRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appInfoAttrString(attrs AppInfoAttributes, key string) string {
 	if attrs == nil {
 		return ""

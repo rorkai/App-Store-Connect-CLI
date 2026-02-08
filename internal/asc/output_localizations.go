@@ -66,18 +66,6 @@ func appStoreVersionLocalizationsRows(resp *AppStoreVersionLocalizationsResponse
 	return headers, rows
 }
 
-func printAppStoreVersionLocalizationsTable(resp *AppStoreVersionLocalizationsResponse) error {
-	h, r := appStoreVersionLocalizationsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppStoreVersionLocalizationsMarkdown(resp *AppStoreVersionLocalizationsResponse) error {
-	h, r := appStoreVersionLocalizationsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func betaAppLocalizationsRows(resp *BetaAppLocalizationsResponse) ([]string, [][]string) {
 	headers := []string{"Locale", "Description", "Feedback Email", "Marketing URL", "Privacy Policy URL", "TVOS Privacy Policy"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -94,18 +82,6 @@ func betaAppLocalizationsRows(resp *BetaAppLocalizationsResponse) ([]string, [][
 	return headers, rows
 }
 
-func printBetaAppLocalizationsTable(resp *BetaAppLocalizationsResponse) error {
-	h, r := betaAppLocalizationsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaAppLocalizationsMarkdown(resp *BetaAppLocalizationsResponse) error {
-	h, r := betaAppLocalizationsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func betaBuildLocalizationsRows(resp *BetaBuildLocalizationsResponse) ([]string, [][]string) {
 	headers := []string{"Locale", "What to Test"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -116,18 +92,6 @@ func betaBuildLocalizationsRows(resp *BetaBuildLocalizationsResponse) ([]string,
 		})
 	}
 	return headers, rows
-}
-
-func printBetaBuildLocalizationsTable(resp *BetaBuildLocalizationsResponse) error {
-	h, r := betaBuildLocalizationsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaBuildLocalizationsMarkdown(resp *BetaBuildLocalizationsResponse) error {
-	h, r := betaBuildLocalizationsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func appInfoLocalizationsRows(resp *AppInfoLocalizationsResponse) ([]string, [][]string) {
@@ -144,18 +108,6 @@ func appInfoLocalizationsRows(resp *AppInfoLocalizationsResponse) ([]string, [][
 	return headers, rows
 }
 
-func printAppInfoLocalizationsTable(resp *AppInfoLocalizationsResponse) error {
-	h, r := appInfoLocalizationsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppInfoLocalizationsMarkdown(resp *AppInfoLocalizationsResponse) error {
-	h, r := appInfoLocalizationsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func localizationDownloadResultRows(result *LocalizationDownloadResult) ([]string, [][]string) {
 	headers := []string{"Locale", "Path"}
 	rows := make([][]string, 0, len(result.Files))
@@ -163,18 +115,6 @@ func localizationDownloadResultRows(result *LocalizationDownloadResult) ([]strin
 		rows = append(rows, []string{file.Locale, file.Path})
 	}
 	return headers, rows
-}
-
-func printLocalizationDownloadResultTable(result *LocalizationDownloadResult) error {
-	h, r := localizationDownloadResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printLocalizationDownloadResultMarkdown(result *LocalizationDownloadResult) error {
-	h, r := localizationDownloadResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func localizationUploadResultRows(result *LocalizationUploadResult) ([]string, [][]string) {
@@ -190,34 +130,10 @@ func localizationUploadResultRows(result *LocalizationUploadResult) ([]string, [
 	return headers, rows
 }
 
-func printLocalizationUploadResultTable(result *LocalizationUploadResult) error {
-	h, r := localizationUploadResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printLocalizationUploadResultMarkdown(result *LocalizationUploadResult) error {
-	h, r := localizationUploadResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func appStoreVersionLocalizationDeleteResultRows(result *AppStoreVersionLocalizationDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printAppStoreVersionLocalizationDeleteResultTable(result *AppStoreVersionLocalizationDeleteResult) error {
-	h, r := appStoreVersionLocalizationDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppStoreVersionLocalizationDeleteResultMarkdown(result *AppStoreVersionLocalizationDeleteResult) error {
-	h, r := appStoreVersionLocalizationDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func betaAppLocalizationDeleteResultRows(result *BetaAppLocalizationDeleteResult) ([]string, [][]string) {
@@ -226,32 +142,8 @@ func betaAppLocalizationDeleteResultRows(result *BetaAppLocalizationDeleteResult
 	return headers, rows
 }
 
-func printBetaAppLocalizationDeleteResultTable(result *BetaAppLocalizationDeleteResult) error {
-	h, r := betaAppLocalizationDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaAppLocalizationDeleteResultMarkdown(result *BetaAppLocalizationDeleteResult) error {
-	h, r := betaAppLocalizationDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func betaBuildLocalizationDeleteResultRows(result *BetaBuildLocalizationDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printBetaBuildLocalizationDeleteResultTable(result *BetaBuildLocalizationDeleteResult) error {
-	h, r := betaBuildLocalizationDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printBetaBuildLocalizationDeleteResultMarkdown(result *BetaBuildLocalizationDeleteResult) error {
-	h, r := betaBuildLocalizationDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }

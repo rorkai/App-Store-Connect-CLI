@@ -34,15 +34,3 @@ func appStoreReviewDetailRows(resp *AppStoreReviewDetailResponse) ([]string, [][
 	}}
 	return headers, rows
 }
-
-func printAppStoreReviewDetailTable(resp *AppStoreReviewDetailResponse) error {
-	h, r := appStoreReviewDetailRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppStoreReviewDetailMarkdown(resp *AppStoreReviewDetailResponse) error {
-	h, r := appStoreReviewDetailRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}

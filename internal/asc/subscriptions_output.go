@@ -35,18 +35,6 @@ func subscriptionGroupsRows(resp *SubscriptionGroupsResponse) ([]string, [][]str
 	return headers, rows
 }
 
-func printSubscriptionGroupsTable(resp *SubscriptionGroupsResponse) error {
-	h, r := subscriptionGroupsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSubscriptionGroupsMarkdown(resp *SubscriptionGroupsResponse) error {
-	h, r := subscriptionGroupsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func subscriptionsRows(resp *SubscriptionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Product ID", "Period", "State"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -62,18 +50,6 @@ func subscriptionsRows(resp *SubscriptionsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printSubscriptionsTable(resp *SubscriptionsResponse) error {
-	h, r := subscriptionsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSubscriptionsMarkdown(resp *SubscriptionsResponse) error {
-	h, r := subscriptionsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func subscriptionPriceRows(resp *SubscriptionPriceResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Start Date", "Preserved"}
 	rows := [][]string{{
@@ -82,18 +58,6 @@ func subscriptionPriceRows(resp *SubscriptionPriceResponse) ([]string, [][]strin
 		fmt.Sprintf("%t", resp.Data.Attributes.Preserved),
 	}}
 	return headers, rows
-}
-
-func printSubscriptionPriceTable(resp *SubscriptionPriceResponse) error {
-	h, r := subscriptionPriceRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSubscriptionPriceMarkdown(resp *SubscriptionPriceResponse) error {
-	h, r := subscriptionPriceRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func subscriptionPricesRows(resp *SubscriptionPricesResponse) ([]string, [][]string, error) {
@@ -115,24 +79,6 @@ func subscriptionPricesRows(resp *SubscriptionPricesResponse) ([]string, [][]str
 	return headers, rows, nil
 }
 
-func printSubscriptionPricesTable(resp *SubscriptionPricesResponse) error {
-	h, r, err := subscriptionPricesRows(resp)
-	if err != nil {
-		return err
-	}
-	RenderTable(h, r)
-	return nil
-}
-
-func printSubscriptionPricesMarkdown(resp *SubscriptionPricesResponse) error {
-	h, r, err := subscriptionPricesRows(resp)
-	if err != nil {
-		return err
-	}
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func subscriptionAvailabilityRows(resp *SubscriptionAvailabilityResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Available In New Territories"}
 	rows := [][]string{{
@@ -140,18 +86,6 @@ func subscriptionAvailabilityRows(resp *SubscriptionAvailabilityResponse) ([]str
 		fmt.Sprintf("%t", resp.Data.Attributes.AvailableInNewTerritories),
 	}}
 	return headers, rows
-}
-
-func printSubscriptionAvailabilityTable(resp *SubscriptionAvailabilityResponse) error {
-	h, r := subscriptionAvailabilityRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSubscriptionAvailabilityMarkdown(resp *SubscriptionAvailabilityResponse) error {
-	h, r := subscriptionAvailabilityRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func subscriptionGracePeriodRows(resp *SubscriptionGracePeriodResponse) ([]string, [][]string) {
@@ -166,34 +100,10 @@ func subscriptionGracePeriodRows(resp *SubscriptionGracePeriodResponse) ([]strin
 	return headers, rows
 }
 
-func printSubscriptionGracePeriodTable(resp *SubscriptionGracePeriodResponse) error {
-	h, r := subscriptionGracePeriodRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSubscriptionGracePeriodMarkdown(resp *SubscriptionGracePeriodResponse) error {
-	h, r := subscriptionGracePeriodRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func subscriptionGroupDeleteResultRows(result *SubscriptionGroupDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printSubscriptionGroupDeleteResultTable(result *SubscriptionGroupDeleteResult) error {
-	h, r := subscriptionGroupDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSubscriptionGroupDeleteResultMarkdown(result *SubscriptionGroupDeleteResult) error {
-	h, r := subscriptionGroupDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func subscriptionDeleteResultRows(result *SubscriptionDeleteResult) ([]string, [][]string) {
@@ -202,34 +112,10 @@ func subscriptionDeleteResultRows(result *SubscriptionDeleteResult) ([]string, [
 	return headers, rows
 }
 
-func printSubscriptionDeleteResultTable(result *SubscriptionDeleteResult) error {
-	h, r := subscriptionDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSubscriptionDeleteResultMarkdown(result *SubscriptionDeleteResult) error {
-	h, r := subscriptionDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func subscriptionPriceDeleteResultRows(result *SubscriptionPriceDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
 	return headers, rows
-}
-
-func printSubscriptionPriceDeleteResultTable(result *SubscriptionPriceDeleteResult) error {
-	h, r := subscriptionPriceDeleteResultRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printSubscriptionPriceDeleteResultMarkdown(result *SubscriptionPriceDeleteResult) error {
-	h, r := subscriptionPriceDeleteResultRows(result)
-	RenderMarkdown(h, r)
-	return nil
 }
 
 func subscriptionPriceRelationshipIDs(raw json.RawMessage) (string, string, error) {

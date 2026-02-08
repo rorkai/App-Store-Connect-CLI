@@ -56,18 +56,6 @@ func feedbackRows(resp *FeedbackResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printFeedbackTable(resp *FeedbackResponse) error {
-	h, r := feedbackRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printFeedbackMarkdown(resp *FeedbackResponse) error {
-	h, r := feedbackRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func crashesRows(resp *CrashesResponse) ([]string, [][]string) {
 	headers := []string{"Created", "Email", "Device", "OS", "Comment"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -83,18 +71,6 @@ func crashesRows(resp *CrashesResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
-func printCrashesTable(resp *CrashesResponse) error {
-	h, r := crashesRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printCrashesMarkdown(resp *CrashesResponse) error {
-	h, r := crashesRows(resp)
-	RenderMarkdown(h, r)
-	return nil
-}
-
 func reviewsRows(resp *ReviewsResponse) ([]string, [][]string) {
 	headers := []string{"Created", "Rating", "Territory", "Title"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -107,16 +83,4 @@ func reviewsRows(resp *ReviewsResponse) ([]string, [][]string) {
 		})
 	}
 	return headers, rows
-}
-
-func printReviewsTable(resp *ReviewsResponse) error {
-	h, r := reviewsRows(resp)
-	RenderTable(h, r)
-	return nil
-}
-
-func printReviewsMarkdown(resp *ReviewsResponse) error {
-	h, r := reviewsRows(resp)
-	RenderMarkdown(h, r)
-	return nil
 }

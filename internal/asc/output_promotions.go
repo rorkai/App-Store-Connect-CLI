@@ -12,15 +12,3 @@ func appStoreVersionPromotionCreateRows(result *AppStoreVersionPromotionCreateRe
 	rows := [][]string{{result.PromotionID, result.VersionID, result.TreatmentID}}
 	return headers, rows
 }
-
-func printAppStoreVersionPromotionCreateTable(result *AppStoreVersionPromotionCreateResult) error {
-	h, r := appStoreVersionPromotionCreateRows(result)
-	RenderTable(h, r)
-	return nil
-}
-
-func printAppStoreVersionPromotionCreateMarkdown(result *AppStoreVersionPromotionCreateResult) error {
-	h, r := appStoreVersionPromotionCreateRows(result)
-	RenderMarkdown(h, r)
-	return nil
-}
