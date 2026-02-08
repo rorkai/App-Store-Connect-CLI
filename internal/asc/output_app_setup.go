@@ -1,10 +1,5 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
-
 // AppSetupInfoResult represents CLI output for app-setup info updates.
 type AppSetupInfoResult struct {
 	AppID               string                       `json:"appId"`
@@ -12,7 +7,7 @@ type AppSetupInfoResult struct {
 	AppInfoLocalization *AppInfoLocalizationResponse `json:"appInfoLocalization,omitempty"`
 }
 
-func printAppSetupInfoResultTable(result *AppSetupInfoResult) error {
+func appSetupInfoResultRows(result *AppSetupInfoResult) ([]string, [][]string) {
 	headers := []string{"Resource", "ID", "Locale", "Name", "Subtitle", "Bundle ID", "Primary Locale", "Privacy Policy URL"}
 	var rows [][]string
 	if result.App != nil {
@@ -32,34 +27,17 @@ func printAppSetupInfoResultTable(result *AppSetupInfoResult) error {
 			attrs.PrivacyPolicyURL,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppSetupInfoResultTable(result *AppSetupInfoResult) error {
+	h, r := appSetupInfoResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppSetupInfoResultMarkdown(result *AppSetupInfoResult) error {
-	fmt.Fprintln(os.Stdout, "| Resource | ID | Locale | Name | Subtitle | Bundle ID | Primary Locale | Privacy Policy URL |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- |")
-	if result.App != nil {
-		attrs := result.App.Data.Attributes
-		fmt.Fprintf(
-			os.Stdout,
-			"| app | %s |  |  |  | %s | %s |  |\n",
-			escapeMarkdown(result.App.Data.ID),
-			escapeMarkdown(attrs.BundleID),
-			escapeMarkdown(attrs.PrimaryLocale),
-		)
-	}
-	if result.AppInfoLocalization != nil {
-		attrs := result.AppInfoLocalization.Data.Attributes
-		fmt.Fprintf(
-			os.Stdout,
-			"| appInfoLocalization | %s | %s | %s | %s |  |  | %s |\n",
-			escapeMarkdown(result.AppInfoLocalization.Data.ID),
-			escapeMarkdown(attrs.Locale),
-			escapeMarkdown(attrs.Name),
-			escapeMarkdown(attrs.Subtitle),
-			escapeMarkdown(attrs.PrivacyPolicyURL),
-		)
-	}
+	h, r := appSetupInfoResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

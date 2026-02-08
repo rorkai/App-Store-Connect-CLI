@@ -1,33 +1,31 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
 type routingAppCoverageField struct {
 	Name  string
 	Value string
 }
 
-func printRoutingAppCoverageTable(resp *RoutingAppCoverageResponse) error {
+func routingAppCoverageRows(resp *RoutingAppCoverageResponse) ([]string, [][]string) {
 	fields := routingAppCoverageFields(resp)
 	headers := []string{"Field", "Value"}
 	rows := make([][]string, 0, len(fields))
 	for _, field := range fields {
 		rows = append(rows, []string{field.Name, field.Value})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printRoutingAppCoverageTable(resp *RoutingAppCoverageResponse) error {
+	h, r := routingAppCoverageRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printRoutingAppCoverageMarkdown(resp *RoutingAppCoverageResponse) error {
-	fields := routingAppCoverageFields(resp)
-	fmt.Fprintln(os.Stdout, "| Field | Value |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, field := range fields {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n", escapeMarkdown(field.Name), escapeMarkdown(field.Value))
-	}
+	h, r := routingAppCoverageRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -46,16 +44,20 @@ func routingAppCoverageFields(resp *RoutingAppCoverageResponse) []routingAppCove
 	}
 }
 
-func printRoutingAppCoverageDeleteResultTable(result *RoutingAppCoverageDeleteResult) error {
+func routingAppCoverageDeleteResultRows(result *RoutingAppCoverageDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printRoutingAppCoverageDeleteResultTable(result *RoutingAppCoverageDeleteResult) error {
+	h, r := routingAppCoverageDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printRoutingAppCoverageDeleteResultMarkdown(result *RoutingAppCoverageDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := routingAppCoverageDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

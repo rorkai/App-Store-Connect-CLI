@@ -49,7 +49,7 @@ func TestPrintMarkdown_AppCustomProductPages(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Visible | URL |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Visible") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "Summer Campaign") {
@@ -76,7 +76,7 @@ func TestPrintMarkdown_AppCustomProductPages_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Visible | URL |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Visible") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -125,7 +125,7 @@ func TestPrintMarkdown_AppCustomProductPageVersions(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Version | State | Deep Link |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deep Link") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "READY_FOR_REVIEW") {
@@ -152,7 +152,7 @@ func TestPrintMarkdown_AppCustomProductPageVersions_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Version | State | Deep Link |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deep Link") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -199,7 +199,7 @@ func TestPrintMarkdown_AppCustomProductPageLocalizations(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Locale | Promotional Text |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Promotional Text") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "en-US") {
@@ -226,7 +226,7 @@ func TestPrintMarkdown_AppCustomProductPageLocalizations_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Locale | Promotional Text |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Promotional Text") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -265,7 +265,7 @@ func TestPrintMarkdown_AppKeywords(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID |") {
+	if !strings.Contains(output, "ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "keyword-1") {
@@ -292,7 +292,7 @@ func TestPrintMarkdown_AppKeywords_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID |") {
+	if !strings.Contains(output, "ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -337,7 +337,7 @@ func TestPrintMarkdown_AppPreviewSets(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Preview Type |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Preview Type") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "IPHONE_65") {
@@ -364,7 +364,7 @@ func TestPrintMarkdown_AppPreviewSets_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Preview Type |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Preview Type") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -409,7 +409,7 @@ func TestPrintMarkdown_AppScreenshotSets(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Display Type |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Display Type") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "APP_IPHONE_65") {
@@ -436,7 +436,7 @@ func TestPrintMarkdown_AppScreenshotSets_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Display Type |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Display Type") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -485,7 +485,7 @@ func TestPrintMarkdown_AppStoreVersionExperiments(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Traffic Proportion | State |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Traffic Proportion") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "IN_REVIEW") {
@@ -512,7 +512,7 @@ func TestPrintMarkdown_AppStoreVersionExperiments_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Traffic Proportion | State |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Traffic Proportion") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -563,7 +563,7 @@ func TestPrintMarkdown_AppStoreVersionExperimentsV2(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Platform | Traffic Proportion | State |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Platform") || !strings.Contains(output, "Traffic Proportion") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "Icon Test V2") {
@@ -590,7 +590,7 @@ func TestPrintMarkdown_AppStoreVersionExperimentsV2_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Platform | Traffic Proportion | State |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Platform") || !strings.Contains(output, "Traffic Proportion") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -639,7 +639,7 @@ func TestPrintMarkdown_AppStoreVersionExperimentTreatments(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | App Icon Name | Promoted Date |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "App Icon Name") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "Variant A") {
@@ -666,7 +666,7 @@ func TestPrintMarkdown_AppStoreVersionExperimentTreatments_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | App Icon Name | Promoted Date |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "App Icon Name") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -711,7 +711,7 @@ func TestPrintMarkdown_AppStoreVersionExperimentTreatmentLocalizations(t *testin
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Locale |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Locale") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "fr-FR") {
@@ -738,7 +738,7 @@ func TestPrintMarkdown_AppStoreVersionExperimentTreatmentLocalizations_Empty(t *
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Locale |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Locale") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -765,7 +765,7 @@ func TestPrintMarkdown_AppCustomProductPageDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "page-1") {

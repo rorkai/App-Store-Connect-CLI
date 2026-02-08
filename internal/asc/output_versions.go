@@ -1,9 +1,6 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
 // AppStoreVersionSubmissionResult represents CLI output for submissions.
 type AppStoreVersionSubmissionResult struct {
@@ -59,7 +56,7 @@ type AppStoreVersionReleaseRequestResult struct {
 	VersionID        string `json:"versionId"`
 }
 
-func printAppStoreVersionsTable(resp *AppStoreVersionsResponse) error {
+func appStoreVersionsRows(resp *AppStoreVersionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Version", "Platform", "State", "Created"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -75,11 +72,22 @@ func printAppStoreVersionsTable(resp *AppStoreVersionsResponse) error {
 			item.Attributes.CreatedDate,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreVersionsTable(resp *AppStoreVersionsResponse) error {
+	h, r := appStoreVersionsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
-func printPreReleaseVersionsTable(resp *PreReleaseVersionsResponse) error {
+func printAppStoreVersionsMarkdown(resp *AppStoreVersionsResponse) error {
+	h, r := appStoreVersionsRows(resp)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func preReleaseVersionsRows(resp *PreReleaseVersionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Version", "Platform"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -89,90 +97,124 @@ func printPreReleaseVersionsTable(resp *PreReleaseVersionsResponse) error {
 			string(item.Attributes.Platform),
 		})
 	}
-	RenderTable(headers, rows)
-	return nil
+	return headers, rows
 }
 
-func printAppStoreVersionsMarkdown(resp *AppStoreVersionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Version | Platform | State | Created |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		state := item.Attributes.AppVersionState
-		if state == "" {
-			state = item.Attributes.AppStoreState
-		}
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.VersionString),
-			escapeMarkdown(string(item.Attributes.Platform)),
-			escapeMarkdown(state),
-			escapeMarkdown(item.Attributes.CreatedDate),
-		)
-	}
+func printPreReleaseVersionsTable(resp *PreReleaseVersionsResponse) error {
+	h, r := preReleaseVersionsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printPreReleaseVersionsMarkdown(resp *PreReleaseVersionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Version | Platform |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Version),
-			escapeMarkdown(string(item.Attributes.Platform)),
-		)
-	}
+	h, r := preReleaseVersionsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppStoreVersionSubmissionTable(result *AppStoreVersionSubmissionResult) error {
+func appStoreVersionSubmissionRows(result *AppStoreVersionSubmissionResult) ([]string, [][]string) {
 	headers := []string{"Submission ID", "Created Date"}
 	createdDate := ""
 	if result.CreatedDate != nil {
 		createdDate = *result.CreatedDate
 	}
 	rows := [][]string{{result.SubmissionID, createdDate}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreVersionSubmissionTable(result *AppStoreVersionSubmissionResult) error {
+	h, r := appStoreVersionSubmissionRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
-func printAppStoreVersionSubmissionCreateTable(result *AppStoreVersionSubmissionCreateResult) error {
+func printAppStoreVersionSubmissionMarkdown(result *AppStoreVersionSubmissionResult) error {
+	h, r := appStoreVersionSubmissionRows(result)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func appStoreVersionSubmissionCreateRows(result *AppStoreVersionSubmissionCreateResult) ([]string, [][]string) {
 	headers := []string{"Submission ID", "Version ID", "Build ID", "Created Date"}
 	createdDate := ""
 	if result.CreatedDate != nil {
 		createdDate = *result.CreatedDate
 	}
 	rows := [][]string{{result.SubmissionID, result.VersionID, result.BuildID, createdDate}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreVersionSubmissionCreateTable(result *AppStoreVersionSubmissionCreateResult) error {
+	h, r := appStoreVersionSubmissionCreateRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
-func printAppStoreVersionSubmissionStatusTable(result *AppStoreVersionSubmissionStatusResult) error {
+func printAppStoreVersionSubmissionCreateMarkdown(result *AppStoreVersionSubmissionCreateResult) error {
+	h, r := appStoreVersionSubmissionCreateRows(result)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func appStoreVersionSubmissionStatusRows(result *AppStoreVersionSubmissionStatusResult) ([]string, [][]string) {
 	headers := []string{"Submission ID", "Version ID", "Version", "Platform", "State", "Created Date"}
 	createdDate := ""
 	if result.CreatedDate != nil {
 		createdDate = *result.CreatedDate
 	}
 	rows := [][]string{{result.ID, result.VersionID, result.VersionString, result.Platform, result.State, createdDate}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreVersionSubmissionStatusTable(result *AppStoreVersionSubmissionStatusResult) error {
+	h, r := appStoreVersionSubmissionStatusRows(result)
+	RenderTable(h, r)
 	return nil
+}
+
+func printAppStoreVersionSubmissionStatusMarkdown(result *AppStoreVersionSubmissionStatusResult) error {
+	h, r := appStoreVersionSubmissionStatusRows(result)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func appStoreVersionSubmissionCancelRows(result *AppStoreVersionSubmissionCancelResult) ([]string, [][]string) {
+	headers := []string{"Submission ID", "Cancelled"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Cancelled)}}
+	return headers, rows
 }
 
 func printAppStoreVersionSubmissionCancelTable(result *AppStoreVersionSubmissionCancelResult) error {
-	headers := []string{"Submission ID", "Cancelled"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Cancelled)}}
-	RenderTable(headers, rows)
+	h, r := appStoreVersionSubmissionCancelRows(result)
+	RenderTable(h, r)
 	return nil
+}
+
+func printAppStoreVersionSubmissionCancelMarkdown(result *AppStoreVersionSubmissionCancelResult) error {
+	h, r := appStoreVersionSubmissionCancelRows(result)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func appStoreVersionDetailRows(result *AppStoreVersionDetailResult) ([]string, [][]string) {
+	headers := []string{"Version ID", "Version", "Platform", "State", "Build ID", "Build Version", "Submission ID"}
+	rows := [][]string{{result.ID, result.VersionString, result.Platform, result.State, result.BuildID, result.BuildVersion, result.SubmissionID}}
+	return headers, rows
 }
 
 func printAppStoreVersionDetailTable(result *AppStoreVersionDetailResult) error {
-	headers := []string{"Version ID", "Version", "Platform", "State", "Build ID", "Build Version", "Submission ID"}
-	rows := [][]string{{result.ID, result.VersionString, result.Platform, result.State, result.BuildID, result.BuildVersion, result.SubmissionID}}
-	RenderTable(headers, rows)
+	h, r := appStoreVersionDetailRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
-func printAppStoreVersionPhasedReleaseTable(resp *AppStoreVersionPhasedReleaseResponse) error {
+func printAppStoreVersionDetailMarkdown(result *AppStoreVersionDetailResult) error {
+	h, r := appStoreVersionDetailRows(result)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func appStoreVersionPhasedReleaseRows(resp *AppStoreVersionPhasedReleaseResponse) ([]string, [][]string) {
 	headers := []string{"Phased Release ID", "State", "Start Date", "Current Day", "Total Pause Duration"}
 	attrs := resp.Data.Attributes
 	rows := [][]string{{
@@ -182,145 +224,71 @@ func printAppStoreVersionPhasedReleaseTable(resp *AppStoreVersionPhasedReleaseRe
 		fmt.Sprintf("%d", attrs.CurrentDayNumber),
 		fmt.Sprintf("%d", attrs.TotalPauseDuration),
 	}}
-	RenderTable(headers, rows)
-	return nil
+	return headers, rows
 }
 
-func printAppStoreVersionPhasedReleaseDeleteResultTable(result *AppStoreVersionPhasedReleaseDeleteResult) error {
-	headers := []string{"Phased Release ID", "Deleted"}
-	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
-	return nil
-}
-
-func printAppStoreVersionAttachBuildTable(result *AppStoreVersionAttachBuildResult) error {
-	headers := []string{"Version ID", "Build ID", "Attached"}
-	rows := [][]string{{result.VersionID, result.BuildID, fmt.Sprintf("%t", result.Attached)}}
-	RenderTable(headers, rows)
-	return nil
-}
-
-func printAppStoreVersionReleaseRequestTable(result *AppStoreVersionReleaseRequestResult) error {
-	headers := []string{"Release Request ID", "Version ID"}
-	rows := [][]string{{result.ReleaseRequestID, result.VersionID}}
-	RenderTable(headers, rows)
-	return nil
-}
-
-func printAppStoreVersionSubmissionMarkdown(result *AppStoreVersionSubmissionResult) error {
-	fmt.Fprintln(os.Stdout, "| Submission ID | Created Date |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	createdDate := ""
-	if result.CreatedDate != nil {
-		createdDate = *result.CreatedDate
-	}
-	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-		escapeMarkdown(result.SubmissionID),
-		escapeMarkdown(createdDate),
-	)
-	return nil
-}
-
-func printAppStoreVersionSubmissionCreateMarkdown(result *AppStoreVersionSubmissionCreateResult) error {
-	fmt.Fprintln(os.Stdout, "| Submission ID | Version ID | Build ID | Created Date |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	createdDate := ""
-	if result.CreatedDate != nil {
-		createdDate = *result.CreatedDate
-	}
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
-		escapeMarkdown(result.SubmissionID),
-		escapeMarkdown(result.VersionID),
-		escapeMarkdown(result.BuildID),
-		escapeMarkdown(createdDate),
-	)
-	return nil
-}
-
-func printAppStoreVersionSubmissionStatusMarkdown(result *AppStoreVersionSubmissionStatusResult) error {
-	fmt.Fprintln(os.Stdout, "| Submission ID | Version ID | Version | Platform | State | Created Date |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	createdDate := ""
-	if result.CreatedDate != nil {
-		createdDate = *result.CreatedDate
-	}
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
-		escapeMarkdown(result.ID),
-		escapeMarkdown(result.VersionID),
-		escapeMarkdown(result.VersionString),
-		escapeMarkdown(result.Platform),
-		escapeMarkdown(result.State),
-		escapeMarkdown(createdDate),
-	)
-	return nil
-}
-
-func printAppStoreVersionSubmissionCancelMarkdown(result *AppStoreVersionSubmissionCancelResult) error {
-	fmt.Fprintln(os.Stdout, "| Submission ID | Cancelled |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Cancelled,
-	)
-	return nil
-}
-
-func printAppStoreVersionDetailMarkdown(result *AppStoreVersionDetailResult) error {
-	fmt.Fprintln(os.Stdout, "| Version ID | Version | Platform | State | Build ID | Build Version | Submission ID |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s | %s |\n",
-		escapeMarkdown(result.ID),
-		escapeMarkdown(result.VersionString),
-		escapeMarkdown(result.Platform),
-		escapeMarkdown(result.State),
-		escapeMarkdown(result.BuildID),
-		escapeMarkdown(result.BuildVersion),
-		escapeMarkdown(result.SubmissionID),
-	)
+func printAppStoreVersionPhasedReleaseTable(resp *AppStoreVersionPhasedReleaseResponse) error {
+	h, r := appStoreVersionPhasedReleaseRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreVersionPhasedReleaseMarkdown(resp *AppStoreVersionPhasedReleaseResponse) error {
-	fmt.Fprintln(os.Stdout, "| Phased Release ID | State | Start Date | Current Day | Total Pause Duration |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	attrs := resp.Data.Attributes
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %d | %d |\n",
-		escapeMarkdown(resp.Data.ID),
-		escapeMarkdown(string(attrs.PhasedReleaseState)),
-		escapeMarkdown(attrs.StartDate),
-		attrs.CurrentDayNumber,
-		attrs.TotalPauseDuration,
-	)
+	h, r := appStoreVersionPhasedReleaseRows(resp)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func appStoreVersionPhasedReleaseDeleteResultRows(result *AppStoreVersionPhasedReleaseDeleteResult) ([]string, [][]string) {
+	headers := []string{"Phased Release ID", "Deleted"}
+	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
+	return headers, rows
+}
+
+func printAppStoreVersionPhasedReleaseDeleteResultTable(result *AppStoreVersionPhasedReleaseDeleteResult) error {
+	h, r := appStoreVersionPhasedReleaseDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreVersionPhasedReleaseDeleteResultMarkdown(result *AppStoreVersionPhasedReleaseDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| Phased Release ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := appStoreVersionPhasedReleaseDeleteResultRows(result)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func appStoreVersionAttachBuildRows(result *AppStoreVersionAttachBuildResult) ([]string, [][]string) {
+	headers := []string{"Version ID", "Build ID", "Attached"}
+	rows := [][]string{{result.VersionID, result.BuildID, fmt.Sprintf("%t", result.Attached)}}
+	return headers, rows
+}
+
+func printAppStoreVersionAttachBuildTable(result *AppStoreVersionAttachBuildResult) error {
+	h, r := appStoreVersionAttachBuildRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreVersionAttachBuildMarkdown(result *AppStoreVersionAttachBuildResult) error {
-	fmt.Fprintln(os.Stdout, "| Version ID | Build ID | Attached |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %t |\n",
-		escapeMarkdown(result.VersionID),
-		escapeMarkdown(result.BuildID),
-		result.Attached,
-	)
+	h, r := appStoreVersionAttachBuildRows(result)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func appStoreVersionReleaseRequestRows(result *AppStoreVersionReleaseRequestResult) ([]string, [][]string) {
+	headers := []string{"Release Request ID", "Version ID"}
+	rows := [][]string{{result.ReleaseRequestID, result.VersionID}}
+	return headers, rows
+}
+
+func printAppStoreVersionReleaseRequestTable(result *AppStoreVersionReleaseRequestResult) error {
+	h, r := appStoreVersionReleaseRequestRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreVersionReleaseRequestMarkdown(result *AppStoreVersionReleaseRequestResult) error {
-	fmt.Fprintln(os.Stdout, "| Release Request ID | Version ID |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-		escapeMarkdown(result.ReleaseRequestID),
-		escapeMarkdown(result.VersionID),
-	)
+	h, r := appStoreVersionReleaseRequestRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

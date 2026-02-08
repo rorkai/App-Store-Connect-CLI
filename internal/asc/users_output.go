@@ -2,7 +2,6 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -29,7 +28,7 @@ func formatUserUsername(attr UserAttributes) string {
 	return strings.TrimSpace(attr.Email)
 }
 
-func printUsersTable(resp *UsersResponse) error {
+func usersRows(resp *UsersResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Username", "Name", "Roles", "All Apps", "Provisioning"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -42,27 +41,22 @@ func printUsersTable(resp *UsersResponse) error {
 			fmt.Sprintf("%t", item.Attributes.ProvisioningAllowed),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printUsersTable(resp *UsersResponse) error {
+	h, r := usersRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printUsersMarkdown(resp *UsersResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Username | Name | Roles | All Apps | Provisioning |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %t | %t |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(formatUserUsername(item.Attributes)),
-			escapeMarkdown(formatPersonName(item.Attributes.FirstName, item.Attributes.LastName)),
-			escapeMarkdown(strings.Join(item.Attributes.Roles, ",")),
-			item.Attributes.AllAppsVisible,
-			item.Attributes.ProvisioningAllowed,
-		)
-	}
+	h, r := usersRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printUserInvitationsTable(resp *UserInvitationsResponse) error {
+func userInvitationsRows(resp *UserInvitationsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Email", "Name", "Roles", "All Apps", "Provisioning", "Expires"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -76,51 +70,53 @@ func printUserInvitationsTable(resp *UserInvitationsResponse) error {
 			compactWhitespace(item.Attributes.ExpirationDate),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printUserInvitationsTable(resp *UserInvitationsResponse) error {
+	h, r := userInvitationsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printUserInvitationsMarkdown(resp *UserInvitationsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Email | Name | Roles | All Apps | Provisioning | Expires |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %t | %t | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Email),
-			escapeMarkdown(formatPersonName(item.Attributes.FirstName, item.Attributes.LastName)),
-			escapeMarkdown(strings.Join(item.Attributes.Roles, ",")),
-			item.Attributes.AllAppsVisible,
-			item.Attributes.ProvisioningAllowed,
-			escapeMarkdown(item.Attributes.ExpirationDate),
-		)
-	}
+	h, r := userInvitationsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printUserDeleteResultTable(result *UserDeleteResult) error {
+func userDeleteResultRows(result *UserDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printUserDeleteResultTable(result *UserDeleteResult) error {
+	h, r := userDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printUserDeleteResultMarkdown(result *UserDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := userDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printUserInvitationRevokeResultTable(result *UserInvitationRevokeResult) error {
+func userInvitationRevokeResultRows(result *UserInvitationRevokeResult) ([]string, [][]string) {
 	headers := []string{"ID", "Revoked"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Revoked)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printUserInvitationRevokeResultTable(result *UserInvitationRevokeResult) error {
+	h, r := userInvitationRevokeResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printUserInvitationRevokeResultMarkdown(result *UserInvitationRevokeResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Revoked |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Revoked)
+	h, r := userInvitationRevokeResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

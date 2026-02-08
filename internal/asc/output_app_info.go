@@ -1,11 +1,8 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
-func printAppInfosTable(resp *AppInfosResponse) error {
+func appInfosRows(resp *AppInfosResponse) ([]string, [][]string) {
 	headers := []string{"ID", "App Store State", "State", "Age Rating", "Kids Age Band"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, info := range resp.Data {
@@ -18,25 +15,18 @@ func printAppInfosTable(resp *AppInfosResponse) error {
 			appInfoAttrString(attrs, "kidsAgeBand"),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppInfosTable(resp *AppInfosResponse) error {
+	h, r := appInfosRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppInfosMarkdown(resp *AppInfosResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | App Store State | State | Age Rating | Kids Age Band |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, info := range resp.Data {
-		attrs := info.Attributes
-		fmt.Fprintf(
-			os.Stdout,
-			"| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(info.ID),
-			escapeMarkdown(appInfoAttrString(attrs, "appStoreState")),
-			escapeMarkdown(appInfoAttrString(attrs, "state")),
-			escapeMarkdown(appInfoAttrString(attrs, "appStoreAgeRating")),
-			escapeMarkdown(appInfoAttrString(attrs, "kidsAgeBand")),
-		)
-	}
+	h, r := appInfosRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 

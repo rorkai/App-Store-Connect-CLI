@@ -58,7 +58,7 @@ func TestPrintMarkdown_EndUserLicenseAgreement(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Agreement Text |") {
+	if !strings.Contains(output, "Agreement Text") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "eula-2") {

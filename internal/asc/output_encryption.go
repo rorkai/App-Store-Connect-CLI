@@ -1,10 +1,6 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-	"strings"
-)
+import "strings"
 
 type appEncryptionDeclarationField struct {
 	Name  string
@@ -16,7 +12,7 @@ type appEncryptionDeclarationDocumentField struct {
 	Value string
 }
 
-func printAppEncryptionDeclarationsTable(resp *AppEncryptionDeclarationsResponse) error {
+func appEncryptionDeclarationsRows(resp *AppEncryptionDeclarationsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "State", "Exempt", "Proprietary Crypto", "Third-Party Crypto", "French Store", "Created", "Code"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -32,47 +28,40 @@ func printAppEncryptionDeclarationsTable(resp *AppEncryptionDeclarationsResponse
 			sanitizeTerminal(fallbackValue(attrs.CodeValue)),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppEncryptionDeclarationsTable(resp *AppEncryptionDeclarationsResponse) error {
+	h, r := appEncryptionDeclarationsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppEncryptionDeclarationsMarkdown(resp *AppEncryptionDeclarationsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | State | Exempt | Proprietary Crypto | Third-Party Crypto | French Store | Created | Code |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		attrs := item.Attributes
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(fallbackValue(string(attrs.AppEncryptionDeclarationState))),
-			escapeMarkdown(formatOptionalBool(attrs.Exempt)),
-			escapeMarkdown(formatOptionalBool(attrs.ContainsProprietaryCryptography)),
-			escapeMarkdown(formatOptionalBool(attrs.ContainsThirdPartyCryptography)),
-			escapeMarkdown(formatOptionalBool(attrs.AvailableOnFrenchStore)),
-			escapeMarkdown(fallbackValue(attrs.CreatedDate)),
-			escapeMarkdown(fallbackValue(attrs.CodeValue)),
-		)
-	}
+	h, r := appEncryptionDeclarationsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppEncryptionDeclarationTable(resp *AppEncryptionDeclarationResponse) error {
+func appEncryptionDeclarationRows(resp *AppEncryptionDeclarationResponse) ([]string, [][]string) {
 	fields := appEncryptionDeclarationFields(resp)
 	headers := []string{"Field", "Value"}
 	rows := make([][]string, 0, len(fields))
 	for _, field := range fields {
 		rows = append(rows, []string{field.Name, field.Value})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppEncryptionDeclarationTable(resp *AppEncryptionDeclarationResponse) error {
+	h, r := appEncryptionDeclarationRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppEncryptionDeclarationMarkdown(resp *AppEncryptionDeclarationResponse) error {
-	fields := appEncryptionDeclarationFields(resp)
-	fmt.Fprintln(os.Stdout, "| Field | Value |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, field := range fields {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n", escapeMarkdown(field.Name), escapeMarkdown(field.Value))
-	}
+	h, r := appEncryptionDeclarationRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -101,24 +90,25 @@ func appEncryptionDeclarationFields(resp *AppEncryptionDeclarationResponse) []ap
 	}
 }
 
-func printAppEncryptionDeclarationDocumentTable(resp *AppEncryptionDeclarationDocumentResponse) error {
+func appEncryptionDeclarationDocumentRows(resp *AppEncryptionDeclarationDocumentResponse) ([]string, [][]string) {
 	fields := appEncryptionDeclarationDocumentFields(resp)
 	headers := []string{"Field", "Value"}
 	rows := make([][]string, 0, len(fields))
 	for _, field := range fields {
 		rows = append(rows, []string{field.Name, field.Value})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppEncryptionDeclarationDocumentTable(resp *AppEncryptionDeclarationDocumentResponse) error {
+	h, r := appEncryptionDeclarationDocumentRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppEncryptionDeclarationDocumentMarkdown(resp *AppEncryptionDeclarationDocumentResponse) error {
-	fields := appEncryptionDeclarationDocumentFields(resp)
-	fmt.Fprintln(os.Stdout, "| Field | Value |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, field := range fields {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n", escapeMarkdown(field.Name), escapeMarkdown(field.Value))
-	}
+	h, r := appEncryptionDeclarationDocumentRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -139,24 +129,24 @@ func appEncryptionDeclarationDocumentFields(resp *AppEncryptionDeclarationDocume
 	}
 }
 
-func printAppEncryptionDeclarationBuildsUpdateResultTable(result *AppEncryptionDeclarationBuildsUpdateResult) error {
+func appEncryptionDeclarationBuildsUpdateResultRows(result *AppEncryptionDeclarationBuildsUpdateResult) ([]string, [][]string) {
 	headers := []string{"Declaration ID", "Build IDs", "Action"}
 	rows := [][]string{{
 		sanitizeTerminal(result.DeclarationID),
 		sanitizeTerminal(strings.Join(result.BuildIDs, ",")),
 		sanitizeTerminal(result.Action),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppEncryptionDeclarationBuildsUpdateResultTable(result *AppEncryptionDeclarationBuildsUpdateResult) error {
+	h, r := appEncryptionDeclarationBuildsUpdateResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppEncryptionDeclarationBuildsUpdateResultMarkdown(result *AppEncryptionDeclarationBuildsUpdateResult) error {
-	fmt.Fprintln(os.Stdout, "| Declaration ID | Build IDs | Action |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-		escapeMarkdown(result.DeclarationID),
-		escapeMarkdown(strings.Join(result.BuildIDs, ",")),
-		escapeMarkdown(result.Action),
-	)
+	h, r := appEncryptionDeclarationBuildsUpdateResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

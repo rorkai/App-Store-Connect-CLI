@@ -2,7 +2,6 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -28,7 +27,7 @@ type CiProductDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-func printXcodeCloudRunResultTable(result *XcodeCloudRunResult) error {
+func xcodeCloudRunResultRows(result *XcodeCloudRunResult) ([]string, [][]string) {
 	headers := []string{"Build Run ID", "Build #", "Workflow ID", "Workflow Name", "Git Ref ID", "Git Ref Name", "Progress", "Status", "Start Reason", "Created"}
 	rows := [][]string{{
 		result.BuildRunID,
@@ -42,29 +41,22 @@ func printXcodeCloudRunResultTable(result *XcodeCloudRunResult) error {
 		result.StartReason,
 		result.CreatedDate,
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printXcodeCloudRunResultTable(result *XcodeCloudRunResult) error {
+	h, r := xcodeCloudRunResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printXcodeCloudRunResultMarkdown(result *XcodeCloudRunResult) error {
-	fmt.Fprintln(os.Stdout, "| Build Run ID | Build # | Workflow ID | Workflow Name | Git Ref ID | Git Ref Name | Progress | Status | Start Reason | Created |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %d | %s | %s | %s | %s | %s | %s | %s | %s |\n",
-		escapeMarkdown(result.BuildRunID),
-		result.BuildNumber,
-		escapeMarkdown(result.WorkflowID),
-		escapeMarkdown(result.WorkflowName),
-		escapeMarkdown(result.GitReferenceID),
-		escapeMarkdown(result.GitReferenceName),
-		escapeMarkdown(result.ExecutionProgress),
-		escapeMarkdown(result.CompletionStatus),
-		escapeMarkdown(result.StartReason),
-		escapeMarkdown(result.CreatedDate),
-	)
+	h, r := xcodeCloudRunResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printXcodeCloudStatusResultTable(result *XcodeCloudStatusResult) error {
+func xcodeCloudStatusResultRows(result *XcodeCloudStatusResult) ([]string, [][]string) {
 	headers := []string{"Build Run ID", "Build #", "Workflow ID", "Progress", "Status", "Start Reason", "Cancel Reason", "Created", "Started", "Finished"}
 	rows := [][]string{{
 		result.BuildRunID,
@@ -78,29 +70,22 @@ func printXcodeCloudStatusResultTable(result *XcodeCloudStatusResult) error {
 		result.StartedDate,
 		result.FinishedDate,
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printXcodeCloudStatusResultTable(result *XcodeCloudStatusResult) error {
+	h, r := xcodeCloudStatusResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printXcodeCloudStatusResultMarkdown(result *XcodeCloudStatusResult) error {
-	fmt.Fprintln(os.Stdout, "| Build Run ID | Build # | Workflow ID | Progress | Status | Start Reason | Cancel Reason | Created | Started | Finished |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %d | %s | %s | %s | %s | %s | %s | %s | %s |\n",
-		escapeMarkdown(result.BuildRunID),
-		result.BuildNumber,
-		escapeMarkdown(result.WorkflowID),
-		escapeMarkdown(result.ExecutionProgress),
-		escapeMarkdown(result.CompletionStatus),
-		escapeMarkdown(result.StartReason),
-		escapeMarkdown(result.CancelReason),
-		escapeMarkdown(result.CreatedDate),
-		escapeMarkdown(result.StartedDate),
-		escapeMarkdown(result.FinishedDate),
-	)
+	h, r := xcodeCloudStatusResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printCiProductsTable(resp *CiProductsResponse) error {
+func ciProductsRows(resp *CiProductsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Bundle ID", "Type", "Created"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -112,26 +97,22 @@ func printCiProductsTable(resp *CiProductsResponse) error {
 			item.Attributes.CreatedDate,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCiProductsTable(resp *CiProductsResponse) error {
+	h, r := ciProductsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCiProductsMarkdown(resp *CiProductsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Bundle ID | Type | Created |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.BundleID),
-			escapeMarkdown(item.Attributes.ProductType),
-			escapeMarkdown(item.Attributes.CreatedDate),
-		)
-	}
+	h, r := ciProductsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printCiWorkflowsTable(resp *CiWorkflowsResponse) error {
+func ciWorkflowsRows(resp *CiWorkflowsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Enabled", "Last Modified"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -142,25 +123,22 @@ func printCiWorkflowsTable(resp *CiWorkflowsResponse) error {
 			item.Attributes.LastModifiedDate,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCiWorkflowsTable(resp *CiWorkflowsResponse) error {
+	h, r := ciWorkflowsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCiWorkflowsMarkdown(resp *CiWorkflowsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Enabled | Last Modified |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %t | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Name),
-			item.Attributes.IsEnabled,
-			escapeMarkdown(item.Attributes.LastModifiedDate),
-		)
-	}
+	h, r := ciWorkflowsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printScmRepositoriesTable(resp *ScmRepositoriesResponse) error {
+func scmRepositoriesRows(resp *ScmRepositoriesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Owner", "Repository", "HTTP URL", "SSH URL", "Last Accessed"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -173,27 +151,22 @@ func printScmRepositoriesTable(resp *ScmRepositoriesResponse) error {
 			item.Attributes.LastAccessedDate,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printScmRepositoriesTable(resp *ScmRepositoriesResponse) error {
+	h, r := scmRepositoriesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printScmRepositoriesMarkdown(resp *ScmRepositoriesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Owner | Repository | HTTP URL | SSH URL | Last Accessed |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.OwnerName),
-			escapeMarkdown(item.Attributes.RepositoryName),
-			escapeMarkdown(item.Attributes.HTTPCloneURL),
-			escapeMarkdown(item.Attributes.SSHCloneURL),
-			escapeMarkdown(item.Attributes.LastAccessedDate),
-		)
-	}
+	h, r := scmRepositoriesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printScmProvidersTable(resp *ScmProvidersResponse) error {
+func scmProvidersRows(resp *ScmProvidersResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Provider Type", "URL"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -203,20 +176,18 @@ func printScmProvidersTable(resp *ScmProvidersResponse) error {
 			item.Attributes.URL,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printScmProvidersTable(resp *ScmProvidersResponse) error {
+	h, r := scmProvidersRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printScmProvidersMarkdown(resp *ScmProvidersResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Provider Type | URL |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(formatScmProviderType(item.Attributes.ScmProviderType)),
-			escapeMarkdown(item.Attributes.URL),
-		)
-	}
+	h, r := scmProvidersRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -230,7 +201,7 @@ func formatScmProviderType(providerType *ScmProviderType) string {
 	return strings.TrimSpace(providerType.Kind)
 }
 
-func printScmGitReferencesTable(resp *ScmGitReferencesResponse) error {
+func scmGitReferencesRows(resp *ScmGitReferencesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Canonical Name", "Kind", "Deleted"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -242,26 +213,22 @@ func printScmGitReferencesTable(resp *ScmGitReferencesResponse) error {
 			fmt.Sprintf("%t", item.Attributes.IsDeleted),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printScmGitReferencesTable(resp *ScmGitReferencesResponse) error {
+	h, r := scmGitReferencesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printScmGitReferencesMarkdown(resp *ScmGitReferencesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Canonical Name | Kind | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %t |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.CanonicalName),
-			escapeMarkdown(item.Attributes.Kind),
-			item.Attributes.IsDeleted,
-		)
-	}
+	h, r := scmGitReferencesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printScmPullRequestsTable(resp *ScmPullRequestsResponse) error {
+func scmPullRequestsRows(resp *ScmPullRequestsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Number", "Title", "Source", "Destination", "Closed", "Cross Repo", "Web URL"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -276,29 +243,22 @@ func printScmPullRequestsTable(resp *ScmPullRequestsResponse) error {
 			item.Attributes.WebURL,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printScmPullRequestsTable(resp *ScmPullRequestsResponse) error {
+	h, r := scmPullRequestsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printScmPullRequestsMarkdown(resp *ScmPullRequestsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Number | Title | Source | Destination | Closed | Cross Repo | Web URL |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %d | %s | %s | %s | %t | %t | %s |\n",
-			escapeMarkdown(item.ID),
-			item.Attributes.Number,
-			escapeMarkdown(item.Attributes.Title),
-			escapeMarkdown(formatScmRef(item.Attributes.SourceRepositoryOwner, item.Attributes.SourceRepositoryName, item.Attributes.SourceBranchName)),
-			escapeMarkdown(formatScmRef(item.Attributes.DestinationRepositoryOwner, item.Attributes.DestinationRepositoryName, item.Attributes.DestinationBranchName)),
-			item.Attributes.IsClosed,
-			item.Attributes.IsCrossRepository,
-			escapeMarkdown(item.Attributes.WebURL),
-		)
-	}
+	h, r := scmPullRequestsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printCiMacOsVersionsTable(resp *CiMacOsVersionsResponse) error {
+func ciMacOsVersionsRows(resp *CiMacOsVersionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Version", "Name"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -308,24 +268,22 @@ func printCiMacOsVersionsTable(resp *CiMacOsVersionsResponse) error {
 			item.Attributes.Name,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCiMacOsVersionsTable(resp *CiMacOsVersionsResponse) error {
+	h, r := ciMacOsVersionsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCiMacOsVersionsMarkdown(resp *CiMacOsVersionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Version | Name |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Version),
-			escapeMarkdown(item.Attributes.Name),
-		)
-	}
+	h, r := ciMacOsVersionsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printCiXcodeVersionsTable(resp *CiXcodeVersionsResponse) error {
+func ciXcodeVersionsRows(resp *CiXcodeVersionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Version", "Name"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -335,20 +293,18 @@ func printCiXcodeVersionsTable(resp *CiXcodeVersionsResponse) error {
 			item.Attributes.Name,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCiXcodeVersionsTable(resp *CiXcodeVersionsResponse) error {
+	h, r := ciXcodeVersionsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCiXcodeVersionsMarkdown(resp *CiXcodeVersionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Version | Name |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Version),
-			escapeMarkdown(item.Attributes.Name),
-		)
-	}
+	h, r := ciXcodeVersionsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -373,7 +329,7 @@ func formatScmRepo(owner, repo string) string {
 	return fmt.Sprintf("%s/%s", owner, repo)
 }
 
-func printCiBuildRunsTable(resp *CiBuildRunsResponse) error {
+func ciBuildRunsRows(resp *CiBuildRunsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Build #", "Progress", "Status", "Start Reason", "Created", "Started", "Finished"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -388,29 +344,22 @@ func printCiBuildRunsTable(resp *CiBuildRunsResponse) error {
 			item.Attributes.FinishedDate,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCiBuildRunsTable(resp *CiBuildRunsResponse) error {
+	h, r := ciBuildRunsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCiBuildRunsMarkdown(resp *CiBuildRunsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Build # | Progress | Status | Start Reason | Created | Started | Finished |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %d | %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			item.Attributes.Number,
-			escapeMarkdown(string(item.Attributes.ExecutionProgress)),
-			escapeMarkdown(string(item.Attributes.CompletionStatus)),
-			escapeMarkdown(item.Attributes.StartReason),
-			escapeMarkdown(item.Attributes.CreatedDate),
-			escapeMarkdown(item.Attributes.StartedDate),
-			escapeMarkdown(item.Attributes.FinishedDate),
-		)
-	}
+	h, r := ciBuildRunsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printCiBuildActionsTable(resp *CiBuildActionsResponse) error {
+func ciBuildActionsRows(resp *CiBuildActionsResponse) ([]string, [][]string) {
 	headers := []string{"Name", "Type", "Progress", "Status", "Errors", "Warnings", "Started", "Finished"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -431,35 +380,22 @@ func printCiBuildActionsTable(resp *CiBuildActionsResponse) error {
 			item.Attributes.FinishedDate,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCiBuildActionsTable(resp *CiBuildActionsResponse) error {
+	h, r := ciBuildActionsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCiBuildActionsMarkdown(resp *CiBuildActionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| Name | Type | Progress | Status | Errors | Warnings | Started | Finished |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		errors := 0
-		warnings := 0
-		if item.Attributes.IssueCounts != nil {
-			errors = item.Attributes.IssueCounts.Errors
-			warnings = item.Attributes.IssueCounts.Warnings
-		}
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %d | %d | %s | %s |\n",
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.ActionType),
-			escapeMarkdown(string(item.Attributes.ExecutionProgress)),
-			escapeMarkdown(string(item.Attributes.CompletionStatus)),
-			errors,
-			warnings,
-			escapeMarkdown(item.Attributes.StartedDate),
-			escapeMarkdown(item.Attributes.FinishedDate),
-		)
-	}
+	h, r := ciBuildActionsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printCiArtifactsTable(resp *CiArtifactsResponse) error {
+func ciArtifactsRows(resp *CiArtifactsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Type", "Size", "Download URL"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -471,22 +407,18 @@ func printCiArtifactsTable(resp *CiArtifactsResponse) error {
 			item.Attributes.DownloadURL,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCiArtifactsTable(resp *CiArtifactsResponse) error {
+	h, r := ciArtifactsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCiArtifactsMarkdown(resp *CiArtifactsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Type | Size | Download URL |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %d | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.FileName),
-			escapeMarkdown(item.Attributes.FileType),
-			item.Attributes.FileSize,
-			escapeMarkdown(item.Attributes.DownloadURL),
-		)
-	}
+	h, r := ciArtifactsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -498,7 +430,7 @@ func printCiArtifactMarkdown(resp *CiArtifactResponse) error {
 	return printCiArtifactsMarkdown(&CiArtifactsResponse{Data: []CiArtifactResource{resp.Data}})
 }
 
-func printCiTestResultsTable(resp *CiTestResultsResponse) error {
+func ciTestResultsRows(resp *CiTestResultsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Class", "Name", "Status", "Duration"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -510,22 +442,18 @@ func printCiTestResultsTable(resp *CiTestResultsResponse) error {
 			formatTestDuration(item),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCiTestResultsTable(resp *CiTestResultsResponse) error {
+	h, r := ciTestResultsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCiTestResultsMarkdown(resp *CiTestResultsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Class | Name | Status | Duration |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.ClassName),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(string(item.Attributes.Status)),
-			escapeMarkdown(formatTestDuration(item)),
-		)
-	}
+	h, r := ciTestResultsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -537,7 +465,7 @@ func printCiTestResultMarkdown(resp *CiTestResultResponse) error {
 	return printCiTestResultsMarkdown(&CiTestResultsResponse{Data: []CiTestResultResource{resp.Data}})
 }
 
-func printCiIssuesTable(resp *CiIssuesResponse) error {
+func ciIssuesRows(resp *CiIssuesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Type", "File", "Line", "Message"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -550,23 +478,18 @@ func printCiIssuesTable(resp *CiIssuesResponse) error {
 			item.Attributes.Message,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCiIssuesTable(resp *CiIssuesResponse) error {
+	h, r := ciIssuesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCiIssuesMarkdown(resp *CiIssuesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Type | File | Line | Message |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		filePath, lineNumber := formatFileLocation(item.Attributes.FileSource)
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.IssueType),
-			escapeMarkdown(filePath),
-			escapeMarkdown(lineNumber),
-			escapeMarkdown(item.Attributes.Message),
-		)
-	}
+	h, r := ciIssuesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -578,7 +501,7 @@ func printCiIssueMarkdown(resp *CiIssueResponse) error {
 	return printCiIssuesMarkdown(&CiIssuesResponse{Data: []CiIssueResource{resp.Data}})
 }
 
-func printCiArtifactDownloadResultTable(result *CiArtifactDownloadResult) error {
+func ciArtifactDownloadResultRows(result *CiArtifactDownloadResult) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Type", "Size", "Bytes Written", "Output Path"}
 	rows := [][]string{{
 		result.ID,
@@ -588,49 +511,54 @@ func printCiArtifactDownloadResultTable(result *CiArtifactDownloadResult) error 
 		fmt.Sprintf("%d", result.BytesWritten),
 		result.OutputPath,
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCiArtifactDownloadResultTable(result *CiArtifactDownloadResult) error {
+	h, r := ciArtifactDownloadResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCiArtifactDownloadResultMarkdown(result *CiArtifactDownloadResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Type | Size | Bytes Written | Output Path |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %d | %d | %s |\n",
-		escapeMarkdown(result.ID),
-		escapeMarkdown(result.FileName),
-		escapeMarkdown(result.FileType),
-		result.FileSize,
-		result.BytesWritten,
-		escapeMarkdown(result.OutputPath),
-	)
+	h, r := ciArtifactDownloadResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printCiWorkflowDeleteResultTable(result *CiWorkflowDeleteResult) error {
+func ciWorkflowDeleteResultRows(result *CiWorkflowDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCiWorkflowDeleteResultTable(result *CiWorkflowDeleteResult) error {
+	h, r := ciWorkflowDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCiWorkflowDeleteResultMarkdown(result *CiWorkflowDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := ciWorkflowDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printCiProductDeleteResultTable(result *CiProductDeleteResult) error {
+func ciProductDeleteResultRows(result *CiProductDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCiProductDeleteResultTable(result *CiProductDeleteResult) error {
+	h, r := ciProductDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCiProductDeleteResultMarkdown(result *CiProductDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := ciProductDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 

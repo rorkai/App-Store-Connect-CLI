@@ -1,11 +1,6 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
-
-func printAppsTable(resp *AppsResponse) error {
+func appsRows(resp *AppsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Bundle ID", "SKU"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -16,20 +11,17 @@ func printAppsTable(resp *AppsResponse) error {
 			item.Attributes.SKU,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppsTable(resp *AppsResponse) error {
+	h, r := appsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppsMarkdown(resp *AppsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Bundle ID | SKU |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
-			item.ID,
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.BundleID),
-			escapeMarkdown(item.Attributes.SKU),
-		)
-	}
+	h, r := appsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }

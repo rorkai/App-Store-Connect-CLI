@@ -1,16 +1,13 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
 type appStoreReviewAttachmentField struct {
 	Name  string
 	Value string
 }
 
-func printAppStoreReviewAttachmentsTable(resp *AppStoreReviewAttachmentsResponse) error {
+func appStoreReviewAttachmentsRows(resp *AppStoreReviewAttachmentsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "File Name", "File Size", "Checksum", "Delivery State"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -23,44 +20,40 @@ func printAppStoreReviewAttachmentsTable(resp *AppStoreReviewAttachmentsResponse
 			sanitizeTerminal(formatAssetDeliveryState(attrs.AssetDeliveryState)),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreReviewAttachmentsTable(resp *AppStoreReviewAttachmentsResponse) error {
+	h, r := appStoreReviewAttachmentsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreReviewAttachmentsMarkdown(resp *AppStoreReviewAttachmentsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | File Name | File Size | Checksum | Delivery State |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		attrs := item.Attributes
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(fallbackValue(attrs.FileName)),
-			escapeMarkdown(formatAttachmentFileSize(attrs.FileSize)),
-			escapeMarkdown(fallbackValue(attrs.SourceFileChecksum)),
-			escapeMarkdown(formatAssetDeliveryState(attrs.AssetDeliveryState)),
-		)
-	}
+	h, r := appStoreReviewAttachmentsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppStoreReviewAttachmentTable(resp *AppStoreReviewAttachmentResponse) error {
+func appStoreReviewAttachmentRows(resp *AppStoreReviewAttachmentResponse) ([]string, [][]string) {
 	fields := appStoreReviewAttachmentFields(resp)
 	headers := []string{"Field", "Value"}
 	rows := make([][]string, 0, len(fields))
 	for _, field := range fields {
 		rows = append(rows, []string{field.Name, field.Value})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreReviewAttachmentTable(resp *AppStoreReviewAttachmentResponse) error {
+	h, r := appStoreReviewAttachmentRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreReviewAttachmentMarkdown(resp *AppStoreReviewAttachmentResponse) error {
-	fields := appStoreReviewAttachmentFields(resp)
-	fmt.Fprintln(os.Stdout, "| Field | Value |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, field := range fields {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n", escapeMarkdown(field.Name), escapeMarkdown(field.Value))
-	}
+	h, r := appStoreReviewAttachmentRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -79,17 +72,21 @@ func appStoreReviewAttachmentFields(resp *AppStoreReviewAttachmentResponse) []ap
 	}
 }
 
-func printAppStoreReviewAttachmentDeleteResultTable(result *AppStoreReviewAttachmentDeleteResult) error {
+func appStoreReviewAttachmentDeleteResultRows(result *AppStoreReviewAttachmentDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreReviewAttachmentDeleteResultTable(result *AppStoreReviewAttachmentDeleteResult) error {
+	h, r := appStoreReviewAttachmentDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreReviewAttachmentDeleteResultMarkdown(result *AppStoreReviewAttachmentDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := appStoreReviewAttachmentDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 

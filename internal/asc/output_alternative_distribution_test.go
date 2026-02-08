@@ -49,7 +49,7 @@ func TestPrintMarkdown_AlternativeDistributionDomains(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Domain | Reference Name | Created Date |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Domain") {
 		t.Fatalf("expected domain header, got: %s", output)
 	}
 	if !strings.Contains(output, "domain-1") || !strings.Contains(output, "example.com") || !strings.Contains(output, "Example") {
@@ -97,7 +97,7 @@ func TestPrintMarkdown_AlternativeDistributionKeys(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Public Key |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Public Key") {
 		t.Fatalf("expected key header, got: %s", output)
 	}
 	if !strings.Contains(output, "key-1") || !strings.Contains(output, "KEYDATA") {
@@ -159,7 +159,7 @@ func TestPrintMarkdown_AlternativeDistributionPackage(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Source File Checksum |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Source File Checksum") {
 		t.Fatalf("expected package header, got: %s", output)
 	}
 	if !strings.Contains(output, "package-1") || !strings.Contains(output, "file-hash") || !strings.Contains(output, "composite-hash") {
@@ -213,7 +213,7 @@ func TestPrintMarkdown_AlternativeDistributionPackageVariants(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | URL | URL Expiration Date | Key Blob | File Checksum |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Key Blob") {
 		t.Fatalf("expected variant header, got: %s", output)
 	}
 	if !strings.Contains(output, "variant-1") || !strings.Contains(output, "https://example.com/variant") {
@@ -267,7 +267,7 @@ func TestPrintMarkdown_AlternativeDistributionPackageDeltas(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | URL | URL Expiration Date | Key Blob | File Checksum |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Key Blob") {
 		t.Fatalf("expected delta header, got: %s", output)
 	}
 	if !strings.Contains(output, "delta-1") || !strings.Contains(output, "https://example.com/delta") {

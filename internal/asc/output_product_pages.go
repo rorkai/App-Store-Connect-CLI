@@ -2,10 +2,9 @@ package asc
 
 import (
 	"fmt"
-	"os"
 )
 
-func printAppCustomProductPagesTable(resp *AppCustomProductPagesResponse) error {
+func appCustomProductPagesRows(resp *AppCustomProductPagesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Visible", "URL"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -16,25 +15,22 @@ func printAppCustomProductPagesTable(resp *AppCustomProductPagesResponse) error 
 			compactWhitespace(item.Attributes.URL),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppCustomProductPagesTable(resp *AppCustomProductPagesResponse) error {
+	h, r := appCustomProductPagesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppCustomProductPagesMarkdown(resp *AppCustomProductPagesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Visible | URL |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(boolValue(item.Attributes.Visible)),
-			escapeMarkdown(item.Attributes.URL),
-		)
-	}
+	h, r := appCustomProductPagesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppCustomProductPageVersionsTable(resp *AppCustomProductPageVersionsResponse) error {
+func appCustomProductPageVersionsRows(resp *AppCustomProductPageVersionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Version", "State", "Deep Link"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -45,25 +41,22 @@ func printAppCustomProductPageVersionsTable(resp *AppCustomProductPageVersionsRe
 			compactWhitespace(item.Attributes.DeepLink),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppCustomProductPageVersionsTable(resp *AppCustomProductPageVersionsResponse) error {
+	h, r := appCustomProductPageVersionsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppCustomProductPageVersionsMarkdown(resp *AppCustomProductPageVersionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Version | State | Deep Link |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Version),
-			escapeMarkdown(item.Attributes.State),
-			escapeMarkdown(item.Attributes.DeepLink),
-		)
-	}
+	h, r := appCustomProductPageVersionsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppCustomProductPageLocalizationsTable(resp *AppCustomProductPageLocalizationsResponse) error {
+func appCustomProductPageLocalizationsRows(resp *AppCustomProductPageLocalizationsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Locale", "Promotional Text"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -73,43 +66,43 @@ func printAppCustomProductPageLocalizationsTable(resp *AppCustomProductPageLocal
 			compactWhitespace(item.Attributes.PromotionalText),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppCustomProductPageLocalizationsTable(resp *AppCustomProductPageLocalizationsResponse) error {
+	h, r := appCustomProductPageLocalizationsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppCustomProductPageLocalizationsMarkdown(resp *AppCustomProductPageLocalizationsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Locale | Promotional Text |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Locale),
-			escapeMarkdown(item.Attributes.PromotionalText),
-		)
-	}
+	h, r := appCustomProductPageLocalizationsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppKeywordsTable(resp *AppKeywordsResponse) error {
+func appKeywordsRows(resp *AppKeywordsResponse) ([]string, [][]string) {
 	headers := []string{"ID"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{item.ID})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppKeywordsTable(resp *AppKeywordsResponse) error {
+	h, r := appKeywordsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppKeywordsMarkdown(resp *AppKeywordsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID |")
-	fmt.Fprintln(os.Stdout, "| --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s |\n", escapeMarkdown(item.ID))
-	}
+	h, r := appKeywordsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppStoreVersionExperimentsTable(resp *AppStoreVersionExperimentsResponse) error {
+func appStoreVersionExperimentsRows(resp *AppStoreVersionExperimentsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Traffic Proportion", "State"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -120,25 +113,22 @@ func printAppStoreVersionExperimentsTable(resp *AppStoreVersionExperimentsRespon
 			compactWhitespace(item.Attributes.State),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreVersionExperimentsTable(resp *AppStoreVersionExperimentsResponse) error {
+	h, r := appStoreVersionExperimentsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreVersionExperimentsMarkdown(resp *AppStoreVersionExperimentsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Traffic Proportion | State |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(formatOptionalInt(item.Attributes.TrafficProportion)),
-			escapeMarkdown(item.Attributes.State),
-		)
-	}
+	h, r := appStoreVersionExperimentsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppStoreVersionExperimentsV2Table(resp *AppStoreVersionExperimentsV2Response) error {
+func appStoreVersionExperimentsV2Rows(resp *AppStoreVersionExperimentsV2Response) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Platform", "Traffic Proportion", "State"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -150,26 +140,22 @@ func printAppStoreVersionExperimentsV2Table(resp *AppStoreVersionExperimentsV2Re
 			compactWhitespace(item.Attributes.State),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreVersionExperimentsV2Table(resp *AppStoreVersionExperimentsV2Response) error {
+	h, r := appStoreVersionExperimentsV2Rows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreVersionExperimentsV2Markdown(resp *AppStoreVersionExperimentsV2Response) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Platform | Traffic Proportion | State |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(string(item.Attributes.Platform)),
-			escapeMarkdown(formatOptionalInt(item.Attributes.TrafficProportion)),
-			escapeMarkdown(item.Attributes.State),
-		)
-	}
+	h, r := appStoreVersionExperimentsV2Rows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppStoreVersionExperimentTreatmentsTable(resp *AppStoreVersionExperimentTreatmentsResponse) error {
+func appStoreVersionExperimentTreatmentsRows(resp *AppStoreVersionExperimentTreatmentsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "App Icon Name", "Promoted Date"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -180,25 +166,22 @@ func printAppStoreVersionExperimentTreatmentsTable(resp *AppStoreVersionExperime
 			compactWhitespace(item.Attributes.PromotedDate),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreVersionExperimentTreatmentsTable(resp *AppStoreVersionExperimentTreatmentsResponse) error {
+	h, r := appStoreVersionExperimentTreatmentsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreVersionExperimentTreatmentsMarkdown(resp *AppStoreVersionExperimentTreatmentsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | App Icon Name | Promoted Date |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.AppIconName),
-			escapeMarkdown(item.Attributes.PromotedDate),
-		)
-	}
+	h, r := appStoreVersionExperimentTreatmentsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppStoreVersionExperimentTreatmentLocalizationsTable(resp *AppStoreVersionExperimentTreatmentLocalizationsResponse) error {
+func appStoreVersionExperimentTreatmentLocalizationsRows(resp *AppStoreVersionExperimentTreatmentLocalizationsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Locale"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -207,88 +190,107 @@ func printAppStoreVersionExperimentTreatmentLocalizationsTable(resp *AppStoreVer
 			compactWhitespace(item.Attributes.Locale),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreVersionExperimentTreatmentLocalizationsTable(resp *AppStoreVersionExperimentTreatmentLocalizationsResponse) error {
+	h, r := appStoreVersionExperimentTreatmentLocalizationsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreVersionExperimentTreatmentLocalizationsMarkdown(resp *AppStoreVersionExperimentTreatmentLocalizationsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Locale |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Locale),
-		)
-	}
+	h, r := appStoreVersionExperimentTreatmentLocalizationsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppCustomProductPageDeleteResultTable(result *AppCustomProductPageDeleteResult) error {
+func appCustomProductPageDeleteResultRows(result *AppCustomProductPageDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppCustomProductPageDeleteResultTable(result *AppCustomProductPageDeleteResult) error {
+	h, r := appCustomProductPageDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppCustomProductPageDeleteResultMarkdown(result *AppCustomProductPageDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := appCustomProductPageDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppCustomProductPageLocalizationDeleteResultTable(result *AppCustomProductPageLocalizationDeleteResult) error {
+func appCustomProductPageLocalizationDeleteResultRows(result *AppCustomProductPageLocalizationDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppCustomProductPageLocalizationDeleteResultTable(result *AppCustomProductPageLocalizationDeleteResult) error {
+	h, r := appCustomProductPageLocalizationDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppCustomProductPageLocalizationDeleteResultMarkdown(result *AppCustomProductPageLocalizationDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := appCustomProductPageLocalizationDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppStoreVersionExperimentDeleteResultTable(result *AppStoreVersionExperimentDeleteResult) error {
+func appStoreVersionExperimentDeleteResultRows(result *AppStoreVersionExperimentDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreVersionExperimentDeleteResultTable(result *AppStoreVersionExperimentDeleteResult) error {
+	h, r := appStoreVersionExperimentDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreVersionExperimentDeleteResultMarkdown(result *AppStoreVersionExperimentDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := appStoreVersionExperimentDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppStoreVersionExperimentTreatmentDeleteResultTable(result *AppStoreVersionExperimentTreatmentDeleteResult) error {
+func appStoreVersionExperimentTreatmentDeleteResultRows(result *AppStoreVersionExperimentTreatmentDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreVersionExperimentTreatmentDeleteResultTable(result *AppStoreVersionExperimentTreatmentDeleteResult) error {
+	h, r := appStoreVersionExperimentTreatmentDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreVersionExperimentTreatmentDeleteResultMarkdown(result *AppStoreVersionExperimentTreatmentDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := appStoreVersionExperimentTreatmentDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppStoreVersionExperimentTreatmentLocalizationDeleteResultTable(result *AppStoreVersionExperimentTreatmentLocalizationDeleteResult) error {
+func appStoreVersionExperimentTreatmentLocalizationDeleteResultRows(result *AppStoreVersionExperimentTreatmentLocalizationDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreVersionExperimentTreatmentLocalizationDeleteResultTable(result *AppStoreVersionExperimentTreatmentLocalizationDeleteResult) error {
+	h, r := appStoreVersionExperimentTreatmentLocalizationDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreVersionExperimentTreatmentLocalizationDeleteResultMarkdown(result *AppStoreVersionExperimentTreatmentLocalizationDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := appStoreVersionExperimentTreatmentLocalizationDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

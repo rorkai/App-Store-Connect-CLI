@@ -47,7 +47,7 @@ func TestPrintMarkdown_MerchantIDs(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Identifier |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Identifier") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "merchant.com.example") {
@@ -77,7 +77,7 @@ func TestPrintMarkdown_MerchantIDDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "m1") {

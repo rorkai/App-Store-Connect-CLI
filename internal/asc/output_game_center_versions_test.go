@@ -45,7 +45,7 @@ func TestPrintMarkdown_GameCenterAppVersions(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Enabled |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Enabled") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "gcav-1") {

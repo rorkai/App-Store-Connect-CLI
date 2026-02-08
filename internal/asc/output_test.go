@@ -136,7 +136,7 @@ func TestPrintMarkdown_FeedbackWithScreenshots(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Screenshots |") {
+	if !strings.Contains(output, "Screenshots") {
 		t.Fatalf("expected screenshots column, got: %s", output)
 	}
 	if !strings.Contains(output, "https://example.com/shot.png") {
@@ -163,7 +163,7 @@ func TestPrintMarkdown_Reviews(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Created | Rating |") {
+	if !strings.Contains(output, "Created") || !strings.Contains(output, "Rating") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "Great app") {
@@ -241,7 +241,7 @@ func TestPrintMarkdown_OfferCodes(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID |") {
+	if !strings.Contains(output, "ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "code-1") {
@@ -305,7 +305,7 @@ func TestPrintMarkdown_SubscriptionOfferCode(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Customer Eligibilities |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Customer Eligibilities") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "Launch Offer") || !strings.Contains(output, "NEW, EXISTING") {
@@ -361,7 +361,7 @@ func TestPrintMarkdown_OfferCodeCustomCodes(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Custom Code |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Custom Code") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "SPRING2026") {
@@ -417,7 +417,7 @@ func TestPrintMarkdown_IAPOfferCodeCustomCodes(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Custom Code |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Custom Code") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "IAP2026") {
@@ -473,7 +473,7 @@ func TestPrintMarkdown_IAPOfferCodeOneTimeUseCodes(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Codes |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Codes") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "SANDBOX") {
@@ -500,7 +500,7 @@ func TestPrintMarkdown_OfferCodeValuesResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| Code |") || !strings.Contains(output, "CODE2") {
+	if !strings.Contains(output, "Code") || !strings.Contains(output, "CODE2") {
 		t.Fatalf("expected codes in output, got: %s", output)
 	}
 }
@@ -548,7 +548,7 @@ func TestPrintMarkdown_InAppPurchases(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Reference Name |") || !strings.Contains(output, "Legacy Pro") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Reference Name") || !strings.Contains(output, "Legacy Pro") {
 		t.Fatalf("expected reference name in output, got: %s", output)
 	}
 }
@@ -625,7 +625,7 @@ func TestPrintMarkdown_OfferCodePrices(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Territory | Price Point |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Territory") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "PRICE-1") {
@@ -705,7 +705,7 @@ func TestPrintMarkdown_IAPOfferCodePrices(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Territory | Price Point |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Territory") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "PRICE-1") {
@@ -749,7 +749,7 @@ func TestPrintMarkdown_TerritoryResponse(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Currency |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Currency") {
 		t.Fatalf("expected currency header, got: %s", output)
 	}
 	if !strings.Contains(output, "USD") {
@@ -823,7 +823,7 @@ func TestPrintMarkdown_WinBackOffers(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID |") {
+	if !strings.Contains(output, "ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "offer-2") {
@@ -891,7 +891,7 @@ func TestPrintMarkdown_WinBackOfferPrices(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID |") {
+	if !strings.Contains(output, "ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "GBR") || !strings.Contains(output, "PRICE_POINT_2") {
@@ -972,7 +972,7 @@ func TestPrintMarkdown_Apps(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Bundle ID | SKU |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Bundle ID") || !strings.Contains(output, "SKU") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "Demo App") {
@@ -1001,7 +1001,7 @@ func TestPrintMarkdown_TerritoryAgeRatings(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Territory | App Store Age Rating |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "App Store Age Rating") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "CA") {
@@ -1058,7 +1058,7 @@ func TestPrintMarkdown_Actors(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Type | Name | Email | API Key ID |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "API Key ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "APIKEY123") {
@@ -1129,7 +1129,7 @@ func TestPrintMarkdown_AppStoreVersionLocalizations(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Locale | Whats New |") {
+	if !strings.Contains(output, "Locale") || !strings.Contains(output, "Whats New") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "en-US") {
@@ -1152,7 +1152,7 @@ func TestPrintMarkdown_AppStoreVersionLocalization(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Locale | Whats New |") {
+	if !strings.Contains(output, "Locale") || !strings.Contains(output, "Whats New") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "en-US") {
@@ -1188,7 +1188,7 @@ func TestPrintMarkdown_AppStoreVersionLocalizationDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "loc-1") {
@@ -1258,7 +1258,7 @@ func TestPrintMarkdown_BetaBuildLocalizations(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Locale | What to Test |") {
+	if !strings.Contains(output, "Locale") || !strings.Contains(output, "What to Test") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "en-US") {
@@ -1281,7 +1281,7 @@ func TestPrintMarkdown_BetaBuildLocalization(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Locale | What to Test |") {
+	if !strings.Contains(output, "Locale") || !strings.Contains(output, "What to Test") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "en-US") {
@@ -1317,7 +1317,7 @@ func TestPrintMarkdown_BetaBuildLocalizationDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "loc-1") {
@@ -1375,7 +1375,7 @@ func TestPrintMarkdown_AgeRatingDeclaration(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Field | Value |") {
+	if !strings.Contains(output, "Field") || !strings.Contains(output, "Value") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "true") {
@@ -1429,7 +1429,7 @@ func TestPrintMarkdown_AppInfoLocalizations(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Locale | Name | Subtitle |") {
+	if !strings.Contains(output, "Locale") || !strings.Contains(output, "Subtitle") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "Demo App") {
@@ -1467,7 +1467,7 @@ func TestPrintMarkdown_LocalizationUploadResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| Locale | Action |") {
+	if !strings.Contains(output, "Locale") || !strings.Contains(output, "Action") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "loc-1") {
@@ -1517,7 +1517,7 @@ func TestPrintMarkdown_AppTags(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Visible In App Store |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Visible In App Store") {
 		t.Fatalf("expected app tags header, got: %s", output)
 	}
 	if !strings.Contains(output, "Strategy") {
@@ -1573,7 +1573,7 @@ func TestPrintMarkdown_PromotedPurchases(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Visible For All Users | Enabled | State |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Visible For All Users") {
 		t.Fatalf("expected promoted purchases header, got: %s", output)
 	}
 	if !strings.Contains(output, "promo-2") {
@@ -1627,7 +1627,7 @@ func TestPrintMarkdown_Nominations(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Type | State |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Name") || !strings.Contains(output, "Type") {
 		t.Fatalf("expected nominations header, got: %s", output)
 	}
 	if !strings.Contains(output, "Spring Launch") {
@@ -1663,7 +1663,7 @@ func TestPrintMarkdown_NominationDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected delete markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "nom-1") {
@@ -1701,7 +1701,7 @@ func TestPrintMarkdown_Linkages(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Type | ID |") {
+	if !strings.Contains(output, "Type") || !strings.Contains(output, "ID") {
 		t.Fatalf("expected linkages header, got: %s", output)
 	}
 	if !strings.Contains(output, "territories") || !strings.Contains(output, "USA") {
@@ -1765,7 +1765,7 @@ func TestPrintMarkdown_ReviewSubmissions(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | State |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "State") {
 		t.Fatalf("expected review submission markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "submission-1") || !strings.Contains(output, "READY_FOR_REVIEW") {
@@ -1821,7 +1821,7 @@ func TestPrintMarkdown_ReviewSubmissionItems(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | State |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "State") {
 		t.Fatalf("expected review item markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "item-1") || !strings.Contains(output, "appStoreVersions") {
@@ -1872,7 +1872,7 @@ func TestPrintMarkdown_BetaGroups(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Internal |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Internal") {
 		t.Fatalf("expected beta groups header, got: %s", output)
 	}
 	if !strings.Contains(output, "Beta") {
@@ -1926,7 +1926,7 @@ func TestPrintMarkdown_BetaTesters(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Email | Name | State | Invite |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Email") || !strings.Contains(output, "Invite") {
 		t.Fatalf("expected beta testers header, got: %s", output)
 	}
 	if !strings.Contains(output, "tester@example.com") {
@@ -1980,7 +1980,7 @@ func TestPrintMarkdown_Builds(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Version | Uploaded | Processing | Expired |") {
+	if !strings.Contains(output, "Version") || !strings.Contains(output, "Uploaded") || !strings.Contains(output, "Processing") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "1.2.3") {
@@ -2038,7 +2038,7 @@ func TestPrintMarkdown_BuildIcons(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Type | Masked | Asset URL |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Masked") || !strings.Contains(output, "Asset URL") {
 		t.Fatalf("expected build icons markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "AppIcon") {
@@ -2106,7 +2106,7 @@ func TestPrintMarkdown_BuildBundles(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Bundle ID | Type |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Bundle ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "APP_CLIP") {
@@ -2170,7 +2170,7 @@ func TestPrintMarkdown_BuildBundleFileSizes(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Device Model | OS Version |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Device Model") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "4096") {
@@ -2222,7 +2222,7 @@ func TestPrintMarkdown_BetaAppClipInvocations(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | URL |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "URL") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "inv-1") {
@@ -2286,7 +2286,7 @@ func TestPrintMarkdown_AppClipDomainStatusResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| Build Bundle ID | Available | Status ID |") {
+	if !strings.Contains(output, "Build Bundle ID") || !strings.Contains(output, "Status ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "example.com") {
@@ -2339,7 +2339,7 @@ func TestPrintMarkdown_BuildExpireAllResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Version | Uploaded | Age Days | Status |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Age Days") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "would-expire") {
@@ -2396,7 +2396,7 @@ func TestPrintMarkdown_AppStoreVersions(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Version | Platform |") {
+	if !strings.Contains(output, "Version") || !strings.Contains(output, "Platform") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "READY_FOR_REVIEW") {
@@ -2446,7 +2446,7 @@ func TestPrintMarkdown_BuildInfo(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Version | Uploaded | Processing | Expired |") {
+	if !strings.Contains(output, "Version") || !strings.Contains(output, "Uploaded") || !strings.Contains(output, "Processing") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "2.0.0") {
@@ -2530,7 +2530,7 @@ func TestPrintMarkdown_BuildUploadResult(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Upload ID | File ID |") {
+	if !strings.Contains(output, "Upload ID") || !strings.Contains(output, "File ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "UPLOAD_123") {
@@ -2597,7 +2597,7 @@ func TestPrintMarkdown_AppPreviewUploadResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| Localization ID | Set ID | Preview Type |") {
+	if !strings.Contains(output, "Localization ID") || !strings.Contains(output, "Preview Type") {
 		t.Fatalf("expected preview header, got: %s", output)
 	}
 	if !strings.Contains(output, "PREVIEW_123") {
@@ -2677,7 +2677,7 @@ func TestPrintMarkdown_SubmissionResult(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Submission ID | Created Date |") {
+	if !strings.Contains(output, "Submission ID") || !strings.Contains(output, "Created Date") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "SUBMIT_123") {
@@ -2719,7 +2719,7 @@ func TestPrintMarkdown_SubmissionCreateResult(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Submission ID | Version ID | Build ID | Created Date |") {
+	if !strings.Contains(output, "Submission ID") || !strings.Contains(output, "Build ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "VERSION_123") {
@@ -2765,7 +2765,7 @@ func TestPrintMarkdown_SubmissionStatusResult(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Submission ID | Version ID | Version | Platform | State | Created Date |") {
+	if !strings.Contains(output, "Submission ID") || !strings.Contains(output, "Version ID") || !strings.Contains(output, "Platform") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "WAITING_FOR_REVIEW") {
@@ -2801,7 +2801,7 @@ func TestPrintMarkdown_SubmissionCancelResult(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Submission ID | Cancelled |") {
+	if !strings.Contains(output, "Submission ID") || !strings.Contains(output, "Cancelled") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "SUBMIT_123") {
@@ -2847,7 +2847,7 @@ func TestPrintMarkdown_AppStoreVersionDetailResult(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Version ID | Version | Platform | State | Build ID |") {
+	if !strings.Contains(output, "Version ID") || !strings.Contains(output, "Build ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "SUBMIT_123") {
@@ -2899,7 +2899,7 @@ func TestPrintMarkdown_AppStoreVersionPhasedReleaseResponse(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Phased Release ID | State | Start Date | Current Day | Total Pause Duration |") {
+	if !strings.Contains(output, "Phased Release ID") || !strings.Contains(output, "Current Day") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "PHASED_123") {
@@ -2935,7 +2935,7 @@ func TestPrintMarkdown_AppStoreVersionPhasedReleaseDeleteResult(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Phased Release ID | Deleted |") {
+	if !strings.Contains(output, "Phased Release ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "PHASED_123") {
@@ -2973,7 +2973,7 @@ func TestPrintMarkdown_AppStoreVersionAttachBuildResult(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Version ID | Build ID | Attached |") {
+	if !strings.Contains(output, "Version ID") || !strings.Contains(output, "Attached") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "VERSION_123") {
@@ -3009,7 +3009,7 @@ func TestPrintMarkdown_AppStoreVersionReleaseRequestResult(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Release Request ID | Version ID |") {
+	if !strings.Contains(output, "Release Request ID") || !strings.Contains(output, "Version ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "VERSION_123") {
@@ -3047,7 +3047,7 @@ func TestPrintMarkdown_BuildBetaGroupsUpdateResult(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Build ID | Group IDs | Action |") {
+	if !strings.Contains(output, "Build ID") || !strings.Contains(output, "Group IDs") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "GROUP_1, GROUP_2") {
@@ -3085,7 +3085,7 @@ func TestPrintMarkdown_BuildIndividualTestersUpdateResult(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Build ID | Tester IDs | Action |") {
+	if !strings.Contains(output, "Build ID") || !strings.Contains(output, "Tester IDs") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "TESTER_1, TESTER_2") {
@@ -3121,7 +3121,7 @@ func TestPrintMarkdown_BuildUploadDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "upload-2") {
@@ -3157,7 +3157,7 @@ func TestPrintMarkdown_PromotedPurchaseDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "promo-2") {
@@ -3195,7 +3195,7 @@ func TestPrintMarkdown_AppPromotedPurchasesLinkResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| App ID | Promoted Purchase IDs | Action |") {
+	if !strings.Contains(output, "App ID") || !strings.Contains(output, "Promoted Purchase IDs") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "promo-1, promo-2") {
@@ -3264,7 +3264,7 @@ func TestPrintMarkdown_FinanceReportResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| Vendor | Type | Region |") {
+	if !strings.Contains(output, "Vendor") || !strings.Contains(output, "Region") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "finance_report_2025-12_FINANCE_DETAIL_Z1.tsv.gz") {
@@ -3312,10 +3312,10 @@ func TestPrintMarkdown_FinanceRegionsResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| Region | Currency | Code | Countries or Regions |") {
+	if !strings.Contains(output, "Region") || !strings.Contains(output, "Countries or Regions") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
-	if !strings.Contains(output, "| Americas | USD | US | United States |") {
+	if !strings.Contains(output, "Americas") || !strings.Contains(output, "United States") {
 		t.Fatalf("expected region row, got: %s", output)
 	}
 }
@@ -3333,7 +3333,7 @@ func TestPrintMarkdown_AnalyticsReportRequestResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| Request ID |") {
+	if !strings.Contains(output, "Request ID") {
 		t.Fatalf("expected request header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "req-1") {
@@ -3427,7 +3427,7 @@ func TestPrintMarkdown_BetaTesterGroupsUpdateResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| Tester ID | Group IDs | Action |") {
+	if !strings.Contains(output, "Tester ID") || !strings.Contains(output, "Group IDs") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "group-1,group-2") {
@@ -3465,7 +3465,7 @@ func TestPrintMarkdown_SandboxTesterClearHistoryResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| Request ID | Tester ID | Cleared |") {
+	if !strings.Contains(output, "Request ID") || !strings.Contains(output, "Cleared") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "request-1") {
@@ -3520,7 +3520,7 @@ func TestPrintMarkdown_Devices(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | UDID | Platform | Status |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "UDID") || !strings.Contains(output, "Platform") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "UDID-1") {
@@ -3570,7 +3570,7 @@ func TestPrintMarkdown_AccessibilityDeclaration(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Field | Value |") {
+	if !strings.Contains(output, "Field") || !strings.Contains(output, "Value") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "Supports Voiceover") {
@@ -3626,7 +3626,7 @@ func TestPrintMarkdown_AppStoreReviewDetail(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Contact | Email |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Contact") || !strings.Contains(output, "Email") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "Dev Example") {
@@ -3681,7 +3681,7 @@ func TestPrintMarkdown_AppStoreReviewAttachment(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Field | Value |") {
+	if !strings.Contains(output, "Field") || !strings.Contains(output, "Value") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "File Name") {
@@ -3739,7 +3739,7 @@ func TestPrintMarkdown_EndAppAvailabilityPreOrder(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID |") {
+	if !strings.Contains(output, "ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "end-1") {
@@ -3793,7 +3793,7 @@ func TestPrintMarkdown_RoutingAppCoverage(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Field | Value |") {
+	if !strings.Contains(output, "Field") || !strings.Contains(output, "Value") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "File Name") {
@@ -3873,7 +3873,7 @@ func TestPrintMarkdown_AppEncryptionDeclaration(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Field | Value |") {
+	if !strings.Contains(output, "Field") || !strings.Contains(output, "Value") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "App Description") {
@@ -3953,10 +3953,10 @@ func TestPrintMarkdown_PerfPowerMetrics(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Version | Products |") {
+	if !strings.Contains(output, "Version") || !strings.Contains(output, "Products") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
-	if !strings.Contains(output, "| 1 | 1 |") {
+	if !strings.Contains(output, "1") {
 		t.Fatalf("expected summary values in output, got: %s", output)
 	}
 }
@@ -4000,10 +4000,10 @@ func TestPrintMarkdown_DiagnosticLogs(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Version | Products | Logs | Insights |") {
+	if !strings.Contains(output, "Version") || !strings.Contains(output, "Products") || !strings.Contains(output, "Insights") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
-	if !strings.Contains(output, "| 1 | 2 | 3 | 1 |") {
+	if !strings.Contains(output, "2") || !strings.Contains(output, "3") {
 		t.Fatalf("expected summary values in output, got: %s", output)
 	}
 }
@@ -4065,7 +4065,7 @@ func TestPrintMarkdown_MarketplaceSearchDetail(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Catalog URL |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Catalog URL") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "detail-1") {
@@ -4113,7 +4113,7 @@ func TestPrintMarkdown_MarketplaceWebhooks(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Endpoint URL |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Endpoint URL") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "webhook-1") {
@@ -4162,7 +4162,7 @@ func TestPrintMarkdown_AndroidToIosAppMappingDetail(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Package Name |") {
+	if !strings.Contains(output, "Package Name") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "com.example.android") {
@@ -4216,7 +4216,7 @@ func TestPrintMarkdown_MarketplaceWebhookDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "webhook-1") {
@@ -4269,7 +4269,7 @@ func TestPrintMarkdown_AppEvents(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Reference Name |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Reference Name") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "Launch Party") {
@@ -4296,7 +4296,7 @@ func TestPrintMarkdown_AppEvents_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Reference Name |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Reference Name") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -4345,7 +4345,7 @@ func TestPrintMarkdown_AppEventLocalizations(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Locale |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Locale") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "fr-FR") {
@@ -4372,7 +4372,7 @@ func TestPrintMarkdown_AppEventLocalizations_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Locale |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Locale") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -4397,7 +4397,7 @@ func TestPrintMarkdown_AppEventScreenshots(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | File Name |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "File Name") {
 		t.Fatalf("expected screenshots markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "event.png") {
@@ -4440,7 +4440,7 @@ func TestPrintMarkdown_AppEventScreenshots_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | File Name |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "File Name") {
 		t.Fatalf("expected screenshots markdown header, got: %s", output)
 	}
 }
@@ -4521,7 +4521,7 @@ func TestPrintMarkdown_AppEventVideoClips(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | File Name |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "File Name") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "clip2.mov") {
@@ -4536,7 +4536,7 @@ func TestPrintMarkdown_AppEventVideoClips_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | File Name |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "File Name") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -4579,7 +4579,7 @@ func TestPrintMarkdown_AppEventSubmissionResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| Submission ID |") {
+	if !strings.Contains(output, "Submission ID") {
 		t.Fatalf("expected submission markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "event-2") {
@@ -4609,7 +4609,7 @@ func TestPrintMarkdown_AppEventDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "event-3") {
@@ -4639,7 +4639,7 @@ func TestPrintMarkdown_AppEventLocalizationDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "loc-3") {

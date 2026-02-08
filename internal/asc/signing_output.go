@@ -3,7 +3,6 @@ package asc
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -38,7 +37,7 @@ type ProfileDownloadResult struct {
 	OutputPath string `json:"outputPath"`
 }
 
-func printBundleIDsTable(resp *BundleIDsResponse) error {
+func bundleIDsRows(resp *BundleIDsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Identifier", "Platform", "Seed ID"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -50,26 +49,22 @@ func printBundleIDsTable(resp *BundleIDsResponse) error {
 			item.Attributes.SeedID,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBundleIDsTable(resp *BundleIDsResponse) error {
+	h, r := bundleIDsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBundleIDsMarkdown(resp *BundleIDsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Identifier | Platform | Seed ID |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			item.ID,
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.Identifier),
-			escapeMarkdown(string(item.Attributes.Platform)),
-			escapeMarkdown(item.Attributes.SeedID),
-		)
-	}
+	h, r := bundleIDsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printBundleIDCapabilitiesTable(resp *BundleIDCapabilitiesResponse) error {
+func bundleIDCapabilitiesRows(resp *BundleIDCapabilitiesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Capability", "Settings"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -79,58 +74,58 @@ func printBundleIDCapabilitiesTable(resp *BundleIDCapabilitiesResponse) error {
 			formatCapabilitySettings(item.Attributes.Settings),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBundleIDCapabilitiesTable(resp *BundleIDCapabilitiesResponse) error {
+	h, r := bundleIDCapabilitiesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBundleIDCapabilitiesMarkdown(resp *BundleIDCapabilitiesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Capability | Settings |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			item.ID,
-			escapeMarkdown(item.Attributes.CapabilityType),
-			escapeMarkdown(formatCapabilitySettings(item.Attributes.Settings)),
-		)
-	}
+	h, r := bundleIDCapabilitiesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printBundleIDDeleteResultTable(result *BundleIDDeleteResult) error {
+func bundleIDDeleteResultRows(result *BundleIDDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBundleIDDeleteResultTable(result *BundleIDDeleteResult) error {
+	h, r := bundleIDDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBundleIDDeleteResultMarkdown(result *BundleIDDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := bundleIDDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printBundleIDCapabilityDeleteResultTable(result *BundleIDCapabilityDeleteResult) error {
+func bundleIDCapabilityDeleteResultRows(result *BundleIDCapabilityDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBundleIDCapabilityDeleteResultTable(result *BundleIDCapabilityDeleteResult) error {
+	h, r := bundleIDCapabilityDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBundleIDCapabilityDeleteResultMarkdown(result *BundleIDCapabilityDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := bundleIDCapabilityDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printCertificatesTable(resp *CertificatesResponse) error {
+func certificatesRows(resp *CertificatesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Type", "Expiration", "Serial"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -142,43 +137,40 @@ func printCertificatesTable(resp *CertificatesResponse) error {
 			item.Attributes.SerialNumber,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCertificatesTable(resp *CertificatesResponse) error {
+	h, r := certificatesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCertificatesMarkdown(resp *CertificatesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Type | Expiration | Serial |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			item.ID,
-			escapeMarkdown(certificateDisplayName(item.Attributes)),
-			escapeMarkdown(item.Attributes.CertificateType),
-			escapeMarkdown(item.Attributes.ExpirationDate),
-			escapeMarkdown(item.Attributes.SerialNumber),
-		)
-	}
+	h, r := certificatesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printCertificateRevokeResultTable(result *CertificateRevokeResult) error {
+func certificateRevokeResultRows(result *CertificateRevokeResult) ([]string, [][]string) {
 	headers := []string{"ID", "Revoked"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Revoked)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCertificateRevokeResultTable(result *CertificateRevokeResult) error {
+	h, r := certificateRevokeResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCertificateRevokeResultMarkdown(result *CertificateRevokeResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Revoked |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Revoked,
-	)
+	h, r := certificateRevokeResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printProfilesTable(resp *ProfilesResponse) error {
+func profilesRows(resp *ProfilesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Type", "State", "Expiration"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -190,61 +182,58 @@ func printProfilesTable(resp *ProfilesResponse) error {
 			item.Attributes.ExpirationDate,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printProfilesTable(resp *ProfilesResponse) error {
+	h, r := profilesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printProfilesMarkdown(resp *ProfilesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Type | State | Expiration |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			item.ID,
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.ProfileType),
-			escapeMarkdown(string(item.Attributes.ProfileState)),
-			escapeMarkdown(item.Attributes.ExpirationDate),
-		)
-	}
+	h, r := profilesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printProfileDeleteResultTable(result *ProfileDeleteResult) error {
+func profileDeleteResultRows(result *ProfileDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printProfileDeleteResultTable(result *ProfileDeleteResult) error {
+	h, r := profileDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printProfileDeleteResultMarkdown(result *ProfileDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := profileDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printProfileDownloadResultTable(result *ProfileDownloadResult) error {
+func profileDownloadResultRows(result *ProfileDownloadResult) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Output Path"}
 	rows := [][]string{{
 		result.ID,
 		compactWhitespace(result.Name),
 		result.OutputPath,
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printProfileDownloadResultTable(result *ProfileDownloadResult) error {
+	h, r := profileDownloadResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printProfileDownloadResultMarkdown(result *ProfileDownloadResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Output Path |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-		escapeMarkdown(result.ID),
-		escapeMarkdown(result.Name),
-		escapeMarkdown(result.OutputPath),
-	)
+	h, r := profileDownloadResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -255,7 +244,7 @@ func joinSigningList(values []string) string {
 	return strings.Join(values, ", ")
 }
 
-func printSigningFetchResultTable(result *SigningFetchResult) error {
+func signingFetchResultRows(result *SigningFetchResult) ([]string, [][]string) {
 	headers := []string{"Bundle ID", "Bundle ID Resource", "Profile Type", "Profile ID", "Profile File", "Certificate IDs", "Certificate Files", "Created"}
 	rows := [][]string{{
 		result.BundleID,
@@ -267,23 +256,18 @@ func printSigningFetchResultTable(result *SigningFetchResult) error {
 		joinSigningList(result.CertificateFiles),
 		fmt.Sprintf("%t", result.Created),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printSigningFetchResultTable(result *SigningFetchResult) error {
+	h, r := signingFetchResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printSigningFetchResultMarkdown(result *SigningFetchResult) error {
-	fmt.Fprintln(os.Stdout, "| Bundle ID | Bundle ID Resource | Profile Type | Profile ID | Profile File | Certificate IDs | Certificate Files | Created |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s | %s | %t |\n",
-		escapeMarkdown(result.BundleID),
-		escapeMarkdown(result.BundleIDResource),
-		escapeMarkdown(result.ProfileType),
-		escapeMarkdown(result.ProfileID),
-		escapeMarkdown(result.ProfileFile),
-		escapeMarkdown(joinSigningList(result.CertificateIDs)),
-		escapeMarkdown(joinSigningList(result.CertificateFiles)),
-		result.Created,
-	)
+	h, r := signingFetchResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 

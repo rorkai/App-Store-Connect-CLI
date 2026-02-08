@@ -3,7 +3,6 @@ package asc
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 )
 
 // SubscriptionGroupDeleteResult represents CLI output for group deletions.
@@ -24,7 +23,7 @@ type SubscriptionPriceDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-func printSubscriptionGroupsTable(resp *SubscriptionGroupsResponse) error {
+func subscriptionGroupsRows(resp *SubscriptionGroupsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Reference Name"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -33,23 +32,22 @@ func printSubscriptionGroupsTable(resp *SubscriptionGroupsResponse) error {
 			compactWhitespace(item.Attributes.ReferenceName),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printSubscriptionGroupsTable(resp *SubscriptionGroupsResponse) error {
+	h, r := subscriptionGroupsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printSubscriptionGroupsMarkdown(resp *SubscriptionGroupsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Reference Name |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.ReferenceName),
-		)
-	}
+	h, r := subscriptionGroupsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printSubscriptionsTable(resp *SubscriptionsResponse) error {
+func subscriptionsRows(resp *SubscriptionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Product ID", "Period", "State"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -61,54 +59,50 @@ func printSubscriptionsTable(resp *SubscriptionsResponse) error {
 			item.Attributes.State,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printSubscriptionsTable(resp *SubscriptionsResponse) error {
+	h, r := subscriptionsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printSubscriptionsMarkdown(resp *SubscriptionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Product ID | Period | State |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.ProductID),
-			escapeMarkdown(item.Attributes.SubscriptionPeriod),
-			escapeMarkdown(item.Attributes.State),
-		)
-	}
+	h, r := subscriptionsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printSubscriptionPriceTable(resp *SubscriptionPriceResponse) error {
+func subscriptionPriceRows(resp *SubscriptionPriceResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Start Date", "Preserved"}
 	rows := [][]string{{
 		resp.Data.ID,
 		resp.Data.Attributes.StartDate,
 		fmt.Sprintf("%t", resp.Data.Attributes.Preserved),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printSubscriptionPriceTable(resp *SubscriptionPriceResponse) error {
+	h, r := subscriptionPriceRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printSubscriptionPriceMarkdown(resp *SubscriptionPriceResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Start Date | Preserved |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %t |\n",
-		escapeMarkdown(resp.Data.ID),
-		escapeMarkdown(resp.Data.Attributes.StartDate),
-		resp.Data.Attributes.Preserved,
-	)
+	h, r := subscriptionPriceRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printSubscriptionPricesTable(resp *SubscriptionPricesResponse) error {
+func subscriptionPricesRows(resp *SubscriptionPricesResponse) ([]string, [][]string, error) {
 	headers := []string{"ID", "Territory", "Price Point", "Start Date", "Preserved"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		territoryID, pricePointID, err := subscriptionPriceRelationshipIDs(item.Relationships)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		rows = append(rows, []string{
 			item.ID,
@@ -118,50 +112,49 @@ func printSubscriptionPricesTable(resp *SubscriptionPricesResponse) error {
 			fmt.Sprintf("%t", item.Attributes.Preserved),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows, nil
+}
+
+func printSubscriptionPricesTable(resp *SubscriptionPricesResponse) error {
+	h, r, err := subscriptionPricesRows(resp)
+	if err != nil {
+		return err
+	}
+	RenderTable(h, r)
 	return nil
 }
 
 func printSubscriptionPricesMarkdown(resp *SubscriptionPricesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Territory | Price Point | Start Date | Preserved |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		territoryID, pricePointID, err := subscriptionPriceRelationshipIDs(item.Relationships)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %t |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(territoryID),
-			escapeMarkdown(pricePointID),
-			escapeMarkdown(item.Attributes.StartDate),
-			item.Attributes.Preserved,
-		)
+	h, r, err := subscriptionPricesRows(resp)
+	if err != nil {
+		return err
 	}
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printSubscriptionAvailabilityTable(resp *SubscriptionAvailabilityResponse) error {
+func subscriptionAvailabilityRows(resp *SubscriptionAvailabilityResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Available In New Territories"}
 	rows := [][]string{{
 		resp.Data.ID,
 		fmt.Sprintf("%t", resp.Data.Attributes.AvailableInNewTerritories),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printSubscriptionAvailabilityTable(resp *SubscriptionAvailabilityResponse) error {
+	h, r := subscriptionAvailabilityRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printSubscriptionAvailabilityMarkdown(resp *SubscriptionAvailabilityResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Available In New Territories |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(resp.Data.ID),
-		resp.Data.Attributes.AvailableInNewTerritories,
-	)
+	h, r := subscriptionAvailabilityRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printSubscriptionGracePeriodTable(resp *SubscriptionGracePeriodResponse) error {
+func subscriptionGracePeriodRows(resp *SubscriptionGracePeriodResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Opt In", "Sandbox Opt In", "Duration", "Renewal Type"}
 	rows := [][]string{{
 		resp.Data.ID,
@@ -170,71 +163,72 @@ func printSubscriptionGracePeriodTable(resp *SubscriptionGracePeriodResponse) er
 		resp.Data.Attributes.Duration,
 		resp.Data.Attributes.RenewalType,
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printSubscriptionGracePeriodTable(resp *SubscriptionGracePeriodResponse) error {
+	h, r := subscriptionGracePeriodRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printSubscriptionGracePeriodMarkdown(resp *SubscriptionGracePeriodResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Opt In | Sandbox Opt In | Duration | Renewal Type |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t | %t | %s | %s |\n",
-		escapeMarkdown(resp.Data.ID),
-		resp.Data.Attributes.OptIn,
-		resp.Data.Attributes.SandboxOptIn,
-		escapeMarkdown(resp.Data.Attributes.Duration),
-		escapeMarkdown(resp.Data.Attributes.RenewalType),
-	)
+	h, r := subscriptionGracePeriodRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printSubscriptionGroupDeleteResultTable(result *SubscriptionGroupDeleteResult) error {
+func subscriptionGroupDeleteResultRows(result *SubscriptionGroupDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printSubscriptionGroupDeleteResultTable(result *SubscriptionGroupDeleteResult) error {
+	h, r := subscriptionGroupDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printSubscriptionGroupDeleteResultMarkdown(result *SubscriptionGroupDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := subscriptionGroupDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printSubscriptionDeleteResultTable(result *SubscriptionDeleteResult) error {
+func subscriptionDeleteResultRows(result *SubscriptionDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printSubscriptionDeleteResultTable(result *SubscriptionDeleteResult) error {
+	h, r := subscriptionDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printSubscriptionDeleteResultMarkdown(result *SubscriptionDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := subscriptionDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printSubscriptionPriceDeleteResultTable(result *SubscriptionPriceDeleteResult) error {
+func subscriptionPriceDeleteResultRows(result *SubscriptionPriceDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printSubscriptionPriceDeleteResultTable(result *SubscriptionPriceDeleteResult) error {
+	h, r := subscriptionPriceDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printSubscriptionPriceDeleteResultMarkdown(result *SubscriptionPriceDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := subscriptionPriceDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 

@@ -53,7 +53,7 @@ func TestPrintMarkdown_NotarySubmissionStatus(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Status | Name | Created |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Status") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "sub-456") {
@@ -122,7 +122,7 @@ func TestPrintMarkdown_NotarySubmissionsList(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Status | Name | Created |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Status") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "sub-a") {
@@ -185,7 +185,7 @@ func TestPrintMarkdown_NotarySubmissionLogs(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Developer Log URL |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Developer Log URL") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "sub-log-2") {

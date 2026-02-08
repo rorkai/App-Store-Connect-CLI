@@ -2,7 +2,6 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 )
@@ -22,7 +21,7 @@ func formatBetaReviewContactName(attr BetaAppReviewDetailAttributes) string {
 	}
 }
 
-func printBetaAppReviewDetailsTable(resp *BetaAppReviewDetailsResponse) error {
+func betaAppReviewDetailsRows(resp *BetaAppReviewDetailsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Contact", "Email", "Phone", "Demo Required", "Demo Account", "Notes"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -36,7 +35,12 @@ func printBetaAppReviewDetailsTable(resp *BetaAppReviewDetailsResponse) error {
 			compactWhitespace(item.Attributes.Notes),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBetaAppReviewDetailsTable(resp *BetaAppReviewDetailsResponse) error {
+	h, r := betaAppReviewDetailsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
@@ -47,19 +51,8 @@ func printBetaAppReviewDetailTable(resp *BetaAppReviewDetailResponse) error {
 }
 
 func printBetaAppReviewDetailsMarkdown(resp *BetaAppReviewDetailsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Contact | Email | Phone | Demo Required | Demo Account | Notes |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %t | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(formatBetaReviewContactName(item.Attributes)),
-			escapeMarkdown(item.Attributes.ContactEmail),
-			escapeMarkdown(item.Attributes.ContactPhone),
-			item.Attributes.DemoAccountRequired,
-			escapeMarkdown(item.Attributes.DemoAccountName),
-			escapeMarkdown(item.Attributes.Notes),
-		)
-	}
+	h, r := betaAppReviewDetailsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -69,7 +62,7 @@ func printBetaAppReviewDetailMarkdown(resp *BetaAppReviewDetailResponse) error {
 	})
 }
 
-func printBetaAppReviewSubmissionsTable(resp *BetaAppReviewSubmissionsResponse) error {
+func betaAppReviewSubmissionsRows(resp *BetaAppReviewSubmissionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "State", "Submitted Date"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -79,7 +72,12 @@ func printBetaAppReviewSubmissionsTable(resp *BetaAppReviewSubmissionsResponse) 
 			compactWhitespace(item.Attributes.SubmittedDate),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBetaAppReviewSubmissionsTable(resp *BetaAppReviewSubmissionsResponse) error {
+	h, r := betaAppReviewSubmissionsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
@@ -90,15 +88,8 @@ func printBetaAppReviewSubmissionTable(resp *BetaAppReviewSubmissionResponse) er
 }
 
 func printBetaAppReviewSubmissionsMarkdown(resp *BetaAppReviewSubmissionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | State | Submitted Date |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.BetaReviewState),
-			escapeMarkdown(item.Attributes.SubmittedDate),
-		)
-	}
+	h, r := betaAppReviewSubmissionsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -108,7 +99,7 @@ func printBetaAppReviewSubmissionMarkdown(resp *BetaAppReviewSubmissionResponse)
 	})
 }
 
-func printBuildBetaDetailsTable(resp *BuildBetaDetailsResponse) error {
+func buildBetaDetailsRows(resp *BuildBetaDetailsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Auto Notify", "Internal State", "External State"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -119,7 +110,12 @@ func printBuildBetaDetailsTable(resp *BuildBetaDetailsResponse) error {
 			compactWhitespace(item.Attributes.ExternalBuildState),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBuildBetaDetailsTable(resp *BuildBetaDetailsResponse) error {
+	h, r := buildBetaDetailsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
@@ -130,16 +126,8 @@ func printBuildBetaDetailTable(resp *BuildBetaDetailResponse) error {
 }
 
 func printBuildBetaDetailsMarkdown(resp *BuildBetaDetailsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Auto Notify | Internal State | External State |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %t | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			item.Attributes.AutoNotifyEnabled,
-			escapeMarkdown(item.Attributes.InternalBuildState),
-			escapeMarkdown(item.Attributes.ExternalBuildState),
-		)
-	}
+	h, r := buildBetaDetailsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -149,7 +137,7 @@ func printBuildBetaDetailMarkdown(resp *BuildBetaDetailResponse) error {
 	})
 }
 
-func printBetaRecruitmentCriterionOptionsTable(resp *BetaRecruitmentCriterionOptionsResponse) error {
+func betaRecruitmentCriterionOptionsRows(resp *BetaRecruitmentCriterionOptionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Device Family OS Versions"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -158,58 +146,58 @@ func printBetaRecruitmentCriterionOptionsTable(resp *BetaRecruitmentCriterionOpt
 			compactWhitespace(formatDeviceFamilyOsVersions(item.Attributes.DeviceFamilyOsVersions)),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBetaRecruitmentCriterionOptionsTable(resp *BetaRecruitmentCriterionOptionsResponse) error {
+	h, r := betaRecruitmentCriterionOptionsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBetaRecruitmentCriterionOptionsMarkdown(resp *BetaRecruitmentCriterionOptionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Device Family OS Versions |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(formatDeviceFamilyOsVersions(item.Attributes.DeviceFamilyOsVersions)),
-		)
-	}
+	h, r := betaRecruitmentCriterionOptionsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printBetaRecruitmentCriteriaTable(resp *BetaRecruitmentCriteriaResponse) error {
+func betaRecruitmentCriteriaRows(resp *BetaRecruitmentCriteriaResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Last Modified", "Filters"}
 	rows := [][]string{{
 		resp.Data.ID,
 		compactWhitespace(resp.Data.Attributes.LastModifiedDate),
 		compactWhitespace(formatDeviceFamilyOsVersionFilters(resp.Data.Attributes.DeviceFamilyOsVersionFilters)),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBetaRecruitmentCriteriaTable(resp *BetaRecruitmentCriteriaResponse) error {
+	h, r := betaRecruitmentCriteriaRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBetaRecruitmentCriteriaMarkdown(resp *BetaRecruitmentCriteriaResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Last Modified | Filters |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-		escapeMarkdown(resp.Data.ID),
-		escapeMarkdown(resp.Data.Attributes.LastModifiedDate),
-		escapeMarkdown(formatDeviceFamilyOsVersionFilters(resp.Data.Attributes.DeviceFamilyOsVersionFilters)),
-	)
+	h, r := betaRecruitmentCriteriaRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printBetaRecruitmentCriteriaDeleteResultTable(result *BetaRecruitmentCriteriaDeleteResult) error {
+func betaRecruitmentCriteriaDeleteResultRows(result *BetaRecruitmentCriteriaDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBetaRecruitmentCriteriaDeleteResultTable(result *BetaRecruitmentCriteriaDeleteResult) error {
+	h, r := betaRecruitmentCriteriaDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBetaRecruitmentCriteriaDeleteResultMarkdown(result *BetaRecruitmentCriteriaDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := betaRecruitmentCriteriaDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -271,7 +259,7 @@ func formatMetricAttributes(attrs BetaGroupMetricAttributes) string {
 	return strings.Join(parts, ", ")
 }
 
-func printBetaGroupMetricsTable(items []Resource[BetaGroupMetricAttributes]) error {
+func betaGroupMetricsRows(items []Resource[BetaGroupMetricAttributes]) ([]string, [][]string) {
 	headers := []string{"ID", "Attributes"}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
@@ -280,18 +268,17 @@ func printBetaGroupMetricsTable(items []Resource[BetaGroupMetricAttributes]) err
 			compactWhitespace(formatMetricAttributes(item.Attributes)),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBetaGroupMetricsTable(items []Resource[BetaGroupMetricAttributes]) error {
+	h, r := betaGroupMetricsRows(items)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBetaGroupMetricsMarkdown(items []Resource[BetaGroupMetricAttributes]) error {
-	fmt.Fprintln(os.Stdout, "| ID | Attributes |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, item := range items {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(formatMetricAttributes(item.Attributes)),
-		)
-	}
+	h, r := betaGroupMetricsRows(items)
+	RenderMarkdown(h, r)
 	return nil
 }

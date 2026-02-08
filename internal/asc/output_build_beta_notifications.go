@@ -1,20 +1,19 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
-
-func printBuildBetaNotificationTable(resp *BuildBetaNotificationResponse) error {
+func buildBetaNotificationRows(resp *BuildBetaNotificationResponse) ([]string, [][]string) {
 	headers := []string{"ID"}
 	rows := [][]string{{resp.Data.ID}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBuildBetaNotificationTable(resp *BuildBetaNotificationResponse) error {
+	h, r := buildBetaNotificationRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBuildBetaNotificationMarkdown(resp *BuildBetaNotificationResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID |")
-	fmt.Fprintln(os.Stdout, "| --- |")
-	fmt.Fprintf(os.Stdout, "| %s |\n", escapeMarkdown(resp.Data.ID))
+	h, r := buildBetaNotificationRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }

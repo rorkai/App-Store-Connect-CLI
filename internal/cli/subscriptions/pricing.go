@@ -520,23 +520,22 @@ func printSubscriptionPricingTable(result *subscriptionPricingResult) error {
 }
 
 func printSubscriptionPricingMarkdown(result *subscriptionPricingResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Product ID | Period | State | Group | Current Price | Proceeds | Proceeds Y2 |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+	headers := []string{"ID", "Name", "Product ID", "Period", "State", "Group", "Current Price", "Proceeds", "Proceeds Y2"}
+	rows := make([][]string, 0, len(result.Subscriptions))
 	for _, item := range result.Subscriptions {
-		fmt.Fprintf(
-			os.Stdout,
-			"| %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
-			escapeSubCell(item.ID),
-			escapeSubCell(item.Name),
-			escapeSubCell(item.ProductID),
-			escapeSubCell(item.SubscriptionPeriod),
-			escapeSubCell(item.State),
-			escapeSubCell(item.GroupName),
-			escapeSubCell(formatSubMoney(item.CurrentPrice)),
-			escapeSubCell(formatSubMoney(item.Proceeds)),
-			escapeSubCell(formatSubMoney(item.ProceedsYear2)),
-		)
+		rows = append(rows, []string{
+			item.ID,
+			compactSubText(item.Name),
+			item.ProductID,
+			item.SubscriptionPeriod,
+			item.State,
+			compactSubText(item.GroupName),
+			formatSubMoney(item.CurrentPrice),
+			formatSubMoney(item.Proceeds),
+			formatSubMoney(item.ProceedsYear2),
+		})
 	}
+	asc.RenderMarkdown(headers, rows)
 	return nil
 }
 
@@ -545,12 +544,6 @@ func formatSubMoney(value *subMoney) string {
 		return ""
 	}
 	return strings.TrimSpace(strings.TrimSpace(value.Amount) + " " + strings.TrimSpace(value.Currency))
-}
-
-func escapeSubCell(value string) string {
-	value = strings.ReplaceAll(value, "|", "\\|")
-	value = strings.ReplaceAll(value, "\n", " ")
-	return strings.TrimSpace(value)
 }
 
 func compactSubText(value string) string {

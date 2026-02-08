@@ -3,37 +3,36 @@ package asc
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 )
 
-func printTerritoryAgeRatingsTable(resp *TerritoryAgeRatingsResponse) error {
+func territoryAgeRatingsRows(resp *TerritoryAgeRatingsResponse) ([]string, [][]string, error) {
 	headers := []string{"ID", "Territory", "App Store Age Rating"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		territoryID, err := territoryAgeRatingTerritoryID(item.Relationships)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		rows = append(rows, []string{item.ID, territoryID, string(item.Attributes.AppStoreAgeRating)})
 	}
-	RenderTable(headers, rows)
+	return headers, rows, nil
+}
+
+func printTerritoryAgeRatingsTable(resp *TerritoryAgeRatingsResponse) error {
+	h, r, err := territoryAgeRatingsRows(resp)
+	if err != nil {
+		return err
+	}
+	RenderTable(h, r)
 	return nil
 }
 
 func printTerritoryAgeRatingsMarkdown(resp *TerritoryAgeRatingsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Territory | App Store Age Rating |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		territoryID, err := territoryAgeRatingTerritoryID(item.Relationships)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(territoryID),
-			escapeMarkdown(string(item.Attributes.AppStoreAgeRating)),
-		)
+	h, r, err := territoryAgeRatingsRows(resp)
+	if err != nil {
+		return err
 	}
+	RenderMarkdown(h, r)
 	return nil
 }
 

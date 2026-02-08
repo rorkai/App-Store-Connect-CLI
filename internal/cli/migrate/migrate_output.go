@@ -16,10 +16,13 @@ func printMigrateImportResultMarkdown(result *MigrateImportResult) error {
 	// Version localizations
 	fmt.Println("### Version Localizations Found")
 	fmt.Println()
-	fmt.Println("| Locale | Fields |")
-	fmt.Println("|--------|--------|")
-	for _, loc := range result.Localizations {
-		fmt.Printf("| %s | %d |\n", loc.Locale, countNonEmptyFields(loc))
+	{
+		headers := []string{"Locale", "Fields"}
+		rows := make([][]string, 0, len(result.Localizations))
+		for _, loc := range result.Localizations {
+			rows = append(rows, []string{loc.Locale, fmt.Sprintf("%d", countNonEmptyFields(loc))})
+		}
+		asc.RenderMarkdown(headers, rows)
 	}
 
 	// App Info localizations
@@ -27,8 +30,8 @@ func printMigrateImportResultMarkdown(result *MigrateImportResult) error {
 		fmt.Println()
 		fmt.Println("### App Info Localizations Found")
 		fmt.Println()
-		fmt.Println("| Locale | Name | Subtitle |")
-		fmt.Println("|--------|------|----------|")
+		headers := []string{"Locale", "Name", "Subtitle"}
+		rows := make([][]string, 0, len(result.AppInfoLocalizations))
 		for _, loc := range result.AppInfoLocalizations {
 			name := "-"
 			if loc.Name != "" {
@@ -38,8 +41,9 @@ func printMigrateImportResultMarkdown(result *MigrateImportResult) error {
 			if loc.Subtitle != "" {
 				subtitle = "✓"
 			}
-			fmt.Printf("| %s | %s | %s |\n", loc.Locale, name, subtitle)
+			rows = append(rows, []string{loc.Locale, name, subtitle})
 		}
+		asc.RenderMarkdown(headers, rows)
 	}
 
 	if len(result.Uploaded) > 0 {
@@ -161,8 +165,8 @@ func printMigrateValidateResultMarkdown(result *MigrateValidateResult) error {
 		fmt.Println()
 		fmt.Println("### Issues")
 		fmt.Println()
-		fmt.Println("| Locale | Field | Severity | Message | Length | Limit |")
-		fmt.Println("|--------|-------|----------|---------|--------|-------|")
+		headers := []string{"Locale", "Field", "Severity", "Message", "Length", "Limit"}
+		rows := make([][]string, 0, len(result.Issues))
 		for _, issue := range result.Issues {
 			length := "-"
 			limit := "-"
@@ -172,9 +176,9 @@ func printMigrateValidateResultMarkdown(result *MigrateValidateResult) error {
 			if issue.Limit > 0 {
 				limit = fmt.Sprintf("%d", issue.Limit)
 			}
-			fmt.Printf("| %s | %s | %s | %s | %s | %s |\n",
-				issue.Locale, issue.Field, issue.Severity, issue.Message, length, limit)
+			rows = append(rows, []string{issue.Locale, issue.Field, issue.Severity, issue.Message, length, limit})
 		}
+		asc.RenderMarkdown(headers, rows)
 	}
 
 	return nil

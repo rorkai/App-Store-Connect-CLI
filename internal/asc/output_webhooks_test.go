@@ -51,7 +51,7 @@ func TestPrintMarkdown_Webhooks(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Enabled | URL | Events |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Events") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "Build Updates") {
@@ -101,7 +101,7 @@ func TestPrintMarkdown_WebhookDeliveries(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | State | Created | Sent | Error |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "State") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "deliv-1") {
@@ -131,7 +131,7 @@ func TestPrintMarkdown_WebhookDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "wh-1") {

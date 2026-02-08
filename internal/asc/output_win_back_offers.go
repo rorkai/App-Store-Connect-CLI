@@ -3,7 +3,6 @@ package asc
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 )
 
@@ -13,7 +12,7 @@ type WinBackOfferDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-func printWinBackOffersTable(resp *WinBackOffersResponse) error {
+func winBackOffersRows(resp *WinBackOffersResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Reference Name", "Offer ID", "Duration", "Mode", "Periods", "Paid Months", "Last Subscribed", "Wait Months", "Start Date", "End Date", "Priority", "Promotion Intent"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -34,79 +33,67 @@ func printWinBackOffersTable(resp *WinBackOffersResponse) error {
 			formatPromotionIntent(attrs.PromotionIntent),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printWinBackOffersTable(resp *WinBackOffersResponse) error {
+	h, r := winBackOffersRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printWinBackOffersMarkdown(resp *WinBackOffersResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Reference Name | Offer ID | Duration | Mode | Periods | Paid Months | Last Subscribed | Wait Months | Start Date | End Date | Priority | Promotion Intent |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		attrs := item.Attributes
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(attrs.ReferenceName),
-			escapeMarkdown(attrs.OfferID),
-			escapeMarkdown(string(attrs.Duration)),
-			escapeMarkdown(string(attrs.OfferMode)),
-			escapeMarkdown(formatInt(attrs.PeriodCount)),
-			escapeMarkdown(formatInt(attrs.CustomerEligibilityPaidSubscriptionDurationInMonths)),
-			escapeMarkdown(formatIntegerRange(attrs.CustomerEligibilityTimeSinceLastSubscribedInMonths)),
-			escapeMarkdown(formatOptionalInt(attrs.CustomerEligibilityWaitBetweenOffersInMonths)),
-			escapeMarkdown(attrs.StartDate),
-			escapeMarkdown(formatOptionalString(attrs.EndDate)),
-			escapeMarkdown(string(attrs.Priority)),
-			escapeMarkdown(formatPromotionIntent(attrs.PromotionIntent)),
-		)
-	}
+	h, r := winBackOffersRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printWinBackOfferPricesTable(resp *WinBackOfferPricesResponse) error {
+func winBackOfferPricesRows(resp *WinBackOfferPricesResponse) ([]string, [][]string, error) {
 	headers := []string{"ID", "Territory", "Price Point"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		territoryID, pricePointID, err := winBackOfferPriceRelationshipIDs(item.Relationships)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		rows = append(rows, []string{item.ID, territoryID, pricePointID})
 	}
-	RenderTable(headers, rows)
+	return headers, rows, nil
+}
+
+func printWinBackOfferPricesTable(resp *WinBackOfferPricesResponse) error {
+	h, r, err := winBackOfferPricesRows(resp)
+	if err != nil {
+		return err
+	}
+	RenderTable(h, r)
 	return nil
 }
 
 func printWinBackOfferPricesMarkdown(resp *WinBackOfferPricesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Territory | Price Point |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		territoryID, pricePointID, err := winBackOfferPriceRelationshipIDs(item.Relationships)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(territoryID),
-			escapeMarkdown(pricePointID),
-		)
+	h, r, err := winBackOfferPricesRows(resp)
+	if err != nil {
+		return err
 	}
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printWinBackOfferDeleteResultTable(result *WinBackOfferDeleteResult) error {
+func winBackOfferDeleteResultRows(result *WinBackOfferDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printWinBackOfferDeleteResultTable(result *WinBackOfferDeleteResult) error {
+	h, r := winBackOfferDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printWinBackOfferDeleteResultMarkdown(result *WinBackOfferDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := winBackOfferDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 

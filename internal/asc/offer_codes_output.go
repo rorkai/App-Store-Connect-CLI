@@ -2,11 +2,10 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
-func printOfferCodesTable(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) error {
+func offerCodesRows(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Codes", "Expires", "Created", "Active"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -19,27 +18,22 @@ func printOfferCodesTable(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) er
 			fmt.Sprintf("%t", attrs.Active),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printOfferCodesTable(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) error {
+	h, r := offerCodesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printOfferCodesMarkdown(resp *SubscriptionOfferCodeOneTimeUseCodesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Codes | Expires | Created | Active |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		attrs := item.Attributes
-		fmt.Fprintf(os.Stdout, "| %s | %d | %s | %s | %t |\n",
-			escapeMarkdown(item.ID),
-			attrs.NumberOfCodes,
-			escapeMarkdown(attrs.ExpirationDate),
-			escapeMarkdown(attrs.CreatedDate),
-			attrs.Active,
-		)
-	}
+	h, r := offerCodesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printSubscriptionOfferCodeTable(resp *SubscriptionOfferCodeResponse) error {
+func subscriptionOfferCodeRows(resp *SubscriptionOfferCodeResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Customer Eligibilities", "Offer Eligibility", "Duration", "Mode", "Periods", "Total Codes", "Production Codes", "Sandbox Codes", "Active", "Auto Renew"}
 	attrs := resp.Data.Attributes
 	rows := [][]string{{
@@ -56,28 +50,18 @@ func printSubscriptionOfferCodeTable(resp *SubscriptionOfferCodeResponse) error 
 		fmt.Sprintf("%t", attrs.Active),
 		formatOptionalBool(attrs.AutoRenewEnabled),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printSubscriptionOfferCodeTable(resp *SubscriptionOfferCodeResponse) error {
+	h, r := subscriptionOfferCodeRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printSubscriptionOfferCodeMarkdown(resp *SubscriptionOfferCodeResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Customer Eligibilities | Offer Eligibility | Duration | Mode | Periods | Total Codes | Production Codes | Sandbox Codes | Active | Auto Renew |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
-	attrs := resp.Data.Attributes
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s | %d | %d | %d | %d | %t | %s |\n",
-		escapeMarkdown(resp.Data.ID),
-		escapeMarkdown(attrs.Name),
-		escapeMarkdown(formatOfferCodeCustomerEligibilities(attrs.CustomerEligibilities)),
-		escapeMarkdown(string(attrs.OfferEligibility)),
-		escapeMarkdown(string(attrs.Duration)),
-		escapeMarkdown(string(attrs.OfferMode)),
-		attrs.NumberOfPeriods,
-		attrs.TotalNumberOfCodes,
-		attrs.ProductionCodeCount,
-		attrs.SandboxCodeCount,
-		attrs.Active,
-		formatOptionalBool(attrs.AutoRenewEnabled),
-	)
+	h, r := subscriptionOfferCodeRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 

@@ -1,9 +1,6 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
 // PassTypeIDDeleteResult represents CLI output for pass type ID deletions.
 type PassTypeIDDeleteResult struct {
@@ -11,7 +8,7 @@ type PassTypeIDDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-func printPassTypeIDsTable(resp *PassTypeIDsResponse) error {
+func passTypeIDsRows(resp *PassTypeIDsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Identifier"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -21,36 +18,35 @@ func printPassTypeIDsTable(resp *PassTypeIDsResponse) error {
 			item.Attributes.Identifier,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printPassTypeIDsTable(resp *PassTypeIDsResponse) error {
+	h, r := passTypeIDsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printPassTypeIDsMarkdown(resp *PassTypeIDsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Identifier |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			item.ID,
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.Identifier),
-		)
-	}
+	h, r := passTypeIDsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printPassTypeIDDeleteResultTable(result *PassTypeIDDeleteResult) error {
+func passTypeIDDeleteResultRows(result *PassTypeIDDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printPassTypeIDDeleteResultTable(result *PassTypeIDDeleteResult) error {
+	h, r := passTypeIDDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printPassTypeIDDeleteResultMarkdown(result *PassTypeIDDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := passTypeIDDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

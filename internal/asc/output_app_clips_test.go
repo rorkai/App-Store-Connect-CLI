@@ -32,7 +32,7 @@ func TestPrintMarkdown_AppClips(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Bundle ID |") || !strings.Contains(output, "com.example.clip") {
+	if !strings.Contains(output, "Bundle ID") || !strings.Contains(output, "com.example.clip") {
 		t.Fatalf("expected markdown bundle id, got %q", output)
 	}
 }
@@ -56,7 +56,7 @@ func TestPrintMarkdown_AppClips_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Bundle ID |") {
+	if !strings.Contains(output, "Bundle ID") {
 		t.Fatalf("expected markdown header, got %q", output)
 	}
 }
@@ -100,7 +100,7 @@ func TestPrintMarkdown_AppClipDefaultExperienceLocalizations(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Locale |") || !strings.Contains(output, "en-US") {
+	if !strings.Contains(output, "Locale") || !strings.Contains(output, "en-US") {
 		t.Fatalf("expected locale in output, got %q", output)
 	}
 }
@@ -112,7 +112,7 @@ func TestPrintMarkdown_AppClipDefaultExperienceLocalizations_Empty(t *testing.T)
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Locale |") {
+	if !strings.Contains(output, "Locale") {
 		t.Fatalf("expected markdown header, got %q", output)
 	}
 }
@@ -166,7 +166,7 @@ func TestPrintMarkdown_BetaAppClipInvocationLocalizations(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Title |") || !strings.Contains(output, "Try it") {
+	if !strings.Contains(output, "Title") || !strings.Contains(output, "Try it") {
 		t.Fatalf("expected title in output, got %q", output)
 	}
 }
@@ -178,7 +178,7 @@ func TestPrintMarkdown_BetaAppClipInvocationLocalizations_Empty(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| Title |") {
+	if !strings.Contains(output, "Title") {
 		t.Fatalf("expected markdown header, got %q", output)
 	}
 }

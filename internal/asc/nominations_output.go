@@ -1,11 +1,8 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
-func printNominationsTable(resp *NominationsResponse) error {
+func nominationsRows(resp *NominationsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Type", "State", "Publish Start", "Publish End"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -19,37 +16,35 @@ func printNominationsTable(resp *NominationsResponse) error {
 			sanitizeTerminal(fallbackValue(attrs.PublishEndDate)),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printNominationsTable(resp *NominationsResponse) error {
+	h, r := nominationsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printNominationsMarkdown(resp *NominationsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Type | State | Publish Start | Publish End |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		attrs := item.Attributes
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(fallbackValue(attrs.Name)),
-			escapeMarkdown(fallbackValue(string(attrs.Type))),
-			escapeMarkdown(fallbackValue(string(attrs.State))),
-			escapeMarkdown(fallbackValue(attrs.PublishStartDate)),
-			escapeMarkdown(fallbackValue(attrs.PublishEndDate)),
-		)
-	}
+	h, r := nominationsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printNominationDeleteResultTable(result *NominationDeleteResult) error {
+func nominationDeleteResultRows(result *NominationDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printNominationDeleteResultTable(result *NominationDeleteResult) error {
+	h, r := nominationDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printNominationDeleteResultMarkdown(result *NominationDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := nominationDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

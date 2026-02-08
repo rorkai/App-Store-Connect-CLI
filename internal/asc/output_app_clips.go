@@ -2,55 +2,52 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
-func printAppClipsTable(resp *AppClipsResponse) error {
+func appClipsRows(resp *AppClipsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Bundle ID"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{item.ID, item.Attributes.BundleID})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipsTable(resp *AppClipsResponse) error {
+	h, r := appClipsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipsMarkdown(resp *AppClipsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Bundle ID |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.BundleID),
-		)
-	}
+	h, r := appClipsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipDefaultExperiencesTable(resp *AppClipDefaultExperiencesResponse) error {
+func appClipDefaultExperiencesRows(resp *AppClipDefaultExperiencesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Action"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{item.ID, string(item.Attributes.Action)})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipDefaultExperiencesTable(resp *AppClipDefaultExperiencesResponse) error {
+	h, r := appClipDefaultExperiencesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipDefaultExperiencesMarkdown(resp *AppClipDefaultExperiencesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Action |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(string(item.Attributes.Action)),
-		)
-	}
+	h, r := appClipDefaultExperiencesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipDefaultExperienceLocalizationsTable(resp *AppClipDefaultExperienceLocalizationsResponse) error {
+func appClipDefaultExperienceLocalizationsRows(resp *AppClipDefaultExperienceLocalizationsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Locale", "Subtitle"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -60,24 +57,22 @@ func printAppClipDefaultExperienceLocalizationsTable(resp *AppClipDefaultExperie
 			compactWhitespace(item.Attributes.Subtitle),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipDefaultExperienceLocalizationsTable(resp *AppClipDefaultExperienceLocalizationsResponse) error {
+	h, r := appClipDefaultExperienceLocalizationsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipDefaultExperienceLocalizationsMarkdown(resp *AppClipDefaultExperienceLocalizationsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Locale | Subtitle |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Locale),
-			escapeMarkdown(item.Attributes.Subtitle),
-		)
-	}
+	h, r := appClipDefaultExperienceLocalizationsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipAdvancedExperiencesTable(resp *AppClipAdvancedExperiencesResponse) error {
+func appClipAdvancedExperiencesRows(resp *AppClipAdvancedExperiencesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Action", "Status", "Business Category", "Default Language", "Powered By", "Link"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -91,28 +86,22 @@ func printAppClipAdvancedExperiencesTable(resp *AppClipAdvancedExperiencesRespon
 			item.Attributes.Link,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipAdvancedExperiencesTable(resp *AppClipAdvancedExperiencesResponse) error {
+	h, r := appClipAdvancedExperiencesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipAdvancedExperiencesMarkdown(resp *AppClipAdvancedExperiencesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Action | Status | Business Category | Default Language | Powered By | Link |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %t | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(string(item.Attributes.Action)),
-			escapeMarkdown(item.Attributes.Status),
-			escapeMarkdown(string(item.Attributes.BusinessCategory)),
-			escapeMarkdown(string(item.Attributes.DefaultLanguage)),
-			item.Attributes.IsPoweredBy,
-			escapeMarkdown(item.Attributes.Link),
-		)
-	}
+	h, r := appClipAdvancedExperiencesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printBetaAppClipInvocationLocalizationsTable(resp *BetaAppClipInvocationLocalizationsResponse) error {
+func betaAppClipInvocationLocalizationsRows(resp *BetaAppClipInvocationLocalizationsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Locale", "Title"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -122,24 +111,22 @@ func printBetaAppClipInvocationLocalizationsTable(resp *BetaAppClipInvocationLoc
 			compactWhitespace(item.Attributes.Title),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBetaAppClipInvocationLocalizationsTable(resp *BetaAppClipInvocationLocalizationsResponse) error {
+	h, r := betaAppClipInvocationLocalizationsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBetaAppClipInvocationLocalizationsMarkdown(resp *BetaAppClipInvocationLocalizationsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Locale | Title |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Locale),
-			escapeMarkdown(item.Attributes.Title),
-		)
-	}
+	h, r := betaAppClipInvocationLocalizationsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipAdvancedExperienceImageUploadResultTable(result *AppClipAdvancedExperienceImageUploadResult) error {
+func appClipAdvancedExperienceImageUploadResultRows(result *AppClipAdvancedExperienceImageUploadResult) ([]string, [][]string) {
 	headers := []string{"ID", "Experience ID", "File Name", "File Size", "State", "Uploaded"}
 	rows := [][]string{{
 		result.ID,
@@ -149,25 +136,22 @@ func printAppClipAdvancedExperienceImageUploadResultTable(result *AppClipAdvance
 		result.AssetDeliveryState,
 		fmt.Sprintf("%t", result.Uploaded),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipAdvancedExperienceImageUploadResultTable(result *AppClipAdvancedExperienceImageUploadResult) error {
+	h, r := appClipAdvancedExperienceImageUploadResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipAdvancedExperienceImageUploadResultMarkdown(result *AppClipAdvancedExperienceImageUploadResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Experience ID | File Name | File Size | State | Uploaded |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %d | %s | %t |\n",
-		escapeMarkdown(result.ID),
-		escapeMarkdown(result.ExperienceID),
-		escapeMarkdown(result.FileName),
-		result.FileSize,
-		escapeMarkdown(result.AssetDeliveryState),
-		result.Uploaded,
-	)
+	h, r := appClipAdvancedExperienceImageUploadResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipAdvancedExperienceImageTable(resp *AppClipAdvancedExperienceImageResponse) error {
+func appClipAdvancedExperienceImageRows(resp *AppClipAdvancedExperienceImageResponse) ([]string, [][]string) {
 	headers := []string{"ID", "File Name", "File Size", "State"}
 	state := ""
 	if resp.Data.Attributes.AssetDeliveryState != nil {
@@ -179,27 +163,22 @@ func printAppClipAdvancedExperienceImageTable(resp *AppClipAdvancedExperienceIma
 		fmt.Sprintf("%d", resp.Data.Attributes.FileSize),
 		state,
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipAdvancedExperienceImageTable(resp *AppClipAdvancedExperienceImageResponse) error {
+	h, r := appClipAdvancedExperienceImageRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipAdvancedExperienceImageMarkdown(resp *AppClipAdvancedExperienceImageResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | File Name | File Size | State |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	state := ""
-	if resp.Data.Attributes.AssetDeliveryState != nil {
-		state = resp.Data.Attributes.AssetDeliveryState.State
-	}
-	fmt.Fprintf(os.Stdout, "| %s | %s | %d | %s |\n",
-		escapeMarkdown(resp.Data.ID),
-		escapeMarkdown(resp.Data.Attributes.FileName),
-		resp.Data.Attributes.FileSize,
-		escapeMarkdown(state),
-	)
+	h, r := appClipAdvancedExperienceImageRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipHeaderImageUploadResultTable(result *AppClipHeaderImageUploadResult) error {
+func appClipHeaderImageUploadResultRows(result *AppClipHeaderImageUploadResult) ([]string, [][]string) {
 	headers := []string{"ID", "Localization ID", "File Name", "File Size", "State", "Uploaded"}
 	rows := [][]string{{
 		result.ID,
@@ -209,25 +188,22 @@ func printAppClipHeaderImageUploadResultTable(result *AppClipHeaderImageUploadRe
 		result.AssetDeliveryState,
 		fmt.Sprintf("%t", result.Uploaded),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipHeaderImageUploadResultTable(result *AppClipHeaderImageUploadResult) error {
+	h, r := appClipHeaderImageUploadResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipHeaderImageUploadResultMarkdown(result *AppClipHeaderImageUploadResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Localization ID | File Name | File Size | State | Uploaded |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %d | %s | %t |\n",
-		escapeMarkdown(result.ID),
-		escapeMarkdown(result.LocalizationID),
-		escapeMarkdown(result.FileName),
-		result.FileSize,
-		escapeMarkdown(result.AssetDeliveryState),
-		result.Uploaded,
-	)
+	h, r := appClipHeaderImageUploadResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipHeaderImageTable(resp *AppClipHeaderImageResponse) error {
+func appClipHeaderImageRows(resp *AppClipHeaderImageResponse) ([]string, [][]string) {
 	headers := []string{"ID", "File Name", "File Size", "State"}
 	state := ""
 	if resp.Data.Attributes.AssetDeliveryState != nil {
@@ -239,160 +215,162 @@ func printAppClipHeaderImageTable(resp *AppClipHeaderImageResponse) error {
 		fmt.Sprintf("%d", resp.Data.Attributes.FileSize),
 		state,
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipHeaderImageTable(resp *AppClipHeaderImageResponse) error {
+	h, r := appClipHeaderImageRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipHeaderImageMarkdown(resp *AppClipHeaderImageResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | File Name | File Size | State |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	state := ""
-	if resp.Data.Attributes.AssetDeliveryState != nil {
-		state = resp.Data.Attributes.AssetDeliveryState.State
-	}
-	fmt.Fprintf(os.Stdout, "| %s | %s | %d | %s |\n",
-		escapeMarkdown(resp.Data.ID),
-		escapeMarkdown(resp.Data.Attributes.FileName),
-		resp.Data.Attributes.FileSize,
-		escapeMarkdown(state),
-	)
+	h, r := appClipHeaderImageRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipDefaultExperienceDeleteResultTable(result *AppClipDefaultExperienceDeleteResult) error {
+func appClipDefaultExperienceDeleteResultRows(result *AppClipDefaultExperienceDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipDefaultExperienceDeleteResultTable(result *AppClipDefaultExperienceDeleteResult) error {
+	h, r := appClipDefaultExperienceDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipDefaultExperienceDeleteResultMarkdown(result *AppClipDefaultExperienceDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := appClipDefaultExperienceDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipDefaultExperienceLocalizationDeleteResultTable(result *AppClipDefaultExperienceLocalizationDeleteResult) error {
+func appClipDefaultExperienceLocalizationDeleteResultRows(result *AppClipDefaultExperienceLocalizationDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipDefaultExperienceLocalizationDeleteResultTable(result *AppClipDefaultExperienceLocalizationDeleteResult) error {
+	h, r := appClipDefaultExperienceLocalizationDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipDefaultExperienceLocalizationDeleteResultMarkdown(result *AppClipDefaultExperienceLocalizationDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := appClipDefaultExperienceLocalizationDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipAdvancedExperienceDeleteResultTable(result *AppClipAdvancedExperienceDeleteResult) error {
+func appClipAdvancedExperienceDeleteResultRows(result *AppClipAdvancedExperienceDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipAdvancedExperienceDeleteResultTable(result *AppClipAdvancedExperienceDeleteResult) error {
+	h, r := appClipAdvancedExperienceDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipAdvancedExperienceDeleteResultMarkdown(result *AppClipAdvancedExperienceDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := appClipAdvancedExperienceDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipAdvancedExperienceImageDeleteResultTable(result *AppClipAdvancedExperienceImageDeleteResult) error {
+func appClipAdvancedExperienceImageDeleteResultRows(result *AppClipAdvancedExperienceImageDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipAdvancedExperienceImageDeleteResultTable(result *AppClipAdvancedExperienceImageDeleteResult) error {
+	h, r := appClipAdvancedExperienceImageDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipAdvancedExperienceImageDeleteResultMarkdown(result *AppClipAdvancedExperienceImageDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := appClipAdvancedExperienceImageDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipHeaderImageDeleteResultTable(result *AppClipHeaderImageDeleteResult) error {
+func appClipHeaderImageDeleteResultRows(result *AppClipHeaderImageDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipHeaderImageDeleteResultTable(result *AppClipHeaderImageDeleteResult) error {
+	h, r := appClipHeaderImageDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipHeaderImageDeleteResultMarkdown(result *AppClipHeaderImageDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := appClipHeaderImageDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printBetaAppClipInvocationDeleteResultTable(result *BetaAppClipInvocationDeleteResult) error {
+func betaAppClipInvocationDeleteResultRows(result *BetaAppClipInvocationDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBetaAppClipInvocationDeleteResultTable(result *BetaAppClipInvocationDeleteResult) error {
+	h, r := betaAppClipInvocationDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBetaAppClipInvocationDeleteResultMarkdown(result *BetaAppClipInvocationDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := betaAppClipInvocationDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printBetaAppClipInvocationLocalizationDeleteResultTable(result *BetaAppClipInvocationLocalizationDeleteResult) error {
+func betaAppClipInvocationLocalizationDeleteResultRows(result *BetaAppClipInvocationLocalizationDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBetaAppClipInvocationLocalizationDeleteResultTable(result *BetaAppClipInvocationLocalizationDeleteResult) error {
+	h, r := betaAppClipInvocationLocalizationDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBetaAppClipInvocationLocalizationDeleteResultMarkdown(result *BetaAppClipInvocationLocalizationDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := betaAppClipInvocationLocalizationDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppClipAppStoreReviewDetailTable(resp *AppClipAppStoreReviewDetailResponse) error {
+func appClipAppStoreReviewDetailRows(resp *AppClipAppStoreReviewDetailResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Invocation URLs"}
 	urls := strings.Join(resp.Data.Attributes.InvocationURLs, ", ")
 	rows := [][]string{{resp.Data.ID, compactWhitespace(urls)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppClipAppStoreReviewDetailTable(resp *AppClipAppStoreReviewDetailResponse) error {
+	h, r := appClipAppStoreReviewDetailRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppClipAppStoreReviewDetailMarkdown(resp *AppClipAppStoreReviewDetailResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Invocation URLs |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	urls := strings.Join(resp.Data.Attributes.InvocationURLs, ", ")
-	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-		escapeMarkdown(resp.Data.ID),
-		escapeMarkdown(urls),
-	)
+	h, r := appClipAppStoreReviewDetailRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }

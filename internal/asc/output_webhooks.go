@@ -2,7 +2,6 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -24,7 +23,7 @@ func webhookEventTypes(values []WebhookEventType) string {
 	return strings.Join(items, ", ")
 }
 
-func printWebhooksTable(resp *WebhooksResponse) error {
+func webhooksRows(resp *WebhooksResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Enabled", "URL", "Events"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -36,26 +35,22 @@ func printWebhooksTable(resp *WebhooksResponse) error {
 			compactWhitespace(webhookEventTypes(item.Attributes.EventTypes)),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printWebhooksTable(resp *WebhooksResponse) error {
+	h, r := webhooksRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printWebhooksMarkdown(resp *WebhooksResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Enabled | URL | Events |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(strconv.FormatBool(item.Attributes.Enabled)),
-			escapeMarkdown(item.Attributes.URL),
-			escapeMarkdown(webhookEventTypes(item.Attributes.EventTypes)),
-		)
-	}
+	h, r := webhooksRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printWebhookDeliveriesTable(resp *WebhookDeliveriesResponse) error {
+func webhookDeliveriesRows(resp *WebhookDeliveriesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "State", "Created", "Sent", "Error"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -67,49 +62,53 @@ func printWebhookDeliveriesTable(resp *WebhookDeliveriesResponse) error {
 			compactWhitespace(item.Attributes.ErrorMessage),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printWebhookDeliveriesTable(resp *WebhookDeliveriesResponse) error {
+	h, r := webhookDeliveriesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printWebhookDeliveriesMarkdown(resp *WebhookDeliveriesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | State | Created | Sent | Error |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.DeliveryState),
-			escapeMarkdown(item.Attributes.CreatedDate),
-			escapeMarkdown(item.Attributes.SentDate),
-			escapeMarkdown(item.Attributes.ErrorMessage),
-		)
-	}
+	h, r := webhookDeliveriesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printWebhookDeleteResultTable(result *WebhookDeleteResult) error {
+func webhookDeleteResultRows(result *WebhookDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printWebhookDeleteResultTable(result *WebhookDeleteResult) error {
+	h, r := webhookDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printWebhookDeleteResultMarkdown(result *WebhookDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := webhookDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printWebhookPingTable(resp *WebhookPingResponse) error {
+func webhookPingRows(resp *WebhookPingResponse) ([]string, [][]string) {
 	headers := []string{"ID"}
 	rows := [][]string{{resp.Data.ID}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printWebhookPingTable(resp *WebhookPingResponse) error {
+	h, r := webhookPingRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printWebhookPingMarkdown(resp *WebhookPingResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID |")
-	fmt.Fprintln(os.Stdout, "| --- |")
-	fmt.Fprintf(os.Stdout, "| %s |\n", escapeMarkdown(resp.Data.ID))
+	h, r := webhookPingRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }

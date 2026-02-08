@@ -2,7 +2,6 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -12,7 +11,7 @@ type AndroidToIosAppMappingDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-func printAndroidToIosAppMappingDetailsTable(resp *AndroidToIosAppMappingDetailsResponse) error {
+func androidToIosAppMappingDetailsRows(resp *AndroidToIosAppMappingDetailsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Package Name", "Fingerprints"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -22,37 +21,36 @@ func printAndroidToIosAppMappingDetailsTable(resp *AndroidToIosAppMappingDetails
 			formatAndroidToIosFingerprints(item.Attributes.AppSigningKeyPublicCertificateSha256Fingerprints),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAndroidToIosAppMappingDetailsTable(resp *AndroidToIosAppMappingDetailsResponse) error {
+	h, r := androidToIosAppMappingDetailsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAndroidToIosAppMappingDetailsMarkdown(resp *AndroidToIosAppMappingDetailsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Package Name | Fingerprints |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.PackageName),
-			escapeMarkdown(formatAndroidToIosFingerprints(item.Attributes.AppSigningKeyPublicCertificateSha256Fingerprints)),
-		)
-	}
+	h, r := androidToIosAppMappingDetailsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAndroidToIosAppMappingDeleteResultTable(result *AndroidToIosAppMappingDeleteResult) error {
+func androidToIosAppMappingDeleteResultRows(result *AndroidToIosAppMappingDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAndroidToIosAppMappingDeleteResultTable(result *AndroidToIosAppMappingDeleteResult) error {
+	h, r := androidToIosAppMappingDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAndroidToIosAppMappingDeleteResultMarkdown(result *AndroidToIosAppMappingDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := androidToIosAppMappingDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 

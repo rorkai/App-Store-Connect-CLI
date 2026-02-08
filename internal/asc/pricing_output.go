@@ -1,33 +1,29 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
-func printTerritoriesTable(resp *TerritoriesResponse) error {
+func territoriesRows(resp *TerritoriesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Currency"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{item.ID, item.Attributes.Currency})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printTerritoriesTable(resp *TerritoriesResponse) error {
+	h, r := territoriesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printTerritoriesMarkdown(resp *TerritoriesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Currency |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Currency),
-		)
-	}
+	h, r := territoriesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppPricePointsTable(resp *AppPricePointsV3Response) error {
+func appPricePointsRows(resp *AppPricePointsV3Response) ([]string, [][]string) {
 	headers := []string{"ID", "Customer Price", "Proceeds"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -37,24 +33,22 @@ func printAppPricePointsTable(resp *AppPricePointsV3Response) error {
 			item.Attributes.Proceeds,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppPricePointsTable(resp *AppPricePointsV3Response) error {
+	h, r := appPricePointsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppPricePointsMarkdown(resp *AppPricePointsV3Response) error {
-	fmt.Fprintln(os.Stdout, "| ID | Customer Price | Proceeds |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.CustomerPrice),
-			escapeMarkdown(item.Attributes.Proceeds),
-		)
-	}
+	h, r := appPricePointsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppPricesTable(resp *AppPricesResponse) error {
+func appPricesRows(resp *AppPricesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Start Date", "End Date", "Manual"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -65,56 +59,58 @@ func printAppPricesTable(resp *AppPricesResponse) error {
 			fmt.Sprintf("%t", item.Attributes.Manual),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppPricesTable(resp *AppPricesResponse) error {
+	h, r := appPricesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppPricesMarkdown(resp *AppPricesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Start Date | End Date | Manual |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %t |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.StartDate),
-			escapeMarkdown(item.Attributes.EndDate),
-			item.Attributes.Manual,
-		)
-	}
+	h, r := appPricesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppPriceScheduleTable(resp *AppPriceScheduleResponse) error {
+func appPriceScheduleRows(resp *AppPriceScheduleResponse) ([]string, [][]string) {
 	headers := []string{"ID"}
 	rows := [][]string{{resp.Data.ID}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppPriceScheduleTable(resp *AppPriceScheduleResponse) error {
+	h, r := appPriceScheduleRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppPriceScheduleMarkdown(resp *AppPriceScheduleResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID |")
-	fmt.Fprintln(os.Stdout, "| --- |")
-	fmt.Fprintf(os.Stdout, "| %s |\n", escapeMarkdown(resp.Data.ID))
+	h, r := appPriceScheduleRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppAvailabilityTable(resp *AppAvailabilityV2Response) error {
+func appAvailabilityRows(resp *AppAvailabilityV2Response) ([]string, [][]string) {
 	headers := []string{"ID", "Available In New Territories"}
 	rows := [][]string{{resp.Data.ID, fmt.Sprintf("%t", resp.Data.Attributes.AvailableInNewTerritories)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppAvailabilityTable(resp *AppAvailabilityV2Response) error {
+	h, r := appAvailabilityRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppAvailabilityMarkdown(resp *AppAvailabilityV2Response) error {
-	fmt.Fprintln(os.Stdout, "| ID | Available In New Territories |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(resp.Data.ID),
-		resp.Data.Attributes.AvailableInNewTerritories,
-	)
+	h, r := appAvailabilityRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printTerritoryAvailabilitiesTable(resp *TerritoryAvailabilitiesResponse) error {
+func territoryAvailabilitiesRows(resp *TerritoryAvailabilitiesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Available", "Release Date", "Preorder Enabled"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -125,20 +121,17 @@ func printTerritoryAvailabilitiesTable(resp *TerritoryAvailabilitiesResponse) er
 			fmt.Sprintf("%t", item.Attributes.PreOrderEnabled),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printTerritoryAvailabilitiesTable(resp *TerritoryAvailabilitiesResponse) error {
+	h, r := territoryAvailabilitiesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printTerritoryAvailabilitiesMarkdown(resp *TerritoryAvailabilitiesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Available | Release Date | Preorder Enabled |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %t | %s | %t |\n",
-			escapeMarkdown(item.ID),
-			item.Attributes.Available,
-			escapeMarkdown(item.Attributes.ReleaseDate),
-			item.Attributes.PreOrderEnabled,
-		)
-	}
+	h, r := territoryAvailabilitiesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }

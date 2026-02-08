@@ -2,11 +2,10 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 )
 
-func printReviewSubmissionsTable(resp *ReviewSubmissionsResponse) error {
+func reviewSubmissionsRows(resp *ReviewSubmissionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "State", "Platform", "Submitted Date", "App ID", "Items"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -21,29 +20,22 @@ func printReviewSubmissionsTable(resp *ReviewSubmissionsResponse) error {
 			itemCount,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printReviewSubmissionsTable(resp *ReviewSubmissionsResponse) error {
+	h, r := reviewSubmissionsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printReviewSubmissionsMarkdown(resp *ReviewSubmissionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | State | Platform | Submitted Date | App ID | Items |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		appID := reviewSubmissionAppID(item.Relationships)
-		itemCount := reviewSubmissionItemCount(item.Relationships)
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(string(item.Attributes.SubmissionState)),
-			escapeMarkdown(string(item.Attributes.Platform)),
-			escapeMarkdown(item.Attributes.SubmittedDate),
-			escapeMarkdown(appID),
-			escapeMarkdown(itemCount),
-		)
-	}
+	h, r := reviewSubmissionsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printReviewSubmissionItemsTable(resp *ReviewSubmissionItemsResponse) error {
+func reviewSubmissionItemsRows(resp *ReviewSubmissionItemsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "State", "Item Type", "Item ID", "Submission ID"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -57,41 +49,36 @@ func printReviewSubmissionItemsTable(resp *ReviewSubmissionItemsResponse) error 
 			sanitizeTerminal(submissionID),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printReviewSubmissionItemsTable(resp *ReviewSubmissionItemsResponse) error {
+	h, r := reviewSubmissionItemsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printReviewSubmissionItemsMarkdown(resp *ReviewSubmissionItemsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | State | Item Type | Item ID | Submission ID |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		itemType, itemID := reviewSubmissionItemTarget(item.Relationships)
-		submissionID := reviewSubmissionItemSubmissionID(item.Relationships)
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.State),
-			escapeMarkdown(itemType),
-			escapeMarkdown(itemID),
-			escapeMarkdown(submissionID),
-		)
-	}
+	h, r := reviewSubmissionItemsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printReviewSubmissionItemDeleteResultTable(result *ReviewSubmissionItemDeleteResult) error {
+func reviewSubmissionItemDeleteResultRows(result *ReviewSubmissionItemDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printReviewSubmissionItemDeleteResultTable(result *ReviewSubmissionItemDeleteResult) error {
+	h, r := reviewSubmissionItemDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printReviewSubmissionItemDeleteResultMarkdown(result *ReviewSubmissionItemDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := reviewSubmissionItemDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 

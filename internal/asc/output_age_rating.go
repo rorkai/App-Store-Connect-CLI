@@ -1,8 +1,6 @@
 package asc
 
 import (
-	"fmt"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -12,24 +10,25 @@ type ageRatingField struct {
 	Value string
 }
 
-func printAgeRatingDeclarationTable(resp *AgeRatingDeclarationResponse) error {
+func ageRatingDeclarationRows(resp *AgeRatingDeclarationResponse) ([]string, [][]string) {
 	fields := ageRatingFields(resp)
 	headers := []string{"Field", "Value"}
 	rows := make([][]string, 0, len(fields))
 	for _, field := range fields {
 		rows = append(rows, []string{field.Name, field.Value})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAgeRatingDeclarationTable(resp *AgeRatingDeclarationResponse) error {
+	h, r := ageRatingDeclarationRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAgeRatingDeclarationMarkdown(resp *AgeRatingDeclarationResponse) error {
-	fields := ageRatingFields(resp)
-	fmt.Fprintln(os.Stdout, "| Field | Value |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, field := range fields {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n", escapeMarkdown(field.Name), escapeMarkdown(field.Value))
-	}
+	h, r := ageRatingDeclarationRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 

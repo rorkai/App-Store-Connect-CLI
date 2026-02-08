@@ -2,7 +2,6 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -29,7 +28,7 @@ func formatScreenshotURLs(images []FeedbackScreenshotImage) string {
 	return strings.Join(urls, ", ")
 }
 
-func printFeedbackTable(resp *FeedbackResponse) error {
+func feedbackRows(resp *FeedbackResponse) ([]string, [][]string) {
 	hasScreenshots := feedbackHasScreenshots(resp)
 	var headers []string
 	if hasScreenshots {
@@ -54,11 +53,22 @@ func printFeedbackTable(resp *FeedbackResponse) error {
 			compactWhitespace(item.Attributes.Comment),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printFeedbackTable(resp *FeedbackResponse) error {
+	h, r := feedbackRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
-func printCrashesTable(resp *CrashesResponse) error {
+func printFeedbackMarkdown(resp *FeedbackResponse) error {
+	h, r := feedbackRows(resp)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func crashesRows(resp *CrashesResponse) ([]string, [][]string) {
 	headers := []string{"Created", "Email", "Device", "OS", "Comment"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -70,11 +80,22 @@ func printCrashesTable(resp *CrashesResponse) error {
 			compactWhitespace(item.Attributes.Comment),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCrashesTable(resp *CrashesResponse) error {
+	h, r := crashesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
-func printReviewsTable(resp *ReviewsResponse) error {
+func printCrashesMarkdown(resp *CrashesResponse) error {
+	h, r := crashesRows(resp)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func reviewsRows(resp *ReviewsResponse) ([]string, [][]string) {
 	headers := []string{"Created", "Rating", "Territory", "Title"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -85,63 +106,17 @@ func printReviewsTable(resp *ReviewsResponse) error {
 			compactWhitespace(item.Attributes.Title),
 		})
 	}
-	RenderTable(headers, rows)
-	return nil
+	return headers, rows
 }
 
-func printFeedbackMarkdown(resp *FeedbackResponse) error {
-	hasScreenshots := feedbackHasScreenshots(resp)
-	if hasScreenshots {
-		fmt.Fprintln(os.Stdout, "| Created | Email | Comment | Screenshots |")
-		fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	} else {
-		fmt.Fprintln(os.Stdout, "| Created | Email | Comment |")
-		fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	}
-	for _, item := range resp.Data {
-		if hasScreenshots {
-			fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
-				escapeMarkdown(item.Attributes.CreatedDate),
-				escapeMarkdown(item.Attributes.Email),
-				escapeMarkdown(item.Attributes.Comment),
-				escapeMarkdown(formatScreenshotURLs(item.Attributes.Screenshots)),
-			)
-			continue
-		}
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.Attributes.CreatedDate),
-			escapeMarkdown(item.Attributes.Email),
-			escapeMarkdown(item.Attributes.Comment),
-		)
-	}
-	return nil
-}
-
-func printCrashesMarkdown(resp *CrashesResponse) error {
-	fmt.Fprintln(os.Stdout, "| Created | Email | Device | OS | Comment |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.Attributes.CreatedDate),
-			escapeMarkdown(item.Attributes.Email),
-			escapeMarkdown(item.Attributes.DeviceModel),
-			escapeMarkdown(item.Attributes.OSVersion),
-			escapeMarkdown(item.Attributes.Comment),
-		)
-	}
+func printReviewsTable(resp *ReviewsResponse) error {
+	h, r := reviewsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printReviewsMarkdown(resp *ReviewsResponse) error {
-	fmt.Fprintln(os.Stdout, "| Created | Rating | Territory | Title |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %d | %s | %s |\n",
-			escapeMarkdown(item.Attributes.CreatedDate),
-			item.Attributes.Rating,
-			escapeMarkdown(item.Attributes.Territory),
-			escapeMarkdown(item.Attributes.Title),
-		)
-	}
+	h, r := reviewsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }

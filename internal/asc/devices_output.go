@@ -1,34 +1,30 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
-
 // DeviceLocalUDIDResult represents CLI output for local device UDID lookup.
 type DeviceLocalUDIDResult struct {
 	UDID     string `json:"udid"`
 	Platform string `json:"platform"`
 }
 
-func printDeviceLocalUDIDTable(result *DeviceLocalUDIDResult) error {
+func deviceLocalUDIDRows(result *DeviceLocalUDIDResult) ([]string, [][]string) {
 	headers := []string{"UDID", "Platform"}
 	rows := [][]string{{result.UDID, result.Platform}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printDeviceLocalUDIDTable(result *DeviceLocalUDIDResult) error {
+	h, r := deviceLocalUDIDRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printDeviceLocalUDIDMarkdown(result *DeviceLocalUDIDResult) error {
-	fmt.Fprintln(os.Stdout, "| UDID | Platform |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-		escapeMarkdown(result.UDID),
-		escapeMarkdown(result.Platform),
-	)
+	h, r := deviceLocalUDIDRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printDevicesTable(resp *DevicesResponse) error {
+func devicesRows(resp *DevicesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "UDID", "Platform", "Status", "Class", "Model", "Added"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -43,24 +39,17 @@ func printDevicesTable(resp *DevicesResponse) error {
 			compactWhitespace(item.Attributes.AddedDate),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printDevicesTable(resp *DevicesResponse) error {
+	h, r := devicesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printDevicesMarkdown(resp *DevicesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | UDID | Platform | Status | Class | Model | Added |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.UDID),
-			escapeMarkdown(string(item.Attributes.Platform)),
-			escapeMarkdown(string(item.Attributes.Status)),
-			escapeMarkdown(string(item.Attributes.DeviceClass)),
-			escapeMarkdown(item.Attributes.Model),
-			escapeMarkdown(item.Attributes.AddedDate),
-		)
-	}
+	h, r := devicesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }

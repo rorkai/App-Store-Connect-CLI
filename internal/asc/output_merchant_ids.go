@@ -1,9 +1,6 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
 // MerchantIDDeleteResult represents CLI output for merchant ID deletions.
 type MerchantIDDeleteResult struct {
@@ -11,7 +8,7 @@ type MerchantIDDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
-func printMerchantIDsTable(resp *MerchantIDsResponse) error {
+func merchantIDsRows(resp *MerchantIDsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Identifier"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -21,36 +18,35 @@ func printMerchantIDsTable(resp *MerchantIDsResponse) error {
 			item.Attributes.Identifier,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printMerchantIDsTable(resp *MerchantIDsResponse) error {
+	h, r := merchantIDsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printMerchantIDsMarkdown(resp *MerchantIDsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Identifier |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			item.ID,
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.Identifier),
-		)
-	}
+	h, r := merchantIDsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printMerchantIDDeleteResultTable(result *MerchantIDDeleteResult) error {
+func merchantIDDeleteResultRows(result *MerchantIDDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printMerchantIDDeleteResultTable(result *MerchantIDDeleteResult) error {
+	h, r := merchantIDDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printMerchantIDDeleteResultMarkdown(result *MerchantIDDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := merchantIDDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

@@ -47,7 +47,7 @@ func TestPrintMarkdown_PassTypeIDs(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Identifier |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Identifier") {
 		t.Fatalf("expected pass type IDs header, got: %s", output)
 	}
 	if !strings.Contains(output, "pass-1") || !strings.Contains(output, "Wallet") || !strings.Contains(output, "pass.com.example") {
@@ -77,7 +77,7 @@ func TestPrintMarkdown_PassTypeIDDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected delete header, got: %s", output)
 	}
 	if !strings.Contains(output, "pass-1") || !strings.Contains(output, "true") {

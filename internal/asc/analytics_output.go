@@ -1,9 +1,6 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
 // SalesReportResult represents CLI output for sales report downloads.
 type SalesReportResult struct {
@@ -83,7 +80,7 @@ type AnalyticsReportGetSegment struct {
 	URLExpirationDate string `json:"urlExpirationDate,omitempty"`
 }
 
-func printSalesReportResultTable(result *SalesReportResult) error {
+func salesReportResultRows(result *SalesReportResult) ([]string, [][]string) {
 	headers := []string{"Vendor", "Type", "Subtype", "Frequency", "Date", "Version", "Compressed File", "Compressed Size", "Decompressed File", "Decompressed Size"}
 	rows := [][]string{{
 		result.VendorNumber,
@@ -97,66 +94,58 @@ func printSalesReportResultTable(result *SalesReportResult) error {
 		result.DecompressedPath,
 		fmt.Sprintf("%d", result.DecompressedSize),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printSalesReportResultTable(result *SalesReportResult) error {
+	h, r := salesReportResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printSalesReportResultMarkdown(result *SalesReportResult) error {
-	fmt.Fprintln(os.Stdout, "| Vendor | Type | Subtype | Frequency | Date | Version | Compressed File | Compressed Size | Decompressed File | Decompressed Size |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s | %s | %d | %s | %d |\n",
-		escapeMarkdown(result.VendorNumber),
-		escapeMarkdown(result.ReportType),
-		escapeMarkdown(result.ReportSubType),
-		escapeMarkdown(result.Frequency),
-		escapeMarkdown(result.ReportDate),
-		escapeMarkdown(result.Version),
-		escapeMarkdown(result.FilePath),
-		result.FileSize,
-		escapeMarkdown(result.DecompressedPath),
-		result.DecompressedSize,
-	)
+	h, r := salesReportResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAnalyticsReportRequestResultTable(result *AnalyticsReportRequestResult) error {
+func analyticsReportRequestResultRows(result *AnalyticsReportRequestResult) ([]string, [][]string) {
 	headers := []string{"Request ID", "App ID", "Access Type", "State", "Created Date"}
 	rows := [][]string{{result.RequestID, result.AppID, result.AccessType, result.State, result.CreatedDate}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAnalyticsReportRequestResultTable(result *AnalyticsReportRequestResult) error {
+	h, r := analyticsReportRequestResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAnalyticsReportRequestResultMarkdown(result *AnalyticsReportRequestResult) error {
-	fmt.Fprintln(os.Stdout, "| Request ID | App ID | Access Type | State | Created Date |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-		escapeMarkdown(result.RequestID),
-		escapeMarkdown(result.AppID),
-		escapeMarkdown(result.AccessType),
-		escapeMarkdown(result.State),
-		escapeMarkdown(result.CreatedDate),
-	)
+	h, r := analyticsReportRequestResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAnalyticsReportRequestDeleteResultTable(result *AnalyticsReportRequestDeleteResult) error {
+func analyticsReportRequestDeleteResultRows(result *AnalyticsReportRequestDeleteResult) ([]string, [][]string) {
 	headers := []string{"Request ID", "Deleted"}
 	rows := [][]string{{result.RequestID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAnalyticsReportRequestDeleteResultTable(result *AnalyticsReportRequestDeleteResult) error {
+	h, r := analyticsReportRequestDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAnalyticsReportRequestDeleteResultMarkdown(result *AnalyticsReportRequestDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| Request ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.RequestID),
-		result.Deleted,
-	)
+	h, r := analyticsReportRequestDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAnalyticsReportRequestsTable(resp *AnalyticsReportRequestsResponse) error {
+func analyticsReportRequestsRows(resp *AnalyticsReportRequestsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Access Type", "State", "Created Date", "App ID"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -172,30 +161,22 @@ func printAnalyticsReportRequestsTable(resp *AnalyticsReportRequestsResponse) er
 			appID,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAnalyticsReportRequestsTable(resp *AnalyticsReportRequestsResponse) error {
+	h, r := analyticsReportRequestsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAnalyticsReportRequestsMarkdown(resp *AnalyticsReportRequestsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Access Type | State | Created Date | App ID |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		appID := ""
-		if item.Relationships != nil && item.Relationships.App != nil {
-			appID = item.Relationships.App.Data.ID
-		}
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(string(item.Attributes.AccessType)),
-			escapeMarkdown(string(item.Attributes.State)),
-			escapeMarkdown(item.Attributes.CreatedDate),
-			escapeMarkdown(appID),
-		)
-	}
+	h, r := analyticsReportRequestsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAnalyticsReportDownloadResultTable(result *AnalyticsReportDownloadResult) error {
+func analyticsReportDownloadResultRows(result *AnalyticsReportDownloadResult) ([]string, [][]string) {
 	headers := []string{"Request ID", "Instance ID", "Segment ID", "Compressed File", "Compressed Size", "Decompressed File", "Decompressed Size"}
 	rows := [][]string{{
 		result.RequestID,
@@ -206,26 +187,22 @@ func printAnalyticsReportDownloadResultTable(result *AnalyticsReportDownloadResu
 		result.DecompressedPath,
 		fmt.Sprintf("%d", result.DecompressedSize),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAnalyticsReportDownloadResultTable(result *AnalyticsReportDownloadResult) error {
+	h, r := analyticsReportDownloadResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAnalyticsReportDownloadResultMarkdown(result *AnalyticsReportDownloadResult) error {
-	fmt.Fprintln(os.Stdout, "| Request ID | Instance ID | Segment ID | Compressed File | Compressed Size | Decompressed File | Decompressed Size |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %d | %s | %d |\n",
-		escapeMarkdown(result.RequestID),
-		escapeMarkdown(result.InstanceID),
-		escapeMarkdown(result.SegmentID),
-		escapeMarkdown(result.FilePath),
-		result.FileSize,
-		escapeMarkdown(result.DecompressedPath),
-		result.DecompressedSize,
-	)
+	h, r := analyticsReportDownloadResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAnalyticsReportGetResultTable(result *AnalyticsReportGetResult) error {
+func analyticsReportGetResultRows(result *AnalyticsReportGetResult) ([]string, [][]string) {
 	headers := []string{"Report ID", "Name", "Category", "Granularity", "Instances", "Segments"}
 	rows := make([][]string, 0, len(result.Data))
 	for _, report := range result.Data {
@@ -243,32 +220,22 @@ func printAnalyticsReportGetResultTable(result *AnalyticsReportGetResult) error 
 			fmt.Sprintf("%d", segments),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAnalyticsReportGetResultTable(result *AnalyticsReportGetResult) error {
+	h, r := analyticsReportGetResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAnalyticsReportGetResultMarkdown(result *AnalyticsReportGetResult) error {
-	fmt.Fprintln(os.Stdout, "| Report ID | Name | Category | Granularity | Instances | Segments |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	for _, report := range result.Data {
-		name := report.Name
-		if name == "" {
-			name = report.ReportType
-		}
-		segments := countSegments(report.Instances)
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %d | %d |\n",
-			escapeMarkdown(report.ID),
-			escapeMarkdown(name),
-			escapeMarkdown(report.Category),
-			escapeMarkdown(report.Granularity),
-			len(report.Instances),
-			segments,
-		)
-	}
+	h, r := analyticsReportGetResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAnalyticsReportsTable(resp *AnalyticsReportsResponse) error {
+func analyticsReportsRows(resp *AnalyticsReportsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Report Type", "Category", "Subcategory", "Granularity"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -281,27 +248,22 @@ func printAnalyticsReportsTable(resp *AnalyticsReportsResponse) error {
 			item.Attributes.Granularity,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAnalyticsReportsTable(resp *AnalyticsReportsResponse) error {
+	h, r := analyticsReportsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAnalyticsReportsMarkdown(resp *AnalyticsReportsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Report Type | Category | Subcategory | Granularity |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.ReportType),
-			escapeMarkdown(item.Attributes.Category),
-			escapeMarkdown(item.Attributes.SubCategory),
-			escapeMarkdown(item.Attributes.Granularity),
-		)
-	}
+	h, r := analyticsReportsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAnalyticsReportInstancesTable(resp *AnalyticsReportInstancesResponse) error {
+func analyticsReportInstancesRows(resp *AnalyticsReportInstancesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Report Date", "Processing Date", "Granularity", "Version"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -313,26 +275,22 @@ func printAnalyticsReportInstancesTable(resp *AnalyticsReportInstancesResponse) 
 			item.Attributes.Version,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAnalyticsReportInstancesTable(resp *AnalyticsReportInstancesResponse) error {
+	h, r := analyticsReportInstancesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAnalyticsReportInstancesMarkdown(resp *AnalyticsReportInstancesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Report Date | Processing Date | Granularity | Version |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.ReportDate),
-			escapeMarkdown(item.Attributes.ProcessingDate),
-			escapeMarkdown(item.Attributes.Granularity),
-			escapeMarkdown(item.Attributes.Version),
-		)
-	}
+	h, r := analyticsReportInstancesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAnalyticsReportSegmentsTable(resp *AnalyticsReportSegmentsResponse) error {
+func analyticsReportSegmentsRows(resp *AnalyticsReportSegmentsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Download URL", "Checksum", "Size (bytes)", "URL Expires"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -344,22 +302,18 @@ func printAnalyticsReportSegmentsTable(resp *AnalyticsReportSegmentsResponse) er
 			item.Attributes.URLExpirationDate,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAnalyticsReportSegmentsTable(resp *AnalyticsReportSegmentsResponse) error {
+	h, r := analyticsReportSegmentsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAnalyticsReportSegmentsMarkdown(resp *AnalyticsReportSegmentsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Download URL | Checksum | Size (bytes) | URL Expires |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %d | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.URL),
-			escapeMarkdown(item.Attributes.Checksum),
-			item.Attributes.SizeInBytes,
-			escapeMarkdown(item.Attributes.URLExpirationDate),
-		)
-	}
+	h, r := analyticsReportSegmentsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 

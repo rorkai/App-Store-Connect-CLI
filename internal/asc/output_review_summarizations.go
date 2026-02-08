@@ -1,10 +1,5 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
-
 func customerReviewSummarizationTerritoryID(resource CustomerReviewSummarizationResource) string {
 	if resource.Relationships == nil || resource.Relationships.Territory == nil {
 		return ""
@@ -12,7 +7,7 @@ func customerReviewSummarizationTerritoryID(resource CustomerReviewSummarization
 	return resource.Relationships.Territory.Data.ID
 }
 
-func printCustomerReviewSummarizationsTable(resp *CustomerReviewSummarizationsResponse) error {
+func customerReviewSummarizationsRows(resp *CustomerReviewSummarizationsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Locale", "Platform", "Territory", "Created", "Text"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -25,22 +20,17 @@ func printCustomerReviewSummarizationsTable(resp *CustomerReviewSummarizationsRe
 			compactWhitespace(item.Attributes.Text),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCustomerReviewSummarizationsTable(resp *CustomerReviewSummarizationsResponse) error {
+	h, r := customerReviewSummarizationsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCustomerReviewSummarizationsMarkdown(resp *CustomerReviewSummarizationsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Locale | Platform | Territory | Created | Text |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Locale),
-			escapeMarkdown(string(item.Attributes.Platform)),
-			escapeMarkdown(customerReviewSummarizationTerritoryID(item)),
-			escapeMarkdown(item.Attributes.CreatedDate),
-			escapeMarkdown(item.Attributes.Text),
-		)
-	}
+	h, r := customerReviewSummarizationsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }

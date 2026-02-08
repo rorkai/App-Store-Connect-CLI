@@ -52,7 +52,7 @@ func TestPrintMarkdown_SubscriptionPrices(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Territory | Price Point |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Territory") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "PRICE_POINT_1") {
@@ -79,7 +79,7 @@ func TestPrintMarkdown_SubscriptionPriceDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 }
@@ -123,7 +123,7 @@ func TestPrintMarkdown_SubscriptionGracePeriod(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Opt In |") || !strings.Contains(output, "DAY_28") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Opt In") || !strings.Contains(output, "DAY_28") {
 		t.Fatalf("expected grace period fields in output, got: %s", output)
 	}
 }

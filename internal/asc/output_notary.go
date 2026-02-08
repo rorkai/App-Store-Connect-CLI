@@ -1,23 +1,30 @@
 package asc
 
-import (
-	"fmt"
-)
-
-func printNotarySubmissionStatusTable(resp *NotarySubmissionStatusResponse) error {
-	headers := []string{"ID", "STATUS", "NAME", "CREATED"}
+func notarySubmissionStatusRows(resp *NotarySubmissionStatusResponse) ([]string, [][]string) {
+	headers := []string{"ID", "Status", "Name", "Created"}
 	rows := [][]string{{
 		resp.Data.ID,
 		string(resp.Data.Attributes.Status),
 		compactWhitespace(resp.Data.Attributes.Name),
 		resp.Data.Attributes.CreatedDate,
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printNotarySubmissionStatusTable(resp *NotarySubmissionStatusResponse) error {
+	h, r := notarySubmissionStatusRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
-func printNotarySubmissionsListTable(resp *NotarySubmissionsListResponse) error {
-	headers := []string{"ID", "STATUS", "NAME", "CREATED"}
+func printNotarySubmissionStatusMarkdown(resp *NotarySubmissionStatusResponse) error {
+	h, r := notarySubmissionStatusRows(resp)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func notarySubmissionsListRows(resp *NotarySubmissionsListResponse) ([]string, [][]string) {
+	headers := []string{"ID", "Status", "Name", "Created"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{
@@ -27,49 +34,35 @@ func printNotarySubmissionsListTable(resp *NotarySubmissionsListResponse) error 
 			item.Attributes.CreatedDate,
 		})
 	}
-	RenderTable(headers, rows)
-	return nil
+	return headers, rows
 }
 
-func printNotarySubmissionLogsTable(resp *NotarySubmissionLogsResponse) error {
-	headers := []string{"ID", "DEVELOPER LOG URL"}
-	rows := [][]string{{resp.Data.ID, resp.Data.Attributes.DeveloperLogURL}}
-	RenderTable(headers, rows)
-	return nil
-}
-
-func printNotarySubmissionStatusMarkdown(resp *NotarySubmissionStatusResponse) error {
-	fmt.Println("| ID | Status | Name | Created |")
-	fmt.Println("|----|--------|------|---------|")
-	fmt.Printf("| %s | %s | %s | %s |\n",
-		escapeMarkdown(resp.Data.ID),
-		escapeMarkdown(string(resp.Data.Attributes.Status)),
-		escapeMarkdown(resp.Data.Attributes.Name),
-		escapeMarkdown(resp.Data.Attributes.CreatedDate),
-	)
+func printNotarySubmissionsListTable(resp *NotarySubmissionsListResponse) error {
+	h, r := notarySubmissionsListRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printNotarySubmissionsListMarkdown(resp *NotarySubmissionsListResponse) error {
-	fmt.Println("| ID | Status | Name | Created |")
-	fmt.Println("|----|--------|------|---------|")
-	for _, item := range resp.Data {
-		fmt.Printf("| %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(string(item.Attributes.Status)),
-			escapeMarkdown(item.Attributes.Name),
-			escapeMarkdown(item.Attributes.CreatedDate),
-		)
-	}
+	h, r := notarySubmissionsListRows(resp)
+	RenderMarkdown(h, r)
+	return nil
+}
+
+func notarySubmissionLogsRows(resp *NotarySubmissionLogsResponse) ([]string, [][]string) {
+	headers := []string{"ID", "Developer Log URL"}
+	rows := [][]string{{resp.Data.ID, resp.Data.Attributes.DeveloperLogURL}}
+	return headers, rows
+}
+
+func printNotarySubmissionLogsTable(resp *NotarySubmissionLogsResponse) error {
+	h, r := notarySubmissionLogsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printNotarySubmissionLogsMarkdown(resp *NotarySubmissionLogsResponse) error {
-	fmt.Println("| ID | Developer Log URL |")
-	fmt.Println("|----|-------------------|")
-	fmt.Printf("| %s | %s |\n",
-		escapeMarkdown(resp.Data.ID),
-		escapeMarkdown(resp.Data.Attributes.DeveloperLogURL),
-	)
+	h, r := notarySubmissionLogsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }

@@ -2,7 +2,6 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
@@ -34,7 +33,7 @@ func formatEndUserLicenseAgreementTerritories(resource EndUserLicenseAgreementRe
 	return strings.Join(ids, ",")
 }
 
-func printEndUserLicenseAgreementTable(resp *EndUserLicenseAgreementResponse) error {
+func endUserLicenseAgreementRows(resp *EndUserLicenseAgreementResponse) ([]string, [][]string) {
 	headers := []string{"ID", "App ID", "Territories", "Agreement Text"}
 	rows := [][]string{{
 		resp.Data.ID,
@@ -42,35 +41,35 @@ func printEndUserLicenseAgreementTable(resp *EndUserLicenseAgreementResponse) er
 		compactWhitespace(formatEndUserLicenseAgreementTerritories(resp.Data)),
 		compactWhitespace(resp.Data.Attributes.AgreementText),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printEndUserLicenseAgreementTable(resp *EndUserLicenseAgreementResponse) error {
+	h, r := endUserLicenseAgreementRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printEndUserLicenseAgreementMarkdown(resp *EndUserLicenseAgreementResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | App ID | Territories | Agreement Text |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
-		escapeMarkdown(resp.Data.ID),
-		escapeMarkdown(endUserLicenseAgreementAppID(resp.Data)),
-		escapeMarkdown(formatEndUserLicenseAgreementTerritories(resp.Data)),
-		escapeMarkdown(resp.Data.Attributes.AgreementText),
-	)
+	h, r := endUserLicenseAgreementRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printEndUserLicenseAgreementDeleteResultTable(result *EndUserLicenseAgreementDeleteResult) error {
+func endUserLicenseAgreementDeleteResultRows(result *EndUserLicenseAgreementDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printEndUserLicenseAgreementDeleteResultTable(result *EndUserLicenseAgreementDeleteResult) error {
+	h, r := endUserLicenseAgreementDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printEndUserLicenseAgreementDeleteResultMarkdown(result *EndUserLicenseAgreementDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := endUserLicenseAgreementDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

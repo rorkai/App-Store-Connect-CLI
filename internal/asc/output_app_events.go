@@ -1,9 +1,6 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
 // AppEventDeleteResult represents CLI output for app event deletions.
 type AppEventDeleteResult struct {
@@ -27,7 +24,7 @@ type AppEventSubmissionResult struct {
 	SubmittedDate *string `json:"submittedDate,omitempty"`
 }
 
-func printAppEventsTable(resp *AppEventsResponse) error {
+func appEventsRows(resp *AppEventsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Reference Name", "Type", "State", "Primary Locale", "Priority"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -41,28 +38,22 @@ func printAppEventsTable(resp *AppEventsResponse) error {
 			sanitizeTerminal(attrs.Priority),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppEventsTable(resp *AppEventsResponse) error {
+	h, r := appEventsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppEventsMarkdown(resp *AppEventsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Reference Name | Type | State | Primary Locale | Priority |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		attrs := item.Attributes
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(attrs.ReferenceName),
-			escapeMarkdown(attrs.Badge),
-			escapeMarkdown(attrs.EventState),
-			escapeMarkdown(attrs.PrimaryLocale),
-			escapeMarkdown(attrs.Priority),
-		)
-	}
+	h, r := appEventsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppEventLocalizationsTable(resp *AppEventLocalizationsResponse) error {
+func appEventLocalizationsRows(resp *AppEventLocalizationsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Locale", "Name", "Short Description", "Long Description"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -75,27 +66,22 @@ func printAppEventLocalizationsTable(resp *AppEventLocalizationsResponse) error 
 			compactWhitespace(attrs.LongDescription),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppEventLocalizationsTable(resp *AppEventLocalizationsResponse) error {
+	h, r := appEventLocalizationsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppEventLocalizationsMarkdown(resp *AppEventLocalizationsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Locale | Name | Short Description | Long Description |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		attrs := item.Attributes
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(attrs.Locale),
-			escapeMarkdown(attrs.Name),
-			escapeMarkdown(attrs.ShortDescription),
-			escapeMarkdown(attrs.LongDescription),
-		)
-	}
+	h, r := appEventLocalizationsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppEventScreenshotsTable(resp *AppEventScreenshotsResponse) error {
+func appEventScreenshotsRows(resp *AppEventScreenshotsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "File Name", "File Size", "Asset Type", "State"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -108,27 +94,22 @@ func printAppEventScreenshotsTable(resp *AppEventScreenshotsResponse) error {
 			sanitizeTerminal(formatAppMediaAssetState(attrs.AssetDeliveryState)),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppEventScreenshotsTable(resp *AppEventScreenshotsResponse) error {
+	h, r := appEventScreenshotsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppEventScreenshotsMarkdown(resp *AppEventScreenshotsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | File Name | File Size | Asset Type | State |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		attrs := item.Attributes
-		fmt.Fprintf(os.Stdout, "| %s | %s | %d | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(attrs.FileName),
-			attrs.FileSize,
-			escapeMarkdown(attrs.AppEventAssetType),
-			escapeMarkdown(formatAppMediaAssetState(attrs.AssetDeliveryState)),
-		)
-	}
+	h, r := appEventScreenshotsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppEventVideoClipsTable(resp *AppEventVideoClipsResponse) error {
+func appEventVideoClipsRows(resp *AppEventVideoClipsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "File Name", "File Size", "Asset Type", "State"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -141,61 +122,58 @@ func printAppEventVideoClipsTable(resp *AppEventVideoClipsResponse) error {
 			sanitizeTerminal(formatAppMediaVideoState(attrs.VideoDeliveryState, attrs.AssetDeliveryState)),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppEventVideoClipsTable(resp *AppEventVideoClipsResponse) error {
+	h, r := appEventVideoClipsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppEventVideoClipsMarkdown(resp *AppEventVideoClipsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | File Name | File Size | Asset Type | State |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		attrs := item.Attributes
-		fmt.Fprintf(os.Stdout, "| %s | %s | %d | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(attrs.FileName),
-			attrs.FileSize,
-			escapeMarkdown(attrs.AppEventAssetType),
-			escapeMarkdown(formatAppMediaVideoState(attrs.VideoDeliveryState, attrs.AssetDeliveryState)),
-		)
-	}
+	h, r := appEventVideoClipsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppEventDeleteResultTable(result *AppEventDeleteResult) error {
+func appEventDeleteResultRows(result *AppEventDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppEventDeleteResultTable(result *AppEventDeleteResult) error {
+	h, r := appEventDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppEventDeleteResultMarkdown(result *AppEventDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := appEventDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppEventLocalizationDeleteResultTable(result *AppEventLocalizationDeleteResult) error {
+func appEventLocalizationDeleteResultRows(result *AppEventLocalizationDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppEventLocalizationDeleteResultTable(result *AppEventLocalizationDeleteResult) error {
+	h, r := appEventLocalizationDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppEventLocalizationDeleteResultMarkdown(result *AppEventLocalizationDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := appEventLocalizationDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppEventSubmissionResultTable(result *AppEventSubmissionResult) error {
+func appEventSubmissionResultRows(result *AppEventSubmissionResult) ([]string, [][]string) {
 	headers := []string{"Submission ID", "Item ID", "Event ID", "App ID", "Platform", "Submitted Date"}
 	submittedDate := ""
 	if result.SubmittedDate != nil {
@@ -209,25 +187,18 @@ func printAppEventSubmissionResultTable(result *AppEventSubmissionResult) error 
 		sanitizeTerminal(result.Platform),
 		sanitizeTerminal(submittedDate),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppEventSubmissionResultTable(result *AppEventSubmissionResult) error {
+	h, r := appEventSubmissionResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppEventSubmissionResultMarkdown(result *AppEventSubmissionResult) error {
-	fmt.Fprintln(os.Stdout, "| Submission ID | Item ID | Event ID | App ID | Platform | Submitted Date |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	submittedDate := ""
-	if result.SubmittedDate != nil {
-		submittedDate = *result.SubmittedDate
-	}
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
-		escapeMarkdown(result.SubmissionID),
-		escapeMarkdown(result.ItemID),
-		escapeMarkdown(result.EventID),
-		escapeMarkdown(result.AppID),
-		escapeMarkdown(result.Platform),
-		escapeMarkdown(submittedDate),
-	)
+	h, r := appEventSubmissionResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 

@@ -207,14 +207,17 @@ func printGlobalRatingsMarkdown(g *itunes.GlobalRatings) error {
 	}
 
 	fmt.Print("\n### By Country\n\n")
-	fmt.Println("| Country | Rating | Count |")
-	fmt.Println("|---------|--------|-------|")
-	for _, r := range g.ByCountry {
-		name := r.CountryName
-		if name == "" {
-			name = r.Country
+	{
+		headers := []string{"Country", "Rating", "Count"}
+		rows := make([][]string, 0, len(g.ByCountry))
+		for _, r := range g.ByCountry {
+			name := r.CountryName
+			if name == "" {
+				name = r.Country
+			}
+			rows = append(rows, []string{name, fmt.Sprintf("%.2f", r.AverageRating), formatNumber(r.RatingCount)})
 		}
-		fmt.Printf("| %s | %.2f | %s |\n", name, r.AverageRating, formatNumber(r.RatingCount))
+		asc.RenderMarkdown(headers, rows)
 	}
 	fmt.Println()
 	return nil
@@ -251,20 +254,25 @@ func printHistogramRows(histogram map[int]int64) {
 }
 
 func printHistogramMarkdown(histogram map[int]int64) {
-	fmt.Println("| Stars | Count | Percentage |")
-	fmt.Println("|-------|-------|------------|")
 	var total int64
 	for _, count := range histogram {
 		total += count
 	}
+	headers := []string{"Stars", "Count", "Percentage"}
+	rows := make([][]string, 0, 5)
 	for star := 5; star >= 1; star-- {
 		count := histogram[star]
 		pct := float64(0)
 		if total > 0 {
 			pct = float64(count) / float64(total) * 100
 		}
-		fmt.Printf("| %d★ | %s | %.1f%% |\n", star, formatNumber(count), pct)
+		rows = append(rows, []string{
+			fmt.Sprintf("%d★", star),
+			formatNumber(count),
+			fmt.Sprintf("%.1f%%", pct),
+		})
 	}
+	asc.RenderMarkdown(headers, rows)
 }
 
 func formatNumber(n int64) string {

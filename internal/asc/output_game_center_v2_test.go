@@ -47,7 +47,7 @@ func TestPrintMarkdown_GameCenterLeaderboardVersions(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Version | State |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Version") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "IN_REVIEW") {

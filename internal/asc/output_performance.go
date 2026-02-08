@@ -3,7 +3,6 @@ package asc
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 )
 
 // PerformanceDownloadResult represents CLI output for performance downloads.
@@ -95,12 +94,11 @@ func summarizeDiagnosticLogs(resp *DiagnosticLogsResponse) (diagnosticLogsSummar
 	}, nil
 }
 
-func printPerfPowerMetricsTable(resp *PerfPowerMetricsResponse) error {
+func perfPowerMetricsRows(resp *PerfPowerMetricsResponse) ([]string, [][]string, error) {
 	summary, err := summarizePerfPowerMetrics(resp)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-
 	headers := []string{"Version", "Products", "Trending Up", "Regressions"}
 	rows := [][]string{{
 		summary.Version,
@@ -108,28 +106,28 @@ func printPerfPowerMetricsTable(resp *PerfPowerMetricsResponse) error {
 		fmt.Sprintf("%d", summary.TrendingUpCount),
 		fmt.Sprintf("%d", summary.RegressionCount),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows, nil
+}
+
+func printPerfPowerMetricsTable(resp *PerfPowerMetricsResponse) error {
+	h, r, err := perfPowerMetricsRows(resp)
+	if err != nil {
+		return err
+	}
+	RenderTable(h, r)
 	return nil
 }
 
 func printPerfPowerMetricsMarkdown(resp *PerfPowerMetricsResponse) error {
-	summary, err := summarizePerfPowerMetrics(resp)
+	h, r, err := perfPowerMetricsRows(resp)
 	if err != nil {
 		return err
 	}
-
-	fmt.Fprintln(os.Stdout, "| Version | Products | Trending Up | Regressions |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %d | %d | %d |\n",
-		escapeMarkdown(summary.Version),
-		summary.ProductCount,
-		summary.TrendingUpCount,
-		summary.RegressionCount,
-	)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printDiagnosticSignaturesTable(resp *DiagnosticSignaturesResponse) error {
+func diagnosticSignaturesRows(resp *DiagnosticSignaturesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Type", "Weight", "Insight", "Signature"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -145,35 +143,26 @@ func printDiagnosticSignaturesTable(resp *DiagnosticSignaturesResponse) error {
 			item.Attributes.Signature,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printDiagnosticSignaturesTable(resp *DiagnosticSignaturesResponse) error {
+	h, r := diagnosticSignaturesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printDiagnosticSignaturesMarkdown(resp *DiagnosticSignaturesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Type | Weight | Insight | Signature |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		insight := ""
-		if item.Attributes.Insight != nil {
-			insight = string(item.Attributes.Insight.Direction)
-		}
-		fmt.Fprintf(os.Stdout, "| %s | %s | %.2f | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(string(item.Attributes.DiagnosticType)),
-			item.Attributes.Weight,
-			escapeMarkdown(insight),
-			escapeMarkdown(item.Attributes.Signature),
-		)
-	}
+	h, r := diagnosticSignaturesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printDiagnosticLogsTable(resp *DiagnosticLogsResponse) error {
+func diagnosticLogsRows(resp *DiagnosticLogsResponse) ([]string, [][]string, error) {
 	summary, err := summarizeDiagnosticLogs(resp)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-
 	headers := []string{"Version", "Products", "Logs", "Insights"}
 	rows := [][]string{{
 		summary.Version,
@@ -181,28 +170,28 @@ func printDiagnosticLogsTable(resp *DiagnosticLogsResponse) error {
 		fmt.Sprintf("%d", summary.LogCount),
 		fmt.Sprintf("%d", summary.InsightCount),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows, nil
+}
+
+func printDiagnosticLogsTable(resp *DiagnosticLogsResponse) error {
+	h, r, err := diagnosticLogsRows(resp)
+	if err != nil {
+		return err
+	}
+	RenderTable(h, r)
 	return nil
 }
 
 func printDiagnosticLogsMarkdown(resp *DiagnosticLogsResponse) error {
-	summary, err := summarizeDiagnosticLogs(resp)
+	h, r, err := diagnosticLogsRows(resp)
 	if err != nil {
 		return err
 	}
-
-	fmt.Fprintln(os.Stdout, "| Version | Products | Logs | Insights |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %d | %d | %d |\n",
-		escapeMarkdown(summary.Version),
-		summary.ProductCount,
-		summary.LogCount,
-		summary.InsightCount,
-	)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printPerformanceDownloadResultTable(result *PerformanceDownloadResult) error {
+func performanceDownloadResultRows(result *PerformanceDownloadResult) ([]string, [][]string) {
 	headers := []string{"Type", "App ID", "Build ID", "Diagnostic ID", "Compressed File", "Compressed Size", "Decompressed File", "Decompressed Size"}
 	rows := [][]string{{
 		result.DownloadType,
@@ -214,22 +203,17 @@ func printPerformanceDownloadResultTable(result *PerformanceDownloadResult) erro
 		result.DecompressedPath,
 		fmt.Sprintf("%d", result.DecompressedSize),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printPerformanceDownloadResultTable(result *PerformanceDownloadResult) error {
+	h, r := performanceDownloadResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printPerformanceDownloadResultMarkdown(result *PerformanceDownloadResult) error {
-	fmt.Fprintln(os.Stdout, "| Type | App ID | Build ID | Diagnostic ID | Compressed File | Compressed Size | Decompressed File | Decompressed Size |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %d | %s | %d |\n",
-		escapeMarkdown(result.DownloadType),
-		escapeMarkdown(result.AppID),
-		escapeMarkdown(result.BuildID),
-		escapeMarkdown(result.DiagnosticSignatureID),
-		escapeMarkdown(result.FilePath),
-		result.FileSize,
-		escapeMarkdown(result.DecompressedPath),
-		result.DecompressedSize,
-	)
+	h, r := performanceDownloadResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

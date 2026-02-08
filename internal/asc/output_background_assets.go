@@ -2,11 +2,10 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
-func printBackgroundAssetsTable(resp *BackgroundAssetsResponse) error {
+func backgroundAssetsRows(resp *BackgroundAssetsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Asset Pack Identifier", "Archived", "Created Date"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -17,25 +16,22 @@ func printBackgroundAssetsTable(resp *BackgroundAssetsResponse) error {
 			item.Attributes.CreatedDate,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBackgroundAssetsTable(resp *BackgroundAssetsResponse) error {
+	h, r := backgroundAssetsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBackgroundAssetsMarkdown(resp *BackgroundAssetsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Asset Pack Identifier | Archived | Created Date |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %t | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.AssetPackIdentifier),
-			item.Attributes.Archived,
-			escapeMarkdown(item.Attributes.CreatedDate),
-		)
-	}
+	h, r := backgroundAssetsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printBackgroundAssetVersionsTable(resp *BackgroundAssetVersionsResponse) error {
+func backgroundAssetVersionsRows(resp *BackgroundAssetVersionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Version", "State", "Platforms", "Created Date"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -47,32 +43,28 @@ func printBackgroundAssetVersionsTable(resp *BackgroundAssetVersionsResponse) er
 			item.Attributes.CreatedDate,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBackgroundAssetVersionsTable(resp *BackgroundAssetVersionsResponse) error {
+	h, r := backgroundAssetVersionsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBackgroundAssetVersionsMarkdown(resp *BackgroundAssetVersionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Version | State | Platforms | Created Date |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Version),
-			escapeMarkdown(item.Attributes.State),
-			escapeMarkdown(formatPlatforms(item.Attributes.Platforms)),
-			escapeMarkdown(item.Attributes.CreatedDate),
-		)
-	}
+	h, r := backgroundAssetVersionsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printBackgroundAssetUploadFilesTable(resp *BackgroundAssetUploadFilesResponse) error {
+func backgroundAssetUploadFilesRows(resp *BackgroundAssetUploadFilesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "File Name", "Asset Type", "File Size", "State"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		state := ""
 		if item.Attributes.AssetDeliveryState != nil && item.Attributes.AssetDeliveryState.State != nil {
-			state = *item.Attributes.AssetDeliveryState.State
+			state = strings.TrimSpace(*item.Attributes.AssetDeliveryState.State)
 		}
 		rows = append(rows, []string{
 			item.ID,
@@ -82,43 +74,36 @@ func printBackgroundAssetUploadFilesTable(resp *BackgroundAssetUploadFilesRespon
 			state,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBackgroundAssetUploadFilesTable(resp *BackgroundAssetUploadFilesResponse) error {
+	h, r := backgroundAssetUploadFilesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBackgroundAssetUploadFilesMarkdown(resp *BackgroundAssetUploadFilesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | File Name | Asset Type | File Size | State |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		state := ""
-		if item.Attributes.AssetDeliveryState != nil && item.Attributes.AssetDeliveryState.State != nil {
-			state = *item.Attributes.AssetDeliveryState.State
-		}
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %d | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.FileName),
-			escapeMarkdown(string(item.Attributes.AssetType)),
-			item.Attributes.FileSize,
-			escapeMarkdown(strings.TrimSpace(state)),
-		)
-	}
+	h, r := backgroundAssetUploadFilesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printBackgroundAssetVersionStateTable(id string, state string) error {
+func backgroundAssetVersionStateRows(id string, state string) ([]string, [][]string) {
 	headers := []string{"ID", "State"}
 	rows := [][]string{{id, state}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBackgroundAssetVersionStateTable(id string, state string) error {
+	h, r := backgroundAssetVersionStateRows(id, state)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBackgroundAssetVersionStateMarkdown(id string, state string) error {
-	fmt.Fprintln(os.Stdout, "| ID | State |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-		escapeMarkdown(id),
-		escapeMarkdown(state),
-	)
+	h, r := backgroundAssetVersionStateRows(id, state)
+	RenderMarkdown(h, r)
 	return nil
 }
 

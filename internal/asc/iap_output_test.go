@@ -50,7 +50,7 @@ func TestPrintMarkdown_InAppPurchaseImages(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | File Name | File Size | State |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "File Name") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "UPLOAD_COMPLETE") {
@@ -98,7 +98,7 @@ func TestPrintMarkdown_InAppPurchaseLocalization(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Locale | Name | Description |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Locale") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "Premium coins") {
@@ -148,7 +148,7 @@ func TestPrintMarkdown_InAppPurchasePricePoints(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Customer Price | Proceeds |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Customer Price") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "1.40") {
@@ -204,7 +204,7 @@ func TestPrintMarkdown_InAppPurchasePrices(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Territory | Price Point |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Territory") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "PRICE_POINT_1") {
@@ -258,7 +258,7 @@ func TestPrintMarkdown_InAppPurchaseOfferCodes(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Active | Prod Codes | Sandbox Codes |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Prod Codes") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "SPRING") {

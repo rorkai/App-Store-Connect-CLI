@@ -3,10 +3,9 @@ package asc
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 )
 
-func printOfferCodeCustomCodesTable(resp *SubscriptionOfferCodeCustomCodesResponse) error {
+func offerCodeCustomCodesRows(resp *SubscriptionOfferCodeCustomCodesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Custom Code", "Codes", "Expires", "Created", "Active"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -20,55 +19,49 @@ func printOfferCodeCustomCodesTable(resp *SubscriptionOfferCodeCustomCodesRespon
 			fmt.Sprintf("%t", attrs.Active),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printOfferCodeCustomCodesTable(resp *SubscriptionOfferCodeCustomCodesResponse) error {
+	h, r := offerCodeCustomCodesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printOfferCodeCustomCodesMarkdown(resp *SubscriptionOfferCodeCustomCodesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Custom Code | Codes | Expires | Created | Active |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		attrs := item.Attributes
-		fmt.Fprintf(os.Stdout, "| %s | %s | %d | %s | %s | %t |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(attrs.CustomCode),
-			attrs.NumberOfCodes,
-			escapeMarkdown(attrs.ExpirationDate),
-			escapeMarkdown(attrs.CreatedDate),
-			attrs.Active,
-		)
-	}
+	h, r := offerCodeCustomCodesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printOfferCodePricesTable(resp *SubscriptionOfferCodePricesResponse) error {
+func offerCodePricesRows(resp *SubscriptionOfferCodePricesResponse) ([]string, [][]string, error) {
 	headers := []string{"ID", "Territory", "Price Point"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		territoryID, pricePointID, err := offerCodePriceRelationshipIDs(item.Relationships)
 		if err != nil {
-			return err
+			return nil, nil, err
 		}
 		rows = append(rows, []string{sanitizeTerminal(item.ID), sanitizeTerminal(territoryID), sanitizeTerminal(pricePointID)})
 	}
-	RenderTable(headers, rows)
+	return headers, rows, nil
+}
+
+func printOfferCodePricesTable(resp *SubscriptionOfferCodePricesResponse) error {
+	h, r, err := offerCodePricesRows(resp)
+	if err != nil {
+		return err
+	}
+	RenderTable(h, r)
 	return nil
 }
 
 func printOfferCodePricesMarkdown(resp *SubscriptionOfferCodePricesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Territory | Price Point |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		territoryID, pricePointID, err := offerCodePriceRelationshipIDs(item.Relationships)
-		if err != nil {
-			return err
-		}
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(territoryID),
-			escapeMarkdown(pricePointID),
-		)
+	h, r, err := offerCodePricesRows(resp)
+	if err != nil {
+		return err
 	}
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -83,21 +76,23 @@ func offerCodePriceRelationshipIDs(raw json.RawMessage) (string, string, error) 
 	return relationships.Territory.Data.ID, relationships.SubscriptionPricePoint.Data.ID, nil
 }
 
-func printOfferCodeValuesTable(result *OfferCodeValuesResult) error {
+func offerCodeValuesRows(result *OfferCodeValuesResult) ([]string, [][]string) {
 	headers := []string{"Code"}
 	rows := make([][]string, 0, len(result.Codes))
 	for _, code := range result.Codes {
 		rows = append(rows, []string{sanitizeTerminal(code)})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printOfferCodeValuesTable(result *OfferCodeValuesResult) error {
+	h, r := offerCodeValuesRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printOfferCodeValuesMarkdown(result *OfferCodeValuesResult) error {
-	fmt.Fprintln(os.Stdout, "| Code |")
-	fmt.Fprintln(os.Stdout, "| --- |")
-	for _, code := range result.Codes {
-		fmt.Fprintf(os.Stdout, "| %s |\n", escapeMarkdown(code))
-	}
+	h, r := offerCodeValuesRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

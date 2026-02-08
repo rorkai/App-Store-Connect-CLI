@@ -1005,22 +1005,21 @@ func printIAPPricesTable(result *iapPricesResult) error {
 }
 
 func printIAPPricesMarkdown(result *iapPricesResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Name | Product ID | Type | Base Territory | Current Price | Estimated Proceeds | Scheduled Changes |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- |")
+	headers := []string{"ID", "Name", "Product ID", "Type", "Base Territory", "Current Price", "Estimated Proceeds", "Scheduled Changes"}
+	rows := make([][]string, 0, len(result.IAPs))
 	for _, item := range result.IAPs {
-		fmt.Fprintf(
-			os.Stdout,
-			"| %s | %s | %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdownCell(item.ID),
-			escapeMarkdownCell(item.Name),
-			escapeMarkdownCell(item.ProductID),
-			escapeMarkdownCell(item.Type),
-			escapeMarkdownCell(item.BaseTerritory),
-			escapeMarkdownCell(formatIAPMoney(item.CurrentPrice)),
-			escapeMarkdownCell(formatIAPMoney(item.EstimatedProceeds)),
-			escapeMarkdownCell(formatScheduledChanges(item.ScheduledChanges)),
-		)
+		rows = append(rows, []string{
+			item.ID,
+			compactIAPText(item.Name),
+			item.ProductID,
+			item.Type,
+			item.BaseTerritory,
+			formatIAPMoney(item.CurrentPrice),
+			formatIAPMoney(item.EstimatedProceeds),
+			formatScheduledChanges(item.ScheduledChanges),
+		})
 	}
+	asc.RenderMarkdown(headers, rows)
 	return nil
 }
 
@@ -1049,12 +1048,6 @@ func formatScheduledChanges(changes []iapScheduledChange) string {
 		)
 	}
 	return strings.Join(formatted, "; ")
-}
-
-func escapeMarkdownCell(value string) string {
-	value = strings.ReplaceAll(value, "|", "\\|")
-	value = strings.ReplaceAll(value, "\n", " ")
-	return strings.TrimSpace(value)
 }
 
 func compactIAPText(value string) string {

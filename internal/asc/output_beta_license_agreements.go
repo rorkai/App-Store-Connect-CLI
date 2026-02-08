@@ -1,10 +1,5 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
-
 func betaLicenseAgreementAppID(resource BetaLicenseAgreementResource) string {
 	if resource.Relationships == nil || resource.Relationships.App == nil {
 		return ""
@@ -12,7 +7,7 @@ func betaLicenseAgreementAppID(resource BetaLicenseAgreementResource) string {
 	return resource.Relationships.App.Data.ID
 }
 
-func printBetaLicenseAgreementsTable(resp *BetaLicenseAgreementsResponse) error {
+func betaLicenseAgreementsRows(resp *BetaLicenseAgreementsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "App ID", "Agreement Text"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -22,19 +17,17 @@ func printBetaLicenseAgreementsTable(resp *BetaLicenseAgreementsResponse) error 
 			compactWhitespace(item.Attributes.AgreementText),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printBetaLicenseAgreementsTable(resp *BetaLicenseAgreementsResponse) error {
+	h, r := betaLicenseAgreementsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printBetaLicenseAgreementsMarkdown(resp *BetaLicenseAgreementsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | App ID | Agreement Text |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(betaLicenseAgreementAppID(item)),
-			escapeMarkdown(item.Attributes.AgreementText),
-		)
-	}
+	h, r := betaLicenseAgreementsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }

@@ -2,11 +2,10 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strings"
 )
 
-func printAlternativeDistributionDomainsTable(resp *AlternativeDistributionDomainsResponse) error {
+func alternativeDistributionDomainsRows(resp *AlternativeDistributionDomainsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Domain", "Reference Name", "Created Date"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -17,25 +16,22 @@ func printAlternativeDistributionDomainsTable(resp *AlternativeDistributionDomai
 			item.Attributes.CreatedDate,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAlternativeDistributionDomainsTable(resp *AlternativeDistributionDomainsResponse) error {
+	h, r := alternativeDistributionDomainsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAlternativeDistributionDomainsMarkdown(resp *AlternativeDistributionDomainsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Domain | Reference Name | Created Date |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Domain),
-			escapeMarkdown(item.Attributes.ReferenceName),
-			escapeMarkdown(item.Attributes.CreatedDate),
-		)
-	}
+	h, r := alternativeDistributionDomainsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAlternativeDistributionKeysTable(resp *AlternativeDistributionKeysResponse) error {
+func alternativeDistributionKeysRows(resp *AlternativeDistributionKeysResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Public Key"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -44,23 +40,22 @@ func printAlternativeDistributionKeysTable(resp *AlternativeDistributionKeysResp
 			compactWhitespace(item.Attributes.PublicKey),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAlternativeDistributionKeysTable(resp *AlternativeDistributionKeysResponse) error {
+	h, r := alternativeDistributionKeysRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAlternativeDistributionKeysMarkdown(resp *AlternativeDistributionKeysResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Public Key |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.PublicKey),
-		)
-	}
+	h, r := alternativeDistributionKeysRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAlternativeDistributionPackageVersionsTable(resp *AlternativeDistributionPackageVersionsResponse) error {
+func alternativeDistributionPackageVersionsRows(resp *AlternativeDistributionPackageVersionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Version", "State", "File Checksum", "URL", "URL Expiration Date"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -73,27 +68,22 @@ func printAlternativeDistributionPackageVersionsTable(resp *AlternativeDistribut
 			compactWhitespace(item.Attributes.URLExpirationDate),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAlternativeDistributionPackageVersionsTable(resp *AlternativeDistributionPackageVersionsResponse) error {
+	h, r := alternativeDistributionPackageVersionsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAlternativeDistributionPackageVersionsMarkdown(resp *AlternativeDistributionPackageVersionsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Version | State | File Checksum | URL | URL Expiration Date |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.Version),
-			escapeMarkdown(string(item.Attributes.State)),
-			escapeMarkdown(item.Attributes.FileChecksum),
-			escapeMarkdown(item.Attributes.URL),
-			escapeMarkdown(item.Attributes.URLExpirationDate),
-		)
-	}
+	h, r := alternativeDistributionPackageVersionsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAlternativeDistributionPackageVariantsTable(resp *AlternativeDistributionPackageVariantsResponse) error {
+func alternativeDistributionPackageVariantsRows(resp *AlternativeDistributionPackageVariantsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "URL", "URL Expiration Date", "Key Blob", "File Checksum"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -105,26 +95,22 @@ func printAlternativeDistributionPackageVariantsTable(resp *AlternativeDistribut
 			compactWhitespace(item.Attributes.FileChecksum),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAlternativeDistributionPackageVariantsTable(resp *AlternativeDistributionPackageVariantsResponse) error {
+	h, r := alternativeDistributionPackageVariantsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAlternativeDistributionPackageVariantsMarkdown(resp *AlternativeDistributionPackageVariantsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | URL | URL Expiration Date | Key Blob | File Checksum |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.URL),
-			escapeMarkdown(item.Attributes.URLExpirationDate),
-			escapeMarkdown(item.Attributes.AlternativeDistributionKeyBlob),
-			escapeMarkdown(item.Attributes.FileChecksum),
-		)
-	}
+	h, r := alternativeDistributionPackageVariantsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAlternativeDistributionPackageDeltasTable(resp *AlternativeDistributionPackageDeltasResponse) error {
+func alternativeDistributionPackageDeltasRows(resp *AlternativeDistributionPackageDeltasResponse) ([]string, [][]string) {
 	headers := []string{"ID", "URL", "URL Expiration Date", "Key Blob", "File Checksum"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -136,42 +122,39 @@ func printAlternativeDistributionPackageDeltasTable(resp *AlternativeDistributio
 			compactWhitespace(item.Attributes.FileChecksum),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAlternativeDistributionPackageDeltasTable(resp *AlternativeDistributionPackageDeltasResponse) error {
+	h, r := alternativeDistributionPackageDeltasRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAlternativeDistributionPackageDeltasMarkdown(resp *AlternativeDistributionPackageDeltasResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | URL | URL Expiration Date | Key Blob | File Checksum |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.URL),
-			escapeMarkdown(item.Attributes.URLExpirationDate),
-			escapeMarkdown(item.Attributes.AlternativeDistributionKeyBlob),
-			escapeMarkdown(item.Attributes.FileChecksum),
-		)
-	}
+	h, r := alternativeDistributionPackageDeltasRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAlternativeDistributionPackageTable(resp *AlternativeDistributionPackageResponse) error {
+func alternativeDistributionPackageRows(resp *AlternativeDistributionPackageResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Source File Checksum"}
 	rows := [][]string{{
 		resp.Data.ID,
 		compactWhitespace(formatAlternativeDistributionChecksums(resp.Data.Attributes.SourceFileChecksum)),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAlternativeDistributionPackageTable(resp *AlternativeDistributionPackageResponse) error {
+	h, r := alternativeDistributionPackageRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAlternativeDistributionPackageMarkdown(resp *AlternativeDistributionPackageResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Source File Checksum |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-		escapeMarkdown(resp.Data.ID),
-		escapeMarkdown(formatAlternativeDistributionChecksums(resp.Data.Attributes.SourceFileChecksum)),
-	)
+	h, r := alternativeDistributionPackageRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -199,17 +182,21 @@ func formatAlternativeDistributionChecksum(label string, checksum *Checksum) str
 	return fmt.Sprintf("%s:%s", label, checksum.Hash)
 }
 
-func printAlternativeDistributionDeleteResultTable(id string, deleted bool) error {
+func alternativeDistributionDeleteResultRows(id string, deleted bool) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{id, fmt.Sprintf("%t", deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAlternativeDistributionDeleteResultTable(id string, deleted bool) error {
+	h, r := alternativeDistributionDeleteResultRows(id, deleted)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAlternativeDistributionDeleteResultMarkdown(id string, deleted bool) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(id), deleted)
+	h, r := alternativeDistributionDeleteResultRows(id, deleted)
+	RenderMarkdown(h, r)
 	return nil
 }
 

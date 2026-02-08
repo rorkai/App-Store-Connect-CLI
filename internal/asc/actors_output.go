@@ -1,11 +1,6 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
-
-func printActorsTable(resp *ActorsResponse) error {
+func actorsRows(resp *ActorsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Type", "Name", "Email", "API Key ID"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -18,22 +13,17 @@ func printActorsTable(resp *ActorsResponse) error {
 			compactWhitespace(attr.APIKeyID),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printActorsTable(resp *ActorsResponse) error {
+	h, r := actorsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printActorsMarkdown(resp *ActorsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Type | Name | Email | API Key ID |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		attr := item.Attributes
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(attr.ActorType),
-			escapeMarkdown(formatPersonName(attr.UserFirstName, attr.UserLastName)),
-			escapeMarkdown(attr.UserEmail),
-			escapeMarkdown(attr.APIKeyID),
-		)
-	}
+	h, r := actorsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }

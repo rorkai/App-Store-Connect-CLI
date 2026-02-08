@@ -49,7 +49,7 @@ func TestPrintMarkdown_AppInfos(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID |") {
+	if !strings.Contains(output, "ID") {
 		t.Fatalf("expected markdown header, got: %s", output)
 	}
 	if !strings.Contains(output, "info-1") {

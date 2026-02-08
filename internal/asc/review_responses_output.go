@@ -1,11 +1,8 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
-func printCustomerReviewResponseTable(resp *CustomerReviewResponseResponse) error {
+func customerReviewResponseRows(resp *CustomerReviewResponseResponse) ([]string, [][]string) {
 	headers := []string{"ID", "State", "Last Modified", "Response Body"}
 	rows := [][]string{{
 		resp.Data.ID,
@@ -13,35 +10,35 @@ func printCustomerReviewResponseTable(resp *CustomerReviewResponseResponse) erro
 		sanitizeTerminal(resp.Data.Attributes.LastModified),
 		compactWhitespace(resp.Data.Attributes.ResponseBody),
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCustomerReviewResponseTable(resp *CustomerReviewResponseResponse) error {
+	h, r := customerReviewResponseRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCustomerReviewResponseMarkdown(resp *CustomerReviewResponseResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | State | Last Modified | Response Body |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
-		escapeMarkdown(resp.Data.ID),
-		escapeMarkdown(resp.Data.Attributes.State),
-		escapeMarkdown(resp.Data.Attributes.LastModified),
-		escapeMarkdown(resp.Data.Attributes.ResponseBody),
-	)
+	h, r := customerReviewResponseRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printCustomerReviewResponseDeleteResultTable(result *CustomerReviewResponseDeleteResult) error {
+func customerReviewResponseDeleteResultRows(result *CustomerReviewResponseDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printCustomerReviewResponseDeleteResultTable(result *CustomerReviewResponseDeleteResult) error {
+	h, r := customerReviewResponseDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printCustomerReviewResponseDeleteResultMarkdown(result *CustomerReviewResponseDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := customerReviewResponseDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

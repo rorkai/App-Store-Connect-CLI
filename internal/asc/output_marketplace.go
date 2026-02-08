@@ -2,10 +2,9 @@ package asc
 
 import (
 	"fmt"
-	"os"
 )
 
-func printMarketplaceSearchDetailsTable(resp *MarketplaceSearchDetailsResponse) error {
+func marketplaceSearchDetailsRows(resp *MarketplaceSearchDetailsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Catalog URL"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -14,19 +13,18 @@ func printMarketplaceSearchDetailsTable(resp *MarketplaceSearchDetailsResponse) 
 			compactWhitespace(item.Attributes.CatalogURL),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printMarketplaceSearchDetailsTable(resp *MarketplaceSearchDetailsResponse) error {
+	h, r := marketplaceSearchDetailsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printMarketplaceSearchDetailsMarkdown(resp *MarketplaceSearchDetailsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Catalog URL |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.CatalogURL),
-		)
-	}
+	h, r := marketplaceSearchDetailsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -42,7 +40,7 @@ func printMarketplaceSearchDetailMarkdown(resp *MarketplaceSearchDetailResponse)
 	})
 }
 
-func printMarketplaceWebhooksTable(resp *MarketplaceWebhooksResponse) error {
+func marketplaceWebhooksRows(resp *MarketplaceWebhooksResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Endpoint URL"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -51,19 +49,18 @@ func printMarketplaceWebhooksTable(resp *MarketplaceWebhooksResponse) error {
 			compactWhitespace(item.Attributes.EndpointURL),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printMarketplaceWebhooksTable(resp *MarketplaceWebhooksResponse) error {
+	h, r := marketplaceWebhooksRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printMarketplaceWebhooksMarkdown(resp *MarketplaceWebhooksResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Endpoint URL |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(item.Attributes.EndpointURL),
-		)
-	}
+	h, r := marketplaceWebhooksRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -79,36 +76,38 @@ func printMarketplaceWebhookMarkdown(resp *MarketplaceWebhookResponse) error {
 	})
 }
 
-func printMarketplaceSearchDetailDeleteResultTable(result *MarketplaceSearchDetailDeleteResult) error {
+func marketplaceSearchDetailDeleteResultRows(result *MarketplaceSearchDetailDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printMarketplaceSearchDetailDeleteResultTable(result *MarketplaceSearchDetailDeleteResult) error {
+	h, r := marketplaceSearchDetailDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printMarketplaceSearchDetailDeleteResultMarkdown(result *MarketplaceSearchDetailDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := marketplaceSearchDetailDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printMarketplaceWebhookDeleteResultTable(result *MarketplaceWebhookDeleteResult) error {
+func marketplaceWebhookDeleteResultRows(result *MarketplaceWebhookDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printMarketplaceWebhookDeleteResultTable(result *MarketplaceWebhookDeleteResult) error {
+	h, r := marketplaceWebhookDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printMarketplaceWebhookDeleteResultMarkdown(result *MarketplaceWebhookDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := marketplaceWebhookDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

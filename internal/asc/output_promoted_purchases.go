@@ -2,7 +2,6 @@ package asc
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -27,7 +26,7 @@ func promotedPurchaseBool(value *bool) string {
 	return strconv.FormatBool(*value)
 }
 
-func printPromotedPurchasesTable(resp *PromotedPurchasesResponse) error {
+func promotedPurchasesRows(resp *PromotedPurchasesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Visible For All Users", "Enabled", "State"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -38,56 +37,57 @@ func printPromotedPurchasesTable(resp *PromotedPurchasesResponse) error {
 			item.Attributes.State,
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printPromotedPurchasesTable(resp *PromotedPurchasesResponse) error {
+	h, r := promotedPurchasesRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printPromotedPurchasesMarkdown(resp *PromotedPurchasesResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Visible For All Users | Enabled | State |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(promotedPurchaseBool(item.Attributes.VisibleForAllUsers)),
-			escapeMarkdown(promotedPurchaseBool(item.Attributes.Enabled)),
-			escapeMarkdown(item.Attributes.State),
-		)
-	}
+	h, r := promotedPurchasesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printPromotedPurchaseDeleteResultTable(result *PromotedPurchaseDeleteResult) error {
+func promotedPurchaseDeleteResultRows(result *PromotedPurchaseDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printPromotedPurchaseDeleteResultTable(result *PromotedPurchaseDeleteResult) error {
+	h, r := promotedPurchaseDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printPromotedPurchaseDeleteResultMarkdown(result *PromotedPurchaseDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n", escapeMarkdown(result.ID), result.Deleted)
+	h, r := promotedPurchaseDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAppPromotedPurchasesLinkResultTable(result *AppPromotedPurchasesLinkResult) error {
+func appPromotedPurchasesLinkResultRows(result *AppPromotedPurchasesLinkResult) ([]string, [][]string) {
 	headers := []string{"App ID", "Promoted Purchase IDs", "Action"}
 	rows := [][]string{{
 		result.AppID,
 		strings.Join(result.PromotedPurchaseIDs, ", "),
 		result.Action,
 	}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppPromotedPurchasesLinkResultTable(result *AppPromotedPurchasesLinkResult) error {
+	h, r := appPromotedPurchasesLinkResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppPromotedPurchasesLinkResultMarkdown(result *AppPromotedPurchasesLinkResult) error {
-	fmt.Fprintln(os.Stdout, "| App ID | Promoted Purchase IDs | Action |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-		escapeMarkdown(result.AppID),
-		escapeMarkdown(strings.Join(result.PromotedPurchaseIDs, ", ")),
-		escapeMarkdown(result.Action),
-	)
+	h, r := appPromotedPurchasesLinkResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

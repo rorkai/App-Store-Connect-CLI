@@ -1,10 +1,5 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
-
 // AppStoreVersionPromotionCreateResult represents CLI output for promotion creation.
 type AppStoreVersionPromotionCreateResult struct {
 	PromotionID string `json:"promotionId"`
@@ -12,20 +7,20 @@ type AppStoreVersionPromotionCreateResult struct {
 	TreatmentID string `json:"treatmentId,omitempty"`
 }
 
-func printAppStoreVersionPromotionCreateTable(result *AppStoreVersionPromotionCreateResult) error {
+func appStoreVersionPromotionCreateRows(result *AppStoreVersionPromotionCreateResult) ([]string, [][]string) {
 	headers := []string{"Promotion ID", "Version ID", "Treatment ID"}
 	rows := [][]string{{result.PromotionID, result.VersionID, result.TreatmentID}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppStoreVersionPromotionCreateTable(result *AppStoreVersionPromotionCreateResult) error {
+	h, r := appStoreVersionPromotionCreateRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAppStoreVersionPromotionCreateMarkdown(result *AppStoreVersionPromotionCreateResult) error {
-	fmt.Fprintln(os.Stdout, "| Promotion ID | Version ID | Treatment ID |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %s | %s |\n",
-		escapeMarkdown(result.PromotionID),
-		escapeMarkdown(result.VersionID),
-		escapeMarkdown(result.TreatmentID),
-	)
+	h, r := appStoreVersionPromotionCreateRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }

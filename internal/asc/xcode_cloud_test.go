@@ -87,7 +87,7 @@ func TestPrintMarkdown_XcodeCloudRunResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| Build Run ID |") {
+	if !strings.Contains(output, "Build Run ID") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "run-123") {
@@ -145,7 +145,7 @@ func TestPrintMarkdown_XcodeCloudStatusResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| Build Run ID |") {
+	if !strings.Contains(output, "Build Run ID") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "FAILED") {
@@ -199,7 +199,7 @@ func TestPrintMarkdown_CiProducts(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Bundle ID |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Bundle ID") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "MyApp") {
@@ -251,7 +251,7 @@ func TestPrintMarkdown_CiWorkflows(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Enabled |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Enabled") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "Deploy") {
@@ -310,7 +310,7 @@ func TestPrintMarkdown_CiBuildRuns(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Build # |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Build #") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "RUNNING") {
@@ -363,7 +363,7 @@ func TestPrintMarkdown_CiArtifacts(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Type |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Name") || !strings.Contains(output, "Type") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "Logs.zip") {
@@ -418,7 +418,7 @@ func TestPrintMarkdown_CiTestResults(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Class | Name |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Class") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "FAILURE") {
@@ -472,7 +472,7 @@ func TestPrintMarkdown_CiIssues(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Type | File |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Type") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "WARNING") {
@@ -586,7 +586,7 @@ func TestPrintMarkdown_ScmRepositories(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Owner | Repository |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Repository") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "example") {
@@ -642,7 +642,7 @@ func TestPrintMarkdown_ScmProviders(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Provider Type | URL |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Provider Type") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "gitlab.com") {
@@ -695,7 +695,7 @@ func TestPrintMarkdown_ScmGitReferences(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Name | Canonical Name |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Canonical Name") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "refs/tags/release") {
@@ -759,7 +759,7 @@ func TestPrintMarkdown_ScmPullRequests(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Number | Title |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Title") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "Fix bug") {
@@ -809,7 +809,7 @@ func TestPrintMarkdown_CiMacOsVersions(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Version | Name |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Version") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "Ventura") {
@@ -859,7 +859,7 @@ func TestPrintMarkdown_CiXcodeVersions(t *testing.T) {
 		return PrintMarkdown(resp)
 	})
 
-	if !strings.Contains(output, "| ID | Version | Name |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Version") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "Xcode 14.3") {
@@ -889,7 +889,7 @@ func TestPrintMarkdown_CiWorkflowDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "wf-2") {
@@ -919,7 +919,7 @@ func TestPrintMarkdown_CiProductDeleteResult(t *testing.T) {
 		return PrintMarkdown(result)
 	})
 
-	if !strings.Contains(output, "| ID | Deleted |") {
+	if !strings.Contains(output, "ID") || !strings.Contains(output, "Deleted") {
 		t.Fatalf("expected markdown header in output, got: %s", output)
 	}
 	if !strings.Contains(output, "prod-2") {

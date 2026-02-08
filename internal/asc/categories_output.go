@@ -1,9 +1,6 @@
 package asc
 
-import (
-	"fmt"
-	"strings"
-)
+import "strings"
 
 // formatPlatforms converts a slice of Platform to a comma-separated string.
 func formatPlatforms(platforms []Platform) string {
@@ -14,21 +11,23 @@ func formatPlatforms(platforms []Platform) string {
 	return strings.Join(strs, ", ")
 }
 
-func printAppCategoriesMarkdown(resp *AppCategoriesResponse) error {
-	fmt.Println("| ID | Platforms |")
-	fmt.Println("|---|---|")
-	for _, cat := range resp.Data {
-		fmt.Printf("| %s | %s |\n", cat.ID, formatPlatforms(cat.Attributes.Platforms))
-	}
-	return nil
-}
-
-func printAppCategoriesTable(resp *AppCategoriesResponse) error {
-	headers := []string{"ID", "PLATFORMS"}
+func appCategoriesRows(resp *AppCategoriesResponse) ([]string, [][]string) {
+	headers := []string{"ID", "Platforms"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, cat := range resp.Data {
 		rows = append(rows, []string{cat.ID, formatPlatforms(cat.Attributes.Platforms)})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAppCategoriesTable(resp *AppCategoriesResponse) error {
+	h, r := appCategoriesRows(resp)
+	RenderTable(h, r)
+	return nil
+}
+
+func printAppCategoriesMarkdown(resp *AppCategoriesResponse) error {
+	h, r := appCategoriesRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }

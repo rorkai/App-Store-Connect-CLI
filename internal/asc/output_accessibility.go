@@ -1,16 +1,13 @@
 package asc
 
-import (
-	"fmt"
-	"os"
-)
+import "fmt"
 
 type accessibilityDeclarationField struct {
 	Name  string
 	Value string
 }
 
-func printAccessibilityDeclarationsTable(resp *AccessibilityDeclarationsResponse) error {
+func accessibilityDeclarationsRows(resp *AccessibilityDeclarationsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Device Family", "State", "Audio Descriptions", "Captions", "Dark Interface", "Differentiate Without Color", "Larger Text", "Reduced Motion", "Sufficient Contrast", "Voice Control", "Voiceover"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
@@ -30,51 +27,40 @@ func printAccessibilityDeclarationsTable(resp *AccessibilityDeclarationsResponse
 			formatOptionalBool(attrs.SupportsVoiceover),
 		})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAccessibilityDeclarationsTable(resp *AccessibilityDeclarationsResponse) error {
+	h, r := accessibilityDeclarationsRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAccessibilityDeclarationsMarkdown(resp *AccessibilityDeclarationsResponse) error {
-	fmt.Fprintln(os.Stdout, "| ID | Device Family | State | Audio Descriptions | Captions | Dark Interface | Differentiate Without Color | Larger Text | Reduced Motion | Sufficient Contrast | Voice Control | Voiceover |")
-	fmt.Fprintln(os.Stdout, "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
-	for _, item := range resp.Data {
-		attrs := item.Attributes
-		fmt.Fprintf(os.Stdout, "| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
-			escapeMarkdown(item.ID),
-			escapeMarkdown(fallbackValue(string(attrs.DeviceFamily))),
-			escapeMarkdown(fallbackValue(string(attrs.State))),
-			escapeMarkdown(formatOptionalBool(attrs.SupportsAudioDescriptions)),
-			escapeMarkdown(formatOptionalBool(attrs.SupportsCaptions)),
-			escapeMarkdown(formatOptionalBool(attrs.SupportsDarkInterface)),
-			escapeMarkdown(formatOptionalBool(attrs.SupportsDifferentiateWithoutColorAlone)),
-			escapeMarkdown(formatOptionalBool(attrs.SupportsLargerText)),
-			escapeMarkdown(formatOptionalBool(attrs.SupportsReducedMotion)),
-			escapeMarkdown(formatOptionalBool(attrs.SupportsSufficientContrast)),
-			escapeMarkdown(formatOptionalBool(attrs.SupportsVoiceControl)),
-			escapeMarkdown(formatOptionalBool(attrs.SupportsVoiceover)),
-		)
-	}
+	h, r := accessibilityDeclarationsRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
-func printAccessibilityDeclarationTable(resp *AccessibilityDeclarationResponse) error {
+func accessibilityDeclarationRows(resp *AccessibilityDeclarationResponse) ([]string, [][]string) {
 	fields := accessibilityDeclarationFields(resp)
 	headers := []string{"Field", "Value"}
 	rows := make([][]string, 0, len(fields))
 	for _, field := range fields {
 		rows = append(rows, []string{field.Name, field.Value})
 	}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAccessibilityDeclarationTable(resp *AccessibilityDeclarationResponse) error {
+	h, r := accessibilityDeclarationRows(resp)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAccessibilityDeclarationMarkdown(resp *AccessibilityDeclarationResponse) error {
-	fields := accessibilityDeclarationFields(resp)
-	fmt.Fprintln(os.Stdout, "| Field | Value |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	for _, field := range fields {
-		fmt.Fprintf(os.Stdout, "| %s | %s |\n", escapeMarkdown(field.Name), escapeMarkdown(field.Value))
-	}
+	h, r := accessibilityDeclarationRows(resp)
+	RenderMarkdown(h, r)
 	return nil
 }
 
@@ -100,19 +86,20 @@ func accessibilityDeclarationFields(resp *AccessibilityDeclarationResponse) []ac
 	}
 }
 
-func printAccessibilityDeclarationDeleteResultTable(result *AccessibilityDeclarationDeleteResult) error {
+func accessibilityDeclarationDeleteResultRows(result *AccessibilityDeclarationDeleteResult) ([]string, [][]string) {
 	headers := []string{"ID", "Deleted"}
 	rows := [][]string{{result.ID, fmt.Sprintf("%t", result.Deleted)}}
-	RenderTable(headers, rows)
+	return headers, rows
+}
+
+func printAccessibilityDeclarationDeleteResultTable(result *AccessibilityDeclarationDeleteResult) error {
+	h, r := accessibilityDeclarationDeleteResultRows(result)
+	RenderTable(h, r)
 	return nil
 }
 
 func printAccessibilityDeclarationDeleteResultMarkdown(result *AccessibilityDeclarationDeleteResult) error {
-	fmt.Fprintln(os.Stdout, "| ID | Deleted |")
-	fmt.Fprintln(os.Stdout, "| --- | --- |")
-	fmt.Fprintf(os.Stdout, "| %s | %t |\n",
-		escapeMarkdown(result.ID),
-		result.Deleted,
-	)
+	h, r := accessibilityDeclarationDeleteResultRows(result)
+	RenderMarkdown(h, r)
 	return nil
 }
