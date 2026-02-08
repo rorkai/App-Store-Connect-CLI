@@ -218,6 +218,10 @@ Retry behavior env:
 - `ASC_RETRY_LOG=1` to log retries to stderr
 - Retry errors include `retry after` in the final error message when available
 
+Output format:
+- `ASC_DEFAULT_OUTPUT` sets the default `--output` format (e.g., `table`, `markdown`, `json`)
+- Explicit `--output` flags always override the environment variable
+
 Debug logging:
 - `ASC_DEBUG=1` to enable debug output
 - `ASC_DEBUG=api` to include HTTP request/response details (redacted)
