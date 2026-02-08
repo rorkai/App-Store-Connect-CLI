@@ -35,7 +35,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 	if config.IncludeAvailableInNewTerritories {
 		fs.Var(&availableInNewTerritories, "available-in-new-territories", "Set availability for new territories: true or false")
 	}
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

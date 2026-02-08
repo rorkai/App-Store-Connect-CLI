@@ -31,7 +31,7 @@ func NewCategoriesSetCommand(config CategoriesSetCommandConfig) *ffcli.Command {
 	}
 	primary := fs.String("primary", "", "Primary category ID (required)")
 	secondary := fs.String("secondary", "", "Secondary category ID (optional)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
