@@ -70,7 +70,7 @@ func IAPListCommand() *ffcli.Command {
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchases endpoint")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -171,7 +171,7 @@ func IAPGetCommand() *ffcli.Command {
 
 	iapID := fs.String("id", "", "In-app purchase ID")
 	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchase endpoint")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -227,7 +227,7 @@ func IAPCreateCommand() *ffcli.Command {
 	iapType := fs.String("type", "", "IAP type: CONSUMABLE, NON_CONSUMABLE, NON_RENEWING_SUBSCRIPTION")
 	refName := fs.String("ref-name", "", "Reference name")
 	productID := fs.String("product-id", "", "Product ID (e.g., com.example.product)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -296,7 +296,7 @@ func IAPUpdateCommand() *ffcli.Command {
 
 	iapID := fs.String("id", "", "In-app purchase ID")
 	refName := fs.String("ref-name", "", "Reference name")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -350,7 +350,7 @@ func IAPDeleteCommand() *ffcli.Command {
 
 	iapID := fs.String("id", "", "In-app purchase ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -431,7 +431,7 @@ func IAPLocalizationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

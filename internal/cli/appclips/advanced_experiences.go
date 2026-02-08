@@ -53,7 +53,7 @@ func AppClipAdvancedExperiencesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -142,7 +142,7 @@ func AppClipAdvancedExperiencesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	experienceID := fs.String("experience-id", "", "Advanced experience ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -194,7 +194,7 @@ func AppClipAdvancedExperiencesCreateCommand() *ffcli.Command {
 	category := fs.String("category", "", "Business category")
 	headerImageID := fs.String("header-image-id", "", "Header image ID")
 	localizationIDs := fs.String("localization-id", "", "Localization ID(s), comma-separated")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -308,7 +308,7 @@ func AppClipAdvancedExperiencesUpdateCommand() *ffcli.Command {
 	removed := fs.Bool("removed", false, "Mark the experience as removed")
 	headerImageID := fs.String("header-image-id", "", "Header image ID")
 	localizationIDs := fs.String("localization-id", "", "Localization ID(s), comma-separated")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -399,7 +399,7 @@ func AppClipAdvancedExperiencesDeleteCommand() *ffcli.Command {
 
 	experienceID := fs.String("experience-id", "", "Advanced experience ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

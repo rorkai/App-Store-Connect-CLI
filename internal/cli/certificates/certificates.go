@@ -59,7 +59,7 @@ func CertificatesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -133,7 +133,7 @@ func CertificatesGetCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Certificate ID")
 	include := fs.String("include", "", "Include related resources: passTypeId")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -188,7 +188,7 @@ func CertificatesCreateCommand() *ffcli.Command {
 
 	certificateType := fs.String("certificate-type", "", "Certificate type (e.g., IOS_DISTRIBUTION)")
 	csrPath := fs.String("csr", "", "CSR file path")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -242,7 +242,7 @@ func CertificatesUpdateCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Certificate ID")
 	activated := fs.String("activated", "", "Set activated (true/false)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -298,7 +298,7 @@ func CertificatesRevokeCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Certificate ID")
 	confirm := fs.Bool("confirm", false, "Confirm revocation")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

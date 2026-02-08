@@ -47,7 +47,7 @@ func AppEncryptionDeclarationsListCommand() *ffcli.Command {
 	buildLimit := fs.Int("build-limit", 0, "Maximum included builds per declaration (1-50)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

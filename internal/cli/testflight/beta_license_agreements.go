@@ -52,7 +52,7 @@ func BetaLicenseAgreementsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -127,7 +127,7 @@ func BetaLicenseAgreementsGetCommand() *ffcli.Command {
 	fields := fs.String("fields", "", "Fields to include (betaLicenseAgreements), comma-separated")
 	appFields := fs.String("app-fields", "", "App fields to include, comma-separated")
 	include := fs.String("include", "", "Include related resources (e.g., app), comma-separated")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -197,7 +197,7 @@ func BetaLicenseAgreementsUpdateCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta license agreement ID")
 	agreementText := fs.String("agreement-text", "", "Updated agreement text")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

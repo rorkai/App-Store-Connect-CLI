@@ -70,7 +70,7 @@ func BetaFeedbackCrashSubmissionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("crash-submissions get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta feedback crash submission ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -139,7 +139,7 @@ func BetaFeedbackCrashSubmissionsDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta feedback crash submission ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -190,7 +190,7 @@ func BetaFeedbackScreenshotSubmissionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("screenshot-submissions get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta feedback screenshot submission ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -234,7 +234,7 @@ func BetaFeedbackScreenshotSubmissionsDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta feedback screenshot submission ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -308,7 +308,7 @@ func BetaFeedbackCrashLogGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("crash-log get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta feedback crash submission ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

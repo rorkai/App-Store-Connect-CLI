@@ -48,7 +48,7 @@ func PerformanceDiagnosticsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Limit number of signatures (max 200)")
 	next := fs.String("next", "", "Next page URL")
 	paginate := fs.Bool("paginate", false, "Fetch all pages")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -129,7 +129,7 @@ func PerformanceDiagnosticsGetCommand() *ffcli.Command {
 
 	signatureID := fs.String("id", "", "Diagnostic signature ID")
 	limit := fs.Int("limit", 0, "Limit number of logs (max 200)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

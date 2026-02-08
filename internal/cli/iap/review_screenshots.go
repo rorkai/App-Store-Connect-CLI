@@ -48,7 +48,7 @@ func IAPReviewScreenshotsGetCommand() *ffcli.Command {
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -102,7 +102,7 @@ func IAPReviewScreenshotsCreateCommand() *ffcli.Command {
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	filePath := fs.String("file", "", "Path to screenshot file")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -182,7 +182,7 @@ func IAPReviewScreenshotsUpdateCommand() *ffcli.Command {
 
 	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
 	filePath := fs.String("file", "", "Path to screenshot file")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -286,7 +286,7 @@ func IAPReviewScreenshotsDeleteCommand() *ffcli.Command {
 
 	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

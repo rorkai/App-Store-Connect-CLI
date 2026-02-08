@@ -46,7 +46,7 @@ func AppClipInvocationLocalizationsListCommand() *ffcli.Command {
 
 	invocationID := fs.String("invocation-id", "", "Invocation ID")
 	limit := fs.Int("limit", 0, "Maximum included localizations (1-200)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -99,7 +99,7 @@ func AppClipInvocationLocalizationsCreateCommand() *ffcli.Command {
 	invocationID := fs.String("invocation-id", "", "Invocation ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US)")
 	title := fs.String("title", "", "Title")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -160,7 +160,7 @@ func AppClipInvocationLocalizationsUpdateCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "Localization ID")
 	title := fs.String("title", "", "Title")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -216,7 +216,7 @@ func AppClipInvocationLocalizationsDeleteCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "Localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

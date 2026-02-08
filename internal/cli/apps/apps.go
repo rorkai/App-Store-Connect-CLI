@@ -14,7 +14,7 @@ import (
 )
 
 func appsListFlags(fs *flag.FlagSet) (output *string, pretty *bool, bundleID *string, name *string, sku *string, sort *string, limit *int, next *string, paginate *bool) {
-	output = fs.String("output", "json", "Output format: json (default), table, markdown")
+	output = fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty = fs.Bool("pretty", false, "Pretty-print JSON output")
 	bundleID = fs.String("bundle-id", "", "Filter by bundle ID(s), comma-separated")
 	name = fs.String("name", "", "Filter by app name(s), comma-separated")
@@ -103,7 +103,7 @@ func AppsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps get", flag.ExitOnError)
 
 	id := fs.String("id", "", "App Store Connect app ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -150,7 +150,7 @@ func AppsUpdateCommand() *ffcli.Command {
 	bundleID := fs.String("bundle-id", "", "Update bundle ID")
 	primaryLocale := fs.String("primary-locale", "", "Update primary locale (e.g., en-US)")
 	contentRights := fs.String("content-rights", "", "Content rights declaration: DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

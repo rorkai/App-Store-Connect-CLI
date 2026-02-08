@@ -62,7 +62,7 @@ func PhasedReleaseGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("phased-release get", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -106,7 +106,7 @@ func PhasedReleaseCreateCommand() *ffcli.Command {
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	state := fs.String("state", "", "Initial state: INACTIVE, ACTIVE (optional, defaults to INACTIVE)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -165,7 +165,7 @@ func PhasedReleaseUpdateCommand() *ffcli.Command {
 
 	phasedID := fs.String("id", "", "Phased release ID (required)")
 	state := fs.String("state", "", "New state: ACTIVE, PAUSED, COMPLETE (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -228,7 +228,7 @@ func PhasedReleaseDeleteCommand() *ffcli.Command {
 
 	phasedID := fs.String("id", "", "Phased release ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

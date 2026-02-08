@@ -18,7 +18,7 @@ func xcodeCloudWorkflowsListFlags(fs *flag.FlagSet) (appID *string, limit *int, 
 	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next = fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output = fs.String("output", "json", "Output format: json (default), table, markdown")
+	output = fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty = fs.Bool("pretty", false, "Pretty-print JSON output")
 	return
 }
@@ -85,7 +85,7 @@ func XcodeCloudWorkflowsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Workflow ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -128,7 +128,7 @@ func XcodeCloudWorkflowsRepositoryCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("repository", flag.ExitOnError)
 
 	id := fs.String("id", "", "Workflow ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -172,7 +172,7 @@ func XcodeCloudWorkflowsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
 	file := fs.String("file", "", "Path to workflow JSON payload")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -220,7 +220,7 @@ func XcodeCloudWorkflowsUpdateCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Workflow ID")
 	file := fs.String("file", "", "Path to workflow JSON payload")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -273,7 +273,7 @@ func XcodeCloudWorkflowsDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Workflow ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

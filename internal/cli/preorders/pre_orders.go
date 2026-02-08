@@ -50,7 +50,7 @@ func PreOrdersGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pre-orders get", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -96,7 +96,7 @@ func PreOrdersListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pre-orders list", flag.ExitOnError)
 
 	availabilityID := fs.String("availability", "", "App availability ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -143,7 +143,7 @@ func PreOrdersEnableCommand() *ffcli.Command {
 	releaseDate := fs.String("release-date", "", "Release date (YYYY-MM-DD)")
 	var availableInNewTerritories shared.OptionalBool
 	fs.Var(&availableInNewTerritories, "available-in-new-territories", "Set available-in-new-territories: true or false")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -277,7 +277,7 @@ func PreOrdersUpdateCommand() *ffcli.Command {
 
 	territoryAvailabilityID := fs.String("territory-availability", "", "Territory availability ID")
 	releaseDate := fs.String("release-date", "", "Release date (YYYY-MM-DD)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -331,7 +331,7 @@ func PreOrdersDisableCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pre-orders disable", flag.ExitOnError)
 
 	territoryAvailabilityID := fs.String("territory-availability", "", "Territory availability ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -377,7 +377,7 @@ func PreOrdersEndCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pre-orders end", flag.ExitOnError)
 
 	territoryAvailabilityIDs := fs.String("territory-availability", "", "Territory availability IDs (comma-separated)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

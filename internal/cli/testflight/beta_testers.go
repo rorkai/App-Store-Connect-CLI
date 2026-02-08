@@ -69,7 +69,7 @@ func BetaTestersListCommand() *ffcli.Command {
 	buildID := fs.String("build", "", "Build ID to filter")
 	group := fs.String("group", "", "Beta group name or ID to filter")
 	email := fs.String("email", "", "Filter by tester email")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -166,7 +166,7 @@ func BetaTestersGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta tester ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -213,7 +213,7 @@ func BetaTestersAddCommand() *ffcli.Command {
 	firstName := fs.String("first-name", "", "Tester first name")
 	lastName := fs.String("last-name", "", "Tester last name")
 	group := fs.String("group", "", "Beta group name or ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -270,7 +270,7 @@ func BetaTestersRemoveCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	email := fs.String("email", "", "Tester email address")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -331,7 +331,7 @@ func BetaTestersAddGroupsCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta tester ID")
 	groups := fs.String("group", "", "Comma-separated beta group IDs")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -393,7 +393,7 @@ func BetaTestersRemoveGroupsCommand() *ffcli.Command {
 	id := fs.String("id", "", "Beta tester ID")
 	groups := fs.String("group", "", "Comma-separated beta group IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -458,7 +458,7 @@ func BetaTestersAddBuildsCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta tester ID")
 	builds := fs.String("build", "", "Comma-separated build IDs")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -520,7 +520,7 @@ func BetaTestersRemoveBuildsCommand() *ffcli.Command {
 	id := fs.String("id", "", "Beta tester ID")
 	builds := fs.String("build", "", "Comma-separated build IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -586,7 +586,7 @@ func BetaTestersRemoveAppsCommand() *ffcli.Command {
 	id := fs.String("id", "", "Beta tester ID")
 	apps := fs.String("app", "", "Comma-separated app IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -652,7 +652,7 @@ func BetaTestersInviteCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	email := fs.String("email", "", "Tester email address")
 	group := fs.String("group", "", "Beta group name or ID (optional, creates tester if missing)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

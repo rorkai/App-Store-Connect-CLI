@@ -45,7 +45,7 @@ func CustomPageLocalizationsSearchKeywordsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations search-keywords list", flag.ExitOnError)
 
 	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -89,7 +89,7 @@ func CustomPageLocalizationsSearchKeywordsAddCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
 	keywords := fs.String("keywords", "", "Keywords (comma-separated)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -139,7 +139,7 @@ func CustomPageLocalizationsSearchKeywordsDeleteCommand() *ffcli.Command {
 	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
 	keywords := fs.String("keywords", "", "Keywords (comma-separated)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

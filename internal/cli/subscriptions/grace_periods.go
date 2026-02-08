@@ -43,7 +43,7 @@ func SubscriptionsGracePeriodsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("grace-periods get", flag.ExitOnError)
 
 	gracePeriodID := fs.String("id", "", "Subscription grace period ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -92,7 +92,7 @@ func SubscriptionsGracePeriodsUpdateCommand() *ffcli.Command {
 	fs.Var(&sandboxOptIn, "sandbox-opt-in", "Enable grace period sandbox opt-in: true or false")
 	duration := fs.String("duration", "", "Grace period duration: "+strings.Join(subscriptionGracePeriodDurationValues, ", "))
 	renewalType := fs.String("renewal-type", "", "Grace period renewal type: "+strings.Join(subscriptionGracePeriodRenewalTypeValues, ", "))
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

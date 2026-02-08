@@ -19,7 +19,7 @@ func BuildsAddGroupsCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	groups := fs.String("group", "", "Comma-separated beta group IDs")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -77,7 +77,7 @@ func BuildsRemoveGroupsCommand() *ffcli.Command {
 	buildID := fs.String("build", "", "Build ID")
 	groups := fs.String("group", "", "Comma-separated beta group IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

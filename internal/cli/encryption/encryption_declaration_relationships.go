@@ -39,7 +39,7 @@ func EncryptionDeclarationsAppGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("encryption declarations app get", flag.ExitOnError)
 
 	declarationID := fs.String("id", "", "Encryption declaration ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -105,7 +105,7 @@ func EncryptionDeclarationsDeclarationDocumentGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("encryption declarations app-encryption-declaration-document get", flag.ExitOnError)
 
 	declarationID := fs.String("id", "", "Encryption declaration ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

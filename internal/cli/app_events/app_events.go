@@ -58,7 +58,7 @@ func AppEventsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -130,7 +130,7 @@ func AppEventsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	eventID := fs.String("event-id", "", "App event ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -184,7 +184,7 @@ func AppEventsCreateCommand() *ffcli.Command {
 	primaryLocale := fs.String("primary-locale", "", "Primary locale (e.g., en-US)")
 	priority := fs.String("priority", "", "Priority: "+strings.Join(asc.ValidAppEventPriorities, ", "))
 	purpose := fs.String("purpose", "", "Purpose: "+strings.Join(asc.ValidAppEventPurposes, ", "))
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -301,7 +301,7 @@ func AppEventsUpdateCommand() *ffcli.Command {
 	primaryLocale := fs.String("primary-locale", "", "Primary locale (e.g., en-US)")
 	priority := fs.String("priority", "", "Priority: "+strings.Join(asc.ValidAppEventPriorities, ", "))
 	purpose := fs.String("purpose", "", "Purpose: "+strings.Join(asc.ValidAppEventPurposes, ", "))
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -442,7 +442,7 @@ func AppEventsDeleteCommand() *ffcli.Command {
 
 	eventID := fs.String("event-id", "", "App event ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

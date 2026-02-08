@@ -51,7 +51,7 @@ func ExperimentTreatmentsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
@@ -139,7 +139,7 @@ func ExperimentTreatmentsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiment-treatments get", flag.ExitOnError)
 
 	treatmentID := fs.String("treatment-id", "", "Treatment ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -184,7 +184,7 @@ func ExperimentTreatmentsCreateCommand() *ffcli.Command {
 	experimentID := fs.String("experiment-id", "", "Experiment ID")
 	name := fs.String("name", "", "Treatment name")
 	appIconName := fs.String("app-icon-name", "", "App icon asset name")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -236,7 +236,7 @@ func ExperimentTreatmentsUpdateCommand() *ffcli.Command {
 	treatmentID := fs.String("treatment-id", "", "Treatment ID")
 	name := fs.String("name", "", "Update treatment name")
 	appIconName := fs.String("app-icon-name", "", "Update app icon asset name")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -296,7 +296,7 @@ func ExperimentTreatmentsDeleteCommand() *ffcli.Command {
 
 	treatmentID := fs.String("treatment-id", "", "Treatment ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

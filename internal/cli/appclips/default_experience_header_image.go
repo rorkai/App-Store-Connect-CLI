@@ -39,7 +39,7 @@ func AppClipDefaultExperienceHeaderImageGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("header-image get", flag.ExitOnError)
 
 	localizationID := fs.String("localization-id", "", "Default experience localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

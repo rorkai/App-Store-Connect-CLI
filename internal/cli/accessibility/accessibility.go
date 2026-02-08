@@ -55,7 +55,7 @@ func AccessibilityListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -149,7 +149,7 @@ func AccessibilityGetCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Accessibility declaration ID (required)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(accessibilityDeclarationFieldList(), ", "))
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -208,7 +208,7 @@ func AccessibilityCreateCommand() *ffcli.Command {
 	supportsSufficientContrast := fs.String("supports-sufficient-contrast", "", "Supports sufficient contrast (true/false)")
 	supportsVoiceControl := fs.String("supports-voice-control", "", "Supports voice control (true/false)")
 	supportsVoiceover := fs.String("supports-voiceover", "", "Supports voiceover (true/false)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -288,7 +288,7 @@ func AccessibilityUpdateCommand() *ffcli.Command {
 	supportsSufficientContrast := fs.String("supports-sufficient-contrast", "", "Supports sufficient contrast (true/false)")
 	supportsVoiceControl := fs.String("supports-voice-control", "", "Supports voice control (true/false)")
 	supportsVoiceover := fs.String("supports-voiceover", "", "Supports voiceover (true/false)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -353,7 +353,7 @@ func AccessibilityDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Accessibility declaration ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

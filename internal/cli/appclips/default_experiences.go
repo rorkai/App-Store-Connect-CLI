@@ -56,7 +56,7 @@ func AppClipDefaultExperiencesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -138,7 +138,7 @@ func AppClipDefaultExperiencesGetCommand() *ffcli.Command {
 
 	experienceID := fs.String("experience-id", "", "Default experience ID")
 	include := fs.String("include", "", "Include relationships: "+strings.Join(appClipDefaultExperienceIncludeList(), ", "))
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -188,7 +188,7 @@ func AppClipDefaultExperiencesCreateCommand() *ffcli.Command {
 	appClipID := fs.String("app-clip-id", "", "App Clip ID")
 	action := fs.String("action", "", "Action (OPEN, VIEW, PLAY)")
 	releaseVersionID := fs.String("release-version-id", "", "Release with App Store version ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -245,7 +245,7 @@ func AppClipDefaultExperiencesUpdateCommand() *ffcli.Command {
 	experienceID := fs.String("experience-id", "", "Default experience ID")
 	action := fs.String("action", "", "Action (OPEN, VIEW, PLAY)")
 	releaseVersionID := fs.String("release-version-id", "", "Release with App Store version ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -311,7 +311,7 @@ func AppClipDefaultExperiencesDeleteCommand() *ffcli.Command {
 
 	experienceID := fs.String("experience-id", "", "Default experience ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -362,7 +362,7 @@ func AppClipDefaultExperienceReviewDetailCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-detail", flag.ExitOnError)
 
 	experienceID := fs.String("experience-id", "", "Default experience ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -405,7 +405,7 @@ func AppClipDefaultExperienceReleaseWithAppStoreVersionCommand() *ffcli.Command 
 	fs := flag.NewFlagSet("release-with-app-store-version", flag.ExitOnError)
 
 	experienceID := fs.String("experience-id", "", "Default experience ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

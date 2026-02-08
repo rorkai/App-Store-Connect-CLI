@@ -43,7 +43,7 @@ func AppClipDomainStatusCacheCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("cache", flag.ExitOnError)
 
 	buildBundleID := fs.String("build-bundle-id", "", "Build bundle ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -91,7 +91,7 @@ func AppClipDomainStatusDebugCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("debug", flag.ExitOnError)
 
 	buildBundleID := fs.String("build-bundle-id", "", "Build bundle ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

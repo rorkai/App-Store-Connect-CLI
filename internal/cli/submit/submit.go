@@ -40,7 +40,7 @@ func SubmitCreateCommand() *ffcli.Command {
 	buildID := fs.String("build", "", "Build ID to attach")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -144,7 +144,7 @@ func SubmitStatusCommand() *ffcli.Command {
 
 	submissionID := fs.String("id", "", "Submission ID")
 	versionID := fs.String("version-id", "", "App Store version ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -224,7 +224,7 @@ func SubmitCancelCommand() *ffcli.Command {
 	submissionID := fs.String("id", "", "Submission ID")
 	versionID := fs.String("version-id", "", "App Store version ID")
 	confirm := fs.Bool("confirm", false, "Confirm cancellation (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

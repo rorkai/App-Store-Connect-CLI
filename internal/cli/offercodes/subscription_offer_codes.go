@@ -101,7 +101,7 @@ func OfferCodesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	offerCodeID := fs.String("offer-code-id", "", "Subscription offer code ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -154,7 +154,7 @@ func OfferCodesCreateCommand() *ffcli.Command {
 	autoRenewEnabled := fs.String("auto-renew-enabled", "", "Auto-renew enabled (true/false)")
 	prices := fs.String("prices", "", "Offer code prices: TERRITORY:PRICE_POINT_ID entries (required)")
 	priceIDs := fs.String("price-id", "", "Deprecated: use --prices")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -276,7 +276,7 @@ func OfferCodesUpdateCommand() *ffcli.Command {
 
 	offerCodeID := fs.String("offer-code-id", "", "Subscription offer code ID (required)")
 	active := fs.String("active", "", "Set active (true/false)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

@@ -55,7 +55,7 @@ func CustomPageLocalizationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -128,7 +128,7 @@ func CustomPageLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations get", flag.ExitOnError)
 
 	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -173,7 +173,7 @@ func CustomPageLocalizationsCreateCommand() *ffcli.Command {
 	versionID := fs.String("custom-page-version-id", "", "Custom product page version ID")
 	locale := fs.String("locale", "", "Localization locale (e.g., en-US)")
 	promotionalText := fs.String("promotional-text", "", "Promotional text")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -224,7 +224,7 @@ func CustomPageLocalizationsUpdateCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
 	promotionalText := fs.String("promotional-text", "", "Update promotional text")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -278,7 +278,7 @@ func CustomPageLocalizationsDeleteCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

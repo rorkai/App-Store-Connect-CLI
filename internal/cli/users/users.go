@@ -57,7 +57,7 @@ func UsersListCommand() *ffcli.Command {
 
 	email := fs.String("email", "", "Filter by email/username")
 	role := fs.String("role", "", "Filter by role (comma-separated): ADMIN, DEVELOPER, APP_MANAGER, etc.")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -134,7 +134,7 @@ func UsersGetCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "User ID")
 	include := fs.String("include", "", "Include related resources: visibleApps")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -190,7 +190,7 @@ func UsersUpdateCommand() *ffcli.Command {
 	id := fs.String("id", "", "User ID")
 	roles := fs.String("roles", "", "Comma-separated role IDs")
 	visibleApps := fs.String("visible-app", "", "Comma-separated app IDs for visible apps")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -257,7 +257,7 @@ func UsersDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "User ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -314,7 +314,7 @@ func UsersInviteCommand() *ffcli.Command {
 	roles := fs.String("roles", "", "Comma-separated role IDs")
 	allApps := fs.Bool("all-apps", false, "Grant access to all apps")
 	visibleApps := fs.String("visible-app", "", "Comma-separated app IDs for visible apps")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -430,7 +430,7 @@ Examples:
 func UsersInvitesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -501,7 +501,7 @@ func UsersInvitesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Invitation ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -545,7 +545,7 @@ func UsersInvitesRevokeCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Invitation ID")
 	confirm := fs.Bool("confirm", false, "Confirm revocation")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

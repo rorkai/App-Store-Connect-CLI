@@ -20,7 +20,7 @@ func BuildsLatestCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
 	version := fs.String("version", "", "Filter by version string (e.g., 1.2.3); requires --platform for deterministic results")
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

@@ -51,7 +51,7 @@ func BetaAppLocalizationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -135,7 +135,7 @@ func BetaAppLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta app localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -184,7 +184,7 @@ func BetaAppLocalizationsCreateCommand() *ffcli.Command {
 	marketingURL := fs.String("marketing-url", "", "Marketing URL")
 	privacyPolicyURL := fs.String("privacy-policy-url", "", "Privacy policy URL")
 	tvOsPrivacyPolicy := fs.String("tv-os-privacy-policy", "", "tvOS privacy policy")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -262,7 +262,7 @@ func BetaAppLocalizationsUpdateCommand() *ffcli.Command {
 	marketingURL := fs.String("marketing-url", "", "Marketing URL")
 	privacyPolicyURL := fs.String("privacy-policy-url", "", "Privacy policy URL")
 	tvOsPrivacyPolicy := fs.String("tv-os-privacy-policy", "", "tvOS privacy policy")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -344,7 +344,7 @@ func BetaAppLocalizationsDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta app localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

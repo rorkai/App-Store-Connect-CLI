@@ -40,7 +40,7 @@ func BetaGroupsAppGetCommand() *ffcli.Command {
 
 	groupID := fs.String("group-id", "", "Beta group ID")
 	aliasID := fs.String("id", "", "Beta group ID (alias of --group-id)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -113,7 +113,7 @@ func BetaGroupsRecruitmentCriteriaGetCommand() *ffcli.Command {
 
 	groupID := fs.String("group-id", "", "Beta group ID")
 	aliasID := fs.String("id", "", "Beta group ID (alias of --group-id)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -186,7 +186,7 @@ func BetaGroupsRecruitmentCriterionCompatibleBuildCheckGetCommand() *ffcli.Comma
 
 	groupID := fs.String("group-id", "", "Beta group ID")
 	aliasID := fs.String("id", "", "Beta group ID (alias of --group-id)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

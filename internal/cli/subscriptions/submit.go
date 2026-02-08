@@ -17,7 +17,7 @@ func SubscriptionsSubmitCommand() *ffcli.Command {
 
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
 	confirm := fs.Bool("confirm", false, "Confirm submission")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -65,7 +65,7 @@ func SubscriptionsGroupsSubmitCommand() *ffcli.Command {
 
 	groupID := fs.String("group-id", "", "Subscription group ID")
 	confirm := fs.Bool("confirm", false, "Confirm submission")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

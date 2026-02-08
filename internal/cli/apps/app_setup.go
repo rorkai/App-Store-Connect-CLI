@@ -82,7 +82,7 @@ func AppSetupInfoSetCommand() *ffcli.Command {
 	privacyChoicesURL := fs.String("privacy-choices-url", "", "Localized privacy choices URL")
 	privacyPolicyText := fs.String("privacy-policy-text", "", "Localized privacy policy text")
 	contentRights := fs.String("content-rights", "", "Content rights declaration: DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -393,7 +393,7 @@ func AppSetupLocalizationsUploadCommand() *ffcli.Command {
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	path := fs.String("path", "", "Input path (directory or .strings file)")
 	dryRun := fs.Bool("dry-run", false, "Validate file without uploading")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

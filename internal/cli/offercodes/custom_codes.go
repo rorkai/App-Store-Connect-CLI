@@ -50,7 +50,7 @@ func OfferCodeCustomCodesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -124,7 +124,7 @@ func OfferCodeCustomCodesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	customCodeID := fs.String("custom-code-id", "", "Custom code ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -170,7 +170,7 @@ func OfferCodeCustomCodesCreateCommand() *ffcli.Command {
 	code := fs.String("code", "", "Custom code value (required)")
 	quantity := fs.Int("quantity", 0, "Number of codes to create (required)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -255,7 +255,7 @@ func OfferCodeCustomCodesUpdateCommand() *ffcli.Command {
 
 	customCodeID := fs.String("custom-code-id", "", "Custom code ID (required)")
 	active := fs.String("active", "", "Set active (true/false)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

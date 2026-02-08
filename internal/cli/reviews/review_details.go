@@ -18,7 +18,7 @@ func ReviewDetailsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("details-get", flag.ExitOnError)
 
 	detailID := fs.String("id", "", "App Store review detail ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -61,7 +61,7 @@ func ReviewDetailsForVersionCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("details-for-version", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -112,7 +112,7 @@ func ReviewDetailsCreateCommand() *ffcli.Command {
 	demoAccountPassword := fs.String("demo-account-password", "", "Demo account password")
 	demoAccountRequired := fs.Bool("demo-account-required", false, "Demo account required")
 	notes := fs.String("notes", "", "Review notes")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -207,7 +207,7 @@ func ReviewDetailsUpdateCommand() *ffcli.Command {
 	demoAccountPassword := fs.String("demo-account-password", "", "Demo account password")
 	demoAccountRequired := fs.Bool("demo-account-required", false, "Demo account required")
 	notes := fs.String("notes", "", "Review notes")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

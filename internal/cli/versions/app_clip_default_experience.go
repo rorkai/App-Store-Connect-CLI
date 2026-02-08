@@ -39,7 +39,7 @@ func VersionsAppClipDefaultExperienceGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-clip-default-experience get", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "App Store version ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

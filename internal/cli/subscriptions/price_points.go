@@ -50,7 +50,7 @@ func SubscriptionsPricePointsListCommand() *ffcli.Command {
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	stream := fs.Bool("stream", false, "Stream pages as NDJSON (one JSON object per page, requires --paginate)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -176,7 +176,7 @@ func SubscriptionsPricePointsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points get", flag.ExitOnError)
 
 	pricePointID := fs.String("id", "", "Subscription price point ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -219,7 +219,7 @@ func SubscriptionsPricePointsEqualizationsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points equalizations", flag.ExitOnError)
 
 	pricePointID := fs.String("id", "", "Subscription price point ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

@@ -42,7 +42,7 @@ func VersionsPromotionsCreateCommand() *ffcli.Command {
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	treatmentID := fs.String("treatment-id", "", "App Store version experiment treatment ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

@@ -86,7 +86,7 @@ func GameCenterMatchmakingQueuesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -154,7 +154,7 @@ func GameCenterMatchmakingQueuesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	queueID := fs.String("id", "", "Matchmaking queue ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -200,7 +200,7 @@ func GameCenterMatchmakingQueuesCreateCommand() *ffcli.Command {
 	ruleSetID := fs.String("rule-set-id", "", "Matchmaking rule set ID")
 	experimentRuleSetID := fs.String("experiment-rule-set-id", "", "Experiment rule set ID")
 	classicBundleIDs := fs.String("classic-bundle-ids", "", "Comma-separated bundle IDs for classic matchmaking")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -257,7 +257,7 @@ func GameCenterMatchmakingQueuesUpdateCommand() *ffcli.Command {
 	ruleSetID := fs.String("rule-set-id", "", "Matchmaking rule set ID")
 	experimentRuleSetID := fs.String("experiment-rule-set-id", "", "Experiment rule set ID")
 	classicBundleIDs := fs.String("classic-bundle-ids", "", "Comma-separated bundle IDs for classic matchmaking")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -314,7 +314,7 @@ func GameCenterMatchmakingQueuesDeleteCommand() *ffcli.Command {
 
 	queueID := fs.String("id", "", "Matchmaking queue ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -400,7 +400,7 @@ func GameCenterMatchmakingRuleSetsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -468,7 +468,7 @@ func GameCenterMatchmakingRuleSetsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	ruleSetID := fs.String("id", "", "Matchmaking rule set ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -514,7 +514,7 @@ func GameCenterMatchmakingRuleSetsCreateCommand() *ffcli.Command {
 	ruleLanguageVersion := fs.Int("rule-language-version", 0, "Rule language version")
 	minPlayers := fs.Int("min-players", 0, "Minimum players")
 	maxPlayers := fs.Int("max-players", 0, "Maximum players")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -574,7 +574,7 @@ func GameCenterMatchmakingRuleSetsUpdateCommand() *ffcli.Command {
 	ruleSetID := fs.String("id", "", "Matchmaking rule set ID")
 	minPlayers := fs.Int("min-players", 0, "Minimum players")
 	maxPlayers := fs.Int("max-players", 0, "Maximum players")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -638,7 +638,7 @@ func GameCenterMatchmakingRuleSetsDeleteCommand() *ffcli.Command {
 
 	ruleSetID := fs.String("id", "", "Matchmaking rule set ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -715,7 +715,7 @@ func GameCenterMatchmakingRuleSetQueuesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -821,7 +821,7 @@ func GameCenterMatchmakingRulesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -900,7 +900,7 @@ func GameCenterMatchmakingRulesCreateCommand() *ffcli.Command {
 	ruleType := fs.String("type", "", "Rule type (COMPATIBLE, DISTANCE, MATCH, TEAM)")
 	expression := fs.String("expression", "", "Rule expression")
 	weight := fs.String("weight", "", "Rule weight (float)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -982,7 +982,7 @@ func GameCenterMatchmakingRulesUpdateCommand() *ffcli.Command {
 	description := fs.String("description", "", "Rule description")
 	expression := fs.String("expression", "", "Rule expression")
 	weight := fs.String("weight", "", "Rule weight (float)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1055,7 +1055,7 @@ func GameCenterMatchmakingRulesDeleteCommand() *ffcli.Command {
 
 	ruleID := fs.String("id", "", "Matchmaking rule ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1138,7 +1138,7 @@ func GameCenterMatchmakingTeamsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1215,7 +1215,7 @@ func GameCenterMatchmakingTeamsCreateCommand() *ffcli.Command {
 	referenceName := fs.String("reference-name", "", "Reference name for the team")
 	minPlayers := fs.Int("min-players", 0, "Minimum players")
 	maxPlayers := fs.Int("max-players", 0, "Maximum players")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1275,7 +1275,7 @@ func GameCenterMatchmakingTeamsUpdateCommand() *ffcli.Command {
 	teamID := fs.String("id", "", "Matchmaking team ID")
 	minPlayers := fs.Int("min-players", 0, "Minimum players")
 	maxPlayers := fs.Int("max-players", 0, "Maximum players")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1337,7 +1337,7 @@ func GameCenterMatchmakingTeamsDeleteCommand() *ffcli.Command {
 
 	teamID := fs.String("id", "", "Matchmaking team ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1425,7 +1425,7 @@ func GameCenterMatchmakingQueueSizesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return metricsQueueCommand("queue-sizes", fs, queueID, granularity, sort, limit, next, paginate, output, pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error) {
@@ -1446,7 +1446,7 @@ func GameCenterMatchmakingQueueRequestsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return metricsQueueCommandWithFilters("queue-requests", fs, queueID, granularity, groupBy, filterResult, filterDetail, sort, limit, next, paginate, output, pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error) {
@@ -1464,7 +1464,7 @@ func GameCenterMatchmakingQueueSessionsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return metricsQueueCommand("queue-sessions", fs, queueID, granularity, sort, limit, next, paginate, output, pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSessionsResponse, error) {
@@ -1482,7 +1482,7 @@ func GameCenterMatchmakingQueueExperimentSizesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return metricsQueueCommand("experiment-queue-sizes", fs, queueID, granularity, sort, limit, next, paginate, output, pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueExperimentSizesResponse, error) {
@@ -1503,7 +1503,7 @@ func GameCenterMatchmakingQueueExperimentRequestsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return metricsQueueCommandWithFilters("experiment-queue-requests", fs, queueID, granularity, groupBy, filterResult, filterDetail, sort, limit, next, paginate, output, pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueExperimentRequestsResponse, error) {
@@ -1524,7 +1524,7 @@ func GameCenterMatchmakingBooleanRuleResultsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return metricsRuleCommand("rule-boolean-results", fs, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output, pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error) {
@@ -1545,7 +1545,7 @@ func GameCenterMatchmakingNumberRuleResultsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return metricsRuleCommand("rule-number-results", fs, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output, pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingNumberRuleResultsResponse, error) {
@@ -1566,7 +1566,7 @@ func GameCenterMatchmakingRuleErrorsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum groups per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return metricsRuleCommand("rule-errors", fs, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output, pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingRuleErrorsResponse, error) {
@@ -1788,7 +1788,7 @@ func GameCenterMatchmakingRuleSetTestsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
 	filePath := fs.String("file", "", "Path to rule set test JSON payload")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

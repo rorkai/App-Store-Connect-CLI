@@ -68,7 +68,7 @@ func GameCenterAchievementsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -154,7 +154,7 @@ func GameCenterAchievementsGetCommand() *ffcli.Command {
 
 	achievementID := fs.String("id", "", "Game Center achievement ID")
 	v2 := fs.Bool("v2", false, "Use v2 achievements endpoint")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -210,7 +210,7 @@ func GameCenterAchievementsCreateCommand() *ffcli.Command {
 	repeatable := fs.Bool("repeatable", false, "Achievement can be earned multiple times")
 	groupID := fs.String("group-id", "", "Game Center group ID (v2 only)")
 	v2 := fs.Bool("v2", false, "Use v2 achievements endpoint")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -312,7 +312,7 @@ func GameCenterAchievementsUpdateCommand() *ffcli.Command {
 	repeatable := fs.String("repeatable", "", "Achievement can be earned multiple times (true/false)")
 	archived := fs.String("archived", "", "Archive the achievement (true/false)")
 	v2 := fs.Bool("v2", false, "Use v2 achievements endpoint")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -418,7 +418,7 @@ func GameCenterAchievementsDeleteCommand() *ffcli.Command {
 	achievementID := fs.String("id", "", "Game Center achievement ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	v2 := fs.Bool("v2", false, "Use v2 achievements endpoint")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -481,7 +481,7 @@ func GameCenterAchievementsSubmitCommand() *ffcli.Command {
 	scopedPlayerID := fs.String("scoped-player-id", "", "Scoped player ID")
 	challengeIDs := fs.String("challenge-ids", "", "Challenge ID(s), comma-separated")
 	submittedDate := fs.String("submitted-date", "", "Submission date (RFC3339)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -589,7 +589,7 @@ func GameCenterAchievementLocalizationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -663,7 +663,7 @@ func GameCenterAchievementLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center achievement localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -710,7 +710,7 @@ func GameCenterAchievementLocalizationsCreateCommand() *ffcli.Command {
 	name := fs.String("name", "", "Display name")
 	beforeEarnedDescription := fs.String("before-earned-description", "", "Description shown before achievement is earned")
 	afterEarnedDescription := fs.String("after-earned-description", "", "Description shown after achievement is earned")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -788,7 +788,7 @@ func GameCenterAchievementLocalizationsUpdateCommand() *ffcli.Command {
 	name := fs.String("name", "", "Display name")
 	beforeEarnedDescription := fs.String("before-earned-description", "", "Description shown before achievement is earned")
 	afterEarnedDescription := fs.String("after-earned-description", "", "Description shown after achievement is earned")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -859,7 +859,7 @@ func GameCenterAchievementLocalizationsDeleteCommand() *ffcli.Command {
 
 	localizationID := fs.String("id", "", "Game Center achievement localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -940,7 +940,7 @@ func GameCenterAchievementReleasesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1015,7 +1015,7 @@ func GameCenterAchievementReleasesCreateCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	achievementID := fs.String("achievement-id", "", "Game Center achievement ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1071,7 +1071,7 @@ func GameCenterAchievementReleasesDeleteCommand() *ffcli.Command {
 
 	releaseID := fs.String("id", "", "Game Center achievement release ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1150,7 +1150,7 @@ func GameCenterAchievementImagesUploadCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "Game Center achievement localization ID")
 	filePath := fs.String("file", "", "Path to the image file to upload")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1201,7 +1201,7 @@ func GameCenterAchievementImagesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	imageID := fs.String("id", "", "Game Center achievement image ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1245,7 +1245,7 @@ func GameCenterAchievementImagesDeleteCommand() *ffcli.Command {
 
 	imageID := fs.String("id", "", "Game Center achievement image ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1319,7 +1319,7 @@ func GameCenterAchievementGroupAchievementGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	achievementID := fs.String("id", "", "Game Center achievement ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1385,7 +1385,7 @@ func GameCenterAchievementLocalizationImageGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center achievement localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -1451,7 +1451,7 @@ func GameCenterAchievementLocalizationAchievementGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center achievement localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

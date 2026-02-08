@@ -49,7 +49,7 @@ func SubscriptionsIntroductoryOffersListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -122,7 +122,7 @@ func SubscriptionsIntroductoryOffersGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("introductory-offers get", flag.ExitOnError)
 
 	offerID := fs.String("id", "", "Introductory offer ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -172,7 +172,7 @@ func SubscriptionsIntroductoryOffersCreateCommand() *ffcli.Command {
 	endDate := fs.String("end-date", "", "End date (YYYY-MM-DD)")
 	territory := fs.String("territory", "", "Territory ID for price override")
 	pricePoint := fs.String("price-point", "", "Subscription price point ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -269,7 +269,7 @@ func SubscriptionsIntroductoryOffersUpdateCommand() *ffcli.Command {
 
 	offerID := fs.String("id", "", "Introductory offer ID")
 	endDate := fs.String("end-date", "", "End date (YYYY-MM-DD)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -327,7 +327,7 @@ func SubscriptionsIntroductoryOffersDeleteCommand() *ffcli.Command {
 
 	offerID := fs.String("id", "", "Introductory offer ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

@@ -47,7 +47,7 @@ func CategoriesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("categories list", flag.ExitOnError)
 
 	limit := fs.Int("limit", 200, "Maximum results to fetch (1-200)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

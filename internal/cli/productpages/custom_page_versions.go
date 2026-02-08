@@ -48,7 +48,7 @@ func CustomPageVersionsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -121,7 +121,7 @@ func CustomPageVersionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-versions get", flag.ExitOnError)
 
 	versionID := fs.String("custom-page-version-id", "", "Custom product page version ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -165,7 +165,7 @@ func CustomPageVersionsCreateCommand() *ffcli.Command {
 
 	customPageID := fs.String("custom-page-id", "", "Custom product page ID")
 	deepLink := fs.String("deep-link", "", "Deep link URL")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -210,7 +210,7 @@ func CustomPageVersionsUpdateCommand() *ffcli.Command {
 
 	versionID := fs.String("custom-page-version-id", "", "Custom product page version ID")
 	deepLink := fs.String("deep-link", "", "Update deep link URL")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

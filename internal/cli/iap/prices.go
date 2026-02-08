@@ -74,7 +74,7 @@ func IAPPricesCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	territory := fs.String("territory", "", "Territory filter (e.g., USA)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

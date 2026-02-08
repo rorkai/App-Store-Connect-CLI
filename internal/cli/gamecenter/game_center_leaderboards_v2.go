@@ -51,7 +51,7 @@ func GameCenterLeaderboardsV2ListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -171,7 +171,7 @@ func GameCenterLeaderboardVersionsV2ListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -244,7 +244,7 @@ func GameCenterLeaderboardVersionsV2GetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	versionID := fs.String("id", "", "Game Center leaderboard version ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -287,7 +287,7 @@ func GameCenterLeaderboardVersionsV2CreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
 	leaderboardID := fs.String("leaderboard-id", "", "Game Center leaderboard ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -361,7 +361,7 @@ func GameCenterLeaderboardLocalizationsV2ListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -434,7 +434,7 @@ func GameCenterLeaderboardLocalizationsV2GetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center leaderboard localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -483,7 +483,7 @@ func GameCenterLeaderboardLocalizationsV2CreateCommand() *ffcli.Command {
 	formatterSuffix := fs.String("formatter-suffix", "", "Suffix to append to formatted score (optional)")
 	formatterSuffixSingular := fs.String("formatter-suffix-singular", "", "Singular suffix (optional)")
 	description := fs.String("description", "", "Description for the leaderboard in this locale (optional)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -573,7 +573,7 @@ func GameCenterLeaderboardLocalizationsV2UpdateCommand() *ffcli.Command {
 	formatterSuffix := fs.String("formatter-suffix", "", "Suffix to append to formatted score")
 	formatterSuffixSingular := fs.String("formatter-suffix-singular", "", "Singular suffix")
 	description := fs.String("description", "", "Description for the leaderboard in this locale")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -656,7 +656,7 @@ func GameCenterLeaderboardLocalizationsV2DeleteCommand() *ffcli.Command {
 
 	localizationID := fs.String("id", "", "Game Center leaderboard localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -736,7 +736,7 @@ func GameCenterLeaderboardImagesV2UploadCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "Game Center leaderboard localization ID")
 	filePath := fs.String("file", "", "Path to image file")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -788,7 +788,7 @@ func GameCenterLeaderboardImagesV2GetCommand() *ffcli.Command {
 
 	imageID := fs.String("id", "", "Game Center leaderboard image ID")
 	localizationID := fs.String("localization-id", "", "Game Center leaderboard localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -846,7 +846,7 @@ func GameCenterLeaderboardImagesV2DeleteCommand() *ffcli.Command {
 
 	imageID := fs.String("id", "", "Game Center leaderboard image ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

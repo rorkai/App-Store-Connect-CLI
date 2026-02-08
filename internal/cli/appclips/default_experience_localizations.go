@@ -51,7 +51,7 @@ func AppClipDefaultExperienceLocalizationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -133,7 +133,7 @@ func AppClipDefaultExperienceLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	localizationID := fs.String("localization-id", "", "Localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -178,7 +178,7 @@ func AppClipDefaultExperienceLocalizationsCreateCommand() *ffcli.Command {
 	experienceID := fs.String("experience-id", "", "Default experience ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US)")
 	subtitle := fs.String("subtitle", "", "Subtitle")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -239,7 +239,7 @@ func AppClipDefaultExperienceLocalizationsUpdateCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "Localization ID")
 	subtitle := fs.String("subtitle", "", "Subtitle")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -301,7 +301,7 @@ func AppClipDefaultExperienceLocalizationsDeleteCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "Localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -352,7 +352,7 @@ func AppClipDefaultExperienceLocalizationHeaderImageRelationshipCommand() *ffcli
 	fs := flag.NewFlagSet("header-image-relationship", flag.ExitOnError)
 
 	localizationID := fs.String("localization-id", "", "Localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

@@ -54,7 +54,7 @@ func IAPPriceSchedulesGetCommand() *ffcli.Command {
 	priceFields := fs.String("price-fields", "", "fields[inAppPurchasePrices] (comma-separated)")
 	manualPricesLimit := fs.Int("manual-prices-limit", 0, "limit[manualPrices] when included (1-50)")
 	automaticPricesLimit := fs.Int("automatic-prices-limit", 0, "limit[automaticPrices] when included (1-50)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -174,7 +174,7 @@ func IAPPriceSchedulesBaseTerritoryCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-schedules base-territory", flag.ExitOnError)
 
 	scheduleID := fs.String("schedule-id", "", "Price schedule ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -219,7 +219,7 @@ func IAPPriceSchedulesCreateCommand() *ffcli.Command {
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	baseTerritory := fs.String("base-territory", "", "Base territory ID (e.g., USA)")
 	prices := fs.String("prices", "", "Manual prices: PRICE_POINT_ID[:START_DATE[:END_DATE]] entries")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -283,7 +283,7 @@ func IAPPriceSchedulesManualPricesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -359,7 +359,7 @@ func IAPPriceSchedulesAutomaticPricesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

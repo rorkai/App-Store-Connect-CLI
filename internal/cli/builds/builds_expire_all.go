@@ -31,7 +31,7 @@ func BuildsExpireAllCommand() *ffcli.Command {
 	keepLatest := fs.Int("keep-latest", 0, "Keep the N most recent builds")
 	dryRun := fs.Bool("dry-run", false, "Preview builds that would be expired without expiring")
 	confirm := fs.Bool("confirm", false, "Confirm expiration (required unless --dry-run)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

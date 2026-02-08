@@ -45,7 +45,7 @@ func RoutingCoverageGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("routing-coverage get", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -88,7 +88,7 @@ func RoutingCoverageInfoCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("routing-coverage info", flag.ExitOnError)
 
 	coverageID := fs.String("id", "", "Routing app coverage ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -132,7 +132,7 @@ func RoutingCoverageCreateCommand() *ffcli.Command {
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	filePath := fs.String("file", "", "Path to routing coverage file (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -224,7 +224,7 @@ func RoutingCoverageDeleteCommand() *ffcli.Command {
 
 	coverageID := fs.String("id", "", "Routing app coverage ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

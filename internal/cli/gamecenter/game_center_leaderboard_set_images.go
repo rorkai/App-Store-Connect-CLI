@@ -44,7 +44,7 @@ func GameCenterLeaderboardSetImagesUploadCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "Leaderboard set localization ID")
 	filePath := fs.String("file", "", "Path to image file (PNG)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -96,7 +96,7 @@ func GameCenterLeaderboardSetImagesDeleteCommand() *ffcli.Command {
 
 	imageID := fs.String("id", "", "Leaderboard set image ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

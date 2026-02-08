@@ -50,7 +50,7 @@ func MigrateImportCommand() *ffcli.Command {
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	fastlaneDir := fs.String("fastlane-dir", "", "Path to fastlane directory (required)")
 	dryRun := fs.Bool("dry-run", false, "Preview changes without uploading")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -264,7 +264,7 @@ func MigrateExportCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	outputDir := fs.String("output-dir", "", "Output directory for fastlane structure (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -595,7 +595,7 @@ func MigrateValidateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("migrate validate", flag.ExitOnError)
 
 	fastlaneDir := fs.String("fastlane-dir", "", "Path to fastlane directory (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

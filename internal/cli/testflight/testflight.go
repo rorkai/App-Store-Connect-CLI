@@ -86,7 +86,7 @@ func TestFlightAppsListCommand() *ffcli.Command {
 	bundleID := fs.String("bundle-id", "", "Filter by bundle ID(s), comma-separated")
 	name := fs.String("name", "", "Filter by app name(s), comma-separated")
 	sku := fs.String("sku", "", "Filter by SKU(s), comma-separated")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	sort := fs.String("sort", "", "Sort by name or -name, bundleId or -bundleId")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -174,7 +174,7 @@ func TestFlightAppsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

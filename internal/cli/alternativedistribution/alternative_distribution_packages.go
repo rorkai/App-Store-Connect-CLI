@@ -52,7 +52,7 @@ func AlternativeDistributionPackagesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	packageID := fs.String("package-id", "", "Alternative distribution package ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -95,7 +95,7 @@ func AlternativeDistributionPackagesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
 	appStoreVersionID := fs.String("app-store-version-id", "", "App Store version ID for the package")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -138,7 +138,7 @@ func AlternativeDistributionPackagesAppStoreVersionCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-store-version", flag.ExitOnError)
 
 	appStoreVersionID := fs.String("app-store-version-id", "", "App Store version ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -181,7 +181,7 @@ func AlternativeDistributionPackageVariantsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("variants", flag.ExitOnError)
 
 	variantID := fs.String("variant-id", "", "Alternative distribution package variant ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -224,7 +224,7 @@ func AlternativeDistributionPackageDeltasCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("deltas", flag.ExitOnError)
 
 	deltaID := fs.String("delta-id", "", "Alternative distribution package delta ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

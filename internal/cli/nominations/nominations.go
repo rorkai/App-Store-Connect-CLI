@@ -61,7 +61,7 @@ func NominationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -205,7 +205,7 @@ func NominationsGetCommand() *ffcli.Command {
 	inAppEventsLimit := fs.Int("in-app-events-limit", 0, "Maximum included in-app events (1-50)")
 	relatedAppsLimit := fs.Int("related-apps-limit", 0, "Maximum included related apps (1-50)")
 	supportedTerritoriesLimit := fs.Int("supported-territories-limit", 0, "Maximum included supported territories (1-200)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -313,7 +313,7 @@ func NominationsCreateCommand() *ffcli.Command {
 	preOrderEnabled := fs.Bool("pre-order-enabled", false, "Enable pre-order")
 	inAppEvents := fs.String("in-app-events", "", "In-app event IDs, comma-separated")
 	supportedTerritories := fs.String("supported-territories", "", "Supported territory IDs, comma-separated")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -471,7 +471,7 @@ func NominationsUpdateCommand() *ffcli.Command {
 	appIDs := fs.String("app", "", "Replace related app ID(s), comma-separated")
 	inAppEvents := fs.String("in-app-events", "", "Replace in-app event IDs, comma-separated")
 	supportedTerritories := fs.String("supported-territories", "", "Replace supported territory IDs, comma-separated")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -668,7 +668,7 @@ func NominationsDeleteCommand() *ffcli.Command {
 
 	nominationID := fs.String("id", "", "Nomination ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

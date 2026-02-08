@@ -45,7 +45,7 @@ func AppClipReviewDetailsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	detailID := fs.String("id", "", "Review detail ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -89,7 +89,7 @@ func AppClipReviewDetailsCreateCommand() *ffcli.Command {
 
 	experienceID := fs.String("experience-id", "", "Default experience ID")
 	urls := fs.String("url", "", "Invocation URL(s), comma-separated")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -140,7 +140,7 @@ func AppClipReviewDetailsUpdateCommand() *ffcli.Command {
 
 	detailID := fs.String("id", "", "Review detail ID")
 	urls := fs.String("url", "", "Invocation URL(s), comma-separated")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

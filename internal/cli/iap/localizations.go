@@ -21,7 +21,7 @@ func IAPLocalizationsCreateCommand() *ffcli.Command {
 	name := fs.String("name", "", "Localization name")
 	locale := fs.String("locale", "", "Locale (e.g., en-US)")
 	description := fs.String("description", "", "Description")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -81,7 +81,7 @@ func IAPLocalizationsUpdateCommand() *ffcli.Command {
 	localizationID := fs.String("localization-id", "", "Localization ID")
 	name := fs.String("name", "", "Localization name")
 	description := fs.String("description", "", "Description")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -140,7 +140,7 @@ func IAPLocalizationsDeleteCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "Localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

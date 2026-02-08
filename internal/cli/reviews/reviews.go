@@ -18,7 +18,7 @@ func ReviewsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("reviews", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	stars := fs.Int("stars", 0, "Filter by star rating (1-5)")
 	territory := fs.String("territory", "", "Filter by territory (e.g., US, GBR)")
@@ -81,7 +81,7 @@ func ReviewsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	stars := fs.Int("stars", 0, "Filter by star rating (1-5)")
 	territory := fs.String("territory", "", "Filter by territory (e.g., US, GBR)")

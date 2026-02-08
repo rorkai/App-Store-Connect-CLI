@@ -190,7 +190,7 @@ Examples:
 func FinanceRegionsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("regions", flag.ExitOnError)
 
-	outputFormat := fs.String("output", "json", "Output format: json (default), table, markdown")
+	outputFormat := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

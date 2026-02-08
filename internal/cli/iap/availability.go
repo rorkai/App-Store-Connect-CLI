@@ -41,7 +41,7 @@ func IAPAvailabilityGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability get", flag.ExitOnError)
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -86,7 +86,7 @@ func IAPAvailabilitySetCommand() *ffcli.Command {
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	territories := fs.String("territories", "", "Territory IDs (comma-separated)")
 	availableInNew := fs.Bool("available-in-new-territories", false, "Include new territories automatically")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

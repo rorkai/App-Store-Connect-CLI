@@ -39,7 +39,7 @@ func BetaCrashLogsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("beta-crash-logs get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta crash log ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

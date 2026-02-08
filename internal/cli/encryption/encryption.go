@@ -81,7 +81,7 @@ func EncryptionDeclarationsListCommand() *ffcli.Command {
 	buildLimit := fs.Int("build-limit", 0, "Maximum included builds per declaration (1-50)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -182,7 +182,7 @@ func EncryptionDeclarationsGetCommand() *ffcli.Command {
 	documentFields := fs.String("document-fields", "", "Document fields to include: "+strings.Join(encryptionDocumentFieldList(), ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(encryptionDeclarationIncludeList(), ", "))
 	buildLimit := fs.Int("build-limit", 0, "Maximum included builds (1-50)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -251,7 +251,7 @@ func EncryptionDeclarationsCreateCommand() *ffcli.Command {
 	containsProprietary := fs.Bool("contains-proprietary-cryptography", false, "App contains proprietary cryptography (required)")
 	containsThirdParty := fs.Bool("contains-third-party-cryptography", false, "App contains third-party cryptography (required)")
 	availableOnFrenchStore := fs.Bool("available-on-french-store", false, "App is available on the French store (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -325,7 +325,7 @@ func EncryptionDeclarationsAssignBuildsCommand() *ffcli.Command {
 
 	declarationID := fs.String("id", "", "Encryption declaration ID (required)")
 	builds := fs.String("build", "", "Build IDs to assign (comma-separated)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -404,7 +404,7 @@ func EncryptionDocumentsGetCommand() *ffcli.Command {
 
 	documentID := fs.String("id", "", "Document ID (required)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(encryptionDocumentFieldList(), ", "))
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -453,7 +453,7 @@ func EncryptionDocumentsUploadCommand() *ffcli.Command {
 
 	declarationID := fs.String("declaration", "", "Encryption declaration ID (required)")
 	filePath := fs.String("file", "", "Path to document file (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

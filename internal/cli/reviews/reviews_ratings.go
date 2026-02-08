@@ -22,7 +22,7 @@ func ReviewsRatingsCommand() *ffcli.Command {
 	country := fs.String("country", "us", "Country code (e.g., us, gb, de)")
 	all := fs.Bool("all", false, "Fetch ratings from all countries")
 	workers := fs.Int("workers", 10, "Number of parallel workers for --all")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

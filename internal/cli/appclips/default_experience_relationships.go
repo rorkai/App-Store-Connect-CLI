@@ -41,7 +41,7 @@ func AppClipDefaultExperienceReviewDetailRelationshipCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-store-review-detail", flag.ExitOnError)
 
 	experienceID := fs.String("experience-id", "", "Default experience ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -84,7 +84,7 @@ func AppClipDefaultExperienceReleaseWithAppStoreVersionRelationshipCommand() *ff
 	fs := flag.NewFlagSet("release-with-app-store-version", flag.ExitOnError)
 
 	experienceID := fs.String("experience-id", "", "Default experience ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

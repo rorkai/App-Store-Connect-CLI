@@ -40,7 +40,7 @@ func IAPContentGetCommand() *ffcli.Command {
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	contentID := fs.String("content-id", "", "In-app purchase content ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

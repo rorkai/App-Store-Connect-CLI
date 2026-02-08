@@ -54,7 +54,7 @@ func GameCenterLeaderboardLocalizationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -128,7 +128,7 @@ func GameCenterLeaderboardLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center leaderboard localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -177,7 +177,7 @@ func GameCenterLeaderboardLocalizationsCreateCommand() *ffcli.Command {
 	formatterSuffix := fs.String("formatter-suffix", "", "Suffix to append to formatted score (optional)")
 	formatterSuffixSingular := fs.String("formatter-suffix-singular", "", "Singular suffix (optional)")
 	description := fs.String("description", "", "Description for the leaderboard in this locale (optional)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -267,7 +267,7 @@ func GameCenterLeaderboardLocalizationsUpdateCommand() *ffcli.Command {
 	formatterSuffix := fs.String("formatter-suffix", "", "Suffix to append to formatted score")
 	formatterSuffixSingular := fs.String("formatter-suffix-singular", "", "Singular suffix")
 	description := fs.String("description", "", "Description for the leaderboard in this locale")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -350,7 +350,7 @@ func GameCenterLeaderboardLocalizationsDeleteCommand() *ffcli.Command {
 
 	localizationID := fs.String("id", "", "Game Center leaderboard localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -424,7 +424,7 @@ func GameCenterLeaderboardLocalizationImageGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center leaderboard localization ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

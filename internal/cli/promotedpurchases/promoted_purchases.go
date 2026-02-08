@@ -54,7 +54,7 @@ func PromotedPurchasesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -129,7 +129,7 @@ func PromotedPurchasesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	id := fs.String("promoted-purchase-id", "", "Promoted purchase ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -178,7 +178,7 @@ func PromotedPurchasesCreateCommand() *ffcli.Command {
 	fs.Var(&visibleForAllUsers, "visible-for-all-users", "Visible for all users: true or false")
 	var enabled shared.OptionalBool
 	fs.Var(&enabled, "enabled", "Enable or disable the promoted purchase")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -283,7 +283,7 @@ func PromotedPurchasesUpdateCommand() *ffcli.Command {
 	fs.Var(&visibleForAllUsers, "visible-for-all-users", "Visible for all users: true or false")
 	var enabled shared.OptionalBool
 	fs.Var(&enabled, "enabled", "Enable or disable the promoted purchase")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -342,7 +342,7 @@ func PromotedPurchasesDeleteCommand() *ffcli.Command {
 
 	id := fs.String("promoted-purchase-id", "", "Promoted purchase ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -397,7 +397,7 @@ func PromotedPurchasesLinkCommand() *ffcli.Command {
 	promotedIDs := fs.String("promoted-purchase-id", "", "Comma-separated promoted purchase IDs")
 	clear := fs.Bool("clear", false, "Remove all promoted purchases from the app")
 	confirm := fs.Bool("confirm", false, "Confirm removal when using --clear")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

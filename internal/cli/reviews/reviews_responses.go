@@ -19,7 +19,7 @@ func ReviewsRespondCommand() *ffcli.Command {
 
 	reviewID := fs.String("review-id", "", "Customer review ID (required)")
 	response := fs.String("response", "", "Response body text (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -96,7 +96,7 @@ func ReviewsResponseGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	responseID := fs.String("id", "", "Customer review response ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -140,7 +140,7 @@ func ReviewsResponseDeleteCommand() *ffcli.Command {
 
 	responseID := fs.String("id", "", "Customer review response ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -192,7 +192,7 @@ func ReviewsResponseForReviewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("for-review", flag.ExitOnError)
 
 	reviewID := fs.String("review-id", "", "Customer review ID (required)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

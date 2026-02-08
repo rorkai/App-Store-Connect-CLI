@@ -48,7 +48,7 @@ func BundleIDsCapabilitiesListCommand() *ffcli.Command {
 	bundleID := fs.String("bundle", "", "Bundle ID")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -117,7 +117,7 @@ func BundleIDsCapabilitiesAddCommand() *ffcli.Command {
 	bundleID := fs.String("bundle", "", "Bundle ID")
 	capability := fs.String("capability", "", "Capability type (e.g., ICLOUD, IN_APP_PURCHASE)")
 	settings := fs.String("settings", "", "Capability settings as JSON array (optional)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -176,7 +176,7 @@ func BundleIDsCapabilitiesRemoveCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Capability ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

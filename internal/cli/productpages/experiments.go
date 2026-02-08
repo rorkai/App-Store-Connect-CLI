@@ -55,7 +55,7 @@ func ExperimentsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
@@ -184,7 +184,7 @@ func ExperimentsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiments get", flag.ExitOnError)
 
 	experimentID := fs.String("experiment-id", "", "Experiment ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
@@ -241,7 +241,7 @@ func ExperimentsCreateCommand() *ffcli.Command {
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (v2 experiments)")
 	name := fs.String("name", "", "Experiment name")
 	trafficProportion := fs.String("traffic-proportion", "", "Traffic proportion (integer)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
@@ -331,7 +331,7 @@ func ExperimentsUpdateCommand() *ffcli.Command {
 	trafficProportion := fs.String("traffic-proportion", "", "Update traffic proportion (integer)")
 	var started shared.OptionalBool
 	fs.Var(&started, "started", "Start or stop the experiment: true or false")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
@@ -428,7 +428,7 @@ func ExperimentsDeleteCommand() *ffcli.Command {
 
 	experimentID := fs.String("experiment-id", "", "Experiment ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 

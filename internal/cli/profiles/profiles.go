@@ -59,7 +59,7 @@ func ProfilesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -133,7 +133,7 @@ func ProfilesGetCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Profile ID")
 	include := fs.String("include", "", "Include related resources: bundleId, certificates, devices")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -191,7 +191,7 @@ func ProfilesCreateCommand() *ffcli.Command {
 	bundleID := fs.String("bundle", "", "Bundle ID")
 	certificates := fs.String("certificate", "", "Certificate ID(s), comma-separated")
 	devices := fs.String("device", "", "Device ID(s), comma-separated (optional)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -256,7 +256,7 @@ func ProfilesDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Profile ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{

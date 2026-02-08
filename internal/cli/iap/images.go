@@ -52,7 +52,7 @@ func IAPImagesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -125,7 +125,7 @@ func IAPImagesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("images get", flag.ExitOnError)
 
 	imageID := fs.String("image-id", "", "Image ID")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -169,7 +169,7 @@ func IAPImagesCreateCommand() *ffcli.Command {
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	filePath := fs.String("file", "", "Path to image file")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -249,7 +249,7 @@ func IAPImagesUpdateCommand() *ffcli.Command {
 
 	imageID := fs.String("image-id", "", "Image ID")
 	filePath := fs.String("file", "", "Path to image file")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
@@ -353,7 +353,7 @@ func IAPImagesDeleteCommand() *ffcli.Command {
 
 	imageID := fs.String("image-id", "", "Image ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", "json", "Output format: json (default), table, markdown")
+	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
