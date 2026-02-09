@@ -27,6 +27,9 @@ func ValidateReportFlags() error {
 	if reportFormat != "" && reportFormat != ReportFormatJUnit {
 		return fmt.Errorf("--report must be %q if specified, got %q", ReportFormatJUnit, reportFormat)
 	}
+	if reportFormat != "" && reportFile == "" {
+		return fmt.Errorf("--report-file is required when --report is specified")
+	}
 	return nil
 }
 

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -100,10 +101,34 @@ func Run(args []string, versionInfo string) int {
 	return ExitSuccess
 }
 
-// getCommandName extracts the command name from the root command.
+// getCommandName extracts the full subcommand path from a parsed command tree.
+// After Parse, each command's FlagSet.Args() starts with the next subcommand name,
+// so we walk the tree to reconstruct the path (e.g. "builds list").
 func getCommandName(cmd *ffcli.Command) string {
-	name := cmd.Name
-	return name
+	var parts []string
+	current := cmd
+	for {
+		remaining := current.FlagSet.Args()
+		if len(remaining) == 0 {
+			break
+		}
+		found := false
+		for _, sub := range current.Subcommands {
+			if strings.EqualFold(remaining[0], sub.Name) {
+				parts = append(parts, sub.Name)
+				current = sub
+				found = true
+				break
+			}
+		}
+		if !found {
+			break
+		}
+	}
+	if len(parts) == 0 {
+		return cmd.Name
+	}
+	return strings.Join(parts, " ")
 }
 
 // writeJUnitReport writes a JUnit XML report if --report junit --report-file is configured.
