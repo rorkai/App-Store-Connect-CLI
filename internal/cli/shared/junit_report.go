@@ -3,7 +3,6 @@ package shared
 import (
 	"encoding/xml"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"time"
@@ -41,21 +40,6 @@ func (r *JUnitReport) Write(path string) error {
 	err = os.WriteFile(path, data, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to write report file: %w", err)
-	}
-
-	return nil
-}
-
-// WriteTo writes the JUnit report to the specified writer.
-func (r *JUnitReport) WriteTo(w io.Writer) error {
-	data, err := r.MarshalXML()
-	if err != nil {
-		return fmt.Errorf("failed to marshal JUnit report: %w", err)
-	}
-
-	_, err = w.Write(data)
-	if err != nil {
-		return fmt.Errorf("failed to write report: %w", err)
 	}
 
 	return nil
@@ -122,28 +106,28 @@ type failureXML struct {
 }
 
 func (tc JUnitTestCase) toXML() testCaseXML {
-	xml := testCaseXML{
-		Name:      xmlEscape(tc.Name),
-		Classname: xmlEscape(tc.Classname),
+	x := testCaseXML{
+		Name:      tc.Name,
+		Classname: tc.Classname,
 		Time:      formatDuration(tc.Time),
 	}
 
 	if tc.Failure != "" {
-		xml.Failure = &failureXML{
-			Message: xmlEscape(tc.Message),
-			Type:    xmlEscape(tc.Failure),
+		x.Failure = &failureXML{
+			Message: tc.Message,
+			Type:    tc.Failure,
 		}
 	}
 
 	if tc.SystemOut != "" {
-		xml.SystemOut = xmlEscape(tc.SystemOut)
+		x.SystemOut = tc.SystemOut
 	}
 
 	if tc.SystemErr != "" {
-		xml.SystemErr = xmlEscape(tc.SystemErr)
+		x.SystemErr = tc.SystemErr
 	}
 
-	return xml
+	return x
 }
 
 // testsuiteXML is the internal XML structure for the test suite.
@@ -156,33 +140,6 @@ type testsuiteXML struct {
 	Time      string        `xml:"time,attr"`
 	Timestamp string        `xml:"timestamp,attr,omitempty"`
 	TestCases []testCaseXML `xml:"testcase"`
-}
-
-func xmlEscape(s string) string {
-	if s == "" {
-		return s
-	}
-
-	var sb strings.Builder
-	for _, r := range s {
-		switch r {
-		case '<':
-			sb.WriteString("&lt;")
-		case '>':
-			sb.WriteString("&gt;")
-		case '&':
-			sb.WriteString("&amp;")
-		case '\'':
-			sb.WriteString("&apos;")
-		case '"':
-			sb.WriteString("&quot;")
-		case '\r':
-			sb.WriteString("&#13;")
-		default:
-			sb.WriteRune(r)
-		}
-	}
-	return sb.String()
 }
 
 func formatDuration(d time.Duration) string {

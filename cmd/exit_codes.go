@@ -21,10 +21,10 @@ const (
 	// HTTP 4xx range: 10 + (status - 400)
 	ExitHTTPBadRequest    = 10 // 400
 	ExitHTTPUnauthorized  = 11 // 401
-	ExitHTTPForbidden     = 12 // 403
+	ExitHTTPForbidden     = 13 // 403
 	ExitHTTPNotFound      = 14 // 404
 	ExitHTTPConflict      = 19 // 409
-	ExitHTTPUnprocessable = 22 // 422
+	ExitHTTPUnprocessable = 32 // 422
 
 	// HTTP 5xx range: 60 + (status - 500)
 	ExitHTTPInternalServer     = 60 // 500
