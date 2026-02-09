@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -13,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	authsvc "github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
@@ -654,21 +656,25 @@ func captureAuthOutput(t *testing.T, fn func()) (string, string) {
 	os.Stdout = stdoutW
 	os.Stderr = stderrW
 
+	var stdoutBuf, stderrBuf bytes.Buffer
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		_, _ = io.Copy(&stdoutBuf, stdoutR)
+		wg.Done()
+	}()
+	go func() {
+		_, _ = io.Copy(&stderrBuf, stderrR)
+		wg.Done()
+	}()
+
 	fn()
 
 	_ = stdoutW.Close()
 	_ = stderrW.Close()
+	wg.Wait()
 	os.Stdout = oldStdout
 	os.Stderr = oldStderr
 
-	stdoutData, err := io.ReadAll(stdoutR)
-	if err != nil {
-		t.Fatalf("ReadAll(stdout) error: %v", err)
-	}
-	stderrData, err := io.ReadAll(stderrR)
-	if err != nil {
-		t.Fatalf("ReadAll(stderr) error: %v", err)
-	}
-
-	return string(stdoutData), string(stderrData)
+	return stdoutBuf.String(), stderrBuf.String()
 }

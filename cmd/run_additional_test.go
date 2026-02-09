@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -194,21 +196,25 @@ func captureCommandOutput(t *testing.T, fn func()) (string, string) {
 	os.Stdout = stdoutW
 	os.Stderr = stderrW
 
+	var stdoutBuf, stderrBuf bytes.Buffer
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		_, _ = io.Copy(&stdoutBuf, stdoutR)
+		wg.Done()
+	}()
+	go func() {
+		_, _ = io.Copy(&stderrBuf, stderrR)
+		wg.Done()
+	}()
+
 	fn()
 
 	_ = stdoutW.Close()
 	_ = stderrW.Close()
+	wg.Wait()
 	os.Stdout = oldStdout
 	os.Stderr = oldStderr
 
-	stdoutBytes, err := io.ReadAll(stdoutR)
-	if err != nil {
-		t.Fatalf("ReadAll(stdout) error: %v", err)
-	}
-	stderrBytes, err := io.ReadAll(stderrR)
-	if err != nil {
-		t.Fatalf("ReadAll(stderr) error: %v", err)
-	}
-
-	return string(stdoutBytes), string(stderrBytes)
+	return stdoutBuf.String(), stderrBuf.String()
 }
