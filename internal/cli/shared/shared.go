@@ -80,6 +80,7 @@ func BindRootFlags(fs *flag.FlagSet) {
 	fs.Var(&debug, "debug", "Enable debug logging to stderr")
 	fs.Var(&apiDebug, "api-debug", "Enable HTTP debug logging to stderr (redacts sensitive values)")
 	fs.BoolVar(&noUpdate, "no-update", false, "Skip update checks and auto-update")
+	BindCIFlags(fs)
 }
 
 // SelectedProfile returns the current profile override.

@@ -149,7 +149,7 @@ func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader
 			}
 		}
 
-		if err := ParseError(respBody); err != nil {
+		if err := ParseErrorWithStatus(respBody, resp.StatusCode); err != nil {
 			return nil, err
 		}
 		return nil, fmt.Errorf("API request failed with status %d", resp.StatusCode)
@@ -217,7 +217,7 @@ func buildRetryableError(statusCode int, retryAfter time.Duration, respBody []by
 
 	message := fmt.Sprintf("%s (status %d)", base, statusCode)
 	if len(respBody) > 0 {
-		if err := ParseError(respBody); err != nil {
+		if err := ParseErrorWithStatus(respBody, statusCode); err != nil {
 			message = fmt.Sprintf("%s: %s", message, err)
 		}
 	}
@@ -441,7 +441,7 @@ func (c *Client) doStream(ctx context.Context, method, path string, body io.Read
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		if err := ParseError(respBody); err != nil {
+		if err := ParseErrorWithStatus(respBody, resp.StatusCode); err != nil {
 			return nil, err
 		}
 		return nil, fmt.Errorf("API request failed with status %d", resp.StatusCode)
@@ -465,7 +465,7 @@ func (c *Client) doStreamNoAuth(ctx context.Context, method, rawURL, accept stri
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		if err := ParseError(respBody); err != nil {
+		if err := ParseErrorWithStatus(respBody, resp.StatusCode); err != nil {
 			return nil, err
 		}
 		return nil, fmt.Errorf("API request failed with status %d", resp.StatusCode)
@@ -483,8 +483,13 @@ func BuildRequestBody(data interface{}) (io.Reader, error) {
 	return &buf, nil
 }
 
-// ParseError parses an error response
+// ParseError parses an error response (status code unknown)
 func ParseError(body []byte) error {
+	return ParseErrorWithStatus(body, 0)
+}
+
+// ParseErrorWithStatus parses an error response and includes the HTTP status code
+func ParseErrorWithStatus(body []byte, statusCode int) error {
 	var errResp struct {
 		Errors []struct {
 			Code   string `json:"code"`
@@ -495,9 +500,10 @@ func ParseError(body []byte) error {
 
 	if err := json.Unmarshal(body, &errResp); err == nil && len(errResp.Errors) > 0 {
 		return &APIError{
-			Code:   errResp.Errors[0].Code,
-			Title:  errResp.Errors[0].Title,
-			Detail: errResp.Errors[0].Detail,
+			Code:       errResp.Errors[0].Code,
+			Title:      errResp.Errors[0].Title,
+			Detail:     errResp.Errors[0].Detail,
+			StatusCode: statusCode,
 		}
 	}
 

@@ -19,8 +19,8 @@ func TestRunPrintsHintForMissingAuth(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{"testflight", "apps", "list"}, "1.2.3")
-		if code != 1 {
-			t.Fatalf("expected exit code 1, got %d", code)
+		if code != cmd.ExitAuth {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitAuth, code)
 		}
 	})
 

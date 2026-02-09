@@ -11,14 +11,16 @@ var (
 	ErrUnauthorized          = errors.New("unauthorized")
 	ErrForbidden             = errors.New("forbidden")
 	ErrBadRequest            = errors.New("bad request")
+	ErrConflict              = errors.New("resource conflict")
 	ErrRepeatedPaginationURL = errors.New("detected repeated pagination URL")
 )
 
 // APIError represents a parsed App Store Connect error response.
 type APIError struct {
-	Code   string
-	Title  string
-	Detail string
+	Code       string
+	Title      string
+	Detail     string
+	StatusCode int // HTTP status code that triggered this error (0 if unknown)
 }
 
 func (e *APIError) Error() string {
@@ -49,6 +51,8 @@ func (e *APIError) Is(target error) bool {
 		return strings.EqualFold(e.Code, "FORBIDDEN")
 	case ErrBadRequest:
 		return strings.EqualFold(e.Code, "BAD_REQUEST")
+	case ErrConflict:
+		return strings.EqualFold(e.Code, "CONFLICT")
 	default:
 		return false
 	}

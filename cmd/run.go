@@ -21,21 +21,21 @@ func Run(args []string, versionInfo string) int {
 
 	if err := root.Parse(args); err != nil {
 		if err == flag.ErrHelp {
-			return 0
+			return ExitSuccess
 		}
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-		return 1
+		return ExitCodeFromError(err)
 	}
 
 	if versionRequested {
 		if err := root.Run(context.Background()); err != nil {
 			if errors.Is(err, flag.ErrHelp) {
-				return 1
+				return ExitUsage
 			}
 			fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-			return 1
+			return ExitCodeFromError(err)
 		}
-		return 0
+		return ExitSuccess
 	}
 
 	updateResult, err := update.CheckAndUpdate(context.Background(), update.Options{
@@ -58,17 +58,64 @@ func Run(args []string, versionInfo string) int {
 		}
 	}
 
-	if err := root.Run(context.Background()); err != nil {
-		var reported ReportedError
-		if errors.As(err, &reported) {
-			return 1
-		}
-		if errors.Is(err, flag.ErrHelp) {
-			return 1
-		}
-		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-		return 1
+	start := time.Now()
+	runErr := root.Run(context.Background())
+	elapsed := time.Since(start)
+	commandName := root.Name
+	if commandName == "" {
+		commandName = "asc"
 	}
 
-	return 0
+	// Write JUnit report if requested
+	if reportErr := writeJUnitReport(commandName, runErr, elapsed); reportErr != nil {
+		// If command succeeded but report failed, warn but don't change exit
+		if runErr == nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to write JUnit report: %v\n", reportErr)
+		}
+	}
+
+	if runErr != nil {
+		var reported ReportedError
+		if errors.As(runErr, &reported) {
+			return ExitCodeFromError(runErr)
+		}
+		if errors.Is(runErr, flag.ErrHelp) {
+			return ExitUsage
+		}
+		fmt.Fprint(os.Stderr, errfmt.FormatStderr(runErr))
+		return ExitCodeFromError(runErr)
+	}
+
+	return ExitSuccess
+}
+
+// writeJUnitReport writes a JUnit XML report if --report junit --report-file is configured.
+func writeJUnitReport(commandName string, runErr error, elapsed time.Duration) error {
+	if shared.ReportFormat() != shared.ReportFormatJUnit {
+		return nil
+	}
+
+	reportFile := shared.ReportFile()
+	if reportFile == "" {
+		return nil
+	}
+
+	testCase := shared.JUnitTestCase{
+		Name:      commandName,
+		Classname: "asc",
+		Time:      elapsed,
+	}
+
+	if runErr != nil {
+		testCase.Failure = "ERROR"
+		testCase.Message = runErr.Error()
+	}
+
+	report := shared.JUnitReport{
+		Tests:     []shared.JUnitTestCase{testCase},
+		Timestamp: time.Now(),
+		Name:      "asc",
+	}
+
+	return report.Write(reportFile)
 }

@@ -198,7 +198,7 @@ func (c *Client) doNotary(ctx context.Context, method, path string, body io.Read
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
-		if err := ParseError(respBody); err != nil {
+		if err := ParseErrorWithStatus(respBody, resp.StatusCode); err != nil {
 			return nil, err
 		}
 		return nil, fmt.Errorf("notary API request failed with status %d", resp.StatusCode)
