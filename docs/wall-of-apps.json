@@ -16,5 +16,11 @@
     "link": "https://doublememory.com",
     "creator": "Shaomeng Zhang",
     "platform": ["iOS"]
+  },
+  {
+    "app": "kora: Music Reviews & Ratings",
+    "link": "https://apps.apple.com/app/id6502549140",
+    "creator": "adamjhf",
+    "platform": ["iOS"]
   }
 ]
