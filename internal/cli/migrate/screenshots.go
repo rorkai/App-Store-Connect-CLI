@@ -162,8 +162,8 @@ func readImageDimensions(path string) (int, int, error) {
 func inferDisplayTypeFromFilename(path string) string {
 	name := strings.ToLower(filepath.Base(path))
 	replacements := map[string]string{
-		"iphone 6.9":      "APP_IPHONE_69",
-		"iphone6.9":       "APP_IPHONE_69",
+		"iphone 6.9":      "APP_IPHONE_67",
+		"iphone6.9":       "APP_IPHONE_67",
 		"iphone 6.7":      "APP_IPHONE_67",
 		"iphone6.7":       "APP_IPHONE_67",
 		"iphone 6.5":      "APP_IPHONE_65",
@@ -222,7 +222,7 @@ func inferDisplayTypeFromDimensions(width, height int) string {
 	case maxDim == 2796 && minDim == 1290:
 		return "APP_IPHONE_67"
 	case maxDim == 2868 && minDim == 1320:
-		return "APP_IPHONE_69"
+		return "APP_IPHONE_67"
 	case maxDim == 2532 && minDim == 1170:
 		return "APP_IPHONE_61"
 	case maxDim == 2436 && minDim == 1125:
