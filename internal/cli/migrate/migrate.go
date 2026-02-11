@@ -246,7 +246,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			screenshotResults, err := uploadScreenshots(ctx, client, resolvedVersionID, localeToID, screenshotPlan)
+			screenshotResults, err := uploadScreenshots(requestCtx, client, resolvedVersionID, localeToID, screenshotPlan)
 			if err != nil {
 				return err
 			}

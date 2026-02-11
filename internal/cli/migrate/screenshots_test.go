@@ -37,6 +37,52 @@ func TestInferScreenshotDisplayType_FromDimensionsOnly(t *testing.T) {
 	}
 }
 
+func TestInferScreenshotDisplayType_IgnoresPathSegments(t *testing.T) {
+	dir := t.TempDir()
+	nestedDir := filepath.Join(dir, "desktop")
+	if err := os.MkdirAll(nestedDir, 0o755); err != nil {
+		t.Fatalf("mkdir nested dir: %v", err)
+	}
+	path := filepath.Join(nestedDir, "screen.png")
+	writePNG(t, path, 1242, 2688)
+
+	displayType, err := inferScreenshotDisplayType(path)
+	if err != nil {
+		t.Fatalf("inferScreenshotDisplayType() error: %v", err)
+	}
+	if displayType != "APP_IPHONE_65" {
+		t.Fatalf("expected APP_IPHONE_65, got %q", displayType)
+	}
+}
+
+func TestInferScreenshotDisplayType_ProMaxDimensions(t *testing.T) {
+	tests := []struct {
+		name   string
+		width  int
+		height int
+		want   string
+	}{
+		{name: "iphone_67", width: 1290, height: 2796, want: "APP_IPHONE_67"},
+		{name: "iphone_69", width: 1320, height: 2868, want: "APP_IPHONE_69"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "screen.png")
+			writePNG(t, path, test.width, test.height)
+
+			displayType, err := inferScreenshotDisplayType(path)
+			if err != nil {
+				t.Fatalf("inferScreenshotDisplayType() error: %v", err)
+			}
+			if displayType != test.want {
+				t.Fatalf("expected %s, got %q", test.want, displayType)
+			}
+		})
+	}
+}
+
 func TestInferScreenshotDisplayType_UnknownSize(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "screen.png")
