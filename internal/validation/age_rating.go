@@ -126,7 +126,7 @@ func invalidAgeRatingField(field string, value string) CheckResult {
 		ID:          "age_rating.invalid_value",
 		Severity:    SeverityError,
 		Field:       field,
-		Message:     "age rating field has an invalid value",
+		Message:     "age rating field has an invalid value: " + strings.TrimSpace(value),
 		Remediation: "Use a supported value for the age rating field",
 	}
 }
