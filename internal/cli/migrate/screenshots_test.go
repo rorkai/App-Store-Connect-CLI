@@ -23,6 +23,20 @@ func TestInferScreenshotDisplayType_FromFilenameAndDimensions(t *testing.T) {
 	}
 }
 
+func TestInferScreenshotDisplayType_FromFilenameHintNoSpace(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "iphone6.9_hero.png")
+	writePNG(t, path, 1290, 2796)
+
+	displayType, err := inferScreenshotDisplayType(path)
+	if err != nil {
+		t.Fatalf("inferScreenshotDisplayType() error: %v", err)
+	}
+	if displayType != "APP_IPHONE_69" {
+		t.Fatalf("expected APP_IPHONE_69, got %q", displayType)
+	}
+}
+
 func TestInferScreenshotDisplayType_FromDimensionsOnly(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "screen.png")

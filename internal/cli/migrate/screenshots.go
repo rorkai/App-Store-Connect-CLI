@@ -163,7 +163,7 @@ func inferDisplayTypeFromFilename(path string) string {
 	name := strings.ToLower(filepath.Base(path))
 	replacements := map[string]string{
 		"iphone 6.9":      "APP_IPHONE_69",
-		"iphone6.9":       "APP_IPHONE_67",
+		"iphone6.9":       "APP_IPHONE_69",
 		"iphone 6.7":      "APP_IPHONE_67",
 		"iphone6.7":       "APP_IPHONE_67",
 		"iphone 6.5":      "APP_IPHONE_65",
