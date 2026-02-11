@@ -94,6 +94,64 @@ func TestMigrateImportDryRunPlan(t *testing.T) {
 	}
 }
 
+func TestMigrateImportDryRunSupportsIPhone69AliasAsAppIPhone67(t *testing.T) {
+	root := t.TempDir()
+	metadataDir := filepath.Join(root, "metadata", "en-US")
+	if err := os.MkdirAll(metadataDir, 0o755); err != nil {
+		t.Fatalf("mkdir metadata: %v", err)
+	}
+	writeFile(t, filepath.Join(metadataDir, "description.txt"), "English description")
+
+	screenshotsDir := filepath.Join(root, "screenshots", "en-US")
+	if err := os.MkdirAll(screenshotsDir, 0o755); err != nil {
+		t.Fatalf("mkdir screenshots: %v", err)
+	}
+	writePNG(t, filepath.Join(screenshotsDir, "iphone_69_screen.png"), 1320, 2868)
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(cwd)
+	})
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	rootCmd := RootCommand("1.2.3")
+	rootCmd.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := rootCmd.Parse([]string{
+			"migrate", "import",
+			"--app", "APP_ID",
+			"--version-id", "VERSION_ID",
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := rootCmd.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result migrate.MigrateImportResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if len(result.ScreenshotPlan) != 1 {
+		t.Fatalf("expected 1 screenshot plan, got %d", len(result.ScreenshotPlan))
+	}
+	if result.ScreenshotPlan[0].DisplayType != "APP_IPHONE_69" {
+		t.Fatalf("expected APP_IPHONE_69, got %q", result.ScreenshotPlan[0].DisplayType)
+	}
+}
+
 func TestMigrateImportUploadsAndSkipsExistingScreenshots(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

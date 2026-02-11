@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -792,46 +793,50 @@ Examples:
 func validateVersionLocalization(loc FastlaneLocalization) []ValidationIssue {
 	var issues []ValidationIssue
 
-	if len(loc.Description) > limitDescription {
+	descriptionLength := utf8.RuneCountInString(loc.Description)
+	if descriptionLength > limitDescription {
 		issues = append(issues, ValidationIssue{
 			Locale:   loc.Locale,
 			Field:    "description",
 			Severity: "error",
 			Message:  fmt.Sprintf("exceeds %d character limit", limitDescription),
-			Length:   len(loc.Description),
+			Length:   descriptionLength,
 			Limit:    limitDescription,
 		})
 	}
 
-	if len(loc.Keywords) > limitKeywords {
+	keywordsLength := utf8.RuneCountInString(loc.Keywords)
+	if keywordsLength > limitKeywords {
 		issues = append(issues, ValidationIssue{
 			Locale:   loc.Locale,
 			Field:    "keywords",
 			Severity: "error",
 			Message:  fmt.Sprintf("exceeds %d character limit", limitKeywords),
-			Length:   len(loc.Keywords),
+			Length:   keywordsLength,
 			Limit:    limitKeywords,
 		})
 	}
 
-	if len(loc.WhatsNew) > limitWhatsNew {
+	whatsNewLength := utf8.RuneCountInString(loc.WhatsNew)
+	if whatsNewLength > limitWhatsNew {
 		issues = append(issues, ValidationIssue{
 			Locale:   loc.Locale,
 			Field:    "whatsNew",
 			Severity: "error",
 			Message:  fmt.Sprintf("exceeds %d character limit", limitWhatsNew),
-			Length:   len(loc.WhatsNew),
+			Length:   whatsNewLength,
 			Limit:    limitWhatsNew,
 		})
 	}
 
-	if len(loc.PromotionalText) > limitPromotionalText {
+	promotionalTextLength := utf8.RuneCountInString(loc.PromotionalText)
+	if promotionalTextLength > limitPromotionalText {
 		issues = append(issues, ValidationIssue{
 			Locale:   loc.Locale,
 			Field:    "promotionalText",
 			Severity: "error",
 			Message:  fmt.Sprintf("exceeds %d character limit", limitPromotionalText),
-			Length:   len(loc.PromotionalText),
+			Length:   promotionalTextLength,
 			Limit:    limitPromotionalText,
 		})
 	}
@@ -916,24 +921,26 @@ func appInfoAttrString(attrs asc.AppInfoAttributes, key string) string {
 func validateAppInfoLocalization(loc AppInfoFastlaneLocalization) []ValidationIssue {
 	var issues []ValidationIssue
 
-	if len(loc.Name) > limitName {
+	nameLength := utf8.RuneCountInString(loc.Name)
+	if nameLength > limitName {
 		issues = append(issues, ValidationIssue{
 			Locale:   loc.Locale,
 			Field:    "name",
 			Severity: "error",
 			Message:  fmt.Sprintf("exceeds %d character limit", limitName),
-			Length:   len(loc.Name),
+			Length:   nameLength,
 			Limit:    limitName,
 		})
 	}
 
-	if len(loc.Subtitle) > limitSubtitle {
+	subtitleLength := utf8.RuneCountInString(loc.Subtitle)
+	if subtitleLength > limitSubtitle {
 		issues = append(issues, ValidationIssue{
 			Locale:   loc.Locale,
 			Field:    "subtitle",
 			Severity: "error",
 			Message:  fmt.Sprintf("exceeds %d character limit", limitSubtitle),
-			Length:   len(loc.Subtitle),
+			Length:   subtitleLength,
 			Limit:    limitSubtitle,
 		})
 	}

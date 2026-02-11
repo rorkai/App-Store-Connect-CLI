@@ -3,6 +3,7 @@ package migrate
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -502,5 +503,34 @@ func TestValidateAppInfoLocalization_SubtitleTooLong(t *testing.T) {
 	}
 	if !foundError {
 		t.Error("expected error for subtitle exceeding limit")
+	}
+}
+
+func TestValidateVersionLocalization_UsesRuneCount(t *testing.T) {
+	loc := FastlaneLocalization{
+		Locale:      "en-US",
+		Description: strings.Repeat("😀", 2000), // 2000 runes, exceeds byte limit but not rune limit
+	}
+
+	issues := validateVersionLocalization(loc)
+	for _, issue := range issues {
+		if issue.Field == "description" && issue.Severity == "error" {
+			t.Fatalf("expected no description length error for 2000 runes, got %+v", issue)
+		}
+	}
+}
+
+func TestValidateAppInfoLocalization_UsesRuneCount(t *testing.T) {
+	loc := AppInfoFastlaneLocalization{
+		Locale:   "en-US",
+		Name:     strings.Repeat("😀", 30),
+		Subtitle: strings.Repeat("😀", 30),
+	}
+
+	issues := validateAppInfoLocalization(loc)
+	for _, issue := range issues {
+		if issue.Severity == "error" {
+			t.Fatalf("expected no rune-count errors at exact limits, got %+v", issue)
+		}
 	}
 }

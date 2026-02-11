@@ -64,6 +64,7 @@ func TestInferScreenshotDisplayType_ProMaxDimensions(t *testing.T) {
 	}{
 		{name: "iphone_67", width: 1290, height: 2796, want: "APP_IPHONE_67"},
 		{name: "iphone_69", width: 1320, height: 2868, want: "APP_IPHONE_69"},
+		{name: "1260x2736", width: 1260, height: 2736, want: "APP_IPHONE_69"},
 	}
 
 	for _, test := range tests {
