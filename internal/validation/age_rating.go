@@ -6,8 +6,6 @@ var ageRatingLevelValues = map[string]struct{}{
 	"NONE":                {},
 	"INFREQUENT_OR_MILD":  {},
 	"FREQUENT_OR_INTENSE": {},
-	"INFREQUENT":          {},
-	"FREQUENT":            {},
 }
 
 var ageRatingOverrideValues = map[string]struct{}{
