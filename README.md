@@ -29,6 +29,7 @@ Apps shipping with asc-cli. [Add yours via PR](https://github.com/rudrankriyam/A
 | MileIO | [Open](https://apps.apple.com/app/id6758225631) | Juergen | iOS |
 | Repetti | [Open](https://apps.apple.com/us/app/repetti-the-chores-list-app/id6758055413) | rursache | iOS |
 | TV Show Tracker | [Open](https://apps.apple.com/us/app/tv-show-tracker-tv-club/id6497563903) | rursache | iOS |
+| Unlimited Clipboard History | [Open](https://apps.apple.com/us/app/unlimited-clipboard-history/id6705136056?mt=12) | yspreen | macOS |
 <!-- WALL-OF-APPS:END -->
 
 ### Add Your App to the Wall
