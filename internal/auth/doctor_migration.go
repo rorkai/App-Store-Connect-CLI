@@ -49,8 +49,9 @@ func inspectMigrationHints() (DoctorSection, *DoctorMigrationHints) {
 	}
 
 	signals := scanMigrationSignals(root)
-	section.Checks = append(section.Checks, buildMigrationChecks(signals)...)
-	hints := buildMigrationHints(signals)
+	suggestions := buildSuggestedCommands(signals)
+	section.Checks = append(section.Checks, buildMigrationChecks(signals, suggestions)...)
+	hints := buildMigrationHints(signals, suggestions)
 	return section, hints
 }
 
@@ -81,7 +82,6 @@ func findRepoRoot(start string) string {
 func scanMigrationSignals(root string) migrationSignals {
 	signals := migrationSignals{root: root}
 	seenFiles := map[string]struct{}{}
-	appfileKeys := map[string]struct{}{}
 	fastfileActions := map[string]struct{}{}
 
 	for _, candidate := range migrationSearchPaths() {
@@ -101,9 +101,6 @@ func scanMigrationSignals(root string) migrationSignals {
 			case "Appfile":
 				keys := extractAppfileKeys(path)
 				signals.appfiles = append(signals.appfiles, appfileSignal{path: rel, keys: keys})
-				for _, key := range keys {
-					appfileKeys[key] = struct{}{}
-				}
 			case "Fastfile":
 				actions := extractFastfileActions(path)
 				signals.fastfiles = append(signals.fastfiles, fastfileSignal{path: rel, actions: actions})
@@ -281,7 +278,7 @@ func resolveFastlaneDir(signals migrationSignals) string {
 	return ""
 }
 
-func buildMigrationChecks(signals migrationSignals) []DoctorCheck {
+func buildMigrationChecks(signals migrationSignals, suggestions []string) []DoctorCheck {
 	var checks []DoctorCheck
 
 	for _, appfile := range signals.appfiles {
@@ -318,7 +315,6 @@ func buildMigrationChecks(signals migrationSignals) []DoctorCheck {
 		})
 	}
 
-	suggestions := buildSuggestedCommands(signals)
 	if len(suggestions) == 0 {
 		if len(signals.bundlerFiles) > 0 {
 			checks = append(checks, DoctorCheck{
@@ -337,11 +333,11 @@ func buildMigrationChecks(signals migrationSignals) []DoctorCheck {
 	return checks
 }
 
-func buildMigrationHints(signals migrationSignals) *DoctorMigrationHints {
+func buildMigrationHints(signals migrationSignals, suggestions []string) *DoctorMigrationHints {
 	return &DoctorMigrationHints{
 		DetectedFiles:     append([]string{}, signals.detectedFiles...),
 		DetectedActions:   append([]string{}, signals.detectedActions...),
-		SuggestedCommands: buildSuggestedCommands(signals),
+		SuggestedCommands: append([]string{}, suggestions...),
 	}
 }
 
