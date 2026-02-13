@@ -23,13 +23,15 @@ Examples:
   asc shots run --plan .asc/screenshots.json
   asc shots capture --bundle-id "com.example.app" --name home --output-dir ./screenshots/raw
   asc shots capture --provider axe --bundle-id "com.example.app" --name home --udid booted
-  asc shots frame --input ./screenshots/raw/home.png --device iphone-air`,
+  asc shots frame --input ./screenshots/raw/home.png --device iphone-air
+  asc shots frames list-devices --output json`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ShotsRunCommand(),
 			ShotsCaptureCommand(),
 			ShotsFrameCommand(),
+			ShotsFramesCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

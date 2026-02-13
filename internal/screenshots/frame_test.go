@@ -12,8 +12,29 @@ func TestParseFrameDevice_DefaultIsIPhoneAir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseFrameDevice() error = %v", err)
 	}
-	if device != FrameDeviceIPhoneAir {
-		t.Fatalf("expected default device %q, got %q", FrameDeviceIPhoneAir, device)
+	if device != DefaultFrameDevice() {
+		t.Fatalf("expected default device %q, got %q", DefaultFrameDevice(), device)
+	}
+}
+
+func TestFrameDeviceOptions_DefaultMarked(t *testing.T) {
+	options := FrameDeviceOptions()
+	if len(options) != len(FrameDeviceValues()) {
+		t.Fatalf("expected %d options, got %d", len(FrameDeviceValues()), len(options))
+	}
+
+	defaultCount := 0
+	for _, option := range options {
+		if !option.Default {
+			continue
+		}
+		defaultCount++
+		if option.ID != string(DefaultFrameDevice()) {
+			t.Fatalf("unexpected default option %q", option.ID)
+		}
+	}
+	if defaultCount != 1 {
+		t.Fatalf("expected exactly 1 default option, got %d", defaultCount)
 	}
 }
 

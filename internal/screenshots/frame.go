@@ -59,6 +59,17 @@ type FrameResult struct {
 	Height    int    `json:"height"`
 }
 
+// FrameDeviceOption describes one supported frame device value.
+type FrameDeviceOption struct {
+	ID      string `json:"id"`
+	Default bool   `json:"default"`
+}
+
+// DefaultFrameDevice returns the default device used by frame composition.
+func DefaultFrameDevice() FrameDevice {
+	return FrameDeviceIPhoneAir
+}
+
 // FrameDeviceValues returns allowed --device values in CLI display order.
 func FrameDeviceValues() []string {
 	values := make([]string, 0, len(supportedFrameDevices))
@@ -68,11 +79,24 @@ func FrameDeviceValues() []string {
 	return values
 }
 
+// FrameDeviceOptions returns supported values with default marker.
+func FrameDeviceOptions() []FrameDeviceOption {
+	options := make([]FrameDeviceOption, 0, len(supportedFrameDevices))
+	defaultDevice := DefaultFrameDevice()
+	for _, device := range supportedFrameDevices {
+		options = append(options, FrameDeviceOption{
+			ID:      string(device),
+			Default: device == defaultDevice,
+		})
+	}
+	return options
+}
+
 // ParseFrameDevice normalizes and validates a frame device value.
 func ParseFrameDevice(raw string) (FrameDevice, error) {
 	normalized := normalizeFrameDevice(raw)
 	if normalized == "" {
-		return FrameDeviceIPhoneAir, nil
+		return DefaultFrameDevice(), nil
 	}
 
 	candidate := FrameDevice(normalized)

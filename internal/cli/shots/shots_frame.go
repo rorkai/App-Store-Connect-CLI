@@ -24,7 +24,7 @@ func ShotsFrameCommand() *ffcli.Command {
 	name := fs.String("name", "", "Output file name without extension (defaults to input base name)")
 	device := fs.String(
 		"device",
-		string(screenshots.FrameDeviceIPhoneAir),
+		string(screenshots.DefaultFrameDevice()),
 		fmt.Sprintf("Frame device: %s", strings.Join(screenshots.FrameDeviceValues(), ", ")),
 	)
 	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
