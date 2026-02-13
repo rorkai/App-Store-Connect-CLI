@@ -32,7 +32,7 @@ func TestShotsFrame_RequiresInput(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "--input is required") {
+	if !strings.Contains(stderr, "--input is required when --config is not set") {
 		t.Fatalf("expected input required error, got %q", stderr)
 	}
 }
@@ -65,20 +65,14 @@ func TestShotsFrame_InvalidDevice(t *testing.T) {
 }
 
 func TestShotsFrame_DefaultDeviceIsIPhoneAir(t *testing.T) {
-	homeDir := t.TempDir()
-	t.Setenv("HOME", homeDir)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
 	rawPath := filepath.Join(t.TempDir(), "raw.png")
 	writeFramePNG(t, rawPath, makeRawImage(100, 220))
-
-	framePath := filepath.Join(
-		homeDir,
-		".asc", "frames", "apple", "iphone-air", "png",
-		"iPhone Air - Light Gold - Portrait.png",
-	)
-	writeFramePNG(t, framePath, makeFrameImage(180, 360))
+	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
+	writeFramePNG(t, kouFixturePath, makeRawImage(1320, 2868))
+	installMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
 
 	outputDir := filepath.Join(t.TempDir(), "framed")
 	root := RootCommand("1.2.3")
@@ -122,8 +116,8 @@ func TestShotsFrame_DefaultDeviceIsIPhoneAir(t *testing.T) {
 	if _, err := os.Stat(result.Path); err != nil {
 		t.Fatalf("expected output file to exist at %q: %v", result.Path, err)
 	}
-	if !strings.Contains(result.FramePath, "iphone-air") {
-		t.Fatalf("expected air frame path, got %q", result.FramePath)
+	if result.FramePath == "" {
+		t.Fatalf("expected frame metadata, got empty frame_path")
 	}
 	if result.DisplayType != "APP_IPHONE_69" {
 		t.Fatalf("expected display type APP_IPHONE_69, got %q", result.DisplayType)
@@ -140,20 +134,14 @@ func TestShotsFrame_DefaultDeviceIsIPhoneAir(t *testing.T) {
 }
 
 func TestShotsFrame_ExplicitDeviceIPhone17Pro(t *testing.T) {
-	homeDir := t.TempDir()
-	t.Setenv("HOME", homeDir)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
 	rawPath := filepath.Join(t.TempDir(), "raw.png")
 	writeFramePNG(t, rawPath, makeRawImage(120, 240))
-
-	framePath := filepath.Join(
-		homeDir,
-		".asc", "frames", "apple", "iphone-17-pro", "png",
-		"iPhone 17 Pro - Silver - Portrait.png",
-	)
-	writeFramePNG(t, framePath, makeFrameImage(200, 400))
+	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
+	writeFramePNG(t, kouFixturePath, makeRawImage(1290, 2796))
+	installMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
 
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{
@@ -193,12 +181,93 @@ func TestShotsFrame_ExplicitDeviceIPhone17Pro(t *testing.T) {
 	if result.DisplayType != "APP_IPHONE_67" {
 		t.Fatalf("expected display type APP_IPHONE_67, got %q", result.DisplayType)
 	}
-	if result.UploadWidth != 1320 || result.UploadHeight != 2868 {
-		t.Fatalf("expected upload target 1320x2868, got %dx%d", result.UploadWidth, result.UploadHeight)
+	if result.UploadWidth != 1290 || result.UploadHeight != 2796 {
+		t.Fatalf("expected upload target 1290x2796, got %dx%d", result.UploadWidth, result.UploadHeight)
+	}
+	if result.Width != 1290 || result.Height != 2796 {
+		t.Fatalf("expected normalized output 1290x2796, got %dx%d", result.Width, result.Height)
+	}
+}
+
+func TestShotsFrame_ConfigOnlyPath(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
+	writeFramePNG(t, kouFixturePath, makeRawImage(1320, 2868))
+	installMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
+
+	configPath := filepath.Join(t.TempDir(), "frame.yaml")
+	writeFile(t, configPath, `project:
+  name: "Demo"
+  output_dir: "./out"
+  device: "iPhone Air - Light Gold - Portrait"
+  output_size: "iPhone6_9"
+screenshots:
+  framed:
+    content:
+      - type: "image"
+        asset: "screenshots/raw.png"
+        frame: true
+`)
+
+	root := RootCommand("1.2.3")
+	if err := root.Parse([]string{
+		"shots", "frame",
+		"--config", configPath,
+		"--output-dir", filepath.Join(t.TempDir(), "framed"),
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result struct {
+		Path   string `json:"path"`
+		Width  int    `json:"width"`
+		Height int    `json:"height"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal frame output: %v\nstdout=%q", err, stdout)
+	}
+	if _, err := os.Stat(result.Path); err != nil {
+		t.Fatalf("expected output file to exist at %q: %v", result.Path, err)
 	}
 	if result.Width != 1320 || result.Height != 2868 {
-		t.Fatalf("expected normalized output 1320x2868, got %dx%d", result.Width, result.Height)
+		t.Fatalf("expected output 1320x2868, got %dx%d", result.Width, result.Height)
 	}
+}
+
+func installMockKou(t *testing.T, fixturePath, outputPath string) {
+	t.Helper()
+
+	binDir := t.TempDir()
+	kouPath := filepath.Join(binDir, "kou")
+	script := `#!/bin/sh
+if [ "$1" = "generate" ]; then
+  mkdir -p "$(dirname "$MOCK_KOU_OUTPUT")"
+  cp "$MOCK_KOU_FIXTURE" "$MOCK_KOU_OUTPUT"
+  printf '[{"name":"framed","path":"%s","success":true}]' "$MOCK_KOU_OUTPUT"
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`
+	if err := os.WriteFile(kouPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write kou mock script: %v", err)
+	}
+
+	t.Setenv("MOCK_KOU_FIXTURE", fixturePath)
+	t.Setenv("MOCK_KOU_OUTPUT", outputPath)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
 func writeFramePNG(t *testing.T, path string, img image.Image) {
@@ -227,29 +296,6 @@ func makeRawImage(width, height int) image.Image {
 				B: 180,
 				A: 255,
 			})
-		}
-	}
-	return img
-}
-
-func makeFrameImage(width, height int) image.Image {
-	img := image.NewRGBA(image.Rect(0, 0, width, height))
-
-	// Opaque bezel.
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			img.SetRGBA(x, y, color.RGBA{R: 12, G: 12, B: 12, A: 255})
-		}
-	}
-
-	// Transparent inner screen cutout.
-	left := width / 6
-	right := width - left
-	top := height / 8
-	bottom := height - top
-	for y := top; y < bottom; y++ {
-		for x := left; x < right; x++ {
-			img.SetRGBA(x, y, color.RGBA{R: 0, G: 0, B: 0, A: 0})
 		}
 	}
 	return img

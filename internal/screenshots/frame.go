@@ -2,36 +2,30 @@ package screenshots
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
-	"image"
-	"image/color"
-	"image/draw"
-	"image/png"
-	"math"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"gopkg.in/yaml.v3"
 )
 
-// FrameDevice identifies a cached Apple device frame family.
+// FrameDevice identifies a supported frame profile.
 type FrameDevice string
 
 const (
-	FrameDeviceIPhoneAir    FrameDevice = "iphone-air"
-	FrameDeviceIPhone17Pro  FrameDevice = "iphone-17-pro"
-	FrameDeviceIPhone17PM   FrameDevice = "iphone-17-pro-max"
-	FrameDeviceIPhone16e    FrameDevice = "iphone-16e"
-	FrameDeviceIPhone17     FrameDevice = "iphone-17"
-	defaultFrameCacheSubdir             = ".asc/frames/apple"
-	defaultFrameBleedPX                 = 24
-	outerAlphaThreshold     uint8       = 8
-	innerAlphaThreshold     uint8       = 32
+	FrameDeviceIPhoneAir   FrameDevice = "iphone-air"
+	FrameDeviceIPhone17Pro FrameDevice = "iphone-17-pro"
+	FrameDeviceIPhone17PM  FrameDevice = "iphone-17-pro-max"
+	FrameDeviceIPhone16e   FrameDevice = "iphone-16e"
+	FrameDeviceIPhone17    FrameDevice = "iphone-17"
 )
-
-const defaultIPhoneAirPortrait = "iPhone Air - Light Gold - Portrait.png"
 
 var supportedFrameDevices = []FrameDevice{
 	FrameDeviceIPhoneAir,
@@ -41,24 +35,54 @@ var supportedFrameDevices = []FrameDevice{
 	FrameDeviceIPhone17,
 }
 
-var frameUploadDisplayTypeByDevice = map[FrameDevice]string{
-	FrameDeviceIPhoneAir:   "APP_IPHONE_69",
-	FrameDeviceIPhone17PM:  "APP_IPHONE_69",
-	FrameDeviceIPhone17Pro: "APP_IPHONE_67",
-	FrameDeviceIPhone17:    "APP_IPHONE_67",
-	FrameDeviceIPhone16e:   "APP_IPHONE_61",
+type frameDeviceKoubouSpec struct {
+	FrameName   string
+	OutputSize  string
+	DisplayType string
 }
 
-// FrameRequest holds options for composing one screenshot into an Apple frame.
+// Keeps the existing asc device slugs while delegating rendering to Koubou frame names.
+var frameDeviceKoubouSpecs = map[FrameDevice]frameDeviceKoubouSpec{
+	FrameDeviceIPhoneAir: {
+		FrameName:   "iPhone Air - Light Gold - Portrait",
+		OutputSize:  "iPhone6_9",
+		DisplayType: "APP_IPHONE_69",
+	},
+	FrameDeviceIPhone17PM: {
+		FrameName:   "iPhone 17 Pro Max - Silver - Portrait",
+		OutputSize:  "iPhone6_9",
+		DisplayType: "APP_IPHONE_69",
+	},
+	FrameDeviceIPhone17Pro: {
+		FrameName:   "iPhone 17 Pro - Silver - Portrait",
+		OutputSize:  "iPhone6_7",
+		DisplayType: "APP_IPHONE_67",
+	},
+	FrameDeviceIPhone17: {
+		FrameName:   "iPhone 17 - Teal - Portrait",
+		OutputSize:  "iPhone6_7",
+		DisplayType: "APP_IPHONE_67",
+	},
+	FrameDeviceIPhone16e: {
+		FrameName:   "iPhone 16e - White - Portrait",
+		OutputSize:  "iPhone6_1",
+		DisplayType: "APP_IPHONE_61",
+	},
+}
+
+// FrameRequest holds options for composing one screenshot.
 type FrameRequest struct {
-	InputPath   string // required source screenshot path
-	OutputPath  string // required destination PNG path
-	Device      string // device slug; defaults to iphone-air when empty
-	FrameRoot   string // optional override; defaults to ~/.asc/frames/apple
-	ScreenBleed int    // optional extra pixels to extend under bezel AA edge
+	InputPath  string // required when ConfigPath is empty
+	OutputPath string // optional for custom config mode; required for input mode
+	Device     string // device slug; defaults to iphone-air when empty
+	ConfigPath string // optional Koubou YAML config path
+
+	// Kept for backwards compatibility; ignored in Koubou mode.
+	FrameRoot   string
+	ScreenBleed int
 }
 
-// FrameResult is the structured output for a composed frame image.
+// FrameResult is the structured output for one composed frame image.
 type FrameResult struct {
 	Path         string `json:"path"`
 	FramePath    string `json:"frame_path"`
@@ -77,7 +101,45 @@ type FrameDeviceOption struct {
 	Default bool   `json:"default"`
 }
 
-// DefaultFrameDevice returns the default device used by frame composition.
+type koubouGenerateResult struct {
+	Name    string `json:"name"`
+	Path    string `json:"path"`
+	Success bool   `json:"success"`
+	Error   string `json:"error"`
+}
+
+type frameExecutionMetadata struct {
+	FrameRef     string
+	DisplayType  string
+	UploadWidth  int
+	UploadHeight int
+}
+
+type koubouDefaultConfig struct {
+	Project     koubouProjectConfig                    `yaml:"project"`
+	Screenshots map[string]koubouDefaultScreenshotSpec `yaml:"screenshots"`
+}
+
+type koubouProjectConfig struct {
+	Name       string `yaml:"name"`
+	OutputDir  string `yaml:"output_dir"`
+	Device     string `yaml:"device"`
+	OutputSize string `yaml:"output_size"`
+}
+
+type koubouDefaultScreenshotSpec struct {
+	Content []koubouDefaultContentItem `yaml:"content"`
+}
+
+type koubouDefaultContentItem struct {
+	Type     string    `yaml:"type"`
+	Asset    string    `yaml:"asset"`
+	Position [2]string `yaml:"position"`
+	Scale    float64   `yaml:"scale"`
+	Frame    bool      `yaml:"frame"`
+}
+
+// DefaultFrameDevice returns the default frame device.
 func DefaultFrameDevice() FrameDevice {
 	return FrameDeviceIPhoneAir
 }
@@ -125,19 +187,10 @@ func ParseFrameDevice(raw string) (FrameDevice, error) {
 	)
 }
 
-// Frame composes a screenshot under a selected Apple hardware frame.
+// Frame composes screenshots through Koubou's YAML pipeline.
 func Frame(ctx context.Context, req FrameRequest) (*FrameResult, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
-	}
-
-	inputPath := strings.TrimSpace(req.InputPath)
-	if inputPath == "" {
-		return nil, fmt.Errorf("input path is required")
-	}
-	outputPath := strings.TrimSpace(req.OutputPath)
-	if outputPath == "" {
-		return nil, fmt.Errorf("output path is required")
 	}
 
 	device, err := ParseFrameDevice(req.Device)
@@ -145,128 +198,356 @@ func Frame(ctx context.Context, req FrameRequest) (*FrameResult, error) {
 		return nil, err
 	}
 
-	framePath, err := resolveFramePath(req.FrameRoot, device)
+	outputPath := strings.TrimSpace(req.OutputPath)
+	configPath := strings.TrimSpace(req.ConfigPath)
+	metadata := frameExecutionMetadata{
+		FrameRef: string(device),
+	}
+
+	if configPath == "" {
+		inputPath := strings.TrimSpace(req.InputPath)
+		if inputPath == "" {
+			return nil, fmt.Errorf("input path is required")
+		}
+		if outputPath == "" {
+			return nil, fmt.Errorf("output path is required")
+		}
+
+		spec, ok := frameDeviceKoubouSpecs[device]
+		if !ok {
+			return nil, fmt.Errorf("no Koubou mapping configured for device %q", device)
+		}
+
+		absInputPath, err := filepath.Abs(inputPath)
+		if err != nil {
+			return nil, fmt.Errorf("resolve input path: %w", err)
+		}
+		if err := asc.ValidateImageFile(absInputPath); err != nil {
+			return nil, fmt.Errorf("read input screenshot: %w", err)
+		}
+
+		generatedConfigPath, generatedMetadata, err := createDefaultKoubouConfig(absInputPath, spec)
+		if err != nil {
+			return nil, err
+		}
+		configPath = generatedConfigPath
+		metadata = generatedMetadata
+	} else {
+		absConfigPath, err := filepath.Abs(configPath)
+		if err != nil {
+			return nil, fmt.Errorf("resolve config path: %w", err)
+		}
+		configPath = absConfigPath
+		if _, err := os.Stat(configPath); err != nil {
+			return nil, fmt.Errorf("read config file: %w", err)
+		}
+		if parsed := parseKoubouConfigMetadata(configPath); parsed != nil {
+			metadata = *parsed
+		}
+	}
+
+	generatedResults, err := runKoubouGenerate(ctx, configPath)
+	if err != nil {
+		return nil, err
+	}
+	generatedPath, err := selectGeneratedScreenshot(configPath, generatedResults)
 	if err != nil {
 		return nil, err
 	}
 
-	raw, err := decodeImageFile(inputPath)
-	if err != nil {
-		return nil, fmt.Errorf("read input screenshot: %w", err)
-	}
-	frame, err := decodeImageFile(framePath)
-	if err != nil {
-		return nil, fmt.Errorf("read frame image: %w", err)
-	}
-
-	bleed := req.ScreenBleed
-	if bleed == 0 {
-		bleed = defaultFrameBleedPX
-	}
-	if bleed < 0 {
-		return nil, fmt.Errorf("screen bleed must be >= 0")
+	finalPath := generatedPath
+	if outputPath != "" {
+		absOutputPath, err := filepath.Abs(outputPath)
+		if err != nil {
+			return nil, fmt.Errorf("resolve output path: %w", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(absOutputPath), 0o755); err != nil {
+			return nil, fmt.Errorf("create output directory: %w", err)
+		}
+		if err := copyFile(generatedPath, absOutputPath); err != nil {
+			return nil, err
+		}
+		finalPath = absOutputPath
 	}
 
-	composed, err := composeFramedImage(raw, frame, bleed)
-	if err != nil {
-		return nil, err
+	if err := asc.ValidateImageFile(finalPath); err != nil {
+		return nil, fmt.Errorf("koubou output invalid: %w", err)
 	}
-	composed, uploadTarget, normalized, err := normalizeFramedForUpload(composed, device)
+	dimensions, err := asc.ReadImageDimensions(finalPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read output image dimensions: %w", err)
+	}
+	if metadata.UploadWidth == 0 || metadata.UploadHeight == 0 {
+		metadata.UploadWidth = dimensions.Width
+		metadata.UploadHeight = dimensions.Height
 	}
 
-	absOut, err := filepath.Abs(outputPath)
-	if err != nil {
-		return nil, fmt.Errorf("resolve output path: %w", err)
-	}
-	if err := os.MkdirAll(filepath.Dir(absOut), 0o755); err != nil {
-		return nil, fmt.Errorf("create output directory: %w", err)
-	}
-	outFile, err := os.Create(absOut)
-	if err != nil {
-		return nil, fmt.Errorf("create output file: %w", err)
-	}
-	defer outFile.Close()
-	if err := png.Encode(outFile, composed); err != nil {
-		return nil, fmt.Errorf("encode output png: %w", err)
-	}
-
-	absFrame, _ := filepath.Abs(framePath)
+	normalized := dimensions.Width == metadata.UploadWidth && dimensions.Height == metadata.UploadHeight
+	absFinalPath, _ := filepath.Abs(finalPath)
 	return &FrameResult{
-		Path:         absOut,
-		FramePath:    absFrame,
+		Path:         absFinalPath,
+		FramePath:    metadata.FrameRef,
 		Device:       string(device),
-		DisplayType:  uploadTarget.DisplayType,
-		UploadWidth:  uploadTarget.Dimension.Width,
-		UploadHeight: uploadTarget.Dimension.Height,
+		DisplayType:  metadata.DisplayType,
+		UploadWidth:  metadata.UploadWidth,
+		UploadHeight: metadata.UploadHeight,
 		Normalized:   normalized,
-		Width:        composed.Bounds().Dx(),
-		Height:       composed.Bounds().Dy(),
+		Width:        dimensions.Width,
+		Height:       dimensions.Height,
 	}, nil
 }
 
-func resolveFramePath(frameRoot string, device FrameDevice) (string, error) {
-	root, err := resolveFrameRoot(frameRoot)
+func createDefaultKoubouConfig(
+	absInputPath string,
+	spec frameDeviceKoubouSpec,
+) (string, frameExecutionMetadata, error) {
+	workDir, err := os.MkdirTemp("", "asc-shots-kou-*")
 	if err != nil {
-		return "", err
+		return "", frameExecutionMetadata{}, fmt.Errorf("create temp config directory: %w", err)
 	}
-	pngDir := filepath.Join(root, string(device), "png")
 
-	entries, err := os.ReadDir(pngDir)
+	kouOutputDir := filepath.Join(workDir, "output")
+	if err := os.MkdirAll(kouOutputDir, 0o755); err != nil {
+		return "", frameExecutionMetadata{}, fmt.Errorf("create temp output directory: %w", err)
+	}
+
+	configPath := filepath.Join(workDir, "frame.yaml")
+	config := koubouDefaultConfig{
+		Project: koubouProjectConfig{
+			Name:       "ASC Shots Frame",
+			OutputDir:  kouOutputDir,
+			Device:     spec.FrameName,
+			OutputSize: spec.OutputSize,
+		},
+		Screenshots: map[string]koubouDefaultScreenshotSpec{
+			"framed": {
+				Content: []koubouDefaultContentItem{
+					{
+						Type:     "image",
+						Asset:    absInputPath,
+						Position: [2]string{"50%", "50%"},
+						Scale:    1.0,
+						Frame:    true,
+					},
+				},
+			},
+		},
+	}
+
+	data, err := yaml.Marshal(config)
 	if err != nil {
-		return "", fmt.Errorf("read frame directory %q: %w", pngDir, err)
+		return "", frameExecutionMetadata{}, fmt.Errorf("marshal default Koubou YAML: %w", err)
+	}
+	if err := os.WriteFile(configPath, data, 0o600); err != nil {
+		return "", frameExecutionMetadata{}, fmt.Errorf("write default Koubou YAML: %w", err)
 	}
 
-	candidates := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		lower := strings.ToLower(name)
-		if !strings.HasSuffix(lower, ".png") {
-			continue
-		}
-		if !strings.Contains(lower, "portrait") {
-			continue
-		}
-		candidates = append(candidates, name)
+	metadata := frameExecutionMetadata{
+		FrameRef:    spec.FrameName,
+		DisplayType: spec.DisplayType,
 	}
-	if len(candidates) == 0 {
-		return "", fmt.Errorf("no portrait PNG frames found for %q in %q", device, pngDir)
+	if width, height, ok := resolveKoubouOutputSize(spec.OutputSize); ok {
+		metadata.UploadWidth = width
+		metadata.UploadHeight = height
 	}
-	sort.Strings(candidates)
+	return configPath, metadata, nil
+}
 
-	preferred := defaultPortraitForDevice(device)
-	if preferred != "" {
-		for _, name := range candidates {
-			if strings.EqualFold(name, preferred) {
-				return filepath.Join(pngDir, name), nil
+func parseKoubouConfigMetadata(configPath string) *frameExecutionMetadata {
+	type project struct {
+		Device     string `yaml:"device"`
+		OutputSize any    `yaml:"output_size"`
+	}
+	type parsedConfig struct {
+		Project project `yaml:"project"`
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil
+	}
+	var parsed parsedConfig
+	if err := yaml.Unmarshal(data, &parsed); err != nil {
+		return nil
+	}
+
+	metadata := &frameExecutionMetadata{
+		FrameRef: strings.TrimSpace(parsed.Project.Device),
+	}
+	if width, height, ok := resolveKoubouOutputSize(parsed.Project.OutputSize); ok {
+		metadata.UploadWidth = width
+		metadata.UploadHeight = height
+	}
+	if outputSizeName, ok := parsed.Project.OutputSize.(string); ok {
+		if displayType, mapped := koubouDisplayTypeForSizeName(outputSizeName); mapped {
+			metadata.DisplayType = displayType
+		}
+	}
+	if metadata.DisplayType == "" {
+		if displayType, ok := displayTypeForDimensions(metadata.UploadWidth, metadata.UploadHeight); ok {
+			metadata.DisplayType = displayType
+		}
+	}
+	return metadata
+}
+
+func koubouDisplayTypeForSizeName(sizeName string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(sizeName)) {
+	case "iphone6_9":
+		return "APP_IPHONE_69", true
+	case "iphone6_7":
+		return "APP_IPHONE_67", true
+	case "iphone6_1":
+		return "APP_IPHONE_61", true
+	case "iphone5_8":
+		return "APP_IPHONE_58", true
+	case "iphone5_5":
+		return "APP_IPHONE_55", true
+	default:
+		return "", false
+	}
+}
+
+func resolveKoubouOutputSize(value any) (int, int, bool) {
+	namedSizes := map[string]struct {
+		Width  int
+		Height int
+	}{
+		"iphone6_9": {Width: 1320, Height: 2868},
+		"iphone6_7": {Width: 1290, Height: 2796},
+		"iphone6_1": {Width: 1179, Height: 2556},
+		"iphone5_8": {Width: 1170, Height: 2532},
+		"iphone5_5": {Width: 1242, Height: 2208},
+	}
+
+	switch typed := value.(type) {
+	case string:
+		entry, ok := namedSizes[strings.ToLower(strings.TrimSpace(typed))]
+		if !ok {
+			return 0, 0, false
+		}
+		return entry.Width, entry.Height, true
+	case []any:
+		if len(typed) != 2 {
+			return 0, 0, false
+		}
+		width, ok := toInt(typed[0])
+		if !ok {
+			return 0, 0, false
+		}
+		height, ok := toInt(typed[1])
+		if !ok {
+			return 0, 0, false
+		}
+		return width, height, true
+	default:
+		return 0, 0, false
+	}
+}
+
+func displayTypeForDimensions(width, height int) (string, bool) {
+	iphoneDisplayTypes := []string{
+		"APP_IPHONE_69",
+		"APP_IPHONE_67",
+		"APP_IPHONE_61",
+		"APP_IPHONE_58",
+		"APP_IPHONE_55",
+		"APP_IPHONE_47",
+		"APP_IPHONE_40",
+		"APP_IPHONE_35",
+	}
+	for _, displayType := range iphoneDisplayTypes {
+		dimensions, ok := asc.ScreenshotDimensions(displayType)
+		if !ok {
+			continue
+		}
+		for _, dimension := range dimensions {
+			if dimension.Width == width && dimension.Height == height {
+				return displayType, true
 			}
 		}
 	}
-	return filepath.Join(pngDir, candidates[0]), nil
+	return "", false
 }
 
-func defaultPortraitForDevice(device FrameDevice) string {
-	if device == FrameDeviceIPhoneAir {
-		return defaultIPhoneAirPortrait
+func toInt(value any) (int, bool) {
+	switch typed := value.(type) {
+	case int:
+		return typed, true
+	case int64:
+		return int(typed), true
+	case float64:
+		return int(typed), true
+	case float32:
+		return int(typed), true
+	case string:
+		number, err := strconv.Atoi(strings.TrimSpace(typed))
+		if err != nil {
+			return 0, false
+		}
+		return number, true
+	default:
+		return 0, false
 	}
-	return ""
 }
 
-func resolveFrameRoot(override string) (string, error) {
-	trimmed := strings.TrimSpace(override)
-	if trimmed != "" {
-		return filepath.Abs(trimmed)
-	}
-
-	homeDir, err := os.UserHomeDir()
+func runKoubouGenerate(ctx context.Context, configPath string) ([]koubouGenerateResult, error) {
+	cmd := exec.CommandContext(ctx, "kou", "generate", configPath, "--output", "json")
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("resolve user home directory: %w", err)
+		if errors.Is(err, exec.ErrNotFound) {
+			return nil, fmt.Errorf(
+				"kou binary not found; install Koubou first (pip install koubou or brew install bitomule/tap/koubou)",
+			)
+		}
+		return nil, fmt.Errorf("kou: %w (output: %s)", err, strings.TrimSpace(string(output)))
 	}
-	return filepath.Join(homeDir, defaultFrameCacheSubdir), nil
+
+	var results []koubouGenerateResult
+	if err := json.Unmarshal(output, &results); err != nil {
+		return nil, fmt.Errorf("kou: parse JSON output: %w", err)
+	}
+	return results, nil
+}
+
+func selectGeneratedScreenshot(configPath string, results []koubouGenerateResult) (string, error) {
+	failures := make([]string, 0)
+	for _, result := range results {
+		if result.Success && strings.TrimSpace(result.Path) != "" {
+			path := strings.TrimSpace(result.Path)
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(filepath.Dir(configPath), path)
+			}
+			return path, nil
+		}
+		if !result.Success && strings.TrimSpace(result.Error) != "" {
+			failures = append(failures, strings.TrimSpace(result.Error))
+		}
+	}
+
+	if len(failures) > 0 {
+		return "", fmt.Errorf("koubou generation failed: %s", strings.Join(failures, "; "))
+	}
+	return "", fmt.Errorf("koubou generation produced no successful output")
+}
+
+func copyFile(sourcePath, destinationPath string) error {
+	sourceFile, err := os.Open(sourcePath)
+	if err != nil {
+		return fmt.Errorf("open generated screenshot: %w", err)
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := os.Create(destinationPath)
+	if err != nil {
+		return fmt.Errorf("create final screenshot: %w", err)
+	}
+	defer destinationFile.Close()
+
+	if _, err := io.Copy(destinationFile, sourceFile); err != nil {
+		return fmt.Errorf("copy generated screenshot: %w", err)
+	}
+	return nil
 }
 
 func normalizeFrameDevice(raw string) string {
@@ -279,299 +560,4 @@ func normalizeFrameDevice(raw string) string {
 		return r == ' ' || r == '-' || r == '_'
 	})
 	return strings.Join(parts, "-")
-}
-
-func decodeImageFile(path string) (image.Image, error) {
-	if err := asc.ValidateImageFile(path); err != nil {
-		return nil, err
-	}
-
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	img, _, err := image.Decode(file)
-	if err != nil {
-		return nil, err
-	}
-	return img, nil
-}
-
-type point struct {
-	x int
-	y int
-}
-
-type frameUploadTarget struct {
-	DisplayType string
-	Dimension   asc.ScreenshotDimension
-}
-
-func composeFramedImage(raw image.Image, frame image.Image, bleed int) (*image.RGBA, error) {
-	rawFlat := flattenOnWhite(raw)
-	frameRGBA := toRGBA(frame)
-	frameBounds := frameRGBA.Bounds()
-	fw, fh := frameBounds.Dx(), frameBounds.Dy()
-
-	screenMask, screenRect, err := detectScreenMask(frameRGBA)
-	if err != nil {
-		return nil, err
-	}
-
-	base := image.NewRGBA(image.Rect(0, 0, fw, fh))
-	draw.Draw(base, base.Bounds(), &image.Uniform{C: color.White}, image.Point{}, draw.Src)
-	for y := 0; y < fh; y++ {
-		for x := 0; x < fw; x++ {
-			if alphaAt(frameRGBA, x, y) > 0 {
-				base.SetRGBA(x, y, color.RGBA{0, 0, 0, 255})
-			}
-		}
-	}
-
-	targetW := screenRect.Dx() + 2*bleed
-	targetH := screenRect.Dy() + 2*bleed
-	if targetW <= 0 || targetH <= 0 {
-		return nil, fmt.Errorf("invalid target fit area %dx%d", targetW, targetH)
-	}
-
-	sw, sh := rawFlat.Bounds().Dx(), rawFlat.Bounds().Dy()
-	scale := math.Max(float64(targetW)/float64(sw), float64(targetH)/float64(sh))
-	fitW := int(math.Ceil(float64(sw) * scale))
-	fitH := int(math.Ceil(float64(sh) * scale))
-	if fitW <= 0 || fitH <= 0 {
-		return nil, fmt.Errorf("invalid resized image dimensions %dx%d", fitW, fitH)
-	}
-	fit := resizeNearest(rawFlat, fitW, fitH)
-
-	screenCX := screenRect.Min.X + screenRect.Dx()/2
-	screenCY := screenRect.Min.Y + screenRect.Dy()/2
-	dstX := screenCX - fitW/2
-	dstY := screenCY - fitH/2
-
-	layer := image.NewRGBA(base.Bounds())
-	draw.Draw(layer, image.Rect(dstX, dstY, dstX+fitW, dstY+fitH), fit, image.Point{}, draw.Src)
-
-	for y := 0; y < fh; y++ {
-		for x := 0; x < fw; x++ {
-			if screenMask[maskIndex(x, y, fw)] {
-				continue
-			}
-			i := y*layer.Stride + x*4
-			layer.Pix[i+3] = 0
-		}
-	}
-
-	draw.Draw(base, base.Bounds(), layer, image.Point{}, draw.Over)
-	draw.Draw(base, base.Bounds(), frameRGBA, image.Point{}, draw.Over)
-	return base, nil
-}
-
-func normalizeFramedForUpload(
-	composed *image.RGBA,
-	device FrameDevice,
-) (*image.RGBA, frameUploadTarget, bool, error) {
-	target, ok, err := frameUploadTargetForDevice(device)
-	if err != nil {
-		return nil, frameUploadTarget{}, false, err
-	}
-	if !ok {
-		return composed, frameUploadTarget{}, false, nil
-	}
-
-	currentW := composed.Bounds().Dx()
-	currentH := composed.Bounds().Dy()
-	targetW := target.Dimension.Width
-	targetH := target.Dimension.Height
-	if currentW == targetW && currentH == targetH {
-		return composed, target, false, nil
-	}
-
-	normalized := resizeAndCropToTarget(composed, targetW, targetH)
-	return normalized, target, true, nil
-}
-
-func frameUploadTargetForDevice(device FrameDevice) (frameUploadTarget, bool, error) {
-	displayType, ok := frameUploadDisplayTypeByDevice[device]
-	if !ok {
-		return frameUploadTarget{}, false, nil
-	}
-
-	dimensions, ok := asc.ScreenshotDimensions(displayType)
-	if !ok {
-		return frameUploadTarget{}, false, fmt.Errorf(
-			"unsupported screenshot display type %q for device %q",
-			displayType,
-			device,
-		)
-	}
-
-	targetDim, ok := preferredPortraitDimension(dimensions)
-	if !ok {
-		return frameUploadTarget{}, false, fmt.Errorf(
-			"no portrait screenshot dimensions found for %q",
-			displayType,
-		)
-	}
-
-	return frameUploadTarget{
-		DisplayType: displayType,
-		Dimension:   targetDim,
-	}, true, nil
-}
-
-func preferredPortraitDimension(dimensions []asc.ScreenshotDimension) (asc.ScreenshotDimension, bool) {
-	var best asc.ScreenshotDimension
-	bestArea := 0
-	found := false
-
-	for _, dim := range dimensions {
-		if dim.Height < dim.Width {
-			continue
-		}
-
-		area := dim.Width * dim.Height
-		if !found || area > bestArea || (area == bestArea && dim.Height > best.Height) {
-			best = dim
-			bestArea = area
-			found = true
-		}
-	}
-	return best, found
-}
-
-func resizeAndCropToTarget(src image.Image, targetW, targetH int) *image.RGBA {
-	srcW := src.Bounds().Dx()
-	srcH := src.Bounds().Dy()
-	scale := math.Max(float64(targetW)/float64(srcW), float64(targetH)/float64(srcH))
-	fitW := int(math.Ceil(float64(srcW) * scale))
-	fitH := int(math.Ceil(float64(srcH) * scale))
-	fit := resizeNearest(src, fitW, fitH)
-
-	cropX := 0
-	cropY := 0
-	if fitW > targetW {
-		cropX = (fitW - targetW) / 2
-	}
-	if fitH > targetH {
-		cropY = (fitH - targetH) / 2
-	}
-
-	dst := image.NewRGBA(image.Rect(0, 0, targetW, targetH))
-	draw.Draw(dst, dst.Bounds(), fit, image.Point{X: cropX, Y: cropY}, draw.Src)
-	return dst
-}
-
-func detectScreenMask(frame *image.RGBA) ([]bool, image.Rectangle, error) {
-	fw, fh := frame.Bounds().Dx(), frame.Bounds().Dy()
-	outside := make([]bool, fw*fh)
-	queue := make([]point, 0, fw*4+fh*4)
-
-	push := func(x, y int) {
-		if x < 0 || x >= fw || y < 0 || y >= fh {
-			return
-		}
-		i := maskIndex(x, y, fw)
-		if outside[i] {
-			return
-		}
-		if alphaAt(frame, x, y) > outerAlphaThreshold {
-			return
-		}
-		outside[i] = true
-		queue = append(queue, point{x: x, y: y})
-	}
-
-	for x := 0; x < fw; x++ {
-		push(x, 0)
-		push(x, fh-1)
-	}
-	for y := 0; y < fh; y++ {
-		push(0, y)
-		push(fw-1, y)
-	}
-	for head := 0; head < len(queue); head++ {
-		p := queue[head]
-		push(p.x+1, p.y)
-		push(p.x-1, p.y)
-		push(p.x, p.y+1)
-		push(p.x, p.y-1)
-	}
-
-	screenMask := make([]bool, fw*fh)
-	minX, minY := fw, fh
-	maxX, maxY := -1, -1
-	for y := 0; y < fh; y++ {
-		for x := 0; x < fw; x++ {
-			i := maskIndex(x, y, fw)
-			if outside[i] || alphaAt(frame, x, y) > innerAlphaThreshold {
-				continue
-			}
-
-			screenMask[i] = true
-			if x < minX {
-				minX = x
-			}
-			if y < minY {
-				minY = y
-			}
-			if x > maxX {
-				maxX = x
-			}
-			if y > maxY {
-				maxY = y
-			}
-		}
-	}
-
-	if maxX < minX || maxY < minY {
-		return nil, image.Rectangle{}, fmt.Errorf("failed to detect inner screen area from frame alpha")
-	}
-	return screenMask, image.Rect(minX, minY, maxX+1, maxY+1), nil
-}
-
-func flattenOnWhite(src image.Image) *image.RGBA {
-	bounds := src.Bounds()
-	dst := image.NewRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
-	draw.Draw(dst, dst.Bounds(), &image.Uniform{C: color.White}, image.Point{}, draw.Src)
-	draw.Draw(dst, dst.Bounds(), src, bounds.Min, draw.Over)
-	return dst
-}
-
-func toRGBA(src image.Image) *image.RGBA {
-	bounds := src.Bounds()
-	dst := image.NewRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
-	draw.Draw(dst, dst.Bounds(), src, bounds.Min, draw.Src)
-	return dst
-}
-
-func resizeNearest(src image.Image, dstW, dstH int) *image.RGBA {
-	srcBounds := src.Bounds()
-	srcW, srcH := srcBounds.Dx(), srcBounds.Dy()
-	dst := image.NewRGBA(image.Rect(0, 0, dstW, dstH))
-
-	for y := 0; y < dstH; y++ {
-		srcY := int(float64(y) * float64(srcH) / float64(dstH))
-		if srcY >= srcH {
-			srcY = srcH - 1
-		}
-		for x := 0; x < dstW; x++ {
-			srcX := int(float64(x) * float64(srcW) / float64(dstW))
-			if srcX >= srcW {
-				srcX = srcW - 1
-			}
-			dst.Set(x, y, src.At(srcBounds.Min.X+srcX, srcBounds.Min.Y+srcY))
-		}
-	}
-
-	return dst
-}
-
-func alphaAt(img *image.RGBA, x, y int) uint8 {
-	return img.Pix[y*img.Stride+x*4+3]
-}
-
-func maskIndex(x, y, width int) int {
-	return y*width + x
 }

@@ -1,8 +1,6 @@
 package screenshots
 
 import (
-	"image"
-	"image/color"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,90 +38,6 @@ func TestFrameDeviceOptions_DefaultMarked(t *testing.T) {
 	}
 }
 
-func TestFrameUploadTargetForDevice(t *testing.T) {
-	tests := []struct {
-		name            string
-		device          FrameDevice
-		wantDisplayType string
-		wantWidth       int
-		wantHeight      int
-	}{
-		{
-			name:            "iphone-air maps to APP_IPHONE_69",
-			device:          FrameDeviceIPhoneAir,
-			wantDisplayType: "APP_IPHONE_69",
-			wantWidth:       1320,
-			wantHeight:      2868,
-		},
-		{
-			name:            "iphone-17-pro maps to APP_IPHONE_67",
-			device:          FrameDeviceIPhone17Pro,
-			wantDisplayType: "APP_IPHONE_67",
-			wantWidth:       1320,
-			wantHeight:      2868,
-		},
-		{
-			name:            "iphone-16e maps to APP_IPHONE_61",
-			device:          FrameDeviceIPhone16e,
-			wantDisplayType: "APP_IPHONE_61",
-			wantWidth:       1179,
-			wantHeight:      2556,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			target, ok, err := frameUploadTargetForDevice(test.device)
-			if err != nil {
-				t.Fatalf("frameUploadTargetForDevice() error = %v", err)
-			}
-			if !ok {
-				t.Fatalf("expected upload target for %q", test.device)
-			}
-			if target.DisplayType != test.wantDisplayType {
-				t.Fatalf("display type = %q, want %q", target.DisplayType, test.wantDisplayType)
-			}
-			if target.Dimension.Width != test.wantWidth || target.Dimension.Height != test.wantHeight {
-				t.Fatalf(
-					"target dimensions = %dx%d, want %dx%d",
-					target.Dimension.Width,
-					target.Dimension.Height,
-					test.wantWidth,
-					test.wantHeight,
-				)
-			}
-		})
-	}
-}
-
-func TestNormalizeFramedForUpload_IPhoneAir(t *testing.T) {
-	src := image.NewRGBA(image.Rect(0, 0, 1380, 2880))
-	for y := 0; y < 2880; y++ {
-		for x := 0; x < 1380; x++ {
-			src.SetRGBA(x, y, color.RGBA{
-				R: uint8((x * 255) / 1380),
-				G: uint8((y * 255) / 2880),
-				B: 128,
-				A: 255,
-			})
-		}
-	}
-
-	normalized, target, changed, err := normalizeFramedForUpload(src, FrameDeviceIPhoneAir)
-	if err != nil {
-		t.Fatalf("normalizeFramedForUpload() error = %v", err)
-	}
-	if !changed {
-		t.Fatal("expected normalization to be applied")
-	}
-	if target.DisplayType != "APP_IPHONE_69" {
-		t.Fatalf("display type = %q, want APP_IPHONE_69", target.DisplayType)
-	}
-	if normalized.Bounds().Dx() != 1320 || normalized.Bounds().Dy() != 2868 {
-		t.Fatalf("normalized dimensions = %dx%d, want 1320x2868", normalized.Bounds().Dx(), normalized.Bounds().Dy())
-	}
-}
-
 func TestParseFrameDevice_NormalizesInput(t *testing.T) {
 	tests := []struct {
 		name string
@@ -158,47 +72,84 @@ func TestParseFrameDevice_InvalidValue(t *testing.T) {
 	}
 }
 
-func TestResolveFramePath_PrefersAirLightGoldPortrait(t *testing.T) {
-	root := t.TempDir()
-	pngDir := filepath.Join(root, "iphone-air", "png")
-	if err := os.MkdirAll(pngDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll() error = %v", err)
+func TestResolveKoubouOutputSize(t *testing.T) {
+	tests := []struct {
+		name       string
+		value      any
+		wantWidth  int
+		wantHeight int
+		wantOK     bool
+	}{
+		{name: "named size", value: "iPhone6_9", wantWidth: 1320, wantHeight: 2868, wantOK: true},
+		{name: "custom list", value: []any{1200, 2500}, wantWidth: 1200, wantHeight: 2500, wantOK: true},
+		{name: "unknown name", value: "iphone7_2", wantOK: false},
+		{name: "invalid list", value: []any{"bad", 2}, wantOK: false},
 	}
 
-	writeTextFile(t, filepath.Join(pngDir, "iPhone Air - Silver - Portrait.png"), "x")
-	writeTextFile(t, filepath.Join(pngDir, defaultIPhoneAirPortrait), "y")
-
-	got, err := resolveFramePath(root, FrameDeviceIPhoneAir)
-	if err != nil {
-		t.Fatalf("resolveFramePath() error = %v", err)
-	}
-	if filepath.Base(got) != defaultIPhoneAirPortrait {
-		t.Fatalf("expected %q, got %q", defaultIPhoneAirPortrait, filepath.Base(got))
-	}
-}
-
-func TestResolveFramePath_FallsBackToSortedPortrait(t *testing.T) {
-	root := t.TempDir()
-	pngDir := filepath.Join(root, "iphone-17-pro", "png")
-	if err := os.MkdirAll(pngDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll() error = %v", err)
-	}
-
-	writeTextFile(t, filepath.Join(pngDir, "iPhone 17 Pro - Silver - Portrait.png"), "x")
-	writeTextFile(t, filepath.Join(pngDir, "iPhone 17 Pro - Deep Blue - Portrait.png"), "y")
-
-	got, err := resolveFramePath(root, FrameDeviceIPhone17Pro)
-	if err != nil {
-		t.Fatalf("resolveFramePath() error = %v", err)
-	}
-	if filepath.Base(got) != "iPhone 17 Pro - Deep Blue - Portrait.png" {
-		t.Fatalf("unexpected selected portrait: %q", filepath.Base(got))
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			width, height, ok := resolveKoubouOutputSize(test.value)
+			if ok != test.wantOK {
+				t.Fatalf("ok = %v, want %v", ok, test.wantOK)
+			}
+			if !ok {
+				return
+			}
+			if width != test.wantWidth || height != test.wantHeight {
+				t.Fatalf("dimensions = %dx%d, want %dx%d", width, height, test.wantWidth, test.wantHeight)
+			}
+		})
 	}
 }
 
-func writeTextFile(t *testing.T, path, contents string) {
-	t.Helper()
-	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
-		t.Fatalf("WriteFile(%q) error = %v", path, err)
+func TestParseKoubouConfigMetadata(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "frame.yaml")
+	config := `project:
+  name: "Demo"
+  output_dir: "./out"
+  device: "iPhone 17 Pro - Silver - Portrait"
+  output_size: "iPhone6_7"
+screenshots:
+  framed:
+    content:
+      - type: "image"
+        asset: "screenshots/raw.png"
+        frame: true
+`
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	metadata := parseKoubouConfigMetadata(configPath)
+	if metadata == nil {
+		t.Fatal("expected parsed metadata")
+	}
+	if metadata.FrameRef != "iPhone 17 Pro - Silver - Portrait" {
+		t.Fatalf("unexpected frame ref %q", metadata.FrameRef)
+	}
+	if metadata.DisplayType != "APP_IPHONE_67" {
+		t.Fatalf("unexpected display type %q", metadata.DisplayType)
+	}
+	if metadata.UploadWidth != 1290 || metadata.UploadHeight != 2796 {
+		t.Fatalf("unexpected upload dimensions %dx%d", metadata.UploadWidth, metadata.UploadHeight)
+	}
+}
+
+func TestSelectGeneratedScreenshot_RelativePath(t *testing.T) {
+	configDir := t.TempDir()
+	configPath := filepath.Join(configDir, "frame.yaml")
+	if err := os.WriteFile(configPath, []byte("project: {}"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	got, err := selectGeneratedScreenshot(configPath, []koubouGenerateResult{
+		{Name: "framed", Path: "output/framed.png", Success: true},
+	})
+	if err != nil {
+		t.Fatalf("selectGeneratedScreenshot() error = %v", err)
+	}
+	want := filepath.Join(configDir, "output", "framed.png")
+	if got != want {
+		t.Fatalf("path = %q, want %q", got, want)
 	}
 }

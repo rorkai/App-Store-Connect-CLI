@@ -24,6 +24,11 @@ Examples:
   asc shots capture --bundle-id "com.example.app" --name home --output-dir ./screenshots/raw
   asc shots capture --provider axe --bundle-id "com.example.app" --name home --udid booted
   asc shots frame --input ./screenshots/raw/home.png --device iphone-air
+  asc shots frame --config .asc/koubou.yaml --output-dir ./screenshots/framed
+  asc shots review generate --raw-dir ./screenshots/raw --framed-dir ./screenshots/framed
+  asc shots review open --output-dir ./screenshots/review
+  asc shots review approve --all-ready --output-dir ./screenshots/review
+  asc assets screenshots upload --version-localization "LOC_ID" --path "./screenshots/framed/en/iPhone_Air" --device-type "IPHONE_69"
   asc shots frames list-devices --output json`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -32,6 +37,7 @@ Examples:
 			ShotsCaptureCommand(),
 			ShotsFrameCommand(),
 			ShotsFramesCommand(),
+			ShotsReviewCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

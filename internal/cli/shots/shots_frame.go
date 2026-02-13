@@ -19,6 +19,7 @@ const defaultShotsFrameOutputDir = "./screenshots/framed"
 func ShotsFrameCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("frame", flag.ExitOnError)
 	inputPath := fs.String("input", "", "Path to raw screenshot PNG (required)")
+	configPath := fs.String("config", "", "Path to Koubou YAML config (optional)")
 	outputPath := fs.String("output-path", "", "Exact output file path for framed PNG (optional)")
 	outputDir := fs.String("output-dir", defaultShotsFrameOutputDir, "Output directory when --output-path is not set")
 	name := fs.String("name", "", "Output file name without extension (defaults to input base name)")
@@ -32,17 +33,18 @@ func ShotsFrameCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "frame",
-		ShortUsage: "asc shots frame --input ./screenshots/raw/home.png [flags]",
+		ShortUsage: "asc shots frame (--input ./screenshots/raw/home.png | --config ./koubou.yaml) [flags]",
 		ShortHelp:  "Compose a screenshot into an Apple device frame.",
-		LongHelp: `Compose one raw screenshot into a cached Apple device frame.
+		LongHelp: `Compose screenshots using Koubou's YAML-based rendering flow.
 
-By default this uses --device iphone-air, normalizes to an upload-safe App Store size for that device, and writes to ./screenshots/framed.`,
+Use either --input (auto-generated Koubou config) or --config (explicit Koubou YAML).`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			configVal := strings.TrimSpace(*configPath)
 			inputVal := strings.TrimSpace(*inputPath)
-			if inputVal == "" {
-				fmt.Fprintln(os.Stderr, "Error: --input is required")
+			if configVal == "" && inputVal == "" {
+				fmt.Fprintln(os.Stderr, "Error: --input is required when --config is not set")
 				return flag.ErrHelp
 			}
 
@@ -56,9 +58,13 @@ By default this uses --device iphone-air, normalizes to an upload-safe App Store
 				return flag.ErrHelp
 			}
 
-			absInput, err := filepath.Abs(inputVal)
-			if err != nil {
-				return fmt.Errorf("shots frame: resolve input path: %w", err)
+			absInput := ""
+			if inputVal != "" {
+				var err error
+				absInput, err = filepath.Abs(inputVal)
+				if err != nil {
+					return fmt.Errorf("shots frame: resolve input path: %w", err)
+				}
 			}
 
 			outPath, err := resolveOutputPath(*outputPath, *outputDir, *name, absInput, string(deviceVal))
@@ -70,6 +76,7 @@ By default this uses --device iphone-air, normalizes to an upload-safe App Store
 				InputPath:  absInput,
 				OutputPath: outPath,
 				Device:     string(deviceVal),
+				ConfigPath: configVal,
 			})
 			if err != nil {
 				return fmt.Errorf("shots frame: %w", err)

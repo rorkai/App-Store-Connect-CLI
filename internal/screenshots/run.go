@@ -3,6 +3,7 @@ package screenshots
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -233,9 +234,24 @@ func runExternal(ctx context.Context, name string, args ...string) error {
 
 func runExternalOutput(ctx context.Context, name string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
-	out, err := cmd.CombinedOutput()
+	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("%s: %w (output: %s)", name, err, strings.TrimSpace(string(out)))
+		output := strings.TrimSpace(string(out))
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			stderr := strings.TrimSpace(string(exitErr.Stderr))
+			if stderr != "" {
+				if output != "" {
+					output += "\n" + stderr
+				} else {
+					output = stderr
+				}
+			}
+		}
+		if output == "" {
+			return "", fmt.Errorf("%s: %w", name, err)
+		}
+		return "", fmt.Errorf("%s: %w (output: %s)", name, err, output)
 	}
 	return string(out), nil
 }
