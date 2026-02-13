@@ -36,7 +36,7 @@ func ShotsFrameCommand() *ffcli.Command {
 		ShortHelp:  "Compose a screenshot into an Apple device frame.",
 		LongHelp: `Compose one raw screenshot into a cached Apple device frame.
 
-By default this uses --device iphone-air and writes to ./screenshots/framed.`,
+By default this uses --device iphone-air, normalizes to an upload-safe App Store size for that device, and writes to ./screenshots/framed.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

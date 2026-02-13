@@ -1,6 +1,8 @@
 package screenshots
 
 import (
+	"image"
+	"image/color"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,6 +37,90 @@ func TestFrameDeviceOptions_DefaultMarked(t *testing.T) {
 	}
 	if defaultCount != 1 {
 		t.Fatalf("expected exactly 1 default option, got %d", defaultCount)
+	}
+}
+
+func TestFrameUploadTargetForDevice(t *testing.T) {
+	tests := []struct {
+		name            string
+		device          FrameDevice
+		wantDisplayType string
+		wantWidth       int
+		wantHeight      int
+	}{
+		{
+			name:            "iphone-air maps to APP_IPHONE_69",
+			device:          FrameDeviceIPhoneAir,
+			wantDisplayType: "APP_IPHONE_69",
+			wantWidth:       1320,
+			wantHeight:      2868,
+		},
+		{
+			name:            "iphone-17-pro maps to APP_IPHONE_67",
+			device:          FrameDeviceIPhone17Pro,
+			wantDisplayType: "APP_IPHONE_67",
+			wantWidth:       1320,
+			wantHeight:      2868,
+		},
+		{
+			name:            "iphone-16e maps to APP_IPHONE_61",
+			device:          FrameDeviceIPhone16e,
+			wantDisplayType: "APP_IPHONE_61",
+			wantWidth:       1179,
+			wantHeight:      2556,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			target, ok, err := frameUploadTargetForDevice(test.device)
+			if err != nil {
+				t.Fatalf("frameUploadTargetForDevice() error = %v", err)
+			}
+			if !ok {
+				t.Fatalf("expected upload target for %q", test.device)
+			}
+			if target.DisplayType != test.wantDisplayType {
+				t.Fatalf("display type = %q, want %q", target.DisplayType, test.wantDisplayType)
+			}
+			if target.Dimension.Width != test.wantWidth || target.Dimension.Height != test.wantHeight {
+				t.Fatalf(
+					"target dimensions = %dx%d, want %dx%d",
+					target.Dimension.Width,
+					target.Dimension.Height,
+					test.wantWidth,
+					test.wantHeight,
+				)
+			}
+		})
+	}
+}
+
+func TestNormalizeFramedForUpload_IPhoneAir(t *testing.T) {
+	src := image.NewRGBA(image.Rect(0, 0, 1380, 2880))
+	for y := 0; y < 2880; y++ {
+		for x := 0; x < 1380; x++ {
+			src.SetRGBA(x, y, color.RGBA{
+				R: uint8((x * 255) / 1380),
+				G: uint8((y * 255) / 2880),
+				B: 128,
+				A: 255,
+			})
+		}
+	}
+
+	normalized, target, changed, err := normalizeFramedForUpload(src, FrameDeviceIPhoneAir)
+	if err != nil {
+		t.Fatalf("normalizeFramedForUpload() error = %v", err)
+	}
+	if !changed {
+		t.Fatal("expected normalization to be applied")
+	}
+	if target.DisplayType != "APP_IPHONE_69" {
+		t.Fatalf("display type = %q, want APP_IPHONE_69", target.DisplayType)
+	}
+	if normalized.Bounds().Dx() != 1320 || normalized.Bounds().Dy() != 2868 {
+		t.Fatalf("normalized dimensions = %dx%d, want 1320x2868", normalized.Bounds().Dx(), normalized.Bounds().Dy())
 	}
 }
 

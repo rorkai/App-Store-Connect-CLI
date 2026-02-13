@@ -41,6 +41,14 @@ var supportedFrameDevices = []FrameDevice{
 	FrameDeviceIPhone17,
 }
 
+var frameUploadDisplayTypeByDevice = map[FrameDevice]string{
+	FrameDeviceIPhoneAir:   "APP_IPHONE_69",
+	FrameDeviceIPhone17PM:  "APP_IPHONE_69",
+	FrameDeviceIPhone17Pro: "APP_IPHONE_67",
+	FrameDeviceIPhone17:    "APP_IPHONE_67",
+	FrameDeviceIPhone16e:   "APP_IPHONE_61",
+}
+
 // FrameRequest holds options for composing one screenshot into an Apple frame.
 type FrameRequest struct {
 	InputPath   string // required source screenshot path
@@ -52,11 +60,15 @@ type FrameRequest struct {
 
 // FrameResult is the structured output for a composed frame image.
 type FrameResult struct {
-	Path      string `json:"path"`
-	FramePath string `json:"frame_path"`
-	Device    string `json:"device"`
-	Width     int    `json:"width"`
-	Height    int    `json:"height"`
+	Path         string `json:"path"`
+	FramePath    string `json:"frame_path"`
+	Device       string `json:"device"`
+	DisplayType  string `json:"display_type,omitempty"`
+	UploadWidth  int    `json:"upload_width,omitempty"`
+	UploadHeight int    `json:"upload_height,omitempty"`
+	Normalized   bool   `json:"normalized"`
+	Width        int    `json:"width"`
+	Height       int    `json:"height"`
 }
 
 // FrameDeviceOption describes one supported frame device value.
@@ -159,6 +171,10 @@ func Frame(ctx context.Context, req FrameRequest) (*FrameResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	composed, uploadTarget, normalized, err := normalizeFramedForUpload(composed, device)
+	if err != nil {
+		return nil, err
+	}
 
 	absOut, err := filepath.Abs(outputPath)
 	if err != nil {
@@ -178,11 +194,15 @@ func Frame(ctx context.Context, req FrameRequest) (*FrameResult, error) {
 
 	absFrame, _ := filepath.Abs(framePath)
 	return &FrameResult{
-		Path:      absOut,
-		FramePath: absFrame,
-		Device:    string(device),
-		Width:     composed.Bounds().Dx(),
-		Height:    composed.Bounds().Dy(),
+		Path:         absOut,
+		FramePath:    absFrame,
+		Device:       string(device),
+		DisplayType:  uploadTarget.DisplayType,
+		UploadWidth:  uploadTarget.Dimension.Width,
+		UploadHeight: uploadTarget.Dimension.Height,
+		Normalized:   normalized,
+		Width:        composed.Bounds().Dx(),
+		Height:       composed.Bounds().Dy(),
 	}, nil
 }
 
@@ -284,6 +304,11 @@ type point struct {
 	y int
 }
 
+type frameUploadTarget struct {
+	DisplayType string
+	Dimension   asc.ScreenshotDimension
+}
+
 func composeFramedImage(raw image.Image, frame image.Image, bleed int) (*image.RGBA, error) {
 	rawFlat := flattenOnWhite(raw)
 	frameRGBA := toRGBA(frame)
@@ -341,6 +366,101 @@ func composeFramedImage(raw image.Image, frame image.Image, bleed int) (*image.R
 	draw.Draw(base, base.Bounds(), layer, image.Point{}, draw.Over)
 	draw.Draw(base, base.Bounds(), frameRGBA, image.Point{}, draw.Over)
 	return base, nil
+}
+
+func normalizeFramedForUpload(
+	composed *image.RGBA,
+	device FrameDevice,
+) (*image.RGBA, frameUploadTarget, bool, error) {
+	target, ok, err := frameUploadTargetForDevice(device)
+	if err != nil {
+		return nil, frameUploadTarget{}, false, err
+	}
+	if !ok {
+		return composed, frameUploadTarget{}, false, nil
+	}
+
+	currentW := composed.Bounds().Dx()
+	currentH := composed.Bounds().Dy()
+	targetW := target.Dimension.Width
+	targetH := target.Dimension.Height
+	if currentW == targetW && currentH == targetH {
+		return composed, target, false, nil
+	}
+
+	normalized := resizeAndCropToTarget(composed, targetW, targetH)
+	return normalized, target, true, nil
+}
+
+func frameUploadTargetForDevice(device FrameDevice) (frameUploadTarget, bool, error) {
+	displayType, ok := frameUploadDisplayTypeByDevice[device]
+	if !ok {
+		return frameUploadTarget{}, false, nil
+	}
+
+	dimensions, ok := asc.ScreenshotDimensions(displayType)
+	if !ok {
+		return frameUploadTarget{}, false, fmt.Errorf(
+			"unsupported screenshot display type %q for device %q",
+			displayType,
+			device,
+		)
+	}
+
+	targetDim, ok := preferredPortraitDimension(dimensions)
+	if !ok {
+		return frameUploadTarget{}, false, fmt.Errorf(
+			"no portrait screenshot dimensions found for %q",
+			displayType,
+		)
+	}
+
+	return frameUploadTarget{
+		DisplayType: displayType,
+		Dimension:   targetDim,
+	}, true, nil
+}
+
+func preferredPortraitDimension(dimensions []asc.ScreenshotDimension) (asc.ScreenshotDimension, bool) {
+	var best asc.ScreenshotDimension
+	bestArea := 0
+	found := false
+
+	for _, dim := range dimensions {
+		if dim.Height < dim.Width {
+			continue
+		}
+
+		area := dim.Width * dim.Height
+		if !found || area > bestArea || (area == bestArea && dim.Height > best.Height) {
+			best = dim
+			bestArea = area
+			found = true
+		}
+	}
+	return best, found
+}
+
+func resizeAndCropToTarget(src image.Image, targetW, targetH int) *image.RGBA {
+	srcW := src.Bounds().Dx()
+	srcH := src.Bounds().Dy()
+	scale := math.Max(float64(targetW)/float64(srcW), float64(targetH)/float64(srcH))
+	fitW := int(math.Ceil(float64(srcW) * scale))
+	fitH := int(math.Ceil(float64(srcH) * scale))
+	fit := resizeNearest(src, fitW, fitH)
+
+	cropX := 0
+	cropY := 0
+	if fitW > targetW {
+		cropX = (fitW - targetW) / 2
+	}
+	if fitH > targetH {
+		cropY = (fitH - targetH) / 2
+	}
+
+	dst := image.NewRGBA(image.Rect(0, 0, targetW, targetH))
+	draw.Draw(dst, dst.Bounds(), fit, image.Point{X: cropX, Y: cropY}, draw.Src)
+	return dst
 }
 
 func detectScreenMask(frame *image.RGBA) ([]bool, image.Rectangle, error) {

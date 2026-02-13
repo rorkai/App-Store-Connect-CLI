@@ -102,9 +102,15 @@ func TestShotsFrame_DefaultDeviceIsIPhoneAir(t *testing.T) {
 	}
 
 	var result struct {
-		Path      string `json:"path"`
-		FramePath string `json:"frame_path"`
-		Device    string `json:"device"`
+		Path         string `json:"path"`
+		FramePath    string `json:"frame_path"`
+		Device       string `json:"device"`
+		DisplayType  string `json:"display_type"`
+		UploadWidth  int    `json:"upload_width"`
+		UploadHeight int    `json:"upload_height"`
+		Normalized   bool   `json:"normalized"`
+		Width        int    `json:"width"`
+		Height       int    `json:"height"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("unmarshal frame output: %v\nstdout=%q", err, stdout)
@@ -118,6 +124,18 @@ func TestShotsFrame_DefaultDeviceIsIPhoneAir(t *testing.T) {
 	}
 	if !strings.Contains(result.FramePath, "iphone-air") {
 		t.Fatalf("expected air frame path, got %q", result.FramePath)
+	}
+	if result.DisplayType != "APP_IPHONE_69" {
+		t.Fatalf("expected display type APP_IPHONE_69, got %q", result.DisplayType)
+	}
+	if result.UploadWidth != 1320 || result.UploadHeight != 2868 {
+		t.Fatalf("expected upload target 1320x2868, got %dx%d", result.UploadWidth, result.UploadHeight)
+	}
+	if result.Width != 1320 || result.Height != 2868 {
+		t.Fatalf("expected normalized output 1320x2868, got %dx%d", result.Width, result.Height)
+	}
+	if !result.Normalized {
+		t.Fatal("expected normalization to be applied")
 	}
 }
 
@@ -159,13 +177,27 @@ func TestShotsFrame_ExplicitDeviceIPhone17Pro(t *testing.T) {
 	}
 
 	var result struct {
-		Device string `json:"device"`
+		Device       string `json:"device"`
+		DisplayType  string `json:"display_type"`
+		UploadWidth  int    `json:"upload_width"`
+		UploadHeight int    `json:"upload_height"`
+		Width        int    `json:"width"`
+		Height       int    `json:"height"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("unmarshal frame output: %v\nstdout=%q", err, stdout)
 	}
 	if result.Device != "iphone-17-pro" {
 		t.Fatalf("expected device iphone-17-pro, got %q", result.Device)
+	}
+	if result.DisplayType != "APP_IPHONE_67" {
+		t.Fatalf("expected display type APP_IPHONE_67, got %q", result.DisplayType)
+	}
+	if result.UploadWidth != 1320 || result.UploadHeight != 2868 {
+		t.Fatalf("expected upload target 1320x2868, got %dx%d", result.UploadWidth, result.UploadHeight)
+	}
+	if result.Width != 1320 || result.Height != 2868 {
+		t.Fatalf("expected normalized output 1320x2868, got %dx%d", result.Width, result.Height)
 	}
 }
 
