@@ -285,7 +285,10 @@ func buildReviewEntries(
 		rawPath := ""
 		rawRelative := ""
 		if rawAvailable {
-			rawPath = rawIndex[screenshotID]
+			rawPath = rawIndex[rawIndexReviewKey(locale, device, screenshotID)]
+			if rawPath == "" {
+				rawPath = rawIndex[rawIndexScreenshotKey(screenshotID)]
+			}
 			if rawPath != "" {
 				rawRelative, err = filepath.Rel(rawDir, rawPath)
 				if err != nil {
@@ -373,12 +376,33 @@ func buildRawIndex(rawDir string, rawAvailable bool) (map[string]string, error) 
 	}
 	for _, rawPath := range rawFiles {
 		base := strings.TrimSuffix(filepath.Base(rawPath), filepath.Ext(rawPath))
-		if _, exists := index[base]; exists {
+		idKey := rawIndexScreenshotKey(base)
+		if existingPath, exists := index[idKey]; !exists {
+			index[idKey] = rawPath
+		} else if existingPath != rawPath {
+			delete(index, idKey)
+		}
+
+		relPath, relErr := filepath.Rel(rawDir, rawPath)
+		if relErr != nil {
+			return nil, fmt.Errorf("resolve raw relative path: %w", relErr)
+		}
+		locale, device := inferLocaleAndDevice(relPath)
+		reviewKey := rawIndexReviewKey(locale, device, base)
+		if _, exists := index[reviewKey]; exists {
 			continue
 		}
-		index[base] = rawPath
+		index[reviewKey] = rawPath
 	}
 	return index, nil
+}
+
+func rawIndexReviewKey(locale, device, screenshotID string) string {
+	return "review|" + makeReviewKey(locale, device, screenshotID)
+}
+
+func rawIndexScreenshotKey(screenshotID string) string {
+	return "id|" + strings.TrimSpace(screenshotID)
 }
 
 func matchingAppDisplayTypes(width, height int) []string {
