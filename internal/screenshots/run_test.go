@@ -55,3 +55,82 @@ exit 1
 		t.Fatalf("expected stderr output in error, got %v", err)
 	}
 }
+
+func TestRunPlan_ScreenshotStepsDoNotRelaunchApp(t *testing.T) {
+	binDir := t.TempDir()
+	logDir := t.TempDir()
+	xcrunLog := filepath.Join(logDir, "xcrun.log")
+	axeLog := filepath.Join(logDir, "axe.log")
+	templatePNG := filepath.Join(logDir, "template.png")
+	writeMinimalPNG(t, templatePNG, 10, 10)
+
+	writeExecutable(t, filepath.Join(binDir, "xcrun"), `#!/bin/sh
+set -eu
+printf '%s\n' "$*" >> "$XCRUN_LOG"
+`)
+	writeExecutable(t, filepath.Join(binDir, "axe"), `#!/bin/sh
+set -eu
+printf '%s\n' "$*" >> "$AXE_LOG"
+out=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "--output" ]; then
+    out="$2"
+    break
+  fi
+  shift
+done
+if [ -z "$out" ]; then
+  exit 1
+fi
+/usr/bin/cp "$AXE_TEMPLATE_PNG" "$out"
+`)
+
+	t.Setenv("PATH", binDir)
+	t.Setenv("XCRUN_LOG", xcrunLog)
+	t.Setenv("AXE_LOG", axeLog)
+	t.Setenv("AXE_TEMPLATE_PNG", templatePNG)
+
+	name1 := "home"
+	name2 := "settings"
+	plan := &Plan{
+		Version: 1,
+		App: PlanApp{
+			BundleID:  "com.example.app",
+			UDID:      "SIM-UDID-123",
+			OutputDir: t.TempDir(),
+		},
+		Steps: []PlanStep{
+			{Action: ActionLaunch},
+			{Action: ActionScreenshot, Name: &name1},
+			{Action: ActionScreenshot, Name: &name2},
+		},
+	}
+
+	result, err := RunPlan(context.Background(), plan)
+	if err != nil {
+		t.Fatalf("RunPlan() error = %v", err)
+	}
+	if len(result.Steps) != 3 {
+		t.Fatalf("expected 3 step results, got %d", len(result.Steps))
+	}
+
+	xcrunArgs, err := os.ReadFile(xcrunLog)
+	if err != nil {
+		t.Fatalf("read xcrun log: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(xcrunArgs)), "\n")
+	if len(lines) != 1 {
+		t.Fatalf("expected exactly one app launch, got %d (%q)", len(lines), string(xcrunArgs))
+	}
+	if !strings.Contains(lines[0], "simctl launch SIM-UDID-123 com.example.app") {
+		t.Fatalf("unexpected launch args %q", lines[0])
+	}
+
+	axeArgs, err := os.ReadFile(axeLog)
+	if err != nil {
+		t.Fatalf("read axe log: %v", err)
+	}
+	if strings.Count(string(axeArgs), "screenshot") != 2 {
+		t.Fatalf("expected two screenshot captures, got %q", string(axeArgs))
+	}
+}

@@ -1,6 +1,7 @@
 package screenshots
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -493,14 +494,20 @@ func toInt(value any) (int, bool) {
 
 func runKoubouGenerate(ctx context.Context, configPath string) ([]koubouGenerateResult, error) {
 	cmd := exec.CommandContext(ctx, "kou", "generate", configPath, "--output", "json")
-	output, err := cmd.CombinedOutput()
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
 	if err != nil {
 		if errors.Is(err, exec.ErrNotFound) {
 			return nil, fmt.Errorf(
 				"kou binary not found; install Koubou first (pip install koubou or brew install bitomule/tap/koubou)",
 			)
 		}
-		return nil, fmt.Errorf("kou: %w (output: %s)", err, strings.TrimSpace(string(output)))
+		errorOutput := strings.TrimSpace(stderr.String())
+		if errorOutput == "" {
+			errorOutput = strings.TrimSpace(string(output))
+		}
+		return nil, fmt.Errorf("kou: %w (output: %s)", err, errorOutput)
 	}
 
 	var results []koubouGenerateResult
