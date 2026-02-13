@@ -102,6 +102,18 @@ type PlanStep struct {
 
 // LoadPlan reads and validates a plan file.
 func LoadPlan(path string) (*Plan, error) {
+	plan, err := LoadPlanUnvalidated(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := validatePlan(plan); err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
+
+// LoadPlanUnvalidated reads and parses a plan file without validation.
+func LoadPlanUnvalidated(path string) (*Plan, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrPlanRead, err)
@@ -114,9 +126,6 @@ func LoadPlan(path string) (*Plan, error) {
 
 	if plan.Version == 0 {
 		plan.Version = 1
-	}
-	if err := validatePlan(&plan); err != nil {
-		return nil, err
 	}
 	return &plan, nil
 }
