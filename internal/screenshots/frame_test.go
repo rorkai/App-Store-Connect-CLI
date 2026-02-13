@@ -1,8 +1,13 @@
 package screenshots
 
 import (
+	"context"
+	"image"
+	"image/color"
+	"image/png"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -152,4 +157,150 @@ func TestSelectGeneratedScreenshot_RelativePath(t *testing.T) {
 	if got != want {
 		t.Fatalf("path = %q, want %q", got, want)
 	}
+}
+
+func TestFrame_ConfigModeReportsDeviceFromConfig(t *testing.T) {
+	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
+	writeFrameTestPNG(t, kouFixturePath, makeFrameTestImage(1290, 2796))
+	installFrameTestMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
+
+	configPath := filepath.Join(t.TempDir(), "frame.yaml")
+	config := `project:
+  name: "Demo"
+  output_dir: "./out"
+  device: "iPhone 17 Pro - Silver - Portrait"
+  output_size: "iPhone6_7"
+screenshots:
+  framed:
+    content:
+      - type: "image"
+        asset: "screenshots/raw.png"
+        frame: true
+`
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	result, err := Frame(context.Background(), FrameRequest{
+		ConfigPath: configPath,
+		Device:     string(DefaultFrameDevice()),
+	})
+	if err != nil {
+		t.Fatalf("Frame() error = %v", err)
+	}
+	if result.Device != string(FrameDeviceIPhone17Pro) {
+		t.Fatalf("result.Device = %q, want %q", result.Device, FrameDeviceIPhone17Pro)
+	}
+}
+
+func TestFrame_InputModeCleansTemporaryKoubouDirectory(t *testing.T) {
+	rawPath := filepath.Join(t.TempDir(), "raw.png")
+	writeFrameTestPNG(t, rawPath, makeFrameTestImage(200, 300))
+
+	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
+	writeFrameTestPNG(t, kouFixturePath, makeFrameTestImage(1320, 2868))
+	installFrameTestMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
+
+	before := listFrameTempWorkDirs(t)
+	outputPath := filepath.Join(t.TempDir(), "framed", "home.png")
+	result, err := Frame(context.Background(), FrameRequest{
+		InputPath:  rawPath,
+		OutputPath: outputPath,
+		Device:     string(DefaultFrameDevice()),
+	})
+	if err != nil {
+		t.Fatalf("Frame() error = %v", err)
+	}
+	if _, err := os.Stat(result.Path); err != nil {
+		t.Fatalf("expected output file at %q: %v", result.Path, err)
+	}
+
+	for _, dir := range listFrameTempWorkDirs(t) {
+		if slices.Contains(before, dir) {
+			continue
+		}
+		t.Fatalf("found leaked temporary Koubou directory: %q", dir)
+	}
+}
+
+func installFrameTestMockKou(t *testing.T, fixturePath, outputPath string) {
+	t.Helper()
+
+	binDir := t.TempDir()
+	kouPath := filepath.Join(binDir, "kou")
+	script := `#!/bin/sh
+if [ "$1" = "generate" ]; then
+  mkdir -p "$(dirname "$MOCK_KOU_OUTPUT")"
+  cp "$MOCK_KOU_FIXTURE" "$MOCK_KOU_OUTPUT"
+  printf '[{"name":"framed","path":"%s","success":true}]' "$MOCK_KOU_OUTPUT"
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`
+	if err := os.WriteFile(kouPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write kou mock script: %v", err)
+	}
+
+	t.Setenv("MOCK_KOU_FIXTURE", fixturePath)
+	t.Setenv("MOCK_KOU_OUTPUT", outputPath)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func writeFrameTestPNG(t *testing.T, path string, img image.Image) {
+	t.Helper()
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll(%q) error: %v", filepath.Dir(path), err)
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("Create(%q) error: %v", path, err)
+	}
+	defer file.Close()
+
+	if err := png.Encode(file, img); err != nil {
+		t.Fatalf("png.Encode(%q) error: %v", path, err)
+	}
+}
+
+func makeFrameTestImage(width, height int) image.Image {
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			img.SetRGBA(x, y, color.RGBA{
+				R: uint8((x * 255) / max(width, 1)),
+				G: uint8((y * 255) / max(height, 1)),
+				B: 200,
+				A: 255,
+			})
+		}
+	}
+	return img
+}
+
+func listFrameTempWorkDirs(t *testing.T) []string {
+	t.Helper()
+
+	pattern := filepath.Join(os.TempDir(), "asc-shots-kou-*")
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		t.Fatalf("filepath.Glob(%q) error: %v", pattern, err)
+	}
+	dirs := make([]string, 0, len(matches))
+	for _, match := range matches {
+		info, statErr := os.Stat(match)
+		if statErr != nil || !info.IsDir() {
+			continue
+		}
+		dirs = append(dirs, match)
+	}
+	return dirs
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

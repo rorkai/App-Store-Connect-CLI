@@ -124,6 +124,52 @@ func TestGenerateReview_RequiresFramedDirectory(t *testing.T) {
 	}
 }
 
+func TestGenerateReview_MatchesRawByLocaleAndDevicePath(t *testing.T) {
+	baseDir := t.TempDir()
+	rawDir := filepath.Join(baseDir, "raw")
+	framedDir := filepath.Join(baseDir, "framed")
+	outputDir := filepath.Join(baseDir, "review")
+
+	writeReviewImage(t, filepath.Join(rawDir, "en", "iPhone_Air", "home.png"), 1320, 2868)
+	writeReviewImage(t, filepath.Join(rawDir, "fr", "iPhone_Air", "home.png"), 1320, 2868)
+	writeReviewImage(t, filepath.Join(framedDir, "en", "iPhone_Air", "home.png"), 1320, 2868)
+	writeReviewImage(t, filepath.Join(framedDir, "fr", "iPhone_Air", "home.png"), 1320, 2868)
+
+	result, err := GenerateReview(context.Background(), ReviewRequest{
+		RawDir:    rawDir,
+		FramedDir: framedDir,
+		OutputDir: outputDir,
+	})
+	if err != nil {
+		t.Fatalf("GenerateReview() error: %v", err)
+	}
+
+	manifestData, err := os.ReadFile(result.ManifestPath)
+	if err != nil {
+		t.Fatalf("ReadFile(manifest) error: %v", err)
+	}
+	var manifest ReviewManifest
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		t.Fatalf("Unmarshal(manifest) error: %v", err)
+	}
+
+	en := findReviewEntryByIDAndLocale(t, manifest.Entries, "home", "en")
+	if en.RawRelative != filepath.ToSlash(filepath.Join("en", "iPhone_Air", "home.png")) {
+		t.Fatalf("en raw path = %q", en.RawRelative)
+	}
+	if en.Status != reviewStatusReady {
+		t.Fatalf("en status = %q, want %q", en.Status, reviewStatusReady)
+	}
+
+	fr := findReviewEntryByIDAndLocale(t, manifest.Entries, "home", "fr")
+	if fr.RawRelative != filepath.ToSlash(filepath.Join("fr", "iPhone_Air", "home.png")) {
+		t.Fatalf("fr raw path = %q", fr.RawRelative)
+	}
+	if fr.Status != reviewStatusReady {
+		t.Fatalf("fr status = %q, want %q", fr.Status, reviewStatusReady)
+	}
+}
+
 func findReviewEntryByID(t *testing.T, entries []ReviewEntry, screenshotID string) ReviewEntry {
 	t.Helper()
 	for _, entry := range entries {
@@ -132,6 +178,17 @@ func findReviewEntryByID(t *testing.T, entries []ReviewEntry, screenshotID strin
 		}
 	}
 	t.Fatalf("entry not found for screenshot id %q", screenshotID)
+	return ReviewEntry{}
+}
+
+func findReviewEntryByIDAndLocale(t *testing.T, entries []ReviewEntry, screenshotID, locale string) ReviewEntry {
+	t.Helper()
+	for _, entry := range entries {
+		if entry.ScreenshotID == screenshotID && entry.Locale == locale {
+			return entry
+		}
+	}
+	t.Fatalf("entry not found for screenshot id %q locale %q", screenshotID, locale)
 	return ReviewEntry{}
 }
 

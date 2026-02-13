@@ -103,7 +103,10 @@ func resolveOutputPath(explicitPath, outputDir, name, inputPath, device string) 
 	}
 	baseName := strings.TrimSpace(name)
 	if baseName == "" {
-		baseName = strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))
+		trimmedInputPath := strings.TrimSpace(inputPath)
+		if trimmedInputPath != "" {
+			baseName = strings.TrimSuffix(filepath.Base(trimmedInputPath), filepath.Ext(trimmedInputPath))
+		}
 	}
 	if baseName == "" {
 		baseName = "screenshot"

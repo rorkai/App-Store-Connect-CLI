@@ -200,6 +200,7 @@ func Frame(ctx context.Context, req FrameRequest) (*FrameResult, error) {
 
 	outputPath := strings.TrimSpace(req.OutputPath)
 	configPath := strings.TrimSpace(req.ConfigPath)
+	resultDevice := string(device)
 	metadata := frameExecutionMetadata{
 		FrameRef: string(device),
 	}
@@ -226,10 +227,13 @@ func Frame(ctx context.Context, req FrameRequest) (*FrameResult, error) {
 			return nil, fmt.Errorf("read input screenshot: %w", err)
 		}
 
-		generatedConfigPath, generatedMetadata, err := createDefaultKoubouConfig(absInputPath, spec)
+		generatedConfigPath, generatedMetadata, generatedWorkDir, err := createDefaultKoubouConfig(absInputPath, spec)
 		if err != nil {
 			return nil, err
 		}
+		defer func() {
+			_ = os.RemoveAll(generatedWorkDir)
+		}()
 		configPath = generatedConfigPath
 		metadata = generatedMetadata
 	} else {
@@ -243,6 +247,7 @@ func Frame(ctx context.Context, req FrameRequest) (*FrameResult, error) {
 		}
 		if parsed := parseKoubouConfigMetadata(configPath); parsed != nil {
 			metadata = *parsed
+			resultDevice = resolveFrameDeviceForConfig(metadata.FrameRef, resultDevice)
 		}
 	}
 
@@ -287,7 +292,7 @@ func Frame(ctx context.Context, req FrameRequest) (*FrameResult, error) {
 	return &FrameResult{
 		Path:         absFinalPath,
 		FramePath:    metadata.FrameRef,
-		Device:       string(device),
+		Device:       resultDevice,
 		DisplayType:  metadata.DisplayType,
 		UploadWidth:  metadata.UploadWidth,
 		UploadHeight: metadata.UploadHeight,
@@ -300,15 +305,15 @@ func Frame(ctx context.Context, req FrameRequest) (*FrameResult, error) {
 func createDefaultKoubouConfig(
 	absInputPath string,
 	spec frameDeviceKoubouSpec,
-) (string, frameExecutionMetadata, error) {
+) (string, frameExecutionMetadata, string, error) {
 	workDir, err := os.MkdirTemp("", "asc-shots-kou-*")
 	if err != nil {
-		return "", frameExecutionMetadata{}, fmt.Errorf("create temp config directory: %w", err)
+		return "", frameExecutionMetadata{}, "", fmt.Errorf("create temp config directory: %w", err)
 	}
 
 	kouOutputDir := filepath.Join(workDir, "output")
 	if err := os.MkdirAll(kouOutputDir, 0o755); err != nil {
-		return "", frameExecutionMetadata{}, fmt.Errorf("create temp output directory: %w", err)
+		return "", frameExecutionMetadata{}, "", fmt.Errorf("create temp output directory: %w", err)
 	}
 
 	configPath := filepath.Join(workDir, "frame.yaml")
@@ -336,10 +341,10 @@ func createDefaultKoubouConfig(
 
 	data, err := yaml.Marshal(config)
 	if err != nil {
-		return "", frameExecutionMetadata{}, fmt.Errorf("marshal default Koubou YAML: %w", err)
+		return "", frameExecutionMetadata{}, "", fmt.Errorf("marshal default Koubou YAML: %w", err)
 	}
 	if err := os.WriteFile(configPath, data, 0o600); err != nil {
-		return "", frameExecutionMetadata{}, fmt.Errorf("write default Koubou YAML: %w", err)
+		return "", frameExecutionMetadata{}, "", fmt.Errorf("write default Koubou YAML: %w", err)
 	}
 
 	metadata := frameExecutionMetadata{
@@ -350,7 +355,20 @@ func createDefaultKoubouConfig(
 		metadata.UploadWidth = width
 		metadata.UploadHeight = height
 	}
-	return configPath, metadata, nil
+	return configPath, metadata, workDir, nil
+}
+
+func resolveFrameDeviceForConfig(frameRef, fallback string) string {
+	trimmedFrameRef := strings.TrimSpace(frameRef)
+	if trimmedFrameRef == "" {
+		return fallback
+	}
+	for device, spec := range frameDeviceKoubouSpecs {
+		if strings.EqualFold(strings.TrimSpace(spec.FrameName), trimmedFrameRef) {
+			return string(device)
+		}
+	}
+	return trimmedFrameRef
 }
 
 func parseKoubouConfigMetadata(configPath string) *frameExecutionMetadata {
