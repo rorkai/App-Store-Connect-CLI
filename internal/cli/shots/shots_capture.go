@@ -13,14 +13,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
 
-const (
-	providerAXe = "axe"
-)
-
 // ShotsCaptureCommand returns the shots capture subcommand.
 func ShotsCaptureCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("capture", flag.ExitOnError)
-	provider := fs.String("provider", providerAXe, "Capture provider: axe (default)")
+	provider := fs.String("provider", screenshots.ProviderAXe, "Capture provider: axe (default)")
 	bundleID := fs.String("bundle-id", "", "App bundle ID (required)")
 	udid := fs.String("udid", "booted", "Simulator UDID (default: booted)")
 	name := fs.String("name", "", "Screenshot name for output file (required)")
@@ -48,8 +44,8 @@ App must already be installed; simulator must be booted or --udid set.`,
 				return flag.ErrHelp
 			}
 			providerVal := strings.TrimSpace(strings.ToLower(*provider))
-			if providerVal != providerAXe {
-				fmt.Fprintf(os.Stderr, "Error: --provider must be %q\n", providerAXe)
+			if providerVal != screenshots.ProviderAXe {
+				fmt.Fprintf(os.Stderr, "Error: --provider must be %q\n", screenshots.ProviderAXe)
 				return flag.ErrHelp
 			}
 
