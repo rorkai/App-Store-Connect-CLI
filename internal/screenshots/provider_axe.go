@@ -12,11 +12,19 @@ import (
 // AXeProvider captures a screenshot via the AXe CLI.
 type AXeProvider struct{}
 
-// Capture runs `axe screenshot --output <path> --udid <udid>` and returns the PNG path.
+// Capture launches the requested app and captures a screenshot via AXe.
 func (p *AXeProvider) Capture(ctx context.Context, req CaptureRequest) (string, error) {
 	udid := strings.TrimSpace(req.UDID)
 	if udid == "" {
 		udid = "booted"
+	}
+	bundleID := strings.TrimSpace(req.BundleID)
+	if bundleID != "" {
+		launchCmd := exec.CommandContext(ctx, "xcrun", "simctl", "launch", udid, bundleID)
+		launchOut, launchErr := launchCmd.CombinedOutput()
+		if launchErr != nil {
+			return "", fmt.Errorf("xcrun simctl launch %q: %w (output: %s)", bundleID, launchErr, strings.TrimSpace(string(launchOut)))
+		}
 	}
 
 	pngPath := filepath.Join(req.OutputDir, req.Name+".png")

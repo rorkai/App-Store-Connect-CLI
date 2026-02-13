@@ -107,3 +107,49 @@ func TestShotsRun_ValidWaitPlan(t *testing.T) {
 		t.Fatalf("unexpected step results: %+v", result.Steps)
 	}
 }
+
+func TestShotsRun_BundleIDOverrideAppliedForPlanMissingBundleID(t *testing.T) {
+	root := RootCommand("1.2.3")
+	outDir := filepath.Join(t.TempDir(), "shots")
+	planPath := filepath.Join(t.TempDir(), "screenshots.json")
+	writeFile(t, planPath, `{
+  "version": 1,
+  "app": {
+    "output_dir": "`+outDir+`"
+  },
+  "steps": [
+    { "action": "wait", "duration_ms": 1 }
+  ]
+}`)
+
+	if err := root.Parse([]string{"shots", "run", "--plan", planPath, "--bundle-id", "com.override.app", "--output", "json"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result struct {
+		BundleID string `json:"bundle_id"`
+		Steps    []struct {
+			Action string `json:"action"`
+			Status string `json:"status"`
+		} `json:"steps"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal stdout JSON: %v\nstdout=%q", err, stdout)
+	}
+	if result.BundleID != "com.override.app" {
+		t.Fatalf("expected overridden bundle_id, got %q", result.BundleID)
+	}
+	if len(result.Steps) != 1 || result.Steps[0].Action != "wait" || result.Steps[0].Status != "ok" {
+		t.Fatalf("unexpected step results: %+v", result.Steps)
+	}
+}

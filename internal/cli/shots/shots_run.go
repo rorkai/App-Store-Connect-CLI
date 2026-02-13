@@ -45,7 +45,7 @@ Supported actions: launch, tap, type, wait, wait_for (polling), screenshot.`,
 				return fmt.Errorf("shots run: resolve plan path: %w", err)
 			}
 
-			plan, err := screenshots.LoadPlan(absPlanPath)
+			plan, err := screenshots.LoadPlanUnvalidated(absPlanPath)
 			if err != nil {
 				return fmt.Errorf("shots run: %w", err)
 			}
