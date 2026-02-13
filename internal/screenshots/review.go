@@ -221,21 +221,6 @@ func ResolveReviewOutputDir(outputDir string) (string, error) {
 	return absDir, nil
 }
 
-// ReviewManifestPath returns the default manifest path for an output directory.
-func ReviewManifestPath(outputDir string) string {
-	return filepath.Join(outputDir, defaultReviewManifestName)
-}
-
-// ReviewHTMLPath returns the default HTML report path for an output directory.
-func ReviewHTMLPath(outputDir string) string {
-	return filepath.Join(outputDir, defaultReviewHTMLName)
-}
-
-// ReviewApprovalsPath returns the default approvals file path for an output directory.
-func ReviewApprovalsPath(outputDir string) string {
-	return filepath.Join(outputDir, defaultReviewApprovalsName)
-}
-
 // LoadReviewManifest parses a generated review manifest from disk.
 func LoadReviewManifest(path string) (*ReviewManifest, error) {
 	data, err := os.ReadFile(path)
