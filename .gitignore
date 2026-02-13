@@ -39,3 +39,6 @@ go.work.sum
 _bmad/
 _bmad-output/
 worktrees/
+
+# asc shots capture output (root-level only; internal/screenshots is code)
+/screenshots/

@@ -60,6 +60,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/routingcoverage"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/sandbox"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shots"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/signing"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/submit"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
@@ -140,6 +141,7 @@ func Subcommands(version string) []*ffcli.Command {
 		betaapplocalizations.BetaAppLocalizationsCommand(),
 		betabuildlocalizations.BetaBuildLocalizationsCommand(),
 		sandbox.SandboxCommand(),
+		shots.ShotsCommand(),
 		signing.SigningCommand(),
 		notarization.NotarizationCommand(),
 		iap.IAPCommand(),

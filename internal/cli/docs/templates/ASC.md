@@ -132,6 +132,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `beta-app-localizations` - Manage TestFlight beta app localizations.
 - `beta-build-localizations` - Manage TestFlight beta build localizations.
 - `sandbox` - Manage App Store Connect sandbox testers.
+- `shots` - Capture and manage screenshots for App Store.
 - `signing` - Manage signing certificates and profiles.
 - `notarization` - Manage macOS notarization submissions.
 - `iap` - Manage in-app purchases in App Store Connect.
