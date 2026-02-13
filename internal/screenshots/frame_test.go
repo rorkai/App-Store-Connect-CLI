@@ -298,6 +298,27 @@ func listFrameTempWorkDirs(t *testing.T) []string {
 	return dirs
 }
 
+func TestRunKoubouGenerate_ParsesJSONFromStdoutWhenStderrHasWarnings(t *testing.T) {
+	binDir := t.TempDir()
+	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
+set -eu
+echo "warning: using fallback font" 1>&2
+echo '[{"name":"framed","path":"output/framed.png","success":true,"error":""}]'
+`)
+	t.Setenv("PATH", binDir)
+
+	results, err := runKoubouGenerate(context.Background(), "frame.yaml")
+	if err != nil {
+		t.Fatalf("runKoubouGenerate() error = %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
+	}
+	if !results[0].Success || results[0].Path != "output/framed.png" {
+		t.Fatalf("unexpected parsed result: %+v", results[0])
+	}
+}
+
 func max(a, b int) int {
 	if a > b {
 		return a

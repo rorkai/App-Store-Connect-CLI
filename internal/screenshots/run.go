@@ -109,8 +109,9 @@ func runStep(ctx context.Context, action StepAction, step PlanStep, bundleID, ud
 		return runWaitForStep(ctx, step, udid)
 	case ActionScreenshot:
 		_, err := Capture(ctx, CaptureRequest{
-			Provider:  ProviderAXe,
-			BundleID:  bundleID,
+			Provider: ProviderAXe,
+			// Screenshot steps capture the current app session state; launch is explicit.
+			BundleID:  "",
 			UDID:      udid,
 			Name:      stringValue(step.Name),
 			OutputDir: outputDir,
