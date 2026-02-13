@@ -1,6 +1,9 @@
 package screenshots
 
 import (
+	"image"
+	"image/color"
+	"image/draw"
 	"os"
 	"path/filepath"
 	"strings"
@@ -110,9 +113,50 @@ func TestResolveFramePath_FallsBackToSortedPortrait(t *testing.T) {
 	}
 }
 
+func TestComposeFramedImage_OuterAntialiasCompositesOnWhite(t *testing.T) {
+	raw := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	draw.Draw(raw, raw.Bounds(), &image.Uniform{C: color.RGBA{200, 20, 20, 255}}, image.Point{}, draw.Src)
+
+	frame := image.NewRGBA(image.Rect(0, 0, 9, 9))
+	for y := 1; y <= 7; y++ {
+		for x := 1; x <= 7; x++ {
+			px := color.RGBA{80, 80, 80, 255}
+			if x == 1 || x == 7 || y == 1 || y == 7 {
+				px.A = 160 // anti-aliased outer edge
+			}
+			frame.SetRGBA(x, y, px)
+		}
+	}
+	for y := 3; y <= 5; y++ {
+		for x := 3; x <= 5; x++ {
+			frame.SetRGBA(x, y, color.RGBA{})
+		}
+	}
+
+	composed, err := composeFramedImage(raw, frame, 0)
+	if err != nil {
+		t.Fatalf("composeFramedImage() error = %v", err)
+	}
+
+	got := composed.RGBAAt(1, 4)
+	want := compositeOnWhite(color.RGBA{80, 80, 80, 160})
+	if got != want {
+		t.Fatalf("outer anti-aliased edge = %#v, want %#v", got, want)
+	}
+}
+
 func writeTextFile(t *testing.T, path, contents string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
 		t.Fatalf("WriteFile(%q) error = %v", path, err)
 	}
+}
+
+func compositeOnWhite(src color.RGBA) color.RGBA {
+	dst := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	draw.Draw(dst, dst.Bounds(), &image.Uniform{C: color.White}, image.Point{}, draw.Src)
+	overlay := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	overlay.SetRGBA(0, 0, src)
+	draw.Draw(dst, dst.Bounds(), overlay, image.Point{}, draw.Over)
+	return dst.RGBAAt(0, 0)
 }

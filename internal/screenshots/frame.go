@@ -299,7 +299,7 @@ func composeFramedImage(raw image.Image, frame image.Image, bleed int) (*image.R
 	draw.Draw(base, base.Bounds(), &image.Uniform{C: color.White}, image.Point{}, draw.Src)
 	for y := 0; y < fh; y++ {
 		for x := 0; x < fw; x++ {
-			if alphaAt(frameRGBA, x, y) > 0 {
+			if shouldDarkenBaseAt(frameRGBA, screenMask, x, y, fw, fh) {
 				base.SetRGBA(x, y, color.RGBA{0, 0, 0, 255})
 			}
 		}
@@ -450,6 +450,35 @@ func resizeNearest(src image.Image, dstW, dstH int) *image.RGBA {
 
 func alphaAt(img *image.RGBA, x, y int) uint8 {
 	return img.Pix[y*img.Stride+x*4+3]
+}
+
+func shouldDarkenBaseAt(frame *image.RGBA, screenMask []bool, x, y, width, height int) bool {
+	alpha := alphaAt(frame, x, y)
+	if alpha == 0 {
+		return false
+	}
+	if alpha == 255 {
+		return true
+	}
+	return touchesScreen(screenMask, x, y, width, height)
+}
+
+func touchesScreen(screenMask []bool, x, y, width, height int) bool {
+	for dy := -1; dy <= 1; dy++ {
+		for dx := -1; dx <= 1; dx++ {
+			if dx == 0 && dy == 0 {
+				continue
+			}
+			nx, ny := x+dx, y+dy
+			if nx < 0 || nx >= width || ny < 0 || ny >= height {
+				continue
+			}
+			if screenMask[maskIndex(nx, ny, width)] {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func maskIndex(x, y, width int) int {
