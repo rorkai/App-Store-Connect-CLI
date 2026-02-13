@@ -2,7 +2,7 @@ package screenshots
 
 // CaptureRequest holds parameters for a single screenshot capture.
 type CaptureRequest struct {
-	Provider  string // "maestro" or "simctl"
+	Provider  string // "axe"
 	BundleID  string
 	UDID      string // simulator UDID or "booted"
 	Name      string // output file name (without extension)

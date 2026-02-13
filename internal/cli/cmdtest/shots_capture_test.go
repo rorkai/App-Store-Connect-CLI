@@ -36,8 +36,8 @@ func TestShotsCapture_RequiredFlagErrors(t *testing.T) {
 			wantErr: "--provider must be",
 		},
 		{
-			name:    "provider must be maestro or simctl",
-			args:    []string{"shots", "capture", "--bundle-id", "com.example.app", "--name", "home", "--provider", "axe"},
+			name:    "provider must be axe",
+			args:    []string{"shots", "capture", "--bundle-id", "com.example.app", "--name", "home", "--provider", "simctl"},
 			wantErr: "--provider must be",
 		},
 	}
@@ -103,7 +103,7 @@ func TestShotsCapture_OutputFormatAccepted(t *testing.T) {
 	if err := root.Parse(args); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	// Run will fail (no maestro/simctl or no simulator) but we're testing flag parsing
+	// Run may fail (e.g. missing axe binary or no simulator) but we're testing flag parsing
 	_ = root.Run(context.Background())
 }
 
@@ -118,12 +118,12 @@ func TestShotsCapture_ResultJSONStructure(t *testing.T) {
 		UDID     string `json:"udid"`
 	}
 
-	raw := `{"path":"/tmp/out.png","provider":"simctl","width":390,"height":844,"bundle_id":"com.example.app","udid":"booted"}`
+	raw := `{"path":"/tmp/out.png","provider":"axe","width":390,"height":844,"bundle_id":"com.example.app","udid":"booted"}`
 	var result captureResult
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		t.Fatalf("unmarshal CaptureResult JSON: %v", err)
 	}
-	if result.Provider != "simctl" || result.Width != 390 || result.Height != 844 || result.BundleID != "com.example.app" {
+	if result.Provider != "axe" || result.Width != 390 || result.Height != 844 || result.BundleID != "com.example.app" {
 		t.Fatalf("unexpected parsed result: %+v", result)
 	}
 }

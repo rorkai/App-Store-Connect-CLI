@@ -14,14 +14,13 @@ import (
 )
 
 const (
-	providerMaestro = "maestro"
-	providerSimctl  = "simctl"
+	providerAXe = "axe"
 )
 
 // ShotsCaptureCommand returns the shots capture subcommand.
 func ShotsCaptureCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("capture", flag.ExitOnError)
-	provider := fs.String("provider", providerMaestro, "Capture provider: maestro (default) or simctl")
+	provider := fs.String("provider", providerAXe, "Capture provider: axe (default)")
 	bundleID := fs.String("bundle-id", "", "App bundle ID (required)")
 	udid := fs.String("udid", "booted", "Simulator UDID (default: booted)")
 	name := fs.String("name", "", "Screenshot name for output file (required)")
@@ -49,8 +48,8 @@ App must already be installed; simulator must be booted or --udid set.`,
 				return flag.ErrHelp
 			}
 			providerVal := strings.TrimSpace(strings.ToLower(*provider))
-			if providerVal != providerMaestro && providerVal != providerSimctl {
-				fmt.Fprintf(os.Stderr, "Error: --provider must be %q or %q\n", providerMaestro, providerSimctl)
+			if providerVal != providerAXe {
+				fmt.Fprintf(os.Stderr, "Error: --provider must be %q\n", providerAXe)
 				return flag.ErrHelp
 			}
 

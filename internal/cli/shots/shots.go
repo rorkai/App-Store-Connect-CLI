@@ -19,12 +19,17 @@ func ShotsCommand() *ffcli.Command {
 		LongHelp: `Capture simulator screenshots and prepare them for App Store submission.
 
 Examples:
+  asc shots run
+  asc shots run --plan .asc/screenshots.json
   asc shots capture --bundle-id "com.example.app" --name home --output-dir ./screenshots/raw
-  asc shots capture --provider simctl --bundle-id "com.example.app" --name home --udid booted`,
+  asc shots capture --provider axe --bundle-id "com.example.app" --name home --udid booted
+  asc shots frame --input ./screenshots/raw/home.png --device iphone-air`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			ShotsRunCommand(),
 			ShotsCaptureCommand(),
+			ShotsFrameCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

@@ -33,7 +33,7 @@ func TestCapture_UnknownProvider(t *testing.T) {
 func TestCaptureWithProvider_MissingFile(t *testing.T) {
 	ctx := context.Background()
 	req := CaptureRequest{
-		Provider:  ProviderSimctl,
+		Provider:  ProviderAXe,
 		BundleID:  "com.example.app",
 		Name:      "home",
 		OutputDir: t.TempDir(),
@@ -56,7 +56,7 @@ func TestCaptureWithProvider_ValidPNG(t *testing.T) {
 
 	ctx := context.Background()
 	req := CaptureRequest{
-		Provider:  ProviderSimctl,
+		Provider:  ProviderAXe,
 		BundleID:  "com.example.app",
 		UDID:      "booted",
 		Name:      "valid",
@@ -71,7 +71,7 @@ func TestCaptureWithProvider_ValidPNG(t *testing.T) {
 	if result.Width != 100 || result.Height != 200 {
 		t.Fatalf("expected 100x200, got %dx%d", result.Width, result.Height)
 	}
-	if result.Provider != ProviderSimctl || result.BundleID != req.BundleID {
+	if result.Provider != ProviderAXe || result.BundleID != req.BundleID {
 		t.Fatalf("unexpected result fields: %+v", result)
 	}
 	if result.Path == "" || !strings.HasSuffix(result.Path, "valid.png") {

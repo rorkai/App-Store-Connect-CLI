@@ -9,8 +9,7 @@ import (
 )
 
 const (
-	ProviderMaestro = "maestro"
-	ProviderSimctl  = "simctl"
+	ProviderAXe = "axe"
 )
 
 // Provider captures a single screenshot and returns the path to the PNG.
@@ -28,10 +27,8 @@ func Capture(ctx context.Context, req CaptureRequest) (*CaptureResult, error) {
 func CaptureWithProvider(ctx context.Context, req CaptureRequest, p Provider) (*CaptureResult, error) {
 	if p == nil {
 		switch req.Provider {
-		case ProviderMaestro:
-			p = &MaestroProvider{}
-		case ProviderSimctl:
-			p = &SimctlProvider{}
+		case ProviderAXe:
+			p = &AXeProvider{}
 		default:
 			return nil, fmt.Errorf("unknown provider %q", req.Provider)
 		}
