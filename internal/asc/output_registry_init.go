@@ -484,23 +484,23 @@ func init() {
 	registerRows(analyticsReportRequestResultRows)
 	registerRows(analyticsReportRequestDeleteResultRows)
 	registerRows(analyticsReportRequestsRows)
-	registerRows(func(v *AnalyticsReportRequestResponse) ([]string, [][]string) {
-		return analyticsReportRequestsRows(&AnalyticsReportRequestsResponse{Data: []AnalyticsReportRequestResource{v.Data}, Links: v.Links})
-	})
+	registerRowsAdapter(func(v *AnalyticsReportRequestResponse) *AnalyticsReportRequestsResponse {
+		return &AnalyticsReportRequestsResponse{Data: []AnalyticsReportRequestResource{v.Data}, Links: v.Links}
+	}, analyticsReportRequestsRows)
 	registerRows(analyticsReportDownloadResultRows)
 	registerRows(analyticsReportGetResultRows)
 	registerRows(analyticsReportsRows)
-	registerRows(func(v *AnalyticsReportResponse) ([]string, [][]string) {
-		return analyticsReportsRows(&AnalyticsReportsResponse{Data: []Resource[AnalyticsReportAttributes]{v.Data}, Links: v.Links})
-	})
+	registerRowsAdapter(func(v *AnalyticsReportResponse) *AnalyticsReportsResponse {
+		return &AnalyticsReportsResponse{Data: []Resource[AnalyticsReportAttributes]{v.Data}, Links: v.Links}
+	}, analyticsReportsRows)
 	registerRows(analyticsReportInstancesRows)
-	registerRows(func(v *AnalyticsReportInstanceResponse) ([]string, [][]string) {
-		return analyticsReportInstancesRows(&AnalyticsReportInstancesResponse{Data: []Resource[AnalyticsReportInstanceAttributes]{v.Data}, Links: v.Links})
-	})
+	registerRowsAdapter(func(v *AnalyticsReportInstanceResponse) *AnalyticsReportInstancesResponse {
+		return &AnalyticsReportInstancesResponse{Data: []Resource[AnalyticsReportInstanceAttributes]{v.Data}, Links: v.Links}
+	}, analyticsReportInstancesRows)
 	registerRows(analyticsReportSegmentsRows)
-	registerRows(func(v *AnalyticsReportSegmentResponse) ([]string, [][]string) {
-		return analyticsReportSegmentsRows(&AnalyticsReportSegmentsResponse{Data: []Resource[AnalyticsReportSegmentAttributes]{v.Data}, Links: v.Links})
-	})
+	registerRowsAdapter(func(v *AnalyticsReportSegmentResponse) *AnalyticsReportSegmentsResponse {
+		return &AnalyticsReportSegmentsResponse{Data: []Resource[AnalyticsReportSegmentAttributes]{v.Data}, Links: v.Links}
+	}, analyticsReportSegmentsRows)
 	registerRows(appStoreVersionSubmissionRows)
 	registerRows(appStoreVersionSubmissionCreateRows)
 	registerRows(appStoreVersionSubmissionStatusRows)
@@ -508,13 +508,13 @@ func init() {
 	registerRows(appStoreVersionDetailRows)
 	registerRows(appStoreVersionAttachBuildRows)
 	registerRows(reviewSubmissionsRows)
-	registerRows(func(v *ReviewSubmissionResponse) ([]string, [][]string) {
-		return reviewSubmissionsRows(&ReviewSubmissionsResponse{Data: []ReviewSubmissionResource{v.Data}, Links: v.Links})
-	})
+	registerRowsAdapter(func(v *ReviewSubmissionResponse) *ReviewSubmissionsResponse {
+		return &ReviewSubmissionsResponse{Data: []ReviewSubmissionResource{v.Data}, Links: v.Links}
+	}, reviewSubmissionsRows)
 	registerRows(reviewSubmissionItemsRows)
-	registerRows(func(v *ReviewSubmissionItemResponse) ([]string, [][]string) {
-		return reviewSubmissionItemsRows(&ReviewSubmissionItemsResponse{Data: []ReviewSubmissionItemResource{v.Data}, Links: v.Links})
-	})
+	registerRowsAdapter(func(v *ReviewSubmissionItemResponse) *ReviewSubmissionItemsResponse {
+		return &ReviewSubmissionItemsResponse{Data: []ReviewSubmissionItemResource{v.Data}, Links: v.Links}
+	}, reviewSubmissionItemsRows)
 	registerRows(reviewSubmissionItemDeleteResultRows)
 	registerRows(appStoreVersionReleaseRequestRows)
 	registerRows(appStoreVersionPromotionCreateRows)
@@ -710,54 +710,54 @@ func init() {
 	registerRows(xcodeCloudRunResultRows)
 	registerRows(xcodeCloudStatusResultRows)
 	registerRows(ciProductsRows)
-	registerRows(func(v *CiProductResponse) ([]string, [][]string) {
-		return ciProductsRows(&CiProductsResponse{Data: []CiProductResource{v.Data}})
-	})
+	registerRowsAdapter(func(v *CiProductResponse) *CiProductsResponse {
+		return &CiProductsResponse{Data: []CiProductResource{v.Data}}
+	}, ciProductsRows)
 	registerRows(ciWorkflowsRows)
-	registerRows(func(v *CiWorkflowResponse) ([]string, [][]string) {
-		return ciWorkflowsRows(&CiWorkflowsResponse{Data: []CiWorkflowResource{v.Data}})
-	})
+	registerRowsAdapter(func(v *CiWorkflowResponse) *CiWorkflowsResponse {
+		return &CiWorkflowsResponse{Data: []CiWorkflowResource{v.Data}}
+	}, ciWorkflowsRows)
 	registerRows(scmProvidersRows)
-	registerRows(func(v *ScmProviderResponse) ([]string, [][]string) {
-		return scmProvidersRows(&ScmProvidersResponse{Data: []ScmProviderResource{v.Data}, Links: v.Links})
-	})
+	registerRowsAdapter(func(v *ScmProviderResponse) *ScmProvidersResponse {
+		return &ScmProvidersResponse{Data: []ScmProviderResource{v.Data}, Links: v.Links}
+	}, scmProvidersRows)
 	registerRows(scmRepositoriesRows)
 	registerRows(scmGitReferencesRows)
-	registerRows(func(v *ScmGitReferenceResponse) ([]string, [][]string) {
-		return scmGitReferencesRows(&ScmGitReferencesResponse{Data: []ScmGitReferenceResource{v.Data}, Links: v.Links})
-	})
+	registerRowsAdapter(func(v *ScmGitReferenceResponse) *ScmGitReferencesResponse {
+		return &ScmGitReferencesResponse{Data: []ScmGitReferenceResource{v.Data}, Links: v.Links}
+	}, scmGitReferencesRows)
 	registerRows(scmPullRequestsRows)
-	registerRows(func(v *ScmPullRequestResponse) ([]string, [][]string) {
-		return scmPullRequestsRows(&ScmPullRequestsResponse{Data: []ScmPullRequestResource{v.Data}, Links: v.Links})
-	})
+	registerRowsAdapter(func(v *ScmPullRequestResponse) *ScmPullRequestsResponse {
+		return &ScmPullRequestsResponse{Data: []ScmPullRequestResource{v.Data}, Links: v.Links}
+	}, scmPullRequestsRows)
 	registerRows(ciBuildRunsRows)
-	registerRows(func(v *CiBuildRunResponse) ([]string, [][]string) {
-		return ciBuildRunsRows(&CiBuildRunsResponse{Data: []CiBuildRunResource{v.Data}})
-	})
+	registerRowsAdapter(func(v *CiBuildRunResponse) *CiBuildRunsResponse {
+		return &CiBuildRunsResponse{Data: []CiBuildRunResource{v.Data}}
+	}, ciBuildRunsRows)
 	registerRows(ciBuildActionsRows)
-	registerRows(func(v *CiBuildActionResponse) ([]string, [][]string) {
-		return ciBuildActionsRows(&CiBuildActionsResponse{Data: []CiBuildActionResource{v.Data}})
-	})
+	registerRowsAdapter(func(v *CiBuildActionResponse) *CiBuildActionsResponse {
+		return &CiBuildActionsResponse{Data: []CiBuildActionResource{v.Data}}
+	}, ciBuildActionsRows)
 	registerRows(ciMacOsVersionsRows)
-	registerRows(func(v *CiMacOsVersionResponse) ([]string, [][]string) {
-		return ciMacOsVersionsRows(&CiMacOsVersionsResponse{Data: []CiMacOsVersionResource{v.Data}})
-	})
+	registerRowsAdapter(func(v *CiMacOsVersionResponse) *CiMacOsVersionsResponse {
+		return &CiMacOsVersionsResponse{Data: []CiMacOsVersionResource{v.Data}}
+	}, ciMacOsVersionsRows)
 	registerRows(ciXcodeVersionsRows)
-	registerRows(func(v *CiXcodeVersionResponse) ([]string, [][]string) {
-		return ciXcodeVersionsRows(&CiXcodeVersionsResponse{Data: []CiXcodeVersionResource{v.Data}})
-	})
+	registerRowsAdapter(func(v *CiXcodeVersionResponse) *CiXcodeVersionsResponse {
+		return &CiXcodeVersionsResponse{Data: []CiXcodeVersionResource{v.Data}}
+	}, ciXcodeVersionsRows)
 	registerRows(ciArtifactsRows)
-	registerRows(func(v *CiArtifactResponse) ([]string, [][]string) {
-		return ciArtifactsRows(&CiArtifactsResponse{Data: []CiArtifactResource{v.Data}})
-	})
+	registerRowsAdapter(func(v *CiArtifactResponse) *CiArtifactsResponse {
+		return &CiArtifactsResponse{Data: []CiArtifactResource{v.Data}}
+	}, ciArtifactsRows)
 	registerRows(ciTestResultsRows)
-	registerRows(func(v *CiTestResultResponse) ([]string, [][]string) {
-		return ciTestResultsRows(&CiTestResultsResponse{Data: []CiTestResultResource{v.Data}})
-	})
+	registerRowsAdapter(func(v *CiTestResultResponse) *CiTestResultsResponse {
+		return &CiTestResultsResponse{Data: []CiTestResultResource{v.Data}}
+	}, ciTestResultsRows)
 	registerRows(ciIssuesRows)
-	registerRows(func(v *CiIssueResponse) ([]string, [][]string) {
-		return ciIssuesRows(&CiIssuesResponse{Data: []CiIssueResource{v.Data}})
-	})
+	registerRowsAdapter(func(v *CiIssueResponse) *CiIssuesResponse {
+		return &CiIssuesResponse{Data: []CiIssueResource{v.Data}}
+	}, ciIssuesRows)
 	registerRows(ciArtifactDownloadResultRows)
 	registerRows(ciWorkflowDeleteResultRows)
 	registerRows(ciProductDeleteResultRows)
@@ -769,9 +769,9 @@ func init() {
 	registerRows(nominationDeleteResultRows)
 	registerRows(appEncryptionDeclarationBuildsUpdateResultRows)
 	registerRows(androidToIosAppMappingDetailsRows)
-	registerRows(func(v *AndroidToIosAppMappingDetailResponse) ([]string, [][]string) {
-		return androidToIosAppMappingDetailsRows(&AndroidToIosAppMappingDetailsResponse{Data: []Resource[AndroidToIosAppMappingDetailAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AndroidToIosAppMappingDetailResponse) *AndroidToIosAppMappingDetailsResponse {
+		return &AndroidToIosAppMappingDetailsResponse{Data: []Resource[AndroidToIosAppMappingDetailAttributes]{v.Data}}
+	}, androidToIosAppMappingDetailsRows)
 	registerRows(androidToIosAppMappingDeleteResultRows)
 	registerRows(func(v *AlternativeDistributionDomainDeleteResult) ([]string, [][]string) {
 		return alternativeDistributionDeleteResultRows(v.ID, v.Deleted)
@@ -780,34 +780,34 @@ func init() {
 		return alternativeDistributionDeleteResultRows(v.ID, v.Deleted)
 	})
 	registerRows(appCustomProductPagesRows)
-	registerRows(func(v *AppCustomProductPageResponse) ([]string, [][]string) {
-		return appCustomProductPagesRows(&AppCustomProductPagesResponse{Data: []Resource[AppCustomProductPageAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppCustomProductPageResponse) *AppCustomProductPagesResponse {
+		return &AppCustomProductPagesResponse{Data: []Resource[AppCustomProductPageAttributes]{v.Data}}
+	}, appCustomProductPagesRows)
 	registerRows(appCustomProductPageVersionsRows)
-	registerRows(func(v *AppCustomProductPageVersionResponse) ([]string, [][]string) {
-		return appCustomProductPageVersionsRows(&AppCustomProductPageVersionsResponse{Data: []Resource[AppCustomProductPageVersionAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppCustomProductPageVersionResponse) *AppCustomProductPageVersionsResponse {
+		return &AppCustomProductPageVersionsResponse{Data: []Resource[AppCustomProductPageVersionAttributes]{v.Data}}
+	}, appCustomProductPageVersionsRows)
 	registerRows(appCustomProductPageLocalizationsRows)
-	registerRows(func(v *AppCustomProductPageLocalizationResponse) ([]string, [][]string) {
-		return appCustomProductPageLocalizationsRows(&AppCustomProductPageLocalizationsResponse{Data: []Resource[AppCustomProductPageLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppCustomProductPageLocalizationResponse) *AppCustomProductPageLocalizationsResponse {
+		return &AppCustomProductPageLocalizationsResponse{Data: []Resource[AppCustomProductPageLocalizationAttributes]{v.Data}}
+	}, appCustomProductPageLocalizationsRows)
 	registerRows(appKeywordsRows)
 	registerRows(appStoreVersionExperimentsRows)
-	registerRows(func(v *AppStoreVersionExperimentResponse) ([]string, [][]string) {
-		return appStoreVersionExperimentsRows(&AppStoreVersionExperimentsResponse{Data: []Resource[AppStoreVersionExperimentAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppStoreVersionExperimentResponse) *AppStoreVersionExperimentsResponse {
+		return &AppStoreVersionExperimentsResponse{Data: []Resource[AppStoreVersionExperimentAttributes]{v.Data}}
+	}, appStoreVersionExperimentsRows)
 	registerRows(appStoreVersionExperimentsV2Rows)
-	registerRows(func(v *AppStoreVersionExperimentV2Response) ([]string, [][]string) {
-		return appStoreVersionExperimentsV2Rows(&AppStoreVersionExperimentsV2Response{Data: []Resource[AppStoreVersionExperimentV2Attributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppStoreVersionExperimentV2Response) *AppStoreVersionExperimentsV2Response {
+		return &AppStoreVersionExperimentsV2Response{Data: []Resource[AppStoreVersionExperimentV2Attributes]{v.Data}}
+	}, appStoreVersionExperimentsV2Rows)
 	registerRows(appStoreVersionExperimentTreatmentsRows)
-	registerRows(func(v *AppStoreVersionExperimentTreatmentResponse) ([]string, [][]string) {
-		return appStoreVersionExperimentTreatmentsRows(&AppStoreVersionExperimentTreatmentsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppStoreVersionExperimentTreatmentResponse) *AppStoreVersionExperimentTreatmentsResponse {
+		return &AppStoreVersionExperimentTreatmentsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentAttributes]{v.Data}}
+	}, appStoreVersionExperimentTreatmentsRows)
 	registerRows(appStoreVersionExperimentTreatmentLocalizationsRows)
-	registerRows(func(v *AppStoreVersionExperimentTreatmentLocalizationResponse) ([]string, [][]string) {
-		return appStoreVersionExperimentTreatmentLocalizationsRows(&AppStoreVersionExperimentTreatmentLocalizationsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppStoreVersionExperimentTreatmentLocalizationResponse) *AppStoreVersionExperimentTreatmentLocalizationsResponse {
+		return &AppStoreVersionExperimentTreatmentLocalizationsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentLocalizationAttributes]{v.Data}}
+	}, appStoreVersionExperimentTreatmentLocalizationsRows)
 	registerRows(appCustomProductPageDeleteResultRows)
 	registerRows(appCustomProductPageLocalizationDeleteResultRows)
 	registerRows(appStoreVersionExperimentDeleteResultRows)
