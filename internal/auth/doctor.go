@@ -359,9 +359,13 @@ func inspectEnvironment() DoctorSection {
 	}
 	for _, name := range envVars {
 		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+			message := fmt.Sprintf("%s is set", name)
+			if name == "ASC_PROFILE" {
+				message = fmt.Sprintf("%s is set (%s)", name, value)
+			}
 			checks = append(checks, DoctorCheck{
 				Status:  DoctorInfo,
-				Message: fmt.Sprintf("%s is set", name),
+				Message: message,
 			})
 		}
 	}

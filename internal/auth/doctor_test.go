@@ -41,6 +41,7 @@ func TestDoctorEnvironmentRedactsCredentialIdentifiers(t *testing.T) {
 	t.Setenv("ASC_KEY_ID", "ABC123SECRET")
 	t.Setenv("ASC_ISSUER_ID", "issuer-uuid")
 	t.Setenv("ASC_PRIVATE_KEY_PATH", "/tmp/AuthKey.p8")
+	t.Setenv("ASC_PROFILE", "production")
 
 	report := Doctor(DoctorOptions{})
 	section := findDoctorSection(t, report, "Environment")
@@ -49,6 +50,9 @@ func TestDoctorEnvironmentRedactsCredentialIdentifiers(t *testing.T) {
 	}
 	if !sectionHasStatus(section, DoctorInfo, "ASC_ISSUER_ID is set") {
 		t.Fatalf("expected ASC_ISSUER_ID presence message, got %#v", section.Checks)
+	}
+	if !sectionHasStatus(section, DoctorInfo, "ASC_PROFILE is set (production)") {
+		t.Fatalf("expected ASC_PROFILE value in message, got %#v", section.Checks)
 	}
 	for _, check := range section.Checks {
 		if strings.Contains(check.Message, "ABC123SECRET") {
