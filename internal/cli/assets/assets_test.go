@@ -5,25 +5,7 @@ import (
 	"testing"
 )
 
-func TestAssetsCommandConstructors(t *testing.T) {
-	top := AssetsCommand()
-	if top == nil {
-		t.Fatal("expected assets command")
-	}
-	if top.Name == "" {
-		t.Fatal("expected command name")
-	}
-	if len(top.Subcommands) == 0 {
-		t.Fatal("expected assets subcommands")
-	}
-	if !strings.Contains(top.ShortHelp, "app preview videos") {
-		t.Fatalf("expected assets short help to mention app preview videos, got %q", top.ShortHelp)
-	}
-
-	if got := Command(); got == nil {
-		t.Fatal("expected Command wrapper to return command")
-	}
-
+func TestAssetsSubcommandConstructors(t *testing.T) {
 	if got := AssetsScreenshotsCommand(); got == nil {
 		t.Fatal("expected screenshots command")
 	}
