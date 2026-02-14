@@ -2,6 +2,7 @@ package asc
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -389,14 +390,10 @@ func TestOutputRegistrySingleToListHelperPanicsWithoutDataField(t *testing.T) {
 		Data []string
 	}
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic when source Data field is missing")
-		}
-	}()
-
-	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-		return []string{"value"}, [][]string{{v.Data[0]}}
+	expectPanic(t, "expected panic when source Data field is missing", func() {
+		registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+			return []string{"value"}, [][]string{{v.Data[0]}}
+		})
 	})
 }
 
@@ -408,14 +405,10 @@ func TestOutputRegistrySingleToListHelperPanicsWhenTargetDataIsNotSlice(t *testi
 		Data string
 	}
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic when target Data field is not slice")
-		}
-	}()
-
-	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-		return []string{"value"}, [][]string{{v.Data}}
+	expectPanic(t, "expected panic when target Data field is not slice", func() {
+		registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+			return []string{"value"}, [][]string{{v.Data}}
+		})
 	})
 }
 
@@ -427,14 +420,10 @@ func TestOutputRegistrySingleToListHelperPanicsOnDataTypeMismatch(t *testing.T) 
 		Data []string
 	}
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic when Data element types mismatch")
-		}
-	}()
-
-	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-		return []string{"value"}, nil
+	expectPanic(t, "expected panic when Data element types mismatch", func() {
+		registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+			return []string{"value"}, nil
+		})
 	})
 }
 
@@ -450,14 +439,10 @@ func TestOutputRegistryRegisterRowsPanicsOnDuplicate(t *testing.T) {
 		return []string{"value"}, [][]string{{"first"}}
 	})
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected duplicate registration panic")
-		}
-	}()
-
-	registerRows(func(v *duplicate) ([]string, [][]string) {
-		return []string{"value"}, [][]string{{"second"}}
+	expectPanic(t, "expected duplicate registration panic", func() {
+		registerRows(func(v *duplicate) ([]string, [][]string) {
+			return []string{"value"}, [][]string{{"second"}}
+		})
 	})
 }
 
@@ -473,14 +458,10 @@ func TestOutputRegistryRegisterRowsErrPanicsWhenDirectRegistered(t *testing.T) {
 		return nil
 	})
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected conflict panic when rowsErr registers after direct")
-		}
-	}()
-
-	registerRowsErr(func(v *conflict) ([]string, [][]string, error) {
-		return nil, nil, nil
+	expectPanic(t, "expected conflict panic when rowsErr registers after direct", func() {
+		registerRowsErr(func(v *conflict) ([]string, [][]string, error) {
+			return nil, nil, nil
+		})
 	})
 }
 
@@ -496,26 +477,23 @@ func TestOutputRegistryRegisterDirectPanicsWhenRowsRegistered(t *testing.T) {
 		return []string{"value"}, [][]string{{"rows"}}
 	})
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected conflict panic when direct registers after rows")
-		}
-	}()
-
-	registerDirect(func(v *conflict, render func([]string, [][]string)) error {
-		return nil
+	expectPanic(t, "expected conflict panic when direct registers after rows", func() {
+		registerDirect(func(v *conflict, render func([]string, [][]string)) error {
+			return nil
+		})
 	})
 }
 
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
+	return strings.Contains(s, substr)
 }
 
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
+func expectPanic(t *testing.T, message string, fn func()) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal(message)
 		}
-	}
-	return false
+	}()
+	fn()
 }
