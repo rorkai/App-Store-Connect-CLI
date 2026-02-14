@@ -179,7 +179,6 @@ func openUploadSourceFile(filePath string) (*os.File, error) {
 		}
 		return nil, fmt.Errorf("open file: %w", err)
 	}
-
 	// Re-check after successful open for platforms that cannot do O_NOFOLLOW.
 	if latestInfo, statErr := os.Lstat(filePath); statErr == nil && latestInfo.Mode()&os.ModeSymlink != 0 {
 		_ = file.Close()

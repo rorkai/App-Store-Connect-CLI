@@ -101,6 +101,41 @@ func TestAuthDoctorTextIncludesMigrationHints(t *testing.T) {
 	})
 }
 
+func TestAuthDoctorTextRedactsCredentialIdentifiers(t *testing.T) {
+	withTempRepo(t, func(repo string) {
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", filepath.Join(repo, "config.json"))
+		t.Setenv("ASC_KEY_ID", "ABC123SECRET")
+		t.Setenv("ASC_ISSUER_ID", "issuer-uuid")
+		t.Setenv("ASC_PRIVATE_KEY_PATH", "/tmp/AuthKey.p8")
+
+		root := RootCommand("1.2.3")
+		root.FlagSet.SetOutput(io.Discard)
+
+		stdout, _ := captureOutput(t, func() {
+			if err := root.Parse([]string{"auth", "doctor"}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := root.Run(context.Background()); err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+		})
+
+		if !strings.Contains(stdout, "ASC_KEY_ID is set") {
+			t.Fatalf("expected ASC_KEY_ID presence message, got %q", stdout)
+		}
+		if !strings.Contains(stdout, "ASC_ISSUER_ID is set") {
+			t.Fatalf("expected ASC_ISSUER_ID presence message, got %q", stdout)
+		}
+		if strings.Contains(stdout, "ABC123SECRET") {
+			t.Fatalf("expected ASC_KEY_ID to be redacted, got %q", stdout)
+		}
+		if strings.Contains(stdout, "issuer-uuid") {
+			t.Fatalf("expected ASC_ISSUER_ID to be redacted, got %q", stdout)
+		}
+	})
+}
+
 func TestAuthDoctorJSONMigrationHintsUseEmptyArrays(t *testing.T) {
 	withTempRepo(t, func(repo string) {
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")

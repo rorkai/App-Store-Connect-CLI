@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"text/tabwriter"
@@ -511,11 +510,20 @@ func strictAuthEnabled() bool {
 	if value == "" {
 		return false
 	}
-	parsed, err := strconv.ParseBool(value)
-	if err != nil {
+	switch strings.ToLower(value) {
+	case "1", "t", "true", "yes", "y", "on":
+		return true
+	case "0", "f", "false", "no", "n", "off":
+		return false
+	default:
+		fmt.Fprintf(
+			os.Stderr,
+			"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, y/n, or on/off); strict auth disabled\n",
+			strictAuthEnvVar,
+			value,
+		)
 		return false
 	}
-	return parsed
 }
 
 func printOutput(data any, format string, pretty bool) error {

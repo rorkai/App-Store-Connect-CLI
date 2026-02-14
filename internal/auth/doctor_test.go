@@ -35,6 +35,51 @@ func TestDoctorConfigPermissionsWarning(t *testing.T) {
 	}
 }
 
+func TestDoctorStorageBypassMessageSupportsTruthyEnvValues(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "on")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	report := Doctor(DoctorOptions{})
+	section := findDoctorSection(t, report, "Storage")
+	if !sectionHasStatus(section, DoctorInfo, "Keychain is bypassed via ASC_BYPASS_KEYCHAIN") {
+		t.Fatalf("expected bypass info message, got %#v", section.Checks)
+	}
+	for _, check := range section.Checks {
+		if strings.Contains(check.Message, "ASC_BYPASS_KEYCHAIN=1") {
+			t.Fatalf("expected no hardcoded '=1' in message, got %q", check.Message)
+		}
+	}
+}
+
+func TestDoctorEnvironmentRedactsCredentialIdentifiers(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	t.Setenv("ASC_KEY_ID", "ABC123SECRET")
+	t.Setenv("ASC_ISSUER_ID", "issuer-uuid")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "/tmp/AuthKey.p8")
+	t.Setenv("ASC_PROFILE", "production")
+
+	report := Doctor(DoctorOptions{})
+	section := findDoctorSection(t, report, "Environment")
+	if !sectionHasStatus(section, DoctorInfo, "ASC_KEY_ID is set") {
+		t.Fatalf("expected ASC_KEY_ID presence message, got %#v", section.Checks)
+	}
+	if !sectionHasStatus(section, DoctorInfo, "ASC_ISSUER_ID is set") {
+		t.Fatalf("expected ASC_ISSUER_ID presence message, got %#v", section.Checks)
+	}
+	if !sectionHasStatus(section, DoctorInfo, "ASC_PROFILE is set (production)") {
+		t.Fatalf("expected ASC_PROFILE value in message, got %#v", section.Checks)
+	}
+	for _, check := range section.Checks {
+		if strings.Contains(check.Message, "ABC123SECRET") {
+			t.Fatalf("ASC_KEY_ID leaked in message: %q", check.Message)
+		}
+		if strings.Contains(check.Message, "issuer-uuid") {
+			t.Fatalf("ASC_ISSUER_ID leaked in message: %q", check.Message)
+		}
+	}
+}
+
 func TestDoctorTempFilesWarns(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))

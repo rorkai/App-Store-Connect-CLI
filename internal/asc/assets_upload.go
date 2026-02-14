@@ -41,7 +41,7 @@ func UploadAssetFromFile(ctx context.Context, file *os.File, fileSize int64, ope
 		return fmt.Errorf("no upload operations provided")
 	}
 
-	client := &http.Client{Timeout: ResolveTimeout()}
+	client := &http.Client{Timeout: ResolveUploadTimeout()}
 
 	for i, op := range operations {
 		method := strings.ToUpper(strings.TrimSpace(op.Method))
