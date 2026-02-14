@@ -10,90 +10,90 @@ func init() {
 	registerRows(crashesRows)
 	registerRows(reviewsRows)
 	registerRows(customerReviewSummarizationsRows)
-	registerRows(func(v *CustomerReviewResponse) ([]string, [][]string) {
-		return reviewsRows(&ReviewsResponse{Data: []Resource[ReviewAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *CustomerReviewResponse) *ReviewsResponse {
+		return &ReviewsResponse{Data: []Resource[ReviewAttributes]{v.Data}}
+	}, reviewsRows)
 	registerRows(appsRows)
 	registerRows(appsWallRows)
 	registerRows(appClipsRows)
 	registerRows(appCategoriesRows)
-	registerRows(func(v *AppCategoryResponse) ([]string, [][]string) {
-		return appCategoriesRows(&AppCategoriesResponse{Data: []AppCategory{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppCategoryResponse) *AppCategoriesResponse {
+		return &AppCategoriesResponse{Data: []AppCategory{v.Data}}
+	}, appCategoriesRows)
 	registerRows(appInfosRows)
-	registerRows(func(v *AppInfoResponse) ([]string, [][]string) {
-		return appInfosRows(&AppInfosResponse{Data: []Resource[AppInfoAttributes]{v.Data}})
-	})
-	registerRows(func(v *AppResponse) ([]string, [][]string) {
-		return appsRows(&AppsResponse{Data: []Resource[AppAttributes]{v.Data}})
-	})
-	registerRows(func(v *AppClipResponse) ([]string, [][]string) {
-		return appClipsRows(&AppClipsResponse{Data: []Resource[AppClipAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppInfoResponse) *AppInfosResponse {
+		return &AppInfosResponse{Data: []Resource[AppInfoAttributes]{v.Data}}
+	}, appInfosRows)
+	registerRowsAdapter(func(v *AppResponse) *AppsResponse {
+		return &AppsResponse{Data: []Resource[AppAttributes]{v.Data}}
+	}, appsRows)
+	registerRowsAdapter(func(v *AppClipResponse) *AppClipsResponse {
+		return &AppClipsResponse{Data: []Resource[AppClipAttributes]{v.Data}}
+	}, appClipsRows)
 	registerRows(appClipDefaultExperiencesRows)
-	registerRows(func(v *AppClipDefaultExperienceResponse) ([]string, [][]string) {
-		return appClipDefaultExperiencesRows(&AppClipDefaultExperiencesResponse{Data: []Resource[AppClipDefaultExperienceAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppClipDefaultExperienceResponse) *AppClipDefaultExperiencesResponse {
+		return &AppClipDefaultExperiencesResponse{Data: []Resource[AppClipDefaultExperienceAttributes]{v.Data}}
+	}, appClipDefaultExperiencesRows)
 	registerRows(appClipDefaultExperienceLocalizationsRows)
-	registerRows(func(v *AppClipDefaultExperienceLocalizationResponse) ([]string, [][]string) {
-		return appClipDefaultExperienceLocalizationsRows(&AppClipDefaultExperienceLocalizationsResponse{Data: []Resource[AppClipDefaultExperienceLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppClipDefaultExperienceLocalizationResponse) *AppClipDefaultExperienceLocalizationsResponse {
+		return &AppClipDefaultExperienceLocalizationsResponse{Data: []Resource[AppClipDefaultExperienceLocalizationAttributes]{v.Data}}
+	}, appClipDefaultExperienceLocalizationsRows)
 	registerRows(appClipHeaderImageRows)
 	registerRows(appClipAdvancedExperienceImageRows)
 	registerRows(appClipAdvancedExperiencesRows)
-	registerRows(func(v *AppClipAdvancedExperienceResponse) ([]string, [][]string) {
-		return appClipAdvancedExperiencesRows(&AppClipAdvancedExperiencesResponse{Data: []Resource[AppClipAdvancedExperienceAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppClipAdvancedExperienceResponse) *AppClipAdvancedExperiencesResponse {
+		return &AppClipAdvancedExperiencesResponse{Data: []Resource[AppClipAdvancedExperienceAttributes]{v.Data}}
+	}, appClipAdvancedExperiencesRows)
 	registerRows(appSetupInfoResultRows)
 	registerRows(appTagsRows)
-	registerRows(func(v *AppTagResponse) ([]string, [][]string) {
-		return appTagsRows(&AppTagsResponse{Data: []Resource[AppTagAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppTagResponse) *AppTagsResponse {
+		return &AppTagsResponse{Data: []Resource[AppTagAttributes]{v.Data}}
+	}, appTagsRows)
 	registerRows(marketplaceSearchDetailsRows)
-	registerRows(func(v *MarketplaceSearchDetailResponse) ([]string, [][]string) {
-		return marketplaceSearchDetailsRows(&MarketplaceSearchDetailsResponse{Data: []Resource[MarketplaceSearchDetailAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *MarketplaceSearchDetailResponse) *MarketplaceSearchDetailsResponse {
+		return &MarketplaceSearchDetailsResponse{Data: []Resource[MarketplaceSearchDetailAttributes]{v.Data}}
+	}, marketplaceSearchDetailsRows)
 	registerRows(marketplaceWebhooksRows)
-	registerRows(func(v *MarketplaceWebhookResponse) ([]string, [][]string) {
-		return marketplaceWebhooksRows(&MarketplaceWebhooksResponse{Data: []Resource[MarketplaceWebhookAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *MarketplaceWebhookResponse) *MarketplaceWebhooksResponse {
+		return &MarketplaceWebhooksResponse{Data: []Resource[MarketplaceWebhookAttributes]{v.Data}}
+	}, marketplaceWebhooksRows)
 	registerRows(webhooksRows)
-	registerRows(func(v *WebhookResponse) ([]string, [][]string) {
-		return webhooksRows(&WebhooksResponse{Data: []Resource[WebhookAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *WebhookResponse) *WebhooksResponse {
+		return &WebhooksResponse{Data: []Resource[WebhookAttributes]{v.Data}}
+	}, webhooksRows)
 	registerRows(webhookDeliveriesRows)
-	registerRows(func(v *WebhookDeliveryResponse) ([]string, [][]string) {
-		return webhookDeliveriesRows(&WebhookDeliveriesResponse{Data: []Resource[WebhookDeliveryAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *WebhookDeliveryResponse) *WebhookDeliveriesResponse {
+		return &WebhookDeliveriesResponse{Data: []Resource[WebhookDeliveryAttributes]{v.Data}}
+	}, webhookDeliveriesRows)
 	registerRows(alternativeDistributionDomainsRows)
-	registerRows(func(v *AlternativeDistributionDomainResponse) ([]string, [][]string) {
-		return alternativeDistributionDomainsRows(&AlternativeDistributionDomainsResponse{Data: []Resource[AlternativeDistributionDomainAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AlternativeDistributionDomainResponse) *AlternativeDistributionDomainsResponse {
+		return &AlternativeDistributionDomainsResponse{Data: []Resource[AlternativeDistributionDomainAttributes]{v.Data}}
+	}, alternativeDistributionDomainsRows)
 	registerRows(alternativeDistributionKeysRows)
-	registerRows(func(v *AlternativeDistributionKeyResponse) ([]string, [][]string) {
-		return alternativeDistributionKeysRows(&AlternativeDistributionKeysResponse{Data: []Resource[AlternativeDistributionKeyAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AlternativeDistributionKeyResponse) *AlternativeDistributionKeysResponse {
+		return &AlternativeDistributionKeysResponse{Data: []Resource[AlternativeDistributionKeyAttributes]{v.Data}}
+	}, alternativeDistributionKeysRows)
 	registerRows(alternativeDistributionPackageRows)
 	registerRows(alternativeDistributionPackageVersionsRows)
-	registerRows(func(v *AlternativeDistributionPackageVersionResponse) ([]string, [][]string) {
-		return alternativeDistributionPackageVersionsRows(&AlternativeDistributionPackageVersionsResponse{Data: []Resource[AlternativeDistributionPackageVersionAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AlternativeDistributionPackageVersionResponse) *AlternativeDistributionPackageVersionsResponse {
+		return &AlternativeDistributionPackageVersionsResponse{Data: []Resource[AlternativeDistributionPackageVersionAttributes]{v.Data}}
+	}, alternativeDistributionPackageVersionsRows)
 	registerRows(alternativeDistributionPackageVariantsRows)
-	registerRows(func(v *AlternativeDistributionPackageVariantResponse) ([]string, [][]string) {
-		return alternativeDistributionPackageVariantsRows(&AlternativeDistributionPackageVariantsResponse{Data: []Resource[AlternativeDistributionPackageVariantAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AlternativeDistributionPackageVariantResponse) *AlternativeDistributionPackageVariantsResponse {
+		return &AlternativeDistributionPackageVariantsResponse{Data: []Resource[AlternativeDistributionPackageVariantAttributes]{v.Data}}
+	}, alternativeDistributionPackageVariantsRows)
 	registerRows(alternativeDistributionPackageDeltasRows)
-	registerRows(func(v *AlternativeDistributionPackageDeltaResponse) ([]string, [][]string) {
-		return alternativeDistributionPackageDeltasRows(&AlternativeDistributionPackageDeltasResponse{Data: []Resource[AlternativeDistributionPackageDeltaAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AlternativeDistributionPackageDeltaResponse) *AlternativeDistributionPackageDeltasResponse {
+		return &AlternativeDistributionPackageDeltasResponse{Data: []Resource[AlternativeDistributionPackageDeltaAttributes]{v.Data}}
+	}, alternativeDistributionPackageDeltasRows)
 	registerRows(backgroundAssetsRows)
-	registerRows(func(v *BackgroundAssetResponse) ([]string, [][]string) {
-		return backgroundAssetsRows(&BackgroundAssetsResponse{Data: []Resource[BackgroundAssetAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BackgroundAssetResponse) *BackgroundAssetsResponse {
+		return &BackgroundAssetsResponse{Data: []Resource[BackgroundAssetAttributes]{v.Data}}
+	}, backgroundAssetsRows)
 	registerRows(backgroundAssetVersionsRows)
-	registerRows(func(v *BackgroundAssetVersionResponse) ([]string, [][]string) {
-		return backgroundAssetVersionsRows(&BackgroundAssetVersionsResponse{Data: []Resource[BackgroundAssetVersionAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BackgroundAssetVersionResponse) *BackgroundAssetVersionsResponse {
+		return &BackgroundAssetVersionsResponse{Data: []Resource[BackgroundAssetVersionAttributes]{v.Data}}
+	}, backgroundAssetVersionsRows)
 	registerRows(func(v *BackgroundAssetVersionAppStoreReleaseResponse) ([]string, [][]string) {
 		return backgroundAssetVersionStateRows(v.Data.ID, v.Data.Attributes.State)
 	})
@@ -104,13 +104,13 @@ func init() {
 		return backgroundAssetVersionStateRows(v.Data.ID, v.Data.Attributes.State)
 	})
 	registerRows(backgroundAssetUploadFilesRows)
-	registerRows(func(v *BackgroundAssetUploadFileResponse) ([]string, [][]string) {
-		return backgroundAssetUploadFilesRows(&BackgroundAssetUploadFilesResponse{Data: []Resource[BackgroundAssetUploadFileAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BackgroundAssetUploadFileResponse) *BackgroundAssetUploadFilesResponse {
+		return &BackgroundAssetUploadFilesResponse{Data: []Resource[BackgroundAssetUploadFileAttributes]{v.Data}}
+	}, backgroundAssetUploadFilesRows)
 	registerRows(nominationsRows)
-	registerRows(func(v *NominationResponse) ([]string, [][]string) {
-		return nominationsRows(&NominationsResponse{Data: []Resource[NominationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *NominationResponse) *NominationsResponse {
+		return &NominationsResponse{Data: []Resource[NominationAttributes]{v.Data}}
+	}, nominationsRows)
 	registerRows(linkagesRows)
 	registerRows(func(v *AppClipDefaultExperienceReviewDetailLinkageResponse) ([]string, [][]string) {
 		return singleLinkageRows(v.Data)
