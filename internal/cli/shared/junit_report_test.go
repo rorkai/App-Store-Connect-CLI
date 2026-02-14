@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -247,10 +246,6 @@ func TestJUnitReport_WriteRefusesOverwrite(t *testing.T) {
 }
 
 func TestJUnitReport_WriteRefusesSymlink(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("symlink behavior differs on windows")
-	}
-
 	report := JUnitReport{
 		Tests: []JUnitTestCase{
 			{Name: "test", Classname: "suite", Time: time.Second},
@@ -266,7 +261,7 @@ func TestJUnitReport_WriteRefusesSymlink(t *testing.T) {
 
 	link := filepath.Join(tmpDir, "report.xml")
 	if err := os.Symlink(target, link); err != nil {
-		t.Fatalf("Symlink() error = %v", err)
+		t.Skipf("symlink not supported: %v", err)
 	}
 
 	err := report.Write(link)

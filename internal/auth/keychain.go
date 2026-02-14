@@ -87,14 +87,13 @@ func shouldBypassKeychain() bool {
 		return false
 	}
 	trimmed := strings.ToLower(strings.TrimSpace(value))
-	if trimmed == "" {
-		return true
-	}
 	switch trimmed {
+	case "1", "true", "yes", "on":
+		return true
 	case "0", "false", "no", "off":
 		return false
 	default:
-		return true
+		return false
 	}
 }
 
@@ -252,19 +251,12 @@ func StoreCredentialsConfigAt(name, keyID, issuerID, keyPath, configPath string)
 // clearConfigCredentials clears credentials from the config file.
 // This is called after successfully migrating to keychain storage.
 func clearConfigCredentials() error {
-	activePath, err := config.Path()
+	paths, err := configCleanupPaths()
 	if err != nil {
 		return err
 	}
-	globalPath, err := config.GlobalPath()
-	if err != nil {
-		return err
-	}
-	if err := clearConfigCredentialsAt(activePath); err != nil && !errors.Is(err, config.ErrNotFound) {
-		return err
-	}
-	if !sameConfigPath(activePath, globalPath) {
-		if err := clearConfigCredentialsAt(globalPath); err != nil && !errors.Is(err, config.ErrNotFound) {
+	for _, path := range paths {
+		if err := clearConfigCredentialsAt(path); err != nil && !errors.Is(err, config.ErrNotFound) {
 			return err
 		}
 	}
@@ -692,11 +684,32 @@ func migrateLegacyCredentials(credentials []Credential) {
 }
 
 func removeFromConfigIfPresent(name string) error {
-	if err := removeFromConfig(name); err != nil {
-		if errors.Is(err, config.ErrNotFound) {
-			return nil
-		}
+	paths, err := configCleanupPaths()
+	if err != nil {
 		return err
+	}
+
+	removed := false
+	missingCredential := false
+	for _, path := range paths {
+		err := removeFromConfigAt(name, path)
+		switch {
+		case err == nil:
+			removed = true
+		case errors.Is(err, config.ErrNotFound):
+			continue
+		case errors.Is(err, keyring.ErrKeyNotFound):
+			missingCredential = true
+		default:
+			return err
+		}
+	}
+
+	if removed {
+		return nil
+	}
+	if missingCredential {
+		return keyring.ErrKeyNotFound
 	}
 	return nil
 }
@@ -1098,8 +1111,8 @@ func clearDefaultNameIf(name string) error {
 	return nil
 }
 
-func removeFromConfig(name string) error {
-	cfg, err := config.Load()
+func removeFromConfigAt(name, path string) error {
+	cfg, err := config.LoadAt(path)
 	if err != nil {
 		return err
 	}
@@ -1110,7 +1123,7 @@ func removeFromConfig(name string) error {
 		cfg.PrivateKeyPath = ""
 		cfg.DefaultKeyName = ""
 		cfg.Keys = nil
-		return config.Save(cfg)
+		return config.SaveAt(path, cfg)
 	}
 
 	removed := false
@@ -1136,5 +1149,21 @@ func removeFromConfig(name string) error {
 	if !removed {
 		return keyring.ErrKeyNotFound
 	}
-	return config.Save(cfg)
+	return config.SaveAt(path, cfg)
+}
+
+func configCleanupPaths() ([]string, error) {
+	activePath, err := config.Path()
+	if err != nil {
+		return nil, err
+	}
+	globalPath, err := config.GlobalPath()
+	if err != nil {
+		return nil, err
+	}
+	paths := []string{activePath}
+	if !sameConfigPath(activePath, globalPath) {
+		paths = append(paths, globalPath)
+	}
+	return paths, nil
 }

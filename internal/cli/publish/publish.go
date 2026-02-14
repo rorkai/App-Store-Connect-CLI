@@ -386,9 +386,12 @@ func contextWithPublishUploadTimeout(ctx context.Context, timeout time.Duration,
 }
 
 func validateIPAPath(ipaPath string) (os.FileInfo, error) {
-	fileInfo, err := os.Stat(ipaPath)
+	fileInfo, err := os.Lstat(ipaPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to stat IPA: %w", err)
+	}
+	if fileInfo.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("refusing to read symlink %q", ipaPath)
 	}
 	if fileInfo.IsDir() {
 		return nil, fmt.Errorf("--ipa must be a file")

@@ -151,6 +151,36 @@ func TestExecuteUploadOperations_FailsOnInvalidRange(t *testing.T) {
 	}
 }
 
+func TestExecuteUploadOperations_RejectsSymlinkPath(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.ipa")
+	if err := os.WriteFile(target, []byte("abc"), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+
+	link := filepath.Join(dir, "app.ipa")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink not supported: %v", err)
+	}
+
+	ops := []UploadOperation{
+		{
+			Method: "PUT",
+			URL:    "https://example.com/upload",
+			Length: 1,
+			Offset: 0,
+		},
+	}
+
+	err := ExecuteUploadOperations(context.Background(), link, ops)
+	if err == nil {
+		t.Fatal("expected symlink rejection error")
+	}
+	if !strings.Contains(err.Error(), "refusing to read symlink") {
+		t.Fatalf("expected symlink rejection error, got %v", err)
+	}
+}
+
 func TestExecuteUploadOperations_CancelsDuringDispatch(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "app.ipa")

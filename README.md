@@ -203,8 +203,9 @@ asc auth init --open
 Credentials are stored in the system keychain when available, with a config fallback
 at `~/.asc/config.json` (restricted permissions). A repo-local `./.asc/config.json`
 takes precedence when present. Override with `ASC_CONFIG_PATH`. When
-`ASC_BYPASS_KEYCHAIN` is set and environment credentials are fully provided, the
-environment values take precedence over config.
+`ASC_BYPASS_KEYCHAIN` is set to a truthy value (`1`, `true`, `yes`, `on`) and
+environment credentials are fully provided, the environment values take
+precedence over config.
 Environment variable fallback:
 - `ASC_KEY_ID`
 - `ASC_ISSUER_ID`
@@ -213,10 +214,11 @@ Environment variable fallback:
 - `ASC_PRIVATE_KEY_B64` (base64 key content; CLI writes a temp key file)
 - `ASC_CONFIG_PATH` (absolute path to config.json)
 - `ASC_PROFILE`
-- `ASC_BYPASS_KEYCHAIN` (ignore keychain and use config/env auth)
+- `ASC_BYPASS_KEYCHAIN` (ignore keychain and use config/env auth; truthy values: `1`, `true`, `yes`, `on`; falsey values: `0`, `false`, `no`, `off`)
 - `ASC_STRICT_AUTH` (fail when credentials resolve from multiple sources)
+- `ASC_STRICT_AUTH` (fail when credentials resolve from multiple sources; accepts `true/false`, `1/0`, `yes/no`, `y/n`, `on/off`)
 
-Use `--strict-auth` or `ASC_STRICT_AUTH=1` to fail when credentials are resolved from multiple sources.
+Use `--strict-auth` or `ASC_STRICT_AUTH=true` (also `1`, `yes`, `y`, `on`) to fail when credentials are resolved from multiple sources.
 
 App ID fallback:
 - `ASC_APP_ID`
@@ -1687,6 +1689,8 @@ make build
 - Local config fallback with restricted permissions
 - Private key content never stored, only path reference
 - Environment variables as fallback
+- Report/artifact file helpers use atomic `O_NOFOLLOW` on Unix-like systems
+- On platforms without a portable `O_NOFOLLOW`, helpers use best-effort pre/post `Lstat` checks to reject symlinks and detect path swaps (residual TOCTOU window remains)
 
 ## Contributing
 

@@ -260,36 +260,50 @@ Examples:
 			defer cancel()
 
 			resolvedSubmissionID := strings.TrimSpace(*submissionID)
-			if resolvedSubmissionID == "" {
-				// Try to find existing submission for version via old API first
-				submissionResp, err := client.GetAppStoreVersionSubmissionForVersion(requestCtx, strings.TrimSpace(*versionID))
-				if err != nil && !asc.IsNotFound(err) {
-					return fmt.Errorf("submit cancel: %w", err)
-				}
-				if submissionResp != nil {
-					resolvedSubmissionID = submissionResp.Data.ID
-				}
-			}
-
-			// If we found an old-style submission, delete it
 			if resolvedSubmissionID != "" {
-				if err := client.DeleteAppStoreVersionSubmission(requestCtx, resolvedSubmissionID); err != nil {
+				_, err := client.CancelReviewSubmission(requestCtx, resolvedSubmissionID)
+				if err != nil {
 					if asc.IsNotFound(err) {
-						return fmt.Errorf("submit cancel: no submission found for ID %q", resolvedSubmissionID)
+						return fmt.Errorf("submit cancel: no review submission found for ID %q", resolvedSubmissionID)
 					}
 					return fmt.Errorf("submit cancel: %w", err)
 				}
 			} else {
-				// Try new reviewSubmissions API - cancel by setting canceled: true
-				// Note: This requires the review submission ID which the user must provide
-				if strings.TrimSpace(*submissionID) == "" {
-					return fmt.Errorf("submit cancel: no submission found for version %q (use --id with the review submission ID)", strings.TrimSpace(*versionID))
-				}
-				_, err := client.CancelReviewSubmission(requestCtx, strings.TrimSpace(*submissionID))
+				resolvedVersionID := strings.TrimSpace(*versionID)
+
+				// Resolve via legacy version submission lookup for backward compatibility.
+				submissionResp, err := client.GetAppStoreVersionSubmissionForVersion(requestCtx, resolvedVersionID)
 				if err != nil {
+					if asc.IsNotFound(err) {
+						return fmt.Errorf("submit cancel: no legacy submission found for version %q", resolvedVersionID)
+					}
 					return fmt.Errorf("submit cancel: %w", err)
 				}
-				resolvedSubmissionID = strings.TrimSpace(*submissionID)
+				resolvedSubmissionID = strings.TrimSpace(submissionResp.Data.ID)
+				if resolvedSubmissionID == "" {
+					return fmt.Errorf("submit cancel: no legacy submission found for version %q", resolvedVersionID)
+				}
+
+				// Prefer the modern reviewSubmissions cancel endpoint when possible.
+				_, err = client.CancelReviewSubmission(requestCtx, resolvedSubmissionID)
+				if err == nil {
+					result := &asc.AppStoreVersionSubmissionCancelResult{
+						ID:        resolvedSubmissionID,
+						Cancelled: true,
+					}
+					return shared.PrintOutput(result, *output, *pretty)
+				}
+				if !asc.IsNotFound(err) {
+					return fmt.Errorf("submit cancel: %w", err)
+				}
+
+				// Fall back to the legacy delete endpoint for old submission flows.
+				if err := client.DeleteAppStoreVersionSubmission(requestCtx, resolvedSubmissionID); err != nil {
+					if asc.IsNotFound(err) {
+						return fmt.Errorf("submit cancel: no legacy submission found for ID %q", resolvedSubmissionID)
+					}
+					return fmt.Errorf("submit cancel: %w", err)
+				}
 			}
 
 			result := &asc.AppStoreVersionSubmissionCancelResult{
