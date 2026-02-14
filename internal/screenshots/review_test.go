@@ -170,6 +170,45 @@ func TestGenerateReview_MatchesRawByLocaleAndDevicePath(t *testing.T) {
 	}
 }
 
+func TestGenerateReview_DoesNotFallbackRawAcrossDifferentDevice(t *testing.T) {
+	baseDir := t.TempDir()
+	rawDir := filepath.Join(baseDir, "raw")
+	framedDir := filepath.Join(baseDir, "framed")
+	outputDir := filepath.Join(baseDir, "review")
+
+	writeReviewImage(t, filepath.Join(rawDir, "en", "iPhone_17_Pro", "home.png"), 1320, 2868)
+	writeReviewImage(t, filepath.Join(framedDir, "en", "iPhone_Air", "home.png"), 1320, 2868)
+
+	result, err := GenerateReview(context.Background(), ReviewRequest{
+		RawDir:    rawDir,
+		FramedDir: framedDir,
+		OutputDir: outputDir,
+	})
+	if err != nil {
+		t.Fatalf("GenerateReview() error: %v", err)
+	}
+
+	manifestData, err := os.ReadFile(result.ManifestPath)
+	if err != nil {
+		t.Fatalf("ReadFile(manifest) error: %v", err)
+	}
+	var manifest ReviewManifest
+	if err := json.Unmarshal(manifestData, &manifest); err != nil {
+		t.Fatalf("Unmarshal(manifest) error: %v", err)
+	}
+
+	entry := findReviewEntryByIDAndLocale(t, manifest.Entries, "home", "en")
+	if entry.Device != "iPhone_Air" {
+		t.Fatalf("entry device = %q, want %q", entry.Device, "iPhone_Air")
+	}
+	if entry.RawPath != "" || entry.RawRelative != "" {
+		t.Fatalf("expected no raw match, got raw path %q (%q)", entry.RawPath, entry.RawRelative)
+	}
+	if entry.Status != reviewStatusMissingRaw {
+		t.Fatalf("entry status = %q, want %q", entry.Status, reviewStatusMissingRaw)
+	}
+}
+
 func findReviewEntryByID(t *testing.T, entries []ReviewEntry, screenshotID string) ReviewEntry {
 	t.Helper()
 	for _, entry := range entries {

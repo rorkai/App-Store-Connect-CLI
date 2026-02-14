@@ -128,6 +128,66 @@ func TestShotsReviewApprove_AllReady(t *testing.T) {
 	}
 }
 
+func TestShotsReviewApprove_LocaleDeviceSelectors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	outputDir := filepath.Join(t.TempDir(), "review")
+	manifestPath := filepath.Join(outputDir, "manifest.json")
+	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+
+	manifest := `{
+  "generated_at": "2026-01-01T00:00:00Z",
+  "framed_dir": "/tmp/framed",
+  "output_dir": "/tmp/review",
+  "summary": { "total": 2, "ready": 1, "missing_raw": 0, "invalid_size": 1, "approved": 0, "pending_approval": 2 },
+  "entries": [
+    { "key": "en|iPhone_Air|home", "screenshot_id": "home", "locale": "en", "device": "iPhone_Air", "status": "invalid_size" },
+    { "key": "fr|iPhone_Air|home", "screenshot_id": "home", "locale": "fr", "device": "iPhone_Air", "status": "ready" }
+  ]
+}`
+	if err := os.WriteFile(manifestPath, []byte(manifest), 0o644); err != nil {
+		t.Fatalf("WriteFile(manifest) error: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	if err := root.Parse([]string{
+		"shots", "review", "approve",
+		"--output-dir", outputDir,
+		"--locale", "en",
+		"--device", "iPhone_Air",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result struct {
+		Matched int      `json:"matched"`
+		Added   int      `json:"added"`
+		Keys    []string `json:"keys"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if result.Matched != 1 || result.Added != 1 {
+		t.Fatalf("unexpected approve summary: %+v", result)
+	}
+	if len(result.Keys) != 1 || result.Keys[0] != "en|iPhone_Air|home" {
+		t.Fatalf("unexpected approved keys: %+v", result.Keys)
+	}
+}
+
 func TestShotsReviewApprove_RequiresSelector(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))

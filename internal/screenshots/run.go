@@ -32,6 +32,9 @@ type RunResult struct {
 
 // RunPlan executes a validated plan.
 func RunPlan(ctx context.Context, plan *Plan) (*RunResult, error) {
+	if plan == nil {
+		return nil, fmt.Errorf("plan is required")
+	}
 	if err := validatePlan(plan); err != nil {
 		return nil, err
 	}

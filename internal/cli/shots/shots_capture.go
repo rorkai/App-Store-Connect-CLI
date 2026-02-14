@@ -43,6 +43,10 @@ App must already be installed; simulator must be booted or --udid set.`,
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
 				return flag.ErrHelp
 			}
+			if nameVal == "." || nameVal == ".." || strings.ContainsAny(nameVal, `/\`) {
+				fmt.Fprintln(os.Stderr, "Error: --name must be a file name without path separators")
+				return flag.ErrHelp
+			}
 			providerVal := strings.TrimSpace(strings.ToLower(*provider))
 			if providerVal != screenshots.ProviderAXe {
 				fmt.Fprintf(os.Stderr, "Error: --provider must be %q\n", screenshots.ProviderAXe)

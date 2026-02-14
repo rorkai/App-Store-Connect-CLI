@@ -555,7 +555,12 @@ func selectGeneratedScreenshot(configPath string, results []koubouGenerateResult
 		if result.Success && strings.TrimSpace(result.Path) != "" {
 			path := strings.TrimSpace(result.Path)
 			if !filepath.IsAbs(path) {
-				path = filepath.Join(filepath.Dir(configPath), path)
+				cleanPath := filepath.Clean(path)
+				parentPrefix := ".." + string(filepath.Separator)
+				if cleanPath == ".." || strings.HasPrefix(cleanPath, parentPrefix) {
+					return "", fmt.Errorf("koubou output path %q escapes config directory", path)
+				}
+				path = filepath.Join(filepath.Dir(configPath), cleanPath)
 			}
 			return path, nil
 		}

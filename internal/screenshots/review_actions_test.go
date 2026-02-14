@@ -89,6 +89,49 @@ func TestApproveReview_AllReady(t *testing.T) {
 	}
 }
 
+func TestApproveReview_ApprovesByLocaleDeviceSelectors(t *testing.T) {
+	outputDir := t.TempDir()
+	manifestPath := filepath.Join(outputDir, defaultReviewManifestName)
+
+	manifest := ReviewManifest{
+		GeneratedAt: "2026-01-01T00:00:00Z",
+		FramedDir:   filepath.Join(outputDir, "framed"),
+		OutputDir:   outputDir,
+		Entries: []ReviewEntry{
+			{
+				Key:          "en|iPhone_Air|home",
+				ScreenshotID: "home",
+				Locale:       "en",
+				Device:       "iPhone_Air",
+				Status:       reviewStatusInvalidSize,
+			},
+			{
+				Key:          "fr|iPhone_Air|home",
+				ScreenshotID: "home",
+				Locale:       "fr",
+				Device:       "iPhone_Air",
+				Status:       reviewStatusReady,
+			},
+		},
+	}
+	writeReviewManifest(t, manifestPath, manifest)
+
+	result, err := ApproveReview(context.Background(), ReviewApproveRequest{
+		OutputDir: outputDir,
+		Locale:    "en",
+		Device:    "iPhone_Air",
+	})
+	if err != nil {
+		t.Fatalf("ApproveReview() error: %v", err)
+	}
+	if result.Matched != 1 || result.Added != 1 || result.TotalApproved != 1 {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	if len(result.Keys) != 1 || result.Keys[0] != "en|iPhone_Air|home" {
+		t.Fatalf("unexpected approved keys: %+v", result.Keys)
+	}
+}
+
 func TestApproveReview_RequiresSelector(t *testing.T) {
 	outputDir := t.TempDir()
 	manifestPath := filepath.Join(outputDir, defaultReviewManifestName)

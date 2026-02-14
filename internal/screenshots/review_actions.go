@@ -165,14 +165,15 @@ func selectApprovalKeys(manifest *ReviewManifest, req ReviewApproveRequest) ([]s
 		}
 		keySet[trimmed] = struct{}{}
 	}
-	hasSelector := req.AllReady || len(keySet) > 0 || strings.TrimSpace(req.ScreenshotID) != ""
-	if !hasSelector {
-		return nil, fmt.Errorf("provide at least one selector: --all-ready, --key, or --id")
-	}
-
 	localeFilter := strings.TrimSpace(req.Locale)
 	deviceFilter := strings.TrimSpace(req.Device)
 	idFilter := strings.TrimSpace(req.ScreenshotID)
+	hasSelector := req.AllReady || len(keySet) > 0 || idFilter != "" || localeFilter != "" || deviceFilter != ""
+	if !hasSelector {
+		return nil, fmt.Errorf("provide at least one selector: --all-ready, --key, --id, --locale, or --device")
+	}
+
+	filterOnlySelection := !req.AllReady && len(keySet) == 0 && idFilter == "" && (localeFilter != "" || deviceFilter != "")
 	entryByKey := make(map[string]ReviewEntry, len(manifest.Entries))
 	for _, entry := range manifest.Entries {
 		entryByKey[entry.Key] = entry
@@ -191,6 +192,9 @@ func selectApprovalKeys(manifest *ReviewManifest, req ReviewApproveRequest) ([]s
 	}
 
 	for _, entry := range manifest.Entries {
+		if filterOnlySelection && matchesLocaleDeviceFilters(entry, localeFilter, deviceFilter) {
+			selected = append(selected, entry.Key)
+		}
 		if req.AllReady && entry.Status == reviewStatusReady && matchesLocaleDeviceFilters(entry, localeFilter, deviceFilter) {
 			selected = append(selected, entry.Key)
 		}

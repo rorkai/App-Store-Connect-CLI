@@ -40,6 +40,11 @@ func TestShotsCapture_RequiredFlagErrors(t *testing.T) {
 			args:    []string{"shots", "capture", "--bundle-id", "com.example.app", "--name", "home", "--provider", "simctl"},
 			wantErr: "--provider must be",
 		},
+		{
+			name:    "name cannot contain path separators",
+			args:    []string{"shots", "capture", "--bundle-id", "com.example.app", "--name", "../home"},
+			wantErr: "--name must be a file name without path separators",
+		},
 	}
 
 	for _, test := range tests {

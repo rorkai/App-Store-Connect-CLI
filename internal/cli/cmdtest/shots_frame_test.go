@@ -37,6 +37,33 @@ func TestShotsFrame_RequiresInput(t *testing.T) {
 	}
 }
 
+func TestShotsFrame_RejectsInputAndConfigTogether(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"shots",
+			"frame",
+			"--input", "/tmp/raw.png",
+			"--config", "/tmp/frame.yaml",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "use either --input or --config, not both") {
+		t.Fatalf("expected mutual exclusivity error, got %q", stderr)
+	}
+}
+
 func TestShotsFrame_InvalidDevice(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

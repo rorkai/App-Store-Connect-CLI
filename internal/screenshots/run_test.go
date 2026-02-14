@@ -56,6 +56,16 @@ exit 1
 	}
 }
 
+func TestRunPlan_RejectsNilPlan(t *testing.T) {
+	_, err := RunPlan(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected error for nil plan")
+	}
+	if !strings.Contains(err.Error(), "plan is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRunPlan_ScreenshotStepsDoNotRelaunchApp(t *testing.T) {
 	binDir := t.TempDir()
 	logDir := t.TempDir()

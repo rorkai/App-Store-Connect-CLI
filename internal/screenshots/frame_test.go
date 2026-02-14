@@ -159,6 +159,24 @@ func TestSelectGeneratedScreenshot_RelativePath(t *testing.T) {
 	}
 }
 
+func TestSelectGeneratedScreenshot_RejectsEscapingRelativePath(t *testing.T) {
+	configDir := t.TempDir()
+	configPath := filepath.Join(configDir, "frame.yaml")
+	if err := os.WriteFile(configPath, []byte("project: {}"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	_, err := selectGeneratedScreenshot(configPath, []koubouGenerateResult{
+		{Name: "framed", Path: "../outside.png", Success: true},
+	})
+	if err == nil {
+		t.Fatal("expected error for escaping output path")
+	}
+	if !strings.Contains(err.Error(), "escapes config directory") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestFrame_ConfigModeReportsDeviceFromConfig(t *testing.T) {
 	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
 	writeFrameTestPNG(t, kouFixturePath, makeFrameTestImage(1290, 2796))

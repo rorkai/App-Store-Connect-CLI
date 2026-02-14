@@ -272,7 +272,22 @@ func buildReviewEntries(
 		if rawAvailable {
 			rawPath = rawIndex[rawIndexReviewKey(locale, device, screenshotID)]
 			if rawPath == "" {
-				rawPath = rawIndex[rawIndexScreenshotKey(screenshotID)]
+				candidate := rawIndex[rawIndexScreenshotKey(screenshotID)]
+				if candidate != "" {
+					if locale == "" && device == "" {
+						rawPath = candidate
+					} else {
+						candidateRelative, relErr := filepath.Rel(rawDir, candidate)
+						if relErr != nil {
+							return nil, fmt.Errorf("resolve raw relative path: %w", relErr)
+						}
+						candidateLocale, candidateDevice := inferLocaleAndDevice(candidateRelative)
+						candidateIsGeneric := candidateLocale == "" && candidateDevice == ""
+						if candidateIsGeneric || ((locale == "" || locale == candidateLocale) && (device == "" || device == candidateDevice)) {
+							rawPath = candidate
+						}
+					}
+				}
 			}
 			if rawPath != "" {
 				rawRelative, err = filepath.Rel(rawDir, rawPath)

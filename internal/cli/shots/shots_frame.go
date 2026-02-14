@@ -47,6 +47,17 @@ Use either --input (auto-generated Koubou config) or --config (explicit Koubou Y
 				fmt.Fprintln(os.Stderr, "Error: --input is required when --config is not set")
 				return flag.ErrHelp
 			}
+			if configVal != "" && inputVal != "" {
+				fmt.Fprintln(os.Stderr, "Error: use either --input or --config, not both")
+				return flag.ErrHelp
+			}
+			if configVal != "" {
+				absConfig, err := filepath.Abs(configVal)
+				if err != nil {
+					return fmt.Errorf("shots frame: resolve config path: %w", err)
+				}
+				configVal = absConfig
+			}
 
 			deviceVal, err := screenshots.ParseFrameDevice(*device)
 			if err != nil {

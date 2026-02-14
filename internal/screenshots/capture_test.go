@@ -30,6 +30,46 @@ func TestCapture_UnknownProvider(t *testing.T) {
 	}
 }
 
+func TestCaptureWithProvider_RejectsNameWithPathSeparators(t *testing.T) {
+	ctx := context.Background()
+	req := CaptureRequest{
+		Provider:  ProviderAXe,
+		BundleID:  "com.example.app",
+		UDID:      "booted",
+		Name:      "../home",
+		OutputDir: t.TempDir(),
+	}
+
+	fake := &fakeProvider{path: filepath.Join(t.TempDir(), "ignored.png")}
+	_, err := CaptureWithProvider(ctx, req, fake)
+	if err == nil {
+		t.Fatal("expected validation error for path-like screenshot name")
+	}
+	if !strings.Contains(err.Error(), "file name without path separators") {
+		t.Fatalf("expected screenshot name validation error, got %q", err.Error())
+	}
+}
+
+func TestCaptureWithProvider_RequiresOutputDirectory(t *testing.T) {
+	ctx := context.Background()
+	req := CaptureRequest{
+		Provider:  ProviderAXe,
+		BundleID:  "com.example.app",
+		UDID:      "booted",
+		Name:      "home",
+		OutputDir: "   ",
+	}
+
+	fake := &fakeProvider{path: filepath.Join(t.TempDir(), "ignored.png")}
+	_, err := CaptureWithProvider(ctx, req, fake)
+	if err == nil {
+		t.Fatal("expected validation error for missing output directory")
+	}
+	if !strings.Contains(err.Error(), "output directory is required") {
+		t.Fatalf("expected output directory validation error, got %q", err.Error())
+	}
+}
+
 func TestCaptureWithProvider_MissingFile(t *testing.T) {
 	ctx := context.Background()
 	req := CaptureRequest{

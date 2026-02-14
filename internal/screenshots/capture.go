@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
@@ -25,6 +26,13 @@ func Capture(ctx context.Context, req CaptureRequest) (*CaptureResult, error) {
 // CaptureWithProvider runs the given provider (or selects by req.Provider if nil) and validates the output file.
 // Used for testing with a mock provider.
 func CaptureWithProvider(ctx context.Context, req CaptureRequest, p Provider) (*CaptureResult, error) {
+	req.Provider = strings.TrimSpace(strings.ToLower(req.Provider))
+	req.Name = strings.TrimSpace(req.Name)
+	req.OutputDir = strings.TrimSpace(req.OutputDir)
+	if err := validateCaptureDestination(req.Name, req.OutputDir); err != nil {
+		return nil, err
+	}
+
 	if p == nil {
 		switch req.Provider {
 		case ProviderAXe:
@@ -47,7 +55,10 @@ func CaptureWithProvider(ctx context.Context, req CaptureRequest, p Provider) (*
 		return nil, fmt.Errorf("read image dimensions: %w", err)
 	}
 
-	absPath, _ := filepath.Abs(pngPath)
+	absPath, err := filepath.Abs(pngPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve captured path: %w", err)
+	}
 	return &CaptureResult{
 		Path:     absPath,
 		Provider: req.Provider,
@@ -56,4 +67,17 @@ func CaptureWithProvider(ctx context.Context, req CaptureRequest, p Provider) (*
 		BundleID: req.BundleID,
 		UDID:     req.UDID,
 	}, nil
+}
+
+func validateCaptureDestination(name, outputDir string) error {
+	if outputDir == "" {
+		return fmt.Errorf("output directory is required")
+	}
+	if name == "" {
+		return fmt.Errorf("screenshot name is required")
+	}
+	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("screenshot name must be a file name without path separators")
+	}
+	return nil
 }

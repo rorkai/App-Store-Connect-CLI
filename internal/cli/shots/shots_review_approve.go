@@ -21,8 +21,8 @@ func ShotsReviewApproveCommand() *ffcli.Command {
 	allReady := fs.Bool("all-ready", false, "Approve all entries with status=ready")
 	key := fs.String("key", "", "Review key(s) to approve, comma-separated (locale|device|screenshot_id)")
 	screenshotID := fs.String("id", "", "Screenshot ID to approve")
-	locale := fs.String("locale", "", "Optional locale filter (works with --all-ready or --id)")
-	device := fs.String("device", "", "Optional device filter (works with --all-ready or --id)")
+	locale := fs.String("locale", "", "Locale selector/filter for matching review entries")
+	device := fs.String("device", "", "Device selector/filter for matching review entries")
 	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
@@ -35,14 +35,17 @@ func ShotsReviewApproveCommand() *ffcli.Command {
 Selectors:
 - --all-ready: approve all status=ready entries
 - --key: approve exact review key(s), comma-separated
-- --id: approve by screenshot ID (optionally narrowed by --locale/--device)`,
+- --id: approve by screenshot ID (optionally narrowed by --locale/--device)
+- --locale/--device: approve all entries matching locale/device filters`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			keys := shared.SplitCSV(*key)
 			id := strings.TrimSpace(*screenshotID)
-			if !*allReady && len(keys) == 0 && id == "" {
-				fmt.Fprintln(os.Stderr, "Error: provide at least one selector: --all-ready, --key, or --id")
+			localeVal := strings.TrimSpace(*locale)
+			deviceVal := strings.TrimSpace(*device)
+			if !*allReady && len(keys) == 0 && id == "" && localeVal == "" && deviceVal == "" {
+				fmt.Fprintln(os.Stderr, "Error: provide at least one selector: --all-ready, --key, --id, --locale, or --device")
 				return flag.ErrHelp
 			}
 
@@ -53,8 +56,8 @@ Selectors:
 				AllReady:     *allReady,
 				Keys:         keys,
 				ScreenshotID: id,
-				Locale:       strings.TrimSpace(*locale),
-				Device:       strings.TrimSpace(*device),
+				Locale:       localeVal,
+				Device:       deviceVal,
 			})
 			if err != nil {
 				return fmt.Errorf("shots review approve: %w", err)
