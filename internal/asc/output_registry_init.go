@@ -1,5 +1,9 @@
 package asc
 
+func singleLinkageRows(data ResourceData) ([]string, [][]string) {
+	return linkagesRows(&LinkagesResponse{Data: []ResourceData{data}})
+}
+
 //nolint:gochecknoinits // registry init is the idiomatic way to populate a type map
 func init() {
 	registerRows(feedbackRows)
@@ -109,70 +113,70 @@ func init() {
 	})
 	registerRows(linkagesRows)
 	registerRows(func(v *AppClipDefaultExperienceReviewDetailLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppClipDefaultExperienceReleaseWithAppStoreVersionLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppClipDefaultExperienceLocalizationHeaderImageLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppStoreVersionAgeRatingDeclarationLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppStoreVersionReviewDetailLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppStoreVersionAppClipDefaultExperienceLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppStoreVersionSubmissionLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppStoreVersionRoutingAppCoverageLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppStoreVersionAlternativeDistributionPackageLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppStoreVersionGameCenterAppVersionLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *BuildAppLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *BuildAppStoreVersionLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *BuildBuildBetaDetailLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *BuildPreReleaseVersionLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *PreReleaseVersionAppLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppInfoAgeRatingDeclarationLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppInfoPrimaryCategoryLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppInfoPrimarySubcategoryOneLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppInfoPrimarySubcategoryTwoLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppInfoSecondaryCategoryLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppInfoSecondarySubcategoryOneLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(func(v *AppInfoSecondarySubcategoryTwoLinkageResponse) ([]string, [][]string) {
-		return linkagesRows(&LinkagesResponse{Data: []ResourceData{v.Data}})
+		return singleLinkageRows(v.Data)
 	})
 	registerRows(bundleIDsRows)
 	registerRows(func(v *BundleIDResponse) ([]string, [][]string) {
