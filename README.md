@@ -1687,6 +1687,8 @@ make build
 - Local config fallback with restricted permissions
 - Private key content never stored, only path reference
 - Environment variables as fallback
+- Report/artifact file helpers use atomic `O_NOFOLLOW` on Unix-like systems
+- On platforms without a portable `O_NOFOLLOW`, helpers use best-effort pre/post `Lstat` checks to reject symlinks and detect path swaps (residual TOCTOU window remains)
 
 ## Contributing
 
