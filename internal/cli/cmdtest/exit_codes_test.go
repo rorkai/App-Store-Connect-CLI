@@ -186,9 +186,17 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "--version and --version-id are mutually exclusive",
 		},
 		{
-			name:    "auth login local requires bypass",
-			args:    []string{"--no-update", "auth", "login", "--local"},
-			wantErr: "--local requires --bypass-keychain",
+			name: "auth login mutually exclusive validation flags",
+			args: []string{
+				"--no-update", "auth", "login",
+				"--name", "demo",
+				"--key-id", "KEY",
+				"--issuer-id", "ISS",
+				"--private-key", "/tmp/AuthKey.p8",
+				"--skip-validation",
+				"--network",
+			},
+			wantErr: "--skip-validation and --network are mutually exclusive",
 		},
 		{
 			name:    "app-info get conflicting version flags",
