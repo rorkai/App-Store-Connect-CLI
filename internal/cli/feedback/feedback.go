@@ -18,8 +18,7 @@ func FeedbackCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("feedback", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	includeScreenshots := fs.Bool("include-screenshots", false, "Include screenshot URLs in feedback output")
 	deviceModel := fs.String("device-model", "", "Filter by device model(s), comma-separated")
 	osVersion := fs.String("os-version", "", "Filter by OS version(s), comma-separated")
@@ -109,8 +108,7 @@ Examples:
 					return fmt.Errorf("feedback: %w", err)
 				}
 
-				format := *output
-				return shared.PrintOutput(feedback, format, *pretty)
+				return shared.PrintOutput(feedback, *output.Output, *output.Pretty)
 			}
 
 			feedback, err := client.GetFeedback(requestCtx, resolvedAppID, opts...)
@@ -118,9 +116,7 @@ Examples:
 				return fmt.Errorf("feedback: failed to fetch: %w", err)
 			}
 
-			format := *output
-
-			return shared.PrintOutput(feedback, format, *pretty)
+			return shared.PrintOutput(feedback, *output.Output, *output.Pretty)
 		},
 	}
 }
