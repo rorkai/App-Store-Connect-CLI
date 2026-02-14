@@ -132,6 +132,32 @@ func TestOutputRegistryIDBoolHelperRegistration(t *testing.T) {
 	}
 }
 
+func TestOutputRegistryResponseDataHelperRegistration(t *testing.T) {
+	handler, ok := outputRegistry[reflect.TypeOf(&Response[BetaGroupMetricAttributes]{})]
+	if !ok || handler == nil {
+		t.Fatal("expected Response[BetaGroupMetricAttributes] handler")
+	}
+
+	headers, rows, err := handler(&Response[BetaGroupMetricAttributes]{
+		Data: []Resource[BetaGroupMetricAttributes]{
+			{
+				ID:         "metric-1",
+				Attributes: BetaGroupMetricAttributes{"installs": 12},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if len(headers) == 0 || len(rows) == 0 || len(rows[0]) < 2 {
+		t.Fatalf("expected headers/rows with 2 columns, got headers=%v rows=%v", headers, rows)
+	}
+	joined := rows[0][0] + " " + rows[0][1]
+	if !contains(joined, "metric-1") || !contains(joined, "installs=12") {
+		t.Fatalf("expected row to contain metric data, got row=%v", rows[0])
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && searchString(s, substr)
 }
