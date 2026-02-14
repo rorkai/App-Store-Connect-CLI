@@ -48,8 +48,7 @@ func PreReleaseVersionsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -120,7 +119,7 @@ Examples:
 					return fmt.Errorf("pre-release-versions list: %w", err)
 				}
 
-				return shared.PrintOutput(versions, *output, *pretty)
+				return shared.PrintOutput(versions, *output.Output, *output.Pretty)
 			}
 
 			versions, err := client.GetPreReleaseVersions(requestCtx, resolvedAppID, opts...)
@@ -128,7 +127,7 @@ Examples:
 				return fmt.Errorf("pre-release-versions list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(versions, *output, *pretty)
+			return shared.PrintOutput(versions, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -138,8 +137,7 @@ func PreReleaseVersionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pre-release-versions get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Pre-release version ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -171,7 +169,7 @@ Examples:
 				return fmt.Errorf("pre-release-versions get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(version, *output, *pretty)
+			return shared.PrintOutput(version, *output.Output, *output.Pretty)
 		},
 	}
 }
