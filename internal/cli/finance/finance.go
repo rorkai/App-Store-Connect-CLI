@@ -190,8 +190,7 @@ Examples:
 func FinanceRegionsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("regions", flag.ExitOnError)
 
-	outputFormat := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "regions",
@@ -215,7 +214,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			result := &asc.FinanceRegionsResult{Regions: asc.FinanceRegions()}
-			return shared.PrintOutput(result, *outputFormat, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

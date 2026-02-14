@@ -52,8 +52,7 @@ func EULAGetCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "EULA ID")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -99,7 +98,7 @@ Examples:
 				return fmt.Errorf("eula get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -109,8 +108,7 @@ func EULAListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -142,7 +140,7 @@ Examples:
 				return fmt.Errorf("eula list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -154,8 +152,7 @@ func EULACreateCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	agreementText := fs.String("agreement-text", "", "Agreement text")
 	territories := fs.String("territory", "", "Territory IDs, comma-separated")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -198,7 +195,7 @@ Examples:
 				return fmt.Errorf("eula create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -210,8 +207,7 @@ func EULAUpdateCommand() *ffcli.Command {
 	id := fs.String("id", "", "EULA ID")
 	agreementText := fs.String("agreement-text", "", "Agreement text")
 	territories := fs.String("territory", "", "Territory IDs, comma-separated")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -256,7 +252,7 @@ Examples:
 				return fmt.Errorf("eula update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -267,8 +263,7 @@ func EULADeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "EULA ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -308,7 +303,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -45,8 +45,7 @@ func RoutingCoverageGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("routing-coverage get", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -78,7 +77,7 @@ Examples:
 				return fmt.Errorf("routing-coverage get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -88,8 +87,7 @@ func RoutingCoverageInfoCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("routing-coverage info", flag.ExitOnError)
 
 	coverageID := fs.String("id", "", "Routing app coverage ID (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "info",
@@ -121,7 +119,7 @@ Examples:
 				return fmt.Errorf("routing-coverage info: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -132,8 +130,7 @@ func RoutingCoverageCreateCommand() *ffcli.Command {
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	filePath := fs.String("file", "", "Path to routing coverage file (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -213,7 +210,7 @@ Examples:
 				return fmt.Errorf("routing-coverage create: failed to commit upload: %w", err)
 			}
 
-			return shared.PrintOutput(commitResp, *output, *pretty)
+			return shared.PrintOutput(commitResp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -224,8 +221,7 @@ func RoutingCoverageDeleteCommand() *ffcli.Command {
 
 	coverageID := fs.String("id", "", "Routing app coverage ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -265,7 +261,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

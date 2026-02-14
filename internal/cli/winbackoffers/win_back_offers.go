@@ -119,8 +119,7 @@ func WinBackOffersListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -203,7 +202,7 @@ Examples:
 					return fmt.Errorf("win-back-offers list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetSubscriptionWinBackOffers(requestCtx, id, opts...)
@@ -211,7 +210,7 @@ Examples:
 				return fmt.Errorf("win-back-offers list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -221,8 +220,7 @@ func WinBackOffersGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Win-back offer ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -254,7 +252,7 @@ Examples:
 				return fmt.Errorf("win-back-offers get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -283,8 +281,7 @@ func WinBackOffersCreateCommand() *ffcli.Command {
 	priority := fs.String("priority", "", "Offer priority: "+strings.Join(winBackOfferPriorityValues, ", "))
 	promotionIntent := fs.String("promotion-intent", "", "Promotion intent: "+strings.Join(winBackOfferPromotionIntentValues, ", "))
 	priceIDs := fs.String("price", "", "Win-back offer price ID(s), comma-separated")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -476,7 +473,7 @@ Examples:
 				return fmt.Errorf("win-back-offers create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -498,8 +495,7 @@ func WinBackOffersUpdateCommand() *ffcli.Command {
 	endDate := fs.String("end-date", "", "End date (YYYY-MM-DD)")
 	priority := fs.String("priority", "", "Offer priority: "+strings.Join(winBackOfferPriorityValues, ", "))
 	promotionIntent := fs.String("promotion-intent", "", "Promotion intent: "+strings.Join(winBackOfferPromotionIntentValues, ", "))
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -613,7 +609,7 @@ Examples:
 				return fmt.Errorf("win-back-offers update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -624,8 +620,7 @@ func WinBackOffersDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Win-back offer ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -665,7 +660,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -683,8 +678,7 @@ func WinBackOffersPricesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "prices",
@@ -768,7 +762,7 @@ Examples:
 					return fmt.Errorf("win-back-offers prices: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetWinBackOfferPrices(requestCtx, trimmedID, opts...)
@@ -776,7 +770,7 @@ Examples:
 				return fmt.Errorf("win-back-offers prices: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -789,8 +783,7 @@ func WinBackOffersPricesRelationshipsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "prices-relationships",
@@ -844,7 +837,7 @@ Examples:
 					return fmt.Errorf("win-back-offers prices-relationships: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetWinBackOfferPricesRelationships(requestCtx, trimmedID, opts...)
@@ -852,7 +845,7 @@ Examples:
 				return fmt.Errorf("win-back-offers prices-relationships: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -865,8 +858,7 @@ func WinBackOffersRelationshipsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "relationships",
@@ -920,7 +912,7 @@ Examples:
 					return fmt.Errorf("win-back-offers relationships: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetSubscriptionWinBackOffersRelationships(requestCtx, trimmedID, opts...)
@@ -928,7 +920,7 @@ Examples:
 				return fmt.Errorf("win-back-offers relationships: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
