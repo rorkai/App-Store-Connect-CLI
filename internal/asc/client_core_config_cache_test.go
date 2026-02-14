@@ -60,6 +60,7 @@ func TestResetConfigCacheForTestReloadsConfig(t *testing.T) {
 		atomic.AddInt32(&calls, 1)
 		return &config.Config{RetryLog: "1"}, nil
 	})
+	t.Cleanup(resetConfigCacheForTest)
 
 	if !ResolveRetryLogEnabled() {
 		t.Fatal("expected retry logging enabled from first config load")

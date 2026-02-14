@@ -55,13 +55,6 @@ func registerRowsAdapter[T any, U any](adapter func(*T) *U, rows func(*U) ([]str
 	})
 }
 
-// registerRowsErrAdapter registers rows rendering by adapting one pointer type to another.
-func registerRowsErrAdapter[T any, U any](adapter func(*T) *U, rows func(*U) ([]string, [][]string, error)) {
-	registerRowsErr(func(v *T) ([]string, [][]string, error) {
-		return rows(adapter(v))
-	})
-}
-
 // registerDirect registers a type that needs direct render control (multi-table output).
 func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
 	t := reflect.TypeFor[*T]()
