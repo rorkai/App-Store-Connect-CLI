@@ -608,8 +608,19 @@ func localFileURL(path string) string {
 	// Use an absolute path-only URL so html/template keeps it in src/href.
 	// "file://" URLs are sanitized to "#ZgotmplZ" in these contexts.
 	return (&url.URL{
-		Path: filepath.ToSlash(absolutePath),
+		Path: pathOnlyURLPath(absolutePath),
 	}).String()
+}
+
+func pathOnlyURLPath(absolutePath string) string {
+	urlPath := filepath.ToSlash(absolutePath)
+	if len(urlPath) >= 3 && urlPath[1] == ':' && urlPath[2] == '/' {
+		first := urlPath[0]
+		if (first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') {
+			return "/" + urlPath
+		}
+	}
+	return urlPath
 }
 
 const reviewHTMLTemplate = `<!doctype html>
