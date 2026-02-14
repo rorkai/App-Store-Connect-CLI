@@ -105,6 +105,14 @@ func TestRun_NoArgsShowsHelpReturnsSuccess(t *testing.T) {
 	}
 }
 
+func TestHasPositionalArgs_EndOfFlagsSeparator(t *testing.T) {
+	root := RootCommand("1.0.0")
+
+	if got := hasPositionalArgs(root.FlagSet, []string{"--", "--version"}); !got {
+		t.Fatalf("hasPositionalArgs() = %v, want true", got)
+	}
+}
+
 func TestRootCommand_UnknownCommandPrintsHelpError(t *testing.T) {
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{"unknown-subcommand"}); err != nil {
