@@ -318,6 +318,7 @@ func TestValidateOutputFormatAllowed(t *testing.T) {
 		{name: "text allowed", input: "text", pretty: false, allowed: []string{"text", "json"}, wantFormat: "text"},
 		{name: "json default allowed", input: "", pretty: false, allowed: []string{"text", "json"}, wantFormat: "json"},
 		{name: "md unsupported when not allowed", input: "md", pretty: false, allowed: []string{"text", "json"}, wantErr: "unsupported format: markdown"},
+		{name: "alias allowed when markdown allowed", input: "md", pretty: false, allowed: []string{"markdown", "json"}, wantFormat: "markdown"},
 		{name: "pretty rejected for text", input: "text", pretty: true, allowed: []string{"text", "json"}, wantErr: "--pretty is only valid with JSON output"},
 	}
 
@@ -337,6 +338,21 @@ func TestValidateOutputFormatAllowed(t *testing.T) {
 				t.Fatalf("expected format %q, got %q", tc.wantFormat, got)
 			}
 		})
+	}
+}
+
+func TestValidateOutputFormatAllowed_EmptyAllowedFallsBackToDefaultSet(t *testing.T) {
+	got, err := ValidateOutputFormatAllowed("table", false)
+	if err != nil {
+		t.Fatalf("unexpected error for default allowed set: %v", err)
+	}
+	if got != "table" {
+		t.Fatalf("expected table, got %q", got)
+	}
+
+	_, err = ValidateOutputFormatAllowed("yaml", false)
+	if err == nil || !strings.Contains(err.Error(), "unsupported format: yaml") {
+		t.Fatalf("expected unsupported format error, got %v", err)
 	}
 }
 

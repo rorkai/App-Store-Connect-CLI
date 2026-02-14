@@ -600,6 +600,9 @@ func validateOutputFormat(format string, pretty bool) (string, error) {
 }
 
 func validateOutputFormatAllowed(format string, pretty bool, allowed ...string) (string, error) {
+	if len(allowed) == 0 {
+		allowed = []string{"json", "table", "markdown"}
+	}
 	normalized := NormalizeOutputFormat(format)
 	if normalized == "" {
 		normalized = "json"
