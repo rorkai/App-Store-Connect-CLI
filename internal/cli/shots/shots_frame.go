@@ -118,6 +118,9 @@ func resolveOutputPath(explicitPath, outputDir, name, inputPath, device string) 
 		dir = defaultShotsFrameOutputDir
 	}
 	baseName := strings.TrimSpace(name)
+	if baseName != "" && (baseName == "." || baseName == ".." || strings.ContainsAny(baseName, `/\`)) {
+		return "", fmt.Errorf("--name must be a file name without path separators")
+	}
 	if baseName == "" {
 		trimmedInputPath := strings.TrimSpace(inputPath)
 		if trimmedInputPath != "" {
