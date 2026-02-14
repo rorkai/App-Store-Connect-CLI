@@ -332,81 +332,81 @@ func init() {
 	registerRows(appAvailabilityRows)
 	registerRows(territoryAvailabilitiesRows)
 	registerRows(endAppAvailabilityPreOrderRows)
-	registerRows(func(v *PreReleaseVersionResponse) ([]string, [][]string) {
-		return preReleaseVersionsRows(&PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}})
-	})
+	registerRowsAdapter(func(v *PreReleaseVersionResponse) *PreReleaseVersionsResponse {
+		return &PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}}
+	}, preReleaseVersionsRows)
 	registerRows(appStoreVersionLocalizationsRows)
-	registerRows(func(v *AppStoreVersionLocalizationResponse) ([]string, [][]string) {
-		return appStoreVersionLocalizationsRows(&AppStoreVersionLocalizationsResponse{Data: []Resource[AppStoreVersionLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppStoreVersionLocalizationResponse) *AppStoreVersionLocalizationsResponse {
+		return &AppStoreVersionLocalizationsResponse{Data: []Resource[AppStoreVersionLocalizationAttributes]{v.Data}}
+	}, appStoreVersionLocalizationsRows)
 	registerRows(betaAppLocalizationsRows)
-	registerRows(func(v *BetaAppLocalizationResponse) ([]string, [][]string) {
-		return betaAppLocalizationsRows(&BetaAppLocalizationsResponse{Data: []Resource[BetaAppLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BetaAppLocalizationResponse) *BetaAppLocalizationsResponse {
+		return &BetaAppLocalizationsResponse{Data: []Resource[BetaAppLocalizationAttributes]{v.Data}}
+	}, betaAppLocalizationsRows)
 	registerRows(betaBuildLocalizationsRows)
-	registerRows(func(v *BetaBuildLocalizationResponse) ([]string, [][]string) {
-		return betaBuildLocalizationsRows(&BetaBuildLocalizationsResponse{Data: []Resource[BetaBuildLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BetaBuildLocalizationResponse) *BetaBuildLocalizationsResponse {
+		return &BetaBuildLocalizationsResponse{Data: []Resource[BetaBuildLocalizationAttributes]{v.Data}}
+	}, betaBuildLocalizationsRows)
 	registerRows(appInfoLocalizationsRows)
 	registerRows(appScreenshotSetsRows)
-	registerRows(func(v *AppScreenshotSetResponse) ([]string, [][]string) {
-		return appScreenshotSetsRows(&AppScreenshotSetsResponse{Data: []Resource[AppScreenshotSetAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppScreenshotSetResponse) *AppScreenshotSetsResponse {
+		return &AppScreenshotSetsResponse{Data: []Resource[AppScreenshotSetAttributes]{v.Data}}
+	}, appScreenshotSetsRows)
 	registerRows(appScreenshotsRows)
-	registerRows(func(v *AppScreenshotResponse) ([]string, [][]string) {
-		return appScreenshotsRows(&AppScreenshotsResponse{Data: []Resource[AppScreenshotAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppScreenshotResponse) *AppScreenshotsResponse {
+		return &AppScreenshotsResponse{Data: []Resource[AppScreenshotAttributes]{v.Data}}
+	}, appScreenshotsRows)
 	registerRows(appPreviewSetsRows)
-	registerRows(func(v *AppPreviewSetResponse) ([]string, [][]string) {
-		return appPreviewSetsRows(&AppPreviewSetsResponse{Data: []Resource[AppPreviewSetAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppPreviewSetResponse) *AppPreviewSetsResponse {
+		return &AppPreviewSetsResponse{Data: []Resource[AppPreviewSetAttributes]{v.Data}}
+	}, appPreviewSetsRows)
 	registerRows(appPreviewsRows)
-	registerRows(func(v *AppPreviewResponse) ([]string, [][]string) {
-		return appPreviewsRows(&AppPreviewsResponse{Data: []Resource[AppPreviewAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppPreviewResponse) *AppPreviewsResponse {
+		return &AppPreviewsResponse{Data: []Resource[AppPreviewAttributes]{v.Data}}
+	}, appPreviewsRows)
 	registerRows(betaGroupsRows)
-	registerRows(func(v *BetaGroupResponse) ([]string, [][]string) {
-		return betaGroupsRows(&BetaGroupsResponse{Data: []Resource[BetaGroupAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BetaGroupResponse) *BetaGroupsResponse {
+		return &BetaGroupsResponse{Data: []Resource[BetaGroupAttributes]{v.Data}}
+	}, betaGroupsRows)
 	registerRows(betaTestersRows)
-	registerRows(func(v *BetaTesterResponse) ([]string, [][]string) {
-		return betaTestersRows(&BetaTestersResponse{Data: []Resource[BetaTesterAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BetaTesterResponse) *BetaTestersResponse {
+		return &BetaTestersResponse{Data: []Resource[BetaTesterAttributes]{v.Data}}
+	}, betaTestersRows)
 	registerRows(usersRows)
-	registerRows(func(v *UserResponse) ([]string, [][]string) {
-		return usersRows(&UsersResponse{Data: []Resource[UserAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *UserResponse) *UsersResponse {
+		return &UsersResponse{Data: []Resource[UserAttributes]{v.Data}}
+	}, usersRows)
 	registerRows(actorsRows)
-	registerRows(func(v *ActorResponse) ([]string, [][]string) {
-		return actorsRows(&ActorsResponse{Data: []Resource[ActorAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *ActorResponse) *ActorsResponse {
+		return &ActorsResponse{Data: []Resource[ActorAttributes]{v.Data}}
+	}, actorsRows)
 	registerRows(devicesRows)
 	registerRows(deviceLocalUDIDRows)
-	registerRows(func(v *DeviceResponse) ([]string, [][]string) {
-		return devicesRows(&DevicesResponse{Data: []Resource[DeviceAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *DeviceResponse) *DevicesResponse {
+		return &DevicesResponse{Data: []Resource[DeviceAttributes]{v.Data}}
+	}, devicesRows)
 	registerRows(userInvitationsRows)
-	registerRows(func(v *UserInvitationResponse) ([]string, [][]string) {
-		return userInvitationsRows(&UserInvitationsResponse{Data: []Resource[UserInvitationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *UserInvitationResponse) *UserInvitationsResponse {
+		return &UserInvitationsResponse{Data: []Resource[UserInvitationAttributes]{v.Data}}
+	}, userInvitationsRows)
 	registerRows(userDeleteResultRows)
 	registerRows(userInvitationRevokeResultRows)
 	registerRows(betaAppReviewDetailsRows)
-	registerRows(func(v *BetaAppReviewDetailResponse) ([]string, [][]string) {
-		return betaAppReviewDetailsRows(&BetaAppReviewDetailsResponse{Data: []Resource[BetaAppReviewDetailAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BetaAppReviewDetailResponse) *BetaAppReviewDetailsResponse {
+		return &BetaAppReviewDetailsResponse{Data: []Resource[BetaAppReviewDetailAttributes]{v.Data}}
+	}, betaAppReviewDetailsRows)
 	registerRows(betaAppReviewSubmissionsRows)
-	registerRows(func(v *BetaAppReviewSubmissionResponse) ([]string, [][]string) {
-		return betaAppReviewSubmissionsRows(&BetaAppReviewSubmissionsResponse{Data: []Resource[BetaAppReviewSubmissionAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BetaAppReviewSubmissionResponse) *BetaAppReviewSubmissionsResponse {
+		return &BetaAppReviewSubmissionsResponse{Data: []Resource[BetaAppReviewSubmissionAttributes]{v.Data}}
+	}, betaAppReviewSubmissionsRows)
 	registerRows(buildBetaDetailsRows)
-	registerRows(func(v *BuildBetaDetailResponse) ([]string, [][]string) {
-		return buildBetaDetailsRows(&BuildBetaDetailsResponse{Data: []Resource[BuildBetaDetailAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BuildBetaDetailResponse) *BuildBetaDetailsResponse {
+		return &BuildBetaDetailsResponse{Data: []Resource[BuildBetaDetailAttributes]{v.Data}}
+	}, buildBetaDetailsRows)
 	registerRows(betaLicenseAgreementsRows)
-	registerRows(func(v *BetaLicenseAgreementResponse) ([]string, [][]string) {
-		return betaLicenseAgreementsRows(&BetaLicenseAgreementsResponse{Data: []BetaLicenseAgreementResource{v.Data}})
-	})
+	registerRowsAdapter(func(v *BetaLicenseAgreementResponse) *BetaLicenseAgreementsResponse {
+		return &BetaLicenseAgreementsResponse{Data: []BetaLicenseAgreementResource{v.Data}}
+	}, betaLicenseAgreementsRows)
 	registerRows(buildBetaNotificationRows)
 	registerRows(ageRatingDeclarationRows)
 	registerRows(accessibilityDeclarationsRows)
@@ -426,13 +426,13 @@ func init() {
 		return betaGroupMetricsRows(v.Data)
 	})
 	registerRows(sandboxTestersRows)
-	registerRows(func(v *SandboxTesterResponse) ([]string, [][]string) {
-		return sandboxTestersRows(&SandboxTestersResponse{Data: []Resource[SandboxTesterAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *SandboxTesterResponse) *SandboxTestersResponse {
+		return &SandboxTestersResponse{Data: []Resource[SandboxTesterAttributes]{v.Data}}
+	}, sandboxTestersRows)
 	registerRows(bundleIDCapabilitiesRows)
-	registerRows(func(v *BundleIDCapabilityResponse) ([]string, [][]string) {
-		return bundleIDCapabilitiesRows(&BundleIDCapabilitiesResponse{Data: []Resource[BundleIDCapabilityAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BundleIDCapabilityResponse) *BundleIDCapabilitiesResponse {
+		return &BundleIDCapabilitiesResponse{Data: []Resource[BundleIDCapabilityAttributes]{v.Data}}
+	}, bundleIDCapabilitiesRows)
 	registerRows(localizationDownloadResultRows)
 	registerRows(localizationUploadResultRows)
 	registerDirect(func(v *BuildUploadResult, render func([]string, [][]string)) error {
