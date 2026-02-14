@@ -5,8 +5,10 @@ import (
 	"os"
 )
 
-type existingFileOpener func(path string) (*os.File, error)
-type newFileCreator func(path string, perm os.FileMode) (*os.File, error)
+type (
+	existingFileOpener func(path string) (*os.File, error)
+	newFileCreator     func(path string, perm os.FileMode) (*os.File, error)
+)
 
 // openExistingNoFollowBestEffort provides a portable, best-effort "no-follow"
 // implementation for platforms that do not expose O_NOFOLLOW.
