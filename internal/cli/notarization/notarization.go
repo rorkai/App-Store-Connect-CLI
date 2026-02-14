@@ -55,8 +55,7 @@ func submitCommand() *ffcli.Command {
 	wait := fs.Bool("wait", false, "Wait for notarization to complete")
 	pollInterval := fs.String("poll-interval", "15s", "Polling interval when using --wait")
 	timeout := fs.String("timeout", "30m", "Timeout when using --wait")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submit",
@@ -192,7 +191,7 @@ Examples:
 						},
 					},
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			// Wait for notarization to complete
@@ -208,7 +207,7 @@ Examples:
 				return fmt.Errorf("notarization submit: %w", err)
 			}
 
-			if err := shared.PrintOutput(statusResp, *output, *pretty); err != nil {
+			if err := shared.PrintOutput(statusResp, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
@@ -236,8 +235,7 @@ func statusCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("notarization status", flag.ExitOnError)
 
 	submissionID := fs.String("id", "", "Submission ID (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "status",
@@ -272,7 +270,7 @@ Examples:
 				return fmt.Errorf("notarization status: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -282,8 +280,7 @@ func logCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("notarization log", flag.ExitOnError)
 
 	submissionID := fs.String("id", "", "Submission ID (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "log",
@@ -319,7 +316,7 @@ Examples:
 				return fmt.Errorf("notarization log: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -329,8 +326,7 @@ func listCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("notarization list", flag.ExitOnError)
 
 	limit := fs.Int("limit", 0, "Maximum number of results to display (0 = all)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -366,7 +362,7 @@ Examples:
 				resp.Data = resp.Data[:*limit]
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
