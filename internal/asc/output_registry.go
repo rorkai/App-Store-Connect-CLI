@@ -63,6 +63,49 @@ func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string,
 	}, rows)
 }
 
+// registerSingleToListRowsAdapter registers rows rendering by adapting a single
+// response struct into a corresponding list response struct using shared field
+// names. The source type must expose `Data` and may expose `Links`; the target
+// type must expose `Data` as a slice and may expose `Links`.
+func registerSingleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]string)) {
+	registerRows(func(v *T) ([]string, [][]string) {
+		source := reflect.ValueOf(v).Elem()
+		var target U
+		targetValue := reflect.ValueOf(&target).Elem()
+
+		sourceData := source.FieldByName("Data")
+		targetData := targetValue.FieldByName("Data")
+		if !sourceData.IsValid() || !targetData.IsValid() {
+			panic("output registry: single/list adapter requires Data field on source and target")
+		}
+		if targetData.Kind() != reflect.Slice {
+			panic("output registry: single/list adapter target Data field must be a slice")
+		}
+		targetElemType := targetData.Type().Elem()
+		if !sourceData.Type().AssignableTo(targetElemType) {
+			panic(fmt.Sprintf(
+				"output registry: adapter Data type mismatch source=%s target=%s",
+				sourceData.Type(),
+				targetElemType,
+			))
+		}
+
+		rowsSlice := reflect.MakeSlice(targetData.Type(), 1, 1)
+		rowsSlice.Index(0).Set(sourceData)
+		targetData.Set(rowsSlice)
+
+		sourceLinks := source.FieldByName("Links")
+		targetLinks := targetValue.FieldByName("Links")
+		if sourceLinks.IsValid() && targetLinks.IsValid() {
+			if sourceLinks.Type().AssignableTo(targetLinks.Type()) {
+				targetLinks.Set(sourceLinks)
+			}
+		}
+
+		return rows(&target)
+	})
+}
+
 // registerDirect registers a type that needs direct render control (multi-table output).
 func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
 	t := reflect.TypeFor[*T]()

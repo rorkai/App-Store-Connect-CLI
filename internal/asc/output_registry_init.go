@@ -41,9 +41,7 @@ func init() {
 	registerRows(appsWallRows)
 	registerRows(appClipsRows)
 	registerRows(appCategoriesRows)
-	registerRowsAdapter(func(v *AppCategoryResponse) *AppCategoriesResponse {
-		return &AppCategoriesResponse{Data: []AppCategory{v.Data}}
-	}, appCategoriesRows)
+	registerSingleToListRowsAdapter[AppCategoryResponse, AppCategoriesResponse](appCategoriesRows)
 	registerRows(appInfosRows)
 	registerSingleResourceRowsAdapter(appInfosRows)
 	registerSingleResourceRowsAdapter(appsRows)
@@ -212,21 +210,15 @@ func init() {
 		}
 		return nil
 	})
-	registerRowsAdapter(func(v *SubscriptionOfferCodeOneTimeUseCodeResponse) *SubscriptionOfferCodeOneTimeUseCodesResponse {
-		return &SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}}
-	}, offerCodesRows)
-	registerRowsAdapter(func(v *SubscriptionOfferCodeCustomCodeResponse) *SubscriptionOfferCodeCustomCodesResponse {
-		return &SubscriptionOfferCodeCustomCodesResponse{Data: []Resource[SubscriptionOfferCodeCustomCodeAttributes]{v.Data}}
-	}, offerCodeCustomCodesRows)
+	registerSingleToListRowsAdapter[SubscriptionOfferCodeOneTimeUseCodeResponse, SubscriptionOfferCodeOneTimeUseCodesResponse](offerCodesRows)
+	registerSingleToListRowsAdapter[SubscriptionOfferCodeCustomCodeResponse, SubscriptionOfferCodeCustomCodesResponse](offerCodeCustomCodesRows)
 	registerRows(winBackOfferDeleteResultRows)
 	registerRows(subscriptionPriceDeleteResultRows)
 	registerRowsErr(offerCodePricesRows)
 	registerRows(appAvailabilityRows)
 	registerRows(territoryAvailabilitiesRows)
 	registerRows(endAppAvailabilityPreOrderRows)
-	registerRowsAdapter(func(v *PreReleaseVersionResponse) *PreReleaseVersionsResponse {
-		return &PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}}
-	}, preReleaseVersionsRows)
+	registerSingleToListRowsAdapter[PreReleaseVersionResponse, PreReleaseVersionsResponse](preReleaseVersionsRows)
 	registerRows(appStoreVersionLocalizationsRows)
 	registerSingleResourceRowsAdapter(appStoreVersionLocalizationsRows)
 	registerRows(betaAppLocalizationsRows)
@@ -264,9 +256,7 @@ func init() {
 	registerRows(buildBetaDetailsRows)
 	registerSingleResourceRowsAdapter(buildBetaDetailsRows)
 	registerRows(betaLicenseAgreementsRows)
-	registerRowsAdapter(func(v *BetaLicenseAgreementResponse) *BetaLicenseAgreementsResponse {
-		return &BetaLicenseAgreementsResponse{Data: []BetaLicenseAgreementResource{v.Data}}
-	}, betaLicenseAgreementsRows)
+	registerSingleToListRowsAdapter[BetaLicenseAgreementResponse, BetaLicenseAgreementsResponse](betaLicenseAgreementsRows)
 	registerRows(buildBetaNotificationRows)
 	registerRows(ageRatingDeclarationRows)
 	registerRows(accessibilityDeclarationsRows)
@@ -338,23 +328,15 @@ func init() {
 	registerRows(analyticsReportRequestResultRows)
 	registerRows(analyticsReportRequestDeleteResultRows)
 	registerRows(analyticsReportRequestsRows)
-	registerRowsAdapter(func(v *AnalyticsReportRequestResponse) *AnalyticsReportRequestsResponse {
-		return &AnalyticsReportRequestsResponse{Data: []AnalyticsReportRequestResource{v.Data}, Links: v.Links}
-	}, analyticsReportRequestsRows)
+	registerSingleToListRowsAdapter[AnalyticsReportRequestResponse, AnalyticsReportRequestsResponse](analyticsReportRequestsRows)
 	registerRows(analyticsReportDownloadResultRows)
 	registerRows(analyticsReportGetResultRows)
 	registerRows(analyticsReportsRows)
-	registerRowsAdapter(func(v *AnalyticsReportResponse) *AnalyticsReportsResponse {
-		return &AnalyticsReportsResponse{Data: []Resource[AnalyticsReportAttributes]{v.Data}, Links: v.Links}
-	}, analyticsReportsRows)
+	registerSingleToListRowsAdapter[AnalyticsReportResponse, AnalyticsReportsResponse](analyticsReportsRows)
 	registerRows(analyticsReportInstancesRows)
-	registerRowsAdapter(func(v *AnalyticsReportInstanceResponse) *AnalyticsReportInstancesResponse {
-		return &AnalyticsReportInstancesResponse{Data: []Resource[AnalyticsReportInstanceAttributes]{v.Data}, Links: v.Links}
-	}, analyticsReportInstancesRows)
+	registerSingleToListRowsAdapter[AnalyticsReportInstanceResponse, AnalyticsReportInstancesResponse](analyticsReportInstancesRows)
 	registerRows(analyticsReportSegmentsRows)
-	registerRowsAdapter(func(v *AnalyticsReportSegmentResponse) *AnalyticsReportSegmentsResponse {
-		return &AnalyticsReportSegmentsResponse{Data: []Resource[AnalyticsReportSegmentAttributes]{v.Data}, Links: v.Links}
-	}, analyticsReportSegmentsRows)
+	registerSingleToListRowsAdapter[AnalyticsReportSegmentResponse, AnalyticsReportSegmentsResponse](analyticsReportSegmentsRows)
 	registerRows(appStoreVersionSubmissionRows)
 	registerRows(appStoreVersionSubmissionCreateRows)
 	registerRows(appStoreVersionSubmissionStatusRows)
@@ -362,13 +344,9 @@ func init() {
 	registerRows(appStoreVersionDetailRows)
 	registerRows(appStoreVersionAttachBuildRows)
 	registerRows(reviewSubmissionsRows)
-	registerRowsAdapter(func(v *ReviewSubmissionResponse) *ReviewSubmissionsResponse {
-		return &ReviewSubmissionsResponse{Data: []ReviewSubmissionResource{v.Data}, Links: v.Links}
-	}, reviewSubmissionsRows)
+	registerSingleToListRowsAdapter[ReviewSubmissionResponse, ReviewSubmissionsResponse](reviewSubmissionsRows)
 	registerRows(reviewSubmissionItemsRows)
-	registerRowsAdapter(func(v *ReviewSubmissionItemResponse) *ReviewSubmissionItemsResponse {
-		return &ReviewSubmissionItemsResponse{Data: []ReviewSubmissionItemResource{v.Data}, Links: v.Links}
-	}, reviewSubmissionItemsRows)
+	registerSingleToListRowsAdapter[ReviewSubmissionItemResponse, ReviewSubmissionItemsResponse](reviewSubmissionItemsRows)
 	registerRows(reviewSubmissionItemDeleteResultRows)
 	registerRows(appStoreVersionReleaseRequestRows)
 	registerRows(appStoreVersionPromotionCreateRows)
@@ -506,54 +484,30 @@ func init() {
 	registerRows(xcodeCloudRunResultRows)
 	registerRows(xcodeCloudStatusResultRows)
 	registerRows(ciProductsRows)
-	registerRowsAdapter(func(v *CiProductResponse) *CiProductsResponse {
-		return &CiProductsResponse{Data: []CiProductResource{v.Data}}
-	}, ciProductsRows)
+	registerSingleToListRowsAdapter[CiProductResponse, CiProductsResponse](ciProductsRows)
 	registerRows(ciWorkflowsRows)
-	registerRowsAdapter(func(v *CiWorkflowResponse) *CiWorkflowsResponse {
-		return &CiWorkflowsResponse{Data: []CiWorkflowResource{v.Data}}
-	}, ciWorkflowsRows)
+	registerSingleToListRowsAdapter[CiWorkflowResponse, CiWorkflowsResponse](ciWorkflowsRows)
 	registerRows(scmProvidersRows)
-	registerRowsAdapter(func(v *ScmProviderResponse) *ScmProvidersResponse {
-		return &ScmProvidersResponse{Data: []ScmProviderResource{v.Data}, Links: v.Links}
-	}, scmProvidersRows)
+	registerSingleToListRowsAdapter[ScmProviderResponse, ScmProvidersResponse](scmProvidersRows)
 	registerRows(scmRepositoriesRows)
 	registerRows(scmGitReferencesRows)
-	registerRowsAdapter(func(v *ScmGitReferenceResponse) *ScmGitReferencesResponse {
-		return &ScmGitReferencesResponse{Data: []ScmGitReferenceResource{v.Data}, Links: v.Links}
-	}, scmGitReferencesRows)
+	registerSingleToListRowsAdapter[ScmGitReferenceResponse, ScmGitReferencesResponse](scmGitReferencesRows)
 	registerRows(scmPullRequestsRows)
-	registerRowsAdapter(func(v *ScmPullRequestResponse) *ScmPullRequestsResponse {
-		return &ScmPullRequestsResponse{Data: []ScmPullRequestResource{v.Data}, Links: v.Links}
-	}, scmPullRequestsRows)
+	registerSingleToListRowsAdapter[ScmPullRequestResponse, ScmPullRequestsResponse](scmPullRequestsRows)
 	registerRows(ciBuildRunsRows)
-	registerRowsAdapter(func(v *CiBuildRunResponse) *CiBuildRunsResponse {
-		return &CiBuildRunsResponse{Data: []CiBuildRunResource{v.Data}}
-	}, ciBuildRunsRows)
+	registerSingleToListRowsAdapter[CiBuildRunResponse, CiBuildRunsResponse](ciBuildRunsRows)
 	registerRows(ciBuildActionsRows)
-	registerRowsAdapter(func(v *CiBuildActionResponse) *CiBuildActionsResponse {
-		return &CiBuildActionsResponse{Data: []CiBuildActionResource{v.Data}}
-	}, ciBuildActionsRows)
+	registerSingleToListRowsAdapter[CiBuildActionResponse, CiBuildActionsResponse](ciBuildActionsRows)
 	registerRows(ciMacOsVersionsRows)
-	registerRowsAdapter(func(v *CiMacOsVersionResponse) *CiMacOsVersionsResponse {
-		return &CiMacOsVersionsResponse{Data: []CiMacOsVersionResource{v.Data}}
-	}, ciMacOsVersionsRows)
+	registerSingleToListRowsAdapter[CiMacOsVersionResponse, CiMacOsVersionsResponse](ciMacOsVersionsRows)
 	registerRows(ciXcodeVersionsRows)
-	registerRowsAdapter(func(v *CiXcodeVersionResponse) *CiXcodeVersionsResponse {
-		return &CiXcodeVersionsResponse{Data: []CiXcodeVersionResource{v.Data}}
-	}, ciXcodeVersionsRows)
+	registerSingleToListRowsAdapter[CiXcodeVersionResponse, CiXcodeVersionsResponse](ciXcodeVersionsRows)
 	registerRows(ciArtifactsRows)
-	registerRowsAdapter(func(v *CiArtifactResponse) *CiArtifactsResponse {
-		return &CiArtifactsResponse{Data: []CiArtifactResource{v.Data}}
-	}, ciArtifactsRows)
+	registerSingleToListRowsAdapter[CiArtifactResponse, CiArtifactsResponse](ciArtifactsRows)
 	registerRows(ciTestResultsRows)
-	registerRowsAdapter(func(v *CiTestResultResponse) *CiTestResultsResponse {
-		return &CiTestResultsResponse{Data: []CiTestResultResource{v.Data}}
-	}, ciTestResultsRows)
+	registerSingleToListRowsAdapter[CiTestResultResponse, CiTestResultsResponse](ciTestResultsRows)
 	registerRows(ciIssuesRows)
-	registerRowsAdapter(func(v *CiIssueResponse) *CiIssuesResponse {
-		return &CiIssuesResponse{Data: []CiIssueResource{v.Data}}
-	}, ciIssuesRows)
+	registerSingleToListRowsAdapter[CiIssueResponse, CiIssuesResponse](ciIssuesRows)
 	registerRows(ciArtifactDownloadResultRows)
 	registerRows(ciWorkflowDeleteResultRows)
 	registerRows(ciProductDeleteResultRows)

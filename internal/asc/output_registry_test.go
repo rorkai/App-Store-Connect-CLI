@@ -200,6 +200,90 @@ func TestOutputRegistrySingleResourceHelperRegistration(t *testing.T) {
 	}
 }
 
+func TestOutputRegistrySingleToListHelperRegistration(t *testing.T) {
+	type single struct {
+		Data string
+	}
+	type list struct {
+		Data []string
+	}
+
+	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+		if len(v.Data) == 0 {
+			return []string{"value"}, nil
+		}
+		return []string{"value"}, [][]string{{v.Data[0]}}
+	})
+
+	key := reflect.TypeOf(&single{})
+	t.Cleanup(func() {
+		delete(outputRegistry, key)
+	})
+
+	handler, ok := outputRegistry[key]
+	if !ok || handler == nil {
+		t.Fatal("expected single-to-list helper handler")
+	}
+
+	headers, rows, err := handler(&single{Data: "converted"})
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if len(headers) != 1 || headers[0] != "value" {
+		t.Fatalf("unexpected headers: %v", headers)
+	}
+	if len(rows) != 1 || len(rows[0]) != 1 || rows[0][0] != "converted" {
+		t.Fatalf("unexpected rows: %v", rows)
+	}
+}
+
+func TestOutputRegistrySingleToListHelperCopiesLinks(t *testing.T) {
+	type single struct {
+		Data  ResourceData
+		Links Links
+	}
+	type list struct {
+		Data  []ResourceData
+		Links Links
+	}
+
+	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+		if len(v.Data) == 0 {
+			return []string{"id", "self"}, nil
+		}
+		return []string{"id", "self"}, [][]string{{v.Data[0].ID, v.Links.Self}}
+	})
+
+	key := reflect.TypeOf(&single{})
+	t.Cleanup(func() {
+		delete(outputRegistry, key)
+	})
+
+	handler, ok := outputRegistry[key]
+	if !ok || handler == nil {
+		t.Fatal("expected single-to-list links helper handler")
+	}
+
+	headers, rows, err := handler(&single{
+		Data: ResourceData{ID: "item-1", Type: ResourceType("items")},
+		Links: Links{
+			Self: "https://example.test/items/1",
+		},
+	})
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if len(headers) != 2 || headers[0] != "id" || headers[1] != "self" {
+		t.Fatalf("unexpected headers: %v", headers)
+	}
+	if len(rows) != 1 || len(rows[0]) != 2 {
+		t.Fatalf("unexpected rows shape: %v", rows)
+	}
+	if rows[0][0] != "item-1" || rows[0][1] != "https://example.test/items/1" {
+		t.Fatalf("unexpected row: %v", rows[0])
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && searchString(s, substr)
 }
