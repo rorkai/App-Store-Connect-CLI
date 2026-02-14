@@ -394,6 +394,106 @@ func TestCheckMixedCredentialSourcesStrictErrors(t *testing.T) {
 	}
 }
 
+func TestCheckMixedCredentialSourcesStrictAuthEnvErrors(t *testing.T) {
+	previousStrict := strictAuth
+	strictAuth = false
+	t.Cleanup(func() {
+		strictAuth = previousStrict
+	})
+	t.Setenv(strictAuthEnvVar, "yes")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := checkMixedCredentialSources(credentialSource{
+			keyID:    "keychain",
+			issuerID: "env",
+			keyPath:  "env",
+		}); err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestStrictAuthEnabled_EnvTruthyValues(t *testing.T) {
+	previousStrict := strictAuth
+	strictAuth = false
+	t.Cleanup(func() {
+		strictAuth = previousStrict
+	})
+
+	values := []string{"1", "true", "TRUE", "yes", "y", "on", "On"}
+	for _, value := range values {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv(strictAuthEnvVar, value)
+			stdout, stderr := captureOutput(t, func() {
+				if !strictAuthEnabled() {
+					t.Fatalf("expected strict auth enabled for %q", value)
+				}
+			})
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
+	}
+}
+
+func TestStrictAuthEnabled_EnvFalseyValues(t *testing.T) {
+	previousStrict := strictAuth
+	strictAuth = false
+	t.Cleanup(func() {
+		strictAuth = previousStrict
+	})
+
+	values := []string{"0", "false", "FALSE", "no", "n", "off", "Off"}
+	for _, value := range values {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv(strictAuthEnvVar, value)
+			stdout, stderr := captureOutput(t, func() {
+				if strictAuthEnabled() {
+					t.Fatalf("expected strict auth disabled for %q", value)
+				}
+			})
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
+	}
+}
+
+func TestStrictAuthEnabled_InvalidValueWarnsAndDisables(t *testing.T) {
+	previousStrict := strictAuth
+	strictAuth = false
+	t.Cleanup(func() {
+		strictAuth = previousStrict
+	})
+	t.Setenv(strictAuthEnvVar, "maybe")
+
+	stdout, stderr := captureOutput(t, func() {
+		if strictAuthEnabled() {
+			t.Fatal("expected strict auth to be disabled for invalid value")
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "invalid ASC_STRICT_AUTH value \"maybe\"") {
+		t.Fatalf("expected invalid value warning, got %q", stderr)
+	}
+}
+
 func TestGetASCClient_ProfileMissingSkipsEnvFallback(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")

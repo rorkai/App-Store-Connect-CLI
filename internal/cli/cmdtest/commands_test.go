@@ -4208,6 +4208,12 @@ func TestAuthStatusShowsEnvPreference(t *testing.T) {
 	if !strings.Contains(stdout, "Environment credentials detected") {
 		t.Fatalf("expected env credentials note, got %q", stdout)
 	}
+	if !strings.Contains(stdout, "Environment credentials detected (ASC_KEY_ID present)") {
+		t.Fatalf("expected redacted env credentials note, got %q", stdout)
+	}
+	if strings.Contains(stdout, "ENVKEY") || strings.Contains(stdout, "ENVISS") {
+		t.Fatalf("expected redacted env identifiers, got %q", stdout)
+	}
 }
 
 func TestAuthStatusEnvIncomplete(t *testing.T) {

@@ -44,7 +44,7 @@ Credential resolution order:
   1) Selected profile (keychain/config)
   2) Environment variables (fallback for missing fields)
 
-Use --strict-auth or ASC_STRICT_AUTH=1 to fail when sources are mixed.
+Use --strict-auth or ASC_STRICT_AUTH=true (also: 1, yes, y, on) to fail when sources are mixed.
 Set ASC_BYPASS_KEYCHAIN to 1/true/yes/on to bypass keychain.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -731,7 +731,7 @@ Examples:
 			if profile != "" && envProvided {
 				fmt.Printf("Profile %q selected; environment credentials will be ignored.\n", profile)
 			} else if bypassKeychain && envComplete {
-				fmt.Printf("Environment credentials detected (ASC_KEY_ID: %s). With ASC_BYPASS_KEYCHAIN set to 1/true/yes/on, they will be used when no profile is selected.\n", envKeyID)
+				fmt.Println("Environment credentials detected (ASC_KEY_ID present). With ASC_BYPASS_KEYCHAIN set to 1/true/yes/on, they will be used when no profile is selected.")
 			} else if bypassKeychain && envProvided && !envComplete {
 				fmt.Println("Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID, and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64.")
 			}
