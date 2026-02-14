@@ -158,6 +158,48 @@ func TestOutputRegistryResponseDataHelperRegistration(t *testing.T) {
 	}
 }
 
+func TestOutputRegistrySingleResourceHelperRegistration(t *testing.T) {
+	type helperAttrs struct {
+		Name string `json:"name"`
+	}
+
+	registerSingleResourceRowsAdapter(func(v *Response[helperAttrs]) ([]string, [][]string) {
+		if len(v.Data) == 0 {
+			return []string{"ID", "Name"}, nil
+		}
+		return []string{"ID", "Name"}, [][]string{{v.Data[0].ID, v.Data[0].Attributes.Name}}
+	})
+
+	key := reflect.TypeOf(&SingleResponse[helperAttrs]{})
+	t.Cleanup(func() {
+		delete(outputRegistry, key)
+	})
+
+	handler, ok := outputRegistry[key]
+	if !ok || handler == nil {
+		t.Fatal("expected SingleResponse helper handler")
+	}
+
+	headers, rows, err := handler(&SingleResponse[helperAttrs]{
+		Data: Resource[helperAttrs]{
+			ID:         "helper-id",
+			Attributes: helperAttrs{Name: "helper-name"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if len(headers) != 2 || headers[0] != "ID" || headers[1] != "Name" {
+		t.Fatalf("unexpected headers: %v", headers)
+	}
+	if len(rows) != 1 || len(rows[0]) != 2 {
+		t.Fatalf("unexpected rows shape: %v", rows)
+	}
+	if rows[0][0] != "helper-id" || rows[0][1] != "helper-name" {
+		t.Fatalf("unexpected row: %v", rows[0])
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && searchString(s, substr)
 }

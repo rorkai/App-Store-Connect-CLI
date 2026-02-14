@@ -55,6 +55,14 @@ func registerRowsAdapter[T any, U any](adapter func(*T) *U, rows func(*U) ([]str
 	})
 }
 
+// registerSingleResourceRowsAdapter registers rows rendering for list renderers
+// by adapting SingleResponse[T] into Response[T] with one item in Data.
+func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string, [][]string)) {
+	registerRowsAdapter(func(v *SingleResponse[T]) *Response[T] {
+		return &Response[T]{Data: []Resource[T]{v.Data}}
+	}, rows)
+}
+
 // registerDirect registers a type that needs direct render control (multi-table output).
 func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
 	t := reflect.TypeFor[*T]()
