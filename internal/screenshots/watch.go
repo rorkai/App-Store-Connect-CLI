@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -82,6 +83,9 @@ func WatchAndRegenerate(ctx context.Context, configPath string, debounce time.Du
 
 	// Run one initial generation so the user sees output immediately.
 	runGeneration(ctx, absConfig, reviewReq, onCycle)
+	coalescer := newGenerationCoalescer(func() {
+		runGeneration(ctx, absConfig, reviewReq, onCycle)
+	})
 
 	var timer *time.Timer
 	for {
@@ -102,7 +106,7 @@ func WatchAndRegenerate(ctx context.Context, configPath string, debounce time.Du
 			}
 			timer = time.AfterFunc(debounce, func() {
 				fmt.Fprintf(os.Stderr, "\n--- change detected: %s ---\n", event.Name)
-				runGeneration(ctx, absConfig, reviewReq, onCycle)
+				coalescer.Trigger()
 			})
 		case watchErr, ok := <-watcher.Errors:
 			if !ok {
@@ -110,6 +114,41 @@ func WatchAndRegenerate(ctx context.Context, configPath string, debounce time.Du
 			}
 			fmt.Fprintf(os.Stderr, "watch error: %v\n", watchErr)
 		}
+	}
+}
+
+type generationCoalescer struct {
+	mu      sync.Mutex
+	running bool
+	pending bool
+	run     func()
+}
+
+func newGenerationCoalescer(run func()) *generationCoalescer {
+	return &generationCoalescer{run: run}
+}
+
+func (coalescer *generationCoalescer) Trigger() {
+	coalescer.mu.Lock()
+	if coalescer.running {
+		coalescer.pending = true
+		coalescer.mu.Unlock()
+		return
+	}
+	coalescer.running = true
+	coalescer.mu.Unlock()
+
+	for {
+		coalescer.run()
+
+		coalescer.mu.Lock()
+		if !coalescer.pending {
+			coalescer.running = false
+			coalescer.mu.Unlock()
+			return
+		}
+		coalescer.pending = false
+		coalescer.mu.Unlock()
 	}
 }
 
@@ -243,7 +282,11 @@ func collectAssetDirs(configPath string) []string {
 			if item.Type != "image" || strings.TrimSpace(item.Asset) == "" {
 				continue
 			}
-			dir := filepath.Dir(strings.TrimSpace(item.Asset))
+			assetPath := strings.TrimSpace(item.Asset)
+			if !filepath.IsAbs(assetPath) {
+				assetPath = filepath.Join(filepath.Dir(configPath), assetPath)
+			}
+			dir := filepath.Dir(assetPath)
 			abs, err := filepath.Abs(dir)
 			if err != nil {
 				continue

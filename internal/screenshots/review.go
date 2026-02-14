@@ -366,6 +366,7 @@ func collectImageFiles(root string) ([]string, error) {
 
 func buildRawIndex(rawDir string, rawAvailable bool) (map[string]string, error) {
 	index := make(map[string]string)
+	ambiguousScreenshotIDs := make(map[string]bool)
 	if !rawAvailable {
 		return index, nil
 	}
@@ -377,10 +378,13 @@ func buildRawIndex(rawDir string, rawAvailable bool) (map[string]string, error) 
 	for _, rawPath := range rawFiles {
 		base := strings.TrimSuffix(filepath.Base(rawPath), filepath.Ext(rawPath))
 		idKey := rawIndexScreenshotKey(base)
-		if existingPath, exists := index[idKey]; !exists {
+		if ambiguousScreenshotIDs[idKey] {
+			delete(index, idKey)
+		} else if existingPath, exists := index[idKey]; !exists {
 			index[idKey] = rawPath
 		} else if existingPath != rawPath {
 			delete(index, idKey)
+			ambiguousScreenshotIDs[idKey] = true
 		}
 
 		relPath, relErr := filepath.Rel(rawDir, rawPath)
