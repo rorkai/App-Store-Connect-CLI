@@ -19,8 +19,7 @@ func ReviewsRespondCommand() *ffcli.Command {
 
 	reviewID := fs.String("review-id", "", "Customer review ID (required)")
 	response := fs.String("response", "", "Response body text (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "respond",
@@ -59,7 +58,7 @@ Examples:
 				return fmt.Errorf("reviews respond: failed to create response: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -96,8 +95,7 @@ func ReviewsResponseGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	responseID := fs.String("id", "", "Customer review response ID (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -129,7 +127,7 @@ Examples:
 				return fmt.Errorf("reviews response get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -140,8 +138,7 @@ func ReviewsResponseDeleteCommand() *ffcli.Command {
 
 	responseID := fs.String("id", "", "Customer review response ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -182,7 +179,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -192,8 +189,7 @@ func ReviewsResponseForReviewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("for-review", flag.ExitOnError)
 
 	reviewID := fs.String("review-id", "", "Customer review ID (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "for-review",
@@ -227,7 +223,7 @@ Examples:
 				return fmt.Errorf("reviews response for-review: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
