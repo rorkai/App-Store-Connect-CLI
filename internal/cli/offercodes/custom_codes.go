@@ -50,8 +50,7 @@ func OfferCodeCustomCodesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -106,7 +105,7 @@ Examples:
 					return fmt.Errorf("offer-codes custom-codes list: %w", err)
 				}
 
-				return shared.PrintOutput(pages, *output, *pretty)
+				return shared.PrintOutput(pages, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetSubscriptionOfferCodeCustomCodes(requestCtx, trimmedOfferCodeID, opts...)
@@ -114,7 +113,7 @@ Examples:
 				return fmt.Errorf("offer-codes custom-codes list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -124,8 +123,7 @@ func OfferCodeCustomCodesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	customCodeID := fs.String("custom-code-id", "", "Custom code ID (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -157,7 +155,7 @@ Examples:
 				return fmt.Errorf("offer-codes custom-codes get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -170,8 +168,7 @@ func OfferCodeCustomCodesCreateCommand() *ffcli.Command {
 	code := fs.String("code", "", "Custom code value (required)")
 	quantity := fs.Int("quantity", 0, "Number of codes to create (required)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -244,7 +241,7 @@ Examples:
 				return fmt.Errorf("offer-codes custom-codes create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -255,8 +252,7 @@ func OfferCodeCustomCodesUpdateCommand() *ffcli.Command {
 
 	customCodeID := fs.String("custom-code-id", "", "Custom code ID (required)")
 	active := fs.String("active", "", "Set active (true/false)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -297,7 +293,7 @@ Examples:
 				return fmt.Errorf("offer-codes custom-codes update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

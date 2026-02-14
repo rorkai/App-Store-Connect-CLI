@@ -76,8 +76,7 @@ func PricingTerritoriesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -125,7 +124,7 @@ Examples:
 					return fmt.Errorf("pricing territories list: %w", err)
 				}
 
-				return shared.PrintOutput(territories, *output, *pretty)
+				return shared.PrintOutput(territories, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetTerritories(requestCtx, opts...)
@@ -133,7 +132,7 @@ Examples:
 				return fmt.Errorf("pricing territories list: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -147,8 +146,7 @@ func PricingPricePointsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "price-points",
@@ -210,7 +208,7 @@ Examples:
 					return fmt.Errorf("pricing price-points: %w", err)
 				}
 
-				return shared.PrintOutput(points, *output, *pretty)
+				return shared.PrintOutput(points, *output.Output, *output.Pretty)
 			}
 
 			points, err := client.GetAppPricePoints(requestCtx, resolvedAppID, opts...)
@@ -218,7 +216,7 @@ Examples:
 				return fmt.Errorf("pricing price-points: %w", err)
 			}
 
-			return shared.PrintOutput(points, *output, *pretty)
+			return shared.PrintOutput(points, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -228,8 +226,7 @@ func PricingPricePointsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing price-points get", flag.ExitOnError)
 
 	pricePointID := fs.String("price-point", "", "App price point ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -261,7 +258,7 @@ Examples:
 				return fmt.Errorf("pricing price-points get: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -271,8 +268,7 @@ func PricingPricePointsEqualizationsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing price-points equalizations", flag.ExitOnError)
 
 	pricePointID := fs.String("price-point", "", "App price point ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "equalizations",
@@ -304,7 +300,7 @@ Examples:
 				return fmt.Errorf("pricing price-points equalizations: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -342,8 +338,7 @@ func PricingScheduleGetCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	id := fs.String("id", "", "App price schedule ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -389,7 +384,7 @@ Examples:
 				return fmt.Errorf("pricing schedule get: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -416,8 +411,7 @@ func PricingScheduleManualPricesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing schedule manual-prices", flag.ExitOnError)
 
 	scheduleID := fs.String("schedule", "", "App price schedule ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "manual-prices",
@@ -449,7 +443,7 @@ Examples:
 				return fmt.Errorf("pricing schedule manual-prices: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -459,8 +453,7 @@ func PricingScheduleAutomaticPricesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing schedule automatic-prices", flag.ExitOnError)
 
 	scheduleID := fs.String("schedule", "", "App price schedule ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "automatic-prices",
@@ -492,7 +485,7 @@ Examples:
 				return fmt.Errorf("pricing schedule automatic-prices: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -528,8 +521,7 @@ func PricingAvailabilityGetCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	id := fs.String("id", "", "App availability ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -578,7 +570,7 @@ Examples:
 				return fmt.Errorf("pricing availability get: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -588,8 +580,7 @@ func PricingAvailabilityTerritoryAvailabilitiesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing availability territory-availabilities", flag.ExitOnError)
 
 	availabilityID := fs.String("availability", "", "App availability ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "territory-availabilities",
@@ -621,7 +612,7 @@ Examples:
 				return fmt.Errorf("pricing availability territory-availabilities: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -54,8 +54,7 @@ func IAPPriceSchedulesGetCommand() *ffcli.Command {
 	priceFields := fs.String("price-fields", "", "fields[inAppPurchasePrices] (comma-separated)")
 	manualPricesLimit := fs.Int("manual-prices-limit", 0, "limit[manualPrices] when included (1-50)")
 	automaticPricesLimit := fs.Int("automatic-prices-limit", 0, "limit[automaticPrices] when included (1-50)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -129,7 +128,7 @@ Examples:
 					return fmt.Errorf("iap price-schedules get: failed to fetch: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetInAppPurchasePriceSchedule(requestCtx, iapValue, opts...)
@@ -137,7 +136,7 @@ Examples:
 				return fmt.Errorf("iap price-schedules get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -174,8 +173,7 @@ func IAPPriceSchedulesBaseTerritoryCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-schedules base-territory", flag.ExitOnError)
 
 	scheduleID := fs.String("schedule-id", "", "Price schedule ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "base-territory",
@@ -207,7 +205,7 @@ Examples:
 				return fmt.Errorf("iap price-schedules base-territory: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -219,8 +217,7 @@ func IAPPriceSchedulesCreateCommand() *ffcli.Command {
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	baseTerritory := fs.String("base-territory", "", "Base territory ID (e.g., USA)")
 	prices := fs.String("prices", "", "Manual prices: PRICE_POINT_ID[:START_DATE[:END_DATE]] entries")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -270,7 +267,7 @@ Examples:
 				return fmt.Errorf("iap price-schedules create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -283,8 +280,7 @@ func IAPPriceSchedulesManualPricesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "manual-prices",
@@ -338,7 +334,7 @@ Examples:
 					return fmt.Errorf("iap price-schedules manual-prices: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetInAppPurchasePriceScheduleManualPrices(requestCtx, id, opts...)
@@ -346,7 +342,7 @@ Examples:
 				return fmt.Errorf("iap price-schedules manual-prices: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -359,8 +355,7 @@ func IAPPriceSchedulesAutomaticPricesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "automatic-prices",
@@ -414,7 +409,7 @@ Examples:
 					return fmt.Errorf("iap price-schedules automatic-prices: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetInAppPurchasePriceScheduleAutomaticPrices(requestCtx, id, opts...)
@@ -422,7 +417,7 @@ Examples:
 				return fmt.Errorf("iap price-schedules automatic-prices: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -19,8 +19,7 @@ func AnalyticsRequestCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	accessType := fs.String("access-type", "", "Access type: ONGOING or ONE_TIME_SNAPSHOT")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "request",
@@ -69,7 +68,7 @@ Examples:
 				CreatedDate: response.Data.Attributes.CreatedDate,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -84,8 +83,7 @@ func AnalyticsRequestsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "requests",
@@ -179,7 +177,7 @@ Examples:
 						return fmt.Errorf("analytics requests: %w", err)
 					}
 
-					return shared.PrintOutput(paginated, *output, *pretty)
+					return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
 				}
 
 				response, err = client.GetAnalyticsReportRequests(requestCtx, resolvedAppID, opts...)
@@ -188,7 +186,7 @@ Examples:
 				}
 			}
 
-			return shared.PrintOutput(response, *output, *pretty)
+			return shared.PrintOutput(response, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -199,8 +197,7 @@ func AnalyticsRequestsDeleteCommand() *ffcli.Command {
 
 	requestID := fs.String("request-id", "", "Analytics report request ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -243,7 +240,7 @@ Examples:
 				Deleted:   true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -259,8 +256,7 @@ func AnalyticsGetCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Paginate all reports (recommended with --date)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -396,7 +392,7 @@ Examples:
 				return fmt.Errorf("analytics get: no instances found for date %q", dateFilter)
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -410,8 +406,7 @@ func AnalyticsDownloadCommand() *ffcli.Command {
 	segmentID := fs.String("segment-id", "", "Analytics report segment ID (required if multiple)")
 	output := fs.String("output", "", "Output file path (default: analytics_report_{requestId}_{instanceId}.csv.gz)")
 	decompress := fs.Bool("decompress", false, "Decompress gzip output to .csv")
-	outputFormat := fs.String("output-format", "json", "Output format for metadata: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	outputFlags := shared.BindMetadataOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "download",
@@ -542,7 +537,7 @@ Examples:
 				DecompressedSize: decompressedSize,
 			}
 
-			return shared.PrintOutput(result, *outputFormat, *pretty)
+			return shared.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
 		},
 	}
 }

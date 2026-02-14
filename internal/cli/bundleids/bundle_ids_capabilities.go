@@ -50,8 +50,7 @@ func BundleIDsCapabilitiesListCommand() *ffcli.Command {
 	bundleID := fs.String("bundle", "", "Bundle ID")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -99,7 +98,7 @@ Examples:
 					return fmt.Errorf("bundle-ids capabilities list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBundleIDCapabilities(requestCtx, bundleValue, opts...)
@@ -107,7 +106,7 @@ Examples:
 				return fmt.Errorf("bundle-ids capabilities list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -119,8 +118,7 @@ func BundleIDsCapabilitiesAddCommand() *ffcli.Command {
 	bundleID := fs.String("bundle", "", "Bundle ID")
 	capability := fs.String("capability", "", "Capability type (e.g., ICLOUD, IN_APP_PURCHASE)")
 	settings := fs.String("settings", "", "Capability settings as JSON array (optional)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add",
@@ -167,7 +165,7 @@ Examples:
 				return fmt.Errorf("bundle-ids capabilities add: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -179,8 +177,7 @@ func BundleIDsCapabilitiesUpdateCommand() *ffcli.Command {
 	id := fs.String("id", "", "Capability ID")
 	capabilityType := fs.String("capability", "", "Capability type (e.g., ICLOUD, IN_APP_PURCHASE)")
 	settings := fs.String("settings", "", "Capability settings as JSON array")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -231,7 +228,7 @@ Examples:
 				return fmt.Errorf("bundle-ids capabilities update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -242,8 +239,7 @@ func BundleIDsCapabilitiesRemoveCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Capability ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove",
@@ -283,7 +279,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

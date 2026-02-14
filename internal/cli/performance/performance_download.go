@@ -29,8 +29,7 @@ func PerformanceDownloadCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Limit number of logs (max 200, diagnostic logs only)")
 	output := fs.String("output", "", "Output file path (default: metrics/diagnostic file name)")
 	decompress := fs.Bool("decompress", false, "Decompress gzip output (if compressed)")
-	outputFormat := fs.String("output-format", "json", "Output format for metadata: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	outputFlags := shared.BindMetadataOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "download",
@@ -137,7 +136,7 @@ Examples:
 					DecompressedSize:      decompressedSize,
 				}
 
-				return shared.PrintOutput(result, *outputFormat, *pretty)
+				return shared.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
 			case trimmedBuildID != "":
 				defaultOutput := fmt.Sprintf("perf_power_metrics_%s.json", trimmedBuildID)
 
@@ -181,7 +180,7 @@ Examples:
 					DecompressedSize: decompressedSize,
 				}
 
-				return shared.PrintOutput(result, *outputFormat, *pretty)
+				return shared.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
 			default:
 				defaultOutput := fmt.Sprintf("perf_power_metrics_%s.json", appFlag)
 
@@ -225,7 +224,7 @@ Examples:
 					DecompressedSize: decompressedSize,
 				}
 
-				return shared.PrintOutput(result, *outputFormat, *pretty)
+				return shared.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
 			}
 		},
 	}

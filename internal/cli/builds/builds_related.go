@@ -42,8 +42,7 @@ func BuildsAppGetCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	aliasID := fs.String("id", "", "Build ID (alias of --build)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -81,7 +80,7 @@ Examples:
 				return fmt.Errorf("builds app get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -115,8 +114,7 @@ func BuildsPreReleaseVersionGetCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	aliasID := fs.String("id", "", "Build ID (alias of --build)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -154,7 +152,7 @@ Examples:
 				return fmt.Errorf("builds pre-release-version get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -191,8 +189,7 @@ func BuildsIconsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -254,7 +251,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("builds icons list: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBuildIcons(requestCtx, buildValue, opts...)
@@ -262,7 +259,7 @@ Examples:
 				return fmt.Errorf("builds icons list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -296,8 +293,7 @@ func BuildsBetaAppReviewSubmissionGetCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	aliasID := fs.String("id", "", "Build ID (alias of --build)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -335,7 +331,7 @@ Examples:
 				return fmt.Errorf("builds beta-app-review-submission get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -369,8 +365,7 @@ func BuildsBuildBetaDetailGetCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	aliasID := fs.String("id", "", "Build ID (alias of --build)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -408,7 +403,7 @@ Examples:
 				return fmt.Errorf("builds build-beta-detail get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

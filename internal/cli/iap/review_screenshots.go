@@ -48,8 +48,7 @@ func IAPReviewScreenshotsGetCommand() *ffcli.Command {
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -83,7 +82,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("iap review-screenshots get: failed to fetch: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetInAppPurchaseAppStoreReviewScreenshotForIAP(requestCtx, iapValue)
@@ -91,7 +90,7 @@ Examples:
 				return fmt.Errorf("iap review-screenshots get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -102,8 +101,7 @@ func IAPReviewScreenshotsCreateCommand() *ffcli.Command {
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	filePath := fs.String("file", "", "Path to screenshot file")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -171,7 +169,7 @@ Examples:
 				return fmt.Errorf("iap review-screenshots create: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(finalResp, *output, *pretty)
+			return shared.PrintOutput(finalResp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -182,8 +180,7 @@ func IAPReviewScreenshotsUpdateCommand() *ffcli.Command {
 
 	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
 	filePath := fs.String("file", "", "Path to screenshot file")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -275,7 +272,7 @@ Examples:
 				}
 			}
 
-			return shared.PrintOutput(updated, *output, *pretty)
+			return shared.PrintOutput(updated, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -286,8 +283,7 @@ func IAPReviewScreenshotsDeleteCommand() *ffcli.Command {
 
 	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -327,7 +323,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

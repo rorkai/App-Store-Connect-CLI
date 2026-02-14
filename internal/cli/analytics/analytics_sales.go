@@ -25,8 +25,7 @@ func AnalyticsSalesCommand() *ffcli.Command {
 	version := fs.String("version", "1_0", "Report format version: 1_0 (default), 1_1")
 	output := fs.String("output", "", "Output file path (default: sales_report_{date}_{type}.tsv.gz)")
 	decompress := fs.Bool("decompress", false, "Decompress gzip output to .tsv")
-	outputFormat := fs.String("output-format", "json", "Output format for metadata: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	outputFlags := shared.BindMetadataOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "sales",
@@ -136,7 +135,7 @@ Examples:
 				DecompressedSize: decompressedSize,
 			}
 
-			return shared.PrintOutput(result, *outputFormat, *pretty)
+			return shared.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
 		},
 	}
 }

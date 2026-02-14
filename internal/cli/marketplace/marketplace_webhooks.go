@@ -49,8 +49,7 @@ func MarketplaceWebhooksListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -109,7 +108,7 @@ Examples:
 					return fmt.Errorf("marketplace webhooks list: %w", err)
 				}
 
-				return shared.PrintOutput(webhooks, *output, *pretty)
+				return shared.PrintOutput(webhooks, *output.Output, *output.Pretty)
 			}
 
 			webhooks, err := client.GetMarketplaceWebhooks(requestCtx, opts...)
@@ -117,7 +116,7 @@ Examples:
 				return fmt.Errorf("marketplace webhooks list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(webhooks, *output, *pretty)
+			return shared.PrintOutput(webhooks, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -127,8 +126,7 @@ func MarketplaceWebhooksGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	webhookID := fs.String("webhook-id", "", "Marketplace webhook ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -162,7 +160,7 @@ Examples:
 				return fmt.Errorf("marketplace webhooks get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(webhook, *output, *pretty)
+			return shared.PrintOutput(webhook, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -173,8 +171,7 @@ func MarketplaceWebhooksCreateCommand() *ffcli.Command {
 
 	url := fs.String("url", "", "Webhook endpoint URL")
 	secret := fs.String("secret", "", "Webhook secret")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -213,7 +210,7 @@ Examples:
 				return fmt.Errorf("marketplace webhooks create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(webhook, *output, *pretty)
+			return shared.PrintOutput(webhook, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -225,8 +222,7 @@ func MarketplaceWebhooksUpdateCommand() *ffcli.Command {
 	webhookID := fs.String("webhook-id", "", "Marketplace webhook ID")
 	url := fs.String("url", "", "Webhook endpoint URL")
 	secret := fs.String("secret", "", "Webhook secret")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -281,7 +277,7 @@ Examples:
 				return fmt.Errorf("marketplace webhooks update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(webhook, *output, *pretty)
+			return shared.PrintOutput(webhook, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -292,8 +288,7 @@ func MarketplaceWebhooksDeleteCommand() *ffcli.Command {
 
 	webhookID := fs.String("webhook-id", "", "Marketplace webhook ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -335,7 +330,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

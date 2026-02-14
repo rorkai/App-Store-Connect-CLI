@@ -21,8 +21,7 @@ func ShotsCaptureCommand() *ffcli.Command {
 	udid := fs.String("udid", "booted", "Simulator UDID (default: booted)")
 	name := fs.String("name", "", "Screenshot name for output file (required)")
 	outputDir := fs.String("output-dir", "./screenshots/raw", "Output directory for captured PNG")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "capture",
@@ -78,7 +77,7 @@ App must already be installed; simulator must be booted or --udid set.`,
 				return fmt.Errorf("screenshots capture: %w", err)
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

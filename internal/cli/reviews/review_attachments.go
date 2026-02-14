@@ -25,8 +25,7 @@ func ReviewDetailsAttachmentsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "attachments-list",
@@ -97,7 +96,7 @@ Examples:
 					return fmt.Errorf("review attachments-list: %w", err)
 				}
 
-				return shared.PrintOutput(pages, *output, *pretty)
+				return shared.PrintOutput(pages, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppStoreReviewAttachmentsForReviewDetail(requestCtx, reviewDetailValue, opts...)
@@ -105,7 +104,7 @@ Examples:
 				return fmt.Errorf("review attachments-list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -118,8 +117,7 @@ func ReviewDetailsAttachmentsGetCommand() *ffcli.Command {
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(reviewAttachmentFieldList(), ", "))
 	detailFields := fs.String("detail-fields", "", "Review detail fields to include: "+strings.Join(reviewDetailFieldList(), ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewAttachmentIncludeList(), ", "))
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "attachments-get",
@@ -169,7 +167,7 @@ Examples:
 				return fmt.Errorf("review attachments-get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -180,8 +178,7 @@ func ReviewDetailsAttachmentsUploadCommand() *ffcli.Command {
 
 	reviewDetailID := fs.String("review-detail", "", "App Store review detail ID (required)")
 	filePath := fs.String("file", "", "Path to attachment file (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "attachments-upload",
@@ -261,7 +258,7 @@ Examples:
 				return fmt.Errorf("review attachments-upload: failed to commit upload: %w", err)
 			}
 
-			return shared.PrintOutput(commitResp, *output, *pretty)
+			return shared.PrintOutput(commitResp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -272,8 +269,7 @@ func ReviewDetailsAttachmentsDeleteCommand() *ffcli.Command {
 
 	attachmentID := fs.String("id", "", "Review attachment ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "attachments-delete",
@@ -313,7 +309,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

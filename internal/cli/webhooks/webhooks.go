@@ -60,8 +60,7 @@ func WebhooksListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -117,7 +116,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("webhooks list: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			webhooks, err := client.GetAppWebhooks(requestCtx, resolvedAppID, opts...)
@@ -125,7 +124,7 @@ Examples:
 				return fmt.Errorf("webhooks list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(webhooks, *output, *pretty)
+			return shared.PrintOutput(webhooks, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -135,8 +134,7 @@ func WebhooksGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	webhookID := fs.String("webhook-id", "", "Webhook ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -168,7 +166,7 @@ Examples:
 				return fmt.Errorf("webhooks get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(webhook, *output, *pretty)
+			return shared.PrintOutput(webhook, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -184,8 +182,7 @@ func WebhooksCreateCommand() *ffcli.Command {
 	events := fs.String("events", "", "Webhook event types (comma-separated)")
 	var enabled shared.OptionalBool
 	fs.Var(&enabled, "enabled", "Enable or disable the webhook: true or false")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -250,7 +247,7 @@ Examples:
 				return fmt.Errorf("webhooks create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(webhook, *output, *pretty)
+			return shared.PrintOutput(webhook, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -266,8 +263,7 @@ func WebhooksUpdateCommand() *ffcli.Command {
 	events := fs.String("events", "", "Webhook event types (comma-separated)")
 	var enabled shared.OptionalBool
 	fs.Var(&enabled, "enabled", "Enable or disable the webhook: true or false")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -337,7 +333,7 @@ Examples:
 				return fmt.Errorf("webhooks update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(webhook, *output, *pretty)
+			return shared.PrintOutput(webhook, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -348,8 +344,7 @@ func WebhooksDeleteCommand() *ffcli.Command {
 
 	webhookID := fs.String("webhook-id", "", "Webhook ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -385,7 +380,7 @@ Examples:
 			}
 
 			result := &asc.WebhookDeleteResult{ID: trimmedID, Deleted: true}
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -400,8 +395,7 @@ func WebhookDeliveriesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "deliveries",
@@ -495,7 +489,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("webhooks deliveries: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			deliveries, err := client.GetWebhookDeliveries(requestCtx, trimmedID, opts...)
@@ -503,7 +497,7 @@ Examples:
 				return fmt.Errorf("webhooks deliveries: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(deliveries, *output, *pretty)
+			return shared.PrintOutput(deliveries, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -516,8 +510,7 @@ func WebhookDeliveriesRelationshipsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "relationships",
@@ -580,7 +573,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("webhooks deliveries relationships: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetWebhookDeliveriesRelationships(requestCtx, trimmedID, opts...)
@@ -588,7 +581,7 @@ Examples:
 				return fmt.Errorf("webhooks deliveries relationships: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -598,8 +591,7 @@ func WebhookDeliveriesRedeliverCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("redeliver", flag.ExitOnError)
 
 	deliveryID := fs.String("delivery-id", "", "Webhook delivery ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "redeliver",
@@ -631,7 +623,7 @@ Examples:
 				return fmt.Errorf("webhooks deliveries redeliver: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -641,8 +633,7 @@ func WebhookPingCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("ping", flag.ExitOnError)
 
 	webhookID := fs.String("webhook-id", "", "Webhook ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "ping",
@@ -674,7 +665,7 @@ Examples:
 				return fmt.Errorf("webhooks ping: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -60,8 +60,7 @@ func AppTagsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -170,7 +169,7 @@ Examples:
 					return fmt.Errorf("app-tags list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppTags(requestCtx, resolvedAppID, opts...)
@@ -178,7 +177,7 @@ Examples:
 				return fmt.Errorf("app-tags list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -193,8 +192,7 @@ func AppTagsGetCommand() *ffcli.Command {
 	include := fs.String("include", "", "Include related resources: territories")
 	territoryFields := fs.String("territory-fields", "", "Territory fields to include: currency")
 	territoryLimit := fs.Int("territory-limit", 0, "Maximum territories per tag when including territories (1-50)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -301,7 +299,7 @@ Examples:
 				}
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -313,8 +311,7 @@ func AppTagsUpdateCommand() *ffcli.Command {
 	tagID := fs.String("id", "", "App tag ID")
 	visibleInAppStore := fs.Bool("visible-in-app-store", false, "Set visibility in the App Store")
 	confirm := fs.Bool("confirm", false, "Confirm update")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -365,7 +362,7 @@ Examples:
 				return fmt.Errorf("app-tags update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -379,8 +376,7 @@ func AppTagsTerritoriesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "territories",
@@ -442,7 +438,7 @@ Examples:
 					return fmt.Errorf("app-tags territories: %w", err)
 				}
 
-				return shared.PrintOutput(territories, *output, *pretty)
+				return shared.PrintOutput(territories, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppTagTerritories(requestCtx, trimmedID, opts...)
@@ -450,7 +446,7 @@ Examples:
 				return fmt.Errorf("app-tags territories: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -463,8 +459,7 @@ func AppTagsTerritoriesRelationshipsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "territories-relationships",
@@ -517,7 +512,7 @@ Examples:
 					return fmt.Errorf("app-tags territories-relationships: %w", err)
 				}
 
-				return shared.PrintOutput(linkages, *output, *pretty)
+				return shared.PrintOutput(linkages, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppTagTerritoriesRelationships(requestCtx, trimmedID, opts...)
@@ -525,7 +520,7 @@ Examples:
 				return fmt.Errorf("app-tags territories-relationships: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -538,8 +533,7 @@ func AppTagsRelationshipsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "relationships",
@@ -593,7 +587,7 @@ Examples:
 					return fmt.Errorf("app-tags relationships: %w", err)
 				}
 
-				return shared.PrintOutput(linkages, *output, *pretty)
+				return shared.PrintOutput(linkages, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppTagsRelationshipsForApp(requestCtx, resolvedAppID, opts...)
@@ -601,7 +595,7 @@ Examples:
 				return fmt.Errorf("app-tags relationships: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

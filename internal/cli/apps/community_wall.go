@@ -49,8 +49,7 @@ type communityWallEntry struct {
 func AppsWallCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps wall", flag.ExitOnError)
 
-	output := fs.String("output", defaultCommunityWallOutput, "Output format: table (default), json, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlagsWith(fs, "output", defaultCommunityWallOutput, "Output format: table (default), json, markdown")
 	sortBy := fs.String("sort", defaultCommunityWallSort, "Sort by name or -name")
 	limit := fs.Int("limit", 0, "Maximum number of apps to include (1-200)")
 	includePlatforms := fs.String("include-platforms", "", "Filter by platform label(s), comma-separated")
@@ -69,7 +68,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return appsCommunityWall(ctx, *output, *pretty, *sortBy, *limit, *includePlatforms)
+			return appsCommunityWall(ctx, *output.Output, *output.Pretty, *sortBy, *limit, *includePlatforms)
 		},
 	}
 }

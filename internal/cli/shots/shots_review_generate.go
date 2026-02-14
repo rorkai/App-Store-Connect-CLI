@@ -25,8 +25,7 @@ func ShotsReviewGenerateCommand() *ffcli.Command {
 	framedDir := fs.String("framed-dir", defaultShotsReviewFramedDir, "Directory containing framed screenshots (required)")
 	outputDir := fs.String("output-dir", defaultShotsReviewOutputDir, "Directory to write HTML and JSON review artifacts")
 	approvalPath := fs.String("approval-path", "", "Optional approvals file path (default: <output-dir>/approved.json)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "review-generate",
@@ -54,7 +53,7 @@ func ShotsReviewGenerateCommand() *ffcli.Command {
 			if err != nil {
 				return fmt.Errorf("screenshots review-generate: %w", err)
 			}
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -242,6 +242,18 @@ type envCredentials struct {
 	complete bool
 }
 
+// OutputFlags stores pointers to output-related flag values.
+type OutputFlags struct {
+	Output *string
+	Pretty *bool
+}
+
+// MetadataOutputFlags stores pointers to metadata output-related flag values.
+type MetadataOutputFlags struct {
+	OutputFormat *string
+	Pretty       *bool
+}
+
 type resolvedCredentials struct {
 	keyID    string
 	issuerID string
@@ -527,25 +539,77 @@ func strictAuthEnabled() bool {
 }
 
 func printOutput(data any, format string, pretty bool) error {
-	format = strings.ToLower(format)
+	format, err := validateOutputFormat(format, pretty)
+	if err != nil {
+		return err
+	}
 	switch format {
 	case "json":
-		if pretty {
-			return asc.PrintPrettyJSON(data)
-		}
-		return asc.PrintJSON(data)
-	case "markdown", "md":
-		if pretty {
-			return fmt.Errorf("--pretty is only valid with JSON output")
-		}
+		return printJSONOutput(data, pretty)
+	case "markdown":
 		return asc.PrintMarkdown(data)
 	case "table":
-		if pretty {
-			return fmt.Errorf("--pretty is only valid with JSON output")
-		}
 		return asc.PrintTable(data)
 	default:
 		return fmt.Errorf("unsupported format: %s", format)
+	}
+}
+
+func printOutputWithRenderers(data any, format string, pretty bool, tableRenderer, markdownRenderer func() error) error {
+	format, err := validateOutputFormat(format, pretty)
+	if err != nil {
+		return err
+	}
+	switch format {
+	case "json":
+		return printJSONOutput(data, pretty)
+	case "table":
+		if tableRenderer == nil {
+			return fmt.Errorf("table renderer is required")
+		}
+		return tableRenderer()
+	case "markdown":
+		if markdownRenderer == nil {
+			return fmt.Errorf("markdown renderer is required")
+		}
+		return markdownRenderer()
+	default:
+		return fmt.Errorf("unsupported format: %s", format)
+	}
+}
+
+func printJSONOutput(data any, pretty bool) error {
+	if pretty {
+		return asc.PrintPrettyJSON(data)
+	}
+	return asc.PrintJSON(data)
+}
+
+// NormalizeOutputFormat lowercases format and canonicalizes aliases.
+func NormalizeOutputFormat(format string) string {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "md":
+		return "markdown"
+	default:
+		return strings.ToLower(strings.TrimSpace(format))
+	}
+}
+
+func validateOutputFormat(format string, pretty bool) (string, error) {
+	normalized := NormalizeOutputFormat(format)
+	if normalized == "" {
+		normalized = "json"
+	}
+	switch normalized {
+	case "json":
+		return normalized, nil
+	case "table", "markdown":
+		if pretty {
+			return "", fmt.Errorf("--pretty is only valid with JSON output")
+		}
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("unsupported format: %s", normalized)
 	}
 }
 
@@ -624,6 +688,37 @@ func resolveDefaultOutput() string {
 	default:
 		fmt.Fprintf(os.Stderr, "Warning: invalid %s value %q (expected json, table, markdown, or md); using json\n", defaultOutputEnvVar, env)
 		return "json"
+	}
+}
+
+// BindOutputFlagsWith registers a custom output-format flag and --pretty.
+func BindOutputFlagsWith(fs *flag.FlagSet, flagName, defaultValue, usage string) OutputFlags {
+	name := strings.TrimSpace(flagName)
+	if name == "" {
+		name = "output"
+	}
+	return OutputFlags{
+		Output: fs.String(name, defaultValue, usage),
+		Pretty: BindPrettyJSONFlag(fs),
+	}
+}
+
+// BindPrettyJSONFlag registers a --pretty flag for JSON rendering.
+func BindPrettyJSONFlag(fs *flag.FlagSet) *bool {
+	return fs.Bool("pretty", false, "Pretty-print JSON output")
+}
+
+// BindOutputFlags registers --output and --pretty flags on the provided flagset.
+func BindOutputFlags(fs *flag.FlagSet) OutputFlags {
+	return BindOutputFlagsWith(fs, "output", DefaultOutputFormat(), "Output format: json (default), table, markdown")
+}
+
+// BindMetadataOutputFlags registers --output-format and --pretty flags on the provided flagset.
+func BindMetadataOutputFlags(fs *flag.FlagSet) MetadataOutputFlags {
+	output := BindOutputFlagsWith(fs, "output-format", "json", "Output format for metadata: json (default), table, markdown")
+	return MetadataOutputFlags{
+		OutputFormat: output.Output,
+		Pretty:       output.Pretty,
 	}
 }
 
@@ -724,6 +819,14 @@ func ResolvePrivateKeyPath() (string, error) {
 
 func PrintOutput(data any, format string, pretty bool) error {
 	return printOutput(data, format, pretty)
+}
+
+func PrintOutputWithRenderers(data any, format string, pretty bool, tableRenderer, markdownRenderer func() error) error {
+	return printOutputWithRenderers(data, format, pretty, tableRenderer, markdownRenderer)
+}
+
+func ValidateOutputFormat(format string, pretty bool) (string, error) {
+	return validateOutputFormat(format, pretty)
 }
 
 func NormalizeDate(value, flagName string) (string, error) {

@@ -59,8 +59,7 @@ func LocalizationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -128,14 +127,14 @@ Examples:
 					if err != nil {
 						return fmt.Errorf("localizations list: %w", err)
 					}
-					return shared.PrintOutput(resp, *output, *pretty)
+					return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 				}
 
 				resp, err := client.GetAppStoreVersionLocalizations(requestCtx, strings.TrimSpace(*versionID), opts...)
 				if err != nil {
 					return fmt.Errorf("localizations list: failed to fetch: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			case shared.LocalizationTypeAppInfo:
 				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
@@ -179,14 +178,14 @@ Examples:
 					if err != nil {
 						return fmt.Errorf("localizations list: %w", err)
 					}
-					return shared.PrintOutput(resp, *output, *pretty)
+					return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 				}
 
 				resp, err := client.GetAppInfoLocalizations(requestCtx, appInfo, opts...)
 				if err != nil {
 					return fmt.Errorf("localizations list: failed to fetch: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			default:
 				return fmt.Errorf("localizations list: unsupported type %q", normalizedType)
 			}
@@ -207,8 +206,7 @@ func LocalizationsDownloadCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "download",
@@ -292,7 +290,7 @@ Examples:
 						Files:      files,
 					}
 
-					return shared.PrintOutput(&result, *output, *pretty)
+					return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 				}
 
 				resp, err := client.GetAppStoreVersionLocalizations(requestCtx, strings.TrimSpace(*versionID), opts...)
@@ -312,7 +310,7 @@ Examples:
 					Files:      files,
 				}
 
-				return shared.PrintOutput(&result, *output, *pretty)
+				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 			case shared.LocalizationTypeAppInfo:
 				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
@@ -373,7 +371,7 @@ Examples:
 						Files:      files,
 					}
 
-					return shared.PrintOutput(&result, *output, *pretty)
+					return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 				}
 
 				resp, err := client.GetAppInfoLocalizations(requestCtx, appInfo, opts...)
@@ -394,7 +392,7 @@ Examples:
 					Files:      files,
 				}
 
-				return shared.PrintOutput(&result, *output, *pretty)
+				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 			default:
 				return fmt.Errorf("localizations download: unsupported type %q", normalizedType)
 			}
@@ -413,8 +411,7 @@ func LocalizationsUploadCommand() *ffcli.Command {
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	path := fs.String("path", "", "Input path (directory or .strings file)")
 	dryRun := fs.Bool("dry-run", false, "Validate file without uploading")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
@@ -474,7 +471,7 @@ Examples:
 					Results:   results,
 				}
 
-				return shared.PrintOutput(&result, *output, *pretty)
+				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 			case shared.LocalizationTypeAppInfo:
 				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
@@ -513,7 +510,7 @@ Examples:
 					Results:   results,
 				}
 
-				return shared.PrintOutput(&result, *output, *pretty)
+				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 			default:
 				return fmt.Errorf("localizations upload: unsupported type %q", normalizedType)
 			}

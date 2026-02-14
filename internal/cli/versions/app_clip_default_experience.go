@@ -39,8 +39,7 @@ func VersionsAppClipDefaultExperienceGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-clip-default-experience get", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "App Store version ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -72,7 +71,7 @@ Examples:
 				return fmt.Errorf("versions app-clip-default-experience get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

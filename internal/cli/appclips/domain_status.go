@@ -43,8 +43,7 @@ func AppClipDomainStatusCacheCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("cache", flag.ExitOnError)
 
 	buildBundleID := fs.String("build-bundle-id", "", "Build bundle ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "cache",
@@ -75,13 +74,13 @@ Examples:
 			if err != nil {
 				if asc.IsNotFound(err) {
 					result := asc.NewAppClipDomainStatusResult(buildBundleValue, nil)
-					return shared.PrintOutput(result, *output, *pretty)
+					return shared.PrintOutput(result, *output.Output, *output.Pretty)
 				}
 				return fmt.Errorf("app-clips domain-status cache: failed to fetch: %w", err)
 			}
 
 			result := asc.NewAppClipDomainStatusResult(buildBundleValue, resp)
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -91,8 +90,7 @@ func AppClipDomainStatusDebugCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("debug", flag.ExitOnError)
 
 	buildBundleID := fs.String("build-bundle-id", "", "Build bundle ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "debug",
@@ -123,13 +121,13 @@ Examples:
 			if err != nil {
 				if asc.IsNotFound(err) {
 					result := asc.NewAppClipDomainStatusResult(buildBundleValue, nil)
-					return shared.PrintOutput(result, *output, *pretty)
+					return shared.PrintOutput(result, *output.Output, *output.Pretty)
 				}
 				return fmt.Errorf("app-clips domain-status debug: failed to fetch: %w", err)
 			}
 
 			result := asc.NewAppClipDomainStatusResult(buildBundleValue, resp)
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

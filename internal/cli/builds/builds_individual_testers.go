@@ -48,8 +48,7 @@ func BuildsIndividualTestersListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -108,7 +107,7 @@ Examples:
 					return fmt.Errorf("builds individual-testers list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBuildIndividualTesters(requestCtx, buildValue, opts...)
@@ -116,7 +115,7 @@ Examples:
 				return fmt.Errorf("builds individual-testers list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -127,8 +126,7 @@ func BuildsIndividualTestersAddCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	testers := fs.String("tester", "", "Comma-separated tester IDs")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add",
@@ -172,7 +170,7 @@ Examples:
 				Action:    "added",
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -184,8 +182,7 @@ func BuildsIndividualTestersRemoveCommand() *ffcli.Command {
 	buildID := fs.String("build", "", "Build ID")
 	testers := fs.String("tester", "", "Comma-separated tester IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove",
@@ -233,7 +230,7 @@ Examples:
 				Action:    "removed",
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -48,8 +48,7 @@ func PerformanceDiagnosticsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Limit number of signatures (max 200)")
 	next := fs.String("next", "", "Next page URL")
 	paginate := fs.Bool("paginate", false, "Fetch all pages")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -110,7 +109,7 @@ Examples:
 					return fmt.Errorf("performance diagnostics list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetDiagnosticSignaturesForBuild(requestCtx, trimmedBuildID, opts...)
@@ -118,7 +117,7 @@ Examples:
 				return fmt.Errorf("performance diagnostics list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -129,8 +128,7 @@ func PerformanceDiagnosticsGetCommand() *ffcli.Command {
 
 	signatureID := fs.String("id", "", "Diagnostic signature ID")
 	limit := fs.Int("limit", 0, "Limit number of logs (max 200)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -166,7 +164,7 @@ Examples:
 				return fmt.Errorf("performance diagnostics get: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -46,8 +46,7 @@ func ProfilesRelationshipsBundleIDCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("bundle-id", flag.ExitOnError)
 
 	id := fs.String("id", "", "Profile ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "bundle-id",
@@ -79,7 +78,7 @@ Examples:
 				return fmt.Errorf("profiles relationships bundle-id: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -92,8 +91,7 @@ func ProfilesRelationshipsCertificatesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "certificates",
@@ -157,7 +155,7 @@ Examples:
 					return fmt.Errorf("profiles relationships certificates: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetProfileCertificatesRelationships(requestCtx, idValue, opts...)
@@ -165,7 +163,7 @@ Examples:
 				return fmt.Errorf("profiles relationships certificates: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -178,8 +176,7 @@ func ProfilesRelationshipsDevicesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "devices",
@@ -243,7 +240,7 @@ Examples:
 					return fmt.Errorf("profiles relationships devices: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetProfileDevicesRelationships(requestCtx, idValue, opts...)
@@ -251,7 +248,7 @@ Examples:
 				return fmt.Errorf("profiles relationships devices: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -33,8 +33,7 @@ func ValidateCommand() *ffcli.Command {
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	strict := fs.Bool("strict", false, "Treat warnings as errors (exit non-zero)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "validate",
@@ -80,8 +79,8 @@ Examples:
 				VersionID: strings.TrimSpace(*versionID),
 				Platform:  normalizedPlatform,
 				Strict:    *strict,
-				Output:    *output,
-				Pretty:    *pretty,
+				Output:    *output.Output,
+				Pretty:    *output.Pretty,
 			})
 		},
 	}

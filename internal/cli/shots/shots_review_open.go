@@ -18,8 +18,7 @@ func ShotsReviewOpenCommand() *ffcli.Command {
 	outputDir := fs.String("output-dir", defaultShotsReviewOutputDir, "Directory containing review artifacts")
 	htmlPath := fs.String("html-path", "", "Optional HTML path (default: <output-dir>/index.html)")
 	dryRun := fs.Bool("dry-run", false, "Resolve path and print output without opening browser")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "review-open",
@@ -41,7 +40,7 @@ func ShotsReviewOpenCommand() *ffcli.Command {
 			if err != nil {
 				return fmt.Errorf("screenshots review-open: %w", err)
 			}
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

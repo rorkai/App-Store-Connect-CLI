@@ -54,8 +54,7 @@ func CustomPagesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -110,7 +109,7 @@ Examples:
 					return fmt.Errorf("custom-pages list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppCustomProductPages(requestCtx, resolvedAppID, opts...)
@@ -118,7 +117,7 @@ Examples:
 				return fmt.Errorf("custom-pages list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -128,8 +127,7 @@ func CustomPagesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-pages get", flag.ExitOnError)
 
 	customPageID := fs.String("custom-page-id", "", "Custom product page ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -161,7 +159,7 @@ Examples:
 				return fmt.Errorf("custom-pages get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -172,8 +170,7 @@ func CustomPagesCreateCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	name := fs.String("name", "", "Custom product page name")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -211,7 +208,7 @@ Examples:
 				return fmt.Errorf("custom-pages create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -224,8 +221,7 @@ func CustomPagesUpdateCommand() *ffcli.Command {
 	name := fs.String("name", "", "Update page name")
 	var visible shared.OptionalBool
 	fs.Var(&visible, "visible", "Set visibility: true or false")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -271,7 +267,7 @@ Examples:
 				return fmt.Errorf("custom-pages update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -282,8 +278,7 @@ func CustomPagesDeleteCommand() *ffcli.Command {
 
 	customPageID := fs.String("custom-page-id", "", "Custom product page ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -319,7 +314,7 @@ Examples:
 			}
 
 			result := &asc.AppCustomProductPageDeleteResult{ID: trimmedID, Deleted: true}
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

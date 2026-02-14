@@ -60,8 +60,7 @@ func MerchantIDsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -149,7 +148,7 @@ Examples:
 					return fmt.Errorf("merchant-ids list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetMerchantIDs(requestCtx, opts...)
@@ -157,7 +156,7 @@ Examples:
 				return fmt.Errorf("merchant-ids list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -171,8 +170,7 @@ func MerchantIDsGetCommand() *ffcli.Command {
 	certificateFields := fs.String("certificate-fields", "", "Certificate fields to include: "+strings.Join(certificateFieldsList(), ", "))
 	include := fs.String("include", "", "Include related resources: "+strings.Join(merchantIDIncludeList(), ", "))
 	certificatesLimit := fs.Int("certificates-limit", 0, "Maximum included certificates per merchant ID (1-50)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -235,7 +233,7 @@ Examples:
 				return fmt.Errorf("merchant-ids get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -246,8 +244,7 @@ func MerchantIDsCreateCommand() *ffcli.Command {
 
 	identifier := fs.String("identifier", "", "Merchant ID identifier (e.g., merchant.com.example)")
 	name := fs.String("name", "", "Merchant ID name")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -288,7 +285,7 @@ Examples:
 				return fmt.Errorf("merchant-ids create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -300,8 +297,7 @@ func MerchantIDsUpdateCommand() *ffcli.Command {
 	merchantID := fs.String("merchant-id", "", "Merchant ID")
 	name := fs.String("name", "", "Merchant ID name")
 	clearName := fs.Bool("clear-name", false, "Clear the merchant ID name")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -347,7 +343,7 @@ Examples:
 				return fmt.Errorf("merchant-ids update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -358,8 +354,7 @@ func MerchantIDsDeleteCommand() *ffcli.Command {
 
 	merchantID := fs.String("merchant-id", "", "Merchant ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -399,7 +394,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

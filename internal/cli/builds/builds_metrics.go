@@ -43,8 +43,7 @@ func BuildsMetricsBetaUsagesCommand() *ffcli.Command {
 	buildID := fs.String("build", "", "Build ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "beta-usages",
@@ -90,7 +89,7 @@ Examples:
 				return fmt.Errorf("builds metrics beta-usages: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -18,8 +18,7 @@ func CategoriesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("categories get", flag.ExitOnError)
 
 	categoryID := fs.String("category-id", "", "App category ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -51,7 +50,7 @@ Examples:
 				return fmt.Errorf("categories get: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -61,8 +60,7 @@ func CategoriesParentCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("categories parent", flag.ExitOnError)
 
 	categoryID := fs.String("category-id", "", "App category ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "parent",
@@ -94,7 +92,7 @@ Examples:
 				return fmt.Errorf("categories parent: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -107,8 +105,7 @@ func CategoriesSubcategoriesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "subcategories",
@@ -162,7 +159,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("categories subcategories: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppCategorySubcategories(requestCtx, trimmedID, opts...)
@@ -170,7 +167,7 @@ Examples:
 				return fmt.Errorf("categories subcategories: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

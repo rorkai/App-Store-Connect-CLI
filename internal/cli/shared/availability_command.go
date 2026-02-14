@@ -35,8 +35,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 	if config.IncludeAvailableInNewTerritories {
 		fs.Var(&availableInNewTerritories, "available-in-new-territories", "Set availability for new territories: true or false")
 	}
-	output := fs.String("output", DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       config.CommandName,
@@ -99,7 +98,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return printOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

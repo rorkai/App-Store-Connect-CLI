@@ -23,8 +23,7 @@ func ShotsReviewApproveCommand() *ffcli.Command {
 	screenshotID := fs.String("id", "", "Screenshot ID to approve")
 	locale := fs.String("locale", "", "Locale selector/filter for matching review entries")
 	device := fs.String("device", "", "Device selector/filter for matching review entries")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "review-approve",
@@ -62,7 +61,7 @@ Selectors:
 			if err != nil {
 				return fmt.Errorf("screenshots review-approve: %w", err)
 			}
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

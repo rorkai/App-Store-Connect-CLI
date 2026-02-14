@@ -39,8 +39,7 @@ func SubscriptionsAppStoreReviewScreenshotGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-store-review-screenshot get", flag.ExitOnError)
 
 	subscriptionID := fs.String("id", "", "Subscription ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -72,7 +71,7 @@ Examples:
 				return fmt.Errorf("subscriptions app-store-review-screenshot get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

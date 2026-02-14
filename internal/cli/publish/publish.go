@@ -58,8 +58,7 @@ func PublishTestFlightCommand() *ffcli.Command {
 	timeout := fs.Duration("timeout", 0, "Override upload + processing timeout (e.g., 30m)")
 	testNotes := fs.String("test-notes", "", "What to Test notes for the build")
 	locale := fs.String("locale", "", "Locale for --test-notes (e.g., en-US)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "testflight",
@@ -184,7 +183,7 @@ Examples:
 				Notified:        *notify,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -203,8 +202,7 @@ func PublishAppStoreCommand() *ffcli.Command {
 	wait := fs.Bool("wait", false, "Wait for build processing")
 	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait and build discovery")
 	timeout := fs.Duration("timeout", 0, "Override upload + processing timeout (e.g., 30m)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "appstore",
@@ -321,7 +319,7 @@ Examples:
 				result.Submitted = true
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

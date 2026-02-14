@@ -28,8 +28,7 @@ func SigningFetchCommand() *ffcli.Command {
 	certType := fs.String("certificate-type", "", "Certificate type filter (optional)")
 	outputPath := fs.String("output", "./signing", "Output directory for signing files")
 	createMissing := fs.Bool("create-missing", false, "Create missing profiles")
-	format := fs.String("format", "json", "Output format for metadata: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlagsWith(fs, "format", "json", "Output format for metadata: json (default), table, markdown")
 
 	return &ffcli.Command{
 		Name:       "fetch",
@@ -149,7 +148,7 @@ Examples:
 				result.CertificateFiles = append(result.CertificateFiles, certPath)
 			}
 
-			return shared.PrintOutput(result, *format, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

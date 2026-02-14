@@ -54,8 +54,7 @@ func SubscriptionsPricingCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
 	territory := fs.String("territory", "USA", "Territory for pricing (e.g., USA)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "pricing",
@@ -159,7 +158,7 @@ Examples:
 			}
 
 			if len(subs) == 0 {
-				return printSubscriptionPricingResult(&subscriptionPricingResult{Subscriptions: []subscriptionPriceSummary{}}, *output, *pretty)
+				return printSubscriptionPricingResult(&subscriptionPricingResult{Subscriptions: []subscriptionPriceSummary{}}, *output.Output, *output.Pretty)
 			}
 
 			summaries, err := resolveSubscriptionPriceSummaries(ctx, client, subs, territoryFilter)
@@ -167,7 +166,7 @@ Examples:
 				return fmt.Errorf("subscriptions pricing: %w", err)
 			}
 
-			return printSubscriptionPricingResult(&subscriptionPricingResult{Subscriptions: summaries}, *output, *pretty)
+			return printSubscriptionPricingResult(&subscriptionPricingResult{Subscriptions: summaries}, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -472,22 +471,13 @@ func territoryToCurrency(territory string) string {
 }
 
 func printSubscriptionPricingResult(result *subscriptionPricingResult, format string, pretty bool) error {
-	switch strings.ToLower(strings.TrimSpace(format)) {
-	case "json":
-		return shared.PrintOutput(result, "json", pretty)
-	case "table":
-		if pretty {
-			return fmt.Errorf("--pretty is only valid with JSON output")
-		}
-		return printSubscriptionPricingTable(result)
-	case "markdown", "md":
-		if pretty {
-			return fmt.Errorf("--pretty is only valid with JSON output")
-		}
-		return printSubscriptionPricingMarkdown(result)
-	default:
-		return fmt.Errorf("unsupported format: %s", format)
-	}
+	return shared.PrintOutputWithRenderers(
+		result,
+		format,
+		pretty,
+		func() error { return printSubscriptionPricingTable(result) },
+		func() error { return printSubscriptionPricingMarkdown(result) },
+	)
 }
 
 func printSubscriptionPricingTable(result *subscriptionPricingResult) error {

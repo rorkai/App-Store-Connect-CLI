@@ -40,8 +40,7 @@ func BetaGroupsAppGetCommand() *ffcli.Command {
 
 	groupID := fs.String("group-id", "", "Beta group ID")
 	aliasID := fs.String("id", "", "Beta group ID (alias of --group-id)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -79,7 +78,7 @@ Examples:
 				return fmt.Errorf("testflight beta-groups app get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -113,8 +112,7 @@ func BetaGroupsRecruitmentCriteriaGetCommand() *ffcli.Command {
 
 	groupID := fs.String("group-id", "", "Beta group ID")
 	aliasID := fs.String("id", "", "Beta group ID (alias of --group-id)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -152,7 +150,7 @@ Examples:
 				return fmt.Errorf("testflight beta-groups beta-recruitment-criteria get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -186,8 +184,7 @@ func BetaGroupsRecruitmentCriterionCompatibleBuildCheckGetCommand() *ffcli.Comma
 
 	groupID := fs.String("group-id", "", "Beta group ID")
 	aliasID := fs.String("id", "", "Beta group ID (alias of --group-id)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -225,7 +222,7 @@ Examples:
 				return fmt.Errorf("testflight beta-groups beta-recruitment-criterion-compatible-build-check get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

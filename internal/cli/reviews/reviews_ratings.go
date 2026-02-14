@@ -23,8 +23,7 @@ func ReviewsRatingsCommand() *ffcli.Command {
 	country := fs.String("country", "us", "Country code (e.g., us, gb, de)")
 	all := fs.Bool("all", false, "Fetch ratings from all countries")
 	workers := fs.Int("workers", 10, "Number of parallel workers for --all")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "ratings",
@@ -56,7 +55,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			return executeRatings(ctx, *appID, *country, *all, *workers, *output, *pretty)
+			return executeRatings(ctx, *appID, *country, *all, *workers, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -84,15 +83,13 @@ func executeSingleRatings(ctx context.Context, client *itunes.Client, appID, cou
 	if err != nil {
 		return fmt.Errorf("reviews ratings: %w", err)
 	}
-
-	switch output {
-	case "table":
-		return printRatingsTable(ratings)
-	case "markdown":
-		return printRatingsMarkdown(ratings)
-	default:
-		return shared.PrintOutput(ratings, "json", pretty)
-	}
+	return shared.PrintOutputWithRenderers(
+		ratings,
+		output,
+		pretty,
+		func() error { return printRatingsTable(ratings) },
+		func() error { return printRatingsMarkdown(ratings) },
+	)
 }
 
 func executeAllRatings(ctx context.Context, client *itunes.Client, appID string, workers int, output string, pretty bool) error {
@@ -100,37 +97,17 @@ func executeAllRatings(ctx context.Context, client *itunes.Client, appID string,
 	if err != nil {
 		return fmt.Errorf("reviews ratings: %w", err)
 	}
-
-	switch output {
-	case "table":
-		return printGlobalRatingsTable(global)
-	case "markdown":
-		return printGlobalRatingsMarkdown(global)
-	default:
-		return shared.PrintOutput(global, "json", pretty)
-	}
+	return shared.PrintOutputWithRenderers(
+		global,
+		output,
+		pretty,
+		func() error { return printGlobalRatingsTable(global) },
+		func() error { return printGlobalRatingsMarkdown(global) },
+	)
 }
 
 func normalizeRatingsOutput(output string, pretty bool) (string, error) {
-	format := strings.ToLower(strings.TrimSpace(output))
-	if format == "" {
-		format = "json"
-	}
-	if format == "md" {
-		format = "markdown"
-	}
-
-	switch format {
-	case "json":
-		return format, nil
-	case "table", "markdown":
-		if pretty {
-			return "", fmt.Errorf("--pretty is only valid with JSON output")
-		}
-		return format, nil
-	default:
-		return "", fmt.Errorf("unsupported format: %s", format)
-	}
+	return shared.ValidateOutputFormat(output, pretty)
 }
 
 func printRatingsTable(r *itunes.AppRatings) error {

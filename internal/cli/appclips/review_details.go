@@ -45,8 +45,7 @@ func AppClipReviewDetailsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	detailID := fs.String("id", "", "Review detail ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -78,7 +77,7 @@ Examples:
 				return fmt.Errorf("app-clips review-details get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -89,8 +88,7 @@ func AppClipReviewDetailsCreateCommand() *ffcli.Command {
 
 	experienceID := fs.String("experience-id", "", "Default experience ID")
 	urls := fs.String("url", "", "Invocation URL(s), comma-separated")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -129,7 +127,7 @@ Examples:
 				return fmt.Errorf("app-clips review-details create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -140,8 +138,7 @@ func AppClipReviewDetailsUpdateCommand() *ffcli.Command {
 
 	detailID := fs.String("id", "", "Review detail ID")
 	urls := fs.String("url", "", "Invocation URL(s), comma-separated")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -185,7 +182,7 @@ Examples:
 				return fmt.Errorf("app-clips review-details update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

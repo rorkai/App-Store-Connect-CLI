@@ -45,8 +45,7 @@ func LocalizationsSearchKeywordsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations search-keywords list", flag.ExitOnError)
 
 	localizationID := fs.String("localization-id", "", "App Store version localization ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -78,7 +77,7 @@ Examples:
 				return fmt.Errorf("localizations search-keywords list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -89,8 +88,7 @@ func LocalizationsSearchKeywordsAddCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "App Store version localization ID")
 	keywords := fs.String("keywords", "", "Keywords (comma-separated)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add",
@@ -127,7 +125,7 @@ Examples:
 				return fmt.Errorf("localizations search-keywords add: failed to add: %w", err)
 			}
 
-			return shared.PrintOutput(buildAppKeywordsResponse(keywordValues), *output, *pretty)
+			return shared.PrintOutput(buildAppKeywordsResponse(keywordValues), *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -139,8 +137,7 @@ func LocalizationsSearchKeywordsDeleteCommand() *ffcli.Command {
 	localizationID := fs.String("localization-id", "", "App Store version localization ID")
 	keywords := fs.String("keywords", "", "Keywords (comma-separated)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -181,7 +178,7 @@ Examples:
 				return fmt.Errorf("localizations search-keywords delete: failed to delete: %w", err)
 			}
 
-			return shared.PrintOutput(buildAppKeywordsResponse(keywordValues), *output, *pretty)
+			return shared.PrintOutput(buildAppKeywordsResponse(keywordValues), *output.Output, *output.Pretty)
 		},
 	}
 }

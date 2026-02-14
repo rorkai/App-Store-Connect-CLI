@@ -83,8 +83,7 @@ func appInfoCategoryRelationshipCommand(name, shortHelp string, fetch appInfoCat
 	fs := flag.NewFlagSet("app-info relationships "+name, flag.ExitOnError)
 
 	appInfoID := fs.String("id", "", "App Info ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       name,
@@ -116,7 +115,7 @@ Examples:
 				return fmt.Errorf("app-info relationships %s: failed to fetch: %w", name, err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

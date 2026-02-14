@@ -51,8 +51,7 @@ func FinanceReportsCommand() *ffcli.Command {
 	date := fs.String("date", "", "Report date (YYYY-MM, Apple fiscal month)")
 	output := fs.String("output", "", "Output file path (default: finance_report_{date}_{type}_{region}.tsv.gz)")
 	decompress := fs.Bool("decompress", false, "Decompress gzip output to .tsv")
-	outputFormat := fs.String("output-format", "json", "Output format for metadata: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	outputFlags := shared.BindMetadataOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "reports",
@@ -181,7 +180,7 @@ Examples:
 				DecompressedBytes: decompressedSize,
 			}
 
-			return shared.PrintOutput(result, *outputFormat, *pretty)
+			return shared.PrintOutput(result, *outputFlags.OutputFormat, *outputFlags.Pretty)
 		},
 	}
 }
@@ -190,8 +189,7 @@ Examples:
 func FinanceRegionsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("regions", flag.ExitOnError)
 
-	outputFormat := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "regions",
@@ -215,7 +213,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			result := &asc.FinanceRegionsResult{Regions: asc.FinanceRegions()}
-			return shared.PrintOutput(result, *outputFormat, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

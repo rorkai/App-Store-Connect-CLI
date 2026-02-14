@@ -39,8 +39,7 @@ func BetaBuildLocalizationsBuildGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("build get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta build localization ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -72,7 +71,7 @@ Examples:
 				return fmt.Errorf("beta-build-localizations build get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

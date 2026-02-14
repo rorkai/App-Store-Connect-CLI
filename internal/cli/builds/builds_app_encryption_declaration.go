@@ -39,8 +39,7 @@ func BuildsAppEncryptionDeclarationGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-encryption-declaration get", flag.ExitOnError)
 
 	buildID := fs.String("id", "", "Build ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -72,7 +71,7 @@ Examples:
 				return fmt.Errorf("builds app-encryption-declaration get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

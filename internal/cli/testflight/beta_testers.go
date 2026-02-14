@@ -69,8 +69,7 @@ func BetaTestersListCommand() *ffcli.Command {
 	buildID := fs.String("build", "", "Build ID to filter")
 	group := fs.String("group", "", "Beta group name or ID to filter")
 	email := fs.String("email", "", "Filter by tester email")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -148,7 +147,7 @@ Examples:
 					return fmt.Errorf("beta-testers list: %w", err)
 				}
 
-				return shared.PrintOutput(testers, *output, *pretty)
+				return shared.PrintOutput(testers, *output.Output, *output.Pretty)
 			}
 
 			testers, err := client.GetBetaTesters(requestCtx, resolvedAppID, opts...)
@@ -156,7 +155,7 @@ Examples:
 				return fmt.Errorf("beta-testers list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(testers, *output, *pretty)
+			return shared.PrintOutput(testers, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -166,8 +165,7 @@ func BetaTestersGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta tester ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -199,7 +197,7 @@ Examples:
 				return fmt.Errorf("beta-testers get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(tester, *output, *pretty)
+			return shared.PrintOutput(tester, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -213,8 +211,7 @@ func BetaTestersAddCommand() *ffcli.Command {
 	firstName := fs.String("first-name", "", "Tester first name")
 	lastName := fs.String("last-name", "", "Tester last name")
 	group := fs.String("group", "", "Beta group name or ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add",
@@ -259,7 +256,7 @@ Examples:
 				return fmt.Errorf("beta-testers add: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(tester, *output, *pretty)
+			return shared.PrintOutput(tester, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -270,8 +267,7 @@ func BetaTestersRemoveCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	email := fs.String("email", "", "Tester email address")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove",
@@ -320,7 +316,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -331,8 +327,7 @@ func BetaTestersAddGroupsCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta tester ID")
 	groups := fs.String("group", "", "Comma-separated beta group IDs")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add-groups",
@@ -376,7 +371,7 @@ Examples:
 				Action:   "added",
 			}
 
-			if err := shared.PrintOutput(result, *output, *pretty); err != nil {
+			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
@@ -393,8 +388,7 @@ func BetaTestersRemoveGroupsCommand() *ffcli.Command {
 	id := fs.String("id", "", "Beta tester ID")
 	groups := fs.String("group", "", "Comma-separated beta group IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-groups",
@@ -442,7 +436,7 @@ Examples:
 				Action:   "removed",
 			}
 
-			if err := shared.PrintOutput(result, *output, *pretty); err != nil {
+			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
@@ -458,8 +452,7 @@ func BetaTestersAddBuildsCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta tester ID")
 	builds := fs.String("build", "", "Comma-separated build IDs")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "add-builds",
@@ -503,7 +496,7 @@ Examples:
 				Action:   "added",
 			}
 
-			if err := shared.PrintOutput(result, *output, *pretty); err != nil {
+			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
@@ -520,8 +513,7 @@ func BetaTestersRemoveBuildsCommand() *ffcli.Command {
 	id := fs.String("id", "", "Beta tester ID")
 	builds := fs.String("build", "", "Comma-separated build IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-builds",
@@ -569,7 +561,7 @@ Examples:
 				Action:   "removed",
 			}
 
-			if err := shared.PrintOutput(result, *output, *pretty); err != nil {
+			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
@@ -586,8 +578,7 @@ func BetaTestersRemoveAppsCommand() *ffcli.Command {
 	id := fs.String("id", "", "Beta tester ID")
 	apps := fs.String("app", "", "Comma-separated app IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-apps",
@@ -635,7 +626,7 @@ Examples:
 				Action:   "removed",
 			}
 
-			if err := shared.PrintOutput(result, *output, *pretty); err != nil {
+			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
 			}
 
@@ -652,8 +643,7 @@ func BetaTestersInviteCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	email := fs.String("email", "", "Tester email address")
 	group := fs.String("group", "", "Beta group name or ID (optional, creates tester if missing)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "invite",
@@ -721,7 +711,7 @@ Examples:
 				Email:        emailValue,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

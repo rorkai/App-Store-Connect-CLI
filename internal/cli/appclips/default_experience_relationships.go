@@ -41,8 +41,7 @@ func AppClipDefaultExperienceReviewDetailRelationshipCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-store-review-detail", flag.ExitOnError)
 
 	experienceID := fs.String("experience-id", "", "Default experience ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "app-store-review-detail",
@@ -74,7 +73,7 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences relationships app-store-review-detail: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -84,8 +83,7 @@ func AppClipDefaultExperienceReleaseWithAppStoreVersionRelationshipCommand() *ff
 	fs := flag.NewFlagSet("release-with-app-store-version", flag.ExitOnError)
 
 	experienceID := fs.String("experience-id", "", "Default experience ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "release-with-app-store-version",
@@ -117,7 +115,7 @@ Examples:
 				return fmt.Errorf("app-clips default-experiences relationships release-with-app-store-version: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

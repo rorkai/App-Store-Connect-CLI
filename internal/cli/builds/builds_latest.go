@@ -23,8 +23,7 @@ func BuildsLatestCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
 	version := fs.String("version", "", "Filter by version string (e.g., 1.2.3); requires --platform for deterministic results")
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	next := fs.Bool("next", false, "Return next build number using processed builds and in-flight uploads")
 	initialBuildNumber := fs.Int("initial-build-number", 1, "Initial build number when none exist (used with --next)")
 
@@ -208,7 +207,7 @@ Examples:
 			}
 
 			if !*next {
-				return shared.PrintOutput(latestBuild, *output, *pretty)
+				return shared.PrintOutput(latestBuild, *output.Output, *output.Pretty)
 			}
 
 			var latestProcessedNumber *string
@@ -283,7 +282,7 @@ Examples:
 				SourcesConsidered:          sourcesConsidered,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

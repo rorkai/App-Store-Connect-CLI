@@ -51,8 +51,7 @@ func GameCenterLeaderboardsV2ListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -123,7 +122,7 @@ Examples:
 					return fmt.Errorf("game-center leaderboards v2 list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardsV2(requestCtx, gcDetailID, group, opts...)
@@ -131,7 +130,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -171,8 +170,7 @@ func GameCenterLeaderboardVersionsV2ListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -226,7 +224,7 @@ Examples:
 					return fmt.Errorf("game-center leaderboards v2 versions list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardVersions(requestCtx, id, opts...)
@@ -234,7 +232,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 versions list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -244,8 +242,7 @@ func GameCenterLeaderboardVersionsV2GetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	versionID := fs.String("id", "", "Game Center leaderboard version ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -277,7 +274,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 versions get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -287,8 +284,7 @@ func GameCenterLeaderboardVersionsV2CreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
 	leaderboardID := fs.String("leaderboard-id", "", "Game Center leaderboard ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -320,7 +316,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 versions create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -361,8 +357,7 @@ func GameCenterLeaderboardLocalizationsV2ListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -416,7 +411,7 @@ Examples:
 					return fmt.Errorf("game-center leaderboards v2 localizations list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardVersionLocalizations(requestCtx, id, opts...)
@@ -424,7 +419,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 localizations list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -434,8 +429,7 @@ func GameCenterLeaderboardLocalizationsV2GetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center leaderboard localization ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -467,7 +461,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 localizations get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -483,8 +477,7 @@ func GameCenterLeaderboardLocalizationsV2CreateCommand() *ffcli.Command {
 	formatterSuffix := fs.String("formatter-suffix", "", "Suffix to append to formatted score (optional)")
 	formatterSuffixSingular := fs.String("formatter-suffix-singular", "", "Singular suffix (optional)")
 	description := fs.String("description", "", "Description for the leaderboard in this locale (optional)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -558,7 +551,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 localizations create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -573,8 +566,7 @@ func GameCenterLeaderboardLocalizationsV2UpdateCommand() *ffcli.Command {
 	formatterSuffix := fs.String("formatter-suffix", "", "Suffix to append to formatted score")
 	formatterSuffixSingular := fs.String("formatter-suffix-singular", "", "Singular suffix")
 	description := fs.String("description", "", "Description for the leaderboard in this locale")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -645,7 +637,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 localizations update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -656,8 +648,7 @@ func GameCenterLeaderboardLocalizationsV2DeleteCommand() *ffcli.Command {
 
 	localizationID := fs.String("id", "", "Game Center leaderboard localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -697,7 +688,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -736,8 +727,7 @@ func GameCenterLeaderboardImagesV2UploadCommand() *ffcli.Command {
 
 	localizationID := fs.String("localization-id", "", "Game Center leaderboard localization ID")
 	filePath := fs.String("file", "", "Path to image file")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
@@ -777,7 +767,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 images upload: %w", err)
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -788,8 +778,7 @@ func GameCenterLeaderboardImagesV2GetCommand() *ffcli.Command {
 
 	imageID := fs.String("id", "", "Game Center leaderboard image ID")
 	localizationID := fs.String("localization-id", "", "Game Center leaderboard localization ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -827,7 +816,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("game-center leaderboards v2 images get: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardImageV2(requestCtx, id)
@@ -835,7 +824,7 @@ Examples:
 				return fmt.Errorf("game-center leaderboards v2 images get: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -846,8 +835,7 @@ func GameCenterLeaderboardImagesV2DeleteCommand() *ffcli.Command {
 
 	imageID := fs.String("id", "", "Game Center leaderboard image ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -887,7 +875,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

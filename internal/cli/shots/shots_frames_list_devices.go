@@ -17,8 +17,7 @@ type frameDevicesOutput struct {
 // ShotsFramesListDevicesCommand returns the screenshots list-frame-devices subcommand.
 func ShotsFramesListDevicesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list-frame-devices", flag.ExitOnError)
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list-frame-devices",
@@ -31,7 +30,7 @@ func ShotsFramesListDevicesCommand() *ffcli.Command {
 				Default: string(screenshots.DefaultFrameDevice()),
 				Devices: screenshots.FrameDeviceOptions(),
 			}
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

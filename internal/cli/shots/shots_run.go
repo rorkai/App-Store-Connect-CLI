@@ -20,8 +20,7 @@ func ShotsRunCommand() *ffcli.Command {
 	bundleID := fs.String("bundle-id", "", "Override app bundle ID from plan")
 	udid := fs.String("udid", "", "Override simulator UDID from plan")
 	outputDir := fs.String("output-dir", "", "Override output directory from plan")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "run",
@@ -65,7 +64,7 @@ Supported actions: launch, tap, type, wait, wait_for (polling), screenshot.`,
 				return fmt.Errorf("screenshots run: %w", err)
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

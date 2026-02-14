@@ -117,7 +117,7 @@ func TestFlightSyncPullCommand() *ffcli.Command {
 	groupFilter := fs.String("group", "", "Filter to a specific beta group (name or ID)")
 	buildFilter := fs.String("build", "", "Filter to build ID(s), comma-separated")
 	testerFilter := fs.String("tester", "", "Filter to tester ID(s) or emails, comma-separated")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	pretty := shared.BindPrettyJSONFlag(fs)
 
 	return &ffcli.Command{
 		Name:       "pull",
@@ -193,10 +193,7 @@ Examples:
 				Testers: len(config.Testers),
 			}
 
-			if *pretty {
-				return asc.PrintPrettyJSON(summary)
-			}
-			return asc.PrintJSON(summary)
+			return shared.PrintOutput(summary, "json", *pretty)
 		},
 	}
 }

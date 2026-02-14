@@ -17,8 +17,7 @@ func SubscriptionsSubmitCommand() *ffcli.Command {
 
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
 	confirm := fs.Bool("confirm", false, "Confirm submission")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submit",
@@ -54,7 +53,7 @@ Examples:
 				return fmt.Errorf("subscriptions submit: failed to submit: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -65,8 +64,7 @@ func SubscriptionsGroupsSubmitCommand() *ffcli.Command {
 
 	groupID := fs.String("group-id", "", "Subscription group ID")
 	confirm := fs.Bool("confirm", false, "Confirm submission")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submit",
@@ -102,7 +100,7 @@ Examples:
 				return fmt.Errorf("subscriptions groups submit: failed to submit: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

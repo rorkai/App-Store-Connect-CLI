@@ -1,6 +1,7 @@
 package docs
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -117,5 +118,52 @@ func TestUpdateClaudeLink_RewritesLegacyReference(t *testing.T) {
 	}
 	if strings.Contains(content, "@ASC.md") {
 		t.Fatalf("expected legacy directive removed, got %q", content)
+	}
+}
+
+func TestNewInitReferenceCommand_PrefixesErrors(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatalf("create .git: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, ascReferenceFile), []byte("# Existing\n"), 0o644); err != nil {
+		t.Fatalf("write ASC.md: %v", err)
+	}
+
+	cmd := NewInitReferenceCommand(
+		"docs init",
+		"init",
+		"asc docs init [flags]",
+		"Create an ASC.md command reference in the current repo.",
+		"Create an ASC.md command reference in the current repo.",
+		"docs init",
+	)
+	if err := cmd.FlagSet.Parse([]string{"--path", repo}); err != nil {
+		t.Fatalf("parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected command to fail when ASC.md already exists")
+	}
+	if !errors.Is(err, ErrASCReferenceExists) {
+		t.Fatalf("expected ErrASCReferenceExists, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "docs init:") {
+		t.Fatalf("expected prefixed error, got %v", err)
+	}
+}
+
+func TestNewInitReferenceCommand_UsesDefaultUsageFunc(t *testing.T) {
+	cmd := NewInitReferenceCommand(
+		"docs init",
+		"init",
+		"asc docs init [flags]",
+		"Create an ASC.md command reference in the current repo.",
+		"Create an ASC.md command reference in the current repo.",
+		"docs init",
+	)
+	if cmd.UsageFunc == nil {
+		t.Fatal("expected usage function to be set")
 	}
 }

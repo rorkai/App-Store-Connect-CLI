@@ -59,8 +59,7 @@ func OfferCodesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	offerCodeID := fs.String("offer-code", "", "Subscription offer code ID (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -118,7 +117,7 @@ Examples:
 					return fmt.Errorf("offer-codes list: %w", err)
 				}
 
-				return shared.PrintOutput(pages, *output, *pretty)
+				return shared.PrintOutput(pages, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(requestCtx, trimmedOfferCodeID, opts...)
@@ -126,7 +125,7 @@ Examples:
 				return fmt.Errorf("offer-codes list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -139,8 +138,7 @@ func OfferCodesGenerateCommand() *ffcli.Command {
 	quantity := fs.Int("quantity", 0, "Number of one-time use codes to generate (required)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD) (required)")
 	outputPath := fs.String("output", "", "Output file path for offer codes (one per line)")
-	outputFormat := fs.String("output-format", "json", "Output format for metadata: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindMetadataOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "generate",
@@ -217,7 +215,7 @@ Examples:
 				}
 			}
 
-			if err := shared.PrintOutput(resp, *outputFormat, *pretty); err != nil {
+			if err := shared.PrintOutput(resp, *output.OutputFormat, *output.Pretty); err != nil {
 				return err
 			}
 			if writeErr != nil {

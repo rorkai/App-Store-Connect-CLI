@@ -57,8 +57,7 @@ func UsersListCommand() *ffcli.Command {
 
 	email := fs.String("email", "", "Filter by email/username")
 	role := fs.String("role", "", "Filter by role (comma-separated): ADMIN, DEVELOPER, APP_MANAGER, etc.")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -115,7 +114,7 @@ Examples:
 					return fmt.Errorf("users list: %w", err)
 				}
 
-				return shared.PrintOutput(users, *output, *pretty)
+				return shared.PrintOutput(users, *output.Output, *output.Pretty)
 			}
 
 			users, err := client.GetUsers(requestCtx, opts...)
@@ -123,7 +122,7 @@ Examples:
 				return fmt.Errorf("users list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(users, *output, *pretty)
+			return shared.PrintOutput(users, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -134,8 +133,7 @@ func UsersGetCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "User ID")
 	include := fs.String("include", "", "Include related resources: visibleApps")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -178,7 +176,7 @@ Examples:
 				return fmt.Errorf("users get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(user, *output, *pretty)
+			return shared.PrintOutput(user, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -190,8 +188,7 @@ func UsersUpdateCommand() *ffcli.Command {
 	id := fs.String("id", "", "User ID")
 	roles := fs.String("roles", "", "Comma-separated role IDs")
 	visibleApps := fs.String("visible-app", "", "Comma-separated app IDs for visible apps")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -246,7 +243,7 @@ Examples:
 				}
 			}
 
-			return shared.PrintOutput(user, *output, *pretty)
+			return shared.PrintOutput(user, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -257,8 +254,7 @@ func UsersDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "User ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -299,7 +295,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -314,8 +310,7 @@ func UsersInviteCommand() *ffcli.Command {
 	roles := fs.String("roles", "", "Comma-separated role IDs")
 	allApps := fs.Bool("all-apps", false, "Grant access to all apps")
 	visibleApps := fs.String("visible-app", "", "Comma-separated app IDs for visible apps")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "invite",
@@ -392,7 +387,7 @@ Examples:
 				return fmt.Errorf("users invite: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(invitation, *output, *pretty)
+			return shared.PrintOutput(invitation, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -430,8 +425,7 @@ Examples:
 func UsersInvitesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -483,7 +477,7 @@ Examples:
 					return fmt.Errorf("users invites list: %w", err)
 				}
 
-				return shared.PrintOutput(invites, *output, *pretty)
+				return shared.PrintOutput(invites, *output.Output, *output.Pretty)
 			}
 
 			invites, err := client.GetUserInvitations(requestCtx, opts...)
@@ -491,7 +485,7 @@ Examples:
 				return fmt.Errorf("users invites list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(invites, *output, *pretty)
+			return shared.PrintOutput(invites, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -501,8 +495,7 @@ func UsersInvitesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Invitation ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -534,7 +527,7 @@ Examples:
 				return fmt.Errorf("users invites get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(invite, *output, *pretty)
+			return shared.PrintOutput(invite, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -545,8 +538,7 @@ func UsersInvitesRevokeCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Invitation ID")
 	confirm := fs.Bool("confirm", false, "Confirm revocation")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "revoke",
@@ -587,7 +579,7 @@ Examples:
 				Revoked: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

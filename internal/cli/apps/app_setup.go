@@ -82,8 +82,7 @@ func AppSetupInfoSetCommand() *ffcli.Command {
 	privacyChoicesURL := fs.String("privacy-choices-url", "", "Localized privacy choices URL")
 	privacyPolicyText := fs.String("privacy-policy-text", "", "Localized privacy policy text")
 	contentRights := fs.String("content-rights", "", "Content rights declaration: DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -243,7 +242,7 @@ Examples:
 				AppInfoLocalization: appInfoResp,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -393,8 +392,7 @@ func AppSetupLocalizationsUploadCommand() *ffcli.Command {
 	locale := fs.String("locale", "", "Filter by locale(s), comma-separated")
 	path := fs.String("path", "", "Input path (directory or .strings file)")
 	dryRun := fs.Bool("dry-run", false, "Validate file without uploading")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
@@ -454,7 +452,7 @@ Examples:
 					Results:   results,
 				}
 
-				return shared.PrintOutput(&result, *output, *pretty)
+				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 			case shared.LocalizationTypeAppInfo:
 				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
@@ -493,7 +491,7 @@ Examples:
 					Results:   results,
 				}
 
-				return shared.PrintOutput(&result, *output, *pretty)
+				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 			default:
 				return fmt.Errorf("app-setup localizations upload: unsupported type %q", normalizedType)
 			}

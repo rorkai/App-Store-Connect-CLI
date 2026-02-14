@@ -52,8 +52,7 @@ func AlternativeDistributionPackagesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	packageID := fs.String("package-id", "", "Alternative distribution package ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -85,7 +84,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -95,8 +94,7 @@ func AlternativeDistributionPackagesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
 	appStoreVersionID := fs.String("app-store-version-id", "", "App Store version ID for the package")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -128,7 +126,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -138,8 +136,7 @@ func AlternativeDistributionPackagesAppStoreVersionCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-store-version", flag.ExitOnError)
 
 	appStoreVersionID := fs.String("app-store-version-id", "", "App Store version ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "app-store-version",
@@ -171,7 +168,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages app-store-version: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -181,8 +178,7 @@ func AlternativeDistributionPackageVariantsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("variants", flag.ExitOnError)
 
 	variantID := fs.String("variant-id", "", "Alternative distribution package variant ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "variants",
@@ -214,7 +210,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages variants: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -224,8 +220,7 @@ func AlternativeDistributionPackageDeltasCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("deltas", flag.ExitOnError)
 
 	deltaID := fs.String("delta-id", "", "Alternative distribution package delta ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "deltas",
@@ -257,7 +252,7 @@ Examples:
 				return fmt.Errorf("alternative-distribution packages deltas: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

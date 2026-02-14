@@ -11,7 +11,6 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -39,26 +38,21 @@ type InitResult struct {
 	Linked      []string `json:"linked,omitempty"`
 }
 
-// DocsInitCommand returns the docs init subcommand.
-func DocsInitCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("docs init", flag.ExitOnError)
+// NewInitReferenceCommand builds an init-style command that writes ASC.md references.
+func NewInitReferenceCommand(flagSetName, commandName, shortUsage, shortHelp, longHelp, errorPrefix string) *ffcli.Command {
+	fs := flag.NewFlagSet(flagSetName, flag.ExitOnError)
 
 	path := fs.String("path", "", "Output path for ASC.md (default: repo root or current directory)")
 	force := fs.Bool("force", false, "Overwrite existing ASC.md")
 	link := fs.Bool("link", true, "Update AGENTS.md and CLAUDE.md to reference ASC.md")
 
 	return &ffcli.Command{
-		Name:       "init",
-		ShortUsage: "asc docs init [flags]",
-		ShortHelp:  "Create an ASC.md command reference in the current repo.",
-		LongHelp: `Create an ASC.md command reference in the current repo.
-
-Examples:
-  asc docs init
-  asc docs init --path ./ASC.md
-  asc docs init --force --link=false`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		Name:       commandName,
+		ShortUsage: shortUsage,
+		ShortHelp:  shortHelp,
+		LongHelp:   longHelp,
+		FlagSet:    fs,
+		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			result, err := InitReference(InitOptions{
 				Path:  *path,
@@ -66,11 +60,28 @@ Examples:
 				Link:  *link,
 			})
 			if err != nil {
-				return fmt.Errorf("docs init: %w", err)
+				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
-			return asc.PrintJSON(result)
+			return shared.PrintOutput(result, "json", false)
 		},
 	}
+}
+
+// DocsInitCommand returns the docs init subcommand.
+func DocsInitCommand() *ffcli.Command {
+	return NewInitReferenceCommand(
+		"docs init",
+		"init",
+		"asc docs init [flags]",
+		"Create an ASC.md command reference in the current repo.",
+		`Create an ASC.md command reference in the current repo.
+
+Examples:
+  asc docs init
+  asc docs init --path ./ASC.md
+  asc docs init --force --link=false`,
+		"docs init",
+	)
 }
 
 // InitReference generates ASC.md in the target repo and links agent files.

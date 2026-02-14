@@ -70,8 +70,7 @@ func BetaFeedbackCrashSubmissionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("crash-submissions get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta feedback crash submission ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -103,7 +102,7 @@ Examples:
 				return fmt.Errorf("testflight beta-feedback crash-submissions get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -139,8 +138,7 @@ func BetaFeedbackCrashSubmissionsDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta feedback crash submission ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -180,7 +178,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -190,8 +188,7 @@ func BetaFeedbackScreenshotSubmissionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("screenshot-submissions get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta feedback screenshot submission ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -223,7 +220,7 @@ Examples:
 				return fmt.Errorf("testflight beta-feedback screenshot-submissions get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -234,8 +231,7 @@ func BetaFeedbackScreenshotSubmissionsDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta feedback screenshot submission ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -275,7 +271,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -308,8 +304,7 @@ func BetaFeedbackCrashLogGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("crash-log get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta feedback crash submission ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -341,7 +336,7 @@ Examples:
 				return fmt.Errorf("testflight beta-feedback crash-log get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

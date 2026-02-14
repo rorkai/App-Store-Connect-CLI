@@ -52,8 +52,7 @@ func IAPImagesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -107,7 +106,7 @@ Examples:
 					return fmt.Errorf("iap images list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetInAppPurchaseImages(requestCtx, iapValue, opts...)
@@ -115,7 +114,7 @@ Examples:
 				return fmt.Errorf("iap images list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -125,8 +124,7 @@ func IAPImagesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("images get", flag.ExitOnError)
 
 	imageID := fs.String("image-id", "", "Image ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -158,7 +156,7 @@ Examples:
 				return fmt.Errorf("iap images get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -169,8 +167,7 @@ func IAPImagesCreateCommand() *ffcli.Command {
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	filePath := fs.String("file", "", "Path to image file")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -238,7 +235,7 @@ Examples:
 				return fmt.Errorf("iap images create: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(finalResp, *output, *pretty)
+			return shared.PrintOutput(finalResp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -249,8 +246,7 @@ func IAPImagesUpdateCommand() *ffcli.Command {
 
 	imageID := fs.String("image-id", "", "Image ID")
 	filePath := fs.String("file", "", "Path to image file")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -342,7 +338,7 @@ Examples:
 				}
 			}
 
-			return shared.PrintOutput(updated, *output, *pretty)
+			return shared.PrintOutput(updated, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -353,8 +349,7 @@ func IAPImagesDeleteCommand() *ffcli.Command {
 
 	imageID := fs.String("image-id", "", "Image ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -394,7 +389,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

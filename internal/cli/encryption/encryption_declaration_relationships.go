@@ -39,8 +39,7 @@ func EncryptionDeclarationsAppGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("encryption declarations app get", flag.ExitOnError)
 
 	declarationID := fs.String("id", "", "Encryption declaration ID (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -72,7 +71,7 @@ Examples:
 				return fmt.Errorf("encryption declarations app get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -105,8 +104,7 @@ func EncryptionDeclarationsDeclarationDocumentGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("encryption declarations app-encryption-declaration-document get", flag.ExitOnError)
 
 	declarationID := fs.String("id", "", "Encryption declaration ID (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -138,7 +136,7 @@ Examples:
 				return fmt.Errorf("encryption declarations app-encryption-declaration-document get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

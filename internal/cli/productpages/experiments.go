@@ -55,8 +55,7 @@ func ExperimentsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
 	return &ffcli.Command{
@@ -121,7 +120,7 @@ Examples:
 						return fmt.Errorf("experiments list: %w", err)
 					}
 
-					return shared.PrintOutput(paginated, *output, *pretty)
+					return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
 				}
 
 				resp, err := client.GetAppStoreVersionExperimentsV2(requestCtx, resolvedAppID, opts...)
@@ -129,7 +128,7 @@ Examples:
 					return fmt.Errorf("experiments list: failed to fetch: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			trimmedVersionID := strings.TrimSpace(*versionID)
@@ -166,7 +165,7 @@ Examples:
 					return fmt.Errorf("experiments list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output, *pretty)
+				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionExperiments(requestCtx, trimmedVersionID, opts...)
@@ -174,7 +173,7 @@ Examples:
 				return fmt.Errorf("experiments list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -184,8 +183,7 @@ func ExperimentsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiments get", flag.ExitOnError)
 
 	experimentID := fs.String("experiment-id", "", "Experiment ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
 	return &ffcli.Command{
@@ -219,7 +217,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("experiments get: failed to fetch: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionExperiment(requestCtx, trimmedID)
@@ -227,7 +225,7 @@ Examples:
 				return fmt.Errorf("experiments get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -241,8 +239,7 @@ func ExperimentsCreateCommand() *ffcli.Command {
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (v2 experiments)")
 	name := fs.String("name", "", "Experiment name")
 	trafficProportion := fs.String("traffic-proportion", "", "Traffic proportion (integer)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
 	return &ffcli.Command{
@@ -295,7 +292,7 @@ Examples:
 					return fmt.Errorf("experiments create: failed to create: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			trimmedVersionID := strings.TrimSpace(*versionID)
@@ -317,7 +314,7 @@ Examples:
 				return fmt.Errorf("experiments create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -331,8 +328,7 @@ func ExperimentsUpdateCommand() *ffcli.Command {
 	trafficProportion := fs.String("traffic-proportion", "", "Update traffic proportion (integer)")
 	var started shared.OptionalBool
 	fs.Var(&started, "started", "Start or stop the experiment: true or false")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
 	return &ffcli.Command{
@@ -397,7 +393,7 @@ Examples:
 					return fmt.Errorf("experiments update: failed to update: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			attrs := asc.AppStoreVersionExperimentUpdateAttributes{}
@@ -417,7 +413,7 @@ Examples:
 				return fmt.Errorf("experiments update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -428,8 +424,7 @@ func ExperimentsDeleteCommand() *ffcli.Command {
 
 	experimentID := fs.String("experiment-id", "", "Experiment ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
 	return &ffcli.Command{
@@ -473,7 +468,7 @@ Examples:
 			}
 
 			result := &asc.AppStoreVersionExperimentDeleteResult{ID: trimmedID, Deleted: true}
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

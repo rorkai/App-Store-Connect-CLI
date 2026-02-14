@@ -81,8 +81,7 @@ func EncryptionDeclarationsListCommand() *ffcli.Command {
 	buildLimit := fs.Int("build-limit", 0, "Maximum included builds per declaration (1-50)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -160,7 +159,7 @@ Examples:
 					return fmt.Errorf("encryption declarations list: %w", err)
 				}
 
-				return shared.PrintOutput(pages, *output, *pretty)
+				return shared.PrintOutput(pages, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppEncryptionDeclarations(requestCtx, resolvedAppID, opts...)
@@ -168,7 +167,7 @@ Examples:
 				return fmt.Errorf("encryption declarations list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -182,8 +181,7 @@ func EncryptionDeclarationsGetCommand() *ffcli.Command {
 	documentFields := fs.String("document-fields", "", "Document fields to include: "+strings.Join(encryptionDocumentFieldList(), ", "))
 	include := fs.String("include", "", "Include relationships: "+strings.Join(encryptionDeclarationIncludeList(), ", "))
 	buildLimit := fs.Int("build-limit", 0, "Maximum included builds (1-50)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -237,7 +235,7 @@ Examples:
 				return fmt.Errorf("encryption declarations get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -251,8 +249,7 @@ func EncryptionDeclarationsCreateCommand() *ffcli.Command {
 	containsProprietary := fs.Bool("contains-proprietary-cryptography", false, "App contains proprietary cryptography (required)")
 	containsThirdParty := fs.Bool("contains-third-party-cryptography", false, "App contains third-party cryptography (required)")
 	availableOnFrenchStore := fs.Bool("available-on-french-store", false, "App is available on the French store (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -314,7 +311,7 @@ Examples:
 				return fmt.Errorf("encryption declarations create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -325,8 +322,7 @@ func EncryptionDeclarationsAssignBuildsCommand() *ffcli.Command {
 
 	declarationID := fs.String("id", "", "Encryption declaration ID (required)")
 	builds := fs.String("build", "", "Build IDs to assign (comma-separated)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "assign-builds",
@@ -371,7 +367,7 @@ Examples:
 				Action:        "assigned",
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -404,8 +400,7 @@ func EncryptionDocumentsGetCommand() *ffcli.Command {
 
 	documentID := fs.String("id", "", "Document ID (required)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(encryptionDocumentFieldList(), ", "))
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -442,7 +437,7 @@ Examples:
 				return fmt.Errorf("encryption documents get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -453,8 +448,7 @@ func EncryptionDocumentsUploadCommand() *ffcli.Command {
 
 	declarationID := fs.String("declaration", "", "Encryption declaration ID (required)")
 	filePath := fs.String("file", "", "Path to document file (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
@@ -534,7 +528,7 @@ Examples:
 				return fmt.Errorf("encryption documents upload: failed to commit upload: %w", err)
 			}
 
-			return shared.PrintOutput(commitResp, *output, *pretty)
+			return shared.PrintOutput(commitResp, *output.Output, *output.Pretty)
 		},
 	}
 }

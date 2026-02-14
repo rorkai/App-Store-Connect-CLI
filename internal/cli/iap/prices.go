@@ -74,8 +74,7 @@ func IAPPricesCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	territory := fs.String("territory", "", "Territory filter (e.g., USA)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "prices",
@@ -148,7 +147,7 @@ Examples:
 				return fmt.Errorf("iap prices: %w", err)
 			}
 
-			return printIAPPricesResult(&iapPricesResult{IAPs: summaries}, *output, *pretty)
+			return printIAPPricesResult(&iapPricesResult{IAPs: summaries}, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -955,22 +954,13 @@ func dedupePriceEntries(entries []iapPriceEntry) []iapPriceEntry {
 }
 
 func printIAPPricesResult(result *iapPricesResult, format string, pretty bool) error {
-	switch strings.ToLower(strings.TrimSpace(format)) {
-	case "json":
-		return shared.PrintOutput(result, "json", pretty)
-	case "table":
-		if pretty {
-			return fmt.Errorf("--pretty is only valid with JSON output")
-		}
-		return printIAPPricesTable(result)
-	case "markdown", "md":
-		if pretty {
-			return fmt.Errorf("--pretty is only valid with JSON output")
-		}
-		return printIAPPricesMarkdown(result)
-	default:
-		return fmt.Errorf("unsupported format: %s", format)
-	}
+	return shared.PrintOutputWithRenderers(
+		result,
+		format,
+		pretty,
+		func() error { return printIAPPricesTable(result) },
+		func() error { return printIAPPricesMarkdown(result) },
+	)
 }
 
 func printIAPPricesTable(result *iapPricesResult) error {

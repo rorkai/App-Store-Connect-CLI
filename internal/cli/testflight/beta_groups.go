@@ -58,8 +58,7 @@ func BetaGroupsListCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	global := fs.Bool("global", false, "List beta groups across all apps (top-level endpoint)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -128,7 +127,7 @@ Examples:
 						return fmt.Errorf("beta-groups list: %w", err)
 					}
 
-					return shared.PrintOutput(groups, *output, *pretty)
+					return shared.PrintOutput(groups, *output.Output, *output.Pretty)
 				}
 
 				groups, err := client.ListBetaGroups(requestCtx, opts...)
@@ -136,7 +135,7 @@ Examples:
 					return fmt.Errorf("beta-groups list: failed to fetch: %w", err)
 				}
 
-				return shared.PrintOutput(groups, *output, *pretty)
+				return shared.PrintOutput(groups, *output.Output, *output.Pretty)
 			}
 
 			if *paginate {
@@ -155,7 +154,7 @@ Examples:
 					return fmt.Errorf("beta-groups list: %w", err)
 				}
 
-				return shared.PrintOutput(groups, *output, *pretty)
+				return shared.PrintOutput(groups, *output.Output, *output.Pretty)
 			}
 
 			groups, err := client.GetBetaGroups(requestCtx, resolvedAppID, opts...)
@@ -163,7 +162,7 @@ Examples:
 				return fmt.Errorf("beta-groups list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(groups, *output, *pretty)
+			return shared.PrintOutput(groups, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -174,8 +173,7 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	name := fs.String("name", "", "Beta group name")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -211,7 +209,7 @@ Examples:
 				return fmt.Errorf("beta-groups create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(group, *output, *pretty)
+			return shared.PrintOutput(group, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -221,8 +219,7 @@ func BetaGroupsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta group ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -253,7 +250,7 @@ Examples:
 				return fmt.Errorf("beta-groups get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(group, *output, *pretty)
+			return shared.PrintOutput(group, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -270,8 +267,7 @@ func BetaGroupsUpdateCommand() *ffcli.Command {
 	feedbackEnabled := fs.Bool("feedback-enabled", false, "Enable feedback")
 	internal := fs.Bool("internal", false, "Set as internal group")
 	allBuilds := fs.Bool("all-builds", false, "Grant access to all builds")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -370,7 +366,7 @@ Examples:
 				return fmt.Errorf("beta-groups update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(group, *output, *pretty)
+			return shared.PrintOutput(group, *output.Output, *output.Pretty)
 		},
 	}
 }

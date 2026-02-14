@@ -51,8 +51,7 @@ func BackgroundAssetsUploadFilesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -105,7 +104,7 @@ Examples:
 					return fmt.Errorf("background-assets upload-files list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBackgroundAssetUploadFiles(requestCtx, versionIDValue, opts...)
@@ -113,7 +112,7 @@ Examples:
 				return fmt.Errorf("background-assets upload-files list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -123,8 +122,7 @@ func BackgroundAssetsUploadFilesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	uploadFileID := fs.String("upload-file-id", "", "Background asset upload file ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -156,7 +154,7 @@ Examples:
 				return fmt.Errorf("background-assets upload-files get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -169,8 +167,7 @@ func BackgroundAssetsUploadFilesCreateCommand() *ffcli.Command {
 	filePath := fs.String("file", "", "Path to upload file")
 	assetType := fs.String("asset-type", "", "Asset type: "+strings.Join(backgroundAssetUploadFileAssetTypeValues, ", "))
 	checksum := fs.Bool("checksum", false, "Verify source file checksums before committing")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -272,7 +269,7 @@ Examples:
 				return fmt.Errorf("background-assets upload-files create: failed to commit upload: %w", err)
 			}
 
-			return shared.PrintOutput(commitResp, *output, *pretty)
+			return shared.PrintOutput(commitResp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -285,8 +282,7 @@ func BackgroundAssetsUploadFilesUpdateCommand() *ffcli.Command {
 	uploaded := fs.String("uploaded", "", "Mark upload as complete (true/false)")
 	filePath := fs.String("file", "", "Path to file for checksum verification")
 	checksum := fs.Bool("checksum", false, "Verify source file checksums before committing")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -381,7 +377,7 @@ Examples:
 				return fmt.Errorf("background-assets upload-files update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(commitResp, *output, *pretty)
+			return shared.PrintOutput(commitResp, *output.Output, *output.Pretty)
 		},
 	}
 }

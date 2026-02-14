@@ -18,8 +18,9 @@ func xcodeCloudActionsListFlags(fs *flag.FlagSet) (runID *string, limit *int, ne
 	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next = fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output = fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty = fs.Bool("pretty", false, "Pretty-print JSON output")
+	outputFlags := shared.BindOutputFlags(fs)
+	output = outputFlags.Output
+	pretty = outputFlags.Pretty
 	return
 }
 
@@ -87,8 +88,7 @@ func XcodeCloudActionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Build action ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -121,7 +121,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud actions get: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -130,8 +130,7 @@ func XcodeCloudActionsBuildRunCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("build-run", flag.ExitOnError)
 
 	id := fs.String("id", "", "Build action ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "build-run",
@@ -164,7 +163,7 @@ Examples:
 				return fmt.Errorf("xcode-cloud actions build-run: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

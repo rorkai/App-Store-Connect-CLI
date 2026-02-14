@@ -35,8 +35,7 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 	pricePointID := fs.String("price-point", "", "App price point ID")
 	baseTerritory := fs.String("base-territory", "", "Base territory ID (e.g., USA)")
 	startDate := fs.String("start-date", "", config.StartDateHelp)
-	output := fs.String("output", DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       config.CommandName,
@@ -103,7 +102,7 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
 
-			return printOutput(resp, *output, *pretty)
+			return printOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

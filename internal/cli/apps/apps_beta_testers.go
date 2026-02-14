@@ -19,8 +19,7 @@ func AppsRemoveBetaTestersCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	testers := fs.String("tester", "", "Comma-separated beta tester IDs")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "remove-beta-testers",
@@ -68,7 +67,7 @@ Examples:
 				Action:    "removed",
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -58,8 +58,7 @@ func AppInfoGetCommand() *ffcli.Command {
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	include := fs.String("include", "", "Include related resources: "+strings.Join(appInfoIncludeList(), ", "))
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -151,7 +150,7 @@ Examples:
 					return fmt.Errorf("app-info get: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			versionResource, err := resolveAppStoreVersionForAppInfo(
@@ -189,7 +188,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("app-info get: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionLocalizations(requestCtx, versionResource.ID, opts...)
@@ -197,7 +196,7 @@ Examples:
 				return fmt.Errorf("app-info get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -218,8 +217,7 @@ func AppInfoSetCommand() *ffcli.Command {
 	marketingURL := fs.String("marketing-url", "", "Marketing URL")
 	promotionalText := fs.String("promotional-text", "", "Promotional text")
 	whatsNew := fs.String("whats-new", "", "What's New text")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -337,7 +335,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("app-info set: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			localizationID := strings.TrimSpace(localizations.Data[0].ID)
@@ -348,7 +346,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("app-info set: %w", err)
 			}
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

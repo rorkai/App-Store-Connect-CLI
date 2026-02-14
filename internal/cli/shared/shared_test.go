@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"flag"
 	"io"
 	"os"
 	"path/filepath"
@@ -166,6 +167,274 @@ func TestDefaultOutputFormat_InvalidFallsBackToJSON(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "invalid ASC_DEFAULT_OUTPUT value") {
 		t.Fatalf("expected warning on stderr, got %q", stderr)
+	}
+}
+
+func TestBindOutputFlagsUsesDefaultOutputFormat(t *testing.T) {
+	resetDefaultOutput(t)
+	t.Setenv("ASC_DEFAULT_OUTPUT", "table")
+
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	output := BindOutputFlags(fs)
+	if output.Output == nil || output.Pretty == nil {
+		t.Fatal("expected output flag pointers to be set")
+	}
+	if *output.Output != "table" {
+		t.Fatalf("expected output default table, got %q", *output.Output)
+	}
+	if *output.Pretty {
+		t.Fatal("expected pretty default false")
+	}
+}
+
+func TestBindOutputFlagsParsesValues(t *testing.T) {
+	resetDefaultOutput(t)
+	t.Setenv("ASC_DEFAULT_OUTPUT", "json")
+
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	output := BindOutputFlags(fs)
+	if err := fs.Parse([]string{"--output", "markdown", "--pretty"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if *output.Output != "markdown" {
+		t.Fatalf("expected output markdown, got %q", *output.Output)
+	}
+	if !*output.Pretty {
+		t.Fatal("expected pretty true after parse")
+	}
+}
+
+func TestBindOutputFlagsWithParsesCustomFlagName(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	output := BindOutputFlagsWith(fs, "format", "json", "Output format: json (default), table, markdown")
+	if err := fs.Parse([]string{"--format", "markdown", "--pretty"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if *output.Output != "markdown" {
+		t.Fatalf("expected format markdown, got %q", *output.Output)
+	}
+	if !*output.Pretty {
+		t.Fatal("expected pretty true after parse")
+	}
+}
+
+func TestBindOutputFlagsWithDefaultsFlagNameToOutput(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	output := BindOutputFlagsWith(fs, "", "json", "Output format: json (default), table, markdown")
+	if err := fs.Parse([]string{"--output", "table"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if *output.Output != "table" {
+		t.Fatalf("expected output table, got %q", *output.Output)
+	}
+}
+
+func TestBindPrettyJSONFlagDefaultsFalseAndParses(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	pretty := BindPrettyJSONFlag(fs)
+	if pretty == nil {
+		t.Fatal("expected pretty flag pointer to be set")
+	}
+	if *pretty {
+		t.Fatal("expected pretty default false")
+	}
+
+	if err := fs.Parse([]string{"--pretty"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if !*pretty {
+		t.Fatal("expected pretty true after parse")
+	}
+}
+
+func TestNormalizeOutputFormat(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		output string
+	}{
+		{name: "json unchanged", input: "json", output: "json"},
+		{name: "uppercase lowered", input: "TABLE", output: "table"},
+		{name: "md alias canonicalized", input: "md", output: "markdown"},
+		{name: "md alias canonicalized uppercase", input: "MD", output: "markdown"},
+		{name: "trimmed and lowered", input: "  TABLE  ", output: "table"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := NormalizeOutputFormat(tc.input); got != tc.output {
+				t.Fatalf("NormalizeOutputFormat(%q) = %q, want %q", tc.input, got, tc.output)
+			}
+		})
+	}
+}
+
+func TestValidateOutputFormat(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		pretty     bool
+		wantFormat string
+		wantErr    string
+	}{
+		{name: "empty defaults json", input: "", pretty: false, wantFormat: "json"},
+		{name: "json allows pretty", input: "json", pretty: true, wantFormat: "json"},
+		{name: "md alias", input: "md", pretty: false, wantFormat: "markdown"},
+		{name: "table pretty rejected", input: "table", pretty: true, wantErr: "--pretty is only valid with JSON output"},
+		{name: "unsupported rejected", input: "yaml", pretty: false, wantErr: "unsupported format: yaml"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ValidateOutputFormat(tc.input, tc.pretty)
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("expected error containing %q, got %v", tc.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.wantFormat {
+				t.Fatalf("expected format %q, got %q", tc.wantFormat, got)
+			}
+		})
+	}
+}
+
+func TestPrintOutputWithRenderers_JSONPath(t *testing.T) {
+	stdout, _ := captureOutput(t, func() {
+		if err := PrintOutputWithRenderers(
+			map[string]string{"status": "ok"},
+			"json",
+			false,
+			func() error { t.Fatal("table renderer should not run"); return nil },
+			func() error { t.Fatal("markdown renderer should not run"); return nil },
+		); err != nil {
+			t.Fatalf("PrintOutputWithRenderers() error = %v", err)
+		}
+	})
+	if !strings.Contains(stdout, `"status":"ok"`) {
+		t.Fatalf("expected JSON output, got %q", stdout)
+	}
+}
+
+func TestPrintOutputWithRenderers_JSONPrettyPath(t *testing.T) {
+	stdout, _ := captureOutput(t, func() {
+		if err := PrintOutputWithRenderers(
+			map[string]string{"status": "ok"},
+			"json",
+			true,
+			func() error { t.Fatal("table renderer should not run"); return nil },
+			func() error { t.Fatal("markdown renderer should not run"); return nil },
+		); err != nil {
+			t.Fatalf("PrintOutputWithRenderers() error = %v", err)
+		}
+	})
+	if !strings.Contains(stdout, `"status": "ok"`) {
+		t.Fatalf("expected pretty JSON output, got %q", stdout)
+	}
+}
+
+func TestPrintOutputWithRenderers_EmptyFormatDefaultsJSON(t *testing.T) {
+	stdout, _ := captureOutput(t, func() {
+		if err := PrintOutputWithRenderers(
+			map[string]string{"status": "ok"},
+			"",
+			false,
+			func() error { t.Fatal("table renderer should not run"); return nil },
+			func() error { t.Fatal("markdown renderer should not run"); return nil },
+		); err != nil {
+			t.Fatalf("PrintOutputWithRenderers() error = %v", err)
+		}
+	})
+	if !strings.Contains(stdout, `"status":"ok"`) {
+		t.Fatalf("expected JSON output for empty format, got %q", stdout)
+	}
+}
+
+func TestPrintOutputWithRenderers_TableAndMarkdownPaths(t *testing.T) {
+	tableCalls := 0
+	markdownCalls := 0
+
+	if err := PrintOutputWithRenderers(
+		struct{}{},
+		"table",
+		false,
+		func() error { tableCalls++; return nil },
+		func() error { markdownCalls++; return nil },
+	); err != nil {
+		t.Fatalf("table output error = %v", err)
+	}
+	if tableCalls != 1 || markdownCalls != 0 {
+		t.Fatalf("expected table=1 markdown=0, got table=%d markdown=%d", tableCalls, markdownCalls)
+	}
+
+	if err := PrintOutputWithRenderers(
+		struct{}{},
+		"md",
+		false,
+		func() error { tableCalls++; return nil },
+		func() error { markdownCalls++; return nil },
+	); err != nil {
+		t.Fatalf("markdown output error = %v", err)
+	}
+	if tableCalls != 1 || markdownCalls != 1 {
+		t.Fatalf("expected table=1 markdown=1, got table=%d markdown=%d", tableCalls, markdownCalls)
+	}
+}
+
+func TestPrintOutputWithRenderers_RejectsPrettyForNonJSON(t *testing.T) {
+	err := PrintOutputWithRenderers(struct{}{}, "table", true, func() error { return nil }, func() error { return nil })
+	if err == nil || !strings.Contains(err.Error(), "--pretty is only valid with JSON output") {
+		t.Fatalf("expected pretty validation error, got %v", err)
+	}
+}
+
+func TestPrintOutputWithRenderers_RequiresTableRenderer(t *testing.T) {
+	err := PrintOutputWithRenderers(struct{}{}, "table", false, nil, func() error { return nil })
+	if err == nil || !strings.Contains(err.Error(), "table renderer is required") {
+		t.Fatalf("expected table renderer required error, got %v", err)
+	}
+}
+
+func TestPrintOutputWithRenderers_RequiresMarkdownRenderer(t *testing.T) {
+	err := PrintOutputWithRenderers(struct{}{}, "markdown", false, func() error { return nil }, nil)
+	if err == nil || !strings.Contains(err.Error(), "markdown renderer is required") {
+		t.Fatalf("expected markdown renderer required error, got %v", err)
+	}
+}
+
+func TestBindMetadataOutputFlagsUsesJSONDefault(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	output := BindMetadataOutputFlags(fs)
+	if output.OutputFormat == nil || output.Pretty == nil {
+		t.Fatal("expected metadata output flag pointers to be set")
+	}
+	if *output.OutputFormat != "json" {
+		t.Fatalf("expected output-format default json, got %q", *output.OutputFormat)
+	}
+	if *output.Pretty {
+		t.Fatal("expected pretty default false")
+	}
+}
+
+func TestBindMetadataOutputFlagsParsesValues(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	output := BindMetadataOutputFlags(fs)
+	if err := fs.Parse([]string{"--output-format", "markdown", "--pretty"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if *output.OutputFormat != "markdown" {
+		t.Fatalf("expected output-format markdown, got %q", *output.OutputFormat)
+	}
+	if !*output.Pretty {
+		t.Fatal("expected pretty true after parse")
 	}
 }
 

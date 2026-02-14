@@ -31,8 +31,7 @@ func TestFlightMetricsBetaTesterUsagesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "beta-tester-usages",
@@ -98,7 +97,7 @@ Examples:
 					return fmt.Errorf("testflight metrics beta-tester-usages: %w", err)
 				}
 
-				return shared.PrintOutput(combined, *output, *pretty)
+				return shared.PrintOutput(combined, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppBetaTesterUsagesMetrics(requestCtx, resolvedAppID, opts...)
@@ -106,7 +105,7 @@ Examples:
 				return fmt.Errorf("testflight metrics beta-tester-usages: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

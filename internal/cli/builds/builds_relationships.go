@@ -65,8 +65,7 @@ func BuildsRelationshipsGetCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -125,7 +124,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("builds relationships get: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			case relationshipList:
 				opts := []asc.LinkagesOption{
 					asc.WithLinkagesLimit(*limit),
@@ -144,14 +143,14 @@ Examples:
 					if err != nil {
 						return fmt.Errorf("builds relationships get: %w", err)
 					}
-					return shared.PrintOutput(resp, *output, *pretty)
+					return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 				}
 
 				resp, err := getBuildRelationshipList(requestCtx, client, relationshipType, buildValue, opts...)
 				if err != nil {
 					return fmt.Errorf("builds relationships get: %w", err)
 				}
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			default:
 				return fmt.Errorf("builds relationships get: unsupported relationship type %q", relationshipType)
 			}

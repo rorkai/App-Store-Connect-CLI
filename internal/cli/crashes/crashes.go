@@ -18,8 +18,7 @@ func CrashesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("crashes", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	deviceModel := fs.String("device-model", "", "Filter by device model(s), comma-separated")
 	osVersion := fs.String("os-version", "", "Filter by OS version(s), comma-separated")
 	appPlatform := fs.String("app-platform", "", "Filter by app platform(s), comma-separated (IOS, MAC_OS, TV_OS, VISION_OS)")
@@ -106,8 +105,7 @@ Examples:
 					return fmt.Errorf("crashes: %w", err)
 				}
 
-				format := *output
-				return shared.PrintOutput(crashes, format, *pretty)
+				return shared.PrintOutput(crashes, *output.Output, *output.Pretty)
 			}
 
 			crashes, err := client.GetCrashes(requestCtx, resolvedAppID, opts...)
@@ -115,9 +113,7 @@ Examples:
 				return fmt.Errorf("crashes: failed to fetch: %w", err)
 			}
 
-			format := *output
-
-			return shared.PrintOutput(crashes, format, *pretty)
+			return shared.PrintOutput(crashes, *output.Output, *output.Pretty)
 		},
 	}
 }

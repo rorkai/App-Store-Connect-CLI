@@ -41,8 +41,7 @@ func IAPAvailabilityGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability get", flag.ExitOnError)
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -74,7 +73,7 @@ Examples:
 				return fmt.Errorf("iap availability get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -86,8 +85,7 @@ func IAPAvailabilitySetCommand() *ffcli.Command {
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	territories := fs.String("territories", "", "Territory IDs (comma-separated)")
 	availableInNew := fs.Bool("available-in-new-territories", false, "Include new territories automatically")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -125,7 +123,7 @@ Examples:
 				return fmt.Errorf("iap availability set: failed to set: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }

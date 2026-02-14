@@ -51,8 +51,7 @@ func TestFlightReviewGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
@@ -98,7 +97,7 @@ Examples:
 				return fmt.Errorf("testflight review get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(details, *output, *pretty)
+			return shared.PrintOutput(details, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -116,8 +115,7 @@ func TestFlightReviewUpdateCommand() *ffcli.Command {
 	demoAccountPassword := fs.String("demo-account-password", "", "Demo account password")
 	demoAccountRequired := fs.Bool("demo-account-required", false, "Demo account required")
 	notes := fs.String("notes", "", "Review notes")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -202,7 +200,7 @@ Examples:
 				return fmt.Errorf("testflight review update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(detail, *output, *pretty)
+			return shared.PrintOutput(detail, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -213,8 +211,7 @@ func TestFlightReviewSubmitCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	confirm := fs.Bool("confirm", false, "Confirm submission")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submit",
@@ -249,7 +246,7 @@ Examples:
 				return fmt.Errorf("testflight review submit: failed to submit: %w", err)
 			}
 
-			return shared.PrintOutput(submission, *output, *pretty)
+			return shared.PrintOutput(submission, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -282,8 +279,7 @@ func TestFlightReviewAppGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta app review detail ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -315,7 +311,7 @@ Examples:
 				return fmt.Errorf("testflight review app get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -355,8 +351,7 @@ func TestFlightReviewSubmissionsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -411,7 +406,7 @@ Examples:
 					return fmt.Errorf("testflight review submissions list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetBetaAppReviewSubmissions(requestCtx, opts...)
@@ -419,7 +414,7 @@ Examples:
 				return fmt.Errorf("testflight review submissions list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -429,8 +424,7 @@ func TestFlightReviewSubmissionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submissions get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta app review submission ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -462,7 +456,7 @@ Examples:
 				return fmt.Errorf("testflight review submissions get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -472,8 +466,7 @@ func TestFlightReviewSubmissionsBuildCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submissions build", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta app review submission ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "build",
@@ -505,7 +498,7 @@ Examples:
 				return fmt.Errorf("testflight review submissions build: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -541,8 +534,7 @@ func TestFlightBetaDetailsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	buildID := fs.String("build", "", "Build ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
@@ -589,7 +581,7 @@ Examples:
 				return fmt.Errorf("testflight beta-details get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(details, *output, *pretty)
+			return shared.PrintOutput(details, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -622,8 +614,7 @@ func TestFlightBetaDetailsBuildGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("build get", flag.ExitOnError)
 
 	id := fs.String("id", "", "Build beta detail ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -655,7 +646,7 @@ Examples:
 				return fmt.Errorf("testflight beta-details build get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -672,8 +663,7 @@ func TestFlightBetaDetailsUpdateCommand() *ffcli.Command {
 	id := fs.String("id", "", "Build beta detail ID")
 	autoNotify := fs.Bool("auto-notify", false, "Enable auto-notify for external testers")
 	externalTesting := fs.Bool("external-testing", false, "Enable external testing (maps to externalBuildState)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -730,7 +720,7 @@ Examples:
 				return fmt.Errorf("testflight beta-details update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(detail, *output, *pretty)
+			return shared.PrintOutput(detail, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -767,8 +757,7 @@ func TestFlightRecruitmentDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Beta recruitment criteria ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -808,7 +797,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -817,8 +806,7 @@ Examples:
 func TestFlightRecruitmentOptionsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("options", flag.ExitOnError)
 
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	fields := fs.String("fields", "deviceFamilyOsVersions", "Fields to include: deviceFamilyOsVersions")
@@ -865,7 +853,7 @@ Examples:
 				return fmt.Errorf("testflight recruitment options: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(options, *output, *pretty)
+			return shared.PrintOutput(options, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -876,8 +864,7 @@ func TestFlightRecruitmentSetCommand() *ffcli.Command {
 
 	groupID := fs.String("group", "", "Beta group ID")
 	filters := fs.String("os-version-filter", "", "Device family OS filters (e.g., IPHONE=26,IPAD=26)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "set",
@@ -923,7 +910,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("testflight recruitment set: failed to update: %w", err)
 				}
-				return shared.PrintOutput(criteria, *output, *pretty)
+				return shared.PrintOutput(criteria, *output.Output, *output.Pretty)
 			} else if !asc.IsNotFound(err) {
 				return fmt.Errorf("testflight recruitment set: failed to fetch existing criteria: %w", err)
 			}
@@ -933,7 +920,7 @@ Examples:
 				return fmt.Errorf("testflight recruitment set: failed to set: %w", createErr)
 			}
 
-			return shared.PrintOutput(criteria, *output, *pretty)
+			return shared.PrintOutput(criteria, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -1050,8 +1037,7 @@ func TestFlightMetricsPublicLinkCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("public-link", flag.ExitOnError)
 
 	groupID := fs.String("group", "", "Beta group ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "public-link",
@@ -1083,7 +1069,7 @@ Examples:
 				return fmt.Errorf("testflight metrics public-link: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(metrics, *output, *pretty)
+			return shared.PrintOutput(metrics, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -1093,8 +1079,7 @@ func TestFlightMetricsTestersCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("testers", flag.ExitOnError)
 
 	groupID := fs.String("group", "", "Beta group ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "testers",
@@ -1126,7 +1111,7 @@ Examples:
 				return fmt.Errorf("testflight metrics testers: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(metrics, *output, *pretty)
+			return shared.PrintOutput(metrics, *output.Output, *output.Pretty)
 		},
 	}
 }

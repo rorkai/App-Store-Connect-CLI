@@ -33,8 +33,7 @@ func BuildsUploadCommand() *ffcli.Command {
 	locale := fs.String("locale", "", "Locale for --test-notes (e.g., en-US)")
 	wait := fs.Bool("wait", false, "Wait for build processing to complete")
 	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait and --test-notes")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
@@ -357,9 +356,9 @@ Examples:
 				}
 			}
 
-			format := *output
+			format := *output.Output
 
-			return shared.PrintOutput(result, format, *pretty)
+			return shared.PrintOutput(result, format, *output.Pretty)
 		},
 	}
 }
@@ -431,8 +430,7 @@ func BuildsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	sort := fs.String("sort", "", "Sort by uploadedDate or -uploadedDate")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -502,8 +500,8 @@ Examples:
 					return fmt.Errorf("builds: %w", err)
 				}
 
-				format := *output
-				return shared.PrintOutput(builds, format, *pretty)
+				format := *output.Output
+				return shared.PrintOutput(builds, format, *output.Pretty)
 			}
 
 			builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
@@ -511,9 +509,9 @@ Examples:
 				return fmt.Errorf("builds: failed to fetch: %w", err)
 			}
 
-			format := *output
+			format := *output.Output
 
-			return shared.PrintOutput(builds, format, *pretty)
+			return shared.PrintOutput(builds, format, *output.Pretty)
 		},
 	}
 }
@@ -523,8 +521,7 @@ func BuildsInfoCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("builds info", flag.ExitOnError)
 
 	buildID := fs.String("build", "", "Build ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "info",
@@ -555,9 +552,9 @@ Examples:
 				return fmt.Errorf("builds info: failed to fetch: %w", err)
 			}
 
-			format := *output
+			format := *output.Output
 
-			return shared.PrintOutput(build, format, *pretty)
+			return shared.PrintOutput(build, format, *output.Pretty)
 		},
 	}
 }
@@ -568,8 +565,7 @@ func BuildsExpireCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	confirm := fs.Bool("confirm", false, "Confirm expiration")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "expire",
@@ -606,9 +602,9 @@ Examples:
 				return fmt.Errorf("builds expire: failed to expire: %w", err)
 			}
 
-			format := *output
+			format := *output.Output
 
-			return shared.PrintOutput(build, format, *pretty)
+			return shared.PrintOutput(build, format, *output.Pretty)
 		},
 	}
 }

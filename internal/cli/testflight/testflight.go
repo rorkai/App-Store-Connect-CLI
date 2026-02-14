@@ -86,8 +86,7 @@ func TestFlightAppsListCommand() *ffcli.Command {
 	bundleID := fs.String("bundle-id", "", "Filter by bundle ID(s), comma-separated")
 	name := fs.String("name", "", "Filter by app name(s), comma-separated")
 	sku := fs.String("sku", "", "Filter by SKU(s), comma-separated")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	sort := fs.String("sort", "", "Sort by name or -name, bundleId or -bundleId")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -156,7 +155,7 @@ Examples:
 					return fmt.Errorf("testflight apps list: %w", err)
 				}
 
-				return shared.PrintOutput(apps, *output, *pretty)
+				return shared.PrintOutput(apps, *output.Output, *output.Pretty)
 			}
 
 			apps, err := client.GetApps(requestCtx, opts...)
@@ -164,7 +163,7 @@ Examples:
 				return fmt.Errorf("testflight apps list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(apps, *output, *pretty)
+			return shared.PrintOutput(apps, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -174,8 +173,7 @@ func TestFlightAppsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -207,7 +205,7 @@ Examples:
 				return fmt.Errorf("testflight apps get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(app, *output, *pretty)
+			return shared.PrintOutput(app, *output.Output, *output.Pretty)
 		},
 	}
 }

@@ -270,6 +270,35 @@ func TestValidateVersionLocalization_UsesSharedLimits(t *testing.T) {
 	}
 }
 
+func TestPrintMigrateOutput_RejectsPrettyForTable(t *testing.T) {
+	err := printMigrateOutput(&MigrateImportResult{}, "table", true)
+	if err == nil || !strings.Contains(err.Error(), "--pretty is only valid with JSON output") {
+		t.Fatalf("expected pretty validation error, got %v", err)
+	}
+}
+
+func TestPrintMigrateOutput_UnsupportedFormat(t *testing.T) {
+	err := printMigrateOutput(&MigrateImportResult{}, "yaml", false)
+	if err == nil || !strings.Contains(err.Error(), "unsupported format: yaml") {
+		t.Fatalf("expected unsupported format error, got %v", err)
+	}
+}
+
+func TestPrintMigrateOutput_UnknownTypeTableUnsupported(t *testing.T) {
+	err := printMigrateOutput(struct{}{}, "table", false)
+	if err == nil || !strings.Contains(err.Error(), "unsupported format: table") {
+		t.Fatalf("expected unsupported format for table, got %v", err)
+	}
+}
+
+func TestPrintMigrateOutput_UnknownTypeJSONFallsBack(t *testing.T) {
+	if err := printMigrateOutput(struct {
+		OK bool `json:"ok"`
+	}{OK: true}, "json", false); err != nil {
+		t.Fatalf("expected JSON fallback to succeed, got %v", err)
+	}
+}
+
 func TestValidateAppInfoLocalization_UsesSharedLimits(t *testing.T) {
 	loc := AppInfoFastlaneLocalization{
 		Locale: "en-US",

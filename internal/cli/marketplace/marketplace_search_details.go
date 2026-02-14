@@ -48,8 +48,7 @@ func MarketplaceSearchDetailsGetCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(marketplaceSearchDetailFieldsList(), ", "))
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -86,7 +85,7 @@ Examples:
 				return fmt.Errorf("marketplace search-details get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(detail, *output, *pretty)
+			return shared.PrintOutput(detail, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -97,8 +96,7 @@ func MarketplaceSearchDetailsCreateCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	catalogURL := fs.String("catalog-url", "", "Marketplace catalog URL")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -136,7 +134,7 @@ Examples:
 				return fmt.Errorf("marketplace search-details create: failed to create: %w", err)
 			}
 
-			return shared.PrintOutput(detail, *output, *pretty)
+			return shared.PrintOutput(detail, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -147,8 +145,7 @@ func MarketplaceSearchDetailsUpdateCommand() *ffcli.Command {
 
 	detailID := fs.String("search-detail-id", "", "Marketplace search detail ID")
 	catalogURL := fs.String("catalog-url", "", "Marketplace catalog URL")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -196,7 +193,7 @@ Examples:
 				return fmt.Errorf("marketplace search-details update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(detail, *output, *pretty)
+			return shared.PrintOutput(detail, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -207,8 +204,7 @@ func MarketplaceSearchDetailsDeleteCommand() *ffcli.Command {
 
 	detailID := fs.String("search-detail-id", "", "Marketplace search detail ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -248,7 +244,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
