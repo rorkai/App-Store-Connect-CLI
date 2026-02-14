@@ -247,6 +247,22 @@ func TestGenerateReview_DoesNotFallbackRawWhenScreenshotIDIsAmbiguous(t *testing
 	}
 }
 
+func TestPathOnlyURLPath_PrefixesWindowsDrivePath(t *testing.T) {
+	got := pathOnlyURLPath("C:/Users/dev/screenshots/home.png")
+	want := "/C:/Users/dev/screenshots/home.png"
+	if got != want {
+		t.Fatalf("pathOnlyURLPath() = %q, want %q", got, want)
+	}
+}
+
+func TestPathOnlyURLPath_PreservesUnixAbsolutePath(t *testing.T) {
+	got := pathOnlyURLPath("/tmp/screenshots/home.png")
+	want := "/tmp/screenshots/home.png"
+	if got != want {
+		t.Fatalf("pathOnlyURLPath() = %q, want %q", got, want)
+	}
+}
+
 func findReviewEntryByID(t *testing.T, entries []ReviewEntry, screenshotID string) ReviewEntry {
 	t.Helper()
 	for _, entry := range entries {
