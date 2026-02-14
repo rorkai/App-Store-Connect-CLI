@@ -22,10 +22,10 @@ func RootCommand(version string) *ffcli.Command {
 	root := &ffcli.Command{
 		Name:        "asc",
 		ShortUsage:  "asc <subcommand> [flags]",
-		ShortHelp:   "A fast, AI-agent friendly CLI for App Store Connect.",
-		LongHelp:    "ASC is a lightweight CLI for App Store Connect. Built for developers and AI agents.",
+		ShortHelp:   "ASC is a fast, lightweight CLI for App Store Connect. Built by AI agents, for AI agents.",
+		LongHelp:    "",
 		FlagSet:     flag.NewFlagSet("asc", flag.ExitOnError),
-		UsageFunc:   DefaultUsageFunc,
+		UsageFunc:   RootUsageFunc,
 		Subcommands: registry.Subcommands(version),
 	}
 

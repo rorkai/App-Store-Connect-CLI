@@ -1,6 +1,9 @@
 package assets
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestAssetsCommandConstructors(t *testing.T) {
 	top := AssetsCommand()
@@ -13,6 +16,9 @@ func TestAssetsCommandConstructors(t *testing.T) {
 	if len(top.Subcommands) == 0 {
 		t.Fatal("expected assets subcommands")
 	}
+	if !strings.Contains(top.ShortHelp, "app preview videos") {
+		t.Fatalf("expected assets short help to mention app preview videos, got %q", top.ShortHelp)
+	}
 
 	if got := Command(); got == nil {
 		t.Fatal("expected Command wrapper to return command")
@@ -23,5 +29,7 @@ func TestAssetsCommandConstructors(t *testing.T) {
 	}
 	if got := AssetsPreviewsCommand(); got == nil {
 		t.Fatal("expected previews command")
+	} else if !strings.Contains(got.ShortHelp, "app preview videos") {
+		t.Fatalf("expected previews short help to mention app preview videos, got %q", got.ShortHelp)
 	}
 }

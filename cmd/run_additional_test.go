@@ -86,6 +86,25 @@ func TestRun_UnknownCommandReturnsUsage(t *testing.T) {
 	}
 }
 
+func TestRun_NoArgsShowsHelpReturnsSuccess(t *testing.T) {
+	t.Setenv("ASC_NO_UPDATE", "1")
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		code := Run([]string{}, "1.0.0")
+		if code != ExitSuccess {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
+		}
+	})
+
+	if !strings.Contains(stdout, "USAGE") || !strings.Contains(stdout, "GETTING STARTED COMMANDS") {
+		t.Fatalf("expected root help in stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
 func TestRootCommand_UnknownCommandPrintsHelpError(t *testing.T) {
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{"unknown-subcommand"}); err != nil {
@@ -101,6 +120,31 @@ func TestRootCommand_UnknownCommandPrintsHelpError(t *testing.T) {
 
 	if !strings.Contains(stderr, "Unknown command: unknown-subcommand") {
 		t.Fatalf("expected unknown command output, got %q", stderr)
+	}
+}
+
+func TestRootCommand_UsageGroupsSubcommands(t *testing.T) {
+	root := RootCommand("1.2.3")
+	usage := root.UsageFunc(root)
+
+	if strings.Contains(usage, "SUBCOMMANDS") {
+		t.Fatalf("usage should not use a single SUBCOMMANDS section, got %q", usage)
+	}
+
+	if !strings.Contains(usage, "GETTING STARTED COMMANDS") {
+		t.Fatalf("expected GETTING STARTED group header, got %q", usage)
+	}
+
+	if !strings.Contains(usage, "  auth:") || !strings.Contains(usage, "  install:") || !strings.Contains(usage, "  init:") {
+		t.Fatalf("expected grouped getting started commands with gh-style spacing, got %q", usage)
+	}
+
+	if !strings.Contains(usage, "ANALYTICS & FINANCE COMMANDS") {
+		t.Fatalf("expected analytics group header, got %q", usage)
+	}
+
+	if !strings.Contains(usage, "  analytics:") || !strings.Contains(usage, "  finance:") {
+		t.Fatalf("expected grouped analytics/finance commands, got %q", usage)
 	}
 }
 

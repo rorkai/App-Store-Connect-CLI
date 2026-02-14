@@ -47,6 +47,13 @@ func Run(args []string, versionInfo string) int {
 		return ExitSuccess
 	}
 
+	// Match gh-style root invocation: plain `asc` (or only root flags)
+	// prints root help and exits successfully.
+	if !hasPositionalArgs(root.FlagSet, args) {
+		fmt.Fprint(os.Stdout, root.UsageFunc(root))
+		return ExitSuccess
+	}
+
 	updateResult, err := update.CheckAndUpdate(context.Background(), update.Options{
 		CurrentVersion: versionInfo,
 		AutoUpdate:     true,
@@ -175,6 +182,25 @@ func consumeFlagToken(fs *flag.FlagSet, token string, args []string, idx int) (i
 		return idx + 2, true
 	}
 	return idx + 1, true
+}
+
+func hasPositionalArgs(fs *flag.FlagSet, args []string) bool {
+	for i := 0; i < len(args); {
+		token := args[i]
+		if token == "" {
+			i++
+			continue
+		}
+
+		nextIdx, consumed := consumeFlagToken(fs, token, args, i)
+		if consumed {
+			i = nextIdx
+			continue
+		}
+
+		return true
+	}
+	return false
 }
 
 func splitFlagToken(token string) (name string, hasInlineValue bool) {

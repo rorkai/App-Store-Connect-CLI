@@ -15,8 +15,8 @@ func AssetsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "assets",
 		ShortUsage: "asc assets <subcommand> [flags]",
-		ShortHelp:  "Manage App Store assets (screenshots, previews).",
-		LongHelp: `Manage App Store metadata assets (screenshots and app previews).
+		ShortHelp:  "Manage App Store media assets (screenshots, app preview videos).",
+		LongHelp: `Manage App Store media assets (screenshots and app preview videos).
 
 Examples:
   asc assets screenshots list --version-localization "LOC_ID"

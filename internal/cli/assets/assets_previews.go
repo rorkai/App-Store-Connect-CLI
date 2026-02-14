@@ -22,8 +22,8 @@ func AssetsPreviewsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "previews",
 		ShortUsage: "asc assets previews <subcommand> [flags]",
-		ShortHelp:  "Manage App Store app previews.",
-		LongHelp: `Manage App Store app previews.
+		ShortHelp:  "Manage App Store app preview videos.",
+		LongHelp: `Manage App Store app preview videos.
 
 Examples:
   asc assets previews list --version-localization "LOC_ID"
