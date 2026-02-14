@@ -39,8 +39,7 @@ func CertificatesRelationshipsPassTypeIDCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pass-type-id", flag.ExitOnError)
 
 	id := fs.String("id", "", "Certificate ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "pass-type-id",
@@ -72,7 +71,7 @@ Examples:
 				return fmt.Errorf("certificates relationships pass-type-id: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
