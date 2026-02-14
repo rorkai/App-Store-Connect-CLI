@@ -5,10 +5,9 @@ package asc
 import (
 	"os"
 
-	"golang.org/x/sys/unix"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
 )
 
 func openExistingNoFollow(path string) (*os.File, error) {
-	flags := os.O_RDONLY | unix.O_NOFOLLOW
-	return os.OpenFile(path, flags, 0)
+	return secureopen.OpenExistingNoFollow(path)
 }

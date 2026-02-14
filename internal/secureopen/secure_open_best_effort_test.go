@@ -1,4 +1,4 @@
-package shared
+package secureopen
 
 import (
 	"os"
@@ -7,7 +7,9 @@ import (
 	"testing"
 )
 
-func TestOpenExistingNoFollowBestEffort_RejectsSymlink(t *testing.T) {
+func TestOpenExistingNoFollowBestEffortRejectsSymlink(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target.txt")
 	if err := os.WriteFile(target, []byte("target"), 0o600); err != nil {
@@ -28,7 +30,9 @@ func TestOpenExistingNoFollowBestEffort_RejectsSymlink(t *testing.T) {
 	}
 }
 
-func TestOpenNewFileNoFollowBestEffort_RejectsSymlink(t *testing.T) {
+func TestOpenNewFileNoFollowBestEffortRejectsSymlink(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target.txt")
 	if err := os.WriteFile(target, []byte("target"), 0o600); err != nil {
@@ -49,7 +53,9 @@ func TestOpenNewFileNoFollowBestEffort_RejectsSymlink(t *testing.T) {
 	}
 }
 
-func TestOpenExistingNoFollowBestEffort_DetectsPathSwap(t *testing.T) {
+func TestOpenExistingNoFollowBestEffortDetectsPathSwap(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	path := filepath.Join(dir, "report.txt")
 	if err := os.WriteFile(path, []byte("expected"), 0o600); err != nil {
@@ -75,7 +81,9 @@ func TestOpenExistingNoFollowBestEffort_DetectsPathSwap(t *testing.T) {
 	}
 }
 
-func TestOpenExistingNoFollowBestEffort_AllowsRegularFile(t *testing.T) {
+func TestOpenExistingNoFollowBestEffortAllowsRegularFile(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	path := filepath.Join(dir, "input.txt")
 	if err := os.WriteFile(path, []byte("hello"), 0o600); err != nil {
@@ -97,7 +105,9 @@ func TestOpenExistingNoFollowBestEffort_AllowsRegularFile(t *testing.T) {
 	}
 }
 
-func TestOpenNewFileNoFollowBestEffort_CreatesRegularFile(t *testing.T) {
+func TestOpenNewFileNoFollowBestEffortCreatesRegularFile(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	path := filepath.Join(dir, "output.txt")
 

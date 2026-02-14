@@ -2,8 +2,12 @@
 
 package asc
 
-import "os"
+import (
+	"os"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
+)
 
 func openExistingNoFollow(path string) (*os.File, error) {
-	return os.Open(path)
+	return secureopen.OpenExistingNoFollow(path)
 }

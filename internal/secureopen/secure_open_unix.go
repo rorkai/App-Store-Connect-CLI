@@ -1,20 +1,22 @@
 //go:build darwin || linux || freebsd || netbsd || openbsd || dragonfly
 
-package shared
+package secureopen
 
 import (
 	"os"
 
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
+	"golang.org/x/sys/unix"
 )
 
 // OpenNewFileNoFollow creates a new file without following symlinks.
 // Uses O_EXCL to prevent overwriting existing files and O_NOFOLLOW to prevent symlink attacks.
 func OpenNewFileNoFollow(path string, perm os.FileMode) (*os.File, error) {
-	return secureopen.OpenNewFileNoFollow(path, perm)
+	flags := os.O_WRONLY | os.O_CREATE | os.O_EXCL | unix.O_NOFOLLOW
+	return os.OpenFile(path, flags, perm)
 }
 
 // OpenExistingNoFollow opens an existing file without following symlinks.
 func OpenExistingNoFollow(path string) (*os.File, error) {
-	return secureopen.OpenExistingNoFollow(path)
+	flags := os.O_RDONLY | unix.O_NOFOLLOW
+	return os.OpenFile(path, flags, 0)
 }
