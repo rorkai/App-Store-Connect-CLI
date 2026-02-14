@@ -67,9 +67,10 @@ var debugOverride struct {
 }
 
 var (
-	loadConfigFn   = config.Load
-	loadConfigOnce sync.Once
-	cachedConfig   *config.Config
+	loadConfigFn = config.Load
+	loadConfigMu sync.Mutex
+	cachedConfig *config.Config
+	configLoaded bool
 )
 
 type debugSettings struct {
@@ -179,31 +180,42 @@ func resolveDebugValue(value string) debugSettings {
 }
 
 func loadConfig() *config.Config {
-	loadConfigOnce.Do(func() {
-		cfg, err := loadConfigFn()
-		if err != nil {
-			cachedConfig = nil
-			return
-		}
-		cachedConfig = cfg
-	})
+	loadConfigMu.Lock()
+	defer loadConfigMu.Unlock()
+
+	if configLoaded {
+		return cachedConfig
+	}
+
+	cfg, err := loadConfigFn()
+	if err != nil {
+		return nil
+	}
+	cachedConfig = cfg
+	configLoaded = true
 	return cachedConfig
 }
 
 func resetConfigCacheForTest() {
+	loadConfigMu.Lock()
+	defer loadConfigMu.Unlock()
+
 	loadConfigFn = config.Load
-	loadConfigOnce = sync.Once{}
 	cachedConfig = nil
+	configLoaded = false
 }
 
 func setConfigLoaderForTest(loader func() (*config.Config, error)) {
+	loadConfigMu.Lock()
+	defer loadConfigMu.Unlock()
+
 	if loader == nil {
 		loadConfigFn = config.Load
 	} else {
 		loadConfigFn = loader
 	}
-	loadConfigOnce = sync.Once{}
 	cachedConfig = nil
+	configLoaded = false
 }
 
 func envValue(name string) (string, bool) {
