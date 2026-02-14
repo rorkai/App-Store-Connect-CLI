@@ -372,6 +372,20 @@ func resolveFrameDeviceForConfig(frameRef, fallback string) string {
 	return trimmedFrameRef
 }
 
+// ResolveFrameDeviceFromConfig resolves the config device to a supported CLI slug.
+func ResolveFrameDeviceFromConfig(configPath, fallback string) string {
+	parsed := parseKoubouConfigMetadata(strings.TrimSpace(configPath))
+	if parsed == nil {
+		return fallback
+	}
+	resolved := resolveFrameDeviceForConfig(parsed.FrameRef, fallback)
+	device, err := ParseFrameDevice(resolved)
+	if err != nil {
+		return fallback
+	}
+	return string(device)
+}
+
 func parseKoubouConfigMetadata(configPath string) *frameExecutionMetadata {
 	type project struct {
 		Device     string `yaml:"device"`

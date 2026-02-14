@@ -246,6 +246,65 @@ screenshots:
 	}
 }
 
+func TestShotsFrame_ConfigDefaultOutputUsesConfigDeviceInFilename(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
+	writeFramePNG(t, kouFixturePath, makeRawImage(1290, 2796))
+	installMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
+
+	configPath := filepath.Join(t.TempDir(), "frame.yaml")
+	writeFile(t, configPath, `project:
+  name: "Demo"
+  output_dir: "./out"
+  device: "iPhone 17 Pro - Silver - Portrait"
+  output_size: "iPhone6_7"
+screenshots:
+  framed:
+    content:
+      - type: "image"
+        asset: "screenshots/raw.png"
+        frame: true
+`)
+
+	outputDir := filepath.Join(t.TempDir(), "framed")
+	root := RootCommand("1.2.3")
+	if err := root.Parse([]string{
+		"shots", "frame",
+		"--config", configPath,
+		"--output-dir", outputDir,
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result struct {
+		Path   string `json:"path"`
+		Device string `json:"device"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal frame output: %v\nstdout=%q", err, stdout)
+	}
+
+	wantPath := filepath.Join(outputDir, "screenshot-iphone-17-pro.png")
+	if result.Path != wantPath {
+		t.Fatalf("result.Path = %q, want %q", result.Path, wantPath)
+	}
+	if result.Device != "iphone-17-pro" {
+		t.Fatalf("result.Device = %q, want %q", result.Device, "iphone-17-pro")
+	}
+}
+
 func installMockKou(t *testing.T, fixturePath, outputPath string) {
 	t.Helper()
 

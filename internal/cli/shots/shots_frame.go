@@ -67,7 +67,12 @@ Use either --input (auto-generated Koubou config) or --config (explicit Koubou Y
 				}
 			}
 
-			outPath, err := resolveOutputPath(*outputPath, *outputDir, *name, absInput, string(deviceVal))
+			outputDevice := string(deviceVal)
+			if configVal != "" && strings.TrimSpace(*outputPath) == "" {
+				outputDevice = screenshots.ResolveFrameDeviceFromConfig(configVal, outputDevice)
+			}
+
+			outPath, err := resolveOutputPath(*outputPath, *outputDir, *name, absInput, outputDevice)
 			if err != nil {
 				return fmt.Errorf("shots frame: %w", err)
 			}
