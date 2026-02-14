@@ -24,8 +24,7 @@ func ReviewSubmissionsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-list",
@@ -102,7 +101,7 @@ Examples:
 						return fmt.Errorf("review submissions-list: %w", err)
 					}
 
-					return shared.PrintOutput(resp, *output, *pretty)
+					return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 				}
 
 				resp, err := client.ListReviewSubmissions(requestCtx, opts...)
@@ -110,7 +109,7 @@ Examples:
 					return fmt.Errorf("review submissions-list: failed to fetch: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			if *paginate {
@@ -127,7 +126,7 @@ Examples:
 					return fmt.Errorf("review submissions-list: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetReviewSubmissions(requestCtx, resolvedAppID, opts...)
@@ -135,7 +134,7 @@ Examples:
 				return fmt.Errorf("review submissions-list: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -145,8 +144,7 @@ func ReviewSubmissionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submissions-get", flag.ExitOnError)
 
 	submissionID := fs.String("id", "", "Review submission ID (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-get",
@@ -177,7 +175,7 @@ Examples:
 				return fmt.Errorf("review submissions-get: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -188,8 +186,7 @@ func ReviewSubmissionsCreateCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-create",
@@ -226,7 +223,7 @@ Examples:
 				return fmt.Errorf("review submissions-create: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -237,8 +234,7 @@ func ReviewSubmissionsUpdateCommand() *ffcli.Command {
 
 	submissionID := fs.String("id", "", "Review submission ID (required)")
 	canceled := fs.Bool("canceled", false, "Cancel submission (true/false)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-update",
@@ -283,7 +279,7 @@ Examples:
 				return fmt.Errorf("review submissions-update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -294,8 +290,7 @@ func ReviewSubmissionsSubmitCommand() *ffcli.Command {
 
 	submissionID := fs.String("id", "", "Review submission ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-submit",
@@ -330,7 +325,7 @@ Examples:
 				return fmt.Errorf("review submissions-submit: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -341,8 +336,7 @@ func ReviewSubmissionsCancelCommand() *ffcli.Command {
 
 	submissionID := fs.String("id", "", "Review submission ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm cancellation (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-cancel",
@@ -377,7 +371,7 @@ Examples:
 				return fmt.Errorf("review submissions-cancel: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -390,8 +384,7 @@ func ReviewSubmissionsItemsIDsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-items-ids",
@@ -444,7 +437,7 @@ Examples:
 					return fmt.Errorf("review submissions-items-ids: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetReviewSubmissionItemsRelationships(requestCtx, trimmedID, opts...)
@@ -452,7 +445,7 @@ Examples:
 				return fmt.Errorf("review submissions-items-ids: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
