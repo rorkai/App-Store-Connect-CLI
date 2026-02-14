@@ -156,41 +156,25 @@ func init() {
 	registerRows(inAppPurchasePriceScheduleRows)
 	registerRows(inAppPurchaseReviewScreenshotRows)
 	registerRows(appEventsRows)
-	registerRowsAdapter(func(v *AppEventResponse) *AppEventsResponse {
-		return &AppEventsResponse{Data: []Resource[AppEventAttributes]{v.Data}}
-	}, appEventsRows)
+	registerSingleResourceRowsAdapter(appEventsRows)
 	registerRows(appEventLocalizationsRows)
-	registerRowsAdapter(func(v *AppEventLocalizationResponse) *AppEventLocalizationsResponse {
-		return &AppEventLocalizationsResponse{Data: []Resource[AppEventLocalizationAttributes]{v.Data}}
-	}, appEventLocalizationsRows)
+	registerSingleResourceRowsAdapter(appEventLocalizationsRows)
 	registerRows(appEventScreenshotsRows)
-	registerRowsAdapter(func(v *AppEventScreenshotResponse) *AppEventScreenshotsResponse {
-		return &AppEventScreenshotsResponse{Data: []Resource[AppEventScreenshotAttributes]{v.Data}}
-	}, appEventScreenshotsRows)
+	registerSingleResourceRowsAdapter(appEventScreenshotsRows)
 	registerRows(appEventVideoClipsRows)
-	registerRowsAdapter(func(v *AppEventVideoClipResponse) *AppEventVideoClipsResponse {
-		return &AppEventVideoClipsResponse{Data: []Resource[AppEventVideoClipAttributes]{v.Data}}
-	}, appEventVideoClipsRows)
+	registerSingleResourceRowsAdapter(appEventVideoClipsRows)
 	registerRows(subscriptionGroupsRows)
-	registerRowsAdapter(func(v *SubscriptionGroupResponse) *SubscriptionGroupsResponse {
-		return &SubscriptionGroupsResponse{Data: []Resource[SubscriptionGroupAttributes]{v.Data}}
-	}, subscriptionGroupsRows)
+	registerSingleResourceRowsAdapter(subscriptionGroupsRows)
 	registerRows(subscriptionsRows)
-	registerRowsAdapter(func(v *SubscriptionResponse) *SubscriptionsResponse {
-		return &SubscriptionsResponse{Data: []Resource[SubscriptionAttributes]{v.Data}}
-	}, subscriptionsRows)
+	registerSingleResourceRowsAdapter(subscriptionsRows)
 	registerRows(promotedPurchasesRows)
-	registerRowsAdapter(func(v *PromotedPurchaseResponse) *PromotedPurchasesResponse {
-		return &PromotedPurchasesResponse{Data: []Resource[PromotedPurchaseAttributes]{v.Data}}
-	}, promotedPurchasesRows)
+	registerSingleResourceRowsAdapter(promotedPurchasesRows)
 	registerRowsErr(subscriptionPricesRows)
 	registerRows(subscriptionPriceRows)
 	registerRows(subscriptionAvailabilityRows)
 	registerRows(subscriptionGracePeriodRows)
 	registerRows(territoriesRows)
-	registerRowsAdapter(func(v *TerritoryResponse) *TerritoriesResponse {
-		return &TerritoriesResponse{Data: []Resource[TerritoryAttributes]{v.Data}}
-	}, territoriesRows)
+	registerSingleResourceRowsAdapter(territoriesRows)
 	registerRowsErr(territoryAgeRatingsRows)
 	registerRows(offerCodeValuesRows)
 	registerRows(appPricePointsRows)
@@ -200,39 +184,25 @@ func init() {
 	registerRows(buildBundlesRows)
 	registerRows(buildBundleFileSizesRows)
 	registerRows(betaAppClipInvocationsRows)
-	registerRowsAdapter(func(v *BetaAppClipInvocationResponse) *BetaAppClipInvocationsResponse {
-		return &BetaAppClipInvocationsResponse{Data: []Resource[BetaAppClipInvocationAttributes]{v.Data}}
-	}, betaAppClipInvocationsRows)
+	registerSingleResourceRowsAdapter(betaAppClipInvocationsRows)
 	registerRows(betaAppClipInvocationLocalizationsRows)
-	registerRowsAdapter(func(v *BetaAppClipInvocationLocalizationResponse) *BetaAppClipInvocationLocalizationsResponse {
-		return &BetaAppClipInvocationLocalizationsResponse{Data: []Resource[BetaAppClipInvocationLocalizationAttributes]{v.Data}}
-	}, betaAppClipInvocationLocalizationsRows)
+	registerSingleResourceRowsAdapter(betaAppClipInvocationLocalizationsRows)
 	registerRows(offerCodesRows)
 	registerRows(offerCodeCustomCodesRows)
 	registerRows(subscriptionOfferCodeRows)
 	registerRows(winBackOffersRows)
-	registerRowsAdapter(func(v *WinBackOfferResponse) *WinBackOffersResponse {
-		return &WinBackOffersResponse{Data: []Resource[WinBackOfferAttributes]{v.Data}}
-	}, winBackOffersRows)
+	registerSingleResourceRowsAdapter(winBackOffersRows)
 	registerRowsErr(winBackOfferPricesRows)
 	registerRows(appStoreVersionsRows)
-	registerRowsAdapter(func(v *AppStoreVersionResponse) *AppStoreVersionsResponse {
-		return &AppStoreVersionsResponse{Data: []Resource[AppStoreVersionAttributes]{v.Data}}
-	}, appStoreVersionsRows)
+	registerSingleResourceRowsAdapter(appStoreVersionsRows)
 	registerRows(preReleaseVersionsRows)
-	registerRowsAdapter(func(v *BuildResponse) *BuildsResponse {
-		return &BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}}
-	}, buildsRows)
+	registerSingleResourceRowsAdapter(buildsRows)
 	registerRows(buildIconsRows)
 	registerRows(buildUploadsRows)
 	registerRows(buildsLatestNextRows)
-	registerRowsAdapter(func(v *BuildUploadResponse) *BuildUploadsResponse {
-		return &BuildUploadsResponse{Data: []Resource[BuildUploadAttributes]{v.Data}}
-	}, buildUploadsRows)
+	registerSingleResourceRowsAdapter(buildUploadsRows)
 	registerRows(buildUploadFilesRows)
-	registerRowsAdapter(func(v *BuildUploadFileResponse) *BuildUploadFilesResponse {
-		return &BuildUploadFilesResponse{Data: []Resource[BuildUploadFileAttributes]{v.Data}}
-	}, buildUploadFilesRows)
+	registerSingleResourceRowsAdapter(buildUploadFilesRows)
 	registerDirect(func(v *AppClipDomainStatusResult, render func([]string, [][]string)) error {
 		h, r := appClipDomainStatusMainRows(v)
 		render(h, r)
@@ -258,73 +228,41 @@ func init() {
 		return &PreReleaseVersionsResponse{Data: []PreReleaseVersion{v.Data}}
 	}, preReleaseVersionsRows)
 	registerRows(appStoreVersionLocalizationsRows)
-	registerRowsAdapter(func(v *AppStoreVersionLocalizationResponse) *AppStoreVersionLocalizationsResponse {
-		return &AppStoreVersionLocalizationsResponse{Data: []Resource[AppStoreVersionLocalizationAttributes]{v.Data}}
-	}, appStoreVersionLocalizationsRows)
+	registerSingleResourceRowsAdapter(appStoreVersionLocalizationsRows)
 	registerRows(betaAppLocalizationsRows)
-	registerRowsAdapter(func(v *BetaAppLocalizationResponse) *BetaAppLocalizationsResponse {
-		return &BetaAppLocalizationsResponse{Data: []Resource[BetaAppLocalizationAttributes]{v.Data}}
-	}, betaAppLocalizationsRows)
+	registerSingleResourceRowsAdapter(betaAppLocalizationsRows)
 	registerRows(betaBuildLocalizationsRows)
-	registerRowsAdapter(func(v *BetaBuildLocalizationResponse) *BetaBuildLocalizationsResponse {
-		return &BetaBuildLocalizationsResponse{Data: []Resource[BetaBuildLocalizationAttributes]{v.Data}}
-	}, betaBuildLocalizationsRows)
+	registerSingleResourceRowsAdapter(betaBuildLocalizationsRows)
 	registerRows(appInfoLocalizationsRows)
 	registerRows(appScreenshotSetsRows)
-	registerRowsAdapter(func(v *AppScreenshotSetResponse) *AppScreenshotSetsResponse {
-		return &AppScreenshotSetsResponse{Data: []Resource[AppScreenshotSetAttributes]{v.Data}}
-	}, appScreenshotSetsRows)
+	registerSingleResourceRowsAdapter(appScreenshotSetsRows)
 	registerRows(appScreenshotsRows)
-	registerRowsAdapter(func(v *AppScreenshotResponse) *AppScreenshotsResponse {
-		return &AppScreenshotsResponse{Data: []Resource[AppScreenshotAttributes]{v.Data}}
-	}, appScreenshotsRows)
+	registerSingleResourceRowsAdapter(appScreenshotsRows)
 	registerRows(appPreviewSetsRows)
-	registerRowsAdapter(func(v *AppPreviewSetResponse) *AppPreviewSetsResponse {
-		return &AppPreviewSetsResponse{Data: []Resource[AppPreviewSetAttributes]{v.Data}}
-	}, appPreviewSetsRows)
+	registerSingleResourceRowsAdapter(appPreviewSetsRows)
 	registerRows(appPreviewsRows)
-	registerRowsAdapter(func(v *AppPreviewResponse) *AppPreviewsResponse {
-		return &AppPreviewsResponse{Data: []Resource[AppPreviewAttributes]{v.Data}}
-	}, appPreviewsRows)
+	registerSingleResourceRowsAdapter(appPreviewsRows)
 	registerRows(betaGroupsRows)
-	registerRowsAdapter(func(v *BetaGroupResponse) *BetaGroupsResponse {
-		return &BetaGroupsResponse{Data: []Resource[BetaGroupAttributes]{v.Data}}
-	}, betaGroupsRows)
+	registerSingleResourceRowsAdapter(betaGroupsRows)
 	registerRows(betaTestersRows)
-	registerRowsAdapter(func(v *BetaTesterResponse) *BetaTestersResponse {
-		return &BetaTestersResponse{Data: []Resource[BetaTesterAttributes]{v.Data}}
-	}, betaTestersRows)
+	registerSingleResourceRowsAdapter(betaTestersRows)
 	registerRows(usersRows)
-	registerRowsAdapter(func(v *UserResponse) *UsersResponse {
-		return &UsersResponse{Data: []Resource[UserAttributes]{v.Data}}
-	}, usersRows)
+	registerSingleResourceRowsAdapter(usersRows)
 	registerRows(actorsRows)
-	registerRowsAdapter(func(v *ActorResponse) *ActorsResponse {
-		return &ActorsResponse{Data: []Resource[ActorAttributes]{v.Data}}
-	}, actorsRows)
+	registerSingleResourceRowsAdapter(actorsRows)
 	registerRows(devicesRows)
 	registerRows(deviceLocalUDIDRows)
-	registerRowsAdapter(func(v *DeviceResponse) *DevicesResponse {
-		return &DevicesResponse{Data: []Resource[DeviceAttributes]{v.Data}}
-	}, devicesRows)
+	registerSingleResourceRowsAdapter(devicesRows)
 	registerRows(userInvitationsRows)
-	registerRowsAdapter(func(v *UserInvitationResponse) *UserInvitationsResponse {
-		return &UserInvitationsResponse{Data: []Resource[UserInvitationAttributes]{v.Data}}
-	}, userInvitationsRows)
+	registerSingleResourceRowsAdapter(userInvitationsRows)
 	registerRows(userDeleteResultRows)
 	registerRows(userInvitationRevokeResultRows)
 	registerRows(betaAppReviewDetailsRows)
-	registerRowsAdapter(func(v *BetaAppReviewDetailResponse) *BetaAppReviewDetailsResponse {
-		return &BetaAppReviewDetailsResponse{Data: []Resource[BetaAppReviewDetailAttributes]{v.Data}}
-	}, betaAppReviewDetailsRows)
+	registerSingleResourceRowsAdapter(betaAppReviewDetailsRows)
 	registerRows(betaAppReviewSubmissionsRows)
-	registerRowsAdapter(func(v *BetaAppReviewSubmissionResponse) *BetaAppReviewSubmissionsResponse {
-		return &BetaAppReviewSubmissionsResponse{Data: []Resource[BetaAppReviewSubmissionAttributes]{v.Data}}
-	}, betaAppReviewSubmissionsRows)
+	registerSingleResourceRowsAdapter(betaAppReviewSubmissionsRows)
 	registerRows(buildBetaDetailsRows)
-	registerRowsAdapter(func(v *BuildBetaDetailResponse) *BuildBetaDetailsResponse {
-		return &BuildBetaDetailsResponse{Data: []Resource[BuildBetaDetailAttributes]{v.Data}}
-	}, buildBetaDetailsRows)
+	registerSingleResourceRowsAdapter(buildBetaDetailsRows)
 	registerRows(betaLicenseAgreementsRows)
 	registerRowsAdapter(func(v *BetaLicenseAgreementResponse) *BetaLicenseAgreementsResponse {
 		return &BetaLicenseAgreementsResponse{Data: []BetaLicenseAgreementResource{v.Data}}
@@ -346,13 +284,9 @@ func init() {
 	registerRows(betaRecruitmentCriteriaDeleteResultRows)
 	registerResponseDataRows(betaGroupMetricsRows)
 	registerRows(sandboxTestersRows)
-	registerRowsAdapter(func(v *SandboxTesterResponse) *SandboxTestersResponse {
-		return &SandboxTestersResponse{Data: []Resource[SandboxTesterAttributes]{v.Data}}
-	}, sandboxTestersRows)
+	registerSingleResourceRowsAdapter(sandboxTestersRows)
 	registerRows(bundleIDCapabilitiesRows)
-	registerRowsAdapter(func(v *BundleIDCapabilityResponse) *BundleIDCapabilitiesResponse {
-		return &BundleIDCapabilitiesResponse{Data: []Resource[BundleIDCapabilityAttributes]{v.Data}}
-	}, bundleIDCapabilitiesRows)
+	registerSingleResourceRowsAdapter(bundleIDCapabilitiesRows)
 	registerRows(localizationDownloadResultRows)
 	registerRows(localizationUploadResultRows)
 	registerDirect(func(v *BuildUploadResult, render func([]string, [][]string)) error {
@@ -448,63 +382,39 @@ func init() {
 	registerRows(appEventLocalizationDeleteResultRows)
 	registerRows(appEventSubmissionResultRows)
 	registerRows(gameCenterAchievementsRows)
-	registerRowsAdapter(func(v *GameCenterAchievementResponse) *GameCenterAchievementsResponse {
-		return &GameCenterAchievementsResponse{Data: []Resource[GameCenterAchievementAttributes]{v.Data}}
-	}, gameCenterAchievementsRows)
+	registerSingleResourceRowsAdapter(gameCenterAchievementsRows)
 	registerRows(gameCenterAchievementDeleteResultRows)
 	registerRows(gameCenterAchievementVersionsRows)
-	registerRowsAdapter(func(v *GameCenterAchievementVersionResponse) *GameCenterAchievementVersionsResponse {
-		return &GameCenterAchievementVersionsResponse{Data: []Resource[GameCenterAchievementVersionAttributes]{v.Data}}
-	}, gameCenterAchievementVersionsRows)
+	registerSingleResourceRowsAdapter(gameCenterAchievementVersionsRows)
 	registerRows(gameCenterLeaderboardsRows)
-	registerRowsAdapter(func(v *GameCenterLeaderboardResponse) *GameCenterLeaderboardsResponse {
-		return &GameCenterLeaderboardsResponse{Data: []Resource[GameCenterLeaderboardAttributes]{v.Data}}
-	}, gameCenterLeaderboardsRows)
+	registerSingleResourceRowsAdapter(gameCenterLeaderboardsRows)
 	registerRows(gameCenterLeaderboardDeleteResultRows)
 	registerRows(gameCenterLeaderboardVersionsRows)
-	registerRowsAdapter(func(v *GameCenterLeaderboardVersionResponse) *GameCenterLeaderboardVersionsResponse {
-		return &GameCenterLeaderboardVersionsResponse{Data: []Resource[GameCenterLeaderboardVersionAttributes]{v.Data}}
-	}, gameCenterLeaderboardVersionsRows)
+	registerSingleResourceRowsAdapter(gameCenterLeaderboardVersionsRows)
 	registerRows(gameCenterLeaderboardSetsRows)
-	registerRowsAdapter(func(v *GameCenterLeaderboardSetResponse) *GameCenterLeaderboardSetsResponse {
-		return &GameCenterLeaderboardSetsResponse{Data: []Resource[GameCenterLeaderboardSetAttributes]{v.Data}}
-	}, gameCenterLeaderboardSetsRows)
+	registerSingleResourceRowsAdapter(gameCenterLeaderboardSetsRows)
 	registerRows(gameCenterLeaderboardSetDeleteResultRows)
 	registerRows(gameCenterLeaderboardSetVersionsRows)
-	registerRowsAdapter(func(v *GameCenterLeaderboardSetVersionResponse) *GameCenterLeaderboardSetVersionsResponse {
-		return &GameCenterLeaderboardSetVersionsResponse{Data: []Resource[GameCenterLeaderboardSetVersionAttributes]{v.Data}}
-	}, gameCenterLeaderboardSetVersionsRows)
+	registerSingleResourceRowsAdapter(gameCenterLeaderboardSetVersionsRows)
 	registerRows(gameCenterLeaderboardLocalizationsRows)
-	registerRowsAdapter(func(v *GameCenterLeaderboardLocalizationResponse) *GameCenterLeaderboardLocalizationsResponse {
-		return &GameCenterLeaderboardLocalizationsResponse{Data: []Resource[GameCenterLeaderboardLocalizationAttributes]{v.Data}}
-	}, gameCenterLeaderboardLocalizationsRows)
+	registerSingleResourceRowsAdapter(gameCenterLeaderboardLocalizationsRows)
 	registerRows(gameCenterLeaderboardLocalizationDeleteResultRows)
 	registerRows(gameCenterLeaderboardReleasesRows)
-	registerRowsAdapter(func(v *GameCenterLeaderboardReleaseResponse) *GameCenterLeaderboardReleasesResponse {
-		return &GameCenterLeaderboardReleasesResponse{Data: []Resource[GameCenterLeaderboardReleaseAttributes]{v.Data}}
-	}, gameCenterLeaderboardReleasesRows)
+	registerSingleResourceRowsAdapter(gameCenterLeaderboardReleasesRows)
 	registerRows(gameCenterLeaderboardReleaseDeleteResultRows)
 	registerRows(gameCenterLeaderboardEntrySubmissionRows)
 	registerRows(gameCenterPlayerAchievementSubmissionRows)
 	registerRows(gameCenterLeaderboardSetReleasesRows)
-	registerRowsAdapter(func(v *GameCenterLeaderboardSetReleaseResponse) *GameCenterLeaderboardSetReleasesResponse {
-		return &GameCenterLeaderboardSetReleasesResponse{Data: []Resource[GameCenterLeaderboardSetReleaseAttributes]{v.Data}}
-	}, gameCenterLeaderboardSetReleasesRows)
+	registerSingleResourceRowsAdapter(gameCenterLeaderboardSetReleasesRows)
 	registerRows(gameCenterLeaderboardSetReleaseDeleteResultRows)
 	registerRows(gameCenterLeaderboardSetLocalizationsRows)
-	registerRowsAdapter(func(v *GameCenterLeaderboardSetLocalizationResponse) *GameCenterLeaderboardSetLocalizationsResponse {
-		return &GameCenterLeaderboardSetLocalizationsResponse{Data: []Resource[GameCenterLeaderboardSetLocalizationAttributes]{v.Data}}
-	}, gameCenterLeaderboardSetLocalizationsRows)
+	registerSingleResourceRowsAdapter(gameCenterLeaderboardSetLocalizationsRows)
 	registerRows(gameCenterLeaderboardSetLocalizationDeleteResultRows)
 	registerRows(gameCenterAchievementReleasesRows)
-	registerRowsAdapter(func(v *GameCenterAchievementReleaseResponse) *GameCenterAchievementReleasesResponse {
-		return &GameCenterAchievementReleasesResponse{Data: []Resource[GameCenterAchievementReleaseAttributes]{v.Data}}
-	}, gameCenterAchievementReleasesRows)
+	registerSingleResourceRowsAdapter(gameCenterAchievementReleasesRows)
 	registerRows(gameCenterAchievementReleaseDeleteResultRows)
 	registerRows(gameCenterAchievementLocalizationsRows)
-	registerRowsAdapter(func(v *GameCenterAchievementLocalizationResponse) *GameCenterAchievementLocalizationsResponse {
-		return &GameCenterAchievementLocalizationsResponse{Data: []Resource[GameCenterAchievementLocalizationAttributes]{v.Data}}
-	}, gameCenterAchievementLocalizationsRows)
+	registerSingleResourceRowsAdapter(gameCenterAchievementLocalizationsRows)
 	registerRows(gameCenterAchievementLocalizationDeleteResultRows)
 	registerRows(gameCenterLeaderboardImageUploadResultRows)
 	registerRows(gameCenterLeaderboardImageDeleteResultRows)
@@ -513,88 +423,54 @@ func init() {
 	registerRows(gameCenterLeaderboardSetImageUploadResultRows)
 	registerRows(gameCenterLeaderboardSetImageDeleteResultRows)
 	registerRows(gameCenterChallengesRows)
-	registerRowsAdapter(func(v *GameCenterChallengeResponse) *GameCenterChallengesResponse {
-		return &GameCenterChallengesResponse{Data: []Resource[GameCenterChallengeAttributes]{v.Data}}
-	}, gameCenterChallengesRows)
+	registerSingleResourceRowsAdapter(gameCenterChallengesRows)
 	registerRows(gameCenterChallengeDeleteResultRows)
 	registerRows(gameCenterChallengeVersionsRows)
-	registerRowsAdapter(func(v *GameCenterChallengeVersionResponse) *GameCenterChallengeVersionsResponse {
-		return &GameCenterChallengeVersionsResponse{Data: []Resource[GameCenterChallengeVersionAttributes]{v.Data}}
-	}, gameCenterChallengeVersionsRows)
+	registerSingleResourceRowsAdapter(gameCenterChallengeVersionsRows)
 	registerRows(gameCenterChallengeLocalizationsRows)
-	registerRowsAdapter(func(v *GameCenterChallengeLocalizationResponse) *GameCenterChallengeLocalizationsResponse {
-		return &GameCenterChallengeLocalizationsResponse{Data: []Resource[GameCenterChallengeLocalizationAttributes]{v.Data}}
-	}, gameCenterChallengeLocalizationsRows)
+	registerSingleResourceRowsAdapter(gameCenterChallengeLocalizationsRows)
 	registerRows(gameCenterChallengeLocalizationDeleteResultRows)
 	registerRows(gameCenterChallengeImagesRows)
-	registerRowsAdapter(func(v *GameCenterChallengeImageResponse) *GameCenterChallengeImagesResponse {
-		return &GameCenterChallengeImagesResponse{Data: []Resource[GameCenterChallengeImageAttributes]{v.Data}}
-	}, gameCenterChallengeImagesRows)
+	registerSingleResourceRowsAdapter(gameCenterChallengeImagesRows)
 	registerRows(gameCenterChallengeImageUploadResultRows)
 	registerRows(gameCenterChallengeImageDeleteResultRows)
 	registerRows(gameCenterChallengeReleasesRows)
-	registerRowsAdapter(func(v *GameCenterChallengeVersionReleaseResponse) *GameCenterChallengeVersionReleasesResponse {
-		return &GameCenterChallengeVersionReleasesResponse{Data: []Resource[GameCenterChallengeVersionReleaseAttributes]{v.Data}}
-	}, gameCenterChallengeReleasesRows)
+	registerSingleResourceRowsAdapter(gameCenterChallengeReleasesRows)
 	registerRows(gameCenterChallengeReleaseDeleteResultRows)
 	registerRows(gameCenterActivitiesRows)
-	registerRowsAdapter(func(v *GameCenterActivityResponse) *GameCenterActivitiesResponse {
-		return &GameCenterActivitiesResponse{Data: []Resource[GameCenterActivityAttributes]{v.Data}}
-	}, gameCenterActivitiesRows)
+	registerSingleResourceRowsAdapter(gameCenterActivitiesRows)
 	registerRows(gameCenterActivityDeleteResultRows)
 	registerRows(gameCenterActivityVersionsRows)
-	registerRowsAdapter(func(v *GameCenterActivityVersionResponse) *GameCenterActivityVersionsResponse {
-		return &GameCenterActivityVersionsResponse{Data: []Resource[GameCenterActivityVersionAttributes]{v.Data}}
-	}, gameCenterActivityVersionsRows)
+	registerSingleResourceRowsAdapter(gameCenterActivityVersionsRows)
 	registerRows(gameCenterActivityLocalizationsRows)
-	registerRowsAdapter(func(v *GameCenterActivityLocalizationResponse) *GameCenterActivityLocalizationsResponse {
-		return &GameCenterActivityLocalizationsResponse{Data: []Resource[GameCenterActivityLocalizationAttributes]{v.Data}}
-	}, gameCenterActivityLocalizationsRows)
+	registerSingleResourceRowsAdapter(gameCenterActivityLocalizationsRows)
 	registerRows(gameCenterActivityLocalizationDeleteResultRows)
 	registerRows(gameCenterActivityImagesRows)
-	registerRowsAdapter(func(v *GameCenterActivityImageResponse) *GameCenterActivityImagesResponse {
-		return &GameCenterActivityImagesResponse{Data: []Resource[GameCenterActivityImageAttributes]{v.Data}}
-	}, gameCenterActivityImagesRows)
+	registerSingleResourceRowsAdapter(gameCenterActivityImagesRows)
 	registerRows(gameCenterActivityImageUploadResultRows)
 	registerRows(gameCenterActivityImageDeleteResultRows)
 	registerRows(gameCenterActivityReleasesRows)
-	registerRowsAdapter(func(v *GameCenterActivityVersionReleaseResponse) *GameCenterActivityVersionReleasesResponse {
-		return &GameCenterActivityVersionReleasesResponse{Data: []Resource[GameCenterActivityVersionReleaseAttributes]{v.Data}}
-	}, gameCenterActivityReleasesRows)
+	registerSingleResourceRowsAdapter(gameCenterActivityReleasesRows)
 	registerRows(gameCenterActivityReleaseDeleteResultRows)
 	registerRows(gameCenterGroupsRows)
-	registerRowsAdapter(func(v *GameCenterGroupResponse) *GameCenterGroupsResponse {
-		return &GameCenterGroupsResponse{Data: []Resource[GameCenterGroupAttributes]{v.Data}}
-	}, gameCenterGroupsRows)
+	registerSingleResourceRowsAdapter(gameCenterGroupsRows)
 	registerRows(gameCenterGroupDeleteResultRows)
 	registerRows(gameCenterAppVersionsRows)
-	registerRowsAdapter(func(v *GameCenterAppVersionResponse) *GameCenterAppVersionsResponse {
-		return &GameCenterAppVersionsResponse{Data: []Resource[GameCenterAppVersionAttributes]{v.Data}}
-	}, gameCenterAppVersionsRows)
+	registerSingleResourceRowsAdapter(gameCenterAppVersionsRows)
 	registerRows(gameCenterEnabledVersionsRows)
 	registerRows(gameCenterDetailsRows)
-	registerRowsAdapter(func(v *GameCenterDetailResponse) *GameCenterDetailsResponse {
-		return &GameCenterDetailsResponse{Data: []Resource[GameCenterDetailAttributes]{v.Data}}
-	}, gameCenterDetailsRows)
+	registerSingleResourceRowsAdapter(gameCenterDetailsRows)
 	registerRows(gameCenterMatchmakingQueuesRows)
-	registerRowsAdapter(func(v *GameCenterMatchmakingQueueResponse) *GameCenterMatchmakingQueuesResponse {
-		return &GameCenterMatchmakingQueuesResponse{Data: []Resource[GameCenterMatchmakingQueueAttributes]{v.Data}}
-	}, gameCenterMatchmakingQueuesRows)
+	registerSingleResourceRowsAdapter(gameCenterMatchmakingQueuesRows)
 	registerRows(gameCenterMatchmakingQueueDeleteResultRows)
 	registerRows(gameCenterMatchmakingRuleSetsRows)
-	registerRowsAdapter(func(v *GameCenterMatchmakingRuleSetResponse) *GameCenterMatchmakingRuleSetsResponse {
-		return &GameCenterMatchmakingRuleSetsResponse{Data: []Resource[GameCenterMatchmakingRuleSetAttributes]{v.Data}}
-	}, gameCenterMatchmakingRuleSetsRows)
+	registerSingleResourceRowsAdapter(gameCenterMatchmakingRuleSetsRows)
 	registerRows(gameCenterMatchmakingRuleSetDeleteResultRows)
 	registerRows(gameCenterMatchmakingRulesRows)
-	registerRowsAdapter(func(v *GameCenterMatchmakingRuleResponse) *GameCenterMatchmakingRulesResponse {
-		return &GameCenterMatchmakingRulesResponse{Data: []Resource[GameCenterMatchmakingRuleAttributes]{v.Data}}
-	}, gameCenterMatchmakingRulesRows)
+	registerSingleResourceRowsAdapter(gameCenterMatchmakingRulesRows)
 	registerRows(gameCenterMatchmakingRuleDeleteResultRows)
 	registerRows(gameCenterMatchmakingTeamsRows)
-	registerRowsAdapter(func(v *GameCenterMatchmakingTeamResponse) *GameCenterMatchmakingTeamsResponse {
-		return &GameCenterMatchmakingTeamsResponse{Data: []Resource[GameCenterMatchmakingTeamAttributes]{v.Data}}
-	}, gameCenterMatchmakingTeamsRows)
+	registerSingleResourceRowsAdapter(gameCenterMatchmakingTeamsRows)
 	registerRows(gameCenterMatchmakingTeamDeleteResultRows)
 	registerRows(gameCenterMetricsRows)
 	registerRows(gameCenterMatchmakingRuleSetTestRows)
@@ -689,9 +565,7 @@ func init() {
 	registerRows(nominationDeleteResultRows)
 	registerRows(appEncryptionDeclarationBuildsUpdateResultRows)
 	registerRows(androidToIosAppMappingDetailsRows)
-	registerRowsAdapter(func(v *AndroidToIosAppMappingDetailResponse) *AndroidToIosAppMappingDetailsResponse {
-		return &AndroidToIosAppMappingDetailsResponse{Data: []Resource[AndroidToIosAppMappingDetailAttributes]{v.Data}}
-	}, androidToIosAppMappingDetailsRows)
+	registerSingleResourceRowsAdapter(androidToIosAppMappingDetailsRows)
 	registerRows(androidToIosAppMappingDeleteResultRows)
 	registerIDBoolRows(func(v *AlternativeDistributionDomainDeleteResult) (string, bool) {
 		return v.ID, v.Deleted
@@ -700,34 +574,20 @@ func init() {
 		return v.ID, v.Deleted
 	}, alternativeDistributionDeleteResultRows)
 	registerRows(appCustomProductPagesRows)
-	registerRowsAdapter(func(v *AppCustomProductPageResponse) *AppCustomProductPagesResponse {
-		return &AppCustomProductPagesResponse{Data: []Resource[AppCustomProductPageAttributes]{v.Data}}
-	}, appCustomProductPagesRows)
+	registerSingleResourceRowsAdapter(appCustomProductPagesRows)
 	registerRows(appCustomProductPageVersionsRows)
-	registerRowsAdapter(func(v *AppCustomProductPageVersionResponse) *AppCustomProductPageVersionsResponse {
-		return &AppCustomProductPageVersionsResponse{Data: []Resource[AppCustomProductPageVersionAttributes]{v.Data}}
-	}, appCustomProductPageVersionsRows)
+	registerSingleResourceRowsAdapter(appCustomProductPageVersionsRows)
 	registerRows(appCustomProductPageLocalizationsRows)
-	registerRowsAdapter(func(v *AppCustomProductPageLocalizationResponse) *AppCustomProductPageLocalizationsResponse {
-		return &AppCustomProductPageLocalizationsResponse{Data: []Resource[AppCustomProductPageLocalizationAttributes]{v.Data}}
-	}, appCustomProductPageLocalizationsRows)
+	registerSingleResourceRowsAdapter(appCustomProductPageLocalizationsRows)
 	registerRows(appKeywordsRows)
 	registerRows(appStoreVersionExperimentsRows)
-	registerRowsAdapter(func(v *AppStoreVersionExperimentResponse) *AppStoreVersionExperimentsResponse {
-		return &AppStoreVersionExperimentsResponse{Data: []Resource[AppStoreVersionExperimentAttributes]{v.Data}}
-	}, appStoreVersionExperimentsRows)
+	registerSingleResourceRowsAdapter(appStoreVersionExperimentsRows)
 	registerRows(appStoreVersionExperimentsV2Rows)
-	registerRowsAdapter(func(v *AppStoreVersionExperimentV2Response) *AppStoreVersionExperimentsV2Response {
-		return &AppStoreVersionExperimentsV2Response{Data: []Resource[AppStoreVersionExperimentV2Attributes]{v.Data}}
-	}, appStoreVersionExperimentsV2Rows)
+	registerSingleResourceRowsAdapter(appStoreVersionExperimentsV2Rows)
 	registerRows(appStoreVersionExperimentTreatmentsRows)
-	registerRowsAdapter(func(v *AppStoreVersionExperimentTreatmentResponse) *AppStoreVersionExperimentTreatmentsResponse {
-		return &AppStoreVersionExperimentTreatmentsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentAttributes]{v.Data}}
-	}, appStoreVersionExperimentTreatmentsRows)
+	registerSingleResourceRowsAdapter(appStoreVersionExperimentTreatmentsRows)
 	registerRows(appStoreVersionExperimentTreatmentLocalizationsRows)
-	registerRowsAdapter(func(v *AppStoreVersionExperimentTreatmentLocalizationResponse) *AppStoreVersionExperimentTreatmentLocalizationsResponse {
-		return &AppStoreVersionExperimentTreatmentLocalizationsResponse{Data: []Resource[AppStoreVersionExperimentTreatmentLocalizationAttributes]{v.Data}}
-	}, appStoreVersionExperimentTreatmentLocalizationsRows)
+	registerSingleResourceRowsAdapter(appStoreVersionExperimentTreatmentLocalizationsRows)
 	registerRows(appCustomProductPageDeleteResultRows)
 	registerRows(appCustomProductPageLocalizationDeleteResultRows)
 	registerRows(appStoreVersionExperimentDeleteResultRows)
