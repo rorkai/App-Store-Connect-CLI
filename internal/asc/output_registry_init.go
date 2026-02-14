@@ -30,16 +30,6 @@ func registerResponseDataRows[T any](rows func([]Resource[T]) ([]string, [][]str
 	})
 }
 
-func registerRowsWithSingleResourceAdapter[T any](rows func(*Response[T]) ([]string, [][]string)) {
-	registerRows(rows)
-	registerSingleResourceRowsAdapter(rows)
-}
-
-func registerRowsWithSingleToListAdapter[T any, U any](rows func(*U) ([]string, [][]string)) {
-	registerRows(rows)
-	registerSingleToListRowsAdapter[T, U](rows)
-}
-
 //nolint:gochecknoinits // registry init is the idiomatic way to populate a type map
 func init() {
 	registerRows(feedbackRows)

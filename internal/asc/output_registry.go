@@ -63,6 +63,13 @@ func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string,
 	}, rows)
 }
 
+// registerRowsWithSingleResourceAdapter registers both list and single handlers
+// for row renderers that operate on Response[T].
+func registerRowsWithSingleResourceAdapter[T any](rows func(*Response[T]) ([]string, [][]string)) {
+	registerRows(rows)
+	registerSingleResourceRowsAdapter(rows)
+}
+
 // registerSingleToListRowsAdapter registers rows rendering by adapting a single
 // response struct into a corresponding list response struct using shared field
 // names. The source type must expose `Data` and may expose `Links`; the target
@@ -104,6 +111,13 @@ func registerSingleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]
 
 		return rows(&target)
 	})
+}
+
+// registerRowsWithSingleToListAdapter registers both list and single handlers
+// when list rendering expects a concrete list response type.
+func registerRowsWithSingleToListAdapter[T any, U any](rows func(*U) ([]string, [][]string)) {
+	registerRows(rows)
+	registerSingleToListRowsAdapter[T, U](rows)
 }
 
 // registerDirect registers a type that needs direct render control (multi-table output).

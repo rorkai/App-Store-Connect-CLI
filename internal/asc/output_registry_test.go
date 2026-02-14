@@ -200,6 +200,55 @@ func TestOutputRegistrySingleResourceHelperRegistration(t *testing.T) {
 	}
 }
 
+func TestOutputRegistryRowsWithSingleResourceHelperRegistration(t *testing.T) {
+	type attrs struct {
+		Name string `json:"name"`
+	}
+
+	registerRowsWithSingleResourceAdapter(func(v *Response[attrs]) ([]string, [][]string) {
+		if len(v.Data) == 0 {
+			return []string{"ID", "Name"}, nil
+		}
+		return []string{"ID", "Name"}, [][]string{{v.Data[0].ID, v.Data[0].Attributes.Name}}
+	})
+
+	listKey := reflect.TypeOf(&Response[attrs]{})
+	singleKey := reflect.TypeOf(&SingleResponse[attrs]{})
+	t.Cleanup(func() {
+		delete(outputRegistry, listKey)
+		delete(outputRegistry, singleKey)
+	})
+
+	listHandler, ok := outputRegistry[listKey]
+	if !ok || listHandler == nil {
+		t.Fatal("expected list handler from rows+single-resource helper")
+	}
+	singleHandler, ok := outputRegistry[singleKey]
+	if !ok || singleHandler == nil {
+		t.Fatal("expected single handler from rows+single-resource helper")
+	}
+
+	_, listRows, err := listHandler(&Response[attrs]{
+		Data: []Resource[attrs]{{ID: "list-id", Attributes: attrs{Name: "list-name"}}},
+	})
+	if err != nil {
+		t.Fatalf("list handler returned error: %v", err)
+	}
+	if len(listRows) != 1 || len(listRows[0]) != 2 || listRows[0][0] != "list-id" || listRows[0][1] != "list-name" {
+		t.Fatalf("unexpected list rows: %v", listRows)
+	}
+
+	_, singleRows, err := singleHandler(&SingleResponse[attrs]{
+		Data: Resource[attrs]{ID: "single-id", Attributes: attrs{Name: "single-name"}},
+	})
+	if err != nil {
+		t.Fatalf("single handler returned error: %v", err)
+	}
+	if len(singleRows) != 1 || len(singleRows[0]) != 2 || singleRows[0][0] != "single-id" || singleRows[0][1] != "single-name" {
+		t.Fatalf("unexpected single rows: %v", singleRows)
+	}
+}
+
 func TestOutputRegistrySingleToListHelperRegistration(t *testing.T) {
 	type single struct {
 		Data string
