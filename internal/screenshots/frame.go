@@ -542,11 +542,40 @@ func runKoubouGenerate(ctx context.Context, configPath string) ([]koubouGenerate
 		return nil, fmt.Errorf("kou: %w (output: %s)", err, errorOutput)
 	}
 
+	// Koubou may emit log lines to stdout before the JSON array.
+	// Extract just the JSON portion (first '[' to last ']').
+	jsonBytes := extractJSONArray(output)
+	if jsonBytes == nil {
+		return nil, fmt.Errorf("kou: no JSON array found in output: %s", strings.TrimSpace(string(output)))
+	}
+
 	var results []koubouGenerateResult
-	if err := json.Unmarshal(output, &results); err != nil {
+	if err := json.Unmarshal(jsonBytes, &results); err != nil {
 		return nil, fmt.Errorf("kou: parse JSON output: %w", err)
 	}
 	return results, nil
+}
+
+// extractJSONArray finds the JSON array of objects in raw output that may
+// contain interleaved log lines with their own brackets (e.g. "[07:59:06]").
+// It looks for "[{" which marks the start of a JSON array of objects, then
+// finds the matching "]".
+func extractJSONArray(raw []byte) []byte {
+	// Look for "[{" — the start of a JSON array of objects.
+	start := bytes.Index(raw, []byte("[{"))
+	if start < 0 {
+		// Fall back to looking for an empty array "[]".
+		start = bytes.Index(raw, []byte("[]"))
+		if start < 0 {
+			return nil
+		}
+		return raw[start : start+2]
+	}
+	end := bytes.LastIndexByte(raw, ']')
+	if end < 0 || end <= start {
+		return nil
+	}
+	return raw[start : end+1]
 }
 
 func selectGeneratedScreenshot(configPath string, results []koubouGenerateResult) (string, error) {

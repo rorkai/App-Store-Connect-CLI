@@ -332,6 +332,60 @@ screenshots:
 	}
 }
 
+func TestShotsFrame_WatchRequiresConfig(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"shots",
+			"frame",
+			"--input", "/tmp/raw.png",
+			"--watch",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--watch requires --config") {
+		t.Fatalf("expected watch-requires-config error, got %q", stderr)
+	}
+}
+
+func TestShotsFrame_WatchWithoutInputOrConfig(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"shots",
+			"frame",
+			"--watch",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	// Should hit the --input required error first (since no --config means no watch gate).
+	if !strings.Contains(stderr, "--input is required") {
+		t.Fatalf("expected input required error, got %q", stderr)
+	}
+}
+
 func installMockKou(t *testing.T, fixturePath, outputPath string) {
 	t.Helper()
 
