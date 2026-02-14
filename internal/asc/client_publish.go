@@ -17,29 +17,21 @@ func (c *Client) WaitForBuildProcessing(ctx context.Context, buildID string, pol
 		pollInterval = 30 * time.Second
 	}
 
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
-
-	for {
+	return PollUntil(ctx, pollInterval, func(ctx context.Context) (*BuildResponse, bool, error) {
 		build, err := c.GetBuild(ctx, buildID)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 
 		state := strings.ToUpper(strings.TrimSpace(build.Data.Attributes.ProcessingState))
 		switch state {
 		case BuildProcessingStateValid:
-			return build, nil
+			return build, true, nil
 		case BuildProcessingStateInvalid:
-			return nil, fmt.Errorf("build processing failed: %s", state)
+			return nil, false, fmt.Errorf("build processing failed: %s", state)
 		}
-
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-ticker.C:
-		}
-	}
+		return nil, false, nil
+	})
 }
 
 // FindOrCreateAppStoreVersion finds an existing app store version or creates one.

@@ -14,38 +14,39 @@ import (
 
 // waitForBuildCompletion polls until the build run completes or times out.
 func waitForBuildCompletion(ctx context.Context, client *asc.Client, buildRunID string, pollInterval time.Duration, outputFormat string, pretty bool) error {
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
-
-	for {
+	lastStatus := "unknown"
+	_, err := asc.PollUntil(ctx, pollInterval, func(ctx context.Context) (struct{}, bool, error) {
 		resp, err := getCiBuildRunWithRetry(ctx, client, buildRunID)
 		if err != nil {
-			return fmt.Errorf("xcode-cloud: failed to check status: %w", err)
+			return struct{}{}, false, fmt.Errorf("xcode-cloud: failed to check status: %w", err)
 		}
+		lastStatus = string(resp.Data.Attributes.ExecutionProgress)
 
 		if asc.IsBuildRunComplete(resp.Data.Attributes.ExecutionProgress) {
 			result := buildStatusResult(resp)
 			if err := shared.PrintOutput(result, outputFormat, pretty); err != nil {
-				return err
+				return struct{}{}, false, err
 			}
 
 			// Return error for failed builds
 			if !asc.IsBuildRunSuccessful(resp.Data.Attributes.CompletionStatus) {
-				return fmt.Errorf("build run %s completed with status: %s", buildRunID, resp.Data.Attributes.CompletionStatus)
+				return struct{}{}, false, fmt.Errorf("build run %s completed with status: %s", buildRunID, resp.Data.Attributes.CompletionStatus)
 			}
-			return nil
+			return struct{}{}, true, nil
 		}
-
-		select {
-		case <-ctx.Done():
-			if errors.Is(ctx.Err(), context.Canceled) {
-				return fmt.Errorf("xcode-cloud: canceled waiting for build run %s (last status: %s)", buildRunID, resp.Data.Attributes.ExecutionProgress)
-			}
-			return fmt.Errorf("xcode-cloud: timed out waiting for build run %s (last status: %s)", buildRunID, resp.Data.Attributes.ExecutionProgress)
-		case <-ticker.C:
-			// Continue polling
+		return struct{}{}, false, nil
+	})
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return fmt.Errorf("xcode-cloud: canceled waiting for build run %s (last status: %s)", buildRunID, lastStatus)
 		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			return fmt.Errorf("xcode-cloud: timed out waiting for build run %s (last status: %s)", buildRunID, lastStatus)
+		}
+		return err
 	}
+
+	return nil
 }
 
 // buildStatusResult converts a CiBuildRunResponse to XcodeCloudStatusResult.
