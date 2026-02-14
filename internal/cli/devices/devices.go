@@ -69,8 +69,7 @@ func DevicesListCommand() *ffcli.Command {
 	ids := fs.String("id", "", "Filter by device ID(s), comma-separated")
 	sort := fs.String("sort", "", "Sort by id, -id, name, -name, platform, -platform, status, -status, udid, -udid")
 	fields := fs.String("fields", "", "Fields to include: addedDate, deviceClass, model, name, platform, status, udid")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -159,7 +158,7 @@ Examples:
 					return fmt.Errorf("devices list: %w", err)
 				}
 
-				return shared.PrintOutput(devices, *output, *pretty)
+				return shared.PrintOutput(devices, *output.Output, *output.Pretty)
 			}
 
 			devices, err := client.GetDevices(requestCtx, opts...)
@@ -167,7 +166,7 @@ Examples:
 				return fmt.Errorf("devices list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(devices, *output, *pretty)
+			return shared.PrintOutput(devices, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -178,8 +177,7 @@ func DevicesGetCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Device ID")
 	fields := fs.String("fields", "", "Fields to include: addedDate, deviceClass, model, name, platform, status, udid")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -217,7 +215,7 @@ Examples:
 				return fmt.Errorf("devices get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(device, *output, *pretty)
+			return shared.PrintOutput(device, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -226,8 +224,7 @@ Examples:
 func DevicesLocalUDIDCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("local-udid", flag.ExitOnError)
 
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "local-udid",
@@ -251,7 +248,7 @@ Examples:
 				Platform: "MAC_OS",
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -264,8 +261,7 @@ func DevicesRegisterCommand() *ffcli.Command {
 	udid := fs.String("udid", "", "Device UDID (required unless --udid-from-system)")
 	udidFromSystem := fs.Bool("udid-from-system", false, "Use local macOS hardware UUID as UDID (macOS only)")
 	platform := fs.String("platform", "", "Device platform: "+strings.Join(devicePlatformList(), ", "))
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "register",
@@ -339,7 +335,7 @@ Examples:
 				return fmt.Errorf("devices register: failed to register: %w", err)
 			}
 
-			return shared.PrintOutput(device, *output, *pretty)
+			return shared.PrintOutput(device, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -351,8 +347,7 @@ func DevicesUpdateCommand() *ffcli.Command {
 	id := fs.String("id", "", "Device ID")
 	name := fs.String("name", "", "Device name")
 	status := fs.String("status", "", "Device status: ENABLED, DISABLED")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -406,7 +401,7 @@ Examples:
 				return fmt.Errorf("devices update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(device, *output, *pretty)
+			return shared.PrintOutput(device, *output.Output, *output.Pretty)
 		},
 	}
 }

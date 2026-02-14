@@ -47,8 +47,7 @@ func ActorsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -110,7 +109,7 @@ Examples:
 					return fmt.Errorf("actors list: %w", err)
 				}
 
-				return shared.PrintOutput(actors, *output, *pretty)
+				return shared.PrintOutput(actors, *output.Output, *output.Pretty)
 			}
 
 			actors, err := client.GetActors(requestCtx, opts...)
@@ -118,7 +117,7 @@ Examples:
 				return fmt.Errorf("actors list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(actors, *output, *pretty)
+			return shared.PrintOutput(actors, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -129,8 +128,7 @@ func ActorsGetCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Actor ID")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(actorFieldsList(), ", "))
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -168,7 +166,7 @@ Examples:
 				return fmt.Errorf("actors get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(actor, *output, *pretty)
+			return shared.PrintOutput(actor, *output.Output, *output.Pretty)
 		},
 	}
 }
