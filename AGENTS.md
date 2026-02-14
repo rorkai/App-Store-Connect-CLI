@@ -42,7 +42,7 @@ Update instructions live in `docs/openapi/README.md`.
 
 ```bash
 make build      # Build binary
-make test       # Run tests (always run before committing)
+ASC_BYPASS_KEYCHAIN=1 make test  # Run tests with keychain bypass (always run before committing)
 make lint       # Lint code
 make format     # Format code
 make install-hooks  # Install local pre-commit hook (.githooks/pre-commit)
@@ -77,6 +77,7 @@ make install-hooks  # Install local pre-commit hook (.githooks/pre-commit)
 - **Verify before claiming done**: Run the specific failing test again to confirm it's fixed, not just "all tests pass".
 - **Avoid broad skip logic**: Don't skip tests with generic string matches (e.g., "Keychain Error") that can hide regressions. Match specific error codes instead.
 - **Isolate test auth/env state**: Tests that touch auth must set/clear relevant env vars (`ASC_BYPASS_KEYCHAIN`, `ASC_PROFILE`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY_PATH`, `ASC_PRIVATE_KEY`, `ASC_PRIVATE_KEY_B64`, `ASC_STRICT_AUTH`) locally and restore exact original state.
+- **Local test command**: When running repository tests manually, use `ASC_BYPASS_KEYCHAIN=1 make test` to prevent macOS keychain profile prompts from host environment bleed-through.
 - **Strict skip policy**: `t.Skip` is allowed only for specific, documented, reproducible conditions (exact error code/condition). Generic skip patterns are not allowed.
 - **Use proper workflow**: Branch → change → test → PR. Not: main → change → push.
 
@@ -99,7 +100,7 @@ make install-hooks  # Install local pre-commit hook (.githooks/pre-commit)
 - Before opening/updating a PR, always run:
   - `make format`
   - `make lint`
-  - `make test`
+  - `ASC_BYPASS_KEYCHAIN=1 make test`
 - In the PR description or handoff, include:
   - commands run
   - key exit-code scenarios validated
