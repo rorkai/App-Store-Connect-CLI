@@ -67,9 +67,10 @@ var debugOverride struct {
 }
 
 var (
-	loadConfigFn   = config.Load
-	loadConfigOnce sync.Once
-	cachedConfig   *config.Config
+	loadConfigFn      = config.Load
+	loadConfigMu      sync.RWMutex
+	loadConfigSuccess bool
+	cachedConfig      *config.Config
 )
 
 type debugSettings struct {
@@ -179,20 +180,35 @@ func resolveDebugValue(value string) debugSettings {
 }
 
 func loadConfig() *config.Config {
-	loadConfigOnce.Do(func() {
-		cfg, err := loadConfigFn()
-		if err != nil {
-			cachedConfig = nil
-			return
-		}
-		cachedConfig = cfg
-	})
+	loadConfigMu.RLock()
+	if loadConfigSuccess {
+		cfg := cachedConfig
+		loadConfigMu.RUnlock()
+		return cfg
+	}
+	loadConfigMu.RUnlock()
+
+	loadConfigMu.Lock()
+	defer loadConfigMu.Unlock()
+
+	if loadConfigSuccess {
+		return cachedConfig
+	}
+
+	cfg, err := loadConfigFn()
+	if err != nil {
+		return nil
+	}
+
+	cachedConfig = cfg
+	loadConfigSuccess = true
 	return cachedConfig
 }
 
 func resetConfigCacheForTest() {
 	loadConfigFn = config.Load
-	loadConfigOnce = sync.Once{}
+	loadConfigMu = sync.RWMutex{}
+	loadConfigSuccess = false
 	cachedConfig = nil
 }
 
@@ -202,7 +218,8 @@ func setConfigLoaderForTest(loader func() (*config.Config, error)) {
 	} else {
 		loadConfigFn = loader
 	}
-	loadConfigOnce = sync.Once{}
+	loadConfigMu = sync.RWMutex{}
+	loadConfigSuccess = false
 	cachedConfig = nil
 }
 

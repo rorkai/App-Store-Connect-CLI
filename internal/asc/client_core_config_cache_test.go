@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"errors"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -76,5 +77,39 @@ func TestResetConfigCacheForTestReloadsConfig(t *testing.T) {
 
 	if got := atomic.LoadInt32(&calls); got != 2 {
 		t.Fatalf("expected config loader called twice across resets, got %d", got)
+	}
+}
+
+func TestLoadConfigRetriesAfterFailure(t *testing.T) {
+	SetRetryLogOverride(nil)
+	t.Cleanup(func() { SetRetryLogOverride(nil) })
+
+	originalValue, hadOriginal := os.LookupEnv("ASC_RETRY_LOG")
+	_ = os.Unsetenv("ASC_RETRY_LOG")
+	t.Cleanup(func() {
+		if hadOriginal {
+			_ = os.Setenv("ASC_RETRY_LOG", originalValue)
+			return
+		}
+		_ = os.Unsetenv("ASC_RETRY_LOG")
+	})
+
+	var calls int32
+	setConfigLoaderForTest(func() (*config.Config, error) {
+		if atomic.AddInt32(&calls, 1) == 1 {
+			return nil, errors.New("transient config read error")
+		}
+		return &config.Config{RetryLog: "1"}, nil
+	})
+	t.Cleanup(resetConfigCacheForTest)
+
+	if ResolveRetryLogEnabled() {
+		t.Fatal("expected retry logging disabled while config load fails")
+	}
+	if !ResolveRetryLogEnabled() {
+		t.Fatal("expected retry logging enabled after config load succeeds")
+	}
+	if got := atomic.LoadInt32(&calls); got != 2 {
+		t.Fatalf("expected config loader retried after failure, got %d calls", got)
 	}
 }
