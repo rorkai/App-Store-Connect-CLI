@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"flag"
 	"io"
 	"os"
 	"path/filepath"
@@ -166,6 +167,41 @@ func TestDefaultOutputFormat_InvalidFallsBackToJSON(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "invalid ASC_DEFAULT_OUTPUT value") {
 		t.Fatalf("expected warning on stderr, got %q", stderr)
+	}
+}
+
+func TestBindOutputFlagsUsesDefaultOutputFormat(t *testing.T) {
+	resetDefaultOutput(t)
+	t.Setenv("ASC_DEFAULT_OUTPUT", "table")
+
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	output := BindOutputFlags(fs)
+	if output.Output == nil || output.Pretty == nil {
+		t.Fatal("expected output flag pointers to be set")
+	}
+	if *output.Output != "table" {
+		t.Fatalf("expected output default table, got %q", *output.Output)
+	}
+	if *output.Pretty {
+		t.Fatal("expected pretty default false")
+	}
+}
+
+func TestBindOutputFlagsParsesValues(t *testing.T) {
+	resetDefaultOutput(t)
+	t.Setenv("ASC_DEFAULT_OUTPUT", "json")
+
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	output := BindOutputFlags(fs)
+	if err := fs.Parse([]string{"--output", "markdown", "--pretty"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	if *output.Output != "markdown" {
+		t.Fatalf("expected output markdown, got %q", *output.Output)
+	}
+	if !*output.Pretty {
+		t.Fatal("expected pretty true after parse")
 	}
 }
 

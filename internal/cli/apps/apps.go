@@ -13,9 +13,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func appsListFlags(fs *flag.FlagSet) (output *string, pretty *bool, bundleID *string, name *string, sku *string, sort *string, limit *int, next *string, paginate *bool) {
-	output = fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty = fs.Bool("pretty", false, "Pretty-print JSON output")
+func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *string, name *string, sku *string, sort *string, limit *int, next *string, paginate *bool) {
+	output = shared.BindOutputFlags(fs)
 	bundleID = fs.String("bundle-id", "", "Filter by bundle ID(s), comma-separated")
 	name = fs.String("name", "", "Filter by app name(s), comma-separated")
 	sku = fs.String("sku", "", "Filter by SKU(s), comma-separated")
@@ -30,7 +29,7 @@ func appsListFlags(fs *flag.FlagSet) (output *string, pretty *bool, bundleID *st
 func AppsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps", flag.ExitOnError)
 
-	output, pretty, bundleID, name, sku, sort, limit, next, paginate := appsListFlags(fs)
+	output, bundleID, name, sku, sort, limit, next, paginate := appsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "apps",
@@ -70,7 +69,7 @@ Examples:
 				fmt.Fprintf(os.Stderr, "Error: unknown subcommand %q\n", strings.TrimSpace(args[0]))
 				return flag.ErrHelp
 			}
-			return appsList(ctx, *output, *pretty, *bundleID, *name, *sku, *sort, *limit, *next, *paginate)
+			return appsList(ctx, *output.Output, *output.Pretty, *bundleID, *name, *sku, *sort, *limit, *next, *paginate)
 		},
 	}
 }
@@ -79,7 +78,7 @@ Examples:
 func AppsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps list", flag.ExitOnError)
 
-	output, pretty, bundleID, name, sku, sort, limit, next, paginate := appsListFlags(fs)
+	output, bundleID, name, sku, sort, limit, next, paginate := appsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -99,7 +98,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return appsList(ctx, *output, *pretty, *bundleID, *name, *sku, *sort, *limit, *next, *paginate)
+			return appsList(ctx, *output.Output, *output.Pretty, *bundleID, *name, *sku, *sort, *limit, *next, *paginate)
 		},
 	}
 }
@@ -109,8 +108,7 @@ func AppsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps get", flag.ExitOnError)
 
 	id := fs.String("id", "", "App Store Connect app ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -143,7 +141,7 @@ Examples:
 				return fmt.Errorf("apps get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(app, *output, *pretty)
+			return shared.PrintOutput(app, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -156,8 +154,7 @@ func AppsUpdateCommand() *ffcli.Command {
 	bundleID := fs.String("bundle-id", "", "Update bundle ID")
 	primaryLocale := fs.String("primary-locale", "", "Update primary locale (e.g., en-US)")
 	contentRights := fs.String("content-rights", "", "Content rights declaration: DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -214,7 +211,7 @@ Examples:
 				return fmt.Errorf("apps update: failed to update: %w", err)
 			}
 
-			return shared.PrintOutput(app, *output, *pretty)
+			return shared.PrintOutput(app, *output.Output, *output.Pretty)
 		},
 	}
 }

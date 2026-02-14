@@ -47,8 +47,7 @@ func AssetsScreenshotsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	localizationID := fs.String("version-localization", "", "App Store version localization ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -96,7 +95,7 @@ Examples:
 				})
 			}
 
-			return shared.PrintOutput(&result, *output, *pretty)
+			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -106,8 +105,7 @@ func AssetsScreenshotsSizesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("sizes", flag.ExitOnError)
 
 	displayType := fs.String("display-type", "", "Filter by screenshot display type (e.g., APP_IPHONE_65)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "sizes",
@@ -139,7 +137,7 @@ Examples:
 				result.Sizes = []asc.ScreenshotSizeEntry{entry}
 			}
 
-			return shared.PrintOutput(&result, *output, *pretty)
+			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -151,8 +149,7 @@ func AssetsScreenshotsUploadCommand() *ffcli.Command {
 	localizationID := fs.String("version-localization", "", "App Store version localization ID")
 	path := fs.String("path", "", "Path to screenshot file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "upload",
@@ -225,7 +222,7 @@ Examples:
 				Results:               results,
 			}
 
-			return shared.PrintOutput(&result, *output, *pretty)
+			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -236,8 +233,7 @@ func AssetsScreenshotsDeleteCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Screenshot ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -277,7 +273,7 @@ Examples:
 				Deleted: true,
 			}
 
-			return shared.PrintOutput(&result, *output, *pretty)
+			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
 		},
 	}
 }

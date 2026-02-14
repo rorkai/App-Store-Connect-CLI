@@ -51,8 +51,7 @@ func VersionsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -122,7 +121,7 @@ Examples:
 					return fmt.Errorf("versions list: %w", err)
 				}
 
-				return shared.PrintOutput(versions, *output, *pretty)
+				return shared.PrintOutput(versions, *output.Output, *output.Pretty)
 			}
 
 			versions, err := client.GetAppStoreVersions(requestCtx, resolvedAppID, opts...)
@@ -130,7 +129,7 @@ Examples:
 				return fmt.Errorf("versions list: %w", err)
 			}
 
-			return shared.PrintOutput(versions, *output, *pretty)
+			return shared.PrintOutput(versions, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -142,8 +141,7 @@ func VersionsGetCommand() *ffcli.Command {
 	includeBuild := fs.Bool("include-build", false, "Include attached build information")
 	includeSubmission := fs.Bool("include-submission", false, "Include submission information")
 	include := fs.String("include", "", "Include related resources: "+strings.Join(appStoreVersionIncludeList(), ", "))
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -185,7 +183,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("versions get: %w", err)
 				}
-				return shared.PrintOutput(versionResp, *output, *pretty)
+				return shared.PrintOutput(versionResp, *output.Output, *output.Pretty)
 			}
 
 			versionResp, err := client.GetAppStoreVersion(requestCtx, trimmedID)
@@ -221,7 +219,7 @@ Examples:
 				}
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -234,8 +232,7 @@ func VersionsCreateCommand() *ffcli.Command {
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -297,7 +294,7 @@ Examples:
 				State:         shared.ResolveAppStoreVersionState(resp.Data.Attributes),
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -310,8 +307,7 @@ func VersionsUpdateCommand() *ffcli.Command {
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
 	earliestReleaseDate := fs.String("earliest-release-date", "", "Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)")
 	versionString := fs.String("version", "", "Version string (e.g., 1.0.1)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -373,7 +369,7 @@ Examples:
 				State:         shared.ResolveAppStoreVersionState(resp.Data.Attributes),
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -383,8 +379,7 @@ func VersionsDeleteCommand() *ffcli.Command {
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
@@ -425,7 +420,7 @@ Examples:
 				"deleted":   true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -435,8 +430,7 @@ func VersionsAttachBuildCommand() *ffcli.Command {
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	buildID := fs.String("build", "", "Build ID to attach (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "attach-build",
@@ -476,7 +470,7 @@ Examples:
 				Attached:  true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }

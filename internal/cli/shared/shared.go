@@ -242,6 +242,12 @@ type envCredentials struct {
 	complete bool
 }
 
+// OutputFlags stores pointers to output-related flag values.
+type OutputFlags struct {
+	Output *string
+	Pretty *bool
+}
+
 type resolvedCredentials struct {
 	keyID    string
 	issuerID string
@@ -624,6 +630,14 @@ func resolveDefaultOutput() string {
 	default:
 		fmt.Fprintf(os.Stderr, "Warning: invalid %s value %q (expected json, table, markdown, or md); using json\n", defaultOutputEnvVar, env)
 		return "json"
+	}
+}
+
+// BindOutputFlags registers --output and --pretty flags on the provided flagset.
+func BindOutputFlags(fs *flag.FlagSet) OutputFlags {
+	return OutputFlags{
+		Output: fs.String("output", DefaultOutputFormat(), "Output format: json (default), table, markdown"),
+		Pretty: fs.Bool("pretty", false, "Pretty-print JSON output"),
 	}
 }
 
