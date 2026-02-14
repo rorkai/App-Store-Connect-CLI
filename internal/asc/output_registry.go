@@ -18,16 +18,20 @@ var outputRegistry = map[reflect.Type]rowsFunc{}
 // directRenderRegistry maps types that need direct render control (multi-table output).
 var directRenderRegistry = map[reflect.Type]directRenderFunc{}
 
-// registerRows registers a rows function for the given pointer type.
-// The function must accept a pointer and return (headers, rows).
-func registerRows[T any](fn func(*T) ([]string, [][]string)) {
-	t := reflect.TypeFor[*T]()
+func ensureRegistryTypeAvailable(t reflect.Type) {
 	if _, exists := outputRegistry[t]; exists {
 		panic(fmt.Sprintf("output registry: duplicate registration for %s", t))
 	}
 	if _, exists := directRenderRegistry[t]; exists {
 		panic(fmt.Sprintf("output registry: duplicate registration for %s", t))
 	}
+}
+
+// registerRows registers a rows function for the given pointer type.
+// The function must accept a pointer and return (headers, rows).
+func registerRows[T any](fn func(*T) ([]string, [][]string)) {
+	t := reflect.TypeFor[*T]()
+	ensureRegistryTypeAvailable(t)
 	outputRegistry[t] = func(data any) ([]string, [][]string, error) {
 		h, r := fn(data.(*T))
 		return h, r, nil
@@ -37,12 +41,7 @@ func registerRows[T any](fn func(*T) ([]string, [][]string)) {
 // registerRowsErr registers a rows function that can return an error.
 func registerRowsErr[T any](fn func(*T) ([]string, [][]string, error)) {
 	t := reflect.TypeFor[*T]()
-	if _, exists := outputRegistry[t]; exists {
-		panic(fmt.Sprintf("output registry: duplicate registration for %s", t))
-	}
-	if _, exists := directRenderRegistry[t]; exists {
-		panic(fmt.Sprintf("output registry: duplicate registration for %s", t))
-	}
+	ensureRegistryTypeAvailable(t)
 	outputRegistry[t] = func(data any) ([]string, [][]string, error) {
 		return fn(data.(*T))
 	}
@@ -133,12 +132,7 @@ func registerRowsWithSingleToListAdapter[T any, U any](rows func(*U) ([]string, 
 // registerDirect registers a type that needs direct render control (multi-table output).
 func registerDirect[T any](fn func(*T, func([]string, [][]string)) error) {
 	t := reflect.TypeFor[*T]()
-	if _, exists := outputRegistry[t]; exists {
-		panic(fmt.Sprintf("output registry: duplicate registration for %s", t))
-	}
-	if _, exists := directRenderRegistry[t]; exists {
-		panic(fmt.Sprintf("output registry: duplicate registration for %s", t))
-	}
+	ensureRegistryTypeAvailable(t)
 	directRenderRegistry[t] = func(data any, render func([]string, [][]string)) error {
 		return fn(data.(*T), render)
 	}

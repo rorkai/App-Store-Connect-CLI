@@ -438,6 +438,75 @@ func TestOutputRegistrySingleToListHelperPanicsOnDataTypeMismatch(t *testing.T) 
 	})
 }
 
+func TestOutputRegistryRegisterRowsPanicsOnDuplicate(t *testing.T) {
+	type duplicate struct{}
+	key := reflect.TypeOf(&duplicate{})
+	t.Cleanup(func() {
+		delete(outputRegistry, key)
+		delete(directRenderRegistry, key)
+	})
+
+	registerRows(func(v *duplicate) ([]string, [][]string) {
+		return []string{"value"}, [][]string{{"first"}}
+	})
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected duplicate registration panic")
+		}
+	}()
+
+	registerRows(func(v *duplicate) ([]string, [][]string) {
+		return []string{"value"}, [][]string{{"second"}}
+	})
+}
+
+func TestOutputRegistryRegisterRowsErrPanicsWhenDirectRegistered(t *testing.T) {
+	type conflict struct{}
+	key := reflect.TypeOf(&conflict{})
+	t.Cleanup(func() {
+		delete(outputRegistry, key)
+		delete(directRenderRegistry, key)
+	})
+
+	registerDirect(func(v *conflict, render func([]string, [][]string)) error {
+		return nil
+	})
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected conflict panic when rowsErr registers after direct")
+		}
+	}()
+
+	registerRowsErr(func(v *conflict) ([]string, [][]string, error) {
+		return nil, nil, nil
+	})
+}
+
+func TestOutputRegistryRegisterDirectPanicsWhenRowsRegistered(t *testing.T) {
+	type conflict struct{}
+	key := reflect.TypeOf(&conflict{})
+	t.Cleanup(func() {
+		delete(outputRegistry, key)
+		delete(directRenderRegistry, key)
+	})
+
+	registerRows(func(v *conflict) ([]string, [][]string) {
+		return []string{"value"}, [][]string{{"rows"}}
+	})
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected conflict panic when direct registers after rows")
+		}
+	}()
+
+	registerDirect(func(v *conflict, render func([]string, [][]string)) error {
+		return nil
+	})
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && searchString(s, substr)
 }
