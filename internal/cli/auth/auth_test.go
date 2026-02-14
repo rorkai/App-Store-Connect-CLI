@@ -83,9 +83,14 @@ func TestAuthDoctorCommandFlagValidation(t *testing.T) {
 		if err := cmd.FlagSet.Parse([]string{"--output", "yaml"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
-		err := cmd.Exec(context.Background(), []string{})
-		if err == nil || !strings.Contains(err.Error(), "unsupported format") {
-			t.Fatalf("expected unsupported format error, got %v", err)
+		_, stderr := captureAuthOutput(t, func() {
+			err := cmd.Exec(context.Background(), []string{})
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+		})
+		if !strings.Contains(stderr, "unsupported format") {
+			t.Fatalf("expected unsupported format error in stderr, got %q", stderr)
 		}
 	})
 
@@ -94,9 +99,14 @@ func TestAuthDoctorCommandFlagValidation(t *testing.T) {
 		if err := cmd.FlagSet.Parse([]string{"--pretty"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
-		err := cmd.Exec(context.Background(), []string{})
-		if err == nil || !strings.Contains(err.Error(), "--pretty is only valid with JSON output") {
-			t.Fatalf("expected pretty/json error, got %v", err)
+		_, stderr := captureAuthOutput(t, func() {
+			err := cmd.Exec(context.Background(), []string{})
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+		})
+		if !strings.Contains(stderr, "--pretty is only valid with JSON output") {
+			t.Fatalf("expected pretty/json error in stderr, got %q", stderr)
 		}
 	})
 
@@ -105,9 +115,14 @@ func TestAuthDoctorCommandFlagValidation(t *testing.T) {
 		if err := cmd.FlagSet.Parse([]string{"--fix"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
-		err := cmd.Exec(context.Background(), []string{})
-		if err == nil || !strings.Contains(err.Error(), "--fix requires --confirm") {
-			t.Fatalf("expected fix/confirm error, got %v", err)
+		_, stderr := captureAuthOutput(t, func() {
+			err := cmd.Exec(context.Background(), []string{})
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+		})
+		if !strings.Contains(stderr, "--fix requires --confirm") {
+			t.Fatalf("expected fix/confirm error in stderr, got %q", stderr)
 		}
 	})
 }
@@ -285,9 +300,14 @@ func TestAuthLoginCommand(t *testing.T) {
 		if err := cmd.FlagSet.Parse([]string{"--local"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
-		err := cmd.Exec(context.Background(), []string{})
-		if err == nil || !strings.Contains(err.Error(), "--local requires --bypass-keychain") {
-			t.Fatalf("expected local/bypass error, got %v", err)
+		_, stderr := captureAuthOutput(t, func() {
+			err := cmd.Exec(context.Background(), []string{})
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+		})
+		if !strings.Contains(stderr, "--local requires --bypass-keychain") {
+			t.Fatalf("expected local/bypass error in stderr, got %q", stderr)
 		}
 	})
 
@@ -314,9 +334,14 @@ func TestAuthLoginCommand(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
-		err := cmd.Exec(context.Background(), []string{})
-		if err == nil || !strings.Contains(err.Error(), "mutually exclusive") {
-			t.Fatalf("expected mutual exclusion error, got %v", err)
+		_, stderr := captureAuthOutput(t, func() {
+			err := cmd.Exec(context.Background(), []string{})
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+		})
+		if !strings.Contains(stderr, "mutually exclusive") {
+			t.Fatalf("expected mutual exclusion error in stderr, got %q", stderr)
 		}
 	})
 
@@ -448,9 +473,14 @@ func TestAuthLogoutCommand(t *testing.T) {
 		if err := cmd.FlagSet.Parse([]string{"--name", "   "}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
-		err := cmd.Exec(context.Background(), []string{})
-		if err == nil || !strings.Contains(err.Error(), "--name cannot be blank") {
-			t.Fatalf("expected blank-name error, got %v", err)
+		_, stderr := captureAuthOutput(t, func() {
+			err := cmd.Exec(context.Background(), []string{})
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+		})
+		if !strings.Contains(stderr, "--name cannot be blank") {
+			t.Fatalf("expected blank-name error in stderr, got %q", stderr)
 		}
 	})
 
@@ -459,9 +489,14 @@ func TestAuthLogoutCommand(t *testing.T) {
 		if err := cmd.FlagSet.Parse([]string{"--all", "--name", "demo"}); err != nil {
 			t.Fatalf("Parse() error: %v", err)
 		}
-		err := cmd.Exec(context.Background(), []string{})
-		if err == nil || !strings.Contains(err.Error(), "mutually exclusive") {
-			t.Fatalf("expected mutually exclusive error, got %v", err)
+		_, stderr := captureAuthOutput(t, func() {
+			err := cmd.Exec(context.Background(), []string{})
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+		})
+		if !strings.Contains(stderr, "mutually exclusive") {
+			t.Fatalf("expected mutually exclusive error in stderr, got %q", stderr)
 		}
 	})
 

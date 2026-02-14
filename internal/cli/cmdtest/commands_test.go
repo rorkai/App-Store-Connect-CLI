@@ -2688,9 +2688,28 @@ func TestPerformanceValidationErrors(t *testing.T) {
 			wantHelp: true,
 		},
 		{
-			name:    "performance download mutually exclusive",
-			args:    []string{"performance", "download", "--app", "APP_ID", "--build", "BUILD_ID"},
-			wantErr: "mutually exclusive",
+			name:     "performance download mutually exclusive",
+			args:     []string{"performance", "download", "--app", "APP_ID", "--build", "BUILD_ID"},
+			wantErr:  "mutually exclusive",
+			wantHelp: true,
+		},
+		{
+			name:     "performance download invalid limit",
+			args:     []string{"performance", "download", "--diagnostic-id", "SIG_ID", "--limit", "201"},
+			wantErr:  "--limit must be between 1 and 200",
+			wantHelp: true,
+		},
+		{
+			name:     "performance download metric filter with diagnostic",
+			args:     []string{"performance", "download", "--diagnostic-id", "SIG_ID", "--platform", "IOS"},
+			wantErr:  "metric filters are not valid with --diagnostic-id",
+			wantHelp: true,
+		},
+		{
+			name:     "performance download limit without diagnostic",
+			args:     []string{"performance", "download", "--app", "APP_ID", "--limit", "10"},
+			wantErr:  "--limit is only valid with --diagnostic-id",
+			wantHelp: true,
 		},
 	}
 
@@ -3348,6 +3367,26 @@ func TestPublishValidationErrors(t *testing.T) {
 			args:    []string{"publish", "appstore", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--submit"},
 			wantErr: "Error: --confirm is required with --submit",
 		},
+		{
+			name:    "publish testflight invalid poll interval",
+			args:    []string{"publish", "testflight", "--app", "APP_123", "--ipa", "app.ipa", "--group", "GROUP_ID", "--poll-interval", "0s"},
+			wantErr: "--poll-interval must be greater than 0",
+		},
+		{
+			name:    "publish testflight invalid timeout",
+			args:    []string{"publish", "testflight", "--app", "APP_123", "--ipa", "app.ipa", "--group", "GROUP_ID", "--timeout", "-1s"},
+			wantErr: "--timeout must be greater than 0",
+		},
+		{
+			name:    "publish appstore invalid poll interval",
+			args:    []string{"publish", "appstore", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--poll-interval", "0s"},
+			wantErr: "--poll-interval must be greater than 0",
+		},
+		{
+			name:    "publish appstore invalid timeout",
+			args:    []string{"publish", "appstore", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--timeout", "-1s"},
+			wantErr: "--timeout must be greater than 0",
+		},
 	}
 
 	for _, test := range tests {
@@ -3397,9 +3436,19 @@ func TestSubmitValidationErrors(t *testing.T) {
 			wantErr: "Error: --version or --version-id is required",
 		},
 		{
+			name:    "create version and version-id mutually exclusive",
+			args:    []string{"submit", "create", "--app", "APP_123", "--version", "1.0.0", "--version-id", "VERSION_123", "--build", "BUILD_123", "--confirm"},
+			wantErr: "--version and --version-id are mutually exclusive",
+		},
+		{
 			name:    "status missing id",
 			args:    []string{"submit", "status"},
 			wantErr: "Error: --id or --version-id is required",
+		},
+		{
+			name:    "status id and version-id mutually exclusive",
+			args:    []string{"submit", "status", "--id", "SUBMIT_123", "--version-id", "VERSION_123"},
+			wantErr: "--id and --version-id are mutually exclusive",
 		},
 		{
 			name:    "cancel missing confirm",
@@ -3410,6 +3459,11 @@ func TestSubmitValidationErrors(t *testing.T) {
 			name:    "cancel missing id",
 			args:    []string{"submit", "cancel", "--confirm"},
 			wantErr: "Error: --id or --version-id is required",
+		},
+		{
+			name:    "cancel id and version-id mutually exclusive",
+			args:    []string{"submit", "cancel", "--confirm", "--id", "SUBMIT_123", "--version-id", "VERSION_123"},
+			wantErr: "--id and --version-id are mutually exclusive",
 		},
 	}
 
@@ -3442,12 +3496,18 @@ func TestSubmitValidationConflicts(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	err := root.Parse([]string{"submit", "create", "--app", "APP_123", "--version", "1.0.0", "--version-id", "VERSION_123", "--build", "BUILD_123", "--confirm"})
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	if err := root.Run(context.Background()); err == nil {
-		t.Fatalf("expected error for conflicting flags")
+	_, stderr := captureOutput(t, func() {
+		err := root.Parse([]string{"submit", "create", "--app", "APP_123", "--version", "1.0.0", "--version-id", "VERSION_123", "--build", "BUILD_123", "--confirm"})
+		if err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err = root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp for conflicting flags, got %v", err)
+		}
+	})
+	if !strings.Contains(stderr, "--version and --version-id are mutually exclusive") {
+		t.Fatalf("expected mutual exclusion message in stderr, got %q", stderr)
 	}
 }
 
@@ -3533,6 +3593,11 @@ func TestAppInfoValidationErrors(t *testing.T) {
 			name:    "app-info get version missing platform",
 			args:    []string{"app-info", "get", "--app", "APP_ID", "--version", "1.0.0"},
 			wantErr: "--platform is required with --version",
+		},
+		{
+			name:    "app-info get invalid limit",
+			args:    []string{"app-info", "get", "--app", "APP_ID", "--limit", "201"},
+			wantErr: "--limit must be between 1 and 200",
 		},
 		{
 			name:    "app-info set missing locale",
@@ -3792,18 +3857,18 @@ func TestAppInfoMutualExclusiveFlags(t *testing.T) {
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
 
-			_, _ = captureOutput(t, func() {
+			_, stderr := captureOutput(t, func() {
 				if err := root.Parse(test.args); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				err := root.Run(context.Background())
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				if errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected non-help error, got %v", err)
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
 				}
 			})
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q in stderr, got %q", test.wantErr, stderr)
+			}
 		})
 	}
 }
@@ -4901,9 +4966,19 @@ func TestXcodeCloudMutualExclusiveFlags(t *testing.T) {
 			wantErr: "--poll-interval must be greater than 0",
 		},
 		{
+			name:    "xcode-cloud run invalid timeout",
+			args:    []string{"xcode-cloud", "run", "--workflow-id", "WF_ID", "--branch", "main", "--timeout", "-1s"},
+			wantErr: "--timeout must be greater than or equal to 0",
+		},
+		{
 			name:    "xcode-cloud status invalid timeout",
 			args:    []string{"xcode-cloud", "status", "--run-id", "RUN_ID", "--timeout", "-1s"},
 			wantErr: "--timeout must be greater than or equal to 0",
+		},
+		{
+			name:    "xcode-cloud status invalid poll-interval",
+			args:    []string{"xcode-cloud", "status", "--run-id", "RUN_ID", "--wait", "--poll-interval", "0s"},
+			wantErr: "--poll-interval must be greater than 0",
 		},
 	}
 
@@ -4917,17 +4992,17 @@ func TestXcodeCloudMutualExclusiveFlags(t *testing.T) {
 					t.Fatalf("parse error: %v", err)
 				}
 				err := root.Run(context.Background())
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				if errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected non-help error, got %v", err)
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
 				}
 			})
 
-			// These errors come from Exec, not from validation that returns ErrHelp
-			_ = stdout
-			_ = stderr
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q in stderr, got %q", test.wantErr, stderr)
+			}
 		})
 	}
 }

@@ -164,3 +164,65 @@ func TestRun_InvalidReportFlag(t *testing.T) {
 		t.Errorf("expected --report error message, got: %s", stderr)
 	}
 }
+
+// TestRun_UsageValidationErrorsReturnExitUsage verifies representative command-level
+// validation failures map to usage exit code (2).
+func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", t.TempDir()+"/config.json")
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "submit create conflicting version flags",
+			args:    []string{"--no-update", "submit", "create", "--version", "1.0", "--version-id", "V123", "--build", "B1", "--confirm"},
+			wantErr: "--version and --version-id are mutually exclusive",
+		},
+		{
+			name:    "auth login local requires bypass",
+			args:    []string{"--no-update", "auth", "login", "--local"},
+			wantErr: "--local requires --bypass-keychain",
+		},
+		{
+			name:    "app-info get conflicting version flags",
+			args:    []string{"--no-update", "app-info", "get", "--app", "APP_ID", "--version", "1.0.0", "--version-id", "VERSION_ID"},
+			wantErr: "--version and --version-id are mutually exclusive",
+		},
+		{
+			name:    "performance download mutually exclusive selectors",
+			args:    []string{"--no-update", "performance", "download", "--app", "APP_ID", "--build", "BUILD_ID"},
+			wantErr: "mutually exclusive",
+		},
+		{
+			name:    "xcode-cloud run mutually exclusive workflow flags",
+			args:    []string{"--no-update", "xcode-cloud", "run", "--workflow", "CI", "--workflow-id", "WF_ID", "--branch", "main"},
+			wantErr: "--workflow and --workflow-id are mutually exclusive",
+		},
+		{
+			name:    "publish appstore invalid timeout",
+			args:    []string{"--no-update", "publish", "appstore", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--timeout", "-1s"},
+			wantErr: "--timeout must be greater than 0",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, stderr := captureOutput(t, func() {
+				code := cmd.Run(test.args, "1.0.0")
+				if code != cmd.ExitUsage {
+					t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+				}
+			})
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
