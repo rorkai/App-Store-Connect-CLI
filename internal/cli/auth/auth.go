@@ -730,7 +730,7 @@ Examples:
 			if profile != "" && envProvided {
 				fmt.Printf("Profile %q selected; environment credentials will be ignored.\n", profile)
 			} else if bypassKeychain && envComplete {
-				fmt.Printf("Environment credentials detected (ASC_KEY_ID: %s). With ASC_BYPASS_KEYCHAIN=1, they will be used when no profile is selected.\n", envKeyID)
+				fmt.Println("Environment credentials detected (ASC_KEY_ID present). With ASC_BYPASS_KEYCHAIN=1, they will be used when no profile is selected.")
 			} else if bypassKeychain && envProvided && !envComplete {
 				fmt.Println("Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID, and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64.")
 			}

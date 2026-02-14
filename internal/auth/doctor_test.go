@@ -35,6 +35,31 @@ func TestDoctorConfigPermissionsWarning(t *testing.T) {
 	}
 }
 
+func TestDoctorEnvironmentRedactsCredentialIdentifiers(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	t.Setenv("ASC_KEY_ID", "ABC123SECRET")
+	t.Setenv("ASC_ISSUER_ID", "issuer-uuid")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "/tmp/AuthKey.p8")
+
+	report := Doctor(DoctorOptions{})
+	section := findDoctorSection(t, report, "Environment")
+	if !sectionHasStatus(section, DoctorInfo, "ASC_KEY_ID is set") {
+		t.Fatalf("expected ASC_KEY_ID presence message, got %#v", section.Checks)
+	}
+	if !sectionHasStatus(section, DoctorInfo, "ASC_ISSUER_ID is set") {
+		t.Fatalf("expected ASC_ISSUER_ID presence message, got %#v", section.Checks)
+	}
+	for _, check := range section.Checks {
+		if strings.Contains(check.Message, "ABC123SECRET") {
+			t.Fatalf("ASC_KEY_ID leaked in message: %q", check.Message)
+		}
+		if strings.Contains(check.Message, "issuer-uuid") {
+			t.Fatalf("ASC_ISSUER_ID leaked in message: %q", check.Message)
+		}
+	}
+}
+
 func TestDoctorTempFilesWarns(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
