@@ -748,6 +748,186 @@ func TestStoreCredentialsFallbackToConfig(t *testing.T) {
 	}
 }
 
+func TestStoreCredentials_RemovesStaleGlobalCredentialWhenLocalConfigActive(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "0")
+
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+
+	workDir := filepath.Join(t.TempDir(), "workspace")
+	if err := os.MkdirAll(filepath.Join(workDir, ".asc"), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+
+	localPath := filepath.Join(workDir, ".asc", "config.json")
+	globalPath := filepath.Join(homeDir, ".asc", "config.json")
+
+	localCfg := &config.Config{
+		DefaultKeyName: "local-only",
+		Keys: []config.Credential{
+			{
+				Name:           "local-only",
+				KeyID:          "LOCAL_KEY",
+				IssuerID:       "LOCAL_ISSUER",
+				PrivateKeyPath: "/tmp/local.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(localPath, localCfg); err != nil {
+		t.Fatalf("SaveAt(local) error: %v", err)
+	}
+
+	globalCfg := &config.Config{
+		DefaultKeyName: "stale",
+		Keys: []config.Credential{
+			{
+				Name:           "stale",
+				KeyID:          "STALE_KEY",
+				IssuerID:       "STALE_ISSUER",
+				PrivateKeyPath: "/tmp/stale.p8",
+			},
+			{
+				Name:           "keep-global",
+				KeyID:          "KEEP_KEY",
+				IssuerID:       "KEEP_ISSUER",
+				PrivateKeyPath: "/tmp/keep.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(globalPath, globalCfg); err != nil {
+		t.Fatalf("SaveAt(global) error: %v", err)
+	}
+
+	previousDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error: %v", err)
+	}
+	if err := os.Chdir(workDir); err != nil {
+		t.Fatalf("Chdir() error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(previousDir)
+	})
+
+	previousKeyringOpener := keyringOpener
+	kr := keyring.NewArrayKeyring([]keyring.Item{})
+	keyringOpener = func() (keyring.Keyring, error) {
+		return kr, nil
+	}
+	t.Cleanup(func() {
+		keyringOpener = previousKeyringOpener
+	})
+
+	if err := StoreCredentials("stale", "NEW_KEY", "NEW_ISSUER", "/tmp/new.p8"); err != nil {
+		t.Fatalf("StoreCredentials() error: %v", err)
+	}
+
+	loadedLocal, err := config.LoadAt(localPath)
+	if err != nil {
+		t.Fatalf("LoadAt(local) error: %v", err)
+	}
+	if len(loadedLocal.Keys) != 1 || loadedLocal.Keys[0].Name != "local-only" {
+		t.Fatalf("expected local config credential to remain unchanged, got %+v", loadedLocal.Keys)
+	}
+
+	loadedGlobal, err := config.LoadAt(globalPath)
+	if err != nil {
+		t.Fatalf("LoadAt(global) error: %v", err)
+	}
+	if len(loadedGlobal.Keys) != 1 {
+		t.Fatalf("expected only one global credential after cleanup, got %d", len(loadedGlobal.Keys))
+	}
+	if loadedGlobal.Keys[0].Name != "keep-global" {
+		t.Fatalf("expected non-target global credential to be preserved, got %q", loadedGlobal.Keys[0].Name)
+	}
+	if loadedGlobal.Keys[0].KeyID != "KEEP_KEY" || loadedGlobal.Keys[0].IssuerID != "KEEP_ISSUER" {
+		t.Fatalf("expected preserved global credential integrity, got %+v", loadedGlobal.Keys[0])
+	}
+}
+
+func TestStoreCredentials_RemovesStaleCredentialFromOverrideAndGlobalConfigs(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "0")
+
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+
+	overridePath := filepath.Join(t.TempDir(), "custom", "config.json")
+	t.Setenv("ASC_CONFIG_PATH", overridePath)
+
+	globalPath := filepath.Join(homeDir, ".asc", "config.json")
+
+	overrideCfg := &config.Config{
+		DefaultKeyName: "stale",
+		Keys: []config.Credential{
+			{
+				Name:           "stale",
+				KeyID:          "OVERRIDE_STALE",
+				IssuerID:       "OVERRIDE_STALE_ISSUER",
+				PrivateKeyPath: "/tmp/override-stale.p8",
+			},
+			{
+				Name:           "keep-override",
+				KeyID:          "OVERRIDE_KEEP",
+				IssuerID:       "OVERRIDE_KEEP_ISSUER",
+				PrivateKeyPath: "/tmp/override-keep.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(overridePath, overrideCfg); err != nil {
+		t.Fatalf("SaveAt(override) error: %v", err)
+	}
+
+	globalCfg := &config.Config{
+		DefaultKeyName: "stale",
+		Keys: []config.Credential{
+			{
+				Name:           "stale",
+				KeyID:          "GLOBAL_STALE",
+				IssuerID:       "GLOBAL_STALE_ISSUER",
+				PrivateKeyPath: "/tmp/global-stale.p8",
+			},
+			{
+				Name:           "keep-global",
+				KeyID:          "GLOBAL_KEEP",
+				IssuerID:       "GLOBAL_KEEP_ISSUER",
+				PrivateKeyPath: "/tmp/global-keep.p8",
+			},
+		},
+	}
+	if err := config.SaveAt(globalPath, globalCfg); err != nil {
+		t.Fatalf("SaveAt(global) error: %v", err)
+	}
+
+	previousKeyringOpener := keyringOpener
+	kr := keyring.NewArrayKeyring([]keyring.Item{})
+	keyringOpener = func() (keyring.Keyring, error) {
+		return kr, nil
+	}
+	t.Cleanup(func() {
+		keyringOpener = previousKeyringOpener
+	})
+
+	if err := StoreCredentials("stale", "NEW_KEY", "NEW_ISSUER", "/tmp/new.p8"); err != nil {
+		t.Fatalf("StoreCredentials() error: %v", err)
+	}
+
+	loadedOverride, err := config.LoadAt(overridePath)
+	if err != nil {
+		t.Fatalf("LoadAt(override) error: %v", err)
+	}
+	if len(loadedOverride.Keys) != 1 || loadedOverride.Keys[0].Name != "keep-override" {
+		t.Fatalf("expected override config to keep non-target credential, got %+v", loadedOverride.Keys)
+	}
+
+	loadedGlobal, err := config.LoadAt(globalPath)
+	if err != nil {
+		t.Fatalf("LoadAt(global) error: %v", err)
+	}
+	if len(loadedGlobal.Keys) != 1 || loadedGlobal.Keys[0].Name != "keep-global" {
+		t.Fatalf("expected global config to keep non-target credential, got %+v", loadedGlobal.Keys)
+	}
+}
+
 func TestListCredentials_MigratesLegacyEntries(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	newKr, legacyKr := withSeparateKeyrings(t)
