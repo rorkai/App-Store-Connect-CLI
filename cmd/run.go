@@ -73,6 +73,10 @@ func Run(args []string, versionInfo string) int {
 		ShowProgress:   shared.ProgressEnabled(),
 		CheckInterval:  updateCheckInterval,
 	}
+	waitForAsyncUpdateCheck := func() {}
+	defer func() {
+		waitForAsyncUpdateCheck()
+	}()
 
 	cachedUpdateAvailable, cacheErr := cachedUpdateAvailableFn(updateOpts)
 	if cacheErr != nil {
@@ -93,7 +97,7 @@ func Run(args []string, versionInfo string) int {
 			}
 		}
 	} else {
-		startAsyncUpdateCheck(updateOpts)
+		waitForAsyncUpdateCheck = startAsyncUpdateCheck(updateOpts)
 	}
 
 	start := time.Now()
@@ -129,17 +133,26 @@ func Run(args []string, versionInfo string) int {
 	return ExitSuccess
 }
 
-func startAsyncUpdateCheck(opts update.Options) {
+func startAsyncUpdateCheck(opts update.Options) func() {
 	asyncOpts := opts
 	asyncOpts.AutoUpdate = false
 	asyncOpts.ShowProgress = false
 	asyncOpts.Output = io.Discard
+	done := make(chan struct{})
 
 	go func() {
+		defer close(done)
 		ctx, cancel := context.WithTimeout(context.Background(), asyncUpdateTimeout)
 		defer cancel()
 		_, _ = checkAndUpdateFn(ctx, asyncOpts)
 	}()
+
+	return func() {
+		select {
+		case <-done:
+		case <-time.After(asyncUpdateTimeout):
+		}
+	}
 }
 
 // getCommandName extracts the full subcommand path from the parsed args.

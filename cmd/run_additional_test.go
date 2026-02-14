@@ -133,7 +133,7 @@ func TestRun_NoArgsShowsHelpReturnsSuccess(t *testing.T) {
 	}
 }
 
-func TestRun_UpdateCheckRunsAsyncWhenCacheHasNoUpdate(t *testing.T) {
+func TestRun_WaitsForAsyncUpdateCheckBeforeExit(t *testing.T) {
 	t.Setenv("ASC_NO_UPDATE", "0")
 	resetReportFlags(t)
 	resetUpdateHooks(t)
@@ -150,15 +150,10 @@ func TestRun_UpdateCheckRunsAsyncWhenCacheHasNoUpdate(t *testing.T) {
 		return update.Result{}, nil
 	}
 
-	start := time.Now()
-	code := Run([]string{"completion", "--shell", "bash"}, "1.0.0")
-	elapsed := time.Since(start)
-	if code != ExitSuccess {
-		t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
-	}
-	if elapsed > 200*time.Millisecond {
-		t.Fatalf("Run() should not block on async update check, elapsed=%s", elapsed)
-	}
+	runDone := make(chan int, 1)
+	go func() {
+		runDone <- Run([]string{"completion", "--shell", "bash"}, "1.0.0")
+	}()
 
 	select {
 	case opts := <-started:
@@ -172,7 +167,22 @@ func TestRun_UpdateCheckRunsAsyncWhenCacheHasNoUpdate(t *testing.T) {
 		t.Fatal("expected async update check goroutine to start")
 	}
 
+	select {
+	case code := <-runDone:
+		t.Fatalf("Run() returned before async update check finished, code=%d", code)
+	case <-time.After(100 * time.Millisecond):
+	}
+
 	close(release)
+
+	select {
+	case code := <-runDone:
+		if code != ExitSuccess {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Run() did not return after async update check finished")
+	}
 }
 
 func TestRun_CachedUpdateChecksSynchronously(t *testing.T) {
