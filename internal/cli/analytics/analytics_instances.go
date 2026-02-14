@@ -44,8 +44,7 @@ func AnalyticsInstancesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("get", flag.ExitOnError)
 
 	instanceID := fs.String("instance-id", "", "Analytics report instance ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -76,7 +75,7 @@ Examples:
 				return fmt.Errorf("analytics instances get: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -89,8 +88,7 @@ func AnalyticsInstancesRelationshipsCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "relationships",
@@ -149,7 +147,7 @@ Examples:
 					return fmt.Errorf("analytics instances relationships: %w", err)
 				}
 
-				return shared.PrintOutput(resp, *output, *pretty)
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAnalyticsReportInstanceSegmentsRelationships(requestCtx, id, opts...)
@@ -157,7 +155,7 @@ Examples:
 				return fmt.Errorf("analytics instances relationships: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
