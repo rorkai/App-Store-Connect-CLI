@@ -75,38 +75,48 @@ func registerRowsWithSingleResourceAdapter[T any](rows func(*Response[T]) ([]str
 // names. The source type must expose `Data` and may expose `Links`; the target
 // type must expose `Data` as a slice and may expose `Links`.
 func registerSingleToListRowsAdapter[T any, U any](rows func(*U) ([]string, [][]string)) {
+	sourceType := reflect.TypeFor[T]()
+	targetType := reflect.TypeFor[U]()
+
+	sourceDataField, sourceHasData := sourceType.FieldByName("Data")
+	targetDataField, targetHasData := targetType.FieldByName("Data")
+	if !sourceHasData || !targetHasData {
+		panic("output registry: single/list adapter requires Data field on source and target")
+	}
+	if targetDataField.Type.Kind() != reflect.Slice {
+		panic("output registry: single/list adapter target Data field must be a slice")
+	}
+	targetElemType := targetDataField.Type.Elem()
+	if !sourceDataField.Type.AssignableTo(targetElemType) {
+		panic(fmt.Sprintf(
+			"output registry: adapter Data type mismatch source=%s target=%s",
+			sourceDataField.Type,
+			targetElemType,
+		))
+	}
+
+	sourceLinksField, sourceHasLinks := sourceType.FieldByName("Links")
+	targetLinksField, targetHasLinks := targetType.FieldByName("Links")
+	copyLinks := sourceHasLinks &&
+		targetHasLinks &&
+		sourceLinksField.Type.AssignableTo(targetLinksField.Type)
+
 	registerRows(func(v *T) ([]string, [][]string) {
 		source := reflect.ValueOf(v).Elem()
 		var target U
 		targetValue := reflect.ValueOf(&target).Elem()
 
-		sourceData := source.FieldByName("Data")
-		targetData := targetValue.FieldByName("Data")
-		if !sourceData.IsValid() || !targetData.IsValid() {
-			panic("output registry: single/list adapter requires Data field on source and target")
-		}
-		if targetData.Kind() != reflect.Slice {
-			panic("output registry: single/list adapter target Data field must be a slice")
-		}
-		targetElemType := targetData.Type().Elem()
-		if !sourceData.Type().AssignableTo(targetElemType) {
-			panic(fmt.Sprintf(
-				"output registry: adapter Data type mismatch source=%s target=%s",
-				sourceData.Type(),
-				targetElemType,
-			))
-		}
+		sourceData := source.FieldByIndex(sourceDataField.Index)
+		targetData := targetValue.FieldByIndex(targetDataField.Index)
 
 		rowsSlice := reflect.MakeSlice(targetData.Type(), 1, 1)
 		rowsSlice.Index(0).Set(sourceData)
 		targetData.Set(rowsSlice)
 
-		sourceLinks := source.FieldByName("Links")
-		targetLinks := targetValue.FieldByName("Links")
-		if sourceLinks.IsValid() && targetLinks.IsValid() {
-			if sourceLinks.Type().AssignableTo(targetLinks.Type()) {
-				targetLinks.Set(sourceLinks)
-			}
+		if copyLinks {
+			sourceLinks := source.FieldByIndex(sourceLinksField.Index)
+			targetLinks := targetValue.FieldByIndex(targetLinksField.Index)
+			targetLinks.Set(sourceLinks)
 		}
 
 		return rows(&target)

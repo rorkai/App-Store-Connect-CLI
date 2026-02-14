@@ -389,27 +389,15 @@ func TestOutputRegistrySingleToListHelperPanicsWithoutDataField(t *testing.T) {
 		Data []string
 	}
 
-	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-		return []string{"value"}, [][]string{{v.Data[0]}}
-	})
-
-	key := reflect.TypeOf(&single{})
-	t.Cleanup(func() {
-		delete(outputRegistry, key)
-	})
-
-	handler, ok := outputRegistry[key]
-	if !ok || handler == nil {
-		t.Fatal("expected helper handler")
-	}
-
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic when source Data field is missing")
 		}
 	}()
 
-	_, _, _ = handler(&single{Value: "missing-data"})
+	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+		return []string{"value"}, [][]string{{v.Data[0]}}
+	})
 }
 
 func TestOutputRegistrySingleToListHelperPanicsWhenTargetDataIsNotSlice(t *testing.T) {
@@ -420,27 +408,15 @@ func TestOutputRegistrySingleToListHelperPanicsWhenTargetDataIsNotSlice(t *testi
 		Data string
 	}
 
-	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-		return []string{"value"}, [][]string{{v.Data}}
-	})
-
-	key := reflect.TypeOf(&single{})
-	t.Cleanup(func() {
-		delete(outputRegistry, key)
-	})
-
-	handler, ok := outputRegistry[key]
-	if !ok || handler == nil {
-		t.Fatal("expected helper handler")
-	}
-
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic when target Data field is not slice")
 		}
 	}()
 
-	_, _, _ = handler(&single{Data: "not-slice"})
+	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+		return []string{"value"}, [][]string{{v.Data}}
+	})
 }
 
 func TestOutputRegistrySingleToListHelperPanicsOnDataTypeMismatch(t *testing.T) {
@@ -451,27 +427,15 @@ func TestOutputRegistrySingleToListHelperPanicsOnDataTypeMismatch(t *testing.T) 
 		Data []string
 	}
 
-	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
-		return []string{"value"}, nil
-	})
-
-	key := reflect.TypeOf(&single{})
-	t.Cleanup(func() {
-		delete(outputRegistry, key)
-	})
-
-	handler, ok := outputRegistry[key]
-	if !ok || handler == nil {
-		t.Fatal("expected helper handler")
-	}
-
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic when Data element types mismatch")
 		}
 	}()
 
-	_, _, _ = handler(&single{Data: 42})
+	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+		return []string{"value"}, nil
+	})
 }
 
 func contains(s, substr string) bool {
