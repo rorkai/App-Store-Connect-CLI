@@ -605,9 +605,10 @@ func localFileURL(path string) string {
 	if err != nil {
 		return ""
 	}
+	// Use an absolute path-only URL so html/template keeps it in src/href.
+	// "file://" URLs are sanitized to "#ZgotmplZ" in these contexts.
 	return (&url.URL{
-		Scheme: "file",
-		Path:   filepath.ToSlash(absolutePath),
+		Path: filepath.ToSlash(absolutePath),
 	}).String()
 }
 
