@@ -2,6 +2,7 @@ package assets
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -69,31 +70,31 @@ func collectAssetFiles(path string) ([]string, error) {
 }
 
 func waitForAssetDeliveryState(ctx context.Context, assetID string, fetch func(context.Context) (*asc.AssetDeliveryState, error)) (string, error) {
-	ticker := time.NewTicker(assetPollInterval)
-	defer ticker.Stop()
-
 	var lastState string
-	for {
+	_, err := asc.PollUntil(ctx, assetPollInterval, func(ctx context.Context) (struct{}, bool, error) {
 		state, err := fetch(ctx)
 		if err != nil {
-			return lastState, err
+			return struct{}{}, false, err
 		}
 		if state != nil {
 			lastState = state.State
 			switch strings.ToUpper(state.State) {
 			case "COMPLETE":
-				return state.State, nil
+				return struct{}{}, true, nil
 			case "FAILED":
-				return state.State, fmt.Errorf("asset %s delivery failed: %s", assetID, formatAssetErrors(state.Errors))
+				return struct{}{}, false, fmt.Errorf("asset %s delivery failed: %s", assetID, formatAssetErrors(state.Errors))
 			}
 		}
-
-		select {
-		case <-ctx.Done():
-			return lastState, fmt.Errorf("timed out waiting for asset %s delivery: %w", assetID, ctx.Err())
-		case <-ticker.C:
+		return struct{}{}, false, nil
+	})
+	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return lastState, fmt.Errorf("timed out waiting for asset %s delivery: %w", assetID, err)
 		}
+		return lastState, err
 	}
+
+	return lastState, nil
 }
 
 func formatAssetErrors(errors []asc.ErrorDetail) string {

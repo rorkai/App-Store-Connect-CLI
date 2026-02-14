@@ -30,24 +30,16 @@ func WaitForBuildByNumber(ctx context.Context, client *asc.Client, appID, versio
 		return nil, fmt.Errorf("build number is required to resolve build")
 	}
 
-	ticker := time.NewTicker(pollInterval)
-	defer ticker.Stop()
-
-	for {
+	return asc.PollUntil(ctx, pollInterval, func(ctx context.Context) (*asc.BuildResponse, bool, error) {
 		build, err := findBuildByNumber(ctx, client, appID, version, buildNumber, platform)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		if build != nil {
-			return build, nil
+			return build, true, nil
 		}
-
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-ticker.C:
-		}
-	}
+		return nil, false, nil
+	})
 }
 
 func findBuildByNumber(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string) (*asc.BuildResponse, error) {
