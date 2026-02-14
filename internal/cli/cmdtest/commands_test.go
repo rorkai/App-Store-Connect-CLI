@@ -4189,18 +4189,18 @@ func TestAuthLogoutBlankNameValidation(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	_, _ = captureOutput(t, func() {
+	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{"auth", "logout", "--name", "   "}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		err := root.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected non-help error, got %v", err)
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
 		}
 	})
+	if !strings.Contains(stderr, "--name cannot be blank") {
+		t.Fatalf("expected blank-name error in stderr, got %q", stderr)
+	}
 }
 
 func TestAuthSwitchUnknownProfile(t *testing.T) {

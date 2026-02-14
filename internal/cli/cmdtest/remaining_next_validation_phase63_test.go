@@ -2,6 +2,8 @@ package cmdtest
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -137,11 +139,45 @@ func runMarketplaceWebhooksPaginateFromNext(
 }
 
 func TestAppInfoGetRejectsInvalidNextURLPhase63(t *testing.T) {
-	runGameCenterAchievementsInvalidNextURLCases(
-		t,
-		[]string{"app-info", "get"},
-		"app-info get: --next",
-	)
+	tests := []struct {
+		name    string
+		next    string
+		wantErr string
+	}{
+		{
+			name:    "invalid scheme",
+			next:    "http://api.appstoreconnect.apple.com/v1/appInfos?cursor=AQ",
+			wantErr: "--next must be an App Store Connect URL",
+		},
+		{
+			name:    "malformed URL",
+			next:    "https://api.appstoreconnect.apple.com/%zz",
+			wantErr: "--next must be a valid URL:",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{"app-info", "get", "--next", test.next}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
 }
 
 func TestBuildsListRejectsInvalidNextURLPhase63(t *testing.T) {
