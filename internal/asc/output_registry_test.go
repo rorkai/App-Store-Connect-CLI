@@ -381,6 +381,99 @@ func TestOutputRegistrySingleToListHelperCopiesLinks(t *testing.T) {
 	}
 }
 
+func TestOutputRegistrySingleToListHelperPanicsWithoutDataField(t *testing.T) {
+	type single struct {
+		Value string
+	}
+	type list struct {
+		Data []string
+	}
+
+	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+		return []string{"value"}, [][]string{{v.Data[0]}}
+	})
+
+	key := reflect.TypeOf(&single{})
+	t.Cleanup(func() {
+		delete(outputRegistry, key)
+	})
+
+	handler, ok := outputRegistry[key]
+	if !ok || handler == nil {
+		t.Fatal("expected helper handler")
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic when source Data field is missing")
+		}
+	}()
+
+	_, _, _ = handler(&single{Value: "missing-data"})
+}
+
+func TestOutputRegistrySingleToListHelperPanicsWhenTargetDataIsNotSlice(t *testing.T) {
+	type single struct {
+		Data string
+	}
+	type list struct {
+		Data string
+	}
+
+	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+		return []string{"value"}, [][]string{{v.Data}}
+	})
+
+	key := reflect.TypeOf(&single{})
+	t.Cleanup(func() {
+		delete(outputRegistry, key)
+	})
+
+	handler, ok := outputRegistry[key]
+	if !ok || handler == nil {
+		t.Fatal("expected helper handler")
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic when target Data field is not slice")
+		}
+	}()
+
+	_, _, _ = handler(&single{Data: "not-slice"})
+}
+
+func TestOutputRegistrySingleToListHelperPanicsOnDataTypeMismatch(t *testing.T) {
+	type single struct {
+		Data int
+	}
+	type list struct {
+		Data []string
+	}
+
+	registerSingleToListRowsAdapter[single, list](func(v *list) ([]string, [][]string) {
+		return []string{"value"}, nil
+	})
+
+	key := reflect.TypeOf(&single{})
+	t.Cleanup(func() {
+		delete(outputRegistry, key)
+	})
+
+	handler, ok := outputRegistry[key]
+	if !ok || handler == nil {
+		t.Fatal("expected helper handler")
+	}
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic when Data element types mismatch")
+		}
+	}()
+
+	_, _, _ = handler(&single{Data: 42})
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && searchString(s, substr)
 }
