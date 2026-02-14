@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -76,5 +77,57 @@ func TestPollUntilRespectsCanceledContextBeforePolling(t *testing.T) {
 	}
 	if calls != 0 {
 		t.Fatalf("expected 0 poll calls for canceled context, got %d", calls)
+	}
+}
+
+func TestPollUntilRejectsZeroInterval(t *testing.T) {
+	t.Parallel()
+
+	_, err := PollUntil(context.Background(), 0, func(ctx context.Context) (int, bool, error) {
+		t.Fatal("check should not be called with zero interval")
+		return 0, false, nil
+	})
+	if err == nil {
+		t.Fatal("expected error for zero interval, got nil")
+	}
+	if !strings.Contains(err.Error(), "poll interval must be greater than zero") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPollUntilRejectsNegativeInterval(t *testing.T) {
+	t.Parallel()
+
+	_, err := PollUntil(context.Background(), -time.Second, func(ctx context.Context) (int, bool, error) {
+		t.Fatal("check should not be called with negative interval")
+		return 0, false, nil
+	})
+	if err == nil {
+		t.Fatal("expected error for negative interval, got nil")
+	}
+	if !strings.Contains(err.Error(), "poll interval must be greater than zero") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPollUntilRespectsCanceledContextDuringPolling(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	calls := 0
+	_, err := PollUntil(ctx, time.Millisecond, func(ctx context.Context) (int, bool, error) {
+		calls++
+		if calls >= 2 {
+			cancel()
+		}
+		return 0, false, nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("PollUntil() error = %v, want %v", err, context.Canceled)
+	}
+	if calls < 2 {
+		t.Fatalf("expected at least 2 poll calls before cancel, got %d", calls)
 	}
 }
