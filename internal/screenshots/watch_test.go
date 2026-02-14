@@ -3,6 +3,8 @@ package screenshots
 import (
 	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/fsnotify/fsnotify"
@@ -47,6 +49,50 @@ func TestCollectAssetDirs_EmptyOnMissingFile(t *testing.T) {
 	}
 }
 
+func TestCollectAssetDirs_ResolvesRelativeAssetPathsFromConfigDir(t *testing.T) {
+	baseDir := t.TempDir()
+	projectDir := filepath.Join(baseDir, "project")
+	rawDir := filepath.Join(projectDir, "raw")
+	if err := os.MkdirAll(rawDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(projectDir, "config.yaml")
+	yaml := `screenshots:
+  home:
+    content:
+      - type: "image"
+        asset: "raw/home.png"
+`
+	if err := os.WriteFile(configPath, []byte(yaml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if chdirErr := os.Chdir(cwd); chdirErr != nil {
+			t.Fatalf("restore cwd: %v", chdirErr)
+		}
+	}()
+	otherDir := filepath.Join(baseDir, "other")
+	if err := os.MkdirAll(otherDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(otherDir); err != nil {
+		t.Fatal(err)
+	}
+
+	dirs := collectAssetDirs(configPath)
+	if len(dirs) != 1 {
+		t.Fatalf("expected 1 unique dir, got %d: %v", len(dirs), dirs)
+	}
+	if dirs[0] != rawDir {
+		t.Fatalf("expected %q, got %q", rawDir, dirs[0])
+	}
+}
+
 func TestIsRelevantChange_ConfigWrite(t *testing.T) {
 	configPath := "/projects/screenshots/config.yaml"
 	event := fsnotify.Event{
@@ -86,5 +132,62 @@ func TestIsRelevantChange_IgnoresRemoveOp(t *testing.T) {
 	}
 	if isRelevantChange(event, "/projects/screenshots/config.yaml", nil) {
 		t.Fatal("expected remove op to be ignored")
+	}
+}
+
+func TestGenerationCoalescer_TriggersSerialRuns(t *testing.T) {
+	var runCount int32
+	var concurrent int32
+	var maxConcurrent int32
+
+	firstRunStarted := make(chan struct{})
+	releaseFirstRun := make(chan struct{})
+	coalescer := newGenerationCoalescer(func() {
+		current := atomic.AddInt32(&concurrent, 1)
+		for {
+			previous := atomic.LoadInt32(&maxConcurrent)
+			if current <= previous || atomic.CompareAndSwapInt32(&maxConcurrent, previous, current) {
+				break
+			}
+		}
+
+		runNumber := atomic.AddInt32(&runCount, 1)
+		if runNumber == 1 {
+			close(firstRunStarted)
+			<-releaseFirstRun
+		}
+		atomic.AddInt32(&concurrent, -1)
+	})
+
+	var firstTrigger sync.WaitGroup
+	firstTrigger.Add(1)
+	go func() {
+		defer firstTrigger.Done()
+		coalescer.Trigger()
+	}()
+	<-firstRunStarted
+
+	var extraTriggers sync.WaitGroup
+	for i := 0; i < 3; i++ {
+		extraTriggers.Add(1)
+		go func() {
+			defer extraTriggers.Done()
+			coalescer.Trigger()
+		}()
+	}
+	extraTriggers.Wait()
+
+	if got := atomic.LoadInt32(&runCount); got != 1 {
+		t.Fatalf("expected first run still in progress, got %d run(s)", got)
+	}
+
+	close(releaseFirstRun)
+	firstTrigger.Wait()
+
+	if got := atomic.LoadInt32(&runCount); got != 2 {
+		t.Fatalf("expected coalesced follow-up run, got %d run(s)", got)
+	}
+	if got := atomic.LoadInt32(&maxConcurrent); got != 1 {
+		t.Fatalf("expected serialized execution, max concurrency %d", got)
 	}
 }
