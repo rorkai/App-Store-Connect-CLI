@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -49,6 +50,85 @@ func TestRenderByRegistryFallbackToJSON(t *testing.T) {
 	}
 	if !contains(output, "test") {
 		t.Fatalf("expected JSON output to contain 'test', got: %s", output)
+	}
+}
+
+func TestOutputRegistrySingleLinkageHelperRegistration(t *testing.T) {
+	handler, ok := outputRegistry[reflect.TypeOf(&AppStoreVersionSubmissionLinkageResponse{})]
+	if !ok || handler == nil {
+		t.Fatal("expected AppStoreVersionSubmissionLinkageResponse handler")
+	}
+
+	headers, rows, err := handler(&AppStoreVersionSubmissionLinkageResponse{
+		Data: ResourceData{
+			Type: ResourceType("appStoreVersionSubmissions"),
+			ID:   "submission-123",
+		},
+	})
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if len(headers) == 0 || len(rows) == 0 {
+		t.Fatalf("expected non-empty headers/rows, got headers=%v rows=%v", headers, rows)
+	}
+	if len(rows[0]) < 2 {
+		t.Fatalf("expected at least 2 columns in row, got row=%v", rows[0])
+	}
+	joined := rows[0][0] + " " + rows[0][1]
+	if !contains(joined, "submission-123") {
+		t.Fatalf("expected linkage row to contain ID, got row=%v", rows[0])
+	}
+}
+
+func TestOutputRegistryIDStateHelperRegistration(t *testing.T) {
+	handler, ok := outputRegistry[reflect.TypeOf(&BackgroundAssetVersionAppStoreReleaseResponse{})]
+	if !ok || handler == nil {
+		t.Fatal("expected BackgroundAssetVersionAppStoreReleaseResponse handler")
+	}
+
+	headers, rows, err := handler(&BackgroundAssetVersionAppStoreReleaseResponse{
+		Data: Resource[BackgroundAssetVersionAppStoreReleaseAttributes]{
+			ID:         "release-1",
+			Attributes: BackgroundAssetVersionAppStoreReleaseAttributes{State: "READY_FOR_SALE"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if len(headers) == 0 || len(rows) == 0 {
+		t.Fatalf("expected non-empty headers/rows, got headers=%v rows=%v", headers, rows)
+	}
+	if len(rows[0]) < 2 {
+		t.Fatalf("expected at least 2 columns in row, got row=%v", rows[0])
+	}
+	joined := rows[0][0] + " " + rows[0][1]
+	if !contains(joined, "release-1") || !contains(joined, "READY_FOR_SALE") {
+		t.Fatalf("expected row to contain ID/state, got row=%v", rows[0])
+	}
+}
+
+func TestOutputRegistryIDBoolHelperRegistration(t *testing.T) {
+	handler, ok := outputRegistry[reflect.TypeOf(&AlternativeDistributionDomainDeleteResult{})]
+	if !ok || handler == nil {
+		t.Fatal("expected AlternativeDistributionDomainDeleteResult handler")
+	}
+
+	headers, rows, err := handler(&AlternativeDistributionDomainDeleteResult{
+		ID:      "domain-1",
+		Deleted: true,
+	})
+	if err != nil {
+		t.Fatalf("handler returned error: %v", err)
+	}
+	if len(headers) == 0 || len(rows) == 0 {
+		t.Fatalf("expected non-empty headers/rows, got headers=%v rows=%v", headers, rows)
+	}
+	if len(rows[0]) < 2 {
+		t.Fatalf("expected at least 2 columns in row, got row=%v", rows[0])
+	}
+	joined := rows[0][0] + " " + rows[0][1]
+	if !contains(joined, "domain-1") || !contains(joined, "true") {
+		t.Fatalf("expected row to contain ID/deleted, got row=%v", rows[0])
 	}
 }
 
