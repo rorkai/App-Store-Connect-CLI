@@ -179,96 +179,96 @@ func init() {
 		return singleLinkageRows(v.Data)
 	})
 	registerRows(bundleIDsRows)
-	registerRows(func(v *BundleIDResponse) ([]string, [][]string) {
-		return bundleIDsRows(&BundleIDsResponse{Data: []Resource[BundleIDAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BundleIDResponse) *BundleIDsResponse {
+		return &BundleIDsResponse{Data: []Resource[BundleIDAttributes]{v.Data}}
+	}, bundleIDsRows)
 	registerRows(merchantIDsRows)
-	registerRows(func(v *MerchantIDResponse) ([]string, [][]string) {
-		return merchantIDsRows(&MerchantIDsResponse{Data: []Resource[MerchantIDAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *MerchantIDResponse) *MerchantIDsResponse {
+		return &MerchantIDsResponse{Data: []Resource[MerchantIDAttributes]{v.Data}}
+	}, merchantIDsRows)
 	registerRows(passTypeIDsRows)
-	registerRows(func(v *PassTypeIDResponse) ([]string, [][]string) {
-		return passTypeIDsRows(&PassTypeIDsResponse{Data: []Resource[PassTypeIDAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *PassTypeIDResponse) *PassTypeIDsResponse {
+		return &PassTypeIDsResponse{Data: []Resource[PassTypeIDAttributes]{v.Data}}
+	}, passTypeIDsRows)
 	registerRows(certificatesRows)
-	registerRows(func(v *CertificateResponse) ([]string, [][]string) {
-		return certificatesRows(&CertificatesResponse{Data: []Resource[CertificateAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *CertificateResponse) *CertificatesResponse {
+		return &CertificatesResponse{Data: []Resource[CertificateAttributes]{v.Data}}
+	}, certificatesRows)
 	registerRows(profilesRows)
-	registerRows(func(v *ProfileResponse) ([]string, [][]string) {
-		return profilesRows(&ProfilesResponse{Data: []Resource[ProfileAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *ProfileResponse) *ProfilesResponse {
+		return &ProfilesResponse{Data: []Resource[ProfileAttributes]{v.Data}}
+	}, profilesRows)
 	registerRows(legacyInAppPurchasesRows)
-	registerRows(func(v *InAppPurchaseResponse) ([]string, [][]string) {
-		return legacyInAppPurchasesRows(&InAppPurchasesResponse{Data: []Resource[InAppPurchaseAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *InAppPurchaseResponse) *InAppPurchasesResponse {
+		return &InAppPurchasesResponse{Data: []Resource[InAppPurchaseAttributes]{v.Data}}
+	}, legacyInAppPurchasesRows)
 	registerRows(inAppPurchasesRows)
-	registerRows(func(v *InAppPurchaseV2Response) ([]string, [][]string) {
-		return inAppPurchasesRows(&InAppPurchasesV2Response{Data: []Resource[InAppPurchaseV2Attributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *InAppPurchaseV2Response) *InAppPurchasesV2Response {
+		return &InAppPurchasesV2Response{Data: []Resource[InAppPurchaseV2Attributes]{v.Data}}
+	}, inAppPurchasesRows)
 	registerRows(inAppPurchaseLocalizationsRows)
-	registerRows(func(v *InAppPurchaseLocalizationResponse) ([]string, [][]string) {
-		return inAppPurchaseLocalizationsRows(&InAppPurchaseLocalizationsResponse{Data: []Resource[InAppPurchaseLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *InAppPurchaseLocalizationResponse) *InAppPurchaseLocalizationsResponse {
+		return &InAppPurchaseLocalizationsResponse{Data: []Resource[InAppPurchaseLocalizationAttributes]{v.Data}}
+	}, inAppPurchaseLocalizationsRows)
 	registerRows(inAppPurchaseImagesRows)
-	registerRows(func(v *InAppPurchaseImageResponse) ([]string, [][]string) {
-		return inAppPurchaseImagesRows(&InAppPurchaseImagesResponse{Data: []Resource[InAppPurchaseImageAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *InAppPurchaseImageResponse) *InAppPurchaseImagesResponse {
+		return &InAppPurchaseImagesResponse{Data: []Resource[InAppPurchaseImageAttributes]{v.Data}}
+	}, inAppPurchaseImagesRows)
 	registerRows(inAppPurchasePricePointsRows)
 	registerRowsErr(inAppPurchasePricesRows)
 	registerRowsErr(inAppPurchaseOfferCodePricesRows)
 	registerRows(inAppPurchaseOfferCodesRows)
-	registerRows(func(v *InAppPurchaseOfferCodeResponse) ([]string, [][]string) {
-		return inAppPurchaseOfferCodesRows(&InAppPurchaseOfferCodesResponse{Data: []Resource[InAppPurchaseOfferCodeAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *InAppPurchaseOfferCodeResponse) *InAppPurchaseOfferCodesResponse {
+		return &InAppPurchaseOfferCodesResponse{Data: []Resource[InAppPurchaseOfferCodeAttributes]{v.Data}}
+	}, inAppPurchaseOfferCodesRows)
 	registerRows(inAppPurchaseOfferCodeCustomCodesRows)
-	registerRows(func(v *InAppPurchaseOfferCodeCustomCodeResponse) ([]string, [][]string) {
-		return inAppPurchaseOfferCodeCustomCodesRows(&InAppPurchaseOfferCodeCustomCodesResponse{Data: []Resource[InAppPurchaseOfferCodeCustomCodeAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *InAppPurchaseOfferCodeCustomCodeResponse) *InAppPurchaseOfferCodeCustomCodesResponse {
+		return &InAppPurchaseOfferCodeCustomCodesResponse{Data: []Resource[InAppPurchaseOfferCodeCustomCodeAttributes]{v.Data}}
+	}, inAppPurchaseOfferCodeCustomCodesRows)
 	registerRows(inAppPurchaseOfferCodeOneTimeUseCodesRows)
-	registerRows(func(v *InAppPurchaseOfferCodeOneTimeUseCodeResponse) ([]string, [][]string) {
-		return inAppPurchaseOfferCodeOneTimeUseCodesRows(&InAppPurchaseOfferCodeOneTimeUseCodesResponse{Data: []Resource[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *InAppPurchaseOfferCodeOneTimeUseCodeResponse) *InAppPurchaseOfferCodeOneTimeUseCodesResponse {
+		return &InAppPurchaseOfferCodeOneTimeUseCodesResponse{Data: []Resource[InAppPurchaseOfferCodeOneTimeUseCodeAttributes]{v.Data}}
+	}, inAppPurchaseOfferCodeOneTimeUseCodesRows)
 	registerRows(inAppPurchaseAvailabilityRows)
 	registerRows(inAppPurchaseContentRows)
 	registerRows(inAppPurchasePriceScheduleRows)
 	registerRows(inAppPurchaseReviewScreenshotRows)
 	registerRows(appEventsRows)
-	registerRows(func(v *AppEventResponse) ([]string, [][]string) {
-		return appEventsRows(&AppEventsResponse{Data: []Resource[AppEventAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppEventResponse) *AppEventsResponse {
+		return &AppEventsResponse{Data: []Resource[AppEventAttributes]{v.Data}}
+	}, appEventsRows)
 	registerRows(appEventLocalizationsRows)
-	registerRows(func(v *AppEventLocalizationResponse) ([]string, [][]string) {
-		return appEventLocalizationsRows(&AppEventLocalizationsResponse{Data: []Resource[AppEventLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppEventLocalizationResponse) *AppEventLocalizationsResponse {
+		return &AppEventLocalizationsResponse{Data: []Resource[AppEventLocalizationAttributes]{v.Data}}
+	}, appEventLocalizationsRows)
 	registerRows(appEventScreenshotsRows)
-	registerRows(func(v *AppEventScreenshotResponse) ([]string, [][]string) {
-		return appEventScreenshotsRows(&AppEventScreenshotsResponse{Data: []Resource[AppEventScreenshotAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppEventScreenshotResponse) *AppEventScreenshotsResponse {
+		return &AppEventScreenshotsResponse{Data: []Resource[AppEventScreenshotAttributes]{v.Data}}
+	}, appEventScreenshotsRows)
 	registerRows(appEventVideoClipsRows)
-	registerRows(func(v *AppEventVideoClipResponse) ([]string, [][]string) {
-		return appEventVideoClipsRows(&AppEventVideoClipsResponse{Data: []Resource[AppEventVideoClipAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppEventVideoClipResponse) *AppEventVideoClipsResponse {
+		return &AppEventVideoClipsResponse{Data: []Resource[AppEventVideoClipAttributes]{v.Data}}
+	}, appEventVideoClipsRows)
 	registerRows(subscriptionGroupsRows)
-	registerRows(func(v *SubscriptionGroupResponse) ([]string, [][]string) {
-		return subscriptionGroupsRows(&SubscriptionGroupsResponse{Data: []Resource[SubscriptionGroupAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *SubscriptionGroupResponse) *SubscriptionGroupsResponse {
+		return &SubscriptionGroupsResponse{Data: []Resource[SubscriptionGroupAttributes]{v.Data}}
+	}, subscriptionGroupsRows)
 	registerRows(subscriptionsRows)
-	registerRows(func(v *SubscriptionResponse) ([]string, [][]string) {
-		return subscriptionsRows(&SubscriptionsResponse{Data: []Resource[SubscriptionAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *SubscriptionResponse) *SubscriptionsResponse {
+		return &SubscriptionsResponse{Data: []Resource[SubscriptionAttributes]{v.Data}}
+	}, subscriptionsRows)
 	registerRows(promotedPurchasesRows)
-	registerRows(func(v *PromotedPurchaseResponse) ([]string, [][]string) {
-		return promotedPurchasesRows(&PromotedPurchasesResponse{Data: []Resource[PromotedPurchaseAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *PromotedPurchaseResponse) *PromotedPurchasesResponse {
+		return &PromotedPurchasesResponse{Data: []Resource[PromotedPurchaseAttributes]{v.Data}}
+	}, promotedPurchasesRows)
 	registerRowsErr(subscriptionPricesRows)
 	registerRows(subscriptionPriceRows)
 	registerRows(subscriptionAvailabilityRows)
 	registerRows(subscriptionGracePeriodRows)
 	registerRows(territoriesRows)
-	registerRows(func(v *TerritoryResponse) ([]string, [][]string) {
-		return territoriesRows(&TerritoriesResponse{Data: []Resource[TerritoryAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *TerritoryResponse) *TerritoriesResponse {
+		return &TerritoriesResponse{Data: []Resource[TerritoryAttributes]{v.Data}}
+	}, territoriesRows)
 	registerRowsErr(territoryAgeRatingsRows)
 	registerRows(offerCodeValuesRows)
 	registerRows(appPricePointsRows)
@@ -278,39 +278,39 @@ func init() {
 	registerRows(buildBundlesRows)
 	registerRows(buildBundleFileSizesRows)
 	registerRows(betaAppClipInvocationsRows)
-	registerRows(func(v *BetaAppClipInvocationResponse) ([]string, [][]string) {
-		return betaAppClipInvocationsRows(&BetaAppClipInvocationsResponse{Data: []Resource[BetaAppClipInvocationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BetaAppClipInvocationResponse) *BetaAppClipInvocationsResponse {
+		return &BetaAppClipInvocationsResponse{Data: []Resource[BetaAppClipInvocationAttributes]{v.Data}}
+	}, betaAppClipInvocationsRows)
 	registerRows(betaAppClipInvocationLocalizationsRows)
-	registerRows(func(v *BetaAppClipInvocationLocalizationResponse) ([]string, [][]string) {
-		return betaAppClipInvocationLocalizationsRows(&BetaAppClipInvocationLocalizationsResponse{Data: []Resource[BetaAppClipInvocationLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BetaAppClipInvocationLocalizationResponse) *BetaAppClipInvocationLocalizationsResponse {
+		return &BetaAppClipInvocationLocalizationsResponse{Data: []Resource[BetaAppClipInvocationLocalizationAttributes]{v.Data}}
+	}, betaAppClipInvocationLocalizationsRows)
 	registerRows(offerCodesRows)
 	registerRows(offerCodeCustomCodesRows)
 	registerRows(subscriptionOfferCodeRows)
 	registerRows(winBackOffersRows)
-	registerRows(func(v *WinBackOfferResponse) ([]string, [][]string) {
-		return winBackOffersRows(&WinBackOffersResponse{Data: []Resource[WinBackOfferAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *WinBackOfferResponse) *WinBackOffersResponse {
+		return &WinBackOffersResponse{Data: []Resource[WinBackOfferAttributes]{v.Data}}
+	}, winBackOffersRows)
 	registerRowsErr(winBackOfferPricesRows)
 	registerRows(appStoreVersionsRows)
-	registerRows(func(v *AppStoreVersionResponse) ([]string, [][]string) {
-		return appStoreVersionsRows(&AppStoreVersionsResponse{Data: []Resource[AppStoreVersionAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *AppStoreVersionResponse) *AppStoreVersionsResponse {
+		return &AppStoreVersionsResponse{Data: []Resource[AppStoreVersionAttributes]{v.Data}}
+	}, appStoreVersionsRows)
 	registerRows(preReleaseVersionsRows)
-	registerRows(func(v *BuildResponse) ([]string, [][]string) {
-		return buildsRows(&BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BuildResponse) *BuildsResponse {
+		return &BuildsResponse{Data: []Resource[BuildAttributes]{v.Data}}
+	}, buildsRows)
 	registerRows(buildIconsRows)
 	registerRows(buildUploadsRows)
 	registerRows(buildsLatestNextRows)
-	registerRows(func(v *BuildUploadResponse) ([]string, [][]string) {
-		return buildUploadsRows(&BuildUploadsResponse{Data: []Resource[BuildUploadAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BuildUploadResponse) *BuildUploadsResponse {
+		return &BuildUploadsResponse{Data: []Resource[BuildUploadAttributes]{v.Data}}
+	}, buildUploadsRows)
 	registerRows(buildUploadFilesRows)
-	registerRows(func(v *BuildUploadFileResponse) ([]string, [][]string) {
-		return buildUploadFilesRows(&BuildUploadFilesResponse{Data: []Resource[BuildUploadFileAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *BuildUploadFileResponse) *BuildUploadFilesResponse {
+		return &BuildUploadFilesResponse{Data: []Resource[BuildUploadFileAttributes]{v.Data}}
+	}, buildUploadFilesRows)
 	registerDirect(func(v *AppClipDomainStatusResult, render func([]string, [][]string)) error {
 		h, r := appClipDomainStatusMainRows(v)
 		render(h, r)
@@ -320,12 +320,12 @@ func init() {
 		}
 		return nil
 	})
-	registerRows(func(v *SubscriptionOfferCodeOneTimeUseCodeResponse) ([]string, [][]string) {
-		return offerCodesRows(&SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}})
-	})
-	registerRows(func(v *SubscriptionOfferCodeCustomCodeResponse) ([]string, [][]string) {
-		return offerCodeCustomCodesRows(&SubscriptionOfferCodeCustomCodesResponse{Data: []Resource[SubscriptionOfferCodeCustomCodeAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *SubscriptionOfferCodeOneTimeUseCodeResponse) *SubscriptionOfferCodeOneTimeUseCodesResponse {
+		return &SubscriptionOfferCodeOneTimeUseCodesResponse{Data: []Resource[SubscriptionOfferCodeOneTimeUseCodeAttributes]{v.Data}}
+	}, offerCodesRows)
+	registerRowsAdapter(func(v *SubscriptionOfferCodeCustomCodeResponse) *SubscriptionOfferCodeCustomCodesResponse {
+		return &SubscriptionOfferCodeCustomCodesResponse{Data: []Resource[SubscriptionOfferCodeCustomCodeAttributes]{v.Data}}
+	}, offerCodeCustomCodesRows)
 	registerRows(winBackOfferDeleteResultRows)
 	registerRows(subscriptionPriceDeleteResultRows)
 	registerRowsErr(offerCodePricesRows)
