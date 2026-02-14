@@ -44,7 +44,7 @@ Credential resolution order:
   1) Selected profile (keychain/config)
   2) Environment variables (fallback for missing fields)
 
-Use --strict-auth or ASC_STRICT_AUTH=1 to fail when sources are mixed.`,
+Use --strict-auth or ASC_STRICT_AUTH=true (also: 1, yes, y, on) to fail when sources are mixed.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{

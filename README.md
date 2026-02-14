@@ -214,9 +214,9 @@ Environment variable fallback:
 - `ASC_CONFIG_PATH` (absolute path to config.json)
 - `ASC_PROFILE`
 - `ASC_BYPASS_KEYCHAIN` (ignore keychain and use config/env auth)
-- `ASC_STRICT_AUTH` (fail when credentials resolve from multiple sources)
+- `ASC_STRICT_AUTH` (fail when credentials resolve from multiple sources; accepts `true/false`, `1/0`, `yes/no`, `y/n`, `on/off`)
 
-Use `--strict-auth` or `ASC_STRICT_AUTH=1` to fail when credentials are resolved from multiple sources.
+Use `--strict-auth` or `ASC_STRICT_AUTH=true` (also `1`, `yes`, `y`, `on`) to fail when credentials are resolved from multiple sources.
 
 App ID fallback:
 - `ASC_APP_ID`
