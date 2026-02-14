@@ -1112,14 +1112,6 @@ func clearDefaultNameIf(name string) error {
 	return nil
 }
 
-func removeFromConfig(name string) error {
-	path, err := config.Path()
-	if err != nil {
-		return err
-	}
-	return removeFromConfigAt(name, path)
-}
-
 func removeFromConfigAt(name, path string) error {
 	cfg, err := config.LoadAt(path)
 	if err != nil {
