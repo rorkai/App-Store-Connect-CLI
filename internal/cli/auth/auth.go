@@ -161,13 +161,13 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			normalizedOutput := strings.ToLower(strings.TrimSpace(*output))
 			if normalizedOutput != "text" && normalizedOutput != "json" {
-				return fmt.Errorf("auth doctor: unsupported format: %s", *output)
+				return shared.UsageErrorf("unsupported format: %s", *output)
 			}
 			if normalizedOutput != "json" && *pretty {
-				return fmt.Errorf("--pretty is only valid with JSON output")
+				return shared.UsageError("--pretty is only valid with JSON output")
 			}
 			if *fix && !*confirm {
-				return fmt.Errorf("auth doctor: --fix requires --confirm")
+				return shared.UsageError("--fix requires --confirm")
 			}
 
 			report := authsvc.DoctorWithMigrationResolver(
@@ -433,7 +433,7 @@ The private key file path is stored securely. The key content is never saved.`,
 		Exec: func(ctx context.Context, args []string) error {
 			bypassKeychainEnabled := *bypassKeychain || authsvc.ShouldBypassKeychain()
 			if *local && !bypassKeychainEnabled {
-				return fmt.Errorf("auth login: --local requires --bypass-keychain or ASC_BYPASS_KEYCHAIN=1")
+				return shared.UsageError("--local requires --bypass-keychain or ASC_BYPASS_KEYCHAIN=1")
 			}
 			if *name == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
@@ -452,7 +452,7 @@ The private key file path is stored securely. The key content is never saved.`,
 				return flag.ErrHelp
 			}
 			if *skipValidation && *network {
-				return fmt.Errorf("auth login: --skip-validation and --network are mutually exclusive")
+				return shared.UsageError("--skip-validation and --network are mutually exclusive")
 			}
 
 			// Validate the key file exists and is parseable
@@ -579,10 +579,10 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedName := strings.TrimSpace(*name)
 			if trimmedName == "" && *name != "" {
-				return fmt.Errorf("auth logout: --name cannot be blank")
+				return shared.UsageError("--name cannot be blank")
 			}
 			if trimmedName != "" && *all {
-				return fmt.Errorf("auth logout: --all and --name are mutually exclusive")
+				return shared.UsageError("--all and --name are mutually exclusive")
 			}
 
 			if trimmedName != "" {

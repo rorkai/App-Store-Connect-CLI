@@ -109,20 +109,20 @@ Examples:
 			}
 			if testNotesValue != "" {
 				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-					return fmt.Errorf("publish testflight: %w", err)
+					return shared.UsageError(err.Error())
 				}
 			}
 
 			if *pollInterval <= 0 {
-				return fmt.Errorf("publish testflight: --poll-interval must be greater than 0")
+				return shared.UsageError("--poll-interval must be greater than 0")
 			}
 			if *timeout < 0 {
-				return fmt.Errorf("publish testflight: --timeout must be greater than 0")
+				return shared.UsageError("--timeout must be greater than 0")
 			}
 
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
-				return fmt.Errorf("publish testflight: %w", err)
+				return shared.UsageError(err.Error())
 			}
 
 			fileInfo, err := validateIPAPath(*ipaPath)
@@ -240,15 +240,15 @@ Examples:
 				return flag.ErrHelp
 			}
 			if *pollInterval <= 0 {
-				return fmt.Errorf("publish appstore: --poll-interval must be greater than 0")
+				return shared.UsageError("--poll-interval must be greater than 0")
 			}
 			if *timeout < 0 {
-				return fmt.Errorf("publish appstore: --timeout must be greater than 0")
+				return shared.UsageError("--timeout must be greater than 0")
 			}
 
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
-				return fmt.Errorf("publish appstore: %w", err)
+				return shared.UsageError(err.Error())
 			}
 
 			fileInfo, err := validateIPAPath(*ipaPath)

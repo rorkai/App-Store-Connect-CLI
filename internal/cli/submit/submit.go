@@ -68,7 +68,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if strings.TrimSpace(*version) != "" && strings.TrimSpace(*versionID) != "" {
-				return fmt.Errorf("submit create: --version and --version-id are mutually exclusive")
+				return shared.UsageError("--version and --version-id are mutually exclusive")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -79,7 +79,7 @@ Examples:
 
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
-				return fmt.Errorf("submit create: %w", err)
+				return shared.UsageError(err.Error())
 			}
 
 			client, err := shared.GetASCClient()
@@ -164,7 +164,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if strings.TrimSpace(*submissionID) != "" && strings.TrimSpace(*versionID) != "" {
-				return fmt.Errorf("submit status: --id and --version-id are mutually exclusive")
+				return shared.UsageError("--id and --version-id are mutually exclusive")
 			}
 
 			client, err := shared.GetASCClient()
@@ -248,7 +248,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if strings.TrimSpace(*submissionID) != "" && strings.TrimSpace(*versionID) != "" {
-				return fmt.Errorf("submit cancel: --id and --version-id are mutually exclusive")
+				return shared.UsageError("--id and --version-id are mutually exclusive")
 			}
 
 			client, err := shared.GetASCClient()

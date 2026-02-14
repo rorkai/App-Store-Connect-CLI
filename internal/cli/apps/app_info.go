@@ -81,13 +81,13 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("app-info get: --limit must be between 1 and 200")
+				return shared.UsageError("--limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("app-info get: %w", err)
+				return shared.UsageError(err.Error())
 			}
 			if strings.TrimSpace(*version) != "" && strings.TrimSpace(*versionID) != "" {
-				return fmt.Errorf("app-info get: --version and --version-id are mutually exclusive")
+				return shared.UsageError("--version and --version-id are mutually exclusive")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -98,7 +98,7 @@ Examples:
 
 			includeValues, err := normalizeAppInfoInclude(*include)
 			if err != nil {
-				return fmt.Errorf("app-info get: %w", err)
+				return shared.UsageError(err.Error())
 			}
 			if strings.TrimSpace(*appInfoID) != "" && len(includeValues) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --app-info requires --include")
@@ -107,11 +107,11 @@ Examples:
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
-				return fmt.Errorf("app-info get: %w", err)
+				return shared.UsageError(err.Error())
 			}
 			states, err := shared.NormalizeAppStoreVersionStates(shared.SplitCSVUpper(*state))
 			if err != nil {
-				return fmt.Errorf("app-info get: %w", err)
+				return shared.UsageError(err.Error())
 			}
 			if strings.TrimSpace(*version) != "" && len(platforms) != 1 {
 				fmt.Fprintln(os.Stderr, "Error: --platform is required with --version")
@@ -234,7 +234,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*version) != "" && strings.TrimSpace(*versionID) != "" {
-				return fmt.Errorf("app-info set: --version and --version-id are mutually exclusive")
+				return shared.UsageError("--version and --version-id are mutually exclusive")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -245,11 +245,11 @@ Examples:
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
-				return fmt.Errorf("app-info set: %w", err)
+				return shared.UsageError(err.Error())
 			}
 			states, err := shared.NormalizeAppStoreVersionStates(shared.SplitCSVUpper(*state))
 			if err != nil {
-				return fmt.Errorf("app-info set: %w", err)
+				return shared.UsageError(err.Error())
 			}
 			if strings.TrimSpace(*version) != "" && len(platforms) != 1 {
 				fmt.Fprintln(os.Stderr, "Error: --platform is required with --version")
@@ -262,7 +262,7 @@ Examples:
 				return flag.ErrHelp
 			}
 			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
-				return fmt.Errorf("app-info set: %w", err)
+				return shared.UsageError(err.Error())
 			}
 
 			descriptionValue := strings.TrimSpace(*description)

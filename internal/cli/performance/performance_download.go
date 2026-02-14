@@ -68,25 +68,25 @@ Examples:
 				selectionCount = 1
 			}
 			if selectionCount > 1 {
-				return fmt.Errorf("performance download: --app, --build, and --diagnostic-id are mutually exclusive")
+				return shared.UsageError("--app, --build, and --diagnostic-id are mutually exclusive")
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("performance download: --limit must be between 1 and 200")
+				return shared.UsageError("--limit must be between 1 and 200")
 			}
 			if trimmedDiagnosticID != "" && (strings.TrimSpace(*platform) != "" || strings.TrimSpace(*metricType) != "" || strings.TrimSpace(*deviceType) != "") {
-				return fmt.Errorf("performance download: metric filters are not valid with --diagnostic-id")
+				return shared.UsageError("metric filters are not valid with --diagnostic-id")
 			}
 			if trimmedDiagnosticID == "" && *limit > 0 {
-				return fmt.Errorf("performance download: --limit is only valid with --diagnostic-id")
+				return shared.UsageError("--limit is only valid with --diagnostic-id")
 			}
 
 			platforms, err := normalizePerfPowerMetricPlatforms(shared.SplitCSVUpper(*platform), "--platform")
 			if err != nil {
-				return fmt.Errorf("performance download: %w", err)
+				return shared.UsageError(err.Error())
 			}
 			metricTypes, err := normalizePerfPowerMetricTypes(shared.SplitCSVUpper(*metricType))
 			if err != nil {
-				return fmt.Errorf("performance download: %w", err)
+				return shared.UsageError(err.Error())
 			}
 
 			client, err := shared.GetASCClient()

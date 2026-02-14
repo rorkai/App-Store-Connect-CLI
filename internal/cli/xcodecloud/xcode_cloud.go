@@ -95,24 +95,24 @@ Examples:
 			hasGitRefID := strings.TrimSpace(*gitReferenceID) != ""
 
 			if hasWorkflowName && hasWorkflowID {
-				return fmt.Errorf("xcode-cloud run: --workflow and --workflow-id are mutually exclusive")
+				return shared.UsageError("--workflow and --workflow-id are mutually exclusive")
 			}
 			if !hasWorkflowName && !hasWorkflowID {
 				fmt.Fprintln(os.Stderr, "Error: --workflow or --workflow-id is required")
 				return flag.ErrHelp
 			}
 			if hasBranch && hasGitRefID {
-				return fmt.Errorf("xcode-cloud run: --branch and --git-reference-id are mutually exclusive")
+				return shared.UsageError("--branch and --git-reference-id are mutually exclusive")
 			}
 			if !hasBranch && !hasGitRefID {
 				fmt.Fprintln(os.Stderr, "Error: --branch or --git-reference-id is required")
 				return flag.ErrHelp
 			}
 			if *timeout < 0 {
-				return fmt.Errorf("xcode-cloud run: --timeout must be greater than or equal to 0")
+				return shared.UsageError("--timeout must be greater than or equal to 0")
 			}
 			if *wait && *pollInterval <= 0 {
-				return fmt.Errorf("xcode-cloud run: --poll-interval must be greater than 0")
+				return shared.UsageError("--poll-interval must be greater than 0")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -243,10 +243,10 @@ Examples:
 				return flag.ErrHelp
 			}
 			if *timeout < 0 {
-				return fmt.Errorf("xcode-cloud status: --timeout must be greater than or equal to 0")
+				return shared.UsageError("--timeout must be greater than or equal to 0")
 			}
 			if *wait && *pollInterval <= 0 {
-				return fmt.Errorf("xcode-cloud status: --poll-interval must be greater than 0")
+				return shared.UsageError("--poll-interval must be greater than 0")
 			}
 
 			client, err := shared.GetASCClient()
