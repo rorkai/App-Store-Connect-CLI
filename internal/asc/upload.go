@@ -85,9 +85,9 @@ func ExecuteUploadOperations(ctx context.Context, filePath string, operations []
 		uploadOpts.Concurrency = len(operations)
 	}
 
-	file, err := os.Open(filePath)
+	file, err := openUploadSourceFile(filePath)
 	if err != nil {
-		return fmt.Errorf("open file: %w", err)
+		return err
 	}
 	defer file.Close()
 
@@ -160,6 +160,26 @@ sendLoop:
 
 	wg.Wait()
 	return firstErr
+}
+
+func openUploadSourceFile(filePath string) (*os.File, error) {
+	info, err := os.Lstat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("open file: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, fmt.Errorf("refusing to read symlink %q", filePath)
+	}
+
+	file, err := openExistingNoFollow(filePath)
+	if err != nil {
+		// Re-check to keep the symlink rejection error deterministic in races.
+		if latestInfo, statErr := os.Lstat(filePath); statErr == nil && latestInfo.Mode()&os.ModeSymlink != 0 {
+			return nil, fmt.Errorf("refusing to read symlink %q", filePath)
+		}
+		return nil, fmt.Errorf("open file: %w", err)
+	}
+	return file, nil
 }
 
 func executeUploadOperation(ctx context.Context, file *os.File, task uploadTask, uploadOpts UploadOptions) error {

@@ -3375,6 +3375,72 @@ func TestPublishValidationErrors(t *testing.T) {
 	}
 }
 
+func TestPublishRejectsSymlinkIPAPath(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.ipa")
+	if err := os.WriteFile(target, []byte("dummy"), 0o600); err != nil {
+		t.Fatalf("write target IPA: %v", err)
+	}
+
+	link := filepath.Join(dir, "app.ipa")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink not supported: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name: "publish testflight rejects symlink",
+			args: []string{"publish", "testflight", "--app", "APP_123", "--ipa", link, "--group", "GROUP_ID"},
+			wantErr: fmt.Sprintf(
+				`publish testflight: refusing to read symlink %q`,
+				link,
+			),
+		},
+		{
+			name: "publish appstore rejects symlink",
+			args: []string{"publish", "appstore", "--app", "APP_123", "--ipa", link, "--version", "1.0.0"},
+			wantErr: fmt.Sprintf(
+				`publish appstore: refusing to read symlink %q`,
+				link,
+			),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if err == nil {
+					t.Fatal("expected command to fail for symlink IPA path")
+				}
+				if errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected runtime validation error, got ErrHelp")
+				}
+				if !strings.Contains(err.Error(), test.wantErr) {
+					t.Fatalf("expected error %q, got %q", test.wantErr, err.Error())
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
+	}
+}
+
 func TestSubmitValidationErrors(t *testing.T) {
 	tests := []struct {
 		name    string
