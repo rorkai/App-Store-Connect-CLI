@@ -86,6 +86,33 @@ func TestRun_UnknownCommandReturnsUsage(t *testing.T) {
 	}
 }
 
+func TestRun_RemovedTopLevelCommandsReturnUnknown(t *testing.T) {
+	t.Setenv("ASC_NO_UPDATE", "1")
+	resetReportFlags(t)
+
+	tests := []struct {
+		name string
+		arg  string
+	}{
+		{name: "assets removed", arg: "assets"},
+		{name: "shots removed", arg: "shots"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, stderr := captureCommandOutput(t, func() {
+				code := Run([]string{test.arg}, "1.0.0")
+				if code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+			if !strings.Contains(stderr, "Unknown command: "+test.arg) {
+				t.Fatalf("expected unknown command in stderr, got %q", stderr)
+			}
+		})
+	}
+}
+
 func TestRun_NoArgsShowsHelpReturnsSuccess(t *testing.T) {
 	t.Setenv("ASC_NO_UPDATE", "1")
 	resetReportFlags(t)
@@ -145,6 +172,14 @@ func TestRootCommand_UsageGroupsSubcommands(t *testing.T) {
 
 	if !strings.Contains(usage, "  analytics:") || !strings.Contains(usage, "  finance:") {
 		t.Fatalf("expected grouped analytics/finance commands, got %q", usage)
+	}
+
+	if !strings.Contains(usage, "  screenshots:") || !strings.Contains(usage, "  video-previews:") {
+		t.Fatalf("expected screenshots and video-previews commands in root usage, got %q", usage)
+	}
+
+	if strings.Contains(usage, "  assets:") || strings.Contains(usage, "  shots:") {
+		t.Fatalf("expected old assets/shots commands to be removed from root usage, got %q", usage)
 	}
 }
 

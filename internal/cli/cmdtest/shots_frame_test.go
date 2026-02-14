@@ -20,7 +20,7 @@ func TestShotsFrame_RequiresInput(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"shots", "frame"}); err != nil {
+		if err := root.Parse([]string{"screenshots", "frame"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		err := root.Run(context.Background())
@@ -43,7 +43,7 @@ func TestShotsFrame_RejectsInputAndConfigTogether(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"shots",
+			"screenshots",
 			"frame",
 			"--input", "/tmp/raw.png",
 			"--config", "/tmp/frame.yaml",
@@ -70,7 +70,7 @@ func TestShotsFrame_InvalidDevice(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"shots",
+			"screenshots",
 			"frame",
 			"--input", "/tmp/raw.png",
 			"--device", "iphone-se",
@@ -104,7 +104,7 @@ func TestShotsFrame_DefaultDeviceIsIPhoneAir(t *testing.T) {
 	outputDir := filepath.Join(t.TempDir(), "framed")
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{
-		"shots", "frame",
+		"screenshots", "frame",
 		"--input", rawPath,
 		"--output-dir", outputDir,
 		"--output", "json",
@@ -172,7 +172,7 @@ func TestShotsFrame_ExplicitDeviceIPhone17Pro(t *testing.T) {
 
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{
-		"shots", "frame",
+		"screenshots", "frame",
 		"--input", rawPath,
 		"--output-dir", filepath.Join(t.TempDir(), "framed"),
 		"--device", "iphone-17-pro",
@@ -240,7 +240,7 @@ screenshots:
 
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{
-		"shots", "frame",
+		"screenshots", "frame",
 		"--config", configPath,
 		"--output-dir", filepath.Join(t.TempDir(), "framed"),
 		"--output", "json",
@@ -298,7 +298,7 @@ screenshots:
 	outputDir := filepath.Join(t.TempDir(), "framed")
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{
-		"shots", "frame",
+		"screenshots", "frame",
 		"--config", configPath,
 		"--output-dir", outputDir,
 		"--output", "json",
@@ -338,7 +338,7 @@ func TestShotsFrame_WatchRequiresConfig(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"shots",
+			"screenshots",
 			"frame",
 			"--input", "/tmp/raw.png",
 			"--watch",
@@ -365,7 +365,7 @@ func TestShotsFrame_WatchWithoutInputOrConfig(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"shots",
+			"screenshots",
 			"frame",
 			"--watch",
 		}); err != nil {

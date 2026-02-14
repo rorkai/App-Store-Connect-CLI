@@ -16,7 +16,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/app_events"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/appclips"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/apps"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/assets"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/backgroundassets"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/betaapplocalizations"
@@ -59,8 +58,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/reviews"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/routingcoverage"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/sandbox"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/screenshots"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shots"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/signing"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/submit"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
@@ -68,6 +67,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/users"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/versions"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/videopreviews"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/webhooks"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/winbackoffers"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/xcodecloud"
@@ -135,13 +135,13 @@ func Subcommands(version string) []*ffcli.Command {
 		preorders.PreOrdersCommand(),
 		prerelease.PreReleaseVersionsCommand(),
 		localizations.LocalizationsCommand(),
-		assets.AssetsCommand(),
+		screenshots.ScreenshotsCommand(),
+		videopreviews.VideoPreviewsCommand(),
 		backgroundassets.BackgroundAssetsCommand(),
 		buildlocalizations.BuildLocalizationsCommand(),
 		betaapplocalizations.BetaAppLocalizationsCommand(),
 		betabuildlocalizations.BetaBuildLocalizationsCommand(),
 		sandbox.SandboxCommand(),
-		shots.ShotsCommand(),
 		signing.SigningCommand(),
 		notarization.NotarizationCommand(),
 		iap.IAPCommand(),

@@ -18,9 +18,9 @@ const (
 	defaultShotsReviewOutputDir = "./screenshots/review"
 )
 
-// ShotsReviewGenerateCommand returns shots review generate subcommand.
+// ShotsReviewGenerateCommand returns screenshots review-generate subcommand.
 func ShotsReviewGenerateCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("generate", flag.ExitOnError)
+	fs := flag.NewFlagSet("review-generate", flag.ExitOnError)
 	rawDir := fs.String("raw-dir", defaultShotsReviewRawDir, "Directory containing raw screenshots (optional)")
 	framedDir := fs.String("framed-dir", defaultShotsReviewFramedDir, "Directory containing framed screenshots (required)")
 	outputDir := fs.String("output-dir", defaultShotsReviewOutputDir, "Directory to write HTML and JSON review artifacts")
@@ -29,8 +29,8 @@ func ShotsReviewGenerateCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "generate",
-		ShortUsage: "asc shots review generate [flags]",
+		Name:       "review-generate",
+		ShortUsage: "asc screenshots review-generate [flags]",
 		ShortHelp:  "Generate HTML side-by-side review and JSON manifest.",
 		LongHelp: `Generate review artifacts for screenshots:
 
@@ -52,7 +52,7 @@ func ShotsReviewGenerateCommand() *ffcli.Command {
 				ApprovalPath: strings.TrimSpace(*approvalPath),
 			})
 			if err != nil {
-				return fmt.Errorf("shots review generate: %w", err)
+				return fmt.Errorf("screenshots review-generate: %w", err)
 			}
 			return shared.PrintOutput(result, *output, *pretty)
 		},

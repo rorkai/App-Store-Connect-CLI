@@ -13,7 +13,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
 
-// ShotsRunCommand returns the shots run subcommand.
+// ShotsRunCommand returns the screenshots run subcommand.
 func ShotsRunCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
 	planPath := fs.String("plan", ".asc/screenshots.json", "Path to screenshot run plan JSON")
@@ -25,7 +25,7 @@ func ShotsRunCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "run",
-		ShortUsage: "asc shots run [--plan .asc/screenshots.json] [flags]",
+		ShortUsage: "asc screenshots run [--plan .asc/screenshots.json] [flags]",
 		ShortHelp:  "Run a deterministic screenshot sequence from JSON.",
 		LongHelp: `Run a deterministic screenshot automation sequence.
 
@@ -42,12 +42,12 @@ Supported actions: launch, tap, type, wait, wait_for (polling), screenshot.`,
 
 			absPlanPath, err := filepath.Abs(planPathVal)
 			if err != nil {
-				return fmt.Errorf("shots run: resolve plan path: %w", err)
+				return fmt.Errorf("screenshots run: resolve plan path: %w", err)
 			}
 
 			plan, err := screenshots.LoadPlanUnvalidated(absPlanPath)
 			if err != nil {
-				return fmt.Errorf("shots run: %w", err)
+				return fmt.Errorf("screenshots run: %w", err)
 			}
 
 			if override := strings.TrimSpace(*bundleID); override != "" {
@@ -62,7 +62,7 @@ Supported actions: launch, tap, type, wait, wait_for (polling), screenshot.`,
 
 			result, err := screenshots.RunPlan(ctx, plan)
 			if err != nil {
-				return fmt.Errorf("shots run: %w", err)
+				return fmt.Errorf("screenshots run: %w", err)
 			}
 
 			return shared.PrintOutput(result, *output, *pretty)

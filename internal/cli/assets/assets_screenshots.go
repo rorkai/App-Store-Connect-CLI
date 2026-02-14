@@ -19,15 +19,15 @@ func AssetsScreenshotsCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "screenshots",
-		ShortUsage: "asc assets screenshots <subcommand> [flags]",
+		ShortUsage: "asc screenshots <subcommand> [flags]",
 		ShortHelp:  "Manage App Store screenshots.",
 		LongHelp: `Manage App Store screenshots.
 
 Examples:
-  asc assets screenshots list --version-localization "LOC_ID"
-  asc assets screenshots sizes --display-type "APP_IPHONE_65"
-  asc assets screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_65"
-  asc assets screenshots delete --id "SCREENSHOT_ID" --confirm`,
+  asc screenshots list --version-localization "LOC_ID"
+  asc screenshots sizes --display-type "APP_IPHONE_65"
+  asc screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_65"
+  asc screenshots delete --id "SCREENSHOT_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -52,12 +52,12 @@ func AssetsScreenshotsListCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc assets screenshots list --version-localization \"LOC_ID\"",
+		ShortUsage: "asc screenshots list --version-localization \"LOC_ID\"",
 		ShortHelp:  "List screenshots for a localization.",
 		LongHelp: `List screenshots for a localization.
 
 Examples:
-  asc assets screenshots list --version-localization "LOC_ID"`,
+  asc screenshots list --version-localization "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -69,7 +69,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("assets screenshots list: %w", err)
+				return fmt.Errorf("screenshots list: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -77,7 +77,7 @@ Examples:
 
 			setsResp, err := client.GetAppScreenshotSets(requestCtx, locID)
 			if err != nil {
-				return fmt.Errorf("assets screenshots list: failed to fetch sets: %w", err)
+				return fmt.Errorf("screenshots list: failed to fetch sets: %w", err)
 			}
 
 			result := asc.AppScreenshotListResult{
@@ -88,7 +88,7 @@ Examples:
 			for _, set := range setsResp.Data {
 				screenshots, err := client.GetAppScreenshots(requestCtx, set.ID)
 				if err != nil {
-					return fmt.Errorf("assets screenshots list: failed to fetch screenshots for set %s: %w", set.ID, err)
+					return fmt.Errorf("screenshots list: failed to fetch screenshots for set %s: %w", set.ID, err)
 				}
 				result.Sets = append(result.Sets, asc.AppScreenshotSetWithScreenshots{
 					Set:         set,
@@ -111,14 +111,14 @@ func AssetsScreenshotsSizesCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "sizes",
-		ShortUsage: "asc assets screenshots sizes [--display-type \"APP_IPHONE_65\"]",
+		ShortUsage: "asc screenshots sizes [--display-type \"APP_IPHONE_65\"]",
 		ShortHelp:  "List supported screenshot display sizes.",
 		LongHelp: `List supported screenshot display sizes.
 
 Examples:
-  asc assets screenshots sizes
-  asc assets screenshots sizes --display-type "APP_IPHONE_65"
-  asc assets screenshots sizes --output table`,
+  asc screenshots sizes
+  asc screenshots sizes --display-type "APP_IPHONE_65"
+  asc screenshots sizes --output table`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -130,11 +130,11 @@ Examples:
 			if filter != "" {
 				normalized, err := normalizeScreenshotDisplayType(filter)
 				if err != nil {
-					return fmt.Errorf("assets screenshots sizes: %w", err)
+					return fmt.Errorf("screenshots sizes: %w", err)
 				}
 				entry, ok := asc.ScreenshotSizeEntryForDisplayType(normalized)
 				if !ok {
-					return fmt.Errorf("assets screenshots sizes: unsupported screenshot display type %q", normalized)
+					return fmt.Errorf("screenshots sizes: unsupported screenshot display type %q", normalized)
 				}
 				result.Sizes = []asc.ScreenshotSizeEntry{entry}
 			}
@@ -156,13 +156,13 @@ func AssetsScreenshotsUploadCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "upload",
-		ShortUsage: "asc assets screenshots upload --version-localization \"LOC_ID\" --path \"./screenshots\" --device-type \"IPHONE_65\"",
+		ShortUsage: "asc screenshots upload --version-localization \"LOC_ID\" --path \"./screenshots\" --device-type \"IPHONE_65\"",
 		ShortHelp:  "Upload screenshots for a localization.",
 		LongHelp: `Upload screenshots for a localization.
 
 Examples:
-  asc assets screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_65"
-  asc assets screenshots upload --version-localization "LOC_ID" --path "./screenshots/en-US.png" --device-type "IPHONE_65"`,
+  asc screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_65"
+  asc screenshots upload --version-localization "LOC_ID" --path "./screenshots/en-US.png" --device-type "IPHONE_65"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -184,21 +184,21 @@ Examples:
 
 			displayType, err := normalizeScreenshotDisplayType(deviceValue)
 			if err != nil {
-				return fmt.Errorf("assets screenshots upload: %w", err)
+				return fmt.Errorf("screenshots upload: %w", err)
 			}
 
 			files, err := collectAssetFiles(pathValue)
 			if err != nil {
-				return fmt.Errorf("assets screenshots upload: %w", err)
+				return fmt.Errorf("screenshots upload: %w", err)
 			}
 
 			if err := validateScreenshotDimensions(files, displayType); err != nil {
-				return fmt.Errorf("assets screenshots upload: %w", err)
+				return fmt.Errorf("screenshots upload: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("assets screenshots upload: %w", err)
+				return fmt.Errorf("screenshots upload: %w", err)
 			}
 
 			requestCtx, cancel := contextWithAssetUploadTimeout(ctx)
@@ -206,14 +206,14 @@ Examples:
 
 			set, err := ensureScreenshotSet(requestCtx, client, locID, displayType)
 			if err != nil {
-				return fmt.Errorf("assets screenshots upload: %w", err)
+				return fmt.Errorf("screenshots upload: %w", err)
 			}
 
 			results := make([]asc.AssetUploadResultItem, 0, len(files))
 			for _, filePath := range files {
 				item, err := uploadScreenshotAsset(requestCtx, client, set.ID, filePath)
 				if err != nil {
-					return fmt.Errorf("assets screenshots upload: %w", err)
+					return fmt.Errorf("screenshots upload: %w", err)
 				}
 				results = append(results, item)
 			}
@@ -241,12 +241,12 @@ func AssetsScreenshotsDeleteCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "delete",
-		ShortUsage: "asc assets screenshots delete --id \"SCREENSHOT_ID\" --confirm",
+		ShortUsage: "asc screenshots delete --id \"SCREENSHOT_ID\" --confirm",
 		ShortHelp:  "Delete a screenshot by ID.",
 		LongHelp: `Delete a screenshot by ID.
 
 Examples:
-  asc assets screenshots delete --id "SCREENSHOT_ID" --confirm`,
+  asc screenshots delete --id "SCREENSHOT_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -262,14 +262,14 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("assets screenshots delete: %w", err)
+				return fmt.Errorf("screenshots delete: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppScreenshot(requestCtx, assetID); err != nil {
-				return fmt.Errorf("assets screenshots delete: %w", err)
+				return fmt.Errorf("screenshots delete: %w", err)
 			}
 
 			result := asc.AssetDeleteResult{

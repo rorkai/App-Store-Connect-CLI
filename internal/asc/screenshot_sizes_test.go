@@ -38,7 +38,7 @@ func TestValidateScreenshotDimensionsInvalid(t *testing.T) {
 	if !strings.Contains(message, "640x960") {
 		t.Fatalf("expected allowed size in error, got %q", message)
 	}
-	if !strings.Contains(message, "asc assets screenshots sizes") {
+	if !strings.Contains(message, "asc screenshots sizes") {
 		t.Fatalf("expected hint in error, got %q", message)
 	}
 }

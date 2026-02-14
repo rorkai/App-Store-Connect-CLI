@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
 
-// ShotsReviewOpenCommand returns shots review open subcommand.
+// ShotsReviewOpenCommand returns screenshots review-open subcommand.
 func ShotsReviewOpenCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("open", flag.ExitOnError)
+	fs := flag.NewFlagSet("review-open", flag.ExitOnError)
 	outputDir := fs.String("output-dir", defaultShotsReviewOutputDir, "Directory containing review artifacts")
 	htmlPath := fs.String("html-path", "", "Optional HTML path (default: <output-dir>/index.html)")
 	dryRun := fs.Bool("dry-run", false, "Resolve path and print output without opening browser")
@@ -22,8 +22,8 @@ func ShotsReviewOpenCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "open",
-		ShortUsage: "asc shots review open [flags]",
+		Name:       "review-open",
+		ShortUsage: "asc screenshots review-open [flags]",
 		ShortHelp:  "Open review HTML report in the default browser.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
@@ -39,7 +39,7 @@ func ShotsReviewOpenCommand() *ffcli.Command {
 				DryRun:    *dryRun,
 			})
 			if err != nil {
-				return fmt.Errorf("shots review open: %w", err)
+				return fmt.Errorf("screenshots review-open: %w", err)
 			}
 			return shared.PrintOutput(result, *output, *pretty)
 		},

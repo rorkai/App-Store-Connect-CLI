@@ -21,14 +21,14 @@ func AssetsPreviewsCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "previews",
-		ShortUsage: "asc assets previews <subcommand> [flags]",
+		ShortUsage: "asc video-previews <subcommand> [flags]",
 		ShortHelp:  "Manage App Store app preview videos.",
 		LongHelp: `Manage App Store app preview videos.
 
 Examples:
-  asc assets previews list --version-localization "LOC_ID"
-  asc assets previews upload --version-localization "LOC_ID" --path "./previews" --device-type "IPHONE_65"
-  asc assets previews delete --id "PREVIEW_ID" --confirm`,
+  asc video-previews list --version-localization "LOC_ID"
+  asc video-previews upload --version-localization "LOC_ID" --path "./previews" --device-type "IPHONE_65"
+  asc video-previews delete --id "PREVIEW_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -52,12 +52,12 @@ func AssetsPreviewsListCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc assets previews list --version-localization \"LOC_ID\"",
+		ShortUsage: "asc video-previews list --version-localization \"LOC_ID\"",
 		ShortHelp:  "List previews for a localization.",
 		LongHelp: `List previews for a localization.
 
 Examples:
-  asc assets previews list --version-localization "LOC_ID"`,
+  asc video-previews list --version-localization "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -69,7 +69,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("assets previews list: %w", err)
+				return fmt.Errorf("video-previews list: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -77,7 +77,7 @@ Examples:
 
 			setsResp, err := client.GetAppPreviewSets(requestCtx, locID)
 			if err != nil {
-				return fmt.Errorf("assets previews list: failed to fetch sets: %w", err)
+				return fmt.Errorf("video-previews list: failed to fetch sets: %w", err)
 			}
 
 			result := asc.AppPreviewListResult{
@@ -88,7 +88,7 @@ Examples:
 			for _, set := range setsResp.Data {
 				previews, err := client.GetAppPreviews(requestCtx, set.ID)
 				if err != nil {
-					return fmt.Errorf("assets previews list: failed to fetch previews for set %s: %w", set.ID, err)
+					return fmt.Errorf("video-previews list: failed to fetch previews for set %s: %w", set.ID, err)
 				}
 				result.Sets = append(result.Sets, asc.AppPreviewSetWithPreviews{
 					Set:      set,
@@ -113,13 +113,13 @@ func AssetsPreviewsUploadCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "upload",
-		ShortUsage: "asc assets previews upload --version-localization \"LOC_ID\" --path \"./previews\" --device-type \"IPHONE_65\"",
+		ShortUsage: "asc video-previews upload --version-localization \"LOC_ID\" --path \"./previews\" --device-type \"IPHONE_65\"",
 		ShortHelp:  "Upload previews for a localization.",
 		LongHelp: `Upload previews for a localization.
 
 Examples:
-  asc assets previews upload --version-localization "LOC_ID" --path "./previews" --device-type "IPHONE_65"
-  asc assets previews upload --version-localization "LOC_ID" --path "./previews/preview.mov" --device-type "IPHONE_65"`,
+  asc video-previews upload --version-localization "LOC_ID" --path "./previews" --device-type "IPHONE_65"
+  asc video-previews upload --version-localization "LOC_ID" --path "./previews/preview.mov" --device-type "IPHONE_65"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -141,17 +141,17 @@ Examples:
 
 			previewType, err := normalizePreviewType(deviceValue)
 			if err != nil {
-				return fmt.Errorf("assets previews upload: %w", err)
+				return fmt.Errorf("video-previews upload: %w", err)
 			}
 
 			files, err := collectAssetFiles(pathValue)
 			if err != nil {
-				return fmt.Errorf("assets previews upload: %w", err)
+				return fmt.Errorf("video-previews upload: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("assets previews upload: %w", err)
+				return fmt.Errorf("video-previews upload: %w", err)
 			}
 
 			requestCtx, cancel := contextWithAssetUploadTimeout(ctx)
@@ -159,14 +159,14 @@ Examples:
 
 			set, err := ensurePreviewSet(requestCtx, client, locID, previewType)
 			if err != nil {
-				return fmt.Errorf("assets previews upload: %w", err)
+				return fmt.Errorf("video-previews upload: %w", err)
 			}
 
 			results := make([]asc.AssetUploadResultItem, 0, len(files))
 			for _, filePath := range files {
 				item, err := uploadPreviewAsset(requestCtx, client, set.ID, filePath)
 				if err != nil {
-					return fmt.Errorf("assets previews upload: %w", err)
+					return fmt.Errorf("video-previews upload: %w", err)
 				}
 				results = append(results, item)
 			}
@@ -194,12 +194,12 @@ func AssetsPreviewsDeleteCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "delete",
-		ShortUsage: "asc assets previews delete --id \"PREVIEW_ID\" --confirm",
+		ShortUsage: "asc video-previews delete --id \"PREVIEW_ID\" --confirm",
 		ShortHelp:  "Delete a preview by ID.",
 		LongHelp: `Delete a preview by ID.
 
 Examples:
-  asc assets previews delete --id "PREVIEW_ID" --confirm`,
+  asc video-previews delete --id "PREVIEW_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -215,14 +215,14 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("assets previews delete: %w", err)
+				return fmt.Errorf("video-previews delete: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			if err := client.DeleteAppPreview(requestCtx, assetID); err != nil {
-				return fmt.Errorf("assets previews delete: %w", err)
+				return fmt.Errorf("video-previews delete: %w", err)
 			}
 
 			result := asc.AssetDeleteResult{

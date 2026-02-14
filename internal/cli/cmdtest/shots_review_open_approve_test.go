@@ -27,7 +27,7 @@ func TestShotsReviewOpen_DryRun(t *testing.T) {
 
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{
-		"shots", "review", "open",
+		"screenshots", "review-open",
 		"--output-dir", outputDir,
 		"--dry-run",
 		"--output", "json",
@@ -85,7 +85,7 @@ func TestShotsReviewApprove_AllReady(t *testing.T) {
 
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{
-		"shots", "review", "approve",
+		"screenshots", "review-approve",
 		"--output-dir", outputDir,
 		"--all-ready",
 		"--output", "json",
@@ -154,7 +154,7 @@ func TestShotsReviewApprove_LocaleDeviceSelectors(t *testing.T) {
 
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{
-		"shots", "review", "approve",
+		"screenshots", "review-approve",
 		"--output-dir", outputDir,
 		"--locale", "en",
 		"--device", "iPhone_Air",
@@ -195,7 +195,7 @@ func TestShotsReviewApprove_RequiresSelector(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 	if err := root.Parse([]string{
-		"shots", "review", "approve",
+		"screenshots", "review-approve",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}

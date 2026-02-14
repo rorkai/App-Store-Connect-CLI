@@ -34,7 +34,7 @@ func TestShotsReviewGenerate_JSON(t *testing.T) {
 
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{
-		"shots", "review", "generate",
+		"screenshots", "review-generate",
 		"--raw-dir", rawDir,
 		"--framed-dir", framedDir,
 		"--output-dir", outputDir,
@@ -99,7 +99,7 @@ func TestShotsReviewGenerate_MissingFramedDir(t *testing.T) {
 	missingDir := filepath.Join(t.TempDir(), "missing-framed")
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{
-		"shots", "review", "generate",
+		"screenshots", "review-generate",
 		"--framed-dir", missingDir,
 		"--output", "json",
 	}); err != nil {

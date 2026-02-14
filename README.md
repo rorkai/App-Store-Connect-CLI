@@ -71,7 +71,7 @@ Agent Skills for automating `asc` workflows including builds, TestFlight, metada
   - [Publish (End-to-End Workflows)](#publish-end-to-end-workflows)
   - [App Clips](#app-clips)
   - [Encryption](#encryption)
-  - [Assets (Screenshots & Previews)](#assets-screenshots--previews)
+  - [Screenshots & Video Previews](#screenshots--video-previews)
   - [Background Assets](#background-assets)
   - [Routing Coverage](#routing-coverage)
   - [Notify](#notify)
@@ -1164,26 +1164,35 @@ asc encryption documents upload --declaration "DECLARATION_ID" --file "./encrypt
 asc encryption documents get --id "DOC_ID"
 ```
 
-### Assets (Screenshots & Previews)
+### Screenshots & Video Previews
 
 ```bash
+# Capture and frame screenshots locally
+asc screenshots capture --bundle-id "com.example.app" --name home
+asc screenshots frame --input "./screenshots/raw/home.png" --device iphone-air
+
+# Generate and approve review artifacts
+asc screenshots review-generate --framed-dir "./screenshots/framed" --output-dir "./screenshots/review"
+asc screenshots review-open --output-dir "./screenshots/review"
+asc screenshots review-approve --all-ready --output-dir "./screenshots/review"
+
 # List screenshots for a version localization
-asc assets screenshots list --version-localization "LOC_ID"
+asc screenshots list --version-localization "LOC_ID"
 
 # List supported screenshot sizes
-asc assets screenshots sizes
-asc assets screenshots sizes --display-type "APP_IPHONE_65"
+asc screenshots sizes
+asc screenshots sizes --display-type "APP_IPHONE_65"
 
 # Upload screenshots
-asc assets screenshots upload --version-localization "LOC_ID" --path "./screenshots/" --device-type IPHONE_65
+asc screenshots upload --version-localization "LOC_ID" --path "./screenshots/" --device-type IPHONE_65
 
 # Delete a screenshot
-asc assets screenshots delete --id "SCREENSHOT_ID" --confirm
+asc screenshots delete --id "SCREENSHOT_ID" --confirm
 
-# List and upload previews
-asc assets previews list --version-localization "LOC_ID"
-asc assets previews upload --version-localization "LOC_ID" --path "./previews/" --device-type IPHONE_65
-asc assets previews delete --id "PREVIEW_ID" --confirm
+# List and upload video previews
+asc video-previews list --version-localization "LOC_ID"
+asc video-previews upload --version-localization "LOC_ID" --path "./previews/" --device-type IPHONE_65
+asc video-previews delete --id "PREVIEW_ID" --confirm
 ```
 
 ### Background Assets

@@ -14,15 +14,15 @@ type frameDevicesOutput struct {
 	Devices []screenshots.FrameDeviceOption `json:"devices"`
 }
 
-// ShotsFramesListDevicesCommand returns the shots frames list-devices subcommand.
+// ShotsFramesListDevicesCommand returns the screenshots list-frame-devices subcommand.
 func ShotsFramesListDevicesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list-devices", flag.ExitOnError)
+	fs := flag.NewFlagSet("list-frame-devices", flag.ExitOnError)
 	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "list-devices",
-		ShortUsage: "asc shots frames list-devices [--output json]",
+		Name:       "list-frame-devices",
+		ShortUsage: "asc screenshots list-frame-devices [--output json]",
 		ShortHelp:  "List supported frame devices and the default.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,

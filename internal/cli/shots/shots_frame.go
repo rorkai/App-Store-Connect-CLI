@@ -17,7 +17,7 @@ import (
 
 const defaultShotsFrameOutputDir = "./screenshots/framed"
 
-// ShotsFrameCommand returns the shots frame subcommand.
+// ShotsFrameCommand returns the screenshots frame subcommand.
 func ShotsFrameCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("frame", flag.ExitOnError)
 	inputPath := fs.String("input", "", "Path to raw screenshot PNG (required)")
@@ -39,7 +39,7 @@ func ShotsFrameCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "frame",
-		ShortUsage: "asc shots frame (--input ./screenshots/raw/home.png | --config ./koubou.yaml) [flags]",
+		ShortUsage: "asc screenshots frame (--input ./screenshots/raw/home.png | --config ./koubou.yaml) [flags]",
 		ShortHelp:  "Compose a screenshot into an Apple device frame.",
 		LongHelp: `Compose screenshots using Koubou's YAML-based rendering flow.
 
@@ -67,7 +67,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			if configVal != "" {
 				absConfig, err := filepath.Abs(configVal)
 				if err != nil {
-					return fmt.Errorf("shots frame: resolve config path: %w", err)
+					return fmt.Errorf("screenshots frame: resolve config path: %w", err)
 				}
 				configVal = absConfig
 			}
@@ -102,7 +102,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				var err error
 				absInput, err = filepath.Abs(inputVal)
 				if err != nil {
-					return fmt.Errorf("shots frame: resolve input path: %w", err)
+					return fmt.Errorf("screenshots frame: resolve input path: %w", err)
 				}
 			}
 
@@ -113,7 +113,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 
 			outPath, err := resolveOutputPath(*outputPath, *outputDir, *name, absInput, outputDevice)
 			if err != nil {
-				return fmt.Errorf("shots frame: %w", err)
+				return fmt.Errorf("screenshots frame: %w", err)
 			}
 
 			result, err := screenshots.Frame(ctx, screenshots.FrameRequest{
@@ -123,7 +123,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				ConfigPath: configVal,
 			})
 			if err != nil {
-				return fmt.Errorf("shots frame: %w", err)
+				return fmt.Errorf("screenshots frame: %w", err)
 			}
 
 			return shared.PrintOutput(result, *output, *pretty)

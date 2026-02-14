@@ -13,7 +13,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
 
-// ShotsCaptureCommand returns the shots capture subcommand.
+// ShotsCaptureCommand returns the screenshots capture subcommand.
 func ShotsCaptureCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("capture", flag.ExitOnError)
 	provider := fs.String("provider", screenshots.ProviderAXe, "Capture provider: axe (default)")
@@ -26,7 +26,7 @@ func ShotsCaptureCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "capture",
-		ShortUsage: "asc shots capture --bundle-id BUNDLE_ID --name NAME [flags]",
+		ShortUsage: "asc screenshots capture --bundle-id BUNDLE_ID --name NAME [flags]",
 		ShortHelp:  "Capture a single screenshot from the simulator.",
 		LongHelp: `Capture one screenshot from the running app on the simulator.
 App must already be installed; simulator must be booted or --udid set.`,
@@ -59,10 +59,10 @@ App must already be installed; simulator must be booted or --udid set.`,
 			}
 			absOut, err := filepath.Abs(outputDirVal)
 			if err != nil {
-				return fmt.Errorf("shots capture: resolve output dir: %w", err)
+				return fmt.Errorf("screenshots capture: resolve output dir: %w", err)
 			}
 			if err := os.MkdirAll(absOut, 0o755); err != nil {
-				return fmt.Errorf("shots capture: create output dir: %w", err)
+				return fmt.Errorf("screenshots capture: create output dir: %w", err)
 			}
 
 			req := screenshots.CaptureRequest{
@@ -75,7 +75,7 @@ App must already be installed; simulator must be booted or --udid set.`,
 
 			result, err := screenshots.Capture(ctx, req)
 			if err != nil {
-				return fmt.Errorf("shots capture: %w", err)
+				return fmt.Errorf("screenshots capture: %w", err)
 			}
 
 			return shared.PrintOutput(result, *output, *pretty)

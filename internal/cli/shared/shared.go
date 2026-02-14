@@ -199,7 +199,7 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 		b.WriteString("\n")
 		tw := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
 		for _, sub := range c.Subcommands {
-			fmt.Fprintf(tw, "  %-12s %s\n", sub.Name, sub.ShortHelp)
+			fmt.Fprintf(tw, "  %s\t%s\n", sub.Name, sub.ShortHelp)
 		}
 		tw.Flush()
 		b.WriteString("\n")

@@ -29,7 +29,7 @@ var rootUsageGroups = []rootCommandGroup{
 		title: "APP MANAGEMENT COMMANDS",
 		commands: []string{
 			"apps", "app-setup", "app-tags", "app-info", "app-infos", "versions",
-			"localizations", "assets", "background-assets", "product-pages",
+			"localizations", "screenshots", "video-previews", "background-assets", "product-pages",
 			"routing-coverage", "pricing", "pre-orders", "categories", "age-rating",
 			"accessibility", "encryption", "eula", "agreements", "app-clips",
 			"android-ios-mapping", "marketplace", "alternative-distribution",
@@ -41,7 +41,7 @@ var rootUsageGroups = []rootCommandGroup{
 		commands: []string{
 			"testflight", "builds", "build-bundles", "pre-release-versions",
 			"build-localizations", "beta-app-localizations", "beta-build-localizations",
-			"sandbox", "shots",
+			"sandbox",
 		},
 	},
 	{

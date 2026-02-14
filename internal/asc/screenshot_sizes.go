@@ -234,7 +234,7 @@ func ValidateScreenshotDimensions(path, displayType string) error {
 		}
 	}
 	return fmt.Errorf(
-		"screenshot %q has unsupported size %dx%d for %s (allowed: %s). See \"asc assets screenshots sizes --display-type %s\"",
+		"screenshot %q has unsupported size %dx%d for %s (allowed: %s). See \"asc screenshots sizes --display-type %s\"",
 		path,
 		dims.Width,
 		dims.Height,

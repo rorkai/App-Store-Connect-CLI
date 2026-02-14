@@ -22,7 +22,7 @@ func TestAssetsScreenshotsSizesOutput(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"assets", "screenshots", "sizes", "--output", "json"}); err != nil {
+		if err := root.Parse([]string{"screenshots", "sizes", "--output", "json"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -58,7 +58,7 @@ func TestAssetsScreenshotsSizesOutputSupportsIPhone69Alias(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"assets", "screenshots", "sizes", "--display-type", "IPHONE_69", "--output", "json"}); err != nil {
+		if err := root.Parse([]string{"screenshots", "sizes", "--display-type", "IPHONE_69", "--output", "json"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -87,7 +87,7 @@ func TestAssetsScreenshotsSizesOutputSupportsIMessageIPhone69Alias(t *testing.T)
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"assets", "screenshots", "sizes", "--display-type", "IMESSAGE_APP_IPHONE_69", "--output", "json"}); err != nil {
+		if err := root.Parse([]string{"screenshots", "sizes", "--display-type", "IMESSAGE_APP_IPHONE_69", "--output", "json"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -116,7 +116,7 @@ func TestAssetsScreenshotsSizesOutputIncludesMacWatchTVAndVisionDimensions(t *te
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"assets", "screenshots", "sizes", "--output", "json"}); err != nil {
+		if err := root.Parse([]string{"screenshots", "sizes", "--output", "json"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -205,7 +205,7 @@ func TestAssetsScreenshotsUploadRejectsInvalidDimensionsBeforeNetwork(t *testing
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"assets", "screenshots", "upload",
+			"screenshots", "upload",
 			"--version-localization", "LOC_ID",
 			"--path", path,
 			"--device-type", "IPHONE_35",
@@ -231,7 +231,7 @@ func TestAssetsScreenshotsUploadRejectsInvalidDimensionsBeforeNetwork(t *testing
 	if !strings.Contains(message, "640x960") {
 		t.Fatalf("expected allowed size in error, got %q", message)
 	}
-	if !strings.Contains(message, "asc assets screenshots sizes") {
+	if !strings.Contains(message, "asc screenshots sizes") {
 		t.Fatalf("expected hint in error, got %q", message)
 	}
 	if atomic.LoadInt32(&calls) != 0 {
@@ -263,7 +263,7 @@ func TestAssetsScreenshotsUploadAcceptsIPhone69AliasAndLatestDimensions(t *testi
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"assets", "screenshots", "upload",
+			"screenshots", "upload",
 			"--version-localization", "LOC_ID",
 			"--path", path,
 			"--device-type", "IPHONE_69",
@@ -328,7 +328,7 @@ func TestAssetsScreenshotsUploadAcceptsMacWatchTVAndVisionDimensions(t *testing.
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
 				if err := root.Parse([]string{
-					"assets", "screenshots", "upload",
+					"screenshots", "upload",
 					"--version-localization", "LOC_ID",
 					"--path", path,
 					"--device-type", tc.deviceType,

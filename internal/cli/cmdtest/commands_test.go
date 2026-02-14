@@ -3070,70 +3070,70 @@ func TestLocalizationsValidationErrors(t *testing.T) {
 	}
 }
 
-func TestAssetsValidationErrors(t *testing.T) {
+func TestScreenshotsAndVideoPreviewsValidationErrors(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    []string
 		wantErr string
 	}{
 		{
-			name:    "assets screenshots list missing localization",
-			args:    []string{"assets", "screenshots", "list"},
+			name:    "screenshots list missing localization",
+			args:    []string{"screenshots", "list"},
 			wantErr: "--version-localization is required",
 		},
 		{
-			name:    "assets screenshots upload missing localization",
-			args:    []string{"assets", "screenshots", "upload", "--path", "./screenshots", "--device-type", "IPHONE_65"},
+			name:    "screenshots upload missing localization",
+			args:    []string{"screenshots", "upload", "--path", "./screenshots", "--device-type", "IPHONE_65"},
 			wantErr: "--version-localization is required",
 		},
 		{
-			name:    "assets screenshots upload missing path",
-			args:    []string{"assets", "screenshots", "upload", "--version-localization", "LOC_ID", "--device-type", "IPHONE_65"},
+			name:    "screenshots upload missing path",
+			args:    []string{"screenshots", "upload", "--version-localization", "LOC_ID", "--device-type", "IPHONE_65"},
 			wantErr: "--path is required",
 		},
 		{
-			name:    "assets screenshots upload missing device type",
-			args:    []string{"assets", "screenshots", "upload", "--version-localization", "LOC_ID", "--path", "./screenshots"},
+			name:    "screenshots upload missing device type",
+			args:    []string{"screenshots", "upload", "--version-localization", "LOC_ID", "--path", "./screenshots"},
 			wantErr: "--device-type is required",
 		},
 		{
-			name:    "assets screenshots delete missing id",
-			args:    []string{"assets", "screenshots", "delete"},
+			name:    "screenshots delete missing id",
+			args:    []string{"screenshots", "delete"},
 			wantErr: "--id is required",
 		},
 		{
-			name:    "assets screenshots delete missing confirm",
-			args:    []string{"assets", "screenshots", "delete", "--id", "SCREENSHOT_ID"},
+			name:    "screenshots delete missing confirm",
+			args:    []string{"screenshots", "delete", "--id", "SCREENSHOT_ID"},
 			wantErr: "--confirm is required to delete",
 		},
 		{
-			name:    "assets previews list missing localization",
-			args:    []string{"assets", "previews", "list"},
+			name:    "video-previews list missing localization",
+			args:    []string{"video-previews", "list"},
 			wantErr: "--version-localization is required",
 		},
 		{
-			name:    "assets previews upload missing localization",
-			args:    []string{"assets", "previews", "upload", "--path", "./previews", "--device-type", "IPHONE_65"},
+			name:    "video-previews upload missing localization",
+			args:    []string{"video-previews", "upload", "--path", "./previews", "--device-type", "IPHONE_65"},
 			wantErr: "--version-localization is required",
 		},
 		{
-			name:    "assets previews upload missing path",
-			args:    []string{"assets", "previews", "upload", "--version-localization", "LOC_ID", "--device-type", "IPHONE_65"},
+			name:    "video-previews upload missing path",
+			args:    []string{"video-previews", "upload", "--version-localization", "LOC_ID", "--device-type", "IPHONE_65"},
 			wantErr: "--path is required",
 		},
 		{
-			name:    "assets previews upload missing device type",
-			args:    []string{"assets", "previews", "upload", "--version-localization", "LOC_ID", "--path", "./previews"},
+			name:    "video-previews upload missing device type",
+			args:    []string{"video-previews", "upload", "--version-localization", "LOC_ID", "--path", "./previews"},
 			wantErr: "--device-type is required",
 		},
 		{
-			name:    "assets previews delete missing id",
-			args:    []string{"assets", "previews", "delete"},
+			name:    "video-previews delete missing id",
+			args:    []string{"video-previews", "delete"},
 			wantErr: "--id is required",
 		},
 		{
-			name:    "assets previews delete missing confirm",
-			args:    []string{"assets", "previews", "delete", "--id", "PREVIEW_ID"},
+			name:    "video-previews delete missing confirm",
+			args:    []string{"video-previews", "delete", "--id", "PREVIEW_ID"},
 			wantErr: "--confirm is required to delete",
 		},
 	}

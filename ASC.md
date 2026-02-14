@@ -126,13 +126,13 @@ Use `asc <command> --help` for subcommands and flags.
 - `pre-orders` - Manage app pre-orders.
 - `pre-release-versions` - Manage TestFlight pre-release versions.
 - `localizations` - Manage App Store localization metadata.
-- `assets` - Manage App Store media assets (screenshots, app preview videos).
+- `screenshots` - Capture, frame, review, and upload App Store screenshots.
 - `background-assets` - Manage background assets.
 - `build-localizations` - Manage build release notes localizations.
 - `beta-app-localizations` - Manage TestFlight beta app localizations.
 - `beta-build-localizations` - Manage TestFlight beta build localizations.
 - `sandbox` - Manage App Store Connect sandbox testers.
-- `shots` - Capture and manage screenshots for App Store.
+- `video-previews` - Manage App Store app preview videos.
 - `signing` - Manage signing certificates and profiles.
 - `notarization` - Manage macOS notarization submissions.
 - `iap` - Manage in-app purchases in App Store Connect.

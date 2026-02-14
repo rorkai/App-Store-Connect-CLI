@@ -22,27 +22,27 @@ func TestShotsCapture_RequiredFlagErrors(t *testing.T) {
 	}{
 		{
 			name:    "missing bundle-id",
-			args:    []string{"shots", "capture", "--name", "home"},
+			args:    []string{"screenshots", "capture", "--name", "home"},
 			wantErr: "--bundle-id is required",
 		},
 		{
 			name:    "missing name",
-			args:    []string{"shots", "capture", "--bundle-id", "com.example.app"},
+			args:    []string{"screenshots", "capture", "--bundle-id", "com.example.app"},
 			wantErr: "--name is required",
 		},
 		{
 			name:    "invalid provider",
-			args:    []string{"shots", "capture", "--bundle-id", "com.example.app", "--name", "home", "--provider", "invalid"},
+			args:    []string{"screenshots", "capture", "--bundle-id", "com.example.app", "--name", "home", "--provider", "invalid"},
 			wantErr: "--provider must be",
 		},
 		{
 			name:    "provider must be axe",
-			args:    []string{"shots", "capture", "--bundle-id", "com.example.app", "--name", "home", "--provider", "simctl"},
+			args:    []string{"screenshots", "capture", "--bundle-id", "com.example.app", "--name", "home", "--provider", "simctl"},
 			wantErr: "--provider must be",
 		},
 		{
 			name:    "name cannot contain path separators",
-			args:    []string{"shots", "capture", "--bundle-id", "com.example.app", "--name", "../home"},
+			args:    []string{"screenshots", "capture", "--bundle-id", "com.example.app", "--name", "../home"},
 			wantErr: "--name must be a file name without path separators",
 		},
 	}
@@ -76,12 +76,12 @@ func TestShotsCapture_FlagsBeforeSubcommand(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
-	// Root-level flag before subcommand: asc --no-update shots capture --name home
+	// Root-level flag before subcommand: asc --no-update screenshots capture --name home
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
 	_, stderr := captureOutput(t, func() {
-		args := []string{"--no-update", "shots", "capture", "--name", "home"}
+		args := []string{"--no-update", "screenshots", "capture", "--name", "home"}
 		if err := root.Parse(args); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -104,7 +104,7 @@ func TestShotsCapture_OutputFormatAccepted(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	args := []string{"shots", "capture", "--bundle-id", "com.example.app", "--name", "home", "--output", "table", "--pretty"}
+	args := []string{"screenshots", "capture", "--bundle-id", "com.example.app", "--name", "home", "--output", "table", "--pretty"}
 	if err := root.Parse(args); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}

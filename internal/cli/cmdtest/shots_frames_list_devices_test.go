@@ -13,7 +13,7 @@ func TestShotsFramesListDevices_JSON(t *testing.T) {
 
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{
-		"shots", "frames", "list-devices",
+		"screenshots", "list-frame-devices",
 		"--output", "json",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)

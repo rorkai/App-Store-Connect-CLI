@@ -14,7 +14,7 @@ func TestShotsRun_MissingPlanFile(t *testing.T) {
 	root := RootCommand("1.2.3")
 	missing := filepath.Join(t.TempDir(), "does-not-exist.json")
 
-	if err := root.Parse([]string{"shots", "run", "--plan", missing}); err != nil {
+	if err := root.Parse([]string{"screenshots", "run", "--plan", missing}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
@@ -38,7 +38,7 @@ func TestShotsRun_InvalidPlanJSON(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "invalid.json")
 	writeFile(t, path, "{invalid")
 
-	if err := root.Parse([]string{"shots", "run", "--plan", path}); err != nil {
+	if err := root.Parse([]string{"screenshots", "run", "--plan", path}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
@@ -72,7 +72,7 @@ func TestShotsRun_ValidWaitPlan(t *testing.T) {
   ]
 }`)
 
-	if err := root.Parse([]string{"shots", "run", "--plan", planPath, "--output", "json"}); err != nil {
+	if err := root.Parse([]string{"screenshots", "run", "--plan", planPath, "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
@@ -122,7 +122,7 @@ func TestShotsRun_BundleIDOverrideAppliedForPlanMissingBundleID(t *testing.T) {
   ]
 }`)
 
-	if err := root.Parse([]string{"shots", "run", "--plan", planPath, "--bundle-id", "com.override.app", "--output", "json"}); err != nil {
+	if err := root.Parse([]string{"screenshots", "run", "--plan", planPath, "--bundle-id", "com.override.app", "--output", "json"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 

@@ -40,5 +40,5 @@ _bmad/
 _bmad-output/
 worktrees/
 
-# asc shots capture output (root-level only; internal/screenshots is code)
+# asc screenshots capture output (root-level only; internal/screenshots is code)
 /screenshots/

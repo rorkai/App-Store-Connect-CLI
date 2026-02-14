@@ -12,9 +12,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
 
-// ShotsReviewApproveCommand returns shots review approve subcommand.
+// ShotsReviewApproveCommand returns screenshots review-approve subcommand.
 func ShotsReviewApproveCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("approve", flag.ExitOnError)
+	fs := flag.NewFlagSet("review-approve", flag.ExitOnError)
 	outputDir := fs.String("output-dir", defaultShotsReviewOutputDir, "Directory containing review artifacts")
 	manifestPath := fs.String("manifest-path", "", "Optional manifest path (default: <output-dir>/manifest.json)")
 	approvalPath := fs.String("approval-path", "", "Optional approvals path (default: <output-dir>/approved.json)")
@@ -27,8 +27,8 @@ func ShotsReviewApproveCommand() *ffcli.Command {
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
 
 	return &ffcli.Command{
-		Name:       "approve",
-		ShortUsage: "asc shots review approve [--all-ready | --key key1,key2 | --id home] [flags]",
+		Name:       "review-approve",
+		ShortUsage: "asc screenshots review-approve [--all-ready | --key key1,key2 | --id home] [flags]",
 		ShortHelp:  "Write/update approved.json from review manifest selectors.",
 		LongHelp: `Approve review entries and persist to approved.json.
 
@@ -60,7 +60,7 @@ Selectors:
 				Device:       deviceVal,
 			})
 			if err != nil {
-				return fmt.Errorf("shots review approve: %w", err)
+				return fmt.Errorf("screenshots review-approve: %w", err)
 			}
 			return shared.PrintOutput(result, *output, *pretty)
 		},
