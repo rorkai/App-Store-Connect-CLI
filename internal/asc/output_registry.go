@@ -55,9 +55,12 @@ func registerRowsAdapter[T any, U any](adapter func(*T) *U, rows func(*U) ([]str
 }
 
 // registerSingleResourceRowsAdapter registers rows rendering for list renderers
-// by adapting SingleResponse[T] into Response[T] with one item in Data.
+// by adapting single-resource wrappers into Response[T] with one item in Data.
 func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string, [][]string)) {
 	registerRowsAdapter(func(v *SingleResponse[T]) *Response[T] {
+		return &Response[T]{Data: []Resource[T]{v.Data}}
+	}, rows)
+	registerRowsAdapter(func(v *SingleResourceResponse[T]) *Response[T] {
 		return &Response[T]{Data: []Resource[T]{v.Data}}
 	}, rows)
 }

@@ -250,6 +250,38 @@ func TestOutputRegistryRowsWithSingleResourceHelperRegistration(t *testing.T) {
 	}
 }
 
+func TestOutputRegistryBuildUploadSingleResourceRegistrations(t *testing.T) {
+	buildUploadHandler, ok := outputRegistry[reflect.TypeOf(&BuildUploadResponse{})]
+	if !ok || buildUploadHandler == nil {
+		t.Fatal("expected BuildUploadResponse handler")
+	}
+
+	headers, rows, err := buildUploadHandler(&BuildUploadResponse{
+		Data: Resource[BuildUploadAttributes]{ID: "upload-1"},
+	})
+	if err != nil {
+		t.Fatalf("build upload handler returned error: %v", err)
+	}
+	if len(headers) == 0 || len(rows) != 1 || len(rows[0]) == 0 || rows[0][0] != "upload-1" {
+		t.Fatalf("unexpected build upload rows: headers=%v rows=%v", headers, rows)
+	}
+
+	buildUploadFileHandler, ok := outputRegistry[reflect.TypeOf(&BuildUploadFileResponse{})]
+	if !ok || buildUploadFileHandler == nil {
+		t.Fatal("expected BuildUploadFileResponse handler")
+	}
+
+	headers, rows, err = buildUploadFileHandler(&BuildUploadFileResponse{
+		Data: Resource[BuildUploadFileAttributes]{ID: "upload-file-1"},
+	})
+	if err != nil {
+		t.Fatalf("build upload file handler returned error: %v", err)
+	}
+	if len(headers) == 0 || len(rows) != 1 || len(rows[0]) == 0 || rows[0][0] != "upload-file-1" {
+		t.Fatalf("unexpected build upload file rows: headers=%v rows=%v", headers, rows)
+	}
+}
+
 func TestOutputRegistrySingleToListHelperRegistration(t *testing.T) {
 	type single struct {
 		Data string
