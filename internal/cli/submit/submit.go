@@ -40,8 +40,7 @@ func SubmitCreateCommand() *ffcli.Command {
 	buildID := fs.String("build", "", "Build ID to attach")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -134,7 +133,7 @@ Examples:
 				CreatedDate:  createdDatePtr,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -144,8 +143,7 @@ func SubmitStatusCommand() *ffcli.Command {
 
 	submissionID := fs.String("id", "", "Submission ID")
 	versionID := fs.String("version-id", "", "App Store version ID")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "status",
@@ -213,7 +211,7 @@ Examples:
 				result.State = shared.ResolveAppStoreVersionState(versionResp.Data.Attributes)
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -224,8 +222,7 @@ func SubmitCancelCommand() *ffcli.Command {
 	submissionID := fs.String("id", "", "Submission ID")
 	versionID := fs.String("version-id", "", "App Store version ID")
 	confirm := fs.Bool("confirm", false, "Confirm cancellation (required)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "cancel",
@@ -291,7 +288,7 @@ Examples:
 						ID:        resolvedSubmissionID,
 						Cancelled: true,
 					}
-					return shared.PrintOutput(result, *output, *pretty)
+					return shared.PrintOutput(result, *output.Output, *output.Pretty)
 				}
 				if !asc.IsNotFound(err) {
 					return fmt.Errorf("submit cancel: %w", err)
@@ -311,7 +308,7 @@ Examples:
 				Cancelled: true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
