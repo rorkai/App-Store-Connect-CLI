@@ -19,8 +19,7 @@ func SandboxGetCommand() *ffcli.Command {
 
 	testerID := fs.String("id", "", "Sandbox tester ID")
 	email := fs.String("email", "", "Tester email address")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
@@ -62,7 +61,7 @@ Examples:
 				return fmt.Errorf("sandbox get: %w", err)
 			}
 
-			return shared.PrintOutput(response, *output, *pretty)
+			return shared.PrintOutput(response, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -77,8 +76,7 @@ func SandboxUpdateCommand() *ffcli.Command {
 	subscriptionRenewalRate := fs.String("subscription-renewal-rate", "", "Subscription renewal rate (MONTHLY_RENEWAL_EVERY_ONE_HOUR, MONTHLY_RENEWAL_EVERY_THIRTY_MINUTES, MONTHLY_RENEWAL_EVERY_FIFTEEN_MINUTES, MONTHLY_RENEWAL_EVERY_FIVE_MINUTES, MONTHLY_RENEWAL_EVERY_THREE_MINUTES)")
 	var interruptPurchases shared.OptionalBool
 	fs.Var(&interruptPurchases, "interrupt-purchases", "Interrupt purchases (true/false)")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -155,7 +153,7 @@ Examples:
 				return fmt.Errorf("sandbox update: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output, *pretty)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -167,8 +165,7 @@ func SandboxClearHistoryCommand() *ffcli.Command {
 	testerID := fs.String("id", "", "Sandbox tester ID")
 	email := fs.String("email", "", "Tester email address")
 	confirm := fs.Bool("confirm", false, "Confirm clearing purchase history")
-	output := fs.String("output", shared.DefaultOutputFormat(), "Output format: json (default), table, markdown")
-	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "clear-history",
@@ -226,7 +223,7 @@ Examples:
 				Cleared:   true,
 			}
 
-			return shared.PrintOutput(result, *output, *pretty)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
