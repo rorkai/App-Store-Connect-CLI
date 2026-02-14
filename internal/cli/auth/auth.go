@@ -44,7 +44,8 @@ Credential resolution order:
   1) Selected profile (keychain/config)
   2) Environment variables (fallback for missing fields)
 
-Use --strict-auth or ASC_STRICT_AUTH=1 to fail when sources are mixed.`,
+Use --strict-auth or ASC_STRICT_AUTH=1 to fail when sources are mixed.
+Set ASC_BYPASS_KEYCHAIN to 1/true/yes/on to bypass keychain.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -433,7 +434,7 @@ The private key file path is stored securely. The key content is never saved.`,
 		Exec: func(ctx context.Context, args []string) error {
 			bypassKeychainEnabled := *bypassKeychain || authsvc.ShouldBypassKeychain()
 			if *local && !bypassKeychainEnabled {
-				return fmt.Errorf("auth login: --local requires --bypass-keychain or ASC_BYPASS_KEYCHAIN=1")
+				return fmt.Errorf("auth login: --local requires --bypass-keychain or ASC_BYPASS_KEYCHAIN set to 1/true/yes/on")
 			}
 			if *name == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
@@ -651,7 +652,7 @@ Examples:
 				if configErr == nil {
 					storageLocation = configPath
 				}
-				warnings = append(warnings, "Keychain bypassed via ASC_BYPASS_KEYCHAIN=1.")
+				warnings = append(warnings, "Keychain bypassed via ASC_BYPASS_KEYCHAIN (truthy values: 1/true/yes/on).")
 			} else if !keychainAvailable {
 				storageBackend = "Config File"
 				storageLocation = "unknown"
@@ -730,7 +731,7 @@ Examples:
 			if profile != "" && envProvided {
 				fmt.Printf("Profile %q selected; environment credentials will be ignored.\n", profile)
 			} else if bypassKeychain && envComplete {
-				fmt.Printf("Environment credentials detected (ASC_KEY_ID: %s). With ASC_BYPASS_KEYCHAIN=1, they will be used when no profile is selected.\n", envKeyID)
+				fmt.Printf("Environment credentials detected (ASC_KEY_ID: %s). With ASC_BYPASS_KEYCHAIN set to 1/true/yes/on, they will be used when no profile is selected.\n", envKeyID)
 			} else if bypassKeychain && envProvided && !envComplete {
 				fmt.Println("Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID, and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64.")
 			}

@@ -545,6 +545,28 @@ func TestAuthStatusCommand(t *testing.T) {
 		}
 	})
 
+	t.Run("truthy bypass env value updates status warning text", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "config.json")
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "yes")
+		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+
+		cmd := AuthStatusCommand()
+		if err := cmd.FlagSet.Parse([]string{}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		stdout, _ := captureAuthOutput(t, func() {
+			if err := cmd.Exec(context.Background(), []string{}); err != nil {
+				t.Fatalf("Exec() error: %v", err)
+			}
+		})
+		if !strings.Contains(stdout, "Keychain bypassed via ASC_BYPASS_KEYCHAIN") {
+			t.Fatalf("expected bypass warning, got %q", stdout)
+		}
+		if strings.Contains(stdout, "ASC_BYPASS_KEYCHAIN=1") {
+			t.Fatalf("expected warning to avoid hardcoded '=1', got %q", stdout)
+		}
+	})
+
 	t.Run("validate reports failures", func(t *testing.T) {
 		cfgPath := filepath.Join(t.TempDir(), "config.json")
 		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")

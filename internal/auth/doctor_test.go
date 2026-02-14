@@ -35,6 +35,22 @@ func TestDoctorConfigPermissionsWarning(t *testing.T) {
 	}
 }
 
+func TestDoctorStorageBypassMessageSupportsTruthyEnvValues(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "on")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	report := Doctor(DoctorOptions{})
+	section := findDoctorSection(t, report, "Storage")
+	if !sectionHasStatus(section, DoctorInfo, "Keychain is bypassed via ASC_BYPASS_KEYCHAIN") {
+		t.Fatalf("expected bypass info message, got %#v", section.Checks)
+	}
+	for _, check := range section.Checks {
+		if strings.Contains(check.Message, "ASC_BYPASS_KEYCHAIN=1") {
+			t.Fatalf("expected no hardcoded '=1' in message, got %q", check.Message)
+		}
+	}
+}
+
 func TestDoctorTempFilesWarns(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))

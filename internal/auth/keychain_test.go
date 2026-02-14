@@ -18,6 +18,54 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
+func TestShouldBypassKeychainEnvSemantics(t *testing.T) {
+	originalValue, originalPresent := os.LookupEnv("ASC_BYPASS_KEYCHAIN")
+	t.Cleanup(func() {
+		if originalPresent {
+			_ = os.Setenv("ASC_BYPASS_KEYCHAIN", originalValue)
+			return
+		}
+		_ = os.Unsetenv("ASC_BYPASS_KEYCHAIN")
+	})
+
+	tests := []struct {
+		name   string
+		value  *string
+		expect bool
+	}{
+		{name: "unset", value: nil, expect: false},
+		{name: "empty string", value: ptrTo(""), expect: false},
+		{name: "whitespace only", value: ptrTo("   "), expect: false},
+		{name: "truthy one", value: ptrTo("1"), expect: true},
+		{name: "truthy true", value: ptrTo("true"), expect: true},
+		{name: "truthy yes", value: ptrTo("yes"), expect: true},
+		{name: "truthy on", value: ptrTo("on"), expect: true},
+		{name: "truthy mixed case and spaces", value: ptrTo("  TrUe  "), expect: true},
+		{name: "falsey zero", value: ptrTo("0"), expect: false},
+		{name: "falsey false", value: ptrTo("false"), expect: false},
+		{name: "falsey no", value: ptrTo("no"), expect: false},
+		{name: "falsey off", value: ptrTo("off"), expect: false},
+		{name: "invalid value", value: ptrTo("banana"), expect: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.value == nil {
+				_ = os.Unsetenv("ASC_BYPASS_KEYCHAIN")
+			} else {
+				_ = os.Setenv("ASC_BYPASS_KEYCHAIN", *tt.value)
+			}
+			if got := shouldBypassKeychain(); got != tt.expect {
+				t.Fatalf("shouldBypassKeychain() = %v, want %v (value=%v)", got, tt.expect, tt.value)
+			}
+		})
+	}
+}
+
+func ptrTo(value string) *string {
+	return &value
+}
+
 func TestConfigProfileSelection(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")

@@ -80,7 +80,7 @@ func inspectStorage(options DoctorOptions) DoctorSection {
 	if shouldBypassKeychain() {
 		checks = append(checks, DoctorCheck{
 			Status:  DoctorInfo,
-			Message: "Keychain is bypassed via ASC_BYPASS_KEYCHAIN=1",
+			Message: "Keychain is bypassed via ASC_BYPASS_KEYCHAIN (truthy values: 1/true/yes/on)",
 		})
 	} else if _, err := keyringOpener(); err != nil {
 		status := DoctorFail
@@ -92,7 +92,7 @@ func inspectStorage(options DoctorOptions) DoctorSection {
 		checks = append(checks, DoctorCheck{
 			Status:         status,
 			Message:        message,
-			Recommendation: "Consider using --bypass-keychain or setting ASC_BYPASS_KEYCHAIN=1",
+			Recommendation: "Consider using --bypass-keychain or setting ASC_BYPASS_KEYCHAIN to 1/true/yes/on",
 		})
 	} else {
 		checks = append(checks, DoctorCheck{
