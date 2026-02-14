@@ -159,12 +159,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			normalizedOutput := shared.NormalizeOutputFormat(*output.Output)
-			if normalizedOutput != "text" && normalizedOutput != "json" {
-				return shared.UsageErrorf("unsupported format: %s", *output.Output)
-			}
-			if normalizedOutput != "json" && *output.Pretty {
-				return shared.UsageError("--pretty is only valid with JSON output")
+			normalizedOutput, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "text", "json")
+			if err != nil {
+				return shared.UsageError(err.Error())
 			}
 			if *fix && !*confirm {
 				return shared.UsageError("--fix requires --confirm")

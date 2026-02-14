@@ -306,6 +306,40 @@ func TestValidateOutputFormat(t *testing.T) {
 	}
 }
 
+func TestValidateOutputFormatAllowed(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		pretty     bool
+		allowed    []string
+		wantFormat string
+		wantErr    string
+	}{
+		{name: "text allowed", input: "text", pretty: false, allowed: []string{"text", "json"}, wantFormat: "text"},
+		{name: "json default allowed", input: "", pretty: false, allowed: []string{"text", "json"}, wantFormat: "json"},
+		{name: "md unsupported when not allowed", input: "md", pretty: false, allowed: []string{"text", "json"}, wantErr: "unsupported format: markdown"},
+		{name: "pretty rejected for text", input: "text", pretty: true, allowed: []string{"text", "json"}, wantErr: "--pretty is only valid with JSON output"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ValidateOutputFormatAllowed(tc.input, tc.pretty, tc.allowed...)
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("expected error containing %q, got %v", tc.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.wantFormat {
+				t.Fatalf("expected format %q, got %q", tc.wantFormat, got)
+			}
+		})
+	}
+}
+
 func TestPrintOutputWithRenderers_JSONPath(t *testing.T) {
 	stdout, _ := captureOutput(t, func() {
 		if err := PrintOutputWithRenderers(

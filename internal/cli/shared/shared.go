@@ -596,21 +596,27 @@ func NormalizeOutputFormat(format string) string {
 }
 
 func validateOutputFormat(format string, pretty bool) (string, error) {
+	return validateOutputFormatAllowed(format, pretty, "json", "table", "markdown")
+}
+
+func validateOutputFormatAllowed(format string, pretty bool, allowed ...string) (string, error) {
 	normalized := NormalizeOutputFormat(format)
 	if normalized == "" {
 		normalized = "json"
 	}
-	switch normalized {
-	case "json":
-		return normalized, nil
-	case "table", "markdown":
-		if pretty {
-			return "", fmt.Errorf("--pretty is only valid with JSON output")
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, item := range allowed {
+		if canonical := NormalizeOutputFormat(item); canonical != "" {
+			allowedSet[canonical] = struct{}{}
 		}
-		return normalized, nil
-	default:
+	}
+	if _, ok := allowedSet[normalized]; !ok {
 		return "", fmt.Errorf("unsupported format: %s", normalized)
 	}
+	if pretty && normalized != "json" {
+		return "", fmt.Errorf("--pretty is only valid with JSON output")
+	}
+	return normalized, nil
 }
 
 func printStreamPage(data any) error {
@@ -827,6 +833,10 @@ func PrintOutputWithRenderers(data any, format string, pretty bool, tableRendere
 
 func ValidateOutputFormat(format string, pretty bool) (string, error) {
 	return validateOutputFormat(format, pretty)
+}
+
+func ValidateOutputFormatAllowed(format string, pretty bool, allowed ...string) (string, error) {
+	return validateOutputFormatAllowed(format, pretty, allowed...)
 }
 
 func NormalizeDate(value, flagName string) (string, error) {
