@@ -528,63 +528,63 @@ func init() {
 	registerRows(appEventLocalizationDeleteResultRows)
 	registerRows(appEventSubmissionResultRows)
 	registerRows(gameCenterAchievementsRows)
-	registerRows(func(v *GameCenterAchievementResponse) ([]string, [][]string) {
-		return gameCenterAchievementsRows(&GameCenterAchievementsResponse{Data: []Resource[GameCenterAchievementAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterAchievementResponse) *GameCenterAchievementsResponse {
+		return &GameCenterAchievementsResponse{Data: []Resource[GameCenterAchievementAttributes]{v.Data}}
+	}, gameCenterAchievementsRows)
 	registerRows(gameCenterAchievementDeleteResultRows)
 	registerRows(gameCenterAchievementVersionsRows)
-	registerRows(func(v *GameCenterAchievementVersionResponse) ([]string, [][]string) {
-		return gameCenterAchievementVersionsRows(&GameCenterAchievementVersionsResponse{Data: []Resource[GameCenterAchievementVersionAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterAchievementVersionResponse) *GameCenterAchievementVersionsResponse {
+		return &GameCenterAchievementVersionsResponse{Data: []Resource[GameCenterAchievementVersionAttributes]{v.Data}}
+	}, gameCenterAchievementVersionsRows)
 	registerRows(gameCenterLeaderboardsRows)
-	registerRows(func(v *GameCenterLeaderboardResponse) ([]string, [][]string) {
-		return gameCenterLeaderboardsRows(&GameCenterLeaderboardsResponse{Data: []Resource[GameCenterLeaderboardAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterLeaderboardResponse) *GameCenterLeaderboardsResponse {
+		return &GameCenterLeaderboardsResponse{Data: []Resource[GameCenterLeaderboardAttributes]{v.Data}}
+	}, gameCenterLeaderboardsRows)
 	registerRows(gameCenterLeaderboardDeleteResultRows)
 	registerRows(gameCenterLeaderboardVersionsRows)
-	registerRows(func(v *GameCenterLeaderboardVersionResponse) ([]string, [][]string) {
-		return gameCenterLeaderboardVersionsRows(&GameCenterLeaderboardVersionsResponse{Data: []Resource[GameCenterLeaderboardVersionAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterLeaderboardVersionResponse) *GameCenterLeaderboardVersionsResponse {
+		return &GameCenterLeaderboardVersionsResponse{Data: []Resource[GameCenterLeaderboardVersionAttributes]{v.Data}}
+	}, gameCenterLeaderboardVersionsRows)
 	registerRows(gameCenterLeaderboardSetsRows)
-	registerRows(func(v *GameCenterLeaderboardSetResponse) ([]string, [][]string) {
-		return gameCenterLeaderboardSetsRows(&GameCenterLeaderboardSetsResponse{Data: []Resource[GameCenterLeaderboardSetAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterLeaderboardSetResponse) *GameCenterLeaderboardSetsResponse {
+		return &GameCenterLeaderboardSetsResponse{Data: []Resource[GameCenterLeaderboardSetAttributes]{v.Data}}
+	}, gameCenterLeaderboardSetsRows)
 	registerRows(gameCenterLeaderboardSetDeleteResultRows)
 	registerRows(gameCenterLeaderboardSetVersionsRows)
-	registerRows(func(v *GameCenterLeaderboardSetVersionResponse) ([]string, [][]string) {
-		return gameCenterLeaderboardSetVersionsRows(&GameCenterLeaderboardSetVersionsResponse{Data: []Resource[GameCenterLeaderboardSetVersionAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterLeaderboardSetVersionResponse) *GameCenterLeaderboardSetVersionsResponse {
+		return &GameCenterLeaderboardSetVersionsResponse{Data: []Resource[GameCenterLeaderboardSetVersionAttributes]{v.Data}}
+	}, gameCenterLeaderboardSetVersionsRows)
 	registerRows(gameCenterLeaderboardLocalizationsRows)
-	registerRows(func(v *GameCenterLeaderboardLocalizationResponse) ([]string, [][]string) {
-		return gameCenterLeaderboardLocalizationsRows(&GameCenterLeaderboardLocalizationsResponse{Data: []Resource[GameCenterLeaderboardLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterLeaderboardLocalizationResponse) *GameCenterLeaderboardLocalizationsResponse {
+		return &GameCenterLeaderboardLocalizationsResponse{Data: []Resource[GameCenterLeaderboardLocalizationAttributes]{v.Data}}
+	}, gameCenterLeaderboardLocalizationsRows)
 	registerRows(gameCenterLeaderboardLocalizationDeleteResultRows)
 	registerRows(gameCenterLeaderboardReleasesRows)
-	registerRows(func(v *GameCenterLeaderboardReleaseResponse) ([]string, [][]string) {
-		return gameCenterLeaderboardReleasesRows(&GameCenterLeaderboardReleasesResponse{Data: []Resource[GameCenterLeaderboardReleaseAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterLeaderboardReleaseResponse) *GameCenterLeaderboardReleasesResponse {
+		return &GameCenterLeaderboardReleasesResponse{Data: []Resource[GameCenterLeaderboardReleaseAttributes]{v.Data}}
+	}, gameCenterLeaderboardReleasesRows)
 	registerRows(gameCenterLeaderboardReleaseDeleteResultRows)
 	registerRows(gameCenterLeaderboardEntrySubmissionRows)
 	registerRows(gameCenterPlayerAchievementSubmissionRows)
 	registerRows(gameCenterLeaderboardSetReleasesRows)
-	registerRows(func(v *GameCenterLeaderboardSetReleaseResponse) ([]string, [][]string) {
-		return gameCenterLeaderboardSetReleasesRows(&GameCenterLeaderboardSetReleasesResponse{Data: []Resource[GameCenterLeaderboardSetReleaseAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterLeaderboardSetReleaseResponse) *GameCenterLeaderboardSetReleasesResponse {
+		return &GameCenterLeaderboardSetReleasesResponse{Data: []Resource[GameCenterLeaderboardSetReleaseAttributes]{v.Data}}
+	}, gameCenterLeaderboardSetReleasesRows)
 	registerRows(gameCenterLeaderboardSetReleaseDeleteResultRows)
 	registerRows(gameCenterLeaderboardSetLocalizationsRows)
-	registerRows(func(v *GameCenterLeaderboardSetLocalizationResponse) ([]string, [][]string) {
-		return gameCenterLeaderboardSetLocalizationsRows(&GameCenterLeaderboardSetLocalizationsResponse{Data: []Resource[GameCenterLeaderboardSetLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterLeaderboardSetLocalizationResponse) *GameCenterLeaderboardSetLocalizationsResponse {
+		return &GameCenterLeaderboardSetLocalizationsResponse{Data: []Resource[GameCenterLeaderboardSetLocalizationAttributes]{v.Data}}
+	}, gameCenterLeaderboardSetLocalizationsRows)
 	registerRows(gameCenterLeaderboardSetLocalizationDeleteResultRows)
 	registerRows(gameCenterAchievementReleasesRows)
-	registerRows(func(v *GameCenterAchievementReleaseResponse) ([]string, [][]string) {
-		return gameCenterAchievementReleasesRows(&GameCenterAchievementReleasesResponse{Data: []Resource[GameCenterAchievementReleaseAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterAchievementReleaseResponse) *GameCenterAchievementReleasesResponse {
+		return &GameCenterAchievementReleasesResponse{Data: []Resource[GameCenterAchievementReleaseAttributes]{v.Data}}
+	}, gameCenterAchievementReleasesRows)
 	registerRows(gameCenterAchievementReleaseDeleteResultRows)
 	registerRows(gameCenterAchievementLocalizationsRows)
-	registerRows(func(v *GameCenterAchievementLocalizationResponse) ([]string, [][]string) {
-		return gameCenterAchievementLocalizationsRows(&GameCenterAchievementLocalizationsResponse{Data: []Resource[GameCenterAchievementLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterAchievementLocalizationResponse) *GameCenterAchievementLocalizationsResponse {
+		return &GameCenterAchievementLocalizationsResponse{Data: []Resource[GameCenterAchievementLocalizationAttributes]{v.Data}}
+	}, gameCenterAchievementLocalizationsRows)
 	registerRows(gameCenterAchievementLocalizationDeleteResultRows)
 	registerRows(gameCenterLeaderboardImageUploadResultRows)
 	registerRows(gameCenterLeaderboardImageDeleteResultRows)
@@ -593,88 +593,88 @@ func init() {
 	registerRows(gameCenterLeaderboardSetImageUploadResultRows)
 	registerRows(gameCenterLeaderboardSetImageDeleteResultRows)
 	registerRows(gameCenterChallengesRows)
-	registerRows(func(v *GameCenterChallengeResponse) ([]string, [][]string) {
-		return gameCenterChallengesRows(&GameCenterChallengesResponse{Data: []Resource[GameCenterChallengeAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterChallengeResponse) *GameCenterChallengesResponse {
+		return &GameCenterChallengesResponse{Data: []Resource[GameCenterChallengeAttributes]{v.Data}}
+	}, gameCenterChallengesRows)
 	registerRows(gameCenterChallengeDeleteResultRows)
 	registerRows(gameCenterChallengeVersionsRows)
-	registerRows(func(v *GameCenterChallengeVersionResponse) ([]string, [][]string) {
-		return gameCenterChallengeVersionsRows(&GameCenterChallengeVersionsResponse{Data: []Resource[GameCenterChallengeVersionAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterChallengeVersionResponse) *GameCenterChallengeVersionsResponse {
+		return &GameCenterChallengeVersionsResponse{Data: []Resource[GameCenterChallengeVersionAttributes]{v.Data}}
+	}, gameCenterChallengeVersionsRows)
 	registerRows(gameCenterChallengeLocalizationsRows)
-	registerRows(func(v *GameCenterChallengeLocalizationResponse) ([]string, [][]string) {
-		return gameCenterChallengeLocalizationsRows(&GameCenterChallengeLocalizationsResponse{Data: []Resource[GameCenterChallengeLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterChallengeLocalizationResponse) *GameCenterChallengeLocalizationsResponse {
+		return &GameCenterChallengeLocalizationsResponse{Data: []Resource[GameCenterChallengeLocalizationAttributes]{v.Data}}
+	}, gameCenterChallengeLocalizationsRows)
 	registerRows(gameCenterChallengeLocalizationDeleteResultRows)
 	registerRows(gameCenterChallengeImagesRows)
-	registerRows(func(v *GameCenterChallengeImageResponse) ([]string, [][]string) {
-		return gameCenterChallengeImagesRows(&GameCenterChallengeImagesResponse{Data: []Resource[GameCenterChallengeImageAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterChallengeImageResponse) *GameCenterChallengeImagesResponse {
+		return &GameCenterChallengeImagesResponse{Data: []Resource[GameCenterChallengeImageAttributes]{v.Data}}
+	}, gameCenterChallengeImagesRows)
 	registerRows(gameCenterChallengeImageUploadResultRows)
 	registerRows(gameCenterChallengeImageDeleteResultRows)
 	registerRows(gameCenterChallengeReleasesRows)
-	registerRows(func(v *GameCenterChallengeVersionReleaseResponse) ([]string, [][]string) {
-		return gameCenterChallengeReleasesRows(&GameCenterChallengeVersionReleasesResponse{Data: []Resource[GameCenterChallengeVersionReleaseAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterChallengeVersionReleaseResponse) *GameCenterChallengeVersionReleasesResponse {
+		return &GameCenterChallengeVersionReleasesResponse{Data: []Resource[GameCenterChallengeVersionReleaseAttributes]{v.Data}}
+	}, gameCenterChallengeReleasesRows)
 	registerRows(gameCenterChallengeReleaseDeleteResultRows)
 	registerRows(gameCenterActivitiesRows)
-	registerRows(func(v *GameCenterActivityResponse) ([]string, [][]string) {
-		return gameCenterActivitiesRows(&GameCenterActivitiesResponse{Data: []Resource[GameCenterActivityAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterActivityResponse) *GameCenterActivitiesResponse {
+		return &GameCenterActivitiesResponse{Data: []Resource[GameCenterActivityAttributes]{v.Data}}
+	}, gameCenterActivitiesRows)
 	registerRows(gameCenterActivityDeleteResultRows)
 	registerRows(gameCenterActivityVersionsRows)
-	registerRows(func(v *GameCenterActivityVersionResponse) ([]string, [][]string) {
-		return gameCenterActivityVersionsRows(&GameCenterActivityVersionsResponse{Data: []Resource[GameCenterActivityVersionAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterActivityVersionResponse) *GameCenterActivityVersionsResponse {
+		return &GameCenterActivityVersionsResponse{Data: []Resource[GameCenterActivityVersionAttributes]{v.Data}}
+	}, gameCenterActivityVersionsRows)
 	registerRows(gameCenterActivityLocalizationsRows)
-	registerRows(func(v *GameCenterActivityLocalizationResponse) ([]string, [][]string) {
-		return gameCenterActivityLocalizationsRows(&GameCenterActivityLocalizationsResponse{Data: []Resource[GameCenterActivityLocalizationAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterActivityLocalizationResponse) *GameCenterActivityLocalizationsResponse {
+		return &GameCenterActivityLocalizationsResponse{Data: []Resource[GameCenterActivityLocalizationAttributes]{v.Data}}
+	}, gameCenterActivityLocalizationsRows)
 	registerRows(gameCenterActivityLocalizationDeleteResultRows)
 	registerRows(gameCenterActivityImagesRows)
-	registerRows(func(v *GameCenterActivityImageResponse) ([]string, [][]string) {
-		return gameCenterActivityImagesRows(&GameCenterActivityImagesResponse{Data: []Resource[GameCenterActivityImageAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterActivityImageResponse) *GameCenterActivityImagesResponse {
+		return &GameCenterActivityImagesResponse{Data: []Resource[GameCenterActivityImageAttributes]{v.Data}}
+	}, gameCenterActivityImagesRows)
 	registerRows(gameCenterActivityImageUploadResultRows)
 	registerRows(gameCenterActivityImageDeleteResultRows)
 	registerRows(gameCenterActivityReleasesRows)
-	registerRows(func(v *GameCenterActivityVersionReleaseResponse) ([]string, [][]string) {
-		return gameCenterActivityReleasesRows(&GameCenterActivityVersionReleasesResponse{Data: []Resource[GameCenterActivityVersionReleaseAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterActivityVersionReleaseResponse) *GameCenterActivityVersionReleasesResponse {
+		return &GameCenterActivityVersionReleasesResponse{Data: []Resource[GameCenterActivityVersionReleaseAttributes]{v.Data}}
+	}, gameCenterActivityReleasesRows)
 	registerRows(gameCenterActivityReleaseDeleteResultRows)
 	registerRows(gameCenterGroupsRows)
-	registerRows(func(v *GameCenterGroupResponse) ([]string, [][]string) {
-		return gameCenterGroupsRows(&GameCenterGroupsResponse{Data: []Resource[GameCenterGroupAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterGroupResponse) *GameCenterGroupsResponse {
+		return &GameCenterGroupsResponse{Data: []Resource[GameCenterGroupAttributes]{v.Data}}
+	}, gameCenterGroupsRows)
 	registerRows(gameCenterGroupDeleteResultRows)
 	registerRows(gameCenterAppVersionsRows)
-	registerRows(func(v *GameCenterAppVersionResponse) ([]string, [][]string) {
-		return gameCenterAppVersionsRows(&GameCenterAppVersionsResponse{Data: []Resource[GameCenterAppVersionAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterAppVersionResponse) *GameCenterAppVersionsResponse {
+		return &GameCenterAppVersionsResponse{Data: []Resource[GameCenterAppVersionAttributes]{v.Data}}
+	}, gameCenterAppVersionsRows)
 	registerRows(gameCenterEnabledVersionsRows)
 	registerRows(gameCenterDetailsRows)
-	registerRows(func(v *GameCenterDetailResponse) ([]string, [][]string) {
-		return gameCenterDetailsRows(&GameCenterDetailsResponse{Data: []Resource[GameCenterDetailAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterDetailResponse) *GameCenterDetailsResponse {
+		return &GameCenterDetailsResponse{Data: []Resource[GameCenterDetailAttributes]{v.Data}}
+	}, gameCenterDetailsRows)
 	registerRows(gameCenterMatchmakingQueuesRows)
-	registerRows(func(v *GameCenterMatchmakingQueueResponse) ([]string, [][]string) {
-		return gameCenterMatchmakingQueuesRows(&GameCenterMatchmakingQueuesResponse{Data: []Resource[GameCenterMatchmakingQueueAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterMatchmakingQueueResponse) *GameCenterMatchmakingQueuesResponse {
+		return &GameCenterMatchmakingQueuesResponse{Data: []Resource[GameCenterMatchmakingQueueAttributes]{v.Data}}
+	}, gameCenterMatchmakingQueuesRows)
 	registerRows(gameCenterMatchmakingQueueDeleteResultRows)
 	registerRows(gameCenterMatchmakingRuleSetsRows)
-	registerRows(func(v *GameCenterMatchmakingRuleSetResponse) ([]string, [][]string) {
-		return gameCenterMatchmakingRuleSetsRows(&GameCenterMatchmakingRuleSetsResponse{Data: []Resource[GameCenterMatchmakingRuleSetAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterMatchmakingRuleSetResponse) *GameCenterMatchmakingRuleSetsResponse {
+		return &GameCenterMatchmakingRuleSetsResponse{Data: []Resource[GameCenterMatchmakingRuleSetAttributes]{v.Data}}
+	}, gameCenterMatchmakingRuleSetsRows)
 	registerRows(gameCenterMatchmakingRuleSetDeleteResultRows)
 	registerRows(gameCenterMatchmakingRulesRows)
-	registerRows(func(v *GameCenterMatchmakingRuleResponse) ([]string, [][]string) {
-		return gameCenterMatchmakingRulesRows(&GameCenterMatchmakingRulesResponse{Data: []Resource[GameCenterMatchmakingRuleAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterMatchmakingRuleResponse) *GameCenterMatchmakingRulesResponse {
+		return &GameCenterMatchmakingRulesResponse{Data: []Resource[GameCenterMatchmakingRuleAttributes]{v.Data}}
+	}, gameCenterMatchmakingRulesRows)
 	registerRows(gameCenterMatchmakingRuleDeleteResultRows)
 	registerRows(gameCenterMatchmakingTeamsRows)
-	registerRows(func(v *GameCenterMatchmakingTeamResponse) ([]string, [][]string) {
-		return gameCenterMatchmakingTeamsRows(&GameCenterMatchmakingTeamsResponse{Data: []Resource[GameCenterMatchmakingTeamAttributes]{v.Data}})
-	})
+	registerRowsAdapter(func(v *GameCenterMatchmakingTeamResponse) *GameCenterMatchmakingTeamsResponse {
+		return &GameCenterMatchmakingTeamsResponse{Data: []Resource[GameCenterMatchmakingTeamAttributes]{v.Data}}
+	}, gameCenterMatchmakingTeamsRows)
 	registerRows(gameCenterMatchmakingTeamDeleteResultRows)
 	registerRows(gameCenterMetricsRows)
 	registerRows(gameCenterMatchmakingRuleSetTestRows)
