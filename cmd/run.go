@@ -191,6 +191,9 @@ func hasPositionalArgs(fs *flag.FlagSet, args []string) bool {
 			i++
 			continue
 		}
+		if token == "--" {
+			return i+1 < len(args)
+		}
 
 		nextIdx, consumed := consumeFlagToken(fs, token, args, i)
 		if consumed {
