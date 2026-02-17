@@ -145,12 +145,8 @@ Examples:
 
 				// Fetch all remaining pages
 				var testers asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					testers, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBetaTesters(ctx, resolvedAppID, asc.WithBetaTestersNextURL(nextURL))
-					})
-					return paginateErr
+				testers, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetBetaTesters(ctx, resolvedAppID, asc.WithBetaTestersNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("beta-testers list: %w", err)

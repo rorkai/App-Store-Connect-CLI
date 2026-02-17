@@ -218,12 +218,8 @@ Examples:
 				}
 
 				var resp asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetCiProductBuildRuns(ctx, idValue, asc.WithCiBuildRunsNextURL(nextURL))
-					})
-					return paginateErr
+				resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetCiProductBuildRuns(ctx, idValue, asc.WithCiBuildRunsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("xcode-cloud products build-runs: %w", err)
@@ -298,12 +294,8 @@ Examples:
 				}
 
 				var resp asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetCiWorkflows(ctx, idValue, asc.WithCiWorkflowsNextURL(nextURL))
-					})
-					return paginateErr
+				resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetCiWorkflows(ctx, idValue, asc.WithCiWorkflowsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("xcode-cloud products workflows: %w", err)
@@ -378,12 +370,8 @@ Examples:
 				}
 
 				var resp asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetCiProductPrimaryRepositories(ctx, idValue, asc.WithCiProductRepositoriesNextURL(nextURL))
-					})
-					return paginateErr
+				resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetCiProductPrimaryRepositories(ctx, idValue, asc.WithCiProductRepositoriesNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("xcode-cloud products primary-repositories: %w", err)
@@ -458,12 +446,8 @@ Examples:
 				}
 
 				var resp asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetCiProductAdditionalRepositories(ctx, idValue, asc.WithCiProductRepositoriesNextURL(nextURL))
-					})
-					return paginateErr
+				resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetCiProductAdditionalRepositories(ctx, idValue, asc.WithCiProductRepositoriesNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("xcode-cloud products additional-repositories: %w", err)
@@ -561,12 +545,8 @@ func xcodeCloudProductsList(ctx context.Context, appID string, limit int, next s
 		}
 
 		var resp asc.PaginatedResponse
-		err = shared.WithSpinner("", func() error {
-			var paginateErr error
-			resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetCiProducts(ctx, asc.WithCiProductsNextURL(nextURL))
-			})
-			return paginateErr
+		resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			return client.GetCiProducts(ctx, asc.WithCiProductsNextURL(nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("xcode-cloud products: %w", err)
@@ -744,12 +724,8 @@ Examples:
 				}
 
 				var resp asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetCiMacOsVersionXcodeVersions(ctx, idValue, asc.WithCiXcodeVersionsNextURL(nextURL))
-					})
-					return paginateErr
+				resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetCiMacOsVersionXcodeVersions(ctx, idValue, asc.WithCiXcodeVersionsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("xcode-cloud macos-versions xcode-versions: %w", err)
@@ -797,12 +773,8 @@ func xcodeCloudMacOSVersionsList(ctx context.Context, limit int, next string, pa
 		}
 
 		var resp asc.PaginatedResponse
-		err = shared.WithSpinner("", func() error {
-			var paginateErr error
-			resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetCiMacOsVersions(ctx, asc.WithCiMacOsVersionsNextURL(nextURL))
-			})
-			return paginateErr
+		resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			return client.GetCiMacOsVersions(ctx, asc.WithCiMacOsVersionsNextURL(nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("xcode-cloud macos-versions: %w", err)
@@ -970,12 +942,8 @@ Examples:
 				}
 
 				var resp asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetCiXcodeVersionMacOsVersions(ctx, idValue, asc.WithCiMacOsVersionsNextURL(nextURL))
-					})
-					return paginateErr
+				resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetCiXcodeVersionMacOsVersions(ctx, idValue, asc.WithCiMacOsVersionsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("xcode-cloud xcode-versions macos-versions: %w", err)
@@ -1023,12 +991,8 @@ func xcodeCloudXcodeVersionsList(ctx context.Context, limit int, next string, pa
 		}
 
 		var resp asc.PaginatedResponse
-		err = shared.WithSpinner("", func() error {
-			var paginateErr error
-			resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetCiXcodeVersions(ctx, asc.WithCiXcodeVersionsNextURL(nextURL))
-			})
-			return paginateErr
+		resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			return client.GetCiXcodeVersions(ctx, asc.WithCiXcodeVersionsNextURL(nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("xcode-cloud xcode-versions: %w", err)

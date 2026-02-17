@@ -138,12 +138,8 @@ Examples:
 						return fmt.Errorf("builds relationships get: failed to fetch: %w", err)
 					}
 					var resp asc.PaginatedResponse
-					err = shared.WithSpinner("", func() error {
-						var paginateErr error
-						resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-							return getBuildRelationshipList(ctx, client, relationshipType, buildValue, asc.WithLinkagesNextURL(nextURL))
-						})
-						return paginateErr
+					resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return getBuildRelationshipList(ctx, client, relationshipType, buildValue, asc.WithLinkagesNextURL(nextURL))
 					})
 					if err != nil {
 						return fmt.Errorf("builds relationships get: %w", err)

@@ -156,12 +156,8 @@ func executeReviewsList(ctx context.Context, appID, output string, pretty bool, 
 
 		// Fetch all remaining pages
 		var reviews asc.PaginatedResponse
-		err = shared.WithSpinner("", func() error {
-			var paginateErr error
-			reviews, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetReviews(ctx, appID, asc.WithNextURL(nextURL))
-			})
-			return paginateErr
+		reviews, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			return client.GetReviews(ctx, appID, asc.WithNextURL(nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("reviews: %w", err)

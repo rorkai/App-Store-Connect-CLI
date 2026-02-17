@@ -256,12 +256,8 @@ func appsList(ctx context.Context, output string, pretty bool, bundleID string, 
 
 		// Fetch all remaining pages
 		var apps asc.PaginatedResponse
-		err = shared.WithSpinner("", func() error {
-			var paginateErr error
-			apps, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetApps(ctx, asc.WithAppsNextURL(nextURL))
-			})
-			return paginateErr
+		apps, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			return client.GetApps(ctx, asc.WithAppsNextURL(nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("apps: %w", err)

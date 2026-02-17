@@ -90,12 +90,8 @@ Examples:
 					return fmt.Errorf("reviews summarizations: failed to fetch: %w", err)
 				}
 				var summaries asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					summaries, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetCustomerReviewSummarizations(ctx, resolvedAppID, asc.WithCustomerReviewSummarizationsNextURL(nextURL))
-					})
-					return paginateErr
+				summaries, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetCustomerReviewSummarizations(ctx, resolvedAppID, asc.WithCustomerReviewSummarizationsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("reviews summarizations: %w", err)

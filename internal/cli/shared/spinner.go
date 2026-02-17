@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"context"
 	"io"
 	"os"
 	"strings"
@@ -63,6 +64,17 @@ func WithSpinner(label string, fn func() error) (err error) {
 		}
 	}()
 	return fn()
+}
+
+// PaginateAllWithSpinner wraps asc.PaginateAll with the standard CLI spinner pattern.
+func PaginateAllWithSpinner(ctx context.Context, firstPage asc.PaginatedResponse, fetchNext asc.PaginateFunc) (asc.PaginatedResponse, error) {
+	var resp asc.PaginatedResponse
+	err := WithSpinner("", func() error {
+		var paginateErr error
+		resp, paginateErr = asc.PaginateAll(ctx, firstPage, fetchNext)
+		return paginateErr
+	})
+	return resp, err
 }
 
 func spinnerDisabledByEnv() bool {

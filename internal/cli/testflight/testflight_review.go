@@ -400,12 +400,8 @@ Examples:
 				}
 
 				var resp asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBetaAppReviewSubmissions(ctx, asc.WithBetaAppReviewSubmissionsNextURL(nextURL))
-					})
-					return paginateErr
+				resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetBetaAppReviewSubmissions(ctx, asc.WithBetaAppReviewSubmissionsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("testflight review submissions list: %w", err)

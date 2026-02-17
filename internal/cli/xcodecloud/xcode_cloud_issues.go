@@ -96,12 +96,8 @@ Examples:
 				}
 
 				var resp asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetCiBuildActionIssues(ctx, resolvedActionID, asc.WithCiIssuesNextURL(nextURL))
-					})
-					return paginateErr
+				resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetCiBuildActionIssues(ctx, resolvedActionID, asc.WithCiIssuesNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("xcode-cloud issues list: %w", err)

@@ -134,12 +134,8 @@ Examples:
 				}
 
 				var resp asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetCiBuildRunBuilds(ctx, runIDValue, asc.WithCiBuildRunBuildsNextURL(nextURL))
-					})
-					return paginateErr
+				resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetCiBuildRunBuilds(ctx, runIDValue, asc.WithCiBuildRunBuildsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("xcode-cloud build-runs builds: %w", err)
@@ -193,12 +189,8 @@ func xcodeCloudBuildRunsList(ctx context.Context, workflowID string, limit int, 
 		}
 
 		var resp asc.PaginatedResponse
-		err = shared.WithSpinner("", func() error {
-			var paginateErr error
-			resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-				return client.GetCiBuildRuns(ctx, resolvedWorkflowID, asc.WithCiBuildRunsNextURL(nextURL))
-			})
-			return paginateErr
+		resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+			return client.GetCiBuildRuns(ctx, resolvedWorkflowID, asc.WithCiBuildRunsNextURL(nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("xcode-cloud build-runs: %w", err)

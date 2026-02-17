@@ -110,12 +110,8 @@ Examples:
 				}
 
 				var resp asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					resp, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBetaBuildLocalizations(ctx, build, asc.WithBetaBuildLocalizationsNextURL(nextURL))
-					})
-					return paginateErr
+				resp, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetBetaBuildLocalizations(ctx, build, asc.WithBetaBuildLocalizationsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("builds test-notes list: %w", err)

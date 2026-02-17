@@ -90,12 +90,8 @@ Examples:
 				}
 
 				var pages asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					pages, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetAppStoreReviewAttachmentsForReviewDetail(ctx, reviewDetailValue, asc.WithAppStoreReviewAttachmentsNextURL(nextURL))
-					})
-					return paginateErr
+				pages, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetAppStoreReviewAttachmentsForReviewDetail(ctx, reviewDetailValue, asc.WithAppStoreReviewAttachmentsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("review attachments-list: %w", err)

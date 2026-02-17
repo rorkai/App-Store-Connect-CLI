@@ -121,12 +121,8 @@ Examples:
 					}
 
 					var groups asc.PaginatedResponse
-					err = shared.WithSpinner("", func() error {
-						var paginateErr error
-						groups, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-							return client.ListBetaGroups(ctx, asc.WithBetaGroupsNextURL(nextURL))
-						})
-						return paginateErr
+					groups, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+						return client.ListBetaGroups(ctx, asc.WithBetaGroupsNextURL(nextURL))
 					})
 					if err != nil {
 						return fmt.Errorf("beta-groups list: %w", err)
@@ -153,12 +149,8 @@ Examples:
 
 				// Fetch all remaining pages
 				var groups asc.PaginatedResponse
-				err = shared.WithSpinner("", func() error {
-					var paginateErr error
-					groups, paginateErr = asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetBetaGroups(ctx, resolvedAppID, asc.WithBetaGroupsNextURL(nextURL))
-					})
-					return paginateErr
+				groups, err = shared.PaginateAllWithSpinner(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return client.GetBetaGroups(ctx, resolvedAppID, asc.WithBetaGroupsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("beta-groups list: %w", err)
