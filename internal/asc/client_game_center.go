@@ -929,6 +929,28 @@ func (c *Client) GetGameCenterLeaderboardSetLocalizationImage(ctx context.Contex
 	return &response, nil
 }
 
+// GameCenterLeaderboardSetLocalizationImageLinkageResponse is the response for leaderboard set localization image relationship.
+type GameCenterLeaderboardSetLocalizationImageLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
+// GetGameCenterLeaderboardSetLocalizationImageRelationship retrieves image linkage for a leaderboard set localization.
+func (c *Client) GetGameCenterLeaderboardSetLocalizationImageRelationship(ctx context.Context, localizationID string) (*GameCenterLeaderboardSetLocalizationImageLinkageResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetLocalizations/%s/relationships/gameCenterLeaderboardSetImage", strings.TrimSpace(localizationID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterLeaderboardSetLocalizationImageLinkageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateGameCenterLeaderboardSetLocalization creates a new Game Center leaderboard set localization.
 func (c *Client) CreateGameCenterLeaderboardSetLocalization(ctx context.Context, setID string, attrs GameCenterLeaderboardSetLocalizationCreateAttributes) (*GameCenterLeaderboardSetLocalizationResponse, error) {
 	payload := GameCenterLeaderboardSetLocalizationCreateRequest{

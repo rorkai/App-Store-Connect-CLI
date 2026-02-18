@@ -7988,6 +7988,23 @@ func TestGetAppEncryptionDeclarationApp(t *testing.T) {
 	}
 }
 
+func TestGetAppEncryptionDeclarationAppRelationship(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEncryptionDeclarations/decl-1/relationships/app" {
+			t.Fatalf("expected path /v1/appEncryptionDeclarations/decl-1/relationships/app, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppEncryptionDeclarationAppRelationship(context.Background(), "decl-1"); err != nil {
+		t.Fatalf("GetAppEncryptionDeclarationAppRelationship() error: %v", err)
+	}
+}
+
 func TestGetAppEncryptionDeclarationDocumentForDeclaration(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEncryptionDeclarationDocuments","id":"doc-1","attributes":{"fileName":"export.pdf"}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -8002,6 +8019,23 @@ func TestGetAppEncryptionDeclarationDocumentForDeclaration(t *testing.T) {
 
 	if _, err := client.GetAppEncryptionDeclarationDocumentForDeclaration(context.Background(), "decl-1"); err != nil {
 		t.Fatalf("GetAppEncryptionDeclarationDocumentForDeclaration() error: %v", err)
+	}
+}
+
+func TestGetAppEncryptionDeclarationDocumentRelationship(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appEncryptionDeclarationDocuments","id":"doc-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appEncryptionDeclarations/decl-1/relationships/appEncryptionDeclarationDocument" {
+			t.Fatalf("expected path /v1/appEncryptionDeclarations/decl-1/relationships/appEncryptionDeclarationDocument, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAppEncryptionDeclarationDocumentRelationship(context.Background(), "decl-1"); err != nil {
+		t.Fatalf("GetAppEncryptionDeclarationDocumentRelationship() error: %v", err)
 	}
 }
 

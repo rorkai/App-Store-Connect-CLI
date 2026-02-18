@@ -9,6 +9,24 @@ import (
 	"strings"
 )
 
+// GameCenterAchievementLocalizationV2ImageLinkageResponse is the response for v2 achievement localization image relationship.
+type GameCenterAchievementLocalizationV2ImageLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
+// GameCenterLeaderboardLocalizationV2ImageLinkageResponse is the response for v2 leaderboard localization image relationship.
+type GameCenterLeaderboardLocalizationV2ImageLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
+// GameCenterLeaderboardSetLocalizationV2ImageLinkageResponse is the response for v2 leaderboard set localization image relationship.
+type GameCenterLeaderboardSetLocalizationV2ImageLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
 // GetGameCenterAchievementsV2 retrieves v2 achievements for a Game Center detail or group.
 func (c *Client) GetGameCenterAchievementsV2(ctx context.Context, gcDetailID, groupID string, opts ...GCAchievementsOption) (*GameCenterAchievementsResponse, error) {
 	query := &gcAchievementsQuery{}
@@ -152,6 +170,36 @@ func (c *Client) GetGameCenterAchievementVersionLocalizations(ctx context.Contex
 	return &response, nil
 }
 
+// GetGameCenterAchievementVersionLocalizationsRelationships retrieves localization linkages for a v2 achievement version.
+func (c *Client) GetGameCenterAchievementVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v2/gameCenterAchievementVersions/%s/relationships/localizations", strings.TrimSpace(versionID))
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("game-center-achievement-version-localizations-relationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetGameCenterAchievementLocalizationV2 retrieves a v2 achievement localization by ID.
 func (c *Client) GetGameCenterAchievementLocalizationV2(ctx context.Context, localizationID string) (*GameCenterAchievementLocalizationResponse, error) {
 	path := fmt.Sprintf("/v2/gameCenterAchievementLocalizations/%s", strings.TrimSpace(localizationID))
@@ -248,6 +296,22 @@ func (c *Client) GetGameCenterAchievementLocalizationImageV2(ctx context.Context
 	}
 
 	var response GameCenterAchievementImageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetGameCenterAchievementLocalizationImageRelationshipV2 retrieves the image linkage for a v2 achievement localization.
+func (c *Client) GetGameCenterAchievementLocalizationImageRelationshipV2(ctx context.Context, localizationID string) (*GameCenterAchievementLocalizationV2ImageLinkageResponse, error) {
+	path := fmt.Sprintf("/v2/gameCenterAchievementLocalizations/%s/relationships/image", strings.TrimSpace(localizationID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterAchievementLocalizationV2ImageLinkageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -538,6 +602,36 @@ func (c *Client) GetGameCenterLeaderboardVersionLocalizations(ctx context.Contex
 	return &response, nil
 }
 
+// GetGameCenterLeaderboardVersionLocalizationsRelationships retrieves localization linkages for a v2 leaderboard version.
+func (c *Client) GetGameCenterLeaderboardVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v2/gameCenterLeaderboardVersions/%s/relationships/localizations", strings.TrimSpace(versionID))
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("game-center-leaderboard-version-localizations-relationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetGameCenterLeaderboardLocalizationV2 retrieves a v2 leaderboard localization by ID.
 func (c *Client) GetGameCenterLeaderboardLocalizationV2(ctx context.Context, localizationID string) (*GameCenterLeaderboardLocalizationResponse, error) {
 	path := fmt.Sprintf("/v2/gameCenterLeaderboardLocalizations/%s", strings.TrimSpace(localizationID))
@@ -634,6 +728,22 @@ func (c *Client) GetGameCenterLeaderboardLocalizationImageV2(ctx context.Context
 	}
 
 	var response GameCenterLeaderboardImageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetGameCenterLeaderboardLocalizationImageRelationshipV2 retrieves the image linkage for a v2 leaderboard localization.
+func (c *Client) GetGameCenterLeaderboardLocalizationImageRelationshipV2(ctx context.Context, localizationID string) (*GameCenterLeaderboardLocalizationV2ImageLinkageResponse, error) {
+	path := fmt.Sprintf("/v2/gameCenterLeaderboardLocalizations/%s/relationships/image", strings.TrimSpace(localizationID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterLeaderboardLocalizationV2ImageLinkageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -1083,6 +1193,36 @@ func (c *Client) GetGameCenterLeaderboardSetVersionLocalizations(ctx context.Con
 	return &response, nil
 }
 
+// GetGameCenterLeaderboardSetVersionLocalizationsRelationships retrieves localization linkages for a v2 leaderboard set version.
+func (c *Client) GetGameCenterLeaderboardSetVersionLocalizationsRelationships(ctx context.Context, versionID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v2/gameCenterLeaderboardSetVersions/%s/relationships/localizations", strings.TrimSpace(versionID))
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("game-center-leaderboard-set-version-localizations-relationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetGameCenterLeaderboardSetLocalizationV2 retrieves a v2 leaderboard set localization by ID.
 func (c *Client) GetGameCenterLeaderboardSetLocalizationV2(ctx context.Context, localizationID string) (*GameCenterLeaderboardSetLocalizationResponse, error) {
 	path := fmt.Sprintf("/v2/gameCenterLeaderboardSetLocalizations/%s", strings.TrimSpace(localizationID))
@@ -1179,6 +1319,22 @@ func (c *Client) GetGameCenterLeaderboardSetLocalizationImageV2(ctx context.Cont
 	}
 
 	var response GameCenterLeaderboardSetImageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetGameCenterLeaderboardSetLocalizationImageRelationshipV2 retrieves the image linkage for a v2 leaderboard set localization.
+func (c *Client) GetGameCenterLeaderboardSetLocalizationImageRelationshipV2(ctx context.Context, localizationID string) (*GameCenterLeaderboardSetLocalizationV2ImageLinkageResponse, error) {
+	path := fmt.Sprintf("/v2/gameCenterLeaderboardSetLocalizations/%s/relationships/image", strings.TrimSpace(localizationID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterLeaderboardSetLocalizationV2ImageLinkageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

@@ -390,6 +390,23 @@ func TestGetTerritoryAvailabilities(t *testing.T) {
 	}
 }
 
+func TestGetAppAvailabilityV2TerritoryAvailabilitiesRelationships(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		assertAuthorized(t, req)
+		if req.URL.Path != "/v2/appAvailabilities/availability-1/relationships/territoryAvailabilities" {
+			t.Fatalf("expected path /v2/appAvailabilities/availability-1/relationships/territoryAvailabilities, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "7" {
+			t.Fatalf("expected limit=7, got %q", req.URL.Query().Get("limit"))
+		}
+	}, response)
+
+	if _, err := client.GetAppAvailabilityV2TerritoryAvailabilitiesRelationships(context.Background(), "availability-1", WithLinkagesLimit(7)); err != nil {
+		t.Fatalf("GetAppAvailabilityV2TerritoryAvailabilitiesRelationships() error: %v", err)
+	}
+}
+
 func TestCreateAppAvailabilityV2(t *testing.T) {
 	resp := AppAvailabilityV2Response{
 		Data: Resource[AppAvailabilityV2Attributes]{

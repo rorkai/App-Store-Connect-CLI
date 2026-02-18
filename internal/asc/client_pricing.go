@@ -362,6 +362,37 @@ func (c *Client) GetTerritoryAvailabilities(ctx context.Context, availabilityID 
 	return &response, nil
 }
 
+// GetAppAvailabilityV2TerritoryAvailabilitiesRelationships retrieves territory availability linkages for an app availability.
+func (c *Client) GetAppAvailabilityV2TerritoryAvailabilitiesRelationships(ctx context.Context, availabilityID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v2/appAvailabilities/%s/relationships/territoryAvailabilities", strings.TrimSpace(availabilityID))
+	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("appAvailabilityTerritoryAvailabilitiesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateAppAvailabilityV2 creates or updates app availability.
 func (c *Client) CreateAppAvailabilityV2(ctx context.Context, appID string, attrs AppAvailabilityV2CreateAttributes) (*AppAvailabilityV2Response, error) {
 	appID = strings.TrimSpace(appID)

@@ -215,6 +215,26 @@ func TestGetAnalyticsReports_UsesNextURL(t *testing.T) {
 	}
 }
 
+func TestGetAnalyticsReportRequestReportsRelationships_WithLimit(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/analyticsReportRequests/req-1/relationships/reports" {
+			t.Fatalf("expected path /v1/analyticsReportRequests/req-1/relationships/reports, got %s", req.URL.Path)
+		}
+		if got := req.URL.Query().Get("limit"); got != "10" {
+			t.Fatalf("expected limit=10, got %q", got)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAnalyticsReportRequestReportsRelationships(context.Background(), "req-1", WithLinkagesLimit(10)); err != nil {
+		t.Fatalf("GetAnalyticsReportRequestReportsRelationships() error: %v", err)
+	}
+}
+
 func TestGetAnalyticsReportInstances_UsesNextURL(t *testing.T) {
 	next := "https://api.appstoreconnect.apple.com/v1/analyticsReports/report-1/instances?cursor=abc"
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)

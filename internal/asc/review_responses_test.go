@@ -256,6 +256,33 @@ func TestGetCustomerReviewResponseForReview(t *testing.T) {
 	}
 }
 
+func TestGetCustomerReviewResponseRelationshipForReview(t *testing.T) {
+	response := reviewResponsesJSONResponse(http.StatusOK, `{
+		"data": {
+			"type": "customerReviewResponses",
+			"id": "response-789"
+		}
+	}`)
+
+	client := newReviewResponsesTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/customerReviews/review-456/relationships/response" {
+			t.Fatalf("expected path /v1/customerReviews/review-456/relationships/response, got %s", req.URL.Path)
+		}
+	}, response)
+
+	resp, err := client.GetCustomerReviewResponseRelationshipForReview(context.Background(), "review-456")
+	if err != nil {
+		t.Fatalf("GetCustomerReviewResponseRelationshipForReview() error: %v", err)
+	}
+
+	if resp.Data.ID != "response-789" {
+		t.Fatalf("expected ID response-789, got %s", resp.Data.ID)
+	}
+}
+
 func TestGetCustomerReviewResponseForReview_ValidationErrors(t *testing.T) {
 	client := newReviewResponsesTestClient(t, nil, nil)
 

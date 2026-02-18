@@ -23,6 +23,23 @@ func TestGetBundleIDApp_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestGetBundleIDAppRelationship_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIds/bid-1/relationships/app" {
+			t.Fatalf("expected path /v1/bundleIds/bid-1/relationships/app, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBundleIDAppRelationship(context.Background(), "bid-1"); err != nil {
+		t.Fatalf("GetBundleIDAppRelationship() error: %v", err)
+	}
+}
+
 func TestGetBundleIDProfiles_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -40,6 +57,46 @@ func TestGetBundleIDProfiles_SendsRequest(t *testing.T) {
 
 	if _, err := client.GetBundleIDProfiles(context.Background(), "bid-1", WithBundleIDProfilesLimit(8)); err != nil {
 		t.Fatalf("GetBundleIDProfiles() error: %v", err)
+	}
+}
+
+func TestGetBundleIDCapabilitiesRelationships_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIds/bid-1/relationships/bundleIdCapabilities" {
+			t.Fatalf("expected path /v1/bundleIds/bid-1/relationships/bundleIdCapabilities, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "3" {
+			t.Fatalf("expected limit=3, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBundleIDCapabilitiesRelationships(context.Background(), "bid-1", WithLinkagesLimit(3)); err != nil {
+		t.Fatalf("GetBundleIDCapabilitiesRelationships() error: %v", err)
+	}
+}
+
+func TestGetBundleIDProfilesRelationships_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/bundleIds/bid-1/relationships/profiles" {
+			t.Fatalf("expected path /v1/bundleIds/bid-1/relationships/profiles, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "8" {
+			t.Fatalf("expected limit=8, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetBundleIDProfilesRelationships(context.Background(), "bid-1", WithLinkagesLimit(8)); err != nil {
+		t.Fatalf("GetBundleIDProfilesRelationships() error: %v", err)
 	}
 }
 
@@ -78,6 +135,26 @@ func TestGetUserInvitationVisibleApps_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestGetUserInvitationVisibleAppsRelationships_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/userInvitations/invite-1/relationships/visibleApps" {
+			t.Fatalf("expected path /v1/userInvitations/invite-1/relationships/visibleApps, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "12" {
+			t.Fatalf("expected limit=12, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetUserInvitationVisibleAppsRelationships(context.Background(), "invite-1", WithLinkagesLimit(12)); err != nil {
+		t.Fatalf("GetUserInvitationVisibleAppsRelationships() error: %v", err)
+	}
+}
+
 func TestGetEndUserLicenseAgreementTerritories_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -95,6 +172,26 @@ func TestGetEndUserLicenseAgreementTerritories_SendsRequest(t *testing.T) {
 
 	if _, err := client.GetEndUserLicenseAgreementTerritories(context.Background(), "eula-1", WithEndUserLicenseAgreementTerritoriesLimit(5)); err != nil {
 		t.Fatalf("GetEndUserLicenseAgreementTerritories() error: %v", err)
+	}
+}
+
+func TestGetEndUserLicenseAgreementTerritoriesRelationships_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/endUserLicenseAgreements/eula-1/relationships/territories" {
+			t.Fatalf("expected path /v1/endUserLicenseAgreements/eula-1/relationships/territories, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "5" {
+			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetEndUserLicenseAgreementTerritoriesRelationships(context.Background(), "eula-1", WithLinkagesLimit(5)); err != nil {
+		t.Fatalf("GetEndUserLicenseAgreementTerritoriesRelationships() error: %v", err)
 	}
 }
 

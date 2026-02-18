@@ -36,3 +36,33 @@ func (c *Client) GetUserInvitationVisibleApps(ctx context.Context, invitationID 
 
 	return &response, nil
 }
+
+// GetUserInvitationVisibleAppsRelationships retrieves visible app linkages for a user invitation.
+func (c *Client) GetUserInvitationVisibleAppsRelationships(ctx context.Context, invitationID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	path := fmt.Sprintf("/v1/userInvitations/%s/relationships/visibleApps", strings.TrimSpace(invitationID))
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("userInvitationVisibleAppsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}

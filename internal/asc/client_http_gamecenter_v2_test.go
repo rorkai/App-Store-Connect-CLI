@@ -146,6 +146,26 @@ func TestGetGameCenterAchievementVersionLocalizations(t *testing.T) {
 	}
 }
 
+func TestGetGameCenterAchievementVersionLocalizationsRelationships(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v2/gameCenterAchievementVersions/ver-1/relationships/localizations" {
+			t.Fatalf("expected path /v2/gameCenterAchievementVersions/ver-1/relationships/localizations, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "9" {
+			t.Fatalf("expected limit=9, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterAchievementVersionLocalizationsRelationships(context.Background(), "ver-1", WithLinkagesLimit(9)); err != nil {
+		t.Fatalf("GetGameCenterAchievementVersionLocalizationsRelationships() error: %v", err)
+	}
+}
+
 func TestCreateGameCenterAchievementLocalizationV2(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterAchievementLocalizations","id":"loc-1"}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -256,6 +276,23 @@ func TestGetGameCenterAchievementLocalizationImageV2(t *testing.T) {
 
 	if _, err := client.GetGameCenterAchievementLocalizationImageV2(context.Background(), "loc-1"); err != nil {
 		t.Fatalf("GetGameCenterAchievementLocalizationImageV2() error: %v", err)
+	}
+}
+
+func TestGetGameCenterAchievementLocalizationImageRelationshipV2(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterAchievementImages","id":"img-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v2/gameCenterAchievementLocalizations/loc-1/relationships/image" {
+			t.Fatalf("expected path /v2/gameCenterAchievementLocalizations/loc-1/relationships/image, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterAchievementLocalizationImageRelationshipV2(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetGameCenterAchievementLocalizationImageRelationshipV2() error: %v", err)
 	}
 }
 
@@ -466,6 +503,26 @@ func TestGetGameCenterLeaderboardVersionLocalizations(t *testing.T) {
 	}
 }
 
+func TestGetGameCenterLeaderboardVersionLocalizationsRelationships(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v2/gameCenterLeaderboardVersions/ver-1/relationships/localizations" {
+			t.Fatalf("expected path /v2/gameCenterLeaderboardVersions/ver-1/relationships/localizations, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "9" {
+			t.Fatalf("expected limit=9, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterLeaderboardVersionLocalizationsRelationships(context.Background(), "ver-1", WithLinkagesLimit(9)); err != nil {
+		t.Fatalf("GetGameCenterLeaderboardVersionLocalizationsRelationships() error: %v", err)
+	}
+}
+
 func TestCreateGameCenterLeaderboardLocalizationV2(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterLeaderboardLocalizations","id":"loc-1"}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -571,6 +628,23 @@ func TestGetGameCenterLeaderboardLocalizationImageV2(t *testing.T) {
 
 	if _, err := client.GetGameCenterLeaderboardLocalizationImageV2(context.Background(), "loc-1"); err != nil {
 		t.Fatalf("GetGameCenterLeaderboardLocalizationImageV2() error: %v", err)
+	}
+}
+
+func TestGetGameCenterLeaderboardLocalizationImageRelationshipV2(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboardImages","id":"img-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v2/gameCenterLeaderboardLocalizations/loc-1/relationships/image" {
+			t.Fatalf("expected path /v2/gameCenterLeaderboardLocalizations/loc-1/relationships/image, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterLeaderboardLocalizationImageRelationshipV2(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetGameCenterLeaderboardLocalizationImageRelationshipV2() error: %v", err)
 	}
 }
 
@@ -920,6 +994,26 @@ func TestGetGameCenterLeaderboardSetVersionLocalizations(t *testing.T) {
 	}
 }
 
+func TestGetGameCenterLeaderboardSetVersionLocalizationsRelationships(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v2/gameCenterLeaderboardSetVersions/ver-1/relationships/localizations" {
+			t.Fatalf("expected path /v2/gameCenterLeaderboardSetVersions/ver-1/relationships/localizations, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "9" {
+			t.Fatalf("expected limit=9, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterLeaderboardSetVersionLocalizationsRelationships(context.Background(), "ver-1", WithLinkagesLimit(9)); err != nil {
+		t.Fatalf("GetGameCenterLeaderboardSetVersionLocalizationsRelationships() error: %v", err)
+	}
+}
+
 func TestCreateGameCenterLeaderboardSetLocalizationV2(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterLeaderboardSetLocalizations","id":"loc-1"}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -1025,6 +1119,23 @@ func TestGetGameCenterLeaderboardSetLocalizationImageV2(t *testing.T) {
 
 	if _, err := client.GetGameCenterLeaderboardSetLocalizationImageV2(context.Background(), "loc-1"); err != nil {
 		t.Fatalf("GetGameCenterLeaderboardSetLocalizationImageV2() error: %v", err)
+	}
+}
+
+func TestGetGameCenterLeaderboardSetLocalizationImageRelationshipV2(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"gameCenterLeaderboardSetImages","id":"img-1"}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v2/gameCenterLeaderboardSetLocalizations/loc-1/relationships/image" {
+			t.Fatalf("expected path /v2/gameCenterLeaderboardSetLocalizations/loc-1/relationships/image, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetGameCenterLeaderboardSetLocalizationImageRelationshipV2(context.Background(), "loc-1"); err != nil {
+		t.Fatalf("GetGameCenterLeaderboardSetLocalizationImageRelationshipV2() error: %v", err)
 	}
 }
 

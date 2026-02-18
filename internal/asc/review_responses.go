@@ -33,6 +33,12 @@ type CustomerReviewResponseResponse struct {
 	Links Links                          `json:"links"`
 }
 
+// CustomerReviewResponseLinkageResponse is the response for customer review response relationship.
+type CustomerReviewResponseLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
 // CustomerReviewResponseCreateAttributes describes attributes for creating a review response.
 type CustomerReviewResponseCreateAttributes struct {
 	ResponseBody string `json:"responseBody"`
@@ -161,6 +167,27 @@ func (c *Client) GetCustomerReviewResponseForReview(ctx context.Context, reviewI
 	}
 
 	var response CustomerReviewResponseResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetCustomerReviewResponseRelationshipForReview retrieves the response linkage for a specific review.
+func (c *Client) GetCustomerReviewResponseRelationshipForReview(ctx context.Context, reviewID string) (*CustomerReviewResponseLinkageResponse, error) {
+	reviewID = strings.TrimSpace(reviewID)
+	if reviewID == "" {
+		return nil, fmt.Errorf("reviewID is required")
+	}
+
+	path := fmt.Sprintf("/v1/customerReviews/%s/relationships/response", reviewID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response CustomerReviewResponseLinkageResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

@@ -312,6 +312,26 @@ func TestGetAlternativeDistributionPackageVersionDeltas_SendsRequest(t *testing.
 	}
 }
 
+func TestGetAlternativeDistributionPackageVersionDeltasRelationships_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/alternativeDistributionPackageVersions/ver-1/relationships/deltas" {
+			t.Fatalf("expected path /v1/alternativeDistributionPackageVersions/ver-1/relationships/deltas, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "4" {
+			t.Fatalf("expected limit=4, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAlternativeDistributionPackageVersionDeltasRelationships(context.Background(), "ver-1", WithLinkagesLimit(4)); err != nil {
+		t.Fatalf("GetAlternativeDistributionPackageVersionDeltasRelationships() error: %v", err)
+	}
+}
+
 func TestGetAlternativeDistributionPackageVersionVariants_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -329,6 +349,26 @@ func TestGetAlternativeDistributionPackageVersionVariants_SendsRequest(t *testin
 
 	if _, err := client.GetAlternativeDistributionPackageVersionVariants(context.Background(), "ver-1", WithAlternativeDistributionPackageVariantsLimit(6)); err != nil {
 		t.Fatalf("GetAlternativeDistributionPackageVersionVariants() error: %v", err)
+	}
+}
+
+func TestGetAlternativeDistributionPackageVersionVariantsRelationships_SendsRequest(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/alternativeDistributionPackageVersions/ver-1/relationships/variants" {
+			t.Fatalf("expected path /v1/alternativeDistributionPackageVersions/ver-1/relationships/variants, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("limit") != "6" {
+			t.Fatalf("expected limit=6, got %q", req.URL.Query().Get("limit"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetAlternativeDistributionPackageVersionVariantsRelationships(context.Background(), "ver-1", WithLinkagesLimit(6)); err != nil {
+		t.Fatalf("GetAlternativeDistributionPackageVersionVariantsRelationships() error: %v", err)
 	}
 }
 
