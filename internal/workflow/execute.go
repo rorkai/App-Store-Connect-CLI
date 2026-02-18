@@ -94,6 +94,13 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 		result.DurationMS = time.Since(start).Milliseconds()
 	}()
 
+	runErrorHook := func() {
+		if ehr, hookErr := runHookAndRecord(ctx, def.Error, env, opts.DryRun, opts.Stdout, opts.Stderr); ehr != nil {
+			result.ensureHooks().Error = ehr
+			_ = hookErr // error hook failures never override the original error
+		}
+	}
+
 	// before_all hook
 	if hr, err := runHookAndRecord(ctx, def.BeforeAll, env, opts.DryRun, opts.Stdout, opts.Stderr); hr != nil {
 		result.ensureHooks().BeforeAll = hr
@@ -102,10 +109,7 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 			result.Status = "error"
 			result.Error = wrapped.Error()
 
-			if ehr, hookErr := runHookAndRecord(ctx, def.Error, env, opts.DryRun, opts.Stdout, opts.Stderr); ehr != nil {
-				result.ensureHooks().Error = ehr
-				_ = hookErr // error hook failures never override the original error
-			}
+			runErrorHook()
 			return result, wrapped
 		}
 	}
@@ -115,10 +119,7 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 		result.Status = "error"
 		result.Error = err.Error()
 
-		if ehr, hookErr := runHookAndRecord(ctx, def.Error, env, opts.DryRun, opts.Stdout, opts.Stderr); ehr != nil {
-			result.ensureHooks().Error = ehr
-			_ = hookErr // error hook failures never override the original error
-		}
+		runErrorHook()
 		return result, err
 	}
 
@@ -130,10 +131,7 @@ func Run(ctx context.Context, def *Definition, opts RunOptions) (*RunResult, err
 			result.Status = "error"
 			result.Error = wrapped.Error()
 
-			if ehr, hookErr := runHookAndRecord(ctx, def.Error, env, opts.DryRun, opts.Stdout, opts.Stderr); ehr != nil {
-				result.ensureHooks().Error = ehr
-				_ = hookErr // error hook failures never override the original error
-			}
+			runErrorHook()
 			return result, wrapped
 		}
 	}
