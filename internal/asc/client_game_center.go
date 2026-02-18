@@ -612,6 +612,22 @@ func (c *Client) GetGameCenterLeaderboardReleases(ctx context.Context, leaderboa
 	return &response, nil
 }
 
+// GetGameCenterLeaderboardRelease retrieves a leaderboard release by ID.
+func (c *Client) GetGameCenterLeaderboardRelease(ctx context.Context, releaseID string) (*GameCenterLeaderboardReleaseResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterLeaderboardReleases/%s", strings.TrimSpace(releaseID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterLeaderboardReleaseResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // CreateGameCenterLeaderboardRelease creates a new Game Center leaderboard release.
 func (c *Client) CreateGameCenterLeaderboardRelease(ctx context.Context, gcDetailID, leaderboardID string) (*GameCenterLeaderboardReleaseResponse, error) {
 	payload := GameCenterLeaderboardReleaseCreateRequest{
@@ -682,6 +698,22 @@ func (c *Client) GetGameCenterAchievementReleases(ctx context.Context, achieveme
 	}
 
 	var response GameCenterAchievementReleasesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetGameCenterAchievementRelease retrieves an achievement release by ID.
+func (c *Client) GetGameCenterAchievementRelease(ctx context.Context, releaseID string) (*GameCenterAchievementReleaseResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterAchievementReleases/%s", strings.TrimSpace(releaseID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterAchievementReleaseResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
@@ -813,6 +845,22 @@ func (c *Client) GetGameCenterLeaderboardSetReleases(ctx context.Context, setID 
 	}
 
 	var response GameCenterLeaderboardSetReleasesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetGameCenterLeaderboardSetRelease retrieves a leaderboard set release by ID.
+func (c *Client) GetGameCenterLeaderboardSetRelease(ctx context.Context, releaseID string) (*GameCenterLeaderboardSetReleaseResponse, error) {
+	path := fmt.Sprintf("/v1/gameCenterLeaderboardSetReleases/%s", strings.TrimSpace(releaseID))
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response GameCenterLeaderboardSetReleaseResponse
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

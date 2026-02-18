@@ -1503,6 +1503,39 @@ func (c *Client) UpdateAppInfoLocalization(ctx context.Context, localizationID s
 	return &response, nil
 }
 
+// GetAppInfoLocalization retrieves an app info localization by ID.
+func (c *Client) GetAppInfoLocalization(ctx context.Context, localizationID string) (*AppInfoLocalizationResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+
+	path := fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID)
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppInfoLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// DeleteAppInfoLocalization deletes an app info localization by ID.
+func (c *Client) DeleteAppInfoLocalization(ctx context.Context, localizationID string) error {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return fmt.Errorf("localizationID is required")
+	}
+
+	path := fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID)
+	_, err := c.do(ctx, "DELETE", path, nil)
+	return err
+}
+
 // GetAppInfos retrieves app info records for an app.
 func (c *Client) GetAppInfos(ctx context.Context, appID string) (*AppInfosResponse, error) {
 	path := fmt.Sprintf("/v1/apps/%s/appInfos", appID)

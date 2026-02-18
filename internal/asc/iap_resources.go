@@ -349,6 +349,23 @@ type InAppPurchaseOfferCodeCustomCodeCreateRequest struct {
 	Data InAppPurchaseOfferCodeCustomCodeCreateData `json:"data"`
 }
 
+// InAppPurchaseOfferCodeCustomCodeUpdateAttributes describes attributes for updating custom codes.
+type InAppPurchaseOfferCodeCustomCodeUpdateAttributes struct {
+	Active *bool `json:"active,omitempty"`
+}
+
+// InAppPurchaseOfferCodeCustomCodeUpdateData is the data portion of an update request.
+type InAppPurchaseOfferCodeCustomCodeUpdateData struct {
+	Type       ResourceType                                      `json:"type"`
+	ID         string                                            `json:"id"`
+	Attributes *InAppPurchaseOfferCodeCustomCodeUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// InAppPurchaseOfferCodeCustomCodeUpdateRequest is a request to update custom codes.
+type InAppPurchaseOfferCodeCustomCodeUpdateRequest struct {
+	Data InAppPurchaseOfferCodeCustomCodeUpdateData `json:"data"`
+}
+
 type InAppPurchaseOfferCodeOneTimeUseCodeAttributes struct {
 	NumberOfCodes  int    `json:"numberOfCodes,omitempty"`
 	CreatedDate    string `json:"createdDate,omitempty"`
@@ -383,6 +400,23 @@ type InAppPurchaseOfferCodeOneTimeUseCodeCreateData struct {
 // InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest is a request to generate one-time use codes.
 type InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest struct {
 	Data InAppPurchaseOfferCodeOneTimeUseCodeCreateData `json:"data"`
+}
+
+// InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes describes attributes for updating one-time use codes.
+type InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes struct {
+	Active *bool `json:"active,omitempty"`
+}
+
+// InAppPurchaseOfferCodeOneTimeUseCodeUpdateData is the data portion of an update request.
+type InAppPurchaseOfferCodeOneTimeUseCodeUpdateData struct {
+	Type       ResourceType                                          `json:"type"`
+	ID         string                                                `json:"id"`
+	Attributes *InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes `json:"attributes,omitempty"`
+}
+
+// InAppPurchaseOfferCodeOneTimeUseCodeUpdateRequest is a request to update one-time use codes.
+type InAppPurchaseOfferCodeOneTimeUseCodeUpdateRequest struct {
+	Data InAppPurchaseOfferCodeOneTimeUseCodeUpdateData `json:"data"`
 }
 
 // In-app purchase submissions.

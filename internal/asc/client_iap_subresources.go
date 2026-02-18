@@ -107,6 +107,27 @@ func (c *Client) DeleteInAppPurchaseLocalization(ctx context.Context, localizati
 	return err
 }
 
+// GetInAppPurchaseLocalization retrieves an IAP localization by ID.
+func (c *Client) GetInAppPurchaseLocalization(ctx context.Context, localizationID string) (*InAppPurchaseLocalizationResponse, error) {
+	localizationID = strings.TrimSpace(localizationID)
+	if localizationID == "" {
+		return nil, fmt.Errorf("localizationID is required")
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchaseLocalizations/%s", localizationID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchaseLocalizationResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetInAppPurchaseImages retrieves images for an in-app purchase.
 func (c *Client) GetInAppPurchaseImages(ctx context.Context, iapID string, opts ...IAPImagesOption) (*InAppPurchaseImagesResponse, error) {
 	query := &iapImagesQuery{}
@@ -1011,6 +1032,42 @@ func (c *Client) CreateInAppPurchaseOfferCodeCustomCode(ctx context.Context, req
 	return &response, nil
 }
 
+// UpdateInAppPurchaseOfferCodeCustomCode updates a custom code by ID.
+func (c *Client) UpdateInAppPurchaseOfferCodeCustomCode(ctx context.Context, customCodeID string, attrs InAppPurchaseOfferCodeCustomCodeUpdateAttributes) (*InAppPurchaseOfferCodeCustomCodeResponse, error) {
+	customCodeID = strings.TrimSpace(customCodeID)
+	if customCodeID == "" {
+		return nil, fmt.Errorf("customCodeID is required")
+	}
+
+	payload := InAppPurchaseOfferCodeCustomCodeUpdateRequest{
+		Data: InAppPurchaseOfferCodeCustomCodeUpdateData{
+			Type: ResourceTypeInAppPurchaseOfferCodeCustomCodes,
+			ID:   customCodeID,
+		},
+	}
+	if attrs.Active != nil {
+		payload.Data.Attributes = &attrs
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodeCustomCodes/%s", customCodeID)
+	data, err := c.do(ctx, http.MethodPatch, path, body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchaseOfferCodeCustomCodeResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetInAppPurchaseOfferCodeOneTimeUseCodes retrieves one-time use codes for an offer code.
 func (c *Client) GetInAppPurchaseOfferCodeOneTimeUseCodes(ctx context.Context, offerCodeID string, opts ...IAPOfferCodeOneTimeUseCodesOption) (*InAppPurchaseOfferCodeOneTimeUseCodesResponse, error) {
 	query := &iapOfferCodeOneTimeUseCodesQuery{}
@@ -1089,6 +1146,42 @@ func (c *Client) CreateInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context,
 	}
 
 	data, err := c.do(ctx, http.MethodPost, "/v1/inAppPurchaseOfferCodeOneTimeUseCodes", body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchaseOfferCodeOneTimeUseCodeResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// UpdateInAppPurchaseOfferCodeOneTimeUseCode updates a one-time use code batch by ID.
+func (c *Client) UpdateInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context, oneTimeUseCodeID string, attrs InAppPurchaseOfferCodeOneTimeUseCodeUpdateAttributes) (*InAppPurchaseOfferCodeOneTimeUseCodeResponse, error) {
+	oneTimeUseCodeID = strings.TrimSpace(oneTimeUseCodeID)
+	if oneTimeUseCodeID == "" {
+		return nil, fmt.Errorf("oneTimeUseCodeID is required")
+	}
+
+	payload := InAppPurchaseOfferCodeOneTimeUseCodeUpdateRequest{
+		Data: InAppPurchaseOfferCodeOneTimeUseCodeUpdateData{
+			Type: ResourceTypeInAppPurchaseOfferCodeOneTimeUseCodes,
+			ID:   oneTimeUseCodeID,
+		},
+	}
+	if attrs.Active != nil {
+		payload.Data.Attributes = &attrs
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodeOneTimeUseCodes/%s", oneTimeUseCodeID)
+	data, err := c.do(ctx, http.MethodPatch, path, body)
 	if err != nil {
 		return nil, err
 	}
