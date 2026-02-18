@@ -13,6 +13,8 @@ import (
 )
 
 func TestReleaseNotesGenerate_JSON(t *testing.T) {
+	unsetGitHookEnv(t)
+
 	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "json")
 
@@ -92,6 +94,8 @@ func TestReleaseNotesGenerate_MissingSinceIsUsage(t *testing.T) {
 }
 
 func TestReleaseNotesGenerate_NotGitRepoReturnsError(t *testing.T) {
+	unsetGitHookEnv(t)
+
 	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "json")
 
@@ -118,6 +122,8 @@ func TestReleaseNotesGenerate_NotGitRepoReturnsError(t *testing.T) {
 }
 
 func TestReleaseNotesGenerate_TruncatesToMaxChars(t *testing.T) {
+	unsetGitHookEnv(t)
+
 	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "json")
 
@@ -188,11 +194,56 @@ func initTempGitRepo(t *testing.T) string {
 	return dir
 }
 
+func unsetGitHookEnv(t *testing.T) {
+	t.Helper()
+
+	// When `go test` runs under a git hook, git exports repository-scoped env vars.
+	// Clear them so any git invocation in the tests/CLI uses the temp repo.
+	keys := []string{
+		"GIT_DIR",
+		"GIT_WORK_TREE",
+		"GIT_INDEX_FILE",
+		"GIT_COMMON_DIR",
+	}
+
+	original := map[string]string{}
+	for _, k := range keys {
+		if v, ok := os.LookupEnv(k); ok {
+			original[k] = v
+			_ = os.Unsetenv(k)
+		}
+	}
+	t.Cleanup(func() {
+		for _, k := range keys {
+			if v, ok := original[k]; ok {
+				_ = os.Setenv(k, v)
+			} else {
+				_ = os.Unsetenv(k)
+			}
+		}
+	})
+}
+
 func runGit(t *testing.T, dir string, args ...string) {
 	t.Helper()
 
 	c := exec.Command("git", args...)
 	c.Dir = dir
+	// Git sets GIT_DIR/GIT_WORK_TREE for hook processes. If `go test` runs under a
+	// hook, these env vars can leak into this helper and cause our git commands
+	// to operate on the outer repo instead of the temp repo.
+	env := os.Environ()
+	filtered := make([]string, 0, len(env))
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "GIT_DIR=") ||
+			strings.HasPrefix(kv, "GIT_WORK_TREE=") ||
+			strings.HasPrefix(kv, "GIT_INDEX_FILE=") ||
+			strings.HasPrefix(kv, "GIT_COMMON_DIR=") {
+			continue
+		}
+		filtered = append(filtered, kv)
+	}
+	c.Env = filtered
 	out, err := c.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %s failed: %v\n%s", strings.Join(args, " "), err, string(out))

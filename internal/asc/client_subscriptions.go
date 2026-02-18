@@ -483,3 +483,496 @@ func (c *Client) GetSubscriptionPromotedPurchase(ctx context.Context, subID stri
 
 	return &response, nil
 }
+
+// SubscriptionAppStoreReviewScreenshotLinkageResponse is the response for app store review screenshot relationship endpoints.
+type SubscriptionAppStoreReviewScreenshotLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
+// SubscriptionPromotedPurchaseLinkageResponse is the response for promoted purchase relationship endpoints.
+type SubscriptionPromotedPurchaseLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
+// SubscriptionSubscriptionAvailabilityLinkageResponse is the response for subscription availability relationship endpoints.
+type SubscriptionSubscriptionAvailabilityLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
+// GetSubscriptionAvailabilityAvailableTerritoriesRelationships retrieves available territory linkages for an availability.
+func (c *Client) GetSubscriptionAvailabilityAvailableTerritoriesRelationships(ctx context.Context, availabilityID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	availabilityID = strings.TrimSpace(availabilityID)
+	if query.nextURL == "" && availabilityID == "" {
+		return nil, fmt.Errorf("availabilityID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionAvailabilities/%s/relationships/availableTerritories", availabilityID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionAvailabilityAvailableTerritoriesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionGroupSubscriptionGroupLocalizationsRelationships retrieves localization linkages for a subscription group.
+func (c *Client) GetSubscriptionGroupSubscriptionGroupLocalizationsRelationships(ctx context.Context, groupID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	groupID = strings.TrimSpace(groupID)
+	if query.nextURL == "" && groupID == "" {
+		return nil, fmt.Errorf("groupID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionGroups/%s/relationships/subscriptionGroupLocalizations", groupID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionGroupLocalizationsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionGroupSubscriptionsRelationships retrieves subscription linkages for a subscription group.
+func (c *Client) GetSubscriptionGroupSubscriptionsRelationships(ctx context.Context, groupID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	groupID = strings.TrimSpace(groupID)
+	if query.nextURL == "" && groupID == "" {
+		return nil, fmt.Errorf("groupID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionGroups/%s/relationships/subscriptions", groupID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionGroupSubscriptionsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionAppStoreReviewScreenshotRelationship retrieves the review screenshot linkage for a subscription.
+func (c *Client) GetSubscriptionAppStoreReviewScreenshotRelationship(ctx context.Context, subID string) (*SubscriptionAppStoreReviewScreenshotLinkageResponse, error) {
+	subID = strings.TrimSpace(subID)
+	if subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/appStoreReviewScreenshot", subID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response SubscriptionAppStoreReviewScreenshotLinkageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionImagesRelationships retrieves image linkages for a subscription.
+func (c *Client) GetSubscriptionImagesRelationships(ctx context.Context, subID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	subID = strings.TrimSpace(subID)
+	if query.nextURL == "" && subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/images", subID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionImagesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionIntroductoryOffersRelationships retrieves introductory offer linkages for a subscription.
+func (c *Client) GetSubscriptionIntroductoryOffersRelationships(ctx context.Context, subID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	subID = strings.TrimSpace(subID)
+	if query.nextURL == "" && subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/introductoryOffers", subID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionIntroductoryOffersRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// RemoveSubscriptionIntroductoryOffers removes introductory offer relationships from a subscription.
+func (c *Client) RemoveSubscriptionIntroductoryOffers(ctx context.Context, subID string, offerIDs []string) error {
+	subID = strings.TrimSpace(subID)
+	offerIDs = normalizeList(offerIDs)
+	if subID == "" {
+		return fmt.Errorf("subscription ID is required")
+	}
+	if len(offerIDs) == 0 {
+		return fmt.Errorf("offerIDs are required")
+	}
+
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, len(offerIDs)),
+	}
+	for i, id := range offerIDs {
+		payload.Data[i] = RelationshipData{
+			Type: ResourceTypeSubscriptionIntroductoryOffers,
+			ID:   id,
+		}
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/introductoryOffers", subID)
+	_, err = c.do(ctx, http.MethodDelete, path, body)
+	return err
+}
+
+// GetSubscriptionOfferCodesRelationships retrieves offer code linkages for a subscription.
+func (c *Client) GetSubscriptionOfferCodesRelationships(ctx context.Context, subID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	subID = strings.TrimSpace(subID)
+	if query.nextURL == "" && subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/offerCodes", subID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionOfferCodesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionPricePointsRelationships retrieves price point linkages for a subscription.
+func (c *Client) GetSubscriptionPricePointsRelationships(ctx context.Context, subID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	subID = strings.TrimSpace(subID)
+	if query.nextURL == "" && subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/pricePoints", subID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionPricePointsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionPricesRelationships retrieves price linkages for a subscription.
+func (c *Client) GetSubscriptionPricesRelationships(ctx context.Context, subID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	subID = strings.TrimSpace(subID)
+	if query.nextURL == "" && subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/prices", subID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionPricesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// RemoveSubscriptionPrices removes price relationships from a subscription.
+func (c *Client) RemoveSubscriptionPrices(ctx context.Context, subID string, priceIDs []string) error {
+	subID = strings.TrimSpace(subID)
+	priceIDs = normalizeList(priceIDs)
+	if subID == "" {
+		return fmt.Errorf("subscription ID is required")
+	}
+	if len(priceIDs) == 0 {
+		return fmt.Errorf("priceIDs are required")
+	}
+
+	payload := RelationshipRequest{
+		Data: make([]RelationshipData, len(priceIDs)),
+	}
+	for i, id := range priceIDs {
+		payload.Data[i] = RelationshipData{
+			Type: ResourceTypeSubscriptionPrices,
+			ID:   id,
+		}
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/prices", subID)
+	_, err = c.do(ctx, http.MethodDelete, path, body)
+	return err
+}
+
+// GetSubscriptionPromotedPurchaseRelationship retrieves the promoted purchase linkage for a subscription.
+func (c *Client) GetSubscriptionPromotedPurchaseRelationship(ctx context.Context, subID string) (*SubscriptionPromotedPurchaseLinkageResponse, error) {
+	subID = strings.TrimSpace(subID)
+	if subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/promotedPurchase", subID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response SubscriptionPromotedPurchaseLinkageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionPromotionalOffersRelationships retrieves promotional offer linkages for a subscription.
+func (c *Client) GetSubscriptionPromotionalOffersRelationships(ctx context.Context, subID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	subID = strings.TrimSpace(subID)
+	if query.nextURL == "" && subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/promotionalOffers", subID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionPromotionalOffersRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionSubscriptionAvailabilityRelationship retrieves the subscription availability linkage for a subscription.
+func (c *Client) GetSubscriptionSubscriptionAvailabilityRelationship(ctx context.Context, subID string) (*SubscriptionSubscriptionAvailabilityLinkageResponse, error) {
+	subID = strings.TrimSpace(subID)
+	if subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/subscriptionAvailability", subID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response SubscriptionSubscriptionAvailabilityLinkageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetSubscriptionSubscriptionLocalizationsRelationships retrieves subscription localization linkages for a subscription.
+func (c *Client) GetSubscriptionSubscriptionLocalizationsRelationships(ctx context.Context, subID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	subID = strings.TrimSpace(subID)
+	if query.nextURL == "" && subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/relationships/subscriptionLocalizations", subID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionSubscriptionLocalizationsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}

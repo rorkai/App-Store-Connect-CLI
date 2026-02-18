@@ -1323,3 +1323,550 @@ func (c *Client) CreateInAppPurchaseSubmission(ctx context.Context, iapID string
 
 	return &response, nil
 }
+
+// InAppPurchasePriceScheduleBaseTerritoryLinkageResponse is the response for base territory relationship endpoints.
+type InAppPurchasePriceScheduleBaseTerritoryLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
+// InAppPurchaseAppStoreReviewScreenshotLinkageResponse is the response for app store review screenshot relationship endpoints.
+type InAppPurchaseAppStoreReviewScreenshotLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
+// InAppPurchaseContentLinkageResponse is the response for content relationship endpoints.
+type InAppPurchaseContentLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
+// InAppPurchaseIapPriceScheduleLinkageResponse is the response for IAP price schedule relationship endpoints.
+type InAppPurchaseIapPriceScheduleLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
+// InAppPurchaseInAppPurchaseAvailabilityLinkageResponse is the response for availability relationship endpoints.
+type InAppPurchaseInAppPurchaseAvailabilityLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
+// InAppPurchasePromotedPurchaseLinkageResponse is the response for promoted purchase relationship endpoints.
+type InAppPurchasePromotedPurchaseLinkageResponse struct {
+	Data  ResourceData `json:"data"`
+	Links Links        `json:"links"`
+}
+
+// GetInAppPurchaseAvailabilityAvailableTerritoriesRelationships retrieves available territory linkages for an IAP availability.
+func (c *Client) GetInAppPurchaseAvailabilityAvailableTerritoriesRelationships(ctx context.Context, availabilityID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	availabilityID = strings.TrimSpace(availabilityID)
+	if query.nextURL == "" && availabilityID == "" {
+		return nil, fmt.Errorf("availabilityID is required")
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchaseAvailabilities/%s/relationships/availableTerritories", availabilityID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("inAppPurchaseAvailabilityAvailableTerritoriesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchaseOfferCodeCustomCodesRelationships retrieves custom code linkages for an IAP offer code.
+func (c *Client) GetInAppPurchaseOfferCodeCustomCodesRelationships(ctx context.Context, offerCodeID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	offerCodeID = strings.TrimSpace(offerCodeID)
+	if query.nextURL == "" && offerCodeID == "" {
+		return nil, fmt.Errorf("offerCodeID is required")
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s/relationships/customCodes", offerCodeID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("inAppPurchaseOfferCodeCustomCodesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchaseOfferCodeOneTimeUseCodesRelationships retrieves one-time use code linkages for an IAP offer code.
+func (c *Client) GetInAppPurchaseOfferCodeOneTimeUseCodesRelationships(ctx context.Context, offerCodeID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	offerCodeID = strings.TrimSpace(offerCodeID)
+	if query.nextURL == "" && offerCodeID == "" {
+		return nil, fmt.Errorf("offerCodeID is required")
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s/relationships/oneTimeUseCodes", offerCodeID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("inAppPurchaseOfferCodeOneTimeUseCodesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchaseOfferCodePricesRelationships retrieves price linkages for an IAP offer code.
+func (c *Client) GetInAppPurchaseOfferCodePricesRelationships(ctx context.Context, offerCodeID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	offerCodeID = strings.TrimSpace(offerCodeID)
+	if query.nextURL == "" && offerCodeID == "" {
+		return nil, fmt.Errorf("offerCodeID is required")
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchaseOfferCodes/%s/relationships/prices", offerCodeID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("inAppPurchaseOfferCodePricesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchasePricePointEqualizationsRelationships retrieves equalization linkages for an IAP price point.
+func (c *Client) GetInAppPurchasePricePointEqualizationsRelationships(ctx context.Context, pricePointID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	pricePointID = strings.TrimSpace(pricePointID)
+	if query.nextURL == "" && pricePointID == "" {
+		return nil, fmt.Errorf("pricePointID is required")
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchasePricePoints/%s/relationships/equalizations", pricePointID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("inAppPurchasePricePointEqualizationsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchasePriceScheduleAutomaticPricesRelationships retrieves automatic price linkages for an IAP price schedule.
+func (c *Client) GetInAppPurchasePriceScheduleAutomaticPricesRelationships(ctx context.Context, scheduleID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	scheduleID = strings.TrimSpace(scheduleID)
+	if query.nextURL == "" && scheduleID == "" {
+		return nil, fmt.Errorf("scheduleID is required")
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/relationships/automaticPrices", scheduleID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("inAppPurchasePriceScheduleAutomaticPricesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchasePriceScheduleBaseTerritoryRelationship retrieves the base territory linkage for an IAP price schedule.
+func (c *Client) GetInAppPurchasePriceScheduleBaseTerritoryRelationship(ctx context.Context, scheduleID string) (*InAppPurchasePriceScheduleBaseTerritoryLinkageResponse, error) {
+	scheduleID = strings.TrimSpace(scheduleID)
+	if scheduleID == "" {
+		return nil, fmt.Errorf("scheduleID is required")
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/relationships/baseTerritory", scheduleID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchasePriceScheduleBaseTerritoryLinkageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchasePriceScheduleManualPricesRelationships retrieves manual price linkages for an IAP price schedule.
+func (c *Client) GetInAppPurchasePriceScheduleManualPricesRelationships(ctx context.Context, scheduleID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	scheduleID = strings.TrimSpace(scheduleID)
+	if query.nextURL == "" && scheduleID == "" {
+		return nil, fmt.Errorf("scheduleID is required")
+	}
+
+	path := fmt.Sprintf("/v1/inAppPurchasePriceSchedules/%s/relationships/manualPrices", scheduleID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("inAppPurchasePriceScheduleManualPricesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchaseAppStoreReviewScreenshotRelationship retrieves the app store review screenshot linkage for an IAP.
+func (c *Client) GetInAppPurchaseAppStoreReviewScreenshotRelationship(ctx context.Context, iapID string) (*InAppPurchaseAppStoreReviewScreenshotLinkageResponse, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+
+	path := fmt.Sprintf("/v2/inAppPurchases/%s/relationships/appStoreReviewScreenshot", iapID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchaseAppStoreReviewScreenshotLinkageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchaseContentRelationship retrieves the content linkage for an IAP.
+func (c *Client) GetInAppPurchaseContentRelationship(ctx context.Context, iapID string) (*InAppPurchaseContentLinkageResponse, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+
+	path := fmt.Sprintf("/v2/inAppPurchases/%s/relationships/content", iapID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchaseContentLinkageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchaseIapPriceScheduleRelationship retrieves the IAP price schedule linkage for an IAP.
+func (c *Client) GetInAppPurchaseIapPriceScheduleRelationship(ctx context.Context, iapID string) (*InAppPurchaseIapPriceScheduleLinkageResponse, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+
+	path := fmt.Sprintf("/v2/inAppPurchases/%s/relationships/iapPriceSchedule", iapID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchaseIapPriceScheduleLinkageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchaseImagesRelationships retrieves image linkages for an IAP.
+func (c *Client) GetInAppPurchaseImagesRelationships(ctx context.Context, iapID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	iapID = strings.TrimSpace(iapID)
+	if query.nextURL == "" && iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+
+	path := fmt.Sprintf("/v2/inAppPurchases/%s/relationships/images", iapID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("inAppPurchaseImagesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchaseInAppPurchaseAvailabilityRelationship retrieves the availability linkage for an IAP.
+func (c *Client) GetInAppPurchaseInAppPurchaseAvailabilityRelationship(ctx context.Context, iapID string) (*InAppPurchaseInAppPurchaseAvailabilityLinkageResponse, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+
+	path := fmt.Sprintf("/v2/inAppPurchases/%s/relationships/inAppPurchaseAvailability", iapID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchaseInAppPurchaseAvailabilityLinkageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchaseInAppPurchaseLocalizationsRelationships retrieves localization linkages for an IAP.
+func (c *Client) GetInAppPurchaseInAppPurchaseLocalizationsRelationships(ctx context.Context, iapID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	iapID = strings.TrimSpace(iapID)
+	if query.nextURL == "" && iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+
+	path := fmt.Sprintf("/v2/inAppPurchases/%s/relationships/inAppPurchaseLocalizations", iapID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("inAppPurchaseLocalizationsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchaseOfferCodesRelationships retrieves offer code linkages for an IAP.
+func (c *Client) GetInAppPurchaseOfferCodesRelationships(ctx context.Context, iapID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	iapID = strings.TrimSpace(iapID)
+	if query.nextURL == "" && iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+
+	path := fmt.Sprintf("/v2/inAppPurchases/%s/relationships/offerCodes", iapID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("inAppPurchaseOfferCodesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchasePricePointsRelationships retrieves price point linkages for an IAP.
+func (c *Client) GetInAppPurchasePricePointsRelationships(ctx context.Context, iapID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	iapID = strings.TrimSpace(iapID)
+	if query.nextURL == "" && iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+
+	path := fmt.Sprintf("/v2/inAppPurchases/%s/relationships/pricePoints", iapID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("inAppPurchasePricePointsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetInAppPurchasePromotedPurchaseRelationship retrieves the promoted purchase linkage for an IAP.
+func (c *Client) GetInAppPurchasePromotedPurchaseRelationship(ctx context.Context, iapID string) (*InAppPurchasePromotedPurchaseLinkageResponse, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+
+	path := fmt.Sprintf("/v2/inAppPurchases/%s/relationships/promotedPurchase", iapID)
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response InAppPurchasePromotedPurchaseLinkageResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}

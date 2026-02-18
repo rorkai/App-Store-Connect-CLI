@@ -83,6 +83,42 @@ func (c *Client) GetSubscriptionOfferCodeOneTimeUseCodes(ctx context.Context, of
 	return &response, nil
 }
 
+// GetSubscriptionOfferCodeOneTimeUseCodesRelationships retrieves one-time use code linkages for a subscription offer code.
+func (c *Client) GetSubscriptionOfferCodeOneTimeUseCodesRelationships(ctx context.Context, offerCodeID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	offerCodeID = strings.TrimSpace(offerCodeID)
+	if query.nextURL == "" && offerCodeID == "" {
+		return nil, fmt.Errorf("offerCodeID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionOfferCodes/%s/relationships/oneTimeUseCodes", offerCodeID)
+	if query.nextURL != "" {
+		// Validate nextURL to prevent credential exfiltration
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionOfferCodeOneTimeUseCodesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetSubscriptionOfferCodeOneTimeUseCode retrieves a one-time use offer code batch by ID.
 func (c *Client) GetSubscriptionOfferCodeOneTimeUseCode(ctx context.Context, oneTimeUseCodeID string) (*SubscriptionOfferCodeOneTimeUseCodeResponse, error) {
 	oneTimeUseCodeID = strings.TrimSpace(oneTimeUseCodeID)

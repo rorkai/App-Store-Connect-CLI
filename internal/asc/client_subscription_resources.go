@@ -563,6 +563,41 @@ func (c *Client) GetSubscriptionPromotionalOfferPrices(ctx context.Context, offe
 	return &response, nil
 }
 
+// GetSubscriptionPromotionalOfferPricesRelationships retrieves price linkages for a promotional offer.
+func (c *Client) GetSubscriptionPromotionalOfferPricesRelationships(ctx context.Context, offerID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	offerID = strings.TrimSpace(offerID)
+	if query.nextURL == "" && offerID == "" {
+		return nil, fmt.Errorf("offerID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionPromotionalOffers/%s/relationships/prices", offerID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionPromotionalOfferPricesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetSubscriptionOfferCodes retrieves offer codes for a subscription.
 func (c *Client) GetSubscriptionOfferCodes(ctx context.Context, subscriptionID string, opts ...SubscriptionOfferCodesOption) (*SubscriptionOfferCodesResponse, error) {
 	query := &subscriptionOfferCodesQuery{}
@@ -744,6 +779,41 @@ func (c *Client) GetSubscriptionOfferCodeCustomCodes(ctx context.Context, offerC
 	return &response, nil
 }
 
+// GetSubscriptionOfferCodeCustomCodesRelationships retrieves custom code linkages for a subscription offer code.
+func (c *Client) GetSubscriptionOfferCodeCustomCodesRelationships(ctx context.Context, offerCodeID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	offerCodeID = strings.TrimSpace(offerCodeID)
+	if query.nextURL == "" && offerCodeID == "" {
+		return nil, fmt.Errorf("offerCodeID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionOfferCodes/%s/relationships/customCodes", offerCodeID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionOfferCodeCustomCodesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetSubscriptionOfferCodePrices retrieves prices for an offer code.
 func (c *Client) GetSubscriptionOfferCodePrices(ctx context.Context, offerCodeID string, opts ...SubscriptionOfferCodePricesOption) (*SubscriptionOfferCodePricesResponse, error) {
 	query := &subscriptionOfferCodePricesQuery{}
@@ -770,6 +840,41 @@ func (c *Client) GetSubscriptionOfferCodePrices(ctx context.Context, offerCodeID
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
+	return &response, nil
+}
+
+// GetSubscriptionOfferCodePricesRelationships retrieves price linkages for a subscription offer code.
+func (c *Client) GetSubscriptionOfferCodePricesRelationships(ctx context.Context, offerCodeID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	offerCodeID = strings.TrimSpace(offerCodeID)
+	if query.nextURL == "" && offerCodeID == "" {
+		return nil, fmt.Errorf("offerCodeID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionOfferCodes/%s/relationships/prices", offerCodeID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionOfferCodePricesRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
 	return &response, nil
 }
 
@@ -872,6 +977,41 @@ func (c *Client) GetSubscriptionPricePointEqualizations(ctx context.Context, pri
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
+	return &response, nil
+}
+
+// GetSubscriptionPricePointEqualizationsRelationships retrieves equalization linkages for a subscription price point.
+func (c *Client) GetSubscriptionPricePointEqualizationsRelationships(ctx context.Context, pricePointID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
+	query := &linkagesQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	pricePointID = strings.TrimSpace(pricePointID)
+	if query.nextURL == "" && pricePointID == "" {
+		return nil, fmt.Errorf("pricePointID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionPricePoints/%s/relationships/equalizations", pricePointID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionPricePointEqualizationsRelationships: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildLinkagesQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response LinkagesResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
 	return &response, nil
 }
 
