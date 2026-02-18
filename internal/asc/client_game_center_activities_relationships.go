@@ -133,69 +133,25 @@ func (c *Client) GetGameCenterActivityVersionLocalizationsRelationships(ctx cont
 }
 
 func (c *Client) getGameCenterActivityLinkages(ctx context.Context, activityID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	activityID = strings.TrimSpace(activityID)
-	if query.nextURL == "" && activityID == "" {
-		return nil, fmt.Errorf("activityID is required")
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterActivities/%s/relationships/%s", activityID, relationship)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("gameCenterActivityRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return c.getResourceLinkages(
+		ctx,
+		activityID,
+		relationship,
+		"activityID",
+		"/v1/gameCenterActivities/%s/relationships/%s",
+		"gameCenterActivityRelationships",
+		opts...,
+	)
 }
 
 func (c *Client) getGameCenterActivityVersionLinkages(ctx context.Context, versionID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	versionID = strings.TrimSpace(versionID)
-	if query.nextURL == "" && versionID == "" {
-		return nil, fmt.Errorf("versionID is required")
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterActivityVersions/%s/relationships/%s", versionID, relationship)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("gameCenterActivityVersionRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return c.getResourceLinkages(
+		ctx,
+		versionID,
+		relationship,
+		"versionID",
+		"/v1/gameCenterActivityVersions/%s/relationships/%s",
+		"gameCenterActivityVersionRelationships",
+		opts...,
+	)
 }

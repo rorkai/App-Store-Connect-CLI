@@ -192,69 +192,25 @@ func (c *Client) UpdateGameCenterAchievementActivityRelationshipV2(ctx context.C
 }
 
 func (c *Client) getGameCenterAchievementLinkages(ctx context.Context, achievementID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	achievementID = strings.TrimSpace(achievementID)
-	if query.nextURL == "" && achievementID == "" {
-		return nil, fmt.Errorf("achievementID is required")
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterAchievements/%s/relationships/%s", achievementID, relationship)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("gameCenterAchievementRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return c.getResourceLinkages(
+		ctx,
+		achievementID,
+		relationship,
+		"achievementID",
+		"/v1/gameCenterAchievements/%s/relationships/%s",
+		"gameCenterAchievementRelationships",
+		opts...,
+	)
 }
 
 func (c *Client) getGameCenterAchievementLinkagesV2(ctx context.Context, achievementID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	achievementID = strings.TrimSpace(achievementID)
-	if query.nextURL == "" && achievementID == "" {
-		return nil, fmt.Errorf("achievementID is required")
-	}
-
-	path := fmt.Sprintf("/v2/gameCenterAchievements/%s/relationships/%s", achievementID, relationship)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("gameCenterAchievementRelationshipsV2: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return c.getResourceLinkages(
+		ctx,
+		achievementID,
+		relationship,
+		"achievementID",
+		"/v2/gameCenterAchievements/%s/relationships/%s",
+		"gameCenterAchievementRelationshipsV2",
+		opts...,
+	)
 }

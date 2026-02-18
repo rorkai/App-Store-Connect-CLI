@@ -2,7 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -59,35 +58,13 @@ func (c *Client) UpdateGameCenterEnabledVersionCompatibleVersionsRelationship(ct
 }
 
 func (c *Client) getGameCenterEnabledVersionLinkages(ctx context.Context, enabledVersionID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	enabledVersionID = strings.TrimSpace(enabledVersionID)
-	if query.nextURL == "" && enabledVersionID == "" {
-		return nil, fmt.Errorf("enabledVersionID is required")
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterEnabledVersions/%s/relationships/%s", enabledVersionID, relationship)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("gameCenterEnabledVersionRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return c.getResourceLinkages(
+		ctx,
+		enabledVersionID,
+		relationship,
+		"enabledVersionID",
+		"/v1/gameCenterEnabledVersions/%s/relationships/%s",
+		"gameCenterEnabledVersionRelationships",
+		opts...,
+	)
 }

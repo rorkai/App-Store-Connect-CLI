@@ -2,10 +2,6 @@ package asc
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"strings"
 )
 
 // GetGameCenterMatchmakingRuleSetQueuesRelationships retrieves matchmaking queue linkages for a rule set.
@@ -24,35 +20,13 @@ func (c *Client) GetGameCenterMatchmakingRuleSetTeamsRelationships(ctx context.C
 }
 
 func (c *Client) getGameCenterMatchmakingRuleSetLinkages(ctx context.Context, ruleSetID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	ruleSetID = strings.TrimSpace(ruleSetID)
-	if query.nextURL == "" && ruleSetID == "" {
-		return nil, fmt.Errorf("ruleSetID is required")
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterMatchmakingRuleSets/%s/relationships/%s", ruleSetID, relationship)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("gameCenterMatchmakingRuleSetRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return c.getResourceLinkages(
+		ctx,
+		ruleSetID,
+		relationship,
+		"ruleSetID",
+		"/v1/gameCenterMatchmakingRuleSets/%s/relationships/%s",
+		"gameCenterMatchmakingRuleSetRelationships",
+		opts...,
+	)
 }

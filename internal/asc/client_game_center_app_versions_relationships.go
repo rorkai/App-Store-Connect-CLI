@@ -70,35 +70,13 @@ func (c *Client) RemoveGameCenterAppVersionCompatibilityVersions(ctx context.Con
 }
 
 func (c *Client) getGameCenterAppVersionLinkages(ctx context.Context, appVersionID, relationship string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	query := &linkagesQuery{}
-	for _, opt := range opts {
-		opt(query)
-	}
-
-	appVersionID = strings.TrimSpace(appVersionID)
-	if query.nextURL == "" && appVersionID == "" {
-		return nil, fmt.Errorf("appVersionID is required")
-	}
-
-	path := fmt.Sprintf("/v1/gameCenterAppVersions/%s/relationships/%s", appVersionID, relationship)
-	if query.nextURL != "" {
-		if err := validateNextURL(query.nextURL); err != nil {
-			return nil, fmt.Errorf("gameCenterAppVersionRelationships: %w", err)
-		}
-		path = query.nextURL
-	} else if queryString := buildLinkagesQuery(query); queryString != "" {
-		path += "?" + queryString
-	}
-
-	data, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var response LinkagesResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return c.getResourceLinkages(
+		ctx,
+		appVersionID,
+		relationship,
+		"appVersionID",
+		"/v1/gameCenterAppVersions/%s/relationships/%s",
+		"gameCenterAppVersionRelationships",
+		opts...,
+	)
 }
