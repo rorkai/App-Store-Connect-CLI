@@ -103,7 +103,12 @@ func (c *Client) getBundleIDLinkages(ctx context.Context, bundleID, relationship
 		opt(query)
 	}
 
-	path := fmt.Sprintf("/v1/bundleIds/%s/relationships/%s", strings.TrimSpace(bundleID), relationship)
+	bundleID = strings.TrimSpace(bundleID)
+	if query.nextURL == "" && bundleID == "" {
+		return nil, fmt.Errorf("bundleID is required")
+	}
+
+	path := fmt.Sprintf("/v1/bundleIds/%s/relationships/%s", bundleID, relationship)
 	if query.nextURL != "" {
 		// Validate nextURL to prevent credential exfiltration
 		if err := validateNextURL(query.nextURL); err != nil {

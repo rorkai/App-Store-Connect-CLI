@@ -91,6 +91,14 @@ func TestGetBundleIDProfilesRelationships_SendsRequest(t *testing.T) {
 	}
 }
 
+func TestGetBundleIDProfilesRelationships_RequiresBundleID(t *testing.T) {
+	client := &Client{}
+	_, err := client.GetBundleIDProfilesRelationships(context.Background(), "")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
 func TestGetBundleIDProfiles_UsesNextURL(t *testing.T) {
 	next := "https://api.appstoreconnect.apple.com/v1/bundleIds/bid-1/profiles?cursor=abc"
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
