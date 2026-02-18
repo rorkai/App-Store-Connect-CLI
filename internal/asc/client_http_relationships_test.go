@@ -23,23 +23,6 @@ func TestGetBundleIDApp_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestGetBundleIDAppRelationship_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/bundleIds/bid-1/relationships/app" {
-			t.Fatalf("expected path /v1/bundleIds/bid-1/relationships/app, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
-
-	if _, err := client.GetBundleIDAppRelationship(context.Background(), "bid-1"); err != nil {
-		t.Fatalf("GetBundleIDAppRelationship() error: %v", err)
-	}
-}
-
 func TestGetBundleIDProfiles_SendsRequest(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -69,14 +52,22 @@ func TestGetBundleIDCapabilitiesRelationships_SendsRequest(t *testing.T) {
 		if req.URL.Path != "/v1/bundleIds/bid-1/relationships/bundleIdCapabilities" {
 			t.Fatalf("expected path /v1/bundleIds/bid-1/relationships/bundleIdCapabilities, got %s", req.URL.Path)
 		}
-		if req.URL.Query().Get("limit") != "3" {
-			t.Fatalf("expected limit=3, got %q", req.URL.Query().Get("limit"))
+		if len(req.URL.Query()) != 0 {
+			t.Fatalf("expected no query parameters, got %q", req.URL.RawQuery)
 		}
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetBundleIDCapabilitiesRelationships(context.Background(), "bid-1", WithLinkagesLimit(3)); err != nil {
+	if _, err := client.GetBundleIDCapabilitiesRelationships(context.Background(), "bid-1"); err != nil {
 		t.Fatalf("GetBundleIDCapabilitiesRelationships() error: %v", err)
+	}
+}
+
+func TestGetBundleIDCapabilitiesRelationships_RejectsLimit(t *testing.T) {
+	client := &Client{}
+	_, err := client.GetBundleIDCapabilitiesRelationships(context.Background(), "bid-1", WithLinkagesLimit(3))
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 
