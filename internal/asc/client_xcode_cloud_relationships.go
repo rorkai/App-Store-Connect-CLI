@@ -378,4 +378,3 @@ func (c *Client) GetScmProviderRepositoriesRelationships(ctx context.Context, pr
 
 	return &response, nil
 }
-
