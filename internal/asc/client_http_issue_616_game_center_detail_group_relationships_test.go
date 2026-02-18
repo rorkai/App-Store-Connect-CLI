@@ -263,12 +263,11 @@ func TestIssue616_GameCenterDetailAndGroupRelationshipEndpoints_PATCH(t *testing
 	ctx := context.Background()
 
 	tests := []struct {
-		name         string
-		wantPath     string
-		wantType     ResourceType
-		wantIDs      []string
-		call         func(*Client) error
-		requireOrder bool
+		name     string
+		wantPath string
+		wantType ResourceType
+		wantIDs  []string
+		call     func(*Client) error
 	}{
 		{
 			name:     "UpdateGameCenterDetailChallengesMinimumPlatformVersionsRelationship",
@@ -278,7 +277,6 @@ func TestIssue616_GameCenterDetailAndGroupRelationshipEndpoints_PATCH(t *testing
 			call: func(client *Client) error {
 				return client.UpdateGameCenterDetailChallengesMinimumPlatformVersionsRelationship(ctx, "detail-1", []string{"ver-1", "ver-2"})
 			},
-			requireOrder: true,
 		},
 		{
 			name:     "UpdateGameCenterDetailGameCenterAchievementsRelationship",
@@ -288,7 +286,6 @@ func TestIssue616_GameCenterDetailAndGroupRelationshipEndpoints_PATCH(t *testing
 			call: func(client *Client) error {
 				return client.UpdateGameCenterDetailGameCenterAchievementsRelationship(ctx, "detail-1", []string{"ach-1"})
 			},
-			requireOrder: true,
 		},
 		{
 			name:     "UpdateGameCenterDetailGameCenterAchievementsV2Relationship",
@@ -298,7 +295,6 @@ func TestIssue616_GameCenterDetailAndGroupRelationshipEndpoints_PATCH(t *testing
 			call: func(client *Client) error {
 				return client.UpdateGameCenterDetailGameCenterAchievementsV2Relationship(ctx, "detail-1", []string{"ach-1"})
 			},
-			requireOrder: true,
 		},
 		{
 			name:     "UpdateGameCenterDetailGameCenterLeaderboardSetsRelationship",
@@ -308,7 +304,6 @@ func TestIssue616_GameCenterDetailAndGroupRelationshipEndpoints_PATCH(t *testing
 			call: func(client *Client) error {
 				return client.UpdateGameCenterDetailGameCenterLeaderboardSetsRelationship(ctx, "detail-1", []string{"set-1"})
 			},
-			requireOrder: true,
 		},
 		{
 			name:     "UpdateGameCenterDetailGameCenterLeaderboardSetsV2Relationship",
@@ -318,7 +313,6 @@ func TestIssue616_GameCenterDetailAndGroupRelationshipEndpoints_PATCH(t *testing
 			call: func(client *Client) error {
 				return client.UpdateGameCenterDetailGameCenterLeaderboardSetsV2Relationship(ctx, "detail-1", []string{"set-1"})
 			},
-			requireOrder: true,
 		},
 		{
 			name:     "UpdateGameCenterDetailGameCenterLeaderboardsRelationship",
@@ -328,7 +322,6 @@ func TestIssue616_GameCenterDetailAndGroupRelationshipEndpoints_PATCH(t *testing
 			call: func(client *Client) error {
 				return client.UpdateGameCenterDetailGameCenterLeaderboardsRelationship(ctx, "detail-1", []string{"lb-1"})
 			},
-			requireOrder: true,
 		},
 		{
 			name:     "UpdateGameCenterDetailGameCenterLeaderboardsV2Relationship",
@@ -338,7 +331,6 @@ func TestIssue616_GameCenterDetailAndGroupRelationshipEndpoints_PATCH(t *testing
 			call: func(client *Client) error {
 				return client.UpdateGameCenterDetailGameCenterLeaderboardsV2Relationship(ctx, "detail-1", []string{"lb-1"})
 			},
-			requireOrder: true,
 		},
 		{
 			name:     "UpdateGameCenterGroupGameCenterLeaderboardSetsRelationship",
@@ -348,7 +340,6 @@ func TestIssue616_GameCenterDetailAndGroupRelationshipEndpoints_PATCH(t *testing
 			call: func(client *Client) error {
 				return client.UpdateGameCenterGroupGameCenterLeaderboardSetsRelationship(ctx, "group-1", []string{"set-1"})
 			},
-			requireOrder: true,
 		},
 		{
 			name:     "UpdateGameCenterGroupGameCenterLeaderboardSetsV2Relationship",
@@ -358,7 +349,6 @@ func TestIssue616_GameCenterDetailAndGroupRelationshipEndpoints_PATCH(t *testing
 			call: func(client *Client) error {
 				return client.UpdateGameCenterGroupGameCenterLeaderboardSetsV2Relationship(ctx, "group-1", []string{"set-1"})
 			},
-			requireOrder: true,
 		},
 	}
 
