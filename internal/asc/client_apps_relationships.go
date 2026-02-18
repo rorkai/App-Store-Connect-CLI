@@ -44,12 +44,6 @@ type AppGameCenterDetailLinkageResponse struct {
 	Links Links        `json:"links"`
 }
 
-// AppMarketplaceSearchDetailLinkageResponse is the response for marketplace search detail relationship.
-type AppMarketplaceSearchDetailLinkageResponse struct {
-	Data  ResourceData `json:"data"`
-	Links Links        `json:"links"`
-}
-
 // AppSubscriptionGracePeriodLinkageResponse is the response for subscription grace period relationship.
 type AppSubscriptionGracePeriodLinkageResponse struct {
 	Data  ResourceData `json:"data"`
@@ -88,11 +82,6 @@ func (c *Client) GetAppClipsRelationships(ctx context.Context, appID string, opt
 // GetAppCustomProductPagesRelationships retrieves custom product page linkages for an app.
 func (c *Client) GetAppCustomProductPagesRelationships(ctx context.Context, appID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	return c.getAppLinkages(ctx, appID, "appCustomProductPages", opts...)
-}
-
-// GetAppEncryptionDeclarationsRelationships retrieves app encryption declaration linkages for an app.
-func (c *Client) GetAppEncryptionDeclarationsRelationships(ctx context.Context, appID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getAppLinkages(ctx, appID, "appEncryptionDeclarations", opts...)
 }
 
 // GetAppEventsRelationships retrieves app event linkages for an app.
@@ -223,15 +212,6 @@ func (c *Client) GetAppInAppPurchasesV2Relationships(ctx context.Context, appID 
 	return c.getAppLinkages(ctx, appID, "inAppPurchasesV2", opts...)
 }
 
-// GetAppMarketplaceSearchDetailRelationship retrieves the marketplace search detail linkage for an app.
-func (c *Client) GetAppMarketplaceSearchDetailRelationship(ctx context.Context, appID string) (*AppMarketplaceSearchDetailLinkageResponse, error) {
-	var response AppMarketplaceSearchDetailLinkageResponse
-	if err := c.getAppLinkage(ctx, appID, "marketplaceSearchDetail", &response); err != nil {
-		return nil, err
-	}
-	return &response, nil
-}
-
 // GetAppPreReleaseVersionsRelationships retrieves pre-release version linkages for an app.
 func (c *Client) GetAppPreReleaseVersionsRelationships(ctx context.Context, appID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	return c.getAppLinkages(ctx, appID, "preReleaseVersions", opts...)
@@ -240,11 +220,6 @@ func (c *Client) GetAppPreReleaseVersionsRelationships(ctx context.Context, appI
 // GetAppReviewSubmissionsRelationships retrieves review submission linkages for an app.
 func (c *Client) GetAppReviewSubmissionsRelationships(ctx context.Context, appID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	return c.getAppLinkages(ctx, appID, "reviewSubmissions", opts...)
-}
-
-// GetAppSearchKeywordsRelationships retrieves search keyword linkages for an app.
-func (c *Client) GetAppSearchKeywordsRelationships(ctx context.Context, appID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
-	return c.getAppLinkages(ctx, appID, "searchKeywords", opts...)
 }
 
 // GetAppSubscriptionGracePeriodRelationship retrieves the subscription grace period linkage for an app.

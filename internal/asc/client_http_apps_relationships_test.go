@@ -99,14 +99,6 @@ func TestGetAppRelationshipLinkagesEndpoints_WithLimit(t *testing.T) {
 			},
 		},
 		{
-			name: "GetAppEncryptionDeclarationsRelationships",
-			path: "/v1/apps/app-1/relationships/appEncryptionDeclarations",
-			call: func(client *Client) error {
-				_, err := client.GetAppEncryptionDeclarationsRelationships(ctx, "app-1", WithLinkagesLimit(5))
-				return err
-			},
-		},
-		{
 			name: "GetAppEventsRelationships",
 			path: "/v1/apps/app-1/relationships/appEvents",
 			call: func(client *Client) error {
@@ -251,14 +243,6 @@ func TestGetAppRelationshipLinkagesEndpoints_WithLimit(t *testing.T) {
 			},
 		},
 		{
-			name: "GetAppSearchKeywordsRelationships",
-			path: "/v1/apps/app-1/relationships/searchKeywords",
-			call: func(client *Client) error {
-				_, err := client.GetAppSearchKeywordsRelationships(ctx, "app-1", WithLinkagesLimit(5))
-				return err
-			},
-		},
-		{
 			name: "GetAppSubscriptionGroupsRelationships",
 			path: "/v1/apps/app-1/relationships/subscriptionGroups",
 			call: func(client *Client) error {
@@ -336,14 +320,6 @@ func TestGetAppRelationshipLinkageEndpoints(t *testing.T) {
 			path: "/v1/apps/app-1/relationships/gameCenterDetail",
 			call: func(client *Client) error {
 				_, err := client.GetAppGameCenterDetailRelationship(ctx, "app-1")
-				return err
-			},
-		},
-		{
-			name: "GetAppMarketplaceSearchDetailRelationship",
-			path: "/v1/apps/app-1/relationships/marketplaceSearchDetail",
-			call: func(client *Client) error {
-				_, err := client.GetAppMarketplaceSearchDetailRelationship(ctx, "app-1")
 				return err
 			},
 		},
