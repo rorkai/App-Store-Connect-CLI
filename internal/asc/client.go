@@ -657,11 +657,11 @@ func (c *Client) GetBetaGroupTesters(ctx context.Context, groupID string, opts .
 }
 
 // CreateBetaGroup creates a beta group for an app.
-func (c *Client) CreateBetaGroup(ctx context.Context, appID, name string) (*BetaGroupResponse, error) {
+func (c *Client) CreateBetaGroup(ctx context.Context, appID string, attrs BetaGroupAttributes) (*BetaGroupResponse, error) {
 	payload := BetaGroupCreateRequest{
 		Data: BetaGroupCreateData{
 			Type:       ResourceTypeBetaGroups,
-			Attributes: BetaGroupAttributes{Name: name},
+			Attributes: attrs,
 			Relationships: &BetaGroupRelationships{
 				App: &Relationship{
 					Data: ResourceData{

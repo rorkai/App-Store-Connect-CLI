@@ -1622,8 +1622,64 @@ func TestCreateBetaGroup_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.CreateBetaGroup(context.Background(), "app-1", "Beta"); err != nil {
+	if _, err := client.CreateBetaGroup(context.Background(), "app-1", BetaGroupAttributes{Name: "Beta"}); err != nil {
 		t.Fatalf("CreateBetaGroup() error: %v", err)
+	}
+}
+
+func TestCreateBetaGroup_InternalGroup(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"betaGroups","id":"bg2","attributes":{"name":"Internal Team","isInternalGroup":true,"hasAccessToAllBuilds":true,"feedbackEnabled":true}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaGroups" {
+			t.Fatalf("expected path /v1/betaGroups, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload BetaGroupCreateRequest
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Attributes.Name != "Internal Team" {
+			t.Fatalf("expected name Internal Team, got %q", payload.Data.Attributes.Name)
+		}
+		if !payload.Data.Attributes.IsInternalGroup {
+			t.Fatalf("expected isInternalGroup to be true")
+		}
+		if !payload.Data.Attributes.HasAccessToAllBuilds {
+			t.Fatalf("expected hasAccessToAllBuilds to be true")
+		}
+		if !payload.Data.Attributes.FeedbackEnabled {
+			t.Fatalf("expected feedbackEnabled to be true")
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.App == nil {
+			t.Fatalf("expected app relationship to be set")
+		}
+		if payload.Data.Relationships.App.Data.ID != "app-2" {
+			t.Fatalf("expected app id app-2, got %q", payload.Data.Relationships.App.Data.ID)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := BetaGroupAttributes{
+		Name:                 "Internal Team",
+		IsInternalGroup:      true,
+		HasAccessToAllBuilds: true,
+		FeedbackEnabled:      true,
+	}
+	resp, err := client.CreateBetaGroup(context.Background(), "app-2", attrs)
+	if err != nil {
+		t.Fatalf("CreateBetaGroup() error: %v", err)
+	}
+	if resp.Data.ID != "bg2" {
+		t.Fatalf("expected response id bg2, got %q", resp.Data.ID)
+	}
+	if !resp.Data.Attributes.IsInternalGroup {
+		t.Fatalf("expected response isInternalGroup to be true")
 	}
 }
 

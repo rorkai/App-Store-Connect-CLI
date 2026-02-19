@@ -28,6 +28,7 @@ Examples:
   asc testflight beta-groups list --global
   asc testflight beta-groups list --global --limit 50
   asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"
+  asc testflight beta-groups create --app "APP_ID" --name "Internal Team" --internal
   asc testflight beta-groups app get --group-id "GROUP_ID"
   asc testflight beta-groups beta-recruitment-criteria get --group-id "GROUP_ID"
   asc testflight beta-groups beta-recruitment-criterion-compatible-build-check get --group-id "GROUP_ID"`,
@@ -171,6 +172,9 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	name := fs.String("name", "", "Beta group name")
+	internal := fs.Bool("internal", false, "Create as internal group (no beta review required)")
+	allBuilds := fs.Bool("all-builds", false, "Grant access to all builds")
+	feedbackEnabled := fs.Bool("feedback-enabled", true, "Enable feedback")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -179,8 +183,14 @@ func BetaGroupsCreateCommand() *ffcli.Command {
 		ShortHelp:  "Create a TestFlight beta group.",
 		LongHelp: `Create a TestFlight beta group.
 
+By default, groups are created as external groups which require Apple's beta
+review before testers can install. Use --internal to create an internal group
+that allows immediate installation for App Store Connect team members.
+
 Examples:
-  asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"`,
+  asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"
+  asc testflight beta-groups create --app "APP_ID" --name "Internal Team" --internal
+  asc testflight beta-groups create --app "APP_ID" --name "QA Team" --internal --all-builds`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -194,6 +204,25 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			visited := map[string]bool{}
+			fs.Visit(func(f *flag.Flag) {
+				visited[f.Name] = true
+			})
+
+			attrs := asc.BetaGroupAttributes{
+				Name: strings.TrimSpace(*name),
+			}
+
+			if visited["internal"] {
+				attrs.IsInternalGroup = *internal
+			}
+			if visited["all-builds"] {
+				attrs.HasAccessToAllBuilds = *allBuilds
+			}
+			if visited["feedback-enabled"] {
+				attrs.FeedbackEnabled = *feedbackEnabled
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("beta-groups create: %w", err)
@@ -202,7 +231,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			group, err := client.CreateBetaGroup(requestCtx, resolvedAppID, strings.TrimSpace(*name))
+			group, err := client.CreateBetaGroup(requestCtx, resolvedAppID, attrs)
 			if err != nil {
 				return fmt.Errorf("beta-groups create: failed to create: %w", err)
 			}
