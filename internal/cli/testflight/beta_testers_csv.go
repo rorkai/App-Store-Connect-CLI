@@ -837,13 +837,6 @@ func validateBetaTestersCSVHeader(header []string) (map[string]int, error) {
 		return nil, shared.UsageError("CSV header row is required")
 	}
 
-	allowed := map[string]struct{}{
-		"email":      {},
-		"first_name": {},
-		"last_name":  {},
-		"groups":     {},
-	}
-
 	idx := make(map[string]int, len(header))
 	for i, raw := range header {
 		col := strings.ToLower(strings.TrimSpace(raw))
@@ -855,9 +848,6 @@ func validateBetaTestersCSVHeader(header []string) (map[string]int, error) {
 			return nil, shared.UsageErrorf("unknown CSV column %q (allowed: email, first_name, last_name, groups)", col)
 		}
 		col = canonical
-		if _, ok := allowed[col]; !ok {
-			return nil, shared.UsageErrorf("unknown CSV column %q (allowed: email, first_name, last_name, groups)", col)
-		}
 		if _, exists := idx[col]; exists {
 			return nil, shared.UsageErrorf("duplicate CSV column %q", col)
 		}
