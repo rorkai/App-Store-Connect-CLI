@@ -30,6 +30,10 @@ is_always_run: false
 is_skippable: false
 run_if: .IsCI
 
+toolkit:
+  bash:
+    entry_file: step.sh
+
 inputs:
 - version: latest
   opts:
