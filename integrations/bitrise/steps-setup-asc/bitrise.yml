@@ -1,0 +1,53 @@
+format_version: 1.1.0
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+workflows:
+  test-install:
+    steps:
+    - path::./:
+        title: Test install mode
+        inputs:
+        - mode: install
+        - version: latest
+
+  test-run-help:
+    steps:
+    - path::./:
+        title: Test run mode
+        inputs:
+        - mode: run
+        - version: latest
+        - command: asc --help
+        - working_dir: $BITRISE_SOURCE_DIR
+
+  audit-this-step:
+    steps:
+    - script:
+        title: Audit step definition
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            stepman audit --step-yml ./step.yml
+
+  share-this-step:
+    envs:
+    - MY_STEPLIB_REPO_FORK_GIT_URL:
+    - STEP_ID_IN_STEPLIB: setup-asc
+    - STEP_GIT_VERSION_TAG_TO_SHARE:
+    - STEP_GIT_CLONE_URL:
+    before_run:
+    - audit-this-step
+    steps:
+    - script:
+        title: Share step to StepLib fork
+        inputs:
+        - content: |-
+            #!/usr/bin/env bash
+            set -euo pipefail
+            bitrise share start -c "${MY_STEPLIB_REPO_FORK_GIT_URL}"
+            bitrise share create \
+              --stepid "${STEP_ID_IN_STEPLIB}" \
+              --tag "${STEP_GIT_VERSION_TAG_TO_SHARE}" \
+              --git "${STEP_GIT_CLONE_URL}"
+            bitrise share finish

@@ -1,0 +1,146 @@
+title: Setup asc CLI
+summary: Install asc and optionally run an asc command.
+description: |-
+  Installs the `asc` CLI (App Store Connect CLI) from GitHub Releases and optionally runs a command.
+
+  ### Configuring the Step
+
+  1. Select mode:
+     - `install`: installs `asc` only
+     - `run`: installs `asc` and executes the provided command
+  2. Set `version` to `latest` or a pinned version (for example `0.31.5`).
+  3. If using `run` mode, provide `command`.
+  4. Optionally provide auth inputs to export `ASC_*` environment variables for command execution.
+
+  ### Useful links
+
+  - https://github.com/rudrankriyam/App-Store-Connect-CLI
+  - https://asccli.sh/
+
+website: https://github.com/rudrankriyam/steps-setup-asc
+source_code_url: https://github.com/rudrankriyam/steps-setup-asc
+support_url: https://github.com/rudrankriyam/steps-setup-asc/issues
+project_type_tags:
+- ios
+- macos
+type_tags:
+- utility
+is_requires_admin_user: false
+is_always_run: false
+is_skippable: false
+run_if: .IsCI
+
+inputs:
+- version: latest
+  opts:
+    title: asc version
+    summary: latest or a pinned release version
+    description: |-
+      Version to install.
+      Accepted examples: `latest`, `0.31.5`, `v0.31.5`.
+    is_required: true
+
+- mode: install
+  opts:
+    title: Mode
+    summary: install or run
+    value_options:
+    - install
+    - run
+    is_required: true
+
+- command: ""
+  opts:
+    title: Command (required for run mode)
+    summary: asc command to execute when mode is run
+    description: |-
+      Example: `asc --help` or `asc apps list --paginate`.
+      Ignored when mode is `install`.
+
+- working_dir: $BITRISE_SOURCE_DIR
+  opts:
+    title: Working directory
+    summary: working directory used in run mode
+    is_required: true
+
+- install_dir: $HOME/.local/bin
+  opts:
+    category: Install options
+    title: Install directory
+    summary: location where asc binary is installed
+    is_required: true
+
+- profile: ""
+  opts:
+    category: Runtime options
+    title: ASC profile
+    summary: optional ASC_PROFILE exported for run mode
+
+- debug: "no"
+  opts:
+    category: Runtime options
+    title: Enable debug
+    summary: exports ASC_DEBUG=1 in run mode
+    value_options:
+    - "yes"
+    - "no"
+    is_required: true
+
+- key_id: ""
+  opts:
+    category: Auth (optional)
+    title: ASC key ID
+    summary: exported as ASC_KEY_ID in run mode
+    is_sensitive: true
+
+- issuer_id: ""
+  opts:
+    category: Auth (optional)
+    title: ASC issuer ID
+    summary: exported as ASC_ISSUER_ID in run mode
+    is_sensitive: true
+
+- private_key_path: ""
+  opts:
+    category: Auth (optional)
+    title: ASC private key path
+    summary: exported as ASC_PRIVATE_KEY_PATH in run mode
+    is_sensitive: true
+
+- private_key: ""
+  opts:
+    category: Auth (optional)
+    title: ASC private key content
+    summary: exported as ASC_PRIVATE_KEY in run mode
+    description: |-
+      Raw private key content. Use a Secret Env Var.
+    is_sensitive: true
+
+- bypass_keychain: "no"
+  opts:
+    category: Auth (optional)
+    title: Bypass keychain
+    summary: exports ASC_BYPASS_KEYCHAIN=1 in run mode
+    value_options:
+    - "yes"
+    - "no"
+    is_required: true
+
+outputs:
+- ASC_CLI_PATH:
+  opts:
+    title: Installed asc binary path
+    summary: absolute path to installed asc binary
+    is_dont_change_value: true
+
+- ASC_CLI_VERSION:
+  opts:
+    title: Installed asc version
+    summary: resolved asc version that was installed
+    is_dont_change_value: true
+
+- ASC_COMMAND_EXIT_CODE:
+  opts:
+    title: asc command exit code
+    summary: exported when mode is run
+    is_dont_change_value: true
