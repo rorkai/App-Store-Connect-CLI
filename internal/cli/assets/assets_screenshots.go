@@ -232,7 +232,7 @@ Examples:
 				return fmt.Errorf("screenshots upload: %w", err)
 			}
 
-			if err := validateScreenshotDimensions(files, apiDisplayType); err != nil {
+			if err := validateScreenshotDimensions(files, displayType); err != nil {
 				return fmt.Errorf("screenshots upload: %w", err)
 			}
 

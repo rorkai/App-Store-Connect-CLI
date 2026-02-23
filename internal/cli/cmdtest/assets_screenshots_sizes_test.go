@@ -395,13 +395,13 @@ func TestAssetsScreenshotsUploadSuggestsMatchingDisplayTypeBeforeNetwork(t *test
 	}
 }
 
-func TestAssetsScreenshotsUploadAcceptsIPhone69AliasAndLatestDimensions(t *testing.T) {
+func TestAssetsScreenshotsUploadAcceptsIPhone69AliasAnd1284x2778Dimensions(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	dir := t.TempDir()
-	path := filepath.Join(dir, "valid-iphone69.png")
-	writePNG(t, path, 1320, 2868)
+	path := filepath.Join(dir, "valid-iphone69-1284x2778.png")
+	writePNG(t, path, 1284, 2778)
 
 	var calls int32
 	originalTransport := http.DefaultTransport
