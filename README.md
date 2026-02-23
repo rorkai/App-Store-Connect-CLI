@@ -36,6 +36,7 @@ Automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, ID
 
 ```bash
 # Homebrew (recommended)
+brew tap rudrankriyam/tap
 brew install asc
 
 # Install script (macOS/Linux)
