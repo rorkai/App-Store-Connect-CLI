@@ -20,12 +20,14 @@ import (
 func BuildsLatestCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("latest", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
+	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required, or ASC_APP_ID env)")
 	version := fs.String("version", "", "Filter by version string (e.g., 1.2.3); requires --platform for deterministic results")
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	output := shared.BindOutputFlags(fs)
 	next := fs.Bool("next", false, "Return next build number using processed builds and in-flight uploads")
 	initialBuildNumber := fs.Int("initial-build-number", 1, "Initial build number when none exist (used with --next)")
+	excludeExpired := fs.Bool("exclude-expired", false, "Exclude expired builds when selecting latest build")
+	notExpired := fs.Bool("not-expired", false, "Alias for --exclude-expired")
 
 	return &ffcli.Command{
 		Name:       "latest",
@@ -48,6 +50,8 @@ Next build number mode:
   --next              Returns the next build number (latest + 1) using
                       processed builds and in-flight uploads
   --initial-build-number  Starting build number when no history exists (default: 1)
+  --exclude-expired   Ignore expired builds when selecting the latest processed build
+  --not-expired       Alias for --exclude-expired
 
 Examples:
   # Get latest build (JSON output for AI agents)
@@ -66,7 +70,11 @@ Examples:
   asc builds latest --app "123456789" --output table
 
   # Collision-safe next build number for CI
-  asc builds latest --app "123456789" --version "1.2.3" --platform IOS --next`,
+  asc builds latest --app "123456789" --version "1.2.3" --platform IOS --next
+
+  # Exclude expired builds when resolving latest or next
+  asc builds latest --app "123456789" --version "1.2.3" --platform IOS --next --exclude-expired
+  asc builds latest --app "123456789" --version "1.2.3" --platform IOS --not-expired`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -93,6 +101,7 @@ Examples:
 				fmt.Fprintf(os.Stderr, "Error: --initial-build-number must be >= 1\n\n")
 				return flag.ErrHelp
 			}
+			excludeExpiredValue := *excludeExpired || *notExpired
 
 			hasPreReleaseFilters := normalizedVersion != "" || normalizedPlatform != ""
 
@@ -103,6 +112,11 @@ Examples:
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
+
+			resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
+			if err != nil {
+				return fmt.Errorf("builds latest: %w", err)
+			}
 
 			// Determine which preReleaseVersion(s) to filter by
 			var preReleaseVersionIDs []string
@@ -136,6 +150,9 @@ Examples:
 					asc.WithBuildsSort("-uploadedDate"),
 					asc.WithBuildsLimit(1),
 				}
+				if excludeExpiredValue {
+					opts = append(opts, asc.WithBuildsExpired(false))
+				}
 				builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
 				if err != nil {
 					return fmt.Errorf("builds latest: failed to fetch: %w", err)
@@ -156,6 +173,9 @@ Examples:
 					asc.WithBuildsSort("-uploadedDate"),
 					asc.WithBuildsLimit(1),
 					asc.WithBuildsPreReleaseVersion(preReleaseVersionIDs[0]),
+				}
+				if excludeExpiredValue {
+					opts = append(opts, asc.WithBuildsExpired(false))
 				}
 				builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
 				if err != nil {
@@ -182,6 +202,9 @@ Examples:
 						asc.WithBuildsSort("-uploadedDate"),
 						asc.WithBuildsLimit(1),
 						asc.WithBuildsPreReleaseVersion(prvID),
+					}
+					if excludeExpiredValue {
+						opts = append(opts, asc.WithBuildsExpired(false))
 					}
 					builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
 					if err != nil {

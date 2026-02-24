@@ -35,6 +35,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			LocalizationsListCommand(),
+			LocalizationsUpdateCommand(),
 			LocalizationsSearchKeywordsCommand(),
 			LocalizationsPreviewSetsCommand(),
 			LocalizationsScreenshotSetsCommand(),

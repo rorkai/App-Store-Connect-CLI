@@ -4,7 +4,7 @@ package validation
 func Validate(input Input, strict bool) Report {
 	checks := make([]CheckResult, 0)
 	checks = append(checks, metadataLengthChecks(input.VersionLocalizations, input.AppInfoLocalizations)...)
-	checks = append(checks, requiredFieldChecks(input.PrimaryLocale, input.VersionString, input.VersionLocalizations, input.AppInfoLocalizations)...)
+	checks = append(checks, requiredFieldChecks(input.PrimaryLocale, input.VersionString, input.VersionState, input.VersionLocalizations, input.AppInfoLocalizations)...)
 	checks = append(checks, reviewDetailsChecks(input.ReviewDetails)...)
 	checks = append(checks, categoryChecks(input.AppInfoID, input.PrimaryCategoryID)...)
 	checks = append(checks, buildChecks(input.Build)...)

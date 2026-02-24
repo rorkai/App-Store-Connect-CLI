@@ -44,6 +44,9 @@ func IAPPricePointsListCommand() *ffcli.Command {
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	territory := fs.String("territory", "", "Territory ID (e.g., USA)")
+	price := fs.String("price", "", "Filter by exact customer price (e.g., 4.99)")
+	minPrice := fs.String("min-price", "", "Filter by minimum customer price")
+	maxPrice := fs.String("max-price", "", "Filter by maximum customer price")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -55,9 +58,13 @@ func IAPPricePointsListCommand() *ffcli.Command {
 		ShortHelp:  "List price points for an in-app purchase.",
 		LongHelp: `List price points for an in-app purchase.
 
+Use --price to find a specific customer price, or --min-price/--max-price for
+a range. These filters are applied client-side after fetching.
+
 Examples:
   asc iap price-points list --iap-id "IAP_ID"
   asc iap price-points list --iap-id "IAP_ID" --territory "USA"
+  asc iap price-points list --iap-id "IAP_ID" --territory "USA" --paginate --price "4.99"
   asc iap price-points list --iap-id "IAP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -67,6 +74,15 @@ Examples:
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap price-points list: %w", err)
+			}
+
+			priceFilter := shared.PriceFilter{
+				Price:    strings.TrimSpace(*price),
+				MinPrice: strings.TrimSpace(*minPrice),
+				MaxPrice: strings.TrimSpace(*maxPrice),
+			}
+			if err := priceFilter.Validate(); err != nil {
+				return shared.UsageError(err.Error())
 			}
 
 			iapValue := strings.TrimSpace(*iapID)
@@ -106,6 +122,13 @@ Examples:
 					return fmt.Errorf("iap price-points list: %w", err)
 				}
 
+				if priceFilter.HasFilter() {
+					if typed, ok := resp.(*asc.InAppPurchasePricePointsResponse); ok {
+						filterIAPPricePoints(typed, priceFilter)
+						return shared.PrintOutput(typed, *output.Output, *output.Pretty)
+					}
+				}
+
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
@@ -114,9 +137,24 @@ Examples:
 				return fmt.Errorf("iap price-points list: failed to fetch: %w", err)
 			}
 
+			if priceFilter.HasFilter() {
+				filterIAPPricePoints(resp, priceFilter)
+			}
+
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// filterIAPPricePoints removes data entries that don't match the price filter.
+func filterIAPPricePoints(resp *asc.InAppPurchasePricePointsResponse, pf shared.PriceFilter) {
+	filtered := resp.Data[:0]
+	for _, item := range resp.Data {
+		if pf.MatchesPrice(item.Attributes.CustomerPrice) {
+			filtered = append(filtered, item)
+		}
+	}
+	resp.Data = filtered
 }
 
 // IAPPricePointsEqualizationsCommand returns the price point equalizations subcommand.

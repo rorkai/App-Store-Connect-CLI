@@ -496,16 +496,18 @@ func BetaGroupsAddTestersCommand() *ffcli.Command {
 
 	group := fs.String("group", "", "Beta group ID")
 	tester := fs.String("tester", "", "Beta tester ID(s), comma-separated")
+	email := fs.String("email", "", "Beta tester email(s), comma-separated")
 
 	return &ffcli.Command{
 		Name:       "add-testers",
-		ShortUsage: "asc testflight beta-groups add-testers --group \"GROUP_ID\" --tester \"TESTER_ID[,TESTER_ID...]\"",
+		ShortUsage: "asc testflight beta-groups add-testers --group \"GROUP_ID\" [--tester \"TESTER_ID[,TESTER_ID...]\" | --email \"EMAIL[,EMAIL...]\"]",
 		ShortHelp:  "Add beta testers to a beta group.",
 		LongHelp: `Add beta testers to a beta group.
 
 Examples:
   asc testflight beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID"
-  asc testflight beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2"`,
+  asc testflight beta-groups add-testers --group "GROUP_ID" --tester "TESTER_ID1,TESTER_ID2"
+  asc testflight beta-groups add-testers --group "GROUP_ID" --email "tester@example.com"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -516,8 +518,9 @@ Examples:
 			}
 
 			testerIDs := shared.SplitCSV(*tester)
-			if len(testerIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --tester is required")
+			testerEmails := shared.SplitCSV(*email)
+			if len(testerIDs) == 0 && len(testerEmails) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --tester or --email is required")
 				return flag.ErrHelp
 			}
 
@@ -528,6 +531,54 @@ Examples:
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
+
+			if len(testerEmails) > 0 {
+				groupApp, err := client.GetBetaGroupApp(requestCtx, groupID)
+				if err != nil {
+					return fmt.Errorf("beta-groups add-testers: failed to resolve app for group: %w", err)
+				}
+				appID := strings.TrimSpace(groupApp.Data.ID)
+				if appID == "" {
+					return fmt.Errorf("beta-groups add-testers: group %q has empty app ID", groupID)
+				}
+
+				for _, testerEmail := range testerEmails {
+					resp, err := client.GetBetaTesters(
+						requestCtx,
+						appID,
+						asc.WithBetaTestersEmail(testerEmail),
+						asc.WithBetaTestersLimit(2),
+					)
+					if err != nil {
+						return fmt.Errorf("beta-groups add-testers: failed to resolve tester email %q: %w", testerEmail, err)
+					}
+					if len(resp.Data) == 0 {
+						return fmt.Errorf("beta-groups add-testers: tester email %q not found for app %q", testerEmail, appID)
+					}
+					if len(resp.Data) > 1 {
+						return fmt.Errorf("beta-groups add-testers: multiple testers found for email %q; use --tester ID", testerEmail)
+					}
+					testerIDs = append(testerIDs, resp.Data[0].ID)
+				}
+			}
+
+			if len(testerIDs) == 0 {
+				return fmt.Errorf("beta-groups add-testers: no tester IDs resolved")
+			}
+			seen := make(map[string]struct{}, len(testerIDs))
+			deduped := make([]string, 0, len(testerIDs))
+			for _, testerID := range testerIDs {
+				trimmed := strings.TrimSpace(testerID)
+				if trimmed == "" {
+					continue
+				}
+				if _, ok := seen[trimmed]; ok {
+					continue
+				}
+				seen[trimmed] = struct{}{}
+				deduped = append(deduped, trimmed)
+			}
+			testerIDs = deduped
 
 			if err := client.AddBetaTestersToGroup(requestCtx, groupID, testerIDs); err != nil {
 				return fmt.Errorf("beta-groups add-testers: failed to add testers: %w", err)

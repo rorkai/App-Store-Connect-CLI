@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshotcatalog"
 )
 
 // ScreenshotDimension represents a single allowed screenshot size.
@@ -28,150 +30,25 @@ type ScreenshotSizesResult struct {
 	Sizes []ScreenshotSizeEntry `json:"sizes"`
 }
 
-func portraitLandscape(width, height int) []ScreenshotDimension {
-	return []ScreenshotDimension{
-		{Width: width, Height: height},
-		{Width: height, Height: width},
-	}
-}
-
-func singleOrientation(width, height int) []ScreenshotDimension {
-	return []ScreenshotDimension{
-		{Width: width, Height: height},
-	}
-}
-
-func combineDimensions(groups ...[]ScreenshotDimension) []ScreenshotDimension {
-	var combined []ScreenshotDimension
-	for _, group := range groups {
-		combined = append(combined, group...)
-	}
-	return uniqueSortedDimensions(combined)
-}
-
-func uniqueSortedDimensions(dims []ScreenshotDimension) []ScreenshotDimension {
-	unique := make([]ScreenshotDimension, 0, len(dims))
-	seen := make(map[ScreenshotDimension]struct{}, len(dims))
-	for _, dim := range dims {
-		if _, ok := seen[dim]; ok {
-			continue
-		}
-		seen[dim] = struct{}{}
-		unique = append(unique, dim)
-	}
-	sort.Slice(unique, func(i, j int) bool {
-		if unique[i].Width == unique[j].Width {
-			return unique[i].Height < unique[j].Height
-		}
-		return unique[i].Width < unique[j].Width
-	})
-	return unique
-}
-
-var (
-	iphone69Dimensions = combineDimensions(
-		portraitLandscape(1260, 2736),
-		portraitLandscape(1290, 2796),
-		portraitLandscape(1320, 2868),
-		portraitLandscape(1284, 2778),
-	)
-	iphone67Dimensions = combineDimensions(
-		portraitLandscape(1260, 2736),
-		portraitLandscape(1290, 2796),
-		portraitLandscape(1320, 2868),
-		portraitLandscape(1284, 2778),
-	)
-	iphone61Dimensions = combineDimensions(
-		portraitLandscape(1179, 2556),
-		portraitLandscape(1170, 2532),
-	)
-	iphone65Dimensions = portraitLandscape(1242, 2688)
-	iphone58Dimensions = portraitLandscape(1125, 2436)
-	iphone55Dimensions = portraitLandscape(1242, 2208)
-	iphone47Dimensions = portraitLandscape(750, 1334)
-	iphone40Dimensions = portraitLandscape(640, 1136)
-	iphone35Dimensions = portraitLandscape(640, 960)
-
-	ipadPro129Dimensions = combineDimensions(
-		portraitLandscape(2048, 2732),
-		portraitLandscape(2064, 2752),
-	)
-	ipadPro11Dimensions = portraitLandscape(1668, 2388)
-	ipad105Dimensions   = portraitLandscape(1668, 2224)
-	ipad97Dimensions    = portraitLandscape(1536, 2048)
-	desktopDimensions   = combineDimensions(
-		singleOrientation(1280, 800),
-		singleOrientation(1440, 900),
-		singleOrientation(2560, 1600),
-		singleOrientation(2880, 1800),
-	)
-	appleTVDimensions    = combineDimensions(singleOrientation(1920, 1080), singleOrientation(3840, 2160))
-	visionProDimensions  = singleOrientation(3840, 2160)
-	watchUltraDimensions = combineDimensions(
-		singleOrientation(422, 514),
-		singleOrientation(410, 502),
-	)
-	watchSeries10Dimensions = singleOrientation(416, 496)
-	watchSeries7Dimensions  = singleOrientation(396, 484)
-	watchSeries4Dimensions  = singleOrientation(368, 448)
-	watchSeries3Dimensions  = singleOrientation(312, 390)
-)
-
-var screenshotSizeRegistry = map[string][]ScreenshotDimension{
-	"APP_IPHONE_69":                  iphone69Dimensions,
-	"APP_IPHONE_67":                  iphone67Dimensions,
-	"APP_IPHONE_61":                  iphone61Dimensions,
-	"APP_IPHONE_65":                  iphone65Dimensions,
-	"APP_IPHONE_58":                  iphone58Dimensions,
-	"APP_IPHONE_55":                  iphone55Dimensions,
-	"APP_IPHONE_47":                  iphone47Dimensions,
-	"APP_IPHONE_40":                  iphone40Dimensions,
-	"APP_IPHONE_35":                  iphone35Dimensions,
-	"APP_IPAD_PRO_3GEN_129":          ipadPro129Dimensions,
-	"APP_IPAD_PRO_3GEN_11":           ipadPro11Dimensions,
-	"APP_IPAD_PRO_129":               ipadPro129Dimensions,
-	"APP_IPAD_105":                   ipad105Dimensions,
-	"APP_IPAD_97":                    ipad97Dimensions,
-	"APP_DESKTOP":                    desktopDimensions,
-	"APP_WATCH_ULTRA":                watchUltraDimensions,
-	"APP_WATCH_SERIES_10":            watchSeries10Dimensions,
-	"APP_WATCH_SERIES_7":             watchSeries7Dimensions,
-	"APP_WATCH_SERIES_4":             watchSeries4Dimensions,
-	"APP_WATCH_SERIES_3":             watchSeries3Dimensions,
-	"APP_APPLE_TV":                   appleTVDimensions,
-	"APP_APPLE_VISION_PRO":           visionProDimensions,
-	"IMESSAGE_APP_IPHONE_69":         iphone69Dimensions,
-	"IMESSAGE_APP_IPHONE_67":         iphone67Dimensions,
-	"IMESSAGE_APP_IPHONE_61":         iphone61Dimensions,
-	"IMESSAGE_APP_IPHONE_65":         iphone65Dimensions,
-	"IMESSAGE_APP_IPHONE_58":         iphone58Dimensions,
-	"IMESSAGE_APP_IPHONE_55":         iphone55Dimensions,
-	"IMESSAGE_APP_IPHONE_47":         iphone47Dimensions,
-	"IMESSAGE_APP_IPHONE_40":         iphone40Dimensions,
-	"IMESSAGE_APP_IPAD_PRO_3GEN_129": ipadPro129Dimensions,
-	"IMESSAGE_APP_IPAD_PRO_3GEN_11":  ipadPro11Dimensions,
-	"IMESSAGE_APP_IPAD_PRO_129":      ipadPro129Dimensions,
-	"IMESSAGE_APP_IPAD_105":          ipad105Dimensions,
-	"IMESSAGE_APP_IPAD_97":           ipad97Dimensions,
-}
-
 // ScreenshotDisplayTypes returns the supported display types in stable order.
 func ScreenshotDisplayTypes() []string {
-	types := make([]string, 0, len(screenshotSizeRegistry))
-	for key := range screenshotSizeRegistry {
-		types = append(types, key)
-	}
-	sort.Strings(types)
-	return types
+	return screenshotcatalog.DisplayTypes()
 }
 
 // ScreenshotDimensions returns a copy of allowed dimensions for a display type.
 func ScreenshotDimensions(displayType string) ([]ScreenshotDimension, bool) {
-	dims, ok := screenshotSizeRegistry[displayType]
+	dims, ok := screenshotcatalog.Dimensions(displayType)
 	if !ok {
 		return nil, false
 	}
-	return append([]ScreenshotDimension(nil), dims...), true
+	converted := make([]ScreenshotDimension, 0, len(dims))
+	for _, dim := range dims {
+		converted = append(converted, ScreenshotDimension{
+			Width:  dim.Width,
+			Height: dim.Height,
+		})
+	}
+	return converted, true
 }
 
 // ScreenshotSizeEntryForDisplayType returns a catalog entry for a display type.
@@ -221,6 +98,64 @@ func formatScreenshotDimensions(dims []ScreenshotDimension) string {
 	return strings.Join(parts, ", ")
 }
 
+// CanonicalScreenshotDisplayTypeForAPI converts local aliases to API-supported display types.
+func CanonicalScreenshotDisplayTypeForAPI(displayType string) string {
+	return screenshotcatalog.CanonicalDisplayTypeForAPI(displayType)
+}
+
+func suggestDisplayTypesForDimensions(width, height int, currentDisplayType string) []string {
+	allDisplayTypes := screenshotcatalog.DisplayTypes()
+	suggestions := make([]string, 0, 2)
+	seen := make(map[string]struct{}, 2)
+
+	normalizedCurrent := strings.ToUpper(strings.TrimSpace(currentDisplayType))
+	currentFamily := "ANY"
+	if strings.HasPrefix(normalizedCurrent, "APP_") {
+		currentFamily = "APP"
+	}
+	if strings.HasPrefix(normalizedCurrent, "IMESSAGE_") {
+		currentFamily = "IMESSAGE"
+	}
+	currentCanonical := CanonicalScreenshotDisplayTypeForAPI(normalizedCurrent)
+
+	for _, displayType := range allDisplayTypes {
+		switch currentFamily {
+		case "APP":
+			if !strings.HasPrefix(displayType, "APP_") {
+				continue
+			}
+		case "IMESSAGE":
+			if !strings.HasPrefix(displayType, "IMESSAGE_") {
+				continue
+			}
+		}
+
+		dims, ok := screenshotcatalog.Dimensions(displayType)
+		if !ok {
+			continue
+		}
+
+		for _, dim := range dims {
+			if dim.Width != width || dim.Height != height {
+				continue
+			}
+			canonical := CanonicalScreenshotDisplayTypeForAPI(displayType)
+			if canonical == currentCanonical {
+				break
+			}
+			if _, exists := seen[canonical]; exists {
+				break
+			}
+			seen[canonical] = struct{}{}
+			suggestions = append(suggestions, canonical)
+			break
+		}
+	}
+
+	sort.Strings(suggestions)
+	return suggestions
+}
+
 // ValidateScreenshotDimensions checks that the image matches an allowed size.
 func ValidateScreenshotDimensions(path, displayType string) error {
 	dims, err := ReadImageDimensions(path)
@@ -236,13 +171,21 @@ func ValidateScreenshotDimensions(path, displayType string) error {
 			return nil
 		}
 	}
+
+	suggestions := suggestDisplayTypesForDimensions(dims.Width, dims.Height, displayType)
+	suggestionMessage := ""
+	if len(suggestions) > 0 {
+		suggestionMessage = fmt.Sprintf(" This size matches: %s.", strings.Join(suggestions, ", "))
+	}
+
 	return fmt.Errorf(
-		"screenshot %q has unsupported size %dx%d for %s (allowed: %s). See \"asc screenshots sizes --display-type %s\"",
+		"screenshot %q has unsupported size %dx%d for %s (allowed: %s). See \"asc screenshots sizes --display-type %s\".%s",
 		path,
 		dims.Width,
 		dims.Height,
 		displayType,
 		formatScreenshotDimensions(allowed),
 		displayType,
+		suggestionMessage,
 	)
 }

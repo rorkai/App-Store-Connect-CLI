@@ -1274,6 +1274,7 @@ func TestBuildBuildsQuery(t *testing.T) {
 		WithBuildsLimit(25),
 		WithBuildsNextURL("https://api.appstoreconnect.apple.com/v1/apps/123/builds?cursor=abc"),
 		WithBuildsSort("-uploadedDate"),
+		WithBuildsVersion("42"),
 	}
 	for _, opt := range opts {
 		opt(query)
@@ -1287,6 +1288,42 @@ func TestBuildBuildsQuery(t *testing.T) {
 	}
 	if query.sort != "-uploadedDate" {
 		t.Fatalf("expected sort=-uploadedDate, got %q", query.sort)
+	}
+	if query.version != "42" {
+		t.Fatalf("expected version=42, got %q", query.version)
+	}
+}
+
+func TestBuildBuildsQuery_WithExpiredFilter(t *testing.T) {
+	query := &buildsQuery{}
+	opts := []BuildsOption{
+		WithBuildsExpired(false),
+	}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	if query.expired == nil {
+		t.Fatal("expected expired filter to be set")
+	}
+	if *query.expired {
+		t.Fatalf("expected expired filter=false, got %v", *query.expired)
+	}
+}
+
+func TestBuildBuildsQuery_WithBuildNumberAlias(t *testing.T) {
+	query := &buildsQuery{}
+	WithBuildsBuildNumber("314")(query)
+	if query.version != "314" {
+		t.Fatalf("expected build number alias to set version=314, got %q", query.version)
+	}
+}
+
+func TestBuildBuildsQuery_WithPreReleaseVersions(t *testing.T) {
+	query := &buildsQuery{}
+	WithBuildsPreReleaseVersions([]string{"prv-1", " ", "prv-2"})(query)
+	if len(query.preReleaseVersionIDs) != 2 || query.preReleaseVersionIDs[0] != "prv-1" || query.preReleaseVersionIDs[1] != "prv-2" {
+		t.Fatalf("expected normalized pre-release version ids [prv-1 prv-2], got %v", query.preReleaseVersionIDs)
 	}
 }
 

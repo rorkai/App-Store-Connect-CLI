@@ -36,10 +36,16 @@ Local workflow (experimental):
 
 App Store workflow:
   asc screenshots list --version-localization "LOC_ID"
-  asc screenshots sizes --display-type "APP_IPHONE_69"
-  asc screenshots upload --version-localization "LOC_ID" --path "./screenshots" --device-type "IPHONE_69"
+  asc screenshots sizes
+  asc screenshots sizes --all
+  asc screenshots upload --version-localization "LOC_ID" --path "./screenshots/iphone" --device-type "IPHONE_65"
+  asc screenshots upload --version-localization "LOC_ID" --path "./screenshots/ipad" --device-type "IPAD_PRO_3GEN_129"
   asc screenshots download --version-localization "LOC_ID" --output-dir "./screenshots/downloaded"
-  asc screenshots delete --id "SCREENSHOT_ID" --confirm`,
+  asc screenshots delete --id "SCREENSHOT_ID" --confirm
+
+For most iOS submissions, one iPhone set (IPHONE_65) and one iPad set
+(IPAD_PRO_3GEN_129) are enough. "asc screenshots sizes" focuses on these by
+default; use --all only when you need the full matrix.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{

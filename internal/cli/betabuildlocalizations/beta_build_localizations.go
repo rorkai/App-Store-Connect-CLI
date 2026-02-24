@@ -23,6 +23,9 @@ func BetaBuildLocalizationsCommand() *ffcli.Command {
 		ShortHelp:  "Manage TestFlight beta build localizations.",
 		LongHelp: `Manage TestFlight beta build localizations ("What to Test" notes).
 
+Deprecated: prefer "asc builds test-notes ..." for the same What to Test functionality.
+This command group remains available for compatibility.
+
 Examples:
   asc beta-build-localizations list --build "BUILD_ID"
   asc beta-build-localizations list --global

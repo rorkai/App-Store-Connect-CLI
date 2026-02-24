@@ -98,13 +98,28 @@ func TestBuildsLatestCommand_InvalidInitialBuildNumber(t *testing.T) {
 	}
 }
 
+func TestBuildsLatestCommand_NotExpiredAndExcludeExpiredTogether(t *testing.T) {
+	isolateBuildsAuthEnv(t)
+
+	cmd := BuildsLatestCommand()
+
+	if err := cmd.FlagSet.Parse([]string{"--app", "123", "--exclude-expired", "--not-expired"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), []string{})
+	if errors.Is(err, flag.ErrHelp) {
+		t.Errorf("expected non-help execution path when both alias flags are set, got %v", err)
+	}
+}
+
 func TestBuildsLatestCommand_FlagDefinitions(t *testing.T) {
 	isolateBuildsAuthEnv(t)
 
 	cmd := BuildsLatestCommand()
 
 	// Verify all expected flags exist
-	expectedFlags := []string{"app", "version", "platform", "output", "pretty", "next", "initial-build-number"}
+	expectedFlags := []string{"app", "version", "platform", "output", "pretty", "next", "initial-build-number", "exclude-expired", "not-expired"}
 	for _, name := range expectedFlags {
 		f := cmd.FlagSet.Lookup(name)
 		if f == nil {
@@ -124,6 +139,19 @@ func TestBuildsLatestCommand_FlagDefinitions(t *testing.T) {
 	}
 	if f := cmd.FlagSet.Lookup("initial-build-number"); f != nil && f.DefValue != "1" {
 		t.Errorf("expected --initial-build-number default to be '1', got %q", f.DefValue)
+	}
+	if f := cmd.FlagSet.Lookup("exclude-expired"); f != nil && f.DefValue != "false" {
+		t.Errorf("expected --exclude-expired default to be 'false', got %q", f.DefValue)
+	}
+	if f := cmd.FlagSet.Lookup("not-expired"); f != nil && f.DefValue != "false" {
+		t.Errorf("expected --not-expired default to be 'false', got %q", f.DefValue)
+	}
+}
+
+func TestBuildsLatestCommand_HelpMentionsExcludeExpired(t *testing.T) {
+	cmd := BuildsLatestCommand()
+	if !strings.Contains(cmd.LongHelp, "--exclude-expired") {
+		t.Fatalf("expected help text to mention --exclude-expired")
 	}
 }
 

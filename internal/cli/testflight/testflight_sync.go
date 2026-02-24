@@ -33,13 +33,22 @@ type TestFlightAppConfig struct {
 
 // TestFlightGroupConfig describes TestFlight beta groups.
 type TestFlightGroupConfig struct {
-	ID                string   `yaml:"id"`
-	Name              string   `yaml:"name"`
-	IsInternalGroup   bool     `yaml:"isInternalGroup"`
-	PublicLinkEnabled bool     `yaml:"publicLinkEnabled,omitempty"`
-	PublicLinkLimit   *int     `yaml:"publicLinkLimit,omitempty"`
-	FeedbackEnabled   bool     `yaml:"feedbackEnabled"`
-	Builds            []string `yaml:"builds,omitempty"`
+	ID                string                       `yaml:"id"`
+	Name              string                       `yaml:"name"`
+	IsInternalGroup   bool                         `yaml:"isInternalGroup"`
+	PublicLinkEnabled bool                         `yaml:"publicLinkEnabled,omitempty"`
+	PublicLinkLimit   *int                         `yaml:"publicLinkLimit,omitempty"`
+	FeedbackEnabled   bool                         `yaml:"feedbackEnabled"`
+	Builds            []string                     `yaml:"builds,omitempty"`
+	BuildDetails      []TestFlightGroupBuildDetail `yaml:"buildDetails,omitempty"`
+}
+
+// TestFlightGroupBuildDetail describes build identifiers with human-readable metadata.
+type TestFlightGroupBuildDetail struct {
+	ID              string `yaml:"id"`
+	BuildNumber     string `yaml:"buildNumber"`
+	ProcessingState string `yaml:"processingState,omitempty"`
+	UploadedDate    string `yaml:"uploadedDate,omitempty"`
 }
 
 // TestFlightBuildConfig describes build metadata and group assignments.
@@ -110,7 +119,7 @@ Examples:
 func TestFlightSyncPullCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pull", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)")
 	output := fs.String("output", "", "Output file path for YAML (required)")
 	includeBuilds := fs.Bool("include-builds", false, "Include builds and group assignments")
 	includeTesters := fs.Bool("include-testers", false, "Include testers and group memberships")
@@ -167,6 +176,11 @@ Examples:
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
+
+			resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
+			if err != nil {
+				return fmt.Errorf("testflight sync pull: %w", err)
+			}
 
 			options := testFlightPullOptions{
 				includeBuilds:  *includeBuilds,
@@ -306,6 +320,7 @@ func pullTestFlightConfig(ctx context.Context, client testFlightSyncClient, appI
 		}
 		if opts.includeBuilds {
 			cfg.Builds = uniqueSortedStrings(groupBuilds[group.ID])
+			cfg.BuildDetails = buildDetailsForIDs(cfg.Builds, buildConfigs)
 		}
 		groupConfigs = append(groupConfigs, cfg)
 	}
@@ -529,6 +544,27 @@ func buildConfigsFromMap(builds map[string]*TestFlightBuildConfig) []TestFlightB
 		result = append(result, *cfg)
 	}
 	return result
+}
+
+func buildDetailsForIDs(buildIDs []string, builds map[string]*TestFlightBuildConfig) []TestFlightGroupBuildDetail {
+	if len(buildIDs) == 0 || len(builds) == 0 {
+		return nil
+	}
+	details := make([]TestFlightGroupBuildDetail, 0, len(buildIDs))
+	for _, buildID := range buildIDs {
+		cfg, ok := builds[buildID]
+		if !ok || cfg == nil {
+			details = append(details, TestFlightGroupBuildDetail{ID: buildID})
+			continue
+		}
+		details = append(details, TestFlightGroupBuildDetail{
+			ID:              buildID,
+			BuildNumber:     cfg.Version,
+			ProcessingState: cfg.ProcessingState,
+			UploadedDate:    cfg.UploadedDate,
+		})
+	}
+	return details
 }
 
 func testerConfigsFromMap(testers map[string]*TestFlightTesterConfig) []TestFlightTesterConfig {

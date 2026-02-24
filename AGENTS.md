@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Unofficial, fast, lightweight, AI-agent-friendly CLI for the App Store Connect API. Built in Go with [ffcli](https://github.com/peterbourgon/ff).
+Unofficial, fast, lightweight, agent-assisted, reviewer-owned CLI for the App Store Connect API. Built in Go with [ffcli](https://github.com/peterbourgon/ff).
 
 ## asc skills
 
@@ -8,14 +8,14 @@ Agent Skills for automating `asc` workflows including builds, TestFlight, metada
 
 ## Core Principles
 
-- **Explicit flags**: Always `--app` not `-a`, `--output` not `-o`
+- **Explicit flags**: Use long-form flags in docs/tests/examples (`--app`, `--output`) for clarity
 - **JSON-first**: Minified JSON by default (saves tokens), `--output table/markdown` for humans
 - **No interactive prompts**: Use `--confirm` flags for destructive operations
 - **Pagination**: `--paginate` fetches all pages automatically
 
 ## Discovering Commands
 
-**Use `--help` to discover commands and flags.** The CLI is self-documenting:
+**Before implementing or testing any command, run `--help` to confirm the exact interface.** The CLI is self-documenting:
 
 ```bash
 asc --help                    # List all commands
@@ -50,7 +50,7 @@ make format     # Format code
 make install-hooks  # Install local pre-commit hook (.githooks/pre-commit)
 ```
 
-Testing rule: ALWAYS run tests with `ASC_BYPASS_KEYCHAIN=1` to avoid host keychain prompts and profile bleed-through.
+Canonical test rule: all test runs must use `ASC_BYPASS_KEYCHAIN=1` to avoid host keychain prompts and profile bleed-through.
 
 ## PR Guardrails
 
@@ -61,7 +61,7 @@ Testing rule: ALWAYS run tests with `ASC_BYPASS_KEYCHAIN=1` to avoid host keycha
 
 ## Testing Discipline
 
-- Use TDD for everything: bugs, refactors, and new features.
+- Use TDD for behavior changes: bugs, refactors that alter behavior, and new features.
 - Start with a failing test that captures the expected behavior and edge cases.
 - For new features, begin with CLI-level tests (flags, output, errors) and add unit tests for core logic.
 - Verify the test fails for the right reason before implementing; keep tests green incrementally.
@@ -75,6 +75,7 @@ Testing rule: ALWAYS run tests with `ASC_BYPASS_KEYCHAIN=1` to avoid host keycha
 
 - **Reproduce first**: Before fixing, run the failing test locally to confirm the issue. Don't assume you understand the bug.
 - **One change at a time**: Make one small fix, verify it works, then move to the next. Don't batch multiple changes.
+- **Re-run after each fix**: Re-run the specific failing test after each fix before running the full suite.
 - **One logical change per commit**: Keep commits narrowly scoped and reviewable. Avoid mixing refactor + bug fix + test rewrites in a single commit.
 - **Never bypass checks**: Don't use `--no-verify`, don't push directly to `main`, don't skip tests to "get around" failures.
 - **Be honest about pre-existing issues**: If a test was failing before your changes, say so. Don't claim credit for "fixing" something you didn't break.
@@ -82,13 +83,12 @@ Testing rule: ALWAYS run tests with `ASC_BYPASS_KEYCHAIN=1` to avoid host keycha
 - **Avoid broad skip logic**: Don't skip tests with generic string matches (e.g., "Keychain Error") that can hide regressions. Match specific error codes instead.
 - **Isolate test auth/env state**: Tests that touch auth must set/clear relevant env vars (`ASC_BYPASS_KEYCHAIN`, `ASC_PROFILE`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY_PATH`, `ASC_PRIVATE_KEY`, `ASC_PRIVATE_KEY_B64`, `ASC_STRICT_AUTH`) locally and restore exact original state.
 - **Local test command**: When running repository tests manually, use `ASC_BYPASS_KEYCHAIN=1 make test` to prevent macOS keychain profile prompts from host environment bleed-through.
-- **Always bypass keychain for tests**: For all test runs (`make test`, targeted `go test`, and pre-commit test hooks), set `ASC_BYPASS_KEYCHAIN=1`.
 - **Strict skip policy**: `t.Skip` is allowed only for specific, documented, reproducible conditions (exact error code/condition). Generic skip patterns are not allowed.
 - **Use proper workflow**: Branch → change → test → PR. Not: main → change → push.
 
 ## Definition of Done (Single-Pass)
 
-- Do not mark work as done until all checks below are complete.
+- Done means checks pass, key exit-code scenarios are validated, and commands run are recorded in handoff.
 - For CLI behavior changes (flags, exit codes, output/reporting), follow this sequence:
   - Add/adjust failing tests first (RED), then implement (GREEN).
   - Do not add placeholder tests; every new test must assert exit code, stderr/stdout, and/or parsed structured output.
@@ -115,6 +115,42 @@ Testing rule: ALWAYS run tests with `ASC_BYPASS_KEYCHAIN=1` to avoid host keycha
 - In the PR description or handoff, include:
   - commands run
   - key exit-code scenarios validated
+
+## Operating Mode: Architecture-First Agent Engineering
+
+- Default mode is architecture-first, not vibe-first.
+- Before implementing any new command/flag, produce a short design note covering:
+  1) command placement in existing taxonomy,
+  2) OpenAPI endpoint/schema validation,
+  3) UX shape (flags/output/exit codes),
+  4) backward-compatibility and deprecation impact,
+  5) RED -> GREEN test plan.
+- If command shape is ambiguous, stop and align before coding.
+
+## Command Lifecycle & Compatibility
+
+- User-facing commands/flags must follow lifecycle states: `experimental`, `stable`, `deprecated`, `removed`.
+- Do not delete stable commands directly; deprecate first with migration guidance.
+- Deprecations must include:
+  - warning text in help/output,
+  - tests covering old and new behavior during transition,
+  - changelog entry with upgrade path.
+
+## Agent Explainability Contract
+
+For each substantial change, include:
+- why this approach was chosen,
+- one to two alternatives considered and trade-offs,
+- expected invocation examples and outputs,
+- edge cases and failure modes tested.
+
+A change is not done if the reviewer cannot explain command behavior and trade-offs from the handoff.
+
+## Parallel Agent Policy
+
+- Parallel agents are allowed for independent exploration or test drafting.
+- Final implementation integration must be done in a single coherent pass.
+- Avoid concurrent edits to the same command group.
 
 ## CLI Implementation Checklist
 

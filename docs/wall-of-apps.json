@@ -34,6 +34,13 @@
     "platform": ["iOS", "macOS"]
   },
   {
+    "app": "Deep Hour - Deep Focus Ritual",
+    "link": "https://apps.apple.com/app/id6758889630",
+    "creator": "Gurfus",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/55/90/80/55908099-0de3-f577-f029-7e76d29e3481/AppIcon-0-0-1x_U007ephone-0-1-sRGB-85-220.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "DoubleMemory",
     "link": "https://apps.apple.com/app/id6737529034",
     "creator": "randomor",
@@ -58,14 +65,14 @@
     "app": "Goshuin Atlas",
     "link": "https://apps.apple.com/app/goshuin-atlas-japan/id6746737093",
     "creator": "thedaviddias",
-    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/2d/9d/e0/2d9de059-9ce5-c003-50e8-0dcb07c23b1b/AppIcon-0-1x_U007ephone-0-1-85-220-0.jpeg/512x512bb.jpg",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/11/49/d6/1149d644-0ac6-6277-9847-c9ac124510a8/AppIcon-0-1x_U007ephone-0-1-85-220-0.jpeg/512x512bb.jpg",
     "platform": ["iOS"]
   },
   {
     "app": "Inkput",
     "link": "https://apps.apple.com/app/id6758570182",
     "creator": "funclosure",
-    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/69/df/b8/69dfb86c-bad9-dd2c-01c8-431cdef5a989/AppIcon-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/70/79/8d/70798d73-fcd7-11c3-59f0-46770396a8b4/AppIcon-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg",
     "platform": ["iOS", "macOS"]
   },
   {
@@ -79,7 +86,7 @@
     "app": "kora: Music Reviews & Ratings",
     "link": "https://apps.apple.com/app/id6502549140",
     "creator": "adamjhf",
-    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/24/e2/39/24e2393e-069b-ec74-07fc-d235ee6ba652/AppIcon-0-0-1x_U007ephone-0-1-85-220.png/512x512bb.jpg",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ec/60/49/ec604992-9786-57dd-0a9f-489b339a6f39/AppIcon-0-0-1x_U007ephone-0-1-85-220.png/512x512bb.jpg",
     "platform": ["iOS"]
   },
   {
@@ -100,14 +107,14 @@
     "app": "MileIO",
     "link": "https://apps.apple.com/app/id6758225631",
     "creator": "Juergen",
-    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/b1/15/5d/b1155d6a-ae6a-021c-b4a7-8b27d309c044/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/10/f9/d5/10f9d5bd-3241-85f0-c10a-cc949fef89db/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
     "platform": ["iOS"]
   },
   {
     "app": "Mixtape",
     "link": "https://apps.apple.com/us/app/mixtape-personal-music-gift/id6756442910",
     "creator": "jimripple",
-    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/a8/90/14/a89014d6-2934-3899-6d96-2c06aa0de85f/AppIcon-0-0-1x_U007ephone-0-11-0-85-220.png/512x512bb.jpg",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/71/af/7f/71af7f55-1c60-1638-6161-8491e23edd0e/AppIcon-0-0-1x_U007ephone-0-11-0-85-220.png/512x512bb.jpg",
     "platform": ["iOS"]
   },
   {
@@ -134,7 +141,7 @@
     "app": "Positive",
     "link": "https://apps.apple.com/us/app/positive/id653287635",
     "creator": "DanielStormApps",
-    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/4e/76/02/4e76028d-5ff0-61e0-9c52-98946b87a3df/AppIcon-0-0-1x_U007epad-0-0-0-1-0-0-P3-85-220.png/512x512bb.jpg",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/24/82/c7/2482c7c0-2955-03a7-f7bb-2caeff52039b/AppIcon-0-0-1x_U007epad-0-0-0-1-0-0-P3-85-220.png/512x512bb.jpg",
     "platform": ["iOS"]
   },
   {
@@ -142,6 +149,20 @@
     "link": "https://apps.apple.com/us/app/repetti-the-chores-list-app/id6758055413",
     "creator": "rursache",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/e8/77/5c/e8775cab-2c64-3b11-e132-c636f3993a44/Icon-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Reps: AI Fitness & Recovery",
+    "link": "https://apps.apple.com/app/id6746460451",
+    "creator": "sidbmw",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/0d/32/7e/0d327e27-4d64-63f5-9b05-70a0a4f58bf6/Reps_AppIcon-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg",
+    "platform": ["iOS", "watchOS"]
+  },
+  {
+    "app": "SnapVinyl",
+    "link": "https://apps.apple.com/app/id6741057688",
+    "creator": "TomLiu",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/85/d9/6d/85d96db0-f29c-9528-edb5-67d760c10c4a/AppIcon-0-1x_U007epad-0-1-0-85-220-0.png/512x512bb.jpg",
     "platform": ["iOS"]
   },
   {
@@ -166,6 +187,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "SwiftBiu",
+    "link": "https://apps.apple.com/app/swiftbiu/id6754772331",
+    "creator": "SwiftBiu",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/90/3b/2e/903b2ef1-7097-f00c-3557-db67e054e174/AppIcon-0-0-85-220-0-5-0-2x.png/512x512bb.png",
+    "platform": ["macOS"]
+  },
+  {
     "app": "Timefall",
     "link": "https://apps.apple.com/app/id6757712804",
     "creator": "vatrueshka",
@@ -176,7 +204,7 @@
     "app": "ToMe: Save to Self",
     "link": "https://apps.apple.com/app/id6755589008",
     "creator": "framara",
-    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/48/a9/38/48a93885-b678-f1a0-92af-cd8c9cb73d62/ToMe_Liquid-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/da/8f/eb/da8febfc-bfd5-e234-625e-79101ae42e69/ToMe_Liquid-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg",
     "platform": ["iOS", "macOS"]
   },
   {
@@ -197,7 +225,14 @@
     "app": "Video Annotation",
     "link": "https://apps.apple.com/us/app/video-annotation/id6758316355",
     "creator": "antranapp",
-    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/b4/35/bb/b435bbb4-8830-0c99-3ad5-7aa00c898d46/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/43/c3/a9/43c3a9e9-e32b-081c-8a8b-a4f401846771/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Wozi Vocabulary Builder",
+    "link": "https://apps.apple.com/app/id1536585848",
+    "creator": "wozi-x",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/0d/cb/21/0dcb21e1-afe0-6281-3c31-3e2049d70a0f/WoziAppIcon-0-0-1x_U007epad-0-1-P3-85-220.png/512x512bb.jpg",
     "platform": ["iOS"]
   },
   {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -33,6 +34,13 @@ func Classify(err error) ClassifiedError {
 		}
 	}
 
+	if containsPrivacyError(err) {
+		return ClassifiedError{
+			Message: err.Error(),
+			Hint:    "App privacy declarations (data usages) must be configured in the App Store Connect web UI — the API does not support this. Visit https://appstoreconnect.apple.com and complete the App Privacy section before submitting.",
+		}
+	}
+
 	if errors.Is(err, asc.ErrForbidden) {
 		return ClassifiedError{
 			Message: err.Error(),
@@ -51,6 +59,13 @@ func Classify(err error) ClassifiedError {
 		Message: err.Error(),
 		Hint:    "",
 	}
+}
+
+// containsPrivacyError checks whether the error references app data usage /
+// privacy declaration resources that are not manageable via the API.
+func containsPrivacyError(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "appdatausages") || strings.Contains(msg, "appdatausagespublications")
 }
 
 func FormatStderr(err error) string {

@@ -18,17 +18,19 @@ Automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, ID
 
 ## Table of Contents
 
+- [asc skills](#asc-skills)
 - [Quick Start](#quick-start)
+- [Wall of Apps](#wall-of-apps)
 - [Common Workflows](#common-workflows)
 - [Commands and Reference](#commands-and-reference)
-- [CI/CD Integrations](#cicd-integrations)
 - [Documentation](#documentation)
-- [Local Validation](#local-validation)
-- [Security](#security)
-- [asc skills](#asc-skills)
-- [Wall of Apps](#wall-of-apps)
 - [Contributing](#contributing)
 - [License](#license)
+
+## asc skills
+
+Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing:
+https://github.com/rudrankriyam/app-store-connect-cli-skills
 
 ## Quick Start
 
@@ -62,6 +64,21 @@ https://appstoreconnect.apple.com/access/integrations/api
 ```bash
 asc apps list --output table
 ```
+
+<!-- WALL-OF-APPS:START -->
+## Wall of Apps
+
+**36 apps ship with asc.** [See the Wall of Apps →](https://asccli.sh/#wall-of-apps)
+
+Want to add yours? [Open a PR](https://github.com/rudrankriyam/App-Store-Connect-CLI/pulls).
+<!-- WALL-OF-APPS:END -->
+
+### Add Your App to the Wall
+
+Use:
+`make generate app APP="Your App Name" LINK="https://apps.apple.com/app/id1234567890" CREATOR="your-github-handle" PLATFORM="iOS,macOS"`
+
+This updates `docs/wall-of-apps.json` and re-syncs the Wall snippet in `README.md`.
 
 ## Common Workflows
 
@@ -127,107 +144,15 @@ asc <command> <subcommand> --help
 For full command families, flags, and discovery patterns, see:
 - [docs/COMMANDS.md](docs/COMMANDS.md)
 
-## CI/CD Integrations
-
-### GitHub Actions
-
-Install `asc` using the official setup action:
-
-```yaml
-- uses: rudrankriyam/setup-asc@v1
-  with:
-    version: latest
-
-- run: asc --help
-```
-
-For end-to-end examples, see:
-https://github.com/rudrankriyam/setup-asc
-
-### GitLab CI/CD Components
-
-Use the official `asc-ci-components` repository:
-
-```yaml
-include:
-  - component: gitlab.com/rudrankriyam/asc-ci-components/run@main
-    inputs:
-      stage: deploy
-      job_prefix: release
-      asc_version: latest
-      command: asc --help
-```
-
-For install/run templates and self-managed examples:
-https://github.com/rudrankriyam/asc-ci-components
-
-### Bitrise
-
-Use the official `setup-asc` Bitrise step repository:
-
-```yaml
-workflows:
-  primary:
-    steps:
-    - git::https://github.com/rudrankriyam/steps-setup-asc.git@main:
-        inputs:
-        - mode: run
-        - version: latest
-        - command: asc --help
-```
-
-### CircleCI
-
-Use the official CircleCI orb repository:
-https://github.com/rudrankriyam/asc-orb
-
 ## Documentation
 
+- [docs/CI_CD.md](docs/CI_CD.md) - CI/CD integration guides (GitHub Actions, GitLab, Bitrise, CircleCI)
 - [docs/COMMANDS.md](docs/COMMANDS.md) - Command families and reference navigation
 - [docs/API_NOTES.md](docs/API_NOTES.md) - API quirks and behaviors
 - [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - CLI development and testing notes
 - [docs/TESTING.md](docs/TESTING.md) - Testing patterns and conventions
 - [docs/openapi/README.md](docs/openapi/README.md) - Offline OpenAPI snapshot + update flow
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guide
-
-## Local Validation
-
-```bash
-make tools
-make format
-make lint
-make check-command-docs
-ASC_BYPASS_KEYCHAIN=1 make test
-make build
-./asc --help
-```
-
-## Security
-
-- Credentials are stored in keychain when available, with config fallback.
-- Private key content is never persisted directly by default.
-- Environment variables are supported for non-interactive CI usage.
-- Artifact/report file helpers use symlink-safe write protections.
-
-## asc skills
-
-Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing:
-https://github.com/rudrankriyam/app-store-connect-cli-skills
-
-<!-- WALL-OF-APPS:START -->
-## Wall of Apps
-
-**31 apps ship with asc.** [See the Wall of Apps →](https://asccli.sh/#wall-of-apps)
-
-Want to add yours? [Open a PR](https://github.com/rudrankriyam/App-Store-Connect-CLI/pulls).
-<!-- WALL-OF-APPS:END -->
-
-### Add Your App to the Wall
-
-Use:
-`make generate app APP="Your App Name" LINK="https://apps.apple.com/app/id1234567890" CREATOR="your-github-handle" PLATFORM="iOS,macOS"`
-
-This updates `docs/wall-of-apps.json` and re-syncs the Wall snippet in `README.md`.
 
 ## Acknowledgements
 

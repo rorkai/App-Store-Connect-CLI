@@ -328,6 +328,102 @@ func TestJUnitReportEndToEnd(t *testing.T) {
 	}
 }
 
+func TestBuildsListMissingAppExitCode(t *testing.T) {
+	tmpDir := t.TempDir()
+	binaryPath := filepath.Join(tmpDir, "asc-test")
+
+	buildCmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	buildCmd.Dir = ".."
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, out)
+	}
+
+	runCmd := exec.Command(binaryPath, "builds", "list", "--version", "1.2.3")
+	runCmd.Env = isolatedCLITestEnv(filepath.Join(tmpDir, "config.json"))
+	output, err := runCmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected non-zero exit for missing --app, got success output: %s", output)
+	}
+
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("expected *exec.ExitError, got %T (%v)", err, err)
+	}
+	if exitErr.ExitCode() != ExitUsage {
+		t.Fatalf("expected exit code %d, got %d (output: %s)", ExitUsage, exitErr.ExitCode(), output)
+	}
+	stderr := string(output)
+	if !strings.Contains(stderr, "--app is required") {
+		t.Fatalf("expected --app required message, got %q", stderr)
+	}
+}
+
+func TestBuildsTestNotesUpdateConflictingFlagsExitCode(t *testing.T) {
+	tmpDir := t.TempDir()
+	binaryPath := filepath.Join(tmpDir, "asc-test")
+
+	buildCmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	buildCmd.Dir = ".."
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, out)
+	}
+
+	runCmd := exec.Command(binaryPath, "builds", "test-notes", "update",
+		"--id", "loc-1", "--build", "build-1", "--whats-new", "test")
+	runCmd.Env = isolatedCLITestEnv(filepath.Join(tmpDir, "config.json"))
+	output, err := runCmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected non-zero exit for conflicting flags, got success output: %s", output)
+	}
+
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("expected *exec.ExitError, got %T (%v)", err, err)
+	}
+	if exitErr.ExitCode() != ExitUsage {
+		t.Fatalf("expected exit code %d, got %d (output: %s)", ExitUsage, exitErr.ExitCode(), output)
+	}
+
+	stderr := string(output)
+	if !strings.Contains(stderr, "--id cannot be combined with --build or --locale") {
+		t.Fatalf("expected conflict message, got %q", stderr)
+	}
+}
+
+func TestBuildsLatestExcludeExpiredInvalidBooleanExitCode(t *testing.T) {
+	tmpDir := t.TempDir()
+	binaryPath := filepath.Join(tmpDir, "asc-test")
+
+	buildCmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	buildCmd.Dir = ".." // Go up from cmd/ to project root
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, out)
+	}
+
+	runCmd := exec.Command(binaryPath, "builds", "latest", "--app", "APP_ID", "--exclude-expired=maybe")
+	runCmd.Env = isolatedCLITestEnv(filepath.Join(tmpDir, "config.json"))
+	output, err := runCmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected non-zero exit for invalid boolean value, got success output: %s", output)
+	}
+
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("expected *exec.ExitError, got %T (%v)", err, err)
+	}
+	if exitErr.ExitCode() != ExitUsage {
+		t.Fatalf("expected exit code %d, got %d (output: %s)", ExitUsage, exitErr.ExitCode(), output)
+	}
+
+	stderr := string(output)
+	if !strings.Contains(stderr, "invalid boolean value") {
+		t.Fatalf("expected stderr to contain invalid boolean message, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "exclude-expired") {
+		t.Fatalf("expected stderr to mention exclude-expired flag, got %q", stderr)
+	}
+}
+
 func isolatedCLITestEnv(configPath string) []string {
 	env := filterEnvVars(
 		os.Environ(),
@@ -340,6 +436,7 @@ func isolatedCLITestEnv(configPath string) []string {
 		"ASC_CONFIG_PATH",
 		"ASC_BYPASS_KEYCHAIN",
 		"ASC_STRICT_AUTH",
+		"ASC_APP_ID",
 	)
 	return append(env,
 		"ASC_BYPASS_KEYCHAIN=1",

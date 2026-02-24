@@ -38,6 +38,25 @@ func TestScreenshotChecks_Pass(t *testing.T) {
 	}
 }
 
+func TestScreenshotChecks_PassIPhone65ConsolidatedSlot(t *testing.T) {
+	sets := []ScreenshotSet{
+		{
+			ID:          "set-1",
+			DisplayType: "APP_IPHONE_65",
+			Locale:      "en-US",
+			Screenshots: []Screenshot{
+				{ID: "shot-1", FileName: "shot-1.png", Width: 1242, Height: 2688},
+				{ID: "shot-2", FileName: "shot-2.png", Width: 1284, Height: 2778},
+			},
+		},
+	}
+
+	checks := screenshotChecks("IOS", sets)
+	if len(checks) != 0 {
+		t.Fatalf("expected no checks, got %d (%v)", len(checks), checks)
+	}
+}
+
 func TestScreenshotChecks_PassLatestLargeIPhoneSizes(t *testing.T) {
 	sets := []ScreenshotSet{
 		{
@@ -47,6 +66,58 @@ func TestScreenshotChecks_PassLatestLargeIPhoneSizes(t *testing.T) {
 			Screenshots: []Screenshot{
 				{ID: "shot-1", FileName: "shot-1.png", Width: 1260, Height: 2736},
 				{ID: "shot-2", FileName: "shot-2.png", Width: 1320, Height: 2868},
+			},
+		},
+	}
+
+	checks := screenshotChecks("IOS", sets)
+	if len(checks) != 0 {
+		t.Fatalf("expected no checks, got %d (%v)", len(checks), checks)
+	}
+}
+
+func TestScreenshotChecks_PassLatestIPhone61Size(t *testing.T) {
+	sets := []ScreenshotSet{
+		{
+			ID:          "set-1",
+			DisplayType: "APP_IPHONE_61",
+			Locale:      "en-US",
+			Screenshots: []Screenshot{
+				{ID: "shot-1", FileName: "shot-1.png", Width: 1206, Height: 2622},
+			},
+		},
+	}
+
+	checks := screenshotChecks("IOS", sets)
+	if len(checks) != 0 {
+		t.Fatalf("expected no checks, got %d (%v)", len(checks), checks)
+	}
+}
+
+func TestScreenshotChecks_PassLatestIPhone58And65AndIPad11Sizes(t *testing.T) {
+	sets := []ScreenshotSet{
+		{
+			ID:          "set-58",
+			DisplayType: "APP_IPHONE_58",
+			Locale:      "en-US",
+			Screenshots: []Screenshot{
+				{ID: "shot-58", FileName: "shot-58.png", Width: 1170, Height: 2532},
+			},
+		},
+		{
+			ID:          "set-65",
+			DisplayType: "APP_IPHONE_65",
+			Locale:      "en-US",
+			Screenshots: []Screenshot{
+				{ID: "shot-65", FileName: "shot-65.png", Width: 1284, Height: 2778},
+			},
+		},
+		{
+			ID:          "set-ipad11",
+			DisplayType: "APP_IPAD_PRO_3GEN_11",
+			Locale:      "en-US",
+			Screenshots: []Screenshot{
+				{ID: "shot-ipad11", FileName: "shot-ipad11.png", Width: 1488, Height: 2266},
 			},
 		},
 	}

@@ -238,24 +238,39 @@ func BuildsTestNotesUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Localization ID")
+	buildID := fs.String("build", "", "Build ID (alternative to --id, requires --locale)")
+	locale := fs.String("locale", "", "Locale (e.g., en-US, required with --build)")
 	whatsNew := fs.String("whats-new", "", "What to Test notes")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
 		ShortUsage: "asc builds test-notes update [flags]",
-		ShortHelp:  "Update What to Test notes by ID.",
-		LongHelp: `Update What to Test notes by ID.
+		ShortHelp:  "Update What to Test notes by ID or build+locale.",
+		LongHelp: `Update What to Test notes by ID or by build+locale.
 
 Examples:
-  asc builds test-notes update --id "LOCALIZATION_ID" --whats-new "Updated notes"`,
+  asc builds test-notes update --id "LOCALIZATION_ID" --whats-new "Updated notes"
+  asc builds test-notes update --build "BUILD_ID" --locale "en-US" --whats-new "Updated notes"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*localizationID)
-			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+			buildValue := strings.TrimSpace(*buildID)
+			localeValue := strings.TrimSpace(*locale)
+
+			if id != "" && (buildValue != "" || localeValue != "") {
+				fmt.Fprintln(os.Stderr, "Error: --id cannot be combined with --build or --locale")
 				return flag.ErrHelp
+			}
+			if id == "" {
+				if buildValue == "" || localeValue == "" {
+					fmt.Fprintln(os.Stderr, "Error: either --id or (--build and --locale) is required")
+					return flag.ErrHelp
+				}
+				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
+					return fmt.Errorf("builds test-notes update: %w", err)
+				}
 			}
 
 			whatsNewValue := strings.TrimSpace(*whatsNew)
@@ -271,6 +286,28 @@ Examples:
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
+
+			if id == "" {
+				localizations, err := client.GetBetaBuildLocalizations(
+					requestCtx,
+					buildValue,
+					asc.WithBetaBuildLocalizationLocales([]string{localeValue}),
+					asc.WithBetaBuildLocalizationsLimit(200),
+				)
+				if err != nil {
+					return fmt.Errorf("builds test-notes update: failed to resolve localization: %w", err)
+				}
+				if localizations == nil || len(localizations.Data) == 0 {
+					return fmt.Errorf("builds test-notes update: no localization found for build %q and locale %q", buildValue, localeValue)
+				}
+				if len(localizations.Data) > 1 {
+					return fmt.Errorf("builds test-notes update: multiple localizations found for build %q and locale %q; use --id", buildValue, localeValue)
+				}
+				id = strings.TrimSpace(localizations.Data[0].ID)
+				if id == "" {
+					return fmt.Errorf("builds test-notes update: resolved localization has empty ID")
+				}
+			}
 
 			attrs := asc.BetaBuildLocalizationAttributes{
 				WhatsNew: whatsNewValue,

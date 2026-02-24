@@ -16,6 +16,7 @@ import (
 
 type validateOptions struct {
 	AppID     string
+	Version   string
 	VersionID string
 	Platform  string
 	Strict    bool
@@ -30,14 +31,15 @@ func ValidateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("validate", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
-	versionID := fs.String("version-id", "", "App Store version ID (required)")
+	version := fs.String("version", "", "App Store version string")
+	versionID := fs.String("version-id", "", "App Store version ID")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	strict := fs.Bool("strict", false, "Treat warnings as errors (exit non-zero)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "validate",
-		ShortUsage: "asc validate --app \"APP_ID\" --version-id \"VERSION_ID\" [flags]",
+		ShortUsage: "asc validate --app \"APP_ID\" (--version-id \"VERSION_ID\" | --version \"VERSION\") [flags]",
 		ShortHelp:  "Validate App Store version readiness before submission.",
 		LongHelp: `Validate pre-submission readiness for an App Store version.
 
@@ -53,6 +55,7 @@ Checks:
 
 Examples:
   asc validate --app "APP_ID" --version-id "VERSION_ID"
+  asc validate --app "APP_ID" --version "1.0.0" --platform IOS
   asc validate --app "APP_ID" --version-id "VERSION_ID" --platform IOS --output table
   asc validate --app "APP_ID" --version-id "VERSION_ID" --strict
 
@@ -76,9 +79,14 @@ Subscriptions:
 				fmt.Fprintf(os.Stderr, "Error: unknown subcommand %q\n\n", args[0])
 				return flag.ErrHelp
 			}
-			if strings.TrimSpace(*versionID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
+			trimmedVersion := strings.TrimSpace(*version)
+			trimmedVersionID := strings.TrimSpace(*versionID)
+			if trimmedVersion == "" && trimmedVersionID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --version or --version-id is required")
 				return flag.ErrHelp
+			}
+			if trimmedVersion != "" && trimmedVersionID != "" {
+				return shared.UsageError("--version and --version-id are mutually exclusive")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -98,7 +106,8 @@ Subscriptions:
 
 			return runValidate(ctx, validateOptions{
 				AppID:     resolvedAppID,
-				VersionID: strings.TrimSpace(*versionID),
+				Version:   trimmedVersion,
+				VersionID: trimmedVersionID,
 				Platform:  normalizedPlatform,
 				Strict:    *strict,
 				Output:    *output.Output,
@@ -117,7 +126,15 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
-	versionResp, err := client.GetAppStoreVersion(requestCtx, opts.VersionID)
+	resolvedVersionID := opts.VersionID
+	if resolvedVersionID == "" {
+		resolvedVersionID, err = resolveVersionID(requestCtx, client, opts.AppID, opts.Version, opts.Platform)
+		if err != nil {
+			return fmt.Errorf("validate: %w", err)
+		}
+	}
+
+	versionResp, err := client.GetAppStoreVersion(requestCtx, resolvedVersionID)
 	if err != nil {
 		return fmt.Errorf("validate: failed to fetch app store version: %w", err)
 	}
@@ -127,7 +144,7 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 		return fmt.Errorf("validate: failed to fetch app: %w", err)
 	}
 
-	versionLocsResp, err := client.GetAppStoreVersionLocalizations(requestCtx, opts.VersionID)
+	versionLocsResp, err := client.GetAppStoreVersionLocalizations(requestCtx, resolvedVersionID)
 	if err != nil {
 		return fmt.Errorf("validate: failed to fetch version localizations: %w", err)
 	}
@@ -158,7 +175,7 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 	}
 
 	var ageRatingDecl *validation.AgeRatingDeclaration
-	ageRatingResp, err := client.GetAgeRatingDeclarationForAppStoreVersion(requestCtx, opts.VersionID)
+	ageRatingResp, err := client.GetAgeRatingDeclarationForAppStoreVersion(requestCtx, resolvedVersionID)
 	if err != nil {
 		if !asc.IsNotFound(err) {
 			return fmt.Errorf("validate: failed to fetch age rating declaration: %w", err)
@@ -168,7 +185,7 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 	}
 
 	var reviewDetails *validation.ReviewDetails
-	reviewDetailsResp, err := client.GetAppStoreReviewDetailForVersion(requestCtx, opts.VersionID)
+	reviewDetailsResp, err := client.GetAppStoreReviewDetailForVersion(requestCtx, resolvedVersionID)
 	if err != nil {
 		if !asc.IsNotFound(err) {
 			return fmt.Errorf("validate: failed to fetch review details: %w", err)
@@ -189,7 +206,7 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 	}
 
 	var attachedBuild *validation.Build
-	buildResp, err := client.GetAppStoreVersionBuild(requestCtx, opts.VersionID)
+	buildResp, err := client.GetAppStoreVersionBuild(requestCtx, resolvedVersionID)
 	if err != nil {
 		if !asc.IsNotFound(err) {
 			return fmt.Errorf("validate: failed to fetch attached build: %w", err)
@@ -276,10 +293,11 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 	for _, loc := range appInfoLocsResp.Data {
 		attrs := loc.Attributes
 		appInfoLocalizations = append(appInfoLocalizations, validation.AppInfoLocalization{
-			ID:       loc.ID,
-			Locale:   attrs.Locale,
-			Name:     attrs.Name,
-			Subtitle: attrs.Subtitle,
+			ID:               loc.ID,
+			Locale:           attrs.Locale,
+			Name:             attrs.Name,
+			Subtitle:         attrs.Subtitle,
+			PrivacyPolicyURL: attrs.PrivacyPolicyURL,
 		})
 	}
 
@@ -296,8 +314,9 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 	report := validation.Validate(validation.Input{
 		AppID:                opts.AppID,
 		AppInfoID:            appInfoID,
-		VersionID:            opts.VersionID,
+		VersionID:            resolvedVersionID,
 		VersionString:        versionResp.Data.Attributes.VersionString,
+		VersionState:         shared.ResolveAppStoreVersionState(versionResp.Data.Attributes),
 		Platform:             platform,
 		PrimaryLocale:        appResp.Data.Attributes.PrimaryLocale,
 		VersionLocalizations: versionLocalizations,
@@ -321,6 +340,34 @@ func runValidate(ctx context.Context, opts validateOptions) error {
 	}
 
 	return nil
+}
+
+func resolveVersionID(ctx context.Context, client *asc.Client, appID, version, platform string) (string, error) {
+	opts := []asc.AppStoreVersionsOption{
+		asc.WithAppStoreVersionsVersionStrings([]string{version}),
+		asc.WithAppStoreVersionsLimit(20),
+	}
+	if strings.TrimSpace(platform) != "" {
+		opts = append(opts, asc.WithAppStoreVersionsPlatforms([]string{platform}))
+	}
+
+	resp, err := client.GetAppStoreVersions(ctx, appID, opts...)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve app store version: %w", err)
+	}
+	if resp == nil || len(resp.Data) == 0 {
+		if strings.TrimSpace(platform) != "" {
+			return "", fmt.Errorf("app store version not found for version %q and platform %q", version, platform)
+		}
+		return "", fmt.Errorf("app store version not found for version %q", version)
+	}
+	if len(resp.Data) > 1 {
+		if strings.TrimSpace(platform) != "" {
+			return "", fmt.Errorf("multiple app store versions found for version %q and platform %q (use --version-id)", version, platform)
+		}
+		return "", fmt.Errorf("multiple app store versions found for version %q (use --platform or --version-id)", version)
+	}
+	return resp.Data[0].ID, nil
 }
 
 func fetchScreenshotSets(ctx context.Context, client *asc.Client, localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) ([]validation.ScreenshotSet, error) {
