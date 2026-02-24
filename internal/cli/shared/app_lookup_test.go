@@ -47,6 +47,17 @@ func TestResolveAppIDWithLookup_NumericPassthrough(t *testing.T) {
 	}
 }
 
+func TestResolveAppIDWithLookup_DoesNotResolveFromEnv(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "123456789")
+	got, err := ResolveAppIDWithLookup(context.Background(), nil, "")
+	if err != nil {
+		t.Fatalf("ResolveAppIDWithLookup() error: %v", err)
+	}
+	if got != "" {
+		t.Fatalf("expected empty app id when input is empty, got %q", got)
+	}
+}
+
 func TestResolveAppIDWithLookup_ResolvesByBundleThenName(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 

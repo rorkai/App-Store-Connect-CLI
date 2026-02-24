@@ -12,10 +12,10 @@ type appLookupClient interface {
 	GetApps(ctx context.Context, opts ...asc.AppsOption) (*asc.AppsResponse, error)
 }
 
-// ResolveAppIDWithLookup resolves --app from flag/env/config and optionally
-// looks up app IDs by exact bundle ID or exact app name.
+// ResolveAppIDWithLookup resolves non-numeric app identifiers by exact bundle ID
+// or exact app name.
 func ResolveAppIDWithLookup(ctx context.Context, client appLookupClient, appID string) (string, error) {
-	resolved := strings.TrimSpace(ResolveAppID(appID))
+	resolved := strings.TrimSpace(appID)
 	if resolved == "" {
 		return "", nil
 	}
