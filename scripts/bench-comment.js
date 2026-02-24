@@ -12,42 +12,75 @@ const raw = execSync(`benchstat ${baseFile} ${prFile} 2>&1`, { encoding: 'utf8' 
 
 const lines = raw.split('\n');
 const results = [];
+let inSecPerOpSection = false;
 
 for (const line of lines) {
-  // benchstat output lines look like:
-  // BenchmarkName-N   100.0n ± 5%   102.0n ± 3%   +2.00% (p=0.041)
-  // BenchmarkName-N   100.0n ± 5%   99.0n ± 3%    ~ (p=0.310)
+  // Parse only sec/op blocks to avoid duplicate entries from B/op and allocs/op.
+  if (/\bsec\/op\b/.test(line)) {
+    inSecPerOpSection = true;
+    continue;
+  }
+  if (/\b(B\/op|allocs\/op)\b/.test(line)) {
+    inSecPerOpSection = false;
+    continue;
+  }
+  if (!inSecPerOpSection) {
+    continue;
+  }
+
+  // benchstat rows can contain either:
+  // - "± 5%" confidence intervals (enough samples)
+  // - "± ∞" footnotes (too few samples)
+  // So parse from the stable row tail: "<delta> (p=<value> ...)".
   const match = line.match(
-    /^(\S+?)(?:-\d+)?\s+[\d.]+[nµm]?s?\s*±\s*\d+%\s+[\d.]+[nµm]?s?\s*±\s*\d+%\s+([~+-][\d.]*%?)\s*\(p=([\d.]+)[^)]*\)/
+    /^(\S+)\s+.*?\s+([~]|[+\-−]\d+(?:\.\d+)?%)\s+\(p=([\d.]+)[^)]*\)\s*(?:\S+)?\s*$/
   );
   if (!match) continue;
 
-  const name = match[1].replace(/^Benchmark/, '');
-  const change = match[2].trim();
+  const benchmarkName = match[1];
+  if (benchmarkName === 'geomean') {
+    continue;
+  }
+
+  const name = benchmarkName.replace(/^Benchmark/, '').replace(/-\d+$/, '');
+  const change = match[2].trim().replace('−', '-');
   const pValue = parseFloat(match[3]);
 
-  let icon, verdict;
+  let icon, verdict, deltaDisplay;
   if (change === '~') {
     icon = '~';
     verdict = 'no change';
+    deltaDisplay = '~';
   } else {
     const pct = parseFloat(change);
     if (isNaN(pct)) {
       icon = '~';
       verdict = 'no change';
-    } else if (pct > 5 && pValue < 0.05) {
-      icon = ':warning:';
-      verdict = `**${change} slower**`;
-    } else if (pct < -5 && pValue < 0.05) {
-      icon = ':rocket:';
-      verdict = `**${change} faster**`;
+      deltaDisplay = change;
     } else {
-      icon = ':white_check_mark:';
-      verdict = 'within noise';
+      const magnitude = `${Math.abs(pct).toFixed(2)}%`;
+      if (pct < 0) {
+        deltaDisplay = `${magnitude} faster`;
+      } else if (pct > 0) {
+        deltaDisplay = `${magnitude} slower`;
+      } else {
+        deltaDisplay = magnitude;
+      }
+
+      if (pct > 5 && pValue < 0.05) {
+        icon = ':warning:';
+        verdict = `**${magnitude} slower**`;
+      } else if (pct < -5 && pValue < 0.05) {
+        icon = ':rocket:';
+        verdict = `**${magnitude} faster**`;
+      } else {
+        icon = ':white_check_mark:';
+        verdict = 'within noise';
+      }
     }
   }
 
-  results.push({ icon, name, change, pValue, verdict });
+  results.push({ icon, name, deltaDisplay, pValue, verdict });
 }
 
 let body;
@@ -78,7 +111,9 @@ if (results.length === 0) {
   const table = [
     '| | Benchmark | Delta | Verdict |',
     '|---|---|---|---|',
-    ...results.map(r => `| ${r.icon} | \`${r.name}\` | ${r.change} (p=${r.pValue.toFixed(3)}) | ${r.verdict} |`),
+    ...results.map(
+      r => `| ${r.icon} | \`${r.name}\` | ${r.deltaDisplay} (p=${r.pValue.toFixed(3)}) | ${r.verdict} |`
+    ),
   ].join('\n');
 
   body = [

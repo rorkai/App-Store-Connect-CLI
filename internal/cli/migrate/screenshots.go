@@ -212,19 +212,23 @@ func inferDisplayTypeFromDimensions(width, height int) string {
 	switch {
 	case maxDim == 2688 && minDim == 1242:
 		return "APP_IPHONE_65"
+	case maxDim == 2778 && minDim == 1284:
+		return "APP_IPHONE_65"
 	case maxDim == 2868 && minDim == 1320:
 		return "APP_IPHONE_69"
 	case maxDim == 2736 && minDim == 1260:
 		return "APP_IPHONE_69"
-	case maxDim == 2778 && minDim == 1284:
-		return "APP_IPHONE_67"
 	case maxDim == 2796 && minDim == 1290:
 		return "APP_IPHONE_67"
+	case maxDim == 2622 && minDim == 1206:
+		return "APP_IPHONE_61"
 	case maxDim == 2556 && minDim == 1179:
 		return "APP_IPHONE_61"
 	case maxDim == 2532 && minDim == 1170:
-		return "APP_IPHONE_61"
+		return "APP_IPHONE_58"
 	case maxDim == 2436 && minDim == 1125:
+		return "APP_IPHONE_58"
+	case maxDim == 2340 && minDim == 1080:
 		return "APP_IPHONE_58"
 	case maxDim == 2208 && minDim == 1242:
 		return "APP_IPHONE_55"
@@ -236,7 +240,13 @@ func inferDisplayTypeFromDimensions(width, height int) string {
 		return "APP_IPHONE_35"
 	case maxDim == 2732 && minDim == 2048:
 		return "APP_IPAD_PRO_129"
+	case maxDim == 2420 && minDim == 1668:
+		return "APP_IPAD_PRO_3GEN_11"
 	case maxDim == 2388 && minDim == 1668:
+		return "APP_IPAD_PRO_3GEN_11"
+	case maxDim == 2360 && minDim == 1640:
+		return "APP_IPAD_PRO_3GEN_11"
+	case maxDim == 2266 && minDim == 1488:
 		return "APP_IPAD_PRO_3GEN_11"
 	case maxDim == 2224 && minDim == 1668:
 		return "APP_IPAD_105"

@@ -102,6 +102,9 @@ Examples:
 				return fmt.Errorf("submit create: failed to attach build: %w", err)
 			}
 
+			// Cancel stale READY_FOR_REVIEW submissions to avoid orphans from prior failed attempts.
+			cancelStaleReviewSubmissions(requestCtx, client, resolvedAppID, normalizedPlatform)
+
 			// Use the new reviewSubmissions API (the old appStoreVersionSubmissions is deprecated)
 			// Step 1: Create review submission for the app
 			reviewSubmission, err := client.CreateReviewSubmission(requestCtx, resolvedAppID, asc.Platform(normalizedPlatform))
@@ -310,5 +313,39 @@ Examples:
 
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
+	}
+}
+
+// cancelStaleReviewSubmissions cancels any READY_FOR_REVIEW submissions for the
+// given app and platform. These are orphans from prior failed submit attempts.
+// Errors are logged to stderr but do not block the new submission.
+func cancelStaleReviewSubmissions(ctx context.Context, client *asc.Client, appID, platform string) {
+	existing, err := client.GetReviewSubmissions(ctx, appID,
+		asc.WithReviewSubmissionsStates([]string{string(asc.ReviewSubmissionStateReadyForReview)}),
+		asc.WithReviewSubmissionsPlatforms([]string{platform}),
+	)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to query stale review submissions: %v\n", err)
+		return
+	}
+	if len(existing.Data) == 0 {
+		return
+	}
+
+	normalizedPlatform := strings.ToUpper(strings.TrimSpace(platform))
+	for _, sub := range existing.Data {
+		// Defensively re-check state/platform before canceling.
+		if sub.Attributes.SubmissionState != asc.ReviewSubmissionStateReadyForReview {
+			continue
+		}
+		if normalizedPlatform != "" && !strings.EqualFold(string(sub.Attributes.Platform), normalizedPlatform) {
+			continue
+		}
+
+		if _, cancelErr := client.CancelReviewSubmission(ctx, sub.ID); cancelErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to cancel stale submission %s: %v\n", sub.ID, cancelErr)
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "Canceled stale review submission %s\n", sub.ID)
 	}
 }

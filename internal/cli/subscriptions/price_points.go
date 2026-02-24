@@ -46,6 +46,9 @@ func SubscriptionsPricePointsListCommand() *ffcli.Command {
 
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
 	territory := fs.String("territory", "", "Filter by territory (e.g., USA) to reduce results")
+	price := fs.String("price", "", "Filter by exact customer price (e.g., 4.99)")
+	minPrice := fs.String("min-price", "", "Filter by minimum customer price")
+	maxPrice := fs.String("max-price", "", "Filter by maximum customer price")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -62,6 +65,10 @@ Use --territory to filter by a specific territory. Without it, all territories
 are returned (140K+ results for subscriptions). Filtering by territory reduces
 results to ~800 and completes in seconds instead of 20+ minutes.
 
+Use --price to find a specific customer price, or --min-price/--max-price for
+a range. These filters are applied client-side after fetching. Combine with
+--territory and --paginate for best results.
+
 Use --stream with --paginate to emit each page as a separate JSON line (NDJSON)
 instead of buffering all pages in memory. This gives immediate feedback and
 reduces memory usage for very large result sets.
@@ -70,6 +77,8 @@ Examples:
   asc subscriptions price-points list --subscription-id "SUB_ID"
   asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA"
   asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA" --paginate
+  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA" --paginate --price "4.99"
+  asc subscriptions price-points list --subscription-id "SUB_ID" --territory "USA" --paginate --min-price "1.00" --max-price "9.99"
   asc subscriptions price-points list --subscription-id "SUB_ID" --paginate --stream`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -82,6 +91,19 @@ Examples:
 			}
 			if *stream && !*paginate {
 				fmt.Fprintln(os.Stderr, "Error: --stream requires --paginate")
+				return flag.ErrHelp
+			}
+
+			priceFilter := shared.PriceFilter{
+				Price:    strings.TrimSpace(*price),
+				MinPrice: strings.TrimSpace(*minPrice),
+				MaxPrice: strings.TrimSpace(*maxPrice),
+			}
+			if err := priceFilter.Validate(); err != nil {
+				return shared.UsageError(err.Error())
+			}
+			if priceFilter.HasFilter() && *stream {
+				fmt.Fprintln(os.Stderr, "Error: price filtering is not supported with --stream")
 				return flag.ErrHelp
 			}
 
@@ -157,6 +179,13 @@ Examples:
 					return fmt.Errorf("subscriptions price-points list: %w", err)
 				}
 
+				if priceFilter.HasFilter() {
+					if typed, ok := resp.(*asc.SubscriptionPricePointsResponse); ok {
+						filterSubscriptionPricePoints(typed, priceFilter)
+						return shared.PrintOutput(typed, *output.Output, *output.Pretty)
+					}
+				}
+
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
@@ -165,9 +194,24 @@ Examples:
 				return fmt.Errorf("subscriptions price-points list: failed to fetch: %w", err)
 			}
 
+			if priceFilter.HasFilter() {
+				filterSubscriptionPricePoints(resp, priceFilter)
+			}
+
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// filterSubscriptionPricePoints removes data entries that don't match the price filter.
+func filterSubscriptionPricePoints(resp *asc.SubscriptionPricePointsResponse, pf shared.PriceFilter) {
+	filtered := resp.Data[:0]
+	for _, item := range resp.Data {
+		if pf.MatchesPrice(item.Attributes.CustomerPrice) {
+			filtered = append(filtered, item)
+		}
+	}
+	resp.Data = filtered
 }
 
 // SubscriptionsPricePointsGetCommand returns the price points get subcommand.

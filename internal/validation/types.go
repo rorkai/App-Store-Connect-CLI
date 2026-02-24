@@ -46,6 +46,7 @@ type Input struct {
 	AppInfoID            string
 	VersionID            string
 	VersionString        string
+	VersionState         string
 	Platform             string
 	PrimaryLocale        string
 	VersionLocalizations []VersionLocalization
@@ -74,10 +75,11 @@ type VersionLocalization struct {
 
 // AppInfoLocalization represents app info metadata.
 type AppInfoLocalization struct {
-	ID       string
-	Locale   string
-	Name     string
-	Subtitle string
+	ID               string
+	Locale           string
+	Name             string
+	Subtitle         string
+	PrivacyPolicyURL string
 }
 
 // ScreenshotSet represents a screenshot set and its assets.

@@ -89,10 +89,11 @@ func formatEncryptionStatus(usesNonExempt *bool) string {
 }
 
 func buildsRows(resp *BuildsResponse) ([]string, [][]string) {
-	headers := []string{"Version", "Uploaded", "Processing", "Expired", "Encryption"}
+	headers := []string{"ID", "Version", "Uploaded", "Processing", "Expired", "Encryption"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{
+			item.ID,
 			item.Attributes.Version,
 			item.Attributes.UploadedDate,
 			item.Attributes.ProcessingState,

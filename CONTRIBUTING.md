@@ -64,6 +64,20 @@ Credentials are stored in the system keychain when available, with a config fall
 `~/.asc/config.json` (restricted permissions). A repo-local `./.asc/config.json` is also supported.
 Do not commit secrets.
 
+## Local Validation
+
+Run this checklist before opening a PR:
+
+```bash
+make tools               # Install gofumpt + golangci-lint
+make format              # Format code
+make lint                # Lint code
+make check-command-docs  # Verify command docs are up to date
+ASC_BYPASS_KEYCHAIN=1 make test  # Run tests (bypasses keychain)
+make build               # Build binary
+./asc --help             # Smoke-test the binary
+```
+
 ## Pull Request Guidelines
 
 - Keep PRs small and focused.

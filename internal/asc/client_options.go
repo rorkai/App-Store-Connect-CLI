@@ -1452,12 +1452,42 @@ func WithBuildsSort(sort string) BuildsOption {
 	}
 }
 
-// WithBuildsPreReleaseVersion filters builds by pre-release version ID.
-func WithBuildsPreReleaseVersion(preReleaseVersionID string) BuildsOption {
+// WithBuildsVersion filters builds by build number (CFBundleVersion) via
+// filter[version].
+func WithBuildsVersion(version string) BuildsOption {
 	return func(q *buildsQuery) {
-		if strings.TrimSpace(preReleaseVersionID) != "" {
-			q.preReleaseVersionID = strings.TrimSpace(preReleaseVersionID)
+		if strings.TrimSpace(version) != "" {
+			q.version = strings.TrimSpace(version)
 		}
+	}
+}
+
+// WithBuildsBuildNumber filters builds by build number.
+// App Store Connect models build number as build version, so this maps to filter[version].
+func WithBuildsBuildNumber(buildNumber string) BuildsOption {
+	return WithBuildsVersion(buildNumber)
+}
+
+// WithBuildsPreReleaseVersion filters builds by a single pre-release version ID.
+func WithBuildsPreReleaseVersion(preReleaseVersionID string) BuildsOption {
+	return WithBuildsPreReleaseVersions([]string{preReleaseVersionID})
+}
+
+// WithBuildsPreReleaseVersions filters builds by one or more pre-release version IDs.
+func WithBuildsPreReleaseVersions(preReleaseVersionIDs []string) BuildsOption {
+	return func(q *buildsQuery) {
+		normalized := normalizeList(preReleaseVersionIDs)
+		if len(normalized) > 0 {
+			q.preReleaseVersionIDs = normalized
+		}
+	}
+}
+
+// WithBuildsExpired filters builds by expired state.
+func WithBuildsExpired(expired bool) BuildsOption {
+	return func(q *buildsQuery) {
+		value := expired
+		q.expired = &value
 	}
 }
 

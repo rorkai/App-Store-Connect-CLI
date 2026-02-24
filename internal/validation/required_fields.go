@@ -1,12 +1,24 @@
 package validation
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
 
-func requiredFieldChecks(primaryLocale string, versionString string, versionLocs []VersionLocalization, appInfoLocs []AppInfoLocalization) []CheckResult {
+func requiredFieldChecks(primaryLocale string, versionString string, versionState string, versionLocs []VersionLocalization, appInfoLocs []AppInfoLocalization) []CheckResult {
 	var checks []CheckResult
+
+	normalizedState := strings.ToUpper(strings.TrimSpace(versionState))
+	if normalizedState != "" && !isEditableVersionState(normalizedState) {
+		checks = append(checks, CheckResult{
+			ID:          "version.state.editable",
+			Severity:    SeverityError,
+			Field:       "appVersionState",
+			Message:     fmt.Sprintf("version is in non-editable state %q", versionState),
+			Remediation: "Use an editable version state before submission",
+		})
+	}
 
 	if len(versionLocs) == 0 {
 		checks = append(checks, CheckResult{
@@ -120,6 +132,18 @@ func requiredFieldChecks(primaryLocale string, versionString string, versionLocs
 				Remediation:  "Provide a subtitle for this localization",
 			})
 		}
+		if strings.TrimSpace(loc.PrivacyPolicyURL) == "" {
+			checks = append(checks, CheckResult{
+				ID:           "metadata.recommended.privacy_policy_url",
+				Severity:     SeverityWarning,
+				Locale:       loc.Locale,
+				Field:        "privacyPolicyUrl",
+				ResourceType: "appInfoLocalization",
+				ResourceID:   loc.ID,
+				Message:      "privacy policy URL is empty",
+				Remediation:  "Provide a privacy policy URL for this localization",
+			})
+		}
 	}
 
 	if len(appInfoLocs) == 0 {
@@ -132,6 +156,20 @@ func requiredFieldChecks(primaryLocale string, versionString string, versionLocs
 	}
 
 	return checks
+}
+
+func isEditableVersionState(state string) bool {
+	switch state {
+	case "PREPARE_FOR_SUBMISSION",
+		"DEVELOPER_REJECTED",
+		"REJECTED",
+		"METADATA_REJECTED",
+		"INVALID_BINARY",
+		"DEVELOPER_REMOVED_FROM_SALE":
+		return true
+	default:
+		return false
+	}
 }
 
 func hasLocale(localizations []VersionLocalization, locale string) bool {

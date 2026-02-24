@@ -450,6 +450,7 @@ func SubscriptionsCreateCommand() *ffcli.Command {
 	refName := fs.String("ref-name", "", "Reference name")
 	productID := fs.String("product-id", "", "Product ID (e.g., com.example.sub)")
 	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
+	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -460,7 +461,8 @@ func SubscriptionsCreateCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.sub.monthly"
-  asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.sub.monthly" --subscription-period ONE_MONTH`,
+  asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.sub.monthly" --subscription-period ONE_MONTH
+  asc subscriptions create --group "GROUP_ID" --ref-name "Family" --product-id "com.example.sub.family" --family-sharable`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -502,6 +504,10 @@ Examples:
 			}
 			if period != "" {
 				attrs.SubscriptionPeriod = string(period)
+			}
+			if *familySharable {
+				val := true
+				attrs.FamilySharable = &val
 			}
 
 			resp, err := client.CreateSubscription(requestCtx, group, attrs)
@@ -563,6 +569,7 @@ func SubscriptionsUpdateCommand() *ffcli.Command {
 	subID := fs.String("id", "", "Subscription ID")
 	refName := fs.String("ref-name", "", "Reference name")
 	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
+	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -573,7 +580,8 @@ func SubscriptionsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions update --id "SUB_ID" --ref-name "New Name"
-  asc subscriptions update --id "SUB_ID" --subscription-period ONE_YEAR`,
+  asc subscriptions update --id "SUB_ID" --subscription-period ONE_YEAR
+  asc subscriptions update --id "SUB_ID" --family-sharable`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -589,7 +597,7 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error:", err.Error())
 				return flag.ErrHelp
 			}
-			if name == "" && period == "" {
+			if name == "" && period == "" && !*familySharable {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return flag.ErrHelp
 			}
@@ -609,6 +617,10 @@ Examples:
 			if period != "" {
 				periodValue := string(period)
 				attrs.SubscriptionPeriod = &periodValue
+			}
+			if *familySharable {
+				val := true
+				attrs.FamilySharable = &val
 			}
 
 			resp, err := client.UpdateSubscription(requestCtx, id, attrs)

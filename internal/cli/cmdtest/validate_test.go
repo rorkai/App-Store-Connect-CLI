@@ -19,6 +19,7 @@ import (
 
 type validateFixture struct {
 	app                  string
+	versions             string
 	version              string
 	appInfos             string
 	appInfoLocs          string
@@ -51,6 +52,11 @@ func newValidateTestClient(t *testing.T, fixture validateFixture) *asc.Client {
 		switch {
 		case path == "/v1/apps/app-1":
 			return jsonResponse(http.StatusOK, fixture.app)
+		case path == "/v1/apps/app-1/appStoreVersions":
+			if fixture.versions != "" {
+				return jsonResponse(http.StatusOK, fixture.versions)
+			}
+			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":404}]}`)
 		case path == "/v1/appStoreVersions/ver-1":
 			return jsonResponse(http.StatusOK, fixture.version)
 		case path == "/v1/apps/app-1/appInfos":
@@ -126,12 +132,22 @@ func jsonResponse(status int, body string) (*http.Response, error) {
 	}, nil
 }
 
+func hasCheckWithID(checks []validation.CheckResult, id string) bool {
+	for _, check := range checks {
+		if check.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
 func validValidateFixture() validateFixture {
 	return validateFixture{
 		app:             `{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US"}}}`,
-		version:         `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0"}}}`,
+		versions:        `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0"}}]}`,
+		version:         `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"PREPARE_FOR_SUBMISSION"}}}`,
 		appInfos:        `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`,
-		appInfoLocs:     `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle"}}]}`,
+		appInfoLocs:     `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle","privacyPolicyUrl":"https://example.com/privacy"}}]}`,
 		versionLocs:     `{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","whatsNew":"Notes","promotionalText":"Promo","supportUrl":"https://support.example.com","marketingUrl":"https://marketing.example.com"}}]}`,
 		reviewDetails:   `{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"a@example.com","contactPhone":"123","demoAccountName":"","demoAccountPassword":"","demoAccountRequired":false,"notes":"Review notes"}}}`,
 		primaryCategory: `{"data":{"type":"appCategories","id":"cat-1"}}`,
@@ -172,7 +188,7 @@ func validValidateFixture() validateFixture {
 	}
 }
 
-func TestValidateRequiresAppAndVersionID(t *testing.T) {
+func TestValidateRequiresAppAndVersionSelector(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 
 	tests := []struct {
@@ -188,7 +204,7 @@ func TestValidateRequiresAppAndVersionID(t *testing.T) {
 		{
 			name:    "missing version id",
 			args:    []string{"validate", "--app", "app-1"},
-			wantErr: "--version-id is required",
+			wantErr: "--version or --version-id is required",
 		},
 	}
 
@@ -214,6 +230,26 @@ func TestValidateRequiresAppAndVersionID(t *testing.T) {
 				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
 			}
 		})
+	}
+}
+
+func TestValidateVersionAndVersionIDMutuallyExclusive(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version", "1.0", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if !strings.Contains(stderr, "mutually exclusive") {
+		t.Fatalf("expected mutually exclusive error, got %q", stderr)
 	}
 }
 
@@ -262,6 +298,37 @@ func TestValidateOutputsJSONAndTable(t *testing.T) {
 	}
 }
 
+func TestValidateSupportsVersionLookup(t *testing.T) {
+	fixture := validValidateFixture()
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version", "1.0", "--platform", "IOS"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if report.VersionID != "ver-1" {
+		t.Fatalf("expected resolved version ID ver-1, got %q", report.VersionID)
+	}
+}
+
 func TestValidateStrictExitBehavior(t *testing.T) {
 	fixture := validValidateFixture()
 	fixture.appInfoLocs = `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App"}}]}`
@@ -295,6 +362,77 @@ func TestValidateStrictExitBehavior(t *testing.T) {
 			t.Fatalf("expected ReportedError, got %v", err)
 		}
 	})
+}
+
+func TestValidateWarnsWhenPrivacyPolicyURLMissing(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.appInfoLocs = `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle"}}]}`
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if report.Summary.Errors != 0 {
+		t.Fatalf("expected zero errors, got %+v", report.Summary)
+	}
+	if !hasCheckWithID(report.Checks, "metadata.recommended.privacy_policy_url") {
+		t.Fatalf("expected privacy policy warning, got %+v", report.Checks)
+	}
+}
+
+func TestValidateFailsForNonEditableVersionState(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.version = `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"WAITING_FOR_REVIEW"}}}`
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if !hasCheckWithID(report.Checks, "version.state.editable") {
+		t.Fatalf("expected version state check, got %+v", report.Checks)
+	}
 }
 
 func TestValidateSkipsWhatsNewOnInitialRelease(t *testing.T) {

@@ -431,9 +431,11 @@ Examples:
 func BuildsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)")
 	output := shared.BindOutputFlags(fs)
 	sort := fs.String("sort", "", "Sort by uploadedDate or -uploadedDate")
+	version := fs.String("version", "", "Filter by marketing version string (CFBundleShortVersionString)")
+	buildNumber := fs.String("build-number", "", "Filter by build number (CFBundleVersion)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -449,6 +451,9 @@ including processing status and expiration dates.
 
 Examples:
   asc builds list --app "123456789"
+  asc builds list --app "123456789" --version "1.2.3"
+  asc builds list --app "123456789" --build-number "123"
+  asc builds list --app "123456789" --version "1.2.3" --build-number "123"
   asc builds list --app "123456789" --limit 10
   asc builds list --app "123456789" --paginate`,
 		FlagSet:   fs,
@@ -457,15 +462,19 @@ Examples:
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("builds: --limit must be between 1 and 200")
 			}
-			if err := shared.ValidateNextURL(*next); err != nil {
+			nextValue := strings.TrimSpace(*next)
+			if err := shared.ValidateNextURL(nextValue); err != nil {
 				return fmt.Errorf("builds: %w", err)
 			}
 			if err := shared.ValidateSort(*sort, "uploadedDate", "-uploadedDate"); err != nil {
 				return fmt.Errorf("builds: %w", err)
 			}
 
+			versionValue := strings.TrimSpace(*version)
+			buildNumberValue := strings.TrimSpace(*buildNumber)
+
 			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
+			if resolvedAppID == "" && nextValue == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
@@ -478,12 +487,36 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			if resolvedAppID != "" && nextValue == "" {
+				resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
+				if err != nil {
+					return fmt.Errorf("builds: %w", err)
+				}
+			}
+
+			preReleaseVersionIDs := []string{}
+			if versionValue != "" && nextValue == "" {
+				preReleaseVersionIDs, err = findPreReleaseVersionIDsForBuildsList(requestCtx, client, resolvedAppID, versionValue)
+				if err != nil {
+					return fmt.Errorf("builds: %w", err)
+				}
+				if len(preReleaseVersionIDs) == 0 {
+					return shared.PrintOutput(&asc.BuildsResponse{Data: []asc.Resource[asc.BuildAttributes]{}}, *output.Output, *output.Pretty)
+				}
+			}
+
 			opts := []asc.BuildsOption{
 				asc.WithBuildsLimit(*limit),
-				asc.WithBuildsNextURL(*next),
+				asc.WithBuildsNextURL(nextValue),
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithBuildsSort(*sort))
+			}
+			if buildNumberValue != "" {
+				opts = append(opts, asc.WithBuildsBuildNumber(buildNumberValue))
+			}
+			if len(preReleaseVersionIDs) > 0 {
+				opts = append(opts, asc.WithBuildsPreReleaseVersions(preReleaseVersionIDs))
 			}
 
 			if *paginate {
@@ -514,6 +547,55 @@ Examples:
 			return shared.PrintOutput(builds, format, *output.Pretty)
 		},
 	}
+}
+
+func findPreReleaseVersionIDsForBuildsList(
+	ctx context.Context,
+	client *asc.Client,
+	appID string,
+	version string,
+) ([]string, error) {
+	firstPage, err := client.GetPreReleaseVersions(
+		ctx,
+		appID,
+		asc.WithPreReleaseVersionsVersion(version),
+		asc.WithPreReleaseVersionsLimit(200),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to lookup pre-release versions for marketing version %q: %w", version, err)
+	}
+
+	ids := make([]string, 0, len(firstPage.Data))
+	seen := make(map[string]struct{}, len(firstPage.Data))
+	appendIDs := func(page *asc.PreReleaseVersionsResponse) {
+		for _, preReleaseVersion := range page.Data {
+			id := strings.TrimSpace(preReleaseVersion.ID)
+			if id == "" {
+				continue
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			ids = append(ids, id)
+		}
+	}
+
+	err = asc.PaginateEach(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetPreReleaseVersions(ctx, appID, asc.WithPreReleaseVersionsNextURL(nextURL))
+	}, func(page asc.PaginatedResponse) error {
+		resp, ok := page.(*asc.PreReleaseVersionsResponse)
+		if !ok {
+			return fmt.Errorf("unexpected pre-release versions page type %T", page)
+		}
+		appendIDs(resp)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to paginate pre-release versions for marketing version %q: %w", version, err)
+	}
+
+	return ids, nil
 }
 
 // BuildsInfoCommand returns a build info subcommand.

@@ -65,6 +65,39 @@ func TestInferScreenshotDisplayType_ProMaxDimensions(t *testing.T) {
 		{name: "iphone_67", width: 1290, height: 2796, want: "APP_IPHONE_67"},
 		{name: "iphone_69", width: 1320, height: 2868, want: "APP_IPHONE_69"},
 		{name: "1260x2736", width: 1260, height: 2736, want: "APP_IPHONE_69"},
+		{name: "1284x2778 maps to iphone_65", width: 1284, height: 2778, want: "APP_IPHONE_65"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "screen.png")
+			writePNG(t, path, test.width, test.height)
+
+			displayType, err := inferScreenshotDisplayType(path)
+			if err != nil {
+				t.Fatalf("inferScreenshotDisplayType() error: %v", err)
+			}
+			if displayType != test.want {
+				t.Fatalf("expected %s, got %q", test.want, displayType)
+			}
+		})
+	}
+}
+
+func TestInferScreenshotDisplayType_ModernDimensions(t *testing.T) {
+	tests := []struct {
+		name   string
+		width  int
+		height int
+		want   string
+	}{
+		{name: "1206x2622 maps to iphone_61", width: 1206, height: 2622, want: "APP_IPHONE_61"},
+		{name: "1170x2532 maps to iphone_58", width: 1170, height: 2532, want: "APP_IPHONE_58"},
+		{name: "1080x2340 maps to iphone_58", width: 1080, height: 2340, want: "APP_IPHONE_58"},
+		{name: "1488x2266 maps to ipad_11", width: 1488, height: 2266, want: "APP_IPAD_PRO_3GEN_11"},
+		{name: "1640x2360 maps to ipad_11", width: 1640, height: 2360, want: "APP_IPAD_PRO_3GEN_11"},
+		{name: "1668x2420 maps to ipad_11", width: 1668, height: 2420, want: "APP_IPAD_PRO_3GEN_11"},
 	}
 
 	for _, test := range tests {

@@ -226,6 +226,7 @@ func IAPCreateCommand() *ffcli.Command {
 	iapType := fs.String("type", "", "IAP type: CONSUMABLE, NON_CONSUMABLE, NON_RENEWING_SUBSCRIPTION")
 	refName := fs.String("ref-name", "", "Reference name")
 	productID := fs.String("product-id", "", "Product ID (e.g., com.example.product)")
+	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -236,7 +237,7 @@ func IAPCreateCommand() *ffcli.Command {
 
 Examples:
   asc iap create --app "APP_ID" --type CONSUMABLE --ref-name "Pro" --product-id "com.example.pro"
-  asc iap create --app "APP_ID" --type NON_CONSUMABLE --ref-name "Lifetime" --product-id "com.example.lifetime"`,
+  asc iap create --app "APP_ID" --type NON_CONSUMABLE --ref-name "Lifetime" --product-id "com.example.lifetime" --family-sharable`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -277,6 +278,9 @@ Examples:
 				ProductID:         product,
 				InAppPurchaseType: normalizedType,
 			}
+			if *familySharable {
+				attrs.FamilySharable = true
+			}
 
 			resp, err := client.CreateInAppPurchaseV2(requestCtx, resolvedAppID, attrs)
 			if err != nil {
@@ -294,6 +298,7 @@ func IAPUpdateCommand() *ffcli.Command {
 
 	iapID := fs.String("id", "", "In-app purchase ID")
 	refName := fs.String("ref-name", "", "Reference name")
+	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -303,7 +308,8 @@ func IAPUpdateCommand() *ffcli.Command {
 		LongHelp: `Update an in-app purchase.
 
 Examples:
-  asc iap update --id "IAP_ID" --ref-name "New Name"`,
+  asc iap update --id "IAP_ID" --ref-name "New Name"
+  asc iap update --id "IAP_ID" --family-sharable`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -314,7 +320,7 @@ Examples:
 			}
 
 			name := strings.TrimSpace(*refName)
-			if name == "" {
+			if name == "" && !*familySharable {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return flag.ErrHelp
 			}
@@ -327,8 +333,13 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			attrs := asc.InAppPurchaseV2UpdateAttributes{
-				Name: &name,
+			attrs := asc.InAppPurchaseV2UpdateAttributes{}
+			if name != "" {
+				attrs.Name = &name
+			}
+			if *familySharable {
+				val := true
+				attrs.FamilySharable = &val
 			}
 
 			resp, err := client.UpdateInAppPurchaseV2(requestCtx, id, attrs)
