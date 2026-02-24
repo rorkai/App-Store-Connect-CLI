@@ -6,7 +6,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"os"
@@ -16,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/99designs/keyring"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -74,108 +72,6 @@ func BenchmarkJWTSigning(b *testing.B) {
 				})
 				if err != nil {
 					b.Fatalf("Swift JWT generation failed: %v", err)
-				}
-			}
-		})
-	}
-}
-
-// BenchmarkKeychainOperations compares Go (99designs/keyring) vs Swift (Security.framework)
-// keychain store/get/delete cycles.
-//
-// The Swift helper uses SecItem* APIs directly via Security.framework, avoiding CGO overhead
-// that the Go keyring package incurs through cgo-based bindings.
-func BenchmarkKeychainOperations(b *testing.B) {
-	if runtime.GOOS != "darwin" {
-		b.Skip("Keychain benchmarks only available on macOS")
-	}
-
-	if os.Getenv("ASC_BYPASS_KEYCHAIN") == "1" {
-		b.Skip("Keychain bypassed via ASC_BYPASS_KEYCHAIN=1")
-	}
-
-	_, swiftAvailable := findHelper(KeychainBinary)
-	ctx := context.Background()
-
-	// Benchmark Go keyring store+get+delete cycle
-	b.Run("Go_99designs_keyring", func(b *testing.B) {
-		kr, err := keyring.Open(keyring.Config{
-			ServiceName:              "asc-bench-test",
-			KeychainTrustApplication: true,
-			AllowedBackends:          []keyring.BackendType{keyring.KeychainBackend},
-		})
-		if err != nil {
-			b.Skipf("Go keyring not available: %v", err)
-		}
-
-		payload, _ := json.Marshal(map[string]string{
-			"key_id":           "bench-key-id",
-			"issuer_id":        "bench-issuer-id",
-			"private_key_path": "/tmp/bench.p8",
-		})
-
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			itemKey := fmt.Sprintf("asc-bench-%d", i)
-
-			// Store
-			err := kr.Set(keyring.Item{
-				Key:   itemKey,
-				Data:  payload,
-				Label: "ASC Bench Test",
-			})
-			if err != nil {
-				b.Fatalf("Go keyring store failed: %v", err)
-			}
-
-			// Get
-			_, err = kr.Get(itemKey)
-			if err != nil {
-				b.Fatalf("Go keyring get failed: %v", err)
-			}
-
-			// Delete
-			err = kr.Remove(itemKey)
-			if err != nil {
-				b.Fatalf("Go keyring delete failed: %v", err)
-			}
-		}
-	})
-
-	// Benchmark Swift Security.framework store+get+delete cycle
-	if swiftAvailable == nil {
-		b.Run("Swift_Security_framework", func(b *testing.B) {
-			tempDir := b.TempDir()
-			keyPath := filepath.Join(tempDir, "bench.p8")
-			_ = os.WriteFile(keyPath, []byte("fake-key-data"), 0o600)
-
-			b.ReportAllocs()
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				name := fmt.Sprintf("asc-bench-swift-%d", i)
-
-				// Store
-				err := KeychainStore(ctx, KeychainCredential{
-					Name:           name,
-					KeyID:          "bench-key-id",
-					IssuerID:       "bench-issuer-id",
-					PrivateKeyPath: keyPath,
-				})
-				if err != nil {
-					b.Fatalf("Swift keychain store failed: %v", err)
-				}
-
-				// Get
-				_, err = KeychainGet(ctx, name)
-				if err != nil {
-					b.Fatalf("Swift keychain get failed: %v", err)
-				}
-
-				// Delete
-				err = KeychainDelete(ctx, name)
-				if err != nil {
-					b.Fatalf("Swift keychain delete failed: %v", err)
 				}
 			}
 		})

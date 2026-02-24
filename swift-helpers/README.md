@@ -9,7 +9,6 @@ These Swift helpers leverage native macOS frameworks where they provide a genuin
 | Helper | Framework | Purpose |
 |--------|-----------|---------|
 | `asc-jwt-sign` | CryptoKit | Hardware-accelerated ES256 JWT signing |
-| `asc-keychain` | Security.framework | Native keychain access without CGO |
 | `asc-screenshot-frame` | Core Image/Metal | GPU-accelerated screenshot composition |
 | `asc-image-optimize` | Core Image/Metal | GPU-accelerated image optimization |
 | `asc-video-encode` | AVFoundation | Native video encoding for App Store previews |
@@ -47,27 +46,6 @@ asc-jwt-sign \
 Output formats:
 - `token` (default): Raw JWT string
 - `json`: `{"token": "...", "expires_in": 600}`
-
-### asc-keychain
-
-Native keychain operations without CGO overhead:
-
-```bash
-# Store credentials
-asc-keychain store my-profile \
-  --key-id "KEY_ID" \
-  --issuer-id "ISSUER_ID" \
-  --private-key-path "/path/to/key.p8"
-
-# Retrieve credentials
-asc-keychain get my-profile
-
-# List all credentials
-asc-keychain list
-
-# Delete credentials
-asc-keychain delete my-profile
-```
 
 ### asc-screenshot-frame
 
@@ -155,9 +133,6 @@ if swifthelpers.IsAvailable() {
         KeyID:          keyID,
         PrivateKeyPath: keyPath,
     })
-
-    // Use native keychain
-    cred, err := swifthelpers.KeychainGet(ctx, "my-profile")
 
     // Use Core Image framing
     resp, err := swifthelpers.FrameScreenshot(ctx, swifthelpers.ScreenshotFrameRequest{

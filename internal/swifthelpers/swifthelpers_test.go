@@ -38,11 +38,10 @@ func TestGetStatus(t *testing.T) {
 		// Check that paths are populated if helpers are found
 		// Note: This test may fail if helpers aren't built
 		t.Logf("JWT Signer path: %s", status.JWTSigner)
-		t.Logf("Keychain path: %s", status.Keychain)
 		t.Logf("Screenshot path: %s", status.Screenshot)
 	} else {
 		// On non-macOS, all paths should be empty
-		if status.JWTSigner != "" || status.Keychain != "" || status.Screenshot != "" {
+		if status.JWTSigner != "" || status.Screenshot != "" {
 			t.Error("Expected empty paths on non-macOS")
 		}
 	}
@@ -71,43 +70,6 @@ func TestSignJWT_NotAvailable(t *testing.T) {
 	_, err := SignJWT(ctx, req)
 	if err == nil {
 		t.Error("Expected error when signing JWT on non-macOS")
-	}
-}
-
-func TestKeychainOperations_NotAvailable(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Skip("Skipping on macOS - helper might be available")
-	}
-
-	ctx := context.Background()
-
-	// Test Get
-	_, err := KeychainGet(ctx, "test")
-	if err == nil {
-		t.Error("Expected error when getting credentials on non-macOS")
-	}
-
-	// Test Store
-	err = KeychainStore(ctx, KeychainCredential{
-		Name:           "test",
-		KeyID:          "test",
-		IssuerID:       "test",
-		PrivateKeyPath: "/test/key.p8",
-	})
-	if err == nil {
-		t.Error("Expected error when storing credentials on non-macOS")
-	}
-
-	// Test List
-	_, err = KeychainList(ctx)
-	if err == nil {
-		t.Error("Expected error when listing credentials on non-macOS")
-	}
-
-	// Test Delete
-	err = KeychainDelete(ctx, "test")
-	if err == nil {
-		t.Error("Expected error when deleting credentials on non-macOS")
 	}
 }
 
@@ -147,7 +109,6 @@ func TestHelperStatus(t *testing.T) {
 		Available:  true,
 		Platform:   "darwin",
 		JWTSigner:  "/usr/local/bin/asc-jwt-sign",
-		Keychain:   "/usr/local/bin/asc-keychain",
 		Screenshot: "/usr/local/bin/asc-screenshot-frame",
 	}
 

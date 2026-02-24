@@ -3,7 +3,6 @@
 //
 // The Swift helpers leverage native macOS frameworks for genuine speedups:
 //   - Native CryptoKit JWT signing (hardware-accelerated P-256)
-//   - Native Security.framework keychain access (no CGO overhead)
 //   - Core Image/Metal screenshot framing and image optimization
 //   - AVFoundation video encoding
 //
@@ -21,7 +20,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 )
@@ -29,7 +27,6 @@ import (
 // Helper names
 const (
 	JWTSignerBinary       = "asc-jwt-sign"
-	KeychainBinary        = "asc-keychain"
 	ScreenshotFrameBinary = "asc-screenshot-frame"
 	ImageOptimizeBinary   = "asc-image-optimize"
 	VideoEncodeBinary     = "asc-video-encode"
@@ -110,113 +107,6 @@ func SignJWT(ctx context.Context, req JWTSignRequest) (*JWTSignResponse, error) 
 	}
 
 	return &resp, nil
-}
-
-// KeychainCredential represents stored API credentials
-type KeychainCredential struct {
-	Name           string `json:"name"`
-	KeyID          string `json:"key_id"`
-	IssuerID       string `json:"issuer_id"`
-	PrivateKeyPath string `json:"private_key_path"`
-}
-
-// KeychainStore stores credentials in the macOS keychain.
-func KeychainStore(ctx context.Context, cred KeychainCredential) error {
-	if !IsAvailable() {
-		return fmt.Errorf("swift keychain helper not available on %s", runtime.GOOS)
-	}
-
-	helper, err := findHelper(KeychainBinary)
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.CommandContext(ctx, helper, "store",
-		cred.Name,
-		"--key-id", cred.KeyID,
-		"--issuer-id", cred.IssuerID,
-		"--private-key-path", cred.PrivateKeyPath,
-	)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("keychain store failed: %w (output: %s)", err, string(output))
-	}
-
-	return nil
-}
-
-// KeychainGet retrieves a credential from the macOS keychain.
-func KeychainGet(ctx context.Context, name string) (*KeychainCredential, error) {
-	if !IsAvailable() {
-		return nil, fmt.Errorf("swift keychain helper not available on %s", runtime.GOOS)
-	}
-
-	helper, err := findHelper(KeychainBinary)
-	if err != nil {
-		return nil, err
-	}
-
-	cmd := exec.CommandContext(ctx, helper, "get", name)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		if strings.Contains(string(output), "not found") {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("keychain get failed: %w (output: %s)", err, string(output))
-	}
-
-	var cred KeychainCredential
-	if err := json.Unmarshal(output, &cred); err != nil {
-		return nil, fmt.Errorf("failed to parse credential: %w", err)
-	}
-
-	return &cred, nil
-}
-
-// KeychainList returns all stored credentials.
-func KeychainList(ctx context.Context) ([]KeychainCredential, error) {
-	if !IsAvailable() {
-		return nil, fmt.Errorf("swift keychain helper not available on %s", runtime.GOOS)
-	}
-
-	helper, err := findHelper(KeychainBinary)
-	if err != nil {
-		return nil, err
-	}
-
-	cmd := exec.CommandContext(ctx, helper, "list", "--format", "json")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("keychain list failed: %w (output: %s)", err, string(output))
-	}
-
-	var creds []KeychainCredential
-	if err := json.Unmarshal(output, &creds); err != nil {
-		return nil, fmt.Errorf("failed to parse credentials list: %w", err)
-	}
-
-	return creds, nil
-}
-
-// KeychainDelete removes a credential from the keychain.
-func KeychainDelete(ctx context.Context, name string) error {
-	if !IsAvailable() {
-		return fmt.Errorf("swift keychain helper not available on %s", runtime.GOOS)
-	}
-
-	helper, err := findHelper(KeychainBinary)
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.CommandContext(ctx, helper, "delete", "--force", name)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("keychain delete failed: %w (output: %s)", err, string(output))
-	}
-
-	return nil
 }
 
 // ScreenshotFrameRequest represents a screenshot framing operation
@@ -310,7 +200,6 @@ type HelperStatus struct {
 	Available     bool      `json:"available"`
 	Platform      string    `json:"platform"`
 	JWTSigner     string    `json:"jwt_signer_path,omitempty"`
-	Keychain      string    `json:"keychain_path,omitempty"`
 	Screenshot    string    `json:"screenshot_path,omitempty"`
 	ImageOptimize string    `json:"image_optimize_path,omitempty"`
 	VideoEncode   string    `json:"video_encode_path,omitempty"`
@@ -331,9 +220,6 @@ func GetStatus() HelperStatus {
 
 	if path, err := findHelper(JWTSignerBinary); err == nil {
 		status.JWTSigner = path
-	}
-	if path, err := findHelper(KeychainBinary); err == nil {
-		status.Keychain = path
 	}
 	if path, err := findHelper(ScreenshotFrameBinary); err == nil {
 		status.Screenshot = path

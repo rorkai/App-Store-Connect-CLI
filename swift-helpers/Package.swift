@@ -12,10 +12,6 @@ let package = Package(
             targets: ["asc-jwt-sign"]
         ),
         .executable(
-            name: "asc-keychain",
-            targets: ["asc-keychain"]
-        ),
-        .executable(
             name: "asc-screenshot-frame",
             targets: ["asc-screenshot-frame"]
         ),
@@ -43,15 +39,6 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
             path: "Sources/asc-jwt-sign"
-        ),
-
-        // Keychain helper - Security.framework native access
-        .executableTarget(
-            name: "asc-keychain",
-            dependencies: [
-                .product(name: "ArgumentParser", package: "swift-argument-parser")
-            ],
-            path: "Sources/asc-keychain"
         ),
 
         // Screenshot framing helper - Core Image/Metal accelerated
@@ -95,11 +82,6 @@ let package = Package(
             name: "JWTHelperTests",
             dependencies: ["asc-jwt-sign"],
             path: "Tests/JWTHelperTests"
-        ),
-        .testTarget(
-            name: "KeychainHelperTests",
-            dependencies: ["asc-keychain"],
-            path: "Tests/KeychainHelperTests"
         ),
         .testTarget(
             name: "ScreenshotFrameTests",

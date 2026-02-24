@@ -137,7 +137,6 @@ func TestSwiftEndToEnd_AllHelpersPresent(t *testing.T) {
 		binary string
 	}{
 		{"JWT Signer", JWTSignerBinary},
-		{"Keychain", KeychainBinary},
 		{"Screenshot Frame", ScreenshotFrameBinary},
 		{"Image Optimize", ImageOptimizeBinary},
 		{"Video Encode", VideoEncodeBinary},

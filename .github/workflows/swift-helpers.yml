@@ -57,7 +57,7 @@ jobs:
       - name: Test binary execution
         working-directory: swift-helpers
         run: |
-          for helper in asc-jwt-sign asc-keychain asc-screenshot-frame asc-image-optimize asc-video-encode; do
+          for helper in asc-jwt-sign asc-screenshot-frame asc-image-optimize asc-video-encode; do
             if [ -f ".build/release/$helper" ]; then
               echo "✓ $helper built successfully"
             else
@@ -170,11 +170,8 @@ jobs:
 
       - name: Run benchmark tests
         run: |
-          echo "=== Benchmarks (non-keychain) ==="
+          echo "=== Benchmarks ==="
           ASC_BYPASS_KEYCHAIN=1 go test -bench=. -benchtime=3s -count=1 -run='^$' ./internal/swifthelpers/... -v 2>&1 | tee bench-results.txt
-          echo ""
-          echo "=== Keychain benchmarks ==="
-          go test -bench=BenchmarkKeychainOperations -benchtime=3s -count=1 -run='^$' ./internal/swifthelpers/... -v 2>&1 | tee -a bench-results.txt
           echo ""
           echo "=== Summary ==="
           grep -E '^Benchmark|SKIP|PASS|FAIL|ok' bench-results.txt || true
