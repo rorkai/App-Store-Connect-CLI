@@ -616,7 +616,7 @@ func uploadPreviewAsset(ctx context.Context, client *asc.Client, setID, filePath
 	if err != nil {
 		return asc.AssetUploadResultItem{}, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	info, err := file.Stat()
 	if err != nil {

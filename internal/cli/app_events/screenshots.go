@@ -310,7 +310,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("app-events screenshots create: %w", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 
 			resp, err := client.CreateAppEventScreenshot(requestCtx, resolvedLocalizationID, info.Name(), info.Size(), normalizedAssetType)
 			if err != nil {

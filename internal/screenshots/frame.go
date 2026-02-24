@@ -708,13 +708,13 @@ func copyFile(sourcePath, destinationPath string) error {
 	if err != nil {
 		return fmt.Errorf("open generated screenshot: %w", err)
 	}
-	defer sourceFile.Close()
+	defer func() { _ = sourceFile.Close() }()
 
 	destinationFile, err := os.Create(destinationPath)
 	if err != nil {
 		return fmt.Errorf("create final screenshot: %w", err)
 	}
-	defer destinationFile.Close()
+	defer func() { _ = destinationFile.Close() }()
 
 	buffer := make([]byte, 256*1024)
 	if _, err := io.CopyBuffer(destinationFile, sourceFile, buffer); err != nil {

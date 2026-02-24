@@ -179,7 +179,7 @@ func readCommunityWallEntriesFromURL(ctx context.Context, sourceURL string) ([]c
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch community wall source: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))

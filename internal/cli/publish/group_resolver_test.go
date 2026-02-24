@@ -56,7 +56,7 @@ func writeTestECDSAPEM(t *testing.T, path string) {
 	if err != nil {
 		t.Fatalf("create key file: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if err := pem.Encode(f, &pem.Block{Type: "EC PRIVATE KEY", Bytes: der}); err != nil {
 		t.Fatalf("encode PEM: %v", err)
 	}

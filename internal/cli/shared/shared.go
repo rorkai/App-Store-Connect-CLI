@@ -140,15 +140,15 @@ func OrNA(value string) string {
 // RenderSection renders a titled section as markdown or table output.
 func RenderSection(title string, headers []string, rows [][]string, markdown bool) {
 	if markdown {
-		fmt.Fprintf(os.Stdout, "### %s\n\n", title)
+		_, _ = fmt.Fprintf(os.Stdout, "### %s\n\n", title)
 		asc.RenderMarkdown(headers, rows)
-		fmt.Fprintln(os.Stdout)
+		_, _ = fmt.Fprintln(os.Stdout)
 		return
 	}
 
-	fmt.Fprintf(os.Stdout, "%s\n", Bold(strings.ToUpper(title)))
+	_, _ = fmt.Fprintf(os.Stdout, "%s\n", Bold(strings.ToUpper(title)))
 	asc.RenderTable(headers, rows)
-	fmt.Fprintln(os.Stdout)
+	_, _ = fmt.Fprintln(os.Stdout)
 }
 
 func supportsANSI() bool {
@@ -211,9 +211,9 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 		b.WriteString("\n")
 		tw := tabwriter.NewWriter(&b, 0, 2, 2, ' ', 0)
 		for _, sub := range c.Subcommands {
-			fmt.Fprintf(tw, "  %s\t%s\n", sub.Name, sub.ShortHelp)
+			_, _ = fmt.Fprintf(tw, "  %s\t%s\n", sub.Name, sub.ShortHelp)
 		}
-		tw.Flush()
+		_ = tw.Flush()
 		b.WriteString("\n")
 	}
 
@@ -234,12 +234,12 @@ func DefaultUsageFunc(c *ffcli.Command) string {
 					usage = strings.Replace(usage, "json (default),", "json,", 1)
 				}
 				if def != "" {
-					fmt.Fprintf(tw, "  --%-12s %s (default: %s)\n", f.Name, usage, def)
+					_, _ = fmt.Fprintf(tw, "  --%-12s %s (default: %s)\n", f.Name, usage, def)
 					return
 				}
-				fmt.Fprintf(tw, "  --%-12s %s\n", f.Name, usage)
+				_, _ = fmt.Fprintf(tw, "  --%-12s %s\n", f.Name, usage)
 			})
-			tw.Flush()
+			_ = tw.Flush()
 			b.WriteString("\n")
 		}
 	}

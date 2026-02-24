@@ -96,7 +96,7 @@ func TestDefaultOutputFormat_ReturnsJSON(t *testing.T) {
 func TestDefaultOutputFormat_UnsetReturnsJSON(t *testing.T) {
 	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "")
-	os.Unsetenv("ASC_DEFAULT_OUTPUT")
+	_ = os.Unsetenv("ASC_DEFAULT_OUTPUT")
 	if got := DefaultOutputFormat(); got != "json" {
 		t.Fatalf("expected json, got %q", got)
 	}

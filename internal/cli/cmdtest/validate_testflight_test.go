@@ -39,22 +39,22 @@ func newValidateTestFlightClient(t *testing.T, fixture validateTestFlightFixture
 		}
 
 		path := req.URL.Path
-		switch {
-		case path == "/v1/apps/app-1":
+		switch path {
+		case "/v1/apps/app-1":
 			return jsonResponse(http.StatusOK, fixture.app)
-		case path == "/v1/builds/build-1":
+		case "/v1/builds/build-1":
 			if fixture.build != "" {
 				return jsonResponse(http.StatusOK, fixture.build)
 			}
 			return jsonResponse(http.StatusNotFound, notFound)
-		case path == "/v1/builds/build-1/app":
+		case "/v1/builds/build-1/app":
 			return jsonResponse(http.StatusOK, fixture.buildApp)
-		case path == "/v1/apps/app-1/betaAppReviewDetail":
+		case "/v1/apps/app-1/betaAppReviewDetail":
 			if fixture.betaReviewDetail != "" {
 				return jsonResponse(http.StatusOK, fixture.betaReviewDetail)
 			}
 			return jsonResponse(http.StatusNotFound, notFound)
-		case path == "/v1/builds/build-1/betaBuildLocalizations":
+		case "/v1/builds/build-1/betaBuildLocalizations":
 			if fixture.buildLocs != "" {
 				return jsonResponse(http.StatusOK, fixture.buildLocs)
 			}

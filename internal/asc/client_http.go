@@ -142,7 +142,7 @@ func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader
 		}
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if debugSettings.verboseHTTP {
 		debugLogger.Info("← HTTP Response",

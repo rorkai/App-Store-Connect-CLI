@@ -217,7 +217,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("xcode-cloud artifacts download: %w", err)
 			}
-			defer download.Body.Close()
+			defer func() { _ = download.Body.Close() }()
 
 			bytesWritten, err := writeArtifactFile(pathValue, download.Body, *overwrite)
 			if err != nil {
@@ -251,7 +251,7 @@ func writeArtifactFile(path string, reader io.Reader, overwrite bool) (int64, er
 			}
 			return 0, err
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		n, err := io.Copy(file, reader)
 		if err != nil {
@@ -281,7 +281,7 @@ func writeArtifactFile(path string, reader io.Reader, overwrite bool) (int64, er
 	if err != nil {
 		return 0, err
 	}
-	defer tempFile.Close()
+	defer func() { _ = tempFile.Close() }()
 
 	tempPath := tempFile.Name()
 	success := false

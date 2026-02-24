@@ -528,7 +528,7 @@ func (c *DaemonClient) IsDaemonRunning() bool {
 	if err := c.Connect(); err != nil {
 		return false
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 	return true
 }
 
@@ -559,7 +559,7 @@ func (c *DaemonClient) SignJWTWithDaemon(ctx context.Context, req JWTSignRequest
 	// Send request
 	if _, err := c.conn.Write(requestData); err != nil {
 		// Connection might be stale, try reconnecting once
-		c.conn.Close()
+		_ = c.conn.Close()
 		c.conn = nil
 		if err := c.Connect(); err != nil {
 			return nil, err
@@ -572,7 +572,7 @@ func (c *DaemonClient) SignJWTWithDaemon(ctx context.Context, req JWTSignRequest
 	// Read response
 	// Signal end of request (safe type assertion)
 	if unixConn, ok := c.conn.(*net.UnixConn); ok {
-		unixConn.CloseWrite()
+		_ = unixConn.CloseWrite()
 	}
 
 	responseData, err := io.ReadAll(c.conn)

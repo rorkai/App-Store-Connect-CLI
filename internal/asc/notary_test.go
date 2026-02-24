@@ -101,7 +101,7 @@ func TestSubmitNotarization_SendsRequest(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		mustEncodeJSON(t, w, resp)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := newTestNotaryClient(t, server.URL)
 	ctx := context.Background()
@@ -135,7 +135,7 @@ func TestSubmitNotarization_ErrorResponse(t *testing.T) {
 			},
 		})
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := newTestNotaryClient(t, server.URL)
 	_, err := client.SubmitNotarization(context.Background(), "abc123", "test.zip")
@@ -179,7 +179,7 @@ func TestGetNotarizationStatus_SendsRequest(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				mustEncodeJSON(t, w, resp)
 			}))
-			defer server.Close()
+			defer func() { server.Close() }()
 
 			client := newTestNotaryClient(t, server.URL)
 			resp, err := client.GetNotarizationStatus(context.Background(), "sub-456")
@@ -205,7 +205,7 @@ func TestGetNotarizationStatus_ErrorResponse(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 		mustWriteBody(t, w, `{"errors":[{"code":"NOT_FOUND","title":"Not Found","detail":"Submission not found"}]}`)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := newTestNotaryClient(t, server.URL)
 	_, err := client.GetNotarizationStatus(context.Background(), "nonexistent")
@@ -235,7 +235,7 @@ func TestGetNotarizationLogs_SendsRequest(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		mustEncodeJSON(t, w, resp)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := newTestNotaryClient(t, server.URL)
 	resp, err := client.GetNotarizationLogs(context.Background(), "sub-789")
@@ -256,7 +256,7 @@ func TestGetNotarizationLogs_ErrorResponse(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 		mustWriteBody(t, w, `{"errors":[{"code":"NOT_FOUND","title":"Not Found","detail":"Logs not available"}]}`)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := newTestNotaryClient(t, server.URL)
 	_, err := client.GetNotarizationLogs(context.Background(), "nonexistent")
@@ -299,7 +299,7 @@ func TestListNotarizations_SendsRequest(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		mustEncodeJSON(t, w, resp)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := newTestNotaryClient(t, server.URL)
 	resp, err := client.ListNotarizations(context.Background())
@@ -332,7 +332,7 @@ func TestListNotarizations_EmptyResult(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		mustEncodeJSON(t, w, resp)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := newTestNotaryClient(t, server.URL)
 	resp, err := client.ListNotarizations(context.Background())
@@ -350,7 +350,7 @@ func TestListNotarizations_ErrorResponse(t *testing.T) {
 		w.WriteHeader(http.StatusUnauthorized)
 		mustWriteBody(t, w, `{"errors":[{"code":"UNAUTHORIZED","title":"Unauthorized"}]}`)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := newTestNotaryClient(t, server.URL)
 	_, err := client.ListNotarizations(context.Background())

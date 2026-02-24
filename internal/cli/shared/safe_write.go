@@ -27,7 +27,7 @@ func SafeWriteFileNoSymlink(path string, perm os.FileMode, overwrite bool, tempP
 			}
 			return 0, err
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		written, err := write(file)
 		if err != nil {
@@ -54,7 +54,7 @@ func SafeWriteFileNoSymlink(path string, perm os.FileMode, overwrite bool, tempP
 	if err != nil {
 		return 0, err
 	}
-	defer tempFile.Close()
+	defer func() { _ = tempFile.Close() }()
 
 	tempPath := tempFile.Name()
 	success := false

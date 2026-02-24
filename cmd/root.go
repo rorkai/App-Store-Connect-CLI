@@ -40,7 +40,7 @@ func RootCommand(version string) *ffcli.Command {
 
 	root.Exec = func(ctx context.Context, args []string) error {
 		if versionRequested {
-			fmt.Fprintln(os.Stdout, version)
+			_, _ = fmt.Fprintln(os.Stdout, version)
 			return nil
 		}
 		if len(args) > 0 {

@@ -544,7 +544,7 @@ func fetchSalesWeekMetrics(ctx context.Context, client *asc.Client, vendor, repo
 	if err != nil {
 		return salesWeekMetrics{}, err
 	}
-	defer download.Body.Close()
+	defer func() { _ = download.Body.Close() }()
 
 	metrics, err := parseSalesReportMetrics(download.Body, scope)
 	if err != nil {
@@ -565,7 +565,7 @@ func fetchSalesDayMetrics(ctx context.Context, client *asc.Client, vendor, repor
 	if err != nil {
 		return salesWeekMetrics{}, err
 	}
-	defer download.Body.Close()
+	defer func() { _ = download.Body.Close() }()
 
 	metrics, err := parseSalesReportMetrics(download.Body, scope)
 	if err != nil {
@@ -579,7 +579,7 @@ func parseSalesReportMetrics(reader io.Reader, scope salesScope) (salesWeekMetri
 	if err != nil {
 		return salesWeekMetrics{}, fmt.Errorf("read gzip report: %w", err)
 	}
-	defer gzipReader.Close()
+	defer func() { _ = gzipReader.Close() }()
 
 	tsvReader := csv.NewReader(gzipReader)
 	tsvReader.Comma = '\t'

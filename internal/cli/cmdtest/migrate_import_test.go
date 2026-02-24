@@ -429,7 +429,7 @@ func writePNGForMigrate(t *testing.T, path string, width, height int) {
 	if err != nil {
 		t.Fatalf("create png: %v", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	if err := png.Encode(file, img); err != nil {
 		t.Fatalf("encode png: %v", err)
 	}

@@ -40,16 +40,16 @@ func CompletionCommand(rootSubcommands []*ffcli.Command) *ffcli.Command {
 		names := rootCommandNames(rootSubcommands)
 		switch s {
 		case "bash":
-			fmt.Fprint(os.Stdout, bashScript(names))
+			_, _ = fmt.Fprint(os.Stdout, bashScript(names))
 			return nil
 		case "zsh":
-			fmt.Fprint(os.Stdout, zshScript(names))
+			_, _ = fmt.Fprint(os.Stdout, zshScript(names))
 			return nil
 		case "fish":
-			fmt.Fprint(os.Stdout, fishScript(names))
+			_, _ = fmt.Fprint(os.Stdout, fishScript(names))
 			return nil
 		default:
-			fmt.Fprintf(os.Stderr, "Error: unsupported shell: %s\n", shared.SanitizeTerminal(s))
+			_, _ = fmt.Fprintf(os.Stderr, "Error: unsupported shell: %s\n", shared.SanitizeTerminal(s))
 			return flag.ErrHelp
 		}
 	}

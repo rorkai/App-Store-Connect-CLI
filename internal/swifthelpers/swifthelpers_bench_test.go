@@ -47,7 +47,7 @@ func BenchmarkJWTSigning(b *testing.B) {
 	block := &pem.Block{Type: "PRIVATE KEY", Bytes: privKeyBytes}
 	keyFile, _ := os.Create(keyPath)
 	_ = pem.Encode(keyFile, block)
-	keyFile.Close()
+	_ = keyFile.Close()
 
 	ctx := context.Background()
 
@@ -78,7 +78,6 @@ func BenchmarkJWTSigning(b *testing.B) {
 			}
 		})
 	}
-
 }
 
 // BenchmarkKeychainOperations compares Go (99designs/keyring) vs Swift (Security.framework)

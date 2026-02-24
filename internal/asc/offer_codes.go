@@ -166,7 +166,7 @@ func (c *Client) GetSubscriptionOfferCodeOneTimeUseCodeValues(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return parseSubscriptionOfferCodeOneTimeUseCodeValues(resp.Body)
 }
@@ -180,7 +180,7 @@ func (c *Client) GetInAppPurchaseOfferCodeOneTimeUseCodeValues(ctx context.Conte
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	return parseSubscriptionOfferCodeOneTimeUseCodeValues(resp.Body)
 }

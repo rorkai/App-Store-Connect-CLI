@@ -104,7 +104,7 @@ func (c *Client) fetchPerfPowerMetrics(ctx context.Context, path string) (*PerfP
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -170,7 +170,7 @@ func (c *Client) GetDiagnosticSignatureLogs(ctx context.Context, signatureID str
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {

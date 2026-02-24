@@ -288,12 +288,12 @@ func TestAuthLoginCommand(t *testing.T) {
 	t.Run("local requires bypass", func(t *testing.T) {
 		// Capture exact original state, including empty-but-present values.
 		origValue, origPresent := os.LookupEnv("ASC_BYPASS_KEYCHAIN")
-		os.Unsetenv("ASC_BYPASS_KEYCHAIN")
+		_ = os.Unsetenv("ASC_BYPASS_KEYCHAIN")
 		t.Cleanup(func() {
 			if origPresent {
-				os.Setenv("ASC_BYPASS_KEYCHAIN", origValue)
+				_ = os.Setenv("ASC_BYPASS_KEYCHAIN", origValue)
 			} else {
-				os.Unsetenv("ASC_BYPASS_KEYCHAIN")
+				_ = os.Unsetenv("ASC_BYPASS_KEYCHAIN")
 			}
 		})
 		cmd := AuthLoginCommand()

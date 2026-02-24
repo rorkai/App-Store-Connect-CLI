@@ -279,7 +279,7 @@ func writeFrameTestPNG(t *testing.T, path string, img image.Image) {
 	if err != nil {
 		t.Fatalf("Create(%q) error: %v", path, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if err := png.Encode(file, img); err != nil {
 		t.Fatalf("png.Encode(%q) error: %v", path, err)

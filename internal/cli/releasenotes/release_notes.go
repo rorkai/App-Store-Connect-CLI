@@ -169,11 +169,11 @@ Examples:
 				return err
 			case "table":
 				tw := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
-				fmt.Fprintln(tw, "SHA\tSUBJECT")
+				_, _ = fmt.Fprintln(tw, "SHA\tSUBJECT")
 				for _, c := range commits {
 					sha := shared.SanitizeTerminal(strings.TrimSpace(c.SHA))
 					subject := shared.SanitizeTerminal(strings.TrimSpace(c.Subject))
-					fmt.Fprintf(tw, "%s\t%s\n", sha, subject)
+					_, _ = fmt.Fprintf(tw, "%s\t%s\n", sha, subject)
 				}
 				return tw.Flush()
 			default:

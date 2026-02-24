@@ -605,7 +605,7 @@ func TestUploadGameCenterActivityImage(t *testing.T) {
 		_ = r.Body.Close()
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {

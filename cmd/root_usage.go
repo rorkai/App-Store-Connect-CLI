@@ -145,9 +145,9 @@ func writeRootGroupedSubcommands(b *strings.Builder, subcommands []*ffcli.Comman
 		b.WriteString("\n")
 		tw := tabwriter.NewWriter(b, 0, 2, 2, ' ', 0)
 		for _, sub := range groupCommands {
-			fmt.Fprintf(tw, "  %s:\t%s\n", sub.Name, sub.ShortHelp)
+			_, _ = fmt.Fprintf(tw, "  %s:\t%s\n", sub.Name, sub.ShortHelp)
 		}
-		tw.Flush()
+		_ = tw.Flush()
 		b.WriteString("\n")
 	}
 
@@ -165,9 +165,9 @@ func writeRootGroupedSubcommands(b *strings.Builder, subcommands []*ffcli.Comman
 	b.WriteString("\n")
 	tw := tabwriter.NewWriter(b, 0, 2, 2, ' ', 0)
 	for _, sub := range additional {
-		fmt.Fprintf(tw, "  %s:\t%s\n", sub.Name, sub.ShortHelp)
+		_, _ = fmt.Fprintf(tw, "  %s:\t%s\n", sub.Name, sub.ShortHelp)
 	}
-	tw.Flush()
+	_ = tw.Flush()
 	b.WriteString("\n")
 }
 
@@ -193,11 +193,11 @@ func writeRootFlags(b *strings.Builder, fs *flag.FlagSet) {
 			usage = strings.Replace(usage, "json (default),", "json,", 1)
 		}
 		if f.DefValue != "" {
-			fmt.Fprintf(tw, "  --%s\t%s (default: %s)\n", f.Name, usage, f.DefValue)
+			_, _ = fmt.Fprintf(tw, "  --%s\t%s (default: %s)\n", f.Name, usage, f.DefValue)
 			return
 		}
-		fmt.Fprintf(tw, "  --%s\t%s\n", f.Name, usage)
+		_, _ = fmt.Fprintf(tw, "  --%s\t%s\n", f.Name, usage)
 	})
-	tw.Flush()
+	_ = tw.Flush()
 	b.WriteString("\n")
 }

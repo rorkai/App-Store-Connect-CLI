@@ -117,7 +117,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("subscriptions review-screenshots create: %w", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 
 			client, err := shared.GetASCClient()
 			if err != nil {

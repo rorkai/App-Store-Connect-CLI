@@ -25,7 +25,7 @@ func UploadAsset(ctx context.Context, filePath string, operations []UploadOperat
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	info, err := file.Stat()
 	if err != nil {
@@ -132,7 +132,7 @@ func ReadImageDimensions(path string) (ImageDimensions, error) {
 	if err != nil {
 		return ImageDimensions{}, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	cfg, _, err := image.DecodeConfig(file)
 	if err != nil {
@@ -150,7 +150,7 @@ func ComputeChecksum(path string, algorithm ChecksumAlgorithm) (*Checksum, error
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	return ComputeChecksumFromReader(file, algorithm)
 }

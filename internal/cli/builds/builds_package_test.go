@@ -90,7 +90,7 @@ func TestPackageWithGo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open IPA as ZIP: %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	// Check for Payload directory in IPA
 	foundPayload := false
@@ -362,7 +362,7 @@ func TestCreateIPAFromPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to open IPA: %v", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	expectedFiles := map[string]bool{
 		"Payload/TestApp.app/Info.plist": false,

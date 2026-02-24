@@ -140,7 +140,7 @@ func writeMinimalPNG(t *testing.T, path string, width, height int) {
 	if err != nil {
 		t.Fatalf("create PNG file: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	if err := png.Encode(f, img); err != nil {
 		t.Fatalf("encode PNG: %v", err)
 	}

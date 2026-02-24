@@ -189,7 +189,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("notify slack: failed to send: %w", err)
 			}
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 
 			if resp.StatusCode != http.StatusOK {
 				limited := io.LimitReader(resp.Body, slackWebhookMaxResponseBodyBytes)

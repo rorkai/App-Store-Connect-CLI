@@ -311,7 +311,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("app-events video-clips create: %w", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 
 			resp, err := client.CreateAppEventVideoClip(requestCtx, resolvedLocalizationID, info.Name(), info.Size(), normalizedAssetType, strings.TrimSpace(*previewFrame))
 			if err != nil {

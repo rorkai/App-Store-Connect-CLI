@@ -106,7 +106,7 @@ func writeTestIPA(t *testing.T, files map[string][]byte) string {
 	if err != nil {
 		t.Fatalf("create IPA: %v", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	zipWriter := zip.NewWriter(file)
 	for name, data := range files {

@@ -21,8 +21,8 @@ go test ./...
 
 Optional tooling:
 ```bash
-make tools   # installs gofumpt + golangci-lint
-make lint    # uses golangci-lint if installed, else go vet
+make tools   # installs gofumpt + golangci-lint v2
+make lint    # uses golangci-lint v2 if installed, else go vet
 make format  # gofmt + gofumpt (requires gofumpt; install with make tools)
 ```
 
@@ -69,7 +69,7 @@ Do not commit secrets.
 Run this checklist before opening a PR:
 
 ```bash
-make tools               # Install gofumpt + golangci-lint
+make tools               # Install gofumpt + golangci-lint v2
 make format              # Format code
 make lint                # Lint code
 make check-command-docs  # Verify command docs are up to date

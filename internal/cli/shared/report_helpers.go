@@ -68,7 +68,7 @@ func WriteStreamToFile(path string, reader io.Reader) (int64, error) {
 		}
 		return 0, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	written, err := io.Copy(file, reader)
 	if err != nil {
@@ -83,13 +83,13 @@ func DecompressGzipFile(sourcePath, destPath string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer in.Close()
+	defer func() { _ = in.Close() }()
 
 	reader, err := gzip.NewReader(in)
 	if err != nil {
 		return 0, err
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 		return 0, err
@@ -101,7 +101,7 @@ func DecompressGzipFile(sourcePath, destPath string) (int64, error) {
 		}
 		return 0, err
 	}
-	defer out.Close()
+	defer func() { _ = out.Close() }()
 
 	written, err := io.Copy(out, reader)
 	if err != nil {

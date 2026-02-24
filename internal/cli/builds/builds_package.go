@@ -112,7 +112,7 @@ func packageWithGo(ctx context.Context, appPath, outputPath string, level int) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Create Payload directory
 	payloadDir := filepath.Join(tempDir, "Payload")
@@ -208,13 +208,13 @@ func copyAppBundle(src, dst string) error {
 		if err != nil {
 			return err
 		}
-		defer srcFile.Close()
+		defer func() { _ = srcFile.Close() }()
 
 		dstFile, err := os.Create(dstPath)
 		if err != nil {
 			return err
 		}
-		defer dstFile.Close()
+		defer func() { _ = dstFile.Close() }()
 
 		if _, err := io.Copy(dstFile, srcFile); err != nil {
 			return err
@@ -239,7 +239,7 @@ func createIPAFromPayload(payloadDir, outputPath string, level int) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Set compression level on the writer (0 = store, 9 = best compression)
 	zipWriter := zip.NewWriter(file)
@@ -248,7 +248,7 @@ func createIPAFromPayload(payloadDir, outputPath string, level int) error {
 			return &nopCloser{out}, nil
 		})
 	}
-	defer zipWriter.Close()
+	defer func() { _ = zipWriter.Close() }()
 
 	// Walk through Payload directory and add files to zip
 	return filepath.Walk(payloadDir, func(path string, info os.FileInfo, err error) error {
@@ -282,7 +282,7 @@ func createIPAFromPayload(payloadDir, outputPath string, level int) error {
 		if err != nil {
 			return err
 		}
-		defer srcFile.Close()
+		defer func() { _ = srcFile.Close() }()
 
 		_, err = io.Copy(writer, srcFile)
 		return err
@@ -302,7 +302,7 @@ func getFileSize(path string) (int64, error) {
 func printPackagingStats(originalSize, compressedSize int64, ratio float64) {
 	originalMB := float64(originalSize) / (1024 * 1024)
 	compressedMB := float64(compressedSize) / (1024 * 1024)
-	fmt.Fprintf(os.Stderr, "Original: %.2f MB, Compressed: %.2f MB (%.1fx ratio)\n",
+	_, _ = fmt.Fprintf(os.Stderr, "Original: %.2f MB, Compressed: %.2f MB (%.1fx ratio)\n",
 		originalMB, compressedMB, ratio)
 }
 

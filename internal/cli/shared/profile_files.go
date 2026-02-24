@@ -19,7 +19,7 @@ func WriteProfileFile(path string, content []byte) error {
 		}
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if _, err := file.Write(content); err != nil {
 		return err

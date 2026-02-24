@@ -280,7 +280,7 @@ func freeLocalPort(t *testing.T) int {
 	if err != nil {
 		t.Fatalf("listen for free port: %v", err)
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
 	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
 	if !ok {
@@ -300,7 +300,7 @@ func postJSONWithRetry(t *testing.T, baseURL string, payload string) int {
 			time.Sleep(50 * time.Millisecond)
 			continue
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		_, _ = io.Copy(io.Discard, resp.Body)
 		return resp.StatusCode
 	}

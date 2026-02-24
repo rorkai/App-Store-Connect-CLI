@@ -138,7 +138,7 @@ func ValidateKeyFile(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to open key file: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	info, err := file.Stat()
 	if err != nil {

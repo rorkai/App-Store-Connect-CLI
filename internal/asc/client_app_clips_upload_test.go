@@ -51,7 +51,7 @@ func TestUploadAppClipHeaderImage(t *testing.T) {
 		_ = r.Body.Close()
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
@@ -106,7 +106,7 @@ func TestUploadAppClipAdvancedExperienceImage(t *testing.T) {
 		_ = r.Body.Close()
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {

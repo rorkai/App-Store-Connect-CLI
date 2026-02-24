@@ -525,7 +525,7 @@ func readStringsFile(path string) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
@@ -727,7 +727,7 @@ func writeStringsFile(path string, values map[string]string, order []string) err
 		}
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if _, err := file.WriteString(b.String()); err != nil {
 		return err

@@ -23,7 +23,7 @@ func parseDeliverfile(path string) (DeliverfileConfig, error) {
 	if err != nil {
 		return DeliverfileConfig{}, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var config DeliverfileConfig
 	scanner := bufio.NewScanner(file)

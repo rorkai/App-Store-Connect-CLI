@@ -86,8 +86,8 @@ func run(args []string, stdout io.Writer, stderr io.Writer) error {
 		return err
 	}
 
-	fmt.Fprintf(stdout, "%s app entry in %s\n", action, jsonPath)
-	fmt.Fprintf(stdout, "Synced snippet markers in %s\n", result.ReadmePath)
+	_, _ = fmt.Fprintf(stdout, "%s app entry in %s\n", action, jsonPath)
+	_, _ = fmt.Fprintf(stdout, "Synced snippet markers in %s\n", result.ReadmePath)
 	return nil
 }
 
@@ -300,7 +300,7 @@ func enrichEntriesWithAppStoreIcons(entries []wallgen.WallEntry, stderr io.Write
 
 	iconByAppStoreID, err := lookupAppStoreArtworkURLs(ids)
 	if err != nil {
-		fmt.Fprintf(stderr, "Warning: unable to refresh App Store icons: %v\n", err)
+		_, _ = fmt.Fprintf(stderr, "Warning: unable to refresh App Store icons: %v\n", err)
 		return entries
 	}
 
@@ -337,7 +337,7 @@ func fetchAppStoreArtworkURLs(ids []string) (map[string]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("app store lookup request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
