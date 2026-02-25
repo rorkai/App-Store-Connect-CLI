@@ -216,6 +216,7 @@ func BetaBuildLocalizationsCreateCommand() *ffcli.Command {
 	buildID := fs.String("build", "", "Build ID")
 	locale := fs.String("locale", "", "Locale (e.g., en-US)")
 	whatsNew := fs.String("whats-new", "", "What to Test notes")
+	upsert := fs.Bool("upsert", false, "Create-or-update by locale (idempotent)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -225,7 +226,8 @@ func BetaBuildLocalizationsCreateCommand() *ffcli.Command {
 		LongHelp: `Create a beta build localization.
 
 Examples:
-  asc beta-build-localizations create --build "BUILD_ID" --locale "en-US" --whats-new "Test instructions"`,
+  asc beta-build-localizations create --build "BUILD_ID" --locale "en-US" --whats-new "Test instructions"
+  asc beta-build-localizations create --build "BUILD_ID" --locale "en-US" --whats-new "Test instructions" --upsert`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -263,9 +265,17 @@ Examples:
 				WhatsNew: whatsNewValue,
 			}
 
-			resp, err := client.CreateBetaBuildLocalization(requestCtx, buildValue, attrs)
-			if err != nil {
-				return fmt.Errorf("beta-build-localizations create: failed to create: %w", err)
+			var resp *asc.BetaBuildLocalizationResponse
+			if *upsert {
+				resp, err = shared.UpsertBetaBuildLocalization(requestCtx, client, buildValue, localeValue, whatsNewValue)
+				if err != nil {
+					return fmt.Errorf("beta-build-localizations create: failed to upsert: %w", err)
+				}
+			} else {
+				resp, err = client.CreateBetaBuildLocalization(requestCtx, buildValue, attrs)
+				if err != nil {
+					return fmt.Errorf("beta-build-localizations create: failed to create: %w", err)
+				}
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

@@ -936,6 +936,38 @@ func TestGetBuilds_WithVersionFilter(t *testing.T) {
 	}
 }
 
+func TestGetBuilds_WithProcessingStateFilter(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"build-processing","attributes":{"version":"42","processingState":"PROCESSING","uploadedDate":"2026-01-20T00:00:00Z"}}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		// Processing-state filtering requires /v1/builds endpoint.
+		if req.URL.Path != "/v1/builds" {
+			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[app]") != "123" {
+			t.Fatalf("expected filter[app]=123, got %q", values.Get("filter[app]"))
+		}
+		if values.Get("filter[processingState]") != "PROCESSING,FAILED" {
+			t.Fatalf("expected filter[processingState]=PROCESSING,FAILED, got %q", values.Get("filter[processingState]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	builds, err := client.GetBuilds(context.Background(), "123", WithBuildsProcessingStates([]string{"processing", "FAILED"}))
+	if err != nil {
+		t.Fatalf("GetBuilds() error: %v", err)
+	}
+	if len(builds.Data) != 1 {
+		t.Fatalf("expected 1 build, got %d", len(builds.Data))
+	}
+	if builds.Data[0].ID != "build-processing" {
+		t.Fatalf("expected build ID build-processing, got %s", builds.Data[0].ID)
+	}
+}
+
 func TestGetBuilds_UsesNextURL(t *testing.T) {
 	next := "https://api.appstoreconnect.apple.com/v1/builds?cursor=abc"
 	response := jsonResponse(http.StatusOK, `{"data":[]}`)
@@ -1021,6 +1053,40 @@ func TestGetBuilds_WithMultiplePreReleaseVersions(t *testing.T) {
 	}
 	if builds.Data[0].ID != "build-2" {
 		t.Fatalf("expected build ID build-2, got %s", builds.Data[0].ID)
+	}
+}
+
+func TestGetBuilds_WithPreReleasePlatforms(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"build-ios"}]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds" {
+			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[app]") != "123" {
+			t.Fatalf("expected filter[app]=123, got %q", values.Get("filter[app]"))
+		}
+		if values.Get("filter[preReleaseVersion.platform]") != "IOS,MAC_OS" {
+			t.Fatalf(
+				"expected filter[preReleaseVersion.platform]=IOS,MAC_OS, got %q",
+				values.Get("filter[preReleaseVersion.platform]"),
+			)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	builds, err := client.GetBuilds(context.Background(), "123", WithBuildsPreReleaseVersionPlatforms([]string{"ios", "MAC_OS"}))
+	if err != nil {
+		t.Fatalf("GetBuilds() error: %v", err)
+	}
+	if len(builds.Data) != 1 {
+		t.Fatalf("expected 1 build, got %d", len(builds.Data))
+	}
+	if builds.Data[0].ID != "build-ios" {
+		t.Fatalf("expected build ID build-ios, got %s", builds.Data[0].ID)
 	}
 }
 

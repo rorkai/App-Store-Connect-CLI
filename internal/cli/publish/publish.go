@@ -47,9 +47,10 @@ func PublishTestFlightCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("publish testflight", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
-	ipaPath := fs.String("ipa", "", "Path to .ipa file (required)")
+	ipaPath := fs.String("ipa", "", "Path to .ipa file (required unless --build/--build-number is provided)")
+	buildID := fs.String("build", "", "Existing build ID to distribute (skip upload)")
 	version := fs.String("version", "", "CFBundleShortVersionString (auto-extracted from IPA if not provided)")
-	buildNumber := fs.String("build-number", "", "CFBundleVersion (auto-extracted from IPA if not provided)")
+	buildNumber := fs.String("build-number", "", "CFBundleVersion (used for upload metadata with --ipa, or build lookup when --ipa is omitted)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	groupIDs := fs.String("group", "", "Beta group ID(s) or name(s), comma-separated")
 	notify := fs.Bool("notify", false, "Notify testers after adding to groups")
@@ -67,7 +68,7 @@ func PublishTestFlightCommand() *ffcli.Command {
 		LongHelp: `Upload IPA and distribute to TestFlight beta groups.
 
 Steps:
-1. Upload IPA to App Store Connect
+1. Upload IPA to App Store Connect (unless --build/--build-number is provided)
 2. Wait for processing (if --wait)
 3. Add build to specified beta groups
 4. Optionally notify testers
@@ -76,7 +77,9 @@ Examples:
   asc publish testflight --app "123" --ipa app.ipa --group "GROUP_ID"
   asc publish testflight --app "123" --ipa app.ipa --group "External Testers"
   asc publish testflight --app "123" --ipa app.ipa --group "G1,G2" --wait --notify
-  asc publish testflight --app "123" --ipa app.ipa --group "GROUP_ID" --test-notes "Test instructions" --locale "en-US" --wait`,
+  asc publish testflight --app "123" --ipa app.ipa --group "GROUP_ID" --test-notes "Test instructions" --locale "en-US" --wait
+  asc publish testflight --app "123" --build "BUILD_ID" --group "GROUP_ID" --wait
+  asc publish testflight --app "123" --build-number "42" --group "GROUP_ID" --wait`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -85,9 +88,27 @@ Examples:
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
 				return flag.ErrHelp
 			}
-			if strings.TrimSpace(*ipaPath) == "" {
-				fmt.Fprintf(os.Stderr, "Error: --ipa is required\n\n")
-				return flag.ErrHelp
+
+			ipaValue := strings.TrimSpace(*ipaPath)
+			buildIDValue := strings.TrimSpace(*buildID)
+			buildNumberValue := strings.TrimSpace(*buildNumber)
+			versionValue := strings.TrimSpace(*version)
+
+			uploadMode := ipaValue != ""
+			if uploadMode {
+				if buildIDValue != "" {
+					return shared.UsageError("--ipa and --build are mutually exclusive")
+				}
+			} else {
+				if buildIDValue == "" && buildNumberValue == "" {
+					return shared.UsageError("--ipa is required unless --build or --build-number is provided")
+				}
+				if buildIDValue != "" && buildNumberValue != "" {
+					return shared.UsageError("--build and --build-number are mutually exclusive when --ipa is not provided")
+				}
+				if versionValue != "" {
+					return shared.UsageError("--version is only supported when --ipa is provided")
+				}
 			}
 
 			parsedGroupIDs := shared.SplitCSV(*groupIDs)
@@ -124,14 +145,19 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 
-			fileInfo, err := validateIPAPath(*ipaPath)
-			if err != nil {
-				return fmt.Errorf("publish testflight: %w", err)
-			}
+			var uploadFileInfo os.FileInfo
+			uploadVersionValue := ""
+			uploadBuildNumberValue := ""
+			if uploadMode {
+				uploadFileInfo, err = validateIPAPath(ipaValue)
+				if err != nil {
+					return fmt.Errorf("publish testflight: %w", err)
+				}
 
-			versionValue, buildNumberValue, err := resolveBundleInfoForIPA(*ipaPath, *version, *buildNumber)
-			if err != nil {
-				return fmt.Errorf("publish testflight: %w", err)
+				uploadVersionValue, uploadBuildNumberValue, err = resolveBundleInfoForIPA(ipaValue, *version, *buildNumber)
+				if err != nil {
+					return fmt.Errorf("publish testflight: %w", err)
+				}
 			}
 
 			client, err := shared.GetASCClient()
@@ -150,12 +176,47 @@ Examples:
 
 			platformValue := asc.Platform(normalizedPlatform)
 			timeoutOverride := *timeout > 0
-			uploadResult, err := uploadBuildAndWaitForID(requestCtx, client, resolvedAppID, *ipaPath, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval, timeoutValue, timeoutOverride)
-			if err != nil {
-				return fmt.Errorf("publish testflight: %w", err)
+			uploaded := false
+			resolvedVersionValue := ""
+			resolvedBuildNumberValue := ""
+
+			var buildResp *asc.BuildResponse
+			if uploadMode {
+				uploadResult, err := uploadBuildAndWaitForID(
+					requestCtx,
+					client,
+					resolvedAppID,
+					ipaValue,
+					uploadFileInfo,
+					uploadVersionValue,
+					uploadBuildNumberValue,
+					platformValue,
+					*pollInterval,
+					timeoutValue,
+					timeoutOverride,
+				)
+				if err != nil {
+					return fmt.Errorf("publish testflight: %w", err)
+				}
+
+				buildResp = uploadResult.Build
+				uploaded = true
+				resolvedVersionValue = uploadResult.Version
+				resolvedBuildNumberValue = uploadResult.BuildNumber
+			} else if buildIDValue != "" {
+				buildResp, err = client.GetBuild(requestCtx, buildIDValue)
+				if err != nil {
+					return fmt.Errorf("publish testflight: failed to fetch build: %w", err)
+				}
+				resolvedBuildNumberValue = strings.TrimSpace(buildResp.Data.Attributes.Version)
+			} else {
+				buildResp, err = findPublishBuildByNumber(requestCtx, client, resolvedAppID, buildNumberValue, normalizedPlatform)
+				if err != nil {
+					return fmt.Errorf("publish testflight: %w", err)
+				}
+				resolvedBuildNumberValue = strings.TrimSpace(buildResp.Data.Attributes.Version)
 			}
 
-			buildResp := uploadResult.Build
 			if *wait || testNotesValue != "" {
 				buildResp, err = client.WaitForBuildProcessing(requestCtx, buildResp.Data.ID, *pollInterval)
 				if err != nil {
@@ -175,10 +236,10 @@ Examples:
 
 			result := &asc.TestFlightPublishResult{
 				BuildID:         buildResp.Data.ID,
-				BuildVersion:    uploadResult.Version,
-				BuildNumber:     uploadResult.BuildNumber,
+				BuildVersion:    resolvedVersionValue,
+				BuildNumber:     resolvedBuildNumberValue,
 				GroupIDs:        resolvedGroupIDs,
-				Uploaded:        true,
+				Uploaded:        uploaded,
 				ProcessingState: buildResp.Data.Attributes.ProcessingState,
 				Notified:        *notify,
 			}
@@ -364,6 +425,38 @@ func uploadBuildAndWaitForID(ctx context.Context, client *asc.Client, appID, ipa
 		Version:     version,
 		BuildNumber: buildNumber,
 	}, nil
+}
+
+func findPublishBuildByNumber(ctx context.Context, client *asc.Client, appID, buildNumber, platform string) (*asc.BuildResponse, error) {
+	buildNumber = strings.TrimSpace(buildNumber)
+	if buildNumber == "" {
+		return nil, fmt.Errorf("build number is required")
+	}
+
+	opts := []asc.BuildsOption{
+		asc.WithBuildsBuildNumber(buildNumber),
+		asc.WithBuildsSort("-uploadedDate"),
+		asc.WithBuildsLimit(1),
+		asc.WithBuildsProcessingStates([]string{
+			asc.BuildProcessingStateProcessing,
+			asc.BuildProcessingStateFailed,
+			asc.BuildProcessingStateInvalid,
+			asc.BuildProcessingStateValid,
+		}),
+	}
+	if strings.TrimSpace(platform) != "" {
+		opts = append(opts, asc.WithBuildsPreReleaseVersionPlatforms([]string{platform}))
+	}
+
+	buildsResp, err := client.GetBuilds(ctx, appID, opts...)
+	if err != nil {
+		return nil, err
+	}
+	if len(buildsResp.Data) == 0 {
+		return nil, fmt.Errorf("no build found for app %q with build number %q", appID, buildNumber)
+	}
+
+	return &asc.BuildResponse{Data: buildsResp.Data[0], Links: buildsResp.Links}, nil
 }
 
 func resolvePublishTimeout(timeout time.Duration) time.Duration {

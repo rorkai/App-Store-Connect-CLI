@@ -16,13 +16,32 @@ linters:
     - misspell
     - unparam
     - errorlint
-
-  settings:
-    misspell:
-      # Words used intentionally in Apple/ASC API context.
-      ignore-rules:
-        - cancelled
-        - cancelling
+linters-settings:
+  errcheck:
+    # These are intentionally ignored across the codebase:
+    # - Close/Flush failures are not actionable in most CLI flows/tests
+    # - fmt/os env writes are best-effort output/control-plane helpers
+    exclude-functions:
+      - (io.Closer).Close
+      - (io.ReadCloser).Close
+      - (*os.File).Close
+      - (*compress/gzip.Reader).Close
+      - (*archive/zip.ReadCloser).Close
+      - (*github.com/fsnotify/fsnotify.Watcher).Close
+      - (net.Listener).Close
+      - (*net.TCPListener).Close
+      - (*net.UnixListener).Close
+      - (*text/tabwriter.Writer).Flush
+      - fmt.Fprint
+      - fmt.Fprintf
+      - fmt.Fprintln
+      - os.Setenv
+      - os.Unsetenv
+  misspell:
+    # Words used intentionally in Apple/ASC API context.
+    ignore-words:
+      - cancelled
+      - cancelling
 
 issues:
   exclude-rules:

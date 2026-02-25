@@ -88,6 +88,7 @@ Use `asc <command> --help` for subcommands and flags.
 
 - `auth` - Manage authentication for the App Store Connect API.
 - `doctor` - Diagnose authentication configuration issues.
+- `web` - Experimental/unofficial Apple web-session workflows (discouraged; detached from official API-key flows).
 - `account` - Inspect account-level health and access signals.
 - `install-skills` - Install the asc skill pack for App Store Connect workflows.
 - `init` - Initialize asc helper docs in the current repo.

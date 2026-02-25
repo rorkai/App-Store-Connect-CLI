@@ -17,15 +17,25 @@ func UpsertBetaBuildLocalization(ctx context.Context, client *asc.Client, buildI
 	}
 
 	resp, err := client.GetBetaBuildLocalizations(ctx, buildID,
-		asc.WithBetaBuildLocalizationLocales([]string{localeValue}),
 		asc.WithBetaBuildLocalizationsLimit(200),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	if resp != nil && len(resp.Data) > 0 {
-		localizationID := strings.TrimSpace(resp.Data[0].ID)
+	localizationID := ""
+	foundLocale := false
+	if resp != nil {
+		for _, localization := range resp.Data {
+			if !strings.EqualFold(strings.TrimSpace(localization.Attributes.Locale), localeValue) {
+				continue
+			}
+			foundLocale = true
+			localizationID = strings.TrimSpace(localization.ID)
+			break
+		}
+	}
+	if foundLocale {
 		if localizationID == "" {
 			return nil, fmt.Errorf("missing localization ID for locale %q", localeValue)
 		}

@@ -218,6 +218,21 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			args:    []string{"publish", "appstore", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--timeout", "-1s"},
 			wantErr: "--timeout must be greater than 0",
 		},
+		{
+			name:    "builds list invalid processing-state",
+			args:    []string{"builds", "list", "--app", "APP_123", "--processing-state", "WRONG"},
+			wantErr: "--processing-state must be one of",
+		},
+		{
+			name:    "builds wait missing selector",
+			args:    []string{"builds", "wait"},
+			wantErr: "--build is required, or provide --app and --build-number",
+		},
+		{
+			name:    "builds find missing build-number",
+			args:    []string{"builds", "find", "--app", "APP_123"},
+			wantErr: "--build-number is required",
+		},
 	}
 
 	for _, test := range tests {

@@ -379,6 +379,8 @@ func BuildsCommand() *ffcli.Command {
 Examples:
   asc builds list --app "123456789"
   asc builds latest --app "123456789"
+  asc builds find --app "123456789" --build-number "42"
+  asc builds wait --build "BUILD_ID"
   asc builds info --build "BUILD_ID"
   asc builds expire --build "BUILD_ID"
   asc builds expire-all --app "123456789" --older-than 90d --dry-run
@@ -401,6 +403,8 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			listCmd,
 			BuildsLatestCommand(),
+			BuildsFindCommand(),
+			BuildsWaitCommand(),
 			BuildsInfoCommand(),
 			BuildsExpireCommand(),
 			BuildsExpireAllCommand(),
@@ -436,6 +440,7 @@ func BuildsListCommand() *ffcli.Command {
 	sort := fs.String("sort", "", "Sort by uploadedDate or -uploadedDate")
 	version := fs.String("version", "", "Filter by marketing version string (CFBundleShortVersionString)")
 	buildNumber := fs.String("build-number", "", "Filter by build number (CFBundleVersion)")
+	processingState := fs.String("processing-state", "", "Filter by processing state: VALID, PROCESSING, FAILED, INVALID, or all")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -453,6 +458,8 @@ Examples:
   asc builds list --app "123456789"
   asc builds list --app "123456789" --version "1.2.3"
   asc builds list --app "123456789" --build-number "123"
+  asc builds list --app "123456789" --processing-state "PROCESSING"
+  asc builds list --app "123456789" --processing-state "all"
   asc builds list --app "123456789" --version "1.2.3" --build-number "123"
   asc builds list --app "123456789" --limit 10
   asc builds list --app "123456789" --paginate`,
@@ -472,6 +479,10 @@ Examples:
 
 			versionValue := strings.TrimSpace(*version)
 			buildNumberValue := strings.TrimSpace(*buildNumber)
+			processingStateValues, err := normalizeBuildProcessingStateFilter(*processingState)
+			if err != nil {
+				return err
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && nextValue == "" {
@@ -515,6 +526,9 @@ Examples:
 			if buildNumberValue != "" {
 				opts = append(opts, asc.WithBuildsBuildNumber(buildNumberValue))
 			}
+			if len(processingStateValues) > 0 {
+				opts = append(opts, asc.WithBuildsProcessingStates(processingStateValues))
+			}
 			if len(preReleaseVersionIDs) > 0 {
 				opts = append(opts, asc.WithBuildsPreReleaseVersions(preReleaseVersionIDs))
 			}
@@ -547,6 +561,51 @@ Examples:
 			return shared.PrintOutput(builds, format, *output.Pretty)
 		},
 	}
+}
+
+func normalizeBuildProcessingStateFilter(raw string) ([]string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+
+	values := shared.SplitCSVUpper(raw)
+	if len(values) == 0 {
+		return nil, shared.UsageError("--processing-state must include at least one state")
+	}
+
+	if len(values) == 1 && values[0] == "ALL" {
+		return []string{
+			asc.BuildProcessingStateProcessing,
+			asc.BuildProcessingStateFailed,
+			asc.BuildProcessingStateInvalid,
+			asc.BuildProcessingStateValid,
+		}, nil
+	}
+
+	allowed := map[string]struct{}{
+		asc.BuildProcessingStateValid:      {},
+		asc.BuildProcessingStateProcessing: {},
+		asc.BuildProcessingStateFailed:     {},
+		asc.BuildProcessingStateInvalid:    {},
+	}
+
+	resolved := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if value == "ALL" {
+			return nil, shared.UsageError("--processing-state value \"all\" cannot be combined with other states")
+		}
+		if _, ok := allowed[value]; !ok {
+			return nil, shared.UsageError("--processing-state must be one of VALID, PROCESSING, FAILED, INVALID, or all")
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		resolved = append(resolved, value)
+	}
+
+	return resolved, nil
 }
 
 func findPreReleaseVersionIDsForBuildsList(

@@ -195,9 +195,10 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 		path = query.nextURL
 	} else {
 		values := url.Values{}
-		// Use /v1/builds endpoint when sorting, limiting, or filtering by version/preReleaseVersion/expired,
+		// Use /v1/builds endpoint when sorting, limiting, or filtering by
+		// version/processingState/preReleaseVersion/platform/expired,
 		// since /v1/apps/{id}/builds doesn't support these
-		if query.sort != "" || query.limit > 0 || query.version != "" || len(query.preReleaseVersionIDs) > 0 || query.expired != nil {
+		if query.sort != "" || query.limit > 0 || query.version != "" || len(query.processingStates) > 0 || len(query.preReleasePlatforms) > 0 || len(query.preReleaseVersionIDs) > 0 || query.expired != nil {
 			path = "/v1/builds"
 			values.Set("filter[app]", appID)
 			if query.sort != "" {
@@ -208,6 +209,12 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 			}
 			if query.version != "" {
 				values.Set("filter[version]", query.version)
+			}
+			if len(query.processingStates) > 0 {
+				values.Set("filter[processingState]", strings.Join(query.processingStates, ","))
+			}
+			if len(query.preReleasePlatforms) > 0 {
+				values.Set("filter[preReleaseVersion.platform]", strings.Join(query.preReleasePlatforms, ","))
 			}
 			if len(query.preReleaseVersionIDs) > 0 {
 				values.Set("filter[preReleaseVersion]", strings.Join(query.preReleaseVersionIDs, ","))

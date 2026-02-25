@@ -1468,6 +1468,26 @@ func WithBuildsBuildNumber(buildNumber string) BuildsOption {
 	return WithBuildsVersion(buildNumber)
 }
 
+// WithBuildsProcessingStates filters builds by processing state.
+func WithBuildsProcessingStates(states []string) BuildsOption {
+	return func(q *buildsQuery) {
+		normalized := normalizeUpperList(states)
+		if len(normalized) > 0 {
+			q.processingStates = normalized
+		}
+	}
+}
+
+// WithBuildsPreReleaseVersionPlatforms filters builds by the related pre-release platform.
+func WithBuildsPreReleaseVersionPlatforms(platforms []string) BuildsOption {
+	return func(q *buildsQuery) {
+		normalized := normalizeUpperList(platforms)
+		if len(normalized) > 0 {
+			q.preReleasePlatforms = normalized
+		}
+	}
+}
+
 // WithBuildsPreReleaseVersion filters builds by a single pre-release version ID.
 func WithBuildsPreReleaseVersion(preReleaseVersionID string) BuildsOption {
 	return WithBuildsPreReleaseVersions([]string{preReleaseVersionID})

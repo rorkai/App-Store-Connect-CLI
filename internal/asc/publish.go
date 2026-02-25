@@ -24,6 +24,7 @@ type AppStorePublishResult struct {
 // Build processing states to poll for.
 const (
 	BuildProcessingStateProcessing = "PROCESSING"
+	BuildProcessingStateFailed     = "FAILED"
 	BuildProcessingStateValid      = "VALID"
 	BuildProcessingStateInvalid    = "INVALID"
 )

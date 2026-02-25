@@ -291,19 +291,27 @@ Examples:
 				localizations, err := client.GetBetaBuildLocalizations(
 					requestCtx,
 					buildValue,
-					asc.WithBetaBuildLocalizationLocales([]string{localeValue}),
 					asc.WithBetaBuildLocalizationsLimit(200),
 				)
 				if err != nil {
 					return fmt.Errorf("builds test-notes update: failed to resolve localization: %w", err)
 				}
-				if localizations == nil || len(localizations.Data) == 0 {
+				matches := make([]asc.Resource[asc.BetaBuildLocalizationAttributes], 0, 1)
+				if localizations != nil {
+					for _, localization := range localizations.Data {
+						if !strings.EqualFold(strings.TrimSpace(localization.Attributes.Locale), localeValue) {
+							continue
+						}
+						matches = append(matches, localization)
+					}
+				}
+				if len(matches) == 0 {
 					return fmt.Errorf("builds test-notes update: no localization found for build %q and locale %q", buildValue, localeValue)
 				}
-				if len(localizations.Data) > 1 {
+				if len(matches) > 1 {
 					return fmt.Errorf("builds test-notes update: multiple localizations found for build %q and locale %q; use --id", buildValue, localeValue)
 				}
-				id = strings.TrimSpace(localizations.Data[0].ID)
+				id = strings.TrimSpace(matches[0].ID)
 				if id == "" {
 					return fmt.Errorf("builds test-notes update: resolved localization has empty ID")
 				}

@@ -1,6 +1,9 @@
 package betabuildlocalizations
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestBetaBuildLocalizationsCommandConstructors(t *testing.T) {
 	top := BetaBuildLocalizationsCommand()
@@ -19,5 +22,20 @@ func TestBetaBuildLocalizationsCommandConstructors(t *testing.T) {
 	}
 	if got := BetaBuildLocalizationsBuildCommand(); got == nil {
 		t.Fatal("expected build relationship command")
+	}
+}
+
+func TestBetaBuildLocalizationsCreateCommandUpsertFlag(t *testing.T) {
+	cmd := BetaBuildLocalizationsCreateCommand()
+	if cmd == nil {
+		t.Fatal("expected create command")
+	}
+
+	upsertFlag := cmd.FlagSet.Lookup("upsert")
+	if upsertFlag == nil {
+		t.Fatal("expected --upsert flag")
+	}
+	if !strings.Contains(upsertFlag.Usage, "Create-or-update") {
+		t.Fatalf("expected --upsert usage text, got %q", upsertFlag.Usage)
 	}
 }

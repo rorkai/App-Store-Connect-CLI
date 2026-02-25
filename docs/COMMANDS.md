@@ -42,6 +42,10 @@ asc <subcommand> [flags]
 - `init` - Initialize asc helper docs in the current repo.
 - `docs` - Access embedded documentation guides and reference helpers.
 
+### Experimental Commands
+
+- `web` - EXPERIMENTAL: Unofficial web-session workflows (discouraged).
+
 ### Analytics and Finance
 
 - `analytics` - Request and download analytics and sales reports.

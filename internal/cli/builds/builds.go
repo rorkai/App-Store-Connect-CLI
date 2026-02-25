@@ -20,6 +20,7 @@ func BuildsAddGroupsCommand() *ffcli.Command {
 
 	buildID := fs.String("build", "", "Build ID")
 	groups := fs.String("group", "", "Comma-separated beta group IDs or names")
+	skipInternal := fs.Bool("skip-internal", false, "Skip internal beta groups (they automatically receive processed builds)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -31,7 +32,8 @@ func BuildsAddGroupsCommand() *ffcli.Command {
 Examples:
   asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
   asc builds add-groups --build "BUILD_ID" --group "External Testers"
-  asc builds add-groups --build "BUILD_ID" --group "GROUP1,GROUP2"`,
+  asc builds add-groups --build "BUILD_ID" --group "GROUP1,GROUP2"
+  asc builds add-groups --build "BUILD_ID" --group "INTERNAL_ID,EXTERNAL_ID" --skip-internal`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -55,19 +57,55 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			groupIDs, err := resolveBuildBetaGroupIDs(requestCtx, client, trimmedBuildID, groupInputs)
+			resolvedGroups, err := resolveBuildBetaGroups(requestCtx, client, trimmedBuildID, groupInputs)
 			if err != nil {
 				return fmt.Errorf("builds add-groups: %w", err)
 			}
 
-			if err := client.AddBetaGroupsToBuild(requestCtx, trimmedBuildID, groupIDs); err != nil {
+			externalGroupIDs := make([]string, 0, len(resolvedGroups))
+			skippedInternalGroups := make([]resolvedBuildBetaGroup, 0, len(resolvedGroups))
+			for _, group := range resolvedGroups {
+				if group.IsInternalGroup {
+					if !*skipInternal {
+						return fmt.Errorf(
+							"builds add-groups: cannot add build to group %q (%s): this is an internal beta group. Internal groups automatically receive all processed builds.\nHint: Use --skip-internal to skip internal groups, or remove internal group IDs from --group",
+							group.NameForDisplay(),
+							group.ID,
+						)
+					}
+					skippedInternalGroups = append(skippedInternalGroups, group)
+					continue
+				}
+				externalGroupIDs = append(externalGroupIDs, group.ID)
+			}
+
+			for _, group := range skippedInternalGroups {
+				fmt.Fprintf(
+					os.Stderr,
+					"Skipped internal group %q (%s): builds are auto-distributed\n",
+					group.NameForDisplay(),
+					group.ID,
+				)
+			}
+
+			if len(externalGroupIDs) == 0 {
+				fmt.Fprintf(os.Stderr, "No external groups to add for build %s\n", trimmedBuildID)
+				result := &asc.BuildBetaGroupsUpdateResult{
+					BuildID:  trimmedBuildID,
+					GroupIDs: []string{},
+					Action:   "added",
+				}
+				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			}
+
+			if err := client.AddBetaGroupsToBuild(requestCtx, trimmedBuildID, externalGroupIDs); err != nil {
 				return fmt.Errorf("builds add-groups: failed to add groups: %w", err)
 			}
 
-			fmt.Fprintf(os.Stderr, "Successfully added %d group(s) to build %s\n", len(groupIDs), trimmedBuildID)
+			fmt.Fprintf(os.Stderr, "Successfully added %d group(s) to build %s\n", len(externalGroupIDs), trimmedBuildID)
 			result := &asc.BuildBetaGroupsUpdateResult{
 				BuildID:  trimmedBuildID,
-				GroupIDs: groupIDs,
+				GroupIDs: externalGroupIDs,
 				Action:   "added",
 			}
 
@@ -76,7 +114,21 @@ Examples:
 	}
 }
 
-func resolveBuildBetaGroupIDs(ctx context.Context, client *asc.Client, buildID string, groups []string) ([]string, error) {
+type resolvedBuildBetaGroup struct {
+	ID              string
+	Name            string
+	IsInternalGroup bool
+}
+
+func (g resolvedBuildBetaGroup) NameForDisplay() string {
+	name := strings.TrimSpace(g.Name)
+	if name != "" {
+		return name
+	}
+	return g.ID
+}
+
+func resolveBuildBetaGroups(ctx context.Context, client *asc.Client, buildID string, groups []string) ([]resolvedBuildBetaGroup, error) {
 	buildApp, err := client.GetBuildApp(ctx, buildID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve app for build %q: %w", buildID, err)
@@ -104,7 +156,39 @@ func resolveBuildBetaGroupIDs(ctx context.Context, client *asc.Client, buildID s
 			return nil, fmt.Errorf("unexpected beta groups pagination type %T", paginated)
 		}
 	}
-	return resolveBuildBetaGroupIDsFromList(groups, allGroups)
+
+	return resolveBuildBetaGroupsFromList(groups, allGroups)
+}
+
+func resolveBuildBetaGroupsFromList(inputGroups []string, groups *asc.BetaGroupsResponse) ([]resolvedBuildBetaGroup, error) {
+	resolvedIDs, err := resolveBuildBetaGroupIDsFromList(inputGroups, groups)
+	if err != nil {
+		return nil, err
+	}
+
+	groupsByID := make(map[string]asc.Resource[asc.BetaGroupAttributes], len(groups.Data))
+	for _, group := range groups.Data {
+		id := strings.TrimSpace(group.ID)
+		if id == "" {
+			continue
+		}
+		groupsByID[id] = group
+	}
+
+	resolvedGroups := make([]resolvedBuildBetaGroup, 0, len(resolvedIDs))
+	for _, resolvedID := range resolvedIDs {
+		group, ok := groupsByID[resolvedID]
+		if !ok {
+			return nil, fmt.Errorf("resolved beta group %q not found in app group list", resolvedID)
+		}
+		resolvedGroups = append(resolvedGroups, resolvedBuildBetaGroup{
+			ID:              resolvedID,
+			Name:            strings.TrimSpace(group.Attributes.Name),
+			IsInternalGroup: group.Attributes.IsInternalGroup,
+		})
+	}
+
+	return resolvedGroups, nil
 }
 
 func resolveBuildBetaGroupIDsFromList(inputGroups []string, groups *asc.BetaGroupsResponse) ([]string, error) {

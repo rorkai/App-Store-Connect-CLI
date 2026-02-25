@@ -31,9 +31,6 @@ func TestBuildsTestNotesUpdateByBuildLocaleNotFound(t *testing.T) {
 			t.Fatalf("expected path /v1/builds/build-1/betaBuildLocalizations, got %s", req.URL.Path)
 		}
 		query := req.URL.Query()
-		if query.Get("filter[locale]") != "en-US" {
-			t.Fatalf("expected filter[locale]=en-US, got %q", query.Get("filter[locale]"))
-		}
 		if query.Get("limit") != "200" {
 			t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 		}

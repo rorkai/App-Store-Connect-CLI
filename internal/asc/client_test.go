@@ -1319,6 +1319,28 @@ func TestBuildBuildsQuery_WithBuildNumberAlias(t *testing.T) {
 	}
 }
 
+func TestBuildBuildsQuery_WithProcessingStates(t *testing.T) {
+	query := &buildsQuery{}
+	WithBuildsProcessingStates([]string{" processing ", "failed", "", "INVALID"})(query)
+	if len(query.processingStates) != 3 {
+		t.Fatalf("expected 3 processing states, got %d (%v)", len(query.processingStates), query.processingStates)
+	}
+	if query.processingStates[0] != "PROCESSING" || query.processingStates[1] != "FAILED" || query.processingStates[2] != "INVALID" {
+		t.Fatalf("expected normalized processing states [PROCESSING FAILED INVALID], got %v", query.processingStates)
+	}
+}
+
+func TestBuildBuildsQuery_WithPreReleasePlatforms(t *testing.T) {
+	query := &buildsQuery{}
+	WithBuildsPreReleaseVersionPlatforms([]string{" ios ", "MAC_OS", ""})(query)
+	if len(query.preReleasePlatforms) != 2 {
+		t.Fatalf("expected 2 pre-release platforms, got %d (%v)", len(query.preReleasePlatforms), query.preReleasePlatforms)
+	}
+	if query.preReleasePlatforms[0] != "IOS" || query.preReleasePlatforms[1] != "MAC_OS" {
+		t.Fatalf("expected normalized pre-release platforms [IOS MAC_OS], got %v", query.preReleasePlatforms)
+	}
+}
+
 func TestBuildBuildsQuery_WithPreReleaseVersions(t *testing.T) {
 	query := &buildsQuery{}
 	WithBuildsPreReleaseVersions([]string{"prv-1", " ", "prv-2"})(query)

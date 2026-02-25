@@ -31,6 +31,25 @@ type AppUpdateAttributes struct {
 	ContentRightsDeclaration *ContentRightsDeclaration `json:"contentRightsDeclaration,omitempty"`
 }
 
+// AppCreateAttributes describes attributes for creating an app.
+type AppCreateAttributes struct {
+	Name          string `json:"name"`
+	BundleID      string `json:"bundleId"`
+	SKU           string `json:"sku"`
+	PrimaryLocale string `json:"primaryLocale,omitempty"`
+}
+
+// AppCreateData is the data portion of an app create request.
+type AppCreateData struct {
+	Type       ResourceType         `json:"type"`
+	Attributes *AppCreateAttributes `json:"attributes,omitempty"`
+}
+
+// AppCreateRequest is a request to create an app.
+type AppCreateRequest struct {
+	Data AppCreateData `json:"data"`
+}
+
 // AppUpdateData is the data portion of an app update request.
 type AppUpdateData struct {
 	Type       ResourceType         `json:"type"`
@@ -263,6 +282,43 @@ func (c *Client) UpdateApp(ctx context.Context, appID string, attrs AppUpdateAtt
 	}
 
 	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/apps/%s", appID), body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// CreateApp creates a new app in App Store Connect.
+func (c *Client) CreateApp(ctx context.Context, attrs AppCreateAttributes) (*AppResponse, error) {
+	if strings.TrimSpace(attrs.Name) == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+	if strings.TrimSpace(attrs.BundleID) == "" {
+		return nil, fmt.Errorf("bundleId is required")
+	}
+	if strings.TrimSpace(attrs.SKU) == "" {
+		return nil, fmt.Errorf("sku is required")
+	}
+
+	payload := AppCreateRequest{
+		Data: AppCreateData{
+			Type:       ResourceTypeApps,
+			Attributes: &attrs,
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "POST", "/v1/apps", body)
 	if err != nil {
 		return nil, err
 	}

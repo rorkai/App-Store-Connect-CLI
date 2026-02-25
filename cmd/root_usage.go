@@ -22,6 +22,10 @@ var rootUsageGroups = []rootCommandGroup{
 		commands: []string{"auth", "doctor", "install-skills", "init", "docs"},
 	},
 	{
+		title:    "EXPERIMENTAL COMMANDS",
+		commands: []string{"web"},
+	},
+	{
 		title:    "ANALYTICS & FINANCE COMMANDS",
 		commands: []string{"analytics", "insights", "finance", "performance", "feedback", "crashes"},
 	},

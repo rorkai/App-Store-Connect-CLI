@@ -74,6 +74,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/versions"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/videopreviews"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/web"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/webhooks"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/winbackoffers"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/workflow"
@@ -99,6 +100,7 @@ func Subcommands(version string) []*ffcli.Command {
 	subs := []*ffcli.Command{
 		auth.AuthCommand(),
 		auth.AuthDoctorCommand(),
+		web.WebCommand(),
 		account.AccountCommand(),
 		install.InstallSkillsCommand(),
 		initcmd.InitCommand(),

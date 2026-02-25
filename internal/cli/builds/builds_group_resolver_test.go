@@ -105,3 +105,39 @@ func TestResolveBuildBetaGroupIDsFromList_MixedInputDeduplicates(t *testing.T) {
 		t.Fatalf("unexpected resolved order/content: %v", resolved)
 	}
 }
+
+func TestResolveBuildBetaGroupsFromListIncludesInternalMetadata(t *testing.T) {
+	groups := &asc.BetaGroupsResponse{
+		Data: []asc.Resource[asc.BetaGroupAttributes]{
+			{
+				ID: "group-internal",
+				Attributes: asc.BetaGroupAttributes{
+					Name:            "Internal Crew",
+					IsInternalGroup: true,
+				},
+			},
+			{
+				ID: "group-external",
+				Attributes: asc.BetaGroupAttributes{
+					Name:            "External QA",
+					IsInternalGroup: false,
+				},
+			},
+		},
+	}
+
+	resolved, err := resolveBuildBetaGroupsFromList([]string{"group-internal", "External QA"}, groups)
+	if err != nil {
+		t.Fatalf("resolveBuildBetaGroupsFromList() error: %v", err)
+	}
+	if len(resolved) != 2 {
+		t.Fatalf("expected 2 resolved groups, got %d", len(resolved))
+	}
+
+	if resolved[0].ID != "group-internal" || !resolved[0].IsInternalGroup {
+		t.Fatalf("expected internal group metadata for first entry, got %+v", resolved[0])
+	}
+	if resolved[1].ID != "group-external" || resolved[1].IsInternalGroup {
+		t.Fatalf("expected external group metadata for second entry, got %+v", resolved[1])
+	}
+}

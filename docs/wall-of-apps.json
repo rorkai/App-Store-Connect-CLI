@@ -72,14 +72,14 @@
     "app": "Inkput",
     "link": "https://apps.apple.com/app/id6758570182",
     "creator": "funclosure",
-    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/70/79/8d/70798d73-fcd7-11c3-59f0-46770396a8b4/AppIcon-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/a6/08/da/a608da09-81ee-bf12-46fe-e6d9c2f9489b/AppIcon-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg",
     "platform": ["iOS", "macOS"]
   },
   {
     "app": "KeepCount: Tally Counter",
     "link": "https://apps.apple.com/us/app/keepcount-tally-counter/id6758891370",
     "creator": "thillsman",
-    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d3/13/e3/d313e374-c818-c1e9-1676-e1d50342052f/AppIcon-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/a6/d6/95/a6d6959b-c69e-8c78-8247-3cd07eca7bd3/AppIcon-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg",
     "platform": ["iOS"]
   },
   {
@@ -87,6 +87,13 @@
     "link": "https://apps.apple.com/app/id6502549140",
     "creator": "adamjhf",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ec/60/49/ec604992-9786-57dd-0a9f-489b339a6f39/AppIcon-0-0-1x_U007ephone-0-1-85-220.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "LilyFM",
+    "link": "https://apps.apple.com/app/id6745472149",
+    "creator": "Clark Zhou",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/c0/43/6e/c0436e71-e3cc-763c-4ece-98ef2adae0da/AppIcon-0-0-1x_U007ephone-0-1-sRGB-85-220.png/512x512bb.jpg",
     "platform": ["iOS"]
   },
   {
@@ -145,6 +152,20 @@
     "platform": ["iOS"]
   },
   {
+    "app": "Progressio: Habit Tracker",
+    "link": "https://apps.apple.com/app/progressio-habit-tracker/id6740454461",
+    "creator": "truongduy2611",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/0a/a6/3a/0aa63a87-186d-e560-42fe-377337abdd7a/AppIcon-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg",
+    "platform": ["iOS", "watchOS"]
+  },
+  {
+    "app": "Reloop - AI Transcribe & Speak",
+    "link": "https://apps.apple.com/us/app/reloop-ai-transcribe-speak/id6752853818",
+    "creator": "wuqinqiang",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/25/3e/7c/253e7c69-86fd-0843-96a0-1f5e14977fdb/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "Repetti",
     "link": "https://apps.apple.com/us/app/repetti-the-chores-list-app/id6758055413",
     "creator": "rursache",
@@ -155,7 +176,7 @@
     "app": "Reps: AI Fitness & Recovery",
     "link": "https://apps.apple.com/app/id6746460451",
     "creator": "sidbmw",
-    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/0d/32/7e/0d327e27-4d64-63f5-9b05-70a0a4f58bf6/Reps_AppIcon-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/d4/6b/88/d46b88b6-e459-a316-6e0d-321ccb5c501a/Reps_AppIcon-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg",
     "platform": ["iOS", "watchOS"]
   },
   {

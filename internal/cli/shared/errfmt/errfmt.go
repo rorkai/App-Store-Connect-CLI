@@ -15,6 +15,11 @@ type ClassifiedError struct {
 	Hint    string
 }
 
+const (
+	requestTimeoutHint = "Increase the request timeout (e.g. set `ASC_TIMEOUT=90s`)."
+	uploadTimeoutHint  = "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=600s`)."
+)
+
 func Classify(err error) ClassifiedError {
 	if err == nil {
 		return ClassifiedError{}
@@ -28,9 +33,13 @@ func Classify(err error) ClassifiedError {
 	}
 
 	if errors.Is(err, context.DeadlineExceeded) {
+		hint := requestTimeoutHint
+		if isUploadTimeoutError(err) {
+			hint = uploadTimeoutHint
+		}
 		return ClassifiedError{
 			Message: err.Error(),
-			Hint:    "Increase the request timeout (e.g. set `ASC_TIMEOUT=90s`).",
+			Hint:    hint,
 		}
 	}
 
@@ -59,6 +68,14 @@ func Classify(err error) ClassifiedError {
 		Message: err.Error(),
 		Hint:    "",
 	}
+}
+
+func isUploadTimeoutError(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "upload failed") ||
+		strings.Contains(msg, "upload operation") ||
+		strings.Contains(msg, "multipart upload") ||
+		strings.Contains(msg, "s3 upload")
 }
 
 // containsPrivacyError checks whether the error references app data usage /

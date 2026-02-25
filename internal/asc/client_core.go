@@ -24,7 +24,7 @@ const (
 	// DefaultTimeout is the default request timeout
 	DefaultTimeout = 30 * time.Second
 	// DefaultUploadTimeout is the default timeout for upload operations.
-	DefaultUploadTimeout = 60 * time.Second
+	DefaultUploadTimeout = 300 * time.Second
 	// tokenLifetime is the JWT token lifetime for App Store Connect API authentication.
 	// 10 minutes is a good balance between security (shorter-lived tokens) and usability.
 	tokenLifetime = 10 * time.Minute

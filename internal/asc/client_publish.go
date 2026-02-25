@@ -27,6 +27,8 @@ func (c *Client) WaitForBuildProcessing(ctx context.Context, buildID string, pol
 		switch state {
 		case BuildProcessingStateValid:
 			return build, true, nil
+		case BuildProcessingStateFailed:
+			return nil, false, fmt.Errorf("build processing failed: %s", state)
 		case BuildProcessingStateInvalid:
 			return nil, false, fmt.Errorf("build processing failed: %s", state)
 		}

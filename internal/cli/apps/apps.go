@@ -2,15 +2,18 @@ package apps
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/iris"
 )
 
 func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *string, name *string, sku *string, sort *string, limit *int, next *string, paginate *bool) {
@@ -40,6 +43,7 @@ func AppsCommand() *ffcli.Command {
 Examples:
   asc apps
   asc apps list --bundle-id "com.example.app"
+  asc apps create --name "My App" --bundle-id "com.example.app" --sku "MYAPP123"
   asc apps wall
   asc apps get --id "APP_ID"
   asc apps ci-product get --id "APP_ID"
@@ -55,6 +59,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppsListCommand(),
+			AppsCreateCommand(),
 			AppsWallCommand(),
 			AppsGetCommand(),
 			AppsCIProductCommand(),
@@ -144,6 +149,341 @@ Examples:
 			return shared.PrintOutput(app, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// AppsCreateCommand returns the apps create subcommand.
+func AppsCreateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("apps create", flag.ExitOnError)
+
+	name := fs.String("name", "", "App name")
+	bundleID := fs.String("bundle-id", "", "Bundle ID (e.g., com.example.app)")
+	sku := fs.String("sku", "", "Unique SKU for the app")
+	primaryLocale := fs.String("primary-locale", "", "Primary locale (e.g., en-US)")
+	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, UNIVERSAL")
+	appleID := fs.String("apple-id", "", "Apple ID (email) for authentication")
+	password := fs.String("password", "", "Apple ID password (will prompt if not provided)")
+	twoFactorCode := fs.String("two-factor-code", "", "2FA verification code (if prompted)")
+	autoRename := fs.Bool("auto-rename", true, "Auto-retry with a unique app name when the chosen name is already in use (default: true)")
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "create",
+		ShortUsage: "asc apps create [flags]",
+		ShortHelp:  "Create a new app in App Store Connect.",
+		LongHelp: `Create a new app in App Store Connect.
+
+NOTE: App creation requires Apple ID authentication (not API key).
+If 2FA is enabled on your account, you may need to complete authentication in a browser first.
+
+If flags are not provided, an interactive prompt will guide you through the required fields.
+The bundle ID must be a valid identifier that matches an App ID in your developer account.
+You can create bundle IDs using: asc bundle-ids create
+
+Examples:
+  asc apps create
+  asc apps create --name "My App" --bundle-id "com.example.myapp" --sku "MYAPP123"
+  asc apps create --name "My App" --bundle-id "com.example.myapp" --sku "MYAPP123" --primary-locale "en-GB" --platform IOS
+  asc apps create --apple-id "user@example.com" --password`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			var nameValue, bundleIDValue, skuValue, localeValue, platformValue string
+			var appleIDValue, passwordValue string
+			var session *iris.AuthSession
+
+			// Best-effort: reuse a cached web session to avoid repeated 2FA prompts.
+			// We only do this when the user didn't explicitly provide a password.
+			if strings.TrimSpace(*password) == "" {
+				if strings.TrimSpace(*appleID) != "" {
+					if resumed, ok, err := iris.TryResumeSession(strings.TrimSpace(*appleID)); err == nil && ok {
+						session = resumed
+						appleIDValue = resumed.UserEmail
+					}
+				} else {
+					if resumed, ok, err := iris.TryResumeLastSession(); err == nil && ok {
+						session = resumed
+						appleIDValue = resumed.UserEmail
+					}
+				}
+			}
+
+			// If no flags provided, run interactive mode
+			if *name == "" && *bundleID == "" && *sku == "" {
+				fmt.Fprintln(os.Stderr)
+				fmt.Fprintln(os.Stderr, "Create a new app in App Store Connect")
+				fmt.Fprintln(os.Stderr)
+				fmt.Fprintln(os.Stderr, "Note: App creation requires your Apple ID credentials.")
+				fmt.Fprintln(os.Stderr)
+
+				if session == nil {
+					// Prompt for Apple ID
+					if err := survey.AskOne(&survey.Input{
+						Message: "Apple ID (email):",
+						Help:    "Your Apple ID email address",
+					}, &appleIDValue, survey.WithValidator(survey.Required)); err != nil {
+						return err
+					}
+
+					// Prompt for password
+					if err := survey.AskOne(&survey.Password{
+						Message: "Apple ID password:",
+						Help:    "Your Apple ID password",
+					}, &passwordValue, survey.WithValidator(survey.Required)); err != nil {
+						return err
+					}
+				}
+
+				// Prompt for name
+				if err := survey.AskOne(&survey.Input{
+					Message: "App name:",
+					Help:    "The name of your app as it will appear in App Store Connect",
+				}, &nameValue, survey.WithValidator(survey.Required)); err != nil {
+					return err
+				}
+
+				// Prompt for bundle ID
+				if err := survey.AskOne(&survey.Input{
+					Message: "Bundle ID:",
+					Help:    "The bundle identifier (e.g., com.example.myapp). Must match an App ID in your developer account.",
+				}, &bundleIDValue, survey.WithValidator(survey.Required)); err != nil {
+					return err
+				}
+
+				// Prompt for SKU
+				if err := survey.AskOne(&survey.Input{
+					Message: "SKU:",
+					Help:    "A unique identifier for your app (alphanumeric, used internally by Apple)",
+				}, &skuValue, survey.WithValidator(survey.Required)); err != nil {
+					return err
+				}
+
+				// Prompt for primary locale
+				if err := survey.AskOne(&survey.Input{
+					Message: "Primary locale:",
+					Default: "en-US",
+					Help:    "The primary language for your app (e.g., en-US, en-GB, de-DE)",
+				}, &localeValue); err != nil {
+					return err
+				}
+
+				// Prompt for platform
+				if err := survey.AskOne(&survey.Select{
+					Message: "Platform:",
+					Options: []string{"IOS", "MAC_OS", "UNIVERSAL"},
+					Default: "IOS",
+					Help:    "The primary platform for your app",
+				}, &platformValue); err != nil {
+					return err
+				}
+			} else {
+				// Use provided flags
+				nameValue = strings.TrimSpace(*name)
+				if nameValue == "" {
+					fmt.Fprintln(os.Stderr, "Error: --name is required")
+					return flag.ErrHelp
+				}
+				bundleIDValue = strings.TrimSpace(*bundleID)
+				if bundleIDValue == "" {
+					fmt.Fprintln(os.Stderr, "Error: --bundle-id is required")
+					return flag.ErrHelp
+				}
+				skuValue = strings.TrimSpace(*sku)
+				if skuValue == "" {
+					fmt.Fprintln(os.Stderr, "Error: --sku is required")
+					return flag.ErrHelp
+				}
+				localeValue = strings.TrimSpace(*primaryLocale)
+				if localeValue == "" {
+					localeValue = "en-US"
+				}
+				platformValue = strings.TrimSpace(*platform)
+
+				if session == nil {
+					// Get Apple ID credentials
+					appleIDValue = strings.TrimSpace(*appleID)
+					if appleIDValue == "" {
+						if err := survey.AskOne(&survey.Input{
+							Message: "Apple ID (email):",
+							Help:    "Your Apple ID email address",
+						}, &appleIDValue, survey.WithValidator(survey.Required)); err != nil {
+							return err
+						}
+					}
+
+					passwordValue = strings.TrimSpace(*password)
+					if passwordValue == "" {
+						if err := survey.AskOne(&survey.Password{
+							Message: "Apple ID password:",
+							Help:    "Your Apple ID password",
+						}, &passwordValue, survey.WithValidator(survey.Required)); err != nil {
+							return err
+						}
+					}
+				}
+			}
+
+			fmt.Fprintln(os.Stderr)
+			fmt.Fprintf(os.Stderr, "  Name:      %s\n", nameValue)
+			fmt.Fprintf(os.Stderr, "  Bundle ID: %s\n", bundleIDValue)
+			fmt.Fprintf(os.Stderr, "  SKU:       %s\n", skuValue)
+			fmt.Fprintf(os.Stderr, "  Locale:    %s\n", localeValue)
+			if platformValue != "" {
+				fmt.Fprintf(os.Stderr, "  Platform:  %s\n", platformValue)
+			}
+			fmt.Fprintln(os.Stderr)
+
+			if session == nil {
+				fmt.Fprintln(os.Stderr, "Authenticating with Apple ID...")
+				var err error
+				session, err = iris.Login(iris.LoginCredentials{
+					Username: appleIDValue,
+					Password: passwordValue,
+				})
+				if err != nil {
+					var tfaErr *iris.TwoFactorRequiredError
+					if session != nil && errors.As(err, &tfaErr) {
+						codeValue := strings.TrimSpace(*twoFactorCode)
+						if codeValue == "" {
+							if err := survey.AskOne(&survey.Input{
+								Message: "2FA code:",
+								Help:    "Enter the verification code from your trusted device or SMS",
+							}, &codeValue, survey.WithValidator(func(ans interface{}) error {
+								s, _ := ans.(string)
+								s = strings.TrimSpace(s)
+								if len(s) != 6 {
+									return fmt.Errorf("2FA code must be 6 digits")
+								}
+								for _, r := range s {
+									if r < '0' || r > '9' {
+										return fmt.Errorf("2FA code must be numeric")
+									}
+								}
+								return nil
+							})); err != nil {
+								return err
+							}
+						}
+
+						fmt.Fprintln(os.Stderr, "Verifying 2FA code...")
+						if err := iris.SubmitTwoFactorCode(session, codeValue); err != nil {
+							return fmt.Errorf("apps create: 2FA verification failed: %w", err)
+						}
+					} else {
+						return fmt.Errorf("apps create: authentication failed: %w", err)
+					}
+				}
+			}
+			iris.PersistSession(session)
+			fmt.Fprintf(os.Stderr, "✓ Authenticated as %s\n", session.UserEmail)
+
+			client := iris.NewClient(session)
+
+			attrs := iris.AppCreateAttributes{
+				Name:          nameValue,
+				BundleID:      bundleIDValue,
+				SKU:           skuValue,
+				PrimaryLocale: localeValue,
+				Platform:      platformValue,
+			}
+
+			fmt.Fprintln(os.Stderr, "Creating app...")
+			app, err := client.CreateApp(attrs)
+			if err != nil && *autoRename && iris.IsDuplicateAppNameError(err) {
+				suffix := bundleIDNameSuffix(bundleIDValue)
+				if suffix != "" {
+					for i := 0; i < 5; i++ {
+						trySuffix := suffix
+						if i > 0 {
+							trySuffix = fmt.Sprintf("%s-%d", suffix, i+1)
+						}
+						tryName := formatAppNameWithSuffix(nameValue, trySuffix)
+						if tryName == "" || tryName == attrs.Name {
+							continue
+						}
+						fmt.Fprintf(os.Stderr, "App name already in use; retrying with %q...\n", tryName)
+						attrs.Name = tryName
+						app, err = client.CreateApp(attrs)
+						if err == nil || !iris.IsDuplicateAppNameError(err) {
+							break
+						}
+					}
+				}
+			}
+			if err != nil {
+				return fmt.Errorf("apps create: failed to create: %w", err)
+			}
+
+			fmt.Fprintf(os.Stderr, "✓ App created successfully! App ID: %s\n", app.Data.ID)
+			return shared.PrintOutput(app, *output.Output, *output.Pretty)
+		},
+	}
+}
+
+const maxAppNameLen = 30
+
+func bundleIDNameSuffix(bundleID string) string {
+	bundleID = strings.TrimSpace(bundleID)
+	if bundleID == "" {
+		return ""
+	}
+	parts := strings.Split(bundleID, ".")
+	for i := len(parts) - 1; i >= 0; i-- {
+		p := strings.TrimSpace(parts[i])
+		if p != "" {
+			// Keep it ASCII-ish and friendly for display names.
+			p = sanitizeAppNameSuffix(p)
+			return p
+		}
+	}
+	return ""
+}
+
+func sanitizeAppNameSuffix(s string) string {
+	// Allow letters/digits and convert other characters to '-'.
+	var b strings.Builder
+	b.Grow(len(s))
+	lastDash := false
+	for _, r := range s {
+		isAlphaNum := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
+		if isAlphaNum {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	out := strings.Trim(b.String(), "-")
+	return out
+}
+
+func formatAppNameWithSuffix(baseName, suffix string) string {
+	baseName = strings.TrimSpace(baseName)
+	suffix = strings.TrimSpace(suffix)
+	if baseName == "" || suffix == "" {
+		return ""
+	}
+
+	sep := " - "
+	maxBase := maxAppNameLen - len(sep) - len(suffix)
+	if maxBase <= 0 {
+		// If suffix is too long, fall back to a truncated suffix-only name.
+		if len(suffix) > maxAppNameLen {
+			return suffix[:maxAppNameLen]
+		}
+		return suffix
+	}
+	if len(baseName) > maxBase {
+		baseName = strings.TrimSpace(baseName[:maxBase])
+		baseName = strings.TrimRight(baseName, "-")
+		baseName = strings.TrimSpace(baseName)
+	}
+	if baseName == "" {
+		return suffix
+	}
+	return baseName + sep + suffix
 }
 
 // AppsUpdateCommand returns the apps update subcommand.

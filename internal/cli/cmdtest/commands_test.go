@@ -452,6 +452,109 @@ func TestBuildsGroupValidationErrors(t *testing.T) {
 	}
 }
 
+func TestBuildsWaitValidationErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "builds wait missing selectors",
+			args:    []string{"builds", "wait"},
+			wantErr: "Error: --build is required, or provide --app and --build-number",
+		},
+		{
+			name:    "builds wait selectors mutually exclusive",
+			args:    []string{"builds", "wait", "--build", "BUILD_123", "--app", "APP_123", "--build-number", "42"},
+			wantErr: "--build is mutually exclusive with --app/--build-number",
+		},
+		{
+			name:    "builds wait invalid poll interval",
+			args:    []string{"builds", "wait", "--build", "BUILD_123", "--poll-interval", "0s"},
+			wantErr: "--poll-interval must be greater than 0",
+		},
+		{
+			name:    "builds wait invalid timeout",
+			args:    []string{"builds", "wait", "--build", "BUILD_123", "--timeout", "0s"},
+			wantErr: "--timeout must be greater than 0",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestBuildsFindValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "builds find missing app",
+			args:    []string{"builds", "find", "--build-number", "42"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "builds find missing build-number",
+			args:    []string{"builds", "find", "--app", "APP_123"},
+			wantErr: "--build-number is required",
+		},
+		{
+			name:    "builds find invalid platform",
+			args:    []string{"builds", "find", "--app", "APP_123", "--build-number", "42", "--platform", "ANDROID"},
+			wantErr: "--platform must be one of",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
 func TestBuildsExpireValidationErrors(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -3370,7 +3473,7 @@ func TestPublishValidationErrors(t *testing.T) {
 		{
 			name:    "publish testflight missing ipa",
 			args:    []string{"publish", "testflight", "--app", "APP_123", "--group", "GROUP_ID"},
-			wantErr: "Error: --ipa is required",
+			wantErr: "--ipa is required unless --build or --build-number is provided",
 		},
 		{
 			name:    "publish testflight missing group",
@@ -3411,6 +3514,21 @@ func TestPublishValidationErrors(t *testing.T) {
 			name:    "publish testflight invalid timeout",
 			args:    []string{"publish", "testflight", "--app", "APP_123", "--ipa", "app.ipa", "--group", "GROUP_ID", "--timeout", "-1s"},
 			wantErr: "--timeout must be greater than 0",
+		},
+		{
+			name:    "publish testflight ipa and build mutually exclusive",
+			args:    []string{"publish", "testflight", "--app", "APP_123", "--ipa", "app.ipa", "--build", "BUILD_123", "--group", "GROUP_ID"},
+			wantErr: "--ipa and --build are mutually exclusive",
+		},
+		{
+			name:    "publish testflight build and build-number mutually exclusive without ipa",
+			args:    []string{"publish", "testflight", "--app", "APP_123", "--build", "BUILD_123", "--build-number", "42", "--group", "GROUP_ID"},
+			wantErr: "--build and --build-number are mutually exclusive when --ipa is not provided",
+		},
+		{
+			name:    "publish testflight version without ipa",
+			args:    []string{"publish", "testflight", "--app", "APP_123", "--build", "BUILD_123", "--version", "1.2.3", "--group", "GROUP_ID"},
+			wantErr: "--version is only supported when --ipa is provided",
 		},
 		{
 			name:    "publish appstore invalid poll interval",

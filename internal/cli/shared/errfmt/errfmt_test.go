@@ -3,6 +3,7 @@ package errfmt
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -29,8 +30,26 @@ func TestClassify_Forbidden(t *testing.T) {
 
 func TestClassify_Timeout(t *testing.T) {
 	ce := Classify(context.DeadlineExceeded)
-	if ce.Hint == "" {
-		t.Fatalf("expected hint, got empty")
+	if ce.Hint != "Increase the request timeout (e.g. set `ASC_TIMEOUT=90s`)." {
+		t.Fatalf("expected request timeout hint, got %q", ce.Hint)
+	}
+}
+
+func TestClassify_TimeoutUploadOperation(t *testing.T) {
+	err := fmt.Errorf("builds upload: upload failed: upload operation 3: %w", context.DeadlineExceeded)
+
+	ce := Classify(err)
+	if ce.Hint != "Increase the upload timeout (e.g. set `ASC_UPLOAD_TIMEOUT=600s`)." {
+		t.Fatalf("expected upload timeout hint, got %q", ce.Hint)
+	}
+}
+
+func TestClassify_TimeoutBuildsUploadsListKeepsRequestHint(t *testing.T) {
+	err := fmt.Errorf("builds uploads list: failed to fetch: %w", context.DeadlineExceeded)
+
+	ce := Classify(err)
+	if ce.Hint != "Increase the request timeout (e.g. set `ASC_TIMEOUT=90s`)." {
+		t.Fatalf("expected request timeout hint, got %q", ce.Hint)
 	}
 }
 
