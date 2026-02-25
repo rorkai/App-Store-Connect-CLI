@@ -1,6 +1,6 @@
 # Swift Helper Optimizations - Usage Guide
 
-> **TL;DR**: Use **Go** for single operations, **Swift batch** for 10+ items, **Daemon** for 100+ items or CI/CD pipelines.
+> **TL;DR**: Use **Go** for single operations, **Swift batch** for 10+ items.
 
 ---
 
@@ -15,11 +15,8 @@ How many operations are you running?
 ├─ 5-20 operations ───→ Use Swift Subprocess
 │                        asc-jwt-sign, asc-image-optimize
 │
-├─ 20-100 operations ─→ Use Swift Batch Mode
-│                        --batch flag, parallel processing
-│
-└─ 100+ operations ────→ Use Daemon Mode
-   or CI/CD pipelines    asc-swift-daemon, zero overhead
+└─ 20+ operations ────→ Use Swift Batch Mode
+                         --batch flag, parallel processing
 
 Are they images/screenshots?
 ├─ Yes ────→ Use Swift Parallel Batch (--parallel automatic)
@@ -40,7 +37,6 @@ Same private key for all operations?
 | App metadata update | 5-10 | Swift subprocess | 6.4ms each |
 | Screenshot framing | 10+ | Swift parallel batch | **6× faster** |
 | Batch JWT signing (same key) | 10+ | Swift batch + key cache | **29× faster** |
-| CI/CD pipeline | 50+ | Swift daemon mode | **91× faster** |
 | App Store upload prep | 100+ images | Swift parallel batch | **6-8× faster** |
 
 ---
@@ -67,7 +63,7 @@ asc-image-optimize optimize --input img.png --output out.jpg --preset preview
 
 ---
 
-### Tier 2: Swift Batch Mode (20-100 items, same key)
+### Tier 2: Swift Batch Mode (20+ items, same key)
 ```bash
 # Prepare batch requests (JSON Lines format)
 cat > requests.jsonl <<EOF
@@ -100,38 +96,6 @@ asc-screenshot-frame batch \
 asc-image-optimize batch --input-dir ./in --output-dir ./out --sequential
 ```
 **When to use**: Screenshot preparation, image optimization, bulk processing
-
----
-
-### Tier 4: Daemon Mode (100+ items, CI/CD)
-```bash
-# Terminal 1: Start daemon (one time, runs in background)
-asc-swift-daemon &
-
-# Terminal 2: Use daemon (zero overhead per call)
-asc apps list  # Automatically uses daemon if available
-
-# Or explicitly via Go API:
-```go
-client := swifthelpers.NewDaemonClient("")
-resp, _ := client.SignJWTWithDaemon(ctx, req)  # ~50μs instead of 6.4ms
-```
-
-# Stop daemon when done
-asc-swift-daemon --stop
-```
-**When to use**: CI/CD pipelines, automated scripts, high-frequency operations
-
----
-
-### Tier 5: CGO (Maximum Speed, Single Machine)
-```go
-// Build with CGO_ENABLED=1
-// Links Swift static library directly (220μs per call)
-resp, _ := swifthelpers.SignJWTWithCGO(ctx, req)
-```
-**When to use**: Maximum performance on single macOS machine
-**Trade-off**: No cross-compilation (must build on macOS)
 
 ---
 
@@ -232,46 +196,7 @@ struct ColorProcessor {
 
 ---
 
-### 6. Daemon Mode ✅
-**What**: Long-running process that eliminates subprocess overhead entirely
-
-**How it works**:
-1. Start daemon: `asc-swift-daemon` (creates Unix socket at `/tmp/asc-swift-daemon.sock`)
-2. Go client connects via Unix domain socket
-3. Send JSON request: `{"cmd":"jwt_sign","issuer_id":"...","key_id":"...","key_path":"..."}`
-4. Receive JSON response instantly (no binary restart)
-
-**Expected Performance**:
-- Current subprocess: ~6.4ms per call (binary startup dominates)
-- Daemon mode: ~20-50μs per call (similar to pure Go)
-- **~130× faster** for repeated operations
-
-**Files**:
-- `swift-helpers/Sources/asc-swift-daemon/main.swift` (NEW)
-- `swift-helpers/Package.swift` (added daemon target)
-- `internal/swifthelpers/swifthelpers.go` (added DaemonClient)
-
-**Go API**:
-```go
-// Start daemon
-swifthelpers.StartDaemon(ctx, "")
-
-// Use daemon for zero-overhead signing
-client := swifthelpers.NewDaemonClient("")
-resp, err := client.SignJWTWithDaemon(ctx, swifthelpers.JWTSignRequest{
-    IssuerID:       "...",
-    KeyID:          "...",
-    PrivateKeyPath: "...",
-})
-
-// Cleanup
-client.Close()
-swifthelpers.StopDaemon("")
-```
-
----
-
-### 7. Batch JWT Signing ✅
+### 6. Batch JWT Signing ✅
 **What**: Process multiple JWT requests in single binary invocation
 
 **Input format**: JSON Lines (JSONL)
@@ -288,33 +213,15 @@ swifthelpers.StopDaemon("")
 
 ---
 
-### 8. CGO Bindings ✅
-**What**: Direct C calls to Swift code (no subprocess)
-
-**Implementation**:
-- `swift-helpers/Sources/swift-jwt-c-bridge/swift_jwt_c_bridge.swift` - C-compatible Swift
-- `internal/swifthelpers/cgo_bridge.go` - CGO implementation
-- `internal/swifthelpers/cgo_bridge_stub.go` - Non-CGO fallback
-
-**Performance**:
-- CGO: 220μs per JWT
-- Subprocess: 6.4ms per JWT
-- **30× faster than subprocess**
-- 95% less memory (1.3KB vs 29KB)
-- 98% fewer allocations (3 vs 192)
-
----
-
 ## Benchmark Results (M3 Pro)
 
 ### JWT Signing
 | Method | Time | Memory | Allocs |
 |--------|------|--------|--------|
 | Go (golang-jwt) | 20μs | 9.1KB | 102 |
-| Swift CGO | 220μs | 1.3KB | 3 |
 | Swift Subprocess | 6.4ms | 29KB | 192 |
 
-**Analysis**: Pure Go wins for single operations, CGO provides 30× improvement over subprocess
+**Analysis**: Pure Go wins for single operations
 
 ### Screenshot Framing (iPhone 6/7 size)
 | Method | Time | Memory |
@@ -337,18 +244,14 @@ swifthelpers.StopDaemon("")
 ## Files Changed
 
 ### Swift Helpers
-1. `swift-helpers/Package.swift` - Release optimization flags, added daemon target
+1. `swift-helpers/Package.swift` - Release optimization flags
 2. `swift-helpers/Sources/asc-image-optimize/main.swift` - CIContext cache, parallel batch, SIMD
 3. `swift-helpers/Sources/asc-screenshot-frame/main.swift` - CIContext cache, parallel batch
 4. `swift-helpers/Sources/asc-jwt-sign/main.swift` - Key caching, batch mode
-5. `swift-helpers/Sources/swift-jwt-c-bridge/swift_jwt_c_bridge.swift` - NEW: C bridge for CGO
-6. `swift-helpers/Sources/asc-swift-daemon/main.swift` - NEW: Unix socket daemon
 
 ### Go Integration
-1. `internal/swifthelpers/swifthelpers.go` - Daemon client, connection management
-2. `internal/swifthelpers/cgo_bridge.go` - CGO implementation
-3. `internal/swifthelpers/cgo_bridge_stub.go` - Non-CGO fallback
-4. `internal/swifthelpers/swifthelpers_bench_test.go` - Updated benchmarks
+1. `internal/swifthelpers/swifthelpers.go` - Swift helper integration
+2. `internal/swifthelpers/swifthelpers_bench_test.go` - Benchmarks
 
 ---
 
@@ -365,65 +268,11 @@ Use **Swift helpers** with optimizations:
 - `--parallel` for image/screenshot processing (automatic)
 - Expected 6-8× speedup on multi-core systems
 
-### High-Frequency Operations (100+ items)
-Use **Daemon mode** for:
-- CI/CD pipelines with many API calls
-- Batch App Store submissions
-- **~130× faster** than subprocess approach
-
----
-
-## Daemon Quick Start
-
-```bash
-# 1. Build Swift helpers
-cd swift-helpers && swift build -c release
-
-# 2. Start daemon
-./.build/release/asc-swift-daemon
-
-# 3. In another terminal, check status
-./.build/release/asc-swift-daemon --status
-
-# 4. Use from Go
-client := swifthelpers.NewDaemonClient("")
-resp, _ := client.SignJWTWithDaemon(ctx, req)
-
-# 5. Stop daemon
-./.build/release/asc-swift-daemon --stop
-```
-
 ---
 
 ## Detailed Use Cases & Examples
 
-### Use Case 1: CI/CD Pipeline (High Frequency)
-**Scenario**: Your CI/CD pipeline uploads builds, updates metadata, and submits to App Store Connect every commit.
-
-**Pattern**: 50-200 API calls per build
-- Multiple JWT signs for different endpoints
-- Metadata updates across multiple locales
-- Screenshot uploads for multiple devices
-
-**Recommendation**: **Daemon Mode**
-
-```bash
-# In CI startup script
-asc-swift-daemon &
-
-# All subsequent asc commands automatically use daemon
-asc builds list --app $APP_ID
-asc metadata push --app $APP_ID
-asc screenshots upload --app $APP_ID
-```
-
-**Why**: Eliminates 6.4ms binary startup × 200 calls = 1.28 seconds saved per CI run
-
-**Time Saved**: ~1.3 seconds per build × 100 builds/day = **2+ minutes daily**
-
----
-
-### Use Case 2: App Store Screenshot Preparation (Batch Processing)
+### Use Case 1: App Store Screenshot Preparation (Batch Processing)
 **Scenario**: You're preparing screenshots for a new app version. You have:
 - 5 device sizes (iPhone 14 Pro, 15, 15 Pro, iPad Pro 11", 12.9")
 - 10 screenshots per device
@@ -448,7 +297,7 @@ asc-screenshot-frame batch \
 
 ---
 
-### Use Case 3: App Binary Upload with Video Previews
+### Use Case 2: App Binary Upload with Video Previews
 **Scenario**: Uploading app preview videos (30-second demo videos)
 
 **The Problem**: 
@@ -471,7 +320,7 @@ asc-video-encode encode \
 
 ---
 
-### Use Case 4: Developer Daily Workflow (Interactive)
+### Use Case 3: Developer Daily Workflow (Interactive)
 **Scenario**: You're a developer testing the CLI interactively
 
 ```bash
@@ -479,7 +328,7 @@ asc-video-encode encode \
 asc apps list
 
 # Single JWT sign - pure Go is fastest
-# (20μs vs 220μs for CGO vs 6.4ms for subprocess)
+# (20μs vs 6.4ms for subprocess)
 ```
 
 **Recommendation**: **No optimization** - use defaults
@@ -488,7 +337,7 @@ asc apps list
 
 ---
 
-### Use Case 5: Bulk Localization Updates
+### Use Case 4: Bulk Localization Updates
 **Scenario**: Updating app metadata for 35 locales
 
 **Pattern**: Same JWT key used for all 35 API calls
@@ -513,51 +362,10 @@ asc-jwt-sign --batch < batch_requests.jsonl
 
 ---
 
-### Use Case 6: Enterprise Multi-App Management
-**Scenario**: Managing 50+ apps across enterprise account
-
-**Pattern**: Daily reports, analytics pulls, build monitoring across all apps
-
-**Recommendation**: **Hybrid Approach**
-
-```go
-// In your automation script:
-
-// 1. Start daemon at beginning
-swifthelpers.StartDaemon(ctx, "")
-defer swifthelpers.StopDaemon("")
-
-client := swifthelpers.NewDaemonClient("")
-
-// 2. For each app, reuse daemon connection
-for _, app := range apps {
-    // Fast daemon-based signing
-    resp, _ := client.SignJWTWithDaemon(ctx, req)
-    
-    // Use token for API call
-    // ...
-}
-```
-
-**Why**: Connection reuse eliminates all subprocess overhead for high-frequency operations.
-
----
-
 ## Anti-Patterns: When NOT to Use Optimizations
-
-### ❌ Don't use daemon for one-off scripts
-```bash
-# Bad: Adding 100ms daemon startup for single operation
-asc-swift-daemon &  # 100ms startup
-asc apps list        # 20μs operation
-asc-swift-daemon --stop
-```
 
 ### ❌ Don't use parallel batch for < 5 items
 Parallel overhead (thread management, locks) exceeds benefit for small batches.
-
-### ❌ Don't use CGO if you need cross-compilation
-CGO requires building on macOS for macOS. If you need Linux → macOS builds, stick to subprocess.
 
 ---
 
@@ -569,8 +377,6 @@ CGO requires building on macOS for macOS. If you need Linux → macOS builds, st
 | **Tier 1: Swift Subprocess** | 5-10 items, simple scripts | 6.4ms each | Low |
 | **Tier 2: Swift Batch** | 10+ items, same key | 6.4ms + 0.02ms/item | Low |
 | **Tier 3: Swift Parallel** | 10+ images/screenshots | 6× faster | Low |
-| **Tier 4: Daemon Mode** | 50+ items, CI/CD, pipelines | ~50μs/item | Medium |
-| **Tier 5: CGO** | Max speed, single machine | 220μs | High |
 
 ---
 

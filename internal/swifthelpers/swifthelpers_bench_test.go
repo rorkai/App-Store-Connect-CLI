@@ -76,7 +76,6 @@ func BenchmarkJWTSigning(b *testing.B) {
 			}
 		})
 	}
-
 }
 
 // BenchmarkScreenshotFraming compares Swift (CoreImage/Metal) screenshot framing
