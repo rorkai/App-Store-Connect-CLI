@@ -451,6 +451,14 @@ func normalizeAttachmentFilename(attachment webcore.ReviewAttachment) string {
 		}
 	}
 	id := strings.TrimSpace(attachment.AttachmentID)
+	if id != "" {
+		base := filepath.Base(id)
+		if base != "" && base != "." && base != string(filepath.Separator) && base != ".." {
+			id = base
+		} else {
+			id = ""
+		}
+	}
 	if id == "" {
 		id = "attachment"
 	}

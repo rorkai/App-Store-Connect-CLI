@@ -31,6 +31,18 @@ func TestNormalizeAttachmentFilenameFallsBackWhenBasenameIsInvalid(t *testing.T)
 	}
 }
 
+func TestNormalizeAttachmentFilenameSanitizesFallbackAttachmentID(t *testing.T) {
+	attachment := webcore.ReviewAttachment{
+		AttachmentID: "../../evil",
+		FileName:     "../",
+	}
+
+	got := normalizeAttachmentFilename(attachment)
+	if got != "evil.bin" {
+		t.Fatalf("expected sanitized fallback filename %q, got %q", "evil.bin", got)
+	}
+}
+
 func TestBuildReviewListTableRows(t *testing.T) {
 	submissions := []webcore.ReviewSubmission{
 		{
