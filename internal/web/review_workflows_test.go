@@ -260,6 +260,88 @@ func TestListReviewAttachmentsByThreadCollectsMessageAndRejectionAttachments(t *
 	}
 }
 
+func TestListReviewThreadDetailsUsesSinglePassThreadCalls(t *testing.T) {
+	messageCalls := 0
+	rejectionCalls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/resolutionCenterThreads/thread-1/resolutionCenterMessages":
+			messageCalls++
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{
+				"data": [{
+					"id": "m1",
+					"type": "resolutionCenterMessages",
+					"attributes": {"createdDate":"2026-02-25T10:00:00Z","messageBody":"<p>Hello <strong>World</strong></p>"},
+					"relationships": {
+						"rejections": {"data": [{"type":"reviewRejections","id":"rej-1"}]},
+						"resolutionCenterMessageAttachments": {"data": [{"type":"resolutionCenterMessageAttachments","id":"att-1"}]}
+					}
+				}],
+				"included": [{
+					"id":"att-1",
+					"type":"resolutionCenterMessageAttachments",
+					"attributes":{
+						"fileName":"Screenshot-1.png",
+						"fileSize":1024,
+						"assetDeliveryState":"AVAILABLE",
+						"downloadUrl":"https://example.invalid/download/att-1"
+					}
+				}]
+			}`))
+		case "/reviewRejections":
+			rejectionCalls++
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{
+				"data": [{
+					"id":"rej-1",
+					"type":"reviewRejections",
+					"attributes":{
+						"reasons":[{"reasonSection":"2.1","reasonDescription":"Crash","reasonCode":"2.1.0"}]
+					},
+					"relationships":{"rejectionAttachments":{"data":[{"type":"rejectionAttachments","id":"ratt-1"}]}}
+				}],
+				"included": [{
+					"id":"ratt-1",
+					"type":"rejectionAttachments",
+					"attributes":{
+						"fileName":"Crash.png",
+						"fileSize":2048,
+						"assetDeliveryState":"AVAILABLE",
+						"downloadUrl":"https://example.invalid/download/ratt-1"
+					}
+				}]
+			}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	client := testWebClient(server)
+	details, err := client.ListReviewThreadDetails(context.Background(), "thread-1", true, true)
+	if err != nil {
+		t.Fatalf("ListReviewThreadDetails() error = %v", err)
+	}
+	if messageCalls != 1 || rejectionCalls != 1 {
+		t.Fatalf("expected one messages and one rejections call, got messages=%d rejections=%d", messageCalls, rejectionCalls)
+	}
+	if len(details.Messages) != 1 || details.Messages[0].MessageBodyPlain != "Hello World" {
+		t.Fatalf("unexpected messages: %#v", details.Messages)
+	}
+	if len(details.Rejections) != 1 || len(details.Rejections[0].Reasons) != 1 {
+		t.Fatalf("unexpected rejections: %#v", details.Rejections)
+	}
+	if len(details.Attachments) != 2 {
+		t.Fatalf("expected two attachments, got %#v", details.Attachments)
+	}
+	for _, attachment := range details.Attachments {
+		if strings.TrimSpace(attachment.DownloadURL) == "" {
+			t.Fatalf("expected attachment download URL, got %#v", attachment)
+		}
+	}
+}
+
 func TestDownloadAttachmentReturnsStatusAndBody(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {

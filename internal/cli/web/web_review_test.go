@@ -1,6 +1,7 @@
 package web
 
 import (
+	"path/filepath"
 	"testing"
 
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
@@ -27,5 +28,13 @@ func TestNormalizeAttachmentFilenameFallsBackWhenBasenameIsInvalid(t *testing.T)
 	got := normalizeAttachmentFilename(attachment)
 	if got != "attachment-id.bin" {
 		t.Fatalf("expected fallback filename %q, got %q", "attachment-id.bin", got)
+	}
+}
+
+func TestResolveShowOutDirSanitizesDotDotPathPart(t *testing.T) {
+	got := resolveShowOutDir("..", "submission-1", "")
+	want := filepath.Join(".asc", "web-review", "unknown", "submission-1")
+	if got != want {
+		t.Fatalf("expected resolved path %q, got %q", want, got)
 	}
 }

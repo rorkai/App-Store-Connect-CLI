@@ -167,7 +167,11 @@ func sanitizePathPart(value string) string {
 		return "unknown"
 	}
 	replacer := strings.NewReplacer("/", "_", "\\", "_", ":", "_")
-	return replacer.Replace(trimmed)
+	sanitized := replacer.Replace(trimmed)
+	if sanitized == "." || sanitized == ".." {
+		return "unknown"
+	}
+	return sanitized
 }
 
 func resolveShowOutDir(appID, submissionID, out string) string {
@@ -259,24 +263,30 @@ func redactAttachmentURLs(attachments []webcore.ReviewAttachment) []webcore.Revi
 	return redacted
 }
 
-func buildThreadDetails(ctx context.Context, client *webcore.Client, threads []webcore.ResolutionCenterThread, plainText bool) ([]reviewThreadDetails, error) {
+func buildThreadDetails(ctx context.Context, client *webcore.Client, threads []webcore.ResolutionCenterThread, plainText bool) ([]reviewThreadDetails, []webcore.ReviewAttachment, error) {
 	details := make([]reviewThreadDetails, 0, len(threads))
+	attachments := make([]webcore.ReviewAttachment, 0)
+	seenAttachments := map[string]struct{}{}
 	for _, thread := range threads {
-		messages, err := client.ListResolutionCenterMessages(ctx, thread.ID, plainText)
+		threadDetails, err := client.ListReviewThreadDetails(ctx, thread.ID, plainText, true)
 		if err != nil {
-			return nil, err
-		}
-		rejections, err := client.ListReviewRejections(ctx, thread.ID)
-		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		details = append(details, reviewThreadDetails{
 			Thread:     thread,
-			Messages:   messages,
-			Rejections: rejections,
+			Messages:   threadDetails.Messages,
+			Rejections: threadDetails.Rejections,
 		})
+		for _, attachment := range threadDetails.Attachments {
+			key := attachmentRefreshKey(attachment)
+			if _, exists := seenAttachments[key]; exists {
+				continue
+			}
+			seenAttachments[key] = struct{}{}
+			attachments = append(attachments, attachment)
+		}
 	}
-	return details, nil
+	return details, attachments, nil
 }
 
 func downloadAttachmentsForShow(
@@ -505,12 +515,7 @@ Selection:
 			if err != nil {
 				return withWebAuthHint(err, "web review show")
 			}
-			threadDetails, err := buildThreadDetails(requestCtx, client, threads, *plainText)
-			if err != nil {
-				return withWebAuthHint(err, "web review show")
-			}
-
-			attachmentsWithURL, err := client.ListReviewAttachmentsBySubmission(requestCtx, selectedSubmission.ID, true)
+			threadDetails, attachmentsWithURL, err := buildThreadDetails(requestCtx, client, threads, *plainText)
 			if err != nil {
 				return withWebAuthHint(err, "web review show")
 			}

@@ -136,6 +136,13 @@ type ReviewAttachment struct {
 	ReviewRejectionID  string `json:"reviewRejectionId,omitempty"`
 }
 
+// ReviewThreadDetails bundles per-thread review records from shared API calls.
+type ReviewThreadDetails struct {
+	Messages    []ResolutionCenterMessage `json:"messages,omitempty"`
+	Rejections  []ReviewRejection         `json:"rejections,omitempty"`
+	Attachments []ReviewAttachment        `json:"attachments,omitempty"`
+}
+
 func jsonAPIResourceKey(resourceType, id string) string {
 	return strings.TrimSpace(resourceType) + "#" + strings.TrimSpace(id)
 }
@@ -502,11 +509,10 @@ func decodeResolutionCenterMessages(resources []jsonAPIResource, included []json
 	return messages
 }
 
-// ListResolutionCenterMessages lists thread messages and optional plain text body.
-func (c *Client) ListResolutionCenterMessages(ctx context.Context, threadID string, plainText bool) ([]ResolutionCenterMessage, error) {
+func (c *Client) listResolutionCenterMessagesPayload(ctx context.Context, threadID string) (jsonAPIListPayload, error) {
 	threadID = strings.TrimSpace(threadID)
 	if threadID == "" {
-		return nil, fmt.Errorf("thread id is required")
+		return jsonAPIListPayload{}, fmt.Errorf("thread id is required")
 	}
 	query := url.Values{}
 	query.Set("include", reviewMessagesInclude)
@@ -516,11 +522,20 @@ func (c *Client) ListResolutionCenterMessages(ctx context.Context, threadID stri
 
 	responseBody, err := c.doRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
-		return nil, err
+		return jsonAPIListPayload{}, err
 	}
 	var payload jsonAPIListPayload
 	if err := json.Unmarshal(responseBody, &payload); err != nil {
-		return nil, fmt.Errorf("failed to parse resolution center messages response: %w", err)
+		return jsonAPIListPayload{}, fmt.Errorf("failed to parse resolution center messages response: %w", err)
+	}
+	return payload, nil
+}
+
+// ListResolutionCenterMessages lists thread messages and optional plain text body.
+func (c *Client) ListResolutionCenterMessages(ctx context.Context, threadID string, plainText bool) ([]ResolutionCenterMessage, error) {
+	payload, err := c.listResolutionCenterMessagesPayload(ctx, threadID)
+	if err != nil {
+		return nil, err
 	}
 	return decodeResolutionCenterMessages(payload.Data, payload.Included, plainText), nil
 }
@@ -560,11 +575,11 @@ func parseRejectionReasons(attributes map[string]any) []ReviewRejectionReason {
 	return reasons
 }
 
-// ListReviewRejections lists review rejections associated with a thread.
-func (c *Client) ListReviewRejections(ctx context.Context, threadID string) ([]ReviewRejection, error) {
+// listReviewRejectionsPayload fetches raw review rejection JSON:API payload for a thread.
+func (c *Client) listReviewRejectionsPayload(ctx context.Context, threadID string) (jsonAPIListPayload, error) {
 	threadID = strings.TrimSpace(threadID)
 	if threadID == "" {
-		return nil, fmt.Errorf("thread id is required")
+		return jsonAPIListPayload{}, fmt.Errorf("thread id is required")
 	}
 	query := url.Values{}
 	query.Set("filter[resolutionCenterMessage.resolutionCenterThread]", threadID)
@@ -575,14 +590,21 @@ func (c *Client) ListReviewRejections(ctx context.Context, threadID string) ([]R
 
 	responseBody, err := c.doRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
-		return nil, err
+		return jsonAPIListPayload{}, err
 	}
 	var payload jsonAPIListPayload
 	if err := json.Unmarshal(responseBody, &payload); err != nil {
-		return nil, fmt.Errorf("failed to parse review rejections response: %w", err)
+		return jsonAPIListPayload{}, fmt.Errorf("failed to parse review rejections response: %w", err)
 	}
-	rejections := make([]ReviewRejection, 0, len(payload.Data))
-	for _, resource := range payload.Data {
+	return payload, nil
+}
+
+func decodeReviewRejections(resources []jsonAPIResource) []ReviewRejection {
+	if len(resources) == 0 {
+		return []ReviewRejection{}
+	}
+	rejections := make([]ReviewRejection, 0, len(resources))
+	for _, resource := range resources {
 		rejection := ReviewRejection{
 			ID:      strings.TrimSpace(resource.ID),
 			Reasons: parseRejectionReasons(resource.Attributes),
@@ -596,6 +618,16 @@ func (c *Client) ListReviewRejections(ctx context.Context, threadID string) ([]R
 		}
 		rejections = append(rejections, rejection)
 	}
+	return rejections
+}
+
+// ListReviewRejections lists review rejections associated with a thread.
+func (c *Client) ListReviewRejections(ctx context.Context, threadID string) ([]ReviewRejection, error) {
+	payload, err := c.listReviewRejectionsPayload(ctx, threadID)
+	if err != nil {
+		return nil, err
+	}
+	rejections := decodeReviewRejections(payload.Data)
 	if len(rejections) == 0 {
 		return []ReviewRejection{}, nil
 	}
@@ -633,6 +665,73 @@ func appendAttachmentUnique(attachments []ReviewAttachment, seen map[string]stru
 	return append(attachments, attachment)
 }
 
+func attachmentsFromMessagesPayload(payload jsonAPIListPayload, threadID string, includeURL bool) []ReviewAttachment {
+	attachments := make([]ReviewAttachment, 0)
+	included := buildIncludedMap(payload.Included)
+	for _, message := range payload.Data {
+		for _, ref := range relationshipRefs(message, "resolutionCenterMessageAttachments") {
+			resource, ok := included[jsonAPIResourceKey(ref.Type, ref.ID)]
+			if !ok {
+				resource = jsonAPIResource{ID: ref.ID, Type: ref.Type}
+			}
+			attachment := attachmentFromResource(resource, includeURL)
+			attachment.ThreadID = threadID
+			attachment.MessageID = strings.TrimSpace(message.ID)
+			attachments = append(attachments, attachment)
+		}
+	}
+	return attachments
+}
+
+func attachmentsFromRejectionsPayload(payload jsonAPIListPayload, threadID string, includeURL bool) []ReviewAttachment {
+	attachments := make([]ReviewAttachment, 0)
+	included := buildIncludedMap(payload.Included)
+	for _, rejection := range payload.Data {
+		for _, ref := range relationshipRefs(rejection, "rejectionAttachments") {
+			resource, ok := included[jsonAPIResourceKey(ref.Type, ref.ID)]
+			if !ok {
+				resource = jsonAPIResource{ID: ref.ID, Type: ref.Type}
+			}
+			attachment := attachmentFromResource(resource, includeURL)
+			attachment.ThreadID = threadID
+			attachment.ReviewRejectionID = strings.TrimSpace(rejection.ID)
+			attachments = append(attachments, attachment)
+		}
+	}
+	return attachments
+}
+
+// ListReviewThreadDetails fetches messages, rejections, and attachments for a thread in one pass.
+func (c *Client) ListReviewThreadDetails(ctx context.Context, threadID string, plainText bool, includeURL bool) (ReviewThreadDetails, error) {
+	threadID = strings.TrimSpace(threadID)
+	if threadID == "" {
+		return ReviewThreadDetails{}, fmt.Errorf("thread id is required")
+	}
+	messagesPayload, err := c.listResolutionCenterMessagesPayload(ctx, threadID)
+	if err != nil {
+		return ReviewThreadDetails{}, err
+	}
+	rejectionsPayload, err := c.listReviewRejectionsPayload(ctx, threadID)
+	if err != nil {
+		return ReviewThreadDetails{}, err
+	}
+
+	details := ReviewThreadDetails{
+		Messages:   decodeResolutionCenterMessages(messagesPayload.Data, messagesPayload.Included, plainText),
+		Rejections: decodeReviewRejections(rejectionsPayload.Data),
+	}
+	attachments := make([]ReviewAttachment, 0)
+	seen := map[string]struct{}{}
+	for _, attachment := range attachmentsFromMessagesPayload(messagesPayload, threadID, includeURL) {
+		attachments = appendAttachmentUnique(attachments, seen, attachment)
+	}
+	for _, attachment := range attachmentsFromRejectionsPayload(rejectionsPayload, threadID, includeURL) {
+		attachments = appendAttachmentUnique(attachments, seen, attachment)
+	}
+	details.Attachments = attachments
+	return details, nil
+}
+
 // ListReviewAttachmentsByThread lists message and rejection attachments for a thread.
 func (c *Client) ListReviewAttachmentsByThread(ctx context.Context, threadID string, includeURL bool) ([]ReviewAttachment, error) {
 	threadID = strings.TrimSpace(threadID)
@@ -642,59 +741,20 @@ func (c *Client) ListReviewAttachmentsByThread(ctx context.Context, threadID str
 	attachments := make([]ReviewAttachment, 0)
 	seen := map[string]struct{}{}
 
-	messageQuery := url.Values{}
-	messageQuery.Set("include", reviewMessagesInclude)
-	messageQuery.Set("limit[rejections]", "2000")
-	messageQuery.Set("limit[resolutionCenterMessageAttachments]", "1000")
-	messagesPath := queryPath("/resolutionCenterThreads/"+url.PathEscape(threadID)+"/resolutionCenterMessages", messageQuery)
-	messagesBody, err := c.doRequest(ctx, http.MethodGet, messagesPath, nil)
+	messagesPayload, err := c.listResolutionCenterMessagesPayload(ctx, threadID)
 	if err != nil {
 		return nil, err
 	}
-	var messagesPayload jsonAPIListPayload
-	if err := json.Unmarshal(messagesBody, &messagesPayload); err != nil {
-		return nil, fmt.Errorf("failed to parse thread messages for attachments: %w", err)
-	}
-	messageIncluded := buildIncludedMap(messagesPayload.Included)
-	for _, message := range messagesPayload.Data {
-		for _, ref := range relationshipRefs(message, "resolutionCenterMessageAttachments") {
-			resource, ok := messageIncluded[jsonAPIResourceKey(ref.Type, ref.ID)]
-			if !ok {
-				resource = jsonAPIResource{ID: ref.ID, Type: ref.Type}
-			}
-			attachment := attachmentFromResource(resource, includeURL)
-			attachment.ThreadID = threadID
-			attachment.MessageID = strings.TrimSpace(message.ID)
-			attachments = appendAttachmentUnique(attachments, seen, attachment)
-		}
+	for _, attachment := range attachmentsFromMessagesPayload(messagesPayload, threadID, includeURL) {
+		attachments = appendAttachmentUnique(attachments, seen, attachment)
 	}
 
-	rejectionQuery := url.Values{}
-	rejectionQuery.Set("filter[resolutionCenterMessage.resolutionCenterThread]", threadID)
-	rejectionQuery.Set("include", reviewRejectionsInclude)
-	rejectionQuery.Set("limit", "2000")
-	rejectionQuery.Set("limit[rejectionAttachments]", "1000")
-	rejectionsPath := queryPath("/reviewRejections", rejectionQuery)
-	rejectionsBody, err := c.doRequest(ctx, http.MethodGet, rejectionsPath, nil)
+	rejectionsPayload, err := c.listReviewRejectionsPayload(ctx, threadID)
 	if err != nil {
 		return nil, err
 	}
-	var rejectionsPayload jsonAPIListPayload
-	if err := json.Unmarshal(rejectionsBody, &rejectionsPayload); err != nil {
-		return nil, fmt.Errorf("failed to parse thread rejections for attachments: %w", err)
-	}
-	rejectionIncluded := buildIncludedMap(rejectionsPayload.Included)
-	for _, rejection := range rejectionsPayload.Data {
-		for _, ref := range relationshipRefs(rejection, "rejectionAttachments") {
-			resource, ok := rejectionIncluded[jsonAPIResourceKey(ref.Type, ref.ID)]
-			if !ok {
-				resource = jsonAPIResource{ID: ref.ID, Type: ref.Type}
-			}
-			attachment := attachmentFromResource(resource, includeURL)
-			attachment.ThreadID = threadID
-			attachment.ReviewRejectionID = strings.TrimSpace(rejection.ID)
-			attachments = appendAttachmentUnique(attachments, seen, attachment)
-		}
+	for _, attachment := range attachmentsFromRejectionsPayload(rejectionsPayload, threadID, includeURL) {
+		attachments = appendAttachmentUnique(attachments, seen, attachment)
 	}
 
 	if len(attachments) == 0 {
