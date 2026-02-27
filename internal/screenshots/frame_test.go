@@ -338,7 +338,7 @@ func TestCreateDefaultKoubouConfig_CanvasNoText(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createDefaultKoubouConfig() error = %v", err)
 	}
-	defer os.RemoveAll(workDir)
+	defer func() { _ = os.RemoveAll(workDir) }()
 
 	if metadata.DisplayType != "APP_DESKTOP" {
 		t.Fatalf("DisplayType = %q, want APP_DESKTOP", metadata.DisplayType)
@@ -380,7 +380,7 @@ func TestCreateDefaultKoubouConfig_CanvasSubtitleOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createDefaultKoubouConfig() error = %v", err)
 	}
-	defer os.RemoveAll(workDir)
+	defer func() { _ = os.RemoveAll(workDir) }()
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -430,7 +430,7 @@ func TestCreateDefaultKoubouConfig_CanvasCustomColors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createDefaultKoubouConfig() error = %v", err)
 	}
-	defer os.RemoveAll(workDir)
+	defer func() { _ = os.RemoveAll(workDir) }()
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {

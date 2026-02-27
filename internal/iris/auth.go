@@ -219,7 +219,7 @@ func getAuthServiceKey(client *http.Client) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get auth service key: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -526,7 +526,7 @@ func getHashcash(client *http.Client, serviceKey string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -630,7 +630,7 @@ func signinInit(client *http.Client, username, aBase64, serviceKey string) (*sig
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, _ := io.ReadAll(resp.Body)
 
@@ -673,7 +673,7 @@ func signinComplete(client *http.Client, username, m1, m2, challenge, serviceKey
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, _ := io.ReadAll(resp.Body)
 
@@ -699,7 +699,7 @@ func getSessionInfo(client *http.Client) (*SessionInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, _ := io.ReadAll(resp.Body)
 
@@ -809,7 +809,7 @@ func getAuthOptions(session *AuthSession) (*authOptionsResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 
 	// Xcodes expects 201; accept any 2xx.
@@ -847,7 +847,7 @@ func submitTrustedDeviceCode(session *AuthSession, code string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
@@ -881,7 +881,7 @@ func submitPhoneCode(session *AuthSession, code string, phoneID int, mode string
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
@@ -907,7 +907,7 @@ func finalizeTwoFactor(session *AuthSession) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("2fa trust failed with status %d: %s", resp.StatusCode, string(body))
@@ -954,7 +954,7 @@ func (c *Client) doRequest(method, path string, body interface{}) ([]byte, error
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
