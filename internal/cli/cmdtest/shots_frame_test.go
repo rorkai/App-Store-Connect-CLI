@@ -626,7 +626,7 @@ func installMockKou(t *testing.T, fixturePath, outputPath string) {
 	kouPath := filepath.Join(binDir, "kou")
 	script := `#!/bin/sh
 if [ "$1" = "--version" ]; then
-  echo "kou 0.13.0"
+  echo "kou 0.14.0"
   exit 0
 fi
 if [ "$1" = "generate" ]; then

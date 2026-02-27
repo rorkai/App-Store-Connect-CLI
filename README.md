@@ -68,7 +68,7 @@ asc apps list --output table
 <!-- WALL-OF-APPS:START -->
 ## Wall of Apps
 
-**41 apps ship with asc.** [See the Wall of Apps →](https://asccli.sh/#wall-of-apps)
+**42 apps ship with asc.** [See the Wall of Apps →](https://asccli.sh/#wall-of-apps)
 
 Want to add yours? [Open a PR](https://github.com/rudrankriyam/App-Store-Connect-CLI/pulls).
 <!-- WALL-OF-APPS:END -->
@@ -156,7 +156,7 @@ For full command families, flags, and discovery patterns, see:
 
 ## Acknowledgements
 
-Local screenshot framing uses Koubou (pinned to `0.13.0`) for deterministic device-frame rendering.
+Local screenshot framing uses Koubou (pinned to `0.14.0`) for deterministic device-frame rendering.
 GitHub: https://github.com/bitomule/koubou
 
 Simulator UI automation for screenshot capture and interactions uses AXe CLI.

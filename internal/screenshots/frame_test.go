@@ -224,6 +224,13 @@ screenshots:
 }
 
 func TestFrame_InputModeCleansTemporaryKoubouDirectory(t *testing.T) {
+	// Isolate TempDir for this test process so concurrent package tests can't
+	// create matching asc-shots-kou-* directories and cause false positives.
+	processTmp := t.TempDir()
+	t.Setenv("TMPDIR", processTmp)
+	t.Setenv("TMP", processTmp)
+	t.Setenv("TEMP", processTmp)
+
 	rawPath := filepath.Join(t.TempDir(), "raw.png")
 	writeFrameTestPNG(t, rawPath, makeFrameTestImage(200, 300))
 
@@ -260,7 +267,7 @@ func installFrameTestMockKou(t *testing.T, fixturePath, outputPath string) {
 	kouPath := filepath.Join(binDir, "kou")
 	script := `#!/bin/sh
 if [ "$1" = "--version" ]; then
-  echo "kou 0.13.0"
+  echo "kou 0.14.0"
   exit 0
 fi
 if [ "$1" = "generate" ]; then
@@ -493,7 +500,7 @@ func TestRunKoubouGenerate_ParsesJSONFromStdoutWhenStderrHasWarnings(t *testing.
 	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
 set -eu
 if [ "$1" = "--version" ]; then
-  echo "kou 0.13.0"
+  echo "kou 0.14.0"
   exit 0
 fi
 if [ "$1" != "generate" ]; then
@@ -541,7 +548,7 @@ exit 1
 	if !strings.Contains(err.Error(), "unsupported Koubou version 0.12.0") {
 		t.Fatalf("expected unsupported version error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "0.13.0") {
+	if !strings.Contains(err.Error(), "0.14.0") {
 		t.Fatalf("expected pinned version in error, got %v", err)
 	}
 }
@@ -553,7 +560,7 @@ func TestRunKoubouGenerate_NotFoundIncludesPinnedInstallHint(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected not found error")
 	}
-	if !strings.Contains(err.Error(), "pip install koubou==0.13.0") {
+	if !strings.Contains(err.Error(), "pip install koubou==0.14.0") {
 		t.Fatalf("expected pinned install command in error, got %v", err)
 	}
 }

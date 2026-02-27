@@ -31,7 +31,7 @@ const (
 	FrameDeviceIPhone17    FrameDevice = "iphone-17"
 	FrameDeviceMac         FrameDevice = "mac"
 
-	pinnedKoubouVersion = "0.13.0"
+	pinnedKoubouVersion = "0.14.0"
 )
 
 const (

@@ -15,7 +15,7 @@ func prepareKoubouVersionBenchmark(b *testing.B) {
 	script := `#!/bin/sh
 set -eu
 if [ "$1" = "--version" ]; then
-  echo "kou 0.13.0"
+  echo "kou 0.14.0"
   exit 0
 fi
 echo "unsupported args" >&2
