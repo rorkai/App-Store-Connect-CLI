@@ -122,6 +122,7 @@ type Config struct {
 	KeyID          string       `json:"key_id"`
 	IssuerID       string       `json:"issuer_id"`
 	PrivateKeyPath string       `json:"private_key_path"`
+	PrivateKeyPEM  string       `json:"-"`
 	DefaultKeyName string       `json:"default_key_name"`
 	Keys           []Credential `json:"keys,omitempty"`
 	AppID          string       `json:"app_id"`

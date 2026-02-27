@@ -12,7 +12,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-const webWarningText = "EXPERIMENTAL / UNOFFICIAL / DISCOURAGED: This command family uses Apple web-session behavior (not the public App Store Connect API). It may break anytime and should not be used for production-critical automation."
+const webWarningText = "EXPERIMENTAL / UNOFFICIAL / DISCOURAGED: This command family uses Apple web-session /iris behavior (not the public App Store Connect API), sends intentionally low-rate requests, requires user-owned Apple ID sessions, and redacts signed URLs/tokens by default. It may break anytime and should not be used for production-critical automation."
 
 // WebCommand returns the detached experimental web command group.
 func WebCommand() *ffcli.Command {
@@ -24,7 +24,7 @@ func WebCommand() *ffcli.Command {
 		ShortHelp:  "EXPERIMENTAL: Unofficial web-session workflows (discouraged).",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
-Use Apple web-session flows that are not part of the official App Store Connect API.
+Use Apple web-session /iris flows that are not part of the official App Store Connect API.
 These commands can break without notice and are intentionally detached from official asc workflows.
 
 ` + webWarningText + `
@@ -32,12 +32,16 @@ These commands can break without notice and are intentionally detached from offi
 Examples:
   asc web auth status
   asc web auth login --apple-id "user@example.com" --password-stdin
-  asc web apps create --name "My App" --bundle-id "com.example.app" --sku "MYAPP123" --apple-id "user@example.com" --password-stdin`,
+  asc web privacy plan --app "123456789" --file "./privacy.json"
+  asc web review list --app "123456789" --apple-id "user@example.com"
+  asc web review show --app "123456789" --apple-id "user@example.com"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			WebAuthCommand(),
 			WebAppsCommand(),
+			WebPrivacyCommand(),
+			WebReviewCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) == 0 {

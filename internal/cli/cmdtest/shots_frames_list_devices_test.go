@@ -49,6 +49,7 @@ func TestShotsFramesListDevices_JSON(t *testing.T) {
 		"iphone-17-pro-max",
 		"iphone-16e",
 		"iphone-17",
+		"mac",
 	}
 	if len(result.Devices) != len(expected) {
 		t.Fatalf("expected %d devices, got %d", len(expected), len(result.Devices))

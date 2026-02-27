@@ -793,10 +793,14 @@ func SubscriptionsPricesAddCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("prices add", flag.ExitOnError)
 
 	subID := fs.String("id", "", "Subscription ID")
+	appID := fs.String("app", "", "App ID (optional; retained for backward compatibility)")
 	pricePointID := fs.String("price-point", "", "Subscription price point ID")
+	tier := fs.Int("tier", 0, "Pricing tier number (mutually exclusive with --price-point and --price)")
+	price := fs.String("price", "", "Customer price to select price point (mutually exclusive with --price-point and --tier)")
 	territory := fs.String("territory", "", "Territory ID (e.g., USA)")
 	startDate := fs.String("start-date", "", "Start date (YYYY-MM-DD)")
 	preserved := fs.Bool("preserved", false, "Preserve existing prices")
+	refresh := fs.Bool("refresh", false, "Force refresh of tier cache")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -807,7 +811,9 @@ func SubscriptionsPricesAddCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"
-  asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID" --territory "USA"`,
+  asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID" --territory "USA"
+  asc subscriptions prices add --id "SUB_ID" --tier 5 --territory "USA"
+  asc subscriptions prices add --id "SUB_ID" --price "4.99" --territory "USA"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -818,9 +824,48 @@ Examples:
 			}
 
 			pricePoint := strings.TrimSpace(*pricePointID)
-			if pricePoint == "" {
-				fmt.Fprintln(os.Stderr, "Error: --price-point is required")
+			tierValue := *tier
+			priceValue := strings.TrimSpace(*price)
+			_ = strings.TrimSpace(*appID)
+
+			if err := shared.ValidatePriceSelectionFlags(pricePoint, tierValue, priceValue); err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
+			}
+			if err := shared.ValidateFinitePriceFlag("--price", priceValue); err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err)
+				return flag.ErrHelp
+			}
+
+			territoryID := strings.ToUpper(strings.TrimSpace(*territory))
+
+			if tierValue > 0 || priceValue != "" {
+				if territoryID == "" {
+					fmt.Fprintln(os.Stderr, "Error: --territory is required when using --tier or --price")
+					return flag.ErrHelp
+				}
+
+				client, err := shared.GetASCClient()
+				if err != nil {
+					return fmt.Errorf("subscriptions prices add: %w", err)
+				}
+
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				defer cancel()
+
+				tiers, err := shared.ResolveSubscriptionTiers(requestCtx, client, id, territoryID, *refresh)
+				if err != nil {
+					return fmt.Errorf("subscriptions prices add: resolve tiers: %w", err)
+				}
+
+				if tierValue > 0 {
+					pricePoint, err = shared.ResolvePricePointByTier(tiers, tierValue)
+				} else {
+					pricePoint, err = shared.ResolvePricePointByPrice(tiers, priceValue)
+				}
+				if err != nil {
+					return fmt.Errorf("subscriptions prices add: %w", err)
+				}
 			}
 
 			client, err := shared.GetASCClient()
@@ -838,7 +883,6 @@ Examples:
 				attrs.Preserved = preserved
 			}
 
-			territoryID := strings.ToUpper(strings.TrimSpace(*territory))
 			resp, err := client.CreateSubscriptionPrice(requestCtx, id, pricePoint, territoryID, attrs)
 			if err != nil {
 				return fmt.Errorf("subscriptions prices add: failed to create: %w", err)

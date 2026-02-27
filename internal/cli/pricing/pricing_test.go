@@ -122,6 +122,47 @@ func TestPricingScheduleCreateCommand_MissingFlags(t *testing.T) {
 	}
 }
 
+func TestPricingScheduleCreateCommand_MutuallyExclusivePriceInputs(t *testing.T) {
+	cmd := PricingScheduleCreateCommand()
+
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "APP",
+		"--price-point", "PP",
+		"--price", "0.99",
+		"--base-territory", "USA",
+		"--start-date", "2024-03-01",
+	}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp when --price-point and --price are both set, got %v", err)
+	}
+}
+
+func TestPricingScheduleCreateCommand_InvalidPriceValue(t *testing.T) {
+	tests := []string{"abc", "NaN"}
+
+	for _, value := range tests {
+		t.Run(value, func(t *testing.T) {
+			cmd := PricingScheduleCreateCommand()
+
+			if err := cmd.FlagSet.Parse([]string{
+				"--app", "APP",
+				"--price", value,
+				"--base-territory", "USA",
+				"--start-date", "2024-03-01",
+			}); err != nil {
+				t.Fatalf("failed to parse flags: %v", err)
+			}
+
+			if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp for invalid --price value %q, got %v", value, err)
+			}
+		})
+	}
+}
+
 func TestPricingScheduleCreateCommand_InvalidDate(t *testing.T) {
 	cmd := PricingScheduleCreateCommand()
 
@@ -207,6 +248,7 @@ func TestPricingCommands_DefaultOutputJSON(t *testing.T) {
 		cmd  func() *ffcli.Command
 	}{
 		{"territories list", PricingTerritoriesListCommand},
+		{"tiers", PricingTiersCommand},
 		{"price-points", PricingPricePointsCommand},
 		{"price-points get", PricingPricePointsGetCommand},
 		{"price-points equalizations", PricingPricePointsEqualizationsCommand},
@@ -230,5 +272,18 @@ func TestPricingCommands_DefaultOutputJSON(t *testing.T) {
 				t.Fatalf("expected --output default to be 'json', got %q", f.DefValue)
 			}
 		})
+	}
+}
+
+func TestPricingTiersCommand_MissingApp(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	cmd := PricingTiersCommand()
+
+	if err := cmd.FlagSet.Parse([]string{}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp when --app is missing, got %v", err)
 	}
 }

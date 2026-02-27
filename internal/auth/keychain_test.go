@@ -11,6 +11,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/99designs/keyring"
@@ -743,6 +744,112 @@ func TestStoreAndListCredentials(t *testing.T) {
 	}
 	if !creds[0].IsDefault {
 		t.Fatalf("expected credential to be default")
+	}
+}
+
+func TestStoreCredentials_PersistsPrivateKeyPEMInKeychain(t *testing.T) {
+	newKr, _ := withSeparateKeyrings(t)
+
+	keyPath := filepath.Join(t.TempDir(), "AuthKey.p8")
+	writeECDSAPEM(t, keyPath, 0o600, true)
+
+	if err := StoreCredentials("my-key", "KEY123", "ISS456", keyPath); err != nil {
+		t.Fatalf("StoreCredentials() error: %v", err)
+	}
+
+	item, err := newKr.Get(keyringKey("my-key"))
+	if err != nil {
+		t.Fatalf("Get(keyring item) error: %v", err)
+	}
+
+	var payload credentialPayload
+	if err := json.Unmarshal(item.Data, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v", err)
+	}
+	if payload.PrivateKeyPath != keyPath {
+		t.Fatalf("expected PrivateKeyPath %q, got %q", keyPath, payload.PrivateKeyPath)
+	}
+	if strings.TrimSpace(payload.PrivateKeyPEM) == "" {
+		t.Fatal("expected private key PEM to be persisted in keychain payload")
+	}
+}
+
+func TestGetCredentialsWithSource_KeychainEntrySurvivesOriginalKeyDeletion(t *testing.T) {
+	withArrayKeyring(t)
+
+	keyPath := filepath.Join(t.TempDir(), "AuthKey.p8")
+	writeECDSAPEM(t, keyPath, 0o600, true)
+
+	if err := StoreCredentials("my-key", "KEY123", "ISS456", keyPath); err != nil {
+		t.Fatalf("StoreCredentials() error: %v", err)
+	}
+	if err := os.Remove(keyPath); err != nil {
+		t.Fatalf("os.Remove(%q) error: %v", keyPath, err)
+	}
+
+	creds, source, err := GetCredentialsWithSource("my-key")
+	if err != nil {
+		t.Fatalf("GetCredentialsWithSource() error: %v", err)
+	}
+	if source != "keychain" {
+		t.Fatalf("expected source keychain, got %q", source)
+	}
+	if creds.PrivateKeyPath != keyPath {
+		t.Fatalf("expected original private key path %q, got %q", keyPath, creds.PrivateKeyPath)
+	}
+	if strings.TrimSpace(creds.PrivateKeyPEM) == "" {
+		t.Fatal("expected private key PEM from keychain entry")
+	}
+}
+
+func TestGetCredentialsWithSource_BackfillsLegacyKeychainPayload(t *testing.T) {
+	newKr, _ := withSeparateKeyrings(t)
+
+	keyPath := filepath.Join(t.TempDir(), "AuthKey.p8")
+	writeECDSAPEM(t, keyPath, 0o600, true)
+	storeCredentialInKeyring(t, newKr, "legacy", "KEY123", "ISS456", keyPath)
+
+	first, source, err := GetCredentialsWithSource("legacy")
+	if err != nil {
+		t.Fatalf("GetCredentialsWithSource(first) error: %v", err)
+	}
+	if source != "keychain" {
+		t.Fatalf("expected source keychain, got %q", source)
+	}
+	if first.PrivateKeyPath != keyPath {
+		t.Fatalf("expected original private key path %q, got %q", keyPath, first.PrivateKeyPath)
+	}
+	if strings.TrimSpace(first.PrivateKeyPEM) == "" {
+		t.Fatal("expected first resolution to include private key PEM")
+	}
+
+	item, err := newKr.Get(keyringKey("legacy"))
+	if err != nil {
+		t.Fatalf("Get(keyring item) error: %v", err)
+	}
+	var payload credentialPayload
+	if err := json.Unmarshal(item.Data, &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v", err)
+	}
+	if strings.TrimSpace(payload.PrivateKeyPEM) == "" {
+		t.Fatal("expected legacy payload to be backfilled with private key PEM")
+	}
+
+	if err := os.Remove(keyPath); err != nil {
+		t.Fatalf("os.Remove(%q) error: %v", keyPath, err)
+	}
+	second, source, err := GetCredentialsWithSource("legacy")
+	if err != nil {
+		t.Fatalf("GetCredentialsWithSource(second) error: %v", err)
+	}
+	if source != "keychain" {
+		t.Fatalf("expected source keychain, got %q", source)
+	}
+	if second.PrivateKeyPath != keyPath {
+		t.Fatalf("expected original private key path %q, got %q", keyPath, second.PrivateKeyPath)
+	}
+	if strings.TrimSpace(second.PrivateKeyPEM) == "" {
+		t.Fatal("expected private key PEM after deleting original file")
 	}
 }
 

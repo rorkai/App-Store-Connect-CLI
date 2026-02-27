@@ -674,9 +674,9 @@ func TestCheckMixedCredentialSourcesWarns(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := checkMixedCredentialSources(credentialSource{
-			keyID:    "keychain",
-			issuerID: "env",
-			keyPath:  "env",
+			keyID:       "keychain",
+			issuerID:    "env",
+			keyMaterial: "env",
 		}); err != nil {
 			t.Fatalf("expected warning only, got %v", err)
 		}
@@ -700,9 +700,9 @@ func TestCheckMixedCredentialSourcesStrictErrors(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := checkMixedCredentialSources(credentialSource{
-			keyID:    "keychain",
-			issuerID: "env",
-			keyPath:  "env",
+			keyID:       "keychain",
+			issuerID:    "env",
+			keyMaterial: "env",
 		}); err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -726,9 +726,9 @@ func TestCheckMixedCredentialSourcesStrictAuthEnvErrors(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := checkMixedCredentialSources(credentialSource{
-			keyID:    "keychain",
-			issuerID: "env",
-			keyPath:  "env",
+			keyID:       "keychain",
+			issuerID:    "env",
+			keyMaterial: "env",
 		}); err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -894,6 +894,89 @@ func TestGetASCClient_BypassKeychainPrefersEnvOverConfig(t *testing.T) {
 
 	if _, err := getASCClient(); err != nil {
 		t.Fatalf("expected env credentials to override config, got %v", err)
+	}
+}
+
+func TestResolveCredentials_AllowsStoredPEMWithoutPath(t *testing.T) {
+	tempDir := t.TempDir()
+	keyPath := filepath.Join(tempDir, "AuthKey.p8")
+	writeECDSAPEM(t, keyPath)
+	keyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+
+	previousProfile := selectedProfile
+	selectedProfile = ""
+	t.Cleanup(func() { selectedProfile = previousProfile })
+
+	previous := getCredentialsWithSourceFn
+	getCredentialsWithSourceFn = func(string) (*config.Config, string, error) {
+		return &config.Config{
+			KeyID:         "KEY123",
+			IssuerID:      "ISS456",
+			PrivateKeyPEM: string(keyData),
+		}, "keychain", nil
+	}
+	t.Cleanup(func() { getCredentialsWithSourceFn = previous })
+
+	creds, err := resolveCredentials()
+	if err != nil {
+		t.Fatalf("resolveCredentials() error: %v", err)
+	}
+	if creds.keyID != "KEY123" || creds.issuerID != "ISS456" {
+		t.Fatalf("unexpected resolved credentials: %+v", creds)
+	}
+	if strings.TrimSpace(creds.keyPEM) == "" {
+		t.Fatal("expected private key PEM to be resolved")
+	}
+	if creds.keyPath != "" {
+		t.Fatalf("expected empty keyPath for PEM-backed credentials, got %q", creds.keyPath)
+	}
+}
+
+func TestGetASCClient_UsesStoredPEMWhenPathMissing(t *testing.T) {
+	tempDir := t.TempDir()
+	keyPath := filepath.Join(tempDir, "AuthKey.p8")
+	writeECDSAPEM(t, keyPath)
+	keyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+
+	previousProfile := selectedProfile
+	selectedProfile = ""
+	t.Cleanup(func() { selectedProfile = previousProfile })
+
+	previous := getCredentialsWithSourceFn
+	getCredentialsWithSourceFn = func(string) (*config.Config, string, error) {
+		return &config.Config{
+			KeyID:          "KEY123",
+			IssuerID:       "ISS456",
+			PrivateKeyPath: filepath.Join(tempDir, "missing.p8"),
+			PrivateKeyPEM:  string(keyData),
+		}, "keychain", nil
+	}
+	t.Cleanup(func() { getCredentialsWithSourceFn = previous })
+
+	if _, err := getASCClient(); err != nil {
+		t.Fatalf("getASCClient() error: %v", err)
 	}
 }
 

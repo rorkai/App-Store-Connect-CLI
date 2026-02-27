@@ -332,6 +332,239 @@ screenshots:
 	}
 }
 
+func TestShotsFrame_MacDevice(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	rawPath := filepath.Join(t.TempDir(), "raw.png")
+	writeFramePNG(t, rawPath, makeRawImage(2560, 1600))
+	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
+	writeFramePNG(t, kouFixturePath, makeRawImage(2880, 1800))
+	installMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
+
+	root := RootCommand("1.2.3")
+	if err := root.Parse([]string{
+		"screenshots", "frame",
+		"--input", rawPath,
+		"--output-dir", filepath.Join(t.TempDir(), "framed"),
+		"--device", "mac",
+		"--title", "My App",
+		"--subtitle", "Your tagline",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result struct {
+		Device       string `json:"device"`
+		DisplayType  string `json:"display_type"`
+		UploadWidth  int    `json:"upload_width"`
+		UploadHeight int    `json:"upload_height"`
+		Width        int    `json:"width"`
+		Height       int    `json:"height"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal frame output: %v\nstdout=%q", err, stdout)
+	}
+	if result.Device != "mac" {
+		t.Fatalf("expected device mac, got %q", result.Device)
+	}
+	if result.DisplayType != "APP_DESKTOP" {
+		t.Fatalf("expected display type APP_DESKTOP, got %q", result.DisplayType)
+	}
+	if result.UploadWidth != 2880 || result.UploadHeight != 1800 {
+		t.Fatalf("expected upload target 2880x1800, got %dx%d", result.UploadWidth, result.UploadHeight)
+	}
+	if result.Width != 2880 || result.Height != 1800 {
+		t.Fatalf("expected output 2880x1800, got %dx%d", result.Width, result.Height)
+	}
+}
+
+func TestShotsFrame_MacDeviceNoText(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	rawPath := filepath.Join(t.TempDir(), "raw.png")
+	writeFramePNG(t, rawPath, makeRawImage(2560, 1600))
+	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
+	writeFramePNG(t, kouFixturePath, makeRawImage(2880, 1800))
+	installMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
+
+	root := RootCommand("1.2.3")
+	if err := root.Parse([]string{
+		"screenshots", "frame",
+		"--input", rawPath,
+		"--output-dir", filepath.Join(t.TempDir(), "framed"),
+		"--device", "mac",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result struct {
+		Device       string `json:"device"`
+		DisplayType  string `json:"display_type"`
+		UploadWidth  int    `json:"upload_width"`
+		UploadHeight int    `json:"upload_height"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal frame output: %v\nstdout=%q", err, stdout)
+	}
+	if result.Device != "mac" {
+		t.Fatalf("expected device mac, got %q", result.Device)
+	}
+	if result.DisplayType != "APP_DESKTOP" {
+		t.Fatalf("expected display type APP_DESKTOP, got %q", result.DisplayType)
+	}
+	if result.UploadWidth != 2880 || result.UploadHeight != 1800 {
+		t.Fatalf("expected upload target 2880x1800, got %dx%d", result.UploadWidth, result.UploadHeight)
+	}
+}
+
+func TestShotsFrame_MacDeviceSubtitleOnly(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	rawPath := filepath.Join(t.TempDir(), "raw.png")
+	writeFramePNG(t, rawPath, makeRawImage(2560, 1600))
+	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
+	writeFramePNG(t, kouFixturePath, makeRawImage(2880, 1800))
+	installMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
+
+	root := RootCommand("1.2.3")
+	if err := root.Parse([]string{
+		"screenshots", "frame",
+		"--input", rawPath,
+		"--output-dir", filepath.Join(t.TempDir(), "framed"),
+		"--device", "mac",
+		"--subtitle", "Just a tagline",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result struct {
+		Device      string `json:"device"`
+		DisplayType string `json:"display_type"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal frame output: %v\nstdout=%q", err, stdout)
+	}
+	if result.Device != "mac" {
+		t.Fatalf("expected device mac, got %q", result.Device)
+	}
+	if result.DisplayType != "APP_DESKTOP" {
+		t.Fatalf("expected display type APP_DESKTOP, got %q", result.DisplayType)
+	}
+}
+
+func TestShotsFrame_CanvasFlagsRejectNonCanvasDevice(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "title on iphone",
+			args: []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--title", "Hello"},
+		},
+		{
+			name: "bg-color on iphone",
+			args: []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--bg-color", "#fff"},
+		},
+		{
+			name: "title-color on iphone",
+			args: []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--title-color", "#000"},
+		},
+		{
+			name: "subtitle on iphone",
+			args: []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--subtitle", "Tagline"},
+		},
+		{
+			name: "subtitle-color on iphone",
+			args: []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--subtitle-color", "#333"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "only apply to canvas devices") {
+				t.Fatalf("expected canvas device error, got %q", stderr)
+			}
+		})
+	}
+}
+
+func TestShotsFrame_CanvasFlagsRejectConfigMode(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"screenshots",
+			"frame",
+			"--config", "/tmp/frame.yaml",
+			"--device", "mac",
+			"--title", "Hello",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "cannot be used with --config") {
+		t.Fatalf("expected config mode canvas error, got %q", stderr)
+	}
+}
+
 func TestShotsFrame_WatchRequiresConfig(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -443,11 +676,4 @@ func makeRawImage(width, height int) image.Image {
 		}
 	}
 	return img
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

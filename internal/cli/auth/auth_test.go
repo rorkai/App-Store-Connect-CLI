@@ -201,6 +201,34 @@ func TestValidateStoredCredential_InvalidKeyPath(t *testing.T) {
 	}
 }
 
+func TestValidateStoredCredential_UsesPEMWhenPathMissing(t *testing.T) {
+	keyPath := writeTempECDSAKeyFile(t)
+	keyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+	if err := os.Remove(keyPath); err != nil {
+		t.Fatalf("Remove() error: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err = validateStoredCredential(ctx, authsvc.Credential{
+		Name:           "pem",
+		KeyID:          "KEY",
+		IssuerID:       "ISS",
+		PrivateKeyPath: keyPath,
+		PrivateKeyPEM:  string(keyData),
+	})
+	if err == nil {
+		t.Fatal("expected non-nil error due canceled context")
+	}
+	if strings.Contains(err.Error(), "failed to open key file") || strings.Contains(err.Error(), "invalid private key") {
+		t.Fatalf("expected path-independent validation failure, got %v", err)
+	}
+}
+
 func TestValidateLoginCredentials(t *testing.T) {
 	keyPath := writeTempECDSAKeyFile(t)
 

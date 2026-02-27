@@ -2,7 +2,7 @@ package screenshots
 
 // CaptureRequest holds parameters for a single screenshot capture.
 type CaptureRequest struct {
-	Provider  string // "axe"
+	Provider  string // ProviderAXe or ProviderMacOS
 	BundleID  string
 	UDID      string // simulator UDID or "booted"
 	Name      string // output file name (without extension)

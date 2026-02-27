@@ -270,12 +270,13 @@ type resolvedCredentials struct {
 	keyID    string
 	issuerID string
 	keyPath  string
+	keyPEM   string
 }
 
 type credentialSource struct {
-	keyID    string
-	issuerID string
-	keyPath  string
+	keyID       string
+	issuerID    string
+	keyMaterial string
 }
 
 func resolveEnvCredentials() (envCredentials, error) {
@@ -304,7 +305,7 @@ func resolveEnvCredentials() (envCredentials, error) {
 }
 
 func resolveCredentials() (resolvedCredentials, error) {
-	var actualKeyID, actualIssuerID, actualKeyPath string
+	var actualKeyID, actualIssuerID, actualKeyPath, actualKeyPEM string
 	profile := resolveProfileName()
 	var envCreds envCredentials
 	envResolved := false
@@ -320,7 +321,7 @@ func resolveCredentials() (resolvedCredentials, error) {
 		if envCreds.complete {
 			sources.keyID = "env"
 			sources.issuerID = "env"
-			sources.keyPath = "env"
+			sources.keyMaterial = "env"
 			return resolvedCredentials{
 				keyID:    envCreds.keyID,
 				issuerID: envCreds.issuerID,
@@ -344,13 +345,16 @@ func resolveCredentials() (resolvedCredentials, error) {
 		actualKeyID = cfg.KeyID
 		actualIssuerID = cfg.IssuerID
 		actualKeyPath = cfg.PrivateKeyPath
+		actualKeyPEM = strings.TrimSpace(cfg.PrivateKeyPEM)
 		sources.keyID = storedSource
 		sources.issuerID = storedSource
-		sources.keyPath = storedSource
+		if actualKeyPath != "" || actualKeyPEM != "" {
+			sources.keyMaterial = storedSource
+		}
 	}
 
 	// Priority 2: Environment variables (fallback for CI/CD or when keychain unavailable)
-	if actualKeyID == "" || actualIssuerID == "" || actualKeyPath == "" {
+	if actualKeyID == "" || actualIssuerID == "" || (actualKeyPath == "" && actualKeyPEM == "") {
 		if !envResolved {
 			resolved, err := resolveEnvCredentials()
 			if err != nil {
@@ -366,13 +370,13 @@ func resolveCredentials() (resolvedCredentials, error) {
 			actualIssuerID = envCreds.issuerID
 			sources.issuerID = "env"
 		}
-		if actualKeyPath == "" && envCreds.keyPath != "" {
+		if actualKeyPath == "" && actualKeyPEM == "" && envCreds.keyPath != "" {
 			actualKeyPath = envCreds.keyPath
-			sources.keyPath = "env"
+			sources.keyMaterial = "env"
 		}
 	}
 
-	if actualKeyID == "" || actualIssuerID == "" || actualKeyPath == "" {
+	if actualKeyID == "" || actualIssuerID == "" || (actualKeyPath == "" && actualKeyPEM == "") {
 		if path, err := config.Path(); err == nil {
 			return resolvedCredentials{}, missingAuthError{msg: fmt.Sprintf("missing authentication. Run 'asc auth login' or create %s (see 'asc auth init')", path)}
 		}
@@ -386,6 +390,7 @@ func resolveCredentials() (resolvedCredentials, error) {
 		keyID:    actualKeyID,
 		issuerID: actualIssuerID,
 		keyPath:  actualKeyPath,
+		keyPEM:   actualKeyPEM,
 	}, nil
 }
 
@@ -394,6 +399,16 @@ func getASCClient() (*asc.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	ApplyRootLoggingOverrides()
+	if strings.TrimSpace(resolved.keyPEM) != "" {
+		return asc.NewClientFromPEM(resolved.keyID, resolved.issuerID, resolved.keyPEM)
+	}
+	return asc.NewClient(resolved.keyID, resolved.issuerID, resolved.keyPath)
+}
+
+// ApplyRootLoggingOverrides applies root-level logging flag overrides
+// (--retry-log, --debug, --api-debug) into the shared ASC runtime.
+func ApplyRootLoggingOverrides() {
 	if retryLog.IsSet() {
 		value := retryLog.Value()
 		asc.SetRetryLogOverride(&value)
@@ -412,17 +427,16 @@ func getASCClient() (*asc.Client, error) {
 	} else {
 		asc.SetDebugHTTPOverride(nil)
 	}
-	return asc.NewClient(resolved.keyID, resolved.issuerID, resolved.keyPath)
 }
 
 func checkMixedCredentialSources(sources credentialSource) error {
 	keyIDSource := strings.TrimSpace(sources.keyID)
 	issuerSource := strings.TrimSpace(sources.issuerID)
-	keyPathSource := strings.TrimSpace(sources.keyPath)
-	if keyIDSource == "" || issuerSource == "" || keyPathSource == "" {
+	keyMaterialSource := strings.TrimSpace(sources.keyMaterial)
+	if keyIDSource == "" || issuerSource == "" || keyMaterialSource == "" {
 		return nil
 	}
-	if keyIDSource == issuerSource && issuerSource == keyPathSource {
+	if keyIDSource == issuerSource && issuerSource == keyMaterialSource {
 		return nil
 	}
 
@@ -430,10 +444,10 @@ func checkMixedCredentialSources(sources credentialSource) error {
 		"Warning: credentials loaded from multiple sources:\n  Key ID: %s\n  Issuer ID: %s\n  Private Key: %s\n",
 		keyIDSource,
 		issuerSource,
-		keyPathSource,
+		keyMaterialSource,
 	)
 	if strictAuthEnabled() {
-		return fmt.Errorf("mixed authentication sources detected:\n  Key ID: %s\n  Issuer ID: %s\n  Private Key: %s", keyIDSource, issuerSource, keyPathSource)
+		return fmt.Errorf("mixed authentication sources detected:\n  Key ID: %s\n  Issuer ID: %s\n  Private Key: %s", keyIDSource, issuerSource, keyMaterialSource)
 	}
 	fmt.Fprint(os.Stderr, message)
 	return nil

@@ -29,8 +29,28 @@ const (
 	FrameDeviceIPhone17PM  FrameDevice = "iphone-17-pro-max"
 	FrameDeviceIPhone16e   FrameDevice = "iphone-16e"
 	FrameDeviceIPhone17    FrameDevice = "iphone-17"
+	FrameDeviceMac         FrameDevice = "mac"
 
 	pinnedKoubouVersion = "0.13.0"
+)
+
+const (
+	canvasTitleFontSize    = 60
+	canvasSubtitleFontSize = 28
+	canvasWindowHeightFrac = 0.70 // max window height as fraction of canvas height when text overlays are present
+
+	canvasTitleY        = "12%"
+	canvasSubtitleY     = "16%"
+	canvasSubtitleSoloY = "12%" // subtitle Y when no title is present
+	canvasWindowCenterY = "50%"
+	canvasWindowTextY   = "60%" // window pushed down to make room for text overlays
+
+	canvasBGColorFrom = "#0d0c1e"
+	canvasBGColorTo   = "#140f2d"
+	canvasBGAngle     = 135.0
+
+	canvasDefaultTitleColor    = "#ffffff"
+	canvasDefaultSubtitleColor = "#aaaaaa"
 )
 
 var koubouVersionPattern = regexp.MustCompile(`(?i)\bv?(\d+\.\d+\.\d+)\b`)
@@ -48,12 +68,14 @@ var supportedFrameDevices = []FrameDevice{
 	FrameDeviceIPhone17PM,
 	FrameDeviceIPhone16e,
 	FrameDeviceIPhone17,
+	FrameDeviceMac,
 }
 
 type frameDeviceKoubouSpec struct {
 	FrameName   string
-	OutputSize  string
+	OutputSize  string // Koubou named size (e.g. "iPhone6_9" or "AppDesktop_2880")
 	DisplayType string
+	Canvas      bool // true = plain canvas, no device bezel; screenshot scaled to fill
 }
 
 // Keeps the existing asc device slugs while delegating rendering to Koubou frame names.
@@ -83,14 +105,33 @@ var frameDeviceKoubouSpecs = map[FrameDevice]frameDeviceKoubouSpec{
 		OutputSize:  "iPhone6_1",
 		DisplayType: "APP_IPHONE_61",
 	},
+	FrameDeviceMac: {
+		FrameName:   "Mac",
+		OutputSize:  "AppDesktop_2880",
+		DisplayType: "APP_DESKTOP",
+		Canvas:      true,
+	},
 }
+
+// CanvasOptions controls title/subtitle/color overlays for canvas-mode devices
+// (e.g. --device mac). All fields are optional; zero values use defaults.
+type CanvasOptions struct {
+	Title         string
+	Subtitle      string
+	BGColor       string // solid background hex color (e.g. "#ffffff"); defaults to dark gradient
+	TitleColor    string // title text color; defaults to canvasDefaultTitleColor
+	SubtitleColor string // subtitle text color; defaults to canvasDefaultSubtitleColor
+}
+
+func (o CanvasOptions) hasText() bool { return o.Title != "" || o.Subtitle != "" }
 
 // FrameRequest holds options for composing one screenshot.
 type FrameRequest struct {
-	InputPath  string // required when ConfigPath is empty
-	OutputPath string // optional for custom config mode; required for input mode
-	Device     string // device slug; defaults to iphone-air when empty
-	ConfigPath string // optional Koubou YAML config path
+	InputPath  string         // required when ConfigPath is empty
+	OutputPath string         // optional for custom config mode; required for input mode
+	Device     string         // device slug; defaults to iphone-air when empty
+	ConfigPath string         // optional Koubou YAML config path
+	Canvas     *CanvasOptions // nil for bezel devices; non-nil for canvas devices (e.g. mac)
 
 	// Kept for backwards compatibility; ignored in Koubou mode.
 	FrameRoot   string
@@ -135,23 +176,53 @@ type koubouDefaultConfig struct {
 	Screenshots map[string]koubouDefaultScreenshotSpec `yaml:"screenshots"`
 }
 
+// koubouOutputSize is either a named size string (e.g. "iPhone6_9") or an explicit
+// [width, height] pixel list (used for canvas devices like Mac). It implements
+// yaml.Marshaler so the correct YAML type is always emitted — no any needed.
+type koubouOutputSize struct {
+	named string // non-empty for named sizes (iOS)
+	w, h  int    // non-zero for explicit pixel dimensions (Mac canvas)
+}
+
+func namedOutputSize(name string) koubouOutputSize { return koubouOutputSize{named: name} }
+func dimsOutputSize(w, h int) koubouOutputSize     { return koubouOutputSize{w: w, h: h} }
+
+func (s koubouOutputSize) MarshalYAML() (interface{}, error) {
+	if s.named != "" {
+		return s.named, nil
+	}
+	return []int{s.w, s.h}, nil
+}
+
 type koubouProjectConfig struct {
-	Name       string `yaml:"name"`
-	OutputDir  string `yaml:"output_dir"`
-	Device     string `yaml:"device"`
-	OutputSize string `yaml:"output_size"`
+	Name       string           `yaml:"name"`
+	OutputDir  string           `yaml:"output_dir"`
+	Device     string           `yaml:"device"`
+	OutputSize koubouOutputSize `yaml:"output_size"`
+}
+
+type koubouGradientConfig struct {
+	Type      string   `yaml:"type"`
+	Colors    []string `yaml:"colors"`
+	Direction float64  `yaml:"direction,omitempty"`
 }
 
 type koubouDefaultScreenshotSpec struct {
-	Content []koubouDefaultContentItem `yaml:"content"`
+	Background *koubouGradientConfig      `yaml:"background,omitempty"`
+	Content    []koubouDefaultContentItem `yaml:"content"`
 }
 
 type koubouDefaultContentItem struct {
-	Type     string    `yaml:"type"`
-	Asset    string    `yaml:"asset"`
-	Position [2]string `yaml:"position"`
-	Scale    float64   `yaml:"scale"`
-	Frame    bool      `yaml:"frame"`
+	Type      string    `yaml:"type"`
+	Asset     string    `yaml:"asset,omitempty"`
+	Content   string    `yaml:"content,omitempty"`
+	Position  [2]string `yaml:"position"`
+	Scale     float64   `yaml:"scale,omitempty"`
+	Frame     *bool     `yaml:"frame,omitempty"`
+	Color     string    `yaml:"color,omitempty"`
+	Size      int       `yaml:"size,omitempty"`
+	Weight    string    `yaml:"weight,omitempty"`
+	Alignment string    `yaml:"alignment,omitempty"`
 }
 
 // DefaultFrameDevice returns the default frame device.
@@ -179,6 +250,12 @@ func FrameDeviceOptions() []FrameDeviceOption {
 		})
 	}
 	return options
+}
+
+// IsCanvasDevice returns true if the device uses canvas mode (no device bezel).
+func IsCanvasDevice(device FrameDevice) bool {
+	spec, ok := frameDeviceKoubouSpecs[device]
+	return ok && spec.Canvas
 }
 
 // ParseFrameDevice normalizes and validates a frame device value.
@@ -233,6 +310,9 @@ func Frame(ctx context.Context, req FrameRequest) (*FrameResult, error) {
 		if !ok {
 			return nil, fmt.Errorf("no Koubou mapping configured for device %q", device)
 		}
+		if req.Canvas != nil && !spec.Canvas {
+			return nil, fmt.Errorf("canvas options require a canvas device; %q uses a device bezel", device)
+		}
 
 		absInputPath, err := filepath.Abs(inputPath)
 		if err != nil {
@@ -242,7 +322,7 @@ func Frame(ctx context.Context, req FrameRequest) (*FrameResult, error) {
 			return nil, fmt.Errorf("read input screenshot: %w", err)
 		}
 
-		generatedConfigPath, generatedMetadata, generatedWorkDir, err := createDefaultKoubouConfig(absInputPath, spec)
+		generatedConfigPath, generatedMetadata, generatedWorkDir, err := createDefaultKoubouConfig(absInputPath, spec, req.Canvas)
 		if err != nil {
 			return nil, err
 		}
@@ -317,9 +397,13 @@ func Frame(ctx context.Context, req FrameRequest) (*FrameResult, error) {
 	}, nil
 }
 
+// boolPtr returns a pointer to b. Used for YAML fields that require *bool for omitempty.
+func boolPtr(b bool) *bool { return &b }
+
 func createDefaultKoubouConfig(
 	absInputPath string,
 	spec frameDeviceKoubouSpec,
+	canvas *CanvasOptions,
 ) (string, frameExecutionMetadata, string, error) {
 	workDir, err := os.MkdirTemp("", "asc-shots-kou-*")
 	if err != nil {
@@ -331,25 +415,120 @@ func createDefaultKoubouConfig(
 		return "", frameExecutionMetadata{}, "", fmt.Errorf("create temp output directory: %w", err)
 	}
 
+	scale := 1.0
+	kouOutputSize := namedOutputSize(spec.OutputSize)
+	opts := canvas
+	if opts == nil {
+		opts = &CanvasOptions{}
+	}
+
+	if spec.Canvas {
+		if cw, ch, ok := resolveKoubouOutputSize(spec.OutputSize); ok {
+			kouOutputSize = dimsOutputSize(cw, ch)
+			if dims, err := asc.ReadImageDimensions(absInputPath); err == nil && dims.Width > 0 && dims.Height > 0 {
+				maxH := float64(ch)
+				if opts.hasText() {
+					maxH = float64(ch) * canvasWindowHeightFrac
+				}
+				scaleByW := float64(cw) / float64(dims.Width)
+				scaleByH := maxH / float64(dims.Height)
+				if scaleByW < scaleByH {
+					scale = scaleByW
+				} else {
+					scale = scaleByH
+				}
+			}
+		}
+	}
+
+	var background *koubouGradientConfig
+	var contentItems []koubouDefaultContentItem
+	windowY := canvasWindowCenterY
+
+	if spec.Canvas {
+		if opts.BGColor != "" {
+			background = &koubouGradientConfig{
+				Type:   "linear",
+				Colors: []string{opts.BGColor, opts.BGColor},
+			}
+		} else {
+			background = &koubouGradientConfig{
+				Type:      "linear",
+				Colors:    []string{canvasBGColorFrom, canvasBGColorTo},
+				Direction: canvasBGAngle,
+			}
+		}
+
+		if opts.hasText() {
+			windowY = canvasWindowTextY
+		}
+
+		if opts.Title != "" {
+			tc := opts.TitleColor
+			if tc == "" {
+				tc = canvasDefaultTitleColor
+			}
+			contentItems = append(contentItems, koubouDefaultContentItem{
+				Type:      "text",
+				Content:   opts.Title,
+				Position:  [2]string{"50%", canvasTitleY},
+				Size:      canvasTitleFontSize,
+				Weight:    "bold",
+				Color:     tc,
+				Alignment: "center",
+			})
+		}
+
+		subtitleY := canvasSubtitleY
+		if opts.Title == "" {
+			subtitleY = canvasSubtitleSoloY
+		}
+		if opts.Subtitle != "" {
+			sc := opts.SubtitleColor
+			if sc == "" {
+				sc = canvasDefaultSubtitleColor
+			}
+			contentItems = append(contentItems, koubouDefaultContentItem{
+				Type:      "text",
+				Content:   opts.Subtitle,
+				Position:  [2]string{"50%", subtitleY},
+				Size:      canvasSubtitleFontSize,
+				Color:     sc,
+				Alignment: "center",
+			})
+		}
+
+		contentItems = append(contentItems, koubouDefaultContentItem{
+			Type:     "image",
+			Asset:    absInputPath,
+			Position: [2]string{"50%", windowY},
+			Scale:    scale,
+			Frame:    boolPtr(false),
+		})
+	} else {
+		contentItems = []koubouDefaultContentItem{
+			{
+				Type:     "image",
+				Asset:    absInputPath,
+				Position: [2]string{"50%", "50%"},
+				Scale:    scale,
+				Frame:    boolPtr(true),
+			},
+		}
+	}
+
 	configPath := filepath.Join(workDir, "frame.yaml")
 	config := koubouDefaultConfig{
 		Project: koubouProjectConfig{
 			Name:       "ASC Shots Frame",
 			OutputDir:  kouOutputDir,
 			Device:     spec.FrameName,
-			OutputSize: spec.OutputSize,
+			OutputSize: kouOutputSize,
 		},
 		Screenshots: map[string]koubouDefaultScreenshotSpec{
 			"framed": {
-				Content: []koubouDefaultContentItem{
-					{
-						Type:     "image",
-						Asset:    absInputPath,
-						Position: [2]string{"50%", "50%"},
-						Scale:    1.0,
-						Frame:    true,
-					},
-				},
+				Background: background,
+				Content:    contentItems,
 			},
 		},
 	}
@@ -465,6 +644,11 @@ func resolveKoubouOutputSize(value any) (int, int, bool) {
 		"iphone6_1": {Width: 1179, Height: 2556},
 		"iphone5_8": {Width: 1170, Height: 2532},
 		"iphone5_5": {Width: 1242, Height: 2208},
+		// Mac App Store desktop (16:10)
+		"appdesktop_1280": {Width: 1280, Height: 800},
+		"appdesktop_1440": {Width: 1440, Height: 900},
+		"appdesktop_2560": {Width: 2560, Height: 1600},
+		"appdesktop_2880": {Width: 2880, Height: 1800},
 	}
 
 	switch typed := value.(type) {
@@ -493,6 +677,14 @@ func resolveKoubouOutputSize(value any) (int, int, bool) {
 }
 
 func displayTypeForDimensions(width, height int) (string, bool) {
+	// Mac — Apple's four required 16:10 screenshot sizes
+	macSizes := [][2]int{{1280, 800}, {1440, 900}, {2560, 1600}, {2880, 1800}}
+	for _, sz := range macSizes {
+		if width == sz[0] && height == sz[1] {
+			return "APP_DESKTOP", true
+		}
+	}
+
 	iphoneDisplayTypes := []string{
 		"APP_IPHONE_69",
 		"APP_IPHONE_67",

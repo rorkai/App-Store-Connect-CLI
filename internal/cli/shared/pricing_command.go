@@ -33,8 +33,11 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	pricePointID := fs.String("price-point", "", "App price point ID")
+	tier := fs.Int("tier", 0, "Pricing tier number (1-based, mutually exclusive with --price-point and --price)")
+	price := fs.String("price", "", "Customer price (e.g., 0.99) to select price point")
 	baseTerritory := fs.String("base-territory", "", "Base territory ID (e.g., USA)")
 	startDate := fs.String("start-date", "", config.StartDateHelp)
+	refresh := fs.Bool("refresh", false, "Force refresh of tier cache")
 	output := BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -51,13 +54,20 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 				return flag.ErrHelp
 			}
 			pricePointValue := strings.TrimSpace(*pricePointID)
-			if pricePointValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --price-point is required")
+			tierValue := *tier
+			priceValue := strings.TrimSpace(*price)
+
+			if err := ValidatePriceSelectionFlags(pricePointValue, tierValue, priceValue); err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err)
+				return flag.ErrHelp
+			}
+			if err := ValidateFinitePriceFlag("--price", priceValue); err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
 			}
 
 			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
-			if config.RequireBaseTerritory && baseTerritoryValue == "" {
+			if (config.RequireBaseTerritory || tierValue > 0 || priceValue != "") && baseTerritoryValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
 				return flag.ErrHelp
 			}
@@ -91,6 +101,24 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 				if err != nil {
 					return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 				}
+			}
+
+			if tierValue > 0 || priceValue != "" {
+				tiers, err := ResolveTiers(requestCtx, client, resolvedAppID, baseTerritoryID, *refresh)
+				if err != nil {
+					return fmt.Errorf("resolve tiers: %w", err)
+				}
+
+				var resolvedID string
+				if tierValue > 0 {
+					resolvedID, err = ResolvePricePointByTier(tiers, tierValue)
+				} else {
+					resolvedID, err = ResolvePricePointByPrice(tiers, priceValue)
+				}
+				if err != nil {
+					return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+				}
+				pricePointValue = resolvedID
 			}
 
 			resp, err := client.CreateAppPriceSchedule(requestCtx, resolvedAppID, asc.AppPriceScheduleCreateAttributes{

@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	ProviderAXe = "axe"
+	ProviderAXe   = "axe"
+	ProviderMacOS = "macos"
 )
 
 // Provider captures a single screenshot and returns the path to the PNG.
@@ -37,8 +38,14 @@ func CaptureWithProvider(ctx context.Context, req CaptureRequest, p Provider) (*
 		switch req.Provider {
 		case ProviderAXe:
 			p = &AXeProvider{}
+		case ProviderMacOS:
+			mp, err := newMacOSProvider()
+			if err != nil {
+				return nil, err
+			}
+			p = mp
 		default:
-			return nil, fmt.Errorf("unknown provider %q", req.Provider)
+			return nil, fmt.Errorf("unknown provider %q (allowed: %s, %s)", req.Provider, ProviderAXe, ProviderMacOS)
 		}
 	}
 

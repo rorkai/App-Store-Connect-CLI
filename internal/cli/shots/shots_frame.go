@@ -30,6 +30,11 @@ func ShotsFrameCommand() *ffcli.Command {
 		string(screenshots.DefaultFrameDevice()),
 		fmt.Sprintf("Frame device: %s", strings.Join(screenshots.FrameDeviceValues(), ", ")),
 	)
+	title := fs.String("title", "", "Title text overlay (canvas mode only, e.g. --device mac)")
+	subtitle := fs.String("subtitle", "", "Subtitle text overlay (canvas mode only, e.g. --device mac)")
+	bgColor := fs.String("bg-color", "", "Solid background color in canvas mode (e.g. #1a1a2e); defaults to dark gradient")
+	titleColor := fs.String("title-color", "", "Title text color in canvas mode (e.g. #000000); defaults to #ffffff")
+	subtitleColor := fs.String("subtitle-color", "", "Subtitle text color in canvas mode (e.g. #333333); defaults to #aaaaaa")
 	output := shared.BindOutputFlags(fs)
 	watch := fs.Bool("watch", false, "Watch config and asset files for changes, auto-regenerate (requires --config)")
 	watchDebounce := fs.Duration("watch-debounce", 500*time.Millisecond, "Debounce delay between change detection and regeneration")
@@ -98,6 +103,20 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				return flag.ErrHelp
 			}
 
+			hasCanvasFlags := strings.TrimSpace(*title) != "" ||
+				strings.TrimSpace(*subtitle) != "" ||
+				strings.TrimSpace(*bgColor) != "" ||
+				strings.TrimSpace(*titleColor) != "" ||
+				strings.TrimSpace(*subtitleColor) != ""
+			if hasCanvasFlags && configVal != "" {
+				fmt.Fprintf(os.Stderr, "Error: --title, --subtitle, --bg-color, --title-color, --subtitle-color cannot be used with --config; set these in the YAML config instead\n")
+				return flag.ErrHelp
+			}
+			if hasCanvasFlags && !screenshots.IsCanvasDevice(deviceVal) {
+				fmt.Fprintf(os.Stderr, "Error: --title, --subtitle, --bg-color, --title-color, --subtitle-color only apply to canvas devices (e.g. --device mac)\n")
+				return flag.ErrHelp
+			}
+
 			absInput := ""
 			if inputVal != "" {
 				var err error
@@ -117,11 +136,26 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				return fmt.Errorf("screenshots frame: %w", err)
 			}
 
-			result, err := screenshots.Frame(ctx, screenshots.FrameRequest{
+			timeoutCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			var canvasOpts *screenshots.CanvasOptions
+			if hasCanvasFlags && screenshots.IsCanvasDevice(deviceVal) {
+				canvasOpts = &screenshots.CanvasOptions{
+					Title:         strings.TrimSpace(*title),
+					Subtitle:      strings.TrimSpace(*subtitle),
+					BGColor:       strings.TrimSpace(*bgColor),
+					TitleColor:    strings.TrimSpace(*titleColor),
+					SubtitleColor: strings.TrimSpace(*subtitleColor),
+				}
+			}
+
+			result, err := screenshots.Frame(timeoutCtx, screenshots.FrameRequest{
 				InputPath:  absInput,
 				OutputPath: outPath,
 				Device:     string(deviceVal),
 				ConfigPath: configVal,
+				Canvas:     canvasOpts,
 			})
 			if err != nil {
 				return fmt.Errorf("screenshots frame: %w", err)

@@ -272,6 +272,21 @@ func inspectPrivateKeys(options DoctorOptions) DoctorSection {
 
 	seen := map[string]struct{}{}
 	for _, cred := range credentials {
+		if pemValue := strings.TrimSpace(cred.PrivateKeyPEM); pemValue != "" {
+			if _, err := LoadPrivateKeyFromPEM([]byte(pemValue)); err != nil {
+				checks = append(checks, DoctorCheck{
+					Status:  DoctorFail,
+					Message: fmt.Sprintf("%s - invalid keychain private key: %v", cred.Name, err),
+				})
+				continue
+			}
+			checks = append(checks, DoctorCheck{
+				Status:  DoctorOK,
+				Message: fmt.Sprintf("%s - valid private key stored in keychain", cred.Name),
+			})
+			continue
+		}
+
 		path := strings.TrimSpace(cred.PrivateKeyPath)
 		if path == "" {
 			checks = append(checks, DoctorCheck{

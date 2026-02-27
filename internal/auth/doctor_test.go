@@ -134,6 +134,45 @@ func TestDoctorPrivateKeyPermissionsFix(t *testing.T) {
 	}
 }
 
+func TestDoctorPrivateKeys_KeychainPEMWithoutFileStillPasses(t *testing.T) {
+	_, _ = withSeparateKeyrings(t)
+
+	keyPath := filepath.Join(t.TempDir(), "AuthKey.p8")
+	writeECDSAPEM(t, keyPath, 0o600, true)
+	if err := StoreCredentials("keychain-only", "KEY123", "ISS456", keyPath); err != nil {
+		t.Fatalf("StoreCredentials() error: %v", err)
+	}
+	credentials, err := ListCredentials()
+	if err != nil {
+		t.Fatalf("ListCredentials() error: %v", err)
+	}
+	if len(credentials) == 0 {
+		t.Fatal("expected stored keychain credentials before file removal")
+	}
+	if err := os.Remove(keyPath); err != nil {
+		t.Fatalf("Remove(%q) error: %v", keyPath, err)
+	}
+	credentialsAfterRemove, err := ListCredentials()
+	if err != nil {
+		t.Fatalf("ListCredentials() after remove error: %v", err)
+	}
+	if len(credentialsAfterRemove) == 0 {
+		t.Fatal("expected keychain credentials after source key file removal")
+	}
+	if strings.TrimSpace(credentialsAfterRemove[0].PrivateKeyPEM) == "" {
+		t.Fatalf("expected keychain credentials with private key PEM, got %#v", credentialsAfterRemove[0])
+	}
+
+	report := Doctor(DoctorOptions{})
+	section := findDoctorSection(t, report, "Private Keys")
+	if !sectionHasStatus(section, DoctorOK, "valid private key stored in keychain") {
+		t.Fatalf("expected keychain PEM success check, got %#v", section.Checks)
+	}
+	if sectionHasStatus(section, DoctorFail, "file not found") {
+		t.Fatalf("expected no file-not-found failure for keychain PEM, got %#v", section.Checks)
+	}
+}
+
 func TestDoctorMigrationHintsDetected(t *testing.T) {
 	repo := t.TempDir()
 	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {

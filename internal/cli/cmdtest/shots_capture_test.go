@@ -36,7 +36,7 @@ func TestShotsCapture_RequiredFlagErrors(t *testing.T) {
 			wantErr: "--provider must be",
 		},
 		{
-			name:    "provider must be axe",
+			name:    "simctl is not a valid provider",
 			args:    []string{"screenshots", "capture", "--bundle-id", "com.example.app", "--name", "home", "--provider", "simctl"},
 			wantErr: "--provider must be",
 		},

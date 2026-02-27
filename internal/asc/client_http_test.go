@@ -6924,6 +6924,92 @@ func TestCreateSubscriptionPrice(t *testing.T) {
 	}
 }
 
+func TestCreateSubscriptionPrice_RetriesUnexpectedServerError(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "2")
+	t.Setenv("ASC_BASE_DELAY", "1ms")
+	t.Setenv("ASC_MAX_DELAY", "2ms")
+	resetConfigCacheForTest()
+	t.Cleanup(resetConfigCacheForTest)
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+
+	attempts := 0
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts++
+				if req.Method != http.MethodPost {
+					t.Fatalf("expected POST, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/subscriptionPrices" {
+					t.Fatalf("expected path /v1/subscriptionPrices, got %s", req.URL.Path)
+				}
+				assertAuthorized(t, req)
+
+				if attempts < 3 {
+					return jsonResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","title":"An unexpected error occurred.","detail":"An unexpected error occurred on the server side."}]}`), nil
+				}
+				return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01","preserved":true}}}`), nil
+			}),
+		},
+		keyID:      "KEY123",
+		issuerID:   "ISS456",
+		privateKey: key,
+	}
+
+	_, err = client.CreateSubscriptionPrice(context.Background(), "sub-1", "price-point-1", "USA", SubscriptionPriceCreateAttributes{})
+	if err != nil {
+		t.Fatalf("CreateSubscriptionPrice() error: %v", err)
+	}
+	if attempts != 3 {
+		t.Fatalf("expected 3 attempts (2 retries + success), got %d", attempts)
+	}
+}
+
+func TestCreateSubscriptionPrice_DoesNotRetryConflict(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "3")
+	t.Setenv("ASC_BASE_DELAY", "1ms")
+	t.Setenv("ASC_MAX_DELAY", "2ms")
+	resetConfigCacheForTest()
+	t.Cleanup(resetConfigCacheForTest)
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+
+	attempts := 0
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts++
+				if req.Method != http.MethodPost {
+					t.Fatalf("expected POST, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/subscriptionPrices" {
+					t.Fatalf("expected path /v1/subscriptionPrices, got %s", req.URL.Path)
+				}
+				assertAuthorized(t, req)
+				return jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR","title":"Conflict","detail":"duplicate"}]}`), nil
+			}),
+		},
+		keyID:      "KEY123",
+		issuerID:   "ISS456",
+		privateKey: key,
+	}
+
+	_, err = client.CreateSubscriptionPrice(context.Background(), "sub-1", "price-point-1", "USA", SubscriptionPriceCreateAttributes{})
+	if err == nil {
+		t.Fatal("expected conflict error")
+	}
+	if attempts != 1 {
+		t.Fatalf("expected 1 attempt for non-retryable conflict, got %d", attempts)
+	}
+}
+
 func TestCreateSubscriptionAvailability(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`)
 	client := newTestClient(t, func(req *http.Request) {

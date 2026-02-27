@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"flag"
 	"fmt"
@@ -316,19 +317,35 @@ func (p *permissionWarning) Unwrap() error {
 }
 
 func validateStoredCredential(ctx context.Context, cred authsvc.Credential) error {
-	if err := authsvc.ValidateKeyFile(cred.PrivateKeyPath); err != nil {
-		return fmt.Errorf("invalid private key: %w", err)
-	}
-	privateKey, err := authsvc.LoadPrivateKey(cred.PrivateKeyPath)
-	if err != nil {
-		return fmt.Errorf("failed to load private key: %w", err)
+	var (
+		privateKey *ecdsa.PrivateKey
+		client     *asc.Client
+		err        error
+	)
+	if pemValue := strings.TrimSpace(cred.PrivateKeyPEM); pemValue != "" {
+		privateKey, err = authsvc.LoadPrivateKeyFromPEM([]byte(pemValue))
+		if err != nil {
+			return fmt.Errorf("invalid private key: %w", err)
+		}
+		client, err = asc.NewClientFromPEM(cred.KeyID, cred.IssuerID, pemValue)
+		if err != nil {
+			return err
+		}
+	} else {
+		if err := authsvc.ValidateKeyFile(cred.PrivateKeyPath); err != nil {
+			return fmt.Errorf("invalid private key: %w", err)
+		}
+		privateKey, err = authsvc.LoadPrivateKey(cred.PrivateKeyPath)
+		if err != nil {
+			return fmt.Errorf("failed to load private key: %w", err)
+		}
+		client, err = asc.NewClient(cred.KeyID, cred.IssuerID, cred.PrivateKeyPath)
+		if err != nil {
+			return err
+		}
 	}
 	if _, err := asc.GenerateJWT(cred.KeyID, cred.IssuerID, privateKey); err != nil {
 		return fmt.Errorf("failed to generate JWT: %w", err)
-	}
-	client, err := asc.NewClient(cred.KeyID, cred.IssuerID, cred.PrivateKeyPath)
-	if err != nil {
-		return err
 	}
 	if _, err := client.GetApps(ctx, asc.WithAppsLimit(1)); err != nil {
 		if errors.Is(err, asc.ErrForbidden) {
@@ -424,7 +441,8 @@ Examples:
   asc auth login --network --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
   asc auth login --skip-validation --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
 
-The private key file path is stored securely. The key content is never saved.`,
+When using system keychain storage, the encrypted key material is stored in keychain
+so commands continue to work even if the original .p8 file is removed.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

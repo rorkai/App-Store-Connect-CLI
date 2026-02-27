@@ -3,6 +3,7 @@ package asc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -287,12 +288,25 @@ func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointI
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
+	retryOpts := ResolveRetryOptions()
+	data, err := WithRetry(ctx, func() ([]byte, error) {
+		body, err := BuildRequestBody(payload)
+		if err != nil {
+			return nil, err
+		}
 
-	data, err := c.do(ctx, http.MethodPost, "/v1/subscriptionPrices", body)
+		data, err := c.do(ctx, http.MethodPost, "/v1/subscriptionPrices", body)
+		if err != nil {
+			if IsRetryable(err) {
+				return nil, err
+			}
+			if isRetryableSubscriptionPriceCreateError(err) {
+				return nil, &RetryableError{Err: err}
+			}
+			return nil, err
+		}
+		return data, nil
+	}, retryOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -303,6 +317,23 @@ func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointI
 	}
 
 	return &response, nil
+}
+
+func isRetryableSubscriptionPriceCreateError(err error) bool {
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok || apiErr == nil {
+		return false
+	}
+
+	switch apiErr.StatusCode {
+	case http.StatusInternalServerError, http.StatusBadGateway, http.StatusGatewayTimeout:
+		// App Store Connect intermittently returns UNEXPECTED_ERROR on this endpoint.
+		// Retry these transient server-side failures.
+		code := strings.ToUpper(strings.TrimSpace(apiErr.Code))
+		return code == "" || code == "UNEXPECTED_ERROR"
+	default:
+		return false
+	}
 }
 
 // DeleteSubscriptionPrice deletes a subscription price.

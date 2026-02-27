@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 )
 
 // newRequest creates a new HTTP request with JWT authentication
@@ -186,31 +187,7 @@ func sanitizeAuthHeader(value string) string {
 }
 
 func sanitizeURLForLog(rawURL string) string {
-	if rawURL == "" {
-		return ""
-	}
-	parsedURL, err := url.Parse(rawURL)
-	if err != nil {
-		return rawURL
-	}
-	if parsedURL.User != nil {
-		parsedURL.User = url.User("[REDACTED]")
-	}
-	values := parsedURL.Query()
-	if len(values) == 0 {
-		return parsedURL.String()
-	}
-	redactAll := hasSignedQuery(values)
-	for key, vals := range values {
-		if redactAll || isSensitiveQueryKey(key) {
-			for i := range vals {
-				vals[i] = "[REDACTED]"
-			}
-			values[key] = vals
-		}
-	}
-	parsedURL.RawQuery = values.Encode()
-	return parsedURL.String()
+	return urlsanitize.SanitizeURLForLog(rawURL, signedQueryKeys, sensitiveQueryKeys)
 }
 
 func shouldRetryMethod(method string) bool {
@@ -331,32 +308,9 @@ var allowedAnalyticsCDNHosts = []string{
 	"azureedge.net",    // Azure CDN
 }
 
-var signedQueryKeys = map[string]struct{}{
-	"x-amz-signature":     {},
-	"x-amz-credential":    {},
-	"x-amz-algorithm":     {},
-	"x-amz-signedheaders": {},
-	"signature":           {},
-	"key-pair-id":         {},
-	"policy":              {},
-	"sig":                 {},
-}
+var signedQueryKeys = urlsanitize.CopyKeySet(urlsanitize.DefaultSignedQueryKeys)
 
-var sensitiveQueryKeys = map[string]struct{}{
-	"x-amz-signature":      {},
-	"x-amz-credential":     {},
-	"x-amz-algorithm":      {},
-	"x-amz-signedheaders":  {},
-	"x-amz-security-token": {},
-	"signature":            {},
-	"key-pair-id":          {},
-	"policy":               {},
-	"sig":                  {},
-	"token":                {},
-	"access_token":         {},
-	"id_token":             {},
-	"refresh_token":        {},
-}
+var sensitiveQueryKeys = urlsanitize.CopyKeySet(urlsanitize.DefaultSensitiveQueryKeys)
 
 // isAllowedAnalyticsHost checks if the host matches any allowed host suffix.
 func isAllowedAnalyticsHost(host string) bool {
@@ -385,26 +339,7 @@ func hasSignedAnalyticsQuery(values url.Values) bool {
 }
 
 func hasSignedQuery(values url.Values) bool {
-	for key, vals := range values {
-		if _, ok := signedQueryKeys[strings.ToLower(key)]; ok && hasNonEmptyValue(vals) {
-			return true
-		}
-	}
-	return false
-}
-
-func isSensitiveQueryKey(key string) bool {
-	_, ok := sensitiveQueryKeys[strings.ToLower(key)]
-	return ok
-}
-
-func hasNonEmptyValue(values []string) bool {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return true
-		}
-	}
-	return false
+	return urlsanitize.HasSignedQuery(values, signedQueryKeys)
 }
 
 // validateAnalyticsDownloadURL validates that an analytics download URL is safe.

@@ -27,6 +27,7 @@ Examples:
   asc pricing price-points --app "123456789" --territory "USA"
   asc pricing price-points get --price-point "PRICE_POINT_ID"
   asc pricing price-points equalizations --price-point "PRICE_POINT_ID"
+  asc pricing tiers --app "123456789" --territory "USA"
   asc pricing schedule get --app "123456789"
   asc pricing schedule get --id "SCHEDULE_ID"
   asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"
@@ -40,6 +41,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			PricingTerritoriesCommand(),
 			PricingPricePointsCommand(),
+			PricingTiersCommand(),
 			PricingScheduleCommand(),
 			PricingAvailabilityCommand(),
 		},

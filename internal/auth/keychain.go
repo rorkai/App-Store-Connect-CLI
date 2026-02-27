@@ -37,6 +37,7 @@ type Credential struct {
 	KeyID          string `json:"key_id"`
 	IssuerID       string `json:"issuer_id"`
 	PrivateKeyPath string `json:"private_key_path"`
+	PrivateKeyPEM  string `json:"-"`
 	IsDefault      bool   `json:"is_default"`
 	Source         string `json:"source,omitempty"`
 	SourcePath     string `json:"source_path,omitempty"`
@@ -66,6 +67,7 @@ type credentialPayload struct {
 	KeyID          string `json:"key_id"`
 	IssuerID       string `json:"issuer_id"`
 	PrivateKeyPath string `json:"private_key_path"`
+	PrivateKeyPEM  string `json:"private_key_pem,omitempty"`
 }
 
 func keyringConfig(keychainName string) keyring.Config {
@@ -184,13 +186,17 @@ func LoadPrivateKey(path string) (*ecdsa.PrivateKey, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read key file: %w", err)
 	}
+	return LoadPrivateKeyFromPEM(data)
+}
 
+// LoadPrivateKeyFromPEM loads an ECDSA private key from PEM bytes.
+func LoadPrivateKeyFromPEM(data []byte) (*ecdsa.PrivateKey, error) {
 	block, _ := pem.Decode(data)
 	if block == nil {
 		return nil, fmt.Errorf("invalid PEM data")
 	}
 
-	// Try PKCS8 first
+	// Try PKCS8 first.
 	key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err == nil {
 		ecdsaKey, ok := key.(*ecdsa.PrivateKey)
@@ -200,7 +206,7 @@ func LoadPrivateKey(path string) (*ecdsa.PrivateKey, error) {
 		return ecdsaKey, nil
 	}
 
-	// Try SEC1 EC private key as fallback
+	// Try SEC1 EC private key as fallback.
 	ecdsaKey, err := x509.ParseECPrivateKey(block.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("invalid private key: %w", err)
@@ -216,6 +222,9 @@ func StoreCredentials(name, keyID, issuerID, keyPath string) error {
 		IssuerID:       issuerID,
 		PrivateKeyPath: keyPath,
 	}
+	if privateKeyPEM, err := loadPrivateKeyPEMForStorage(keyPath); err == nil && strings.TrimSpace(privateKeyPEM) != "" {
+		payload.PrivateKeyPEM = privateKeyPEM
+	}
 
 	if err := storeInKeychain(name, payload); err == nil {
 		// Successfully stored in keychain - remove matching config entry for security
@@ -229,6 +238,18 @@ func StoreCredentials(name, keyID, issuerID, keyPath string) error {
 	}
 
 	return storeInConfig(name, payload)
+}
+
+func loadPrivateKeyPEMForStorage(path string) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 // StoreCredentialsConfig stores credentials in the config file only.
@@ -560,26 +581,26 @@ func selectCredential(profile string, credentials []Credential) (*config.Config,
 	if name != "" {
 		for _, cred := range credentials {
 			if cred.Name == name {
-				return &config.Config{
-					KeyID:          cred.KeyID,
-					IssuerID:       cred.IssuerID,
-					PrivateKeyPath: cred.PrivateKeyPath,
-					DefaultKeyName: cred.Name,
-				}, true
+				return configFromCredential(cred), true
 			}
 		}
 		return nil, false
 	}
 	if len(credentials) == 1 {
 		cred := credentials[0]
-		return &config.Config{
-			KeyID:          cred.KeyID,
-			IssuerID:       cred.IssuerID,
-			PrivateKeyPath: cred.PrivateKeyPath,
-			DefaultKeyName: cred.Name,
-		}, true
+		return configFromCredential(cred), true
 	}
 	return nil, false
+}
+
+func configFromCredential(cred Credential) *config.Config {
+	return &config.Config{
+		KeyID:          cred.KeyID,
+		IssuerID:       cred.IssuerID,
+		PrivateKeyPath: cred.PrivateKeyPath,
+		PrivateKeyPEM:  cred.PrivateKeyPEM,
+		DefaultKeyName: cred.Name,
+	}
 }
 
 func getCredentialsFromConfig(profile string) (*config.Config, error) {
@@ -707,12 +728,26 @@ func listFromKeyring(kr keyring.Keyring) ([]Credential, error) {
 		if err := json.Unmarshal(item.Data, &payload); err != nil {
 			return nil, fmt.Errorf("invalid keychain entry %q: %w", key, err)
 		}
+		if strings.TrimSpace(payload.PrivateKeyPEM) == "" {
+			if privateKeyPEM, err := loadPrivateKeyPEMForStorage(payload.PrivateKeyPath); err == nil && strings.TrimSpace(privateKeyPEM) != "" {
+				payload.PrivateKeyPEM = privateKeyPEM
+				data, marshalErr := json.Marshal(payload)
+				if marshalErr == nil {
+					_ = kr.Set(keyring.Item{
+						Key:   key,
+						Data:  data,
+						Label: fmt.Sprintf("ASC API Key (%s)", strings.TrimPrefix(key, keyringItemPrefix)),
+					})
+				}
+			}
+		}
 		name := strings.TrimPrefix(key, keyringItemPrefix)
 		credentials = append(credentials, Credential{
 			Name:           name,
 			KeyID:          payload.KeyID,
 			IssuerID:       payload.IssuerID,
 			PrivateKeyPath: payload.PrivateKeyPath,
+			PrivateKeyPEM:  payload.PrivateKeyPEM,
 			IsDefault:      name == defaultName,
 			Source:         "keychain",
 		})
@@ -727,6 +762,7 @@ func migrateLegacyCredentials(credentials []Credential) {
 			KeyID:          cred.KeyID,
 			IssuerID:       cred.IssuerID,
 			PrivateKeyPath: cred.PrivateKeyPath,
+			PrivateKeyPEM:  cred.PrivateKeyPEM,
 		}
 		if err := storeInKeychain(cred.Name, payload); err != nil {
 			continue

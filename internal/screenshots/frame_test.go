@@ -10,6 +10,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestParseFrameDevice_DefaultIsIPhoneAir(t *testing.T) {
@@ -86,6 +88,7 @@ func TestResolveKoubouOutputSize(t *testing.T) {
 		wantOK     bool
 	}{
 		{name: "named size", value: "iPhone6_9", wantWidth: 1320, wantHeight: 2868, wantOK: true},
+		{name: "desktop named size", value: "AppDesktop_2880", wantWidth: 2880, wantHeight: 1800, wantOK: true},
 		{name: "custom list", value: []any{1200, 2500}, wantWidth: 1200, wantHeight: 2500, wantOK: true},
 		{name: "unknown name", value: "iphone7_2", wantOK: false},
 		{name: "invalid list", value: []any{"bad", 2}, wantOK: false},
@@ -104,6 +107,15 @@ func TestResolveKoubouOutputSize(t *testing.T) {
 				t.Fatalf("dimensions = %dx%d, want %dx%d", width, height, test.wantWidth, test.wantHeight)
 			}
 		})
+	}
+}
+
+func TestDisplayTypeForDimensions_Mac(t *testing.T) {
+	for _, sz := range [][2]int{{1280, 800}, {1440, 900}, {2560, 1600}, {2880, 1800}} {
+		displayType, ok := displayTypeForDimensions(sz[0], sz[1])
+		if !ok || displayType != "APP_DESKTOP" {
+			t.Fatalf("displayTypeForDimensions(%d, %d) = %q, %v; want APP_DESKTOP, true", sz[0], sz[1], displayType, ok)
+		}
 	}
 }
 
@@ -299,6 +311,162 @@ func makeFrameTestImage(width, height int) image.Image {
 		}
 	}
 	return img
+}
+
+// parsedCanvasConfig is a lightweight struct for inspecting generated Koubou YAML
+// in canvas tests without depending on the full koubouDefaultConfig type hierarchy.
+type parsedCanvasConfig struct {
+	Screenshots map[string]struct {
+		Background *struct {
+			Colors []string `yaml:"colors"`
+		} `yaml:"background"`
+		Content []struct {
+			Type     string    `yaml:"type"`
+			Content  string    `yaml:"content"`
+			Position [2]string `yaml:"position"`
+			Color    string    `yaml:"color"`
+		} `yaml:"content"`
+	} `yaml:"screenshots"`
+}
+
+func TestCreateDefaultKoubouConfig_CanvasNoText(t *testing.T) {
+	rawPath := filepath.Join(t.TempDir(), "raw.png")
+	writeFrameTestPNG(t, rawPath, makeFrameTestImage(2560, 1600))
+
+	spec := frameDeviceKoubouSpecs[FrameDeviceMac]
+	configPath, metadata, workDir, err := createDefaultKoubouConfig(rawPath, spec, &CanvasOptions{})
+	if err != nil {
+		t.Fatalf("createDefaultKoubouConfig() error = %v", err)
+	}
+	defer os.RemoveAll(workDir)
+
+	if metadata.DisplayType != "APP_DESKTOP" {
+		t.Fatalf("DisplayType = %q, want APP_DESKTOP", metadata.DisplayType)
+	}
+	if metadata.UploadWidth != 2880 || metadata.UploadHeight != 1800 {
+		t.Fatalf("dimensions = %dx%d, want 2880x1800", metadata.UploadWidth, metadata.UploadHeight)
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	var cfg parsedCanvasConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("yaml.Unmarshal() error = %v", err)
+	}
+
+	framed := cfg.Screenshots["framed"]
+	// No text: exactly 1 content item (the image), window centered at 50%.
+	if len(framed.Content) != 1 {
+		t.Fatalf("expected 1 content item (image only), got %d", len(framed.Content))
+	}
+	item := framed.Content[0]
+	if item.Type != "image" {
+		t.Fatalf("expected image item, got %q", item.Type)
+	}
+	if item.Position[1] != canvasWindowCenterY {
+		t.Fatalf("window Y = %q, want %q (center, no text)", item.Position[1], canvasWindowCenterY)
+	}
+}
+
+func TestCreateDefaultKoubouConfig_CanvasSubtitleOnly(t *testing.T) {
+	rawPath := filepath.Join(t.TempDir(), "raw.png")
+	writeFrameTestPNG(t, rawPath, makeFrameTestImage(2560, 1600))
+
+	spec := frameDeviceKoubouSpecs[FrameDeviceMac]
+	canvas := &CanvasOptions{Subtitle: "Just a tagline"}
+	configPath, _, workDir, err := createDefaultKoubouConfig(rawPath, spec, canvas)
+	if err != nil {
+		t.Fatalf("createDefaultKoubouConfig() error = %v", err)
+	}
+	defer os.RemoveAll(workDir)
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	var cfg parsedCanvasConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("yaml.Unmarshal() error = %v", err)
+	}
+
+	framed := cfg.Screenshots["framed"]
+	// Subtitle only: text item + image item = 2 items total.
+	if len(framed.Content) != 2 {
+		t.Fatalf("expected 2 content items (subtitle + image), got %d", len(framed.Content))
+	}
+	subtitleItem := framed.Content[0]
+	if subtitleItem.Type != "text" {
+		t.Fatalf("expected first item to be text, got %q", subtitleItem.Type)
+	}
+	if subtitleItem.Content != "Just a tagline" {
+		t.Fatalf("subtitle content = %q, want %q", subtitleItem.Content, "Just a tagline")
+	}
+	// With no title, subtitle uses the solo Y position.
+	if subtitleItem.Position[1] != canvasSubtitleSoloY {
+		t.Fatalf("subtitle Y = %q, want %q (solo)", subtitleItem.Position[1], canvasSubtitleSoloY)
+	}
+	imageItem := framed.Content[1]
+	// Has text => window is pushed down.
+	if imageItem.Position[1] != canvasWindowTextY {
+		t.Fatalf("window Y = %q, want %q (text present)", imageItem.Position[1], canvasWindowTextY)
+	}
+}
+
+func TestCreateDefaultKoubouConfig_CanvasCustomColors(t *testing.T) {
+	rawPath := filepath.Join(t.TempDir(), "raw.png")
+	writeFrameTestPNG(t, rawPath, makeFrameTestImage(2560, 1600))
+
+	spec := frameDeviceKoubouSpecs[FrameDeviceMac]
+	canvas := &CanvasOptions{
+		Title:         "My App",
+		Subtitle:      "Tagline",
+		BGColor:       "#ffffff",
+		TitleColor:    "#ff0000",
+		SubtitleColor: "#00ff00",
+	}
+	configPath, _, workDir, err := createDefaultKoubouConfig(rawPath, spec, canvas)
+	if err != nil {
+		t.Fatalf("createDefaultKoubouConfig() error = %v", err)
+	}
+	defer os.RemoveAll(workDir)
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	var cfg parsedCanvasConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("yaml.Unmarshal() error = %v", err)
+	}
+
+	framed := cfg.Screenshots["framed"]
+	// Solid background: both gradient colors should be the solid color.
+	if framed.Background == nil {
+		t.Fatal("expected background config")
+	}
+	if len(framed.Background.Colors) != 2 {
+		t.Fatalf("expected 2 background colors, got %d", len(framed.Background.Colors))
+	}
+	for i, c := range framed.Background.Colors {
+		if c != "#ffffff" {
+			t.Fatalf("background color[%d] = %q, want #ffffff", i, c)
+		}
+	}
+
+	// title + subtitle + image = 3 items.
+	if len(framed.Content) != 3 {
+		t.Fatalf("expected 3 content items, got %d", len(framed.Content))
+	}
+	titleItem := framed.Content[0]
+	if titleItem.Color != "#ff0000" {
+		t.Fatalf("title color = %q, want #ff0000", titleItem.Color)
+	}
+	subtitleItem := framed.Content[1]
+	if subtitleItem.Color != "#00ff00" {
+		t.Fatalf("subtitle color = %q, want #00ff00", subtitleItem.Color)
+	}
 }
 
 func listFrameTempWorkDirs(t *testing.T) []string {

@@ -16,7 +16,7 @@ import (
 // ShotsCaptureCommand returns the screenshots capture subcommand.
 func ShotsCaptureCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("capture", flag.ExitOnError)
-	provider := fs.String("provider", screenshots.ProviderAXe, "Capture provider: axe (default)")
+	provider := fs.String("provider", screenshots.ProviderAXe, fmt.Sprintf("Capture provider: %s (iOS simulator), %s (macOS, app must be running)", screenshots.ProviderAXe, screenshots.ProviderMacOS))
 	bundleID := fs.String("bundle-id", "", "App bundle ID (required)")
 	udid := fs.String("udid", "booted", "Simulator UDID (default: booted)")
 	name := fs.String("name", "", "Screenshot name for output file (required)")
@@ -26,9 +26,14 @@ func ShotsCaptureCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "capture",
 		ShortUsage: "asc screenshots capture --bundle-id BUNDLE_ID --name NAME [flags]",
-		ShortHelp:  "Capture a single screenshot from the simulator (experimental).",
-		LongHelp: `Capture one screenshot from the running app on the simulator (experimental).
-App must already be installed; simulator must be booted or --udid set.`,
+		ShortHelp:  "Capture a single screenshot from a simulator or running macOS app (experimental).",
+		LongHelp: `Capture one screenshot from a running app (experimental).
+
+iOS/simulator (default): app must be installed; simulator must be booted or --udid set.
+
+macOS: app must be running. Captures the frontmost visible window by bundle ID.
+  Requires: Screen Recording permission for your terminal app, and Xcode Command Line Tools (swift).
+  asc screenshots capture --provider macos --bundle-id com.example.MyApp --name home`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -47,8 +52,8 @@ App must already be installed; simulator must be booted or --udid set.`,
 				return flag.ErrHelp
 			}
 			providerVal := strings.TrimSpace(strings.ToLower(*provider))
-			if providerVal != screenshots.ProviderAXe {
-				fmt.Fprintf(os.Stderr, "Error: --provider must be %q\n", screenshots.ProviderAXe)
+			if providerVal != screenshots.ProviderAXe && providerVal != screenshots.ProviderMacOS {
+				fmt.Fprintf(os.Stderr, "Error: --provider must be %q or %q\n", screenshots.ProviderAXe, screenshots.ProviderMacOS)
 				return flag.ErrHelp
 			}
 
@@ -72,7 +77,10 @@ App must already be installed; simulator must be booted or --udid set.`,
 				OutputDir: absOut,
 			}
 
-			result, err := screenshots.Capture(ctx, req)
+			timeoutCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			result, err := screenshots.Capture(timeoutCtx, req)
 			if err != nil {
 				return fmt.Errorf("screenshots capture: %w", err)
 			}

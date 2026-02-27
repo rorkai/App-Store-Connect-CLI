@@ -1092,7 +1092,7 @@ func TestIAPValidationErrors(t *testing.T) {
 		{
 			name:    "iap price-schedules create missing prices",
 			args:    []string{"iap", "price-schedules", "create", "--iap-id", "IAP_ID", "--base-territory", "USA"},
-			wantErr: "--prices is required",
+			wantErr: "--prices (or --tier/--price) is required",
 		},
 		{
 			name:    "iap price-schedules manual-prices missing schedule-id",
@@ -1474,7 +1474,7 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 		{
 			name:    "subscriptions prices add missing price-point",
 			args:    []string{"subscriptions", "prices", "add", "--id", "SUB_ID"},
-			wantErr: "--price-point is required",
+			wantErr: "one of --price-point, --tier, or --price is required",
 		},
 		{
 			name:    "subscriptions prices import missing id",

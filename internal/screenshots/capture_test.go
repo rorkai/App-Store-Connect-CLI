@@ -11,6 +11,26 @@ import (
 	"testing"
 )
 
+func TestCapture_MacOSProviderIsKnown(t *testing.T) {
+	dir := t.TempDir()
+	pngPath := filepath.Join(dir, "valid.png")
+	writeMinimalPNG(t, pngPath, 390, 844)
+
+	req := CaptureRequest{
+		Provider:  ProviderMacOS,
+		BundleID:  "com.example.app",
+		Name:      "home",
+		OutputDir: dir,
+	}
+	result, err := CaptureWithProvider(context.Background(), req, &fakeProvider{path: pngPath})
+	if err != nil {
+		t.Fatalf("unexpected error for macos provider: %v", err)
+	}
+	if result.Provider != ProviderMacOS {
+		t.Fatalf("result.Provider = %q, want %q", result.Provider, ProviderMacOS)
+	}
+}
+
 func TestCapture_UnknownProvider(t *testing.T) {
 	ctx := context.Background()
 	req := CaptureRequest{
