@@ -48,6 +48,7 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 - The `challengesMinimumPlatformVersions` relationship on `gameCenterDetails` uses `appStoreVersions` linkages (live API rejects `gameCenterAppVersions` for this relationship).
 - The relationship endpoint is replace-only (PATCH); GET relationship requests are rejected with "does not allow 'GET_RELATIONSHIP'... Allowed operation is: REPLACE".
 - Setting `challengesMinimumPlatformVersions` requires a live App Store version; non-live versions fail with `ENTITY_ERROR.RELATIONSHIP.INVALID.MIN_CHALLENGES_VERSION_MUST_BE_LIVE` ("must be live to be set as a minimum challenges version.").
+- Concrete example (set members): `asc game-center leaderboard-sets members set --set-id "SET_ID" --leaderboard-ids "lb-weekly,lb-alltime"`
 
 ## Authentication & Rate Limiting
 
