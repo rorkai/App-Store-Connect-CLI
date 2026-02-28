@@ -509,7 +509,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			if err := client.UpdateGameCenterLeaderboardSetMembersV2(requestCtx, id, ids); err != nil {
+			if err := updateLeaderboardSetMembersV2(requestCtx, client, id, ids); err != nil {
 				return fmt.Errorf("game-center leaderboard-sets v2 members set: failed to update: %w", err)
 			}
 
@@ -522,6 +522,33 @@ Examples:
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func updateLeaderboardSetMembersV2(ctx context.Context, client *asc.Client, setID string, ids []string) error {
+	updateErr := client.UpdateGameCenterLeaderboardSetMembersV2(ctx, setID, ids)
+	if updateErr == nil {
+		return nil
+	}
+
+	// Apple may reject PATCH replace on currently empty sets. If we are adding
+	// members and the set is empty, retry with POST add semantics.
+	if len(ids) == 0 || !isConflict(updateErr) {
+		return updateErr
+	}
+
+	currentMembers, err := client.GetGameCenterLeaderboardSetMembersV2(ctx, setID, asc.WithGCLeaderboardSetMembersLimit(1))
+	if err != nil {
+		return fmt.Errorf("replace request failed with conflict and empty-set check failed: %w", updateErr)
+	}
+	if len(currentMembers.Data) != 0 {
+		return updateErr
+	}
+
+	if addErr := client.AddGameCenterLeaderboardSetMembersV2(ctx, setID, ids); addErr != nil {
+		return fmt.Errorf("replace request failed because the set is empty, and add fallback failed: %w", addErr)
+	}
+
+	return nil
 }
 
 // GameCenterLeaderboardSetVersionsV2Command returns the leaderboard set versions v2 command group.
