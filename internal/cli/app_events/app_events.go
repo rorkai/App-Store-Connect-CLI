@@ -192,7 +192,8 @@ func AppEventsCreateCommand() *ffcli.Command {
 
 Examples:
   asc app-events create --app "APP_ID" --name "Summer Challenge" --event-type CHALLENGE --start "2026-06-01T00:00:00Z" --end "2026-06-30T23:59:59Z"
-  asc app-events create --app "APP_ID" --name "Launch Party" --event-type PREMIERE --priority HIGH --purpose ATTRACT_NEW_USERS`,
+  asc app-events create --app "APP_ID" --name "Launch Party" --event-type PREMIERE --priority HIGH --purpose ATTRACT_NEW_USERS
+  asc app-events create --app "APP_ID" --name "Retro Challenge" --event-type LIVE_EVENT --priority HIGH --purpose APPROPRIATE_FOR_ALL_USERS`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -318,7 +319,8 @@ func AppEventsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc app-events update --event-id "EVENT_ID" --priority HIGH
-  asc app-events update --event-id "EVENT_ID" --name "New Name" --event-type SPECIAL_EVENT`,
+  asc app-events update --event-id "EVENT_ID" --name "New Name" --event-type SPECIAL_EVENT
+  asc app-events update --event-id "EVENT_ID" --purchase-requirement NO_COST_ASSOCIATED --primary-locale en-US`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
