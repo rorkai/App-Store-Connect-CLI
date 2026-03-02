@@ -621,6 +621,7 @@ Examples:
 // AuthStatus command factory
 func AuthStatusCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("auth status", flag.ExitOnError)
+	output := shared.BindOutputFlagsWith(fs, "output", "table", "Output format: table (default), json")
 	verbose := fs.Bool("verbose", false, "Show detailed storage information")
 	validate := fs.Bool("validate", false, "Validate stored credentials via network")
 
@@ -635,11 +636,17 @@ Add --validate to perform a network validation for each stored credential.
 
 Examples:
   asc auth status
+  asc auth status --output json
   asc auth status --verbose
   asc auth status --validate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			normalizedOutput, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "table", "json")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+
 			credentials, err := authsvc.ListCredentials()
 			var listWarning *authsvc.CredentialsWarning
 			if err != nil {
@@ -691,45 +698,69 @@ Examples:
 				warnings = append(warnings, "Some credentials are stored in config file (less secure).")
 			}
 
-			fmt.Printf("Credential storage: %s\n", storageBackend)
-			fmt.Printf("Location: %s\n", storageLocation)
-			for _, warning := range warnings {
-				fmt.Printf("Warning: %s\n", warning)
-			}
-			if *verbose {
-				fmt.Printf("Keychain available: %t\n", keychainAvailable)
-				if keychainErr != nil {
-					fmt.Printf("Keychain error: %v\n", keychainErr)
+			if normalizedOutput == "table" {
+				fmt.Printf("Credential storage: %s\n", storageBackend)
+				fmt.Printf("Location: %s\n", storageLocation)
+				for _, warning := range warnings {
+					fmt.Printf("Warning: %s\n", warning)
 				}
-				if configErr == nil {
-					fmt.Printf("Config path: %s\n", configPath)
+				if *verbose {
+					fmt.Printf("Keychain available: %t\n", keychainAvailable)
+					if keychainErr != nil {
+						fmt.Printf("Keychain error: %v\n", keychainErr)
+					}
+					if configErr == nil {
+						fmt.Printf("Config path: %s\n", configPath)
+					}
 				}
+				fmt.Println()
 			}
-			fmt.Println()
 
 			validationFailures := 0
+			credentialOutput := make([]authStatusCredentialOutput, 0, len(credentials))
 			if len(credentials) == 0 {
-				fmt.Println("No credentials stored. Run 'asc auth login' to get started.")
+				if normalizedOutput == "table" {
+					fmt.Println("No credentials stored. Run 'asc auth login' to get started.")
+				}
 			} else {
-				fmt.Println("Stored credentials:")
+				if normalizedOutput == "table" {
+					fmt.Println("Stored credentials:")
+					asc.RenderTable(
+						[]string{"Name", "Key ID", "Default", "Stored In"},
+						buildAuthStatusCredentialRows(credentials),
+					)
+				}
 				for _, cred := range credentials {
-					active := ""
-					if cred.IsDefault {
-						active = " (default)"
+					credentialEntry := authStatusCredentialOutput{
+						Name:      cred.Name,
+						KeyID:     cred.KeyID,
+						IsDefault: cred.IsDefault,
+						StoredIn:  credentialStorageLabel(cred),
 					}
-					fmt.Printf("  - %s (Key ID: %s)%s (stored in %s)\n", cred.Name, cred.KeyID, active, credentialStorageLabel(cred))
 					if *validate {
 						if err := statusValidateCredential(ctx, cred); err != nil {
 							if _, ok := errors.AsType[*permissionWarning](err); ok {
-								fmt.Printf("    %s (Key ID: %s): works (insufficient permissions for apps list)\n", cred.Name, cred.KeyID)
+								credentialEntry.Validation = "works"
+								credentialEntry.ValidationDetail = "insufficient permissions for apps list"
+								if normalizedOutput == "table" {
+									fmt.Printf("    %s (Key ID: %s): works (insufficient permissions for apps list)\n", cred.Name, cred.KeyID)
+								}
 							} else {
 								validationFailures++
-								fmt.Printf("    %s (Key ID: %s): failed (%v)\n", cred.Name, cred.KeyID, err)
+								credentialEntry.Validation = "failed"
+								credentialEntry.ValidationError = err.Error()
+								if normalizedOutput == "table" {
+									fmt.Printf("    %s (Key ID: %s): failed (%v)\n", cred.Name, cred.KeyID, err)
+								}
 							}
 						} else {
-							fmt.Printf("    %s (Key ID: %s): works\n", cred.Name, cred.KeyID)
+							credentialEntry.Validation = "works"
+							if normalizedOutput == "table" {
+								fmt.Printf("    %s (Key ID: %s): works\n", cred.Name, cred.KeyID)
+							}
 						}
 					}
+					credentialOutput = append(credentialOutput, credentialEntry)
 				}
 			}
 
@@ -742,13 +773,44 @@ Examples:
 			envProvided := envKeyID != "" || envIssuerID != "" || hasKeyEnv
 			envComplete := envKeyID != "" && envIssuerID != "" && hasKeyEnv
 
+			environmentNote := ""
 			if profile != "" && envProvided {
-				fmt.Printf("Profile %q selected; environment credentials will be ignored.\n", profile)
+				environmentNote = fmt.Sprintf("Profile %q selected; environment credentials will be ignored.", profile)
 			} else if bypassKeychain && envComplete {
-				fmt.Println("Environment credentials detected (ASC_KEY_ID present). With ASC_BYPASS_KEYCHAIN set to 1/true/yes/on, they will be used when no profile is selected.")
+				environmentNote = "Environment credentials detected (ASC_KEY_ID present). With ASC_BYPASS_KEYCHAIN set to 1/true/yes/on, they will be used when no profile is selected."
 			} else if bypassKeychain && envProvided && !envComplete {
-				fmt.Println("Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID, and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64.")
+				environmentNote = "Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID, and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64."
 			}
+			if normalizedOutput == "table" && environmentNote != "" {
+				fmt.Println(environmentNote)
+			}
+
+			if normalizedOutput == "json" {
+				payload := authStatusOutput{
+					StorageBackend:                 storageBackend,
+					StorageLocation:                storageLocation,
+					Warnings:                       warnings,
+					Credentials:                    credentialOutput,
+					Profile:                        profile,
+					EnvironmentCredentialsProvided: envProvided,
+					EnvironmentCredentialsComplete: envComplete,
+					EnvironmentNote:                environmentNote,
+					ValidationFailures:             validationFailures,
+				}
+				if *verbose {
+					payload.KeychainAvailable = boolPointer(keychainAvailable)
+					if keychainErr != nil {
+						payload.KeychainError = keychainErr.Error()
+					}
+					if configErr == nil {
+						payload.ConfigPath = configPath
+					}
+				}
+				if err := shared.PrintOutput(payload, "json", *output.Pretty); err != nil {
+					return err
+				}
+			}
+
 			if *validate && validationFailures > 0 {
 				return shared.NewReportedError(fmt.Errorf("auth status: validation failed for %d credential(s)", validationFailures))
 			}
@@ -765,4 +827,51 @@ func credentialStorageLabel(cred authsvc.Credential) string {
 		return cred.Source
 	}
 	return "unknown"
+}
+
+type authStatusCredentialOutput struct {
+	Name             string `json:"name"`
+	KeyID            string `json:"keyId"`
+	IsDefault        bool   `json:"isDefault"`
+	StoredIn         string `json:"storedIn"`
+	Validation       string `json:"validation,omitempty"`
+	ValidationDetail string `json:"validationDetail,omitempty"`
+	ValidationError  string `json:"validationError,omitempty"`
+}
+
+type authStatusOutput struct {
+	StorageBackend                 string                       `json:"storageBackend"`
+	StorageLocation                string                       `json:"storageLocation"`
+	Warnings                       []string                     `json:"warnings,omitempty"`
+	Credentials                    []authStatusCredentialOutput `json:"credentials"`
+	Profile                        string                       `json:"profile,omitempty"`
+	EnvironmentCredentialsProvided bool                         `json:"environmentCredentialsProvided"`
+	EnvironmentCredentialsComplete bool                         `json:"environmentCredentialsComplete"`
+	EnvironmentNote                string                       `json:"environmentNote,omitempty"`
+	ValidationFailures             int                          `json:"validationFailures,omitempty"`
+	KeychainAvailable              *bool                        `json:"keychainAvailable,omitempty"`
+	KeychainError                  string                       `json:"keychainError,omitempty"`
+	ConfigPath                     string                       `json:"configPath,omitempty"`
+}
+
+func buildAuthStatusCredentialRows(credentials []authsvc.Credential) [][]string {
+	rows := make([][]string, 0, len(credentials))
+	for _, cred := range credentials {
+		defaultLabel := "no"
+		if cred.IsDefault {
+			defaultLabel = "yes"
+		}
+		rows = append(rows, []string{
+			cred.Name,
+			cred.KeyID,
+			defaultLabel,
+			credentialStorageLabel(cred),
+		})
+	}
+	return rows
+}
+
+func boolPointer(value bool) *bool {
+	result := value
+	return &result
 }

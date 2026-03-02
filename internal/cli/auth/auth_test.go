@@ -7,6 +7,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -627,6 +628,101 @@ func TestAuthStatusCommand(t *testing.T) {
 		}
 		if strings.Contains(stdout, "ASC_BYPASS_KEYCHAIN=1") {
 			t.Fatalf("expected warning to avoid hardcoded '=1', got %q", stdout)
+		}
+	})
+
+	t.Run("stored credentials are rendered as table", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "config.json")
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		if err := authsvc.StoreCredentialsConfigAt("demo", "KEY123", "ISS123", "/tmp/AuthKey.p8", cfgPath); err != nil {
+			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
+		}
+
+		cmd := AuthStatusCommand()
+		if err := cmd.FlagSet.Parse([]string{}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		stdout, _ := captureAuthOutput(t, func() {
+			if err := cmd.Exec(context.Background(), []string{}); err != nil {
+				t.Fatalf("Exec() error: %v", err)
+			}
+		})
+		if !strings.Contains(stdout, "Stored credentials:") {
+			t.Fatalf("expected stored credentials heading, got %q", stdout)
+		}
+		if !strings.Contains(stdout, "┌") || !strings.Contains(stdout, "│ Name ") {
+			t.Fatalf("expected table output for credentials, got %q", stdout)
+		}
+		if !strings.Contains(stdout, "demo") || !strings.Contains(stdout, "KEY123") {
+			t.Fatalf("expected credential values in table output, got %q", stdout)
+		}
+	})
+
+	t.Run("json output renders structured credentials", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "config.json")
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+		if err := authsvc.StoreCredentialsConfigAt("demo", "KEY123", "ISS123", "/tmp/AuthKey.p8", cfgPath); err != nil {
+			t.Fatalf("StoreCredentialsConfigAt() error: %v", err)
+		}
+
+		cmd := AuthStatusCommand()
+		if err := cmd.FlagSet.Parse([]string{"--output", "json"}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		stdout, stderr := captureAuthOutput(t, func() {
+			if err := cmd.Exec(context.Background(), []string{}); err != nil {
+				t.Fatalf("Exec() error: %v", err)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("expected empty stderr, got %q", stderr)
+		}
+
+		var payload struct {
+			StorageBackend string `json:"storageBackend"`
+			Credentials    []struct {
+				Name      string `json:"name"`
+				KeyID     string `json:"keyId"`
+				IsDefault bool   `json:"isDefault"`
+				StoredIn  string `json:"storedIn"`
+			} `json:"credentials"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+			t.Fatalf("failed to unmarshal auth status json: %v; stdout=%q", err, stdout)
+		}
+		if payload.StorageBackend == "" {
+			t.Fatalf("expected storage backend in json output, got %q", stdout)
+		}
+		if len(payload.Credentials) != 1 {
+			t.Fatalf("expected one credential in json output, got %d", len(payload.Credentials))
+		}
+		if payload.Credentials[0].Name != "demo" || payload.Credentials[0].KeyID != "KEY123" {
+			t.Fatalf("unexpected credential json payload: %+v", payload.Credentials[0])
+		}
+	})
+
+	t.Run("invalid output format returns usage error", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "config.json")
+		t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+
+		cmd := AuthStatusCommand()
+		if err := cmd.FlagSet.Parse([]string{"--output", "yaml"}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		stdout, stderr := captureAuthOutput(t, func() {
+			err := cmd.Exec(context.Background(), []string{})
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", err)
+			}
+		})
+		if stdout != "" {
+			t.Fatalf("expected empty stdout, got %q", stdout)
+		}
+		if !strings.Contains(stderr, "unsupported format: yaml") {
+			t.Fatalf("expected unsupported format error, got %q", stderr)
 		}
 	})
 

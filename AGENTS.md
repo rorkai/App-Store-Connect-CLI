@@ -9,7 +9,7 @@ Agent Skills for automating `asc` workflows including builds, TestFlight, metada
 ## Core Principles
 
 - **Explicit flags**: Use long-form flags in docs/tests/examples (`--app`, `--output`) for clarity
-- **JSON-first**: Minified JSON by default (saves tokens), `--output table/markdown` for humans
+- **TTY-aware output defaults**: `table` in interactive terminals, `json` for pipes/CI; use `--output` for explicit formats
 - **No interactive prompts**: Use `--confirm` flags for destructive operations
 - **Pagination**: `--paginate` fetches all pages automatically
 
@@ -180,7 +180,8 @@ API keys are generated at https://appstoreconnect.apple.com/access/integrations/
 | `ASC_DEBUG` | Enable debug logging (set to `api` for HTTP requests/responses) |
 | `ASC_DEFAULT_OUTPUT` | Default output format: `json`, `table`, `markdown`, or `md` |
 
-Explicit `--output` flags always override `ASC_DEFAULT_OUTPUT`.
+When `ASC_DEFAULT_OUTPUT` is unset, defaults are TTY-aware (`table` in terminals, `json` for non-interactive output).
+Explicit `--output` flags always override `ASC_DEFAULT_OUTPUT` and TTY-aware defaults.
 
 ## References
 
