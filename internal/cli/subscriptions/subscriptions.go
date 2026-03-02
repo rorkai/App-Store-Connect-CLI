@@ -881,9 +881,15 @@ Examples:
 			// with inline price resources, while subscriptions that already have
 			// prices use POST /v1/subscriptionPrices for price changes.
 			existingPrices, pricesErr := client.GetSubscriptionPricesRelationships(requestCtx, id)
-			hasExistingPrices := pricesErr == nil && len(existingPrices.Data) > 0
+			if pricesErr != nil {
+				return fmt.Errorf("subscriptions prices add: failed to check existing prices: %w", pricesErr)
+			}
+			hasExistingPrices := len(existingPrices.Data) > 0
 
 			if !hasExistingPrices {
+				if strings.TrimSpace(*startDate) != "" || *preserved {
+					fmt.Fprintln(os.Stderr, "Note: --start-date and --preserved are ignored when setting the initial price")
+				}
 				// Initial price: use PATCH with inline resources
 				subResp, err := client.SetSubscriptionInitialPrice(requestCtx, id, pricePoint)
 				if err != nil {
