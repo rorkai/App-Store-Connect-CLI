@@ -2,8 +2,11 @@ package xcodecloud
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
