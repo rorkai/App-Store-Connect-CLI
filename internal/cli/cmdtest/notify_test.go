@@ -135,7 +135,7 @@ func TestNotifySlackSuccess(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	t.Setenv("ASC_SLACK_WEBHOOK", server.URL)
 	t.Setenv("ASC_SLACK_WEBHOOK_ALLOW_LOCALHOST", "1")
@@ -175,7 +175,7 @@ func TestNotifySlackSuccessWithBlocks(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	t.Setenv("ASC_SLACK_WEBHOOK", server.URL)
 	t.Setenv("ASC_SLACK_WEBHOOK_ALLOW_LOCALHOST", "1")
@@ -220,7 +220,7 @@ func TestNotifySlackSuccessWithThreadAndPayload(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	t.Setenv("ASC_SLACK_WEBHOOK", server.URL)
 	t.Setenv("ASC_SLACK_WEBHOOK_ALLOW_LOCALHOST", "1")

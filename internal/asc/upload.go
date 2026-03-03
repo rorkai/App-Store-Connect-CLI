@@ -89,7 +89,7 @@ func ExecuteUploadOperations(ctx context.Context, filePath string, operations []
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	info, err := file.Stat()
 	if err != nil {
@@ -211,7 +211,7 @@ func executeUploadOperation(ctx context.Context, file *os.File, task uploadTask,
 			}
 			return struct{}{}, &RetryableError{Err: fmt.Errorf("upload request failed: %w", err)}
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		_, _ = io.Copy(io.Discard, resp.Body)
 
 		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusServiceUnavailable {
@@ -281,7 +281,7 @@ func ComputeFileChecksum(filePath string, algorithm ChecksumAlgorithm) (*Checksu
 	if err != nil {
 		return nil, fmt.Errorf("open file for checksum: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var hash hash.Hash
 	switch algorithm {

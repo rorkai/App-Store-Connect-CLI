@@ -64,7 +64,7 @@ func writeFileNoSymlinkOverwrite(path string, perm os.FileMode, tempPattern stri
 	if err != nil {
 		return 0, err
 	}
-	defer tempFile.Close()
+	defer func() { _ = tempFile.Close() }()
 
 	tempPath := tempFile.Name()
 	success := false

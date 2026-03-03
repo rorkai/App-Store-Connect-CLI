@@ -22,7 +22,7 @@ func ExtractBundleInfoFromIPA(ipaPath string) (IPABundleInfo, error) {
 	if err != nil {
 		return IPABundleInfo{}, fmt.Errorf("open IPA: %w", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	for _, file := range reader.File {
 		if file.FileInfo().IsDir() {
@@ -55,7 +55,7 @@ func readBundleInfoFromInfoPlist(file *zip.File) (IPABundleInfo, error) {
 	if err != nil {
 		return IPABundleInfo{}, fmt.Errorf("open Info.plist: %w", err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	data, err := io.ReadAll(reader)
 	if err != nil {

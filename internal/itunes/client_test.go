@@ -45,7 +45,7 @@ func TestGetRatings_Success(t *testing.T) {
 		}
 		http.NotFound(w, r)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	// Create client that uses our test server
 	client := &Client{
@@ -123,7 +123,7 @@ func TestGetRatings_HistogramWithCommas(t *testing.T) {
 		}
 		http.NotFound(w, r)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := &Client{
 		HTTPClient: &http.Client{
@@ -149,7 +149,7 @@ func TestGetRatings_NotFound(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		writeBody(t, w, `{"resultCount": 0, "results": []}`)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := &Client{
 		HTTPClient: &http.Client{
@@ -186,7 +186,7 @@ func TestGetRatings_HistogramFailureIsNonFatal(t *testing.T) {
 		}
 		http.NotFound(w, r)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := &Client{
 		HTTPClient: &http.Client{
@@ -218,7 +218,7 @@ func TestGetRatings_DefaultCountry(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		writeBody(t, w, lookupResponse)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := &Client{
 		HTTPClient: &http.Client{
@@ -263,7 +263,7 @@ func TestGetAllRatings_Aggregation(t *testing.T) {
 		w.Header().Set("Content-Type", "text/html")
 		writeBody(t, w, `<html></html>`)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := &Client{
 		HTTPClient: &http.Client{
@@ -309,7 +309,7 @@ func TestGetAllRatings_InvalidWorkers(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		writeBody(t, w, `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test","averageUserRating":4.0,"userRatingCount":10}]}`)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := &Client{
 		HTTPClient: &http.Client{
@@ -351,7 +351,7 @@ func TestGetAllRatings_NoRatings(t *testing.T) {
 		w.Header().Set("Content-Type", "text/html")
 		writeBody(t, w, `<html></html>`)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := &Client{
 		HTTPClient: &http.Client{
@@ -379,7 +379,7 @@ func TestGetAllRatings_ContextCancellation(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		writeBody(t, w, `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test","averageUserRating":4.0,"userRatingCount":10}]}`)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	client := &Client{
 		HTTPClient: &http.Client{

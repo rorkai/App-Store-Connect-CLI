@@ -23,11 +23,30 @@ jobs:
       - name: Create release directory
         run: mkdir -p release
 
+      - name: Check Apple Developer secrets
+        id: check-secrets
+        run: |
+          if [ -z "${{ secrets.APPLE_DEVELOPER_ID_CERT }}" ] || [ -z "${{ secrets.APPLE_DEVELOPER_ID_PASSWORD }}" ]; then
+            echo "⚠️ Apple Developer secrets not configured. Binaries will not be code signed."
+            echo "has_secrets=false" >> $GITHUB_OUTPUT
+          else
+            echo "✓ Apple Developer secrets configured"
+            echo "has_secrets=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Import Apple certificate
+        if: steps.check-secrets.outputs.has_secrets == 'true'
         uses: apple-actions/import-codesign-certs@v2
         with:
           p12-file-base64: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
           p12-password: ${{ secrets.APPLE_DEVELOPER_ID_PASSWORD }}
+
+      - name: Build Swift helpers
+        working-directory: swift-helpers
+        run: |
+          swift build -c release
+          mkdir -p ../release/swift-helpers
+          cp .build/release/asc-* ../release/swift-helpers/
 
       - name: Build for macOS
         run: |
@@ -38,13 +57,28 @@ jobs:
           GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_macOS_arm64 .
 
       - name: Code sign macOS binaries
-        if: env.APPLE_DEVELOPER_ID != ''
+        if: steps.check-secrets.outputs.has_secrets == 'true'
         run: |
+          if [ -z "${{ secrets.APPLE_DEVELOPER_ID }}" ]; then
+            echo "⚠️ APPLE_DEVELOPER_ID not set, skipping code signing"
+            exit 0
+          fi
+
+          # Sign main binaries
           for binary in release/asc_*_macOS_*; do
-            codesign --force --sign "${{ secrets.APPLE_DEVELOPER_ID }}" --timestamp --options=runtime "$binary"
+            if [ -f "$binary" ]; then
+              codesign --force --sign "${{ secrets.APPLE_DEVELOPER_ID }}" --timestamp --options=runtime "$binary"
+              echo "✓ Signed $(basename $binary)"
+            fi
           done
-        env:
-          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+
+          # Sign Swift helpers
+          for binary in release/swift-helpers/asc-*; do
+            if [ -f "$binary" ]; then
+              codesign --force --sign "${{ secrets.APPLE_DEVELOPER_ID }}" --timestamp --options=runtime "$binary"
+              echo "✓ Signed Swift helper $(basename $binary)"
+            fi
+          done
 
       - name: Build for Linux
         run: |
@@ -65,10 +99,19 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME}"
           cd release
-          shasum -a 256 * > asc_${VERSION}_checksums.txt
+          shasum -a 256 asc_* swift-helpers/asc-* > asc_${VERSION}_checksums.txt
 
       - name: Display files
         run: ls -la release/
+
+      - name: Package Swift helpers
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          cd release/swift-helpers
+          tar -czf "swift-helpers-${VERSION}-macOS.tar.gz" asc-*
+          mv "swift-helpers-${VERSION}-macOS.tar.gz" ../
+          cd ..
+          rm -rf swift-helpers
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

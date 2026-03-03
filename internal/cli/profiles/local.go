@@ -164,7 +164,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("profiles local install: open input: %w", err)
 				}
-				defer file.Close()
+				defer func() { _ = file.Close() }()
 
 				data, err := io.ReadAll(file)
 				if err != nil {

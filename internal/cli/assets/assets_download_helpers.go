@@ -159,7 +159,7 @@ func downloadURLToFileOnce(ctx context.Context, rawURL string, outputPath string
 	if err != nil {
 		return 0, "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	contentType := strings.TrimSpace(resp.Header.Get("Content-Type"))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

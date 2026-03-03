@@ -1,0 +1,283 @@
+name: Swift Helpers CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'swift-helpers/**'
+      - '.github/workflows/swift-helpers.yml'
+      - 'internal/swifthelpers/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'swift-helpers/**'
+      - '.github/workflows/swift-helpers.yml'
+      - 'internal/swifthelpers/**'
+  release:
+    types: [published]
+
+env:
+  SWIFT_VERSION: '5.9'
+
+jobs:
+  # Build Swift helpers on macOS
+  build:
+    name: Build Swift Helpers
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify Swift version
+        run: swift --version
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            swift-helpers/.build
+            ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-swift-${{ hashFiles('swift-helpers/**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-swift-
+
+      - name: Resolve dependencies
+        working-directory: swift-helpers
+        run: swift package resolve
+
+      - name: Build debug
+        working-directory: swift-helpers
+        run: swift build --configuration debug
+
+      - name: Build release
+        working-directory: swift-helpers
+        run: swift build --configuration release
+
+      - name: Test binary execution
+        working-directory: swift-helpers
+        run: |
+          for helper in asc-jwt-sign asc-screenshot-frame asc-image-optimize asc-video-encode; do
+            if [ -f ".build/release/$helper" ]; then
+              echo "✓ $helper built successfully"
+            else
+              echo "✗ $helper not found"
+              exit 1
+            fi
+          done
+
+      - name: Upload debug artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-helpers-debug
+          path: swift-helpers/.build/debug/asc-*
+          retention-days: 7
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-helpers-release
+          path: swift-helpers/.build/release/asc-*
+          retention-days: 14
+
+  # Test Swift helpers
+  test:
+    name: Test Swift Helpers
+    runs-on: macos-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            swift-helpers/.build
+            ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-swift-${{ hashFiles('swift-helpers/**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-swift-
+
+      - name: Run Swift tests
+        working-directory: swift-helpers
+        run: swift test
+        env:
+          ASC_BYPASS_KEYCHAIN: '1'
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: swift-helpers-release
+          path: /usr/local/bin
+
+      - name: Make helpers executable
+        run: |
+          ls -la /usr/local/bin/asc-* || echo "No files matching /usr/local/bin/asc-*"
+          chmod +x /usr/local/bin/asc-* 2>/dev/null || true
+          ls -la /usr/local/bin/asc-* || true
+
+      - name: Build Go CLI
+        run: go build -o asc .
+
+      - name: Run Go e2e tests
+        run: |
+          export PATH="/usr/local/bin:$PATH"
+          # Copy Swift helpers next to Go binary for discovery
+          cp /usr/local/bin/asc-* . 2>/dev/null || true
+          ASC_BYPASS_KEYCHAIN=1 go test -v ./internal/swifthelpers/... -run "TestSwiftEndToEnd"
+
+  # Integration tests - Swift helpers called from Go
+  integration:
+    name: Integration Tests
+    runs-on: macos-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+
+      - name: Build Swift helpers fresh
+        working-directory: swift-helpers
+        run: swift build -c release
+
+      - name: Build Go CLI with Swift helpers
+        run: |
+          go build -o asc .
+          # Copy Swift helpers alongside the Go binary for discovery
+          cp swift-helpers/.build/release/asc-* . 2>/dev/null || true
+          echo "Swift helpers copied. Directory contents:"
+          ls -la asc-* 2>/dev/null || echo "No asc-* files found in current directory"
+
+      - name: Test JWT signing integration
+        run: |
+          # Create a test key in PKCS#8 format (required by Swift JWT helper)
+          openssl ecparam -genkey -name prime256v1 -noout | openssl pkcs8 -topk8 -nocrypt -out test-key.p8
+
+          # Test Swift helper directly (fresh build)
+          ./swift-helpers/.build/release/asc-jwt-sign --issuer-id "test-issuer" --key-id "test-key" --private-key-path test-key.p8 --output json
+
+      - name: Run benchmark tests
+        run: |
+          echo "=== Benchmarks ==="
+          ASC_BYPASS_KEYCHAIN=1 go test -bench=. -benchtime=3s -count=1 -run='^$' ./internal/swifthelpers/... -v 2>&1 | tee bench-results.txt
+          echo ""
+          echo "=== Summary ==="
+          grep -E '^Benchmark|SKIP|PASS|FAIL|ok' bench-results.txt || true
+
+  # Sign and notarize Swift helpers for release
+  sign-and-notarize:
+    name: Sign and Notarize
+    runs-on: macos-latest
+    needs: [build, test]
+    if: github.event_name == 'release'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: swift-helpers-release
+          path: swift-helpers-release
+
+      - name: Check Apple Developer secrets
+        id: check-secrets
+        run: |
+          if [ -z "${{ secrets.APPLE_DEVELOPER_ID_CERT }}" ] || [ -z "${{ secrets.APPLE_DEVELOPER_ID_PASSWORD }}" ]; then
+            echo "⚠️ Apple Developer secrets not configured. Skipping code signing."
+            echo "has_secrets=false" >> $GITHUB_OUTPUT
+          else
+            echo "✓ Apple Developer secrets configured"
+            echo "has_secrets=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Import Apple Developer Certificate
+        if: steps.check-secrets.outputs.has_secrets == 'true'
+        uses: apple-actions/import-codesign-certs@v2
+        with:
+          p12-file-base64: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
+          p12-password: ${{ secrets.APPLE_DEVELOPER_ID_PASSWORD }}
+
+      - name: Sign binaries
+        if: steps.check-secrets.outputs.has_secrets == 'true'
+        env:
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+        run: |
+          if [ -z "$APPLE_DEVELOPER_ID" ]; then
+            echo "⚠️ APPLE_DEVELOPER_ID not set, skipping code signing"
+            exit 0
+          fi
+
+          for binary in swift-helpers-release/asc-*; do
+            if [ -f "$binary" ]; then
+              codesign --force --sign "$APPLE_DEVELOPER_ID" --timestamp --options=runtime "$binary"
+              codesign -dv --verbose=4 "$binary"
+              echo "✓ Signed $(basename $binary)"
+            fi
+          done
+
+      - name: Create release archive
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p swift-helpers-dist
+
+          # Copy all binaries (signed or unsigned)
+          if [ -d "swift-helpers-release" ] && [ -n "$(ls -A swift-helpers-release/asc-* 2>/dev/null)" ]; then
+            cp swift-helpers-release/asc-* swift-helpers-dist/
+          else
+            echo "⚠️ No Swift helpers found in swift-helpers-release"
+            exit 1
+          fi
+
+          # Create tar.gz
+          cd swift-helpers-dist
+          tar -czf "swift-helpers-${VERSION}-macOS.tar.gz" asc-*
+          shasum -a 256 "swift-helpers-${VERSION}-macOS.tar.gz" > "swift-helpers-${VERSION}-macOS.tar.gz.sha256"
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: swift-helpers-dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Build Swift helpers for distribution with main release
+  build-for-release:
+    name: Build for Main Release
+    runs-on: macos-latest
+    if: github.event_name == 'release'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build release
+        working-directory: swift-helpers
+        run: swift build -c release
+
+      - name: Strip symbols
+        working-directory: swift-helpers
+        run: |
+          for binary in .build/release/asc-*; do
+            strip "$binary" 2>/dev/null || true
+          done
+
+      - name: Upload artifacts for main release
+        uses: actions/upload-artifact@v4
+        with:
+          name: swift-helpers-for-main-release
+          path: swift-helpers/.build/release/asc-*
+          retention-days: 1

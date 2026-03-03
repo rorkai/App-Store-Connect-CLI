@@ -21,15 +21,13 @@ jobs:
           go-version: '1.26.x'
           cache: true
 
-      - name: Cache Go tools
-        id: go-tools-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/go/bin
-          key: ${{ runner.os }}-go-tools-${{ hashFiles('Makefile') }}
+      - name: Build Swift helpers
+        run: |
+          cd swift-helpers
+          swift build -c release
+          echo "$(pwd)/.build/release" >> $GITHUB_PATH
 
       - name: Install tooling
-        if: steps.go-tools-cache.outputs.cache-hit != 'true'
         run: make tools
 
       - name: Check formatting
@@ -50,32 +48,10 @@ jobs:
           export PATH="$(go env GOPATH)/bin:$PATH"
           make lint
 
-  unit-tests:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.26.x'
-          cache: true
-
-      - name: Run unit tests
-        run: ASC_BYPASS_KEYCHAIN=1 go test -short ./...
-
-  build:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.26.x'
-          cache: true
+      - name: Run tests
+        env:
+          ASC_BYPASS_KEYCHAIN: '1'
+        run: go test -short ./...
 
       - name: Build for macOS
         run: |

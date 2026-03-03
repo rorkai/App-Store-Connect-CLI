@@ -84,7 +84,7 @@ func TestNotifySlackSuccess(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	t.Setenv(slackWebhookEnvVar, server.URL)
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
@@ -119,7 +119,7 @@ func TestNotifySlackWithChannel(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	t.Setenv(slackWebhookEnvVar, server.URL)
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
@@ -154,7 +154,7 @@ func TestNotifySlackWithThreadTS(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	t.Setenv(slackWebhookEnvVar, server.URL)
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
@@ -213,7 +213,7 @@ func TestNotifySlackWithPayloadJSON(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	t.Setenv(slackWebhookEnvVar, server.URL)
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
@@ -296,7 +296,7 @@ func TestNotifySlackWithPayloadFile(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	t.Setenv(slackWebhookEnvVar, server.URL)
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
@@ -334,7 +334,7 @@ func TestNotifySlackWithBlocksJSON(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	t.Setenv(slackWebhookEnvVar, server.URL)
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
@@ -374,7 +374,7 @@ func TestNotifySlackWithBlocksFile(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	t.Setenv(slackWebhookEnvVar, server.URL)
 	t.Setenv(slackWebhookAllowLocalEnv, "1")
@@ -561,7 +561,7 @@ func TestNotifySlackNonSuccessResponse(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = w.Write([]byte("boom"))
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	t.Setenv(slackWebhookEnvVar, server.URL)
 	t.Setenv(slackWebhookAllowLocalEnv, "1")

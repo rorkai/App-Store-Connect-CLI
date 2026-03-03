@@ -49,3 +49,10 @@ worktrees/
 
 # Analytics chart images (generated locally, not tracked)
 analytics/*.png
+
+# Swift build artifacts
+*.o
+*.swiftmodule
+*.swiftdoc
+swift-helpers/.build/debug/
+swift-helpers/.build/arm64-apple-macosx/

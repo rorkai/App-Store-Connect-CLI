@@ -129,7 +129,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("webhooks serve: failed to listen on %s: %w", net.JoinHostPort(bindHost, strconv.Itoa(*port)), err)
 			}
-			defer listener.Close()
+			defer func() { _ = listener.Close() }()
 
 			tcpAddr, ok := listener.Addr().(*net.TCPAddr)
 			if !ok {
@@ -177,7 +177,7 @@ Examples:
 					return fmt.Errorf("webhooks serve: %w", err)
 				}
 			} else {
-				fmt.Fprintf(os.Stdout, "Listening for webhook events on %s\n", startup.URL)
+				_, _ = fmt.Fprintf(os.Stdout, "Listening for webhook events on %s\n", startup.URL)
 			}
 
 			select {
@@ -364,7 +364,7 @@ func prepareWebhookServeDirectory(value string) (string, error) {
 }
 
 func readWebhookServeJSONPayload(body io.ReadCloser, maxBodyBytes int64) ([]byte, error) {
-	defer body.Close()
+	defer func() { _ = body.Close() }()
 
 	limited := &io.LimitedReader{R: body, N: maxBodyBytes}
 	raw, err := io.ReadAll(limited)

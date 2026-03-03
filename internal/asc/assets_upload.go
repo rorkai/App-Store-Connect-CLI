@@ -25,7 +25,7 @@ func UploadAsset(ctx context.Context, filePath string, operations []UploadOperat
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	info, err := file.Stat()
 	if err != nil {
@@ -132,7 +132,7 @@ func ReadImageDimensions(path string) (ImageDimensions, error) {
 	if err != nil {
 		return ImageDimensions{}, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	cfg, _, err := image.DecodeConfig(file)
 	if err != nil {
@@ -142,6 +142,17 @@ func ReadImageDimensions(path string) (ImageDimensions, error) {
 		return ImageDimensions{}, fmt.Errorf("invalid image dimensions %dx%d for %q", cfg.Width, cfg.Height, path)
 	}
 	return ImageDimensions{Width: cfg.Width, Height: cfg.Height}, nil
+}
+
+// ComputeChecksum computes a checksum for a file on disk.
+func ComputeChecksum(path string, algorithm ChecksumAlgorithm) (*Checksum, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = file.Close() }()
+
+	return ComputeChecksumFromReader(file, algorithm)
 }
 
 // ComputeChecksumFromReader computes a checksum for an io.Reader.

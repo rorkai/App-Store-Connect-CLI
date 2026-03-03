@@ -17,7 +17,7 @@ func TestDebugFlagLogsHTTPRequests(t *testing.T) {
 			t.Errorf("write response: %v", err)
 		}
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	tmpDir := t.TempDir()
 	keyPath := tmpDir + "/key.p8"

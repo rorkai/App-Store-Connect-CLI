@@ -24,7 +24,7 @@ func Run(args []string, versionInfo string) int {
 	// Fast path for the most common version check invocation. This avoids
 	// building/parsing the entire command tree just to print the version.
 	if isVersionOnlyInvocation(args) {
-		fmt.Fprintln(os.Stdout, versionInfo)
+		_, _ = fmt.Fprintln(os.Stdout, versionInfo)
 		return ExitSuccess
 	}
 
@@ -60,7 +60,7 @@ func Run(args []string, versionInfo string) int {
 	// Match gh-style root invocation: plain `asc` (or only root flags)
 	// prints root help and exits successfully.
 	if !hasPositionalArgs(root.FlagSet, args) {
-		fmt.Fprint(os.Stdout, root.UsageFunc(root))
+		_, _ = fmt.Fprint(os.Stdout, root.UsageFunc(root))
 		return ExitSuccess
 	}
 

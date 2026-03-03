@@ -298,7 +298,7 @@ func writeFrameTestPNG(t *testing.T, path string, img image.Image) {
 	if err != nil {
 		t.Fatalf("Create(%q) error: %v", path, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if err := png.Encode(file, img); err != nil {
 		t.Fatalf("png.Encode(%q) error: %v", path, err)
@@ -345,7 +345,7 @@ func TestCreateDefaultKoubouConfig_CanvasNoText(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createDefaultKoubouConfig() error = %v", err)
 	}
-	defer os.RemoveAll(workDir)
+	defer func() { _ = os.RemoveAll(workDir) }()
 
 	if metadata.DisplayType != "APP_DESKTOP" {
 		t.Fatalf("DisplayType = %q, want APP_DESKTOP", metadata.DisplayType)
@@ -387,7 +387,7 @@ func TestCreateDefaultKoubouConfig_CanvasSubtitleOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createDefaultKoubouConfig() error = %v", err)
 	}
-	defer os.RemoveAll(workDir)
+	defer func() { _ = os.RemoveAll(workDir) }()
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -437,7 +437,7 @@ func TestCreateDefaultKoubouConfig_CanvasCustomColors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("createDefaultKoubouConfig() error = %v", err)
 	}
-	defer os.RemoveAll(workDir)
+	defer func() { _ = os.RemoveAll(workDir) }()
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {

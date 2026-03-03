@@ -107,7 +107,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("analytics sales: failed to download report: %w", err)
 			}
-			defer download.Body.Close()
+			defer func() { _ = download.Body.Close() }()
 
 			compressedSize, err := shared.WriteStreamToFile(compressedPath, download.Body)
 			if err != nil {

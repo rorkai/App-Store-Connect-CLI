@@ -42,8 +42,8 @@ Examples:
 			guide, ok := findGuide(guideName)
 			if !ok {
 				safeName := shared.SanitizeTerminal(guideName)
-				fmt.Fprintf(os.Stderr, "Error: unknown guide %q\n", safeName)
-				fmt.Fprintf(os.Stderr, "Available guides: %s\n", strings.Join(guideSlugs(), ", "))
+				_, _ = fmt.Fprintf(os.Stderr, "Error: unknown guide %q\n", safeName)
+				_, _ = fmt.Fprintf(os.Stderr, "Available guides: %s\n", strings.Join(guideSlugs(), ", "))
 				return flag.ErrHelp
 			}
 
@@ -51,7 +51,7 @@ Examples:
 			if !strings.HasSuffix(content, "\n") {
 				content += "\n"
 			}
-			fmt.Fprint(os.Stdout, content)
+			_, _ = fmt.Fprint(os.Stdout, content)
 			return nil
 		},
 	}

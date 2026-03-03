@@ -27,7 +27,7 @@ func SafeWriteFileNoSymlink(path string, perm os.FileMode, overwrite bool, tempP
 			}
 			return 0, err
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		written, err := write(file)
 		if err != nil {
@@ -36,5 +36,76 @@ func SafeWriteFileNoSymlink(path string, perm os.FileMode, overwrite bool, tempP
 		return written, file.Sync()
 	}
 
-	return writeFileNoSymlinkOverwrite(path, perm, tempPattern, backupPattern, write)
+	// Overwrite mode: do not remove the destination until the new file is fully written.
+	hadExisting := false
+	if info, err := os.Lstat(path); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return 0, fmt.Errorf("refusing to overwrite symlink %q", path)
+		}
+		if info.IsDir() {
+			return 0, fmt.Errorf("output path %q is a directory", path)
+		}
+		hadExisting = true
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return 0, err
+	}
+
+	tempFile, err := os.CreateTemp(filepath.Dir(path), tempPattern)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tempFile.Close() }()
+
+	tempPath := tempFile.Name()
+	success := false
+	defer func() {
+		if !success {
+			_ = os.Remove(tempPath)
+		}
+	}()
+
+	if err := tempFile.Chmod(perm); err != nil {
+		return 0, err
+	}
+
+	written, err := write(tempFile)
+	if err != nil {
+		return 0, err
+	}
+	if err := tempFile.Sync(); err != nil {
+		return 0, err
+	}
+	if err := tempFile.Close(); err != nil {
+		return 0, err
+	}
+
+	if err := os.Rename(tempPath, path); err != nil {
+		if !hadExisting {
+			return 0, err
+		}
+
+		backupFile, backupErr := os.CreateTemp(filepath.Dir(path), backupPattern)
+		if backupErr != nil {
+			return 0, err
+		}
+		backupPath := backupFile.Name()
+		if closeErr := backupFile.Close(); closeErr != nil {
+			return 0, closeErr
+		}
+		if removeErr := os.Remove(backupPath); removeErr != nil {
+			return 0, removeErr
+		}
+
+		if moveErr := os.Rename(path, backupPath); moveErr != nil {
+			return 0, moveErr
+		}
+		if moveErr := os.Rename(tempPath, path); moveErr != nil {
+			_ = os.Rename(backupPath, path)
+			return 0, moveErr
+		}
+		_ = os.Remove(backupPath)
+	}
+
+	success = true
+	return written, nil
 }

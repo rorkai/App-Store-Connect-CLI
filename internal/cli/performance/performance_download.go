@@ -104,7 +104,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("performance download: %w", err)
 				}
-				defer download.Body.Close()
+				defer func() { _ = download.Body.Close() }()
 
 				reader, isGzip, err := preparePerformanceDownloadReader(download.Body, *decompress)
 				if err != nil {
@@ -148,7 +148,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("performance download: %w", err)
 				}
-				defer download.Body.Close()
+				defer func() { _ = download.Body.Close() }()
 
 				reader, isGzip, err := preparePerformanceDownloadReader(download.Body, *decompress)
 				if err != nil {
@@ -192,7 +192,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("performance download: %w", err)
 				}
-				defer download.Body.Close()
+				defer func() { _ = download.Body.Close() }()
 
 				reader, isGzip, err := preparePerformanceDownloadReader(download.Body, *decompress)
 				if err != nil {

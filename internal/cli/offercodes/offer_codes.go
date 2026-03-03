@@ -262,7 +262,7 @@ func writeOfferCodesFile(path string, codes []string) error {
 		}
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	for _, code := range codes {
 		trimmed := strings.TrimSpace(code)

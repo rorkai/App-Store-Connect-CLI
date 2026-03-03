@@ -88,7 +88,7 @@ func TestDoctorTempFilesWarns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateTemp() error: %v", err)
 	}
-	tempFile.Close()
+	_ = tempFile.Close()
 	t.Cleanup(func() {
 		_ = os.Remove(tempFile.Name())
 	})

@@ -129,7 +129,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("iap review-screenshots create: %w", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 
 			checksum, err := asc.ComputeChecksumFromReader(file, asc.ChecksumAlgorithmMD5)
 			if err != nil {
@@ -208,7 +208,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("iap review-screenshots update: %w", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 
 			checksum, err := asc.ComputeChecksumFromReader(file, asc.ChecksumAlgorithmMD5)
 			if err != nil {

@@ -129,7 +129,7 @@ func writeReviewPNG(t *testing.T, path string, width, height int) {
 	if err != nil {
 		t.Fatalf("Create(%q) error: %v", path, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 	for y := 0; y < height; y++ {

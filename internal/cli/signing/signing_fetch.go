@@ -322,7 +322,7 @@ func writeBinaryFile(path string, data []byte) error {
 		}
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if _, err := file.Write(data); err != nil {
 		return err

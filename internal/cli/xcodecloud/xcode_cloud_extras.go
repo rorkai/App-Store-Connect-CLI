@@ -558,23 +558,78 @@ Examples:
 }
 
 func xcodeCloudXcodeVersionsList(ctx context.Context, limit int, next string, paginate bool, output string, pretty bool) error {
-	return runXcodeCloudPaginatedList(
-		ctx,
-		limit,
-		next,
-		paginate,
-		output,
-		pretty,
-		"xcode-cloud xcode-versions",
-		func(ctx context.Context, client *asc.Client, limit int, next string) (asc.PaginatedResponse, error) {
-			return client.GetCiXcodeVersions(
-				ctx,
-				asc.WithCiXcodeVersionsLimit(limit),
-				asc.WithCiXcodeVersionsNextURL(next),
-			)
-		},
-		func(ctx context.Context, client *asc.Client, next string) (asc.PaginatedResponse, error) {
-			return client.GetCiXcodeVersions(ctx, asc.WithCiXcodeVersionsNextURL(next))
-		},
-	)
+	if limit != 0 && (limit < 1 || limit > 200) {
+		return fmt.Errorf("xcode-cloud xcode-versions: --limit must be between 1 and 200")
+	}
+	if err := shared.ValidateNextURL(next); err != nil {
+		return fmt.Errorf("xcode-cloud xcode-versions: %w", err)
+	}
+
+	client, err := shared.GetASCClient()
+	if err != nil {
+		return fmt.Errorf("xcode-cloud xcode-versions: %w", err)
+	}
+
+	requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+	defer cancel()
+
+	opts := []asc.CiXcodeVersionsOption{
+		asc.WithCiXcodeVersionsLimit(limit),
+		asc.WithCiXcodeVersionsNextURL(next),
+	}
+
+	if paginate {
+		paginateOpts := append(opts, asc.WithCiXcodeVersionsLimit(200))
+		resp, err := shared.PaginateWithSpinner(requestCtx,
+			func(ctx context.Context) (asc.PaginatedResponse, error) {
+				return client.GetCiXcodeVersions(ctx, paginateOpts...)
+			},
+			func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+				return client.GetCiXcodeVersions(ctx, asc.WithCiXcodeVersionsNextURL(nextURL))
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("xcode-cloud xcode-versions: %w", err)
+		}
+
+		return shared.PrintOutput(resp, output, pretty)
+	}
+
+	resp, err := client.GetCiXcodeVersions(requestCtx, opts...)
+	if err != nil {
+		return fmt.Errorf("xcode-cloud xcode-versions: %w", err)
+	}
+
+	return shared.PrintOutput(resp, output, pretty)
+}
+
+func readJSONFilePayload(path string) (json.RawMessage, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = file.Close() }()
+
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("payload path must be a file")
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(string(data)) == "" {
+		return nil, fmt.Errorf("payload file is empty")
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	return json.RawMessage(data), nil
 }

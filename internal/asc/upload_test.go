@@ -29,7 +29,7 @@ func TestExecuteUploadOperations_UploadsSlices(t *testing.T) {
 	methods := map[string]string{}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
+		defer func() { _ = r.Body.Close() }()
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("read body: %v", err)
@@ -43,7 +43,7 @@ func TestExecuteUploadOperations_UploadsSlices(t *testing.T) {
 		mu.Unlock()
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	ops := []UploadOperation{
 		{
@@ -99,14 +99,14 @@ func TestExecuteUploadOperations_FailsOnHTTPError(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
+		defer func() { _ = r.Body.Close() }()
 		if strings.Contains(r.URL.Path, "op1") {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	ops := []UploadOperation{
 		{

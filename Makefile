@@ -73,11 +73,13 @@ test-integration:
 .PHONY: lint
 lint:
 	@echo "$(BLUE)Linting code...$(NC)"
-	@if command -v golangci-lint >/dev/null 2>&1; then \
+	@if [ -x "$(GOBIN)/golangci-lint" ]; then \
+		$(GOBIN)/golangci-lint run --timeout=$(GOLANGCI_LINT_TIMEOUT) ./...; \
+	elif command -v golangci-lint >/dev/null 2>&1; then \
 		golangci-lint run --timeout=$(GOLANGCI_LINT_TIMEOUT) ./...; \
 	else \
 		echo "$(YELLOW)golangci-lint not found; falling back to 'go vet ./...'.$(NC)"; \
-		echo "$(YELLOW)Install with: make tools (or: $(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)$(NC)"; \
+		echo "$(YELLOW)Install with: make tools (or: $(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest)$(NC)"; \
 		$(GO) vet ./...; \
 	fi
 
@@ -119,7 +121,7 @@ format-check:
 tools:
 	@echo "$(BLUE)Installing dev tools...$(NC)"
 	$(GO) install mvdan.cc/gofumpt@latest
-	$(GO) install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 	@echo "$(GREEN)✓ Tools installed$(NC)"
 	@echo "$(YELLOW)Make sure '$(GOBIN)' is on your PATH$(NC)"
 

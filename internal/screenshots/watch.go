@@ -38,7 +38,7 @@ func WatchAndRegenerate(ctx context.Context, configPath string, debounce time.Du
 	if err != nil {
 		return fmt.Errorf("watch: create watcher: %w", err)
 	}
-	defer watcher.Close()
+	defer func() { _ = watcher.Close() }()
 
 	// Watch the config file's parent directory (fsnotify needs directories on
 	// some platforms, and this also catches renames/re-creates of the file).

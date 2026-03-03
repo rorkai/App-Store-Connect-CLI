@@ -153,7 +153,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("notarization submit: failed to open file: %w", err)
 			}
-			defer fileHandle.Close()
+			defer func() { _ = fileHandle.Close() }()
 
 			uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
 			defer uploadCancel()

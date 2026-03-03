@@ -53,7 +53,7 @@ func TestValidateImageFileRejectsOversize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create file: %v", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if err := file.Truncate(maxAssetFileSize + 1); err != nil {
 		t.Fatalf("truncate file: %v", err)
@@ -71,7 +71,7 @@ func TestValidateAssetFileRejectsOversize(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create file: %v", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if err := file.Truncate(maxAssetFileSize + 1); err != nil {
 		t.Fatalf("truncate file: %v", err)
@@ -93,7 +93,7 @@ func TestUploadAssetFromFileUploadsChunks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open file: %v", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var call int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -116,7 +116,7 @@ func TestUploadAssetFromFileUploadsChunks(t *testing.T) {
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	ops := []UploadOperation{
 		{Method: "PUT", URL: server.URL + "/part1", Length: 3, Offset: 0},
@@ -138,7 +138,7 @@ func TestUploadAssetFromFileUsesUploadTimeoutEnv(t *testing.T) {
 	t.Setenv("ASC_UPLOAD_TIMEOUT_SECONDS", "")
 
 	file := createTempAssetFile(t, []byte("abc"))
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var callCount int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +147,7 @@ func TestUploadAssetFromFileUsesUploadTimeoutEnv(t *testing.T) {
 		_, _ = io.Copy(io.Discard, r.Body)
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	ops := []UploadOperation{
 		{Method: http.MethodPut, URL: server.URL + "/part1", Length: 3, Offset: 0},
@@ -168,14 +168,14 @@ func TestUploadAssetFromFileUsesUploadTimeoutWhenShorter(t *testing.T) {
 	t.Setenv("ASC_UPLOAD_TIMEOUT_SECONDS", "")
 
 	file := createTempAssetFile(t, []byte("abc"))
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(60 * time.Millisecond)
 		_, _ = io.Copy(io.Discard, r.Body)
 		w.WriteHeader(http.StatusOK)
 	}))
-	defer server.Close()
+	defer func() { server.Close() }()
 
 	ops := []UploadOperation{
 		{Method: http.MethodPut, URL: server.URL + "/part1", Length: 3, Offset: 0},

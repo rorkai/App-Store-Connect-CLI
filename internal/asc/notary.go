@@ -194,7 +194,7 @@ func (c *Client) doNotary(ctx context.Context, method, path string, body io.Read
 	if err != nil {
 		return nil, fmt.Errorf("notary request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -304,7 +304,7 @@ func ComputeFileSHA256(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("open file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
@@ -371,7 +371,7 @@ func uploadSinglePartToS3(ctx context.Context, creds S3Credentials, data io.Read
 	if err != nil {
 		return fmt.Errorf("S3 upload failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -482,7 +482,7 @@ func createMultipartUpload(ctx context.Context, host, encodedPath string, creds 
 	if err != nil {
 		return "", fmt.Errorf("create multipart upload failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		return "", fmt.Errorf("create multipart upload failed with status %d: %s", resp.StatusCode, sanitizeErrorBody(respBody))
@@ -528,7 +528,7 @@ func uploadMultipartPart(ctx context.Context, host, encodedPath string, creds S3
 	if err != nil {
 		return "", fmt.Errorf("upload part %d failed: %w", partNumber, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		return "", fmt.Errorf("upload part %d failed with status %d: %s", partNumber, resp.StatusCode, sanitizeErrorBody(respBody))
@@ -586,7 +586,7 @@ func completeMultipartUpload(ctx context.Context, host, encodedPath string, cred
 	if err != nil {
 		return fmt.Errorf("complete multipart upload failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("complete multipart upload failed with status %d: %s", resp.StatusCode, sanitizeErrorBody(respBody))
@@ -620,7 +620,7 @@ func abortMultipartUpload(ctx context.Context, host, encodedPath string, creds S
 	if err != nil {
 		return fmt.Errorf("abort multipart upload failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("abort multipart upload failed with status %d: %s", resp.StatusCode, sanitizeErrorBody(respBody))

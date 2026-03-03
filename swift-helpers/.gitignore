@@ -1,0 +1,4 @@
+# Swift build artifacts
+.build/
+*.xcodeproj
+xcuserdata/

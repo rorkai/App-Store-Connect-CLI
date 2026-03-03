@@ -229,7 +229,7 @@ func executeSteps(ctx context.Context, def *Definition, workflowName string, ste
 			subEnv := mergeEnv(subWf.Env, env, step.With)
 
 			if opts.DryRun {
-				fmt.Fprintf(opts.Stderr, "[dry-run] step %d: workflow %s\n", idx, ref)
+				_, _ = fmt.Fprintf(opts.Stderr, "[dry-run] step %d: workflow %s\n", idx, ref)
 			}
 
 			if err := executeSteps(ctx, def, ref, subWf.Steps, subEnv, depth+1, opts, result); err != nil {
@@ -240,7 +240,7 @@ func executeSteps(ctx context.Context, def *Definition, workflowName string, ste
 
 		// run: step
 		if opts.DryRun {
-			fmt.Fprintf(opts.Stderr, "[dry-run] step %d: %s\n", idx, step.Run)
+			_, _ = fmt.Fprintf(opts.Stderr, "[dry-run] step %d: %s\n", idx, step.Run)
 			sr.Status = "dry-run"
 			sr.DurationMS = time.Since(stepStart).Milliseconds()
 			result.Steps = append(result.Steps, sr)

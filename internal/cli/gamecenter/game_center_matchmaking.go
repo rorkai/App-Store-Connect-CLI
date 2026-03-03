@@ -1805,3 +1805,34 @@ func ascClient() *asc.Client {
 	client, _ := shared.GetASCClient()
 	return client
 }
+
+func readJSONFilePayload(path string) (json.RawMessage, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = file.Close() }()
+
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("payload path must be a file")
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(string(data)) == "" {
+		return nil, fmt.Errorf("payload file is empty")
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return nil, fmt.Errorf("invalid JSON: %w", err)
+	}
+
+	return json.RawMessage(data), nil
+}

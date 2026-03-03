@@ -24,6 +24,12 @@ jobs:
           path: ~/go/bin
           key: ${{ runner.os }}-go-tools-${{ hashFiles('Makefile') }}
 
+      - name: Build Swift helpers
+        run: |
+          cd swift-helpers
+          swift build
+          echo "$(pwd)/.build/debug" >> $GITHUB_PATH
+
       - name: Install tooling
         if: steps.go-tools-cache.outputs.cache-hit != 'true'
         run: make tools
@@ -46,25 +52,13 @@ jobs:
           export PATH="$(go env GOPATH)/bin:$PATH"
           make lint
 
-  test:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.26.x'
-          cache: true
-
-      - name: Run all tests
+      - name: Run all tests with Swift helpers
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_PRIVATE_KEY_PATH: ${{ secrets.ASC_PRIVATE_KEY_PATH }}
           ASC_APP_ID: ${{ secrets.ASC_APP_ID }}
-          ASC_BYPASS_KEYCHAIN: 1
+          ASC_BYPASS_KEYCHAIN: '1'
         run: go test ./...
 
   build:

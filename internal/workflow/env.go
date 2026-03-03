@@ -137,7 +137,7 @@ func runHook(ctx context.Context, command string, env map[string]string, dryRun 
 		return nil
 	}
 	if dryRun {
-		fmt.Fprintf(stderr, "[dry-run] hook: %s\n", command)
+		_, _ = fmt.Fprintf(stderr, "[dry-run] hook: %s\n", command)
 		return nil
 	}
 	return runShellCommand(ctx, command, env, stdout, stderr)

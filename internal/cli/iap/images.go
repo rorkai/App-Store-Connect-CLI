@@ -195,7 +195,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("iap images create: %w", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 
 			checksum, err := asc.ComputeChecksumFromReader(file, asc.ChecksumAlgorithmMD5)
 			if err != nil {
@@ -274,7 +274,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("iap images update: %w", err)
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 
 			checksum, err := asc.ComputeChecksumFromReader(file, asc.ChecksumAlgorithmMD5)
 			if err != nil {

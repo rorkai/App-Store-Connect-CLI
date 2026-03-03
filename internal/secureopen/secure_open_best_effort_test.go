@@ -94,7 +94,7 @@ func TestOpenExistingNoFollowBestEffortAllowsRegularFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("openExistingNoFollowBestEffort() error = %v", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -116,7 +116,7 @@ func TestOpenNewFileNoFollowBestEffortCreatesRegularFile(t *testing.T) {
 		t.Fatalf("openNewFileNoFollowBestEffort() error = %v", err)
 	}
 	if _, err := file.Write([]byte("ok")); err != nil {
-		file.Close()
+		_ = file.Close()
 		t.Fatalf("Write() error = %v", err)
 	}
 	if err := file.Close(); err != nil {
