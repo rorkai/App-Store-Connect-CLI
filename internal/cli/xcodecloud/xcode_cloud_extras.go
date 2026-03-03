@@ -606,6 +606,7 @@ func xcodeCloudXcodeVersionsList(ctx context.Context, limit int, next string, pa
 	return shared.PrintOutput(resp, output, pretty)
 }
 
+//nolint:unused // Called from xcode_cloud_workflows.go via closures; linter false positive
 func readJSONFilePayload(path string) (json.RawMessage, error) {
 	file, err := os.Open(path)
 	if err != nil {

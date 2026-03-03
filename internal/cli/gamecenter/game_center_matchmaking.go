@@ -1808,6 +1808,7 @@ func ascClient() *asc.Client {
 	return client
 }
 
+//nolint:unused // Called from matchmaking command closures; linter false positive
 func readJSONFilePayload(path string) (json.RawMessage, error) {
 	file, err := os.Open(path)
 	if err != nil {
