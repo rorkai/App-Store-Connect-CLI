@@ -107,7 +107,7 @@ func TestDefaultOutputFormat_UnsetReturnsJSON(t *testing.T) {
 	resetDefaultOutput(t)
 	setTerminalDetection(t, func(int) bool { return false })
 	t.Setenv("ASC_DEFAULT_OUTPUT", "")
-	_ = os.Unsetenv("ASC_DEFAULT_OUTPUT")
+	_ = os.Unsetenv("ASC_DEFAULT_OUTPUT") //nolint:errcheck // Cleanup handled by testing framework
 	if got := DefaultOutputFormat(); got != "json" {
 		t.Fatalf("expected json, got %q", got)
 	}
@@ -117,7 +117,7 @@ func TestDefaultOutputFormat_UnsetReturnsTableWhenStdoutTTY(t *testing.T) {
 	resetDefaultOutput(t)
 	setTerminalDetection(t, func(int) bool { return true })
 	t.Setenv("ASC_DEFAULT_OUTPUT", "")
-	os.Unsetenv("ASC_DEFAULT_OUTPUT")
+	os.Unsetenv("ASC_DEFAULT_OUTPUT") //nolint:errcheck // Cleanup handled by testing framework
 
 	if got := DefaultOutputFormat(); got != "table" {
 		t.Fatalf("expected table, got %q", got)
@@ -218,7 +218,7 @@ func TestBindOutputFlagsUsesTTYAwareDefaultWhenEnvUnset(t *testing.T) {
 	resetDefaultOutput(t)
 	setTerminalDetection(t, func(int) bool { return true })
 	t.Setenv("ASC_DEFAULT_OUTPUT", "")
-	os.Unsetenv("ASC_DEFAULT_OUTPUT")
+	os.Unsetenv("ASC_DEFAULT_OUTPUT") //nolint:errcheck // Cleanup handled by testing framework
 
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	output := BindOutputFlags(fs)
