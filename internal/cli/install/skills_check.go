@@ -91,7 +91,7 @@ func shouldRunSkillsCheck(now time.Time, lastCheckedAt string) bool {
 
 func skillsAutoCheckEnabled(value string) bool {
 	if value == "" {
-		return false
+		return true
 	}
 
 	switch strings.ToLower(strings.TrimSpace(value)) {
@@ -100,7 +100,7 @@ func skillsAutoCheckEnabled(value string) bool {
 	case "0", "false", "no", "n", "off":
 		return false
 	default:
-		return false
+		return true
 	}
 }
 
@@ -130,7 +130,8 @@ func defaultRunSkillsCheckCommand(ctx context.Context) (string, error) {
 		return "", nil
 	}
 
-	cmd := exec.CommandContext(ctx, npxPath, "--yes", "skills", "check")
+	// Avoid implicit package downloads during background checks.
+	cmd := exec.CommandContext(ctx, npxPath, "--no-install", "skills", "check")
 	var combined bytes.Buffer
 	cmd.Stdout = &combined
 	cmd.Stderr = &combined

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -19,7 +20,7 @@ func TestSkillsAutoCheckEnabled(t *testing.T) {
 		value string
 		want  bool
 	}{
-		{name: "default disabled", value: "", want: false},
+		{name: "default enabled", value: "", want: true},
 		{name: "true", value: "true", want: true},
 		{name: "yes", value: "yes", want: true},
 		{name: "y", value: "y", want: true},
@@ -30,7 +31,7 @@ func TestSkillsAutoCheckEnabled(t *testing.T) {
 		{name: "n", value: "n", want: false},
 		{name: "off", value: "off", want: false},
 		{name: "zero", value: "0", want: false},
-		{name: "invalid falls back to disabled", value: "maybe", want: false},
+		{name: "invalid falls back to enabled", value: "maybe", want: true},
 	}
 
 	for _, tt := range tests {
@@ -184,7 +185,7 @@ func TestMaybeCheckForSkillUpdates_SkipsWhenDisabled(t *testing.T) {
 	}
 }
 
-func TestMaybeCheckForSkillUpdates_SkipsByDefaultWhenUnset(t *testing.T) {
+func TestMaybeCheckForSkillUpdates_RunsByDefaultWhenUnset(t *testing.T) {
 	origLoad := loadConfigForSkillsCheck
 	origProgress := progressEnabledForCheck
 	t.Cleanup(func() {
@@ -193,16 +194,69 @@ func TestMaybeCheckForSkillUpdates_SkipsByDefaultWhenUnset(t *testing.T) {
 	})
 
 	t.Setenv(skillsAutoCheckEnvVar, "")
+	t.Setenv("CI", "")
 	progressEnabledForCheck = func() bool { return true }
 	loadCalled := false
 	loadConfigForSkillsCheck = func() (*config.Config, error) {
 		loadCalled = true
-		return nil, errors.New("should not load")
+		return nil, errors.New("load called as expected")
 	}
 
 	MaybeCheckForSkillUpdates(context.Background())
-	if loadCalled {
-		t.Fatal("expected config load to be skipped when auto-check env var is unset")
+	if !loadCalled {
+		t.Fatal("expected config load to run when auto-check env var is unset")
+	}
+}
+
+func TestDefaultRunSkillsCheckCommand_UsesNoInstall(t *testing.T) {
+	origLookup := lookupNpx
+	t.Cleanup(func() {
+		lookupNpx = origLookup
+	})
+
+	mockNpx := filepath.Join(t.TempDir(), "npx-mock.sh")
+	if err := os.WriteFile(mockNpx, []byte("#!/bin/sh\necho \"$@\"\n"), 0o755); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+	if err := os.Chmod(mockNpx, 0o755); err != nil {
+		t.Fatalf("Chmod() error: %v", err)
+	}
+
+	lookupNpx = func(file string) (string, error) {
+		if file != "npx" {
+			t.Fatalf("lookupNpx called with %q, want npx", file)
+		}
+		return mockNpx, nil
+	}
+
+	output, err := defaultRunSkillsCheckCommand(context.Background())
+	if err != nil {
+		t.Fatalf("defaultRunSkillsCheckCommand() error: %v", err)
+	}
+	if !strings.Contains(output, "--no-install skills check") {
+		t.Fatalf("expected --no-install invocation, got %q", output)
+	}
+	if strings.Contains(output, "--yes") {
+		t.Fatalf("expected no --yes flag in invocation, got %q", output)
+	}
+}
+
+func TestDefaultRunSkillsCheckCommand_MissingNpxIsNoop(t *testing.T) {
+	origLookup := lookupNpx
+	t.Cleanup(func() {
+		lookupNpx = origLookup
+	})
+
+	lookupNpx = func(file string) (string, error) {
+		return "", errors.New("not found")
+	}
+
+	output, err := defaultRunSkillsCheckCommand(context.Background())
+	if err != nil {
+		t.Fatalf("expected nil error when npx is unavailable, got %v", err)
+	}
+	if output != "" {
+		t.Fatalf("expected empty output when npx is unavailable, got %q", output)
 	}
 }
 
