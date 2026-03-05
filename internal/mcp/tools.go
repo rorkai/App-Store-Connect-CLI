@@ -19,6 +19,7 @@ type Tool struct {
 type InputSchema struct {
 	Type       string              `json:"type"`
 	Properties map[string]Property `json:"properties,omitempty"`
+	Required   []string            `json:"required,omitempty"`
 }
 
 // Property describes a single tool parameter.
@@ -28,15 +29,93 @@ type Property struct {
 	Default     string `json:"default,omitempty"`
 }
 
-// DiscoverTools walks the ffcli command tree and returns MCP tool descriptors
-// for every leaf command (commands with an Exec function that either have no
-// subcommands or represent a directly-executable group).
-func DiscoverTools(root *ffcli.Command) []Tool {
+// DefaultCommandGroups is the curated set of command groups exposed by default.
+// These cover the most common agent workflows. Use --commands all for the full
+// set, or --commands group1,group2 to customize.
+var DefaultCommandGroups = []string{
+	"apps",
+	"builds",
+	"testflight",
+	"submit",
+	"validate",
+	"versions",
+	"localizations",
+	"metadata",
+	"screenshots",
+	"certificates",
+	"profiles",
+	"bundle-ids",
+	"devices",
+	"users",
+	"analytics",
+	"finance",
+	"feedback",
+	"crashes",
+	"reviews",
+	"iap",
+	"subscriptions",
+	"pricing",
+	"publish",
+	"status",
+	"auth",
+	"signing",
+	"xcode-cloud",
+	"workflow",
+	"app-info",
+}
+
+// DiscoverTools walks the ffcli command tree and returns MCP tool descriptors.
+// When groups is nil or empty, all leaf commands are included. When groups is
+// set, only commands whose top-level parent name matches a group are included.
+func DiscoverTools(root *ffcli.Command, groups []string) []Tool {
+	filter := buildGroupFilter(groups)
+
 	var tools []Tool
 	for _, sub := range root.Subcommands {
+		if filter != nil {
+			if _, ok := filter[sub.Name]; !ok {
+				continue
+			}
+		}
 		walkCommands(sub, nil, &tools)
 	}
 	return tools
+}
+
+// RunTool returns a catch-all tool that lets agents invoke any asc command by
+// passing the full command string. This covers commands not in the curated set.
+func RunTool() Tool {
+	return Tool{
+		Name:        "asc_run",
+		Description: "Run any asc CLI command by passing the full argument string. Use for commands not exposed as individual tools.",
+		InputSchema: InputSchema{
+			Type: "object",
+			Properties: map[string]Property{
+				"command": {
+					Type:        "string",
+					Description: "Full asc command arguments (e.g. \"game-center leaderboards list --app 123456789\")",
+				},
+			},
+			Required: []string{"command"},
+		},
+	}
+}
+
+func buildGroupFilter(groups []string) map[string]struct{} {
+	if len(groups) == 0 {
+		return nil
+	}
+	filter := make(map[string]struct{}, len(groups))
+	for _, g := range groups {
+		g = strings.TrimSpace(g)
+		if g != "" {
+			filter[g] = struct{}{}
+		}
+	}
+	if len(filter) == 0 {
+		return nil
+	}
+	return filter
 }
 
 func walkCommands(cmd *ffcli.Command, parentPath []string, tools *[]Tool) {

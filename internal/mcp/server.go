@@ -53,15 +53,31 @@ type Server struct {
 }
 
 // NewServer creates an MCP server from a root ffcli command.
-func NewServer(root *ffcli.Command, version string) *Server {
-	tools := DiscoverTools(root)
-	toolMap := buildToolMap(root)
+// When groups is nil, DefaultCommandGroups is used. Pass []string{"all"} to
+// expose every command, or a custom list of group names.
+func NewServer(root *ffcli.Command, version string, groups []string) *Server {
+	effectiveGroups := resolveGroups(groups)
+	tools := DiscoverTools(root, effectiveGroups)
+	toolMap := buildToolMap(root, effectiveGroups)
+
+	tools = append(tools, RunTool())
+
 	return &Server{
 		root:    root,
 		tools:   tools,
 		toolMap: toolMap,
 		version: version,
 	}
+}
+
+func resolveGroups(groups []string) []string {
+	if len(groups) == 1 && strings.EqualFold(groups[0], "all") {
+		return nil
+	}
+	if len(groups) == 0 {
+		return DefaultCommandGroups
+	}
+	return groups
 }
 
 // Run reads JSON-RPC requests from stdin and writes responses to stdout.
@@ -161,6 +177,10 @@ func (s *Server) handleToolsCall(ctx context.Context, req jsonRPCRequest) jsonRP
 		}
 	}
 
+	if params.Name == "asc_run" {
+		return s.handleRunTool(ctx, req.ID, params)
+	}
+
 	cmd, ok := s.toolMap[params.Name]
 	if !ok {
 		return jsonRPCResponse{
@@ -175,10 +195,33 @@ func (s *Server) handleToolsCall(ctx context.Context, req jsonRPCRequest) jsonRP
 	var stdout, stderr bytes.Buffer
 	exitCode := runCommand(ctx, s.root, cmd, args, &stdout, &stderr)
 
+	return buildToolResult(req.ID, exitCode, stdout.String(), stderr.String())
+}
+
+func (s *Server) handleRunTool(ctx context.Context, id json.RawMessage, params toolsCallParams) jsonRPCResponse {
+	cmdStr, _ := params.Arguments["command"].(string)
+	cmdStr = strings.TrimSpace(cmdStr)
+	if cmdStr == "" {
+		return jsonRPCResponse{
+			JSONRPC: "2.0",
+			ID:      id,
+			Error:   &jsonRPCError{Code: -32602, Message: "asc_run requires a 'command' argument"},
+		}
+	}
+
+	args := splitCommandString(cmdStr)
+
+	var stdout, stderr bytes.Buffer
+	exitCode := runRawArgs(ctx, s.root, args, &stdout, &stderr)
+
+	return buildToolResult(id, exitCode, stdout.String(), stderr.String())
+}
+
+func buildToolResult(id json.RawMessage, exitCode int, stdoutStr, stderrStr string) jsonRPCResponse {
 	isError := exitCode != 0
-	text := stdout.String()
+	text := stdoutStr
 	if text == "" {
-		text = stderr.String()
+		text = stderrStr
 	}
 
 	content := []map[string]string{
@@ -189,7 +232,39 @@ func (s *Server) handleToolsCall(ctx context.Context, req jsonRPCRequest) jsonRP
 		"content": content,
 		"isError": isError,
 	}
-	return jsonRPCResponse{JSONRPC: "2.0", ID: req.ID, Result: result}
+	return jsonRPCResponse{JSONRPC: "2.0", ID: id, Result: result}
+}
+
+func splitCommandString(cmd string) []string {
+	var args []string
+	var current strings.Builder
+	inQuote := false
+	quoteChar := byte(0)
+
+	for i := 0; i < len(cmd); i++ {
+		c := cmd[i]
+		if inQuote {
+			if c == quoteChar {
+				inQuote = false
+			} else {
+				current.WriteByte(c)
+			}
+		} else if c == '"' || c == '\'' {
+			inQuote = true
+			quoteChar = c
+		} else if c == ' ' || c == '\t' {
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		} else {
+			current.WriteByte(c)
+		}
+	}
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+	return args
 }
 
 func buildCLIArgs(cmd *ffcli.Command, arguments map[string]any) []string {
@@ -214,9 +289,12 @@ func buildCLIArgs(cmd *ffcli.Command, arguments map[string]any) []string {
 // subcommand path and running through the root command's parse+exec flow.
 func runCommand(ctx context.Context, root *ffcli.Command, target *ffcli.Command, flagArgs []string, stdout, stderr *bytes.Buffer) int {
 	cmdPath := resolveCommandPath(root, target)
-
 	fullArgs := append(cmdPath, flagArgs...)
+	return runRawArgs(ctx, root, fullArgs, stdout, stderr)
+}
 
+// runRawArgs executes the CLI with the given raw args, capturing output.
+func runRawArgs(ctx context.Context, root *ffcli.Command, args []string, stdout, stderr *bytes.Buffer) int {
 	origStdout := os.Stdout
 	origStderr := os.Stderr
 	defer func() {
@@ -243,7 +321,7 @@ func runCommand(ctx context.Context, root *ffcli.Command, target *ffcli.Command,
 	exitCode := 0
 
 	freshRoot := cloneRootForMCP(root)
-	if err := freshRoot.Parse(fullArgs); err != nil {
+	if err := freshRoot.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			exitCode = 0
 		} else {
@@ -305,9 +383,15 @@ func cloneRootForMCP(root *ffcli.Command) *ffcli.Command {
 	return root
 }
 
-func buildToolMap(root *ffcli.Command) map[string]*ffcli.Command {
+func buildToolMap(root *ffcli.Command, groups []string) map[string]*ffcli.Command {
+	filter := buildGroupFilter(groups)
 	m := make(map[string]*ffcli.Command)
 	for _, sub := range root.Subcommands {
+		if filter != nil {
+			if _, ok := filter[sub.Name]; !ok {
+				continue
+			}
+		}
 		walkToolMap(sub, nil, m)
 	}
 	return m
