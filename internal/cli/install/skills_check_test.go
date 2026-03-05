@@ -19,7 +19,7 @@ func TestSkillsAutoCheckEnabled(t *testing.T) {
 		value string
 		want  bool
 	}{
-		{name: "default enabled", value: "", want: true},
+		{name: "default disabled", value: "", want: false},
 		{name: "true", value: "true", want: true},
 		{name: "yes", value: "yes", want: true},
 		{name: "y", value: "y", want: true},
@@ -30,7 +30,7 @@ func TestSkillsAutoCheckEnabled(t *testing.T) {
 		{name: "n", value: "n", want: false},
 		{name: "off", value: "off", want: false},
 		{name: "zero", value: "0", want: false},
-		{name: "invalid falls back to enabled", value: "maybe", want: true},
+		{name: "invalid falls back to disabled", value: "maybe", want: false},
 	}
 
 	for _, tt := range tests {
@@ -66,6 +66,9 @@ func TestSkillsOutputHasUpdates(t *testing.T) {
 	if skillsOutputHasUpdates("all skills are up to date") {
 		t.Fatal("expected up-to-date output to report no updates")
 	}
+	if skillsOutputHasUpdates("no update available") {
+		t.Fatal("expected singular no-update output to report no updates")
+	}
 	if !skillsOutputHasUpdates("2 updates available") {
 		t.Fatal("expected updates-available output to report updates")
 	}
@@ -88,7 +91,7 @@ func TestMaybeCheckForSkillUpdates_NotifiesAndPersistsTimestamp(t *testing.T) {
 		progressEnabledForCheck = origProgress
 	})
 
-	t.Setenv(skillsAutoCheckEnvVar, "")
+	t.Setenv(skillsAutoCheckEnvVar, "true")
 	t.Setenv("CI", "")
 
 	cfg := &config.Config{}
@@ -133,7 +136,7 @@ func TestMaybeCheckForSkillUpdates_SkipsWhenCheckedRecently(t *testing.T) {
 		progressEnabledForCheck = origProgress
 	})
 
-	t.Setenv(skillsAutoCheckEnvVar, "")
+	t.Setenv(skillsAutoCheckEnvVar, "true")
 	t.Setenv("CI", "")
 
 	fixedNow := time.Date(2026, 3, 5, 15, 0, 0, 0, time.UTC)
@@ -178,6 +181,28 @@ func TestMaybeCheckForSkillUpdates_SkipsWhenDisabled(t *testing.T) {
 	MaybeCheckForSkillUpdates(context.Background())
 	if loadCalled {
 		t.Fatal("expected config load to be skipped when disabled")
+	}
+}
+
+func TestMaybeCheckForSkillUpdates_SkipsByDefaultWhenUnset(t *testing.T) {
+	origLoad := loadConfigForSkillsCheck
+	origProgress := progressEnabledForCheck
+	t.Cleanup(func() {
+		loadConfigForSkillsCheck = origLoad
+		progressEnabledForCheck = origProgress
+	})
+
+	t.Setenv(skillsAutoCheckEnvVar, "")
+	progressEnabledForCheck = func() bool { return true }
+	loadCalled := false
+	loadConfigForSkillsCheck = func() (*config.Config, error) {
+		loadCalled = true
+		return nil, errors.New("should not load")
+	}
+
+	MaybeCheckForSkillUpdates(context.Background())
+	if loadCalled {
+		t.Fatal("expected config load to be skipped when auto-check env var is unset")
 	}
 }
 

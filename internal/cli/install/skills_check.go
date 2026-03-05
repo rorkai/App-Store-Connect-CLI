@@ -3,7 +3,6 @@ package install
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -92,7 +91,7 @@ func shouldRunSkillsCheck(now time.Time, lastCheckedAt string) bool {
 
 func skillsAutoCheckEnabled(value string) bool {
 	if value == "" {
-		return true
+		return false
 	}
 
 	switch strings.ToLower(strings.TrimSpace(value)) {
@@ -101,7 +100,7 @@ func skillsAutoCheckEnabled(value string) bool {
 	case "0", "false", "no", "n", "off":
 		return false
 	default:
-		return true
+		return false
 	}
 }
 
@@ -114,7 +113,7 @@ func skillsOutputHasUpdates(output string) bool {
 	switch {
 	case strings.Contains(normalized, "all skills are up to date"):
 		return false
-	case strings.Contains(normalized, "no updates available"):
+	case strings.Contains(normalized, "no updates available"), strings.Contains(normalized, "no update available"):
 		return false
 	case strings.Contains(normalized, "update available"):
 		return true
@@ -128,9 +127,6 @@ func skillsOutputHasUpdates(output string) bool {
 func defaultRunSkillsCheckCommand(ctx context.Context) (string, error) {
 	npxPath, err := lookupNpx("npx")
 	if err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
-			return "", nil
-		}
 		return "", nil
 	}
 

@@ -188,7 +188,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `ASC_UPLOAD_TIMEOUT`, `ASC_UPLOAD_TIMEOUT_SECONDS` - Upload timeout
 - `ASC_DEBUG` - Debug output (`api` enables HTTP logs)
 - `ASC_SPINNER_DISABLED` - Disable interactive stderr spinner
-- `ASC_SKILLS_AUTO_CHECK` - Enable/disable automatic skills update checks (`true`/`false`)
+- `ASC_SKILLS_AUTO_CHECK` - Opt-in automatic skills update checks (`true`/`1`/`yes`/`y`/`on` enables; default disabled)
 
 ## API References (Offline)
 
