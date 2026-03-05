@@ -10,6 +10,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/mcpcmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/registry"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/suggest"
@@ -27,7 +28,7 @@ func RootCommand(version string) *ffcli.Command {
 		LongHelp:    "",
 		FlagSet:     flag.NewFlagSet("asc", flag.ExitOnError),
 		UsageFunc:   RootUsageFunc,
-		Subcommands: registry.Subcommands(version),
+		Subcommands: append(registry.Subcommands(version), mcpcmd.MCPCommand(buildRootCommand, version)),
 	}
 
 	root.FlagSet.BoolVar(&versionRequested, "version", false, "Print version and exit")
@@ -63,4 +64,17 @@ func RootCommand(version string) *ffcli.Command {
 	}
 
 	return root
+}
+
+// buildRootCommand constructs a fresh root command tree for MCP tool invocation.
+// It omits the mcp subcommand itself to avoid recursive dispatch.
+func buildRootCommand(version string) *ffcli.Command {
+	r := &ffcli.Command{
+		Name:        "asc",
+		ShortUsage:  "asc <subcommand> [flags]",
+		FlagSet:     flag.NewFlagSet("asc", flag.ContinueOnError),
+		Subcommands: registry.Subcommands(version),
+	}
+	shared.BindRootFlags(r.FlagSet)
+	return r
 }

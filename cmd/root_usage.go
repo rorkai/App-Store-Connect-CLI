@@ -66,7 +66,7 @@ var rootUsageGroups = []rootCommandGroup{
 	},
 	{
 		title:    "AUTOMATION COMMANDS",
-		commands: []string{"webhooks", "xcode-cloud", "notify", "migrate"},
+		commands: []string{"webhooks", "xcode-cloud", "notify", "migrate", "mcp"},
 	},
 	{
 		title:    "UTILITY COMMANDS",

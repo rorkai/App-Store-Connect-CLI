@@ -135,6 +135,7 @@ asc <subcommand> [flags]
 - `xcode-cloud` - Trigger and monitor Xcode Cloud workflows.
 - `notify` - Send notifications to external services.
 - `migrate` - Migrate metadata from/to fastlane format.
+- `mcp` - Start a Model Context Protocol (MCP) server over stdio.
 
 ### Utility
 
