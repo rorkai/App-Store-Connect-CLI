@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -26,9 +27,12 @@ const (
 	webSessionCacheVersion = 1
 
 	webSessionKeyringService = "asc-web-session"
+	webSessionStoreItem      = "asc:web-session:store"
 	webSessionKeyPrefix      = "asc:web-session:"
 	webSessionLastKeyItem    = "asc:web-session:last"
 )
+
+var ErrCachedSessionExpired = errors.New("cached web session expired")
 
 type sessionBackend int
 
@@ -47,6 +51,12 @@ type persistedSession struct {
 	Version   int                  `json:"version"`
 	UpdatedAt time.Time            `json:"updated_at"`
 	Cookies   map[string][]pCookie `json:"cookies"`
+}
+
+type persistedSessionStore struct {
+	Version  int                         `json:"version"`
+	LastKey  string                      `json:"last_key,omitempty"`
+	Sessions map[string]persistedSession `json:"sessions,omitempty"`
 }
 
 type pCookie struct {
@@ -250,39 +260,56 @@ func isKeyringUnavailable(err error) bool {
 	return errors.Is(err, keyring.ErrNoAvailImpl)
 }
 
-func writeSessionToKeychain(key string, sess persistedSession) error {
-	kr, err := sessionKeyringOpen()
-	if err != nil {
-		return err
+func newPersistedSessionStore() persistedSessionStore {
+	return persistedSessionStore{
+		Version:  webSessionCacheVersion,
+		Sessions: map[string]persistedSession{},
 	}
-	raw, err := json.Marshal(sess)
-	if err != nil {
-		return fmt.Errorf("failed to marshal session: %w", err)
-	}
-	if err := kr.Set(keyring.Item{
-		Key:   keyringSessionItem(key),
-		Data:  raw,
-		Label: "ASC Web Session",
-	}); err != nil {
-		return err
-	}
-	last := persistedLastSession{Version: webSessionCacheVersion, Key: key}
-	lastRaw, err := json.Marshal(last)
-	if err != nil {
-		return fmt.Errorf("failed to marshal last-session marker: %w", err)
-	}
-	return kr.Set(keyring.Item{
-		Key:   webSessionLastKeyItem,
-		Data:  lastRaw,
-		Label: "ASC Web Session Last Key",
-	})
 }
 
-func readSessionFromKeychain(key string) (persistedSession, bool, error) {
-	kr, err := sessionKeyringOpen()
-	if err != nil {
-		return persistedSession{}, false, err
+func normalizePersistedSessionStore(store persistedSessionStore) persistedSessionStore {
+	if store.Version == 0 {
+		store.Version = webSessionCacheVersion
 	}
+	if store.Sessions == nil {
+		store.Sessions = map[string]persistedSession{}
+	}
+	return store
+}
+
+func resolvePersistedSessionStoreLastKey(store persistedSessionStore) (string, bool) {
+	store = normalizePersistedSessionStore(store)
+	if key := strings.TrimSpace(store.LastKey); key != "" {
+		if _, ok := store.Sessions[key]; ok {
+			return key, true
+		}
+	}
+	if len(store.Sessions) == 0 {
+		return "", false
+	}
+	keys := make([]string, 0, len(store.Sessions))
+	for key := range store.Sessions {
+		key = strings.TrimSpace(key)
+		if key == "" {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	if len(keys) == 0 {
+		return "", false
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		left := store.Sessions[keys[i]].UpdatedAt
+		right := store.Sessions[keys[j]].UpdatedAt
+		if left.Equal(right) {
+			return keys[i] < keys[j]
+		}
+		return left.After(right)
+	})
+	return keys[0], true
+}
+
+func readLegacySessionFromKeyring(kr keyring.Keyring, key string) (persistedSession, bool, error) {
 	item, err := kr.Get(keyringSessionItem(key))
 	if err != nil {
 		if errors.Is(err, keyring.ErrKeyNotFound) {
@@ -300,11 +327,7 @@ func readSessionFromKeychain(key string) (persistedSession, bool, error) {
 	return sess, true, nil
 }
 
-func readLastKeyFromKeychain() (string, bool, error) {
-	kr, err := sessionKeyringOpen()
-	if err != nil {
-		return "", false, err
-	}
+func readLegacyLastKeyFromKeyring(kr keyring.Keyring) (string, bool, error) {
 	item, err := kr.Get(webSessionLastKeyItem)
 	if err != nil {
 		if errors.Is(err, keyring.ErrKeyNotFound) {
@@ -320,6 +343,132 @@ func readLastKeyFromKeychain() (string, bool, error) {
 		return "", false, nil
 	}
 	return strings.TrimSpace(last.Key), true, nil
+}
+
+func readLegacySessionStoreFromKeyring(kr keyring.Keyring) (persistedSessionStore, bool, error) {
+	keys, err := kr.Keys()
+	if err != nil {
+		return persistedSessionStore{}, false, err
+	}
+	store := newPersistedSessionStore()
+	for _, itemKey := range keys {
+		if !strings.HasPrefix(itemKey, webSessionKeyPrefix) || itemKey == webSessionLastKeyItem || itemKey == webSessionStoreItem {
+			continue
+		}
+		key := strings.TrimPrefix(itemKey, webSessionKeyPrefix)
+		sess, ok, err := readLegacySessionFromKeyring(kr, key)
+		if err != nil {
+			return persistedSessionStore{}, false, err
+		}
+		if ok {
+			store.Sessions[key] = sess
+		}
+	}
+	if len(store.Sessions) == 0 {
+		return persistedSessionStore{}, false, nil
+	}
+	if lastKey, ok, err := readLegacyLastKeyFromKeyring(kr); err != nil {
+		return persistedSessionStore{}, false, err
+	} else if ok {
+		store.LastKey = lastKey
+	}
+	if resolved, ok := resolvePersistedSessionStoreLastKey(store); ok {
+		store.LastKey = resolved
+	}
+	return store, true, nil
+}
+
+func readSessionStoreFromKeyring(kr keyring.Keyring) (persistedSessionStore, bool, error) {
+	item, err := kr.Get(webSessionStoreItem)
+	if err != nil {
+		if errors.Is(err, keyring.ErrKeyNotFound) {
+			return readLegacySessionStoreFromKeyring(kr)
+		}
+		return persistedSessionStore{}, false, err
+	}
+	var store persistedSessionStore
+	if err := json.Unmarshal(item.Data, &store); err != nil {
+		return persistedSessionStore{}, false, fmt.Errorf("failed to decode keychain session store: %w", err)
+	}
+	if store.Version != webSessionCacheVersion {
+		return persistedSessionStore{}, false, nil
+	}
+	store = normalizePersistedSessionStore(store)
+	if resolved, ok := resolvePersistedSessionStoreLastKey(store); ok {
+		store.LastKey = resolved
+	}
+	return store, true, nil
+}
+
+func writeSessionStoreToKeyring(kr keyring.Keyring, store persistedSessionStore) error {
+	store = normalizePersistedSessionStore(store)
+	raw, err := json.Marshal(store)
+	if err != nil {
+		return fmt.Errorf("failed to marshal session store: %w", err)
+	}
+	return kr.Set(keyring.Item{
+		Key:   webSessionStoreItem,
+		Data:  raw,
+		Label: "ASC Web Session Store",
+	})
+}
+
+func removeSessionStoreFromKeyring(kr keyring.Keyring) error {
+	err := kr.Remove(webSessionStoreItem)
+	if err != nil && !errors.Is(err, keyring.ErrKeyNotFound) {
+		return err
+	}
+	return nil
+}
+
+func removeLegacySessionFromKeyring(kr keyring.Keyring, key string) error {
+	err := kr.Remove(keyringSessionItem(key))
+	if err != nil && !errors.Is(err, keyring.ErrKeyNotFound) {
+		return err
+	}
+	return nil
+}
+
+func removeLegacyLastKeyFromKeyring(kr keyring.Keyring) error {
+	err := kr.Remove(webSessionLastKeyItem)
+	if err != nil && !errors.Is(err, keyring.ErrKeyNotFound) {
+		return err
+	}
+	return nil
+}
+
+func writeSessionToKeychain(key string, sess persistedSession) error {
+	kr, err := sessionKeyringOpen()
+	if err != nil {
+		return err
+	}
+	store, ok, err := readSessionStoreFromKeyring(kr)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		store = newPersistedSessionStore()
+	}
+	store = normalizePersistedSessionStore(store)
+	store.Sessions[key] = sess
+	store.LastKey = key
+	return writeSessionStoreToKeyring(kr, store)
+}
+
+func readSessionFromKeychain(key string) (persistedSession, bool, error) {
+	kr, err := sessionKeyringOpen()
+	if err != nil {
+		return persistedSession{}, false, err
+	}
+	store, ok, err := readSessionStoreFromKeyring(kr)
+	if err != nil || !ok {
+		return persistedSession{}, false, err
+	}
+	sess, ok := store.Sessions[key]
+	if !ok {
+		return persistedSession{}, false, nil
+	}
+	return sess, true, nil
 }
 
 func writeSessionToFile(key string, sess persistedSession) error {
@@ -445,23 +594,51 @@ func readSessionBySelection(selection backendSelection, key string) (persistedSe
 	}
 }
 
-func readLastKeyBySelection(selection backendSelection) (string, bool, error) {
+func readLastSessionFromKeychain() (persistedSession, bool, error) {
+	kr, err := sessionKeyringOpen()
+	if err != nil {
+		return persistedSession{}, false, err
+	}
+	store, ok, err := readSessionStoreFromKeyring(kr)
+	if err != nil || !ok {
+		return persistedSession{}, false, err
+	}
+	lastKey, ok := resolvePersistedSessionStoreLastKey(store)
+	if !ok {
+		return persistedSession{}, false, nil
+	}
+	sess, ok := store.Sessions[lastKey]
+	if !ok {
+		return persistedSession{}, false, nil
+	}
+	return sess, true, nil
+}
+
+func readLastSessionBySelection(selection backendSelection) (persistedSession, bool, error) {
 	switch selection.backend {
 	case sessionBackendOff:
-		return "", false, nil
+		return persistedSession{}, false, nil
 	case sessionBackendKeychain:
-		key, ok, err := readLastKeyFromKeychain()
+		sess, ok, err := readLastSessionFromKeychain()
 		if err != nil {
 			if selection.fallbackFile && isKeyringUnavailable(err) {
-				return readLastKeyFromFile()
+				key, ok, err := readLastKeyFromFile()
+				if err != nil || !ok {
+					return persistedSession{}, false, err
+				}
+				return readSessionFromFile(key)
 			}
-			return "", false, err
+			return persistedSession{}, false, err
 		}
-		return key, ok, nil
+		return sess, ok, nil
 	case sessionBackendFile:
-		return readLastKeyFromFile()
+		key, ok, err := readLastKeyFromFile()
+		if err != nil || !ok {
+			return persistedSession{}, false, err
+		}
+		return readSessionFromFile(key)
 	default:
-		return "", false, nil
+		return persistedSession{}, false, nil
 	}
 }
 
@@ -481,11 +658,31 @@ func deleteSessionFromKeychain(key string) error {
 	if err != nil {
 		return err
 	}
-	err = kr.Remove(keyringSessionItem(key))
-	if err != nil && !errors.Is(err, keyring.ErrKeyNotFound) {
+	store, ok, err := readSessionStoreFromKeyring(kr)
+	if err != nil {
 		return err
 	}
-	return nil
+	if ok {
+		delete(store.Sessions, key)
+		if len(store.Sessions) == 0 {
+			if err := removeSessionStoreFromKeyring(kr); err != nil {
+				return err
+			}
+		} else {
+			if resolved, ok := resolvePersistedSessionStoreLastKey(store); ok {
+				store.LastKey = resolved
+			} else {
+				store.LastKey = ""
+			}
+			if err := writeSessionStoreToKeyring(kr, store); err != nil {
+				return err
+			}
+		}
+	}
+	if err := removeLegacySessionFromKeyring(kr, key); err != nil {
+		return err
+	}
+	return removeLegacyLastKeyFromKeyring(kr)
 }
 
 func clearLastKeyInFile() error {
@@ -504,11 +701,21 @@ func clearLastKeyInKeychain() error {
 	if err != nil {
 		return err
 	}
-	err = kr.Remove(webSessionLastKeyItem)
-	if err != nil && !errors.Is(err, keyring.ErrKeyNotFound) {
+	store, ok, err := readSessionStoreFromKeyring(kr)
+	if err != nil {
 		return err
 	}
-	return nil
+	if ok {
+		store.LastKey = ""
+		if len(store.Sessions) == 0 {
+			if err := removeSessionStoreFromKeyring(kr); err != nil {
+				return err
+			}
+		} else if err := writeSessionStoreToKeyring(kr, store); err != nil {
+			return err
+		}
+	}
+	return removeLegacyLastKeyFromKeyring(kr)
 }
 
 func deleteAllFromFile() error {
@@ -539,12 +746,15 @@ func deleteAllFromKeychain() error {
 	if err != nil {
 		return err
 	}
+	if err := removeSessionStoreFromKeyring(kr); err != nil {
+		return err
+	}
 	keys, err := kr.Keys()
 	if err != nil {
 		return err
 	}
 	for _, key := range keys {
-		if strings.HasPrefix(key, webSessionKeyPrefix) || key == webSessionLastKeyItem {
+		if key == webSessionStoreItem || key == webSessionLastKeyItem || strings.HasPrefix(key, webSessionKeyPrefix) {
 			if err := kr.Remove(key); err != nil && !errors.Is(err, keyring.ErrKeyNotFound) {
 				return err
 			}
@@ -565,6 +775,9 @@ func resumeFromPersistedSession(ctx context.Context, sess persistedSession) (*Au
 	client := newWebHTTPClient(jar)
 	info, err := sessionInfoFetcher(ctx, client)
 	if err != nil {
+		if isSessionInfoAuthExpired(err) {
+			return nil, false, fmt.Errorf("%w: %w", ErrCachedSessionExpired, err)
+		}
 		return nil, false, nil
 	}
 	return &AuthSession{
@@ -636,12 +849,7 @@ func TryResumeLastSession(ctx context.Context) (*AuthSession, bool, error) {
 		return nil, false, nil
 	}
 
-	key, ok, err := readLastKeyBySelection(selection)
-	if err != nil || !ok {
-		return nil, false, err
-	}
-
-	sess, ok, err := readSessionBySelection(selection, key)
+	sess, ok, err := readLastSessionBySelection(selection)
 	if err != nil || !ok {
 		return nil, false, err
 	}
@@ -675,7 +883,7 @@ func DeleteSession(username string) error {
 			}
 			return err
 		}
-		return clearLastSessionMarker()
+		return nil
 	case sessionBackendFile:
 		if err := deleteSessionFromFile(key); err != nil {
 			return err
@@ -702,7 +910,7 @@ func DeleteAllSessions() error {
 			}
 			return err
 		}
-		return clearLastSessionMarker()
+		return nil
 	case sessionBackendFile:
 		if err := deleteAllFromFile(); err != nil {
 			return err
