@@ -326,6 +326,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "SnaPOP: Screenshot Editor",
+    "link": "https://apps.apple.com/app/snapop/id6756635978",
+    "creator": "randomor",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/cf/d0/ac/cfd0ac51-231d-45c7-886f-979042cf0a46/snapop-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "SnapVinyl",
     "link": "https://apps.apple.com/app/id6741057688",
     "creator": "TomLiu",
@@ -463,6 +470,13 @@
     "link": "https://apps.apple.com/us/app/xo-have-i-ever/id6757594745",
     "creator": "arunavo4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d7/4d/4c/d74d4c07-c147-fa7e-86fe-cff01727629b/XO-0-0-1x_U007ephone-0-1-sRGB-85-220.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "ZenShelf",
+    "link": "https://apps.apple.com/app/id6670147622",
+    "creator": "randomor",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/61/5a/dc/615adc54-4abd-f5f0-34a8-0ee239868470/AppIcon-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg",
     "platform": ["iOS"]
   },
   {
