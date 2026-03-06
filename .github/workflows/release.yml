@@ -12,10 +12,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: '1.26.x'
           cache: true
@@ -24,7 +24,7 @@ jobs:
         run: mkdir -p release
 
       - name: Import Apple certificate
-        uses: apple-actions/import-codesign-certs@v2
+        uses: apple-actions/import-codesign-certs@8f3fb608891dd2244cdab3d69cd68c0d37a7fe93 # v2
         with:
           p12-file-base64: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
           p12-password: ${{ secrets.APPLE_DEVELOPER_ID_PASSWORD }}
@@ -71,7 +71,7 @@ jobs:
         run: ls -la release/
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
         with:
           files: release/**
           generate_release_notes: true
