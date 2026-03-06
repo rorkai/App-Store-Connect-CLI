@@ -73,7 +73,7 @@ func TestReadPasswordFromTerminalFD(t *testing.T) {
 		if password != "secret-pass" {
 			t.Fatalf("expected password %q, got %q", "secret-pass", password)
 		}
-		if !strings.Contains(prompt.String(), "Apple ID password:") {
+		if !strings.Contains(prompt.String(), "Apple Account password:") {
 			t.Fatalf("expected password prompt text, got %q", prompt.String())
 		}
 	})
@@ -295,5 +295,67 @@ func TestResolveSessionRequiresAppleIDWhenNoCachedSessionExists(t *testing.T) {
 	_, _, err := resolveSession(context.Background(), "", "", "")
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", err)
+	}
+}
+
+func TestResolveSessionPrintsExpiredNoticeBeforePrompt(t *testing.T) {
+	origTryResume := tryResumeSessionFn
+	origTryResumeLast := tryResumeLastFn
+	origPromptPassword := promptPasswordFn
+	origWebLogin := webLoginFn
+	origExpiredWriter := sessionExpiredWriter
+	t.Cleanup(func() {
+		tryResumeSessionFn = origTryResume
+		tryResumeLastFn = origTryResumeLast
+		promptPasswordFn = origPromptPassword
+		webLoginFn = origWebLogin
+		sessionExpiredWriter = origExpiredWriter
+	})
+
+	t.Setenv("ASC_WEB_SESSION_CACHE", "0")
+	t.Setenv(webPasswordEnv, "")
+
+	expected := &webcore.AuthSession{UserEmail: "user@example.com"}
+	var notice bytes.Buffer
+	sessionExpiredWriter = &notice
+
+	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
+		if username != "user@example.com" {
+			t.Fatalf("expected username user@example.com, got %q", username)
+		}
+		return nil, false, webcore.ErrCachedSessionExpired
+	}
+	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
+		t.Fatal("did not expect last-session cache lookup when apple-id is provided")
+		return nil, false, nil
+	}
+	promptPasswordFn = func() (string, error) {
+		if got := notice.String(); got != "Session expired.\n" {
+			t.Fatalf("expected expired notice before password prompt, got %q", got)
+		}
+		return "secret", nil
+	}
+	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		if creds.Username != "user@example.com" {
+			t.Fatalf("expected login username user@example.com, got %q", creds.Username)
+		}
+		if creds.Password != "secret" {
+			t.Fatalf("expected prompted password to be used, got %q", creds.Password)
+		}
+		return expected, nil
+	}
+
+	session, source, err := resolveSession(context.Background(), "user@example.com", "", "")
+	if err != nil {
+		t.Fatalf("resolveSession returned error: %v", err)
+	}
+	if source != "fresh" {
+		t.Fatalf("expected source %q, got %q", "fresh", source)
+	}
+	if session != expected {
+		t.Fatal("expected fresh login session to be returned")
+	}
+	if got := notice.String(); got != "Session expired.\n" {
+		t.Fatalf("expected expired notice output, got %q", got)
 	}
 }

@@ -17,29 +17,50 @@ permissions:
 
 jobs:
   analyze:
-    name: Analyze Go code
+    name: Analyze ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Go code
+            language: go
+          - name: GitHub Actions
+            language: actions
+          - name: JavaScript and TypeScript scripts
+            language: javascript-typescript
+          - name: Python scripts
+            language: python
     steps:
       - name: Checkout code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Go
+        if: ${{ matrix.language == 'go' }}
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
 
-      - name: Initialize CodeQL
+      - name: Initialize CodeQL for Go
+        if: ${{ matrix.language == 'go' }}
         uses: github/codeql-action/init@dd677812177e0c29f9c970a6c58d8607ae1bfefd # v4
         with:
           languages: go
           build-mode: manual
 
+      - name: Initialize CodeQL for non-Go languages
+        if: ${{ matrix.language != 'go' }}
+        uses: github/codeql-action/init@dd677812177e0c29f9c970a6c58d8607ae1bfefd # v4
+        with:
+          languages: ${{ matrix.language }}
+
       - name: Build Go packages
+        if: ${{ matrix.language == 'go' }}
         run: go build ./...
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@dd677812177e0c29f9c970a6c58d8607ae1bfefd # v4
         with:
-          category: "/language:go"
+          category: "/language:${{ matrix.language }}"

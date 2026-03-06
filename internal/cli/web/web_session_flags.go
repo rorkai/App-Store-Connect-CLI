@@ -17,7 +17,7 @@ type webSessionFlags struct {
 
 func bindWebSessionFlags(fs *flag.FlagSet) webSessionFlags {
 	return webSessionFlags{
-		appleID:       fs.String("apple-id", "", "Apple ID email used to scope a user-owned session cache (optional when a cached session exists)"),
+		appleID:       fs.String("apple-id", "", "Apple Account email used to scope a user-owned session cache (optional when a cached session exists)"),
 		twoFactorCode: fs.String("two-factor-code", "", "2FA code if your account requires verification"),
 	}
 }
