@@ -30,6 +30,8 @@ const (
 	webSessionLastKeyItem    = "asc:web-session:last"
 )
 
+var ErrCachedSessionExpired = errors.New("cached web session expired")
+
 type sessionBackend int
 
 const (
@@ -565,6 +567,9 @@ func resumeFromPersistedSession(ctx context.Context, sess persistedSession) (*Au
 	client := newWebHTTPClient(jar)
 	info, err := sessionInfoFetcher(ctx, client)
 	if err != nil {
+		if isSessionInfoAuthExpired(err) {
+			return nil, false, fmt.Errorf("%w: %w", ErrCachedSessionExpired, err)
+		}
 		return nil, false, nil
 	}
 	return &AuthSession{

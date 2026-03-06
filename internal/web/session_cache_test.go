@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -220,6 +221,52 @@ func TestTryResumeLastSessionPersistsRefreshedCookies(t *testing.T) {
 	}
 	if got := persistedCookieValue(stored, "https://appstoreconnect.apple.com/", "myacinfo"); got != "new-token" {
 		t.Fatalf("expected refreshed cookie value, got %q", got)
+	}
+}
+
+func TestTryResumeSessionReturnsExpiredErrorForUnauthorizedCache(t *testing.T) {
+	withArraySessionKeyring(t)
+	t.Setenv(webSessionBackendEnv, "keychain")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New error: %v", err)
+	}
+	targetURL, _ := url.Parse("https://appstoreconnect.apple.com/")
+	jar.SetCookies(targetURL, []*http.Cookie{
+		{Name: "myacinfo", Value: "expired-token", Path: "/", Expires: time.Now().Add(24 * time.Hour)},
+	})
+
+	session := &AuthSession{
+		Client:    &http.Client{Jar: jar},
+		UserEmail: "user@example.com",
+	}
+	if err := PersistSession(session); err != nil {
+		t.Fatalf("PersistSession error: %v", err)
+	}
+
+	prev := sessionInfoFetcher
+	sessionInfoFetcher = func(ctx context.Context, client *http.Client) (*sessionInfo, error) {
+		return nil, &sessionInfoStatusError{Status: http.StatusUnauthorized}
+	}
+	t.Cleanup(func() {
+		sessionInfoFetcher = prev
+	})
+
+	resumed, ok, err := TryResumeSession(context.Background(), "user@example.com")
+	if err == nil {
+		t.Fatal("expected expired cached-session error")
+	}
+	if !errors.Is(err, ErrCachedSessionExpired) {
+		t.Fatalf("expected ErrCachedSessionExpired, got %v", err)
+	}
+	if ok {
+		t.Fatal("did not expect cache resume success")
+	}
+	if resumed != nil {
+		t.Fatal("did not expect resumed session")
 	}
 }
 

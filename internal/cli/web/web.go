@@ -12,7 +12,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-const webWarningText = "EXPERIMENTAL / UNOFFICIAL / DISCOURAGED: This command family uses Apple web-session /iris behavior (not the public App Store Connect API), sends intentionally low-rate requests, requires user-owned Apple ID sessions, and redacts signed URLs/tokens by default. It may break anytime and should not be used for production-critical automation."
+const webWarningText = "EXPERIMENTAL / UNOFFICIAL / DISCOURAGED: This command family uses Apple web-session /iris behavior (not the public App Store Connect API), sends intentionally low-rate requests, requires user-owned Apple Account sessions, and redacts signed URLs/tokens by default. It may break anytime and should not be used for production-critical automation."
 
 // WebCommand returns the detached experimental web command group.
 func WebCommand() *ffcli.Command {

@@ -134,6 +134,14 @@ type APIError struct {
 	rawBody        []byte
 }
 
+type sessionInfoStatusError struct {
+	Status int
+}
+
+func (e *sessionInfoStatusError) Error() string {
+	return fmt.Sprintf("failed to get session info with status %d", e.Status)
+}
+
 func (e *APIError) Error() string {
 	parts := []string{fmt.Sprintf("web api error (status %d)", e.Status)}
 	if e.AppleRequestID != "" {
@@ -908,7 +916,7 @@ func getSessionInfo(ctx context.Context, client *http.Client) (*sessionInfo, err
 	}
 	logWebAuthHTTP("session_info", req, resp, respBody, nil)
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to get session info with status %d", resp.StatusCode)
+		return nil, &sessionInfoStatusError{Status: resp.StatusCode}
 	}
 
 	var result sessionInfo
@@ -916,6 +924,19 @@ func getSessionInfo(ctx context.Context, client *http.Client) (*sessionInfo, err
 		return nil, fmt.Errorf("failed to decode session info: %w", err)
 	}
 	return &result, nil
+}
+
+func isSessionInfoAuthExpired(err error) bool {
+	var statusErr *sessionInfoStatusError
+	if !errors.As(err, &statusErr) {
+		return false
+	}
+	switch statusErr.Status {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return true
+	default:
+		return false
+	}
 }
 
 func appleSessionHeaders(session *AuthSession) http.Header {
