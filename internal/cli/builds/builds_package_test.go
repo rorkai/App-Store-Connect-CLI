@@ -201,16 +201,48 @@ func TestValidateWithGo_SupportsAppBundlesAndIPAFiles(t *testing.T) {
 	tempDir := t.TempDir()
 	appDir := filepath.Join(tempDir, "TestApp.app")
 	ipaPath := filepath.Join(tempDir, "TestApp.ipa")
+	ipaPayloadDir := filepath.Join(tempDir, "Payload")
+	ipaAppDir := filepath.Join(ipaPayloadDir, "TestApp.app")
 	otherPath := filepath.Join(tempDir, "TestApp.txt")
+	invalidAppDir := filepath.Join(tempDir, "Invalid.app")
+	invalidIPAPath := filepath.Join(tempDir, "Invalid.ipa")
+
+	infoPlist := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.test.app</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>100</string>
+</dict>
+</plist>`
 
 	if err := os.MkdirAll(appDir, 0o755); err != nil {
 		t.Fatalf("Failed to create app bundle: %v", err)
 	}
-	if err := os.WriteFile(ipaPath, []byte("ipa content"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(appDir, "Info.plist"), []byte(infoPlist), 0o644); err != nil {
+		t.Fatalf("Failed to create app Info.plist: %v", err)
+	}
+	if err := os.MkdirAll(ipaAppDir, 0o755); err != nil {
+		t.Fatalf("Failed to create IPA app dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(ipaAppDir, "Info.plist"), []byte(infoPlist), 0o644); err != nil {
+		t.Fatalf("Failed to create IPA Info.plist: %v", err)
+	}
+	if err := createIPAFromPayload(ipaPayloadDir, ipaPath, 6); err != nil {
 		t.Fatalf("Failed to create IPA file: %v", err)
 	}
 	if err := os.WriteFile(otherPath, []byte("text content"), 0o644); err != nil {
 		t.Fatalf("Failed to create text file: %v", err)
+	}
+	if err := os.MkdirAll(invalidAppDir, 0o755); err != nil {
+		t.Fatalf("Failed to create invalid app dir: %v", err)
+	}
+	if err := os.WriteFile(invalidIPAPath, []byte("not a zip"), 0o644); err != nil {
+		t.Fatalf("Failed to create invalid IPA: %v", err)
 	}
 
 	appResult, err := validateWithGo(context.Background(), appDir, false)
@@ -238,6 +270,45 @@ func TestValidateWithGo_SupportsAppBundlesAndIPAFiles(t *testing.T) {
 	}
 	if valid, ok := otherResult["valid"].(bool); !ok || valid {
 		t.Fatalf("Expected non-bundle file to be invalid, got %#v", otherResult["valid"])
+	}
+
+	invalidAppResult, err := validateWithGo(context.Background(), invalidAppDir, false)
+	if err != nil {
+		t.Fatalf("validateWithGo failed for invalid app bundle: %v", err)
+	}
+	if valid, ok := invalidAppResult["valid"].(bool); !ok || valid {
+		t.Fatalf("Expected invalid app bundle to be rejected, got %#v", invalidAppResult["valid"])
+	}
+
+	invalidIPAResult, err := validateWithGo(context.Background(), invalidIPAPath, false)
+	if err != nil {
+		t.Fatalf("validateWithGo failed for invalid IPA file: %v", err)
+	}
+	if valid, ok := invalidIPAResult["valid"].(bool); !ok || valid {
+		t.Fatalf("Expected invalid IPA to be rejected, got %#v", invalidIPAResult["valid"])
+	}
+}
+
+func TestBuildsPackageCommand_RejectsNonAppInput(t *testing.T) {
+	tempDir := t.TempDir()
+	inputPath := filepath.Join(tempDir, "not-an-app.txt")
+	outputPath := filepath.Join(tempDir, "output.ipa")
+
+	if err := os.WriteFile(inputPath, []byte("plain file"), 0o644); err != nil {
+		t.Fatalf("Failed to create input file: %v", err)
+	}
+
+	cmd := BuildsPackageCommand()
+	if err := cmd.FlagSet.Parse([]string{"--app", inputPath, "--ipa", outputPath, "--output", "json"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), nil)
+	if err == nil {
+		t.Fatal("Expected invalid app bundle error")
+	}
+	if !strings.Contains(err.Error(), "invalid app bundle") {
+		t.Fatalf("Expected invalid app bundle error, got %v", err)
 	}
 }
 

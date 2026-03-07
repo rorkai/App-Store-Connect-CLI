@@ -90,4 +90,26 @@ final class JWTHelperTests: XCTestCase {
         XCTAssertFalse(signature.contains("/"))
         XCTAssertFalse(signature.contains("="))
     }
+
+    func testRenderJWTOutputValidateSuppressesToken() throws {
+        let rendered = try renderJWTOutput(
+            token: "secret-token",
+            outputFormat: "token",
+            validateOnly: true
+        )
+
+        XCTAssertEqual(rendered, "")
+    }
+
+    func testRenderJWTOutputValidateJSONOmitsToken() throws {
+        let rendered = try renderJWTOutput(
+            token: "secret-token",
+            outputFormat: "json",
+            validateOnly: true
+        )
+
+        XCTAssertFalse(rendered.contains("secret-token"))
+        XCTAssertTrue(rendered.contains("\"valid\":true"))
+        XCTAssertTrue(rendered.contains("\"expires_in\":"))
+    }
 }

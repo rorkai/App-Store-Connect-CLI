@@ -2,6 +2,7 @@ package builds
 
 import (
 	"archive/zip"
+	"bytes"
 	"compress/flate"
 	"context"
 	"flag"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"howett.net/plist"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -45,9 +47,16 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			// Validate app bundle exists
-			if _, err := os.Stat(appPathVal); os.IsNotExist(err) {
+			// Validate app bundle exists and is a real .app bundle.
+			appInfo, err := os.Stat(appPathVal)
+			if os.IsNotExist(err) {
 				return fmt.Errorf("app bundle not found: %s", appPathVal)
+			}
+			if err != nil {
+				return fmt.Errorf("failed to stat app bundle: %w", err)
+			}
+			if err := validateAppBundle(appPathVal, appInfo, false); err != nil {
+				return fmt.Errorf("invalid app bundle: %w", err)
 			}
 
 			// Determine output path
@@ -374,15 +383,82 @@ func validateWithGo(ctx context.Context, path string, strict bool) (map[string]i
 	}
 
 	ext := strings.ToLower(filepath.Ext(path))
-	validTarget := (info.IsDir() && ext == ".app") || (!info.IsDir() && ext == ".ipa")
+	var validationErr error
+	switch {
+	case info.IsDir() && ext == ".app":
+		validationErr = validateAppBundle(path, info, strict)
+	case !info.IsDir() && ext == ".ipa":
+		validationErr = validateIPA(path, strict)
+	default:
+		validationErr = fmt.Errorf("path must be a .app bundle or .ipa file")
+	}
 
 	result := map[string]interface{}{
-		"valid":  validTarget,
+		"valid":  validationErr == nil,
 		"path":   path,
 		"size":   info.Size(),
 		"strict": strict,
 		"method": "go",
 	}
+	if validationErr != nil {
+		result["error"] = validationErr.Error()
+	}
 
 	return result, nil
+}
+
+func validateAppBundle(path string, info os.FileInfo, strict bool) error {
+	if !info.IsDir() {
+		return fmt.Errorf("app bundle must be a directory")
+	}
+	if !strings.EqualFold(filepath.Ext(path), ".app") {
+		return fmt.Errorf("app bundle path must end with .app")
+	}
+
+	plistPath := filepath.Join(path, "Info.plist")
+	data, err := os.ReadFile(plistPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("missing Info.plist")
+		}
+		return fmt.Errorf("read Info.plist: %w", err)
+	}
+
+	var bundleInfo struct {
+		Version     string `plist:"CFBundleShortVersionString"`
+		BuildNumber string `plist:"CFBundleVersion"`
+	}
+	decoder := plist.NewDecoder(bytes.NewReader(data))
+	if err := decoder.Decode(&bundleInfo); err != nil {
+		return fmt.Errorf("decode Info.plist: %w", err)
+	}
+
+	if strict {
+		if strings.TrimSpace(bundleInfo.Version) == "" {
+			return fmt.Errorf("missing CFBundleShortVersionString")
+		}
+		if strings.TrimSpace(bundleInfo.BuildNumber) == "" {
+			return fmt.Errorf("missing CFBundleVersion")
+		}
+	}
+
+	return nil
+}
+
+func validateIPA(path string, strict bool) error {
+	info, err := shared.ExtractBundleInfoFromIPA(path)
+	if err != nil {
+		return err
+	}
+
+	if strict {
+		if strings.TrimSpace(info.Version) == "" {
+			return fmt.Errorf("missing CFBundleShortVersionString in IPA")
+		}
+		if strings.TrimSpace(info.BuildNumber) == "" {
+			return fmt.Errorf("missing CFBundleVersion in IPA")
+		}
+	}
+
+	return nil
 }

@@ -239,6 +239,32 @@ func sign(payload: String, with privateKey: P256.Signing.PrivateKey) throws -> S
     }
 }
 
+func renderJWTOutput(token: String, outputFormat: String, validateOnly: Bool) throws -> String {
+    if validateOnly {
+        if outputFormat.lowercased() == "json" {
+            let result: [String: Any] = [
+                "valid": true,
+                "expires_in": Int(jwtTokenLifetime)
+            ]
+            let jsonData = try JSONSerialization.data(withJSONObject: result, options: .sortedKeys)
+            return String(data: jsonData, encoding: .utf8) ?? ""
+        }
+        return ""
+    }
+
+    switch outputFormat.lowercased() {
+    case "json":
+        let result: [String: Any] = [
+            "token": token,
+            "expires_in": Int(jwtTokenLifetime)
+        ]
+        let jsonData = try JSONSerialization.data(withJSONObject: result, options: .sortedKeys)
+        return String(data: jsonData, encoding: .utf8) ?? ""
+    default:
+        return token
+    }
+}
+
 // MARK: - Command
 
 @main
@@ -293,17 +319,9 @@ struct JWTSignCommand: ParsableCommand {
         // Generate JWT
         let token = try generateJWT(issuerID: issuerID, keyID: keyID, privateKey: privateKey)
         
-        // Output result
-        switch output.lowercased() {
-        case "json":
-            let result: [String: Any] = [
-                "token": token,
-                "expires_in": Int(jwtTokenLifetime)
-            ]
-            let jsonData = try JSONSerialization.data(withJSONObject: result, options: .sortedKeys)
-            print(String(data: jsonData, encoding: .utf8)!)
-        default:
-            print(token)
+        let rendered = try renderJWTOutput(token: token, outputFormat: output, validateOnly: validate)
+        if !rendered.isEmpty {
+            print(rendered)
         }
     }
     

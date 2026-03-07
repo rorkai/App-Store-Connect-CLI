@@ -212,21 +212,36 @@ func optimizeImage(
 
 // MARK: - Parallel Batch Processing
 
-func batchOutputPath(for file: URL, inputRoot: URL, outputRoot: URL, recursive: Bool) throws -> String {
+func normalizedOutputExtension(for format: String) -> String {
+    switch format.lowercased() {
+    case "jpg", "jpeg":
+        return format.lowercased()
+    default:
+        return format.lowercased()
+    }
+}
+
+func batchOutputPath(for file: URL, inputRoot: URL, outputRoot: URL, recursive: Bool, format: String) throws -> String {
+    let outputURL: URL
     if !recursive {
-        return outputRoot.appendingPathComponent(file.lastPathComponent).path
+        outputURL = outputRoot.appendingPathComponent(file.lastPathComponent)
+    } else {
+        let inputPath = inputRoot.standardizedFileURL.path
+        let filePath = file.standardizedFileURL.path
+        let prefix = inputPath.hasSuffix("/") ? inputPath : inputPath + "/"
+
+        guard filePath.hasPrefix(prefix) else {
+            throw ImageOptimizeError.invalidInput("File is outside input directory: \(file.path)")
+        }
+
+        let relativePath = String(filePath.dropFirst(prefix.count))
+        outputURL = outputRoot.appendingPathComponent(relativePath)
     }
 
-    let inputPath = inputRoot.standardizedFileURL.path
-    let filePath = file.standardizedFileURL.path
-    let prefix = inputPath.hasSuffix("/") ? inputPath : inputPath + "/"
-
-    guard filePath.hasPrefix(prefix) else {
-        throw ImageOptimizeError.invalidInput("File is outside input directory: \(file.path)")
-    }
-
-    let relativePath = String(filePath.dropFirst(prefix.count))
-    return outputRoot.appendingPathComponent(relativePath).path
+    return outputURL
+        .deletingPathExtension()
+        .appendingPathExtension(normalizedOutputExtension(for: format))
+        .path
 }
 
 func batchOptimize(
@@ -278,7 +293,8 @@ func batchOptimize(
                     for: file,
                     inputRoot: inputURL,
                     outputRoot: outputRoot,
-                    recursive: recursive
+                    recursive: recursive,
+                    format: format
                 )
                 let result = try optimizeImage(
                     inputPath: file.path,
@@ -309,7 +325,8 @@ func batchOptimize(
                     for: file,
                     inputRoot: inputURL,
                     outputRoot: outputRoot,
-                    recursive: recursive
+                    recursive: recursive,
+                    format: format
                 )
                 let result = try optimizeImage(
                     inputPath: file.path,

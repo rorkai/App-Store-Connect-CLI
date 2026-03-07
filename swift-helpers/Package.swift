@@ -79,6 +79,11 @@ let package = Package(
             name: "ImageOptimizeTests",
             dependencies: ["asc-image-optimize"],
             path: "Tests/ImageOptimizeTests"
+        ),
+        .testTarget(
+            name: "VideoEncodeTests",
+            dependencies: ["asc-video-encode"],
+            path: "Tests/VideoEncodeTests"
         )
     ]
 )

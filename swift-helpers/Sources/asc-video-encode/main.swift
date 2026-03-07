@@ -31,17 +31,9 @@ enum VideoEncodeError: Error, LocalizedError {
 // MARK: - Encoding Presets
 
 enum VideoPreset: String, CaseIterable {
-    case store = "store"          // App Store preview quality
-    case preview = "preview"      // High quality, reasonable size
-    case compact = "compact"      // Smaller size for web
-    
-    var bitRate: Int {
-        switch self {
-        case .store: return 6_000_000      // 6 Mbps
-        case .preview: return 4_000_000   // 4 Mbps
-        case .compact: return 2_000_000   // 2 Mbps
-        }
-    }
+    case store = "store"          // Full-resolution master quality
+    case preview = "preview"      // 1080p distribution quality
+    case compact = "compact"      // 720p compact output
     
     var maxResolution: CGSize? {
         switch self {
@@ -50,6 +42,36 @@ enum VideoPreset: String, CaseIterable {
         case .compact: return CGSize(width: 1280, height: 720)
         }
     }
+    
+    var exportPresetName: String {
+        switch self {
+        case .store:
+            return AVAssetExportPresetHighestQuality
+        case .preview:
+            return AVAssetExportPreset1920x1080
+        case .compact:
+            return AVAssetExportPreset1280x720
+        }
+    }
+}
+
+func renderSize(for originalSize: CGSize, maxResolution: CGSize?) -> CGSize {
+    guard let maxResolution else {
+        return originalSize
+    }
+    
+    let widthScale = maxResolution.width / originalSize.width
+    let heightScale = maxResolution.height / originalSize.height
+    let scale = min(widthScale, heightScale, 1)
+    
+    guard scale < 1 else {
+        return originalSize
+    }
+    
+    return CGSize(
+        width: floor(originalSize.width * scale),
+        height: floor(originalSize.height * scale)
+    )
 }
 
 // MARK: - Video Processing
@@ -92,7 +114,7 @@ func encodeVideo(
     // Create export session
     guard let exportSession = AVAssetExportSession(
         asset: composition,
-        presetName: AVAssetExportPresetHighestQuality
+        presetName: preset.exportPresetName
     ) else {
         throw VideoEncodeError.encodingFailed("Could not create export session")
     }
@@ -103,7 +125,7 @@ func encodeVideo(
     
     // Apply video compression
     let videoComposition = AVMutableVideoComposition()
-    videoComposition.renderSize = preset.maxResolution ?? originalSize
+    videoComposition.renderSize = renderSize(for: originalSize, maxResolution: preset.maxResolution)
     videoComposition.frameDuration = CMTimeMake(value: 1, timescale: 30)
     
     let instruction = AVMutableVideoCompositionInstruction()
