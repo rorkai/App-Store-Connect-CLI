@@ -340,7 +340,6 @@ struct JWTSignCommand: ParsableCommand {
         }
         
         let lines = input.components(separatedBy: .newlines)
-        var processedCount = 0
         
         // Cache private keys to avoid reloading from disk (saves ~1-2ms per key)
         var keyCache: [String: P256.Signing.PrivateKey] = [:]
@@ -379,7 +378,6 @@ struct JWTSignCommand: ParsableCommand {
                     "expires_in": Int(jwtTokenLifetime),
                     "success": true
                 ])
-                processedCount += 1
             } catch {
                 results.append([
                     "error": error.localizedDescription,
@@ -391,10 +389,5 @@ struct JWTSignCommand: ParsableCommand {
         // Output results as JSON array
         let outputData = try JSONSerialization.data(withJSONObject: results, options: .sortedKeys)
         print(String(data: outputData, encoding: .utf8)!)
-        
-        // Exit with error if any failed
-        if processedCount < results.count {
-            Foundation.exit(EXIT_FAILURE)
-        }
     }
 }

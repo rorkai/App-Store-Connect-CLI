@@ -111,7 +111,14 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME}"
           cd release
-          shasum -a 256 asc_* swift-helpers-*.tar.gz > asc_${VERSION}_checksums.txt
+          {
+            for file in asc_* swift-helpers-*.tar.gz; do
+              if [ "$file" = "asc_${VERSION}_checksums.txt" ]; then
+                continue
+              fi
+              shasum -a 256 "$file"
+            done
+          } > "asc_${VERSION}_checksums.txt"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
