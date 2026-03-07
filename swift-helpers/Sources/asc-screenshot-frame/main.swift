@@ -203,9 +203,10 @@ func validateScreenshotDimensions(_ image: CIImage, for device: DeviceType) -> B
     
     // Check if aspect ratio matches (portrait or landscape)
     let targetAspect = size.width / size.height
+    let landscapeAspect = size.height / size.width
     let imageAspect = image.extent.width / image.extent.height
     
-    return abs(targetAspect - imageAspect) < tolerance
+    return abs(targetAspect - imageAspect) < tolerance || abs(landscapeAspect - imageAspect) < tolerance
 }
 
 // MARK: - Commands

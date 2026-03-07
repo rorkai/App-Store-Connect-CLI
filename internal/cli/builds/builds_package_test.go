@@ -416,6 +416,18 @@ func TestPrintPackagingStats(t *testing.T) {
 	printPackagingStats(0, 0, 1.0)                         // Edge case
 }
 
+func TestCalculateCompressionRatio(t *testing.T) {
+	if got := calculateCompressionRatio(100, 0); got != 1 {
+		t.Fatalf("Expected zero-size compression ratio to clamp to 1, got %v", got)
+	}
+	if got := calculateCompressionRatio(50, 100); got != 1 {
+		t.Fatalf("Expected expanding compression ratio to clamp to 1, got %v", got)
+	}
+	if got := calculateCompressionRatio(200, 100); got != 2 {
+		t.Fatalf("Expected ratio 2, got %v", got)
+	}
+}
+
 func TestPackageWithGo_ContextCancellation(t *testing.T) {
 	// Create a test .app bundle
 	tempDir := t.TempDir()

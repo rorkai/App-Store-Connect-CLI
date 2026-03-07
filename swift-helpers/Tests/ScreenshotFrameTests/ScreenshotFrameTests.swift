@@ -1,4 +1,5 @@
 import XCTest
+import CoreImage
 @testable import asc_screenshot_frame
 
 final class ScreenshotFrameTests: XCTestCase {
@@ -45,6 +46,11 @@ final class ScreenshotFrameTests: XCTestCase {
         // Create a mock CIImage for testing
         // Note: This is a simplified test - actual testing would need real images
         XCTAssertTrue(true) // Placeholder for image loading tests
+    }
+
+    func testValidateScreenshotDimensionsAcceptsLandscapeOrientation() {
+        let image = CIImage(color: .red).cropped(to: CGRect(x: 0, y: 0, width: 2556, height: 1179))
+        XCTAssertTrue(validateScreenshotDimensions(image, for: .iPhone14Pro))
     }
     
     func testLoadImageInvalidPath() {

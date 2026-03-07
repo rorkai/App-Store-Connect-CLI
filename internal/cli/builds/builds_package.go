@@ -150,10 +150,7 @@ func packageWithGo(ctx context.Context, appPath, outputPath string, level int) (
 	}
 
 	duration := time.Since(startTime).Seconds()
-	compressionRatio := float64(originalSize) / float64(compressedSize)
-	if compressionRatio < 1 {
-		compressionRatio = 1
-	}
+	compressionRatio := calculateCompressionRatio(originalSize, compressedSize)
 
 	result := &packagingResult{
 		Success:          true,
@@ -350,6 +347,18 @@ func printPackagingStats(originalSize, compressedSize int64, ratio float64) {
 	compressedMB := float64(compressedSize) / (1024 * 1024)
 	fmt.Fprintf(os.Stderr, "Original: %.2f MB, Compressed: %.2f MB (%.1fx ratio)\n",
 		originalMB, compressedMB, ratio)
+}
+
+func calculateCompressionRatio(originalSize, compressedSize int64) float64 {
+	if compressedSize <= 0 {
+		return 1
+	}
+
+	ratio := float64(originalSize) / float64(compressedSize)
+	if ratio < 1 {
+		return 1
+	}
+	return ratio
 }
 
 // BuildsValidateCommand returns the builds validate command for local bundle validation

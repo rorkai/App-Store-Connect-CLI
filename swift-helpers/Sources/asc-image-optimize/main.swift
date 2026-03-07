@@ -213,12 +213,7 @@ func optimizeImage(
 // MARK: - Parallel Batch Processing
 
 func normalizedOutputExtension(for format: String) -> String {
-    switch format.lowercased() {
-    case "jpg", "jpeg":
-        return format.lowercased()
-    default:
-        return format.lowercased()
-    }
+    return format.lowercased()
 }
 
 func batchOutputPath(for file: URL, inputRoot: URL, outputRoot: URL, recursive: Bool, format: String) throws -> String {
