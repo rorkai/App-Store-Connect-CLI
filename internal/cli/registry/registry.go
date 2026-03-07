@@ -68,6 +68,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/screenshots"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/signing"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/snitch"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/status"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/submit"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
@@ -179,6 +180,7 @@ func Subcommands(version string) []*ffcli.Command {
 		notify.NotifyCommand(),
 		gamecenter.GameCenterCommand(),
 		schema.SchemaCommand(),
+		snitch.SnitchCommand(version),
 		VersionCommand(version),
 	}
 

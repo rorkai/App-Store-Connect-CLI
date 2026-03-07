@@ -168,6 +168,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `version` - Print version information and exit.
 - `completion` - Print shell completion scripts.
 - `schema` - Inspect App Store Connect API endpoint schemas at runtime.
+- `snitch` - Report CLI friction as a GitHub issue.
 
 ## Global Flags
 
