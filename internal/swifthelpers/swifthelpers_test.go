@@ -126,6 +126,40 @@ func TestSignJWT_IgnoresHelperStderrWhenJSONStdoutIsValid(t *testing.T) {
 	}
 }
 
+func TestOptimizeImage_OmitsBlankFormatFlag(t *testing.T) {
+	tempDir := t.TempDir()
+	helperPath := filepath.Join(tempDir, ImageOptimizeBinary)
+	script := `#!/bin/sh
+for arg in "$@"; do
+  if [ -z "$arg" ]; then
+    echo "empty arg" >&2
+    exit 1
+  fi
+done
+printf '{"input":"in.png","output":"out.jpg","original_size":10,"optimized_size":5,"savings_bytes":5,"savings_percent":50,"format":"jpeg","preset":"preview"}'
+`
+	if err := os.WriteFile(helperPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("Failed to create fake helper: %v", err)
+	}
+
+	t.Setenv(EnvDisableSwiftHelpers, "")
+	t.Setenv(EnvPreferSwiftHelpers, "true")
+	t.Setenv(EnvSwiftHelperPath, tempDir)
+
+	result, err := OptimizeImage(context.Background(), ImageOptimizeRequest{
+		InputPath:  "in.png",
+		OutputPath: "out.jpg",
+		Preset:     "preview",
+		Format:     "",
+	})
+	if err != nil {
+		t.Fatalf("OptimizeImage returned error: %v", err)
+	}
+	if result.Format != "jpeg" {
+		t.Fatalf("Expected helper default format jpeg, got %q", result.Format)
+	}
+}
+
 func TestSignJWT_NotAvailable(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		t.Skip("Skipping on macOS - helper might be available")

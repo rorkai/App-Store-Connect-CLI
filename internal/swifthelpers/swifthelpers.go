@@ -287,8 +287,12 @@ func OptimizeImage(ctx context.Context, req ImageOptimizeRequest) (*ImageOptimiz
 		"optimize",
 		"--input", req.InputPath,
 		"--output", req.OutputPath,
-		"--preset", req.Preset,
-		"--format", req.Format,
+	}
+	if req.Preset != "" {
+		args = append(args, "--preset", req.Preset)
+	}
+	if req.Format != "" {
+		args = append(args, "--format", req.Format)
 	}
 
 	var result ImageOptimizeResult
@@ -314,8 +318,12 @@ func BatchOptimizeImages(ctx context.Context, inputDir, outputDir, preset, forma
 		"batch",
 		"--input-dir", inputDir,
 		"--output-dir", outputDir,
-		"--preset", preset,
-		"--format", format,
+	}
+	if preset != "" {
+		args = append(args, "--preset", preset)
+	}
+	if format != "" {
+		args = append(args, "--format", format)
 	}
 
 	if recursive {
