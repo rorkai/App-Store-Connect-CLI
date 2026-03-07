@@ -95,6 +95,37 @@ func TestUseSwiftHelpers_Preferred(t *testing.T) {
 	}
 }
 
+func TestSignJWT_IgnoresHelperStderrWhenJSONStdoutIsValid(t *testing.T) {
+	tempDir := t.TempDir()
+	helperPath := filepath.Join(tempDir, JWTSignerBinary)
+	script := "#!/bin/sh\n" +
+		"echo 'warning on stderr' 1>&2\n" +
+		"echo '{\"token\":\"abc123\",\"expires_in\":600}'\n"
+
+	if err := os.WriteFile(helperPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("Failed to create fake helper: %v", err)
+	}
+
+	t.Setenv(EnvDisableSwiftHelpers, "")
+	t.Setenv(EnvPreferSwiftHelpers, "true")
+	t.Setenv(EnvSwiftHelperPath, tempDir)
+
+	resp, err := SignJWT(context.Background(), JWTSignRequest{
+		IssuerID:       "issuer",
+		KeyID:          "key",
+		PrivateKeyPath: "/tmp/key.p8",
+	})
+	if err != nil {
+		t.Fatalf("SignJWT returned error: %v", err)
+	}
+	if resp.Token != "abc123" {
+		t.Fatalf("Expected token abc123, got %q", resp.Token)
+	}
+	if resp.ExpiresIn != 600 {
+		t.Fatalf("Expected expires_in 600, got %d", resp.ExpiresIn)
+	}
+}
+
 func TestSignJWT_NotAvailable(t *testing.T) {
 	if runtime.GOOS == "darwin" {
 		t.Skip("Skipping on macOS - helper might be available")

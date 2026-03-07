@@ -129,22 +129,6 @@ func resizeImage(_ image: CIImage, to size: CGSize) -> CIImage {
     return filter.outputImage ?? image
 }
 
-func applyRoundedCorners(to image: CIImage, radius: CGFloat) -> CIImage {
-    // Create a rounded rectangle mask
-    let extent = image.extent
-    let roundedRect = CIImage(color: CIColor(red: 1, green: 1, blue: 1))
-        .cropped(to: extent)
-    
-    // Apply rounded corners using a simple mask approach
-    let filter = CIFilter.gaussianBlur()
-    filter.inputImage = roundedRect
-    filter.radius = Float(radius)
-    
-    // For proper rounded corners, we'd need more complex masking
-    // This is a simplified version
-    return image
-}
-
 func createFramedScreenshot(
     screenshotPath: String,
     deviceType: DeviceType,

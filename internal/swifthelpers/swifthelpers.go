@@ -11,6 +11,7 @@
 package swifthelpers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -18,6 +19,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -71,6 +73,29 @@ func findHelper(name string) (string, error) {
 	return "", fmt.Errorf("swift helper %s not found", name)
 }
 
+func runHelperJSON(ctx context.Context, helper string, args []string, target any, operation string) error {
+	cmd := exec.CommandContext(ctx, helper, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	output, err := cmd.Output()
+	if err != nil {
+		if stderr.Len() > 0 {
+			return fmt.Errorf("%s failed: %w (stderr: %s)", operation, err, strings.TrimSpace(stderr.String()))
+		}
+		return fmt.Errorf("%s failed: %w", operation, err)
+	}
+
+	if err := json.Unmarshal(output, target); err != nil {
+		if stderr.Len() > 0 {
+			return fmt.Errorf("failed to parse %s response: %w (stderr: %s)", operation, err, strings.TrimSpace(stderr.String()))
+		}
+		return fmt.Errorf("failed to parse %s response: %w", operation, err)
+	}
+
+	return nil
+}
+
 // JWTSignRequest holds the parameters for JWT signing.
 type JWTSignRequest struct {
 	IssuerID       string
@@ -95,21 +120,14 @@ func SignJWT(ctx context.Context, req JWTSignRequest) (*JWTSignResponse, error) 
 		return nil, err
 	}
 
-	cmd := exec.CommandContext(ctx, helper,
+	var resp JWTSignResponse
+	if err := runHelperJSON(ctx, helper, []string{
 		"--issuer-id", req.IssuerID,
 		"--key-id", req.KeyID,
 		"--private-key-path", req.PrivateKeyPath,
 		"--output", "json",
-	)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("jwt sign failed: %w (output: %s)", err, string(output))
-	}
-
-	var resp JWTSignResponse
-	if err := json.Unmarshal(output, &resp); err != nil {
-		return nil, fmt.Errorf("failed to parse jwt response: %w", err)
+	}, &resp, "jwt sign"); err != nil {
+		return nil, err
 	}
 
 	return &resp, nil
@@ -162,15 +180,9 @@ func FrameScreenshot(ctx context.Context, req ScreenshotFrameRequest) (*Screensh
 		args = append(args, "--validate")
 	}
 
-	cmd := exec.CommandContext(ctx, helper, args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("screenshot framing failed: %w (output: %s)", err, string(output))
-	}
-
 	var resp ScreenshotFrameResponse
-	if err := json.Unmarshal(output, &resp); err != nil {
-		return nil, fmt.Errorf("failed to parse framing response: %w", err)
+	if err := runHelperJSON(ctx, helper, args, &resp, "screenshot framing"); err != nil {
+		return nil, err
 	}
 
 	return &resp, nil
@@ -279,15 +291,9 @@ func OptimizeImage(ctx context.Context, req ImageOptimizeRequest) (*ImageOptimiz
 		"--format", req.Format,
 	}
 
-	cmd := exec.CommandContext(ctx, helper, args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("image optimization failed: %w (output: %s)", err, string(output))
-	}
-
 	var result ImageOptimizeResult
-	if err := json.Unmarshal(output, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse optimization result: %w", err)
+	if err := runHelperJSON(ctx, helper, args, &result, "image optimization"); err != nil {
+		return nil, err
 	}
 
 	return &result, nil
@@ -347,20 +353,14 @@ func EncodeVideo(ctx context.Context, inputPath, outputPath, preset string) (*Vi
 		return nil, err
 	}
 
-	cmd := exec.CommandContext(ctx, helper, "encode",
+	var result VideoEncodeResult
+	if err := runHelperJSON(ctx, helper, []string{
+		"encode",
 		"--input", inputPath,
 		"--output", outputPath,
 		"--preset", preset,
-	)
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("video encoding failed: %w (output: %s)", err, string(output))
-	}
-
-	var result VideoEncodeResult
-	if err := json.Unmarshal(output, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse encode result: %w", err)
+	}, &result, "video encoding"); err != nil {
+		return nil, err
 	}
 
 	return &result, nil
