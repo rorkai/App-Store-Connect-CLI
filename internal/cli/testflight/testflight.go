@@ -3,14 +3,8 @@ package testflight
 import (
 	"context"
 	"flag"
-	"fmt"
-	"os"
-	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
-
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // TestFlightCommand returns the testflight command with subcommands.
@@ -39,6 +33,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: testflightVisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
+			RemovedTestFlightAppsCommand(),
 			TestFlightGroupsCommand(),
 			TestFlightTestersCommand(),
 			TestFlightFeedbackCommand(),
@@ -54,7 +49,6 @@ Examples:
 			DeprecatedBetaTestersAliasCommand(),
 			DeprecatedBetaFeedbackAliasCommand(),
 			DeprecatedBetaCrashLogsAliasCommand(),
-			DeprecatedTestFlightAppsAliasCommand(),
 			DeprecatedBetaDetailsAliasCommand(),
 			DeprecatedBetaLicenseAgreementsAliasCommand(),
 			DeprecatedBetaNotificationsAliasCommand(),
@@ -62,160 +56,6 @@ Examples:
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
-		},
-	}
-}
-
-// TestFlightAppsCommand returns the testflight apps command with subcommands.
-func TestFlightAppsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps", flag.ExitOnError)
-
-	return &ffcli.Command{
-		Name:       "apps",
-		ShortUsage: "asc testflight apps <subcommand> [flags]",
-		ShortHelp:  "List or fetch apps for TestFlight.",
-		LongHelp: `List or fetch apps for TestFlight.
-
-Examples:
-  asc testflight apps list --sort name
-  asc testflight apps get --app "APP_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			TestFlightAppsListCommand(),
-			TestFlightAppsGetCommand(),
-		},
-		Exec: func(ctx context.Context, args []string) error {
-			return flag.ErrHelp
-		},
-	}
-}
-
-// TestFlightAppsListCommand lists TestFlight apps using the Apps API.
-func TestFlightAppsListCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("list", flag.ExitOnError)
-
-	bundleID := fs.String("bundle-id", "", "Filter by bundle ID(s), comma-separated")
-	name := fs.String("name", "", "Filter by app name(s), comma-separated")
-	sku := fs.String("sku", "", "Filter by SKU(s), comma-separated")
-	output := shared.BindOutputFlags(fs)
-	sort := fs.String("sort", "", "Sort by name or -name, bundleId or -bundleId")
-	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
-	next := fs.String("next", "", "Fetch next page using a links.next URL")
-	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
-
-	return &ffcli.Command{
-		Name:       "list",
-		ShortUsage: "asc testflight apps list [flags]",
-		ShortHelp:  "List apps for TestFlight.",
-		LongHelp: `List apps for TestFlight.
-
-Examples:
-  asc testflight apps list
-  asc testflight apps list --bundle-id "com.example.app"
-  asc testflight apps list --name "Example App"
-  asc testflight apps list --sku "SKU123"
-  asc testflight apps list --sort name --limit 10
-  asc testflight apps list --output table
-  asc testflight apps list --next "<links.next>"
-  asc testflight apps list --paginate`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("testflight apps list: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("testflight apps list: %w", err)
-			}
-			if err := shared.ValidateSort(*sort, "name", "-name", "bundleId", "-bundleId"); err != nil {
-				return fmt.Errorf("testflight apps list: %w", err)
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("testflight apps list: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			opts := []asc.AppsOption{
-				asc.WithAppsBundleIDs(shared.SplitCSV(*bundleID)),
-				asc.WithAppsNames(shared.SplitCSV(*name)),
-				asc.WithAppsSKUs(shared.SplitCSV(*sku)),
-				asc.WithAppsLimit(*limit),
-				asc.WithAppsNextURL(*next),
-			}
-			if strings.TrimSpace(*sort) != "" {
-				opts = append(opts, asc.WithAppsSort(*sort))
-			}
-
-			if *paginate {
-				paginateOpts := append(opts, asc.WithAppsLimit(200))
-				apps, err := shared.PaginateWithSpinner(requestCtx,
-					func(ctx context.Context) (asc.PaginatedResponse, error) {
-						return client.GetApps(ctx, paginateOpts...)
-					},
-					func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return client.GetApps(ctx, asc.WithAppsNextURL(nextURL))
-					},
-				)
-				if err != nil {
-					return fmt.Errorf("testflight apps list: %w", err)
-				}
-
-				return shared.PrintOutput(apps, *output.Output, *output.Pretty)
-			}
-
-			apps, err := client.GetApps(requestCtx, opts...)
-			if err != nil {
-				return fmt.Errorf("testflight apps list: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(apps, *output.Output, *output.Pretty)
-		},
-	}
-}
-
-// TestFlightAppsGetCommand fetches a TestFlight app by ID.
-func TestFlightAppsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
-
-	appID := fs.String("app", "", "App Store Connect app ID (required)")
-	output := shared.BindOutputFlags(fs)
-
-	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc testflight apps get [flags]",
-		ShortHelp:  "Fetch an app by ID for TestFlight.",
-		LongHelp: `Fetch an app by ID for TestFlight.
-
-Examples:
-  asc testflight apps get --app "APP_ID"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := strings.TrimSpace(*appID)
-			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required")
-				return flag.ErrHelp
-			}
-
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("testflight apps get: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			app, err := client.GetApp(requestCtx, resolvedAppID)
-			if err != nil {
-				return fmt.Errorf("testflight apps get: failed to fetch: %w", err)
-			}
-
-			return shared.PrintOutput(app, *output.Output, *output.Pretty)
 		},
 	}
 }

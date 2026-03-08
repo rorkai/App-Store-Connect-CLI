@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -217,6 +219,33 @@ func deprecatedAliasCommand(cmd *ffcli.Command, shortUsage, shortHelp, longHelp 
 	return hideTestFlightCommand(cmd)
 }
 
+func RemovedTestFlightAppsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("apps", flag.ExitOnError)
+
+	return hideTestFlightCommand(&ffcli.Command{
+		Name:       "apps",
+		ShortUsage: "asc apps <subcommand> [flags]",
+		ShortHelp:  "REMOVED: use `asc apps`.",
+		LongHelp:   "Use `asc apps list` for collection lookup and `asc apps get --id APP_ID` for a single app.",
+		FlagSet:    fs,
+		UsageFunc:  shared.DeprecatedUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			suggestion := "asc apps"
+			if len(args) > 0 {
+				switch strings.TrimSpace(args[0]) {
+				case "list":
+					suggestion = "asc apps list"
+				case "get", "view":
+					suggestion = "asc apps get --id APP_ID"
+				}
+			}
+
+			fmt.Fprintf(os.Stderr, "Error: `asc testflight apps` was removed. Use `%s` instead.\n", suggestion)
+			return flag.ErrHelp
+		},
+	})
+}
+
 func TestFlightGroupsCommand() *ffcli.Command {
 	cmd := rewriteCommandTree(
 		BetaGroupsCommand(),
@@ -260,22 +289,6 @@ func TestFlightGroupsCommand() *ffcli.Command {
 Examples:
   asc testflight groups compatibility view --group-id "GROUP_ID"`
 	}
-	return cmd
-}
-
-func DeprecatedTestFlightAppsAliasCommand() *ffcli.Command {
-	cmd := deprecatedAliasCommand(
-		rewriteCommandPresentation(
-			TestFlightAppsCommand(),
-			"asc testflight apps",
-			"asc apps",
-			map[string]string{},
-		),
-		"asc apps <subcommand> [flags]",
-		"DEPRECATED: use `asc apps`.",
-		"DEPRECATED: use `asc apps list` and `asc apps get`.",
-	)
-	setUsageFuncRecursively(cmd, shared.DeprecatedUsageFunc)
 	return cmd
 }
 

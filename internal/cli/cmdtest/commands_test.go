@@ -1929,15 +1929,15 @@ func TestTestFlightAppsValidationErrors(t *testing.T) {
 		wantHelp bool
 	}{
 		{
-			name:     "testflight apps list missing auth",
-			args:     []string{"testflight", "apps", "list"},
+			name:     "apps list missing auth",
+			args:     []string{"apps", "list"},
 			wantErr:  "missing authentication",
 			wantHelp: false,
 		},
 		{
-			name:     "testflight apps get missing id",
-			args:     []string{"testflight", "apps", "get"},
-			wantErr:  "--app is required",
+			name:     "apps get missing id",
+			args:     []string{"apps", "get"},
+			wantErr:  "--id is required",
 			wantHelp: true,
 		},
 	}
