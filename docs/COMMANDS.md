@@ -44,7 +44,7 @@ asc <subcommand> [flags]
 
 ### Experimental Commands
 
-- `web` - EXPERIMENTAL: Unofficial web-session workflows (discouraged).
+- `web` - [experimental] Unofficial web-session workflows (discouraged).
 
 ### Analytics and Finance
 
@@ -64,7 +64,7 @@ asc <subcommand> [flags]
 - `app-infos` - List app info records for an app.
 - `versions` - Manage App Store versions.
 - `localizations` - Manage App Store localization metadata.
-- `screenshots` - Capture, frame, review (experimental local workflow), and upload App Store screenshots.
+- `screenshots` - Upload and manage App Store screenshots; local capture/frame workflow is [experimental].
 - `video-previews` - Manage App Store app preview videos.
 - `background-assets` - Manage background assets.
 - `product-pages` - Manage custom product pages and product page experiments.

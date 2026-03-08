@@ -21,7 +21,7 @@ func WebCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "web",
 		ShortUsage: "asc web <subcommand> [flags]",
-		ShortHelp:  "EXPERIMENTAL: Unofficial web-session workflows (discouraged).",
+		ShortHelp:  "[experimental] Unofficial web-session workflows (discouraged).",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Use Apple web-session /iris flows that are not part of the official App Store Connect API.

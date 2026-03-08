@@ -104,7 +104,7 @@ Use `asc <command> --help` for subcommands and flags.
 
 - `auth` - Manage authentication for the App Store Connect API.
 - `doctor` - Diagnose authentication configuration issues.
-- `web` - Experimental/unofficial Apple web-session `/iris` workflows (discouraged; detached from official API-key flows). Uses low-rate calls, user-owned Apple ID session scoping, and signed-URL redaction by default.
+- `web` - `[experimental]` Unofficial Apple web-session `/iris` workflows (discouraged; not part of the official API). Uses low-rate calls, user-owned Apple ID sessions, and signed-URL redaction by default.
 - `account` - Inspect account-level health and access signals.
 - `install-skills` - Install the asc skill pack for App Store Connect workflows.
 - `init` - Initialize asc helper docs in the current repo.
@@ -157,7 +157,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `pre-release-versions` - Manage TestFlight pre-release versions.
 - `localizations` - Manage App Store localization metadata.
 - `metadata` - Pull, validate, and push canonical metadata workflows.
-- `screenshots` - Capture, frame, review, and upload App Store screenshots (local automation is experimental).
+- `screenshots` - Upload and manage App Store screenshots; local capture/frame workflow is `[experimental]`.
 - `background-assets` - Manage background assets.
 - `build-localizations` - Manage build release notes localizations.
 - `beta-app-localizations` - Manage TestFlight beta app localizations.
