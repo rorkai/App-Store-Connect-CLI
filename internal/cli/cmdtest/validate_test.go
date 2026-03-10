@@ -629,8 +629,14 @@ func TestValidateTreatsMetadataProbeFailuresAsInformational(t *testing.T) {
 	if !hasCheckWithID(report.Checks, "subscriptions.diagnostics.localization_unverified") {
 		t.Fatalf("expected localization unverified check, got %+v", report.Checks)
 	}
+	if !hasCheckWithID(report.Checks, "subscriptions.diagnostics.pricing_unverified") {
+		t.Fatalf("expected pricing unverified check, got %+v", report.Checks)
+	}
 	if hasCheckWithID(report.Checks, "subscriptions.diagnostics.group_localization_missing") || hasCheckWithID(report.Checks, "subscriptions.diagnostics.localization_missing") {
 		t.Fatalf("expected no false missing-metadata checks, got %+v", report.Checks)
+	}
+	if hasCheckWithID(report.Checks, "subscriptions.diagnostics.pricing_missing") {
+		t.Fatalf("expected no false pricing-missing check, got %+v", report.Checks)
 	}
 }
 

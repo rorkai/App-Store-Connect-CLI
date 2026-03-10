@@ -26,6 +26,7 @@ type Subscription struct {
 	GroupLocalizationCheckReason  string
 	PriceCount                    int
 	PriceCheckSkipped             bool
+	PriceCheckSkipReason          string
 }
 
 // SubscriptionLocalizationInfo holds per-locale metadata for a subscription.
@@ -330,7 +331,21 @@ func subscriptionMetadataDiagnostics(subs []Subscription) []CheckResult {
 		}
 
 		// Check pricing.
-		if !sub.PriceCheckSkipped && sub.PriceCount == 0 {
+		if sub.PriceCheckSkipped {
+			remediation := strings.TrimSpace(sub.PriceCheckSkipReason)
+			if remediation == "" {
+				remediation = "Review this subscription's pricing in App Store Connect; validation could not verify it automatically"
+			}
+			checks = append(checks, CheckResult{
+				ID:           "subscriptions.diagnostics.pricing_unverified",
+				Severity:     SeverityInfo,
+				Field:        "pricing",
+				ResourceType: "subscription",
+				ResourceID:   strings.TrimSpace(sub.ID),
+				Message:      fmt.Sprintf("Could not verify whether %s has territory prices configured", label),
+				Remediation:  remediation,
+			})
+		} else if sub.PriceCount == 0 {
 			checks = append(checks, CheckResult{
 				ID:           "subscriptions.diagnostics.pricing_missing",
 				Severity:     SeverityError,

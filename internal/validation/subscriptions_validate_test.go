@@ -151,6 +151,7 @@ func TestSubscriptionMetadataDiagnostics_UsesInfoChecksWhenLocalizationVerificat
 			LocalizationCheckSkipped:      true,
 			LocalizationCheckSkipReason:   "timed out",
 			PriceCheckSkipped:             true,
+			PriceCheckSkipReason:          "price endpoint forbidden",
 		},
 	})
 
@@ -159,6 +160,9 @@ func TestSubscriptionMetadataDiagnostics_UsesInfoChecksWhenLocalizationVerificat
 	}
 	if !hasCheckID(checks, "subscriptions.diagnostics.localization_unverified") {
 		t.Fatalf("expected localization unverified check, got %v", checks)
+	}
+	if !hasCheckID(checks, "subscriptions.diagnostics.pricing_unverified") {
+		t.Fatalf("expected pricing unverified check, got %v", checks)
 	}
 	if hasCheckID(checks, "subscriptions.diagnostics.group_localization_missing") {
 		t.Fatalf("did not expect false group-localization missing check, got %v", checks)
@@ -173,6 +177,9 @@ func TestSubscriptionMetadataDiagnostics_UsesInfoChecksWhenLocalizationVerificat
 	for _, check := range checks {
 		if strings.HasSuffix(check.ID, "_unverified") && check.Severity != SeverityInfo {
 			t.Fatalf("expected unverified checks to be informational, got %+v", check)
+		}
+		if check.ID == "subscriptions.diagnostics.pricing_unverified" && !strings.Contains(check.Remediation, "price endpoint forbidden") {
+			t.Fatalf("expected pricing-unverified remediation to preserve skip reason, got %+v", check)
 		}
 	}
 }

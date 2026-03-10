@@ -127,7 +127,10 @@ func fetchSubscriptions(ctx context.Context, client *asc.Client, appID string) (
 				valSub.Localizations = localizations
 				valSub.LocalizationCheckSkipped = !localizationStatus.Verified
 				valSub.LocalizationCheckSkipReason = localizationStatus.SkipReason
-				valSub.PriceCount, valSub.PriceCheckSkipped = fetchSubscriptionPriceCount(ctx, client, sub.ID)
+				priceCount, priceStatus := fetchSubscriptionPriceCount(ctx, client, sub.ID)
+				valSub.PriceCount = priceCount
+				valSub.PriceCheckSkipped = !priceStatus.Verified
+				valSub.PriceCheckSkipReason = priceStatus.SkipReason
 			}
 
 			subscriptions = append(subscriptions, valSub)
@@ -228,16 +231,18 @@ func fetchSubscriptionLocalizations(ctx context.Context, client *asc.Client, sub
 }
 
 // fetchSubscriptionPriceCount checks whether a subscription has any prices set.
-// Returns (count, skipped). Skipped is true if the check couldn't be performed.
-func fetchSubscriptionPriceCount(ctx context.Context, client *asc.Client, subscriptionID string) (int, bool) {
+func fetchSubscriptionPriceCount(ctx context.Context, client *asc.Client, subscriptionID string) (int, metadataCheckStatus) {
 	reqCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	resp, err := client.GetSubscriptionPrices(reqCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionPricesLimit(1))
 	if err != nil {
-		return 0, true
+		if reason, ok := metadataCheckSkipReason(err, "subscription prices"); ok {
+			return 0, metadataCheckStatus{SkipReason: reason}
+		}
+		return 0, metadataCheckStatus{SkipReason: "Validation skipped subscription prices because the App Store Connect endpoint returned an unexpected error"}
 	}
-	return len(resp.Data), false
+	return len(resp.Data), metadataCheckStatus{Verified: true}
 }
 
 func subscriptionHasImage(ctx context.Context, client *asc.Client, subscriptionID string) (subscriptionImageStatus, error) {
