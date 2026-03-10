@@ -157,6 +157,21 @@ Examples:
 						Price:     baseTarget.Price,
 						Error:     err.Error(),
 					})
+					result := &equalizeResult{
+						SubscriptionID: subID,
+						BaseTerritory:  territory,
+						BasePrice:      price,
+						DryRun:         false,
+						Total:          len(allTerritories),
+						Succeeded:      int(succeeded.Load()),
+						Failed:         int(failed.Load()),
+						Failures:       failures,
+					}
+					fmt.Fprintf(os.Stderr, "Done: %d succeeded, %d failed\n", result.Succeeded, result.Failed)
+					if err := printEqualizeResult(result, *output.Output, *output.Pretty); err != nil {
+						return err
+					}
+					return shared.NewReportedError(fmt.Errorf("equalize: failed to set initial price in %s", baseTarget.Territory))
 				} else {
 					succeeded.Add(1)
 					remainingTerritories = allTerritories[1:]

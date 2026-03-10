@@ -378,6 +378,95 @@ func TestSubscriptionsPricingEqualize_InitialPriceUsesPatchThenCreatesRemainingT
 	}
 }
 
+func TestSubscriptionsPricingEqualize_FailedInitialPriceStopsBeforePostingRemainingTerritories(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	basePricePointID := testSubscriptionPricePointID("USA")
+	canPricePointID := testSubscriptionPricePointID("CAN")
+
+	patchCount := 0
+	postCount := 0
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/sub-1/pricePoints":
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + basePricePointID + `","attributes":{"customerPrice":"0.99"}}],"links":{}}`
+			return jsonHTTPResponse(http.StatusOK, body), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/"+basePricePointID+"/equalizations":
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"` + canPricePointID + `","attributes":{"customerPrice":"1.29"}}],"links":{}}`
+			return jsonHTTPResponse(http.StatusOK, body), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/sub-1/subscriptionAvailability":
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":false}}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionAvailabilities/avail-1/availableTerritories":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/sub-1/relationships/prices":
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/subscriptions/sub-1":
+			patchCount++
+			return jsonHTTPResponse(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","title":"unprocessable","detail":"failed initial price"}]}`), nil
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
+			postCount++
+			t.Fatalf("unexpected price create after failed initial patch")
+			return nil, nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "equalize",
+			"--subscription-id", "sub-1",
+			"--base-price", "0.99",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected command to fail")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+	if patchCount != 1 {
+		t.Fatalf("expected one initial PATCH attempt, got %d", patchCount)
+	}
+	if postCount != 0 {
+		t.Fatalf("expected no follow-up POSTs after failed initial PATCH, got %d", postCount)
+	}
+
+	var result struct {
+		Total     int `json:"total"`
+		Succeeded int `json:"succeeded"`
+		Failed    int `json:"failed"`
+		Failures  []struct {
+			Territory string `json:"territory"`
+		} `json:"failures"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("parse JSON result: %v", err)
+	}
+	if result.Total != 2 || result.Succeeded != 0 || result.Failed != 1 {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	if len(result.Failures) != 1 || result.Failures[0].Territory != "USA" {
+		t.Fatalf("expected USA initial price failure, got %+v", result.Failures)
+	}
+}
+
 func TestSubscriptionsPricingEqualize_ReturnsReportedErrorWhenAnyTerritoryFails(t *testing.T) {
 	setupAuth(t)
 
