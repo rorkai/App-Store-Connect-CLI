@@ -165,6 +165,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "Geeps: AI Chat BYOK",
+    "link": "https://apps.apple.com/us/app/geeps-ai-chat-byok/id6476961115?uo=4",
+    "creator": "svkozak",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/37/b6/e1/37b6e1c0-87da-9cb0-1d76-6d2a88b86b0a/Geeps-0-0-1x_U007epad-0-0-0-1-0-sRGB-85-220.png/512x512bb.jpg",
+    "platform": ["iOS", "macOS"]
+  },
+  {
     "app": "Goshuin Atlas",
     "link": "https://apps.apple.com/app/goshuin-atlas-japan/id6746737093",
     "creator": "thedaviddias",
