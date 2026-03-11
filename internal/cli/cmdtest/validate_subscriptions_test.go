@@ -24,6 +24,7 @@ type validateSubscriptionsFixture struct {
 	availabilityV2Status       int
 	territories                string
 	territoriesByQuery         map[string]string
+	territoryStatusByQuery     map[string]int
 	subscriptionsByGroup       map[string]string
 	groupLocalizationsByGroup  map[string]string
 	groupLocalizationStatus    map[string]int
@@ -69,6 +70,9 @@ func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsF
 			}
 			return jsonResponse(http.StatusNotFound, notFound)
 		case strings.HasPrefix(path, "/v2/appAvailabilities/") && strings.HasSuffix(path, "/territoryAvailabilities"):
+			if status, ok := fixture.territoryStatusByQuery[req.URL.RawQuery]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
 			if body, ok := fixture.territoriesByQuery[req.URL.RawQuery]; ok {
 				return jsonResponse(http.StatusOK, body)
 			}
@@ -337,6 +341,107 @@ func TestValidateSubscriptionsSkipsPricingCoverageWhenAvailabilityForbidden(t *t
 	}
 	if hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
 		t.Fatalf("did not expect pricing coverage warning when availability could not be read, got %+v", report.Checks)
+	}
+}
+
+func TestValidateSubscriptionsSkipsPricingCoverageWhenAvailabilityRateLimited(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+	fixture.availabilityV2Status = http.StatusTooManyRequests
+	fixture.availabilityV2 = apiErrorJSONForStatus(http.StatusTooManyRequests)
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected availability rate-limit to be non-blocking, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+
+	var skipCheck *validation.CheckResult
+	for i := range report.Checks {
+		if report.Checks[i].ID == "subscriptions.pricing_coverage.unverified" {
+			skipCheck = &report.Checks[i]
+			break
+		}
+	}
+	if skipCheck == nil {
+		t.Fatalf("expected pricing coverage skip info check, got %+v", report.Checks)
+	}
+	if !strings.Contains(skipCheck.Remediation, "temporarily unavailable or rate limited") {
+		t.Fatalf("expected retryable remediation, got %+v", *skipCheck)
+	}
+	if hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
+		t.Fatalf("did not expect pricing coverage warning when availability is retryable, got %+v", report.Checks)
+	}
+}
+
+func TestValidateSubscriptionsSkipsPricingCoverageWhenPaginatedAvailabilityRateLimited(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`
+	fixture.territories = `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}}],"links":{"next":"https://api.appstoreconnect.apple.com/v2/appAvailabilities/avail-1/territoryAvailabilities?cursor=page-2"}}`
+	fixture.territoryStatusByQuery = map[string]int{
+		"cursor=page-2": http.StatusTooManyRequests,
+	}
+	fixture.expectedPriceInclude = "territory"
+	fixture.pricesBySubscription = map[string]string{
+		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}]}`,
+	}
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected paginated availability rate-limit to be non-blocking, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+
+	var skipCheck *validation.CheckResult
+	for i := range report.Checks {
+		if report.Checks[i].ID == "subscriptions.pricing_coverage.unverified" {
+			skipCheck = &report.Checks[i]
+			break
+		}
+	}
+	if skipCheck == nil {
+		t.Fatalf("expected pricing coverage skip info check, got %+v", report.Checks)
+	}
+	if !strings.Contains(skipCheck.Remediation, "temporarily unavailable or rate limited") {
+		t.Fatalf("expected retryable remediation, got %+v", *skipCheck)
+	}
+	if hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
+		t.Fatalf("did not expect pricing coverage warning when paginated availability is retryable, got %+v", report.Checks)
 	}
 }
 
