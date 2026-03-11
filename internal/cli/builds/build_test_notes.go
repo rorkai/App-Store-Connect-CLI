@@ -30,7 +30,7 @@ Examples:
   asc builds test-notes update --id "LOCALIZATION_ID" --whats-new "Updated instructions"
   asc builds test-notes delete --id "LOCALIZATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: buildsVisibleUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildsTestNotesListCommand(),
 			BuildsTestNotesViewCommand(),
@@ -171,7 +171,7 @@ Examples:
 }
 
 func DeprecatedBuildsTestNotesGetAliasCommand() *ffcli.Command {
-	return deprecatedBuildsAliasLeafCommand(
+	return shared.DeprecatedAliasLeafCommand(
 		BuildsTestNotesViewCommand(),
 		"get",
 		"asc builds test-notes get [flags]",

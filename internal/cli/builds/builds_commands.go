@@ -400,7 +400,7 @@ Examples:
   asc builds links view --build "BUILD_ID" --type "app"
   asc builds metrics beta-usages --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: buildsVisibleUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			listCmd,
 			BuildsLatestCommand(),
