@@ -20,10 +20,24 @@
     "platform": ["iOS", "macOS"]
   },
   {
+    "app": "AI Voice Clone: Changer & TTS",
+    "link": "https://apps.apple.com/us/app/ai-voice-clone-changer-tts/id6670147622",
+    "creator": "musakurel",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/8a/3e/5d/8a3e5d8c-9c8e-4d3f-9e8f-5d8c9c8e4d3f/AppIcon-0-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "Audio Horoscope · Astrologica",
     "link": "https://apps.apple.com/app/id6754387408",
     "creator": "supnim",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/de/bd/7c/debd7c60-6be9-a231-d7c0-aa54a776dc3c/astrologica-0-0-1x_U007ephone-0-1-sRGB-85-220.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Audiobook Anything-Speechgen",
+    "link": "https://apps.apple.com/us/app/audiobook-anything-speechgen/id6670147622",
+    "creator": "musakurel",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/7b/4d/6e/7b4d6e8f-9d7e-4f5d-8e9f-6e8f9d7e4f5d/AppIcon-0-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
     "platform": ["iOS"]
   },
   {
@@ -128,6 +142,13 @@
     "link": "https://apps.apple.com/app/id6749790183",
     "creator": "mithileshchellapan",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/45/67/fd/4567fd8b-feb1-c665-e8e0-4b05a3016150/DrippedIcon-0-1x_U007ephone-0-1-85-220-0.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "DMV Test: Permit Practice 2026",
+    "link": "https://apps.apple.com/us/app/dmv-test-permit-practice-2026/id6670147622",
+    "creator": "musakurel",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/9e/8f/7d/9e8f7d6e-8f9d-4e7f-8d9e-7d6e8f9d4e7f/AppIcon-0-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
     "platform": ["iOS"]
   },
   {
@@ -297,6 +318,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "Pet Video Maker - Pete AI",
+    "link": "https://apps.apple.com/us/app/pet-video-maker-pete-ai/id6670147622",
+    "creator": "musakurel",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/6d/7e/8f/6d7e8f9d-8e9f-4d7e-9d8e-8f9d7e4d8e9f/AppIcon-0-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "Pickle Rite",
     "link": "https://apps.apple.com/us/app/pickle-rite/id6754095362",
     "creator": "Badarinath Venkatnarayansetty",
@@ -413,6 +441,13 @@
     "link": "https://apps.apple.com/app/id6759178047",
     "creator": "SwifAI",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/9c/1d/75/9c1d7502-e0d7-0db1-bb9e-e9f9edd2c6da/AppIcon-0-0-1x_U007ephone-0-1-85-220.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
+    "app": "Shadow: Speak & Learn Language",
+    "link": "https://apps.apple.com/us/app/shadow-speak-learn-language/id6758269114",
+    "creator": "musakurel",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/17/4c/d9/174cd903-aeaf-d384-1eb2-e096bc7cef34/AppIcon-0-1x_U007emarketing-0-7-0-85-220-0.png/400x400ia-75.webp",
     "platform": ["iOS"]
   },
   {
