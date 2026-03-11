@@ -32,7 +32,7 @@ var rootUsageGroups = []rootCommandGroup{
 	{
 		title: "APP MANAGEMENT COMMANDS",
 		commands: []string{
-			"apps", "app-setup", "app-tags", "app-info", "app-infos", "versions",
+			"apps", "app-setup", "app-tags", "app-info", "versions",
 			"localizations", "screenshots", "video-previews", "background-assets", "product-pages",
 			"routing-coverage", "pricing", "pre-orders", "categories", "age-rating",
 			"accessibility", "encryption", "eula", "agreements", "app-clips",

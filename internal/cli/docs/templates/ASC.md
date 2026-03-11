@@ -144,7 +144,6 @@ Use `asc <command> --help` for subcommands and flags.
 - `product-pages` - Manage custom product pages and product page experiments.
 - `routing-coverage` - Manage routing app coverage files.
 - `app-info` - Manage App Store version metadata.
-- `app-infos` - List app info records for an app.
 - `eula` - Manage End User License Agreements (EULA).
 - `agreements` - Manage agreements in App Store Connect.
 - `pricing` - Manage app pricing and availability.

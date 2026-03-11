@@ -30,12 +30,14 @@ func AppInfoCommand() *ffcli.Command {
 		LongHelp: `Manage App Store version metadata like description, keywords, and what's new.
 
 Examples:
+  asc app-info list --app "APP_ID"
   asc app-info get --app "APP_ID"
   asc app-info get --app "APP_ID" --version "1.2.3" --platform IOS
   asc app-info set --app "APP_ID" --locale "en-US" --whats-new "Bug fixes"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			AppInfoListCommand(),
 			AppInfoGetCommand(),
 			AppInfoSetCommand(),
 			AppInfoRelationshipsCommand(),
