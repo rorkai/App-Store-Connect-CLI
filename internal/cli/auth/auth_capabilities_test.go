@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"io"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -136,4 +139,92 @@ func TestAuthCapabilitiesCommandJSONOutput(t *testing.T) {
 	if payload.Summary.Health != "green" || len(payload.Capabilities) != 1 {
 		t.Fatalf("unexpected payload: %+v", payload)
 	}
+}
+
+func TestCollectAuthCapabilities_AllAvailable(t *testing.T) {
+	prevClientFn := authCapabilitiesClientFn
+	prevNow := authCapabilitiesNow
+	authCapabilitiesClientFn = func() (authCapabilitiesClient, error) {
+		return &authCapabilitiesClientStub{
+			salesDownload:   &asc.ReportDownload{Body: io.NopCloser(strings.NewReader("sales"))},
+			financeDownload: &asc.ReportDownload{Body: io.NopCloser(strings.NewReader("finance"))},
+		}, nil
+	}
+	authCapabilitiesNow = func() time.Time { return time.Date(2026, time.March, 12, 0, 0, 0, 0, time.UTC) }
+	t.Cleanup(func() {
+		authCapabilitiesClientFn = prevClientFn
+		authCapabilitiesNow = prevNow
+	})
+
+	resp, err := collectAuthCapabilities(context.Background(), "123456789", "98765432")
+	if err != nil {
+		t.Fatalf("collectAuthCapabilities() error: %v", err)
+	}
+	if resp.Summary.Health != "green" || resp.Summary.AvailableCount != 7 {
+		t.Fatalf("unexpected summary: %+v", resp.Summary)
+	}
+}
+
+func TestCollectAuthCapabilities_SkipsMissingScopes(t *testing.T) {
+	prevClientFn := authCapabilitiesClientFn
+	authCapabilitiesClientFn = func() (authCapabilitiesClient, error) {
+		return &authCapabilitiesClientStub{}, nil
+	}
+	t.Cleanup(func() {
+		authCapabilitiesClientFn = prevClientFn
+	})
+
+	resp, err := collectAuthCapabilities(context.Background(), "", "")
+	if err != nil {
+		t.Fatalf("collectAuthCapabilities() error: %v", err)
+	}
+	if resp.Summary.AvailableCount != 1 || resp.Summary.SkippedCount != 6 {
+		t.Fatalf("unexpected summary: %+v", resp.Summary)
+	}
+}
+
+type authCapabilitiesClientStub struct {
+	getAppsErr               error
+	getBuildsErr             error
+	getReviewsErr            error
+	getSubscriptionGroupsErr error
+	getAnalyticsErr          error
+	getSalesErr              error
+	getFinanceErr            error
+	salesDownload            *asc.ReportDownload
+	financeDownload          *asc.ReportDownload
+}
+
+func (s *authCapabilitiesClientStub) GetApps(context.Context, ...asc.AppsOption) (*asc.AppsResponse, error) {
+	return &asc.AppsResponse{}, s.getAppsErr
+}
+
+func (s *authCapabilitiesClientStub) GetBuilds(context.Context, string, ...asc.BuildsOption) (*asc.BuildsResponse, error) {
+	return &asc.BuildsResponse{}, s.getBuildsErr
+}
+
+func (s *authCapabilitiesClientStub) GetReviews(context.Context, string, ...asc.ReviewOption) (*asc.ReviewsResponse, error) {
+	return &asc.ReviewsResponse{}, s.getReviewsErr
+}
+
+func (s *authCapabilitiesClientStub) GetSubscriptionGroups(context.Context, string, ...asc.SubscriptionGroupsOption) (*asc.SubscriptionGroupsResponse, error) {
+	return &asc.SubscriptionGroupsResponse{}, s.getSubscriptionGroupsErr
+}
+
+func (s *authCapabilitiesClientStub) GetAnalyticsReportRequests(context.Context, string, ...asc.AnalyticsReportRequestsOption) (*asc.AnalyticsReportRequestsResponse, error) {
+	return &asc.AnalyticsReportRequestsResponse{}, s.getAnalyticsErr
+}
+
+func (s *authCapabilitiesClientStub) GetSalesReport(context.Context, asc.SalesReportParams) (*asc.ReportDownload, error) {
+	if s.salesDownload == nil {
+		s.salesDownload = &asc.ReportDownload{Body: io.NopCloser(strings.NewReader(""))}
+	}
+	return s.salesDownload, s.getSalesErr
+}
+
+func (s *authCapabilitiesClientStub) DownloadFinanceReport(context.Context, asc.FinanceReportParams) (*asc.ReportDownload, error) {
+	if s.financeDownload == nil {
+		s.financeDownload = &asc.ReportDownload{Body: io.NopCloser(strings.NewReader(""))}
+	}
+	return s.financeDownload, s.getFinanceErr
 }
