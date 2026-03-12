@@ -214,6 +214,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "GroceryScan - Food Scanner AI",
+    "link": "https://apps.apple.com/us/app/groceryscan-food-scanner-ai/id6757826309?uo=4",
+    "creator": "Aayush9029",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5d/48/54/5d485457-ded6-7f99-2ba8-dfa22a5937c0/AppIcon-1x_U007ephone-0-1-85-220-0.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "HRM Battery",
     "link": "https://apps.apple.com/app/id6758920011",
     "creator": "dnesdan",
