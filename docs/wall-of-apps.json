@@ -277,6 +277,13 @@
     "platform": ["iOS"]
   },
   {
+    "app": "Lexie: Language Tamagotchi",
+    "link": "https://apps.apple.com/us/app/lexie-language-tamagotchi/id6748887471?uo=4",
+    "creator": "valzevul",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/6d/fa/a9/6dfaa937-68e3-31e5-a090-9341aa41d70f/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg",
+    "platform": ["iOS"]
+  },
+  {
     "app": "LilyFM",
     "link": "https://apps.apple.com/app/id6745472149",
     "creator": "Clark Zhou",
