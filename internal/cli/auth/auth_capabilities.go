@@ -133,6 +133,7 @@ func collectAuthCapabilities(ctx context.Context, appID, vendorNumber string) (*
 		authSubscriptionsCapabilityCheck(ctx, client, appID),
 		authAnalyticsCapabilityCheck(ctx, client, appID),
 		authSalesCapabilityCheck(ctx, client, vendorNumber),
+		authFinanceCapabilityCheck(ctx, client, vendorNumber),
 	}
 	summary := summarizeAuthCapabilities(checks)
 
@@ -345,6 +346,34 @@ func authSalesCapabilityCheck(parent context.Context, client authCapabilitiesCli
 	)
 }
 
+func authFinanceCapabilityCheck(parent context.Context, client authCapabilitiesClient, vendorNumber string) authCapabilityCheck {
+	if strings.TrimSpace(vendorNumber) == "" {
+		return authSkippedCapabilityCheck("finance", "vendor", "provide --vendor or ASC_VENDOR_NUMBER to probe finance access")
+	}
+
+	requestCtx, cancel := shared.ContextWithTimeout(parent)
+	defer cancel()
+
+	download, err := client.DownloadFinanceReport(requestCtx, asc.FinanceReportParams{
+		VendorNumber: vendorNumber,
+		ReportType:   asc.FinanceReportTypeFinancial,
+		RegionCode:   "ZZ",
+		ReportDate:   authCapabilitiesFinanceReportDate(),
+	})
+	if err == nil {
+		closeReportDownload(download)
+	}
+
+	return authCapabilityCheckFromError(
+		"finance",
+		"vendor",
+		err,
+		fmt.Sprintf("can request finance reports for vendor %s", vendorNumber),
+		fmt.Sprintf("credentials are valid but finance report access is unavailable for vendor %s", vendorNumber),
+		fmt.Sprintf("finance report probe failed for vendor %s", vendorNumber),
+	)
+}
+
 func authCapabilityCheckFromError(name, scope string, err error, successMessage, unavailableMessage, inconclusivePrefix string) authCapabilityCheck {
 	switch {
 	case err == nil:
@@ -397,4 +426,8 @@ func closeReportDownload(download *asc.ReportDownload) {
 
 func authCapabilitiesSalesReportDate() string {
 	return authCapabilitiesNow().AddDate(0, 0, -1).Format("2006-01-02")
+}
+
+func authCapabilitiesFinanceReportDate() string {
+	return authCapabilitiesNow().AddDate(0, -1, 0).Format("2006-01")
 }
