@@ -225,6 +225,33 @@ func TestAuthCapabilityCheckFromErrorNotFound(t *testing.T) {
 	}
 }
 
+func TestCollectAuthCapabilities_UsesExpectedVendorReportDates(t *testing.T) {
+	stub := &authCapabilitiesClientStub{
+		salesDownload:   &asc.ReportDownload{Body: io.NopCloser(strings.NewReader("sales"))},
+		financeDownload: &asc.ReportDownload{Body: io.NopCloser(strings.NewReader("finance"))},
+	}
+	prevClientFn := authCapabilitiesClientFn
+	prevNow := authCapabilitiesNow
+	authCapabilitiesClientFn = func() (authCapabilitiesClient, error) {
+		return stub, nil
+	}
+	authCapabilitiesNow = func() time.Time { return time.Date(2026, time.March, 12, 0, 0, 0, 0, time.UTC) }
+	t.Cleanup(func() {
+		authCapabilitiesClientFn = prevClientFn
+		authCapabilitiesNow = prevNow
+	})
+
+	if _, err := collectAuthCapabilities(context.Background(), "", "98765432"); err != nil {
+		t.Fatalf("collectAuthCapabilities() error: %v", err)
+	}
+	if stub.lastSalesParams.ReportDate != "2026-03-11" {
+		t.Fatalf("sales report date = %q, want %q", stub.lastSalesParams.ReportDate, "2026-03-11")
+	}
+	if stub.lastFinanceParams.ReportDate != "2026-02" {
+		t.Fatalf("finance report date = %q, want %q", stub.lastFinanceParams.ReportDate, "2026-02")
+	}
+}
+
 type authCapabilitiesClientStub struct {
 	getAppsErr               error
 	getBuildsErr             error
@@ -235,6 +262,8 @@ type authCapabilitiesClientStub struct {
 	getFinanceErr            error
 	salesDownload            *asc.ReportDownload
 	financeDownload          *asc.ReportDownload
+	lastSalesParams          asc.SalesReportParams
+	lastFinanceParams        asc.FinanceReportParams
 }
 
 func (s *authCapabilitiesClientStub) GetApps(context.Context, ...asc.AppsOption) (*asc.AppsResponse, error) {
@@ -257,14 +286,16 @@ func (s *authCapabilitiesClientStub) GetAnalyticsReportRequests(context.Context,
 	return &asc.AnalyticsReportRequestsResponse{}, s.getAnalyticsErr
 }
 
-func (s *authCapabilitiesClientStub) GetSalesReport(context.Context, asc.SalesReportParams) (*asc.ReportDownload, error) {
+func (s *authCapabilitiesClientStub) GetSalesReport(_ context.Context, params asc.SalesReportParams) (*asc.ReportDownload, error) {
+	s.lastSalesParams = params
 	if s.salesDownload == nil {
 		s.salesDownload = &asc.ReportDownload{Body: io.NopCloser(strings.NewReader(""))}
 	}
 	return s.salesDownload, s.getSalesErr
 }
 
-func (s *authCapabilitiesClientStub) DownloadFinanceReport(context.Context, asc.FinanceReportParams) (*asc.ReportDownload, error) {
+func (s *authCapabilitiesClientStub) DownloadFinanceReport(_ context.Context, params asc.FinanceReportParams) (*asc.ReportDownload, error) {
+	s.lastFinanceParams = params
 	if s.financeDownload == nil {
 		s.financeDownload = &asc.ReportDownload{Body: io.NopCloser(strings.NewReader(""))}
 	}
