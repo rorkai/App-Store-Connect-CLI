@@ -102,11 +102,16 @@ func legalChecks(copyright string, hasActiveMonetization bool, versionLocs []Ver
 	return checks
 }
 
-// isValidHTTPURL returns true if s parses as an absolute HTTP or HTTPS URL with a host.
+// isValidHTTPURL returns true for absolute HTTP/HTTPS URLs with a hostname and no raw whitespace.
 func isValidHTTPURL(s string) bool {
-	u, err := url.Parse(s)
+	s = strings.TrimSpace(s)
+	if s == "" || strings.ContainsAny(s, " \t\r\n") {
+		return false
+	}
+
+	u, err := url.ParseRequestURI(s)
 	if err != nil {
 		return false
 	}
-	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+	return (u.Scheme == "http" || u.Scheme == "https") && u.Hostname() != ""
 }

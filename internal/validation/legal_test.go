@@ -114,6 +114,26 @@ func TestLegalChecks_HTTPURLAccepted(t *testing.T) {
 	}
 }
 
+func TestLegalChecks_RawSpaceInURLRejected(t *testing.T) {
+	checks := legalChecks("2026 My Company", false,
+		[]VersionLocalization{{Locale: "en-US", SupportURL: "https://example.com/hello world"}},
+		[]AppInfoLocalization{{Locale: "en-US", PrivacyPolicyURL: "https://example.com/privacy"}},
+	)
+	if !hasCheckID(checks, "legal.format.support_url") {
+		t.Fatal("expected support URL format check for URL containing raw whitespace")
+	}
+}
+
+func TestLegalChecks_EmptyHostnameRejected(t *testing.T) {
+	checks := legalChecks("2026 My Company", false,
+		[]VersionLocalization{{Locale: "en-US", SupportURL: "https://user@:80"}},
+		[]AppInfoLocalization{{Locale: "en-US", PrivacyPolicyURL: "https://example.com/privacy"}},
+	)
+	if !hasCheckID(checks, "legal.format.support_url") {
+		t.Fatal("expected support URL format check for malformed authority with empty hostname")
+	}
+}
+
 func TestLegalChecks_PrivacyPolicyRequired_WithSubscriptions(t *testing.T) {
 	checks := legalChecks("2026 My Company", true,
 		[]VersionLocalization{{Locale: "en-US", SupportURL: "https://example.com"}},
