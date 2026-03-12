@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -420,7 +419,6 @@ func closeReportDownload(download *asc.ReportDownload) {
 	if download == nil || download.Body == nil {
 		return
 	}
-	_, _ = io.Copy(io.Discard, download.Body)
 	_ = download.Body.Close()
 }
 
