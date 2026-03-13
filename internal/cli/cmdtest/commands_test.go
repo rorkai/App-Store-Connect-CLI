@@ -3307,6 +3307,11 @@ func TestScreenshotsAndVideoPreviewsValidationErrors(t *testing.T) {
 			wantErr: "--device-type is required",
 		},
 		{
+			name:    "screenshots upload skip existing replace mutually exclusive",
+			args:    []string{"screenshots", "upload", "--version-localization", "LOC_ID", "--path", "./screenshots", "--device-type", "IPHONE_65", "--skip-existing", "--replace"},
+			wantErr: "--skip-existing and --replace are mutually exclusive",
+		},
+		{
 			name:    "screenshots delete missing id",
 			args:    []string{"screenshots", "delete"},
 			wantErr: "--id is required",

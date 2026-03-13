@@ -81,6 +81,9 @@ func AssetsPreviewsUploadCommand() *ffcli.Command {
 	localizationID := fs.String("version-localization", "", "App Store version localization ID")
 	path := fs.String("path", "", "Path to preview file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
+	skipExisting := fs.Bool("skip-existing", false, "Skip files whose MD5 checksum already exists in the target preview set")
+	replace := fs.Bool("replace", false, "Delete all existing previews from the target set before uploading")
+	dryRun := fs.Bool("dry-run", false, "Show what would be uploaded, skipped, or deleted without making changes")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -91,7 +94,10 @@ func AssetsPreviewsUploadCommand() *ffcli.Command {
 
 Examples:
   asc video-previews upload --version-localization "LOC_ID" --path "./previews" --device-type "IPHONE_65"
-  asc video-previews upload --version-localization "LOC_ID" --path "./previews/preview.mov" --device-type "IPHONE_65"`,
+  asc video-previews upload --version-localization "LOC_ID" --path "./previews/preview.mov" --device-type "IPHONE_65"
+  asc video-previews upload --version-localization "LOC_ID" --path "./previews" --device-type "IPHONE_65" --skip-existing
+  asc video-previews upload --version-localization "LOC_ID" --path "./previews" --device-type "IPHONE_65" --replace
+  asc video-previews upload --version-localization "LOC_ID" --path "./previews" --device-type "IPHONE_65" --skip-existing --dry-run`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -110,6 +116,10 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --device-type is required")
 				return flag.ErrHelp
 			}
+			if *skipExisting && *replace {
+				fmt.Fprintln(os.Stderr, "Error: --skip-existing and --replace are mutually exclusive")
+				return flag.ErrHelp
+			}
 
 			previewType, err := normalizePreviewType(deviceValue)
 			if err != nil {
@@ -126,28 +136,9 @@ Examples:
 				return fmt.Errorf("video-previews upload: %w", err)
 			}
 
-			requestCtx, cancel := contextWithAssetUploadTimeout(ctx)
-			defer cancel()
-
-			set, err := ensurePreviewSet(requestCtx, client, locID, previewType)
+			result, err := uploadPreviews(ctx, client, locID, previewType, files, *skipExisting, *replace, *dryRun)
 			if err != nil {
 				return fmt.Errorf("video-previews upload: %w", err)
-			}
-
-			results := make([]asc.AssetUploadResultItem, 0, len(files))
-			for _, filePath := range files {
-				item, err := uploadPreviewAsset(requestCtx, client, set.ID, filePath)
-				if err != nil {
-					return fmt.Errorf("video-previews upload: %w", err)
-				}
-				results = append(results, item)
-			}
-
-			result := asc.AppPreviewUploadResult{
-				VersionLocalizationID: locID,
-				SetID:                 set.ID,
-				PreviewType:           set.Attributes.PreviewType,
-				Results:               results,
 			}
 
 			return shared.PrintOutput(&result, *output.Output, *output.Pretty)
@@ -556,6 +547,21 @@ func NormalizePreviewType(input string) (string, error) {
 	return normalizePreviewType(input)
 }
 
+func findPreviewSet(ctx context.Context, client *asc.Client, localizationID, previewType string) (asc.Resource[asc.AppPreviewSetAttributes], error) {
+	resp, err := client.GetAppPreviewSets(ctx, localizationID)
+	if err != nil {
+		return asc.Resource[asc.AppPreviewSetAttributes]{}, err
+	}
+	for _, set := range resp.Data {
+		if strings.EqualFold(set.Attributes.PreviewType, previewType) {
+			return set, nil
+		}
+	}
+	return asc.Resource[asc.AppPreviewSetAttributes]{
+		Attributes: asc.AppPreviewSetAttributes{PreviewType: previewType},
+	}, nil
+}
+
 func ensurePreviewSet(ctx context.Context, client *asc.Client, localizationID, previewType string) (asc.Resource[asc.AppPreviewSetAttributes], error) {
 	resp, err := client.GetAppPreviewSets(ctx, localizationID)
 	if err != nil {
@@ -646,6 +652,142 @@ func detectPreviewMimeType(path string) (string, error) {
 		mimeType = mimeType[:idx]
 	}
 	return mimeType, nil
+}
+
+func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, previewType string, files []string, skipExisting, replace, dryRun bool) (asc.AppPreviewUploadResult, error) {
+	if client == nil {
+		return asc.AppPreviewUploadResult{}, fmt.Errorf("client is required")
+	}
+
+	requestCtx, reqCancel := shared.ContextWithTimeout(ctx)
+	var set asc.Resource[asc.AppPreviewSetAttributes]
+	var err error
+	if dryRun {
+		set, err = findPreviewSet(requestCtx, client, localizationID, previewType)
+	} else {
+		set, err = ensurePreviewSet(requestCtx, client, localizationID, previewType)
+	}
+	reqCancel()
+	if err != nil {
+		return asc.AppPreviewUploadResult{}, err
+	}
+
+	existingPreviews := make([]asc.Resource[asc.AppPreviewAttributes], 0)
+	if (skipExisting || replace) && set.ID != "" {
+		fetchCtx, fetchCancel := shared.ContextWithTimeout(ctx)
+		existingResp, err := client.GetAppPreviews(fetchCtx, set.ID)
+		fetchCancel()
+		if err != nil {
+			return asc.AppPreviewUploadResult{}, err
+		}
+		existingPreviews = existingResp.Data
+	}
+
+	skippedResults := make([]asc.AssetUploadResultItem, 0)
+	if skipExisting {
+		files, skippedResults, err = filterExistingPreviewFiles(files, existingPreviews)
+		if err != nil {
+			return asc.AppPreviewUploadResult{}, err
+		}
+	}
+
+	if dryRun {
+		results := make([]asc.AssetUploadResultItem, 0, len(skippedResults)+len(files)+len(existingPreviews))
+		if replace {
+			for _, p := range existingPreviews {
+				results = append(results, asc.AssetUploadResultItem{
+					FileName: p.Attributes.FileName,
+					AssetID:  p.ID,
+					State:    "would-delete",
+				})
+			}
+		}
+		for _, filePath := range files {
+			results = append(results, asc.AssetUploadResultItem{
+				FileName: filepath.Base(filePath),
+				FilePath: filePath,
+				State:    "would-upload",
+			})
+		}
+		results = append(results, skippedResults...)
+
+		return asc.AppPreviewUploadResult{
+			VersionLocalizationID: localizationID,
+			SetID:                 set.ID,
+			PreviewType:           set.Attributes.PreviewType,
+			DryRun:                true,
+			Results:               results,
+		}, nil
+	}
+
+	uploadCtx, cancel := contextWithAssetUploadTimeout(ctx)
+	defer cancel()
+
+	if replace {
+		if err := deleteExistingPreviews(uploadCtx, client, existingPreviews); err != nil {
+			return asc.AppPreviewUploadResult{}, err
+		}
+	}
+
+	results := make([]asc.AssetUploadResultItem, 0, len(skippedResults)+len(files))
+	if len(files) > 0 {
+		for _, filePath := range files {
+			item, err := uploadPreviewAsset(uploadCtx, client, set.ID, filePath)
+			if err != nil {
+				return asc.AppPreviewUploadResult{}, err
+			}
+			results = append(results, item)
+		}
+	}
+	results = append(skippedResults, results...)
+
+	return asc.AppPreviewUploadResult{
+		VersionLocalizationID: localizationID,
+		SetID:                 set.ID,
+		PreviewType:           set.Attributes.PreviewType,
+		Results:               results,
+	}, nil
+}
+
+func deleteExistingPreviews(ctx context.Context, client *asc.Client, previews []asc.Resource[asc.AppPreviewAttributes]) error {
+	for _, preview := range previews {
+		if err := client.DeleteAppPreview(ctx, preview.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func filterExistingPreviewFiles(files []string, previews []asc.Resource[asc.AppPreviewAttributes]) ([]string, []asc.AssetUploadResultItem, error) {
+	existingChecksums := make(map[string]struct{}, len(previews))
+	for _, preview := range previews {
+		checksum := strings.TrimSpace(preview.Attributes.SourceFileChecksum)
+		if checksum == "" {
+			continue
+		}
+		existingChecksums[checksum] = struct{}{}
+	}
+
+	filtered := make([]string, 0, len(files))
+	skipped := make([]asc.AssetUploadResultItem, 0)
+	for _, filePath := range files {
+		checksum, err := computeFileChecksum(filePath)
+		if err != nil {
+			return nil, nil, err
+		}
+		if _, exists := existingChecksums[checksum]; exists {
+			skipped = append(skipped, asc.AssetUploadResultItem{
+				FileName: filepath.Base(filePath),
+				FilePath: filePath,
+				State:    "skipped",
+				Skipped:  true,
+			})
+			continue
+		}
+		filtered = append(filtered, filePath)
+	}
+
+	return filtered, skipped, nil
 }
 
 func waitForPreviewDelivery(ctx context.Context, client *asc.Client, previewID string) (string, error) {

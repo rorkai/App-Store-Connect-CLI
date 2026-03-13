@@ -32,6 +32,7 @@ type AssetUploadResultItem struct {
 	FilePath string `json:"filePath"`
 	AssetID  string `json:"assetId"`
 	State    string `json:"state,omitempty"`
+	Skipped  bool   `json:"skipped,omitempty"`
 }
 
 // AppScreenshotUploadResult represents screenshot upload output.
@@ -39,6 +40,7 @@ type AppScreenshotUploadResult struct {
 	VersionLocalizationID string                  `json:"versionLocalizationId"`
 	SetID                 string                  `json:"setId"`
 	DisplayType           string                  `json:"displayType"`
+	DryRun                bool                    `json:"dryRun,omitempty"`
 	Results               []AssetUploadResultItem `json:"results"`
 }
 
@@ -47,6 +49,7 @@ type AppPreviewUploadResult struct {
 	VersionLocalizationID string                  `json:"versionLocalizationId"`
 	SetID                 string                  `json:"setId"`
 	PreviewType           string                  `json:"previewType"`
+	DryRun                bool                    `json:"dryRun,omitempty"`
 	Results               []AssetUploadResultItem `json:"results"`
 }
 
@@ -181,14 +184,14 @@ func appPreviewListResultRows(result *AppPreviewListResult) ([]string, [][]strin
 }
 
 func appScreenshotUploadResultMainRows(result *AppScreenshotUploadResult) ([]string, [][]string) {
-	headers := []string{"Localization ID", "Set ID", "Display Type"}
-	rows := [][]string{{result.VersionLocalizationID, result.SetID, result.DisplayType}}
+	headers := []string{"Localization ID", "Set ID", "Display Type", "Dry Run"}
+	rows := [][]string{{result.VersionLocalizationID, result.SetID, result.DisplayType, fmt.Sprintf("%t", result.DryRun)}}
 	return headers, rows
 }
 
 func appPreviewUploadResultMainRows(result *AppPreviewUploadResult) ([]string, [][]string) {
-	headers := []string{"Localization ID", "Set ID", "Preview Type"}
-	rows := [][]string{{result.VersionLocalizationID, result.SetID, result.PreviewType}}
+	headers := []string{"Localization ID", "Set ID", "Preview Type", "Dry Run"}
+	rows := [][]string{{result.VersionLocalizationID, result.SetID, result.PreviewType, fmt.Sprintf("%t", result.DryRun)}}
 	return headers, rows
 }
 
@@ -208,7 +211,11 @@ func assetUploadResultItemRows(results []AssetUploadResultItem) ([]string, [][]s
 	headers := []string{"File Name", "Asset ID", "State"}
 	rows := make([][]string, 0, len(results))
 	for _, item := range results {
-		rows = append(rows, []string{item.FileName, item.AssetID, item.State})
+		state := item.State
+		if item.Skipped && state == "" {
+			state = "skipped"
+		}
+		rows = append(rows, []string{item.FileName, item.AssetID, state})
 	}
 	return headers, rows
 }
