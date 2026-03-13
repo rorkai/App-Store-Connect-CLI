@@ -164,7 +164,7 @@ func TestPreOrdersCommand_FlagDefinitions(t *testing.T) {
 	}
 
 	enableCmd := PreOrdersEnableCommand()
-	for _, name := range []string{"app", "territory", "release-date", "output", "pretty"} {
+	for _, name := range []string{"app", "territory", "release-date", "available-in-new-territories", "output", "pretty"} {
 		if enableCmd.FlagSet.Lookup(name) == nil {
 			t.Errorf("enable: expected flag --%s to be defined", name)
 		}
@@ -297,5 +297,38 @@ func TestPreOrdersUpdateCommand_AvailableAlone(t *testing.T) {
 	err := cmd.Exec(context.Background(), []string{})
 	if errors.Is(err, flag.ErrHelp) {
 		t.Fatal("did not expect flag.ErrHelp when --available is set")
+	}
+}
+
+func TestPreOrdersUpdateCommand_DisablePreOrderRejectsReleaseDate(t *testing.T) {
+	cmd := PreOrdersUpdateCommand()
+
+	if err := cmd.FlagSet.Parse([]string{
+		"--territory-availability", "ta-1",
+		"--pre-order-enabled", "false",
+		"--release-date", "2026-06-01",
+	}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), []string{})
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp for conflicting flags, got %v", err)
+	}
+}
+
+func TestPreOrdersUpdateCommand_DisablePreOrderAlone(t *testing.T) {
+	cmd := PreOrdersUpdateCommand()
+
+	if err := cmd.FlagSet.Parse([]string{
+		"--territory-availability", "ta-1",
+		"--pre-order-enabled", "false",
+	}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), []string{})
+	if errors.Is(err, flag.ErrHelp) {
+		t.Fatal("did not expect flag.ErrHelp when --pre-order-enabled false is set")
 	}
 }

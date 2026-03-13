@@ -137,6 +137,8 @@ func PreOrdersEnableCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	territory := fs.String("territory", "", "Territory IDs (comma-separated, e.g., USA,GBR)")
 	releaseDate := fs.String("release-date", "", "Release date (YYYY-MM-DD)")
+	var availableInNewTerritories shared.OptionalBool
+	fs.Var(&availableInNewTerritories, "available-in-new-territories", "[deprecated, ignored] Previously set available-in-new-territories")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -166,6 +168,10 @@ Examples:
 			if strings.TrimSpace(*releaseDate) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --release-date is required")
 				return flag.ErrHelp
+			}
+
+			if availableInNewTerritories.IsSet() {
+				fmt.Fprintln(os.Stderr, "Warning: --available-in-new-territories is deprecated and ignored; pre-orders are now enabled by patching territory availabilities directly.")
 			}
 
 			normalizedReleaseDate, err := normalizePreOrderReleaseDate(*releaseDate)
@@ -299,6 +305,12 @@ Examples:
 				v := preOrderEnabled.Value()
 				attrs.PreOrderEnabled = &v
 				hasAttr = true
+				if !v {
+					if attrs.ReleaseDate != nil {
+						return shared.UsageError("--release-date cannot be set when disabling pre-orders (releaseDate must be null)")
+					}
+					attrs.ClearReleaseDate = true
+				}
 			}
 			if available.IsSet() {
 				v := available.Value()
