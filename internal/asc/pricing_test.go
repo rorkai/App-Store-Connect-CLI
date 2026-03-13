@@ -585,6 +585,58 @@ func TestUpdateTerritoryAvailability(t *testing.T) {
 	}
 }
 
+func TestUpdateTerritoryAvailability_ClearReleaseDate(t *testing.T) {
+	resp := TerritoryAvailabilityResponse{
+		Data: Resource[TerritoryAvailabilityAttributes]{
+			Type: ResourceTypeTerritoryAvailabilities,
+			ID:   "ta-1",
+		},
+	}
+	body, _ := json.Marshal(resp)
+
+	preOrderEnabled := false
+
+	client := newTestClient(t, func(req *http.Request) {
+		assertAuthorized(t, req)
+
+		var raw map[string]json.RawMessage
+		if err := json.NewDecoder(req.Body).Decode(&raw); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		var data map[string]json.RawMessage
+		if err := json.Unmarshal(raw["data"], &data); err != nil {
+			t.Fatalf("failed to decode data: %v", err)
+		}
+		var attrs map[string]json.RawMessage
+		if err := json.Unmarshal(data["attributes"], &attrs); err != nil {
+			t.Fatalf("failed to decode attributes: %v", err)
+		}
+
+		releaseDateRaw, exists := attrs["releaseDate"]
+		if !exists {
+			t.Fatal("expected releaseDate key in attributes")
+		}
+		if string(releaseDateRaw) != "null" {
+			t.Fatalf("expected releaseDate to be null, got %s", string(releaseDateRaw))
+		}
+
+		var preOrder bool
+		if err := json.Unmarshal(attrs["preOrderEnabled"], &preOrder); err != nil {
+			t.Fatalf("failed to decode preOrderEnabled: %v", err)
+		}
+		if preOrder {
+			t.Fatal("expected preOrderEnabled to be false")
+		}
+	}, jsonResponse(http.StatusOK, string(body)))
+
+	if _, err := client.UpdateTerritoryAvailability(context.Background(), "ta-1", TerritoryAvailabilityUpdateAttributes{
+		PreOrderEnabled:  &preOrderEnabled,
+		ClearReleaseDate: true,
+	}); err != nil {
+		t.Fatalf("UpdateTerritoryAvailability() error: %v", err)
+	}
+}
+
 func TestEndAppAvailabilityPreOrders(t *testing.T) {
 	resp := EndAppAvailabilityPreOrderResponse{
 		Data: Resource[EndAppAvailabilityPreOrderAttributes]{

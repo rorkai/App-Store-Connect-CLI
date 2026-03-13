@@ -638,41 +638,27 @@ func (c *Client) UpdateTerritoryAvailability(ctx context.Context, territoryAvail
 		return nil, fmt.Errorf("territory availability ID is required")
 	}
 
-	attributes := TerritoryAvailabilityUpdateAttributes{
-		Available:       attrs.Available,
-		PreOrderEnabled: attrs.PreOrderEnabled,
-	}
 	if attrs.ReleaseDate != nil {
 		trimmed := strings.TrimSpace(*attrs.ReleaseDate)
 		if trimmed == "" {
 			return nil, fmt.Errorf("release date is required")
 		}
-		attributes.ReleaseDate = &trimmed
+		attrs.ReleaseDate = &trimmed
 	}
 
-	if attributes.Available == nil && attributes.ReleaseDate == nil && attributes.PreOrderEnabled == nil && !attrs.ClearReleaseDate {
+	if attrs.Available == nil && attrs.ReleaseDate == nil && attrs.PreOrderEnabled == nil && !attrs.ClearReleaseDate {
 		return nil, fmt.Errorf("at least one attribute is required")
 	}
 
-	type patchData struct {
-		Type       ResourceType    `json:"type"`
-		ID         string          `json:"id"`
-		Attributes json.RawMessage `json:"attributes"`
-	}
-
-	type patchPayload struct {
-		Data patchData `json:"data"`
-	}
-
 	attrMap := make(map[string]interface{})
-	if attributes.Available != nil {
-		attrMap["available"] = *attributes.Available
+	if attrs.Available != nil {
+		attrMap["available"] = *attrs.Available
 	}
-	if attributes.PreOrderEnabled != nil {
-		attrMap["preOrderEnabled"] = *attributes.PreOrderEnabled
+	if attrs.PreOrderEnabled != nil {
+		attrMap["preOrderEnabled"] = *attrs.PreOrderEnabled
 	}
-	if attributes.ReleaseDate != nil {
-		attrMap["releaseDate"] = *attributes.ReleaseDate
+	if attrs.ReleaseDate != nil {
+		attrMap["releaseDate"] = *attrs.ReleaseDate
 	} else if attrs.ClearReleaseDate {
 		attrMap["releaseDate"] = nil
 	}
@@ -682,7 +668,15 @@ func (c *Client) UpdateTerritoryAvailability(ctx context.Context, territoryAvail
 		return nil, fmt.Errorf("failed to marshal attributes: %w", err)
 	}
 
-	payload := patchPayload{
+	type patchData struct {
+		Type       ResourceType    `json:"type"`
+		ID         string          `json:"id"`
+		Attributes json.RawMessage `json:"attributes"`
+	}
+
+	payload := struct {
+		Data patchData `json:"data"`
+	}{
 		Data: patchData{
 			Type:       ResourceTypeTerritoryAvailabilities,
 			ID:         territoryAvailabilityID,
