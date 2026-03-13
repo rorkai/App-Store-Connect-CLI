@@ -648,7 +648,7 @@ func attachBuildInfoPreReleaseVersion(
 	}
 	build.Included = included
 
-	relationships, err := json.Marshal(map[string]any{
+	relationships, err := mergeBuildRelationship(build.Data.Relationships, "preReleaseVersion", map[string]any{
 		"preReleaseVersion": map[string]any{
 			"data": map[string]string{
 				"type": "preReleaseVersions",
@@ -657,10 +657,35 @@ func attachBuildInfoPreReleaseVersion(
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("failed to encode pre-release version relationship: %w", err)
+		return err
 	}
 	build.Data.Relationships = relationships
 	return nil
+}
+
+func mergeBuildRelationship(relationships json.RawMessage, key string, value map[string]any) (json.RawMessage, error) {
+	merged := make(map[string]json.RawMessage)
+	if len(relationships) > 0 {
+		if err := json.Unmarshal(relationships, &merged); err != nil {
+			return nil, fmt.Errorf("failed to decode existing build relationships: %w", err)
+		}
+	}
+
+	entry, ok := value[key]
+	if !ok {
+		return nil, fmt.Errorf("missing %s relationship payload", key)
+	}
+	encodedEntry, err := json.Marshal(entry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode %s relationship: %w", key, err)
+	}
+	merged[key] = encodedEntry
+
+	raw, err := json.Marshal(merged)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode merged build relationships: %w", err)
+	}
+	return raw, nil
 }
 
 // BuildsInfoCommand returns a build info subcommand.
