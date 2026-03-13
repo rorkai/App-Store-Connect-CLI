@@ -2,7 +2,6 @@ package shared
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -33,10 +32,10 @@ func newAppResolutionTestClient(t *testing.T, transport appResolutionRoundTripFu
 	return client
 }
 
-func appResolutionJSONResponse(status int, body string) (*http.Response, error) {
+func appResolutionJSONResponse(body string) (*http.Response, error) {
 	return &http.Response{
-		StatusCode: status,
-		Status:     fmt.Sprintf("%d %s", status, http.StatusText(status)),
+		StatusCode: http.StatusOK,
+		Status:     http.StatusText(http.StatusOK),
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}, nil
@@ -62,7 +61,7 @@ func TestResolveAppStoreVersionIDAndState_PrefersAppVersionState(t *testing.T) {
 			t.Fatalf("expected limit=10, got %q", query.Get("limit"))
 		}
 
-		return appResolutionJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-123","attributes":{"appVersionState":"PREORDER_READY_FOR_SALE","appStoreState":"READY_FOR_SALE"}}]}`)
+		return appResolutionJSONResponse(`{"data":[{"type":"appStoreVersions","id":"ver-123","attributes":{"appVersionState":"PREORDER_READY_FOR_SALE","appStoreState":"READY_FOR_SALE"}}]}`)
 	})
 
 	versionID, versionState, err := ResolveAppStoreVersionIDAndState(context.Background(), client, "app-1", "1.2.3", "IOS")
@@ -79,7 +78,7 @@ func TestResolveAppStoreVersionIDAndState_PrefersAppVersionState(t *testing.T) {
 
 func TestResolveAppStoreVersionIDAndState_FallsBackToTrimmedAppStoreState(t *testing.T) {
 	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
-		return appResolutionJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"ver-456","attributes":{"appVersionState":"   ","appStoreState":" READY_FOR_SALE "}}]}`)
+		return appResolutionJSONResponse(`{"data":[{"type":"appStoreVersions","id":"ver-456","attributes":{"appVersionState":"   ","appStoreState":" READY_FOR_SALE "}}]}`)
 	})
 
 	_, versionState, err := ResolveAppStoreVersionIDAndState(context.Background(), client, "app-1", "1.2.3", "IOS")
@@ -103,7 +102,7 @@ func TestResolveAppInfoID_ExplicitOverride(t *testing.T) {
 
 func TestResolveAppInfoID_SingleAppInfo(t *testing.T) {
 	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
-		return appResolutionJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_SALE"}}]}`)
+		return appResolutionJSONResponse(`{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_SALE"}}]}`)
 	})
 
 	id, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
@@ -117,7 +116,7 @@ func TestResolveAppInfoID_SingleAppInfo(t *testing.T) {
 
 func TestResolveAppInfoID_AutoSelectsEditableFromMultiple(t *testing.T) {
 	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
-		return appResolutionJSONResponse(http.StatusOK, `{"data":[
+		return appResolutionJSONResponse(`{"data":[
 			{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_SALE"}},
 			{"type":"appInfos","id":"info-editable","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}
 		]}`)
@@ -134,7 +133,7 @@ func TestResolveAppInfoID_AutoSelectsEditableFromMultiple(t *testing.T) {
 
 func TestResolveAppInfoID_AutoSelectsNonLiveWhenNoPrepare(t *testing.T) {
 	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
-		return appResolutionJSONResponse(http.StatusOK, `{"data":[
+		return appResolutionJSONResponse(`{"data":[
 			{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_SALE"}},
 			{"type":"appInfos","id":"info-review","attributes":{"state":"IN_REVIEW"}}
 		]}`)
@@ -151,7 +150,7 @@ func TestResolveAppInfoID_AutoSelectsNonLiveWhenNoPrepare(t *testing.T) {
 
 func TestResolveAppInfoID_FallsBackToFirstWhenAllLive(t *testing.T) {
 	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
-		return appResolutionJSONResponse(http.StatusOK, `{"data":[
+		return appResolutionJSONResponse(`{"data":[
 			{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_SALE"}},
 			{"type":"appInfos","id":"info-2","attributes":{"state":"READY_FOR_DISTRIBUTION"}}
 		]}`)
@@ -168,7 +167,7 @@ func TestResolveAppInfoID_FallsBackToFirstWhenAllLive(t *testing.T) {
 
 func TestResolveAppInfoID_NoAppInfos(t *testing.T) {
 	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
-		return appResolutionJSONResponse(http.StatusOK, `{"data":[]}`)
+		return appResolutionJSONResponse(`{"data":[]}`)
 	})
 
 	_, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
