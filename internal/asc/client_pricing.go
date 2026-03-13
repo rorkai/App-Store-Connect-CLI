@@ -576,8 +576,7 @@ func (c *Client) CreateAppAvailabilityV2(ctx context.Context, appID string, attr
 			Data: relationshipData,
 		}
 	} else if len(attrs.TerritoryAvailabilities) > 0 {
-		payload.Included = make([]AppAvailabilityV2IncludedResource, 0, len(attrs.TerritoryAvailabilities)*2)
-		includedTerritories := make(map[string]struct{}, len(attrs.TerritoryAvailabilities))
+		payload.Included = make([]AppAvailabilityV2IncludedResource, 0, len(attrs.TerritoryAvailabilities))
 		relationshipData := make([]ResourceData, 0, len(attrs.TerritoryAvailabilities))
 		for _, availability := range attrs.TerritoryAvailabilities {
 			territoryID := strings.ToUpper(strings.TrimSpace(availability.TerritoryID))
@@ -608,13 +607,6 @@ func (c *Client) CreateAppAvailabilityV2(ctx context.Context, appID string, attr
 				Attributes:    attributes,
 				Relationships: relationships,
 			})
-			if _, exists := includedTerritories[territoryID]; !exists {
-				payload.Included = append(payload.Included, AppAvailabilityV2IncludedResource{
-					Type: ResourceTypeTerritories,
-					ID:   territoryID,
-				})
-				includedTerritories[territoryID] = struct{}{}
-			}
 		}
 		payload.Data.Relationships.TerritoryAvailabilities = &RelationshipList{
 			Data: relationshipData,
@@ -646,27 +638,49 @@ func (c *Client) UpdateTerritoryAvailability(ctx context.Context, territoryAvail
 		return nil, fmt.Errorf("territory availability ID is required")
 	}
 
-	attributes := TerritoryAvailabilityUpdateAttributes{
-		Available:       attrs.Available,
-		PreOrderEnabled: attrs.PreOrderEnabled,
-	}
 	if attrs.ReleaseDate != nil {
 		trimmed := strings.TrimSpace(*attrs.ReleaseDate)
 		if trimmed == "" {
 			return nil, fmt.Errorf("release date is required")
 		}
-		attributes.ReleaseDate = &trimmed
+		attrs.ReleaseDate = &trimmed
 	}
 
-	if attributes.Available == nil && attributes.ReleaseDate == nil && attributes.PreOrderEnabled == nil {
+	if attrs.Available == nil && attrs.ReleaseDate == nil && attrs.PreOrderEnabled == nil && !attrs.ClearReleaseDate {
 		return nil, fmt.Errorf("at least one attribute is required")
 	}
 
-	payload := TerritoryAvailabilityUpdateRequest{
-		Data: TerritoryAvailabilityUpdateData{
+	attrMap := make(map[string]interface{})
+	if attrs.Available != nil {
+		attrMap["available"] = *attrs.Available
+	}
+	if attrs.PreOrderEnabled != nil {
+		attrMap["preOrderEnabled"] = *attrs.PreOrderEnabled
+	}
+	if attrs.ReleaseDate != nil {
+		attrMap["releaseDate"] = *attrs.ReleaseDate
+	} else if attrs.ClearReleaseDate {
+		attrMap["releaseDate"] = nil
+	}
+
+	attrJSON, err := json.Marshal(attrMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal attributes: %w", err)
+	}
+
+	type patchData struct {
+		Type       ResourceType    `json:"type"`
+		ID         string          `json:"id"`
+		Attributes json.RawMessage `json:"attributes"`
+	}
+
+	payload := struct {
+		Data patchData `json:"data"`
+	}{
+		Data: patchData{
 			Type:       ResourceTypeTerritoryAvailabilities,
 			ID:         territoryAvailabilityID,
-			Attributes: &attributes,
+			Attributes: attrJSON,
 		},
 	}
 

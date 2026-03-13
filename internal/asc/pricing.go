@@ -144,9 +144,10 @@ type TerritoryAvailabilityRelationships struct {
 
 // TerritoryAvailabilityUpdateAttributes describes update inputs for a territory availability.
 type TerritoryAvailabilityUpdateAttributes struct {
-	Available       *bool   `json:"available,omitempty"`
-	ReleaseDate     *string `json:"releaseDate,omitempty"`
-	PreOrderEnabled *bool   `json:"preOrderEnabled,omitempty"`
+	Available        *bool   `json:"available,omitempty"`
+	ReleaseDate      *string `json:"releaseDate,omitempty"`
+	PreOrderEnabled  *bool   `json:"preOrderEnabled,omitempty"`
+	ClearReleaseDate bool    `json:"-"`
 }
 
 // TerritoryAvailabilityUpdateData is the data portion of an availability update request.
