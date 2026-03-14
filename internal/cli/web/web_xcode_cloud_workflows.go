@@ -226,6 +226,7 @@ Examples:
 			}
 
 			wfID := strings.TrimSpace(*workflowID)
+			userProvidedWorkflowID := wfID != ""
 			if wfID == "" {
 				wfID = newUUID()
 			}
@@ -245,6 +246,16 @@ Examples:
 			client := newCIClientFn(session)
 			var result *CIWorkflowCreateResult
 			err = withWebSpinner("Creating Xcode Cloud workflow", func() error {
+				if userProvidedWorkflowID {
+					_, err := client.GetCIWorkflow(requestCtx, teamID, pid, wfID)
+					switch {
+					case err == nil:
+						return fmt.Errorf("xcode-cloud workflows create failed: workflow %q already exists; use edit instead", wfID)
+					case !webcore.IsNotFound(err):
+						return err
+					}
+				}
+
 				if err := client.UpdateCIWorkflow(requestCtx, teamID, pid, wfID, payload); err != nil {
 					return err
 				}
