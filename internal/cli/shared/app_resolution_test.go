@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -39,6 +40,36 @@ func appResolutionJSONResponse(body string) (*http.Response, error) {
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}, nil
+}
+
+func captureAppResolutionStderr(t *testing.T, fn func()) string {
+	t.Helper()
+
+	oldStderr := os.Stderr
+	readPipe, writePipe, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("os.Pipe() error: %v", err)
+	}
+	os.Stderr = writePipe
+	defer func() {
+		os.Stderr = oldStderr
+	}()
+
+	fn()
+
+	if err := writePipe.Close(); err != nil {
+		t.Fatalf("writePipe.Close() error: %v", err)
+	}
+
+	output, err := io.ReadAll(readPipe)
+	if err != nil {
+		t.Fatalf("io.ReadAll() error: %v", err)
+	}
+	if err := readPipe.Close(); err != nil {
+		t.Fatalf("readPipe.Close() error: %v", err)
+	}
+
+	return string(output)
 }
 
 func TestResolveAppStoreVersionIDAndState_PrefersAppVersionState(t *testing.T) {
@@ -122,46 +153,72 @@ func TestResolveAppInfoID_AutoSelectsEditableFromMultiple(t *testing.T) {
 		]}`)
 	})
 
-	id, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+	var (
+		id  string
+		err error
+	)
+	stderr := captureAppResolutionStderr(t, func() {
+		id, err = ResolveAppInfoID(context.Background(), client, "app-1", "")
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if id != "info-editable" {
 		t.Fatalf("expected info-editable, got %q", id)
 	}
-}
-
-func TestResolveAppInfoID_AutoSelectsNonLiveWhenNoPrepare(t *testing.T) {
-	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
-		return appResolutionJSONResponse(`{"data":[
-			{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_SALE"}},
-			{"type":"appInfos","id":"info-review","attributes":{"state":"IN_REVIEW"}}
-		]}`)
-	})
-
-	id, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if id != "info-review" {
-		t.Fatalf("expected info-review, got %q", id)
+	if !strings.Contains(stderr, "auto-selected info-editable (PREPARE_FOR_SUBMISSION)") {
+		t.Fatalf("expected PREPARE_FOR_SUBMISSION selection message, got %q", stderr)
 	}
 }
 
-func TestResolveAppInfoID_FallsBackToFirstWhenAllLive(t *testing.T) {
-	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
-		return appResolutionJSONResponse(`{"data":[
-			{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_SALE"}},
-			{"type":"appInfos","id":"info-2","attributes":{"state":"READY_FOR_DISTRIBUTION"}}
-		]}`)
-	})
-
-	id, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestResolveAppInfoID_ReturnsErrorWhenMultipleRemainAmbiguous(t *testing.T) {
+	testCases := []struct {
+		name           string
+		responseBody   string
+		wantSubstrings []string
+	}{
+		{
+			name: "non-live without prepare for submission",
+			responseBody: `{"data":[
+				{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_SALE"}},
+				{"type":"appInfos","id":"info-review","attributes":{"state":"IN_REVIEW"}}
+			]}`,
+			wantSubstrings: []string{`multiple app infos found for app "app-1"`, "READY_FOR_SALE", "IN_REVIEW"},
+		},
+		{
+			name: "all live candidates",
+			responseBody: `{"data":[
+				{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_SALE"}},
+				{"type":"appInfos","id":"info-2","attributes":{"state":"READY_FOR_DISTRIBUTION"}}
+			]}`,
+			wantSubstrings: []string{`multiple app infos found for app "app-1"`, "READY_FOR_SALE", "READY_FOR_DISTRIBUTION"},
+		},
+		{
+			name: "multiple prepare for submission candidates",
+			responseBody: `{"data":[
+				{"type":"appInfos","id":"info-ios","attributes":{"state":"PREPARE_FOR_SUBMISSION"}},
+				{"type":"appInfos","id":"info-macos","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}
+			]}`,
+			wantSubstrings: []string{`multiple app infos found for app "app-1"`, "info-ios", "info-macos", "PREPARE_FOR_SUBMISSION"},
+		},
 	}
-	if id != "info-1" {
-		t.Fatalf("expected info-1 (first), got %q", id)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
+				return appResolutionJSONResponse(tc.responseBody)
+			})
+
+			_, err := ResolveAppInfoID(context.Background(), client, "app-1", "")
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			for _, want := range tc.wantSubstrings {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("expected error to contain %q, got %v", want, err)
+				}
+			}
+		})
 	}
 }
 

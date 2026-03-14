@@ -52,12 +52,39 @@ func ResolveAppInfoID(ctx context.Context, client *asc.Client, appID, appInfoID 
 		return "", fmt.Errorf("no app info found for app %q", appID)
 	}
 	if len(resp.Data) > 1 {
-		selected := SelectBestAppInfoID(resp)
+		selected, reason := autoSelectEditableAppInfoID(resp)
 		if selected == "" {
-			return "", fmt.Errorf("multiple app infos found for app %q; run `asc apps info list --app %q` to inspect candidates, then pass the explicit app info ID", appID, appID)
+			candidates := asc.FormatAppInfoCandidates(asc.AppInfoCandidates(resp.Data))
+			return "", fmt.Errorf("multiple app infos found for app %q (%s); run `asc apps info list --app %q` to inspect candidates, then pass the explicit app info ID", appID, candidates, appID)
 		}
-		fmt.Fprintf(os.Stderr, "Multiple app infos found for app %s, auto-selected %s (editable).\n", appID, selected)
+		fmt.Fprintf(os.Stderr, "Multiple app infos found for app %s, auto-selected %s (%s).\n", appID, selected, reason)
 		return selected, nil
 	}
 	return resp.Data[0].ID, nil
+}
+
+func autoSelectEditableAppInfoID(appInfos *asc.AppInfosResponse) (string, string) {
+	if appInfos == nil {
+		return "", ""
+	}
+
+	const targetState = "PREPARE_FOR_SUBMISSION"
+
+	matches := make([]string, 0, 1)
+	for _, info := range appInfos.Data {
+		state := strings.ToUpper(appInfoAttrString(info.Attributes, "state"))
+		appStoreState := strings.ToUpper(appInfoAttrString(info.Attributes, "appStoreState"))
+		if state != targetState && appStoreState != targetState {
+			continue
+		}
+		if trimmedID := strings.TrimSpace(info.ID); trimmedID != "" {
+			matches = append(matches, trimmedID)
+		}
+	}
+
+	if len(matches) != 1 {
+		return "", ""
+	}
+
+	return matches[0], targetState
 }
