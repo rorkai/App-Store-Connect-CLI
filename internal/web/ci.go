@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -435,6 +436,143 @@ func (c *Client) UpdateCIWorkflow(ctx context.Context, teamID, productID, workfl
 	return err
 }
 
+// GetCIConfigurationOptions retrieves team-wide workflow editor options.
+// GET /teams/{teamID}/configuration-options-v10
+func (c *Client) GetCIConfigurationOptions(ctx context.Context, teamID string) (json.RawMessage, error) {
+	teamID = strings.TrimSpace(teamID)
+	if teamID == "" {
+		return nil, fmt.Errorf("team id is required")
+	}
+	path := "/teams/" + url.PathEscape(teamID) + "/configuration-options-v10"
+	body, err := c.doRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return compactRawJSON(body, "ci configuration options")
+}
+
+// GetCIBuildVersions retrieves build-version configuration options.
+// GET /teams/{teamID}/configuration-options/build-versions
+func (c *Client) GetCIBuildVersions(ctx context.Context, teamID string) (json.RawMessage, error) {
+	teamID = strings.TrimSpace(teamID)
+	if teamID == "" {
+		return nil, fmt.Errorf("team id is required")
+	}
+	path := "/teams/" + url.PathEscape(teamID) + "/configuration-options/build-versions"
+	body, err := c.doRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return compactRawJSON(body, "ci build versions")
+}
+
+// GetCIProductConfigurationOptions retrieves product-scoped workflow editor options.
+// GET /teams/{teamID}/products/{productID}/product-configuration-options-v4
+func (c *Client) GetCIProductConfigurationOptions(ctx context.Context, teamID, productID string) (json.RawMessage, error) {
+	teamID = strings.TrimSpace(teamID)
+	if teamID == "" {
+		return nil, fmt.Errorf("team id is required")
+	}
+	productID = strings.TrimSpace(productID)
+	if productID == "" {
+		return nil, fmt.Errorf("product id is required")
+	}
+	path := "/teams/" + url.PathEscape(teamID) + "/products/" + url.PathEscape(productID) + "/product-configuration-options-v4"
+	body, err := c.doRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return compactRawJSON(body, "ci product configuration options")
+}
+
+// GetCISchemes retrieves available schemes for a product.
+// GET /teams/{teamID}/products/{productID}/schemes
+func (c *Client) GetCISchemes(
+	ctx context.Context,
+	teamID, productID, containerFilePath string,
+	limit int,
+	continuationOffset string,
+) (json.RawMessage, error) {
+	teamID = strings.TrimSpace(teamID)
+	if teamID == "" {
+		return nil, fmt.Errorf("team id is required")
+	}
+	productID = strings.TrimSpace(productID)
+	if productID == "" {
+		return nil, fmt.Errorf("product id is required")
+	}
+	if limit < 0 {
+		return nil, fmt.Errorf("limit must be zero or greater")
+	}
+	query := url.Values{}
+	if trimmed := strings.TrimSpace(containerFilePath); trimmed != "" {
+		query.Set("container_file_path", trimmed)
+	}
+	if limit > 0 {
+		query.Set("limit", strconv.Itoa(limit))
+	}
+	if trimmed := strings.TrimSpace(continuationOffset); trimmed != "" {
+		query.Set("continuation_offset", trimmed)
+	}
+	path := queryPath("/teams/"+url.PathEscape(teamID)+"/products/"+url.PathEscape(productID)+"/schemes", query)
+	body, err := c.doRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return compactRawJSON(body, "ci schemes")
+}
+
+// GetCITestDestinations retrieves workflow test destination options for an Xcode version.
+// GET /teams/{teamID}/test-destinations-v3
+func (c *Client) GetCITestDestinations(ctx context.Context, teamID, xcodeVersion string) (json.RawMessage, error) {
+	teamID = strings.TrimSpace(teamID)
+	if teamID == "" {
+		return nil, fmt.Errorf("team id is required")
+	}
+	xcodeVersion = strings.TrimSpace(xcodeVersion)
+	if xcodeVersion == "" {
+		return nil, fmt.Errorf("xcode version is required")
+	}
+	query := url.Values{}
+	query.Set("xcode_version", xcodeVersion)
+	path := queryPath("/teams/"+url.PathEscape(teamID)+"/test-destinations-v3", query)
+	body, err := c.doRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return compactRawJSON(body, "ci test destinations")
+}
+
+// GetCISlackProvider retrieves the team's Slack integration state for workflow notifications.
+// GET /teams/{teamID}/integrations/slack
+func (c *Client) GetCISlackProvider(ctx context.Context, teamID string) (json.RawMessage, error) {
+	teamID = strings.TrimSpace(teamID)
+	if teamID == "" {
+		return nil, fmt.Errorf("team id is required")
+	}
+	path := "/teams/" + url.PathEscape(teamID) + "/integrations/slack"
+	body, err := c.doRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return compactRawJSON(body, "ci slack provider")
+}
+
+// GetCISlackChannels retrieves the team's Slack channel options for workflow notifications.
+// GET /teams/{teamID}/integrations/slack/channels
+func (c *Client) GetCISlackChannels(ctx context.Context, teamID string) (json.RawMessage, error) {
+	teamID = strings.TrimSpace(teamID)
+	if teamID == "" {
+		return nil, fmt.Errorf("team id is required")
+	}
+	path := "/teams/" + url.PathEscape(teamID) + "/integrations/slack/channels"
+	body, err := c.doRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return compactRawJSON(body, "ci slack channels")
+}
+
 // GetCIEncryptionKey fetches the P-256 public key for secret encryption.
 // GET /auth/keys/client-encryption (relative to /ci/api base URL)
 func (c *Client) GetCIEncryptionKey(ctx context.Context) (*CIEncryptionKeyResponse, error) {
@@ -647,6 +785,75 @@ func SetWorkflowDisabled(content json.RawMessage, disabled bool) (json.RawMessag
 		return nil, fmt.Errorf("failed to compact workflow content: %w", err)
 	}
 
+	return buf.Bytes(), nil
+}
+
+// ApplyJSONMergePatch applies an RFC 7396-style merge patch to workflow content.
+// Both the existing content and the patch must be JSON objects.
+func ApplyJSONMergePatch(content json.RawMessage, patch json.RawMessage) (json.RawMessage, bool, error) {
+	var contentValue any
+	if err := json.Unmarshal(content, &contentValue); err != nil {
+		return nil, false, fmt.Errorf("failed to decode workflow content: %w", err)
+	}
+	if _, ok := contentValue.(map[string]any); !ok {
+		return nil, false, fmt.Errorf("failed to decode workflow content: expected JSON object")
+	}
+
+	var patchValue any
+	if err := json.Unmarshal(patch, &patchValue); err != nil {
+		return nil, false, fmt.Errorf("failed to decode workflow patch: %w", err)
+	}
+	if _, ok := patchValue.(map[string]any); !ok {
+		return nil, false, fmt.Errorf("failed to decode workflow patch: expected JSON object")
+	}
+
+	mergedValue := applyJSONMergePatchValue(contentValue, patchValue)
+	result, err := json.Marshal(mergedValue)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to marshal merged workflow content: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, result); err != nil {
+		return nil, false, fmt.Errorf("failed to compact merged workflow content: %w", err)
+	}
+
+	changed := !reflect.DeepEqual(contentValue, mergedValue)
+	return buf.Bytes(), changed, nil
+}
+
+func applyJSONMergePatchValue(target, patch any) any {
+	patchMap, ok := patch.(map[string]any)
+	if !ok {
+		return patch
+	}
+
+	targetMap, ok := target.(map[string]any)
+	if !ok {
+		targetMap = map[string]any{}
+	}
+
+	merged := make(map[string]any, len(targetMap))
+	for key, value := range targetMap {
+		merged[key] = value
+	}
+
+	for key, value := range patchMap {
+		if value == nil {
+			delete(merged, key)
+			continue
+		}
+		merged[key] = applyJSONMergePatchValue(merged[key], value)
+	}
+
+	return merged
+}
+
+func compactRawJSON(body []byte, label string) (json.RawMessage, error) {
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, body); err != nil {
+		return nil, fmt.Errorf("failed to decode %s: %w", label, err)
+	}
 	return buf.Bytes(), nil
 }
 

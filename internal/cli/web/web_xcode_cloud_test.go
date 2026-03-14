@@ -150,6 +150,46 @@ func TestWebXcodeCloudSubcommandsResolveSessionWithinTimeoutContext(t *testing.T
 			args:  []string{"--apple-id", "user@example.com"},
 		},
 		{
+			name:  "workflows create",
+			build: webXcodeCloudWorkflowCreateCommand,
+			args:  []string{"--apple-id", "user@example.com", "--product-id", "prod-123", "--file", workflowCreateTestPayload(t)},
+		},
+		{
+			name:  "workflows options team-config",
+			build: webXcodeCloudWorkflowOptionsTeamConfigCommand,
+			args:  []string{"--apple-id", "user@example.com"},
+		},
+		{
+			name:  "workflows options build-versions",
+			build: webXcodeCloudWorkflowOptionsBuildVersionsCommand,
+			args:  []string{"--apple-id", "user@example.com"},
+		},
+		{
+			name:  "workflows options product-config",
+			build: webXcodeCloudWorkflowOptionsProductConfigCommand,
+			args:  []string{"--apple-id", "user@example.com", "--product-id", "prod-123"},
+		},
+		{
+			name:  "workflows options schemes",
+			build: webXcodeCloudWorkflowOptionsSchemesCommand,
+			args:  []string{"--apple-id", "user@example.com", "--product-id", "prod-123"},
+		},
+		{
+			name:  "workflows options test-destinations",
+			build: webXcodeCloudWorkflowOptionsTestDestinationsCommand,
+			args:  []string{"--apple-id", "user@example.com", "--xcode-version", "latest:stable"},
+		},
+		{
+			name:  "workflows options slack-provider",
+			build: webXcodeCloudWorkflowOptionsSlackProviderCommand,
+			args:  []string{"--apple-id", "user@example.com"},
+		},
+		{
+			name:  "workflows options slack-channels",
+			build: webXcodeCloudWorkflowOptionsSlackChannelsCommand,
+			args:  []string{"--apple-id", "user@example.com"},
+		},
+		{
 			name:  "workflows describe",
 			build: webXcodeCloudWorkflowDescribeCommand,
 			args:  []string{"--apple-id", "user@example.com", "--product-id", "prod-123", "--workflow-id", "wf-123"},
@@ -191,6 +231,22 @@ func TestWebXcodeCloudSubcommandsResolveSessionWithinTimeoutContext(t *testing.T
 			}
 		})
 	}
+}
+
+func workflowCreateTestPayload(t *testing.T) string {
+	t.Helper()
+
+	file, err := os.CreateTemp(t.TempDir(), "workflow-create-*.json")
+	if err != nil {
+		t.Fatalf("CreateTemp() error = %v", err)
+	}
+	if _, err := file.WriteString(`{"name":"WF"}`); err != nil {
+		t.Fatalf("WriteString() error = %v", err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	return file.Name()
 }
 
 func TestWebXcodeCloudUsageSummaryOutputTableUsesHumanRenderer(t *testing.T) {

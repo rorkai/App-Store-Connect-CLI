@@ -43,7 +43,10 @@ Examples:
   asc web xcode-cloud usage months --product-ids "UUID" --apple-id "user@example.com" --output table
   asc web xcode-cloud usage days --product-ids "UUID" --apple-id "user@example.com"
   asc web xcode-cloud usage workflows --product-id "UUID" --apple-id "user@example.com" --output table
+  asc web xcode-cloud workflows create --product-id "UUID" --file ./workflow.json --apple-id "user@example.com"
   asc web xcode-cloud workflows describe --product-id "UUID" --workflow-id "WF-UUID" --apple-id "user@example.com"
+  asc web xcode-cloud workflows options product-config --product-id "UUID" --apple-id "user@example.com"
+  asc web xcode-cloud workflows edit --product-id "UUID" --workflow-id "WF-UUID" --patch-file ./workflow.patch.json --apple-id "user@example.com"
   asc web xcode-cloud env-vars shared list --product-id "UUID" --apple-id "user@example.com"
   asc web xcode-cloud env-vars shared set --product-id "UUID" --name MY_VAR --value hello --apple-id "user@example.com"`,
 		FlagSet:   fs,

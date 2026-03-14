@@ -831,6 +831,150 @@ func TestSetWorkflowDisabledRejectsNullContent(t *testing.T) {
 	}
 }
 
+func TestApplyJSONMergePatch(t *testing.T) {
+	content := json.RawMessage(`{
+		"name":"Default",
+		"description":"Main workflow",
+		"clean":true,
+		"start_conditions":{
+			"branch":{
+				"source":{"kind":"branch","value":"main"},
+				"files":{
+					"mode":"trigger_if_any_file_match",
+					"matchers":[{"directory":"Sources","file_name":"App.swift"}]
+				}
+			}
+		},
+		"custom_field":{"keep":true}
+	}`)
+	patch := json.RawMessage(`{
+		"description":"Updated workflow",
+		"clean":false,
+		"start_conditions":{
+			"branch":{
+				"files":{
+					"matchers":[{"directory":"Sources","file_extension":"swift"}]
+				}
+			}
+		}
+	}`)
+
+	result, changed, err := ApplyJSONMergePatch(content, patch)
+	if err != nil {
+		t.Fatalf("ApplyJSONMergePatch() error = %v", err)
+	}
+	if !changed {
+		t.Fatal("expected changed=true")
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal(result, &got); err != nil {
+		t.Fatalf("result unmarshal error: %v", err)
+	}
+
+	if got["description"] != "Updated workflow" {
+		t.Fatalf("expected description to update, got %#v", got["description"])
+	}
+	if got["clean"] != false {
+		t.Fatalf("expected clean=false, got %#v", got["clean"])
+	}
+	if _, ok := got["custom_field"]; !ok {
+		t.Fatalf("expected custom_field to be preserved")
+	}
+
+	startConditions, ok := got["start_conditions"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected start_conditions object, got %#v", got["start_conditions"])
+	}
+	branch, ok := startConditions["branch"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected branch object, got %#v", startConditions["branch"])
+	}
+	source, ok := branch["source"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected source object, got %#v", branch["source"])
+	}
+	if source["kind"] != "branch" || source["value"] != "main" {
+		t.Fatalf("expected source to be preserved, got %#v", source)
+	}
+
+	files, ok := branch["files"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected files object, got %#v", branch["files"])
+	}
+	if files["mode"] != "trigger_if_any_file_match" {
+		t.Fatalf("expected files.mode to be preserved, got %#v", files["mode"])
+	}
+	matchers, ok := files["matchers"].([]any)
+	if !ok || len(matchers) != 1 {
+		t.Fatalf("expected 1 matcher, got %#v", files["matchers"])
+	}
+	matcher, ok := matchers[0].(map[string]any)
+	if !ok {
+		t.Fatalf("expected matcher object, got %#v", matchers[0])
+	}
+	if matcher["file_extension"] != "swift" {
+		t.Fatalf("expected file_extension matcher, got %#v", matcher)
+	}
+}
+
+func TestApplyJSONMergePatchRemovesFieldWithNull(t *testing.T) {
+	content := json.RawMessage(`{"name":"Default","description":"Main workflow","clean":true}`)
+	patch := json.RawMessage(`{"description":null}`)
+
+	result, changed, err := ApplyJSONMergePatch(content, patch)
+	if err != nil {
+		t.Fatalf("ApplyJSONMergePatch() error = %v", err)
+	}
+	if !changed {
+		t.Fatal("expected changed=true")
+	}
+
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(result, &got); err != nil {
+		t.Fatalf("result unmarshal error: %v", err)
+	}
+	if _, ok := got["description"]; ok {
+		t.Fatalf("expected description to be removed")
+	}
+}
+
+func TestApplyJSONMergePatchNoChange(t *testing.T) {
+	content := json.RawMessage(`{"name":"Default","clean":true}`)
+	patch := json.RawMessage(`{"clean":true}`)
+
+	result, changed, err := ApplyJSONMergePatch(content, patch)
+	if err != nil {
+		t.Fatalf("ApplyJSONMergePatch() error = %v", err)
+	}
+	if changed {
+		t.Fatal("expected changed=false")
+	}
+	if string(result) != `{"name":"Default","clean":true}` && string(result) != `{"clean":true,"name":"Default"}` {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestApplyJSONMergePatchRejectsNullContent(t *testing.T) {
+	_, _, err := ApplyJSONMergePatch(json.RawMessage(`null`), json.RawMessage(`{"clean":false}`))
+	if err == nil {
+		t.Fatal("expected error for null workflow content")
+	}
+	if !strings.Contains(err.Error(), "expected JSON object") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestApplyJSONMergePatchRejectsNonObjectPatch(t *testing.T) {
+	_, _, err := ApplyJSONMergePatch(json.RawMessage(`{"name":"Default"}`), json.RawMessage(`[]`))
+	if err == nil {
+		t.Fatal("expected error for non-object workflow patch")
+	}
+	if !strings.Contains(err.Error(), "expected JSON object") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestListCIProductEnvVarsParsesResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/teams/team-uuid/products/prod-1/product-environment-variables" {
@@ -1057,6 +1201,287 @@ func TestDeleteCIProductEnvVarRejectsEmptyInputs(t *testing.T) {
 				t.Fatalf("expected error containing %q, got %q", tt.wantErr, err.Error())
 			}
 		})
+	}
+}
+
+func TestGetCIConfigurationOptions(t *testing.T) {
+	client := testWebClientWithHandler(t, func(r *http.Request) *http.Response {
+		if r.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/teams/team-uuid/configuration-options-v10" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		return jsonTestResponse(r, `{"default_timezone":{"id":"Asia/Calcutta"}}`)
+	})
+	result, err := client.GetCIConfigurationOptions(context.Background(), "team-uuid")
+	if err != nil {
+		t.Fatalf("GetCIConfigurationOptions() error = %v", err)
+	}
+	if string(result) != `{"default_timezone":{"id":"Asia/Calcutta"}}` {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetCIConfigurationOptionsRejectsEmptyTeam(t *testing.T) {
+	client := &Client{httpClient: http.DefaultClient, baseURL: "http://localhost"}
+	_, err := client.GetCIConfigurationOptions(context.Background(), "")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "team id is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestGetCIBuildVersions(t *testing.T) {
+	client := testWebClientWithHandler(t, func(r *http.Request) *http.Response {
+		if r.URL.Path != "/teams/team-uuid/configuration-options/build-versions" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		return jsonTestResponse(r, `{"items":[{"build":"2026.03.14.1"}]}`)
+	})
+	result, err := client.GetCIBuildVersions(context.Background(), "team-uuid")
+	if err != nil {
+		t.Fatalf("GetCIBuildVersions() error = %v", err)
+	}
+	if string(result) != `{"items":[{"build":"2026.03.14.1"}]}` {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetCIProductConfigurationOptions(t *testing.T) {
+	client := testWebClientWithHandler(t, func(r *http.Request) *http.Response {
+		if r.URL.Path != "/teams/team-uuid/products/prod-1/product-configuration-options-v4" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		return jsonTestResponse(r, `{"repo_default_recommendation":"repo-1"}`)
+	})
+	result, err := client.GetCIProductConfigurationOptions(context.Background(), "team-uuid", "prod-1")
+	if err != nil {
+		t.Fatalf("GetCIProductConfigurationOptions() error = %v", err)
+	}
+	if string(result) != `{"repo_default_recommendation":"repo-1"}` {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetCIProductConfigurationOptionsRejectsEmptyInputs(t *testing.T) {
+	client := &Client{httpClient: http.DefaultClient, baseURL: "http://localhost"}
+	tests := []struct {
+		name      string
+		teamID    string
+		productID string
+		wantErr   string
+	}{
+		{"empty team", "", "prod-1", "team id is required"},
+		{"empty product", "team-uuid", "", "product id is required"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := client.GetCIProductConfigurationOptions(context.Background(), tt.teamID, tt.productID)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestGetCISchemes(t *testing.T) {
+	client := testWebClientWithHandler(t, func(r *http.Request) *http.Response {
+		if r.URL.Path != "/teams/team-uuid/products/prod-1/schemes" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.URL.Query().Get("container_file_path") != "Focus Rail.xcodeproj" {
+			t.Fatalf("unexpected container_file_path: %q", r.URL.Query().Get("container_file_path"))
+		}
+		if r.URL.Query().Get("limit") != "20" {
+			t.Fatalf("unexpected limit: %q", r.URL.Query().Get("limit"))
+		}
+		if r.URL.Query().Get("continuation_offset") != "next-1" {
+			t.Fatalf("unexpected continuation_offset: %q", r.URL.Query().Get("continuation_offset"))
+		}
+		return jsonTestResponse(r, `{"items":[{"name":"Focus Rail"}]}`)
+	})
+	result, err := client.GetCISchemes(context.Background(), "team-uuid", "prod-1", "Focus Rail.xcodeproj", 20, "next-1")
+	if err != nil {
+		t.Fatalf("GetCISchemes() error = %v", err)
+	}
+	if string(result) != `{"items":[{"name":"Focus Rail"}]}` {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetCISchemesRejectsEmptyInputs(t *testing.T) {
+	client := &Client{httpClient: http.DefaultClient, baseURL: "http://localhost"}
+	tests := []struct {
+		name      string
+		teamID    string
+		productID string
+		wantErr   string
+	}{
+		{"empty team", "", "prod-1", "team id is required"},
+		{"empty product", "team-uuid", "", "product id is required"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := client.GetCISchemes(context.Background(), tt.teamID, tt.productID, "", 0, "")
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestGetCISchemesRejectsNegativeLimit(t *testing.T) {
+	client := testWebClientWithHandler(t, func(r *http.Request) *http.Response {
+		t.Fatal("did not expect request for negative limit")
+		return nil
+	})
+
+	_, err := client.GetCISchemes(context.Background(), "team-uuid", "prod-1", "", -1, "")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "limit must be zero or greater") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestGetCITestDestinations(t *testing.T) {
+	client := testWebClientWithHandler(t, func(r *http.Request) *http.Response {
+		if r.URL.Path != "/teams/team-uuid/test-destinations-v3" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.URL.Query().Get("xcode_version") != "latest:stable" {
+			t.Fatalf("unexpected xcode_version: %q", r.URL.Query().Get("xcode_version"))
+		}
+		return jsonTestResponse(r, `{"platform_test_destinations":[]}`)
+	})
+	result, err := client.GetCITestDestinations(context.Background(), "team-uuid", "latest:stable")
+	if err != nil {
+		t.Fatalf("GetCITestDestinations() error = %v", err)
+	}
+	if string(result) != `{"platform_test_destinations":[]}` {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetCITestDestinationsRejectsEmptyInputs(t *testing.T) {
+	client := &Client{httpClient: http.DefaultClient, baseURL: "http://localhost"}
+	tests := []struct {
+		name         string
+		teamID       string
+		xcodeVersion string
+		wantErr      string
+	}{
+		{"empty team", "", "latest:stable", "team id is required"},
+		{"empty xcode version", "team-uuid", "", "xcode version is required"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := client.GetCITestDestinations(context.Background(), tt.teamID, tt.xcodeVersion)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestGetCISlackProvider(t *testing.T) {
+	client := testWebClientWithHandler(t, func(r *http.Request) *http.Response {
+		if r.URL.Path != "/teams/team-uuid/integrations/slack" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		return jsonTestResponse(r, `{"is_user_connected":true,"workspace_name":"Build Ops"}`)
+	})
+	result, err := client.GetCISlackProvider(context.Background(), "team-uuid")
+	if err != nil {
+		t.Fatalf("GetCISlackProvider() error = %v", err)
+	}
+	if string(result) != `{"is_user_connected":true,"workspace_name":"Build Ops"}` {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetCISlackChannels(t *testing.T) {
+	client := testWebClientWithHandler(t, func(r *http.Request) *http.Response {
+		if r.URL.Path != "/teams/team-uuid/integrations/slack/channels" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		return jsonTestResponse(r, `[{"id":"chan-1","channel_name":"builds"}]`)
+	})
+	result, err := client.GetCISlackChannels(context.Background(), "team-uuid")
+	if err != nil {
+		t.Fatalf("GetCISlackChannels() error = %v", err)
+	}
+	if string(result) != `[{"id":"chan-1","channel_name":"builds"}]` {
+		t.Fatalf("unexpected result: %s", result)
+	}
+}
+
+func TestGetCISlackEndpointsRejectEmptyTeam(t *testing.T) {
+	client := &Client{httpClient: http.DefaultClient, baseURL: "http://localhost"}
+	tests := []struct {
+		name string
+		call func() (json.RawMessage, error)
+	}{
+		{
+			name: "provider",
+			call: func() (json.RawMessage, error) {
+				return client.GetCISlackProvider(context.Background(), "")
+			},
+		},
+		{
+			name: "channels",
+			call: func() (json.RawMessage, error) {
+				return client.GetCISlackChannels(context.Background(), "")
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := tt.call()
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), "team id is required") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+type jsonTestRoundTripper func(*http.Request) *http.Response
+
+func (fn jsonTestRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
+	return fn(r), nil
+}
+
+func testWebClientWithHandler(t *testing.T, fn func(*http.Request) *http.Response) *Client {
+	t.Helper()
+
+	return &Client{
+		httpClient: &http.Client{Transport: jsonTestRoundTripper(fn)},
+		baseURL:    "https://example.test",
+	}
+}
+
+func jsonTestResponse(r *http.Request, body string) *http.Response {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Request:    r,
 	}
 }
 
