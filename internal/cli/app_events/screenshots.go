@@ -27,10 +27,17 @@ Examples:
   asc app-events screenshots list --event-id "EVENT_ID"
   asc app-events screenshots create --localization-id "LOC_ID" --path "./event.png" --asset-type EVENT_CARD`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppEventScreenshotsListCommand(),
 			AppEventScreenshotsRelationshipsCommand(),
+			shared.DeprecatedAliasLeafCommand(
+				AppEventScreenshotsRelationshipsCommand(),
+				"relationships",
+				"asc app-events screenshots links [flags]",
+				"asc app-events screenshots links",
+				"Warning: `asc app-events screenshots relationships` is deprecated. Use `asc app-events screenshots links`.",
+			),
 			AppEventScreenshotsGetCommand(),
 			AppEventScreenshotsCreateCommand(),
 			AppEventScreenshotsDeleteCommand(),
@@ -41,9 +48,9 @@ Examples:
 	}
 }
 
-// AppEventScreenshotsRelationshipsCommand returns the app event screenshots relationships subcommand.
+// AppEventScreenshotsRelationshipsCommand returns the app event screenshots links subcommand.
 func AppEventScreenshotsRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("screenshots relationships", flag.ExitOnError)
+	fs := flag.NewFlagSet("screenshots links", flag.ExitOnError)
 
 	eventID := fs.String("event-id", "", "App event ID")
 	localizationID := fs.String("localization-id", "", "App event localization ID")
@@ -54,23 +61,23 @@ func AppEventScreenshotsRelationshipsCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "relationships",
-		ShortUsage: "asc app-events screenshots relationships [flags]",
+		Name:       "links",
+		ShortUsage: "asc app-events screenshots links [flags]",
 		ShortHelp:  "List screenshot relationships for an in-app event localization.",
 		LongHelp: `List screenshot relationships for an in-app event localization.
 
 Examples:
-  asc app-events screenshots relationships --localization-id "LOC_ID"
-  asc app-events screenshots relationships --event-id "EVENT_ID" --locale "en-US"
-  asc app-events screenshots relationships --event-id "EVENT_ID" --paginate`,
+  asc app-events screenshots links --localization-id "LOC_ID"
+  asc app-events screenshots links --event-id "EVENT_ID" --locale "en-US"
+  asc app-events screenshots links --event-id "EVENT_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("app-events screenshots relationships: --limit must be between 1 and 200")
+				return fmt.Errorf("app-events screenshots links: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("app-events screenshots relationships: %w", err)
+				return fmt.Errorf("app-events screenshots links: %w", err)
 			}
 
 			trimmedNext := strings.TrimSpace(*next)
@@ -81,7 +88,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-events screenshots relationships: %w", err)
+				return fmt.Errorf("app-events screenshots links: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -105,20 +112,20 @@ Examples:
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 				firstPage, err := client.GetAppEventScreenshotsRelationships(requestCtx, resolvedLocalizationID, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("app-events screenshots relationships: failed to fetch: %w", err)
+					return fmt.Errorf("app-events screenshots links: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					return client.GetAppEventScreenshotsRelationships(ctx, resolvedLocalizationID, asc.WithLinkagesNextURL(nextURL))
 				})
 				if err != nil {
-					return fmt.Errorf("app-events screenshots relationships: %w", err)
+					return fmt.Errorf("app-events screenshots links: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppEventScreenshotsRelationships(requestCtx, resolvedLocalizationID, opts...)
 			if err != nil {
-				return fmt.Errorf("app-events screenshots relationships: failed to fetch: %w", err)
+				return fmt.Errorf("app-events screenshots links: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

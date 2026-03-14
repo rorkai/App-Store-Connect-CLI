@@ -34,9 +34,9 @@ Examples:
   asc certificates update --id "CERT_ID" --activated true
   asc certificates update --id "CERT_ID" --activated false
   asc certificates revoke --id "CERT_ID" --confirm
-  asc certificates relationships pass-type-id --id "CERT_ID"`,
+  asc certificates links pass-type-id --id "CERT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			CertificatesListCommand(),
 			CertificatesGetCommand(),
@@ -45,6 +45,7 @@ Examples:
 			CertificatesUpdateCommand(),
 			CertificatesRevokeCommand(),
 			CertificatesRelationshipsCommand(),
+			DeprecatedCertificatesRelationshipsAliasCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

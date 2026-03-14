@@ -157,6 +157,9 @@ func TestCompletionZshPrintsScriptToStdout(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
+	if strings.Contains(stdout, "offer-codes") || strings.Contains(stdout, "win-back-offers") || strings.Contains(stdout, "promoted-purchases") {
+		t.Fatalf("expected hidden deprecated root commands to be omitted from completion output, got %q", stdout)
+	}
 }
 
 func TestCompletionInvalidShellErrorsToStderr(t *testing.T) {
@@ -228,6 +231,31 @@ func TestUnknownCommandSuggestsSimilarCommand(t *testing.T) {
 	}
 }
 
+func TestUnknownCommandDoesNotSuggestHiddenDeprecatedRootCommands(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"offer-codez"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Unknown command: offer-codez") {
+		t.Fatalf("expected unknown command message, got %q", stderr)
+	}
+	if strings.Contains(stderr, "Did you mean:") {
+		t.Fatalf("expected hidden deprecated commands to be excluded from suggestions, got %q", stderr)
+	}
+}
+
 func TestBuildsInfoRequiresBuildID(t *testing.T) {
 	root := RootCommand("1.2.3")
 
@@ -270,14 +298,14 @@ func TestBuildsExpireRequiresBuildID(t *testing.T) {
 	}
 }
 
-func TestOfferCodesListRequiresOfferCode(t *testing.T) {
+func TestSubscriptionsOfferCodesOneTimeCodesListRequiresOfferCodeID(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
 	root := RootCommand("1.2.3")
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"offer-codes", "list"}); err != nil {
+		if err := root.Parse([]string{"subscriptions", "offers", "offer-codes", "one-time-codes", "list"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		err := root.Run(context.Background())
@@ -289,12 +317,12 @@ func TestOfferCodesListRequiresOfferCode(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "Error: --offer-code is required") {
-		t.Fatalf("expected missing offer code error, got %q", stderr)
+	if !strings.Contains(stderr, "Error: --offer-code-id is required") {
+		t.Fatalf("expected missing offer code id error, got %q", stderr)
 	}
 }
 
-func TestOfferCodesGenerateValidationErrors(t *testing.T) {
+func TestCanonicalOfferCodesGenerateValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
@@ -305,17 +333,17 @@ func TestOfferCodesGenerateValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "missing offer-code",
-			args:    []string{"offer-codes", "generate", "--quantity", "1", "--expiration-date", "2026-02-01"},
-			wantErr: "Error: --offer-code is required",
+			args:    []string{"subscriptions", "offers", "offer-codes", "generate", "--quantity", "1", "--expiration-date", "2026-02-01"},
+			wantErr: "Error: --offer-code-id is required",
 		},
 		{
 			name:    "missing expiration date",
-			args:    []string{"offer-codes", "generate", "--offer-code", "OFFER_CODE_ID", "--quantity", "1"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "generate", "--offer-code-id", "OFFER_CODE_ID", "--quantity", "1"},
 			wantErr: "Error: --expiration-date is required",
 		},
 		{
 			name:    "missing quantity",
-			args:    []string{"offer-codes", "generate", "--offer-code", "OFFER_CODE_ID", "--expiration-date", "2026-02-01"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "generate", "--offer-code-id", "OFFER_CODE_ID", "--expiration-date", "2026-02-01"},
 			wantErr: "Error: --quantity is required",
 		},
 	}
@@ -1167,9 +1195,14 @@ func TestIAPValidationErrors(t *testing.T) {
 			wantErr: "--offer-code-id is required",
 		},
 		{
-			name:    "iap promoted-purchase get missing id",
-			args:    []string{"iap", "promoted-purchase", "get"},
-			wantErr: "--id is required",
+			name:    "iap promoted-purchases list missing app",
+			args:    []string{"iap", "promoted-purchases", "list"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "iap promoted-purchases create rejects subscription product type",
+			args:    []string{"iap", "promoted-purchases", "create", "--app", "APP_ID", "--product-id", "IAP_ID", "--product-type", "SUBSCRIPTION", "--visible-for-all-users", "true"},
+			wantErr: "--product-type is fixed to IN_APP_PURCHASE",
 		},
 		{
 			name:    "iap submit missing confirm",
@@ -1436,26 +1469,26 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 		{
 			name:    "subscriptions list missing group",
 			args:    []string{"subscriptions", "list"},
-			wantErr: "--group is required",
+			wantErr: "--group-id is required",
 		},
 		{
 			name:    "subscriptions create missing group",
-			args:    []string{"subscriptions", "create", "--ref-name", "Monthly", "--product-id", "com.example.sub"},
-			wantErr: "--group is required",
+			args:    []string{"subscriptions", "create", "--reference-name", "Monthly", "--product-id", "com.example.sub"},
+			wantErr: "--group-id is required",
 		},
 		{
 			name:    "subscriptions create missing ref-name",
-			args:    []string{"subscriptions", "create", "--group", "GROUP_ID", "--product-id", "com.example.sub"},
-			wantErr: "--ref-name is required",
+			args:    []string{"subscriptions", "create", "--group-id", "GROUP_ID", "--product-id", "com.example.sub"},
+			wantErr: "--reference-name is required",
 		},
 		{
 			name:    "subscriptions create missing product-id",
-			args:    []string{"subscriptions", "create", "--group", "GROUP_ID", "--ref-name", "Monthly"},
+			args:    []string{"subscriptions", "create", "--group-id", "GROUP_ID", "--reference-name", "Monthly"},
 			wantErr: "--product-id is required",
 		},
 		{
 			name:    "subscriptions create invalid subscription period",
-			args:    []string{"subscriptions", "create", "--group", "GROUP_ID", "--ref-name", "Monthly", "--product-id", "com.example.sub", "--subscription-period", "BAD"},
+			args:    []string{"subscriptions", "create", "--group-id", "GROUP_ID", "--reference-name", "Monthly", "--product-id", "com.example.sub", "--subscription-period", "BAD"},
 			wantErr: "--subscription-period must be one of",
 		},
 		{
@@ -1484,69 +1517,74 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			wantErr: "--confirm is required",
 		},
 		{
-			name:    "subscriptions prices add missing id",
-			args:    []string{"subscriptions", "prices", "add", "--price-point", "PRICE_POINT_ID"},
-			wantErr: "--id is required",
+			name:    "subscriptions pricing prices set missing id",
+			args:    []string{"subscriptions", "pricing", "prices", "set", "--price-point", "PRICE_POINT_ID"},
+			wantErr: "--subscription-id is required",
 		},
 		{
-			name:    "subscriptions prices add missing price-point",
-			args:    []string{"subscriptions", "prices", "add", "--id", "SUB_ID"},
+			name:    "subscriptions pricing prices set missing price-point",
+			args:    []string{"subscriptions", "pricing", "prices", "set", "--subscription-id", "SUB_ID"},
 			wantErr: "one of --price-point, --tier, or --price is required",
 		},
 		{
-			name:    "subscriptions prices import missing id",
-			args:    []string{"subscriptions", "prices", "import", "--input", "./prices.csv"},
-			wantErr: "--id is required",
+			name:    "subscriptions pricing prices import missing id",
+			args:    []string{"subscriptions", "pricing", "prices", "import", "--input", "./prices.csv"},
+			wantErr: "--subscription-id is required",
 		},
 		{
-			name:    "subscriptions prices import missing input",
-			args:    []string{"subscriptions", "prices", "import", "--id", "SUB_ID"},
+			name:    "subscriptions pricing prices import missing input",
+			args:    []string{"subscriptions", "pricing", "prices", "import", "--subscription-id", "SUB_ID"},
 			wantErr: "--input is required",
 		},
 		{
-			name:    "subscriptions prices list missing id",
-			args:    []string{"subscriptions", "prices", "list"},
-			wantErr: "--id is required",
+			name:    "subscriptions pricing prices list missing id",
+			args:    []string{"subscriptions", "pricing", "prices", "list"},
+			wantErr: "--subscription-id is required",
 		},
 		{
-			name:    "subscriptions prices delete missing price-id",
-			args:    []string{"subscriptions", "prices", "delete", "--confirm"},
+			name:    "subscriptions pricing prices delete missing price-id",
+			args:    []string{"subscriptions", "pricing", "prices", "delete", "--confirm"},
 			wantErr: "--price-id is required",
 		},
 		{
-			name:    "subscriptions prices delete missing confirm",
-			args:    []string{"subscriptions", "prices", "delete", "--price-id", "PRICE_ID"},
+			name:    "subscriptions pricing prices delete missing confirm",
+			args:    []string{"subscriptions", "pricing", "prices", "delete", "--price-id", "PRICE_ID"},
 			wantErr: "--confirm is required",
 		},
 		{
-			name:    "subscriptions availability set missing id",
-			args:    []string{"subscriptions", "availability", "set", "--territory", "USA"},
-			wantErr: "--id is required",
+			name:    "subscriptions pricing availability set missing id",
+			args:    []string{"subscriptions", "pricing", "availability", "set", "--territories", "USA"},
+			wantErr: "--subscription-id is required",
 		},
 		{
-			name:    "subscriptions availability set missing territory",
-			args:    []string{"subscriptions", "availability", "set", "--id", "SUB_ID"},
-			wantErr: "--territory is required",
+			name:    "subscriptions pricing availability set missing territory",
+			args:    []string{"subscriptions", "pricing", "availability", "set", "--subscription-id", "SUB_ID"},
+			wantErr: "--territories is required",
 		},
 		{
-			name:    "subscriptions availability get missing id",
-			args:    []string{"subscriptions", "availability", "get"},
-			wantErr: "--id or --subscription-id is required",
+			name:    "subscriptions pricing availability get missing id",
+			args:    []string{"subscriptions", "pricing", "availability", "get"},
+			wantErr: "--availability-id or --subscription-id is required",
 		},
 		{
-			name:    "subscriptions availability available-territories missing id",
-			args:    []string{"subscriptions", "availability", "available-territories"},
-			wantErr: "--id is required",
+			name:    "subscriptions pricing availability available-territories missing id",
+			args:    []string{"subscriptions", "pricing", "availability", "available-territories"},
+			wantErr: "--availability-id is required",
 		},
 		{
-			name:    "subscriptions app-store-review-screenshot get missing id",
-			args:    []string{"subscriptions", "app-store-review-screenshot", "get"},
-			wantErr: "--id is required",
+			name:    "subscriptions review app-store-screenshot get missing id",
+			args:    []string{"subscriptions", "review", "app-store-screenshot", "get"},
+			wantErr: "--subscription-id is required",
 		},
 		{
-			name:    "subscriptions promoted-purchase get missing id",
-			args:    []string{"subscriptions", "promoted-purchase", "get"},
-			wantErr: "--id is required",
+			name:    "subscriptions promoted-purchases list missing app",
+			args:    []string{"subscriptions", "promoted-purchases", "list"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "subscriptions promoted-purchases create rejects iap product type",
+			args:    []string{"subscriptions", "promoted-purchases", "create", "--app", "APP_ID", "--product-id", "SUB_ID", "--product-type", "IN_APP_PURCHASE", "--visible-for-all-users", "true"},
+			wantErr: "--product-type is fixed to SUBSCRIPTION",
 		},
 		{
 			name:    "subscriptions grace-periods get missing id",
@@ -1615,123 +1653,153 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "subscriptions introductory-offers list missing subscription-id",
-			args:    []string{"subscriptions", "introductory-offers", "list"},
+			args:    []string{"subscriptions", "offers", "introductory", "list"},
 			wantErr: "--subscription-id is required",
 		},
 		{
 			name:    "subscriptions introductory-offers create missing offer-duration",
-			args:    []string{"subscriptions", "introductory-offers", "create", "--subscription-id", "SUB_ID", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1"},
+			args:    []string{"subscriptions", "offers", "introductory", "create", "--subscription-id", "SUB_ID", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1"},
 			wantErr: "--offer-duration is required",
 		},
 		{
 			name:    "subscriptions introductory-offers update missing update flags",
-			args:    []string{"subscriptions", "introductory-offers", "update", "--id", "OFFER_ID"},
+			args:    []string{"subscriptions", "offers", "introductory", "update", "--id", "OFFER_ID"},
 			wantErr: "at least one update flag is required",
 		},
 		{
 			name:    "subscriptions introductory-offers delete missing confirm",
-			args:    []string{"subscriptions", "introductory-offers", "delete", "--id", "OFFER_ID"},
+			args:    []string{"subscriptions", "offers", "introductory", "delete", "--id", "OFFER_ID"},
 			wantErr: "--confirm is required",
 		},
 		{
 			name:    "subscriptions promotional-offers list missing subscription-id",
-			args:    []string{"subscriptions", "promotional-offers", "list"},
+			args:    []string{"subscriptions", "offers", "promotional", "list"},
 			wantErr: "--subscription-id is required",
 		},
 		{
 			name:    "subscriptions promotional-offers create missing prices",
-			args:    []string{"subscriptions", "promotional-offers", "create", "--subscription-id", "SUB_ID", "--offer-code", "SPRING", "--name", "Spring", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1"},
+			args:    []string{"subscriptions", "offers", "promotional", "create", "--subscription-id", "SUB_ID", "--offer-code", "SPRING", "--name", "Spring", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1"},
 			wantErr: "--prices is required",
 		},
 		{
 			name:    "subscriptions promotional-offers update missing prices",
-			args:    []string{"subscriptions", "promotional-offers", "update", "--id", "OFFER_ID"},
+			args:    []string{"subscriptions", "offers", "promotional", "update", "--id", "OFFER_ID"},
 			wantErr: "--prices is required",
 		},
 		{
 			name:    "subscriptions promotional-offers delete missing confirm",
-			args:    []string{"subscriptions", "promotional-offers", "delete", "--id", "OFFER_ID"},
+			args:    []string{"subscriptions", "offers", "promotional", "delete", "--id", "OFFER_ID"},
 			wantErr: "--confirm is required",
 		},
 		{
 			name:    "subscriptions promotional-offers prices missing id",
-			args:    []string{"subscriptions", "promotional-offers", "prices"},
+			args:    []string{"subscriptions", "offers", "promotional", "prices"},
 			wantErr: "--id is required",
 		},
 		{
 			name:    "subscriptions offer-codes list missing subscription-id",
-			args:    []string{"subscriptions", "offer-codes", "list"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "list"},
 			wantErr: "--subscription-id is required",
 		},
 		{
 			name:    "subscriptions offer-codes create missing name",
-			args:    []string{"subscriptions", "offer-codes", "create", "--subscription-id", "SUB_ID", "--offer-eligibility", "STACK_WITH_INTRO_OFFERS", "--customer-eligibilities", "NEW", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1", "--prices", "PRICE_ID"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "create", "--subscription-id", "SUB_ID", "--offer-eligibility", "STACK_WITH_INTRO_OFFERS", "--customer-eligibilities", "NEW", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1", "--prices", "PRICE_ID"},
 			wantErr: "--name is required",
 		},
 		{
 			name:    "subscriptions offer-codes create missing prices",
-			args:    []string{"subscriptions", "offer-codes", "create", "--subscription-id", "SUB_ID", "--name", "Spring", "--offer-eligibility", "STACK_WITH_INTRO_OFFERS", "--customer-eligibilities", "NEW", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "create", "--subscription-id", "SUB_ID", "--name", "Spring", "--offer-eligibility", "STACK_WITH_INTRO_OFFERS", "--customer-eligibilities", "NEW", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1"},
 			wantErr: "--prices is required",
 		},
 		{
 			name:    "subscriptions offer-codes update missing active",
-			args:    []string{"subscriptions", "offer-codes", "update", "--id", "OFFER_ID"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "update", "--offer-code-id", "OFFER_ID"},
 			wantErr: "--active is required",
 		},
 		{
 			name:    "subscriptions offer-codes custom-codes missing offer-code-id",
-			args:    []string{"subscriptions", "offer-codes", "custom-codes"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "custom-codes", "list"},
 			wantErr: "--offer-code-id is required",
 		},
 		{
 			name:    "subscriptions offer-codes one-time-codes missing offer-code-id",
-			args:    []string{"subscriptions", "offer-codes", "one-time-codes", "list"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "one-time-codes", "list"},
 			wantErr: "--offer-code-id is required",
 		},
 		{
 			name:    "subscriptions offer-codes one-time-codes get missing id",
-			args:    []string{"subscriptions", "offer-codes", "one-time-codes", "get"},
-			wantErr: "--id is required",
+			args:    []string{"subscriptions", "offers", "offer-codes", "one-time-codes", "get"},
+			wantErr: "--batch-id is required",
 		},
 		{
-			name:    "subscriptions offer-codes prices missing offer-code-id",
-			args:    []string{"subscriptions", "offer-codes", "prices"},
+			name:    "subscriptions offer-codes generate missing offer-code",
+			args:    []string{"subscriptions", "offers", "offer-codes", "generate"},
 			wantErr: "--offer-code-id is required",
 		},
 		{
+			name:    "subscriptions offer-codes values missing id",
+			args:    []string{"subscriptions", "offers", "offer-codes", "values"},
+			wantErr: "--batch-id is required",
+		},
+		{
+			name:    "subscriptions offer-codes prices missing offer-code-id",
+			args:    []string{"subscriptions", "offers", "offer-codes", "prices"},
+			wantErr: "--offer-code-id is required",
+		},
+		{
+			name:    "subscriptions win-back-offers list missing subscription",
+			args:    []string{"subscriptions", "offers", "win-back", "list"},
+			wantErr: "--subscription-id is required",
+		},
+		{
 			name:    "subscriptions price-points list missing subscription-id",
-			args:    []string{"subscriptions", "price-points", "list"},
+			args:    []string{"subscriptions", "pricing", "price-points", "list"},
 			wantErr: "--subscription-id is required",
 		},
 		{
 			name:    "subscriptions price-points equalizations missing id",
-			args:    []string{"subscriptions", "price-points", "equalizations"},
-			wantErr: "--id is required",
+			args:    []string{"subscriptions", "pricing", "price-points", "equalizations"},
+			wantErr: "--price-point-id is required",
 		},
 		{
 			name:    "subscriptions submit missing subscription-id",
-			args:    []string{"subscriptions", "submit", "--confirm"},
+			args:    []string{"subscriptions", "review", "submit", "--confirm"},
 			wantErr: "--subscription-id is required",
 		},
 		{
 			name:    "subscriptions submit missing confirm",
-			args:    []string{"subscriptions", "submit", "--subscription-id", "SUB_ID"},
+			args:    []string{"subscriptions", "review", "submit", "--subscription-id", "SUB_ID"},
 			wantErr: "--confirm is required",
 		},
 		{
 			name:    "subscriptions review-screenshots create missing file",
-			args:    []string{"subscriptions", "review-screenshots", "create", "--subscription-id", "SUB_ID"},
+			args:    []string{"subscriptions", "review", "screenshots", "create", "--subscription-id", "SUB_ID"},
 			wantErr: "--file is required",
 		},
 		{
 			name:    "subscriptions review-screenshots update missing update flags",
-			args:    []string{"subscriptions", "review-screenshots", "update", "--id", "SHOT_ID"},
+			args:    []string{"subscriptions", "review", "screenshots", "update", "--screenshot-id", "SHOT_ID"},
 			wantErr: "at least one update flag is required",
 		},
 		{
 			name:    "subscriptions review-screenshots delete missing confirm",
-			args:    []string{"subscriptions", "review-screenshots", "delete", "--id", "SHOT_ID"},
+			args:    []string{"subscriptions", "review", "screenshots", "delete", "--screenshot-id", "SHOT_ID"},
 			wantErr: "--confirm is required",
+		},
+		{
+			name:    "subscriptions pricing summary missing app and subscription-id",
+			args:    []string{"subscriptions", "pricing", "summary"},
+			wantErr: "--app or --subscription-id is required",
+		},
+		{
+			name:    "subscriptions review screenshots get missing screenshot-id",
+			args:    []string{"subscriptions", "review", "screenshots", "get"},
+			wantErr: "--screenshot-id is required",
+		},
+		{
+			name:    "subscriptions review submit-group missing group-id",
+			args:    []string{"subscriptions", "review", "submit-group", "--confirm"},
+			wantErr: "--group-id is required",
 		},
 		{
 			name:    "subscriptions groups localizations list missing group-id",
@@ -1751,16 +1819,6 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 		{
 			name:    "subscriptions groups localizations delete missing confirm",
 			args:    []string{"subscriptions", "groups", "localizations", "delete", "--id", "LOC_ID"},
-			wantErr: "--confirm is required",
-		},
-		{
-			name:    "subscriptions groups submit missing group-id",
-			args:    []string{"subscriptions", "groups", "submit", "--confirm"},
-			wantErr: "--group-id is required",
-		},
-		{
-			name:    "subscriptions groups submit missing confirm",
-			args:    []string{"subscriptions", "groups", "submit", "--group-id", "GROUP_ID"},
 			wantErr: "--confirm is required",
 		},
 		{
@@ -1929,15 +1987,15 @@ func TestTestFlightAppsValidationErrors(t *testing.T) {
 		wantHelp bool
 	}{
 		{
-			name:     "testflight apps list missing auth",
-			args:     []string{"testflight", "apps", "list"},
+			name:     "apps list missing auth",
+			args:     []string{"apps", "list"},
 			wantErr:  "missing authentication",
 			wantHelp: false,
 		},
 		{
-			name:     "testflight apps get missing id",
-			args:     []string{"testflight", "apps", "get"},
-			wantErr:  "--app is required",
+			name:     "apps get missing id",
+			args:     []string{"apps", "get"},
+			wantErr:  "--id is required",
 			wantHelp: true,
 		},
 	}
@@ -2053,13 +2111,25 @@ func TestAgeRatingValidationErrors(t *testing.T) {
 		wantHelp bool
 	}{
 		{
-			name:     "age-rating get missing app",
+			name:     "age-rating view missing app",
+			args:     []string{"age-rating", "view"},
+			wantErr:  "--app is required",
+			wantHelp: true,
+		},
+		{
+			name:     "age-rating view conflicting targets",
+			args:     []string{"age-rating", "view", "--app-info-id", "INFO_ID", "--version-id", "VERSION_ID"},
+			wantErr:  "only one of --app-info-id or --version-id is allowed",
+			wantHelp: false,
+		},
+		{
+			name:     "age-rating get alias missing app",
 			args:     []string{"age-rating", "get"},
 			wantErr:  "--app is required",
 			wantHelp: true,
 		},
 		{
-			name:     "age-rating get conflicting targets",
+			name:     "age-rating get alias conflicting targets",
 			args:     []string{"age-rating", "get", "--app-info-id", "INFO_ID", "--version-id", "VERSION_ID"},
 			wantErr:  "only one of --app-info-id or --version-id is allowed",
 			wantHelp: false,
@@ -3237,6 +3307,11 @@ func TestScreenshotsAndVideoPreviewsValidationErrors(t *testing.T) {
 			wantErr: "--device-type is required",
 		},
 		{
+			name:    "screenshots upload skip existing replace mutually exclusive",
+			args:    []string{"screenshots", "upload", "--version-localization", "LOC_ID", "--path", "./screenshots", "--device-type", "IPHONE_65", "--skip-existing", "--replace"},
+			wantErr: "--skip-existing and --replace are mutually exclusive",
+		},
+		{
 			name:    "screenshots delete missing id",
 			args:    []string{"screenshots", "delete"},
 			wantErr: "--id is required",
@@ -3831,49 +3906,49 @@ func TestAppInfoValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "app-info get missing app",
-			args:    []string{"app-info", "get"},
-			wantErr: "--app or --app-info is required",
+			name:    "apps info view missing app",
+			args:    []string{"apps", "info", "view"},
+			wantErr: "--app or --info-id is required",
 		},
 		{
-			name:    "app-info get version missing platform",
-			args:    []string{"app-info", "get", "--app", "APP_ID", "--version", "1.0.0"},
+			name:    "apps info view version missing platform",
+			args:    []string{"apps", "info", "view", "--app", "APP_ID", "--version", "1.0.0"},
 			wantErr: "--platform is required with --version",
 		},
 		{
-			name:    "app-info get invalid limit",
-			args:    []string{"app-info", "get", "--app", "APP_ID", "--limit", "201"},
+			name:    "apps info view invalid limit",
+			args:    []string{"apps", "info", "view", "--app", "APP_ID", "--limit", "201"},
 			wantErr: "--limit must be between 1 and 200",
 		},
 		{
-			name:    "app-info set missing locale",
-			args:    []string{"app-info", "set", "--app", "APP_ID", "--whats-new", "Fixes"},
+			name:    "apps info edit missing locale",
+			args:    []string{"apps", "info", "edit", "--app", "APP_ID", "--whats-new", "Fixes"},
 			wantErr: "--locale is required",
 		},
 		{
-			name:    "app-info set missing update fields",
-			args:    []string{"app-info", "set", "--app", "APP_ID", "--locale", "en-US"},
+			name:    "apps info edit missing update fields",
+			args:    []string{"apps", "info", "edit", "--app", "APP_ID", "--locale", "en-US"},
 			wantErr: "at least one update flag is required",
 		},
 		{
-			name:    "app-info set missing app",
-			args:    []string{"app-info", "set", "--locale", "en-US", "--whats-new", "Fixes"},
+			name:    "apps info edit missing app",
+			args:    []string{"apps", "info", "edit", "--locale", "en-US", "--whats-new", "Fixes"},
 			wantErr: "--app is required",
 		},
 		{
-			name:    "app-info set version missing platform",
-			args:    []string{"app-info", "set", "--app", "APP_ID", "--version", "1.0.0", "--locale", "en-US", "--whats-new", "Fixes"},
+			name:    "apps info edit version missing platform",
+			args:    []string{"apps", "info", "edit", "--app", "APP_ID", "--version", "1.0.0", "--locale", "en-US", "--whats-new", "Fixes"},
 			wantErr: "--platform is required with --version",
 		},
 		{
-			name:    "app-info relationships primary-category missing id",
-			args:    []string{"app-info", "relationships", "primary-category"},
-			wantErr: "--id is required",
+			name:    "apps info relationships primary-category missing selector",
+			args:    []string{"apps", "info", "relationships", "primary-category"},
+			wantErr: "--app or --info-id is required",
 		},
 		{
-			name:    "app-info territory-age-ratings list missing id",
-			args:    []string{"app-info", "territory-age-ratings", "list"},
-			wantErr: "--id is required",
+			name:    "apps info territory-age-ratings list missing selector",
+			args:    []string{"apps", "info", "territory-age-ratings", "list"},
+			wantErr: "--app or --info-id is required",
 		},
 	}
 
@@ -3911,8 +3986,8 @@ func TestAppInfosValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "app-infos list missing app",
-			args:    []string{"app-infos", "list"},
+			name:    "apps info list missing app",
+			args:    []string{"apps", "info", "list"},
 			wantErr: "Error: --app is required",
 		},
 	}
@@ -4087,13 +4162,13 @@ func TestAppInfoMutualExclusiveFlags(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "app-info get version and version-id are mutually exclusive",
-			args:    []string{"app-info", "get", "--app", "APP_ID", "--version", "1.0.0", "--version-id", "VERSION_ID"},
+			name:    "apps info view version and version-id are mutually exclusive",
+			args:    []string{"apps", "info", "view", "--app", "APP_ID", "--version", "1.0.0", "--version-id", "VERSION_ID"},
 			wantErr: "--version and --version-id are mutually exclusive",
 		},
 		{
-			name:    "app-info set version and version-id are mutually exclusive",
-			args:    []string{"app-info", "set", "--app", "APP_ID", "--version", "1.0.0", "--version-id", "VERSION_ID", "--locale", "en-US", "--whats-new", "Fixes"},
+			name:    "apps info edit version and version-id are mutually exclusive",
+			args:    []string{"apps", "info", "edit", "--app", "APP_ID", "--version", "1.0.0", "--version-id", "VERSION_ID", "--locale", "en-US", "--whats-new", "Fixes"},
 			wantErr: "--version and --version-id are mutually exclusive",
 		},
 	}
@@ -4163,13 +4238,13 @@ func TestAppTagsValidationErrors(t *testing.T) {
 			wantErr: "Error: --id is required",
 		},
 		{
-			name:    "app-tags territories-relationships missing id",
-			args:    []string{"app-tags", "territories-relationships"},
+			name:    "app-tags territories-links missing id",
+			args:    []string{"app-tags", "territories-links"},
 			wantErr: "Error: --id is required",
 		},
 		{
-			name:    "app-tags relationships missing app",
-			args:    []string{"app-tags", "relationships"},
+			name:    "app-tags links missing app",
+			args:    []string{"app-tags", "links"},
 			wantErr: "Error: --app is required",
 		},
 	}
@@ -4254,12 +4329,12 @@ func TestAppClipsValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "default experiences relationships review detail missing experience-id",
-			args:    []string{"app-clips", "default-experiences", "relationships", "app-store-review-detail"},
+			args:    []string{"app-clips", "default-experiences", "links", "app-store-review-detail"},
 			wantErr: "Error: --experience-id is required",
 		},
 		{
 			name:    "default experiences relationships release version missing experience-id",
-			args:    []string{"app-clips", "default-experiences", "relationships", "release-with-app-store-version"},
+			args:    []string{"app-clips", "default-experiences", "links", "release-with-app-store-version"},
 			wantErr: "Error: --experience-id is required",
 		},
 		{
@@ -4279,12 +4354,12 @@ func TestAppClipsValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "default experiences relationships missing app clip",
-			args:    []string{"app-clips", "default-experiences-relationships"},
+			args:    []string{"app-clips", "default-experiences-links"},
 			wantErr: "Error: --app-clip-id is required",
 		},
 		{
 			name:    "advanced experiences relationships missing app clip",
-			args:    []string{"app-clips", "advanced-experiences-relationships"},
+			args:    []string{"app-clips", "advanced-experiences-links"},
 			wantErr: "Error: --app-clip-id is required",
 		},
 		{
@@ -4373,13 +4448,13 @@ func TestPreReleaseVersionsValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "pre-release-versions list missing app",
-			args:    []string{"pre-release-versions", "list"},
+			name:    "pre-release list missing app",
+			args:    []string{"testflight", "pre-release", "list"},
 			wantErr: "Error: --app is required",
 		},
 		{
-			name:    "pre-release-versions get missing id",
-			args:    []string{"pre-release-versions", "get"},
+			name:    "pre-release view missing id",
+			args:    []string{"testflight", "pre-release", "view"},
 			wantErr: "Error: --id is required",
 		},
 	}
@@ -4487,7 +4562,7 @@ func TestAuthSwitchUnknownProfile(t *testing.T) {
 	})
 }
 
-func TestAuthStatusShowsEnvPreference(t *testing.T) {
+func TestAuthStatusShowsEnvFallbackNote(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_PROFILE", "")
@@ -4519,8 +4594,8 @@ func TestAuthStatusShowsEnvPreference(t *testing.T) {
 	if !strings.Contains(stdout, "Environment credentials detected") {
 		t.Fatalf("expected env credentials note, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "Environment credentials detected (ASC_KEY_ID present)") {
-		t.Fatalf("expected redacted env credentials note, got %q", stdout)
+	if !strings.Contains(stdout, "stored config credentials are preferred") {
+		t.Fatalf("expected fallback note to explain stored-config precedence, got %q", stdout)
 	}
 	if strings.Contains(stdout, "ENVKEY") || strings.Contains(stdout, "ENVISS") {
 		t.Fatalf("expected redacted env identifiers, got %q", stdout)

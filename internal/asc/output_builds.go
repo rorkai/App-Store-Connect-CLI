@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -88,18 +89,90 @@ func formatEncryptionStatus(usesNonExempt *bool) string {
 	return "exempt"
 }
 
+// preReleaseVersionInfo holds the marketing version and platform from an
+// included preReleaseVersion resource.
+type preReleaseVersionInfo struct {
+	Version  string
+	Platform string
+}
+
+// extractPreReleaseVersionMap parses the included JSON array from a builds
+// response and returns a map of preReleaseVersion ID → info.
+func extractPreReleaseVersionMap(included json.RawMessage) map[string]preReleaseVersionInfo {
+	if len(included) == 0 {
+		return nil
+	}
+	var items []Resource[PreReleaseVersionAttributes]
+	if err := json.Unmarshal(included, &items); err != nil {
+		return nil
+	}
+	m := make(map[string]preReleaseVersionInfo, len(items))
+	for _, item := range items {
+		if item.Type != "preReleaseVersions" {
+			continue
+		}
+		m[item.ID] = preReleaseVersionInfo{
+			Version:  item.Attributes.Version,
+			Platform: string(item.Attributes.Platform),
+		}
+	}
+	return m
+}
+
+// buildPreReleaseVersionID extracts the preReleaseVersion relationship ID
+// from a build resource's relationships JSON.
+func buildPreReleaseVersionID(relationships json.RawMessage) string {
+	if len(relationships) == 0 {
+		return ""
+	}
+	var rels struct {
+		PreReleaseVersion struct {
+			Data struct {
+				ID string `json:"id"`
+			} `json:"data"`
+		} `json:"preReleaseVersion"`
+	}
+	if err := json.Unmarshal(relationships, &rels); err != nil {
+		return ""
+	}
+	return rels.PreReleaseVersion.Data.ID
+}
+
 func buildsRows(resp *BuildsResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Version", "Uploaded", "Processing", "Expired", "Encryption"}
+	preReleaseMap := extractPreReleaseVersionMap(resp.Included)
+	hasPreRelease := len(preReleaseMap) > 0
+
+	var headers []string
+	if hasPreRelease {
+		headers = []string{"ID", "Build", "Version", "Platform", "Uploaded", "Processing", "Expired", "Encryption"}
+	} else {
+		headers = []string{"ID", "Version", "Uploaded", "Processing", "Expired", "Encryption"}
+	}
+
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
-		rows = append(rows, []string{
-			item.ID,
-			item.Attributes.Version,
-			item.Attributes.UploadedDate,
-			item.Attributes.ProcessingState,
-			fmt.Sprintf("%t", item.Attributes.Expired),
-			formatEncryptionStatus(item.Attributes.UsesNonExemptEncryption),
-		})
+		if hasPreRelease {
+			info := preReleaseMap[buildPreReleaseVersionID(item.Relationships)]
+			rows = append(rows, []string{
+				item.ID,
+				item.Attributes.Version,
+				info.Version,
+				info.Platform,
+				item.Attributes.UploadedDate,
+				item.Attributes.ProcessingState,
+				fmt.Sprintf("%t", item.Attributes.Expired),
+				formatEncryptionStatus(item.Attributes.UsesNonExemptEncryption),
+			})
+		} else {
+			rows = append(rows, []string{
+				item.ID,
+				item.Attributes.Version,
+				item.Attributes.UploadedDate,
+				item.Attributes.ProcessingState,
+				fmt.Sprintf("%t", item.Attributes.Expired),
+				formatEncryptionStatus(item.Attributes.UsesNonExemptEncryption),
+			})
+		}
 	}
 	return headers, rows
 }

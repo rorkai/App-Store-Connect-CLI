@@ -13,19 +13,19 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// IAPAvailabilitiesCommand returns the availabilities command group.
+// IAPAvailabilitiesCommand returns the canonical pricing availabilities command group.
 func IAPAvailabilitiesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availabilities", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "availabilities",
-		ShortUsage: "asc iap availabilities <subcommand> [flags]",
+		ShortUsage: "asc iap pricing availabilities <subcommand> [flags]",
 		ShortHelp:  "Inspect in-app purchase availability records.",
 		LongHelp: `Inspect in-app purchase availability records.
 
 Examples:
-  asc iap availabilities get --id "AVAILABILITY_ID"
-  asc iap availabilities available-territories --id "AVAILABILITY_ID" --paginate`,
+  asc iap pricing availabilities get --id "AVAILABILITY_ID"
+  asc iap pricing availabilities available-territories --id "AVAILABILITY_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -40,19 +40,19 @@ Examples:
 
 // IAPAvailabilitiesGetCommand returns the availability get subcommand.
 func IAPAvailabilitiesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("availabilities get", flag.ExitOnError)
+	fs := flag.NewFlagSet("pricing availabilities get", flag.ExitOnError)
 
 	availabilityID := fs.String("id", "", "Availability ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc iap availabilities get --id \"AVAILABILITY_ID\"",
+		ShortUsage: "asc iap pricing availabilities get --id \"AVAILABILITY_ID\"",
 		ShortHelp:  "Get an in-app purchase availability by ID.",
 		LongHelp: `Get an in-app purchase availability by ID.
 
 Examples:
-  asc iap availabilities get --id "AVAILABILITY_ID"`,
+  asc iap pricing availabilities get --id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -82,7 +82,7 @@ Examples:
 
 // IAPAvailabilitiesAvailableTerritoriesCommand returns the available territories subcommand.
 func IAPAvailabilitiesAvailableTerritoriesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("availabilities available-territories", flag.ExitOnError)
+	fs := flag.NewFlagSet("pricing availabilities available-territories", flag.ExitOnError)
 
 	availabilityID := fs.String("id", "", "Availability ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -92,13 +92,13 @@ func IAPAvailabilitiesAvailableTerritoriesCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "available-territories",
-		ShortUsage: "asc iap availabilities available-territories --id \"AVAILABILITY_ID\"",
+		ShortUsage: "asc iap pricing availabilities available-territories --id \"AVAILABILITY_ID\"",
 		ShortHelp:  "List available territories for an availability.",
 		LongHelp: `List available territories for an in-app purchase availability.
 
 Examples:
-  asc iap availabilities available-territories --id "AVAILABILITY_ID"
-  asc iap availabilities available-territories --id "AVAILABILITY_ID" --paginate`,
+  asc iap pricing availabilities available-territories --id "AVAILABILITY_ID"
+  asc iap pricing availabilities available-territories --id "AVAILABILITY_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

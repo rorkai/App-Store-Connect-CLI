@@ -64,20 +64,26 @@ func reviewSubmissionItemTarget(rel *ReviewSubmissionItemRelationships) (string,
 	if rel == nil {
 		return "", ""
 	}
-	if rel.AppStoreVersion != nil && rel.AppStoreVersion.Data.ID != "" {
-		return string(rel.AppStoreVersion.Data.Type), rel.AppStoreVersion.Data.ID
-	}
-	if rel.AppCustomProductPage != nil && rel.AppCustomProductPage.Data.ID != "" {
-		return string(rel.AppCustomProductPage.Data.Type), rel.AppCustomProductPage.Data.ID
-	}
-	if rel.AppEvent != nil && rel.AppEvent.Data.ID != "" {
-		return string(rel.AppEvent.Data.Type), rel.AppEvent.Data.ID
-	}
-	if rel.AppStoreVersionExperiment != nil && rel.AppStoreVersionExperiment.Data.ID != "" {
-		return string(rel.AppStoreVersionExperiment.Data.Type), rel.AppStoreVersionExperiment.Data.ID
-	}
-	if rel.AppStoreVersionExperimentTreatment != nil && rel.AppStoreVersionExperimentTreatment.Data.ID != "" {
-		return string(rel.AppStoreVersionExperimentTreatment.Data.Type), rel.AppStoreVersionExperimentTreatment.Data.ID
+
+	for _, relationship := range []*Relationship{
+		rel.AppStoreVersion,
+		rel.AppCustomProductPageVersion,
+		rel.AppCustomProductPage,
+		rel.AppEvent,
+		rel.AppStoreVersionExperiment,
+		rel.AppStoreVersionExperimentV2,
+		rel.AppStoreVersionExperimentTreatment,
+		rel.BackgroundAssetVersion,
+		rel.GameCenterAchievementVersion,
+		rel.GameCenterActivityVersion,
+		rel.GameCenterChallengeVersion,
+		rel.GameCenterLeaderboardSetVersion,
+		rel.GameCenterLeaderboardVersion,
+	} {
+		if relationship == nil || relationship.Data.ID == "" {
+			continue
+		}
+		return string(relationship.Data.Type), relationship.Data.ID
 	}
 	return "", ""
 }

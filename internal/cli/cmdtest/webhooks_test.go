@@ -98,12 +98,12 @@ func TestWebhooksValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "deliveries relationships missing webhook id",
-			args:    []string{"webhooks", "deliveries", "relationships"},
+			args:    []string{"webhooks", "deliveries", "links"},
 			wantErr: "--webhook-id is required",
 		},
 		{
 			name:    "deliveries relationships paginate missing webhook id",
-			args:    []string{"webhooks", "deliveries", "relationships", "--paginate"},
+			args:    []string{"webhooks", "deliveries", "links", "--paginate"},
 			wantErr: "--webhook-id is required",
 		},
 		{

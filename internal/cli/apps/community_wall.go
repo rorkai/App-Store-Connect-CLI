@@ -26,54 +26,53 @@ const (
 	defaultCommunityWallOutput = "table"
 )
 
-var communityWallPlatformAliases = map[string]string{
-	"ios":       "IOS",
-	"macos":     "MAC_OS",
-	"mac_os":    "MAC_OS",
-	"watchos":   "WATCH_OS",
-	"watch_os":  "WATCH_OS",
-	"tvos":      "TV_OS",
-	"tv_os":     "TV_OS",
-	"visionos":  "VISION_OS",
-	"vision_os": "VISION_OS",
-}
-
 type communityWallEntry struct {
-	App      string   `json:"app"`
-	Link     string   `json:"link"`
-	Creator  string   `json:"creator"`
-	Platform []string `json:"platform"`
+	App  string `json:"app"`
+	Link string `json:"link"`
+	Icon string `json:"icon,omitempty"`
 }
 
 // AppsWallCommand returns the community wall subcommand.
 func AppsWallCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps wall", flag.ExitOnError)
 
-	output := shared.BindOutputFlagsWith(fs, "output", defaultCommunityWallOutput, "Output format: table (default), json, markdown")
-	sortBy := fs.String("sort", defaultCommunityWallSort, "Sort by name or -name")
-	limit := fs.Int("limit", 0, "Maximum number of apps to include (1-200)")
-	includePlatforms := fs.String("include-platforms", "", "Filter by platform label(s), comma-separated")
+	output, sortBy, limit := appsWallFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "wall",
 		ShortUsage: "asc apps wall [flags]",
-		ShortHelp:  "Show the community Wall of Apps from project metadata.",
+		ShortHelp:  "Show or contribute to the community Wall of Apps.",
 		LongHelp: `Show the community Wall of Apps from project metadata.
 
 Examples:
   asc apps wall
   asc apps wall --output markdown
-  asc apps wall --include-platforms iOS,macOS --limit 20
-  asc apps wall --sort -name`,
+  asc apps wall --limit 20
+  asc apps wall --sort -name
+  asc apps wall submit --app "1234567890" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			AppsWallSubmitCommand(fs),
+		},
 		Exec: func(ctx context.Context, args []string) error {
-			return appsCommunityWall(ctx, *output.Output, *output.Pretty, *sortBy, *limit, *includePlatforms)
+			if len(args) > 0 {
+				fmt.Fprintf(os.Stderr, "Error: unknown subcommand %q\n", strings.TrimSpace(args[0]))
+				return flag.ErrHelp
+			}
+			return appsCommunityWall(ctx, *output.Output, *output.Pretty, *sortBy, *limit)
 		},
 	}
 }
 
-func appsCommunityWall(ctx context.Context, output string, pretty bool, sortBy string, limit int, includePlatforms string) error {
+func appsWallFlags(fs *flag.FlagSet) (output shared.OutputFlags, sortBy *string, limit *int) {
+	output = shared.BindOutputFlagsWith(fs, "output", defaultCommunityWallOutput, "Output format: table (default), json, markdown")
+	sortBy = fs.String("sort", defaultCommunityWallSort, "Sort by name or -name")
+	limit = fs.Int("limit", 0, "Maximum number of apps to include (1-200)")
+	return
+}
+
+func appsCommunityWall(ctx context.Context, output string, pretty bool, sortBy string, limit int) error {
 	if limit != 0 && (limit < 1 || limit > 200) {
 		fmt.Fprintln(os.Stderr, "Error: --limit must be between 1 and 200")
 		return flag.ErrHelp
@@ -102,12 +101,9 @@ func appsCommunityWall(ctx context.Context, output string, pretty bool, sortBy s
 		entries = append(entries, asc.AppWallEntry{
 			Name:        name,
 			AppStoreURL: link,
-			Creator:     strings.TrimSpace(item.Creator),
-			Platform:    normalizeCommunityPlatforms(item.Platform),
 		})
 	}
 
-	entries = filterCommunityWallEntriesByPlatforms(entries, normalizeCommunityPlatformFilters(shared.SplitCSV(includePlatforms)))
 	sortCommunityWallEntries(entries, sortBy)
 
 	if limit > 0 && len(entries) > limit {
@@ -232,84 +228,4 @@ func lessCommunityWallName(left, right asc.AppWallEntry) bool {
 		return leftName < rightName
 	}
 	return strings.ToLower(strings.TrimSpace(left.AppStoreURL)) < strings.ToLower(strings.TrimSpace(right.AppStoreURL))
-}
-
-func normalizeCommunityPlatforms(platforms []string) []string {
-	normalized := make([]string, 0, len(platforms))
-	for _, platform := range platforms {
-		value := normalizeCommunityPlatform(platform)
-		if value == "" {
-			continue
-		}
-		if !containsCommunityPlatformFold(normalized, value) {
-			normalized = append(normalized, value)
-		}
-	}
-	return normalized
-}
-
-func normalizeCommunityPlatform(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return ""
-	}
-
-	key := strings.ToLower(trimmed)
-	key = strings.ReplaceAll(key, "-", "_")
-	key = strings.ReplaceAll(key, " ", "")
-	if normalized, ok := communityWallPlatformAliases[key]; ok {
-		return normalized
-	}
-	return trimmed
-}
-
-func normalizeCommunityPlatformFilters(values []string) map[string]struct{} {
-	if len(values) == 0 {
-		return nil
-	}
-
-	allowed := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		normalized := normalizeCommunityPlatform(value)
-		if normalized == "" {
-			continue
-		}
-		allowed[strings.ToLower(normalized)] = struct{}{}
-	}
-	if len(allowed) == 0 {
-		return nil
-	}
-	return allowed
-}
-
-func filterCommunityWallEntriesByPlatforms(entries []asc.AppWallEntry, allowed map[string]struct{}) []asc.AppWallEntry {
-	if len(allowed) == 0 {
-		return entries
-	}
-
-	filtered := make([]asc.AppWallEntry, 0, len(entries))
-	for _, entry := range entries {
-		if hasCommunityPlatform(entry.Platform, allowed) {
-			filtered = append(filtered, entry)
-		}
-	}
-	return filtered
-}
-
-func hasCommunityPlatform(platforms []string, allowed map[string]struct{}) bool {
-	for _, platform := range platforms {
-		if _, ok := allowed[strings.ToLower(platform)]; ok {
-			return true
-		}
-	}
-	return false
-}
-
-func containsCommunityPlatformFold(values []string, needle string) bool {
-	for _, value := range values {
-		if strings.EqualFold(value, needle) {
-			return true
-		}
-	}
-	return false
 }

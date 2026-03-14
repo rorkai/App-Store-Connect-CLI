@@ -17,37 +17,37 @@ func TestSubscriptionPricePointsFilterValidation(t *testing.T) {
 	}{
 		{
 			name:    "price and min-price mutually exclusive",
-			args:    []string{"subscriptions", "price-points", "list", "--subscription-id", "sub-1", "--price", "4.99", "--min-price", "1.00"},
+			args:    []string{"subscriptions", "pricing", "price-points", "list", "--subscription-id", "sub-1", "--price", "4.99", "--min-price", "1.00"},
 			wantErr: "--price and --min-price/--max-price are mutually exclusive",
 		},
 		{
 			name:    "price and max-price mutually exclusive",
-			args:    []string{"subscriptions", "price-points", "list", "--subscription-id", "sub-1", "--price", "4.99", "--max-price", "9.99"},
+			args:    []string{"subscriptions", "pricing", "price-points", "list", "--subscription-id", "sub-1", "--price", "4.99", "--max-price", "9.99"},
 			wantErr: "--price and --min-price/--max-price are mutually exclusive",
 		},
 		{
 			name:    "invalid price value",
-			args:    []string{"subscriptions", "price-points", "list", "--subscription-id", "sub-1", "--price", "abc"},
+			args:    []string{"subscriptions", "pricing", "price-points", "list", "--subscription-id", "sub-1", "--price", "abc"},
 			wantErr: "--price must be a number",
 		},
 		{
 			name:    "non-finite price value",
-			args:    []string{"subscriptions", "price-points", "list", "--subscription-id", "sub-1", "--price", "NaN"},
+			args:    []string{"subscriptions", "pricing", "price-points", "list", "--subscription-id", "sub-1", "--price", "NaN"},
 			wantErr: "--price must be a finite number",
 		},
 		{
 			name:    "invalid min-price",
-			args:    []string{"subscriptions", "price-points", "list", "--subscription-id", "sub-1", "--min-price", "abc"},
+			args:    []string{"subscriptions", "pricing", "price-points", "list", "--subscription-id", "sub-1", "--min-price", "abc"},
 			wantErr: "--min-price must be a number",
 		},
 		{
 			name:    "min exceeds max",
-			args:    []string{"subscriptions", "price-points", "list", "--subscription-id", "sub-1", "--min-price", "10.00", "--max-price", "5.00"},
+			args:    []string{"subscriptions", "pricing", "price-points", "list", "--subscription-id", "sub-1", "--min-price", "10.00", "--max-price", "5.00"},
 			wantErr: "--min-price (10.00) cannot exceed --max-price (5.00)",
 		},
 		{
 			name:    "price filter with stream is unsupported",
-			args:    []string{"subscriptions", "price-points", "list", "--subscription-id", "sub-1", "--price", "4.99", "--stream", "--paginate"},
+			args:    []string{"subscriptions", "pricing", "price-points", "list", "--subscription-id", "sub-1", "--price", "4.99", "--stream", "--paginate"},
 			wantErr: "price filtering is not supported with --stream",
 		},
 	}

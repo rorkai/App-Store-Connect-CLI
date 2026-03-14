@@ -45,7 +45,10 @@ Examples:
   asc apps list --bundle-id "com.example.app"
   asc apps create --name "My App" --bundle-id "com.example.app" --sku "MYAPP123"
   asc apps wall
+  asc apps wall submit --app "1234567890" --confirm
   asc apps get --id "APP_ID"
+  asc apps info view --app "APP_ID"
+  asc apps info edit --app "APP_ID" --locale "en-US" --whats-new "Bug fixes"
   asc apps ci-product get --id "APP_ID"
   asc apps update --id "APP_ID" --bundle-id "com.example.app"
   asc apps update --id "APP_ID" --primary-locale "en-US"
@@ -62,6 +65,7 @@ Examples:
 			AppsCreateCommand(),
 			AppsWallCommand(),
 			AppsGetCommand(),
+			AppsInfoCommand(),
 			AppsCIProductCommand(),
 			AppsUpdateCommand(),
 			AppsRemoveBetaTestersCommand(),

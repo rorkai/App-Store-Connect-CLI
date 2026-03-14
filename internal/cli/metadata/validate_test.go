@@ -82,7 +82,7 @@ func TestValidateDirTreatsDefaultLocaleCaseInsensitively(t *testing.T) {
 		t.Fatalf("write version default file: %v", err)
 	}
 
-	result, err := validateDir(dir)
+	result, err := validateDir(dir, false)
 	if err != nil {
 		t.Fatalf("validateDir() error: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestValidateDirAllowsDefaultAppInfoWithoutName(t *testing.T) {
 		t.Fatalf("write app-info default file: %v", err)
 	}
 
-	result, err := validateDir(dir)
+	result, err := validateDir(dir, false)
 	if err != nil {
 		t.Fatalf("validateDir() error: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestValidateDirNormalizesVersionDefaultLocaleInIssues(t *testing.T) {
 		t.Fatalf("write version default file: %v", err)
 	}
 
-	result, err := validateDir(dir)
+	result, err := validateDir(dir, false)
 	if err != nil {
 		t.Fatalf("validateDir() error: %v", err)
 	}

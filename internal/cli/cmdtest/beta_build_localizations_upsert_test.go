@@ -9,6 +9,8 @@ import (
 	"testing"
 )
 
+const deprecatedBetaBuildLocalizationsCreateUpsertWarning = "Warning: `asc beta-build-localizations create` is deprecated. Use `asc builds test-notes create`"
+
 func TestBetaBuildLocalizationsCreateUpsertUpdatesExistingLocale(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
@@ -77,8 +79,8 @@ func TestBetaBuildLocalizationsCreateUpsertUpdatesExistingLocale(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, deprecatedBetaBuildLocalizationsCreateUpsertWarning) {
+		t.Fatalf("expected deprecation warning, got %q", stderr)
 	}
 	if !strings.Contains(stdout, `"id":"loc-1"`) {
 		t.Fatalf("expected updated localization output, got %q", stdout)
@@ -151,8 +153,8 @@ func TestBetaBuildLocalizationsCreateUpsertCreatesWhenLocaleMissing(t *testing.T
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, deprecatedBetaBuildLocalizationsCreateUpsertWarning) {
+		t.Fatalf("expected deprecation warning, got %q", stderr)
 	}
 	if !strings.Contains(stdout, `"id":"loc-new"`) {
 		t.Fatalf("expected created localization output, got %q", stdout)

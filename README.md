@@ -19,6 +19,7 @@ Automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, ID
 ## Table of Contents
 
 - [asc skills](#asc-skills)
+- [Sponsors](#sponsors)
 - [Quick Start](#quick-start)
 - [Wall of Apps](#wall-of-apps)
 - [Common Workflows](#common-workflows)
@@ -31,6 +32,16 @@ Automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, ID
 
 Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing:
 https://github.com/rudrankriyam/app-store-connect-cli-skills
+
+## Sponsors
+
+<p align="center">
+  <a href="https://rork.com/">
+    <img src="docs/images/rork-logo.svg" alt="Rork logo" width="180">
+  </a>
+</p>
+
+[Rork](https://rork.com/) helps you build real mobile apps by chatting with AI, going from idea to phone in minutes and to the App Store in hours.
 
 ## Quick Start
 
@@ -84,49 +95,60 @@ And explicit flags always win:
 asc apps list --output json
 ```
 
-<!-- WALL-OF-APPS:START -->
 ## Wall of Apps
 
-**72 apps ship with asc.** [See the Wall of Apps →](https://asccli.sh/#wall-of-apps)
+[See the Wall of Apps →](https://asccli.sh/#wall-of-apps)
 
-Want to add yours? [Open a PR](https://github.com/rudrankriyam/App-Store-Connect-CLI/pulls).
-<!-- WALL-OF-APPS:END -->
+Want to add yours?
+`asc apps wall submit --app "1234567890" --confirm`
 
-### Add Your App to the Wall
-
-Use:
-`make generate app APP="Your App Name" LINK="https://apps.apple.com/app/id1234567890" CREATOR="your-github-handle" PLATFORM="iOS,macOS"`
-
-This updates `docs/wall-of-apps.json` and re-syncs the Wall snippet in `README.md`.
+The command uses your authenticated `gh` session to fork the repo and open a pull request that updates `docs/wall-of-apps.json`.
+It resolves the public App Store name, URL, and icon from the app ID automatically. For manual entries that are not on the public App Store yet, use `--link` with `--name`.
+Use `asc apps wall submit --dry-run` to preview the fork, branch, and PR plan before creating anything.
 
 ## Common Workflows
 
 ### TestFlight feedback and crashes
 
 ```bash
-asc feedback --app "123456789" --paginate
-asc crashes --app "123456789" --sort -createdDate --limit 10
+asc testflight feedback list --app "123456789" --paginate
+asc testflight crashes list --app "123456789" --sort -createdDate --limit 10
+asc testflight crashes log --submission-id "SUBMISSION_ID"
 ```
 
 ### Builds and distribution
 
 ```bash
 asc builds upload --app "123456789" --ipa "/path/to/MyApp.ipa"
-asc testflight builds list --app "123456789" --output table
+asc builds list --app "123456789" --output table
+asc testflight groups list --app "123456789" --output table
 ```
 
-### Validate and submit
+### Release (high-level: validate + attach + submit)
+
+```bash
+# Dry-run first to preview steps
+asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadata-dir "./metadata/version/1.2.3" --dry-run
+
+# Run the full pipeline: ensure version, apply metadata, attach build, validate, submit
+asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadata-dir "./metadata/version/1.2.3" --confirm
+
+# Monitor status after submission
+asc status --app "123456789"
+```
+
+Lower-level alternatives (for scripting or partial workflows):
 
 ```bash
 asc validate --app "123456789" --version "1.2.3"
-asc submit --app "123456789" --version "1.2.3"
+asc submit create --app "123456789" --version "1.2.3" --build "BUILD_ID" --confirm
 ```
 
 ### Metadata and localization
 
 ```bash
 asc localizations list --app "123456789"
-asc app-info get --app "123456789" --output json --pretty
+asc apps info view --app "123456789" --output json --pretty
 ```
 
 ### Screenshots and media
@@ -148,6 +170,18 @@ asc bundle-ids list
 
 ```bash
 asc workflow run release
+```
+
+### Verified local Xcode -> TestFlight workflow
+
+See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for a copyable `.asc/workflow.json`
+and `ExportOptions.plist` that use `asc builds latest`, `asc xcode archive`,
+`asc xcode export`, and `asc publish testflight --group ... --wait`.
+
+```bash
+asc workflow validate
+asc workflow run --dry-run testflight_beta VERSION:1.2.3
+asc workflow run testflight_beta VERSION:1.2.3
 ```
 
 ### Xcode Cloud workflows and build runs
@@ -180,6 +214,7 @@ For full command families, flags, and discovery patterns, see:
 
 - [docs/CI_CD.md](docs/CI_CD.md) - CI/CD integration guides (GitHub Actions, GitLab, Bitrise, CircleCI)
 - [docs/COMMANDS.md](docs/COMMANDS.md) - Command families and reference navigation
+- [docs/WORKFLOWS.md](docs/WORKFLOWS.md) - Reusable workflow patterns, including local Xcode to TestFlight
 - [docs/API_NOTES.md](docs/API_NOTES.md) - API quirks and behaviors
 - [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) - CLI development and testing notes
 - [docs/TESTING.md](docs/TESTING.md) - Testing patterns and conventions

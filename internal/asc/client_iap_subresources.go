@@ -1134,11 +1134,13 @@ func (c *Client) CreateInAppPurchaseOfferCodeOneTimeUseCode(ctx context.Context,
 		return nil, fmt.Errorf("numberOfCodes must be greater than 0")
 	}
 	expirationDate := strings.TrimSpace(req.Data.Attributes.ExpirationDate)
+	environment := strings.TrimSpace(strings.ToUpper(req.Data.Attributes.Environment))
 	if expirationDate == "" {
 		return nil, fmt.Errorf("expirationDate is required")
 	}
 	req.Data.Relationships.OfferCode.Data.ID = offerCodeID
 	req.Data.Attributes.ExpirationDate = expirationDate
+	req.Data.Attributes.Environment = environment
 
 	body, err := BuildRequestBody(req)
 	if err != nil {

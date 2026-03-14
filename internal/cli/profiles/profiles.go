@@ -32,15 +32,16 @@ Examples:
   asc profiles create --name "Profile" --profile-type IOS_APP_DEVELOPMENT --bundle "BUNDLE_ID" --certificate "CERT_ID"
   asc profiles delete --id "PROFILE_ID" --confirm
   asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision"
-  asc profiles relationships bundle-id --id "PROFILE_ID"
-  asc profiles relationships certificates --id "PROFILE_ID"
-  asc profiles relationships devices --id "PROFILE_ID"`,
+  asc profiles links bundle-id --id "PROFILE_ID"
+  asc profiles links certificates --id "PROFILE_ID"
+  asc profiles links devices --id "PROFILE_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			ProfilesListCommand(),
 			ProfilesGetCommand(),
 			ProfilesRelationshipsCommand(),
+			DeprecatedProfilesRelationshipsAliasCommand(),
 			ProfilesCreateCommand(),
 			ProfilesDeleteCommand(),
 			ProfilesDownloadCommand(),

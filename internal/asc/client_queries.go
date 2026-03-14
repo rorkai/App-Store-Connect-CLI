@@ -116,6 +116,7 @@ type buildsQuery struct {
 	preReleasePlatforms  []string
 	preReleaseVersionIDs []string
 	expired              *bool
+	include              []string
 }
 
 type buildUploadsQuery struct {
@@ -250,10 +251,13 @@ type reviewSubmissionsQuery struct {
 	platforms []string
 	states    []string
 	appIDs    []string
+	include   []string
 }
 
 type reviewSubmissionItemsQuery struct {
 	listQuery
+	fields  []string
+	include []string
 }
 
 type preReleaseVersionsQuery struct {
@@ -1300,12 +1304,15 @@ func buildReviewSubmissionsQuery(query *reviewSubmissionsQuery) string {
 	addCSV(values, "filter[platform]", query.platforms)
 	addCSV(values, "filter[state]", query.states)
 	addCSV(values, "filter[app]", query.appIDs)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
 
 func buildReviewSubmissionItemsQuery(query *reviewSubmissionItemsQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[reviewSubmissionItems]", query.fields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }

@@ -46,6 +46,59 @@ func TestValidateAssetFileRejectsSymlink(t *testing.T) {
 	}
 }
 
+func TestUploadAssetRejectsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.bin")
+	if err := os.WriteFile(target, []byte("abc"), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	link := filepath.Join(dir, "link.bin")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink not supported in this environment: %v", err)
+	}
+
+	var calls int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	err := UploadAsset(context.Background(), link, []UploadOperation{
+		{Method: http.MethodPut, URL: server.URL + "/part1", Length: 3, Offset: 0},
+	})
+	if err == nil {
+		t.Fatal("expected symlink upload to fail")
+	}
+	if !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("expected symlink error, got %v", err)
+	}
+	if atomic.LoadInt32(&calls) != 0 {
+		t.Fatalf("expected no upload requests, got %d", calls)
+	}
+}
+
+func TestComputeFileChecksumRejectsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.bin")
+	if err := os.WriteFile(target, []byte("abc"), 0o600); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+	link := filepath.Join(dir, "link.bin")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink not supported in this environment: %v", err)
+	}
+
+	_, err := ComputeFileChecksum(link, ChecksumAlgorithmMD5)
+	if err == nil {
+		t.Fatal("expected symlink checksum to fail")
+	}
+	if !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("expected symlink error, got %v", err)
+	}
+}
+
 func TestValidateImageFileRejectsOversize(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "large.bin")

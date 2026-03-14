@@ -167,7 +167,7 @@ func TestIAPOfferCodePricesPaginateFromNextWithoutOfferCodeIDPhase61(t *testing.
 func TestIAPPricePointsListRejectsInvalidNextURLPhase61(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"iap", "price-points", "list"},
+		[]string{"iap", "pricing", "price-points", "list"},
 		"iap price-points list: --next",
 	)
 }
@@ -181,7 +181,7 @@ func TestIAPPricePointsListPaginateFromNextWithoutIAPIDPhase61(t *testing.T) {
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"iap", "price-points", "list"},
+		[]string{"iap", "pricing", "price-points", "list"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -194,8 +194,8 @@ func TestIAPPricePointsListPaginateFromNextWithoutIAPIDPhase61(t *testing.T) {
 func TestIAPPriceSchedulesAutomaticPricesRejectsInvalidNextURLPhase61(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"iap", "price-schedules", "automatic-prices"},
-		"iap price-schedules automatic-prices: --next",
+		[]string{"iap", "pricing", "schedules", "automatic-prices"},
+		"iap pricing schedules automatic-prices: --next",
 	)
 }
 
@@ -208,7 +208,7 @@ func TestIAPPriceSchedulesAutomaticPricesPaginateFromNextWithoutScheduleIDPhase6
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"iap", "price-schedules", "automatic-prices"},
+		[]string{"iap", "pricing", "schedules", "automatic-prices"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -221,8 +221,8 @@ func TestIAPPriceSchedulesAutomaticPricesPaginateFromNextWithoutScheduleIDPhase6
 func TestIAPPriceSchedulesManualPricesRejectsInvalidNextURLPhase61(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"iap", "price-schedules", "manual-prices"},
-		"iap price-schedules manual-prices: --next",
+		[]string{"iap", "pricing", "schedules", "manual-prices"},
+		"iap pricing schedules manual-prices: --next",
 	)
 }
 
@@ -235,7 +235,7 @@ func TestIAPPriceSchedulesManualPricesPaginateFromNextWithoutScheduleIDPhase61(t
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"iap", "price-schedules", "manual-prices"},
+		[]string{"iap", "pricing", "schedules", "manual-prices"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -248,7 +248,7 @@ func TestIAPPriceSchedulesManualPricesPaginateFromNextWithoutScheduleIDPhase61(t
 func TestIAPAvailabilityAvailableTerritoriesRejectsInvalidNextURLPhase61(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"iap", "availabilities", "available-territories"},
+		[]string{"iap", "pricing", "availabilities", "available-territories"},
 		"iap availabilities available-territories: --next",
 	)
 }
@@ -262,7 +262,7 @@ func TestIAPAvailabilityAvailableTerritoriesPaginateFromNextWithoutAvailabilityI
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"iap", "availabilities", "available-territories"},
+		[]string{"iap", "pricing", "availabilities", "available-territories"},
 		firstURL,
 		secondURL,
 		firstBody,

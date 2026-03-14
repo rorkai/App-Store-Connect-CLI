@@ -99,7 +99,7 @@ func TestCreateGameCenterActivity_WithDetail(t *testing.T) {
 	attrs := GameCenterActivityCreateAttributes{
 		ReferenceName: "Seasonal",
 	}
-	if _, err := client.CreateGameCenterActivity(context.Background(), "gc-detail-1", attrs, ""); err != nil {
+	if _, err := client.CreateGameCenterActivity(context.Background(), "gc-detail-1", attrs, "", nil); err != nil {
 		t.Fatalf("CreateGameCenterActivity() error: %v", err)
 	}
 }
@@ -135,7 +135,51 @@ func TestCreateGameCenterActivity_WithGroup(t *testing.T) {
 	attrs := GameCenterActivityCreateAttributes{
 		ReferenceName: "Seasonal",
 	}
-	if _, err := client.CreateGameCenterActivity(context.Background(), "", attrs, "group-1"); err != nil {
+	if _, err := client.CreateGameCenterActivity(context.Background(), "", attrs, "group-1", nil); err != nil {
+		t.Fatalf("CreateGameCenterActivity() error: %v", err)
+	}
+}
+
+func TestCreateGameCenterActivity_WithInitialVersion(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"gameCenterActivities","id":"act-1","attributes":{"referenceName":"Seasonal"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/gameCenterActivities" {
+			t.Fatalf("expected path /v1/gameCenterActivities, got %s", req.URL.Path)
+		}
+		var payload GameCenterActivityCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Relationships == nil || payload.Data.Relationships.Versions == nil {
+			t.Fatalf("expected versions relationship")
+		}
+		if len(payload.Data.Relationships.Versions.Data) != 1 {
+			t.Fatalf("expected one version relationship, got %+v", payload.Data.Relationships.Versions.Data)
+		}
+		if payload.Data.Relationships.Versions.Data[0].Type != ResourceTypeGameCenterActivityVersions || payload.Data.Relationships.Versions.Data[0].ID != "initial-version" {
+			t.Fatalf("unexpected versions relationship: %+v", payload.Data.Relationships.Versions.Data[0])
+		}
+		if len(payload.Included) != 1 {
+			t.Fatalf("expected one included resource, got %d", len(payload.Included))
+		}
+		if payload.Included[0].Type != ResourceTypeGameCenterActivityVersions || payload.Included[0].ID != "initial-version" {
+			t.Fatalf("unexpected included version: %+v", payload.Included[0])
+		}
+		if payload.Included[0].Attributes == nil || payload.Included[0].Attributes.FallbackURL == nil || *payload.Included[0].Attributes.FallbackURL != "https://example.com/fallback" {
+			t.Fatalf("expected fallback URL on inline version, got %+v", payload.Included[0].Attributes)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	attrs := GameCenterActivityCreateAttributes{
+		ReferenceName: "Seasonal",
+	}
+	fallbackURL := "https://example.com/fallback"
+	initialVersion := &GameCenterActivityVersionCreateAttributes{FallbackURL: &fallbackURL}
+	if _, err := client.CreateGameCenterActivity(context.Background(), "gc-detail-1", attrs, "", initialVersion); err != nil {
 		t.Fatalf("CreateGameCenterActivity() error: %v", err)
 	}
 }

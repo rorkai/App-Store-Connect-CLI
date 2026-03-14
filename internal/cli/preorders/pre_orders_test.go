@@ -52,7 +52,6 @@ func TestPreOrdersEnableCommand_MissingFlags(t *testing.T) {
 		{name: "missing app", args: []string{"--territory", "USA", "--release-date", "2026-01-20"}},
 		{name: "missing territory", args: []string{"--app", "APP", "--release-date", "2026-01-20"}},
 		{name: "missing release date", args: []string{"--app", "APP", "--territory", "USA"}},
-		{name: "missing available in new territories", args: []string{"--app", "APP", "--territory", "USA", "--release-date", "2026-01-20"}},
 	}
 
 	for _, test := range tests {
@@ -72,7 +71,7 @@ func TestPreOrdersEnableCommand_MissingFlags(t *testing.T) {
 func TestPreOrdersEnableCommand_InvalidDate(t *testing.T) {
 	cmd := PreOrdersEnableCommand()
 
-	if err := cmd.FlagSet.Parse([]string{"--app", "APP", "--territory", "USA", "--release-date", "invalid", "--available-in-new-territories", "true"}); err != nil {
+	if err := cmd.FlagSet.Parse([]string{"--app", "APP", "--territory", "USA", "--release-date", "invalid"}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
@@ -97,7 +96,7 @@ func TestPreOrdersUpdateCommand_MissingID(t *testing.T) {
 	}
 }
 
-func TestPreOrdersUpdateCommand_MissingReleaseDate(t *testing.T) {
+func TestPreOrdersUpdateCommand_MissingAllAttributes(t *testing.T) {
 	cmd := PreOrdersUpdateCommand()
 
 	if err := cmd.FlagSet.Parse([]string{"--territory-availability", "ta-1"}); err != nil {
@@ -105,7 +104,7 @@ func TestPreOrdersUpdateCommand_MissingReleaseDate(t *testing.T) {
 	}
 
 	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp when --release-date is missing, got %v", err)
+		t.Fatalf("expected flag.ErrHelp when no attributes are provided, got %v", err)
 	}
 }
 
@@ -172,7 +171,7 @@ func TestPreOrdersCommand_FlagDefinitions(t *testing.T) {
 	}
 
 	updateCmd := PreOrdersUpdateCommand()
-	for _, name := range []string{"territory-availability", "release-date", "output", "pretty"} {
+	for _, name := range []string{"territory-availability", "release-date", "pre-order-enabled", "available", "output", "pretty"} {
 		if updateCmd.FlagSet.Lookup(name) == nil {
 			t.Errorf("update: expected flag --%s to be defined", name)
 		}
@@ -272,5 +271,64 @@ func TestMapTerritoryAvailabilityIDs_FallbackID(t *testing.T) {
 	}
 	if ids["USA"] != encoded {
 		t.Fatalf("expected territory USA to map to %q, got %q", encoded, ids["USA"])
+	}
+}
+
+func TestPreOrdersUpdateCommand_PreOrderEnabledAlone(t *testing.T) {
+	cmd := PreOrdersUpdateCommand()
+
+	if err := cmd.FlagSet.Parse([]string{"--territory-availability", "ta-1", "--pre-order-enabled", "true"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), []string{})
+	if errors.Is(err, flag.ErrHelp) {
+		t.Fatal("did not expect flag.ErrHelp when --pre-order-enabled is set")
+	}
+}
+
+func TestPreOrdersUpdateCommand_AvailableAlone(t *testing.T) {
+	cmd := PreOrdersUpdateCommand()
+
+	if err := cmd.FlagSet.Parse([]string{"--territory-availability", "ta-1", "--available", "false"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), []string{})
+	if errors.Is(err, flag.ErrHelp) {
+		t.Fatal("did not expect flag.ErrHelp when --available is set")
+	}
+}
+
+func TestPreOrdersUpdateCommand_DisablePreOrderRejectsReleaseDate(t *testing.T) {
+	cmd := PreOrdersUpdateCommand()
+
+	if err := cmd.FlagSet.Parse([]string{
+		"--territory-availability", "ta-1",
+		"--pre-order-enabled", "false",
+		"--release-date", "2026-06-01",
+	}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), []string{})
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp for conflicting flags, got %v", err)
+	}
+}
+
+func TestPreOrdersUpdateCommand_DisablePreOrderAlone(t *testing.T) {
+	cmd := PreOrdersUpdateCommand()
+
+	if err := cmd.FlagSet.Parse([]string{
+		"--territory-availability", "ta-1",
+		"--pre-order-enabled", "false",
+	}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), []string{})
+	if errors.Is(err, flag.ErrHelp) {
+		t.Fatal("did not expect flag.ErrHelp when --pre-order-enabled false is set")
 	}
 }

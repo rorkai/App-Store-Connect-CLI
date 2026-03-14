@@ -2,6 +2,7 @@ package builds
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -282,6 +283,7 @@ Examples:
 				uploadOpts := []asc.UploadOption{
 					asc.WithUploadConcurrency(*concurrency),
 				}
+				fmt.Fprintf(os.Stderr, "Uploading %s (%d bytes) to App Store Connect...\n", fileInfo.Name(), fileInfo.Size())
 				uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
 				err = asc.ExecuteUploadOperations(uploadCtx, filePath, fileResp.Data.Attributes.UploadOperations, uploadOpts...)
 				uploadCancel()
@@ -330,12 +332,14 @@ Examples:
 				} else {
 					result.Uploaded = &uploaded
 				}
+				fmt.Fprintln(os.Stderr, "Upload committed in App Store Connect.")
 				result.ChecksumVerified = checksumVerified
 				result.SourceFileChecksums = verifiedChecksums
 				result.Operations = nil
 
 				if *wait || testNotesValue != "" {
-					buildResp, err := shared.WaitForBuildByNumber(requestCtx, client, resolvedAppID, versionValue, buildNumberValue, string(platformValue), *pollInterval)
+					fmt.Fprintf(os.Stderr, "Waiting for build %s (%s) to appear in App Store Connect...\n", buildNumberValue, versionValue)
+					buildResp, err := shared.WaitForBuildByNumberOrUploadFailure(requestCtx, client, resolvedAppID, uploadResp.Data.ID, versionValue, buildNumberValue, string(platformValue), *pollInterval)
 					if err != nil {
 						return fmt.Errorf("builds upload: %w", err)
 					}
@@ -343,6 +347,7 @@ Examples:
 						return fmt.Errorf("builds upload: failed to resolve build for version %q build %q", versionValue, buildNumberValue)
 					}
 
+					fmt.Fprintf(os.Stderr, "Build %s discovered; waiting for processing...\n", buildResp.Data.ID)
 					buildResp, err = client.WaitForBuildProcessing(requestCtx, buildResp.Data.ID, *pollInterval)
 					if err != nil {
 						return fmt.Errorf("builds upload: %w", err)
@@ -397,10 +402,10 @@ Examples:
   asc builds icons list --build "BUILD_ID"
   asc builds beta-app-review-submission get --build "BUILD_ID"
   asc builds build-beta-detail get --build "BUILD_ID"
-  asc builds relationships get --build "BUILD_ID" --type "app"
+  asc builds links view --build "BUILD_ID" --type "app"
   asc builds metrics beta-usages --build "BUILD_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			listCmd,
 			BuildsLatestCommand(),
@@ -424,6 +429,7 @@ Examples:
 			BuildsBetaAppReviewSubmissionCommand(),
 			BuildsBuildBetaDetailCommand(),
 			BuildsRelationshipsCommand(),
+			deprecatedBuildsRelationshipsAliasCommand(),
 			BuildsMetricsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -441,6 +447,7 @@ func BuildsListCommand() *ffcli.Command {
 	sort := fs.String("sort", "", "Sort by uploadedDate or -uploadedDate")
 	version := fs.String("version", "", "Filter by marketing version string (CFBundleShortVersionString)")
 	buildNumber := fs.String("build-number", "", "Filter by build number (CFBundleVersion)")
+	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	processingState := fs.String("processing-state", "", "Filter by processing state: VALID, PROCESSING, FAILED, INVALID, or all")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -459,6 +466,8 @@ Examples:
   asc builds list --app "123456789"
   asc builds list --app "123456789" --version "1.2.3"
   asc builds list --app "123456789" --build-number "123"
+  asc builds list --app "123456789" --platform TV_OS
+  asc builds list --app "123456789" --platform IOS --version "1.2.3"
   asc builds list --app "123456789" --processing-state "PROCESSING"
   asc builds list --app "123456789" --processing-state "all"
   asc builds list --app "123456789" --version "1.2.3" --build-number "123"
@@ -476,6 +485,15 @@ Examples:
 			}
 			if err := shared.ValidateSort(*sort, "uploadedDate", "-uploadedDate"); err != nil {
 				return fmt.Errorf("builds: %w", err)
+			}
+
+			platformValue := ""
+			if strings.TrimSpace(*platform) != "" {
+				normalizedPlatform, err := shared.NormalizePlatform(*platform)
+				if err != nil {
+					return shared.UsageError(err.Error())
+				}
+				platformValue = string(normalizedPlatform)
 			}
 
 			versionValue := strings.TrimSpace(*version)
@@ -520,12 +538,16 @@ Examples:
 			opts := []asc.BuildsOption{
 				asc.WithBuildsLimit(*limit),
 				asc.WithBuildsNextURL(nextValue),
+				asc.WithBuildsInclude([]string{"preReleaseVersion"}),
 			}
 			if strings.TrimSpace(*sort) != "" {
 				opts = append(opts, asc.WithBuildsSort(*sort))
 			}
 			if buildNumberValue != "" {
 				opts = append(opts, asc.WithBuildsBuildNumber(buildNumberValue))
+			}
+			if platformValue != "" {
+				opts = append(opts, asc.WithBuildsPreReleaseVersionPlatforms([]string{platformValue}))
 			}
 			if len(processingStateValues) > 0 {
 				opts = append(opts, asc.WithBuildsProcessingStates(processingStateValues))
@@ -620,6 +642,69 @@ func findPreReleaseVersionIDsForBuildsList(
 	return ids, nil
 }
 
+func attachBuildInfoPreReleaseVersion(
+	ctx context.Context,
+	client *asc.Client,
+	build *asc.BuildResponse,
+) error {
+	if client == nil || build == nil {
+		return nil
+	}
+	if strings.TrimSpace(build.Data.ID) == "" {
+		return nil
+	}
+
+	preReleaseVersion, err := client.GetBuildPreReleaseVersion(ctx, build.Data.ID)
+	if err != nil {
+		return nil
+	}
+
+	included, err := json.Marshal([]asc.PreReleaseVersion{preReleaseVersion.Data})
+	if err != nil {
+		return fmt.Errorf("failed to encode pre-release version include: %w", err)
+	}
+	build.Included = included
+
+	relationships, err := mergeBuildRelationship(build.Data.Relationships, "preReleaseVersion", map[string]any{
+		"preReleaseVersion": map[string]any{
+			"data": map[string]string{
+				"type": "preReleaseVersions",
+				"id":   preReleaseVersion.Data.ID,
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+	build.Data.Relationships = relationships
+	return nil
+}
+
+func mergeBuildRelationship(relationships json.RawMessage, key string, value map[string]any) (json.RawMessage, error) {
+	merged := make(map[string]json.RawMessage)
+	if len(relationships) > 0 {
+		if err := json.Unmarshal(relationships, &merged); err != nil {
+			return nil, fmt.Errorf("failed to decode existing build relationships: %w", err)
+		}
+	}
+
+	entry, ok := value[key]
+	if !ok {
+		return nil, fmt.Errorf("missing %s relationship payload", key)
+	}
+	encodedEntry, err := json.Marshal(entry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode %s relationship: %w", key, err)
+	}
+	merged[key] = encodedEntry
+
+	raw, err := json.Marshal(merged)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode merged build relationships: %w", err)
+	}
+	return raw, nil
+}
+
 // BuildsInfoCommand returns a build info subcommand.
 func BuildsInfoCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("builds info", flag.ExitOnError)
@@ -654,6 +739,9 @@ Examples:
 			build, err := client.GetBuild(requestCtx, strings.TrimSpace(*buildID))
 			if err != nil {
 				return fmt.Errorf("builds info: failed to fetch: %w", err)
+			}
+			if err := attachBuildInfoPreReleaseVersion(requestCtx, client, build); err != nil {
+				return fmt.Errorf("builds info: %w", err)
 			}
 
 			format := *output.Output

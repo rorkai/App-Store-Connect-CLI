@@ -61,7 +61,7 @@ func ReleaseNotesGenerateCommand() *ffcli.Command {
 	format := fs.String("format", "plain", "Notes format: plain (default), markdown")
 	maxChars := fs.Int("max-chars", 4000, "Maximum characters in generated notes")
 	includeMerges := fs.Bool("include-merges", false, "Include merge commits")
-	output := shared.BindOutputFlagsWith(fs, "output", shared.DefaultOutputFormat(), "Output format: json, text, table, markdown")
+	output := shared.BindOutputFlagsWithAllowed(fs, "output", shared.DefaultOutputFormat(), "Output format: json, text, table, markdown", "json", "text", "table", "markdown")
 
 	return &ffcli.Command{
 		Name:       "generate",

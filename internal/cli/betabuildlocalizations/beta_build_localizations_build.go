@@ -18,17 +18,26 @@ func BetaBuildLocalizationsBuildCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "build",
 		ShortUsage: "asc beta-build-localizations build <subcommand> [flags]",
-		ShortHelp:  "View the build for a beta build localization.",
-		LongHelp: `View the build for a beta build localization.
+		ShortHelp:  "DEPRECATED: legacy-only compatibility path.",
+		LongHelp: `Deprecated compatibility path retained during migration.
+
+No canonical ` + "`asc builds test-notes ...`" + ` replacement exists for the build relationship helper yet.
+
+View the build for a beta build localization.
 
 Examples:
   asc beta-build-localizations build get --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.DeprecatedUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BetaBuildLocalizationsBuildGetCommand(),
+			deprecatedBetaBuildLocalizationsLeafCommand(
+				BetaBuildLocalizationsBuildGetCommand(),
+				"",
+				"Warning: `asc beta-build-localizations build get` is deprecated. No canonical replacement exists yet; this legacy helper remains available during transition.",
+			),
 		},
 		Exec: func(ctx context.Context, args []string) error {
+			fmt.Fprintln(os.Stderr, "Warning: `asc beta-build-localizations build` is deprecated. No canonical replacement exists yet; this legacy helper remains available during transition.")
 			return flag.ErrHelp
 		},
 	}

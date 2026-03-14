@@ -237,12 +237,12 @@ func TestWebhookDeliveriesRelationshipsRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/webhooks/wh-1/relationships/deliveries?cursor=AQ",
-			wantErr: "webhooks deliveries relationships: --next must be an App Store Connect URL",
+			wantErr: "webhooks deliveries links: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "invalid path for id extraction",
 			next:    "https://api.appstoreconnect.apple.com/v1/webhooks//relationships/deliveries?cursor=AQ",
-			wantErr: "webhooks deliveries relationships: invalid --next URL",
+			wantErr: "webhooks deliveries links: invalid --next URL",
 		},
 	}
 
@@ -253,7 +253,7 @@ func TestWebhookDeliveriesRelationshipsRejectsInvalidNextURL(t *testing.T) {
 
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"webhooks", "deliveries", "relationships", "--next", test.next}); err != nil {
+				if err := root.Parse([]string{"webhooks", "deliveries", "links", "--next", test.next}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				runErr = root.Run(context.Background())
@@ -321,7 +321,7 @@ func TestWebhookDeliveriesRelationshipsPaginateFromNextWithoutWebhookID(t *testi
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"webhooks", "deliveries", "relationships", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"webhooks", "deliveries", "links", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

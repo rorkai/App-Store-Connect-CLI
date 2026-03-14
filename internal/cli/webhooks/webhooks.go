@@ -410,9 +410,16 @@ Examples:
   asc webhooks deliveries --webhook-id "WEBHOOK_ID" --limit 10
   asc webhooks deliveries --webhook-id "WEBHOOK_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			WebhookDeliveriesRelationshipsCommand(),
+			shared.DeprecatedAliasLeafCommand(
+				WebhookDeliveriesRelationshipsCommand(),
+				"relationships",
+				"asc webhooks deliveries links --webhook-id WEBHOOK_ID [flags]",
+				"asc webhooks deliveries links",
+				"Warning: `asc webhooks deliveries relationships` is deprecated. Use `asc webhooks deliveries links`.",
+			),
 			WebhookDeliveriesRedeliverCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -504,9 +511,9 @@ Examples:
 	}
 }
 
-// WebhookDeliveriesRelationshipsCommand returns the webhook deliveries relationships subcommand.
+// WebhookDeliveriesRelationshipsCommand returns the webhook deliveries links subcommand.
 func WebhookDeliveriesRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships", flag.ExitOnError)
+	fs := flag.NewFlagSet("links", flag.ExitOnError)
 
 	webhookID := fs.String("webhook-id", "", "Webhook ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -515,14 +522,14 @@ func WebhookDeliveriesRelationshipsCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "relationships",
-		ShortUsage: "asc webhooks deliveries relationships --webhook-id WEBHOOK_ID [flags]",
+		Name:       "links",
+		ShortUsage: "asc webhooks deliveries links --webhook-id WEBHOOK_ID [flags]",
 		ShortHelp:  "List webhook delivery relationships.",
 		LongHelp: `List webhook delivery relationships.
 
 Examples:
-  asc webhooks deliveries relationships --webhook-id "WEBHOOK_ID"
-  asc webhooks deliveries relationships --webhook-id "WEBHOOK_ID" --paginate`,
+  asc webhooks deliveries links --webhook-id "WEBHOOK_ID"
+  asc webhooks deliveries links --webhook-id "WEBHOOK_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -533,22 +540,22 @@ Examples:
 				return flag.ErrHelp
 			}
 			if *limit != 0 && (*limit < 1 || *limit > webhooksMaxLimit) {
-				return fmt.Errorf("webhooks deliveries relationships: --limit must be between 1 and %d", webhooksMaxLimit)
+				return fmt.Errorf("webhooks deliveries links: --limit must be between 1 and %d", webhooksMaxLimit)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("webhooks deliveries relationships: %w", err)
+				return fmt.Errorf("webhooks deliveries links: %w", err)
 			}
 			if trimmedID == "" && trimmedNext != "" {
 				derivedID, err := extractWebhookIDFromNextURL(trimmedNext)
 				if err != nil {
-					return fmt.Errorf("webhooks deliveries relationships: %w", err)
+					return fmt.Errorf("webhooks deliveries links: %w", err)
 				}
 				trimmedID = derivedID
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("webhooks deliveries relationships: %w", err)
+				return fmt.Errorf("webhooks deliveries links: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -567,20 +574,20 @@ Examples:
 				paginateOpts := append(opts, asc.WithLinkagesLimit(webhooksMaxLimit))
 				firstPage, err := client.GetWebhookDeliveriesRelationships(requestCtx, trimmedID, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("webhooks deliveries relationships: failed to fetch: %w", err)
+					return fmt.Errorf("webhooks deliveries links: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					return client.GetWebhookDeliveriesRelationships(ctx, trimmedID, asc.WithLinkagesNextURL(nextURL))
 				})
 				if err != nil {
-					return fmt.Errorf("webhooks deliveries relationships: %w", err)
+					return fmt.Errorf("webhooks deliveries links: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetWebhookDeliveriesRelationships(requestCtx, trimmedID, opts...)
 			if err != nil {
-				return fmt.Errorf("webhooks deliveries relationships: %w", err)
+				return fmt.Errorf("webhooks deliveries links: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

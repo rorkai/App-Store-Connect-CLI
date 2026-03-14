@@ -151,7 +151,7 @@ func webXcodeCloudUsageAlertCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "alert",
 		ShortUsage: "asc web xcode-cloud usage alert [flags]",
-		ShortHelp:  "EXPERIMENTAL: Evaluate usage thresholds and send alerts.",
+		ShortHelp:  "[experimental] Evaluate usage thresholds and send alerts.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Evaluate Xcode Cloud usage thresholds from plan quota, optionally include monthly trend context,

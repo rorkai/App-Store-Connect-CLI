@@ -56,7 +56,9 @@ func (c *Client) GetGameCenterChallenge(ctx context.Context, challengeID string)
 }
 
 // CreateGameCenterChallenge creates a new Game Center challenge.
-func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID string, attrs GameCenterChallengeCreateAttributes, leaderboardID string, groupID string) (*GameCenterChallengeResponse, error) {
+func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID string, attrs GameCenterChallengeCreateAttributes, leaderboardID string, groupID string, createInitialVersion bool) (*GameCenterChallengeResponse, error) {
+	const initialVersionID = "initial-version"
+
 	relationships := &GameCenterChallengeRelationships{}
 	hasRelationship := false
 
@@ -87,6 +89,15 @@ func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID strin
 		}
 		hasRelationship = true
 	}
+	if createInitialVersion {
+		relationships.Versions = &RelationshipList{
+			Data: []ResourceData{{
+				Type: ResourceTypeGameCenterChallengeVersions,
+				ID:   initialVersionID,
+			}},
+		}
+		hasRelationship = true
+	}
 	if !hasRelationship {
 		relationships = nil
 	}
@@ -97,6 +108,12 @@ func (c *Client) CreateGameCenterChallenge(ctx context.Context, gcDetailID strin
 			Attributes:    attrs,
 			Relationships: relationships,
 		},
+	}
+	if createInitialVersion {
+		payload.Included = []GameCenterChallengeVersionInlineCreate{{
+			Type: ResourceTypeGameCenterChallengeVersions,
+			ID:   initialVersionID,
+		}}
 	}
 
 	body, err := BuildRequestBody(payload)

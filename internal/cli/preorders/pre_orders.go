@@ -24,8 +24,8 @@ func PreOrdersCommand() *ffcli.Command {
 Examples:
   asc pre-orders get --app "123456789"
   asc pre-orders list --availability "AVAILABILITY_ID"
-  asc pre-orders enable --app "123456789" --territory "USA,GBR" --release-date "2026-02-01"
-  asc pre-orders update --territory-availability "TERRITORY_AVAILABILITY_ID" --release-date "2026-03-01"
+  asc pre-orders enable --app "123456789" --territory "USA,GBR" --release-date "2026-06-01"
+  asc pre-orders update --territory-availability "TERRITORY_AVAILABILITY_ID" --pre-order-enabled true --release-date "2026-03-01"
   asc pre-orders disable --territory-availability "TERRITORY_AVAILABILITY_ID"
   asc pre-orders end --territory-availability "TA_1,TA_2"`,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -138,17 +138,21 @@ func PreOrdersEnableCommand() *ffcli.Command {
 	territory := fs.String("territory", "", "Territory IDs (comma-separated, e.g., USA,GBR)")
 	releaseDate := fs.String("release-date", "", "Release date (YYYY-MM-DD)")
 	var availableInNewTerritories shared.OptionalBool
-	fs.Var(&availableInNewTerritories, "available-in-new-territories", "Set available-in-new-territories: true or false")
+	fs.Var(&availableInNewTerritories, "available-in-new-territories", "[deprecated, ignored] Previously set available-in-new-territories")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "enable",
-		ShortUsage: "asc pre-orders enable [flags]",
+		ShortUsage: "asc pre-orders enable --app \"APP_ID\" --territory \"USA,GBR\" --release-date \"2026-06-01\"",
 		ShortHelp:  "Enable pre-orders for territories.",
 		LongHelp: `Enable pre-orders for territories.
 
+Enables pre-orders on the specified territories by setting preOrderEnabled=true,
+available=true, and the given release date on each territory availability.
+
 Examples:
-  asc pre-orders enable --app "123456789" --territory "USA,GBR" --release-date "2026-02-01"`,
+  asc pre-orders enable --app "123456789" --territory "USA" --release-date "2026-06-01"
+  asc pre-orders enable --app "123456789" --territory "USA,GBR,DEU" --release-date "2026-06-01"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -165,9 +169,9 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --release-date is required")
 				return flag.ErrHelp
 			}
-			if !availableInNewTerritories.IsSet() {
-				fmt.Fprintln(os.Stderr, "Error: --available-in-new-territories is required")
-				return flag.ErrHelp
+
+			if availableInNewTerritories.IsSet() {
+				fmt.Fprintln(os.Stderr, "Warning: --available-in-new-territories is deprecated and ignored; pre-orders are now enabled by patching territory availabilities directly.")
 			}
 
 			normalizedReleaseDate, err := normalizePreOrderReleaseDate(*releaseDate)
@@ -214,23 +218,6 @@ Examples:
 			if !ok {
 				return fmt.Errorf("pre-orders enable: unexpected territory availabilities response")
 			}
-			allTerritoryAvailabilityIDs := make([]string, 0, len(territoryResp.Data))
-			for _, item := range territoryResp.Data {
-				trimmedID := strings.TrimSpace(item.ID)
-				if trimmedID == "" {
-					return fmt.Errorf("pre-orders enable: territory availability ID is empty")
-				}
-				allTerritoryAvailabilityIDs = append(allTerritoryAvailabilityIDs, trimmedID)
-			}
-
-			availableInNew := availableInNewTerritories.Value()
-			if _, err := client.CreateAppAvailabilityV2(requestCtx, resolvedAppID, asc.AppAvailabilityV2CreateAttributes{
-				AvailableInNewTerritories: &availableInNew,
-				TerritoryAvailabilityIDs:  allTerritoryAvailabilityIDs,
-			}); err != nil {
-				return fmt.Errorf("pre-orders enable: %w", err)
-			}
-
 			territoryMap, err := shared.MapTerritoryAvailabilityIDs(territoryResp)
 			if err != nil {
 				return fmt.Errorf("pre-orders enable: %w", err)
@@ -276,16 +263,24 @@ func PreOrdersUpdateCommand() *ffcli.Command {
 
 	territoryAvailabilityID := fs.String("territory-availability", "", "Territory availability ID")
 	releaseDate := fs.String("release-date", "", "Release date (YYYY-MM-DD)")
+	var preOrderEnabled shared.OptionalBool
+	fs.Var(&preOrderEnabled, "pre-order-enabled", "Set pre-order enabled: true or false")
+	var available shared.OptionalBool
+	fs.Var(&available, "available", "Set territory available: true or false")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "update",
 		ShortUsage: "asc pre-orders update --territory-availability TERRITORY_AVAILABILITY_ID [flags]",
-		ShortHelp:  "Update pre-order release date for a territory availability.",
-		LongHelp: `Update pre-order release date for a territory availability.
+		ShortHelp:  "Update pre-order settings for a territory availability.",
+		LongHelp: `Update pre-order settings for a territory availability.
+
+At least one of --release-date, --pre-order-enabled, or --available is required.
 
 Examples:
-  asc pre-orders update --territory-availability "TERRITORY_AVAILABILITY_ID" --release-date "2026-03-01"`,
+  asc pre-orders update --territory-availability "TERRITORY_AVAILABILITY_ID" --pre-order-enabled true --release-date "2026-03-01"
+  asc pre-orders update --territory-availability "TERRITORY_AVAILABILITY_ID" --pre-order-enabled false
+  asc pre-orders update --territory-availability "TERRITORY_AVAILABILITY_ID" --available true`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -294,14 +289,37 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --territory-availability is required")
 				return flag.ErrHelp
 			}
-			if strings.TrimSpace(*releaseDate) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --release-date is required")
-				return flag.ErrHelp
-			}
 
-			normalizedReleaseDate, err := normalizePreOrderReleaseDate(*releaseDate)
-			if err != nil {
-				return fmt.Errorf("pre-orders update: %w", err)
+			attrs := asc.TerritoryAvailabilityUpdateAttributes{}
+			hasAttr := false
+
+			if strings.TrimSpace(*releaseDate) != "" {
+				normalizedReleaseDate, err := normalizePreOrderReleaseDate(*releaseDate)
+				if err != nil {
+					return fmt.Errorf("pre-orders update: %w", err)
+				}
+				attrs.ReleaseDate = &normalizedReleaseDate
+				hasAttr = true
+			}
+			if preOrderEnabled.IsSet() {
+				v := preOrderEnabled.Value()
+				attrs.PreOrderEnabled = &v
+				hasAttr = true
+				if !v {
+					if attrs.ReleaseDate != nil {
+						return shared.UsageError("--release-date cannot be set when disabling pre-orders (releaseDate must be null)")
+					}
+					attrs.ClearReleaseDate = true
+				}
+			}
+			if available.IsSet() {
+				v := available.Value()
+				attrs.Available = &v
+				hasAttr = true
+			}
+			if !hasAttr {
+				fmt.Fprintln(os.Stderr, "Error: at least one of --release-date, --pre-order-enabled, or --available is required")
+				return flag.ErrHelp
 			}
 
 			client, err := shared.GetASCClient()
@@ -312,9 +330,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.UpdateTerritoryAvailability(requestCtx, trimmedID, asc.TerritoryAvailabilityUpdateAttributes{
-				ReleaseDate: &normalizedReleaseDate,
-			})
+			resp, err := client.UpdateTerritoryAvailability(requestCtx, trimmedID, attrs)
 			if err != nil {
 				return fmt.Errorf("pre-orders update: %w", err)
 			}
@@ -358,7 +374,8 @@ Examples:
 			defer cancel()
 
 			resp, err := client.UpdateTerritoryAvailability(requestCtx, trimmedID, asc.TerritoryAvailabilityUpdateAttributes{
-				PreOrderEnabled: &preOrderEnabled,
+				PreOrderEnabled:  &preOrderEnabled,
+				ClearReleaseDate: true,
 			})
 			if err != nil {
 				return fmt.Errorf("pre-orders disable: %w", err)

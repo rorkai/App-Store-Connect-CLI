@@ -49,7 +49,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/nominations"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/notarization"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/notify"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/offercodes"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/passtypeids"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/performance"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/preorders"
@@ -57,7 +56,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/pricing"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/productpages"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/profiles"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/promotedpurchases"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/publish"
 	releasecmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/release"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/releasenotes"
@@ -68,6 +66,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/screenshots"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/signing"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/snitch"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/status"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/submit"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
@@ -78,8 +77,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/videopreviews"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/web"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/webhooks"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/winbackoffers"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/workflow"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/xcode"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/xcodecloud"
 )
 
@@ -132,8 +131,6 @@ func Subcommands(version string) []*ffcli.Command {
 		certificates.CertificatesCommand(),
 		passtypeids.PassTypeIDsCommand(),
 		profiles.ProfilesCommand(),
-		offercodes.OfferCodesCommand(),
-		winbackoffers.WinBackOffersCommand(),
 		users.UsersCommand(),
 		actors.ActorsCommand(),
 		devices.DevicesCommand(),
@@ -143,23 +140,24 @@ func Subcommands(version string) []*ffcli.Command {
 		publish.PublishCommand(),
 		releasecmd.ReleaseCommand(),
 		workflow.WorkflowCommand(),
+		xcode.XcodeCommand(),
 		versions.VersionsCommand(),
 		productpages.ProductPagesCommand(),
 		routingcoverage.RoutingCoverageCommand(),
-		apps.AppInfoCommand(),
-		apps.AppInfosCommand(),
+		apps.RemovedAppInfoCommand(),
+		apps.RemovedAppInfosCommand(),
 		eula.EULACommand(),
 		agreements.AgreementsCommand(),
 		pricing.PricingCommand(),
 		preorders.PreOrdersCommand(),
-		prerelease.PreReleaseVersionsCommand(),
+		prerelease.RemovedPreReleaseVersionsCommand(),
 		localizations.LocalizationsCommand(),
 		metadata.MetadataCommand(),
 		screenshots.ScreenshotsCommand(),
 		videopreviews.VideoPreviewsCommand(),
 		backgroundassets.BackgroundAssetsCommand(),
 		buildlocalizations.BuildLocalizationsCommand(),
-		betaapplocalizations.BetaAppLocalizationsCommand(),
+		betaapplocalizations.DeprecatedBetaAppLocalizationsCommand(),
 		betabuildlocalizations.BetaBuildLocalizationsCommand(),
 		sandbox.SandboxCommand(),
 		signing.SigningCommand(),
@@ -174,11 +172,11 @@ func Subcommands(version string) []*ffcli.Command {
 		agerating.AgeRatingCommand(),
 		accessibility.AccessibilityCommand(),
 		encryption.EncryptionCommand(),
-		promotedpurchases.PromotedPurchasesCommand(),
 		migrate.MigrateCommand(),
 		notify.NotifyCommand(),
 		gamecenter.GameCenterCommand(),
 		schema.SchemaCommand(),
+		snitch.SnitchCommand(version),
 		VersionCommand(version),
 	}
 

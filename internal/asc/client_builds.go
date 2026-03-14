@@ -198,7 +198,7 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 		// Use /v1/builds endpoint when sorting, limiting, or filtering by
 		// version/preReleaseVersion.version/processingState/preReleaseVersion/platform/expired,
 		// since /v1/apps/{id}/builds doesn't support these
-		if query.sort != "" || query.limit > 0 || query.version != "" || query.preReleaseVersion != "" || len(query.processingStates) > 0 || len(query.preReleasePlatforms) > 0 || len(query.preReleaseVersionIDs) > 0 || query.expired != nil {
+		if query.sort != "" || query.limit > 0 || query.version != "" || query.preReleaseVersion != "" || len(query.processingStates) > 0 || len(query.preReleasePlatforms) > 0 || len(query.preReleaseVersionIDs) > 0 || query.expired != nil || len(query.include) > 0 {
 			path = "/v1/builds"
 			values.Set("filter[app]", appID)
 			if query.sort != "" {
@@ -225,6 +225,9 @@ func (c *Client) GetBuilds(ctx context.Context, appID string, opts ...BuildsOpti
 			if query.expired != nil {
 				values.Set("filter[expired]", strconv.FormatBool(*query.expired))
 			}
+		}
+		if len(query.include) > 0 {
+			values.Set("include", strings.Join(query.include, ","))
 		}
 		if queryString := values.Encode(); queryString != "" {
 			path += "?" + queryString

@@ -20,6 +20,7 @@ var versionRequested bool
 // RootCommand returns the root command
 func RootCommand(version string) *ffcli.Command {
 	versionRequested = false
+	subcommands := registry.Subcommands(version)
 	root := &ffcli.Command{
 		Name:        "asc",
 		ShortUsage:  "asc <subcommand> [flags]",
@@ -27,7 +28,11 @@ func RootCommand(version string) *ffcli.Command {
 		LongHelp:    "",
 		FlagSet:     flag.NewFlagSet("asc", flag.ExitOnError),
 		UsageFunc:   RootUsageFunc,
-		Subcommands: registry.Subcommands(version),
+		Subcommands: subcommands,
+	}
+
+	for _, subcommand := range subcommands {
+		shared.WrapCommandOutputValidation(subcommand)
 	}
 
 	root.FlagSet.BoolVar(&versionRequested, "version", false, "Print version and exit")
@@ -47,6 +52,9 @@ func RootCommand(version string) *ffcli.Command {
 			rootSubcommandNamesOnce.Do(func() {
 				rootSubcommandNames = make([]string, 0, len(root.Subcommands))
 				for _, sub := range root.Subcommands {
+					if shouldHideRootCommand(sub) {
+						continue
+					}
 					rootSubcommandNames = append(rootSubcommandNames, sub.Name)
 				}
 			})

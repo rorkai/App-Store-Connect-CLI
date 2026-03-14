@@ -156,25 +156,6 @@ update-schema-index:
 	@echo "$(BLUE)Updating schema index...$(NC)"
 	python3 scripts/generate-schema-index.py
 
-# Generate app metadata and sync Wall docs
-.PHONY: generate
-generate:
-	@true
-
-.PHONY: app
-app: generate-app
-
-.PHONY: generate-app
-generate-app:
-	@echo "$(BLUE)Generating Wall app entry...$(NC)"
-	$(GO) run ./tools/generate-app --app "$(APP)" --link "$(LINK)" --creator "$(CREATOR)" --platform "$(PLATFORM)"
-
-# Update Wall of Apps docs snippet
-.PHONY: update-wall-of-apps
-update-wall-of-apps:
-	@echo "$(BLUE)Updating Wall of Apps snippets...$(NC)"
-	$(GO) run ./tools/update-wall-of-apps
-
 # Generate docs/COMMANDS.md from live CLI help
 .PHONY: generate-command-docs
 generate-command-docs:
@@ -188,26 +169,10 @@ check-command-docs:
 	python3 ./scripts/generate-command-docs.py --check
 	python3 ./scripts/check-commands-docs.py
 
-# Run focused performance benchmark snapshot
-.PHONY: bench-perf
-bench-perf:
-	@echo "$(BLUE)Running focused performance benchmarks...$(NC)"
-	bash ./scripts/perf-bench.sh
-
-# Compare two benchmark snapshots (BASE and NEW paths required)
-.PHONY: bench-perf-compare
-bench-perf-compare:
-	@if [ -z "$(BASE)" ] || [ -z "$(NEW)" ]; then \
-		echo "Usage: make bench-perf-compare BASE=.perf/bench-old.txt NEW=.perf/bench-new.txt"; \
-		exit 1; \
-	fi
-	@if command -v benchstat >/dev/null 2>&1; then \
-		benchstat "$(BASE)" "$(NEW)"; \
-	else \
-		echo "$(YELLOW)benchstat not found; install with: go install golang.org/x/perf/cmd/benchstat@latest$(NC)"; \
-		echo "$(YELLOW)Falling back to raw diff output.$(NC)"; \
-		diff -u "$(BASE)" "$(NEW)" || true; \
-	fi
+.PHONY: check-wall-of-apps
+check-wall-of-apps:
+	@echo "$(BLUE)Checking Wall of Apps source...$(NC)"
+	$(GO) test ./internal/cli/apps -run TestCommunityWallSourceFileIsCanonical -count=1
 
 # Clean build artifacts
 .PHONY: clean
@@ -263,13 +228,8 @@ help:
 	@echo "  deps           Install dependencies"
 	@echo "  update-deps    Update dependencies"
 	@echo "  update-openapi Update OpenAPI paths index"
-	@echo "  generate app   Generate/update Wall app entry in JSON + README"
-	@echo "                 Usage: make generate app APP=\"Name\" LINK=\"https://...\" CREATOR=\"you\" PLATFORM=\"iOS,macOS\""
-	@echo "  update-wall-of-apps Update Wall of Apps snippets"
 	@echo "  generate-command-docs Generate docs/COMMANDS.md from live CLI help"
 	@echo "  check-command-docs Validate docs command lists against live CLI help"
-	@echo "  bench-perf     Run focused perf benchmark snapshot"
-	@echo "  bench-perf-compare Compare two perf snapshots (BASE=... NEW=...)"
 	@echo "  clean          Clean build artifacts"
 	@echo "  install        Install binary"
 	@echo "  uninstall      Uninstall binary"

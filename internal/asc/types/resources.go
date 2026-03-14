@@ -221,6 +221,25 @@ func (r *Response[T]) GetData() any {
 	return r.Data
 }
 
+// ParsePagingTotal extracts the total count from a response's paging metadata.
+// App Store Connect responses include {"meta":{"paging":{"total":N}}} which
+// provides the total count even when limit is less than the total.
+// Returns 0 if the metadata is absent or unparseable.
+func ParsePagingTotal(meta json.RawMessage) int {
+	if len(meta) == 0 {
+		return 0
+	}
+	var parsed struct {
+		Paging struct {
+			Total int `json:"total"`
+		} `json:"paging"`
+	}
+	if err := json.Unmarshal(meta, &parsed); err != nil {
+		return 0
+	}
+	return parsed.Paging.Total
+}
+
 // SingleResponse is a generic ASC API response wrapper for single resources.
 type SingleResponse[T any] struct {
 	Data     Resource[T]     `json:"data"`

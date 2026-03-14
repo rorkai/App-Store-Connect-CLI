@@ -2,6 +2,7 @@ package asc
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 )
@@ -186,5 +187,67 @@ func aggregatePageData(result, page PaginatedResponse) error {
 	}
 
 	resultData.Set(reflect.AppendSlice(resultData, pageData))
+	if err := aggregateJSONRawArrayField(resultElem, pageElem, "Included"); err != nil {
+		return err
+	}
 	return nil
+}
+
+func aggregateJSONRawArrayField(resultElem, pageElem reflect.Value, fieldName string) error {
+	resultField := resultElem.FieldByName(fieldName)
+	pageField := pageElem.FieldByName(fieldName)
+	if !resultField.IsValid() || !pageField.IsValid() {
+		return nil
+	}
+
+	rawMessageType := reflect.TypeOf(json.RawMessage{})
+	if resultField.Type() != rawMessageType || pageField.Type() != rawMessageType {
+		return nil
+	}
+
+	merged, err := mergeRawJSONArray(resultField.Interface().(json.RawMessage), pageField.Interface().(json.RawMessage))
+	if err != nil {
+		return fmt.Errorf("merge %s: %w", fieldName, err)
+	}
+	resultField.Set(reflect.ValueOf(merged))
+	return nil
+}
+
+func mergeRawJSONArray(dst, src json.RawMessage) (json.RawMessage, error) {
+	switch {
+	case len(src) == 0:
+		return dst, nil
+	case len(dst) == 0:
+		return append(json.RawMessage(nil), src...), nil
+	}
+
+	var dstItems []json.RawMessage
+	if err := json.Unmarshal(dst, &dstItems); err != nil {
+		return nil, fmt.Errorf("parse existing array: %w", err)
+	}
+	var srcItems []json.RawMessage
+	if err := json.Unmarshal(src, &srcItems); err != nil {
+		return nil, fmt.Errorf("parse incoming array: %w", err)
+	}
+
+	merged := make([]json.RawMessage, 0, len(dstItems)+len(srcItems))
+	seen := make(map[string]struct{}, len(dstItems)+len(srcItems))
+	appendUnique := func(items []json.RawMessage) {
+		for _, item := range items {
+			key := string(item)
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			merged = append(merged, item)
+		}
+	}
+	appendUnique(dstItems)
+	appendUnique(srcItems)
+
+	result, err := json.Marshal(merged)
+	if err != nil {
+		return nil, fmt.Errorf("marshal merged array: %w", err)
+	}
+	return result, nil
 }

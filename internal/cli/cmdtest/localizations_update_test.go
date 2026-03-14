@@ -30,10 +30,10 @@ func setupLocUpdateAuth(t *testing.T) {
 	t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
 }
 
-func locUpdateJSONResponse(status int, body string) (*http.Response, error) {
+func locUpdateJSONResponse(body string) (*http.Response, error) {
 	return &http.Response{
-		Status:     fmt.Sprintf("%d %s", status, http.StatusText(status)),
-		StatusCode: status,
+		Status:     fmt.Sprintf("%d %s", http.StatusOK, http.StatusText(http.StatusOK)),
+		StatusCode: http.StatusOK,
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}, nil
@@ -127,17 +127,17 @@ func TestLocalizationsUpdateAppInfoSubtitle(t *testing.T) {
 		switch {
 		// Resolve app info ID
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
-			return locUpdateJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{}}]}`)
+			return locUpdateJSONResponse(`{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{}}]}`)
 
 		// List existing localizations
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/appinfo-1/appInfoLocalizations":
-			return locUpdateJSONResponse(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"MyApp","subtitle":"Old"}}],"links":{}}`)
+			return locUpdateJSONResponse(`{"data":[{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"MyApp","subtitle":"Old"}}],"links":{}}`)
 
 		// Update localization
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appInfoLocalizations/loc-en":
 			body, _ := io.ReadAll(req.Body)
 			patchBody = string(body)
-			return locUpdateJSONResponse(http.StatusOK, `{"data":{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"MyApp","subtitle":"New Subtitle"}}}`)
+			return locUpdateJSONResponse(`{"data":{"type":"appInfoLocalizations","id":"loc-en","attributes":{"locale":"en-US","name":"MyApp","subtitle":"New Subtitle"}}}`)
 
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
@@ -171,5 +171,61 @@ func TestLocalizationsUpdateAppInfoSubtitle(t *testing.T) {
 	var result map[string]any
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("failed to parse JSON output: %v (stdout=%q)", err, stdout)
+	}
+}
+
+func TestLocalizationsUpdateAppInfoFailsWhenAppInfoIsAmbiguous(t *testing.T) {
+	setupLocUpdateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
+			return locUpdateJSONResponse(`{"data":[
+				{"type":"appInfos","id":"appinfo-live","attributes":{"state":"READY_FOR_SALE"}},
+				{"type":"appInfos","id":"appinfo-rejected","attributes":{"state":"REJECTED"}}
+			]}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"localizations", "update",
+			"--type", "app-info",
+			"--app", "app-1",
+			"--locale", "en-US",
+			"--subtitle", "New Subtitle",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected run error, got nil")
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	for _, want := range []string{
+		`multiple app infos found for app "app-1"`,
+		`asc apps info list --app "app-1"`,
+		"READY_FOR_SALE",
+		"REJECTED",
+	} {
+		if !strings.Contains(runErr.Error(), want) {
+			t.Fatalf("expected error to contain %q, got %v", want, runErr)
+		}
 	}
 }

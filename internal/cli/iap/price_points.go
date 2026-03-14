@@ -13,19 +13,19 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// IAPPricePointsCommand returns the price points command group.
+// IAPPricePointsCommand returns the canonical pricing price points command group.
 func IAPPricePointsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "price-points",
-		ShortUsage: "asc iap price-points <subcommand> [flags]",
+		ShortUsage: "asc iap pricing price-points <subcommand> [flags]",
 		ShortHelp:  "List in-app purchase price points.",
 		LongHelp: `List in-app purchase price points.
 
 Examples:
-  asc iap price-points list --iap-id "IAP_ID"
-  asc iap price-points equalizations --id "PRICE_POINT_ID"`,
+  asc iap pricing price-points list --iap-id "IAP_ID"
+  asc iap pricing price-points equalizations --id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -54,7 +54,7 @@ func IAPPricePointsListCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc iap price-points list --iap-id \"IAP_ID\"",
+		ShortUsage: "asc iap pricing price-points list --iap-id \"IAP_ID\"",
 		ShortHelp:  "List price points for an in-app purchase.",
 		LongHelp: `List price points for an in-app purchase.
 
@@ -62,10 +62,10 @@ Use --price to find a specific customer price, or --min-price/--max-price for
 a range. These filters are applied client-side after fetching.
 
 Examples:
-  asc iap price-points list --iap-id "IAP_ID"
-  asc iap price-points list --iap-id "IAP_ID" --territory "USA"
-  asc iap price-points list --iap-id "IAP_ID" --territory "USA" --paginate --price "4.99"
-  asc iap price-points list --iap-id "IAP_ID" --paginate`,
+  asc iap pricing price-points list --iap-id "IAP_ID"
+  asc iap pricing price-points list --iap-id "IAP_ID" --territory "USA"
+  asc iap pricing price-points list --iap-id "IAP_ID" --territory "USA" --paginate --price "4.99"
+  asc iap pricing price-points list --iap-id "IAP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -166,12 +166,12 @@ func IAPPricePointsEqualizationsCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "equalizations",
-		ShortUsage: "asc iap price-points equalizations --id \"PRICE_POINT_ID\"",
+		ShortUsage: "asc iap pricing price-points equalizations --id \"PRICE_POINT_ID\"",
 		ShortHelp:  "List equalized price points for an in-app purchase price point.",
 		LongHelp: `List equalized price points for an in-app purchase price point.
 
 Examples:
-  asc iap price-points equalizations --id "PRICE_POINT_ID"`,
+  asc iap pricing price-points equalizations --id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

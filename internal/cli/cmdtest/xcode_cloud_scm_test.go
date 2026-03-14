@@ -42,12 +42,12 @@ func TestXcodeCloudScmValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "repositories relationships git references missing repo id",
-			args:    []string{"xcode-cloud", "scm", "repositories", "relationships", "git-references"},
+			args:    []string{"xcode-cloud", "scm", "repositories", "links", "git-references"},
 			wantErr: "--repo-id is required",
 		},
 		{
 			name:    "repositories relationships pull requests missing repo id",
-			args:    []string{"xcode-cloud", "scm", "repositories", "relationships", "pull-requests"},
+			args:    []string{"xcode-cloud", "scm", "repositories", "links", "pull-requests"},
 			wantErr: "--repo-id is required",
 		},
 		{

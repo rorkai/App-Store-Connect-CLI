@@ -2963,19 +2963,47 @@ func TestGetAgeRatingDeclarationForAppInfo(t *testing.T) {
 }
 
 func TestGetAgeRatingDeclarationForAppStoreVersion(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"age-2","attributes":{"gambling":true}}}`)
-	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
-		}
-		if req.URL.Path != "/v1/appStoreVersions/ver-1/ageRatingDeclaration" {
-			t.Fatalf("expected path /v1/appStoreVersions/ver-1/ageRatingDeclaration, got %s", req.URL.Path)
-		}
-		assertAuthorized(t, req)
-	}, response)
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+
+	var seenPaths []string
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
+					t.Fatalf("expected GET, got %s", req.Method)
+				}
+				assertAuthorized(t, req)
+
+				seenPaths = append(seenPaths, req.URL.Path)
+				switch req.URL.Path {
+				case "/v1/appStoreVersions/ver-1":
+					if got := req.URL.Query().Get("include"); got != "app" {
+						t.Fatalf("expected include=app, got %q", got)
+					}
+					return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"appVersionState":"PENDING_DEVELOPER_RELEASE"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), nil
+				case "/v1/apps/app-1/appInfos":
+					return jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-draft","attributes":{"state":"PREPARE_FOR_SUBMISSION"}},{"type":"appInfos","id":"info-live","attributes":{"state":"PENDING_RELEASE"}}]}`), nil
+				case "/v1/appInfos/info-live/ageRatingDeclaration":
+					return jsonResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"age-2","attributes":{"gambling":true}}}`), nil
+				default:
+					t.Fatalf("unexpected path %s", req.URL.Path)
+					return nil, nil
+				}
+			}),
+		},
+		keyID:      "KEY123",
+		issuerID:   "ISS456",
+		privateKey: key,
+	}
 
 	if _, err := client.GetAgeRatingDeclarationForAppStoreVersion(context.Background(), "ver-1"); err != nil {
 		t.Fatalf("GetAgeRatingDeclarationForAppStoreVersion() error: %v", err)
+	}
+	if len(seenPaths) != 3 {
+		t.Fatalf("expected 3 requests, got %d (%v)", len(seenPaths), seenPaths)
 	}
 }
 
@@ -3307,7 +3335,10 @@ func TestGetEndpoints_ReturnsParseError(t *testing.T) {
 
 func TestIsNotFoundAndUnauthorized(t *testing.T) {
 	if !IsNotFound(&APIError{Code: "NOT_FOUND", Title: "The specified resource does not exist"}) {
-		t.Fatal("expected IsNotFound to return true")
+		t.Fatal("expected IsNotFound to return true for NOT_FOUND code")
+	}
+	if !IsNotFound(&APIError{Code: "SOME_OTHER_CODE", StatusCode: 404}) {
+		t.Fatal("expected IsNotFound to return true for HTTP 404 status")
 	}
 	if IsNotFound(fmt.Errorf("something else")) {
 		t.Fatal("expected IsNotFound to return false")

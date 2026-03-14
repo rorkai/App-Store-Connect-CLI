@@ -190,6 +190,7 @@ func GameCenterChallengesCreateCommand() *ffcli.Command {
 	referenceName := fs.String("reference-name", "", "Reference name for the challenge")
 	vendorID := fs.String("vendor-id", "", "Vendor identifier for the challenge")
 	repeatable := fs.String("repeatable", "", "Challenge can be earned multiple times (true/false)")
+	createInitialVersion := fs.String("create-initial-version", "", "Create an initial challenge version inline (true/false)")
 	leaderboardID := fs.String("leaderboard-id", "", "Leaderboard ID for the challenge")
 	groupID := fs.String("group-id", "", "Game Center group ID")
 	output := shared.BindOutputFlags(fs)
@@ -202,6 +203,7 @@ func GameCenterChallengesCreateCommand() *ffcli.Command {
 
 Examples:
   asc game-center challenges create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --leaderboard-id "LEADERBOARD_ID"
+  asc game-center challenges create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --leaderboard-id "LEADERBOARD_ID" --create-initial-version true
   asc game-center challenges create --group-id "GROUP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --leaderboard-id "LEADERBOARD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -232,6 +234,16 @@ Examples:
 			if group != "" && !strings.HasPrefix(vendor, "grp.") {
 				fmt.Fprintln(os.Stderr, "Error: --vendor-id must start with \"grp.\" when using --group-id")
 				return flag.ErrHelp
+			}
+
+			createInitialVersionValue := false
+			if strings.TrimSpace(*createInitialVersion) != "" {
+				value, err := shared.ParseBoolFlag(*createInitialVersion, "--create-initial-version")
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					return flag.ErrHelp
+				}
+				createInitialVersionValue = value
 			}
 
 			attrs := asc.GameCenterChallengeCreateAttributes{
@@ -266,7 +278,7 @@ Examples:
 				}
 			}
 
-			resp, err := client.CreateGameCenterChallenge(requestCtx, gcDetailID, attrs, strings.TrimSpace(*leaderboardID), group)
+			resp, err := client.CreateGameCenterChallenge(requestCtx, gcDetailID, attrs, strings.TrimSpace(*leaderboardID), group, createInitialVersionValue)
 			if err != nil {
 				return fmt.Errorf("game-center challenges create: failed to create: %w", err)
 			}

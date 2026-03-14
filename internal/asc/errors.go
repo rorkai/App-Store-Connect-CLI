@@ -104,7 +104,7 @@ func formatAssociatedErrors(values map[string][]APIAssociatedError) string {
 func (e *APIError) Is(target error) bool {
 	switch target {
 	case ErrNotFound:
-		return strings.EqualFold(e.Code, "NOT_FOUND")
+		return strings.EqualFold(e.Code, "NOT_FOUND") || e.StatusCode == 404
 	case ErrUnauthorized:
 		return strings.EqualFold(e.Code, "UNAUTHORIZED")
 	case ErrForbidden:

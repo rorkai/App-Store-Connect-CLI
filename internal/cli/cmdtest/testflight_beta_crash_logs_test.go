@@ -26,7 +26,7 @@ func TestTestFlightBetaCrashLogsGetValidationErrors(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "Error: --id is required") {
-		t.Fatalf("expected missing id error, got %q", stderr)
+	if !strings.Contains(stderr, "Error: --crash-log-id is required") {
+		t.Fatalf("expected missing crash-log-id error, got %q", stderr)
 	}
 }

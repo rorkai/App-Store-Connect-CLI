@@ -22,7 +22,7 @@ func SubscriptionsAppStoreReviewScreenshotCommand() *ffcli.Command {
 		LongHelp: `Inspect the App Store review screenshot for a subscription.
 
 Examples:
-  asc subscriptions app-store-review-screenshot get --id "SUBSCRIPTION_ID"`,
+  asc subscriptions app-store-review-screenshot get --subscription-id "SUBSCRIPTION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -38,23 +38,23 @@ Examples:
 func SubscriptionsAppStoreReviewScreenshotGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-store-review-screenshot get", flag.ExitOnError)
 
-	subscriptionID := fs.String("id", "", "Subscription ID")
+	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc subscriptions app-store-review-screenshot get --id \"SUBSCRIPTION_ID\"",
+		ShortUsage: "asc subscriptions app-store-review-screenshot get --subscription-id \"SUBSCRIPTION_ID\"",
 		ShortHelp:  "Get the App Store review screenshot for a subscription.",
 		LongHelp: `Get the App Store review screenshot for a subscription.
 
 Examples:
-  asc subscriptions app-store-review-screenshot get --id "SUBSCRIPTION_ID"`,
+  asc subscriptions app-store-review-screenshot get --subscription-id "SUBSCRIPTION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
 				return flag.ErrHelp
 			}
 

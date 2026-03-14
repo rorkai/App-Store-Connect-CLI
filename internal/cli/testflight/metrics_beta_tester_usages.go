@@ -20,13 +20,93 @@ type betaTesterUsagesPage struct {
 	Meta  json.RawMessage   `json:"meta,omitempty"`
 }
 
+func TestFlightMetricsAppTestersCommand() *ffcli.Command {
+	cmd := rewriteCommandTree(
+		TestFlightMetricsBetaTesterUsagesCommand(),
+		"asc testflight metrics beta-tester-usages",
+		"asc testflight metrics app-testers",
+		map[string]string{
+			"beta-tester-usages": "app-testers",
+		},
+		[]textReplacement{
+			{old: "beta tester usage metrics for an app", new: "app tester usage metrics"},
+			{old: "Beta tester usage metrics for an app", new: "App tester usage metrics"},
+			{old: "beta tester", new: "tester"},
+			{old: "Beta tester", new: "Tester"},
+		},
+	)
+	cmd.ShortHelp = "Fetch TestFlight app tester usage metrics."
+	cmd.LongHelp = `Fetch TestFlight app tester usage metrics.
+
+Examples:
+  asc testflight metrics app-testers --app "APP_ID"
+  asc testflight metrics app-testers --app "APP_ID" --period "P30D"
+  asc testflight metrics app-testers --app "APP_ID" --filter-tester "TESTER_ID"`
+	if groupByFlag := cmd.FlagSet.Lookup("group-by"); groupByFlag != nil {
+		groupByFlag.Usage = "Group results by dimension (testers)"
+		groupByFlag.DefValue = "testers"
+	}
+	cmd.UsageFunc = shared.DefaultUsageFunc
+	return cmd
+}
+
+func TestFlightMetricsGroupTestersCommand() *ffcli.Command {
+	cmd := rewriteCommandTree(
+		TestFlightMetricsTestersCommand(),
+		"asc testflight metrics testers",
+		"asc testflight metrics group-testers",
+		map[string]string{
+			"testers": "group-testers",
+		},
+		[]textReplacement{
+			{old: "Fetch TestFlight beta tester usage metrics.", new: "Fetch TestFlight group tester usage metrics."},
+			{old: "Fetch TestFlight beta tester usage metrics", new: "Fetch TestFlight group tester usage metrics"},
+			{old: "metrics testers", new: "metrics group-testers"},
+		},
+	)
+	cmd.UsageFunc = shared.DefaultUsageFunc
+	return cmd
+}
+
+func DeprecatedMetricsTestersAliasCommand() *ffcli.Command {
+	return deprecatedAliasCommand(
+		rewriteCommandPresentation(
+			TestFlightMetricsTestersCommand(),
+			"asc testflight metrics testers",
+			"asc testflight metrics group-testers",
+			map[string]string{
+				"testers": "group-testers",
+			},
+		),
+		"asc testflight metrics group-testers --group \"GROUP_ID\"",
+		"Compatibility alias: use `asc testflight metrics group-testers`.",
+		"Compatibility alias: use `asc testflight metrics group-testers --group GROUP_ID`.",
+	)
+}
+
+func DeprecatedMetricsBetaTesterUsagesAliasCommand() *ffcli.Command {
+	return deprecatedAliasCommand(
+		rewriteCommandPresentation(
+			TestFlightMetricsBetaTesterUsagesCommand(),
+			"asc testflight metrics beta-tester-usages",
+			"asc testflight metrics app-testers",
+			map[string]string{
+				"beta-tester-usages": "app-testers",
+			},
+		),
+		"asc testflight metrics app-testers --app \"APP_ID\" [flags]",
+		"Compatibility alias: use `asc testflight metrics app-testers`.",
+		"Compatibility alias: use `asc testflight metrics app-testers --app APP_ID`.",
+	)
+}
+
 // TestFlightMetricsBetaTesterUsagesCommand fetches app-level beta tester usage metrics.
 func TestFlightMetricsBetaTesterUsagesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("metrics beta-tester-usages", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	period := fs.String("period", "", "Reporting period: "+strings.Join(betaTesterUsagePeriodList(), ", "))
-	groupBy := fs.String("group-by", "betaTesters", "Group results by dimension (betaTesters)")
+	groupBy := fs.String("group-by", "testers", "Group results by dimension (testers)")
 	filterTester := fs.String("filter-tester", "", "Filter by beta tester ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -81,7 +161,7 @@ Examples:
 				asc.WithBetaTesterUsagesLimit(*limit),
 				asc.WithBetaTesterUsagesNextURL(*next),
 				asc.WithBetaTesterUsagesPeriod(periodValue),
-				asc.WithBetaTesterUsagesGroupBy(*groupBy),
+				asc.WithBetaTesterUsagesGroupBy(normalizeBetaTesterUsageGroupBy(*groupBy)),
 				asc.WithBetaTesterUsagesFilterBetaTesters(*filterTester),
 			}
 
@@ -107,6 +187,15 @@ Examples:
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
+	}
+}
+
+func normalizeBetaTesterUsageGroupBy(value string) string {
+	switch strings.TrimSpace(value) {
+	case "", "testers", "betaTesters":
+		return "betaTesters"
+	default:
+		return strings.TrimSpace(value)
 	}
 }
 

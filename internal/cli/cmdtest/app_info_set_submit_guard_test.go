@@ -67,7 +67,7 @@ func TestAppInfoSetCopyFromLocaleBackfillsRequiredFields(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"app-info", "set",
+			"apps", "info", "edit",
 			"--version-id", "version-1",
 			"--locale", "fr-FR",
 			"--copy-from-locale", "en-US",
@@ -124,7 +124,7 @@ func TestAppInfoSetCopyFromLocaleErrorsWhenSourceLocaleMissing(t *testing.T) {
 	var runErr error
 	_, _ = captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"app-info", "set",
+			"apps", "info", "edit",
 			"--version-id", "version-1",
 			"--locale", "fr-FR",
 			"--copy-from-locale", "en-US",
@@ -168,7 +168,7 @@ func TestAppInfoSetWarnsWhenLocaleRemainsSubmitIncomplete(t *testing.T) {
 
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"app-info", "set",
+			"apps", "info", "edit",
 			"--version-id", "version-1",
 			"--locale", "fr-FR",
 			"--whats-new", "Nouveautes",
@@ -217,7 +217,7 @@ func TestAppInfoSetCopyFromLocaleDoesNotOverwriteExistingTargetFields(t *testing
 
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"app-info", "set",
+			"apps", "info", "edit",
 			"--version-id", "version-1",
 			"--locale", "fr-FR",
 			"--copy-from-locale", "en-US",

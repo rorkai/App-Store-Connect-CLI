@@ -13,9 +13,9 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// AppClipDefaultExperiencesRelationshipsCommand returns the default experiences relationships subcommand.
+// AppClipDefaultExperiencesRelationshipsCommand returns the default experiences links subcommand.
 func AppClipDefaultExperiencesRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("default-experiences-relationships", flag.ExitOnError)
+	fs := flag.NewFlagSet("default-experiences-links", flag.ExitOnError)
 
 	appClipID := fs.String("app-clip-id", "", "App Clip ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -24,22 +24,22 @@ func AppClipDefaultExperiencesRelationshipsCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "default-experiences-relationships",
-		ShortUsage: "asc app-clips default-experiences-relationships --app-clip-id \"CLIP_ID\" [flags]",
+		Name:       "default-experiences-links",
+		ShortUsage: "asc app-clips default-experiences-links --app-clip-id \"CLIP_ID\" [flags]",
 		ShortHelp:  "List default experience relationships for an App Clip.",
 		LongHelp: `List default experience relationships for an App Clip.
 
 Examples:
-  asc app-clips default-experiences-relationships --app-clip-id "CLIP_ID"
-  asc app-clips default-experiences-relationships --app-clip-id "CLIP_ID" --paginate`,
+  asc app-clips default-experiences-links --app-clip-id "CLIP_ID"
+  asc app-clips default-experiences-links --app-clip-id "CLIP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("app-clips default-experiences-relationships: --limit must be between 1 and 200")
+				return fmt.Errorf("app-clips default-experiences-links: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("app-clips default-experiences-relationships: %w", err)
+				return fmt.Errorf("app-clips default-experiences-links: %w", err)
 			}
 
 			appClipValue := strings.TrimSpace(*appClipID)
@@ -50,7 +50,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-clips default-experiences-relationships: %w", err)
+				return fmt.Errorf("app-clips default-experiences-links: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -65,14 +65,14 @@ Examples:
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 				firstPage, err := client.GetAppClipDefaultExperiencesRelationships(requestCtx, appClipValue, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("app-clips default-experiences-relationships: failed to fetch: %w", err)
+					return fmt.Errorf("app-clips default-experiences-links: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					return client.GetAppClipDefaultExperiencesRelationships(ctx, appClipValue, asc.WithLinkagesNextURL(nextURL))
 				})
 				if err != nil {
-					return fmt.Errorf("app-clips default-experiences-relationships: %w", err)
+					return fmt.Errorf("app-clips default-experiences-links: %w", err)
 				}
 
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -80,7 +80,7 @@ Examples:
 
 			resp, err := client.GetAppClipDefaultExperiencesRelationships(requestCtx, appClipValue, opts...)
 			if err != nil {
-				return fmt.Errorf("app-clips default-experiences-relationships: %w", err)
+				return fmt.Errorf("app-clips default-experiences-links: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -88,9 +88,9 @@ Examples:
 	}
 }
 
-// AppClipAdvancedExperiencesRelationshipsCommand returns the advanced experiences relationships subcommand.
+// AppClipAdvancedExperiencesRelationshipsCommand returns the advanced experiences links subcommand.
 func AppClipAdvancedExperiencesRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("advanced-experiences-relationships", flag.ExitOnError)
+	fs := flag.NewFlagSet("advanced-experiences-links", flag.ExitOnError)
 
 	appClipID := fs.String("app-clip-id", "", "App Clip ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -99,22 +99,22 @@ func AppClipAdvancedExperiencesRelationshipsCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "advanced-experiences-relationships",
-		ShortUsage: "asc app-clips advanced-experiences-relationships --app-clip-id \"CLIP_ID\" [flags]",
+		Name:       "advanced-experiences-links",
+		ShortUsage: "asc app-clips advanced-experiences-links --app-clip-id \"CLIP_ID\" [flags]",
 		ShortHelp:  "List advanced experience relationships for an App Clip.",
 		LongHelp: `List advanced experience relationships for an App Clip.
 
 Examples:
-  asc app-clips advanced-experiences-relationships --app-clip-id "CLIP_ID"
-  asc app-clips advanced-experiences-relationships --app-clip-id "CLIP_ID" --paginate`,
+  asc app-clips advanced-experiences-links --app-clip-id "CLIP_ID"
+  asc app-clips advanced-experiences-links --app-clip-id "CLIP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("app-clips advanced-experiences-relationships: --limit must be between 1 and 200")
+				return fmt.Errorf("app-clips advanced-experiences-links: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("app-clips advanced-experiences-relationships: %w", err)
+				return fmt.Errorf("app-clips advanced-experiences-links: %w", err)
 			}
 
 			appClipValue := strings.TrimSpace(*appClipID)
@@ -125,7 +125,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences-relationships: %w", err)
+				return fmt.Errorf("app-clips advanced-experiences-links: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -140,14 +140,14 @@ Examples:
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 				firstPage, err := client.GetAppClipAdvancedExperiencesRelationships(requestCtx, appClipValue, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("app-clips advanced-experiences-relationships: failed to fetch: %w", err)
+					return fmt.Errorf("app-clips advanced-experiences-links: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					return client.GetAppClipAdvancedExperiencesRelationships(ctx, appClipValue, asc.WithLinkagesNextURL(nextURL))
 				})
 				if err != nil {
-					return fmt.Errorf("app-clips advanced-experiences-relationships: %w", err)
+					return fmt.Errorf("app-clips advanced-experiences-links: %w", err)
 				}
 
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -155,7 +155,7 @@ Examples:
 
 			resp, err := client.GetAppClipAdvancedExperiencesRelationships(requestCtx, appClipValue, opts...)
 			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences-relationships: %w", err)
+				return fmt.Errorf("app-clips advanced-experiences-links: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

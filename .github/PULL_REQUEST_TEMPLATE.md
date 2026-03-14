@@ -10,10 +10,8 @@
 
 ## Wall of Apps (only if this PR adds/updates a Wall app)
 
-- [ ] I ran `make generate app APP="..." LINK="..." CREATOR="..." PLATFORM="..."` (or manually edited `docs/wall-of-apps.json` + ran `make update-wall-of-apps`)
-- [ ] I committed all generated files:
-  - `docs/wall-of-apps.json`
-  - `README.md`
+- [ ] I used `asc apps wall submit --app "1234567890" --confirm` (or made the equivalent single-file update manually)
+- [ ] This PR only updates `docs/wall-of-apps.json`
 
 Entry template:
 

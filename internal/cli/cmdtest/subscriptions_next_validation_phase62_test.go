@@ -5,8 +5,8 @@ import "testing"
 func TestSubscriptionsAvailabilityAvailableTerritoriesRejectsInvalidNextURLPhase62(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"subscriptions", "availability", "available-territories"},
-		"subscriptions availability available-territories: --next",
+		[]string{"subscriptions", "pricing", "availability", "available-territories"},
+		"subscriptions pricing availability available-territories: --next",
 	)
 }
 
@@ -19,7 +19,7 @@ func TestSubscriptionsAvailabilityAvailableTerritoriesPaginateFromNextWithoutIDP
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"subscriptions", "availability", "available-territories"},
+		[]string{"subscriptions", "pricing", "availability", "available-territories"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -113,8 +113,8 @@ func TestSubscriptionsImagesListPaginateFromNextWithoutSubscriptionIDPhase62(t *
 func TestSubscriptionsIntroductoryOffersListRejectsInvalidNextURLPhase62(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"subscriptions", "introductory-offers", "list"},
-		"subscriptions introductory-offers list: --next",
+		[]string{"subscriptions", "offers", "introductory", "list"},
+		"subscriptions offers introductory list: --next",
 	)
 }
 
@@ -127,7 +127,7 @@ func TestSubscriptionsIntroductoryOffersListPaginateFromNextWithoutSubscriptionI
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"subscriptions", "introductory-offers", "list"},
+		[]string{"subscriptions", "offers", "introductory", "list"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -194,8 +194,8 @@ func TestSubscriptionsLocalizationsListPaginateFromNextWithoutSubscriptionIDPhas
 func TestSubscriptionsOfferCodesCustomCodesRejectsInvalidNextURLPhase62(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"subscriptions", "offer-codes", "custom-codes"},
-		"subscriptions offer-codes custom-codes: --next",
+		[]string{"subscriptions", "offers", "offer-codes", "custom-codes", "list"},
+		"subscriptions offers offer-codes custom-codes list: --next",
 	)
 }
 
@@ -208,7 +208,7 @@ func TestSubscriptionsOfferCodesCustomCodesPaginateFromNextWithoutOfferCodeIDPha
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"subscriptions", "offer-codes", "custom-codes"},
+		[]string{"subscriptions", "offers", "offer-codes", "custom-codes", "list"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -221,8 +221,8 @@ func TestSubscriptionsOfferCodesCustomCodesPaginateFromNextWithoutOfferCodeIDPha
 func TestSubscriptionsOfferCodesOneTimeCodesListRejectsInvalidNextURLPhase62(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"subscriptions", "offer-codes", "one-time-codes", "list"},
-		"subscriptions offer-codes one-time-codes list: --next",
+		[]string{"subscriptions", "offers", "offer-codes", "one-time-codes", "list"},
+		"subscriptions offers offer-codes one-time-codes list: --next",
 	)
 }
 
@@ -235,7 +235,7 @@ func TestSubscriptionsOfferCodesOneTimeCodesListPaginateFromNextWithoutOfferCode
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"subscriptions", "offer-codes", "one-time-codes", "list"},
+		[]string{"subscriptions", "offers", "offer-codes", "one-time-codes", "list"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -248,8 +248,8 @@ func TestSubscriptionsOfferCodesOneTimeCodesListPaginateFromNextWithoutOfferCode
 func TestSubscriptionsOfferCodesPricesRejectsInvalidNextURLPhase62(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"subscriptions", "offer-codes", "prices"},
-		"subscriptions offer-codes prices: --next",
+		[]string{"subscriptions", "offers", "offer-codes", "prices"},
+		"subscriptions offers offer-codes prices: --next",
 	)
 }
 
@@ -262,7 +262,7 @@ func TestSubscriptionsOfferCodesPricesPaginateFromNextWithoutOfferCodeIDPhase62(
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"subscriptions", "offer-codes", "prices"},
+		[]string{"subscriptions", "offers", "offer-codes", "prices"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -275,8 +275,8 @@ func TestSubscriptionsOfferCodesPricesPaginateFromNextWithoutOfferCodeIDPhase62(
 func TestSubscriptionsPricesListRejectsInvalidNextURLPhase62(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"subscriptions", "prices", "list"},
-		"subscriptions prices list: --next",
+		[]string{"subscriptions", "pricing", "prices", "list"},
+		"subscriptions pricing prices list: --next",
 	)
 }
 
@@ -289,7 +289,7 @@ func TestSubscriptionsPricesListPaginateFromNextWithoutIDPhase62(t *testing.T) {
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"subscriptions", "prices", "list"},
+		[]string{"subscriptions", "pricing", "prices", "list"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -302,8 +302,8 @@ func TestSubscriptionsPricesListPaginateFromNextWithoutIDPhase62(t *testing.T) {
 func TestSubscriptionsPromotionalOffersListRejectsInvalidNextURLPhase62(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"subscriptions", "promotional-offers", "list"},
-		"subscriptions promotional-offers list: --next",
+		[]string{"subscriptions", "offers", "promotional", "list"},
+		"subscriptions offers promotional list: --next",
 	)
 }
 
@@ -316,7 +316,7 @@ func TestSubscriptionsPromotionalOffersListPaginateFromNextWithoutSubscriptionID
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"subscriptions", "promotional-offers", "list"},
+		[]string{"subscriptions", "offers", "promotional", "list"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -329,8 +329,8 @@ func TestSubscriptionsPromotionalOffersListPaginateFromNextWithoutSubscriptionID
 func TestSubscriptionsPromotionalOffersPricesRejectsInvalidNextURLPhase62(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"subscriptions", "promotional-offers", "prices"},
-		"subscriptions promotional-offers prices: --next",
+		[]string{"subscriptions", "offers", "promotional", "prices"},
+		"subscriptions offers promotional prices: --next",
 	)
 }
 
@@ -343,7 +343,7 @@ func TestSubscriptionsPromotionalOffersPricesPaginateFromNextWithoutIDPhase62(t 
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"subscriptions", "promotional-offers", "prices"},
+		[]string{"subscriptions", "offers", "promotional", "prices"},
 		firstURL,
 		secondURL,
 		firstBody,

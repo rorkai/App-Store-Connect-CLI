@@ -44,7 +44,7 @@ asc <subcommand> [flags]
 
 ### Experimental Commands
 
-- `web` - EXPERIMENTAL: Unofficial web-session workflows (discouraged).
+- `web` - [experimental] Unofficial web-session workflows (discouraged).
 
 ### Analytics and Finance
 
@@ -52,19 +52,15 @@ asc <subcommand> [flags]
 - `insights` - Generate weekly and daily insights from App Store data sources.
 - `finance` - Download payments and financial reports.
 - `performance` - Access performance metrics and diagnostic logs.
-- `feedback` - List TestFlight feedback from beta testers.
-- `crashes` - List and export TestFlight crash reports.
 
 ### App Management
 
 - `apps` - List and manage apps in App Store Connect.
 - `app-setup` - Post-create app setup automation.
 - `app-tags` - Manage app tags for App Store visibility.
-- `app-info` - Manage App Store version metadata.
-- `app-infos` - List app info records for an app.
 - `versions` - Manage App Store versions.
 - `localizations` - Manage App Store localization metadata.
-- `screenshots` - Capture, frame, review (experimental local workflow), and upload App Store screenshots.
+- `screenshots` - Upload and manage App Store screenshots; local capture/frame workflow is [experimental].
 - `video-previews` - Manage App Store app preview videos.
 - `background-assets` - Manage background assets.
 - `product-pages` - Manage custom product pages and product page experiments.
@@ -86,32 +82,26 @@ asc <subcommand> [flags]
 
 ### TestFlight and Builds
 
-- `testflight` - Manage TestFlight resources.
+- `testflight` - Manage TestFlight workflows.
 - `builds` - Manage builds in App Store Connect.
 - `build-bundles` - Manage build bundles and App Clip data.
-- `pre-release-versions` - Manage TestFlight pre-release versions.
 - `build-localizations` - Manage build release notes localizations.
-- `beta-app-localizations` - Manage TestFlight beta app localizations.
-- `beta-build-localizations` - Manage TestFlight beta build localizations.
 - `sandbox` - Manage sandbox testers in App Store Connect.
 
 ### Review and Release
 
+- `release` - Run high-level App Store release workflows.
 - `review` - Manage App Store review details, attachments, and submissions.
 - `reviews` - List and manage App Store customer reviews.
 - `submit` - Submit builds for App Store review.
 - `validate` - Validate App Store version readiness before submission.
 - `publish` - End-to-end publish workflows for TestFlight and App Store.
-- `release` - Run high-level App Store release workflows.
 
 ### Monetization
 
 - `iap` - Manage in-app purchases in App Store Connect.
 - `app-events` - Manage App Store in-app events.
 - `subscriptions` - Manage subscription groups and subscriptions.
-- `offer-codes` - Manage subscription offer codes.
-- `win-back-offers` - Manage win-back offers for subscriptions.
-- `promoted-purchases` - Manage promoted purchases for subscriptions and in-app purchases.
 
 ### Signing
 
@@ -149,7 +139,9 @@ asc <subcommand> [flags]
 - `status` - Show a release pipeline dashboard for an app.
 - `release-notes` - Generate and manage App Store release notes.
 - `workflow` - Run multi-step automation workflows.
+- `xcode` - Local Xcode archive/export helpers (macOS only).
 - `metadata` - Manage app metadata with deterministic file workflows.
+- `snitch` - Report CLI friction as a GitHub issue.
 
 ## Scripting Tips
 
@@ -169,9 +161,14 @@ asc apps list --output table
 # Upload a build
 asc builds upload --app "123456789" --ipa "/path/to/MyApp.ipa"
 
-# Validate and submit an App Store version
+# Release an App Store version (high-level)
+asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadata-dir "./metadata/version/1.2.3" --dry-run
+asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadata-dir "./metadata/version/1.2.3" --confirm
+asc status --app "123456789"
+
+# Lower-level review/submit flow
 asc validate --app "123456789" --version "1.2.3"
-asc submit --app "123456789" --version "1.2.3"
+asc submit create --app "123456789" --version "1.2.3" --build "BUILD_ID" --confirm
 
 # Run a local automation workflow
 asc workflow run release

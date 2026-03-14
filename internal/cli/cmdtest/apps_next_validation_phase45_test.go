@@ -220,8 +220,8 @@ func TestAppsAppEncryptionDeclarationsListPaginateFromNextWithoutID(t *testing.T
 func TestAppInfoTerritoryAgeRatingsListRejectsInvalidNextURL(t *testing.T) {
 	runAppsInvalidNextURLCases(
 		t,
-		[]string{"app-info", "territory-age-ratings", "list"},
-		"app-info territory-age-ratings list: --next",
+		[]string{"apps", "info", "territory-age-ratings", "list"},
+		"apps info territory-age-ratings list: --next",
 	)
 }
 
@@ -234,7 +234,7 @@ func TestAppInfoTerritoryAgeRatingsListPaginateFromNextWithoutID(t *testing.T) {
 
 	runAppsPaginateFromNext(
 		t,
-		[]string{"app-info", "territory-age-ratings", "list"},
+		[]string{"apps", "info", "territory-age-ratings", "list"},
 		firstURL,
 		secondURL,
 		firstBody,

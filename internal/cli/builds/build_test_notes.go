@@ -25,15 +25,16 @@ func BuildsTestNotesCommand() *ffcli.Command {
 
 Examples:
   asc builds test-notes list --build "BUILD_ID"
-  asc builds test-notes get --id "LOCALIZATION_ID"
+  asc builds test-notes view --id "LOCALIZATION_ID"
   asc builds test-notes create --build "BUILD_ID" --locale "en-US" --whats-new "Test instructions"
   asc builds test-notes update --id "LOCALIZATION_ID" --whats-new "Updated instructions"
   asc builds test-notes delete --id "LOCALIZATION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			BuildsTestNotesListCommand(),
-			BuildsTestNotesGetCommand(),
+			BuildsTestNotesViewCommand(),
+			DeprecatedBuildsTestNotesGetAliasCommand(),
 			BuildsTestNotesCreateCommand(),
 			BuildsTestNotesUpdateCommand(),
 			BuildsTestNotesDeleteCommand(),
@@ -127,21 +128,21 @@ Examples:
 	}
 }
 
-// BuildsTestNotesGetCommand returns the get subcommand.
-func BuildsTestNotesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+// BuildsTestNotesViewCommand returns the view subcommand.
+func BuildsTestNotesViewCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc builds test-notes get [flags]",
-		ShortHelp:  "Get a What to Test note by ID.",
-		LongHelp: `Get a What to Test note by ID.
+		Name:       "view",
+		ShortUsage: "asc builds test-notes view [flags]",
+		ShortHelp:  "View a What to Test note by ID.",
+		LongHelp: `View a What to Test note by ID.
 
 Examples:
-  asc builds test-notes get --id "LOCALIZATION_ID"`,
+  asc builds test-notes view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -153,7 +154,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("builds test-notes get: %w", err)
+				return fmt.Errorf("builds test-notes view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -161,12 +162,22 @@ Examples:
 
 			resp, err := client.GetBetaBuildLocalization(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("builds test-notes get: %w", err)
+				return fmt.Errorf("builds test-notes view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func DeprecatedBuildsTestNotesGetAliasCommand() *ffcli.Command {
+	return shared.DeprecatedAliasLeafCommand(
+		BuildsTestNotesViewCommand(),
+		"get",
+		"asc builds test-notes get [flags]",
+		"asc builds test-notes view",
+		"Warning: `asc builds test-notes get` is deprecated. Use `asc builds test-notes view`.",
+	)
 }
 
 // BuildsTestNotesCreateCommand returns the create subcommand.

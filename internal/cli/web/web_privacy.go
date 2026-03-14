@@ -1116,7 +1116,7 @@ func WebPrivacyCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "privacy",
 		ShortUsage: "asc web privacy <subcommand> [flags]",
-		ShortHelp:  "EXPERIMENTAL: App privacy declaration workflows.",
+		ShortHelp:  "[experimental] App privacy declaration workflows.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Agent-friendly app privacy declaration workflows over Apple web-session /iris endpoints.
@@ -1155,7 +1155,7 @@ func WebPrivacyCatalogCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "catalog",
 		ShortUsage: "asc web privacy catalog [flags]",
-		ShortHelp:  "EXPERIMENTAL: List app privacy catalog values.",
+		ShortHelp:  "[experimental] List app privacy catalog values.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Fetch category, purpose, and data-protection tokens that can be used in
@@ -1231,7 +1231,7 @@ func WebPrivacyPullCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "pull",
 		ShortUsage: "asc web privacy pull --app APP_ID [--out FILE] [flags]",
-		ShortHelp:  "EXPERIMENTAL: Pull app privacy declaration state.",
+		ShortHelp:  "[experimental] Pull app privacy declaration state.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Fetch current app data usage declarations from web-session endpoints and emit
@@ -1317,7 +1317,7 @@ func WebPrivacyPlanCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "plan",
 		ShortUsage: "asc web privacy plan --app APP_ID --file FILE [flags]",
-		ShortHelp:  "EXPERIMENTAL: Plan app privacy declaration changes.",
+		ShortHelp:  "[experimental] Plan app privacy declaration changes.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Compute a deterministic diff between local declaration JSON and remote
@@ -1396,7 +1396,7 @@ func WebPrivacyApplyCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "apply",
 		ShortUsage: "asc web privacy apply --app APP_ID --file FILE [--allow-deletes --confirm] [flags]",
-		ShortHelp:  "EXPERIMENTAL: Apply app privacy declaration changes.",
+		ShortHelp:  "[experimental] Apply app privacy declaration changes.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Apply local declaration tuples to remote app data usages.
@@ -1502,7 +1502,7 @@ func WebPrivacyPublishCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "publish",
 		ShortUsage: "asc web privacy publish --app APP_ID --confirm [flags]",
-		ShortHelp:  "EXPERIMENTAL: Publish app privacy declarations.",
+		ShortHelp:  "[experimental] Publish app privacy declarations.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Explicitly publish app data usage declarations after apply.

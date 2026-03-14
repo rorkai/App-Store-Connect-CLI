@@ -133,7 +133,8 @@ func ReviewItemsAddCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("items-add", flag.ExitOnError)
 
 	submissionID := fs.String("submission", "", "Review submission ID (required)")
-	itemType := fs.String("item-type", "", "Item type: appStoreVersions, appCustomProductPages, appEvents, appStoreVersionExperiments, appStoreVersionExperimentTreatments (required)")
+	itemTypeValues := strings.Join(reviewSubmissionItemTypeList(), ", ")
+	itemType := fs.String("item-type", "", fmt.Sprintf("Item type: %s (required)", itemTypeValues))
 	itemID := fs.String("item-id", "", "Item ID (required)")
 	output := shared.BindOutputFlags(fs)
 
@@ -144,7 +145,8 @@ func ReviewItemsAddCommand() *ffcli.Command {
 		LongHelp: `Add an item to a review submission.
 
 Examples:
-  asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"`,
+  asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
+  asc review items-add --submission "SUBMISSION_ID" --item-type gameCenterChallengeVersions --item-id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -163,7 +165,7 @@ Examples:
 
 			normalizedType, err := normalizeReviewSubmissionItemType(*itemType)
 			if err != nil {
-				return fmt.Errorf("review items-add: %w", err)
+				return shared.UsageError(err.Error())
 			}
 
 			client, err := shared.GetASCClient()
@@ -290,24 +292,17 @@ Examples:
 }
 
 func normalizeReviewSubmissionItemType(value string) (asc.ReviewSubmissionItemType, error) {
-	normalized := strings.TrimSpace(value)
-	if normalized == "" {
+	if strings.TrimSpace(value) == "" {
 		return "", fmt.Errorf("--item-type is required")
 	}
-	if itemType, ok := reviewSubmissionItemTypes[normalized]; ok {
+	if itemType, ok := asc.ParseReviewSubmissionItemType(value); ok {
 		return itemType, nil
 	}
 	return "", fmt.Errorf("--item-type must be one of: %s", strings.Join(reviewSubmissionItemTypeList(), ", "))
 }
 
 func reviewSubmissionItemTypeList() []string {
-	return []string{
-		"appStoreVersions",
-		"appCustomProductPages",
-		"appEvents",
-		"appStoreVersionExperiments",
-		"appStoreVersionExperimentTreatments",
-	}
+	return asc.ReviewSubmissionItemTypeNames()
 }
 
 func normalizeReviewSubmissionItemState(value string) (string, error) {
@@ -329,14 +324,6 @@ func reviewSubmissionItemStateList() []string {
 		"REJECTED",
 		"REMOVED",
 	}
-}
-
-var reviewSubmissionItemTypes = map[string]asc.ReviewSubmissionItemType{
-	"appStoreVersions":                    asc.ReviewSubmissionItemTypeAppStoreVersion,
-	"appCustomProductPages":               asc.ReviewSubmissionItemTypeAppCustomProductPage,
-	"appEvents":                           asc.ReviewSubmissionItemTypeAppEvent,
-	"appStoreVersionExperiments":          asc.ReviewSubmissionItemTypeAppStoreVersionExperiment,
-	"appStoreVersionExperimentTreatments": asc.ReviewSubmissionItemTypeAppStoreVersionExperimentTreatment,
 }
 
 var reviewSubmissionItemStates = map[string]struct{}{

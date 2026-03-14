@@ -103,6 +103,116 @@ func TestConfigSaveLoadRemove(t *testing.T) {
 	}
 }
 
+func TestSaveAtOverwritesExistingFile(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.json")
+
+	initial := &Config{KeyID: "OLD_KEY"}
+	if err := SaveAt(path, initial); err != nil {
+		t.Fatalf("SaveAt(initial) error: %v", err)
+	}
+
+	updated := &Config{KeyID: "NEW_KEY"}
+	if err := SaveAt(path, updated); err != nil {
+		t.Fatalf("SaveAt(updated) error: %v", err)
+	}
+
+	loaded, err := LoadAt(path)
+	if err != nil {
+		t.Fatalf("LoadAt() error: %v", err)
+	}
+	if loaded.KeyID != "NEW_KEY" {
+		t.Fatalf("expected updated key id, got %q", loaded.KeyID)
+	}
+}
+
+func TestSaveAtRestoresSecurePermissionsOnOverwrite(t *testing.T) {
+	tempDir := t.TempDir()
+	path := filepath.Join(tempDir, "config.json")
+
+	if err := SaveAt(path, &Config{KeyID: "OLD_KEY"}); err != nil {
+		t.Fatalf("SaveAt(initial) error: %v", err)
+	}
+	if err := os.Chmod(path, 0o644); err != nil {
+		t.Fatalf("Chmod() error: %v", err)
+	}
+
+	if err := SaveAt(path, &Config{KeyID: "NEW_KEY"}); err != nil {
+		t.Fatalf("SaveAt(updated) error: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat() error: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("expected permissions 0600, got %#o", got)
+	}
+}
+
+func TestSaveAtRejectsSymlinkPath(t *testing.T) {
+	tempDir := t.TempDir()
+	target := filepath.Join(tempDir, "target.json")
+	if err := os.WriteFile(target, []byte("{}"), 0o600); err != nil {
+		t.Fatalf("WriteFile(target) error: %v", err)
+	}
+
+	link := filepath.Join(tempDir, "config.json")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink not supported in this environment: %v", err)
+	}
+
+	err := SaveAt(link, &Config{KeyID: "KEY123"})
+	if err == nil {
+		t.Fatal("expected symlink write to fail, got nil")
+	}
+}
+
+func TestSaveAtRejectsSymlinkParentDirectory(t *testing.T) {
+	tempDir := t.TempDir()
+	targetDir := filepath.Join(tempDir, "actual")
+	if err := os.MkdirAll(targetDir, 0o700); err != nil {
+		t.Fatalf("MkdirAll(targetDir) error: %v", err)
+	}
+
+	linkDir := filepath.Join(tempDir, "linked")
+	if err := os.Symlink(targetDir, linkDir); err != nil {
+		t.Skipf("symlink not supported in this environment: %v", err)
+	}
+
+	path := filepath.Join(linkDir, "config.json")
+	err := SaveAt(path, &Config{KeyID: "KEY123"})
+	if err == nil {
+		t.Fatal("expected symlink parent write to fail, got nil")
+	}
+	if _, statErr := os.Stat(filepath.Join(targetDir, "config.json")); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("expected target config file to remain absent, got %v", statErr)
+	}
+}
+
+func TestSaveAtRejectsSymlinkAncestorDirectory(t *testing.T) {
+	tempDir := t.TempDir()
+	targetDir := filepath.Join(tempDir, "actual")
+	nestedDir := filepath.Join(targetDir, "nested")
+	if err := os.MkdirAll(nestedDir, 0o700); err != nil {
+		t.Fatalf("MkdirAll(nestedDir) error: %v", err)
+	}
+
+	linkDir := filepath.Join(tempDir, "linked")
+	if err := os.Symlink(targetDir, linkDir); err != nil {
+		t.Skipf("symlink not supported in this environment: %v", err)
+	}
+
+	path := filepath.Join(linkDir, "nested", "config.json")
+	err := SaveAt(path, &Config{KeyID: "KEY123"})
+	if err == nil {
+		t.Fatal("expected symlink ancestor write to fail, got nil")
+	}
+	if _, statErr := os.Stat(filepath.Join(nestedDir, "config.json")); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("expected nested target config file to remain absent, got %v", statErr)
+	}
+}
+
 func TestLoadMissingConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))

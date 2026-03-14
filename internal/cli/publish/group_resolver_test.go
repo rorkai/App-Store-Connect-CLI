@@ -125,8 +125,8 @@ func TestResolvePublishBetaGroupIDsFromList_MissingGroup(t *testing.T) {
 func TestResolvePublishBetaGroupIDsFromList_AmbiguousName(t *testing.T) {
 	groups := &asc.BetaGroupsResponse{
 		Data: []asc.Resource[asc.BetaGroupAttributes]{
-			{ID: "GROUP_A", Attributes: asc.BetaGroupAttributes{Name: "QA"}},
-			{ID: "GROUP_B", Attributes: asc.BetaGroupAttributes{Name: "QA"}},
+			{ID: "GROUP_A", Attributes: asc.BetaGroupAttributes{Name: "QA", IsInternalGroup: true}},
+			{ID: "GROUP_B", Attributes: asc.BetaGroupAttributes{Name: "QA", IsInternalGroup: false}},
 		},
 	}
 
@@ -134,8 +134,21 @@ func TestResolvePublishBetaGroupIDsFromList_AmbiguousName(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for ambiguous beta group name")
 	}
-	if !strings.Contains(err.Error(), `multiple beta groups named "qa"; use group ID`) {
-		t.Fatalf("unexpected error: %v", err)
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, `"qa" matches 2 beta groups`) {
+		t.Fatalf("expected ambiguous header, got %v", err)
+	}
+	if !strings.Contains(errMsg, "GROUP_A (internal)") {
+		t.Fatalf("expected internal label for GROUP_A, got %v", err)
+	}
+	if !strings.Contains(errMsg, "GROUP_B (external)") {
+		t.Fatalf("expected external label for GROUP_B, got %v", err)
+	}
+	if !strings.Contains(errMsg, "Use the group ID to disambiguate.") {
+		t.Fatalf("expected disambiguation hint, got %v", err)
+	}
+	if strings.Contains(errMsg, "--skip-internal") {
+		t.Fatalf("did not expect --skip-internal hint for publish testflight, got %v", err)
 	}
 }
 
@@ -305,10 +318,11 @@ func TestResolvePublishBetaGroupIDs_SinglePage(t *testing.T) {
 		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
-	got, err := resolvePublishBetaGroupIDs(context.Background(), client, "APP1", []string{"Alpha", "G2"})
+	resolvedGroups, err := resolvePublishBetaGroups(context.Background(), client, "APP1", []string{"Alpha", "G2"})
 	if err != nil {
-		t.Fatalf("resolvePublishBetaGroupIDs() error = %v", err)
+		t.Fatalf("resolvePublishBetaGroups() error = %v", err)
 	}
+	got := resolvedPublishBetaGroupIDs(resolvedGroups)
 
 	want := []string{"G1", "G2"}
 	if len(got) != len(want) {
@@ -334,7 +348,7 @@ func TestResolvePublishBetaGroupIDs_APIError(t *testing.T) {
 		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
-	_, err = resolvePublishBetaGroupIDs(context.Background(), client, "APP1", []string{"Alpha"})
+	_, err = resolvePublishBetaGroups(context.Background(), client, "APP1", []string{"Alpha"})
 	if err == nil {
 		t.Fatal("expected error from API failure")
 	}
@@ -360,7 +374,7 @@ func TestResolvePublishBetaGroupIDs_NameNotFound(t *testing.T) {
 		t.Fatalf("shared.GetASCClient: %v", err)
 	}
 
-	_, err = resolvePublishBetaGroupIDs(context.Background(), client, "APP1", []string{"NonExistent"})
+	_, err = resolvePublishBetaGroups(context.Background(), client, "APP1", []string{"NonExistent"})
 	if err == nil {
 		t.Fatal("expected error for non-existent group name")
 	}
@@ -529,10 +543,11 @@ func TestResolvePublishBetaGroupIDs_PaginatedNameResolution(t *testing.T) {
 	}
 
 	// Resolve a name that only exists on page 2.
-	got, err := resolvePublishBetaGroupIDs(context.Background(), client, "APP1", []string{"External Testers"})
+	resolvedGroups, err := resolvePublishBetaGroups(context.Background(), client, "APP1", []string{"External Testers"})
 	if err != nil {
-		t.Fatalf("resolvePublishBetaGroupIDs() error = %v", err)
+		t.Fatalf("resolvePublishBetaGroups() error = %v", err)
 	}
+	got := resolvedPublishBetaGroupIDs(resolvedGroups)
 	if len(got) != 1 || got[0] != "G2" {
 		t.Fatalf("expected [G2], got %v", got)
 	}

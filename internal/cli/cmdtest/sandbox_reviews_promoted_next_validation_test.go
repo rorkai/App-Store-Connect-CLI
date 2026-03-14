@@ -49,9 +49,7 @@ func TestSandboxListRejectsInvalidNextURL(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
-			}
+			assertOnlyDeprecatedCommandWarnings(t, stderr)
 		})
 	}
 }
@@ -110,9 +108,7 @@ func TestSandboxListPaginateFromNext(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 	if !strings.Contains(stdout, `"id":"sandbox-next-1"`) || !strings.Contains(stdout, `"id":"sandbox-next-2"`) {
 		t.Fatalf("expected paginated sandbox testers in output, got %q", stdout)
 	}
@@ -127,12 +123,12 @@ func TestPromotedPurchasesListRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/apps/app-1/promotedPurchases?cursor=AQ",
-			wantErr: "promoted-purchases list: --next must be an App Store Connect URL",
+			wantErr: "subscriptions promoted-purchases list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "promoted-purchases list: --next must be a valid URL:",
+			wantErr: "subscriptions promoted-purchases list: --next must be a valid URL:",
 		},
 	}
 
@@ -143,7 +139,7 @@ func TestPromotedPurchasesListRejectsInvalidNextURL(t *testing.T) {
 
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"promoted-purchases", "list", "--next", test.next}); err != nil {
+				if err := root.Parse([]string{"subscriptions", "promoted-purchases", "list", "--next", test.next}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				runErr = root.Run(context.Background())
@@ -186,7 +182,7 @@ func TestPromotedPurchasesListPaginateFromNextWithoutApp(t *testing.T) {
 			if req.Method != http.MethodGet || req.URL.String() != firstURL {
 				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
 			}
-			body := `{"data":[{"type":"promotedPurchases","id":"promo-next-1"}],"links":{"next":"` + secondURL + `"}}`
+			body := `{"data":[{"type":"promotedPurchases","id":"promo-next-1","relationships":{"subscription":{"data":{"type":"subscriptions","id":"sub-next-1"}}}}],"links":{"next":"` + secondURL + `"}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
@@ -196,7 +192,7 @@ func TestPromotedPurchasesListPaginateFromNextWithoutApp(t *testing.T) {
 			if req.Method != http.MethodGet || req.URL.String() != secondURL {
 				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
 			}
-			body := `{"data":[{"type":"promotedPurchases","id":"promo-next-2"}],"links":{"next":""}}`
+			body := `{"data":[{"type":"promotedPurchases","id":"promo-next-2","relationships":{"subscription":{"data":{"type":"subscriptions","id":"sub-next-2"}}}}],"links":{"next":""}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
@@ -212,7 +208,7 @@ func TestPromotedPurchasesListPaginateFromNextWithoutApp(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"promoted-purchases", "list", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"subscriptions", "promoted-purchases", "list", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -378,9 +374,7 @@ func TestReviewsSummarizationsRejectsInvalidNextURL(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
-			}
+			assertOnlyDeprecatedCommandWarnings(t, stderr)
 		})
 	}
 }
@@ -440,9 +434,7 @@ func TestReviewsSummarizationsPaginateFromNextWithoutApp(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 	if !strings.Contains(stdout, `"id":"summary-next-1"`) || !strings.Contains(stdout, `"id":"summary-next-2"`) {
 		t.Fatalf("expected paginated summarizations in output, got %q", stdout)
 	}

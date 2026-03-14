@@ -20,12 +20,12 @@ func TestSubscriptionsPricingValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "missing app and subscription-id",
-			args:    []string{"subscriptions", "pricing"},
+			args:    []string{"subscriptions", "pricing", "summary"},
 			wantErr: "Error: --app or --subscription-id is required",
 		},
 		{
 			name:    "app and subscription-id both set",
-			args:    []string{"subscriptions", "pricing", "--app", "APP_ID", "--subscription-id", "SUB_ID"},
+			args:    []string{"subscriptions", "pricing", "summary", "--app", "APP_ID", "--subscription-id", "SUB_ID"},
 			wantErr: "Error: --app and --subscription-id are mutually exclusive",
 		},
 	}
@@ -114,7 +114,7 @@ func TestSubscriptionsPricingByIDSuccess(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "pricing", "--subscription-id", "sub-1"}); err != nil {
+		if err := root.Parse([]string{"subscriptions", "pricing", "summary", "--subscription-id", "sub-1"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -189,7 +189,7 @@ func TestSubscriptionsPricingTableOutput(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "pricing", "--subscription-id", "sub-1", "--output", "table"}); err != nil {
+		if err := root.Parse([]string{"subscriptions", "pricing", "summary", "--subscription-id", "sub-1", "--output", "table"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -269,7 +269,7 @@ func TestSubscriptionsPricingUsesLatestEffectivePriceAsCurrent(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "pricing", "--subscription-id", "sub-1"}); err != nil {
+		if err := root.Parse([]string{"subscriptions", "pricing", "summary", "--subscription-id", "sub-1"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -361,7 +361,7 @@ func TestSubscriptionsPricingReturnsWorkerErrorNotContextCancelled(t *testing.T)
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
-	if err := root.Parse([]string{"subscriptions", "pricing", "--app", "app-1"}); err != nil {
+	if err := root.Parse([]string{"subscriptions", "pricing", "summary", "--app", "app-1"}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 

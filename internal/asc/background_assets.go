@@ -5,6 +5,7 @@ type BackgroundAssetAttributes struct {
 	Archived            bool   `json:"archived,omitempty"`
 	AssetPackIdentifier string `json:"assetPackIdentifier,omitempty"`
 	CreatedDate         string `json:"createdDate,omitempty"`
+	UsedBytes           *int64 `json:"usedBytes,omitempty"`
 }
 
 // BackgroundAssetVersionStateDetails describes status details for a version.

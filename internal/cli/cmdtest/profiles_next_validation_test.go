@@ -127,12 +127,12 @@ func TestProfilesRelationshipsCertificatesRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/profiles/profile-1/relationships/certificates?cursor=AQ",
-			wantErr: "profiles relationships certificates: --next must be an App Store Connect URL",
+			wantErr: "profiles links certificates: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "invalid extraction path",
 			next:    "https://api.appstoreconnect.apple.com/v1/profiles//relationships/certificates?cursor=AQ",
-			wantErr: "profiles relationships certificates: invalid --next URL",
+			wantErr: "profiles links certificates: invalid --next URL",
 		},
 	}
 
@@ -143,7 +143,7 @@ func TestProfilesRelationshipsCertificatesRejectsInvalidNextURL(t *testing.T) {
 
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"profiles", "relationships", "certificates", "--next", test.next}); err != nil {
+				if err := root.Parse([]string{"profiles", "links", "certificates", "--next", test.next}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				runErr = root.Run(context.Background())
@@ -211,7 +211,7 @@ func TestProfilesRelationshipsCertificatesPaginateFromNextWithoutID(t *testing.T
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"profiles", "relationships", "certificates", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"profiles", "links", "certificates", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -236,12 +236,12 @@ func TestProfilesRelationshipsDevicesRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/profiles/profile-1/relationships/devices?cursor=AQ",
-			wantErr: "profiles relationships devices: --next must be an App Store Connect URL",
+			wantErr: "profiles links devices: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "invalid extraction path",
 			next:    "https://api.appstoreconnect.apple.com/v1/profiles//relationships/devices?cursor=AQ",
-			wantErr: "profiles relationships devices: invalid --next URL",
+			wantErr: "profiles links devices: invalid --next URL",
 		},
 	}
 
@@ -252,7 +252,7 @@ func TestProfilesRelationshipsDevicesRejectsInvalidNextURL(t *testing.T) {
 
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"profiles", "relationships", "devices", "--next", test.next}); err != nil {
+				if err := root.Parse([]string{"profiles", "links", "devices", "--next", test.next}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				runErr = root.Run(context.Background())
@@ -320,7 +320,7 @@ func TestProfilesRelationshipsDevicesPaginateFromNextWithoutID(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"profiles", "relationships", "devices", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"profiles", "links", "devices", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

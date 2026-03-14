@@ -24,7 +24,7 @@ func TestAppInfoSetBatchValidationErrors(t *testing.T) {
 		{
 			name: "locale and locales are mutually exclusive",
 			args: []string{
-				"app-info", "set",
+				"apps", "info", "edit",
 				"--app", "APP_ID",
 				"--locale", "en-US",
 				"--locales", "de-DE",
@@ -35,7 +35,7 @@ func TestAppInfoSetBatchValidationErrors(t *testing.T) {
 		{
 			name: "from-dir cannot be combined with locale",
 			args: []string{
-				"app-info", "set",
+				"apps", "info", "edit",
 				"--app", "APP_ID",
 				"--from-dir", "/tmp/metadata",
 				"--locale", "en-US",
@@ -45,7 +45,7 @@ func TestAppInfoSetBatchValidationErrors(t *testing.T) {
 		{
 			name: "from-dir cannot be combined with inline fields",
 			args: []string{
-				"app-info", "set",
+				"apps", "info", "edit",
 				"--app", "APP_ID",
 				"--from-dir", "/tmp/metadata",
 				"--whats-new", "Fixes",
@@ -89,7 +89,7 @@ func TestRunAppInfoSetInvalidLocalesReturnsUsageExitCode(t *testing.T) {
 
 	_, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
-			"app-info", "set",
+			"apps", "info", "edit",
 			"--app", "APP_ID",
 			"--locales", "en_US,de-DE",
 			"--whats-new", "Fixes",
@@ -113,7 +113,7 @@ func TestRunAppInfoSetFromDirConflictReturnsUsageExitCode(t *testing.T) {
 
 	_, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{
-			"app-info", "set",
+			"apps", "info", "edit",
 			"--app", "APP_ID",
 			"--from-dir", "/tmp/metadata",
 			"--locale", "en-US",
@@ -172,7 +172,7 @@ func TestAppInfoSetBatchDryRunInlineLocales(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"app-info", "set",
+			"apps", "info", "edit",
 			"--app", "app-1",
 			"--locales", "en-US,de-DE",
 			"--whats-new", "Bug fixes and improvements",
@@ -311,7 +311,7 @@ func TestAppInfoSetFromDirPartialFailureReturnsReportedError(t *testing.T) {
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"app-info", "set",
+			"apps", "info", "edit",
 			"--app", "app-1",
 			"--from-dir", inputDir,
 		}); err != nil {
@@ -400,7 +400,7 @@ func TestRunAppInfoSetBatchPartialFailureReturnsExitError(t *testing.T) {
 
 	stdout, _ := captureOutput(t, func() {
 		code := cmd.Run([]string{
-			"app-info", "set",
+			"apps", "info", "edit",
 			"--app", "app-1",
 			"--from-dir", inputDir,
 		}, "1.2.3")

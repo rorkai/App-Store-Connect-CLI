@@ -598,6 +598,7 @@ func GameCenterLeaderboardsSubmitCommand() *ffcli.Command {
 	scopedPlayerID := fs.String("scoped-player-id", "", "Scoped player ID")
 	scoreContext := fs.String("context", "", "Optional score context value")
 	challengeIDs := fs.String("challenge-ids", "", "Challenge ID(s), comma-separated")
+	preReleased := fs.String("pre-released", "", "Apply the submission to the prerelease version (true/false)")
 	submittedDate := fs.String("submitted-date", "", "Submission date (RFC3339)")
 	output := shared.BindOutputFlags(fs)
 
@@ -610,6 +611,7 @@ func GameCenterLeaderboardsSubmitCommand() *ffcli.Command {
 Examples:
   asc game-center leaderboards submit --vendor-id "com.example.leaderboard" --score "100" --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID"
   asc game-center leaderboards submit --vendor-id "com.example.leaderboard" --score "100" --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID" --challenge-ids "CHALLENGE_ID"
+  asc game-center leaderboards submit --vendor-id "com.example.leaderboard" --score "100" --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID" --pre-released true
   asc game-center leaderboards submit --vendor-id "com.example.leaderboard" --score "100" --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID" --submitted-date "2025-01-10T12:34:56Z"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -635,6 +637,16 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			var preReleasedValue *bool
+			if strings.TrimSpace(*preReleased) != "" {
+				value, err := shared.ParseBoolFlag(*preReleased, "--pre-released")
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					return flag.ErrHelp
+				}
+				preReleasedValue = &value
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center leaderboards submit: %w", err)
@@ -649,6 +661,7 @@ Examples:
 				BundleID:         bundleValue,
 				ScopedPlayerID:   playerValue,
 				ChallengeIDs:     shared.SplitCSV(*challengeIDs),
+				PreReleased:      preReleasedValue,
 			}
 			if value := strings.TrimSpace(*scoreContext); value != "" {
 				attrs.Context = &value

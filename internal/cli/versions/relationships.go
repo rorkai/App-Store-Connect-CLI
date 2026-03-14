@@ -34,9 +34,9 @@ var appStoreVersionRelationshipKinds = map[string]relationshipKind{
 	"gameCenterAppVersion":           relationshipSingle,
 }
 
-// VersionsRelationshipsCommand returns the relationships subcommand.
+// VersionsRelationshipsCommand returns the links subcommand.
 func VersionsRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("versions relationships", flag.ExitOnError)
+	fs := flag.NewFlagSet("versions links", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "App Store version ID")
 	relType := fs.String("type", "", "Relationship type: "+strings.Join(appStoreVersionRelationshipList(), ", "))
@@ -46,22 +46,22 @@ func VersionsRelationshipsCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "relationships",
-		ShortUsage: "asc versions relationships --version-id \"VERSION_ID\" --type \"RELATIONSHIP\" [flags]",
+		Name:       "links",
+		ShortUsage: "asc versions links --version-id \"VERSION_ID\" --type \"RELATIONSHIP\" [flags]",
 		ShortHelp:  "List relationship linkages for an app store version.",
 		LongHelp: `List relationship linkages for an app store version.
 
 Examples:
-  asc versions relationships --version-id "VERSION_ID" --type "appStoreReviewDetail"
-  asc versions relationships --version-id "VERSION_ID" --type "appStoreVersionExperiments" --paginate`,
+  asc versions links --version-id "VERSION_ID" --type "appStoreReviewDetail"
+  asc versions links --version-id "VERSION_ID" --type "appStoreVersionExperiments" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("versions relationships: --limit must be between 1 and 200")
+				return fmt.Errorf("versions links: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("versions relationships: %w", err)
+				return fmt.Errorf("versions links: %w", err)
 			}
 
 			relationshipType := strings.TrimSpace(*relType)
@@ -90,7 +90,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("versions relationships: %w", err)
+				return fmt.Errorf("versions links: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -100,7 +100,7 @@ Examples:
 			case relationshipSingle:
 				resp, err := getAppStoreVersionRelationship(requestCtx, client, relationshipType, trimmedID)
 				if err != nil {
-					return fmt.Errorf("versions relationships: %w", err)
+					return fmt.Errorf("versions links: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			case relationshipList:
@@ -113,24 +113,24 @@ Examples:
 					paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 					firstPage, err := getAppStoreVersionRelationshipList(requestCtx, client, relationshipType, trimmedID, paginateOpts...)
 					if err != nil {
-						return fmt.Errorf("versions relationships: failed to fetch: %w", err)
+						return fmt.Errorf("versions links: failed to fetch: %w", err)
 					}
 					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 						return getAppStoreVersionRelationshipList(ctx, client, relationshipType, trimmedID, asc.WithLinkagesNextURL(nextURL))
 					})
 					if err != nil {
-						return fmt.Errorf("versions relationships: %w", err)
+						return fmt.Errorf("versions links: %w", err)
 					}
 					return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 				}
 
 				resp, err := getAppStoreVersionRelationshipList(requestCtx, client, relationshipType, trimmedID, opts...)
 				if err != nil {
-					return fmt.Errorf("versions relationships: %w", err)
+					return fmt.Errorf("versions links: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			default:
-				return fmt.Errorf("versions relationships: unsupported relationship type %q", relationshipType)
+				return fmt.Errorf("versions links: unsupported relationship type %q", relationshipType)
 			}
 		},
 	}

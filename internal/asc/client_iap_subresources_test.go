@@ -984,6 +984,82 @@ func TestCreateInAppPurchaseOfferCodeOneTimeUseCode_UsesPostPath(t *testing.T) {
 	}
 }
 
+func TestCreateInAppPurchaseOfferCodeOneTimeUseCode_PropagatesEnvironment(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"inAppPurchaseOfferCodeOneTimeUseCodes","id":"otuc-2","attributes":{"numberOfCodes":100,"expirationDate":"2026-12-31","environment":"SANDBOX"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		var payload InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload error: %v", err)
+		}
+		if payload.Data.Attributes.Environment != "SANDBOX" {
+			t.Fatalf("expected environment SANDBOX, got %q", payload.Data.Attributes.Environment)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	req := InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest{
+		Data: InAppPurchaseOfferCodeOneTimeUseCodeCreateData{
+			Type: ResourceTypeInAppPurchaseOfferCodeOneTimeUseCodes,
+			Attributes: InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes{
+				NumberOfCodes:  100,
+				ExpirationDate: "2026-12-31",
+				Environment:    "SANDBOX",
+			},
+			Relationships: InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships{
+				OfferCode: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeInAppPurchaseOfferCodes,
+						ID:   "offer-2",
+					},
+				},
+			},
+		},
+	}
+	resp, err := client.CreateInAppPurchaseOfferCodeOneTimeUseCode(context.Background(), req)
+	if err != nil {
+		t.Fatalf("CreateInAppPurchaseOfferCodeOneTimeUseCode() error: %v", err)
+	}
+	if resp.Data.Attributes.Environment != "SANDBOX" {
+		t.Fatalf("expected response environment SANDBOX, got %q", resp.Data.Attributes.Environment)
+	}
+}
+
+func TestCreateInAppPurchaseOfferCodeOneTimeUseCode_NormalizesEnvironment(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"inAppPurchaseOfferCodeOneTimeUseCodes","id":"otuc-3","attributes":{"numberOfCodes":100,"expirationDate":"2026-12-31","environment":"SANDBOX"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		var payload InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload error: %v", err)
+		}
+		if payload.Data.Attributes.Environment != "SANDBOX" {
+			t.Fatalf("expected normalized environment SANDBOX, got %q", payload.Data.Attributes.Environment)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	req := InAppPurchaseOfferCodeOneTimeUseCodeCreateRequest{
+		Data: InAppPurchaseOfferCodeOneTimeUseCodeCreateData{
+			Type: ResourceTypeInAppPurchaseOfferCodeOneTimeUseCodes,
+			Attributes: InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes{
+				NumberOfCodes:  100,
+				ExpirationDate: "2026-12-31",
+				Environment:    " sandbox ",
+			},
+			Relationships: InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships{
+				OfferCode: Relationship{
+					Data: ResourceData{
+						Type: ResourceTypeInAppPurchaseOfferCodes,
+						ID:   "offer-2",
+					},
+				},
+			},
+		},
+	}
+	if _, err := client.CreateInAppPurchaseOfferCodeOneTimeUseCode(context.Background(), req); err != nil {
+		t.Fatalf("CreateInAppPurchaseOfferCodeOneTimeUseCode() error: %v", err)
+	}
+}
+
 func TestCreateInAppPurchaseOfferCodeCustomCode_ValidationErrors(t *testing.T) {
 	client := newTestClient(t, nil, nil)
 

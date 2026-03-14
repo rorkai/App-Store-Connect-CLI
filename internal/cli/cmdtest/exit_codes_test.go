@@ -199,8 +199,8 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "--skip-validation and --network are mutually exclusive",
 		},
 		{
-			name:    "app-info get conflicting version flags",
-			args:    []string{"app-info", "get", "--app", "APP_ID", "--version", "1.0.0", "--version-id", "VERSION_ID"},
+			name:    "apps info view conflicting version flags",
+			args:    []string{"apps", "info", "view", "--app", "APP_ID", "--version", "1.0.0", "--version-id", "VERSION_ID"},
 			wantErr: "--version and --version-id are mutually exclusive",
 		},
 		{
@@ -229,6 +229,11 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "--processing-state must be one of",
 		},
 		{
+			name:    "builds list invalid platform",
+			args:    []string{"builds", "list", "--app", "APP_123", "--platform", "ANDROID"},
+			wantErr: "--platform must be one of",
+		},
+		{
 			name:    "builds wait missing selector",
 			args:    []string{"builds", "wait"},
 			wantErr: "--app is required when --build is not provided",
@@ -237,6 +242,18 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			name:    "builds find missing build-number",
 			args:    []string{"builds", "find", "--app", "APP_123"},
 			wantErr: "--build-number is required",
+		},
+		{
+			name: "apps wall submit parent wall flags",
+			args: []string{
+				"apps", "wall",
+				"--limit", "20",
+				"--output", "markdown",
+				"submit",
+				"--app", "1234567890",
+				"--dry-run",
+			},
+			wantErr: `apps wall submit does not accept parent wall flags (--limit, --output)`,
 		},
 	}
 

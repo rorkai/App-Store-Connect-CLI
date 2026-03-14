@@ -69,7 +69,7 @@ func TestSubscriptionsPricePointsListPaginateUsesPerPageTimeout(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "price-points", "list",
+			"subscriptions", "pricing", "price-points", "list",
 			"--subscription-id", "sub-1",
 			"--paginate",
 			"--output", "json",
@@ -98,7 +98,7 @@ func TestSubscriptionsPricePointsListStreamRequiresPaginate(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "price-points", "list",
+			"subscriptions", "pricing", "price-points", "list",
 			"--subscription-id", "sub-1",
 			"--stream",
 			"--output", "json",
@@ -159,7 +159,7 @@ func TestSubscriptionsPricePointsListStreamOutput(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "price-points", "list",
+			"subscriptions", "pricing", "price-points", "list",
 			"--subscription-id", "sub-1",
 			"--paginate",
 			"--stream",
@@ -234,7 +234,7 @@ func TestSubscriptionsPricePointsListStreamRejectsRepeatedNextURL(t *testing.T) 
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "price-points", "list",
+			"subscriptions", "pricing", "price-points", "list",
 			"--subscription-id", "sub-1",
 			"--paginate",
 			"--stream",
@@ -247,8 +247,8 @@ func TestSubscriptionsPricePointsListStreamRejectsRepeatedNextURL(t *testing.T) 
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(runErr.Error(), "subscriptions price-points list:") {
-		t.Fatalf("expected subscriptions price-points list context, got %v", runErr)
+	if !strings.Contains(runErr.Error(), "subscriptions pricing price-points list:") {
+		t.Fatalf("expected subscriptions pricing price-points list context, got %v", runErr)
 	}
 	if !strings.Contains(runErr.Error(), "detected repeated pagination URL") {
 		t.Fatalf("expected repeated pagination URL error, got %v", runErr)
@@ -308,7 +308,7 @@ func TestSubscriptionsPricePointsListStreamReturnsSecondPageFailure(t *testing.T
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "price-points", "list",
+			"subscriptions", "pricing", "price-points", "list",
 			"--subscription-id", "sub-1",
 			"--paginate",
 			"--stream",
@@ -321,8 +321,8 @@ func TestSubscriptionsPricePointsListStreamReturnsSecondPageFailure(t *testing.T
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(runErr.Error(), "subscriptions price-points list:") {
-		t.Fatalf("expected subscriptions price-points list context, got %v", runErr)
+	if !strings.Contains(runErr.Error(), "subscriptions pricing price-points list:") {
+		t.Fatalf("expected subscriptions pricing price-points list context, got %v", runErr)
 	}
 	if !strings.Contains(runErr.Error(), "page 2 failed") {
 		t.Fatalf("expected second page failure detail, got %v", runErr)
@@ -345,12 +345,12 @@ func TestSubscriptionsPricePointsListRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=AQ",
-			wantErr: "subscriptions price-points list: --next must be an App Store Connect URL",
+			wantErr: "subscriptions pricing price-points list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "subscriptions price-points list: --next must be a valid URL:",
+			wantErr: "subscriptions pricing price-points list: --next must be a valid URL:",
 		},
 	}
 
@@ -362,7 +362,7 @@ func TestSubscriptionsPricePointsListRejectsInvalidNextURL(t *testing.T) {
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
 				if err := root.Parse([]string{
-					"subscriptions", "price-points", "list",
+					"subscriptions", "pricing", "price-points", "list",
 					"--next", test.next,
 				}); err != nil {
 					t.Fatalf("parse error: %v", err)
@@ -432,7 +432,7 @@ func TestSubscriptionsPricePointsListPaginateFromNextWithoutSubscription(t *test
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "price-points", "list",
+			"subscriptions", "pricing", "price-points", "list",
 			"--paginate",
 			"--next", firstURL,
 		}); err != nil {
@@ -481,7 +481,7 @@ func TestSubscriptionsPricePointsListTerritoryFilter(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "price-points", "list",
+			"subscriptions", "pricing", "price-points", "list",
 			"--subscription-id", "sub-1",
 			"--territory", "USA",
 			"--output", "json",
@@ -549,8 +549,8 @@ func TestSubscriptionsPricePointsEqualizationsPaginate(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "price-points", "equalizations",
-			"--id", "pp-1",
+			"subscriptions", "pricing", "price-points", "equalizations",
+			"--price-point-id", "pp-1",
 			"--paginate",
 			"--output", "json",
 		}); err != nil {
@@ -608,8 +608,8 @@ func TestSubscriptionsPricePointsEqualizationsWithoutPaginateUsesSinglePage(t *t
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "price-points", "equalizations",
-			"--id", "pp-1",
+			"subscriptions", "pricing", "price-points", "equalizations",
+			"--price-point-id", "pp-1",
 			"--output", "json",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)

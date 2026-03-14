@@ -20,28 +20,53 @@ func BetaBuildLocalizationsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "beta-build-localizations",
 		ShortUsage: "asc beta-build-localizations <subcommand> [flags]",
-		ShortHelp:  "Manage TestFlight beta build localizations.",
-		LongHelp: `Manage TestFlight beta build localizations ("What to Test" notes).
+		ShortHelp:  "DEPRECATED: use `asc builds test-notes ...`.",
+		LongHelp: `Deprecated compatibility layer for TestFlight What to Test notes.
 
-Deprecated: prefer "asc builds test-notes ..." for the same What to Test functionality.
-This command group remains available for compatibility.
+Canonical build-scoped workflows now live under ` + "`asc builds test-notes ...`" + `.
+
+Legacy-only behaviors still remain here during the transition:
+- ` + "`beta-build-localizations list --global`" + `
+- ` + "`beta-build-localizations get --app ... --latest`" + `
+- ` + "`beta-build-localizations create --app ... --latest`" + `
+- ` + "`beta-build-localizations build get`" + `
 
 Examples:
-  asc beta-build-localizations list --build "BUILD_ID"
-  asc beta-build-localizations list --global
-  asc beta-build-localizations list --global --paginate
-  asc beta-build-localizations create --build "BUILD_ID" --locale "en-US" --whats-new "Test instructions"`,
+  asc builds test-notes list --build "BUILD_ID"
+  asc builds test-notes view --id "LOCALIZATION_ID"
+  asc builds test-notes create --build "BUILD_ID" --locale "en-US" --whats-new "Test instructions"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.DeprecatedUsageFunc,
 		Subcommands: []*ffcli.Command{
-			BetaBuildLocalizationsListCommand(),
-			BetaBuildLocalizationsGetCommand(),
+			deprecatedBetaBuildLocalizationsLeafCommand(
+				BetaBuildLocalizationsListCommand(),
+				"asc builds test-notes list",
+				"Warning: `asc beta-build-localizations list` is deprecated. Use `asc builds test-notes list` for build-scoped workflows. `--global` remains legacy-only during transition.",
+			),
+			deprecatedBetaBuildLocalizationsLeafCommand(
+				BetaBuildLocalizationsGetCommand(),
+				"asc builds test-notes view",
+				"Warning: `asc beta-build-localizations get` is deprecated. Use `asc builds test-notes view` for ID-based lookups. `--latest` remains legacy-only during transition.",
+			),
 			BetaBuildLocalizationsBuildCommand(),
-			BetaBuildLocalizationsCreateCommand(),
-			BetaBuildLocalizationsUpdateCommand(),
-			BetaBuildLocalizationsDeleteCommand(),
+			deprecatedBetaBuildLocalizationsLeafCommand(
+				BetaBuildLocalizationsCreateCommand(),
+				"asc builds test-notes create",
+				"Warning: `asc beta-build-localizations create` is deprecated. Use `asc builds test-notes create` for build-scoped workflows. `--latest` remains legacy-only during transition.",
+			),
+			deprecatedBetaBuildLocalizationsLeafCommand(
+				BetaBuildLocalizationsUpdateCommand(),
+				"asc builds test-notes update",
+				"Warning: `asc beta-build-localizations update` is deprecated. Use `asc builds test-notes update`.",
+			),
+			deprecatedBetaBuildLocalizationsLeafCommand(
+				BetaBuildLocalizationsDeleteCommand(),
+				"asc builds test-notes delete",
+				"Warning: `asc beta-build-localizations delete` is deprecated. Use `asc builds test-notes delete`.",
+			),
 		},
 		Exec: func(ctx context.Context, args []string) error {
+			fmt.Fprintln(os.Stderr, "Warning: `asc beta-build-localizations` is deprecated. Use `asc builds test-notes ...` for canonical build-scoped workflows.")
 			return flag.ErrHelp
 		},
 	}

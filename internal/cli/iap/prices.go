@@ -67,9 +67,9 @@ type iapPricePointValue struct {
 	Proceeds      string
 }
 
-// IAPPricesCommand returns a consolidated pricing summary command for IAPs.
+// IAPPricesCommand returns the canonical pricing summary command for IAPs.
 func IAPPricesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("prices", flag.ExitOnError)
+	fs := flag.NewFlagSet("summary", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
@@ -77,15 +77,15 @@ func IAPPricesCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "prices",
-		ShortUsage: "asc iap prices [flags]",
+		Name:       "summary",
+		ShortUsage: "asc iap pricing summary [flags]",
 		ShortHelp:  "Show consolidated in-app purchase pricing summary.",
 		LongHelp: `Show consolidated in-app purchase pricing summary.
 
 Examples:
-  asc iap prices --app "APP_ID"
-  asc iap prices --iap-id "IAP_ID"
-  asc iap prices --app "APP_ID" --territory "USA" --output table`,
+  asc iap pricing summary --app "APP_ID"
+  asc iap pricing summary --iap-id "IAP_ID"
+  asc iap pricing summary --app "APP_ID" --territory "USA" --output table`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

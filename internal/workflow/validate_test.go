@@ -264,6 +264,91 @@ func TestValidate_InvalidWorkflowName(t *testing.T) {
 	}
 }
 
+func TestValidate_StepOutputsRequireNamedRunStep(t *testing.T) {
+	def := &Definition{
+		Workflows: map[string]Workflow{
+			"release": {
+				Steps: []Step{
+					{
+						Run:     `printf '{"buildId":"build-42"}'`,
+						Outputs: map[string]string{"BUILD_ID": "$.buildId"},
+					},
+				},
+			},
+		},
+	}
+
+	errs := Validate(def)
+	assertValidationCode(t, errs, ErrStepOutputsRequireName)
+}
+
+func TestValidate_StepOutputsRejectWorkflowStep(t *testing.T) {
+	def := &Definition{
+		Workflows: map[string]Workflow{
+			"main": {
+				Steps: []Step{
+					{
+						Name:     "helper_call",
+						Workflow: "helper",
+						Outputs:  map[string]string{"BUILD_ID": "$.buildId"},
+					},
+				},
+			},
+			"helper": {Steps: []Step{{Run: "echo helper"}}},
+		},
+	}
+
+	errs := Validate(def)
+	assertValidationCode(t, errs, ErrStepOutputsOnWorkflow)
+}
+
+func TestValidate_StepOutputsRequireUniqueProducerNames(t *testing.T) {
+	def := &Definition{
+		Workflows: map[string]Workflow{
+			"main": {
+				Steps: []Step{
+					{
+						Name:    "upload",
+						Run:     `printf '{"buildId":"one"}'`,
+						Outputs: map[string]string{"BUILD_ID": "$.buildId"},
+					},
+				},
+			},
+			"helper": {
+				Steps: []Step{
+					{
+						Name:    "upload",
+						Run:     `printf '{"buildId":"two"}'`,
+						Outputs: map[string]string{"BUILD_ID": "$.buildId"},
+					},
+				},
+			},
+		},
+	}
+
+	errs := Validate(def)
+	assertValidationCode(t, errs, ErrDuplicateOutputProducerName)
+}
+
+func TestValidate_StepOutputsRejectInvalidOutputExpr(t *testing.T) {
+	def := &Definition{
+		Workflows: map[string]Workflow{
+			"release": {
+				Steps: []Step{
+					{
+						Name:    "upload",
+						Run:     `printf '{"buildId":"build-42"}'`,
+						Outputs: map[string]string{"BUILD_ID": "buildId"},
+					},
+				},
+			},
+		},
+	}
+
+	errs := Validate(def)
+	assertValidationCode(t, errs, ErrInvalidOutputExpr)
+}
+
 func TestValidate_ValidWorkflowNames(t *testing.T) {
 	tests := []string{"beta", "release", "my-workflow", "test_123", "A"}
 	for _, name := range tests {

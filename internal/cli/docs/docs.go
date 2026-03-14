@@ -23,7 +23,7 @@ func DocsCommand() *ffcli.Command {
 
 Examples:
   asc docs list
-  asc docs show workflows
+  asc docs show api-notes
   asc docs init
   asc docs init --path ./ASC.md
   asc docs init --force --link=false`,

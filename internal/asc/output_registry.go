@@ -200,7 +200,13 @@ func registerSingleResourceRowsAdapter[T any](rows func(*Response[T]) ([]string,
 	}
 	// Normalize typed-nil *SingleResponse[T] to zero-value Resource[T].
 	registerRows(func(v *SingleResponse[T]) ([]string, [][]string) {
-		return rows(&Response[T]{Data: []Resource[T]{ptrOrZero(v).Data}})
+		single := ptrOrZero(v)
+		return rows(&Response[T]{
+			Data:     []Resource[T]{single.Data},
+			Links:    single.Links,
+			Included: single.Included,
+			Meta:     single.Meta,
+		})
 	})
 }
 

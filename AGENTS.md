@@ -60,6 +60,21 @@ Canonical test rule: all test runs must use `ASC_BYPASS_KEYCHAIN=1` to avoid hos
 - CI must enforce formatting + lint + tests on both PR and `main` workflows.
 - Remove unused shared wrappers/helpers when commands are refactored.
 
+## Issue Triage & Labeling
+
+- When creating or triaging a GitHub issue, ensure it ends the task with exactly one label
+  from each of these buckets:
+  - type: `bug`, `enhancement`, or `question`
+  - priority: `p0`, `p1`, `p2`, or `p3`
+  - difficulty: `easy`, `medium`, or `hard`
+- If an issue is created without labels, add the missing labels immediately as part of the
+  same task.
+- Use priority for urgency and user impact, not implementation size.
+- Use difficulty for implementation scope/risk, not urgency.
+- Do not leave newly created issues without a type, priority, and difficulty label.
+- If the exact label is ambiguous, prefer the lower priority/difficulty and note the
+  assumption in the handoff.
+
 ## Testing Discipline
 
 - Use TDD for behavior changes: bugs, refactors that alter behavior, and new features.

@@ -266,7 +266,6 @@ GET /v1/appStoreVersionLocalizations/{id}/relationships/appScreenshotSets
 GET /v1/appStoreVersionLocalizations/{id}/relationships/searchKeywords
 GET /v1/appStoreVersionLocalizations/{id}/searchKeywords
 GET /v1/appStoreVersions/{id}
-GET /v1/appStoreVersions/{id}/ageRatingDeclaration
 GET /v1/appStoreVersions/{id}/alternativeDistributionPackage
 GET /v1/appStoreVersions/{id}/appClipDefaultExperience
 GET /v1/appStoreVersions/{id}/appStoreReviewDetail
@@ -278,7 +277,6 @@ GET /v1/appStoreVersions/{id}/appStoreVersionSubmission
 GET /v1/appStoreVersions/{id}/build
 GET /v1/appStoreVersions/{id}/customerReviews
 GET /v1/appStoreVersions/{id}/gameCenterAppVersion
-GET /v1/appStoreVersions/{id}/relationships/ageRatingDeclaration
 GET /v1/appStoreVersions/{id}/relationships/alternativeDistributionPackage
 GET /v1/appStoreVersions/{id}/relationships/appClipDefaultExperience
 GET /v1/appStoreVersions/{id}/relationships/appStoreReviewDetail

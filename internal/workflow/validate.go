@@ -12,15 +12,20 @@ import (
 type ValidationCode string
 
 const (
-	ErrNoWorkflows         ValidationCode = "no_workflows"
-	ErrInvalidWorkflowName ValidationCode = "invalid_workflow_name"
-	ErrEmptySteps          ValidationCode = "empty_steps"
-	ErrStepNoAction        ValidationCode = "step_no_action"
-	ErrStepEmptyRun        ValidationCode = "step_empty_run"
-	ErrStepConflict        ValidationCode = "step_run_and_workflow"
-	ErrWorkflowNotFound    ValidationCode = "workflow_not_found"
-	ErrCyclicReference     ValidationCode = "cyclic_reference"
-	ErrStepWithOnRun       ValidationCode = "step_with_on_run"
+	ErrNoWorkflows                 ValidationCode = "no_workflows"
+	ErrInvalidWorkflowName         ValidationCode = "invalid_workflow_name"
+	ErrEmptySteps                  ValidationCode = "empty_steps"
+	ErrStepNoAction                ValidationCode = "step_no_action"
+	ErrStepEmptyRun                ValidationCode = "step_empty_run"
+	ErrStepConflict                ValidationCode = "step_run_and_workflow"
+	ErrWorkflowNotFound            ValidationCode = "workflow_not_found"
+	ErrCyclicReference             ValidationCode = "cyclic_reference"
+	ErrStepWithOnRun               ValidationCode = "step_with_on_run"
+	ErrStepOutputsOnWorkflow       ValidationCode = "step_outputs_on_workflow"
+	ErrStepOutputsRequireName      ValidationCode = "step_outputs_require_name"
+	ErrDuplicateOutputProducerName ValidationCode = "duplicate_output_producer_name"
+	ErrInvalidOutputName           ValidationCode = "invalid_output_name"
+	ErrInvalidOutputExpr           ValidationCode = "invalid_output_expr"
 )
 
 // ValidationError describes a structured workflow validation failure.
@@ -36,7 +41,11 @@ func (e *ValidationError) Error() string {
 }
 
 // validWorkflowName matches alphanumeric, hyphens, and underscores, starting with a letter.
-var validWorkflowName = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
+var (
+	validWorkflowName = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
+	validOutputName   = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_]*$`)
+	validOutputExpr   = regexp.MustCompile(`^\$\.[a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*$`)
+)
 
 // Validate checks a Definition for structural errors.
 // Returns all validation errors found (not just the first).
@@ -63,6 +72,8 @@ func Validate(def *Definition) []*ValidationError {
 			})
 		}
 	}
+
+	outputProducerWorkflows := map[string]string{}
 
 	for _, name := range names {
 		wf := def.Workflows[name]
@@ -115,6 +126,57 @@ func Validate(def *Definition) []*ValidationError {
 					Step:     idx,
 					Message:  fmt.Sprintf("workflow %q step %d has 'with' on a run step (only allowed on workflow steps)", name, idx),
 				})
+			}
+
+			if len(step.Outputs) > 0 {
+				if hasWorkflow {
+					errs = append(errs, &ValidationError{
+						Code:     ErrStepOutputsOnWorkflow,
+						Workflow: name,
+						Step:     idx,
+						Message:  fmt.Sprintf("workflow %q step %d has 'outputs' on a workflow step (only allowed on run steps)", name, idx),
+					})
+				}
+
+				trimmedName := strings.TrimSpace(step.Name)
+				if trimmedName == "" || !validWorkflowName.MatchString(trimmedName) {
+					errs = append(errs, &ValidationError{
+						Code:     ErrStepOutputsRequireName,
+						Workflow: name,
+						Step:     idx,
+						Message:  fmt.Sprintf("workflow %q step %d must use a reference-safe 'name' when declaring outputs", name, idx),
+					})
+				} else {
+					if prevWorkflow, exists := outputProducerWorkflows[trimmedName]; exists {
+						errs = append(errs, &ValidationError{
+							Code:     ErrDuplicateOutputProducerName,
+							Workflow: name,
+							Step:     idx,
+							Message:  fmt.Sprintf("workflow %q step %d reuses output-producing step name %q already declared in workflow %q", name, idx, trimmedName, prevWorkflow),
+						})
+					} else {
+						outputProducerWorkflows[trimmedName] = name
+					}
+				}
+
+				for _, outputName := range slices.Sorted(maps.Keys(step.Outputs)) {
+					if !validOutputName.MatchString(outputName) {
+						errs = append(errs, &ValidationError{
+							Code:     ErrInvalidOutputName,
+							Workflow: name,
+							Step:     idx,
+							Message:  fmt.Sprintf("workflow %q step %d has invalid output name %q", name, idx, outputName),
+						})
+					}
+					if !validOutputExpr.MatchString(strings.TrimSpace(step.Outputs[outputName])) {
+						errs = append(errs, &ValidationError{
+							Code:     ErrInvalidOutputExpr,
+							Workflow: name,
+							Step:     idx,
+							Message:  fmt.Sprintf("workflow %q step %d output %q must use a JSON path like $.field", name, idx, outputName),
+						})
+					}
+				}
 			}
 
 			if hasWorkflow {

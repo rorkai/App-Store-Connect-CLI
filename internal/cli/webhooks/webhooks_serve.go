@@ -73,6 +73,7 @@ func WebhooksServeCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 
 	host := fs.String("host", webhooksServeDefaultHost, "Host to bind the local webhook receiver")
+	allowRemote := fs.Bool("allow-remote", false, "Allow binding to non-loopback hosts")
 	port := fs.Int("port", webhooksServeDefaultPort, "Port to bind the local webhook receiver (0-65535)")
 	dir := fs.String("dir", "", "Optional directory to write one JSON payload file per event")
 	execCommand := fs.String("exec", "", "Optional command to execute per event (payload JSON is piped on stdin)")
@@ -84,6 +85,11 @@ func WebhooksServeCommand() *ffcli.Command {
 		ShortUsage: "asc webhooks serve [flags]",
 		ShortHelp:  "Run a local webhook receiver for testing and automation.",
 		LongHelp: `Run a local webhook receiver for testing and automation.
+
+Security note:
+  The default host is loopback-only.
+  Binding to non-loopback hosts requires --allow-remote.
+  If you expose this server remotely, treat --exec like local automation with network trigger access.
 
 Examples:
   asc webhooks serve --port 8787
@@ -101,6 +107,9 @@ Examples:
 			if bindHost == "" {
 				fmt.Fprintln(os.Stderr, "Error: --host is required")
 				return flag.ErrHelp
+			}
+			if !*allowRemote && !isLoopbackWebhookBindHost(bindHost) {
+				return shared.UsageErrorf("binding to non-loopback host %q requires --allow-remote", bindHost)
 			}
 			if *port < 0 || *port > 65535 {
 				fmt.Fprintln(os.Stderr, "Error: --port must be between 0 and 65535")
@@ -515,4 +524,16 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func isLoopbackWebhookBindHost(host string) bool {
+	normalized := strings.TrimSpace(host)
+	if normalized == "" {
+		return false
+	}
+	if strings.EqualFold(normalized, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(strings.Trim(normalized, "[]"))
+	return ip != nil && ip.IsLoopback()
 }

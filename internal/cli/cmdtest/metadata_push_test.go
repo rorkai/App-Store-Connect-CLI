@@ -1184,6 +1184,9 @@ func TestMetadataPushRejectsAmbiguousAppInfoWithActionableRemediation(t *testing
 	if !strings.Contains(stderr, `Error: multiple app infos found for app "app-1"`) {
 		t.Fatalf("expected ambiguous app-info error, got %q", stderr)
 	}
+	if !strings.Contains(stderr, `asc apps info list --app "app-1"`) {
+		t.Fatalf("expected remediation to mention apps info list, got %q", stderr)
+	}
 	if !strings.Contains(stderr, `--app-info "appinfo-1"`) {
 		t.Fatalf("expected remediation example with --app-info, got %q", stderr)
 	}

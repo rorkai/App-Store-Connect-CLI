@@ -12,6 +12,7 @@ type GameCenterLeaderboardEntrySubmissionAttributes struct {
 	BundleID         string   `json:"bundleId"`
 	ChallengeIDs     []string `json:"challengeIds,omitempty"`
 	Context          *string  `json:"context,omitempty"`
+	PreReleased      *bool    `json:"preReleased,omitempty"`
 	ScopedPlayerID   string   `json:"scopedPlayerId"`
 	Score            string   `json:"score"`
 	SubmittedDate    *string  `json:"submittedDate,omitempty"`
@@ -112,6 +113,7 @@ type GameCenterPlayerAchievementSubmissionAttributes struct {
 	BundleID           string   `json:"bundleId"`
 	ChallengeIDs       []string `json:"challengeIds,omitempty"`
 	PercentageAchieved int      `json:"percentageAchieved"`
+	PreReleased        *bool    `json:"preReleased,omitempty"`
 	ScopedPlayerID     string   `json:"scopedPlayerId"`
 	SubmittedDate      *string  `json:"submittedDate,omitempty"`
 	VendorIdentifier   string   `json:"vendorIdentifier"`

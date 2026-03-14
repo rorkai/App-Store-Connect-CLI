@@ -32,19 +32,19 @@ var buildRelationshipKinds = map[string]relationshipKind{
 	"icons":                  relationshipList,
 }
 
-// BuildsRelationshipsCommand returns the builds relationships command group.
+// BuildsRelationshipsCommand returns the builds links command group.
 func BuildsRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships", flag.ExitOnError)
+	fs := flag.NewFlagSet("links", flag.ExitOnError)
 
 	return &ffcli.Command{
-		Name:       "relationships",
-		ShortUsage: "asc builds relationships <subcommand> [flags]",
+		Name:       "links",
+		ShortUsage: "asc builds links <subcommand> [flags]",
 		ShortHelp:  "View build relationship linkages.",
 		LongHelp: `View build relationship linkages.
 
 Examples:
-  asc builds relationships get --build "BUILD_ID" --type "app"
-  asc builds relationships get --build "BUILD_ID" --type "betaBuildLocalizations" --paginate`,
+  asc builds links view --build "BUILD_ID" --type "app"
+  asc builds links view --build "BUILD_ID" --type "betaBuildLocalizations" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -56,9 +56,9 @@ Examples:
 	}
 }
 
-// BuildsRelationshipsGetCommand returns the builds relationships get subcommand.
+// BuildsRelationshipsGetCommand returns the builds links view subcommand.
 func BuildsRelationshipsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships get", flag.ExitOnError)
+	fs := flag.NewFlagSet("links view", flag.ExitOnError)
 
 	buildID := fs.String("build", "", "Build ID")
 	relType := fs.String("type", "", "Relationship type: "+strings.Join(buildRelationshipList(), ", "))
@@ -68,22 +68,22 @@ func BuildsRelationshipsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc builds relationships get --build \"BUILD_ID\" --type \"RELATIONSHIP\" [flags]",
-		ShortHelp:  "Get relationship linkages for a build.",
-		LongHelp: `Get relationship linkages for a build.
+		Name:       "view",
+		ShortUsage: "asc builds links view --build \"BUILD_ID\" --type \"RELATIONSHIP\" [flags]",
+		ShortHelp:  "View relationship linkages for a build.",
+		LongHelp: `View relationship linkages for a build.
 
 Examples:
-  asc builds relationships get --build "BUILD_ID" --type "app"
-  asc builds relationships get --build "BUILD_ID" --type "individualTesters" --paginate`,
+  asc builds links view --build "BUILD_ID" --type "app"
+  asc builds links view --build "BUILD_ID" --type "individualTesters" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("builds relationships get: --limit must be between 1 and 200")
+				return fmt.Errorf("builds links view: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("builds relationships get: %w", err)
+				return fmt.Errorf("builds links view: %w", err)
 			}
 
 			relationshipType := strings.TrimSpace(*relType)
@@ -112,7 +112,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("builds relationships get: %w", err)
+				return fmt.Errorf("builds links view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -122,7 +122,7 @@ Examples:
 			case relationshipSingle:
 				resp, err := getBuildRelationship(requestCtx, client, relationshipType, buildValue)
 				if err != nil {
-					return fmt.Errorf("builds relationships get: %w", err)
+					return fmt.Errorf("builds links view: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			case relationshipList:
@@ -142,18 +142,18 @@ Examples:
 						},
 					)
 					if err != nil {
-						return fmt.Errorf("builds relationships get: %w", err)
+						return fmt.Errorf("builds links view: %w", err)
 					}
 					return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 				}
 
 				resp, err := getBuildRelationshipList(requestCtx, client, relationshipType, buildValue, opts...)
 				if err != nil {
-					return fmt.Errorf("builds relationships get: %w", err)
+					return fmt.Errorf("builds links view: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			default:
-				return fmt.Errorf("builds relationships get: unsupported relationship type %q", relationshipType)
+				return fmt.Errorf("builds links view: unsupported relationship type %q", relationshipType)
 			}
 		},
 	}

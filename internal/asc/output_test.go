@@ -330,6 +330,25 @@ func TestPrintJSON_CustomProductPageUploadResultUsesCustomLocalizationID(t *test
 	}
 }
 
+func TestPrintTable_SkippedAssetUploadResultShowsSkippedState(t *testing.T) {
+	resp := &AppScreenshotUploadResult{
+		VersionLocalizationID: "LOC_123",
+		SetID:                 "SET_123",
+		DisplayType:           "APP_IPHONE_65",
+		Results: []AssetUploadResultItem{
+			{FileName: "shot.png", FilePath: "/tmp/shot.png", Skipped: true},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "skipped") {
+		t.Fatalf("expected skipped state in table output, got: %s", output)
+	}
+}
+
 func TestPrintTableAndMarkdown_BuildUploadResultIncludesOperations(t *testing.T) {
 	resp := &BuildUploadResult{
 		UploadID: "UPLOAD_123",

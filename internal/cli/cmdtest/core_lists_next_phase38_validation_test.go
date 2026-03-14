@@ -57,8 +57,21 @@ func runPhase38InvalidNextURLCases(
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
+			expectedWarning := ""
+			if len(argsPrefix) > 0 {
+				switch argsPrefix[0] {
+				case "feedback":
+					expectedWarning = feedbackRootDeprecationWarning
+				case "crashes":
+					expectedWarning = crashesRootDeprecationWarning
+				}
+			}
+			if expectedWarning == "" {
+				if stderr != "" {
+					t.Fatalf("expected empty stderr, got %q", stderr)
+				}
+			} else {
+				requireStderrContainsWarning(t, stderr, expectedWarning)
 			}
 		})
 	}
@@ -125,8 +138,21 @@ func runPhase38PaginateFromNext(
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	expectedWarning := ""
+	if len(argsPrefix) > 0 {
+		switch argsPrefix[0] {
+		case "feedback":
+			expectedWarning = feedbackRootDeprecationWarning
+		case "crashes":
+			expectedWarning = crashesRootDeprecationWarning
+		}
+	}
+	if expectedWarning == "" {
+		if stderr != "" {
+			t.Fatalf("expected empty stderr, got %q", stderr)
+		}
+	} else {
+		requireStderrContainsWarning(t, stderr, expectedWarning)
 	}
 	for _, id := range wantIDs {
 		needle := `"id":"` + id + `"`

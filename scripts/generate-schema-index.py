@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate docs/openapi/schema_index.json from the OpenAPI snapshot.
+"""Generate internal/cli/schema/schema_index.json from the OpenAPI snapshot.
 
 This produces a compact JSON index of every API endpoint with pre-resolved
 parameters, request attributes, and response schema names. The index is
@@ -16,7 +16,6 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SPEC_PATH = REPO_ROOT / "docs" / "openapi" / "latest.json"
-OUTPUT_PATH = REPO_ROOT / "docs" / "openapi" / "schema_index.json"
 EMBED_PATH = REPO_ROOT / "internal" / "cli" / "schema" / "schema_index.json"
 
 
@@ -182,11 +181,6 @@ def main() -> int:
     generated = json.dumps(index, separators=(",", ":"), ensure_ascii=False)
 
     if args.check:
-        current = OUTPUT_PATH.read_text() if OUTPUT_PATH.exists() else ""
-        if current != generated:
-            print("docs/openapi/schema_index.json is out of date.")
-            print("Run: make update-schema-index")
-            return 1
         embed_current = EMBED_PATH.read_text() if EMBED_PATH.exists() else ""
         if embed_current != generated:
             print("internal/cli/schema/schema_index.json is out of date.")
@@ -195,10 +189,12 @@ def main() -> int:
         print(f"schema_index.json is up to date ({len(index)} endpoints).")
         return 0
 
-    OUTPUT_PATH.write_text(generated)
     EMBED_PATH.parent.mkdir(parents=True, exist_ok=True)
     EMBED_PATH.write_text(generated)
-    print(f"Generated schema_index.json ({len(index)} endpoints, {len(generated) // 1024} KB)")
+    print(
+        f"Generated {EMBED_PATH.relative_to(REPO_ROOT)} "
+        f"({len(index)} endpoints, {len(generated) // 1024} KB)"
+    )
     return 0
 
 

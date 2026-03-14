@@ -475,6 +475,7 @@ func GameCenterAchievementsSubmitCommand() *ffcli.Command {
 	bundleID := fs.String("bundle-id", "", "App bundle ID")
 	scopedPlayerID := fs.String("scoped-player-id", "", "Scoped player ID")
 	challengeIDs := fs.String("challenge-ids", "", "Challenge ID(s), comma-separated")
+	preReleased := fs.String("pre-released", "", "Apply the submission to the prerelease version (true/false)")
 	submittedDate := fs.String("submitted-date", "", "Submission date (RFC3339)")
 	output := shared.BindOutputFlags(fs)
 
@@ -487,6 +488,7 @@ func GameCenterAchievementsSubmitCommand() *ffcli.Command {
 Examples:
   asc game-center achievements submit --vendor-id "com.example.achievement" --percentage 100 --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID"
   asc game-center achievements submit --vendor-id "com.example.achievement" --percentage 50 --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID" --challenge-ids "CHALLENGE_ID"
+  asc game-center achievements submit --vendor-id "com.example.achievement" --percentage 100 --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID" --pre-released true
   asc game-center achievements submit --vendor-id "com.example.achievement" --percentage 100 --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID" --submitted-date "2025-01-10T12:34:56Z"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -511,6 +513,16 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			var preReleasedValue *bool
+			if strings.TrimSpace(*preReleased) != "" {
+				value, err := shared.ParseBoolFlag(*preReleased, "--pre-released")
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					return flag.ErrHelp
+				}
+				preReleasedValue = &value
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center achievements submit: %w", err)
@@ -525,6 +537,7 @@ Examples:
 				BundleID:           bundleValue,
 				ScopedPlayerID:     playerValue,
 				ChallengeIDs:       shared.SplitCSV(*challengeIDs),
+				PreReleased:        preReleasedValue,
 			}
 			if value := strings.TrimSpace(*submittedDate); value != "" {
 				attrs.SubmittedDate = &value

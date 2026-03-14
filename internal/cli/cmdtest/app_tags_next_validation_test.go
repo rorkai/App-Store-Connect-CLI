@@ -139,8 +139,8 @@ func runAppTagsPaginateFromNext(
 func TestAppTagsRelationshipsRejectsInvalidNextURL(t *testing.T) {
 	runAppTagsInvalidNextURLCases(
 		t,
-		[]string{"app-tags", "relationships"},
-		"app-tags relationships: --next",
+		[]string{"app-tags", "links"},
+		"app-tags links: --next",
 	)
 }
 
@@ -153,7 +153,7 @@ func TestAppTagsRelationshipsPaginateFromNextWithoutApp(t *testing.T) {
 
 	runAppTagsPaginateFromNext(
 		t,
-		[]string{"app-tags", "relationships"},
+		[]string{"app-tags", "links"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -193,8 +193,8 @@ func TestAppTagsTerritoriesPaginateFromNextWithoutID(t *testing.T) {
 func TestAppTagsTerritoriesRelationshipsRejectsInvalidNextURL(t *testing.T) {
 	runAppTagsInvalidNextURLCases(
 		t,
-		[]string{"app-tags", "territories-relationships"},
-		"app-tags territories-relationships: --next",
+		[]string{"app-tags", "territories-links"},
+		"app-tags territories-links: --next",
 	)
 }
 
@@ -207,7 +207,7 @@ func TestAppTagsTerritoriesRelationshipsPaginateFromNextWithoutID(t *testing.T) 
 
 	runAppTagsPaginateFromNext(
 		t,
-		[]string{"app-tags", "territories-relationships"},
+		[]string{"app-tags", "territories-links"},
 		firstURL,
 		secondURL,
 		firstBody,

@@ -1,100 +1,90 @@
-# Workflows
+# Workflow Patterns
 
-`asc workflow` lets you define named, multi-step automation sequences in a repo-local file: `.asc/workflow.json`.
+`asc workflow` lets you compose existing `asc` commands and shell commands into
+repeatable release pipelines.
 
-This is designed as a single, versioned workflow file that composes existing `asc` commands and normal shell commands.
+## Verified local Xcode -> TestFlight workflow
 
-## Quick Start
+This pattern was validated against a real app using:
 
-1. Create `.asc/workflow.json` in your repo.
-2. Validate the file:
+- `asc builds latest --next` to choose the next build number for a version
+- `asc xcode archive` to create a deterministic `.xcarchive`
+- `asc xcode export` to create a deterministic `.ipa`
+- `asc publish testflight --group ... --wait` to upload, wait for processing,
+  and add the build to a TestFlight group
 
-```bash
-asc workflow validate
+Create `.asc/export-options-app-store.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>method</key>
+  <string>app-store-connect</string>
+  <key>signingStyle</key>
+  <string>automatic</string>
+  <key>teamID</key>
+  <string>YOUR_TEAM_ID</string>
+  <key>uploadSymbols</key>
+  <true/>
+</dict>
+</plist>
 ```
 
-3. Run a workflow:
-
-```bash
-asc workflow run beta
-asc workflow run beta BUILD_ID:123456789 GROUP_ID:abcdef
-```
-
-## Security and Trust Model
-
-Workflows intentionally execute arbitrary shell commands. This is by design: `asc workflow run` is effectively "run a repo-local script".
-
-`asc` does not sandbox workflow execution. A workflow runs with the same permissions as the `asc` process: it can read files, make network requests, and access anything in the environment.
-
-- Treat workflow files like code. Review changes to `.asc/workflow.json` the same way you'd review any code or CI config.
-- Do not run workflow files from untrusted sources (e.g., copied from the internet, or from a PR/fork you haven't reviewed).
-- In CI, avoid running `asc workflow run` for untrusted pull requests/forks if secrets or write-capable tokens are available in the environment. A safer pattern is to run `asc workflow validate` on PRs and run workflows only on trusted branches.
-- Be careful with `--file`: it can point to any path, not just `.asc/workflow.json`.
-- Step commands inherit your process environment (`os.Environ()`), so secrets present in the environment are visible to steps.
-- Avoid printing secrets in commands; prefer passing secrets as env vars via your CI secret store.
-- Treat params as untrusted input. Quote expansions in shell commands to avoid injection issues (e.g., `--app "$APP_ID"` not `--app $APP_ID`).
-- `asc workflow validate` checks structure and references, not safety of the commands.
-
-## Example `.asc/workflow.json`
-
-Notes:
-- The file supports JSONC comments (`//` and `/* */`).
-- Output is JSON on stdout; step and hook command output streams to stderr.
-- On failures, stdout still remains JSON-only and includes a top-level `error` plus `hooks` results.
+Create `.asc/workflow.json`:
 
 ```json
 {
   "env": {
-    "APP_ID": "123456789",
-    "VERSION": "1.0.0"
+    "APP_ID": "1234567890",
+    "PROJECT_PATH": "App.xcodeproj",
+    "SCHEME": "App",
+    "CONFIGURATION": "Release",
+    "EXPORT_OPTIONS": ".asc/export-options-app-store.plist",
+    "TESTFLIGHT_GROUP": "Beta",
+    "VERSION": ""
   },
-  "before_all": "asc auth status",
-  "after_all": "echo workflow_done",
-  "error": "echo workflow_failed",
   "workflows": {
-    "beta": {
-      "description": "Distribute a build to a TestFlight group",
-      "env": {
-        "GROUP_ID": ""
-      },
+    "testflight_beta": {
+      "description": "Archive, export, upload, and distribute an app to a TestFlight group.",
       "steps": [
         {
-          "name": "list_builds",
-          "run": "asc builds list --app $APP_ID --sort -uploadedDate --limit 5"
+          "name": "validate_version",
+          "run": "if [ -z \"$VERSION\" ]; then echo \"VERSION is required\" >&2; exit 1; fi"
         },
         {
-          "name": "list_groups",
-          "run": "asc testflight beta-groups list --app $APP_ID --limit 20"
-        },
-        {
-          "name": "add_build_to_group",
-          "if": "BUILD_ID",
-          "run": "asc builds add-groups --build $BUILD_ID --group $GROUP_ID"
-        }
-      ]
-    },
-    "release": {
-      "description": "Submit a version for App Store review",
-      "steps": [
-        {
-          "workflow": "preflight",
-          "with": {
-            "NOTE": "running private sub-workflow"
+          "name": "beta_resolve_next_build",
+          "run": "asc builds latest --app \"$APP_ID\" --version \"$VERSION\" --platform IOS --next --initial-build-number 1 --output json",
+          "outputs": {
+            "BUILD_NUMBER": "$.nextBuildNumber"
           }
         },
         {
-          "name": "submit",
-          "run": "asc submit create --app $APP_ID --version $VERSION --build $BUILD_ID --confirm"
-        }
-      ]
-    },
-    "preflight": {
-      "private": true,
-      "description": "Private helper workflow (callable only via workflow steps)",
-      "steps": [
+          "name": "beta_archive",
+          "run": "asc xcode archive --project \"$PROJECT_PATH\" --scheme \"$SCHEME\" --configuration \"$CONFIGURATION\" --archive-path \".asc/artifacts/App-$VERSION-${steps.beta_resolve_next_build.BUILD_NUMBER}.xcarchive\" --clean --overwrite --xcodebuild-flag=-destination --xcodebuild-flag=generic/platform=iOS --xcodebuild-flag=-allowProvisioningUpdates --xcodebuild-flag=MARKETING_VERSION=$VERSION --xcodebuild-flag=CURRENT_PROJECT_VERSION=${steps.beta_resolve_next_build.BUILD_NUMBER} --output json",
+          "outputs": {
+            "ARCHIVE_PATH": "$.archive_path",
+            "VERSION": "$.version",
+            "BUILD_NUMBER": "$.build_number"
+          }
+        },
         {
-          "name": "preflight",
-          "run": "echo \"$NOTE\""
+          "name": "beta_export",
+          "run": "asc xcode export --archive-path ${steps.beta_archive.ARCHIVE_PATH} --export-options \"$EXPORT_OPTIONS\" --ipa-path \".asc/artifacts/App-$VERSION-${steps.beta_archive.BUILD_NUMBER}.ipa\" --overwrite --xcodebuild-flag=-allowProvisioningUpdates --output json",
+          "outputs": {
+            "IPA_PATH": "$.ipa_path",
+            "VERSION": "$.version",
+            "BUILD_NUMBER": "$.build_number"
+          }
+        },
+        {
+          "name": "beta_publish",
+          "run": "asc publish testflight --app \"$APP_ID\" --ipa ${steps.beta_export.IPA_PATH} --group \"$TESTFLIGHT_GROUP\" --wait --poll-interval 10s --output json",
+          "outputs": {
+            "BUILD_ID": "$.buildId",
+            "BUILD_NUMBER": "$.buildNumber"
+          }
         }
       ]
     }
@@ -102,39 +92,22 @@ Notes:
 }
 ```
 
-## Semantics
-
-### Environment Merging
-
-- Entry workflow env: `definition.env` -> `workflow.env` -> CLI params (`KEY:VALUE` / `KEY=VALUE`)
-- Sub-workflow env: `sub_workflow.env` provides defaults, caller env overrides, and step `with` overrides win over everything.
-
-### Conditionals
-
-Add `"if": "VAR_NAME"` to a step to skip it when the variable is falsy.
-
-Conditionals check the workflow env/params first, then fall back to `os.Getenv("VAR_NAME")`.
-For deterministic behavior (especially in CI), prefer setting conditional variables in the workflow env or passing them as params.
-
-Truthy values (case-insensitive): `1`, `true`, `yes`, `y`, `on`.
-
-### Hooks
-
-Hooks are definition-level commands:
-- `before_all` runs once before any steps
-- `after_all` runs once after all steps (only if steps succeeded)
-- `error` runs on any failure (step failure, hook failure, max call depth, etc.)
-
-Hooks are recorded in the structured JSON output as `hooks.before_all`, `hooks.after_all`, and `hooks.error`.
-
-### Output Contract
-
-- stdout: JSON-only (`asc workflow run` prints a structured result)
-- stderr: step/hook command output, plus dry-run previews
-
-This makes it safe to do:
+Run it:
 
 ```bash
-asc workflow run beta BUILD_ID:123 GROUP_ID:xyz | jq -e '.status == "ok"'
+asc workflow validate
+asc workflow run --dry-run testflight_beta VERSION:1.2.3
+asc workflow run testflight_beta VERSION:1.2.3
 ```
 
+Notes:
+
+- `VERSION` must be a valid next marketing version for your app. If the latest
+  App Store version is already `READY_FOR_DISTRIBUTION`, reusing that same
+  version can cause App Store Connect to reject the upload.
+- `TESTFLIGHT_GROUP` accepts either a beta group name or group ID.
+- Add `"ASC_BYPASS_KEYCHAIN": "1"` to the top-level `env` block if you want the
+  workflow to resolve credentials from environment variables or config instead
+  of the macOS keychain.
+- Output-producing step names should stay unique within the workflow file when
+  you define multiple workflows that use `outputs`.

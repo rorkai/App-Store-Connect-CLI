@@ -267,8 +267,8 @@ func TestBuildsMetricsBetaUsagesFetchFromNextWithoutBuild(t *testing.T) {
 func TestBuildsRelationshipsGetRejectsInvalidNextURL(t *testing.T) {
 	runBuildsInvalidNextURLCases(
 		t,
-		[]string{"builds", "relationships", "get", "--type", "icons"},
-		"builds relationships get: --next",
+		[]string{"builds", "links", "view", "--type", "icons"},
+		"builds links view: --next",
 	)
 }
 
@@ -281,7 +281,7 @@ func TestBuildsRelationshipsGetPaginateFromNextWithoutBuild(t *testing.T) {
 
 	runBuildsPaginateFromNext(
 		t,
-		[]string{"builds", "relationships", "get", "--type", "icons"},
+		[]string{"builds", "links", "view", "--type", "icons"},
 		firstURL,
 		secondURL,
 		firstBody,

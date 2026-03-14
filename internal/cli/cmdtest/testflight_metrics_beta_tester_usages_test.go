@@ -189,12 +189,12 @@ func TestTestFlightMetricsBetaTesterUsagesRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/apps/app-1/metrics/betaTesterUsages?limit=2",
-			wantErr: "testflight metrics beta-tester-usages: --next must be an App Store Connect URL",
+			wantErr: "testflight metrics app-testers: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "testflight metrics beta-tester-usages: --next must be a valid URL:",
+			wantErr: "testflight metrics app-testers: --next must be a valid URL:",
 		},
 	}
 

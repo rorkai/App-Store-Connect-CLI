@@ -19,11 +19,6 @@ type guideSummary struct {
 
 var guideRegistry = []guideEntry{
 	{
-		Slug:        "workflows",
-		Description: "Workflow definition format, security model, and examples",
-		Content:     docsembed.WorkflowsGuide,
-	},
-	{
 		Slug:        "api-notes",
 		Description: "API quirks: date formats, finance reports, sandbox testers",
 		Content:     docsembed.APINotesGuide,

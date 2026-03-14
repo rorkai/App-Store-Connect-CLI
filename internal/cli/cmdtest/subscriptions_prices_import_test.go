@@ -37,7 +37,7 @@ func TestSubscriptionsPricesImport_InvalidBooleanReturnsUsageError(t *testing.T)
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "prices", "import", "--id", "sub-1", "--input", csvPath, "--dry-run"}); err != nil {
+		if err := root.Parse([]string{"subscriptions", "pricing", "prices", "import", "--subscription-id", "sub-1", "--input", csvPath, "--dry-run"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		err := root.Run(context.Background())
@@ -114,7 +114,7 @@ func TestSubscriptionsPricesImport_DryRunResolvesASCExportAliasWithoutMutations(
 	}
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "prices", "import", "--id", "sub-1", "--input", csvPath, "--dry-run"}); err != nil {
+		if err := root.Parse([]string{"subscriptions", "pricing", "prices", "import", "--subscription-id", "sub-1", "--input", csvPath, "--dry-run"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -207,7 +207,7 @@ func TestSubscriptionsPricesImport_PartialFailureReturnsReportedErrorAndSummary(
 
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "prices", "import", "--id", "sub-1", "--input", csvPath}); err != nil {
+		if err := root.Parse([]string{"subscriptions", "pricing", "prices", "import", "--subscription-id", "sub-1", "--input", csvPath}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())

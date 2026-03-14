@@ -31,7 +31,8 @@ Examples:
   asc review submissions-items-ids --id "SUBMISSION_ID"
   asc review items-get --id "ITEM_ID"
   asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
-  asc review items-update --id "ITEM_ID" --state READY_FOR_REVIEW`,
+  asc review items-update --id "ITEM_ID" --state READY_FOR_REVIEW
+  asc review history --app "123456789"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -43,6 +44,7 @@ Examples:
 			ReviewDetailsAttachmentsGetCommand(),
 			ReviewDetailsAttachmentsUploadCommand(),
 			ReviewDetailsAttachmentsDeleteCommand(),
+			ReviewHistoryCommand(),
 			ReviewSubmissionsListCommand(),
 			ReviewSubmissionsGetCommand(),
 			ReviewSubmissionsCreateCommand(),

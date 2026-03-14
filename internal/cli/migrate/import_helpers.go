@@ -295,20 +295,32 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, versionID string
 		}
 		setByType := make(map[string]string)
 		existingFiles := make(map[string]map[string]bool)
+		existingIDsByName := make(map[string]map[string]string)
+		existingOrderByType := make(map[string][]string)
 		for _, set := range existingSets.Data {
 			setByType[set.Attributes.ScreenshotDisplayType] = set.ID
+			orderedIDs, err := assets.GetOrderedAppScreenshotIDs(uploadCtx, client, set.ID)
+			if err != nil {
+				return nil, fmt.Errorf("migrate import: failed to fetch screenshot relationship order for %s: %w", set.ID, err)
+			}
+			existingOrderByType[set.Attributes.ScreenshotDisplayType] = orderedIDs
 			screenshots, err := client.GetAppScreenshots(uploadCtx, set.ID)
 			if err != nil {
 				return nil, fmt.Errorf("migrate import: failed to fetch screenshots for %s: %w", set.ID, err)
 			}
 			fileNames := make(map[string]bool)
+			fileIDs := make(map[string]string)
 			for _, shot := range screenshots.Data {
 				name := strings.TrimSpace(shot.Attributes.FileName)
 				if name != "" {
 					fileNames[name] = true
+					if fileIDs[name] == "" {
+						fileIDs[name] = shot.ID
+					}
 				}
 			}
 			existingFiles[set.Attributes.ScreenshotDisplayType] = fileNames
+			existingIDsByName[set.Attributes.ScreenshotDisplayType] = fileIDs
 		}
 
 		for _, plan := range localePlans {
@@ -322,6 +334,8 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, versionID string
 				setID = set.Data.ID
 				setByType[canonicalDisplayType] = setID
 				existingFiles[canonicalDisplayType] = make(map[string]bool)
+				existingIDsByName[canonicalDisplayType] = make(map[string]string)
+				existingOrderByType[canonicalDisplayType] = nil
 			}
 
 			fileNames := existingFiles[canonicalDisplayType]
@@ -329,11 +343,17 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, versionID string
 				fileNames = make(map[string]bool)
 				existingFiles[canonicalDisplayType] = fileNames
 			}
+			fileIDs := existingIDsByName[canonicalDisplayType]
+			if fileIDs == nil {
+				fileIDs = make(map[string]string)
+				existingIDsByName[canonicalDisplayType] = fileIDs
+			}
 
 			result := ScreenshotUploadResult{
 				Locale:      plan.Locale,
 				DisplayType: canonicalDisplayType,
 			}
+			uploadedIDsByName := make(map[string]string)
 
 			for _, filePath := range plan.Files {
 				name := filepath.Base(filePath)
@@ -349,7 +369,18 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, versionID string
 					return nil, fmt.Errorf("migrate import: failed to upload screenshot %s: %w", filePath, err)
 				}
 				fileNames[name] = true
+				uploadedIDsByName[name] = item.AssetID
 				result.Uploaded = append(result.Uploaded, item)
+			}
+			orderedIDs := buildPlannedScreenshotOrder(plan.Files, existingOrderByType[canonicalDisplayType], fileIDs, uploadedIDsByName)
+			if err := assets.SetOrderedAppScreenshots(uploadCtx, client, setID, orderedIDs); err != nil {
+				return nil, fmt.Errorf("migrate import: failed to reorder screenshots for %s: %w", setID, err)
+			}
+			existingOrderByType[canonicalDisplayType] = orderedIDs
+			for name, id := range uploadedIDsByName {
+				if strings.TrimSpace(id) != "" {
+					fileIDs[name] = id
+				}
 			}
 
 			results = append(results, result)
@@ -363,6 +394,37 @@ func uploadScreenshots(ctx context.Context, client *asc.Client, versionID string
 		return results[i].Locale < results[j].Locale
 	})
 	return results, nil
+}
+
+func buildPlannedScreenshotOrder(planFiles []string, existingOrder []string, existingIDsByName map[string]string, uploadedIDsByName map[string]string) []string {
+	orderedIDs := make([]string, 0, len(planFiles)+len(existingOrder))
+	seen := make(map[string]struct{}, len(planFiles)+len(existingOrder))
+	appendUnique := func(id string) {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return
+		}
+		if _, exists := seen[id]; exists {
+			return
+		}
+		seen[id] = struct{}{}
+		orderedIDs = append(orderedIDs, id)
+	}
+
+	for _, filePath := range planFiles {
+		name := filepath.Base(filePath)
+		if id := uploadedIDsByName[name]; strings.TrimSpace(id) != "" {
+			appendUnique(id)
+			continue
+		}
+		appendUnique(existingIDsByName[name])
+	}
+
+	for _, id := range existingOrder {
+		appendUnique(id)
+	}
+
+	return orderedIDs
 }
 
 func isNotFoundReviewDetail(err error) bool {

@@ -18,12 +18,12 @@ func TestAppEventsRelationshipsRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/appEvents/event-1/relationships/localizations?cursor=AQ",
-			wantErr: "app-events relationships: --next must be an App Store Connect URL",
+			wantErr: "app-events links: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "app-events relationships: --next must be a valid URL:",
+			wantErr: "app-events links: --next must be a valid URL:",
 		},
 	}
 
@@ -34,7 +34,7 @@ func TestAppEventsRelationshipsRejectsInvalidNextURL(t *testing.T) {
 
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"app-events", "relationships", "--next", test.next}); err != nil {
+				if err := root.Parse([]string{"app-events", "links", "--next", test.next}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				runErr = root.Run(context.Background())
@@ -102,7 +102,7 @@ func TestAppEventsRelationshipsPaginateFromNextWithoutEventID(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"app-events", "relationships", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"app-events", "links", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -127,12 +127,12 @@ func TestAppEventsScreenshotsRelationshipsRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/appEventLocalizations/loc-1/relationships/appEventScreenshots?cursor=AQ",
-			wantErr: "app-events screenshots relationships: --next must be an App Store Connect URL",
+			wantErr: "app-events screenshots links: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "app-events screenshots relationships: --next must be a valid URL:",
+			wantErr: "app-events screenshots links: --next must be a valid URL:",
 		},
 	}
 
@@ -143,7 +143,7 @@ func TestAppEventsScreenshotsRelationshipsRejectsInvalidNextURL(t *testing.T) {
 
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"app-events", "screenshots", "relationships", "--next", test.next}); err != nil {
+				if err := root.Parse([]string{"app-events", "screenshots", "links", "--next", test.next}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				runErr = root.Run(context.Background())
@@ -211,7 +211,7 @@ func TestAppEventsScreenshotsRelationshipsPaginateFromNextWithoutLocalizationOrE
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"app-events", "screenshots", "relationships", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"app-events", "screenshots", "links", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -236,12 +236,12 @@ func TestAppEventsVideoClipsRelationshipsRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/appEventLocalizations/loc-1/relationships/appEventVideoClips?cursor=AQ",
-			wantErr: "app-events video-clips relationships: --next must be an App Store Connect URL",
+			wantErr: "app-events video-clips links: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "app-events video-clips relationships: --next must be a valid URL:",
+			wantErr: "app-events video-clips links: --next must be a valid URL:",
 		},
 	}
 
@@ -252,7 +252,7 @@ func TestAppEventsVideoClipsRelationshipsRejectsInvalidNextURL(t *testing.T) {
 
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"app-events", "video-clips", "relationships", "--next", test.next}); err != nil {
+				if err := root.Parse([]string{"app-events", "video-clips", "links", "--next", test.next}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				runErr = root.Run(context.Background())
@@ -320,7 +320,7 @@ func TestAppEventsVideoClipsRelationshipsPaginateFromNextWithoutLocalizationOrEv
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"app-events", "video-clips", "relationships", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"app-events", "video-clips", "links", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

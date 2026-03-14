@@ -46,10 +46,8 @@ jobs:
           export PATH="$(go env GOPATH)/bin:$PATH"
           make format-check
 
-      - name: Check Wall of Apps generation
-        run: |
-          make update-wall-of-apps
-          git diff --exit-code -- README.md
+      - name: Check Wall of Apps source
+        run: make check-wall-of-apps
 
       - name: Check command docs sync
         run: make check-command-docs

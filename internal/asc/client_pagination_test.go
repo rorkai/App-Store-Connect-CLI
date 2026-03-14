@@ -2,6 +2,7 @@ package asc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -476,6 +477,62 @@ func TestPaginateAll_Builds(t *testing.T) {
 	expected := totalPages * perPage
 	if len(builds.Data) != expected {
 		t.Fatalf("expected %d builds, got %d", expected, len(builds.Data))
+	}
+}
+
+func TestPaginateAll_BuildsPreservesIncluded(t *testing.T) {
+	firstPage := &BuildsResponse{
+		Data: []Resource[BuildAttributes]{
+			{
+				Type: ResourceTypeBuilds,
+				ID:   "build-1",
+			},
+		},
+		Included: json.RawMessage(`[
+			{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"TV_OS"}}
+		]`),
+		Links: Links{Next: "page=2"},
+	}
+
+	secondPage := &BuildsResponse{
+		Data: []Resource[BuildAttributes]{
+			{
+				Type: ResourceTypeBuilds,
+				ID:   "build-2",
+			},
+		},
+		Included: json.RawMessage(`[
+			{"type":"preReleaseVersions","id":"prv-2","attributes":{"version":"2.0.0","platform":"IOS"}}
+		]`),
+	}
+
+	result, err := PaginateAll(context.Background(), firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
+		if nextURL != "page=2" {
+			t.Fatalf("expected next URL page=2, got %q", nextURL)
+		}
+		return secondPage, nil
+	})
+	if err != nil {
+		t.Fatalf("PaginateAll() error: %v", err)
+	}
+
+	builds, ok := result.(*BuildsResponse)
+	if !ok {
+		t.Fatalf("expected *BuildsResponse, got %T", result)
+	}
+	if len(builds.Data) != 2 {
+		t.Fatalf("expected 2 builds, got %d", len(builds.Data))
+	}
+
+	var included []Resource[PreReleaseVersionAttributes]
+	if err := json.Unmarshal(builds.Included, &included); err != nil {
+		t.Fatalf("expected merged included payload to be valid JSON, got %v", err)
+	}
+	if len(included) != 2 {
+		t.Fatalf("expected 2 included pre-release versions, got %d", len(included))
+	}
+	if included[0].ID != "prv-1" || included[1].ID != "prv-2" {
+		t.Fatalf("unexpected included IDs: %+v", included)
 	}
 }
 

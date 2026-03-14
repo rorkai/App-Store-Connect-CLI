@@ -25,13 +25,20 @@ func AnalyticsReportsCommand() *ffcli.Command {
 
 Examples:
   asc analytics reports get --report-id "REPORT_ID"
-  asc analytics reports relationships --report-id "REPORT_ID"
-  asc analytics reports relationships --report-id "REPORT_ID" --paginate`,
+  asc analytics reports links --report-id "REPORT_ID"
+  asc analytics reports links --report-id "REPORT_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AnalyticsReportsGetCommand(),
 			AnalyticsReportsRelationshipsCommand(),
+			shared.DeprecatedAliasLeafCommand(
+				AnalyticsReportsRelationshipsCommand(),
+				"relationships",
+				"asc analytics reports links --report-id \"REPORT_ID\" [flags]",
+				"asc analytics reports links",
+				"Warning: `asc analytics reports relationships` is deprecated. Use `asc analytics reports links`.",
+			),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -80,9 +87,9 @@ Examples:
 	}
 }
 
-// AnalyticsReportsRelationshipsCommand lists instance relationships for a report.
+// AnalyticsReportsRelationshipsCommand lists instance links for a report.
 func AnalyticsReportsRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships", flag.ExitOnError)
+	fs := flag.NewFlagSet("links", flag.ExitOnError)
 
 	reportID := fs.String("report-id", "", "Analytics report ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -91,28 +98,28 @@ func AnalyticsReportsRelationshipsCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "relationships",
-		ShortUsage: "asc analytics reports relationships --report-id \"REPORT_ID\" [flags]",
+		Name:       "links",
+		ShortUsage: "asc analytics reports links --report-id \"REPORT_ID\" [flags]",
 		ShortHelp:  "List analytics report instance relationships.",
 		LongHelp: `List analytics report instance relationships.
 
 Examples:
-  asc analytics reports relationships --report-id "REPORT_ID"
-  asc analytics reports relationships --report-id "REPORT_ID" --paginate`,
+  asc analytics reports links --report-id "REPORT_ID"
+  asc analytics reports links --report-id "REPORT_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > analyticsMaxLimit) {
-				return fmt.Errorf("analytics reports relationships: --limit must be between 1 and 200")
+				return fmt.Errorf("analytics reports links: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("analytics reports relationships: %w", err)
+				return fmt.Errorf("analytics reports links: %w", err)
 			}
 
 			id := strings.TrimSpace(*reportID)
 			if id != "" {
 				if err := validateUUIDFlag("--report-id", id); err != nil {
-					return fmt.Errorf("analytics reports relationships: %w", err)
+					return fmt.Errorf("analytics reports links: %w", err)
 				}
 			}
 			if id == "" && strings.TrimSpace(*next) == "" {
@@ -122,7 +129,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("analytics reports relationships: %w", err)
+				return fmt.Errorf("analytics reports links: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -144,7 +151,7 @@ Examples:
 					},
 				)
 				if err != nil {
-					return fmt.Errorf("analytics reports relationships: %w", err)
+					return fmt.Errorf("analytics reports links: %w", err)
 				}
 
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -152,7 +159,7 @@ Examples:
 
 			resp, err := client.GetAnalyticsReportInstancesRelationships(requestCtx, id, opts...)
 			if err != nil {
-				return fmt.Errorf("analytics reports relationships: failed to fetch: %w", err)
+				return fmt.Errorf("analytics reports links: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

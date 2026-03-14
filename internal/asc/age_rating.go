@@ -107,19 +107,15 @@ func (c *Client) GetAgeRatingDeclarationForAppInfo(ctx context.Context, appInfoI
 }
 
 // GetAgeRatingDeclarationForAppStoreVersion retrieves the age rating declaration for a version.
+//
+// Apple removed the version-scoped endpoint in API 4.3, so this now resolves the
+// backing app info and retrieves the declaration from the supported app-info path.
 func (c *Client) GetAgeRatingDeclarationForAppStoreVersion(ctx context.Context, versionID string) (*AgeRatingDeclarationResponse, error) {
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/ageRatingDeclaration", versionID)
-	data, err := c.do(ctx, "GET", path, nil)
+	appInfoID, err := c.ResolveAppInfoIDForAppStoreVersion(ctx, versionID)
 	if err != nil {
 		return nil, err
 	}
-
-	var response AgeRatingDeclarationResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
+	return c.GetAgeRatingDeclarationForAppInfo(ctx, appInfoID)
 }
 
 // UpdateAgeRatingDeclaration updates an age rating declaration by ID.

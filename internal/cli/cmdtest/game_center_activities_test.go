@@ -71,6 +71,10 @@ func TestGameCenterActivitiesCreateValidationErrors(t *testing.T) {
 			name: "missing reference-name",
 			args: []string{"game-center", "activities", "create", "--app", "APP_ID"},
 		},
+		{
+			name: "fallback requires initial version",
+			args: []string{"game-center", "activities", "create", "--app", "APP_ID", "--reference-name", "Seasonal", "--vendor-id", "com.example.seasonal", "--initial-fallback-url", "https://example.com/fallback"},
+		},
 	}
 
 	for _, test := range tests {

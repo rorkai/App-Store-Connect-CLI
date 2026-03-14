@@ -20,6 +20,9 @@ func TestASCTemplateIncludesAllRootSubcommands(t *testing.T) {
 	root := cmd.RootCommand("test")
 	rootCommands := make([]string, 0, len(root.Subcommands))
 	for _, sub := range root.Subcommands {
+		if strings.HasPrefix(strings.TrimSpace(sub.ShortHelp), "DEPRECATED:") {
+			continue
+		}
 		rootCommands = append(rootCommands, sub.Name)
 	}
 

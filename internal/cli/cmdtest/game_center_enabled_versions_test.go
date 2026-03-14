@@ -114,32 +114,39 @@ func TestGameCenterEnabledVersionsCompatibleVersionsLimitValidation(t *testing.T
 
 func TestGameCenterEnabledVersionsOutputErrors(t *testing.T) {
 	tests := []struct {
-		name string
-		args []string
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name: "enabled-versions list unsupported output",
-			args: []string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--output", "yaml"},
+			name:    "enabled-versions list unsupported output",
+			args:    []string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--output", "yaml"},
+			wantErr: "unsupported format: yaml",
 		},
 		{
-			name: "enabled-versions list pretty with table",
-			args: []string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--output", "table", "--pretty"},
+			name:    "enabled-versions list pretty with table",
+			args:    []string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--output", "table", "--pretty"},
+			wantErr: "--pretty is only valid with JSON output",
 		},
 		{
-			name: "enabled-versions list pretty with markdown",
-			args: []string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--output", "markdown", "--pretty"},
+			name:    "enabled-versions list pretty with markdown",
+			args:    []string{"game-center", "enabled-versions", "list", "--app", "APP_ID", "--output", "markdown", "--pretty"},
+			wantErr: "--pretty is only valid with JSON output",
 		},
 		{
-			name: "enabled-versions compatible unsupported output",
-			args: []string{"game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--output", "yaml"},
+			name:    "enabled-versions compatible unsupported output",
+			args:    []string{"game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--output", "yaml"},
+			wantErr: "unsupported format: yaml",
 		},
 		{
-			name: "enabled-versions compatible pretty with table",
-			args: []string{"game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--output", "table", "--pretty"},
+			name:    "enabled-versions compatible pretty with table",
+			args:    []string{"game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--output", "table", "--pretty"},
+			wantErr: "--pretty is only valid with JSON output",
 		},
 		{
-			name: "enabled-versions compatible pretty with markdown",
-			args: []string{"game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--output", "markdown", "--pretty"},
+			name:    "enabled-versions compatible pretty with markdown",
+			args:    []string{"game-center", "enabled-versions", "compatible-versions", "--id", "ENABLED_VERSION_ID", "--output", "markdown", "--pretty"},
+			wantErr: "--pretty is only valid with JSON output",
 		},
 	}
 
@@ -153,16 +160,17 @@ func TestGameCenterEnabledVersionsOutputErrors(t *testing.T) {
 					t.Fatalf("parse error: %v", err)
 				}
 				err := root.Run(context.Background())
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				if errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected non-help error, got %v", err)
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
 				}
 			})
 
-			_ = stdout
-			_ = stderr
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
 		})
 	}
 }

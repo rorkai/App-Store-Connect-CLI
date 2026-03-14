@@ -35,3 +35,17 @@ func SetFetchSubscriptionsFunc(fn func(context.Context, *asc.Client, string) ([]
 		fetchSubscriptionsFn = previous
 	}
 }
+
+// SetFetchIAPsFunc replaces the IAP fetcher for tests.
+// It returns a restore function to reset the previous handler.
+func SetFetchIAPsFunc(fn func(context.Context, *asc.Client, string) ([]validation.IAP, error)) func() {
+	previous := fetchIAPsFn
+	if fn == nil {
+		fetchIAPsFn = fetchIAPs
+	} else {
+		fetchIAPsFn = fn
+	}
+	return func() {
+		fetchIAPsFn = previous
+	}
+}

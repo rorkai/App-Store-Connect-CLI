@@ -18,7 +18,7 @@ func TestRunPrintsHintForMissingAuth(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", t.TempDir()+"/config.json")
 
 	stdout, stderr := captureOutput(t, func() {
-		code := cmd.Run([]string{"testflight", "apps", "list"}, "1.2.3")
+		code := cmd.Run([]string{"apps", "list"}, "1.2.3")
 		if code != cmd.ExitAuth {
 			t.Fatalf("expected exit code %d, got %d", cmd.ExitAuth, code)
 		}

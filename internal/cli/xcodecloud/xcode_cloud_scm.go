@@ -171,13 +171,14 @@ Examples:
   asc xcode-cloud scm repositories get --id "REPO_ID"
   asc xcode-cloud scm repositories git-references --repo-id "REPO_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			XcodeCloudScmRepositoriesListCommand(),
 			XcodeCloudScmRepositoriesGetCommand(),
 			XcodeCloudScmRepositoriesGitReferencesCommand(),
 			XcodeCloudScmRepositoriesPullRequestsCommand(),
 			XcodeCloudScmRepositoriesRelationshipsCommand(),
+			DeprecatedXcodeCloudScmRepositoriesRelationshipsAliasCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return xcodeCloudScmRepositoriesList(ctx, *limit, *next, *paginate, *output, *pretty)
@@ -298,17 +299,17 @@ Examples:
 }
 
 func XcodeCloudScmRepositoriesRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships", flag.ExitOnError)
+	fs := flag.NewFlagSet("links", flag.ExitOnError)
 
 	return &ffcli.Command{
-		Name:       "relationships",
-		ShortUsage: "asc xcode-cloud scm repositories relationships <git-references|pull-requests> [flags]",
+		Name:       "links",
+		ShortUsage: "asc xcode-cloud scm repositories links <git-references|pull-requests> [flags]",
 		ShortHelp:  "List SCM repository relationship linkages.",
 		LongHelp: `List SCM repository relationship linkages.
 
 Examples:
-  asc xcode-cloud scm repositories relationships git-references --repo-id "REPO_ID"
-  asc xcode-cloud scm repositories relationships pull-requests --repo-id "REPO_ID"`,
+  asc xcode-cloud scm repositories links git-references --repo-id "REPO_ID"
+  asc xcode-cloud scm repositories links pull-requests --repo-id "REPO_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -325,17 +326,17 @@ func XcodeCloudScmRepositoriesRelationshipsGitReferencesCommand() *ffcli.Command
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		FlagSetName: "git-references",
 		Name:        "git-references",
-		ShortUsage:  "asc xcode-cloud scm repositories relationships git-references --repo-id \"REPO_ID\" [flags]",
+		ShortUsage:  "asc xcode-cloud scm repositories links git-references --repo-id \"REPO_ID\" [flags]",
 		ShortHelp:   "List git reference relationship linkages for a repository.",
 		LongHelp: `List git reference relationship linkages for a repository.
 
 Examples:
-  asc xcode-cloud scm repositories relationships git-references --repo-id "REPO_ID"
-  asc xcode-cloud scm repositories relationships git-references --repo-id "REPO_ID" --paginate`,
+  asc xcode-cloud scm repositories links git-references --repo-id "REPO_ID"
+  asc xcode-cloud scm repositories links git-references --repo-id "REPO_ID" --paginate`,
 		ParentFlag:  "repo-id",
 		ParentUsage: "SCM repository ID",
 		LimitMax:    200,
-		ErrorPrefix: "xcode-cloud scm repositories relationships git-references",
+		ErrorPrefix: "xcode-cloud scm repositories links git-references",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -357,17 +358,17 @@ func XcodeCloudScmRepositoriesRelationshipsPullRequestsCommand() *ffcli.Command 
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
 		FlagSetName: "pull-requests",
 		Name:        "pull-requests",
-		ShortUsage:  "asc xcode-cloud scm repositories relationships pull-requests --repo-id \"REPO_ID\" [flags]",
+		ShortUsage:  "asc xcode-cloud scm repositories links pull-requests --repo-id \"REPO_ID\" [flags]",
 		ShortHelp:   "List pull request relationship linkages for a repository.",
 		LongHelp: `List pull request relationship linkages for a repository.
 
 Examples:
-  asc xcode-cloud scm repositories relationships pull-requests --repo-id "REPO_ID"
-  asc xcode-cloud scm repositories relationships pull-requests --repo-id "REPO_ID" --paginate`,
+  asc xcode-cloud scm repositories links pull-requests --repo-id "REPO_ID"
+  asc xcode-cloud scm repositories links pull-requests --repo-id "REPO_ID" --paginate`,
 		ParentFlag:  "repo-id",
 		ParentUsage: "SCM repository ID",
 		LimitMax:    200,
-		ErrorPrefix: "xcode-cloud scm repositories relationships pull-requests",
+		ErrorPrefix: "xcode-cloud scm repositories links pull-requests",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -383,6 +384,38 @@ Examples:
 			return resp, nil
 		},
 	})
+}
+
+func DeprecatedXcodeCloudScmRepositoriesRelationshipsAliasCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("relationships", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "relationships",
+		ShortUsage: "asc xcode-cloud scm repositories links <git-references|pull-requests> [flags]",
+		ShortHelp:  "DEPRECATED: use `asc xcode-cloud scm repositories links ...`.",
+		LongHelp:   "Deprecated compatibility alias for `asc xcode-cloud scm repositories links ...`.",
+		FlagSet:    fs,
+		UsageFunc:  shared.DeprecatedUsageFunc,
+		Subcommands: []*ffcli.Command{
+			shared.DeprecatedAliasLeafCommand(
+				XcodeCloudScmRepositoriesRelationshipsGitReferencesCommand(),
+				"git-references",
+				"asc xcode-cloud scm repositories links git-references --repo-id \"REPO_ID\" [flags]",
+				"asc xcode-cloud scm repositories links git-references",
+				"Warning: `asc xcode-cloud scm repositories relationships git-references` is deprecated. Use `asc xcode-cloud scm repositories links git-references`.",
+			),
+			shared.DeprecatedAliasLeafCommand(
+				XcodeCloudScmRepositoriesRelationshipsPullRequestsCommand(),
+				"pull-requests",
+				"asc xcode-cloud scm repositories links pull-requests --repo-id \"REPO_ID\" [flags]",
+				"asc xcode-cloud scm repositories links pull-requests",
+				"Warning: `asc xcode-cloud scm repositories relationships pull-requests` is deprecated. Use `asc xcode-cloud scm repositories links pull-requests`.",
+			),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
 }
 
 // XcodeCloudScmGitReferencesCommand returns the SCM git references command group.

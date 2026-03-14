@@ -25,13 +25,20 @@ func AnalyticsInstancesCommand() *ffcli.Command {
 
 Examples:
   asc analytics instances get --instance-id "INSTANCE_ID"
-  asc analytics instances relationships --instance-id "INSTANCE_ID"
-  asc analytics instances relationships --instance-id "INSTANCE_ID" --paginate`,
+  asc analytics instances links --instance-id "INSTANCE_ID"
+  asc analytics instances links --instance-id "INSTANCE_ID" --paginate`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AnalyticsInstancesGetCommand(),
 			AnalyticsInstancesRelationshipsCommand(),
+			shared.DeprecatedAliasLeafCommand(
+				AnalyticsInstancesRelationshipsCommand(),
+				"relationships",
+				"asc analytics instances links --instance-id \"INSTANCE_ID\" [flags]",
+				"asc analytics instances links",
+				"Warning: `asc analytics instances relationships` is deprecated. Use `asc analytics instances links`.",
+			),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -80,9 +87,9 @@ Examples:
 	}
 }
 
-// AnalyticsInstancesRelationshipsCommand lists segment relationships for an instance.
+// AnalyticsInstancesRelationshipsCommand lists segment links for an instance.
 func AnalyticsInstancesRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships", flag.ExitOnError)
+	fs := flag.NewFlagSet("links", flag.ExitOnError)
 
 	instanceID := fs.String("instance-id", "", "Analytics report instance ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -91,28 +98,28 @@ func AnalyticsInstancesRelationshipsCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "relationships",
-		ShortUsage: "asc analytics instances relationships --instance-id \"INSTANCE_ID\" [flags]",
+		Name:       "links",
+		ShortUsage: "asc analytics instances links --instance-id \"INSTANCE_ID\" [flags]",
 		ShortHelp:  "List analytics report segment relationships.",
 		LongHelp: `List analytics report segment relationships.
 
 Examples:
-  asc analytics instances relationships --instance-id "INSTANCE_ID"
-  asc analytics instances relationships --instance-id "INSTANCE_ID" --paginate`,
+  asc analytics instances links --instance-id "INSTANCE_ID"
+  asc analytics instances links --instance-id "INSTANCE_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > analyticsMaxLimit) {
-				return fmt.Errorf("analytics instances relationships: --limit must be between 1 and 200")
+				return fmt.Errorf("analytics instances links: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("analytics instances relationships: %w", err)
+				return fmt.Errorf("analytics instances links: %w", err)
 			}
 
 			id := strings.TrimSpace(*instanceID)
 			if id != "" {
 				if err := validateUUIDFlag("--instance-id", id); err != nil {
-					return fmt.Errorf("analytics instances relationships: %w", err)
+					return fmt.Errorf("analytics instances links: %w", err)
 				}
 			}
 			if id == "" && strings.TrimSpace(*next) == "" {
@@ -122,7 +129,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("analytics instances relationships: %w", err)
+				return fmt.Errorf("analytics instances links: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -144,7 +151,7 @@ Examples:
 					},
 				)
 				if err != nil {
-					return fmt.Errorf("analytics instances relationships: %w", err)
+					return fmt.Errorf("analytics instances links: %w", err)
 				}
 
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -152,7 +159,7 @@ Examples:
 
 			resp, err := client.GetAnalyticsReportInstanceSegmentsRelationships(requestCtx, id, opts...)
 			if err != nil {
-				return fmt.Errorf("analytics instances relationships: failed to fetch: %w", err)
+				return fmt.Errorf("analytics instances links: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

@@ -424,6 +424,40 @@ func TestBuildsLatestExcludeExpiredInvalidBooleanExitCode(t *testing.T) {
 	}
 }
 
+func TestAuthTokenConfirmInvalidBooleanExitCode(t *testing.T) {
+	tmpDir := t.TempDir()
+	binaryPath := filepath.Join(tmpDir, "asc-test")
+
+	buildCmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	buildCmd.Dir = ".." // Go up from cmd/ to project root
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, out)
+	}
+
+	runCmd := exec.Command(binaryPath, "auth", "token", "--confirm=maybe")
+	runCmd.Env = isolatedCLITestEnv(filepath.Join(tmpDir, "config.json"))
+	output, err := runCmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected non-zero exit for invalid boolean value, got success output: %s", output)
+	}
+
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("expected *exec.ExitError, got %T (%v)", err, err)
+	}
+	if exitErr.ExitCode() != ExitUsage {
+		t.Fatalf("expected exit code %d, got %d (output: %s)", ExitUsage, exitErr.ExitCode(), output)
+	}
+
+	stderr := string(output)
+	if !strings.Contains(stderr, "invalid boolean value") {
+		t.Fatalf("expected stderr to contain invalid boolean message, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "confirm") {
+		t.Fatalf("expected stderr to mention confirm flag, got %q", stderr)
+	}
+}
+
 func isolatedCLITestEnv(configPath string) []string {
 	env := filterEnvVars(
 		os.Environ(),

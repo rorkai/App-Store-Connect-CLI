@@ -21,62 +21,62 @@ func TestOfferCodesValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "offer codes get missing offer code id",
-			args:    []string{"offer-codes", "get"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "get"},
 			wantErr: "Error: --offer-code-id is required",
 		},
 		{
 			name:    "offer codes create missing subscription id",
-			args:    []string{"offer-codes", "create"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "create"},
 			wantErr: "Error: --subscription-id is required",
 		},
 		{
 			name:    "offer codes create missing name",
-			args:    []string{"offer-codes", "create", "--subscription-id", "SUB_ID"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "create", "--subscription-id", "SUB_ID"},
 			wantErr: "Error: --name is required",
 		},
 		{
 			name:    "offer codes create missing customer eligibilities",
-			args:    []string{"offer-codes", "create", "--subscription-id", "SUB_ID", "--name", "SPRING"},
-			wantErr: "Error: --customer-eligibilities is required",
+			args:    []string{"subscriptions", "offers", "offer-codes", "create", "--subscription-id", "SUB_ID", "--name", "SPRING"},
+			wantErr: "Error: --offer-eligibility is required",
 		},
 		{
 			name:    "offer codes update missing active",
-			args:    []string{"offer-codes", "update", "--offer-code-id", "OFFER_ID"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "update", "--offer-code-id", "OFFER_ID"},
 			wantErr: "Error: --active is required",
 		},
 		{
 			name:    "custom codes list missing offer code id",
-			args:    []string{"offer-codes", "custom-codes", "list"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "custom-codes", "list"},
 			wantErr: "Error: --offer-code-id is required",
 		},
 		{
 			name:    "custom codes get missing custom code id",
-			args:    []string{"offer-codes", "custom-codes", "get"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "custom-codes", "get"},
 			wantErr: "Error: --custom-code-id is required",
 		},
 		{
 			name:    "custom codes create missing offer code id",
-			args:    []string{"offer-codes", "custom-codes", "create", "--code", "SPRING", "--quantity", "10"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "custom-codes", "create", "--code", "SPRING", "--quantity", "10"},
 			wantErr: "Error: --offer-code-id is required",
 		},
 		{
 			name:    "custom codes create missing code",
-			args:    []string{"offer-codes", "custom-codes", "create", "--offer-code-id", "OFFER_ID", "--quantity", "10"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "custom-codes", "create", "--offer-code-id", "OFFER_ID", "--quantity", "10"},
 			wantErr: "Error: --code is required",
 		},
 		{
 			name:    "custom codes create missing quantity",
-			args:    []string{"offer-codes", "custom-codes", "create", "--offer-code-id", "OFFER_ID", "--code", "SPRING"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "custom-codes", "create", "--offer-code-id", "OFFER_ID", "--code", "SPRING"},
 			wantErr: "Error: --quantity is required",
 		},
 		{
 			name:    "custom codes update missing active",
-			args:    []string{"offer-codes", "custom-codes", "update", "--custom-code-id", "CUSTOM_ID"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "custom-codes", "update", "--custom-code-id", "CUSTOM_ID"},
 			wantErr: "Error: --active is required",
 		},
 		{
 			name:    "prices list missing offer code id",
-			args:    []string{"offer-codes", "prices", "list"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "prices"},
 			wantErr: "Error: --offer-code-id is required",
 		},
 	}

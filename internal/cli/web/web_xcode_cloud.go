@@ -27,7 +27,7 @@ func WebXcodeCloudCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "xcode-cloud",
 		ShortUsage: "asc web xcode-cloud <subcommand> [flags]",
-		ShortHelp:  "EXPERIMENTAL: Xcode Cloud usage and workflow management.",
+		ShortHelp:  "[experimental] Xcode Cloud usage and workflow management.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Query Xcode Cloud compute usage (plan quota, monthly/daily breakdowns, products)
@@ -66,7 +66,7 @@ func webXcodeCloudUsageCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "usage",
 		ShortUsage: "asc web xcode-cloud usage <subcommand> [flags]",
-		ShortHelp:  "EXPERIMENTAL: Xcode Cloud usage queries.",
+		ShortHelp:  "[experimental] Xcode Cloud usage queries.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Query Xcode Cloud compute usage: plan summary, monthly history, daily breakdown, per-workflow usage.
@@ -95,7 +95,7 @@ func webXcodeCloudUsageSummaryCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "summary",
 		ShortUsage: "asc web xcode-cloud usage summary [flags]",
-		ShortHelp:  "EXPERIMENTAL: Show Xcode Cloud plan quota.",
+		ShortHelp:  "[experimental] Show Xcode Cloud plan quota.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Show current Xcode Cloud plan usage: used/available/total compute minutes and reset date.
@@ -159,7 +159,7 @@ func webXcodeCloudUsageMonthsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "months",
 		ShortUsage: "asc web xcode-cloud usage months [flags]",
-		ShortHelp:  "EXPERIMENTAL: Show monthly Xcode Cloud usage.",
+		ShortHelp:  "[experimental] Show monthly Xcode Cloud usage.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Show monthly Xcode Cloud compute usage with per-product breakdown.
@@ -251,7 +251,7 @@ func webXcodeCloudUsageDaysCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "days",
 		ShortUsage: "asc web xcode-cloud usage days --product-ids IDS [flags]",
-		ShortHelp:  "EXPERIMENTAL: Show daily Xcode Cloud usage for products.",
+		ShortHelp:  "[experimental] Show daily Xcode Cloud usage for products.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Show daily Xcode Cloud compute usage for one or more products with per-workflow breakdown.
@@ -379,7 +379,7 @@ func webXcodeCloudUsageWorkflowsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "workflows",
 		ShortUsage: "asc web xcode-cloud usage workflows --product-id ID [flags]",
-		ShortHelp:  "EXPERIMENTAL: Show per-workflow Xcode Cloud usage.",
+		ShortHelp:  "[experimental] Show per-workflow Xcode Cloud usage.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Show Xcode Cloud compute usage broken down by workflow for a product.
@@ -624,7 +624,7 @@ func webXcodeCloudProductsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "products",
 		ShortUsage: "asc web xcode-cloud products [flags]",
-		ShortHelp:  "EXPERIMENTAL: List Xcode Cloud products.",
+		ShortHelp:  "[experimental] List Xcode Cloud products.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 List Xcode Cloud products (apps) for the authenticated team.

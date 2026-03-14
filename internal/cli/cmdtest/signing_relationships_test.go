@@ -18,23 +18,23 @@ func TestSigningRelationshipsValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "certificates relationships pass-type-id missing id",
-			args:    []string{"certificates", "relationships", "pass-type-id"},
+			name:    "certificates links pass-type-id missing id",
+			args:    []string{"certificates", "links", "pass-type-id"},
 			wantErr: "Error: --id is required",
 		},
 		{
-			name:    "profiles relationships bundle-id missing id",
-			args:    []string{"profiles", "relationships", "bundle-id"},
+			name:    "profiles links bundle-id missing id",
+			args:    []string{"profiles", "links", "bundle-id"},
 			wantErr: "Error: --id is required",
 		},
 		{
-			name:    "profiles relationships certificates missing id",
-			args:    []string{"profiles", "relationships", "certificates"},
+			name:    "profiles links certificates missing id",
+			args:    []string{"profiles", "links", "certificates"},
 			wantErr: "Error: --id is required",
 		},
 		{
-			name:    "profiles relationships devices missing id",
-			args:    []string{"profiles", "relationships", "devices"},
+			name:    "profiles links devices missing id",
+			args:    []string{"profiles", "links", "devices"},
 			wantErr: "Error: --id is required",
 		},
 		{

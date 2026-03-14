@@ -362,12 +362,12 @@ func TestVersionsRelationshipsRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/appStoreVersions/ver-1/relationships/appStoreVersionExperiments?cursor=AQ",
-			wantErr: "versions relationships: --next must be an App Store Connect URL",
+			wantErr: "versions links: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "versions relationships: --next must be a valid URL:",
+			wantErr: "versions links: --next must be a valid URL:",
 		},
 	}
 
@@ -379,7 +379,7 @@ func TestVersionsRelationshipsRejectsInvalidNextURL(t *testing.T) {
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
 				if err := root.Parse([]string{
-					"versions", "relationships",
+					"versions", "links",
 					"--type", "appStoreVersionExperiments",
 					"--next", test.next,
 				}); err != nil {
@@ -451,7 +451,7 @@ func TestVersionsRelationshipsPaginateFromNextWithoutVersionID(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"versions", "relationships",
+			"versions", "links",
 			"--type", "appStoreVersionExperiments",
 			"--paginate",
 			"--next", firstURL,

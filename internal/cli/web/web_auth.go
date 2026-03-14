@@ -247,7 +247,7 @@ func WebAuthCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "auth",
 		ShortUsage: "asc web auth <subcommand> [flags]",
-		ShortHelp:  "EXPERIMENTAL: Manage unofficial Apple web sessions (discouraged).",
+		ShortHelp:  "[experimental] Manage unofficial Apple web sessions (discouraged).",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Manage Apple web-session authentication used by "asc web" commands.
@@ -278,7 +278,7 @@ func WebAuthLoginCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "login",
 		ShortUsage: "asc web auth login --apple-id EMAIL [--two-factor-code CODE]",
-		ShortHelp:  "EXPERIMENTAL: Authenticate unofficial Apple web session.",
+		ShortHelp:  "[experimental] Authenticate unofficial Apple web session.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Authenticate using Apple web-session behavior for detached "asc web" workflows.
@@ -326,7 +326,7 @@ func WebAuthStatusCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "status",
 		ShortUsage: "asc web auth status [--apple-id EMAIL]",
-		ShortHelp:  "EXPERIMENTAL: Show unofficial web-session status.",
+		ShortHelp:  "[experimental] Show unofficial web-session status.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Check whether an existing cached web session can be resumed.
@@ -381,7 +381,7 @@ func WebAuthLogoutCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "logout",
 		ShortUsage: "asc web auth logout [--apple-id EMAIL | --all]",
-		ShortHelp:  "EXPERIMENTAL: Clear unofficial web-session cache.",
+		ShortHelp:  "[experimental] Clear unofficial web-session cache.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Remove cached web-session credentials for detached "asc web" commands.

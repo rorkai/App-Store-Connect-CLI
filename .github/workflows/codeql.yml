@@ -28,8 +28,6 @@ jobs:
             language: go
           - name: GitHub Actions
             language: actions
-          - name: JavaScript and TypeScript scripts
-            language: javascript-typescript
           - name: Python scripts
             language: python
     steps:

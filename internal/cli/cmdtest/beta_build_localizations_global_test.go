@@ -11,6 +11,8 @@ import (
 	"testing"
 )
 
+const deprecatedBetaBuildLocalizationsListWarning = "Warning: `asc beta-build-localizations list` is deprecated. Use `asc builds test-notes list`"
+
 func TestBetaBuildLocalizationsListGlobalSuccess(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
@@ -48,8 +50,8 @@ func TestBetaBuildLocalizationsListGlobalSuccess(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, deprecatedBetaBuildLocalizationsListWarning) {
+		t.Fatalf("expected deprecation warning, got %q", stderr)
 	}
 	if !strings.Contains(stdout, `"id":"bbl-1"`) {
 		t.Fatalf("expected localization id in output, got %q", stdout)
@@ -132,8 +134,8 @@ func TestBetaBuildLocalizationsListScopedStillWorks(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, deprecatedBetaBuildLocalizationsListWarning) {
+		t.Fatalf("expected deprecation warning, got %q", stderr)
 	}
 	if !strings.Contains(stdout, `"id":"bbl-scoped"`) {
 		t.Fatalf("expected scoped localization in output, got %q", stdout)
@@ -175,8 +177,8 @@ func TestBetaBuildLocalizationsListNextSkipsSelector(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, deprecatedBetaBuildLocalizationsListWarning) {
+		t.Fatalf("expected deprecation warning, got %q", stderr)
 	}
 }
 
@@ -229,8 +231,8 @@ func TestBetaBuildLocalizationsListGlobalPaginate(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, deprecatedBetaBuildLocalizationsListWarning) {
+		t.Fatalf("expected deprecation warning, got %q", stderr)
 	}
 	if !strings.Contains(stdout, `"bbl-1"`) {
 		t.Fatalf("expected first page data in output, got %q", stdout)

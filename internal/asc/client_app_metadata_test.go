@@ -2,6 +2,9 @@ package asc
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -286,14 +289,6 @@ func TestGetAppStoreVersionRelationships_SendsRequest(t *testing.T) {
 		path string
 	}{
 		{
-			name: "age rating",
-			call: func(ctx context.Context, client *Client) error {
-				_, err := client.GetAppStoreVersionAgeRatingDeclarationRelationship(ctx, "version-1")
-				return err
-			},
-			path: "/v1/appStoreVersions/version-1/relationships/ageRatingDeclaration",
-		},
-		{
 			name: "review detail",
 			call: func(ctx context.Context, client *Client) error {
 				_, err := client.GetAppStoreVersionReviewDetailRelationship(ctx, "version-1")
@@ -360,6 +355,55 @@ func TestGetAppStoreVersionRelationships_SendsRequest(t *testing.T) {
 				t.Fatalf("call error: %v", err)
 			}
 		})
+	}
+}
+
+func TestGetAppStoreVersionAgeRatingDeclarationRelationship_UsesAppInfoRelationship(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+
+	var seenPaths []string
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
+					t.Fatalf("expected GET, got %s", req.Method)
+				}
+				assertAuthorized(t, req)
+
+				seenPaths = append(seenPaths, req.URL.Path)
+				switch req.URL.Path {
+				case "/v1/appStoreVersions/version-1":
+					if got := req.URL.Query().Get("include"); got != "app" {
+						t.Fatalf("expected include=app, got %q", got)
+					}
+					return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"appVersionState":"REPLACED_WITH_NEW_VERSION"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), nil
+				case "/v1/apps/app-1/appInfos":
+					return jsonResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-draft","attributes":{"state":"PREPARE_FOR_SUBMISSION"}},{"type":"appInfos","id":"info-live","attributes":{"state":"REPLACED_WITH_NEW_INFO"}}]}`), nil
+				case "/v1/appInfos/info-live/relationships/ageRatingDeclaration":
+					return jsonResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"age-1"}}`), nil
+				default:
+					t.Fatalf("unexpected path %s", req.URL.Path)
+					return nil, nil
+				}
+			}),
+		},
+		keyID:      "KEY123",
+		issuerID:   "ISS456",
+		privateKey: key,
+	}
+
+	resp, err := client.GetAppStoreVersionAgeRatingDeclarationRelationship(context.Background(), "version-1")
+	if err != nil {
+		t.Fatalf("GetAppStoreVersionAgeRatingDeclarationRelationship() error: %v", err)
+	}
+	if resp.Data.ID != "age-1" {
+		t.Fatalf("expected linkage id age-1, got %q", resp.Data.ID)
+	}
+	if len(seenPaths) != 3 {
+		t.Fatalf("expected 3 requests, got %d (%v)", len(seenPaths), seenPaths)
 	}
 }
 

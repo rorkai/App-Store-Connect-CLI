@@ -56,7 +56,9 @@ func (c *Client) GetGameCenterActivity(ctx context.Context, activityID string) (
 }
 
 // CreateGameCenterActivity creates a new Game Center activity.
-func (c *Client) CreateGameCenterActivity(ctx context.Context, gcDetailID string, attrs GameCenterActivityCreateAttributes, groupID string) (*GameCenterActivityResponse, error) {
+func (c *Client) CreateGameCenterActivity(ctx context.Context, gcDetailID string, attrs GameCenterActivityCreateAttributes, groupID string, initialVersion *GameCenterActivityVersionCreateAttributes) (*GameCenterActivityResponse, error) {
+	const initialVersionID = "initial-version"
+
 	relationships := &GameCenterActivityRelationships{}
 	hasRelationship := false
 
@@ -78,6 +80,15 @@ func (c *Client) CreateGameCenterActivity(ctx context.Context, gcDetailID string
 		}
 		hasRelationship = true
 	}
+	if initialVersion != nil {
+		relationships.Versions = &RelationshipList{
+			Data: []ResourceData{{
+				Type: ResourceTypeGameCenterActivityVersions,
+				ID:   initialVersionID,
+			}},
+		}
+		hasRelationship = true
+	}
 	if !hasRelationship {
 		relationships = nil
 	}
@@ -88,6 +99,16 @@ func (c *Client) CreateGameCenterActivity(ctx context.Context, gcDetailID string
 			Attributes:    attrs,
 			Relationships: relationships,
 		},
+	}
+	if initialVersion != nil {
+		inline := GameCenterActivityVersionInlineCreate{
+			Type: ResourceTypeGameCenterActivityVersions,
+			ID:   initialVersionID,
+		}
+		if initialVersion.FallbackURL != nil {
+			inline.Attributes = initialVersion
+		}
+		payload.Included = []GameCenterActivityVersionInlineCreate{inline}
 	}
 
 	body, err := BuildRequestBody(payload)

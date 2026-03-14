@@ -63,18 +63,20 @@ func (c *Client) GetAppStoreVersionAgeRatingDeclarationRelationship(ctx context.
 		return nil, fmt.Errorf("versionID is required")
 	}
 
-	path := fmt.Sprintf("/v1/appStoreVersions/%s/relationships/ageRatingDeclaration", versionID)
-	data, err := c.do(ctx, http.MethodGet, path, nil)
+	appInfoID, err := c.ResolveAppInfoIDForAppStoreVersion(ctx, versionID)
 	if err != nil {
 		return nil, err
 	}
 
-	var response AppStoreVersionAgeRatingDeclarationLinkageResponse
-	if err := json.Unmarshal(data, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse ageRatingDeclaration relationship response: %w", err)
+	resp, err := c.GetAppInfoAgeRatingDeclarationRelationship(ctx, appInfoID)
+	if err != nil {
+		return nil, err
 	}
 
-	return &response, nil
+	return &AppStoreVersionAgeRatingDeclarationLinkageResponse{
+		Data:  resp.Data,
+		Links: resp.Links,
+	}, nil
 }
 
 // GetAppStoreVersionReviewDetailRelationship retrieves the review detail linkage for a version.

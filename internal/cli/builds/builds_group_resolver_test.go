@@ -25,7 +25,7 @@ func TestResolveBuildBetaGroupIDsFromList_ByIDAndName(t *testing.T) {
 		},
 	}
 
-	resolved, err := resolveBuildBetaGroupIDsFromList([]string{"group-1", "External Testers"}, groups)
+	resolved, err := resolveBuildBetaGroupIDsFromList([]string{"group-1", "External Testers"}, groups, false)
 	if err != nil {
 		t.Fatalf("resolveBuildBetaGroupIDsFromList() error: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestResolveBuildBetaGroupIDsFromList_Deduplicates(t *testing.T) {
 		},
 	}
 
-	resolved, err := resolveBuildBetaGroupIDsFromList([]string{"group-1", "Internal", "group-1"}, groups)
+	resolved, err := resolveBuildBetaGroupIDsFromList([]string{"group-1", "Internal", "group-1"}, groups, false)
 	if err != nil {
 		t.Fatalf("resolveBuildBetaGroupIDsFromList() error: %v", err)
 	}
@@ -56,17 +56,69 @@ func TestResolveBuildBetaGroupIDsFromList_Deduplicates(t *testing.T) {
 func TestResolveBuildBetaGroupIDsFromList_AmbiguousName(t *testing.T) {
 	groups := &asc.BetaGroupsResponse{
 		Data: []asc.Resource[asc.BetaGroupAttributes]{
-			{ID: "group-1", Attributes: asc.BetaGroupAttributes{Name: "Beta"}},
-			{ID: "group-2", Attributes: asc.BetaGroupAttributes{Name: "Beta"}},
+			{ID: "group-1", Attributes: asc.BetaGroupAttributes{Name: "Beta", IsInternalGroup: true}},
+			{ID: "group-2", Attributes: asc.BetaGroupAttributes{Name: "Beta", IsInternalGroup: false}},
 		},
 	}
 
-	_, err := resolveBuildBetaGroupIDsFromList([]string{"Beta"}, groups)
+	_, err := resolveBuildBetaGroupIDsFromList([]string{"Beta"}, groups, false)
 	if err == nil {
 		t.Fatal("expected ambiguous name error")
 	}
-	if !strings.Contains(err.Error(), "multiple beta groups named") {
-		t.Fatalf("expected ambiguous error, got %v", err)
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, `"Beta" matches 2 beta groups`) {
+		t.Fatalf("expected ambiguous header, got %v", err)
+	}
+	if !strings.Contains(errMsg, "group-1 (internal)") {
+		t.Fatalf("expected internal label for group-1, got %v", err)
+	}
+	if !strings.Contains(errMsg, "group-2 (external)") {
+		t.Fatalf("expected external label for group-2, got %v", err)
+	}
+	if !strings.Contains(errMsg, "--skip-internal") {
+		t.Fatalf("expected --skip-internal hint, got %v", err)
+	}
+}
+
+func TestResolveBuildBetaGroupIDsFromList_AmbiguousNameSkipInternalPrefersExternal(t *testing.T) {
+	groups := &asc.BetaGroupsResponse{
+		Data: []asc.Resource[asc.BetaGroupAttributes]{
+			{ID: "group-1", Attributes: asc.BetaGroupAttributes{Name: "Beta", IsInternalGroup: true}},
+			{ID: "group-2", Attributes: asc.BetaGroupAttributes{Name: "Beta", IsInternalGroup: false}},
+		},
+	}
+
+	resolved, err := resolveBuildBetaGroupIDsFromList([]string{"Beta"}, groups, true)
+	if err != nil {
+		t.Fatalf("resolveBuildBetaGroupIDsFromList() error: %v", err)
+	}
+	if len(resolved) != 1 || resolved[0] != "group-2" {
+		t.Fatalf("expected external group [group-2], got %v", resolved)
+	}
+}
+
+func TestResolveBuildBetaGroupIDsFromList_AmbiguousNameSkipInternalStillAmbiguous(t *testing.T) {
+	groups := &asc.BetaGroupsResponse{
+		Data: []asc.Resource[asc.BetaGroupAttributes]{
+			{ID: "group-1", Attributes: asc.BetaGroupAttributes{Name: "Beta", IsInternalGroup: true}},
+			{ID: "group-2", Attributes: asc.BetaGroupAttributes{Name: "Beta", IsInternalGroup: false}},
+			{ID: "group-3", Attributes: asc.BetaGroupAttributes{Name: "Beta", IsInternalGroup: false}},
+		},
+	}
+
+	_, err := resolveBuildBetaGroupIDsFromList([]string{"Beta"}, groups, true)
+	if err == nil {
+		t.Fatal("expected ambiguous name error")
+	}
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, `"Beta" matches 3 beta groups`) {
+		t.Fatalf("expected ambiguous header, got %v", err)
+	}
+	if strings.Contains(errMsg, "--skip-internal") {
+		t.Fatalf("did not expect --skip-internal hint once already applied, got %v", err)
+	}
+	if !strings.Contains(errMsg, "Use the group ID to disambiguate.") {
+		t.Fatalf("expected disambiguation hint, got %v", err)
 	}
 }
 
@@ -77,7 +129,7 @@ func TestResolveBuildBetaGroupIDsFromList_NotFound(t *testing.T) {
 		},
 	}
 
-	_, err := resolveBuildBetaGroupIDsFromList([]string{"Does Not Exist"}, groups)
+	_, err := resolveBuildBetaGroupIDsFromList([]string{"Does Not Exist"}, groups, false)
 	if err == nil {
 		t.Fatal("expected not found error")
 	}
@@ -94,7 +146,7 @@ func TestResolveBuildBetaGroupIDsFromList_MixedInputDeduplicates(t *testing.T) {
 		},
 	}
 
-	resolved, err := resolveBuildBetaGroupIDsFromList([]string{"group-1", "Internal", "group-2", "External", "group-1"}, groups)
+	resolved, err := resolveBuildBetaGroupIDsFromList([]string{"group-1", "Internal", "group-2", "External", "group-1"}, groups, false)
 	if err != nil {
 		t.Fatalf("resolveBuildBetaGroupIDsFromList() error: %v", err)
 	}
@@ -126,7 +178,7 @@ func TestResolveBuildBetaGroupsFromListIncludesInternalMetadata(t *testing.T) {
 		},
 	}
 
-	resolved, err := resolveBuildBetaGroupsFromList([]string{"group-internal", "External QA"}, groups)
+	resolved, err := resolveBuildBetaGroupsFromList([]string{"group-internal", "External QA"}, groups, false)
 	if err != nil {
 		t.Fatalf("resolveBuildBetaGroupsFromList() error: %v", err)
 	}

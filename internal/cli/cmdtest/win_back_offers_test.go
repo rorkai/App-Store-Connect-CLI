@@ -20,58 +20,58 @@ func TestWinBackOffersValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "list missing subscription",
-			args:    []string{"win-back-offers", "list"},
-			wantErr: "Error: --subscription is required",
+			args:    []string{"subscriptions", "offers", "win-back", "list"},
+			wantErr: "Error: --subscription-id is required",
 		},
 		{
 			name:    "get missing id",
-			args:    []string{"win-back-offers", "get"},
+			args:    []string{"subscriptions", "offers", "win-back", "get"},
 			wantErr: "Error: --id is required",
 		},
 		{
 			name:    "create missing subscription",
-			args:    []string{"win-back-offers", "create"},
-			wantErr: "Error: --subscription is required",
+			args:    []string{"subscriptions", "offers", "win-back", "create"},
+			wantErr: "Error: --subscription-id is required",
 		},
 		{
 			name:    "create missing reference-name",
-			args:    []string{"win-back-offers", "create", "--subscription", "SUB_ID"},
+			args:    []string{"subscriptions", "offers", "win-back", "create", "--subscription-id", "SUB_ID"},
 			wantErr: "Error: --reference-name is required",
 		},
 		{
 			name:    "update missing id",
-			args:    []string{"win-back-offers", "update", "--priority", "NORMAL"},
+			args:    []string{"subscriptions", "offers", "win-back", "update", "--priority", "NORMAL"},
 			wantErr: "Error: --id is required",
 		},
 		{
 			name:    "update missing updates",
-			args:    []string{"win-back-offers", "update", "--id", "OFFER_ID"},
+			args:    []string{"subscriptions", "offers", "win-back", "update", "--id", "OFFER_ID"},
 			wantErr: "Error: at least one update flag is required",
 		},
 		{
 			name:    "delete missing id",
-			args:    []string{"win-back-offers", "delete", "--confirm"},
+			args:    []string{"subscriptions", "offers", "win-back", "delete", "--confirm"},
 			wantErr: "Error: --id is required",
 		},
 		{
 			name:    "delete missing confirm",
-			args:    []string{"win-back-offers", "delete", "--id", "OFFER_ID"},
+			args:    []string{"subscriptions", "offers", "win-back", "delete", "--id", "OFFER_ID"},
 			wantErr: "Error: --confirm is required",
 		},
 		{
 			name:    "prices missing id",
-			args:    []string{"win-back-offers", "prices"},
+			args:    []string{"subscriptions", "offers", "win-back", "prices"},
 			wantErr: "Error: --id is required",
 		},
 		{
 			name:    "prices relationships missing id",
-			args:    []string{"win-back-offers", "prices-relationships"},
+			args:    []string{"subscriptions", "offers", "win-back", "prices-links"},
 			wantErr: "Error: --id is required",
 		},
 		{
 			name:    "relationships missing subscription",
-			args:    []string{"win-back-offers", "relationships"},
-			wantErr: "Error: --subscription is required",
+			args:    []string{"subscriptions", "offers", "win-back", "links"},
+			wantErr: "Error: --subscription-id is required",
 		},
 	}
 

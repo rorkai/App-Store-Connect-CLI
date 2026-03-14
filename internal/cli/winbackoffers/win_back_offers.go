@@ -84,13 +84,13 @@ func WinBackOffersCommand() *ffcli.Command {
 		LongHelp: `Manage win-back offers for subscriptions.
 
 Examples:
-  asc win-back-offers list --subscription "SUB_ID"
+  asc win-back-offers list --subscription-id "SUB_ID"
   asc win-back-offers get --id "OFFER_ID"
-  asc win-back-offers create --subscription "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-1" --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --price "PRICE_ID"
+  asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-1" --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --price "PRICE_ID"
   asc win-back-offers update --id "OFFER_ID" --priority NORMAL
   asc win-back-offers prices --id "OFFER_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			WinBackOffersListCommand(),
 			WinBackOffersGetCommand(),
@@ -99,7 +99,21 @@ Examples:
 			WinBackOffersDeleteCommand(),
 			WinBackOffersPricesCommand(),
 			WinBackOffersPricesRelationshipsCommand(),
+			shared.DeprecatedAliasLeafCommand(
+				WinBackOffersPricesRelationshipsCommand(),
+				"prices-relationships",
+				"asc win-back-offers prices-links --id OFFER_ID [flags]",
+				"asc win-back-offers prices-links",
+				"Warning: `asc win-back-offers prices-relationships` is deprecated. Use `asc win-back-offers prices-links`.",
+			),
 			WinBackOffersRelationshipsCommand(),
+			shared.DeprecatedAliasLeafCommand(
+				WinBackOffersRelationshipsCommand(),
+				"relationships",
+				"asc win-back-offers links --subscription-id SUB_ID [flags]",
+				"asc win-back-offers links",
+				"Warning: `asc win-back-offers relationships` is deprecated. Use `asc win-back-offers links`.",
+			),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -111,7 +125,7 @@ Examples:
 func WinBackOffersListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription", "", "Subscription ID")
+	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(winBackOfferFieldsList(), ", "))
 	priceFields := fs.String("price-fields", "", "Price fields to include: "+strings.Join(winBackOfferPriceFieldsList(), ", "))
 	include := fs.String("include", "", "Include related resources: "+strings.Join(winBackOfferIncludeList(), ", "))
@@ -128,9 +142,9 @@ func WinBackOffersListCommand() *ffcli.Command {
 		LongHelp: `List win-back offers for a subscription.
 
 Examples:
-  asc win-back-offers list --subscription "SUB_ID"
-  asc win-back-offers list --subscription "SUB_ID" --limit 50
-  asc win-back-offers list --subscription "SUB_ID" --include prices --price-fields territory --prices-limit 10`,
+  asc win-back-offers list --subscription-id "SUB_ID"
+  asc win-back-offers list --subscription-id "SUB_ID" --limit 50
+  asc win-back-offers list --subscription-id "SUB_ID" --include prices --price-fields territory --prices-limit 10`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -167,7 +181,7 @@ Examples:
 
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription is required")
+				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
 				return flag.ErrHelp
 			}
 
@@ -239,7 +253,7 @@ Examples:
 func WinBackOffersCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	subscriptionID := fs.String("subscription", "", "Subscription ID")
+	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
 	referenceName := fs.String("reference-name", "", "Reference name")
 	offerID := fs.String("offer-id", "", "Offer ID")
 	duration := fs.String("duration", "", "Offer duration: "+strings.Join(winBackOfferDurationValues, ", "))
@@ -268,13 +282,13 @@ func WinBackOffersCreateCommand() *ffcli.Command {
 		LongHelp: `Create a win-back offer.
 
 Examples:
-  asc win-back-offers create --subscription "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-1" --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --price "PRICE_ID"`,
+  asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-1" --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --price "PRICE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			subscription := strings.TrimSpace(*subscriptionID)
 			if subscription == "" {
-				fmt.Fprintln(os.Stderr, "Error: --subscription is required")
+				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
 				return flag.ErrHelp
 			}
 
@@ -753,22 +767,22 @@ Examples:
 	}
 }
 
-// WinBackOffersPricesRelationshipsCommand returns the price relationships subcommand.
+// WinBackOffersPricesRelationshipsCommand returns the price links subcommand.
 func WinBackOffersPricesRelationshipsCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "prices-relationships",
-		Name:        "prices-relationships",
-		ShortUsage:  "asc win-back-offers prices-relationships --id OFFER_ID [flags]",
+		FlagSetName: "prices-links",
+		Name:        "prices-links",
+		ShortUsage:  "asc win-back-offers prices-links --id OFFER_ID [flags]",
 		ShortHelp:   "List price relationships for a win-back offer.",
 		LongHelp: `List price relationships for a win-back offer.
 
 Examples:
-  asc win-back-offers prices-relationships --id "OFFER_ID"
-  asc win-back-offers prices-relationships --id "OFFER_ID" --paginate`,
+  asc win-back-offers prices-links --id "OFFER_ID"
+  asc win-back-offers prices-links --id "OFFER_ID" --paginate`,
 		ParentFlag:  "id",
 		ParentUsage: "Win-back offer ID",
 		LimitMax:    winBackOffersMaxLimit,
-		ErrorPrefix: "win-back-offers prices-relationships",
+		ErrorPrefix: "win-back-offers prices-links",
 		FetchPage: func(ctx context.Context, client *asc.Client, offerID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.LinkagesOption{
 				asc.WithLinkagesLimit(limit),
@@ -779,22 +793,22 @@ Examples:
 	})
 }
 
-// WinBackOffersRelationshipsCommand returns the win-back offer relationships subcommand.
+// WinBackOffersRelationshipsCommand returns the win-back offer links subcommand.
 func WinBackOffersRelationshipsCommand() *ffcli.Command {
 	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "relationships",
-		Name:        "relationships",
-		ShortUsage:  "asc win-back-offers relationships --subscription SUB_ID [flags]",
+		FlagSetName: "links",
+		Name:        "links",
+		ShortUsage:  "asc win-back-offers links --subscription-id SUB_ID [flags]",
 		ShortHelp:   "List win-back offer relationships for a subscription.",
 		LongHelp: `List win-back offer relationships for a subscription.
 
 Examples:
-  asc win-back-offers relationships --subscription "SUB_ID"
-  asc win-back-offers relationships --subscription "SUB_ID" --paginate`,
-		ParentFlag:  "subscription",
+  asc win-back-offers links --subscription-id "SUB_ID"
+  asc win-back-offers links --subscription-id "SUB_ID" --paginate`,
+		ParentFlag:  "subscription-id",
 		ParentUsage: "Subscription ID",
 		LimitMax:    winBackOffersMaxLimit,
-		ErrorPrefix: "win-back-offers relationships",
+		ErrorPrefix: "win-back-offers links",
 		FetchPage: func(ctx context.Context, client *asc.Client, subscriptionID string, limit int, next string) (asc.PaginatedResponse, error) {
 			opts := []asc.LinkagesOption{
 				asc.WithLinkagesLimit(limit),

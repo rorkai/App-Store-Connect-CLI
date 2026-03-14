@@ -47,9 +47,32 @@ type subMoney struct {
 	Currency string `json:"currency"`
 }
 
-// SubscriptionsPricingCommand returns a consolidated pricing summary command for subscriptions.
-func SubscriptionsPricingCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing", flag.ExitOnError)
+// SubscriptionsPricingSummaryCommand returns the pricing summary subcommand.
+func SubscriptionsPricingSummaryCommand() *ffcli.Command {
+	return buildSubscriptionsPricingSummaryCommand(
+		"summary",
+		"asc subscriptions pricing summary [flags]",
+		"Show consolidated subscription pricing summary.",
+		`Show consolidated subscription pricing summary.
+
+Returns current price, proceeds, and proceeds year 2 for each subscription
+in the specified territory. Much faster than paginating through all 140K+
+price points.
+
+Examples:
+  asc subscriptions pricing summary --app "APP_ID"
+  asc subscriptions pricing summary --subscription-id "SUB_ID"
+  asc subscriptions pricing summary --app "APP_ID" --territory "USA" --output table`,
+	)
+}
+
+func buildSubscriptionsPricingSummaryCommand(
+	name string,
+	shortUsage string,
+	shortHelp string,
+	longHelp string,
+) *ffcli.Command {
+	fs := flag.NewFlagSet(name, flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
@@ -57,21 +80,12 @@ func SubscriptionsPricingCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "pricing",
-		ShortUsage: "asc subscriptions pricing [flags]",
-		ShortHelp:  "Show consolidated subscription pricing summary.",
-		LongHelp: `Show consolidated subscription pricing summary.
-
-Returns current price, proceeds, and proceeds year 2 for each subscription
-in the specified territory. Much faster than paginating through all 140K+
-price points.
-
-Examples:
-  asc subscriptions pricing --app "APP_ID"
-  asc subscriptions pricing --subscription-id "SUB_ID"
-  asc subscriptions pricing --app "APP_ID" --territory "USA" --output table`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		Name:       name,
+		ShortUsage: shortUsage,
+		ShortHelp:  shortHelp,
+		LongHelp:   longHelp,
+		FlagSet:    fs,
+		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			requestedSubID := strings.TrimSpace(*subscriptionID)
 			requestedAppID := strings.TrimSpace(*appID)

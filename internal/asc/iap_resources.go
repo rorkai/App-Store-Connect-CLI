@@ -383,6 +383,7 @@ type (
 type InAppPurchaseOfferCodeOneTimeUseCodeCreateAttributes struct {
 	NumberOfCodes  int    `json:"numberOfCodes"`
 	ExpirationDate string `json:"expirationDate"`
+	Environment    string `json:"environment,omitempty"`
 }
 
 // InAppPurchaseOfferCodeOneTimeUseCodeCreateRelationships describes relationships for creating one-time use codes.

@@ -17,8 +17,8 @@ func TestSubscriptionsPricesAdd_TierAndPricePointMutualExclusion(t *testing.T) {
 
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "prices", "add",
-			"--id", "SUB_ID",
+			"subscriptions", "pricing", "prices", "set",
+			"--subscription-id", "SUB_ID",
 			"--price-point", "PP",
 			"--tier", "5",
 			"--territory", "USA",
@@ -92,8 +92,8 @@ func TestSubscriptionsPricesAdd_TierUsesSubscriptionPricePoints(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "prices", "add",
-			"--id", "SUB_ID",
+			"subscriptions", "pricing", "prices", "set",
+			"--subscription-id", "SUB_ID",
 			"--tier", "2",
 			"--territory", "USA",
 			"--refresh",
@@ -148,8 +148,8 @@ func TestSubscriptionsPricesAdd_ProbeErrorReturnsWithoutWrite(t *testing.T) {
 
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "prices", "add",
-			"--id", "SUB_ID",
+			"subscriptions", "pricing", "prices", "set",
+			"--subscription-id", "SUB_ID",
 			"--price-point", "PP_ID",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
@@ -246,8 +246,8 @@ func TestSubscriptionsPricesAdd_InitialPriceForwardsAttributes(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "prices", "add",
-			"--id", "SUB_ID",
+			"subscriptions", "pricing", "prices", "set",
+			"--subscription-id", "SUB_ID",
 			"--price-point", "PP_ID",
 			"--territory", "USA",
 			"--start-date", "2026-05-01",
@@ -274,8 +274,8 @@ func TestSubscriptionsPricesAdd_TierRequiresTerritory(t *testing.T) {
 
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "prices", "add",
-			"--id", "SUB_ID",
+			"subscriptions", "pricing", "prices", "set",
+			"--subscription-id", "SUB_ID",
 			"--tier", "5",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
@@ -297,8 +297,8 @@ func TestSubscriptionsPricesAdd_InvalidPriceValue(t *testing.T) {
 
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "prices", "add",
-			"--id", "SUB_ID",
+			"subscriptions", "pricing", "prices", "set",
+			"--subscription-id", "SUB_ID",
 			"--price", "abc",
 			"--territory", "USA",
 		}); err != nil {
@@ -321,8 +321,8 @@ func TestSubscriptionsPricesAdd_NegativeTier(t *testing.T) {
 
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "prices", "add",
-			"--id", "SUB_ID",
+			"subscriptions", "pricing", "prices", "set",
+			"--subscription-id", "SUB_ID",
 			"--tier", "-1",
 			"--territory", "USA",
 		}); err != nil {

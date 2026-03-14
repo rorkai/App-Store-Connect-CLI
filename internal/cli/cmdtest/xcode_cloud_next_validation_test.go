@@ -652,8 +652,8 @@ func TestXcodeCloudScmRepositoriesPullRequestsPaginateFromNextWithoutRepoID(t *t
 func TestXcodeCloudScmRepositoriesRelationshipsGitReferencesRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
-		[]string{"xcode-cloud", "scm", "repositories", "relationships", "git-references"},
-		"xcode-cloud scm repositories relationships git-references: --next",
+		[]string{"xcode-cloud", "scm", "repositories", "links", "git-references"},
+		"xcode-cloud scm repositories links git-references: --next",
 	)
 }
 
@@ -666,7 +666,7 @@ func TestXcodeCloudScmRepositoriesRelationshipsGitReferencesPaginateFromNextWith
 
 	runXcodeCloudPaginateFromNext(
 		t,
-		[]string{"xcode-cloud", "scm", "repositories", "relationships", "git-references"},
+		[]string{"xcode-cloud", "scm", "repositories", "links", "git-references"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -679,8 +679,8 @@ func TestXcodeCloudScmRepositoriesRelationshipsGitReferencesPaginateFromNextWith
 func TestXcodeCloudScmRepositoriesRelationshipsPullRequestsRejectsInvalidNextURL(t *testing.T) {
 	runXcodeCloudInvalidNextURLCases(
 		t,
-		[]string{"xcode-cloud", "scm", "repositories", "relationships", "pull-requests"},
-		"xcode-cloud scm repositories relationships pull-requests: --next",
+		[]string{"xcode-cloud", "scm", "repositories", "links", "pull-requests"},
+		"xcode-cloud scm repositories links pull-requests: --next",
 	)
 }
 
@@ -693,7 +693,7 @@ func TestXcodeCloudScmRepositoriesRelationshipsPullRequestsPaginateFromNextWitho
 
 	runXcodeCloudPaginateFromNext(
 		t,
-		[]string{"xcode-cloud", "scm", "repositories", "relationships", "pull-requests"},
+		[]string{"xcode-cloud", "scm", "repositories", "links", "pull-requests"},
 		firstURL,
 		secondURL,
 		firstBody,

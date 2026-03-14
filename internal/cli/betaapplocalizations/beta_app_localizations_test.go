@@ -17,6 +17,9 @@ func TestBetaAppLocalizationsCommandConstructors(t *testing.T) {
 	if got := BetaAppLocalizationsCommand(); got == nil {
 		t.Fatal("expected Command wrapper to return command")
 	}
+	if got := DeprecatedBetaAppLocalizationsCommand(); got == nil {
+		t.Fatal("expected deprecated root alias command")
+	}
 	if got := BetaAppLocalizationsAppCommand(); got == nil {
 		t.Fatal("expected app relationship command")
 	}

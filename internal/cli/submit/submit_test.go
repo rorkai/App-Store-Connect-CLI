@@ -17,6 +17,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestSubmitCommandShape(t *testing.T) {
@@ -297,4 +299,118 @@ func TestSubmitCancelCommand_ByVersionIDNotFoundReportsLegacySubmissionError(t *
 	if !strings.Contains(err.Error(), `no legacy submission found for version "missing-version"`) {
 		t.Fatalf("unexpected error: %v", err)
 	}
+}
+
+func TestExtractExistingSubmissionID(t *testing.T) {
+	t.Run("returns submission ID from associated error", func(t *testing.T) {
+		err := &asc.APIError{
+			Code:   "ENTITY_ERROR",
+			Title:  "The request entity is not valid.",
+			Detail: "An attribute value is not valid.",
+			AssociatedErrors: map[string][]asc.APIAssociatedError{
+				"/v1/reviewSubmissionItems": {
+					{
+						Code:   "ENTITY_ERROR.RELATIONSHIP.INVALID",
+						Detail: "appStoreVersions with id 883340862 was already added to another reviewSubmission with id fb5dad8e-bd5f-4d96-bc2f-561cf74a7e7a",
+					},
+				},
+			},
+		}
+		got := extractExistingSubmissionID(err)
+		want := "fb5dad8e-bd5f-4d96-bc2f-561cf74a7e7a"
+		if got != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("returns empty for non-APIError", func(t *testing.T) {
+		err := fmt.Errorf("some random error")
+		if got := extractExistingSubmissionID(err); got != "" {
+			t.Fatalf("expected empty, got %q", got)
+		}
+	})
+
+	t.Run("returns empty for APIError without matching detail", func(t *testing.T) {
+		err := &asc.APIError{
+			Code:   "ENTITY_ERROR",
+			Title:  "Something else went wrong.",
+			Detail: "Unrelated problem.",
+			AssociatedErrors: map[string][]asc.APIAssociatedError{
+				"/v1/reviewSubmissionItems": {
+					{Code: "OTHER_ERROR", Detail: "something unrelated"},
+				},
+			},
+		}
+		if got := extractExistingSubmissionID(err); got != "" {
+			t.Fatalf("expected empty, got %q", got)
+		}
+	})
+
+	t.Run("returns empty for APIError with no associated errors", func(t *testing.T) {
+		err := &asc.APIError{
+			Code:  "ENTITY_ERROR",
+			Title: "Something went wrong.",
+		}
+		if got := extractExistingSubmissionID(err); got != "" {
+			t.Fatalf("expected empty, got %q", got)
+		}
+	})
+
+	t.Run("works with wrapped APIError", func(t *testing.T) {
+		apiErr := &asc.APIError{
+			Code: "ENTITY_ERROR",
+			AssociatedErrors: map[string][]asc.APIAssociatedError{
+				"/v1/reviewSubmissionItems": {
+					{
+						Code:   "ENTITY_ERROR.RELATIONSHIP.INVALID",
+						Detail: "appStoreVersions with id 999 was already added to another reviewSubmission with id aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+					},
+				},
+			},
+		}
+		wrapped := fmt.Errorf("add item failed: %w", apiErr)
+		got := extractExistingSubmissionID(wrapped)
+		want := "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+		if got != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("handles uppercase UUID", func(t *testing.T) {
+		err := &asc.APIError{
+			Code: "ENTITY_ERROR",
+			AssociatedErrors: map[string][]asc.APIAssociatedError{
+				"/v1/reviewSubmissionItems": {
+					{
+						Code:   "ENTITY_ERROR.RELATIONSHIP.INVALID",
+						Detail: "appStoreVersions with id 123 was Already Added to another reviewSubmission with id FB5DAD8E-BD5F-4D96-BC2F-561CF74A7E7A",
+					},
+				},
+			},
+		}
+		got := extractExistingSubmissionID(err)
+		want := "FB5DAD8E-BD5F-4D96-BC2F-561CF74A7E7A"
+		if got != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("handles non-UUID identifier", func(t *testing.T) {
+		err := &asc.APIError{
+			Code: "ENTITY_ERROR",
+			AssociatedErrors: map[string][]asc.APIAssociatedError{
+				"/v1/reviewSubmissionItems": {
+					{
+						Code:   "ENTITY_ERROR.RELATIONSHIP.INVALID",
+						Detail: "appStoreVersions with id 123 was already added to another reviewSubmission with id some-opaque-id-12345",
+					},
+				},
+			},
+		}
+		got := extractExistingSubmissionID(err)
+		want := "some-opaque-id-12345"
+		if got != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	})
 }

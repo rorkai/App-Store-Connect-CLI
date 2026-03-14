@@ -43,7 +43,7 @@ func TestGetBackgroundAssets_SendsRequest(t *testing.T) {
 }
 
 func TestGetBackgroundAsset_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"backgroundAssets","id":"asset-1","attributes":{"assetPackIdentifier":"pack"}}}`)
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"backgroundAssets","id":"asset-1","attributes":{"assetPackIdentifier":"pack","usedBytes":1234}}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
@@ -54,8 +54,12 @@ func TestGetBackgroundAsset_SendsRequest(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetBackgroundAsset(context.Background(), "asset-1"); err != nil {
+	resp, err := client.GetBackgroundAsset(context.Background(), "asset-1")
+	if err != nil {
 		t.Fatalf("GetBackgroundAsset() error: %v", err)
+	}
+	if resp.Data.Attributes.UsedBytes == nil || *resp.Data.Attributes.UsedBytes != 1234 {
+		t.Fatalf("expected usedBytes=1234, got %+v", resp.Data.Attributes.UsedBytes)
 	}
 }
 

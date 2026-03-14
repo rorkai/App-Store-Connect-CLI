@@ -2,6 +2,7 @@ package versions
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -19,11 +20,18 @@ func VersionsCommand() *ffcli.Command {
 		ShortUsage: "asc versions <subcommand> [flags]",
 		ShortHelp:  "Manage App Store versions.",
 		LongHelp:   `Manage App Store versions.`,
-		UsageFunc:  shared.DefaultUsageFunc,
+		UsageFunc:  shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			VersionsListCommand(),
 			VersionsGetCommand(),
 			VersionsRelationshipsCommand(),
+			shared.DeprecatedAliasLeafCommand(
+				VersionsRelationshipsCommand(),
+				"relationships",
+				"asc versions links --version-id \"VERSION_ID\" --type \"RELATIONSHIP\" [flags]",
+				"asc versions links",
+				"Warning: `asc versions relationships` is deprecated. Use `asc versions links`.",
+			),
 			VersionsExperimentsV2Command(),
 			VersionsCustomerReviewsCommand(),
 			VersionsAppClipDefaultExperienceCommand(),
@@ -179,10 +187,28 @@ Examples:
 					fmt.Fprintln(os.Stderr, "Error: --include cannot be used with --include-build or --include-submission")
 					return flag.ErrHelp
 				}
-				versionResp, err := client.GetAppStoreVersion(requestCtx, trimmedID, asc.WithAppStoreVersionInclude(includeValues))
+
+				apiIncludes, includeAgeRating := splitCompatAppStoreVersionIncludes(includeValues)
+				var versionResp *asc.AppStoreVersionResponse
+				if len(apiIncludes) > 0 {
+					versionResp, err = client.GetAppStoreVersion(requestCtx, trimmedID, asc.WithAppStoreVersionInclude(apiIncludes))
+				} else {
+					versionResp, err = client.GetAppStoreVersion(requestCtx, trimmedID)
+				}
 				if err != nil {
 					return fmt.Errorf("versions get: %w", err)
 				}
+
+				if includeAgeRating {
+					ageRatingResp, err := client.GetAgeRatingDeclarationForAppStoreVersion(requestCtx, trimmedID)
+					if err != nil {
+						return fmt.Errorf("versions get: %w", err)
+					}
+					if err := appendAgeRatingDeclarationInclude(versionResp, ageRatingResp); err != nil {
+						return fmt.Errorf("versions get: %w", err)
+					}
+				}
+
 				return shared.PrintOutput(versionResp, *output.Output, *output.Pretty)
 			}
 
@@ -543,4 +569,82 @@ func fetchOptionalSubmission(ctx context.Context, versionID string, fetch func(c
 		return nil, err
 	}
 	return resp, nil
+}
+
+func splitCompatAppStoreVersionIncludes(values []string) ([]string, bool) {
+	apiIncludes := make([]string, 0, len(values))
+	includeAgeRating := false
+	for _, value := range values {
+		if value == "ageRatingDeclaration" {
+			includeAgeRating = true
+			continue
+		}
+		apiIncludes = append(apiIncludes, value)
+	}
+	return apiIncludes, includeAgeRating
+}
+
+func appendAgeRatingDeclarationInclude(versionResp *asc.AppStoreVersionResponse, ageRatingResp *asc.AgeRatingDeclarationResponse) error {
+	if versionResp == nil || ageRatingResp == nil {
+		return nil
+	}
+
+	relationship := struct {
+		Data asc.ResourceData `json:"data"`
+	}{
+		Data: asc.ResourceData{
+			Type: asc.ResourceTypeAgeRatingDeclarations,
+			ID:   ageRatingResp.Data.ID,
+		},
+	}
+
+	relationships := map[string]json.RawMessage{}
+	if len(versionResp.Data.Relationships) > 0 {
+		if err := json.Unmarshal(versionResp.Data.Relationships, &relationships); err != nil {
+			return fmt.Errorf("failed to parse app store version relationships: %w", err)
+		}
+	}
+
+	if _, exists := relationships["ageRatingDeclaration"]; !exists {
+		rawRelationship, err := json.Marshal(relationship)
+		if err != nil {
+			return fmt.Errorf("failed to encode age rating relationship: %w", err)
+		}
+		relationships["ageRatingDeclaration"] = rawRelationship
+		rawRelationships, err := json.Marshal(relationships)
+		if err != nil {
+			return fmt.Errorf("failed to encode app store version relationships: %w", err)
+		}
+		versionResp.Data.Relationships = rawRelationships
+	}
+
+	included := make([]json.RawMessage, 0, 1)
+	if len(versionResp.Included) > 0 {
+		if err := json.Unmarshal(versionResp.Included, &included); err != nil {
+			return fmt.Errorf("failed to parse included resources: %w", err)
+		}
+	}
+
+	for _, item := range included {
+		var resource asc.Resource[map[string]any]
+		if err := json.Unmarshal(item, &resource); err != nil {
+			return fmt.Errorf("failed to inspect included resource: %w", err)
+		}
+		if resource.Type == asc.ResourceTypeAgeRatingDeclarations && resource.ID == ageRatingResp.Data.ID {
+			return nil
+		}
+	}
+
+	rawAgeRating, err := json.Marshal(ageRatingResp.Data)
+	if err != nil {
+		return fmt.Errorf("failed to encode age rating include: %w", err)
+	}
+	included = append(included, rawAgeRating)
+
+	rawIncluded, err := json.Marshal(included)
+	if err != nil {
+		return fmt.Errorf("failed to encode included resources: %w", err)
+	}
+	versionResp.Included = rawIncluded
+	return nil
 }

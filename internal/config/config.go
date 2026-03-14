@@ -406,17 +406,12 @@ func SaveAt(path string, cfg *Config) error {
 		return fmt.Errorf("failed to write config: empty path")
 	}
 
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
-	}
-
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	if err := writeConfigFile(path, data); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 

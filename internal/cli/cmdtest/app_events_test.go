@@ -27,12 +27,12 @@ func TestAppEventsValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "screenshots relationships missing event or localization id",
-			args:    []string{"app-events", "screenshots", "relationships"},
+			args:    []string{"app-events", "screenshots", "links"},
 			wantErr: "Error: --event-id or --localization-id is required",
 		},
 		{
 			name:    "video-clips relationships missing event or localization id",
-			args:    []string{"app-events", "video-clips", "relationships"},
+			args:    []string{"app-events", "video-clips", "links"},
 			wantErr: "Error: --event-id or --localization-id is required",
 		},
 		{
@@ -47,17 +47,17 @@ func TestAppEventsValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "localizations screenshots relationships missing localization id",
-			args:    []string{"app-events", "localizations", "screenshots-relationships"},
+			args:    []string{"app-events", "localizations", "screenshots-links"},
 			wantErr: "Error: --localization-id is required",
 		},
 		{
 			name:    "localizations video-clips relationships missing localization id",
-			args:    []string{"app-events", "localizations", "video-clips-relationships"},
+			args:    []string{"app-events", "localizations", "video-clips-links"},
 			wantErr: "Error: --localization-id is required",
 		},
 		{
 			name:    "relationships missing event id",
-			args:    []string{"app-events", "relationships"},
+			args:    []string{"app-events", "links"},
 			wantErr: "Error: --event-id is required",
 		},
 	}

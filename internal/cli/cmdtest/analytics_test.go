@@ -22,7 +22,7 @@ func TestAnalyticsValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "reports relationships missing report id",
-			args:    []string{"analytics", "reports", "relationships"},
+			args:    []string{"analytics", "reports", "links"},
 			wantErr: "--report-id is required",
 		},
 		{
@@ -32,7 +32,7 @@ func TestAnalyticsValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "instances relationships missing instance id",
-			args:    []string{"analytics", "instances", "relationships"},
+			args:    []string{"analytics", "instances", "links"},
 			wantErr: "--instance-id is required",
 		},
 		{

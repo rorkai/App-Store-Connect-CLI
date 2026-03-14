@@ -1493,6 +1493,17 @@ func WithBuildsExpired(expired bool) BuildsOption {
 	}
 }
 
+// WithBuildsInclude specifies related resources to include in the response
+// (e.g., "preReleaseVersion" to get the marketing version string).
+func WithBuildsInclude(include []string) BuildsOption {
+	return func(q *buildsQuery) {
+		normalized := normalizeList(include)
+		if len(normalized) > 0 {
+			q.include = normalized
+		}
+	}
+}
+
 // WithBuildBundlesLimit sets the max number of included build bundles to return.
 func WithBuildBundlesLimit(limit int) BuildBundlesOption {
 	return func(q *buildBundlesQuery) {
@@ -1721,12 +1732,33 @@ func WithReviewSubmissionsApps(appIDs []string) ReviewSubmissionsOption {
 	}
 }
 
+// WithReviewSubmissionsInclude includes related resources for review submissions responses.
+func WithReviewSubmissionsInclude(include []string) ReviewSubmissionsOption {
+	return func(q *reviewSubmissionsQuery) {
+		q.include = normalizeList(include)
+	}
+}
+
 // WithReviewSubmissionItemsLimit sets the max number of review submission items to return.
 func WithReviewSubmissionItemsLimit(limit int) ReviewSubmissionItemsOption {
 	return func(q *reviewSubmissionItemsQuery) {
 		if limit > 0 {
 			q.limit = limit
 		}
+	}
+}
+
+// WithReviewSubmissionItemsFields sets fields[reviewSubmissionItems] for item responses.
+func WithReviewSubmissionItemsFields(fields []string) ReviewSubmissionItemsOption {
+	return func(q *reviewSubmissionItemsQuery) {
+		q.fields = normalizeList(fields)
+	}
+}
+
+// WithReviewSubmissionItemsInclude sets include for item responses.
+func WithReviewSubmissionItemsInclude(include []string) ReviewSubmissionItemsOption {
+	return func(q *reviewSubmissionItemsQuery) {
+		q.include = normalizeList(include)
 	}
 }
 

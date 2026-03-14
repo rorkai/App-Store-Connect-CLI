@@ -86,7 +86,8 @@ type AppPriceRelationships struct {
 	AppPricePoint Relationship `json:"appPricePoint"`
 }
 
-// AppAvailabilityV2CreateAttributes defines inputs for app availability.
+// AppAvailabilityV2CreateAttributes defines inputs for POST /v2/appAvailabilities.
+// Apple documents this endpoint as app pre-order creation, not generic app-availability bootstrap.
 type AppAvailabilityV2CreateAttributes struct {
 	AvailableInNewTerritories *bool                         `json:"availableInNewTerritories,omitempty"`
 	TerritoryAvailabilityIDs  []string                      `json:"-"`
@@ -101,7 +102,7 @@ type TerritoryAvailabilityCreate struct {
 	PreOrderEnabled *bool
 }
 
-// AppAvailabilityV2CreateRequest is a request to create app availability.
+// AppAvailabilityV2CreateRequest is the payload for POST /v2/appAvailabilities.
 type AppAvailabilityV2CreateRequest struct {
 	Data     AppAvailabilityV2CreateData         `json:"data"`
 	Included []AppAvailabilityV2IncludedResource `json:"included,omitempty"`
@@ -143,9 +144,10 @@ type TerritoryAvailabilityRelationships struct {
 
 // TerritoryAvailabilityUpdateAttributes describes update inputs for a territory availability.
 type TerritoryAvailabilityUpdateAttributes struct {
-	Available       *bool   `json:"available,omitempty"`
-	ReleaseDate     *string `json:"releaseDate,omitempty"`
-	PreOrderEnabled *bool   `json:"preOrderEnabled,omitempty"`
+	Available        *bool   `json:"available,omitempty"`
+	ReleaseDate      *string `json:"releaseDate,omitempty"`
+	PreOrderEnabled  *bool   `json:"preOrderEnabled,omitempty"`
+	ClearReleaseDate bool    `json:"-"`
 }
 
 // TerritoryAvailabilityUpdateData is the data portion of an availability update request.

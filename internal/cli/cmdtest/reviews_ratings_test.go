@@ -54,20 +54,24 @@ func TestReviewsRatingsValidationErrors(t *testing.T) {
 
 func TestReviewsRatingsOutputErrors(t *testing.T) {
 	tests := []struct {
-		name string
-		args []string
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name: "reviews ratings unsupported output",
-			args: []string{"reviews", "ratings", "--app", "123", "--output", "yaml"},
+			name:    "reviews ratings unsupported output",
+			args:    []string{"reviews", "ratings", "--app", "123", "--output", "yaml"},
+			wantErr: "unsupported format: yaml",
 		},
 		{
-			name: "reviews ratings pretty with table",
-			args: []string{"reviews", "ratings", "--app", "123", "--output", "table", "--pretty"},
+			name:    "reviews ratings pretty with table",
+			args:    []string{"reviews", "ratings", "--app", "123", "--output", "table", "--pretty"},
+			wantErr: "--pretty is only valid with JSON output",
 		},
 		{
-			name: "reviews ratings pretty with markdown",
-			args: []string{"reviews", "ratings", "--app", "123", "--output", "markdown", "--pretty"},
+			name:    "reviews ratings pretty with markdown",
+			args:    []string{"reviews", "ratings", "--app", "123", "--output", "markdown", "--pretty"},
+			wantErr: "--pretty is only valid with JSON output",
 		},
 	}
 
@@ -81,16 +85,17 @@ func TestReviewsRatingsOutputErrors(t *testing.T) {
 					t.Fatalf("parse error: %v", err)
 				}
 				err := root.Run(context.Background())
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				if errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected non-help error, got %v", err)
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
 				}
 			})
 
-			_ = stdout
-			_ = stderr
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
 		})
 	}
 }

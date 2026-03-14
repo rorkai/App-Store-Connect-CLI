@@ -11,6 +11,11 @@ import (
 	"testing"
 )
 
+const (
+	deprecatedBetaBuildLocalizationsGetWarning    = "Warning: `asc beta-build-localizations get` is deprecated. Use `asc builds test-notes view`"
+	deprecatedBetaBuildLocalizationsCreateWarning = "Warning: `asc beta-build-localizations create` is deprecated. Use `asc builds test-notes create`"
+)
+
 func TestBetaBuildLocalizationsGetLatestByAppWithStateAlias(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
@@ -84,8 +89,8 @@ func TestBetaBuildLocalizationsGetLatestByAppWithStateAlias(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, deprecatedBetaBuildLocalizationsGetWarning) {
+		t.Fatalf("expected deprecation warning, got %q", stderr)
 	}
 	if !strings.Contains(stdout, `"id":"loc-1"`) {
 		t.Fatalf("expected localization output, got %q", stdout)
@@ -223,8 +228,8 @@ func TestBetaBuildLocalizationsCreateLatestByAppWithStateAlias(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if !strings.Contains(stderr, deprecatedBetaBuildLocalizationsCreateWarning) {
+		t.Fatalf("expected deprecation warning, got %q", stderr)
 	}
 	if !strings.Contains(stdout, `"id":"loc-create"`) {
 		t.Fatalf("expected create output, got %q", stdout)

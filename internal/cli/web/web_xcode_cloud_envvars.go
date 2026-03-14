@@ -22,7 +22,7 @@ func webXcodeCloudEnvVarsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "env-vars",
 		ShortUsage: "asc web xcode-cloud env-vars <subcommand> [flags]",
-		ShortHelp:  "EXPERIMENTAL: Manage Xcode Cloud environment variables.",
+		ShortHelp:  "[experimental] Manage Xcode Cloud environment variables.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Manage environment variables on Xcode Cloud workflows and products
@@ -87,7 +87,7 @@ func webXcodeCloudEnvVarsListCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc web xcode-cloud env-vars list --product-id ID --workflow-id ID [flags]",
-		ShortHelp:  "EXPERIMENTAL: List workflow environment variables.",
+		ShortHelp:  "[experimental] List workflow environment variables.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 List environment variables for an Xcode Cloud workflow.
@@ -170,7 +170,7 @@ func webXcodeCloudEnvVarsSetCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "set",
 		ShortUsage: "asc web xcode-cloud env-vars set --product-id ID --workflow-id ID --name NAME --value VALUE [--secret] [flags]",
-		ShortHelp:  "EXPERIMENTAL: Set a workflow environment variable.",
+		ShortHelp:  "[experimental] Set a workflow environment variable.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Set (create or update) an environment variable on an Xcode Cloud workflow.
@@ -314,7 +314,7 @@ func webXcodeCloudEnvVarsDeleteCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "delete",
 		ShortUsage: "asc web xcode-cloud env-vars delete --product-id ID --workflow-id ID --name NAME --confirm [flags]",
-		ShortHelp:  "EXPERIMENTAL: Delete a workflow environment variable.",
+		ShortHelp:  "[experimental] Delete a workflow environment variable.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Delete an environment variable from an Xcode Cloud workflow by name.

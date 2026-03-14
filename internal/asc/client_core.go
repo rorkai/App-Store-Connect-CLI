@@ -415,6 +415,12 @@ func ResolveTimeout() time.Duration {
 
 // ResolveUploadTimeout returns the upload timeout, optionally overridden by config/env.
 func ResolveUploadTimeout() time.Duration {
+	return ResolveUploadTimeoutWithDefault(DefaultUploadTimeout)
+}
+
+// ResolveUploadTimeoutWithDefault returns the upload timeout using a custom default.
+// ASC_UPLOAD_TIMEOUT and ASC_UPLOAD_TIMEOUT_SECONDS override the default when set.
+func ResolveUploadTimeoutWithDefault(defaultTimeout time.Duration) time.Duration {
 	cfg := loadConfig()
 	var uploadTimeout config.DurationValue
 	var uploadTimeoutSeconds config.DurationValue
@@ -422,7 +428,7 @@ func ResolveUploadTimeout() time.Duration {
 		uploadTimeout = cfg.UploadTimeout
 		uploadTimeoutSeconds = cfg.UploadTimeoutSeconds
 	}
-	return resolveTimeoutWithDefaultAndEnv(DefaultUploadTimeout, "ASC_UPLOAD_TIMEOUT", "ASC_UPLOAD_TIMEOUT_SECONDS", uploadTimeout, uploadTimeoutSeconds)
+	return resolveTimeoutWithDefaultAndEnv(defaultTimeout, "ASC_UPLOAD_TIMEOUT", "ASC_UPLOAD_TIMEOUT_SECONDS", uploadTimeout, uploadTimeoutSeconds)
 }
 
 // ResolveTimeoutWithDefault returns the request timeout using a custom default.

@@ -23,7 +23,7 @@ func webXcodeCloudWorkflowsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "workflows",
 		ShortUsage: "asc web xcode-cloud workflows <subcommand> [flags]",
-		ShortHelp:  "EXPERIMENTAL: Describe and toggle Xcode Cloud workflows.",
+		ShortHelp:  "[experimental] Describe and toggle Xcode Cloud workflows.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Describe and manage workflow state for Xcode Cloud workflows
@@ -92,7 +92,7 @@ func webXcodeCloudWorkflowDescribeCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "describe",
 		ShortUsage: "asc web xcode-cloud workflows describe --product-id ID --workflow-id ID [flags]",
-		ShortHelp:  "EXPERIMENTAL: Show workflow configuration.",
+		ShortHelp:  "[experimental] Show workflow configuration.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Show workflow configuration for a specific Xcode Cloud workflow.
@@ -187,7 +187,7 @@ func webXcodeCloudWorkflowEnableCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "enable",
 		ShortUsage: "asc web xcode-cloud workflows enable --product-id ID --workflow-id ID [flags]",
-		ShortHelp:  "EXPERIMENTAL: Enable a workflow.",
+		ShortHelp:  "[experimental] Enable a workflow.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Enable an Xcode Cloud workflow by setting disabled=false.
@@ -239,7 +239,7 @@ func webXcodeCloudWorkflowDisableCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "disable",
 		ShortUsage: "asc web xcode-cloud workflows disable --product-id ID --workflow-id ID --confirm [flags]",
-		ShortHelp:  "EXPERIMENTAL: Disable a workflow.",
+		ShortHelp:  "[experimental] Disable a workflow.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Disable an Xcode Cloud workflow by setting disabled=true.

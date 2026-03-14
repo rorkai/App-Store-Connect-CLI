@@ -7,6 +7,8 @@ import (
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestReviewCommandSubmissionsValidationErrors(t *testing.T) {
@@ -163,17 +165,42 @@ func TestReviewCommandItemsValidationErrors(t *testing.T) {
 }
 
 func TestReviewCommandItemsInvalidItemType(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
-	if err := root.Parse([]string{"review", "items-add", "--submission", "SUBMISSION_ID", "--item-type", "nope", "--item-id", "ITEM_ID"}); err != nil {
-		t.Fatalf("parse error: %v", err)
+	stdout, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{
+			"review", "items-add",
+			"--submission", "SUBMISSION_ID",
+			"--item-type", "nope",
+			"--item-id", "ITEM_ID",
+		}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	err := root.Run(context.Background())
-	if err == nil {
-		t.Fatal("expected error, got nil")
+	if !strings.Contains(stderr, "--item-type must be one of:") {
+		t.Fatalf("expected invalid item type error, got %q", stderr)
 	}
-	t.Logf("got expected error: %v", err)
+	wantSupportedTypes := []string{
+		"backgroundAssetVersions",
+		"gameCenterAchievementVersions",
+		"gameCenterActivityVersions",
+		"gameCenterChallengeVersions",
+		"gameCenterLeaderboardSetVersions",
+		"gameCenterLeaderboardVersions",
+	}
+	for _, supportedType := range wantSupportedTypes {
+		if !strings.Contains(stderr, supportedType) {
+			t.Fatalf("expected stderr to list %s, got %q", supportedType, stderr)
+		}
+	}
+	if strings.Contains(stderr, "gameCenterLeaderboardReleases") {
+		t.Fatalf("did not expect undocumented leaderboard release type in stderr, got %q", stderr)
+	}
 }
 
 func TestReviewCommandItemsInvalidState(t *testing.T) {

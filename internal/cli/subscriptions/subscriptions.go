@@ -25,35 +25,34 @@ func SubscriptionsCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions groups list --app "APP_ID"
-  asc subscriptions pricing --app "APP_ID"
-  asc subscriptions pricing --app "APP_ID" --territory "USA" --output table
-  asc subscriptions list --group "GROUP_ID"
-  asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.sub.monthly"
-  asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"
-  asc subscriptions availability set --id "SUB_ID" --territory "USA,CAN"`,
+  asc subscriptions list --group-id "GROUP_ID"
+  asc subscriptions create --group-id "GROUP_ID" --reference-name "Monthly" --product-id "com.example.sub.monthly"
+  asc subscriptions setup --app "APP_ID" --group-reference-name "Pro" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH --locale "en-US" --display-name "Pro Monthly" --price "3.99" --price-territory "USA" --territories "USA"
+  asc subscriptions pricing summary --app "APP_ID"
+  asc subscriptions pricing prices set --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID"
+  asc subscriptions pricing availability set --subscription-id "SUB_ID" --territories "USA,CAN"
+  asc subscriptions offers offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
+  asc subscriptions offers win-back list --subscription-id "SUB_ID"
+  asc subscriptions review screenshots create --subscription-id "SUB_ID" --file "./review.png"
+  asc subscriptions review submit --subscription-id "SUB_ID" --confirm
+  asc subscriptions promoted-purchases create --app "APP_ID" --product-id "SUB_ID" --visible-for-all-users true`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsGroupsCommand(),
-			SubscriptionsPricingCommand(),
 			SubscriptionsListCommand(),
 			SubscriptionsCreateCommand(),
+			SubscriptionsSetupCommand(),
 			SubscriptionsGetCommand(),
 			SubscriptionsUpdateCommand(),
 			SubscriptionsDeleteCommand(),
-			SubscriptionsPricesCommand(),
-			SubscriptionsAvailabilityCommand(),
+			SubscriptionsPricingCommand(),
+			SubscriptionsOffersCommand(),
+			SubscriptionsReviewCommand(),
+			SubscriptionsPromotedPurchasesCommand(),
 			SubscriptionsLocalizationsCommand(),
 			SubscriptionsImagesCommand(),
-			SubscriptionsIntroductoryOffersCommand(),
-			SubscriptionsPromotionalOffersCommand(),
-			SubscriptionsOfferCodesCommand(),
-			SubscriptionsPricePointsCommand(),
-			SubscriptionsReviewScreenshotsCommand(),
-			SubscriptionsAppStoreReviewScreenshotCommand(),
-			SubscriptionsPromotedPurchaseCommand(),
 			SubscriptionsGracePeriodsCommand(),
-			SubscriptionsSubmitCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -85,7 +84,6 @@ Examples:
 			SubscriptionsGroupsUpdateCommand(),
 			SubscriptionsGroupsDeleteCommand(),
 			SubscriptionsGroupsLocalizationsCommand(),
-			SubscriptionsGroupsSubmitCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -371,7 +369,7 @@ Examples:
 func SubscriptionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	groupID := fs.String("group", "", "Subscription group ID")
+	groupID := fs.String("group-id", "", "Subscription group ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -379,13 +377,13 @@ func SubscriptionsListCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc subscriptions list [flags]",
+		ShortUsage: "asc subscriptions list --group-id \"GROUP_ID\" [flags]",
 		ShortHelp:  "List subscriptions in a group.",
 		LongHelp: `List subscriptions in a group.
 
 Examples:
-  asc subscriptions list --group "GROUP_ID"
-  asc subscriptions list --group "GROUP_ID" --paginate`,
+  asc subscriptions list --group-id "GROUP_ID"
+  asc subscriptions list --group-id "GROUP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -398,7 +396,7 @@ Examples:
 
 			id := strings.TrimSpace(*groupID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group is required")
+				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
 				return flag.ErrHelp
 			}
 
@@ -446,8 +444,8 @@ Examples:
 func SubscriptionsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	groupID := fs.String("group", "", "Subscription group ID")
-	refName := fs.String("ref-name", "", "Reference name")
+	groupID := fs.String("group-id", "", "Subscription group ID")
+	referenceName := fs.String("reference-name", "", "Reference name")
 	productID := fs.String("product-id", "", "Product ID (e.g., com.example.sub)")
 	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
 	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
@@ -455,26 +453,26 @@ func SubscriptionsCreateCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "create",
-		ShortUsage: "asc subscriptions create [flags]",
+		ShortUsage: "asc subscriptions create --group-id \"GROUP_ID\" --reference-name \"NAME\" --product-id \"PRODUCT_ID\" [flags]",
 		ShortHelp:  "Create a subscription.",
 		LongHelp: `Create a subscription.
 
 Examples:
-  asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.sub.monthly"
-  asc subscriptions create --group "GROUP_ID" --ref-name "Monthly" --product-id "com.example.sub.monthly" --subscription-period ONE_MONTH
-  asc subscriptions create --group "GROUP_ID" --ref-name "Family" --product-id "com.example.sub.family" --family-sharable`,
+  asc subscriptions create --group-id "GROUP_ID" --reference-name "Monthly" --product-id "com.example.sub.monthly"
+  asc subscriptions create --group-id "GROUP_ID" --reference-name "Monthly" --product-id "com.example.sub.monthly" --subscription-period ONE_MONTH
+  asc subscriptions create --group-id "GROUP_ID" --reference-name "Family" --product-id "com.example.sub.family" --family-sharable`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			group := strings.TrimSpace(*groupID)
 			if group == "" {
-				fmt.Fprintln(os.Stderr, "Error: --group is required")
+				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
 				return flag.ErrHelp
 			}
 
-			name := strings.TrimSpace(*refName)
+			name := strings.TrimSpace(*referenceName)
 			if name == "" {
-				fmt.Fprintln(os.Stderr, "Error: --ref-name is required")
+				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
 				return flag.ErrHelp
 			}
 
@@ -567,7 +565,7 @@ func SubscriptionsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
 	subID := fs.String("id", "", "Subscription ID")
-	refName := fs.String("ref-name", "", "Reference name")
+	referenceName := fs.String("reference-name", "", "Reference name")
 	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
 	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
 	output := shared.BindOutputFlags(fs)
@@ -579,7 +577,7 @@ func SubscriptionsUpdateCommand() *ffcli.Command {
 		LongHelp: `Update a subscription.
 
 Examples:
-  asc subscriptions update --id "SUB_ID" --ref-name "New Name"
+  asc subscriptions update --id "SUB_ID" --reference-name "New Name"
   asc subscriptions update --id "SUB_ID" --subscription-period ONE_YEAR
   asc subscriptions update --id "SUB_ID" --family-sharable`,
 		FlagSet:   fs,
@@ -591,7 +589,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			name := strings.TrimSpace(*refName)
+			name := strings.TrimSpace(*referenceName)
 			period, err := normalizeSubscriptionPeriod(*subscriptionPeriod, false)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err.Error())
@@ -695,9 +693,9 @@ func SubscriptionsPricesCommand() *ffcli.Command {
 		LongHelp: `Manage subscription pricing.
 
 Examples:
-  asc subscriptions prices list --id "SUB_ID"
-  asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"
-  asc subscriptions prices import --id "SUB_ID" --input "./prices.csv"
+  asc subscriptions prices list --subscription-id "SUB_ID"
+  asc subscriptions prices add --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID"
+  asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv"
   asc subscriptions prices delete --price-id "PRICE_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -717,7 +715,7 @@ Examples:
 func SubscriptionsPricesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("prices list", flag.ExitOnError)
 
-	subID := fs.String("id", "", "Subscription ID")
+	subID := fs.String("subscription-id", "", "Subscription ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -725,13 +723,13 @@ func SubscriptionsPricesListCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc subscriptions prices list --id \"SUB_ID\"",
+		ShortUsage: "asc subscriptions prices list --subscription-id \"SUB_ID\"",
 		ShortHelp:  "List prices for a subscription.",
 		LongHelp: `List prices for a subscription.
 
 Examples:
-  asc subscriptions prices list --id "SUB_ID"
-  asc subscriptions prices list --id "SUB_ID" --paginate`,
+  asc subscriptions prices list --subscription-id "SUB_ID"
+  asc subscriptions prices list --subscription-id "SUB_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -744,7 +742,7 @@ Examples:
 
 			id := strings.TrimSpace(*subID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
 				return flag.ErrHelp
 			}
 
@@ -792,7 +790,7 @@ Examples:
 func SubscriptionsPricesAddCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("prices add", flag.ExitOnError)
 
-	subID := fs.String("id", "", "Subscription ID")
+	subID := fs.String("subscription-id", "", "Subscription ID")
 	appID := fs.String("app", "", "App ID (optional; retained for backward compatibility)")
 	pricePointID := fs.String("price-point", "", "Subscription price point ID")
 	tier := fs.Int("tier", 0, "Pricing tier number (mutually exclusive with --price-point and --price)")
@@ -806,20 +804,20 @@ func SubscriptionsPricesAddCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "add",
 		ShortUsage: "asc subscriptions prices add [flags]",
-		ShortHelp:  "Add a subscription price.",
-		LongHelp: `Add a subscription price.
+		ShortHelp:  "Set a subscription price.",
+		LongHelp: `Set a subscription price.
 
 Examples:
-  asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID"
-  asc subscriptions prices add --id "SUB_ID" --price-point "PRICE_POINT_ID" --territory "USA"
-  asc subscriptions prices add --id "SUB_ID" --tier 5 --territory "USA"
-  asc subscriptions prices add --id "SUB_ID" --price "4.99" --territory "USA"`,
+  asc subscriptions prices add --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID"
+  asc subscriptions prices add --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID" --territory "USA"
+  asc subscriptions prices add --subscription-id "SUB_ID" --tier 5 --territory "USA"
+  asc subscriptions prices add --subscription-id "SUB_ID" --price "4.99" --territory "USA"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
 				return flag.ErrHelp
 			}
 
@@ -975,9 +973,9 @@ func SubscriptionsAvailabilityCommand() *ffcli.Command {
 		LongHelp: `Manage subscription availability.
 
 Examples:
-  asc subscriptions availability get --id "AVAILABILITY_ID"
-  asc subscriptions availability set --id "SUB_ID" --territory "USA,CAN"
-  asc subscriptions availability available-territories --id "AVAILABILITY_ID"`,
+  asc subscriptions availability get --availability-id "AVAILABILITY_ID"
+  asc subscriptions availability set --subscription-id "SUB_ID" --territories "USA,CAN"
+  asc subscriptions availability available-territories --availability-id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -995,18 +993,18 @@ Examples:
 func SubscriptionsAvailabilityGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability get", flag.ExitOnError)
 
-	availabilityID := fs.String("id", "", "Subscription availability ID")
+	availabilityID := fs.String("availability-id", "", "Subscription availability ID")
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc subscriptions availability get --id \"AVAILABILITY_ID\"",
+		ShortUsage: "asc subscriptions availability get --availability-id \"AVAILABILITY_ID\"",
 		ShortHelp:  "Get subscription availability by ID or subscription.",
 		LongHelp: `Get subscription availability by ID or subscription.
 
 Examples:
-  asc subscriptions availability get --id "AVAILABILITY_ID"
+  asc subscriptions availability get --availability-id "AVAILABILITY_ID"
   asc subscriptions availability get --subscription-id "SUB_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -1014,11 +1012,11 @@ Examples:
 			availabilityValue := strings.TrimSpace(*availabilityID)
 			subscriptionValue := strings.TrimSpace(*subscriptionID)
 			if availabilityValue == "" && subscriptionValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id or --subscription-id is required")
+				fmt.Fprintln(os.Stderr, "Error: --availability-id or --subscription-id is required")
 				return flag.ErrHelp
 			}
 			if availabilityValue != "" && subscriptionValue != "" {
-				fmt.Fprintln(os.Stderr, "Error: --id and --subscription-id are mutually exclusive")
+				fmt.Fprintln(os.Stderr, "Error: --availability-id and --subscription-id are mutually exclusive")
 				return flag.ErrHelp
 			}
 
@@ -1052,7 +1050,7 @@ Examples:
 func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability available-territories", flag.ExitOnError)
 
-	availabilityID := fs.String("id", "", "Subscription availability ID")
+	availabilityID := fs.String("availability-id", "", "Subscription availability ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -1060,13 +1058,13 @@ func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "available-territories",
-		ShortUsage: "asc subscriptions availability available-territories --id \"AVAILABILITY_ID\"",
+		ShortUsage: "asc subscriptions availability available-territories --availability-id \"AVAILABILITY_ID\"",
 		ShortHelp:  "List available territories for a subscription availability.",
 		LongHelp: `List available territories for a subscription availability.
 
 Examples:
-  asc subscriptions availability available-territories --id "AVAILABILITY_ID"
-  asc subscriptions availability available-territories --id "AVAILABILITY_ID" --paginate`,
+  asc subscriptions availability available-territories --availability-id "AVAILABILITY_ID"
+  asc subscriptions availability available-territories --availability-id "AVAILABILITY_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1079,7 +1077,7 @@ Examples:
 
 			id := strings.TrimSpace(*availabilityID)
 			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --availability-id is required")
 				return flag.ErrHelp
 			}
 
@@ -1127,8 +1125,8 @@ Examples:
 func SubscriptionsAvailabilitySetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability set", flag.ExitOnError)
 
-	subID := fs.String("id", "", "Subscription ID")
-	territories := fs.String("territory", "", "Territory IDs, comma-separated")
+	subID := fs.String("subscription-id", "", "Subscription ID")
+	territories := fs.String("territories", "", "Territory IDs, comma-separated")
 	availableInNew := fs.Bool("available-in-new-territories", false, "Include new territories automatically")
 	output := shared.BindOutputFlags(fs)
 
@@ -1139,19 +1137,19 @@ func SubscriptionsAvailabilitySetCommand() *ffcli.Command {
 		LongHelp: `Set subscription availability in territories.
 
 Examples:
-  asc subscriptions availability set --id "SUB_ID" --territory "USA,CAN"`,
+  asc subscriptions availability set --subscription-id "SUB_ID" --territories "USA,CAN"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
 				return flag.ErrHelp
 			}
 
 			territoryIDs := shared.SplitCSV(*territories)
 			if len(territoryIDs) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --territory is required")
+				fmt.Fprintln(os.Stderr, "Error: --territories is required")
 				return flag.ErrHelp
 			}
 

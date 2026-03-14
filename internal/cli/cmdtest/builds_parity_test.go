@@ -51,23 +51,23 @@ func TestBuildsParityValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "builds relationships missing type",
-			args:    []string{"builds", "relationships", "get", "--build", "BUILD_ID"},
+			name:    "builds links missing type",
+			args:    []string{"builds", "links", "view", "--build", "BUILD_ID"},
 			wantErr: "--type is required",
 		},
 		{
-			name:    "builds relationships missing build",
-			args:    []string{"builds", "relationships", "get", "--type", "app"},
+			name:    "builds links missing build",
+			args:    []string{"builds", "links", "view", "--type", "app"},
 			wantErr: "--build is required",
 		},
 		{
-			name:    "builds relationships invalid type",
-			args:    []string{"builds", "relationships", "get", "--build", "BUILD_ID", "--type", "nope"},
+			name:    "builds links invalid type",
+			args:    []string{"builds", "links", "view", "--build", "BUILD_ID", "--type", "nope"},
 			wantErr: "--type must be one of",
 		},
 		{
-			name:    "builds relationships invalid limit for single",
-			args:    []string{"builds", "relationships", "get", "--build", "BUILD_ID", "--type", "app", "--limit", "10"},
+			name:    "builds links invalid limit for single",
+			args:    []string{"builds", "links", "view", "--build", "BUILD_ID", "--type", "app", "--limit", "10"},
 			wantErr: "only valid for to-many relationships",
 		},
 		{
@@ -253,33 +253,43 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "beta-groups relationships missing type",
-			args:    []string{"testflight", "beta-groups", "relationships", "get", "--group-id", "GROUP_ID"},
+			args:    []string{"testflight", "groups", "links", "view", "--group-id", "GROUP_ID"},
 			wantErr: "--type is required",
 		},
 		{
 			name:    "beta-groups relationships missing group-id",
-			args:    []string{"testflight", "beta-groups", "relationships", "get", "--type", "betaTesters"},
+			args:    []string{"testflight", "groups", "links", "view", "--type", "betaTesters"},
 			wantErr: "--group-id is required",
 		},
 		{
 			name:    "beta-groups relationships invalid type",
-			args:    []string{"testflight", "beta-groups", "relationships", "get", "--group-id", "GROUP_ID", "--type", "nope"},
+			args:    []string{"testflight", "groups", "links", "view", "--group-id", "GROUP_ID", "--type", "nope"},
 			wantErr: "--type must be one of",
 		},
 		{
+			name:    "beta-groups deprecated root links missing type",
+			args:    []string{"testflight", "beta-groups", "links", "view", "--group-id", "GROUP_ID"},
+			wantErr: "--type is required",
+		},
+		{
 			name:    "beta-testers relationships missing type",
-			args:    []string{"testflight", "beta-testers", "relationships", "get", "--tester-id", "TESTER_ID"},
+			args:    []string{"testflight", "testers", "links", "view", "--tester-id", "TESTER_ID"},
 			wantErr: "--type is required",
 		},
 		{
 			name:    "beta-testers relationships missing tester-id",
-			args:    []string{"testflight", "beta-testers", "relationships", "get", "--type", "apps"},
+			args:    []string{"testflight", "testers", "links", "view", "--type", "apps"},
 			wantErr: "--tester-id is required",
 		},
 		{
 			name:    "beta-testers relationships invalid type",
-			args:    []string{"testflight", "beta-testers", "relationships", "get", "--tester-id", "TESTER_ID", "--type", "nope"},
+			args:    []string{"testflight", "testers", "links", "view", "--tester-id", "TESTER_ID", "--type", "nope"},
 			wantErr: "--type must be one of",
+		},
+		{
+			name:    "beta-testers deprecated root links missing type",
+			args:    []string{"testflight", "beta-testers", "links", "view", "--tester-id", "TESTER_ID"},
+			wantErr: "--type is required",
 		},
 		{
 			name:    "beta-testers metrics missing tester-id",
@@ -315,23 +325,23 @@ func TestPreReleaseRelationshipsValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "pre-release relationships missing type",
-			args:    []string{"pre-release-versions", "relationships", "get", "--id", "PR_ID"},
+			name:    "pre-release links missing type",
+			args:    []string{"testflight", "pre-release", "links", "view", "--id", "PR_ID"},
 			wantErr: "--type is required",
 		},
 		{
-			name:    "pre-release relationships missing id",
-			args:    []string{"pre-release-versions", "relationships", "get", "--type", "app"},
+			name:    "pre-release links missing id",
+			args:    []string{"testflight", "pre-release", "links", "view", "--type", "app"},
 			wantErr: "--id is required",
 		},
 		{
-			name:    "pre-release relationships invalid type",
-			args:    []string{"pre-release-versions", "relationships", "get", "--id", "PR_ID", "--type", "nope"},
+			name:    "pre-release links invalid type",
+			args:    []string{"testflight", "pre-release", "links", "view", "--id", "PR_ID", "--type", "nope"},
 			wantErr: "--type must be one of",
 		},
 		{
-			name:    "pre-release relationships invalid limit for single",
-			args:    []string{"pre-release-versions", "relationships", "get", "--id", "PR_ID", "--type", "app", "--limit", "10"},
+			name:    "pre-release links invalid limit for single",
+			args:    []string{"testflight", "pre-release", "links", "view", "--id", "PR_ID", "--type", "app", "--limit", "10"},
 			wantErr: "only valid for to-many relationships",
 		},
 	}
@@ -405,22 +415,22 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 		{
 			name:    "beta-feedback crash-submissions get missing id",
 			args:    []string{"testflight", "beta-feedback", "crash-submissions", "get"},
-			wantErr: "--id is required",
+			wantErr: "--submission-id is required",
 		},
 		{
 			name:    "beta-feedback screenshot-submissions get missing id",
 			args:    []string{"testflight", "beta-feedback", "screenshot-submissions", "get"},
-			wantErr: "--id is required",
+			wantErr: "--submission-id is required",
 		},
 		{
 			name:    "beta-feedback crash-log get missing id",
 			args:    []string{"testflight", "beta-feedback", "crash-log", "get"},
-			wantErr: "--id is required",
+			wantErr: "--submission-id is required",
 		},
 		{
 			name:    "beta-feedback crash-submissions delete missing id",
 			args:    []string{"testflight", "beta-feedback", "crash-submissions", "delete", "--confirm"},
-			wantErr: "--id is required",
+			wantErr: "--submission-id is required",
 		},
 		{
 			name:    "beta-feedback crash-submissions delete missing confirm",
@@ -430,7 +440,7 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 		{
 			name:    "beta-feedback screenshot-submissions delete missing id",
 			args:    []string{"testflight", "beta-feedback", "screenshot-submissions", "delete", "--confirm"},
-			wantErr: "--id is required",
+			wantErr: "--submission-id is required",
 		},
 		{
 			name:    "beta-feedback screenshot-submissions delete missing confirm",
@@ -448,13 +458,13 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 			wantErr: "--id is required",
 		},
 		{
-			name:    "pre-release-versions app get missing id",
-			args:    []string{"pre-release-versions", "app", "get"},
+			name:    "pre-release app view missing id",
+			args:    []string{"testflight", "pre-release", "app", "view"},
 			wantErr: "--id is required",
 		},
 		{
-			name:    "pre-release-versions builds list missing id",
-			args:    []string{"pre-release-versions", "builds", "list"},
+			name:    "pre-release builds list missing id",
+			args:    []string{"testflight", "pre-release", "builds", "list"},
 			wantErr: "--id is required",
 		},
 	}

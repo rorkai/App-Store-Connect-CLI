@@ -41,8 +41,9 @@ type GameCenterActivityUpdateAttributes struct {
 
 // GameCenterActivityRelationships describes relationships for activities.
 type GameCenterActivityRelationships struct {
-	GameCenterDetail *Relationship `json:"gameCenterDetail,omitempty"`
-	GameCenterGroup  *Relationship `json:"gameCenterGroup,omitempty"`
+	GameCenterDetail *Relationship     `json:"gameCenterDetail,omitempty"`
+	GameCenterGroup  *Relationship     `json:"gameCenterGroup,omitempty"`
+	Versions         *RelationshipList `json:"versions,omitempty"`
 }
 
 // GameCenterActivityCreateData is the data portion of an activity create request.
@@ -54,7 +55,16 @@ type GameCenterActivityCreateData struct {
 
 // GameCenterActivityCreateRequest is a request to create an activity.
 type GameCenterActivityCreateRequest struct {
-	Data GameCenterActivityCreateData `json:"data"`
+	Data     GameCenterActivityCreateData            `json:"data"`
+	Included []GameCenterActivityVersionInlineCreate `json:"included,omitempty"`
+}
+
+// GameCenterActivityVersionInlineCreate is an inline resource for creating an
+// initial activity version alongside the parent activity.
+type GameCenterActivityVersionInlineCreate struct {
+	Type       ResourceType                               `json:"type"`
+	ID         string                                     `json:"id,omitempty"`
+	Attributes *GameCenterActivityVersionCreateAttributes `json:"attributes,omitempty"`
 }
 
 // GameCenterActivityUpdateData is the data portion of an activity update request.

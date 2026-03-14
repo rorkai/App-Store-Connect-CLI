@@ -42,7 +42,7 @@ func TestSubscriptionsCreateFamilySharable(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "create", "--group", "GRP1", "--ref-name", "Family", "--product-id", "com.example.sub.family", "--family-sharable"}); err != nil {
+		if err := root.Parse([]string{"subscriptions", "create", "--group-id", "GRP1", "--reference-name", "Family", "--product-id", "com.example.sub.family", "--family-sharable"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

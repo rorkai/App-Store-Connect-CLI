@@ -6,13 +6,14 @@ import (
 )
 
 func backgroundAssetsRows(resp *BackgroundAssetsResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Asset Pack Identifier", "Archived", "Created Date"}
+	headers := []string{"ID", "Asset Pack Identifier", "Archived", "Used Bytes", "Created Date"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.AssetPackIdentifier),
 			fmt.Sprintf("%t", item.Attributes.Archived),
+			formatOptionalInt64(item.Attributes.UsedBytes),
 			item.Attributes.CreatedDate,
 		})
 	}
@@ -57,4 +58,11 @@ func backgroundAssetVersionStateRows(id string, state string) ([]string, [][]str
 	headers := []string{"ID", "State"}
 	rows := [][]string{{id, state}}
 	return headers, rows
+}
+
+func formatOptionalInt64(value *int64) string {
+	if value == nil {
+		return ""
+	}
+	return fmt.Sprintf("%d", *value)
 }

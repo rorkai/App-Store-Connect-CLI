@@ -20,7 +20,7 @@ func webXcodeCloudEnvVarsSharedCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "shared",
 		ShortUsage: "asc web xcode-cloud env-vars shared <subcommand> [flags]",
-		ShortHelp:  "EXPERIMENTAL: Manage shared (product-level) environment variables.",
+		ShortHelp:  "[experimental] Manage shared (product-level) environment variables.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 List, set, and delete shared (product-level) environment variables for
@@ -79,7 +79,7 @@ func webXcodeCloudEnvVarsSharedListCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc web xcode-cloud env-vars shared list --product-id ID [flags]",
-		ShortHelp:  "EXPERIMENTAL: List shared (product-level) environment variables.",
+		ShortHelp:  "[experimental] List shared (product-level) environment variables.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 List shared environment variables for an Xcode Cloud product.
@@ -154,7 +154,7 @@ func webXcodeCloudEnvVarsSharedSetCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "set",
 		ShortUsage: "asc web xcode-cloud env-vars shared set --product-id ID --name NAME --value VALUE [--secret] [--locked] [--workflow-ids IDS] [flags]",
-		ShortHelp:  "EXPERIMENTAL: Set a shared (product-level) environment variable.",
+		ShortHelp:  "[experimental] Set a shared (product-level) environment variable.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Set (create or update) a shared environment variable on an Xcode Cloud product.
@@ -295,7 +295,7 @@ func webXcodeCloudEnvVarsSharedDeleteCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "delete",
 		ShortUsage: "asc web xcode-cloud env-vars shared delete --product-id ID --name NAME --confirm [flags]",
-		ShortHelp:  "EXPERIMENTAL: Delete a shared (product-level) environment variable.",
+		ShortHelp:  "[experimental] Delete a shared (product-level) environment variable.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Delete a shared environment variable from an Xcode Cloud product by name.

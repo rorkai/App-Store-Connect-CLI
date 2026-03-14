@@ -41,8 +41,15 @@ func TestBuildsListResolvesAppByBundleID(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 		case 2:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-lookup/builds" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds" {
 				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
+			}
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "app-lookup" {
+				t.Fatalf("expected filter[app]=app-lookup, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("include") != "preReleaseVersion" {
+				t.Fatalf("expected include=preReleaseVersion, got %q", query.Get("include"))
 			}
 			body := `{"data":[{"type":"builds","id":"build-1"}]}`
 			return &http.Response{

@@ -56,6 +56,113 @@ func TestAppsWallFlagDefaults(t *testing.T) {
 	}
 }
 
+func TestAppsWallSubmitCommandExists(t *testing.T) {
+	root := RootCommand("1.2.3")
+	cmd := findSubcommand(root, "apps", "wall", "submit")
+	if cmd == nil {
+		t.Fatal("expected apps wall submit command")
+	}
+
+	outputFlag := cmd.FlagSet.Lookup("output")
+	if outputFlag == nil {
+		t.Fatal("expected --output flag")
+	}
+	if got := outputFlag.DefValue; got != "json" {
+		t.Fatalf("expected --output default json, got %q", got)
+	}
+}
+
+func TestAppsWallSubmitRequiresConfirmUnlessDryRun(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"apps", "wall", "submit",
+			"--app", "1234567890",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--confirm is required unless --dry-run is set") {
+		t.Fatalf("expected confirm guidance in stderr, got %q", stderr)
+	}
+}
+
+func TestAppsWallSubmitRejectsParentWallFlags(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"apps", "wall",
+			"--output", "markdown",
+			"submit",
+			"--app", "1234567890",
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "apps wall submit does not accept parent wall flags") {
+		t.Fatalf("expected parent flag guidance in stderr, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "--output") {
+		t.Fatalf("expected offending flag in stderr, got %q", stderr)
+	}
+}
+
+func TestAppsWallSubmitRejectsMultipleParentWallFlags(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"apps", "wall",
+			"--limit", "20",
+			"--output", "markdown",
+			"submit",
+			"--app", "1234567890",
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "apps wall submit does not accept parent wall flags") {
+		t.Fatalf("expected parent flag guidance in stderr, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "--limit, --output") {
+		t.Fatalf("expected sorted offending flags in stderr, got %q", stderr)
+	}
+}
+
 func TestAppsShowcaseRemoved(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -82,8 +189,8 @@ func TestAppsShowcaseRemoved(t *testing.T) {
 func TestAppsWallMarkdownColumnsExcludeIcon(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "wall.json")
 	sourceJSON := `[
-		{"app":"Alpha App","link":"https://example.com/alpha","creator":"Alpha Creator","platform":["iOS"]},
-		{"app":"Beta Mac","link":"https://example.com/beta","creator":"Beta Creator","platform":["macOS"]}
+		{"app":"Alpha App","link":"https://example.com/alpha"},
+		{"app":"Beta Mac","link":"https://example.com/beta"}
 	]`
 	if err := os.WriteFile(sourcePath, []byte(sourceJSON), 0o600); err != nil {
 		t.Fatalf("write source file: %v", err)
@@ -105,20 +212,20 @@ func TestAppsWallMarkdownColumnsExcludeIcon(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, "| App") || !strings.Contains(stdout, "| Link") || !strings.Contains(stdout, "| Creator") || !strings.Contains(stdout, "| Platform") {
-		t.Fatalf("expected markdown columns App/Link/Creator/Platform, got %q", stdout)
+	if !strings.Contains(stdout, "| App") || !strings.Contains(stdout, "| Link") {
+		t.Fatalf("expected markdown columns App/Link, got %q", stdout)
 	}
-	if strings.Contains(stdout, "| Icon |") {
-		t.Fatalf("did not expect icon column, got %q", stdout)
+	if strings.Contains(stdout, "| Creator |") || strings.Contains(stdout, "| Platform |") || strings.Contains(stdout, "| Icon |") {
+		t.Fatalf("did not expect creator/platform/icon columns, got %q", stdout)
 	}
 }
 
 func TestAppsWallCommunityUsesConfiguredSource(t *testing.T) {
 	sourcePath := filepath.Join(t.TempDir(), "wall.json")
 	sourceJSON := `[
-		{"app":"Alpha App","link":"https://example.com/alpha","creator":"Alpha Creator","platform":["iOS"]},
-		{"app":"Zeta App","link":"https://example.com/zeta","creator":"Zeta Creator","platform":["iOS"]},
-		{"app":"Beta Mac","link":"https://example.com/beta","creator":"Beta Creator","platform":["macOS"]}
+		{"app":"Alpha App","link":"https://example.com/alpha"},
+		{"app":"Zeta App","link":"https://example.com/zeta"},
+		{"app":"Beta Mac","link":"https://example.com/beta"}
 	]`
 	if err := os.WriteFile(sourcePath, []byte(sourceJSON), 0o600); err != nil {
 		t.Fatalf("write source file: %v", err)
@@ -132,7 +239,6 @@ func TestAppsWallCommunityUsesConfiguredSource(t *testing.T) {
 		if err := root.Parse([]string{
 			"apps", "wall",
 			"--output", "json",
-			"--include-platforms", "iOS",
 			"--sort", "-name",
 			"--limit", "1",
 		}); err != nil {
@@ -149,10 +255,8 @@ func TestAppsWallCommunityUsesConfiguredSource(t *testing.T) {
 
 	var out struct {
 		Data []struct {
-			Name        string   `json:"name"`
-			Creator     string   `json:"creator"`
-			AppStoreURL string   `json:"appStoreUrl"`
-			Platform    []string `json:"platform"`
+			Name        string `json:"name"`
+			AppStoreURL string `json:"appStoreUrl"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
@@ -164,14 +268,8 @@ func TestAppsWallCommunityUsesConfiguredSource(t *testing.T) {
 	if out.Data[0].Name != "Zeta App" {
 		t.Fatalf("expected Zeta App after -name sort with limit 1, got %q", out.Data[0].Name)
 	}
-	if out.Data[0].Creator != "Zeta Creator" {
-		t.Fatalf("expected creator Zeta Creator, got %q", out.Data[0].Creator)
-	}
 	if out.Data[0].AppStoreURL != "https://example.com/zeta" {
 		t.Fatalf("expected zeta link, got %q", out.Data[0].AppStoreURL)
-	}
-	if len(out.Data[0].Platform) != 1 || out.Data[0].Platform[0] != "IOS" {
-		t.Fatalf("expected normalized IOS platform, got %+v", out.Data[0].Platform)
 	}
 }
 

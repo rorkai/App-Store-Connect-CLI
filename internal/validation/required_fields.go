@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func requiredFieldChecks(primaryLocale string, versionString string, versionState string, versionLocs []VersionLocalization, appInfoLocs []AppInfoLocalization) []CheckResult {
+func requiredFieldChecks(primaryLocale string, versionString string, versionState string, hasActiveMonetization bool, versionLocs []VersionLocalization, appInfoLocs []AppInfoLocalization) []CheckResult {
 	var checks []CheckResult
 
 	normalizedState := strings.ToUpper(strings.TrimSpace(versionState))
@@ -132,7 +132,7 @@ func requiredFieldChecks(primaryLocale string, versionString string, versionStat
 				Remediation:  "Provide a subtitle for this localization",
 			})
 		}
-		if strings.TrimSpace(loc.PrivacyPolicyURL) == "" {
+		if !hasActiveMonetization && strings.TrimSpace(loc.PrivacyPolicyURL) == "" {
 			checks = append(checks, CheckResult{
 				ID:           "metadata.recommended.privacy_policy_url",
 				Severity:     SeverityWarning,

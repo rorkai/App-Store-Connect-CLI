@@ -11,19 +11,19 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// IAPAvailabilityCommand returns the availability command group.
+// IAPAvailabilityCommand returns the canonical pricing availability command group.
 func IAPAvailabilityCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "availability",
-		ShortUsage: "asc iap availability <subcommand> [flags]",
+		ShortUsage: "asc iap pricing availability <subcommand> [flags]",
 		ShortHelp:  "Manage in-app purchase availability.",
 		LongHelp: `Manage in-app purchase availability.
 
 Examples:
-  asc iap availability get --iap-id "IAP_ID"
-  asc iap availability set --iap-id "IAP_ID" --territories "USA,CAN"`,
+  asc iap pricing availability get --iap-id "IAP_ID"
+  asc iap pricing availability set --iap-id "IAP_ID" --territories "USA,CAN"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -38,19 +38,19 @@ Examples:
 
 // IAPAvailabilityGetCommand returns the availability get subcommand.
 func IAPAvailabilityGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("availability get", flag.ExitOnError)
+	fs := flag.NewFlagSet("pricing availability get", flag.ExitOnError)
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc iap availability get --iap-id \"IAP_ID\"",
+		ShortUsage: "asc iap pricing availability get --iap-id \"IAP_ID\"",
 		ShortHelp:  "Get in-app purchase availability.",
 		LongHelp: `Get in-app purchase availability.
 
 Examples:
-  asc iap availability get --iap-id "IAP_ID"`,
+  asc iap pricing availability get --iap-id "IAP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -80,7 +80,7 @@ Examples:
 
 // IAPAvailabilitySetCommand returns the availability set subcommand.
 func IAPAvailabilitySetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("availability set", flag.ExitOnError)
+	fs := flag.NewFlagSet("pricing availability set", flag.ExitOnError)
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	territories := fs.String("territories", "", "Territory IDs (comma-separated)")
@@ -89,12 +89,12 @@ func IAPAvailabilitySetCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "set",
-		ShortUsage: "asc iap availability set --iap-id \"IAP_ID\" --territories \"USA,CAN\"",
+		ShortUsage: "asc iap pricing availability set --iap-id \"IAP_ID\" --territories \"USA,CAN\"",
 		ShortHelp:  "Set in-app purchase availability in territories.",
 		LongHelp: `Set in-app purchase availability in territories.
 
 Examples:
-  asc iap availability set --iap-id "IAP_ID" --territories "USA,CAN"`,
+  asc iap pricing availability set --iap-id "IAP_ID" --territories "USA,CAN"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

@@ -688,7 +688,7 @@ func WebReviewCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "review",
 		ShortUsage: "asc web review <subcommand> [flags]",
-		ShortHelp:  "EXPERIMENTAL: App-centric review and rejection inspection.",
+		ShortHelp:  "[experimental] App-centric review and rejection inspection.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 App-centric review workflows over Apple web-session /iris endpoints.
@@ -723,7 +723,7 @@ func WebReviewListCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc web review list --app APP_ID [--state CSV] [flags]",
-		ShortHelp:  "EXPERIMENTAL: List app review submissions.",
+		ShortHelp:  "[experimental] List app review submissions.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -782,7 +782,7 @@ func WebReviewShowCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "show",
 		ShortUsage: "asc web review show --app APP_ID [--submission ID] [--out DIR] [--pattern GLOB] [--overwrite] [flags]",
-		ShortHelp:  "EXPERIMENTAL: Show review details and auto-download screenshots.",
+		ShortHelp:  "[experimental] Show review details and auto-download screenshots.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Show one submission's review context (threads, messages, rejections) and

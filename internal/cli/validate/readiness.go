@@ -136,44 +136,9 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		priceScheduleID = priceScheduleResp.Data.ID
 	}
 
-	availabilityID := ""
-	availableTerritories := 0
-	availabilityResp, err := client.GetAppAvailabilityV2(requestCtx, opts.AppID)
+	availabilityID, availableTerritories, err := fetchAvailableTerritories(requestCtx, client, opts.AppID)
 	if err != nil {
-		if !shared.IsAppAvailabilityMissing(err) {
-			return validation.Report{}, fmt.Errorf("failed to fetch app availability: %w", err)
-		}
-	} else {
-		availabilityID = availabilityResp.Data.ID
-		if strings.TrimSpace(availabilityID) != "" {
-			nextURL := ""
-			for {
-				var territoryResp *asc.TerritoryAvailabilitiesResponse
-				if strings.TrimSpace(nextURL) != "" {
-					territoryResp, err = client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.WithTerritoryAvailabilitiesNextURL(nextURL))
-				} else {
-					territoryResp, err = client.GetTerritoryAvailabilities(requestCtx, availabilityID, asc.WithTerritoryAvailabilitiesLimit(200))
-				}
-				if err != nil {
-					return validation.Report{}, fmt.Errorf("failed to fetch territory availabilities: %w", err)
-				}
-
-				for _, territoryAvailability := range territoryResp.Data {
-					if territoryAvailability.Attributes.Available {
-						availableTerritories++
-					}
-				}
-
-				if availableTerritories > 0 {
-					break
-				}
-
-				nextURL = strings.TrimSpace(territoryResp.Links.Next)
-				if nextURL == "" {
-					break
-				}
-			}
-		}
+		return validation.Report{}, err
 	}
 
 	versionLocalizations := make([]validation.VersionLocalization, 0, len(versionLocsResp.Data))
@@ -195,11 +160,12 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 	for _, loc := range appInfoLocsResp.Data {
 		attrs := loc.Attributes
 		appInfoLocalizations = append(appInfoLocalizations, validation.AppInfoLocalization{
-			ID:               loc.ID,
-			Locale:           attrs.Locale,
-			Name:             attrs.Name,
-			Subtitle:         attrs.Subtitle,
-			PrivacyPolicyURL: attrs.PrivacyPolicyURL,
+			ID:                loc.ID,
+			Locale:            attrs.Locale,
+			Name:              attrs.Name,
+			Subtitle:          attrs.Subtitle,
+			PrivacyPolicyURL:  attrs.PrivacyPolicyURL,
+			PrivacyChoicesURL: attrs.PrivacyChoicesURL,
 		})
 	}
 
@@ -222,6 +188,22 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		}
 	} else {
 		subscriptions = fetchedSubscriptions
+	}
+
+	iaps := make([]validation.IAP, 0)
+	iapFetchSkipReason := ""
+	fetchedIAPs, err := fetchIAPsFn(ctx, client, opts.AppID)
+	if err != nil {
+		switch {
+		case errors.Is(err, asc.ErrForbidden) || asc.IsUnauthorized(err):
+			iapFetchSkipReason = "IAP readiness checks were skipped because this App Store Connect account cannot read in-app purchase resources"
+		case asc.IsRetryable(err):
+			iapFetchSkipReason = "IAP readiness checks were skipped because the App Store Connect IAP endpoints were temporarily unavailable or rate limited"
+		default:
+			return validation.Report{}, fmt.Errorf("failed to fetch in-app purchases: %w", err)
+		}
+	} else {
+		iaps = fetchedIAPs
 	}
 
 	platform := strings.TrimSpace(opts.Platform)
@@ -248,7 +230,12 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		ScreenshotSets:              screenshotSets,
 		Subscriptions:               subscriptions,
 		SubscriptionFetchSkipReason: subscriptionFetchSkipReason,
+		IAPs:                        iaps,
+		IAPFetchSkipReason:          iapFetchSkipReason,
 		AgeRatingDeclaration:        ageRatingDecl,
+		ReleaseType:                 versionResp.Data.Attributes.ReleaseType,
+		EarliestReleaseDate:         versionResp.Data.Attributes.EarliestReleaseDate,
+		Copyright:                   versionResp.Data.Attributes.Copyright,
 	}, opts.Strict)
 
 	return report, nil

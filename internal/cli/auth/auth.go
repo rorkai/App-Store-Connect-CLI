@@ -56,6 +56,7 @@ Set ASC_BYPASS_KEYCHAIN to 1/true/yes/on to bypass keychain.`,
 			AuthLogoutCommand(),
 			AuthDoctorCommand(),
 			AuthStatusCommand(),
+			AuthTokenCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) == 0 {
@@ -140,7 +141,7 @@ Examples:
 func AuthDoctorCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("auth doctor", flag.ExitOnError)
 
-	output := shared.BindOutputFlagsWith(fs, "output", "text", "Output format: text (default), json")
+	output := shared.BindOutputFlagsWithAllowed(fs, "output", "text", "Output format: text (default), json", "text", "json")
 	fix := fs.Bool("fix", false, "Attempt to fix issues where possible")
 	confirm := fs.Bool("confirm", false, "Confirm applying fixes")
 
@@ -621,7 +622,7 @@ Examples:
 // AuthStatus command factory
 func AuthStatusCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("auth status", flag.ExitOnError)
-	output := shared.BindOutputFlagsWith(fs, "output", defaultAuthStatusOutputFormat(), "Output format: table, json")
+	output := shared.BindOutputFlagsWithAllowed(fs, "output", defaultAuthStatusOutputFormat(), "Output format: table, json", "table", "json")
 	verbose := fs.Bool("verbose", false, "Show detailed storage information")
 	validate := fs.Bool("validate", false, "Validate stored credentials via network")
 
@@ -773,14 +774,7 @@ Examples:
 			envProvided := envKeyID != "" || envIssuerID != "" || hasKeyEnv
 			envComplete := envKeyID != "" && envIssuerID != "" && hasKeyEnv
 
-			environmentNote := ""
-			if profile != "" && envProvided {
-				environmentNote = fmt.Sprintf("Profile %q selected; environment credentials will be ignored.", profile)
-			} else if bypassKeychain && envComplete {
-				environmentNote = "Environment credentials detected (ASC_KEY_ID present). With ASC_BYPASS_KEYCHAIN set to 1/true/yes/on, they will be used when no profile is selected."
-			} else if bypassKeychain && envProvided && !envComplete {
-				environmentNote = "Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID, and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64."
-			}
+			environmentNote := authStatusEnvironmentNote(profile, bypassKeychain, envProvided, envComplete)
 			if normalizedOutput == "table" && environmentNote != "" {
 				fmt.Println(environmentNote)
 			}
@@ -878,7 +872,105 @@ func defaultAuthStatusOutputFormat() string {
 	return "table"
 }
 
+func authStatusEnvironmentNote(profile string, bypassKeychain, envProvided, envComplete bool) string {
+	if profile != "" && envProvided {
+		return fmt.Sprintf("Profile %q selected; environment credentials will be ignored.", profile)
+	}
+	if !bypassKeychain || !envProvided {
+		return ""
+	}
+	if !envComplete {
+		return "Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID, and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64."
+	}
+	return "Environment credentials detected (ASC_KEY_ID present). In bypass mode, stored config credentials are preferred; environment credentials are only used when no stored config credential is selected."
+}
+
 func boolPointer(value bool) *bool {
 	result := value
 	return &result
+}
+
+// AuthTokenCommand prints a signed JWT for direct API calls.
+func AuthTokenCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("auth token", flag.ExitOnError)
+
+	name := fs.String("name", "", "Profile name (uses default profile if omitted)")
+	confirm := fs.Bool("confirm", false, "Confirm printing a live JWT to stdout")
+	output := shared.BindOutputFlagsWithAllowed(fs, "output", "text", "Output format: text (raw token), json", "text", "json")
+
+	return &ffcli.Command{
+		Name:       "token",
+		ShortUsage: "asc auth token --confirm [flags]",
+		ShortHelp:  "Print a signed JWT for direct App Store Connect API calls.",
+		LongHelp: `Print a signed JWT for direct App Store Connect API calls.
+
+The token is valid for 10 minutes and printed to stdout so it can be used
+in shell pipelines.
+
+Requires --confirm because this prints a live bearer token to stdout.
+
+Examples:
+  asc auth token --confirm
+  asc auth token --name "MyKey" --confirm
+  asc auth token --confirm --output json
+  curl -H "Authorization: Bearer $(asc auth token --confirm)" https://api.appstoreconnect.apple.com/v1/apps`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
+			}
+			trimmedName := strings.TrimSpace(*name)
+			if trimmedName == "" && *name != "" {
+				return shared.UsageError("--name cannot be blank")
+			}
+			normalizedOutput, err := shared.ValidateOutputFormatAllowed(*output.Output, *output.Pretty, "text", "json")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+			if !*confirm {
+				return shared.UsageError("--confirm is required")
+			}
+
+			cred, err := shared.ResolveAuthCredentials(trimmedName)
+			if err != nil {
+				return fmt.Errorf("auth token: %w", err)
+			}
+
+			privateKey, err := loadCredentialKey(cred)
+			if err != nil {
+				return fmt.Errorf("auth token: %w", err)
+			}
+
+			token, err := asc.GenerateJWT(cred.KeyID, cred.IssuerID, privateKey)
+			if err != nil {
+				return fmt.Errorf("auth token: failed to generate JWT: %w", err)
+			}
+
+			if normalizedOutput == "json" {
+				return shared.PrintOutput(struct {
+					Token   string `json:"token"`
+					KeyID   string `json:"keyId"`
+					Profile string `json:"profile,omitempty"`
+				}{
+					Token:   token,
+					KeyID:   cred.KeyID,
+					Profile: cred.Profile,
+				}, "json", *output.Pretty)
+			}
+
+			fmt.Print(token)
+			return nil
+		},
+	}
+}
+
+func loadCredentialKey(cred shared.ResolvedAuthCredentials) (*ecdsa.PrivateKey, error) {
+	if pemValue := strings.TrimSpace(cred.KeyPEM); pemValue != "" {
+		return authsvc.LoadPrivateKeyFromPEM([]byte(pemValue))
+	}
+	if err := authsvc.ValidateKeyFile(cred.KeyPath); err != nil {
+		return nil, fmt.Errorf("invalid private key: %w", err)
+	}
+	return authsvc.LoadPrivateKey(cred.KeyPath)
 }

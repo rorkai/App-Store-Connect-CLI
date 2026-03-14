@@ -98,7 +98,7 @@ func TestSubscriptionsOfferCodesCreateNormalizesValuesAndBuildsPayload(t *testin
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "offer-codes", "create",
+			"subscriptions", "offers", "offer-codes", "create",
 			"--subscription-id", "sub-1",
 			"--name", "Spring Promo",
 			"--offer-eligibility", "replace_intro_offers",
@@ -163,7 +163,7 @@ func TestSubscriptionsOfferCodesCreateReturnsCreateFailure(t *testing.T) {
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "offer-codes", "create",
+			"subscriptions", "offers", "offer-codes", "create",
 			"--subscription-id", "sub-1",
 			"--name", "Spring Promo",
 			"--offer-eligibility", "replace_intro_offers",
@@ -181,7 +181,7 @@ func TestSubscriptionsOfferCodesCreateReturnsCreateFailure(t *testing.T) {
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(runErr.Error(), "subscriptions offer-codes create: failed to create") {
+	if !strings.Contains(runErr.Error(), "subscriptions offers offer-codes create: failed to create") {
 		t.Fatalf("expected create failure, got %v", runErr)
 	}
 	if stdout != "" {
@@ -242,7 +242,7 @@ func TestSubscriptionsOfferCodesListPaginateReturnsSecondPageFailure(t *testing.
 	var runErr error
 	stdout, _ := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "offer-codes", "list",
+			"subscriptions", "offers", "offer-codes", "list",
 			"--subscription-id", "sub-1",
 			"--paginate",
 		}); err != nil {
@@ -254,7 +254,7 @@ func TestSubscriptionsOfferCodesListPaginateReturnsSecondPageFailure(t *testing.
 	if runErr == nil {
 		t.Fatal("expected error, got nil")
 	}
-	if !strings.Contains(runErr.Error(), "subscriptions offer-codes list: page 2:") {
+	if !strings.Contains(runErr.Error(), "subscriptions offers offer-codes list: page 2:") {
 		t.Fatalf("expected paginated page 2 error context, got %v", runErr)
 	}
 	if stdout != "" {
@@ -271,12 +271,12 @@ func TestSubscriptionsOfferCodesListRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid host",
 			next:    "https://example.com/v1/subscriptions/sub-1/offerCodes?cursor=AQ",
-			wantErr: "subscriptions offer-codes list: --next must be an App Store Connect URL",
+			wantErr: "subscriptions offers offer-codes list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "subscriptions offer-codes list: --next must be a valid URL:",
+			wantErr: "subscriptions offers offer-codes list: --next must be a valid URL:",
 		},
 	}
 
@@ -288,7 +288,7 @@ func TestSubscriptionsOfferCodesListRejectsInvalidNextURL(t *testing.T) {
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
 				if err := root.Parse([]string{
-					"subscriptions", "offer-codes", "list",
+					"subscriptions", "offers", "offer-codes", "list",
 					"--next", test.next,
 				}); err != nil {
 					t.Fatalf("parse error: %v", err)
@@ -343,12 +343,12 @@ func TestSubscriptionsOfferCodesListOutputErrors(t *testing.T) {
 	}{
 		{
 			name:    "unsupported output",
-			args:    []string{"subscriptions", "offer-codes", "list", "--subscription-id", "sub-1", "--output", "yaml"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "list", "--subscription-id", "sub-1", "--output", "yaml"},
 			wantErr: "unsupported format: yaml",
 		},
 		{
 			name:    "pretty with markdown",
-			args:    []string{"subscriptions", "offer-codes", "list", "--subscription-id", "sub-1", "--output", "markdown", "--pretty"},
+			args:    []string{"subscriptions", "offers", "offer-codes", "list", "--subscription-id", "sub-1", "--output", "markdown", "--pretty"},
 			wantErr: "--pretty is only valid with JSON output",
 		},
 	}
@@ -366,20 +366,14 @@ func TestSubscriptionsOfferCodesListOutputErrors(t *testing.T) {
 				runErr = root.Run(context.Background())
 			})
 
-			if runErr == nil {
-				t.Fatal("expected error, got nil")
-			}
-			if errors.Is(runErr, flag.ErrHelp) {
-				t.Fatalf("expected non-help error, got %v", runErr)
-			}
-			if !strings.Contains(runErr.Error(), test.wantErr) {
-				t.Fatalf("expected error %q, got %v", test.wantErr, runErr)
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected help error, got %v", runErr)
 			}
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected stderr %q, got %q", test.wantErr, stderr)
 			}
 		})
 	}
@@ -437,7 +431,7 @@ func TestSubscriptionsOfferCodesListPaginateFromNextWithoutSubscription(t *testi
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"subscriptions", "offer-codes", "list", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"subscriptions", "offers", "offer-codes", "list", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -485,7 +479,7 @@ func TestSubscriptionsOfferCodesListMarkdownOutput(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"subscriptions", "offer-codes", "list",
+			"subscriptions", "offers", "offer-codes", "list",
 			"--subscription-id", "sub-1",
 			"--output", "markdown",
 		}); err != nil {

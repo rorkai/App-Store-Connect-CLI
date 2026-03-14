@@ -27,6 +27,7 @@ func WorkflowCommand() *ffcli.Command {
 		ShortHelp:  "Run multi-step automation workflows.",
 		LongHelp: `Define named, multi-step automation sequences in .asc/workflow.json.
 Each workflow composes existing asc commands and shell commands.
+The file supports JSONC comments ('//' and '/* */').
 Hooks are supported at the definition level: before_all, after_all, and error.
 stdout is JSON-only; step/hook command output streams to stderr.
 Commands run via bash (with pipefail) when available, otherwise sh; at least one must be in PATH.
@@ -36,9 +37,18 @@ Security note:
   Workflows intentionally execute arbitrary shell commands.
   Only run workflow files you trust (especially when using --file).
   Treat .asc/workflow.json like code: review it before running.
+  Be careful with --file: it can point to any path, not just .asc/workflow.json.
   Steps inherit your process environment; be careful with secrets.
+  Declared step outputs are persisted in the run-state file; do not map secrets into outputs.
   In CI, avoid running workflows on untrusted PRs with secrets/tokens.
   asc workflow validate checks structure, not safety of commands.
+
+Tips:
+  Use asc workflow validate before running a new workflow file.
+  Preview the plan with asc workflow run --dry-run <name>.
+  Run-step outputs can be referenced later as ${steps.resolve_build.BUILD_ID}.
+  For asc commands that declare outputs, usually pass --output json.
+  A proven local Xcode -> TestFlight shape is: asc builds latest --next -> asc xcode archive -> asc xcode export -> asc publish testflight --group ... --wait.
 
 Example workflow file (.asc/workflow.json):
 
@@ -58,22 +68,20 @@ Example workflow file (.asc/workflow.json):
       },
       "steps": [
         {
-          "name": "list_builds",
-          "run": "asc builds list --app $APP_ID --sort -uploadedDate --limit 5"
-        },
-        {
-          "name": "list_groups",
-          "run": "asc testflight beta-groups list --app $APP_ID --limit 20"
+          "name": "resolve_build",
+          "run": "asc builds latest --app $APP_ID --platform IOS --output json",
+          "outputs": {
+            "BUILD_ID": "$.id"
+          }
         },
         {
           "name": "add_build_to_group",
-          "if": "BUILD_ID",
-          "run": "asc builds add-groups --build $BUILD_ID --group $GROUP_ID"
+          "run": "asc builds add-groups --build ${steps.resolve_build.BUILD_ID} --group $GROUP_ID"
         }
       ]
     },
     "release": {
-      "description": "Submit a version for App Store review",
+      "description": "Run the full App Store release pipeline (validate, attach, submit)",
       "steps": [
         {
           "workflow": "preflight",
@@ -82,8 +90,8 @@ Example workflow file (.asc/workflow.json):
           }
         },
         {
-          "name": "submit",
-          "run": "asc submit create --app $APP_ID --version $VERSION --build $BUILD_ID --confirm"
+          "name": "release",
+          "run": "asc release run --app $APP_ID --version $VERSION --build $BUILD_ID --metadata-dir ./metadata/version/$VERSION --confirm"
         }
       ]
     },
@@ -100,13 +108,18 @@ Example workflow file (.asc/workflow.json):
   }
 }
 
+After running the release workflow, monitor submission progress with:
+  asc status --app "APP_ID"
+
 Try it:
   asc workflow validate
   asc workflow list
   asc workflow run --dry-run beta
   asc workflow run beta BUILD_ID:123456789 GROUP_ID:abcdef
+  asc workflow run release --resume beta-20260312T120000Z-deadbeef
 
-More docs: https://github.com/rudrankriyam/App-Store-Connect-CLI/blob/main/docs/WORKFLOWS.md
+More docs:
+  https://github.com/rudrankriyam/App-Store-Connect-CLI/blob/main/docs/WORKFLOWS.md
 
 Examples:
   asc workflow list
@@ -114,7 +127,8 @@ Examples:
   asc workflow run beta
   asc workflow run beta SUBMIT_BETA:true
   asc workflow run release VERSION:2.1.0
-  asc workflow run --dry-run beta`,
+  asc workflow run --dry-run beta
+  asc workflow run release --resume beta-20260312T120000Z-deadbeef`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -133,6 +147,7 @@ func workflowRunCommand() *ffcli.Command {
 	filePath := fs.String("file", wf.DefaultPath, "Path to workflow.json")
 	dryRun := fs.Bool("dry-run", false, "Preview steps without executing")
 	pretty := fs.Bool("pretty", false, "Pretty-print JSON output")
+	resume := fs.String("resume", "", "Resume a prior workflow run by run ID")
 
 	return &ffcli.Command{
 		Name:       "run",
@@ -140,12 +155,28 @@ func workflowRunCommand() *ffcli.Command {
 		ShortHelp:  "Run a named workflow.",
 		LongHelp: `Run a named workflow from workflow.json.
 
+Run state is persisted in a repo-local runs directory next to the workflow file.
+Use --resume with the emitted run ID to continue a partially completed run without
+rerunning already-persisted successful steps.
+Resume automatically reuses the original workflow file, saved params, and persisted outputs.
+Do not pass extra KEY:VALUE params with --resume.
+If a step declares "outputs", the command must emit JSON on stdout; for asc commands,
+usually pass --output json.
+stdout stays machine-parseable JSON even on failure; step and hook output streams to stderr.
+
 Security note:
   Workflows intentionally execute arbitrary shell commands.
   Only run workflow files you trust (especially when using --file).
   In CI, avoid running workflows on untrusted PRs with secrets/tokens.
+  Declared step outputs are persisted in the run-state file; do not map secrets into outputs.
 
-Tip: See "asc workflow --help" for a complete workflow.json example.`,
+Tip: See "asc workflow --help" for a complete workflow.json example and file format tips.
+
+Examples:
+  asc workflow run beta
+  asc workflow run beta BUILD_ID:123456789 GROUP_ID:abcdef
+  asc workflow run --dry-run beta
+  asc workflow run release --resume beta-20260312T120000Z-deadbeef`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -173,11 +204,22 @@ Tip: See "asc workflow --help" for a complete workflow.json example.`,
 			if err != nil {
 				return shared.UsageErrorf("%s", err)
 			}
+			if *dryRun && strings.TrimSpace(*resume) != "" {
+				return shared.UsageError("--resume cannot be used with --dry-run")
+			}
+			if strings.TrimSpace(*resume) != "" && len(paramArgs) > 0 {
+				return shared.UsageError("resume runs do not accept additional KEY:VALUE parameters")
+			}
+
+			stateDir := filepath.Join(filepath.Dir(absPath), "runs")
 
 			result, err := wf.Run(ctx, def, wf.RunOptions{
 				WorkflowName: workflowName,
 				Params:       params,
 				DryRun:       *dryRun,
+				WorkflowFile: absPath,
+				StateDir:     stateDir,
+				ResumeRunID:  strings.TrimSpace(*resume),
 				// Keep stdout machine-parseable JSON; stream step output to stderr.
 				Stdout: os.Stderr,
 				Stderr: os.Stderr,
@@ -204,8 +246,14 @@ func workflowValidateCommand() *ffcli.Command {
 		Name:       "validate",
 		ShortUsage: "asc workflow validate [flags]",
 		ShortHelp:  "Validate workflow.json for errors and cycles.",
-		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		LongHelp: `Validate workflow.json for structure, references, cycles, and output declarations.
+This checks schema and wiring only; it does not assess shell-command safety.
+
+Examples:
+  asc workflow validate
+  asc workflow validate --file ./.asc/workflow.json`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(_ context.Context, args []string) error {
 			if len(args) > 0 {
 				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
@@ -256,8 +304,14 @@ func workflowListCommand() *ffcli.Command {
 		Name:       "list",
 		ShortUsage: "asc workflow list [flags]",
 		ShortHelp:  "List available workflows.",
-		FlagSet:    fs,
-		UsageFunc:  shared.DefaultUsageFunc,
+		LongHelp: `List public workflows from workflow.json.
+Use --all to include private helper workflows.
+
+Examples:
+  asc workflow list
+  asc workflow list --all`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(_ context.Context, args []string) error {
 			if len(args) > 0 {
 				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
@@ -324,19 +378,19 @@ func parseRunTailArgs(args []string, fs *flag.FlagSet) ([]string, error) {
 					return nil, shared.UsageErrorf("invalid value for --%s: %v", name, err)
 				}
 				continue
-			case "file":
+			case "file", "resume":
 				if !hasValue {
 					if i+1 >= len(args) {
-						return nil, shared.UsageError("--file requires a value")
+						return nil, shared.UsageErrorf("--%s requires a value", name)
 					}
 					if isRunTailFlagToken(args[i+1]) || strings.HasPrefix(args[i+1], "--") {
-						return nil, shared.UsageError("--file requires a value")
+						return nil, shared.UsageErrorf("--%s requires a value", name)
 					}
 					i++
 					value = args[i]
 				}
 				if strings.TrimSpace(value) == "" {
-					return nil, shared.UsageError("--file requires a value")
+					return nil, shared.UsageErrorf("--%s requires a value", name)
 				}
 				if err := fs.Set(name, value); err != nil {
 					return nil, shared.UsageErrorf("invalid value for --%s: %v", name, err)
@@ -363,7 +417,7 @@ func isRunTailFlagToken(token string) bool {
 	nameValue := strings.TrimPrefix(token, "--")
 	name, _, _ := strings.Cut(nameValue, "=")
 	switch name {
-	case "dry-run", "pretty", "file":
+	case "dry-run", "pretty", "file", "resume":
 		return true
 	default:
 		return false

@@ -21,12 +21,12 @@ func TestIAPPricesValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "missing app and iap-id",
-			args:    []string{"iap", "prices"},
+			args:    []string{"iap", "pricing", "summary"},
 			wantErr: "Error: --app or --iap-id is required",
 		},
 		{
 			name:    "app and iap-id both set",
-			args:    []string{"iap", "prices", "--app", "APP_ID", "--iap-id", "IAP_ID"},
+			args:    []string{"iap", "pricing", "summary", "--app", "APP_ID", "--iap-id", "IAP_ID"},
 			wantErr: "Error: --app and --iap-id are mutually exclusive",
 		},
 	}
@@ -164,7 +164,7 @@ func TestIAPPricesByIDSuccess(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"iap", "prices", "--iap-id", "iap-1"}); err != nil {
+		if err := root.Parse([]string{"iap", "pricing", "summary", "--iap-id", "iap-1"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -253,7 +253,7 @@ func TestIAPPricesTableOutput(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"iap", "prices", "--iap-id", "iap-1", "--output", "table"}); err != nil {
+		if err := root.Parse([]string{"iap", "pricing", "summary", "--iap-id", "iap-1", "--output", "table"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -373,7 +373,7 @@ func TestIAPPricesFetchesAllScheduleEntriesWhenIncludedHitsLimit(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"iap", "prices", "--iap-id", "iap-1"}); err != nil {
+		if err := root.Parse([]string{"iap", "pricing", "summary", "--iap-id", "iap-1"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -516,7 +516,7 @@ func TestIAPPricesResolvesLegacyManualPricePointValues(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"iap", "prices", "--iap-id", "iap-legacy"}); err != nil {
+		if err := root.Parse([]string{"iap", "pricing", "summary", "--iap-id", "iap-legacy"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

@@ -64,14 +64,15 @@ func AgeRatingCommand() *ffcli.Command {
 		LongHelp: `Manage App Store age rating declarations for an app, app info, or version.
 
 Examples:
-  asc age-rating get --app APP_ID
-  asc age-rating get --app-info-id APP_INFO_ID
+  asc age-rating view --app APP_ID
+  asc age-rating view --app-info-id APP_INFO_ID
   asc age-rating set --app APP_ID --kids-age-band FIVE_AND_UNDER --gambling false`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: ageRatingUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AgeRatingGetCommand(),
+			AgeRatingViewCommand(),
 			AgeRatingSetCommand(),
+			compatAgeRatingGetAliasCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -79,9 +80,9 @@ Examples:
 	}
 }
 
-// AgeRatingGetCommand returns the age-rating get subcommand.
-func AgeRatingGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("age-rating get", flag.ExitOnError)
+// AgeRatingViewCommand returns the age-rating view subcommand.
+func AgeRatingViewCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("age-rating view", flag.ExitOnError)
 
 	appID := fs.String("app", os.Getenv("ASC_APP_ID"), "App ID (required unless --app-info-id or --version-id is provided)")
 	appInfoID := fs.String("app-info-id", "", "App info ID (optional)")
@@ -89,15 +90,15 @@ func AgeRatingGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc age-rating get --app APP_ID [flags]",
-		ShortHelp:  "Get an age rating declaration.",
+		Name:       "view",
+		ShortUsage: "asc age-rating view --app APP_ID [flags]",
+		ShortHelp:  "View an age rating declaration.",
 		LongHelp: `Get the current age rating declaration.
 
 Examples:
-  asc age-rating get --app APP_ID
-  asc age-rating get --app-info-id APP_INFO_ID
-  asc age-rating get --version-id VERSION_ID`,
+  asc age-rating view --app APP_ID
+  asc age-rating view --app-info-id APP_INFO_ID
+  asc age-rating view --version-id VERSION_ID`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -106,7 +107,7 @@ Examples:
 			appValue := strings.TrimSpace(shared.ResolveAppID(strings.TrimSpace(*appID)))
 
 			if appInfoValue != "" && versionValue != "" {
-				return fmt.Errorf("age-rating get: only one of --app-info-id or --version-id is allowed")
+				return fmt.Errorf("age-rating view: only one of --app-info-id or --version-id is allowed")
 			}
 			if appInfoValue == "" && versionValue == "" && appValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
@@ -115,7 +116,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("age-rating get: %w", err)
+				return fmt.Errorf("age-rating view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -123,12 +124,43 @@ Examples:
 
 			resp, err := fetchAgeRatingDeclaration(requestCtx, client, appValue, appInfoValue, versionValue)
 			if err != nil {
-				return fmt.Errorf("age-rating get: %w", err)
+				return fmt.Errorf("age-rating view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func compatAgeRatingGetAliasCommand() *ffcli.Command {
+	cmd := AgeRatingViewCommand()
+	clone := *cmd
+	clone.Name = "get"
+	clone.ShortUsage = "asc age-rating get --app APP_ID [flags]"
+	clone.ShortHelp = "Compatibility alias for `asc age-rating view`."
+	clone.LongHelp = "Compatibility alias for the renamed `asc age-rating view` command."
+	clone.UsageFunc = shared.DefaultUsageFunc
+	origExec := cmd.Exec
+	clone.Exec = func(ctx context.Context, args []string) error {
+		fmt.Fprintln(os.Stderr, "Warning: `asc age-rating get` has been renamed to `asc age-rating view`.")
+		return origExec(ctx, args)
+	}
+	return &clone
+}
+
+func ageRatingUsageFunc(c *ffcli.Command) string {
+	if c == nil {
+		return ""
+	}
+	clone := *c
+	clone.Subcommands = make([]*ffcli.Command, 0, len(c.Subcommands))
+	for _, sub := range c.Subcommands {
+		if sub == nil || strings.TrimSpace(sub.Name) == "get" {
+			continue
+		}
+		clone.Subcommands = append(clone.Subcommands, sub)
+	}
+	return shared.DefaultUsageFunc(&clone)
 }
 
 // AgeRatingSetCommand returns the age-rating set subcommand.

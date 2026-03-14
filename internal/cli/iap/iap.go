@@ -26,35 +26,39 @@ func IAPCommand() *ffcli.Command {
 
 Examples:
   asc iap list --app "APP_ID"
-  asc iap prices --app "APP_ID"
+  asc iap pricing summary --app "APP_ID"
   asc iap get --id "IAP_ID"
   asc iap create --app "APP_ID" --type CONSUMABLE --ref-name "Pro" --product-id "com.example.pro"
+  asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --locale "en-US" --display-name "Pro Lifetime" --price "3.99" --base-territory "USA"
   asc iap update --id "IAP_ID" --ref-name "New Name"
   asc iap delete --id "IAP_ID" --confirm
   asc iap localizations list --iap-id "IAP_ID"
   asc iap images create --iap-id "IAP_ID" --file "./image.png"
-  asc iap availability set --iap-id "IAP_ID" --territories "USA,CAN"
-  asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --prices "USA:PRICE_POINT_ID"`,
+  asc iap pricing availability set --iap-id "IAP_ID" --territories "USA,CAN"
+  asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --prices "USA:PRICE_POINT_ID"
+  asc iap promoted-purchases create --app "APP_ID" --product-id "IAP_ID" --visible-for-all-users true`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPListCommand(),
-			IAPPricesCommand(),
+			IAPPricingCommand(),
 			IAPGetCommand(),
 			IAPCreateCommand(),
+			IAPSetupCommand(),
 			IAPUpdateCommand(),
 			IAPDeleteCommand(),
 			IAPLocalizationsCommand(),
 			IAPImagesCommand(),
 			IAPReviewScreenshotsCommand(),
-			IAPAvailabilityCommand(),
-			IAPAvailabilitiesCommand(),
-			IAPPromotedPurchaseCommand(),
+			IAPPromotedPurchasesCommand(),
 			IAPContentCommand(),
-			IAPPricePointsCommand(),
-			IAPPriceSchedulesCommand(),
 			IAPOfferCodesCommand(),
 			IAPSubmitCommand(),
+			DeprecatedIAPPricesAliasCommand(),
+			DeprecatedIAPPricePointsAliasCommand(),
+			DeprecatedIAPPriceSchedulesAliasCommand(),
+			DeprecatedIAPAvailabilityAliasCommand(),
+			DeprecatedIAPAvailabilitiesAliasCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

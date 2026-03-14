@@ -18,12 +18,11 @@ func DocsShowCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "show",
-		ShortUsage: "asc docs show <workflows|api-notes|reference>",
+		ShortUsage: "asc docs show <api-notes|reference>",
 		ShortHelp:  "Print an embedded documentation guide.",
 		LongHelp: `Print an embedded documentation guide.
 
 Examples:
-  asc docs show workflows
   asc docs show api-notes
   asc docs show reference`,
 		FlagSet:   fs,

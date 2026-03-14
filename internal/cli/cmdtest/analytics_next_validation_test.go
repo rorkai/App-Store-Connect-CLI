@@ -166,8 +166,8 @@ func TestAnalyticsRequestsPaginateFromNextWithoutApp(t *testing.T) {
 func TestAnalyticsInstancesRelationshipsRejectsInvalidNextURL(t *testing.T) {
 	runAnalyticsInvalidNextURLCases(
 		t,
-		[]string{"analytics", "instances", "relationships"},
-		"analytics instances relationships: --next",
+		[]string{"analytics", "instances", "links"},
+		"analytics instances links: --next",
 	)
 }
 
@@ -180,7 +180,7 @@ func TestAnalyticsInstancesRelationshipsPaginateFromNextWithoutInstanceID(t *tes
 
 	runAnalyticsPaginateFromNext(
 		t,
-		[]string{"analytics", "instances", "relationships"},
+		[]string{"analytics", "instances", "links"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -193,8 +193,8 @@ func TestAnalyticsInstancesRelationshipsPaginateFromNextWithoutInstanceID(t *tes
 func TestAnalyticsReportsRelationshipsRejectsInvalidNextURL(t *testing.T) {
 	runAnalyticsInvalidNextURLCases(
 		t,
-		[]string{"analytics", "reports", "relationships"},
-		"analytics reports relationships: --next",
+		[]string{"analytics", "reports", "links"},
+		"analytics reports links: --next",
 	)
 }
 
@@ -207,7 +207,7 @@ func TestAnalyticsReportsRelationshipsPaginateFromNextWithoutReportID(t *testing
 
 	runAnalyticsPaginateFromNext(
 		t,
-		[]string{"analytics", "reports", "relationships"},
+		[]string{"analytics", "reports", "links"},
 		firstURL,
 		secondURL,
 		firstBody,

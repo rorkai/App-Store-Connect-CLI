@@ -18,12 +18,12 @@ func TestTestFlightBetaLicenseAgreementsListRejectsInvalidNextURL(t *testing.T) 
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/betaLicenseAgreements?cursor=AQ",
-			wantErr: "beta-license-agreements list: --next must be an App Store Connect URL",
+			wantErr: "agreements list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "beta-license-agreements list: --next must be a valid URL:",
+			wantErr: "agreements list: --next must be a valid URL:",
 		},
 	}
 
@@ -127,12 +127,12 @@ func TestTestFlightBetaTestersMetricsRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/metrics/betaTesterUsages?cursor=AQ",
-			wantErr: "testflight beta-testers metrics: --next must be an App Store Connect URL",
+			wantErr: "testflight testers metrics: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "testflight beta-testers metrics: --next must be a valid URL:",
+			wantErr: "testflight testers metrics: --next must be a valid URL:",
 		},
 	}
 

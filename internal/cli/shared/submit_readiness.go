@@ -13,10 +13,24 @@ type SubmitReadinessIssue struct {
 	MissingFields []string
 }
 
+// SubmitReadinessOptions controls optional submit-readiness checks.
+type SubmitReadinessOptions struct {
+	// RequireWhatsNew enables whatsNew validation. This should be set for
+	// app updates (when a READY_FOR_SALE version already exists) because
+	// App Store Connect requires whatsNew for every locale on updates.
+	RequireWhatsNew bool
+}
+
 // MissingSubmitRequiredLocalizationFields returns missing metadata fields that
 // block App Store submission for a version localization.
 func MissingSubmitRequiredLocalizationFields(attrs asc.AppStoreVersionLocalizationAttributes) []string {
-	missing := make([]string, 0, 3)
+	return MissingSubmitRequiredLocalizationFieldsWithOptions(attrs, SubmitReadinessOptions{})
+}
+
+// MissingSubmitRequiredLocalizationFieldsWithOptions returns missing metadata
+// fields that block App Store submission, with configurable checks.
+func MissingSubmitRequiredLocalizationFieldsWithOptions(attrs asc.AppStoreVersionLocalizationAttributes, opts SubmitReadinessOptions) []string {
+	missing := make([]string, 0, 4)
 	if strings.TrimSpace(attrs.Description) == "" {
 		missing = append(missing, "description")
 	}
@@ -26,15 +40,24 @@ func MissingSubmitRequiredLocalizationFields(attrs asc.AppStoreVersionLocalizati
 	if strings.TrimSpace(attrs.SupportURL) == "" {
 		missing = append(missing, "supportUrl")
 	}
+	if opts.RequireWhatsNew && strings.TrimSpace(attrs.WhatsNew) == "" {
+		missing = append(missing, "whatsNew")
+	}
 	return missing
 }
 
 // SubmitReadinessIssuesByLocale evaluates all localizations and returns
 // per-locale missing submit-required fields.
 func SubmitReadinessIssuesByLocale(localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) []SubmitReadinessIssue {
+	return SubmitReadinessIssuesByLocaleWithOptions(localizations, SubmitReadinessOptions{})
+}
+
+// SubmitReadinessIssuesByLocaleWithOptions evaluates all localizations with
+// configurable checks and returns per-locale missing submit-required fields.
+func SubmitReadinessIssuesByLocaleWithOptions(localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes], opts SubmitReadinessOptions) []SubmitReadinessIssue {
 	issues := make([]SubmitReadinessIssue, 0, len(localizations))
 	for _, localization := range localizations {
-		missing := MissingSubmitRequiredLocalizationFields(localization.Attributes)
+		missing := MissingSubmitRequiredLocalizationFieldsWithOptions(localization.Attributes, opts)
 		if len(missing) == 0 {
 			continue
 		}

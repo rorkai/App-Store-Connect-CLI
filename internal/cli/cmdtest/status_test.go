@@ -47,6 +47,10 @@ func TestStatusDefaultJSONIncludesAllSections(t *testing.T) {
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
+		case "/v1/apps":
+			return statusJSONResponse(`{
+				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
+			}`), nil
 		case "/v1/apps/app-1":
 			return statusJSONResponse(`{
 				"data": {
@@ -249,6 +253,10 @@ func TestStatusIncludeBuildsOnlyFiltersSections(t *testing.T) {
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
+		case "/v1/apps":
+			return statusJSONResponse(`{
+				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
+			}`), nil
 		case "/v1/builds":
 			return statusJSONResponse(`{
 				"data":[{"type":"builds","id":"build-2","attributes":{"version":"45","uploadedDate":"2026-02-20T00:00:00Z","processingState":"VALID"}}],
@@ -336,6 +344,10 @@ func TestStatusTableOutput(t *testing.T) {
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
+		case "/v1/apps":
+			return statusJSONResponse(`{
+				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
+			}`), nil
 		case "/v1/builds":
 			return statusJSONResponse(`{
 				"data":[{"type":"builds","id":"build-2","attributes":{"version":"45","uploadedDate":"2026-02-20T00:00:00Z","processingState":"VALID"}}],
@@ -389,6 +401,10 @@ func TestStatusTableOutputShowsNeedsAttentionWhenBlocked(t *testing.T) {
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
+		case "/v1/apps":
+			return statusJSONResponse(`{
+				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
+			}`), nil
 		case "/v1/apps/app-1/reviewSubmissions":
 			return statusJSONResponse(`{
 				"data":[
@@ -441,6 +457,10 @@ func TestStatusIncludeAppOnly(t *testing.T) {
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
+		case "/v1/apps":
+			return statusJSONResponse(`{
+				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
+			}`), nil
 		case "/v1/apps/app-1":
 			return statusJSONResponse(`{
 				"data":{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"com.example.myapp","sku":"my-app-sku"}}
@@ -498,6 +518,10 @@ func TestStatusTestFlightHandlesMissingBuildRelationship(t *testing.T) {
 	buildBetaDetailsCalls := 0
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
+		case "/v1/apps":
+			return statusJSONResponse(`{
+				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
+			}`), nil
 		case "/v1/apps/app-1":
 			return statusJSONResponse(`{
 				"data":{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"com.example.myapp","sku":"my-app-sku"}}

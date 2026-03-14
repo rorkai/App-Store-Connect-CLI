@@ -21,7 +21,7 @@ const maxAssetFileSize = int64(1024 * 1024 * 1024) // 1GB safety guardrail
 
 // UploadAsset uploads a file using the provided upload operations.
 func UploadAsset(ctx context.Context, filePath string, operations []UploadOperation) error {
-	file, err := os.Open(filePath)
+	file, err := openUploadSourceFile(filePath)
 	if err != nil {
 		return err
 	}

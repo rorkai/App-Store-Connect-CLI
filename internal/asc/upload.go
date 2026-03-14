@@ -277,7 +277,7 @@ func VerifySourceFileChecksums(filePath string, expected *Checksums) (*Checksums
 
 // ComputeFileChecksum computes the checksum for a file using the provided algorithm.
 func ComputeFileChecksum(filePath string, algorithm ChecksumAlgorithm) (*Checksum, error) {
-	file, err := os.Open(filePath)
+	file, err := openUploadSourceFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("open file for checksum: %w", err)
 	}

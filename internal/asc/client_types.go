@@ -33,6 +33,9 @@ type (
 // Pagination interface — alias to types package.
 type PaginatedResponse = types.PaginatedResponse
 
+// ParsePagingTotal extracts the total count from a response's paging metadata.
+var ParsePagingTotal = types.ParsePagingTotal
+
 // ResourceType constants — re-exported from types package.
 const (
 	ResourceTypeApps                                            = types.ResourceTypeApps

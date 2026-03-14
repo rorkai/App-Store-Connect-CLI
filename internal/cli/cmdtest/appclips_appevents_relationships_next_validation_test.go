@@ -139,8 +139,8 @@ func runPhase39PaginateFromNext(
 func TestAppClipsAdvancedExperiencesRelationshipsRejectsInvalidNextURL(t *testing.T) {
 	runPhase39InvalidNextURLCases(
 		t,
-		[]string{"app-clips", "advanced-experiences-relationships"},
-		"app-clips advanced-experiences-relationships: --next",
+		[]string{"app-clips", "advanced-experiences-links"},
+		"app-clips advanced-experiences-links: --next",
 	)
 }
 
@@ -153,7 +153,7 @@ func TestAppClipsAdvancedExperiencesRelationshipsPaginateFromNextWithoutAppClipI
 
 	runPhase39PaginateFromNext(
 		t,
-		[]string{"app-clips", "advanced-experiences-relationships"},
+		[]string{"app-clips", "advanced-experiences-links"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -166,8 +166,8 @@ func TestAppClipsAdvancedExperiencesRelationshipsPaginateFromNextWithoutAppClipI
 func TestAppClipsDefaultExperiencesRelationshipsRejectsInvalidNextURL(t *testing.T) {
 	runPhase39InvalidNextURLCases(
 		t,
-		[]string{"app-clips", "default-experiences-relationships"},
-		"app-clips default-experiences-relationships: --next",
+		[]string{"app-clips", "default-experiences-links"},
+		"app-clips default-experiences-links: --next",
 	)
 }
 
@@ -180,7 +180,7 @@ func TestAppClipsDefaultExperiencesRelationshipsPaginateFromNextWithoutAppClipID
 
 	runPhase39PaginateFromNext(
 		t,
-		[]string{"app-clips", "default-experiences-relationships"},
+		[]string{"app-clips", "default-experiences-links"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -220,8 +220,8 @@ func TestAppClipsDefaultExperienceLocalizationsListPaginateFromNext(t *testing.T
 func TestAppEventLocalizationScreenshotsRelationshipsRejectsInvalidNextURL(t *testing.T) {
 	runPhase39InvalidNextURLCases(
 		t,
-		[]string{"app-events", "localizations", "screenshots-relationships"},
-		"app-events localizations screenshots-relationships: --next",
+		[]string{"app-events", "localizations", "screenshots-links"},
+		"app-events localizations screenshots-links: --next",
 	)
 }
 
@@ -234,7 +234,7 @@ func TestAppEventLocalizationScreenshotsRelationshipsPaginateFromNextWithoutLoca
 
 	runPhase39PaginateFromNext(
 		t,
-		[]string{"app-events", "localizations", "screenshots-relationships"},
+		[]string{"app-events", "localizations", "screenshots-links"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -247,8 +247,8 @@ func TestAppEventLocalizationScreenshotsRelationshipsPaginateFromNextWithoutLoca
 func TestAppEventLocalizationVideoClipsRelationshipsRejectsInvalidNextURL(t *testing.T) {
 	runPhase39InvalidNextURLCases(
 		t,
-		[]string{"app-events", "localizations", "video-clips-relationships"},
-		"app-events localizations video-clips-relationships: --next",
+		[]string{"app-events", "localizations", "video-clips-links"},
+		"app-events localizations video-clips-links: --next",
 	)
 }
 
@@ -261,7 +261,7 @@ func TestAppEventLocalizationVideoClipsRelationshipsPaginateFromNextWithoutLocal
 
 	runPhase39PaginateFromNext(
 		t,
-		[]string{"app-events", "localizations", "video-clips-relationships"},
+		[]string{"app-events", "localizations", "video-clips-links"},
 		firstURL,
 		secondURL,
 		firstBody,

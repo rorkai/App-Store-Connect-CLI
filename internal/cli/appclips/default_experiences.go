@@ -29,13 +29,14 @@ Examples:
   asc app-clips default-experiences update --experience-id "EXP_ID" --action VIEW
   asc app-clips default-experiences delete --experience-id "EXP_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppClipDefaultExperiencesListCommand(),
 			AppClipDefaultExperiencesGetCommand(),
 			AppClipDefaultExperienceReviewDetailCommand(),
 			AppClipDefaultExperienceReleaseWithAppStoreVersionCommand(),
 			AppClipDefaultExperienceRelationshipsCommand(),
+			DeprecatedAppClipDefaultExperienceRelationshipsAliasCommand(),
 			AppClipDefaultExperienceHeaderImageCommand(),
 			AppClipDefaultExperiencesCreateCommand(),
 			AppClipDefaultExperiencesUpdateCommand(),

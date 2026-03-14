@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	issueSeverityError = "error"
+	issueSeverityError   = "error"
+	issueSeverityWarning = "warning"
 )
 
 // ValidateIssue represents one metadata validation issue.
@@ -49,11 +50,12 @@ func MetadataValidateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("metadata validate", flag.ExitOnError)
 
 	dir := fs.String("dir", "", "Metadata root directory (required)")
+	subscriptionApp := fs.Bool("subscription-app", false, "Enable subscription-specific Terms of Use / EULA link checks")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "validate",
-		ShortUsage: "asc metadata validate --dir \"./metadata\"",
+		ShortUsage: "asc metadata validate --dir \"./metadata\" [--subscription-app]",
 		ShortHelp:  "Validate canonical metadata files offline.",
 		LongHelp: `Validate canonical metadata files offline.
 
@@ -61,9 +63,11 @@ Checks:
   - strict JSON schema decode (unknown keys rejected)
   - required fields
   - metadata character limits
+  - optional subscription-app Terms of Use / EULA description link heuristic
 
 Examples:
   asc metadata validate --dir "./metadata"
+  asc metadata validate --dir "./metadata" --subscription-app
   asc metadata validate --dir "./metadata" --output table`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -77,7 +81,7 @@ Examples:
 				return shared.UsageError("--dir is required")
 			}
 
-			result, err := validateDir(dirValue)
+			result, err := validateDir(dirValue, *subscriptionApp)
 			if err != nil {
 				return err
 			}
@@ -100,7 +104,7 @@ Examples:
 	}
 }
 
-func validateDir(dir string) (ValidateResult, error) {
+func validateDir(dir string, subscriptionApp bool) (ValidateResult, error) {
 	result := ValidateResult{
 		Dir:    dir,
 		Issues: make([]ValidateIssue, 0),
@@ -192,6 +196,9 @@ func validateDir(dir string) (ValidateResult, error) {
 					})
 				}
 				result.Issues = append(result.Issues, versionLengthIssues(filePath, version, resolvedLocale, loc)...)
+				if subscriptionApp {
+					result.Issues = append(result.Issues, versionTermsIssues(filePath, version, resolvedLocale, loc)...)
+				}
 			}
 		}
 	}
@@ -269,6 +276,23 @@ func appInfoLengthIssues(filePath, locale string, loc AppInfoLocalization) []Val
 		})
 	}
 	return issues
+}
+
+func versionTermsIssues(filePath, version, locale string, loc VersionLocalization) []ValidateIssue {
+	description := strings.TrimSpace(loc.Description)
+	if description == "" || validation.HasTermsOfUseLink(description) {
+		return nil
+	}
+
+	return []ValidateIssue{{
+		Scope:    versionDirName,
+		File:     filePath,
+		Locale:   locale,
+		Version:  version,
+		Field:    "description",
+		Severity: issueSeverityWarning,
+		Message:  "description is missing a Terms of Use / EULA link for subscription apps",
+	}}
 }
 
 func printValidateResultTable(result ValidateResult) error {

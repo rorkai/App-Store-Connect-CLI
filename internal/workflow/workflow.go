@@ -35,6 +35,7 @@ type Step struct {
 	Name     string            `json:"name,omitempty"`
 	If       string            `json:"if,omitempty"`
 	With     map[string]string `json:"with,omitempty"`
+	Outputs  map[string]string `json:"outputs,omitempty"`
 }
 
 // UnmarshalJSON handles the flexible step format:

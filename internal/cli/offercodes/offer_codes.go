@@ -17,79 +17,11 @@ import (
 
 const offerCodesMaxLimit = 200
 
-// OfferCodesCommand returns the offer codes command with subcommands.
-func OfferCodesCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes", flag.ExitOnError)
-
-	return &ffcli.Command{
-		Name:       "offer-codes",
-		ShortUsage: "asc offer-codes <subcommand> [flags]",
-		ShortHelp:  "Manage subscription offer codes.",
-		LongHelp: `Manage subscription offer codes and related custom or one-time use codes.
-
-Examples:
-  asc offer-codes get --offer-code-id "OFFER_CODE_ID"
-  asc offer-codes create --subscription-id "SUB_ID" --name "SPRING" --customer-eligibilities NEW --offer-eligibility STACK_WITH_INTRO_OFFERS --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --number-of-periods 1 --prices "USA:PRICE_POINT_ID"
-  asc offer-codes update --offer-code-id "OFFER_CODE_ID" --active true
-  asc offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID"
-  asc offer-codes prices list --offer-code-id "OFFER_CODE_ID"
-  asc offer-codes list --offer-code "OFFER_CODE_ID"
-  asc offer-codes generate --offer-code "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
-  asc offer-codes values --id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.txt"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
-		Subcommands: []*ffcli.Command{
-			OfferCodesGetCommand(),
-			OfferCodesCreateCommand(),
-			OfferCodesUpdateCommand(),
-			OfferCodeCustomCodesCommand(),
-			OfferCodePricesCommand(),
-			OfferCodesListCommand(),
-			OfferCodesGenerateCommand(),
-			OfferCodesValuesCommand(),
-		},
-		Exec: func(ctx context.Context, args []string) error {
-			return flag.ErrHelp
-		},
-	}
-}
-
-// OfferCodesListCommand returns the offer codes list subcommand.
-func OfferCodesListCommand() *ffcli.Command {
-	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
-		FlagSetName: "list",
-		Name:        "list",
-		ShortUsage:  "asc offer-codes list [flags]",
-		ShortHelp:   "List one-time use offer code batches for a subscription offer.",
-		LongHelp: `List one-time use offer code batches for a subscription offer.
-
-Examples:
-  asc offer-codes list --offer-code "OFFER_CODE_ID"
-  asc offer-codes list --offer-code "OFFER_CODE_ID" --limit 10
-  asc offer-codes list --offer-code "OFFER_CODE_ID" --paginate`,
-		ParentFlag:  "offer-code",
-		ParentUsage: "Subscription offer code ID (required)",
-		LimitMax:    offerCodesMaxLimit,
-		ErrorPrefix: "offer-codes list",
-		FetchPage: func(ctx context.Context, client *asc.Client, offerCodeID string, limit int, next string) (asc.PaginatedResponse, error) {
-			opts := []asc.SubscriptionOfferCodeOneTimeUseCodesOption{
-				asc.WithSubscriptionOfferCodeOneTimeUseCodesLimit(limit),
-				asc.WithSubscriptionOfferCodeOneTimeUseCodesNextURL(next),
-			}
-			resp, err := client.GetSubscriptionOfferCodeOneTimeUseCodes(ctx, offerCodeID, opts...)
-			if err != nil {
-				return nil, fmt.Errorf("failed to fetch: %w", err)
-			}
-			return resp, nil
-		},
-	})
-}
-
 // OfferCodesGenerateCommand returns the offer codes generate subcommand.
 func OfferCodesGenerateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("generate", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code", "", "Subscription offer code ID (required)")
+	offerCodeID := fs.String("offer-code-id", "", "Subscription offer code ID (required)")
 	quantity := fs.Int("quantity", 0, "Number of one-time use codes to generate (required)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD) (required)")
 	outputPath := fs.String("output", "", "Output file path for offer codes (one per line)")
@@ -102,14 +34,14 @@ func OfferCodesGenerateCommand() *ffcli.Command {
 		LongHelp: `Generate one-time use offer codes for a subscription offer.
 
 Examples:
-  asc offer-codes generate --offer-code "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
-  asc offer-codes generate --offer-code "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01" --output "./offer-codes.txt"`,
+  asc offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
+  asc offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01" --output "./offer-codes.txt"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedOfferCodeID := strings.TrimSpace(*offerCodeID)
 			if trimmedOfferCodeID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --offer-code is required\n\n")
+				fmt.Fprintf(os.Stderr, "Error: --offer-code-id is required\n\n")
 				return flag.ErrHelp
 			}
 			if *quantity <= 0 {
@@ -185,7 +117,7 @@ Examples:
 func OfferCodesValuesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("values", flag.ExitOnError)
 
-	id := fs.String("id", "", "One-time use offer code batch ID (required)")
+	id := fs.String("batch-id", "", "One-time use offer code batch ID (required)")
 	outputPath := fs.String("output", "", "Output file path for offer codes (one per line)")
 
 	return &ffcli.Command{
@@ -195,14 +127,14 @@ func OfferCodesValuesCommand() *ffcli.Command {
 		LongHelp: `Fetch one-time use offer code values for a batch.
 
 Examples:
-  asc offer-codes values --id "ONE_TIME_USE_CODE_ID"
-  asc offer-codes values --id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.txt"`,
+  asc offer-codes values --batch-id "ONE_TIME_USE_CODE_ID"
+  asc offer-codes values --batch-id "ONE_TIME_USE_CODE_ID" --output "./offer-codes.txt"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --batch-id is required")
 				return flag.ErrHelp
 			}
 

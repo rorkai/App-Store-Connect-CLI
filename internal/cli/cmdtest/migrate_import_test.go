@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/migrate"
 )
 
@@ -262,6 +263,7 @@ func TestMigrateImportUploadsAndSkipsExistingScreenshots(t *testing.T) {
 	})
 
 	requestedUploads := 0
+	relationshipPatchCalled := false
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.URL.Host == "upload.example.com" {
 			requestedUploads++
@@ -294,6 +296,9 @@ func TestMigrateImportUploadsAndSkipsExistingScreenshots(t *testing.T) {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/appScreenshots":
 			body := `{"data":[{"type":"appScreenshots","id":"shot-existing","attributes":{"fileName":"iphone_65_existing.png"}}]}`
 			return migrateJSONResponse(http.StatusOK, body), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+			body := `{"data":[{"type":"appScreenshots","id":"shot-existing"}],"links":{}}`
+			return migrateJSONResponse(http.StatusOK, body), nil
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
 			resp := `{"data":{"type":"appScreenshots","id":"shot-new","attributes":{"fileName":"iphone_65_new.png","fileSize":1234,"uploadOperations":[{"method":"PUT","url":"https://upload.example.com/upload/shot-new","length":1234,"offset":0}]}}}`
 			return migrateJSONResponse(http.StatusCreated, resp), nil
@@ -302,6 +307,20 @@ func TestMigrateImportUploadsAndSkipsExistingScreenshots(t *testing.T) {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/shot-new":
 			body := `{"data":{"type":"appScreenshots","id":"shot-new","attributes":{"fileName":"iphone_65_new.png","assetDeliveryState":{"state":"COMPLETE"}}}}`
 			return migrateJSONResponse(http.StatusOK, body), nil
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("read relationship patch body: %v", err)
+			}
+			var payload asc.RelationshipRequest
+			if err := json.Unmarshal(body, &payload); err != nil {
+				t.Fatalf("unmarshal relationship patch body: %v", err)
+			}
+			if len(payload.Data) != 2 || payload.Data[0].ID != "shot-existing" || payload.Data[1].ID != "shot-new" {
+				t.Fatalf("unexpected relationship patch payload: %#v", payload.Data)
+			}
+			relationshipPatchCalled = true
+			return migrateJSONResponse(http.StatusNoContent, ""), nil
 		default:
 			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
@@ -329,6 +348,9 @@ func TestMigrateImportUploadsAndSkipsExistingScreenshots(t *testing.T) {
 	}
 	if requestedUploads != 1 {
 		t.Fatalf("expected 1 upload request, got %d", requestedUploads)
+	}
+	if !relationshipPatchCalled {
+		t.Fatal("expected screenshot relationship reorder patch")
 	}
 
 	var result migrate.MigrateImportResult

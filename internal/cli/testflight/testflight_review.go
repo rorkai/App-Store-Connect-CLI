@@ -751,19 +751,19 @@ Examples:
 	}
 }
 
-// TestFlightRecruitmentDeleteCommand deletes beta recruitment criteria by ID.
+// TestFlightRecruitmentDeleteCommand deletes recruitment criteria by ID.
 func TestFlightRecruitmentDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	id := fs.String("id", "", "Beta recruitment criteria ID")
+	id := fs.String("id", "", "Recruitment criteria ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
 		ShortUsage: "asc testflight recruitment delete --id \"CRITERIA_ID\" --confirm",
-		ShortHelp:  "Delete beta recruitment criteria.",
-		LongHelp: `Delete beta recruitment criteria.
+		ShortHelp:  "Delete recruitment criteria.",
+		LongHelp: `Delete recruitment criteria.
 
 Examples:
   asc testflight recruitment delete --id "CRITERIA_ID" --confirm`,
@@ -814,8 +814,8 @@ func TestFlightRecruitmentOptionsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "options",
 		ShortUsage: "asc testflight recruitment options [flags]",
-		ShortHelp:  "List beta recruitment criteria options.",
-		LongHelp: `List beta recruitment criteria options.
+		ShortHelp:  "List recruitment criteria options.",
+		LongHelp: `List recruitment criteria options.
 
 Examples:
   asc testflight recruitment options`,
@@ -858,7 +858,7 @@ Examples:
 	}
 }
 
-// TestFlightRecruitmentSetCommand creates beta recruitment criteria for a group.
+// TestFlightRecruitmentSetCommand creates recruitment criteria for a group.
 func TestFlightRecruitmentSetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("set", flag.ExitOnError)
 
@@ -869,8 +869,8 @@ func TestFlightRecruitmentSetCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "set",
 		ShortUsage: "asc testflight recruitment set --group GROUP_ID --os-version-filter FILTERS",
-		ShortHelp:  "Set beta recruitment criteria for a group.",
-		LongHelp: `Set beta recruitment criteria for a group.
+		ShortHelp:  "Set recruitment criteria for a group.",
+		LongHelp: `Set recruitment criteria for a group.
 
 Examples:
   asc testflight recruitment set --group "GROUP_ID" --os-version-filter "IPHONE=26,IPAD=26"`,

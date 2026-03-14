@@ -14,6 +14,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+var customPageMediaClientFactory = shared.GetASCClient
+
 // CustomPageLocalizationsScreenshotSetsUploadCommand returns the screenshot sets upload subcommand.
 func CustomPageLocalizationsScreenshotSetsUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations screenshot-sets upload", flag.ExitOnError)
@@ -181,7 +183,7 @@ func executeCustomPageScreenshotUpload(
 		return nil, err
 	}
 
-	client, err := shared.GetASCClient()
+	client, err := customPageMediaClientFactory()
 	if err != nil {
 		return nil, err
 	}
@@ -199,13 +201,9 @@ func executeCustomPageScreenshotUpload(
 		}
 	}
 
-	results := make([]asc.AssetUploadResultItem, 0, len(files))
-	for _, filePath := range files {
-		item, err := uploadCustomPageScreenshotAsset(requestCtx, client, set.ID, filePath)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, item)
+	results, err := assets.UploadScreenshotsToSet(requestCtx, client, set.ID, files, !sync)
+	if err != nil {
+		return nil, err
 	}
 
 	return &asc.CustomProductPageScreenshotUploadResult{
@@ -246,7 +244,7 @@ func executeCustomPagePreviewUpload(
 		return nil, err
 	}
 
-	client, err := shared.GetASCClient()
+	client, err := customPageMediaClientFactory()
 	if err != nil {
 		return nil, err
 	}
@@ -347,10 +345,6 @@ func deleteAllPreviewsInSet(ctx context.Context, client *asc.Client, setID strin
 		}
 	}
 	return nil
-}
-
-func uploadCustomPageScreenshotAsset(ctx context.Context, client *asc.Client, setID, filePath string) (asc.AssetUploadResultItem, error) {
-	return assets.UploadScreenshotAsset(ctx, client, setID, filePath)
 }
 
 func uploadCustomPagePreviewAsset(ctx context.Context, client *asc.Client, setID, filePath string) (asc.AssetUploadResultItem, error) {

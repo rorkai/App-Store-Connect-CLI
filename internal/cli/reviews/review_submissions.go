@@ -42,7 +42,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("review submissions-list: --limit must be between 1 and 200")
+				return shared.UsageError("--limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("review submissions-list: %w", err)
@@ -50,9 +50,12 @@ Examples:
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
 			if err != nil {
-				return fmt.Errorf("review submissions-list: %w", err)
+				return shared.UsageError(err.Error())
 			}
-			states := shared.SplitCSVUpper(*state)
+			states, err := shared.NormalizeReviewSubmissionStates(shared.SplitCSVUpper(*state))
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			nextURL := strings.TrimSpace(*next)

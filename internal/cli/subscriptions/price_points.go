@@ -25,8 +25,8 @@ func SubscriptionsPricePointsCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions price-points list --subscription-id "SUB_ID"
-  asc subscriptions price-points get --id "PRICE_POINT_ID"
-  asc subscriptions price-points equalizations --id "PRICE_POINT_ID"`,
+  asc subscriptions price-points get --price-point-id "PRICE_POINT_ID"
+  asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -211,23 +211,23 @@ func filterSubscriptionPricePoints(resp *asc.SubscriptionPricePointsResponse, pf
 func SubscriptionsPricePointsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points get", flag.ExitOnError)
 
-	pricePointID := fs.String("id", "", "Subscription price point ID")
+	pricePointID := fs.String("price-point-id", "", "Subscription price point ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc subscriptions price-points get --id \"PRICE_POINT_ID\"",
+		ShortUsage: "asc subscriptions price-points get --price-point-id \"PRICE_POINT_ID\"",
 		ShortHelp:  "Get a subscription price point by ID.",
 		LongHelp: `Get a subscription price point by ID.
 
 Examples:
-  asc subscriptions price-points get --id "PRICE_POINT_ID"`,
+  asc subscriptions price-points get --price-point-id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*pricePointID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --price-point-id is required")
 				return flag.ErrHelp
 			}
 
@@ -253,25 +253,25 @@ Examples:
 func SubscriptionsPricePointsEqualizationsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points equalizations", flag.ExitOnError)
 
-	pricePointID := fs.String("id", "", "Subscription price point ID")
+	pricePointID := fs.String("price-point-id", "", "Subscription price point ID")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "equalizations",
-		ShortUsage: "asc subscriptions price-points equalizations --id \"PRICE_POINT_ID\"",
+		ShortUsage: "asc subscriptions price-points equalizations --price-point-id \"PRICE_POINT_ID\"",
 		ShortHelp:  "List equalized price points for a subscription price point.",
 		LongHelp: `List equalized price points for a subscription price point.
 
 Examples:
-  asc subscriptions price-points equalizations --id "PRICE_POINT_ID"
-  asc subscriptions price-points equalizations --id "PRICE_POINT_ID" --paginate`,
+  asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID"
+  asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*pricePointID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --price-point-id is required")
 				return flag.ErrHelp
 			}
 

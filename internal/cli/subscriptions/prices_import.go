@@ -97,7 +97,7 @@ var subscriptionPricesImportKnownColumns = map[string]string{
 func SubscriptionsPricesImportCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("prices import", flag.ExitOnError)
 
-	subID := fs.String("id", "", "Subscription ID")
+	subID := fs.String("subscription-id", "", "Subscription ID")
 	inputPath := fs.String("input", "", "Input CSV file path (required)")
 	startDate := fs.String("start-date", "", "Default start date (YYYY-MM-DD) for rows without start_date")
 	preserved := fs.Bool("preserved", false, "Set preserveCurrentPrice=true for rows without preserved columns")
@@ -107,7 +107,7 @@ func SubscriptionsPricesImportCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "import",
-		ShortUsage: "asc subscriptions prices import --id \"SUB_ID\" --input \"./prices.csv\" [flags]",
+		ShortUsage: "asc subscriptions prices import --subscription-id \"SUB_ID\" --input \"./prices.csv\" [flags]",
 		ShortHelp:  "Import subscription prices from a CSV file.",
 		LongHelp: `Import subscription prices from a CSV file.
 
@@ -125,15 +125,15 @@ Header aliases:
   Currency Code -> currency_code
 
 Examples:
-  asc subscriptions prices import --id "SUB_ID" --input "./prices.csv" --dry-run
-  asc subscriptions prices import --id "SUB_ID" --input "./prices.csv" --start-date "2026-03-01"
-  asc subscriptions prices import --id "SUB_ID" --input "./prices.csv" --preserved`,
+  asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv" --dry-run
+  asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv" --start-date "2026-03-01"
+  asc subscriptions prices import --subscription-id "SUB_ID" --input "./prices.csv" --preserved`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
 				return flag.ErrHelp
 			}
 

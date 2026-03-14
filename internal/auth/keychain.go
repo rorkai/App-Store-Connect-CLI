@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/99designs/keyring"
 
@@ -23,6 +24,15 @@ import (
 //
 // This is distinct from keychain being unavailable (`keyring.ErrNoAvailImpl`).
 var ErrKeychainAccessDenied = errors.New("keychain access denied")
+
+// ErrDefaultCredentialsNotFound indicates that stored credentials exist, but no
+// default selection resolves for the current no-profile lookup.
+var ErrDefaultCredentialsNotFound = errors.New("default credentials not found")
+
+var (
+	invalidBypassKeychainWarningsMu sync.Mutex
+	invalidBypassKeychainWarnings   = map[string]struct{}{}
+)
 
 const (
 	keyringService    = "asc"
@@ -96,14 +106,46 @@ func shouldBypassKeychain() bool {
 		return false
 	}
 	trimmed := strings.ToLower(strings.TrimSpace(value))
+	if trimmed == "" {
+		return false
+	}
 	switch trimmed {
 	case "1", "true", "yes", "on":
 		return true
 	case "0", "false", "no", "off":
 		return false
 	default:
+		warnInvalidBypassKeychainValueOnce(trimmed)
 		return false
 	}
+}
+
+func warnInvalidBypassKeychainValueOnce(value string) {
+	if value == "" {
+		return
+	}
+
+	invalidBypassKeychainWarningsMu.Lock()
+	if _, ok := invalidBypassKeychainWarnings[value]; ok {
+		invalidBypassKeychainWarningsMu.Unlock()
+		return
+	}
+	invalidBypassKeychainWarnings[value] = struct{}{}
+	invalidBypassKeychainWarningsMu.Unlock()
+
+	fmt.Fprintf(
+		os.Stderr,
+		"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, or on/off); %s\n",
+		bypassKeychainEnv,
+		value,
+		"keychain bypass disabled",
+	)
+}
+
+func resetInvalidBypassKeychainWarnings() {
+	invalidBypassKeychainWarningsMu.Lock()
+	defer invalidBypassKeychainWarningsMu.Unlock()
+	invalidBypassKeychainWarnings = map[string]struct{}{}
 }
 
 // ShouldBypassKeychain reports whether keychain usage is disabled via env.
@@ -504,7 +546,7 @@ func GetCredentialsWithSource(profile string) (*config.Config, string, error) {
 			return configCfg, "config", nil
 		}
 		if len(credentials) > 0 {
-			return nil, "", fmt.Errorf("default credentials not found")
+			return nil, "", ErrDefaultCredentialsNotFound
 		}
 		configCfg, err := getCredentialsFromConfig(profile)
 		if err != nil {
@@ -624,7 +666,7 @@ func getCredentialsFromConfig(profile string) (*config.Config, error) {
 			if errors.Is(err, config.ErrNotFound) {
 				return nil, err
 			}
-			return nil, fmt.Errorf("default credentials not found")
+			return nil, ErrDefaultCredentialsNotFound
 		}
 		return nil, globalErr
 	}
@@ -1048,7 +1090,7 @@ func selectConfigCredential(cfg *config.Config, profile string) (*config.Config,
 	if defaultName != "" {
 		cred, found, complete := findConfigCredential(cfg, defaultName)
 		if !found {
-			return nil, fmt.Errorf("default credentials not found")
+			return nil, ErrDefaultCredentialsNotFound
 		}
 		if !complete {
 			return nil, fmt.Errorf("incomplete credentials for profile %q", defaultName)
@@ -1061,7 +1103,7 @@ func selectConfigCredential(cfg *config.Config, profile string) (*config.Config,
 		return applyConfigCredential(cfg, credentials[0]), nil
 	}
 	if hasAnyCredentials(cfg) {
-		return nil, fmt.Errorf("default credentials not found")
+		return nil, ErrDefaultCredentialsNotFound
 	}
 	return nil, config.ErrNotFound
 }

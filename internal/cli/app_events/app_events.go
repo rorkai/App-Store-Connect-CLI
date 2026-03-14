@@ -29,9 +29,9 @@ Examples:
   asc app-events create --app "APP_ID" --name "Summer Challenge" --event-type CHALLENGE --start "2026-06-01T00:00:00Z" --end "2026-06-30T23:59:59Z"
   asc app-events update --event-id "EVENT_ID" --priority HIGH
   asc app-events delete --event-id "EVENT_ID" --confirm
-  asc app-events relationships --event-id "EVENT_ID"`,
+  asc app-events links --event-id "EVENT_ID"`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppEventsListCommand(),
 			AppEventsGetCommand(),
@@ -40,6 +40,13 @@ Examples:
 			AppEventsDeleteCommand(),
 			AppEventLocalizationsCommand(),
 			AppEventsRelationshipsCommand(),
+			shared.DeprecatedAliasLeafCommand(
+				AppEventsRelationshipsCommand(),
+				"relationships",
+				"asc app-events links --event-id \"EVENT_ID\" [flags]",
+				"asc app-events links",
+				"Warning: `asc app-events relationships` is deprecated. Use `asc app-events links`.",
+			),
 			AppEventScreenshotsCommand(),
 			AppEventVideoClipsCommand(),
 			AppEventsSubmitCommand(),

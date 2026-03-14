@@ -254,10 +254,7 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 	}, nil
 }
 
-type appInfoCandidate struct {
-	id    string
-	state string
-}
+type exampleBuilderFunc func(appID, version, platform, dir, appInfoID string) string
 
 func resolveMetadataPushAppInfoID(
 	ctx context.Context,
@@ -268,6 +265,22 @@ func resolveMetadataPushAppInfoID(
 	platform string,
 	dir string,
 	versionState string,
+) (string, error) {
+	return resolveMetadataAppInfoID(ctx, client, appID, appInfoID, version, platform, dir, versionState, func(aid, v, p, d, infoID string) string {
+		return buildMetadataAppInfoExample("push", aid, v, p, d, infoID) + " --dry-run"
+	})
+}
+
+func resolveMetadataAppInfoID(
+	ctx context.Context,
+	client *asc.Client,
+	appID string,
+	appInfoID string,
+	version string,
+	platform string,
+	dir string,
+	versionState string,
+	buildExample exampleBuilderFunc,
 ) (string, error) {
 	if appInfoID != "" {
 		return appInfoID, nil
@@ -284,93 +297,32 @@ func resolveMetadataPushAppInfoID(
 		return strings.TrimSpace(resp.Data[0].ID), nil
 	}
 
-	candidates := make([]appInfoCandidate, 0, len(resp.Data))
-	for _, item := range resp.Data {
-		candidates = append(candidates, appInfoCandidate{
-			id:    strings.TrimSpace(item.ID),
-			state: appInfoState(item.Attributes),
-		})
-	}
-	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].id < candidates[j].id
-	})
+	candidates := asc.AppInfoCandidates(resp.Data)
 
-	if resolvedID, ok := autoResolveAppInfoIDByVersionState(candidates, versionState); ok {
+	if resolvedID, ok := asc.AutoResolveAppInfoIDByVersionState(candidates, versionState); ok {
 		return resolvedID, nil
 	}
 
 	exampleAppInfoID := "<APP_INFO_ID>"
 	for _, candidate := range candidates {
-		if candidate.id != "" {
-			exampleAppInfoID = candidate.id
+		if candidate.ID != "" {
+			exampleAppInfoID = candidate.ID
 			break
 		}
 	}
-	exampleCommand := buildMetadataPushAppInfoExample(appID, version, platform, dir, exampleAppInfoID)
+	exampleCommand := buildExample(appID, version, platform, dir, exampleAppInfoID)
 	return "", shared.UsageErrorf(
-		"multiple app infos found for app %q (%s). Re-run with --app-info. Example: %s",
+		"multiple app infos found for app %q (%s). Run `asc apps info list --app %q` to inspect candidates, then re-run with --app-info. Example: %s",
 		appID,
-		formatAppInfoCandidates(candidates),
+		asc.FormatAppInfoCandidates(candidates),
+		appID,
 		exampleCommand,
 	)
 }
 
-func autoResolveAppInfoIDByVersionState(candidates []appInfoCandidate, versionState string) (string, bool) {
-	resolvedVersionState := strings.TrimSpace(versionState)
-	if resolvedVersionState == "" {
-		return "", false
-	}
-
-	matches := make([]string, 0, len(candidates))
-	for _, candidate := range candidates {
-		if candidate.id == "" || !strings.EqualFold(candidate.state, resolvedVersionState) {
-			continue
-		}
-		matches = append(matches, candidate.id)
-	}
-	if len(matches) != 1 {
-		return "", false
-	}
-	return matches[0], true
-}
-
-func appInfoState(attributes asc.AppInfoAttributes) string {
-	for _, key := range []string{"state", "appStoreState"} {
-		rawValue, exists := attributes[key]
-		if !exists || rawValue == nil {
-			continue
-		}
-		value, ok := rawValue.(string)
-		if !ok {
-			continue
-		}
-		trimmed := strings.TrimSpace(value)
-		if trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
-}
-
-func formatAppInfoCandidates(candidates []appInfoCandidate) string {
-	if len(candidates) == 0 {
-		return "none"
-	}
-
-	parts := make([]string, 0, len(candidates))
-	for _, candidate := range candidates {
-		state := candidate.state
-		if state == "" {
-			state = "unknown"
-		}
-		parts = append(parts, fmt.Sprintf("%s[state=%s]", candidate.id, state))
-	}
-	return strings.Join(parts, ", ")
-}
-
-func buildMetadataPushAppInfoExample(appID, version, platform, dir, appInfoID string) string {
+func buildMetadataAppInfoExample(command, appID, version, platform, dir, appInfoID string) string {
 	parts := []string{
-		"asc metadata push",
+		fmt.Sprintf("asc metadata %s", command),
 		fmt.Sprintf(`--app %q`, appID),
 		fmt.Sprintf(`--version %q`, version),
 	}
@@ -385,7 +337,6 @@ func buildMetadataPushAppInfoExample(appID, version, platform, dir, appInfoID st
 	parts = append(parts,
 		fmt.Sprintf(`--dir %q`, dirValue),
 		fmt.Sprintf(`--app-info %q`, appInfoID),
-		"--dry-run",
 	)
 	return strings.Join(parts, " ")
 }

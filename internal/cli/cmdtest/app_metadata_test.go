@@ -125,7 +125,7 @@ func TestLocalizationsMediaSetsValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "preview sets relationships missing localization",
-			args:    []string{"localizations", "preview-sets", "relationships"},
+			args:    []string{"localizations", "preview-sets", "links"},
 			wantErr: "--localization-id is required",
 		},
 		{
@@ -140,7 +140,7 @@ func TestLocalizationsMediaSetsValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "screenshot sets relationships missing localization",
-			args:    []string{"localizations", "screenshot-sets", "relationships"},
+			args:    []string{"localizations", "screenshot-sets", "links"},
 			wantErr: "--localization-id is required",
 		},
 		{
@@ -177,24 +177,29 @@ func TestLocalizationsMediaSetsValidationErrors(t *testing.T) {
 
 func TestLocalizationsMediaSetsOutputErrors(t *testing.T) {
 	tests := []struct {
-		name string
-		args []string
+		name    string
+		args    []string
+		wantErr string
 	}{
 		{
-			name: "preview sets get unsupported output",
-			args: []string{"localizations", "preview-sets", "get", "--id", "SET_ID", "--output", "yaml"},
+			name:    "preview sets get unsupported output",
+			args:    []string{"localizations", "preview-sets", "get", "--id", "SET_ID", "--output", "yaml"},
+			wantErr: "unsupported format: yaml",
 		},
 		{
-			name: "preview sets get pretty with table",
-			args: []string{"localizations", "preview-sets", "get", "--id", "SET_ID", "--output", "table", "--pretty"},
+			name:    "preview sets get pretty with table",
+			args:    []string{"localizations", "preview-sets", "get", "--id", "SET_ID", "--output", "table", "--pretty"},
+			wantErr: "--pretty is only valid with JSON output",
 		},
 		{
-			name: "screenshot sets get unsupported output",
-			args: []string{"localizations", "screenshot-sets", "get", "--id", "SET_ID", "--output", "yaml"},
+			name:    "screenshot sets get unsupported output",
+			args:    []string{"localizations", "screenshot-sets", "get", "--id", "SET_ID", "--output", "yaml"},
+			wantErr: "unsupported format: yaml",
 		},
 		{
-			name: "screenshot sets get pretty with markdown",
-			args: []string{"localizations", "screenshot-sets", "get", "--id", "SET_ID", "--output", "markdown", "--pretty"},
+			name:    "screenshot sets get pretty with markdown",
+			args:    []string{"localizations", "screenshot-sets", "get", "--id", "SET_ID", "--output", "markdown", "--pretty"},
+			wantErr: "--pretty is only valid with JSON output",
 		},
 	}
 
@@ -208,16 +213,17 @@ func TestLocalizationsMediaSetsOutputErrors(t *testing.T) {
 					t.Fatalf("parse error: %v", err)
 				}
 				err := root.Run(context.Background())
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				if errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected non-help error, got %v", err)
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
 				}
 			})
 
-			_ = stdout
-			_ = stderr
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
 		})
 	}
 }
@@ -229,23 +235,23 @@ func TestVersionsRelationshipsValidationErrors(t *testing.T) {
 		wantErr string
 	}{
 		{
-			name:    "versions relationships missing type",
-			args:    []string{"versions", "relationships", "--version-id", "id-1"},
+			name:    "versions links missing type",
+			args:    []string{"versions", "links", "--version-id", "id-1"},
 			wantErr: "--type is required",
 		},
 		{
-			name:    "versions relationships missing version id",
-			args:    []string{"versions", "relationships", "--type", "appStoreReviewDetail"},
+			name:    "versions links missing version id",
+			args:    []string{"versions", "links", "--type", "appStoreReviewDetail"},
 			wantErr: "--version-id is required",
 		},
 		{
-			name:    "versions relationships invalid type",
-			args:    []string{"versions", "relationships", "--version-id", "id-1", "--type", "nope"},
+			name:    "versions links invalid type",
+			args:    []string{"versions", "links", "--version-id", "id-1", "--type", "nope"},
 			wantErr: "--type must be one of",
 		},
 		{
-			name:    "versions relationships invalid limit for single",
-			args:    []string{"versions", "relationships", "--version-id", "id-1", "--type", "appStoreReviewDetail", "--limit", "10"},
+			name:    "versions links invalid limit for single",
+			args:    []string{"versions", "links", "--version-id", "id-1", "--type", "appStoreReviewDetail", "--limit", "10"},
 			wantErr: "--limit, --next, and --paginate are only valid for to-many relationships",
 		},
 	}
@@ -382,17 +388,17 @@ func TestAppInfoIncludeValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "app-info id without include",
-			args:    []string{"app-info", "get", "--app-info", "info-1"},
-			wantErr: "--app-info requires --include",
+			args:    []string{"apps", "info", "view", "--info-id", "info-1"},
+			wantErr: "--info-id requires --include",
 		},
 		{
 			name:    "app-info include missing app",
-			args:    []string{"app-info", "get", "--include", "ageRatingDeclaration"},
-			wantErr: "--app or --app-info is required",
+			args:    []string{"apps", "info", "view", "--include", "ageRatingDeclaration"},
+			wantErr: "--app or --info-id is required",
 		},
 		{
 			name:    "app-info include with version flags",
-			args:    []string{"app-info", "get", "--include", "ageRatingDeclaration", "--app", "123", "--version", "1.2.3", "--platform", "IOS"},
+			args:    []string{"apps", "info", "view", "--include", "ageRatingDeclaration", "--app", "123", "--version", "1.2.3", "--platform", "IOS"},
 			wantErr: "--include cannot be used with version localization flags",
 		},
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -85,6 +86,51 @@ func TestWebhooksServeExecReceivesPayload(t *testing.T) {
 	}
 
 	waitForFileContains(t, outPath, `"id":"evt-exec-1"`)
+}
+
+func TestWebhooksServeRejectsNonLoopbackWithoutAllowRemote(t *testing.T) {
+	cmd := WebhooksServeCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.Parse([]string{
+		"--host", "0.0.0.0",
+		"--port", "0",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	err := cmd.Run(ctx)
+	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp for non-loopback bind without --allow-remote, got %v", err)
+	}
+}
+
+func TestWebhooksServeAllowsNonLoopbackWithAllowRemote(t *testing.T) {
+	port := freeLocalPort(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	cmd := WebhooksServeCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.Parse([]string{
+		"--host", "0.0.0.0",
+		"--port", fmt.Sprintf("%d", port),
+		"--allow-remote",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	go func() {
+		errCh <- cmd.Run(ctx)
+	}()
+	defer shutdownServeCommand(t, cancel, errCh)
+
+	statusCode := postJSONWithRetry(t, fmt.Sprintf("http://127.0.0.1:%d", port), `{"id":"evt-remote-1","eventType":"REMOTE_EVENT"}`)
+	if statusCode != http.StatusAccepted {
+		t.Fatalf("expected status %d, got %d", http.StatusAccepted, statusCode)
+	}
 }
 
 func TestReadWebhookServeJSONPayloadAllowsMaxInt64Limit(t *testing.T) {

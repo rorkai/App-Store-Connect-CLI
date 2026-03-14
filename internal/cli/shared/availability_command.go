@@ -71,7 +71,6 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				return flag.ErrHelp
 			}
 			availableValue := available.Value()
-			availabilityExists := true
 
 			client, err := getASCClient()
 			if err != nil {
@@ -84,28 +83,13 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 			resp, err := client.GetAppAvailabilityV2(requestCtx, resolvedAppID)
 			if err != nil {
 				if isAppAvailabilityMissing(err) {
-					availabilityExists = false
-					requestedTerritoryAvailabilities := make([]asc.TerritoryAvailabilityCreate, 0, len(territories))
-					for _, territoryID := range territories {
-						requestedTerritoryAvailabilities = append(requestedTerritoryAvailabilities, asc.TerritoryAvailabilityCreate{
-							TerritoryID: territoryID,
-							Available:   availableValue,
-						})
-					}
-					createAttrs := asc.AppAvailabilityV2CreateAttributes{
-						TerritoryAvailabilities: requestedTerritoryAvailabilities,
-					}
-					if config.IncludeAvailableInNewTerritories {
-						availableInNewTerritoriesValue := availableInNewTerritories.Value()
-						createAttrs.AvailableInNewTerritories = &availableInNewTerritoriesValue
-					}
-					resp, err = client.CreateAppAvailabilityV2(requestCtx, resolvedAppID, createAttrs)
-					if err != nil {
-						return fmt.Errorf("%s: app availability not found for app %q and failed to create: %w", config.ErrorPrefix, resolvedAppID, err)
-					}
-				} else {
-					return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+					return fmt.Errorf(
+						"%s: app availability not found for app %q; this command only updates existing app availability, so initialize availability in App Store Connect first",
+						config.ErrorPrefix,
+						resolvedAppID,
+					)
 				}
+				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
 			availabilityID := strings.TrimSpace(resp.Data.ID)
 			if availabilityID == "" {
@@ -127,7 +111,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				return fmt.Errorf("%s: unexpected territory availabilities response", config.ErrorPrefix)
 			}
 
-			if availabilityExists && config.IncludeAvailableInNewTerritories {
+			if config.IncludeAvailableInNewTerritories {
 				availableInNewTerritoriesValue := availableInNewTerritories.Value()
 				if resp.Data.Attributes.AvailableInNewTerritories != availableInNewTerritoriesValue {
 					return fmt.Errorf(

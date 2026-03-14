@@ -46,6 +46,19 @@ func isTruthy(value string) bool {
 // tracks env map onto os.Environ().
 func buildEnvSlice(env map[string]string) []string {
 	base := os.Environ()
+
+	// bash evaluates BASH_ENV for non-interactive shells; never inherit or allow
+	// callers to provide it because workflow params and env are untrusted input.
+	const bashEnvKey = "BASH_ENV"
+	sanitized := make([]string, 0, len(base))
+	for _, entry := range base {
+		if strings.HasPrefix(entry, bashEnvKey+"=") {
+			continue
+		}
+		sanitized = append(sanitized, entry)
+	}
+	base = sanitized
+
 	if len(env) == 0 {
 		return base
 	}
@@ -54,9 +67,15 @@ func buildEnvSlice(env map[string]string) []string {
 	// Only track keys that we may override to avoid indexing unrelated env vars.
 	indexByKey := make(map[string]int, len(env))
 	remaining := len(env)
+	if _, hasBashEnvOverride := env[bashEnvKey]; hasBashEnvOverride {
+		remaining--
+	}
 	for i, entry := range base {
 		key, _, ok := strings.Cut(entry, "=")
 		if !ok {
+			continue
+		}
+		if key == bashEnvKey {
 			continue
 		}
 		if _, needsOverride := env[key]; !needsOverride {
@@ -72,6 +91,9 @@ func buildEnvSlice(env map[string]string) []string {
 	}
 
 	for k, v := range env {
+		if k == bashEnvKey {
+			continue
+		}
 		entry := k + "=" + v
 		if i, ok := indexByKey[k]; ok {
 			base[i] = entry

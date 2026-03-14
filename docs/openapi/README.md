@@ -24,4 +24,4 @@ still work in the API (parity checks can surface these gaps).
 2. Run `scripts/update-openapi-index.py` to regenerate `paths.txt`.
 3. Update the "Last synced" date below.
 
-Last synced: 2026-02-18
+Last synced: 2026-03-11

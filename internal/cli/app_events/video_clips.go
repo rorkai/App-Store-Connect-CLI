@@ -27,10 +27,17 @@ Examples:
   asc app-events video-clips list --event-id "EVENT_ID"
   asc app-events video-clips create --localization-id "LOC_ID" --path "./clip.mov" --asset-type EVENT_CARD`,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppEventVideoClipsListCommand(),
 			AppEventVideoClipsRelationshipsCommand(),
+			shared.DeprecatedAliasLeafCommand(
+				AppEventVideoClipsRelationshipsCommand(),
+				"relationships",
+				"asc app-events video-clips links [flags]",
+				"asc app-events video-clips links",
+				"Warning: `asc app-events video-clips relationships` is deprecated. Use `asc app-events video-clips links`.",
+			),
 			AppEventVideoClipsGetCommand(),
 			AppEventVideoClipsCreateCommand(),
 			AppEventVideoClipsDeleteCommand(),
@@ -41,9 +48,9 @@ Examples:
 	}
 }
 
-// AppEventVideoClipsRelationshipsCommand returns the app event video clips relationships subcommand.
+// AppEventVideoClipsRelationshipsCommand returns the app event video clips links subcommand.
 func AppEventVideoClipsRelationshipsCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("video-clips relationships", flag.ExitOnError)
+	fs := flag.NewFlagSet("video-clips links", flag.ExitOnError)
 
 	eventID := fs.String("event-id", "", "App event ID")
 	localizationID := fs.String("localization-id", "", "App event localization ID")
@@ -54,23 +61,23 @@ func AppEventVideoClipsRelationshipsCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "relationships",
-		ShortUsage: "asc app-events video-clips relationships [flags]",
+		Name:       "links",
+		ShortUsage: "asc app-events video-clips links [flags]",
 		ShortHelp:  "List video clip relationships for an in-app event localization.",
 		LongHelp: `List video clip relationships for an in-app event localization.
 
 Examples:
-  asc app-events video-clips relationships --localization-id "LOC_ID"
-  asc app-events video-clips relationships --event-id "EVENT_ID" --locale "en-US"
-  asc app-events video-clips relationships --event-id "EVENT_ID" --paginate`,
+  asc app-events video-clips links --localization-id "LOC_ID"
+  asc app-events video-clips links --event-id "EVENT_ID" --locale "en-US"
+  asc app-events video-clips links --event-id "EVENT_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("app-events video-clips relationships: --limit must be between 1 and 200")
+				return fmt.Errorf("app-events video-clips links: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("app-events video-clips relationships: %w", err)
+				return fmt.Errorf("app-events video-clips links: %w", err)
 			}
 
 			trimmedNext := strings.TrimSpace(*next)
@@ -81,7 +88,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-events video-clips relationships: %w", err)
+				return fmt.Errorf("app-events video-clips links: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -105,20 +112,20 @@ Examples:
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 				firstPage, err := client.GetAppEventVideoClipsRelationships(requestCtx, resolvedLocalizationID, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("app-events video-clips relationships: failed to fetch: %w", err)
+					return fmt.Errorf("app-events video-clips links: failed to fetch: %w", err)
 				}
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					return client.GetAppEventVideoClipsRelationships(ctx, resolvedLocalizationID, asc.WithLinkagesNextURL(nextURL))
 				})
 				if err != nil {
-					return fmt.Errorf("app-events video-clips relationships: %w", err)
+					return fmt.Errorf("app-events video-clips links: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppEventVideoClipsRelationships(requestCtx, resolvedLocalizationID, opts...)
 			if err != nil {
-				return fmt.Errorf("app-events video-clips relationships: failed to fetch: %w", err)
+				return fmt.Errorf("app-events video-clips links: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

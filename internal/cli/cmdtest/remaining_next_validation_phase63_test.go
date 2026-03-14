@@ -162,7 +162,7 @@ func TestAppInfoGetRejectsInvalidNextURLPhase63(t *testing.T) {
 			root.FlagSet.SetOutput(io.Discard)
 
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"app-info", "get", "--next", test.next}); err != nil {
+				if err := root.Parse([]string{"apps", "info", "view", "--next", test.next}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				err := root.Run(context.Background())
@@ -596,8 +596,8 @@ func TestUsersVisibleAppsGetPaginateFromNextWithoutIDPhase63(t *testing.T) {
 func TestWinBackOffersListRejectsInvalidNextURLPhase63(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"win-back-offers", "list"},
-		"win-back-offers list: --next",
+		[]string{"subscriptions", "offers", "win-back", "list"},
+		"subscriptions offers win-back list: --next",
 	)
 }
 
@@ -610,7 +610,7 @@ func TestWinBackOffersListPaginateFromNextWithoutSubscriptionPhase63(t *testing.
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"win-back-offers", "list"},
+		[]string{"subscriptions", "offers", "win-back", "list"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -623,8 +623,8 @@ func TestWinBackOffersListPaginateFromNextWithoutSubscriptionPhase63(t *testing.
 func TestWinBackOffersPricesRejectsInvalidNextURLPhase63(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"win-back-offers", "prices"},
-		"win-back-offers prices: --next",
+		[]string{"subscriptions", "offers", "win-back", "prices"},
+		"subscriptions offers win-back prices: --next",
 	)
 }
 
@@ -637,7 +637,7 @@ func TestWinBackOffersPricesPaginateFromNextWithoutIDPhase63(t *testing.T) {
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"win-back-offers", "prices"},
+		[]string{"subscriptions", "offers", "win-back", "prices"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -650,8 +650,8 @@ func TestWinBackOffersPricesPaginateFromNextWithoutIDPhase63(t *testing.T) {
 func TestWinBackOffersPricesRelationshipsRejectsInvalidNextURLPhase63(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"win-back-offers", "prices-relationships"},
-		"win-back-offers prices-relationships: --next",
+		[]string{"subscriptions", "offers", "win-back", "prices-links"},
+		"subscriptions offers win-back prices-links: --next",
 	)
 }
 
@@ -664,7 +664,7 @@ func TestWinBackOffersPricesRelationshipsPaginateFromNextWithoutIDPhase63(t *tes
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"win-back-offers", "prices-relationships"},
+		[]string{"subscriptions", "offers", "win-back", "prices-links"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -677,8 +677,8 @@ func TestWinBackOffersPricesRelationshipsPaginateFromNextWithoutIDPhase63(t *tes
 func TestWinBackOffersRelationshipsRejectsInvalidNextURLPhase63(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"win-back-offers", "relationships"},
-		"win-back-offers relationships: --next",
+		[]string{"subscriptions", "offers", "win-back", "links"},
+		"subscriptions offers win-back links: --next",
 	)
 }
 
@@ -691,7 +691,7 @@ func TestWinBackOffersRelationshipsPaginateFromNextWithoutSubscriptionPhase63(t 
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"win-back-offers", "relationships"},
+		[]string{"subscriptions", "offers", "win-back", "links"},
 		firstURL,
 		secondURL,
 		firstBody,

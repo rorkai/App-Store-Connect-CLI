@@ -18,12 +18,12 @@ func TestTestFlightBetaTestersAppsListRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/apps?cursor=AQ",
-			wantErr: "testflight beta-testers apps list: --next must be an App Store Connect URL",
+			wantErr: "testflight testers apps list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "testflight beta-testers apps list: --next must be a valid URL:",
+			wantErr: "testflight testers apps list: --next must be a valid URL:",
 		},
 	}
 
@@ -132,12 +132,12 @@ func TestTestFlightBetaTestersBetaGroupsListRejectsInvalidNextURL(t *testing.T) 
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/betaGroups?cursor=AQ",
-			wantErr: "testflight beta-testers beta-groups list: --next must be an App Store Connect URL",
+			wantErr: "testflight testers groups list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "testflight beta-testers beta-groups list: --next must be a valid URL:",
+			wantErr: "testflight testers groups list: --next must be a valid URL:",
 		},
 	}
 
@@ -246,12 +246,12 @@ func TestTestFlightBetaTestersBuildsListRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/betaTesters/tester-1/builds?cursor=AQ",
-			wantErr: "testflight beta-testers builds list: --next must be an App Store Connect URL",
+			wantErr: "testflight testers builds list: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "testflight beta-testers builds list: --next must be a valid URL:",
+			wantErr: "testflight testers builds list: --next must be a valid URL:",
 		},
 	}
 

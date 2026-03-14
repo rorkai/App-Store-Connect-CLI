@@ -197,6 +197,8 @@ func GameCenterActivitiesCreateCommand() *ffcli.Command {
 	minPlayers := fs.Int("min-players", 0, "Minimum players count")
 	maxPlayers := fs.Int("max-players", 0, "Maximum players count")
 	supportsPartyCode := fs.String("supports-party-code", "", "Supports party code (true/false)")
+	createInitialVersion := fs.String("create-initial-version", "", "Create an initial activity version inline (true/false)")
+	initialFallbackURL := fs.String("initial-fallback-url", "", "Fallback URL for the initial activity version")
 	groupID := fs.String("group-id", "", "Game Center group ID")
 	output := shared.BindOutputFlags(fs)
 
@@ -208,6 +210,8 @@ func GameCenterActivitiesCreateCommand() *ffcli.Command {
 
 Examples:
   asc game-center activities create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly"
+  asc game-center activities create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --create-initial-version true
+  asc game-center activities create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly" --create-initial-version true --initial-fallback-url "https://example.com/fallback"
   asc game-center activities create --group-id "GROUP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -240,6 +244,20 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			createInitialVersionValue := false
+			if strings.TrimSpace(*createInitialVersion) != "" {
+				value, err := shared.ParseBoolFlag(*createInitialVersion, "--create-initial-version")
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error:", err.Error())
+					return flag.ErrHelp
+				}
+				createInitialVersionValue = value
+			}
+			if strings.TrimSpace(*initialFallbackURL) != "" && !createInitialVersionValue {
+				fmt.Fprintln(os.Stderr, "Error: --initial-fallback-url requires --create-initial-version true")
+				return flag.ErrHelp
+			}
+
 			attrs := asc.GameCenterActivityCreateAttributes{
 				ReferenceName:    name,
 				VendorIdentifier: vendor,
@@ -266,6 +284,14 @@ Examples:
 				attrs.SupportsPartyCode = &val
 			}
 
+			var initialVersion *asc.GameCenterActivityVersionCreateAttributes
+			if createInitialVersionValue {
+				initialVersion = &asc.GameCenterActivityVersionCreateAttributes{}
+				if value := strings.TrimSpace(*initialFallbackURL); value != "" {
+					initialVersion.FallbackURL = &value
+				}
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("game-center activities create: %w", err)
@@ -283,7 +309,7 @@ Examples:
 				}
 			}
 
-			resp, err := client.CreateGameCenterActivity(requestCtx, gcDetailID, attrs, group)
+			resp, err := client.CreateGameCenterActivity(requestCtx, gcDetailID, attrs, group, initialVersion)
 			if err != nil {
 				return fmt.Errorf("game-center activities create: failed to create: %w", err)
 			}

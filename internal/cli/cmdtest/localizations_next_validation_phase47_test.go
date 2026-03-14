@@ -9,6 +9,16 @@ import (
 	"testing"
 )
 
+func expectedLocalizationsStderr(argsPrefix []string) string {
+	if len(argsPrefix) >= 2 && argsPrefix[0] == "beta-app-localizations" && argsPrefix[1] == "list" {
+		return betaAppLocalizationsListDeprecationWarning
+	}
+	if len(argsPrefix) >= 2 && argsPrefix[0] == "beta-build-localizations" && argsPrefix[1] == "list" {
+		return "Warning: `asc beta-build-localizations list` is deprecated. Use `asc builds test-notes list`"
+	}
+	return ""
+}
+
 func runLocalizationsInvalidNextURLCases(
 	t *testing.T,
 	argsPrefix []string,
@@ -57,7 +67,11 @@ func runLocalizationsInvalidNextURLCases(
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
+			if wantWarning := expectedLocalizationsStderr(argsPrefix); wantWarning != "" {
+				if !strings.Contains(stderr, wantWarning) {
+					t.Fatalf("expected deprecation warning %q, got %q", wantWarning, stderr)
+				}
+			} else if stderr != "" {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
 		})
@@ -125,7 +139,11 @@ func runLocalizationsPaginateFromNext(
 		}
 	})
 
-	if stderr != "" {
+	if wantWarning := expectedLocalizationsStderr(argsPrefix); wantWarning != "" {
+		if !strings.Contains(stderr, wantWarning) {
+			t.Fatalf("expected deprecation warning %q, got %q", wantWarning, stderr)
+		}
+	} else if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	for _, id := range wantIDs {

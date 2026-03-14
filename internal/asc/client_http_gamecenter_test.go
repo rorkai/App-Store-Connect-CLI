@@ -742,14 +742,19 @@ func TestCreateGameCenterLeaderboardEntrySubmission(t *testing.T) {
 		if payload.Data.Attributes.VendorIdentifier != "com.example.leaderboard" || payload.Data.Attributes.Score != "100" {
 			t.Fatalf("unexpected attributes: %+v", payload.Data.Attributes)
 		}
+		if payload.Data.Attributes.PreReleased == nil || !*payload.Data.Attributes.PreReleased {
+			t.Fatalf("expected preReleased=true, got %+v", payload.Data.Attributes.PreReleased)
+		}
 		assertAuthorized(t, req)
 	}, response)
 
+	preReleased := true
 	attrs := GameCenterLeaderboardEntrySubmissionAttributes{
 		VendorIdentifier: "com.example.leaderboard",
 		Score:            "100",
 		BundleID:         "com.example.app",
 		ScopedPlayerID:   "player-1",
+		PreReleased:      &preReleased,
 	}
 	if _, err := client.CreateGameCenterLeaderboardEntrySubmission(context.Background(), attrs); err != nil {
 		t.Fatalf("CreateGameCenterLeaderboardEntrySubmission() error: %v", err)
@@ -775,14 +780,19 @@ func TestCreateGameCenterPlayerAchievementSubmission(t *testing.T) {
 		if payload.Data.Attributes.VendorIdentifier != "com.example.achievement" || payload.Data.Attributes.PercentageAchieved != 100 {
 			t.Fatalf("unexpected attributes: %+v", payload.Data.Attributes)
 		}
+		if payload.Data.Attributes.PreReleased == nil || !*payload.Data.Attributes.PreReleased {
+			t.Fatalf("expected preReleased=true, got %+v", payload.Data.Attributes.PreReleased)
+		}
 		assertAuthorized(t, req)
 	}, response)
 
+	preReleased := true
 	attrs := GameCenterPlayerAchievementSubmissionAttributes{
 		VendorIdentifier:   "com.example.achievement",
 		PercentageAchieved: 100,
 		BundleID:           "com.example.app",
 		ScopedPlayerID:     "player-1",
+		PreReleased:        &preReleased,
 	}
 	if _, err := client.CreateGameCenterPlayerAchievementSubmission(context.Background(), attrs); err != nil {
 		t.Fatalf("CreateGameCenterPlayerAchievementSubmission() error: %v", err)

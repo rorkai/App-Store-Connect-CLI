@@ -107,6 +107,28 @@ func TestBuildEnvSlice_OverridesExisting(t *testing.T) {
 	}
 }
 
+func TestBuildEnvSlice_StripsInheritedBashEnv(t *testing.T) {
+	t.Setenv("BASH_ENV", "/tmp/workflow-test-bashenv")
+
+	slice := buildEnvSlice(nil)
+	for _, entry := range slice {
+		if strings.HasPrefix(entry, "BASH_ENV=") {
+			t.Fatalf("expected BASH_ENV to be stripped, got %q", entry)
+		}
+	}
+}
+
+func TestBuildEnvSlice_IgnoresProvidedBashEnvOverride(t *testing.T) {
+	t.Setenv("BASH_ENV", "/tmp/workflow-test-bashenv")
+
+	slice := buildEnvSlice(map[string]string{"BASH_ENV": "/tmp/workflow-param-bashenv"})
+	for _, entry := range slice {
+		if strings.HasPrefix(entry, "BASH_ENV=") {
+			t.Fatalf("expected BASH_ENV to be ignored, got %q", entry)
+		}
+	}
+}
+
 func TestParseParams_ColonSeparator(t *testing.T) {
 	params, err := ParseParams([]string{"KEY:value", "ANOTHER:val2"})
 	if err != nil {

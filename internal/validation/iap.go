@@ -43,6 +43,21 @@ func ValidateIAP(input IAPInput, strict bool) IAPReport {
 	}
 }
 
+func iapFetchChecks(reason string) []CheckResult {
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return nil
+	}
+
+	return []CheckResult{{
+		ID:          "iap.readiness.unverified",
+		Severity:    SeverityInfo,
+		Field:       "inAppPurchases",
+		Message:     "Could not verify in-app purchase readiness for this app",
+		Remediation: reason,
+	}}
+}
+
 func iapReviewReadinessChecks(iaps []IAP) []CheckResult {
 	// These checks are warnings by default. Many apps have legacy IAPs that
 	// aren't relevant to a given release. Use --strict to gate in CI.
@@ -52,21 +67,16 @@ func iapReviewReadinessChecks(iaps []IAP) []CheckResult {
 		"IN_REVIEW":               {},
 		"PENDING_BINARY_APPROVAL": {},
 	}
-	ignoreStates := map[string]struct{}{
-		"DEVELOPER_REMOVED_FROM_SALE": {},
-		"REMOVED_FROM_SALE":           {},
-	}
-
 	var checks []CheckResult
 	for _, iap := range iaps {
-		state := strings.ToUpper(strings.TrimSpace(iap.State))
+		state := normalizeMonetizationState(iap.State)
 		if state == "" {
 			continue
 		}
 		if _, ok := okStates[state]; ok {
 			continue
 		}
-		if _, ok := ignoreStates[state]; ok {
+		if isRemovedMonetizationState(state) {
 			continue
 		}
 

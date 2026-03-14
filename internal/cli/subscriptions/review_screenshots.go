@@ -24,7 +24,7 @@ func SubscriptionsReviewScreenshotsCommand() *ffcli.Command {
 		LongHelp: `Manage subscription App Store review screenshots.
 
 Examples:
-  asc subscriptions review-screenshots get --id "SHOT_ID"
+  asc subscriptions review-screenshots get --screenshot-id "SHOT_ID"
   asc subscriptions review-screenshots create --subscription-id "SUB_ID" --file "./screenshot.png"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -44,23 +44,23 @@ Examples:
 func SubscriptionsReviewScreenshotsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-screenshots get", flag.ExitOnError)
 
-	screenshotID := fs.String("id", "", "Review screenshot ID")
+	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc subscriptions review-screenshots get --id \"SHOT_ID\"",
+		ShortUsage: "asc subscriptions review-screenshots get --screenshot-id \"SHOT_ID\"",
 		ShortHelp:  "Get a review screenshot by ID.",
 		LongHelp: `Get a review screenshot by ID.
 
 Examples:
-  asc subscriptions review-screenshots get --id "SHOT_ID"`,
+  asc subscriptions review-screenshots get --screenshot-id "SHOT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
 				return flag.ErrHelp
 			}
 
@@ -167,7 +167,7 @@ Examples:
 func SubscriptionsReviewScreenshotsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-screenshots update", flag.ExitOnError)
 
-	screenshotID := fs.String("id", "", "Review screenshot ID")
+	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
 	checksum := fs.String("checksum", "", "Source file checksum (MD5)")
 	var uploaded shared.OptionalBool
 	fs.Var(&uploaded, "uploaded", "Mark upload complete: true or false")
@@ -180,13 +180,13 @@ func SubscriptionsReviewScreenshotsUpdateCommand() *ffcli.Command {
 		LongHelp: `Update a review screenshot.
 
 Examples:
-  asc subscriptions review-screenshots update --id "SHOT_ID" --uploaded true --checksum "HASH"`,
+  asc subscriptions review-screenshots update --screenshot-id "SHOT_ID" --uploaded true --checksum "HASH"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
 				return flag.ErrHelp
 			}
 
@@ -227,24 +227,24 @@ Examples:
 func SubscriptionsReviewScreenshotsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-screenshots delete", flag.ExitOnError)
 
-	screenshotID := fs.String("id", "", "Review screenshot ID")
+	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "delete",
-		ShortUsage: "asc subscriptions review-screenshots delete --id \"SHOT_ID\" --confirm",
+		ShortUsage: "asc subscriptions review-screenshots delete --screenshot-id \"SHOT_ID\" --confirm",
 		ShortHelp:  "Delete a review screenshot.",
 		LongHelp: `Delete a review screenshot.
 
 Examples:
-  asc subscriptions review-screenshots delete --id "SHOT_ID" --confirm`,
+  asc subscriptions review-screenshots delete --screenshot-id "SHOT_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
 				return flag.ErrHelp
 			}
 			if !*confirm {

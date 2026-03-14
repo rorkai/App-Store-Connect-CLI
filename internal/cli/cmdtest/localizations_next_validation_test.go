@@ -236,12 +236,12 @@ func TestLocalizationsPreviewSetsRelationshipsRejectsInvalidNextURL(t *testing.T
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/localization-1/relationships/appPreviewSets?cursor=AQ",
-			wantErr: "localizations preview-sets relationships: --next must be an App Store Connect URL",
+			wantErr: "localizations preview-sets links: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "localizations preview-sets relationships: --next must be a valid URL:",
+			wantErr: "localizations preview-sets links: --next must be a valid URL:",
 		},
 	}
 
@@ -252,7 +252,7 @@ func TestLocalizationsPreviewSetsRelationshipsRejectsInvalidNextURL(t *testing.T
 
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"localizations", "preview-sets", "relationships", "--next", test.next}); err != nil {
+				if err := root.Parse([]string{"localizations", "preview-sets", "links", "--next", test.next}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				runErr = root.Run(context.Background())
@@ -320,7 +320,7 @@ func TestLocalizationsPreviewSetsRelationshipsPaginateFromNextWithoutLocalizatio
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"localizations", "preview-sets", "relationships", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"localizations", "preview-sets", "links", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -454,12 +454,12 @@ func TestLocalizationsScreenshotSetsRelationshipsRejectsInvalidNextURL(t *testin
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations/localization-1/relationships/appScreenshotSets?cursor=AQ",
-			wantErr: "localizations screenshot-sets relationships: --next must be an App Store Connect URL",
+			wantErr: "localizations screenshot-sets links: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "localizations screenshot-sets relationships: --next must be a valid URL:",
+			wantErr: "localizations screenshot-sets links: --next must be a valid URL:",
 		},
 	}
 
@@ -470,7 +470,7 @@ func TestLocalizationsScreenshotSetsRelationshipsRejectsInvalidNextURL(t *testin
 
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"localizations", "screenshot-sets", "relationships", "--next", test.next}); err != nil {
+				if err := root.Parse([]string{"localizations", "screenshot-sets", "links", "--next", test.next}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				runErr = root.Run(context.Background())
@@ -538,7 +538,7 @@ func TestLocalizationsScreenshotSetsRelationshipsPaginateFromNextWithoutLocaliza
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"localizations", "screenshot-sets", "relationships", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"localizations", "screenshot-sets", "links", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
