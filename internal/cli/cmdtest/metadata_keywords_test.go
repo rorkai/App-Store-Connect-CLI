@@ -422,6 +422,140 @@ func TestMetadataKeywordsImportCSVNormalizesRowDuplicatesAndChineseCommas(t *tes
 	}
 }
 
+func TestMetadataKeywordsImportJSONIgnoresResearchSideFields(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords.json")
+	input := `{
+		"en-US": {
+			"keywords": ["habit tracker", "mood journal"],
+			"popularity": 42,
+			"difficulty": 31,
+			"notes": "high intent",
+			"tags": ["opportunity"],
+			"history": [{"rank": 7}]
+		}
+	}`
+	if err := os.WriteFile(inputPath, []byte(input), 0o644); err != nil {
+		t.Fatalf("write json: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "import",
+			"--dir", dir,
+			"--version", "1.2.3",
+			"--input", inputPath,
+			"--format", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		Results []struct {
+			Locale       string `json:"locale"`
+			KeywordField string `json:"keywordField"`
+			KeywordCount int    `json:"keywordCount"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Locale != "en-US" || payload.Results[0].KeywordField != "habit tracker,mood journal" || payload.Results[0].KeywordCount != 2 {
+		t.Fatalf("unexpected output payload: %+v", payload.Results)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "version", "1.2.3", "en-US.json"))
+	if err != nil {
+		t.Fatalf("read canonical file: %v", err)
+	}
+	var filePayload map[string]any
+	if err := json.Unmarshal(data, &filePayload); err != nil {
+		t.Fatalf("unmarshal canonical file: %v", err)
+	}
+	if len(filePayload) != 1 {
+		t.Fatalf("expected only publishable metadata fields in canonical file, got %+v", filePayload)
+	}
+	if filePayload["keywords"] != "habit tracker,mood journal" {
+		t.Fatalf("expected canonical keywords only, got %+v", filePayload)
+	}
+}
+
+func TestMetadataKeywordsImportCSVIgnoresResearchColumns(t *testing.T) {
+	dir := t.TempDir()
+	versionDir := filepath.Join(dir, "version", "1.2.3")
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		t.Fatalf("mkdir version dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "en-US.json"), []byte(`{"description":"Existing description"}`), 0o644); err != nil {
+		t.Fatalf("write existing file: %v", err)
+	}
+
+	inputPath := filepath.Join(t.TempDir(), "keywords.csv")
+	input := "locale,keyword,popularity,difficulty,notes,tags,rank\nen-US,habit tracker,42,31,high intent,opportunity,7\nen-US,mood journal,35,28,secondary,core,9\n"
+	if err := os.WriteFile(inputPath, []byte(input), 0o644); err != nil {
+		t.Fatalf("write csv: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "import",
+			"--dir", dir,
+			"--version", "1.2.3",
+			"--input", inputPath,
+			"--format", "csv",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		Results []struct {
+			Locale       string `json:"locale"`
+			KeywordField string `json:"keywordField"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Locale != "en-US" || payload.Results[0].KeywordField != "habit tracker,mood journal" {
+		t.Fatalf("unexpected output payload: %+v", payload.Results)
+	}
+
+	data, err := os.ReadFile(filepath.Join(versionDir, "en-US.json"))
+	if err != nil {
+		t.Fatalf("read canonical file: %v", err)
+	}
+	var filePayload map[string]any
+	if err := json.Unmarshal(data, &filePayload); err != nil {
+		t.Fatalf("unmarshal canonical file: %v", err)
+	}
+	if len(filePayload) != 2 {
+		t.Fatalf("expected only description and keywords in canonical file, got %+v", filePayload)
+	}
+	if filePayload["description"] != "Existing description" || filePayload["keywords"] != "habit tracker,mood journal" {
+		t.Fatalf("unexpected canonical metadata contents: %+v", filePayload)
+	}
+}
+
 func TestMetadataKeywordsLocalizeSkipsExistingWithoutOverwrite(t *testing.T) {
 	dir := t.TempDir()
 	versionDir := filepath.Join(dir, "version", "1.2.3")

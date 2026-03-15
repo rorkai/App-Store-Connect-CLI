@@ -934,6 +934,14 @@ func collectMetadataKeywordJSON(payload any, defaultLocale string) (map[string][
 
 		result := make(map[string][]string)
 		for rawLocale, rawKeywords := range value {
+			if object, ok := rawKeywords.(map[string]any); ok && looksLikeMetadataKeywordLocalizationObject(object) {
+				locale, keywords, err := parseMetadataKeywordJSONObject(object, rawLocale)
+				if err != nil {
+					return nil, shared.UsageErrorf("json locale %q: %v", rawLocale, err)
+				}
+				result[locale] = append(result[locale], keywords...)
+				continue
+			}
 			keywords, err := decodeMetadataKeywordValue(rawKeywords)
 			if err != nil {
 				return nil, shared.UsageErrorf("json locale %q: %v", rawLocale, err)

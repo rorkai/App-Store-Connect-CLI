@@ -80,3 +80,32 @@ func TestBuildMetadataKeywordFieldNormalizesMixedInput(t *testing.T) {
 		t.Fatalf("expected count 3, got %d", count)
 	}
 }
+
+func TestParseMetadataKeywordJSONAcceptsLocaleMapObjectsWithSideData(t *testing.T) {
+	got, err := parseMetadataKeywordJSON([]byte(`{
+		"en-US": {
+			"keywords": ["habit tracker", "mood journal"],
+			"popularity": 42,
+			"difficulty": 30,
+			"notes": "high intent",
+			"tags": ["opportunity"]
+		},
+		"fr-FR": {
+			"keyword": "journal humeur",
+			"rank": 5
+		}
+	}`), "")
+	if err != nil {
+		t.Fatalf("parseMetadataKeywordJSON() error: %v", err)
+	}
+
+	if len(got) != 2 {
+		t.Fatalf("expected 2 locales, got %d: %v", len(got), got)
+	}
+	if len(got["en-US"]) != 2 || got["en-US"][0] != "habit tracker" || got["en-US"][1] != "mood journal" {
+		t.Fatalf("unexpected en-US keywords: %v", got["en-US"])
+	}
+	if len(got["fr-FR"]) != 1 || got["fr-FR"][0] != "journal humeur" {
+		t.Fatalf("unexpected fr-FR keywords: %v", got["fr-FR"])
+	}
+}
