@@ -189,8 +189,51 @@ func TestValidateLocaleCanonicalizesKnownLocale(t *testing.T) {
 	}
 }
 
+func TestValidateLocaleCanonicalizesCommonAliases(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{input: "en_US", want: "en-US"},
+		{input: "de", want: "de-DE"},
+		{input: "english-us", want: "en-US"},
+		{input: "czech-cs", want: "cs"},
+		{input: "zh_TW", want: "zh-Hant"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			got, err := validateLocale(test.input)
+			if err != nil {
+				t.Fatalf("validateLocale() error: %v", err)
+			}
+			if got != test.want {
+				t.Fatalf("expected %q, got %q", test.want, got)
+			}
+		})
+	}
+}
+
+func TestValidateLocaleRejectsAmbiguousLanguageWithSuggestions(t *testing.T) {
+	_, err := validateLocale("english")
+	if err == nil {
+		t.Fatal("expected ambiguous locale error")
+	}
+	for _, want := range []string{`ambiguous locale "english"`, "en-AU", "en-CA", "en-GB", "en-US"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected error to contain %q, got %v", want, err)
+		}
+	}
+}
+
 func TestValidateLocaleRejectsUnsupportedLocale(t *testing.T) {
-	if _, err := validateLocale("en-ZZ"); err == nil {
+	_, err := validateLocale("en-ZZ")
+	if err == nil {
 		t.Fatal("expected unsupported locale error")
+	}
+	for _, want := range []string{`unsupported locale "en-ZZ"`, "use one of", "en-AU", "en-US"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected error to contain %q, got %v", want, err)
+		}
 	}
 }

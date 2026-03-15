@@ -19,8 +19,14 @@ func LocalizationsSearchKeywordsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "search-keywords",
 		ShortUsage: "asc localizations search-keywords <subcommand> [flags]",
-		ShortHelp:  "Manage search keywords for an App Store localization.",
-		LongHelp: `Manage search keywords for an App Store localization.
+		ShortHelp:  "Manage raw search-keyword relationships for an App Store localization.",
+		LongHelp: `Manage raw search-keyword relationships for an App Store localization.
+
+This command wraps the low-level App Store Connect ` + "`searchKeywords`" + `
+relationship API for App Store version localizations.
+
+For canonical version-localization keyword workflows, use
+` + "`asc metadata keywords ...`" + ` instead.
 
 Examples:
   asc localizations search-keywords list --localization-id "LOCALIZATION_ID"

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/suggest"
 )
 
 const (
@@ -69,6 +70,122 @@ var supportedMetadataLocaleByFold = func() map[string]string {
 	for _, locale := range supportedMetadataLocales {
 		result[strings.ToLower(locale)] = locale
 	}
+	return result
+}()
+
+var metadataLocaleCandidatesByRoot = func() map[string][]string {
+	result := make(map[string][]string)
+	for _, locale := range supportedMetadataLocales {
+		root := metadataLocaleRoot(locale)
+		result[root] = append(result[root], locale)
+	}
+	for root := range result {
+		sort.Strings(result[root])
+	}
+	return result
+}()
+
+var metadataLocaleCandidatesByLanguageName = map[string][]string{
+	"arabic":     {"ar-SA"},
+	"catalan":    {"ca"},
+	"chinese":    {"zh-Hans", "zh-Hant"},
+	"croatian":   {"hr"},
+	"czech":      {"cs"},
+	"danish":     {"da"},
+	"dutch":      {"nl-NL"},
+	"english":    {"en-AU", "en-CA", "en-GB", "en-US"},
+	"finnish":    {"fi"},
+	"french":     {"fr-CA", "fr-FR"},
+	"german":     {"de-DE"},
+	"greek":      {"el"},
+	"hebrew":     {"he"},
+	"hindi":      {"hi"},
+	"hungarian":  {"hu"},
+	"indonesian": {"id"},
+	"italian":    {"it"},
+	"japanese":   {"ja"},
+	"korean":     {"ko"},
+	"malay":      {"ms"},
+	"norwegian":  {"no"},
+	"polish":     {"pl"},
+	"portuguese": {"pt-BR", "pt-PT"},
+	"romanian":   {"ro"},
+	"russian":    {"ru"},
+	"slovak":     {"sk"},
+	"spanish":    {"es-ES", "es-MX"},
+	"swedish":    {"sv"},
+	"thai":       {"th"},
+	"turkish":    {"tr"},
+	"ukrainian":  {"uk"},
+	"vietnamese": {"vi"},
+}
+
+var metadataLocaleAliases = func() map[string]string {
+	result := make(map[string]string)
+	add := func(alias string, canonical string) {
+		result[normalizeMetadataLocaleAliasKey(alias)] = canonical
+	}
+
+	for _, locale := range supportedMetadataLocales {
+		add(locale, locale)
+		add(strings.ReplaceAll(locale, "-", "_"), locale)
+	}
+
+	add("ar", "ar-SA")
+	add("arabic-ar", "ar-SA")
+	add("catalan-ca", "ca")
+	add("croatian-hr", "hr")
+	add("czech-cs", "cs")
+	add("danish-da", "da")
+	add("de", "de-DE")
+	add("dutch-nl", "nl-NL")
+	add("english-au", "en-AU")
+	add("english-australia", "en-AU")
+	add("english-ca", "en-CA")
+	add("english-canada", "en-CA")
+	add("english-gb", "en-GB")
+	add("english-uk", "en-GB")
+	add("en-uk", "en-GB")
+	add("english-us", "en-US")
+	add("english-u-s", "en-US")
+	add("french-ca", "fr-CA")
+	add("french-canada", "fr-CA")
+	add("french-fr", "fr-FR")
+	add("french-france", "fr-FR")
+	add("german-de", "de-DE")
+	add("hebrew-he", "he")
+	add("hindi-hi", "hi")
+	add("hungarian-hu", "hu")
+	add("japanese-ja", "ja")
+	add("korean-ko", "ko")
+	add("norwegian-no", "no")
+	add("polish-pl", "pl")
+	add("portuguese-br", "pt-BR")
+	add("portuguese-brazil", "pt-BR")
+	add("portuguese-pt", "pt-PT")
+	add("portuguese-portugal", "pt-PT")
+	add("romanian-ro", "ro")
+	add("russian-ru", "ru")
+	add("slovak-sk", "sk")
+	add("spanish-es", "es-ES")
+	add("spanish-spain", "es-ES")
+	add("spanish-mexico", "es-MX")
+	add("spanish-mx", "es-MX")
+	add("swedish-sv", "sv")
+	add("thai-th", "th")
+	add("turkish-tr", "tr")
+	add("ukrainian-uk", "uk")
+	add("vietnamese-vi", "vi")
+	add("zh-cn", "zh-Hans")
+	add("zh-sg", "zh-Hans")
+	add("chinese-simplified", "zh-Hans")
+	add("chinese-simplified-cn", "zh-Hans")
+	add("zh-tw", "zh-Hant")
+	add("zh-hk", "zh-Hant")
+	add("zh-mo", "zh-Hant")
+	add("chinese-traditional", "zh-Hant")
+	add("chinese-traditional-tw", "zh-Hant")
+
 	return result
 }()
 
@@ -368,14 +485,101 @@ func validateLocale(locale string) (string, error) {
 	if strings.EqualFold(resolved, DefaultLocale) {
 		return DefaultLocale, nil
 	}
-	if len(resolved) > 20 || !localePattern.MatchString(resolved) {
+
+	normalizedCode := normalizeMetadataLocaleCode(resolved)
+	if canonical, ok := supportedMetadataLocaleByFold[strings.ToLower(normalizedCode)]; ok {
+		return canonical, nil
+	}
+
+	aliasKey := normalizeMetadataLocaleAliasKey(resolved)
+	if canonical, ok := metadataLocaleAliases[aliasKey]; ok {
+		return canonical, nil
+	}
+
+	if candidates, ok := metadataLocaleCandidatesByLanguageName[aliasKey]; ok {
+		if len(candidates) == 1 {
+			return candidates[0], nil
+		}
+		return "", fmt.Errorf("ambiguous locale %q; use one of: %s", resolved, strings.Join(candidates, ", "))
+	}
+
+	root := metadataLocaleRoot(normalizedCode)
+	if candidates, ok := metadataLocaleCandidatesByRoot[root]; ok && root != "" {
+		if strings.EqualFold(normalizedCode, root) {
+			if len(candidates) == 1 {
+				return candidates[0], nil
+			}
+			return "", fmt.Errorf("ambiguous locale %q; use one of: %s", resolved, strings.Join(candidates, ", "))
+		}
+		if len(candidates) > 0 {
+			return "", fmt.Errorf("unsupported locale %q; use one of: %s", resolved, strings.Join(candidates, ", "))
+		}
+	}
+
+	if len(normalizedCode) > 20 || !localePattern.MatchString(normalizedCode) {
+		if suggestions := metadataLocaleSuggestions(aliasKey); len(suggestions) > 0 {
+			return "", fmt.Errorf("invalid locale %q; did you mean: %s", resolved, strings.Join(suggestions, ", "))
+		}
 		return "", fmt.Errorf("invalid locale %q", resolved)
 	}
-	canonical, ok := supportedMetadataLocaleByFold[strings.ToLower(resolved)]
-	if !ok {
-		return "", fmt.Errorf("unsupported locale %q", resolved)
+
+	if suggestions := metadataLocaleSuggestions(normalizedCode); len(suggestions) > 0 {
+		return "", fmt.Errorf("unsupported locale %q; did you mean: %s", resolved, strings.Join(suggestions, ", "))
 	}
-	return canonical, nil
+	return "", fmt.Errorf("unsupported locale %q", resolved)
+}
+
+func normalizeMetadataLocaleCode(value string) string {
+	return strings.ReplaceAll(strings.TrimSpace(value), "_", "-")
+}
+
+func normalizeMetadataLocaleAliasKey(value string) string {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	var b strings.Builder
+	lastHyphen := false
+	for _, r := range normalized {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			b.WriteRune(r)
+			lastHyphen = false
+		case r == '-' || r == '_' || r == ' ' || r == '(' || r == ')' || r == '.':
+			if !lastHyphen && b.Len() > 0 {
+				b.WriteByte('-')
+				lastHyphen = true
+			}
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+func metadataLocaleRoot(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	parts := strings.SplitN(strings.ToLower(trimmed), "-", 2)
+	return parts[0]
+}
+
+func metadataLocaleSuggestions(value string) []string {
+	suggestions := suggest.Commands(strings.ToLower(strings.TrimSpace(value)), supportedMetadataLocales)
+	if len(suggestions) == 0 {
+		return nil
+	}
+	result := make([]string, 0, len(suggestions))
+	seen := make(map[string]struct{}, len(suggestions))
+	for _, item := range suggestions {
+		canonical, ok := supportedMetadataLocaleByFold[strings.ToLower(item)]
+		if !ok {
+			continue
+		}
+		if _, exists := seen[canonical]; exists {
+			continue
+		}
+		seen[canonical] = struct{}{}
+		result = append(result, canonical)
+	}
+	return result
 }
 
 func validatePathSegment(label, value string) (string, error) {
@@ -390,6 +594,22 @@ func validatePathSegment(label, value string) (string, error) {
 		return "", fmt.Errorf("invalid %s %q", label, trimmed)
 	}
 	return trimmed, nil
+}
+
+func recordCanonicalLocaleFile(seen map[string]string, canonicalLocale string, fileName string) error {
+	if seen == nil {
+		return nil
+	}
+	if prior, exists := seen[canonicalLocale]; exists && prior != fileName {
+		return fmt.Errorf(
+			"duplicate canonical locale %q from files %q and %q",
+			canonicalLocale,
+			prior,
+			fileName,
+		)
+	}
+	seen[canonicalLocale] = fileName
+	return nil
 }
 
 func hasAppInfoContent(loc AppInfoLocalization) bool {

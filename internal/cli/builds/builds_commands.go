@@ -403,7 +403,8 @@ Examples:
   asc builds beta-app-review-submission get --build "BUILD_ID"
   asc builds build-beta-detail get --build "BUILD_ID"
   asc builds links view --build "BUILD_ID" --type "app"
-  asc builds metrics beta-usages --build "BUILD_ID"`,
+  asc builds metrics beta-usages --build "BUILD_ID"
+  asc builds dsyms --build "BUILD_ID" --output-dir "./dsyms"`,
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -429,6 +430,7 @@ Examples:
 			BuildsRelationshipsCommand(),
 			deprecatedBuildsRelationshipsAliasCommand(),
 			BuildsMetricsCommand(),
+			BuildsDsymsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

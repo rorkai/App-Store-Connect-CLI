@@ -221,6 +221,42 @@ func TestMetadataValidateAcceptsDefaultLocaleFiles(t *testing.T) {
 	}
 }
 
+func TestMetadataValidateRejectsDuplicateCanonicalLocaleFiles(t *testing.T) {
+	dir := t.TempDir()
+	versionDir := filepath.Join(dir, "version", "1.2.3")
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		t.Fatalf("mkdir version dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "en-US.json"), []byte(`{"description":"One"}`), 0o644); err != nil {
+		t.Fatalf("write en-US file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "en_US.json"), []byte(`{"description":"Two"}`), 0o644); err != nil {
+		t.Fatalf("write en_US file: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"metadata", "validate", "--dir", dir}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	for _, want := range []string{`duplicate canonical locale "en-US"`, `"en-US.json"`, `"en_US.json"`} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+		}
+	}
+}
+
 func TestMetadataValidateReportsErrorForEmptyDirectory(t *testing.T) {
 	dir := t.TempDir()
 

@@ -302,6 +302,101 @@ func TestSubmitCancelCommand_ByVersionIDNotFoundReportsLegacySubmissionError(t *
 	}
 }
 
+func TestIsAppUpdate_IncludesReleasedAndRemovedStatesFilters(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			return nil, fmt.Errorf("unexpected method: %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-123/appStoreVersions" {
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+
+		query := req.URL.Query()
+		if got := query.Get("filter[platform]"); got != "IOS" {
+			return nil, fmt.Errorf("unexpected filter[platform]: got %q want %q", got, "IOS")
+		}
+		if got := query.Get("filter[appStoreState]"); got != "READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE" {
+			return nil, fmt.Errorf("unexpected filter[appStoreState]: %q", got)
+		}
+		if got := query.Get("limit"); got != "1" {
+			return nil, fmt.Errorf("unexpected limit: got %q want %q", got, "1")
+		}
+
+		return submitJSONResponse(http.StatusOK, `{
+			"data": [
+				{
+					"type": "appStoreVersions",
+					"id": "version-1",
+					"attributes": {}
+				}
+			]
+		}`)
+	}))
+
+	isUpdate, err := isAppUpdate(context.Background(), client, "app-123", "IOS")
+	if err != nil {
+		t.Fatalf("isAppUpdate() error = %v", err)
+	}
+	if !isUpdate {
+		t.Fatal("isAppUpdate() = false, want true when released/removed versions exist")
+	}
+}
+
+func TestIsAppUpdate_EmptyPlatformSkipsPlatformFilter(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			return nil, fmt.Errorf("unexpected method: %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-123/appStoreVersions" {
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+
+		query := req.URL.Query()
+		if got := query.Get("filter[platform]"); got != "" {
+			return nil, fmt.Errorf("did not expect filter[platform], got %q", got)
+		}
+		if got := query.Get("filter[appStoreState]"); got != "READY_FOR_SALE,DEVELOPER_REMOVED_FROM_SALE,REMOVED_FROM_SALE" {
+			return nil, fmt.Errorf("unexpected filter[appStoreState]: %q", got)
+		}
+		if got := query.Get("limit"); got != "1" {
+			return nil, fmt.Errorf("unexpected limit: got %q want %q", got, "1")
+		}
+
+		return submitJSONResponse(http.StatusOK, `{"data":[]}`)
+	}))
+
+	isUpdate, err := isAppUpdate(context.Background(), client, "app-123", "   ")
+	if err != nil {
+		t.Fatalf("isAppUpdate() error = %v", err)
+	}
+	if isUpdate {
+		t.Fatal("isAppUpdate() = true, want false when no versions are returned")
+	}
+}
+
+func TestIsAppUpdate_PropagatesClientErrors(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			return nil, fmt.Errorf("unexpected method: %s", req.Method)
+		}
+		if req.URL.Path != "/v1/apps/app-123/appStoreVersions" {
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+		return submitJSONResponse(http.StatusInternalServerError, `{
+			"errors": [{
+				"status": "500",
+				"code": "INTERNAL_ERROR",
+				"title": "Internal Server Error"
+			}]
+		}`)
+	}))
+
+	_, err := isAppUpdate(context.Background(), client, "app-123", "IOS")
+	if err == nil {
+		t.Fatal("isAppUpdate() error = nil, want non-nil")
+	}
+}
+
 func TestExtractExistingSubmissionID(t *testing.T) {
 	t.Run("returns submission ID from associated error", func(t *testing.T) {
 		err := &asc.APIError{

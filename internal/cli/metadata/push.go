@@ -103,8 +103,9 @@ type appInfoLocalPatch struct {
 }
 
 type versionLocalPatch struct {
-	localization VersionLocalization
-	setFields    map[string]string
+	localization       VersionLocalization
+	createLocalization VersionLocalization
+	setFields          map[string]string
 }
 
 // MetadataPushCommand returns the metadata push subcommand.
@@ -183,6 +184,7 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 		return localMetadataBundle{}, fmt.Errorf("metadata push: failed to read %s: %w", appInfoDir, err)
 	}
 	if err == nil {
+		seenAppInfoLocales := make(map[string]string)
 		for _, entry := range appInfoEntries {
 			if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 				continue
@@ -191,6 +193,9 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 			resolvedLocale, localeErr := validateLocale(locale)
 			if localeErr != nil {
 				return localMetadataBundle{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), localeErr)
+			}
+			if err := recordCanonicalLocaleFile(seenAppInfoLocales, resolvedLocale, entry.Name()); err != nil {
+				return localMetadataBundle{}, shared.UsageError(err.Error())
 			}
 			filePath := filepath.Join(appInfoDir, entry.Name())
 			patch, readErr := readAppInfoLocalizationPatchFromFile(filePath)
@@ -218,6 +223,7 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 		return localMetadataBundle{}, fmt.Errorf("metadata push: failed to read %s: %w", versionDir, err)
 	}
 	if err == nil {
+		seenVersionLocales := make(map[string]string)
 		for _, entry := range versionEntries {
 			if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 				continue
@@ -226,6 +232,9 @@ func loadLocalMetadata(dir, version string) (localMetadataBundle, error) {
 			resolvedLocale, localeErr := validateLocale(locale)
 			if localeErr != nil {
 				return localMetadataBundle{}, shared.UsageErrorf("invalid version localization file %q: %v", entry.Name(), localeErr)
+			}
+			if err := recordCanonicalLocaleFile(seenVersionLocales, resolvedLocale, entry.Name()); err != nil {
+				return localMetadataBundle{}, shared.UsageError(err.Error())
 			}
 			filePath := filepath.Join(versionDir, entry.Name())
 			patch, readErr := readVersionLocalizationPatchFromFile(filePath)
@@ -532,8 +541,9 @@ func cloneAppInfoLocalPatch(patch appInfoLocalPatch) appInfoLocalPatch {
 
 func cloneVersionLocalPatch(patch versionLocalPatch) versionLocalPatch {
 	return versionLocalPatch{
-		localization: patch.localization,
-		setFields:    cloneStringMap(patch.setFields),
+		localization:       patch.localization,
+		createLocalization: patch.createLocalization,
+		setFields:          cloneStringMap(patch.setFields),
 	}
 }
 
@@ -752,7 +762,11 @@ func applyVersionChanges(
 
 		switch {
 		case !remoteExists:
-			resp, err := client.CreateAppStoreVersionLocalization(ctx, versionID, versionAttributes(locale, localPatch.localization, true))
+			createLoc := localPatch.localization
+			if hasVersionContent(localPatch.createLocalization) {
+				createLoc = localPatch.createLocalization
+			}
+			resp, err := client.CreateAppStoreVersionLocalization(ctx, versionID, versionAttributes(locale, createLoc, true))
 			if err != nil {
 				return nil, fmt.Errorf("create version localization %s: %w", locale, err)
 			}

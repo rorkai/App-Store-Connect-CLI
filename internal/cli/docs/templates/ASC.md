@@ -149,7 +149,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `pricing` - Manage app pricing and availability.
 - `pre-orders` - Manage app pre-orders.
 - `localizations` - Manage App Store localization metadata.
-- `metadata` - Pull, validate, and push canonical metadata workflows.
+- `metadata` - Pull, validate, push, and keyword-sync canonical metadata workflows.
 - `screenshots` - Upload and manage App Store screenshots; local capture/frame workflow is `[experimental]`.
 - `background-assets` - Manage background assets.
 - `build-localizations` - Manage build release notes localizations.

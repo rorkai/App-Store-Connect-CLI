@@ -322,6 +322,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/a6/6f/1d/a66f1dd5-40fb-a7e8-f089-53f1790e67d7/AppIcon-0-0-1x_U007epad-0-1-0-85-220.png/512x512bb.jpg"
   },
   {
+    "app": "Neurona: Binaural Beats",
+    "link": "https://apps.apple.com/us/app/neurona-binaural-beats/id6757725304?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/1c/77/66/1c776632-25a0-9af7-38ac-2d6c31d42826/icon_composed-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "Notch: Target Scoring Tracker",
     "link": "https://apps.apple.com/us/app/notch-target-scoring-tracker/id6747980153?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d7/83/48/d783480d-74fa-4033-44ce-f4154c3ab7de/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
@@ -369,6 +374,11 @@
     "app": "Pickle Rite",
     "link": "https://apps.apple.com/us/app/pickle-rite/id6754095362",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/cb/8f/0b/cb8f0b7e-ba14-a1cf-49ef-09c64d9ce87e/AppIcon-0-0-1x_U007ephone-0-1-0-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "Pico-8 Emulator: Picpic",
+    "link": "https://apps.apple.com/us/app/pico-8-emulator-picpic/id6759208792?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/e7/cb/5c/e7cb5c08-a96f-f0f3-3642-416e1bba991e/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg"
   },
   {
     "app": "Planit: Gamified Daily Planner",

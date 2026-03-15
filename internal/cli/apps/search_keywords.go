@@ -20,8 +20,14 @@ func AppsSearchKeywordsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "search-keywords",
 		ShortUsage: "asc apps search-keywords <subcommand> [flags]",
-		ShortHelp:  "Manage search keywords for an app.",
-		LongHelp: `Manage search keywords for an app.
+		ShortHelp:  "Manage raw search-keyword relationships for an app.",
+		LongHelp: `Manage raw search-keyword relationships for an app.
+
+This command wraps the low-level App Store Connect ` + "`searchKeywords`" + `
+relationship API for apps.
+
+For canonical version-localization keyword workflows, use
+` + "`asc metadata keywords ...`" + ` instead.
 
 Examples:
   asc apps search-keywords list --app "APP_ID"

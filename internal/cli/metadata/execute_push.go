@@ -122,21 +122,7 @@ func ExecutePush(ctx context.Context, opts PushExecutionOptions) (PushPlanResult
 		})
 	}
 
-	remoteVersion := make(map[string]VersionLocalization, len(remoteVersionItems))
-	for _, item := range remoteVersionItems {
-		locale := strings.TrimSpace(item.Attributes.Locale)
-		if locale == "" {
-			continue
-		}
-		remoteVersion[locale] = NormalizeVersionLocalization(VersionLocalization{
-			Description:     item.Attributes.Description,
-			Keywords:        item.Attributes.Keywords,
-			MarketingURL:    item.Attributes.MarketingURL,
-			PromotionalText: item.Attributes.PromotionalText,
-			SupportURL:      item.Attributes.SupportURL,
-			WhatsNew:        item.Attributes.WhatsNew,
-		})
-	}
+	remoteVersion := remoteVersionItemsToVersionMap(remoteVersionItems)
 
 	localAppInfo := applyDefaultAppInfoFallback(localBundle.appInfo, localBundle.defaultAppInfo, remoteAppInfo, opts.AllowDeletes)
 	localVersion := applyDefaultVersionFallback(localBundle.version, localBundle.defaultVersion, remoteVersion, opts.AllowDeletes)

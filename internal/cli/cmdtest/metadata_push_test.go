@@ -252,6 +252,52 @@ func TestMetadataPushDryRunBuildsPlanWithoutMutations(t *testing.T) {
 	}
 }
 
+func TestMetadataPushRejectsDuplicateCanonicalLocaleFiles(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	dir := t.TempDir()
+	versionDir := filepath.Join(dir, "version", "1.2.3")
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		t.Fatalf("mkdir version dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "de-DE.json"), []byte(`{"keywords":"eins,zwei"}`), 0o644); err != nil {
+		t.Fatalf("write de-DE file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "de.json"), []byte(`{"keywords":"drei,vier"}`), 0o644); err != nil {
+		t.Fatalf("write de file: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "push",
+			"--app", "app-1",
+			"--version", "1.2.3",
+			"--dir", dir,
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	for _, want := range []string{`duplicate canonical locale "de-DE"`, `"de-DE.json"`, `"de.json"`} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+		}
+	}
+}
+
 func TestMetadataPushDryRunOmittedFieldsDoNotPlanDeletes(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

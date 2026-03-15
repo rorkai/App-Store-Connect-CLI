@@ -116,6 +116,7 @@ func validateDir(dir string, subscriptionApp bool) (ValidateResult, error) {
 		return ValidateResult{}, fmt.Errorf("metadata validate: failed to read %s: %w", appInfoDir, err)
 	}
 	if err == nil {
+		seenAppInfoLocales := make(map[string]string)
 		for _, entry := range appInfoEntries {
 			if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 				continue
@@ -124,6 +125,9 @@ func validateDir(dir string, subscriptionApp bool) (ValidateResult, error) {
 			resolvedLocale, localeErr := validateLocale(locale)
 			if localeErr != nil {
 				return ValidateResult{}, shared.UsageErrorf("invalid app-info localization file %q: %v", entry.Name(), localeErr)
+			}
+			if err := recordCanonicalLocaleFile(seenAppInfoLocales, resolvedLocale, entry.Name()); err != nil {
+				return ValidateResult{}, shared.UsageError(err.Error())
 			}
 			filePath := filepath.Join(appInfoDir, entry.Name())
 
@@ -160,6 +164,7 @@ func validateDir(dir string, subscriptionApp bool) (ValidateResult, error) {
 			}
 			version := versionEntry.Name()
 			versionPath := filepath.Join(versionDir, version)
+			seenVersionLocales := make(map[string]string)
 
 			localeEntries, localeErr := os.ReadDir(versionPath)
 			if localeErr != nil {
@@ -174,6 +179,9 @@ func validateDir(dir string, subscriptionApp bool) (ValidateResult, error) {
 				resolvedLocale, localeErr := validateLocale(locale)
 				if localeErr != nil {
 					return ValidateResult{}, shared.UsageErrorf("invalid version localization file %q: %v", localeEntry.Name(), localeErr)
+				}
+				if err := recordCanonicalLocaleFile(seenVersionLocales, resolvedLocale, localeEntry.Name()); err != nil {
+					return ValidateResult{}, shared.UsageError(err.Error())
 				}
 				filePath := filepath.Join(versionPath, localeEntry.Name())
 
