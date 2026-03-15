@@ -1534,6 +1534,10 @@ func filterKeywordRemoteItems(items []asc.Resource[asc.AppStoreVersionLocalizati
 }
 
 func keywordRemoteToVersionMap(items []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) map[string]VersionLocalization {
+	return remoteVersionItemsToVersionMap(items)
+}
+
+func remoteVersionItemsToVersionMap(items []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) map[string]VersionLocalization {
 	result := make(map[string]VersionLocalization, len(items))
 	for _, item := range items {
 		locale := strings.TrimSpace(item.Attributes.Locale)
