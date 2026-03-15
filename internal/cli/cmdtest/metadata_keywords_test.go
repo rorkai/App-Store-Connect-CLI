@@ -490,6 +490,54 @@ func TestMetadataKeywordsImportCSVNormalizesRowDuplicatesAndChineseCommas(t *tes
 	}
 }
 
+func TestMetadataKeywordsImportCSVAcceptsUTF8BOMHeader(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(t.TempDir(), "keywords-bom.csv")
+	input := "\ufefflocale,keyword\nen-US,habit tracker\nen-US,mood journal\n"
+	if err := os.WriteFile(inputPath, []byte(input), 0o644); err != nil {
+		t.Fatalf("write csv: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "import",
+			"--dir", dir,
+			"--version", "1.2.3",
+			"--input", inputPath,
+			"--format", "csv",
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		DetectedLocales []string `json:"detectedLocales"`
+		Results         []struct {
+			Locale       string `json:"locale"`
+			KeywordField string `json:"keywordField"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if len(payload.DetectedLocales) != 1 || payload.DetectedLocales[0] != "en-US" {
+		t.Fatalf("expected detected en-US locale, got %+v", payload.DetectedLocales)
+	}
+	if len(payload.Results) != 1 || payload.Results[0].Locale != "en-US" || payload.Results[0].KeywordField != "habit tracker,mood journal" {
+		t.Fatalf("unexpected BOM csv payload: %+v", payload.Results)
+	}
+}
+
 func TestMetadataKeywordsImportJSONIgnoresResearchSideFields(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(t.TempDir(), "keywords.json")

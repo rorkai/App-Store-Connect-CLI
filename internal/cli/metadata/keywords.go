@@ -630,9 +630,6 @@ Examples:
 			); err != nil {
 				return err
 			}
-			if !result.Import.Valid {
-				return shared.NewReportedError(fmt.Errorf("metadata keywords sync: found %d import issue(s)", len(result.Import.Issues)))
-			}
 			return nil
 		},
 	}
@@ -1583,7 +1580,8 @@ func metadataKeywordHeaderIndex(headers map[string]int, names ...string) (int, b
 }
 
 func normalizeMetadataKeywordHeader(value string) string {
-	normalized := strings.ToLower(strings.TrimSpace(value))
+	normalized := strings.TrimSpace(strings.TrimPrefix(value, "\ufeff"))
+	normalized = strings.ToLower(normalized)
 	normalized = strings.ReplaceAll(normalized, " ", "")
 	normalized = strings.ReplaceAll(normalized, "-", "")
 	normalized = strings.ReplaceAll(normalized, "_", "")
