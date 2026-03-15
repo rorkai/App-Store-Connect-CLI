@@ -1068,6 +1068,36 @@ func TestRemoveAllCredentials(t *testing.T) {
 	}
 }
 
+func TestRemoveAllCredentials_ClearsStoredKeychainMetadata(t *testing.T) {
+	withArrayKeyring(t)
+
+	path, err := config.Path()
+	if err != nil {
+		t.Fatalf("config.Path() error: %v", err)
+	}
+	if err := config.SaveAt(path, &config.Config{
+		KeychainMetadata: []config.KeychainMetadata{{
+			Name:     "legacy",
+			KeyID:    "KEY123",
+			IssuerID: "ISS456",
+		}},
+	}); err != nil {
+		t.Fatalf("config.SaveAt() error: %v", err)
+	}
+
+	if err := RemoveAllCredentials(); err != nil {
+		t.Fatalf("RemoveAllCredentials() error: %v", err)
+	}
+
+	cfg, err := config.LoadAt(path)
+	if err != nil {
+		t.Fatalf("config.LoadAt() error: %v", err)
+	}
+	if len(cfg.KeychainMetadata) != 0 {
+		t.Fatalf("expected keychain metadata to be cleared, got %#v", cfg.KeychainMetadata)
+	}
+}
+
 func TestStoreCredentialsFallbackToConfig(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
@@ -1346,6 +1376,41 @@ func TestRemoveCredentials_TrimsName(t *testing.T) {
 	}
 	if _, err := newKr.Get(keyringKey("trim-key")); !errors.Is(err, keyring.ErrKeyNotFound) {
 		t.Fatalf("expected credential to be removed, got %v", err)
+	}
+}
+
+func TestRemoveCredentials_ClearsStoredKeychainMetadata(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	newKr, _ := withSeparateKeyrings(t)
+
+	storeCredentialInKeyring(t, newKr, "trim-key", "KEY123", "ISS456", "/tmp/AuthKey.p8")
+
+	path, err := config.Path()
+	if err != nil {
+		t.Fatalf("config.Path() error: %v", err)
+	}
+	if err := config.SaveAt(path, &config.Config{
+		KeychainMetadata: []config.KeychainMetadata{
+			{Name: "trim-key", KeyID: "KEY123", IssuerID: "ISS456"},
+			{Name: "keep", KeyID: "KEY999", IssuerID: "ISS999"},
+		},
+	}); err != nil {
+		t.Fatalf("config.SaveAt() error: %v", err)
+	}
+
+	if err := RemoveCredentials("trim-key"); err != nil {
+		t.Fatalf("RemoveCredentials() error: %v", err)
+	}
+
+	cfg, err := config.LoadAt(path)
+	if err != nil {
+		t.Fatalf("config.LoadAt() error: %v", err)
+	}
+	if len(cfg.KeychainMetadata) != 1 {
+		t.Fatalf("expected one remaining keychain metadata record, got %#v", cfg.KeychainMetadata)
+	}
+	if cfg.KeychainMetadata[0].Name != "keep" {
+		t.Fatalf("expected keep metadata to remain, got %#v", cfg.KeychainMetadata)
 	}
 }
 

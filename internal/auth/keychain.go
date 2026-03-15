@@ -350,6 +350,7 @@ func clearConfigCredentialsAt(path string) error {
 	cfg.PrivateKeyPath = ""
 	cfg.DefaultKeyName = ""
 	cfg.Keys = nil
+	cfg.KeychainMetadata = nil
 	return config.SaveAt(path, cfg)
 }
 
@@ -475,6 +476,11 @@ func RemoveCredentials(name string) error {
 	}
 	err := removeFromKeychain(name)
 	if err == nil {
+		if configErr := removeFromConfigIfPresent(name); configErr != nil &&
+			!errors.Is(configErr, config.ErrNotFound) &&
+			!errors.Is(configErr, keyring.ErrKeyNotFound) {
+			return configErr
+		}
 		_ = removeFromLegacyKeychain(name)
 		return clearDefaultNameIf(name)
 	}
@@ -484,6 +490,11 @@ func RemoveCredentials(name string) error {
 	if errors.Is(err, keyring.ErrKeyNotFound) {
 		legacyErr := removeFromLegacyKeychain(name)
 		if legacyErr == nil {
+			if configErr := removeFromConfigIfPresent(name); configErr != nil &&
+				!errors.Is(configErr, config.ErrNotFound) &&
+				!errors.Is(configErr, keyring.ErrKeyNotFound) {
+				return configErr
+			}
 			return clearDefaultNameIf(name)
 		}
 		if isKeyringUnavailable(legacyErr) {
@@ -1496,6 +1507,7 @@ func removeFromConfigAt(name, path string) error {
 		cfg.PrivateKeyPath = ""
 		cfg.DefaultKeyName = ""
 		cfg.Keys = nil
+		cfg.KeychainMetadata = nil
 		return config.SaveAt(path, cfg)
 	}
 
@@ -1510,6 +1522,17 @@ func removeFromConfigAt(name, path string) error {
 			filtered = append(filtered, cred)
 		}
 		cfg.Keys = filtered
+	}
+	if len(cfg.KeychainMetadata) > 0 {
+		filteredMetadata := cfg.KeychainMetadata[:0]
+		for _, entry := range cfg.KeychainMetadata {
+			if strings.TrimSpace(entry.Name) == name {
+				removed = true
+				continue
+			}
+			filteredMetadata = append(filteredMetadata, entry)
+		}
+		cfg.KeychainMetadata = filteredMetadata
 	}
 
 	if strings.TrimSpace(cfg.DefaultKeyName) == name {
