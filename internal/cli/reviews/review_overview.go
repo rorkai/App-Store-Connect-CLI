@@ -246,7 +246,7 @@ func buildReviewSnapshot(ctx context.Context, client *asc.Client, appID, version
 		submissionOpts = append(submissionOpts, asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}))
 	}
 
-	reviewSubmissions, err := client.GetReviewSubmissions(ctx, appID, submissionOpts...)
+	reviewSubmissions, err := fetchAllReviewSubmissions(ctx, client, appID, submissionOpts...)
 	if err != nil {
 		return snapshot, fmt.Errorf("fetch review submissions: %w", err)
 	}
@@ -254,9 +254,36 @@ func buildReviewSnapshot(ctx context.Context, client *asc.Client, appID, version
 	if versionContext != nil {
 		selectedVersionID = strings.TrimSpace(versionContext.ID)
 	}
-	snapshot.LatestSubmission = selectRelevantReviewSubmission(reviewSubmissions.Data, selectedVersionID)
+	snapshot.LatestSubmission = selectRelevantReviewSubmission(reviewSubmissions, selectedVersionID)
 
 	return snapshot, nil
+}
+
+func fetchAllReviewSubmissions(ctx context.Context, client *asc.Client, appID string, opts ...asc.ReviewSubmissionsOption) ([]asc.ReviewSubmissionResource, error) {
+	firstPage, err := client.GetReviewSubmissions(ctx, appID, opts...)
+	if err != nil {
+		return nil, err
+	}
+	if firstPage == nil {
+		return []asc.ReviewSubmissionResource{}, nil
+	}
+
+	resp, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetReviewSubmissions(ctx, appID, asc.WithReviewSubmissionsNextURL(nextURL))
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	aggregated, ok := resp.(*asc.ReviewSubmissionsResponse)
+	if !ok {
+		return nil, fmt.Errorf("unexpected review submissions pagination response type %T", resp)
+	}
+	if aggregated == nil || aggregated.Data == nil {
+		return []asc.ReviewSubmissionResource{}, nil
+	}
+
+	return aggregated.Data, nil
 }
 
 func resolveReviewVersion(ctx context.Context, client *asc.Client, appID, version, versionID, platform string) (*reviewVersionContext, error) {
