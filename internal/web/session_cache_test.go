@@ -818,6 +818,36 @@ func TestDeleteAllSessionsJoinsLegacyCleanupError(t *testing.T) {
 	}
 }
 
+func TestDeleteSessionSkipsLegacyCleanupWhenDisabled(t *testing.T) {
+	legacyCachePath := filepath.Join(t.TempDir(), "legacy-cache-file")
+	if err := os.WriteFile(legacyCachePath, []byte("not-a-directory"), 0o600); err != nil {
+		t.Fatalf("write legacy cache file: %v", err)
+	}
+
+	t.Setenv(webSessionBackendEnv, "off")
+	t.Setenv(legacyIrisSessionCacheEnabledEnv, "0")
+	t.Setenv(legacyIrisSessionCacheDirEnv, legacyCachePath)
+
+	if err := DeleteSession("user@example.com"); err != nil {
+		t.Fatalf("expected disabled legacy cleanup to be skipped, got %v", err)
+	}
+}
+
+func TestDeleteAllSessionsSkipsLegacyCleanupWhenDisabled(t *testing.T) {
+	legacyCachePath := filepath.Join(t.TempDir(), "legacy-cache-file")
+	if err := os.WriteFile(legacyCachePath, []byte("not-a-directory"), 0o600); err != nil {
+		t.Fatalf("write legacy cache file: %v", err)
+	}
+
+	t.Setenv(webSessionBackendEnv, "off")
+	t.Setenv(legacyIrisSessionCacheEnabledEnv, "0")
+	t.Setenv(legacyIrisSessionCacheDirEnv, legacyCachePath)
+
+	if err := DeleteAllSessions(); err != nil {
+		t.Fatalf("expected disabled legacy cleanup to be skipped, got %v", err)
+	}
+}
+
 func persistedCookieValue(sess persistedSession, baseURL, cookieName string) string {
 	list := sess.Cookies[baseURL]
 	for _, cookie := range list {

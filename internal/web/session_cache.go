@@ -674,6 +674,9 @@ func deleteLegacyIrisLastKeyFromFile() error {
 }
 
 func deleteLegacyIrisSessionArtifacts(key string) error {
+	if !legacyIrisSessionCacheEnabled() {
+		return nil
+	}
 	if err := deleteLegacyIrisSessionFromFile(key); err != nil {
 		return err
 	}
@@ -688,6 +691,9 @@ func deleteLegacyIrisSessionArtifacts(key string) error {
 }
 
 func deleteAllLegacyIrisFromFile() error {
+	if !legacyIrisSessionCacheEnabled() {
+		return nil
+	}
 	dir, err := legacyIrisSessionCacheDir()
 	if err != nil {
 		return err
