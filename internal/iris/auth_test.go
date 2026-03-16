@@ -268,7 +268,7 @@ func TestSubmitTrustedDeviceCodeReturnsMarshalError(t *testing.T) {
 		},
 	}
 
-	err := submitTrustedDeviceCode(session, "123456")
+	err := submitTrustedDeviceCode(context.Background(), session, "123456")
 	if !errors.Is(err, sentinel) {
 		t.Fatalf("expected marshal error, got %v", err)
 	}
@@ -296,7 +296,7 @@ func TestSubmitPhoneCodeReturnsMarshalError(t *testing.T) {
 		},
 	}
 
-	err := submitPhoneCode(session, "123456", 7, "sms")
+	err := submitPhoneCode(context.Background(), session, "123456", 7, "sms")
 	if !errors.Is(err, sentinel) {
 		t.Fatalf("expected marshal error, got %v", err)
 	}
@@ -367,7 +367,7 @@ func TestSubmitTwoFactorCodeUsesPreparedPhoneFlow(t *testing.T) {
 		twoFactorDestination: "+1 (•••) •••-••66",
 	}
 
-	if err := SubmitTwoFactorCode(session, "123456"); err != nil {
+	if err := SubmitTwoFactorCode(context.Background(), session, "123456"); err != nil {
 		t.Fatalf("SubmitTwoFactorCode returned error: %v", err)
 	}
 	if session.ProviderID != 123 {
@@ -441,7 +441,7 @@ func TestSubmitTwoFactorCodeFallsBackToPhoneAfterTrustedDeviceFailure(t *testing
 		twoFactorPhoneMode: "sms",
 	}
 
-	if err := SubmitTwoFactorCode(session, "123456"); err != nil {
+	if err := SubmitTwoFactorCode(context.Background(), session, "123456"); err != nil {
 		t.Fatalf("SubmitTwoFactorCode returned error: %v", err)
 	}
 }
@@ -515,8 +515,31 @@ func TestSubmitTwoFactorCodeDoesNotForcePhoneRequestBeforeVerification(t *testin
 		SCNT:             "scnt-token",
 	}
 
-	if err := SubmitTwoFactorCode(session, "123456"); err != nil {
+	if err := SubmitTwoFactorCode(context.Background(), session, "123456"); err != nil {
 		t.Fatalf("SubmitTwoFactorCode returned error: %v", err)
+	}
+}
+
+func TestSubmitTwoFactorCodeHonorsContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if got := req.Context().Err(); !errors.Is(got, context.Canceled) {
+					t.Fatalf("expected canceled request context, got %v", got)
+				}
+				return nil, req.Context().Err()
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
+	}
+
+	if err := SubmitTwoFactorCode(ctx, session, "123456"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation, got %v", err)
 	}
 }
 

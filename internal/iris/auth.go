@@ -965,7 +965,10 @@ func EnsureTwoFactorCodeRequested(ctx context.Context, session *AuthSession) (*T
 // SubmitTwoFactorCode completes Apple 2FA for an existing SRP session.
 //
 // This is used when Login() returns a non-nil session with a *TwoFactorRequiredError.
-func SubmitTwoFactorCode(session *AuthSession, code string) error {
+func SubmitTwoFactorCode(ctx context.Context, session *AuthSession, code string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if session == nil || session.Client == nil {
 		return fmt.Errorf("session is required")
 	}
@@ -977,23 +980,23 @@ func SubmitTwoFactorCode(session *AuthSession, code string) error {
 		return fmt.Errorf("session is missing 2FA continuation state")
 	}
 
-	challenge, err := PrepareTwoFactorChallenge(context.Background(), session)
+	challenge, err := PrepareTwoFactorChallenge(ctx, session)
 	if err != nil {
 		return err
 	}
 
 	switch challenge.Method {
 	case twoFactorMethodPhone:
-		if err := submitPhoneCode(session, code, session.twoFactorPhoneID, session.twoFactorPhoneMode); err != nil {
+		if err := submitPhoneCode(ctx, session, code, session.twoFactorPhoneID, session.twoFactorPhoneMode); err != nil {
 			return err
 		}
 		return finalizeTwoFactor(session)
 	case twoFactorMethodTrustedDevice:
-		if err := submitTrustedDeviceCode(session, code); err != nil {
+		if err := submitTrustedDeviceCode(ctx, session, code); err != nil {
 			if session.twoFactorPhoneID == 0 {
 				return err
 			}
-			if phoneErr := submitPhoneCode(session, code, session.twoFactorPhoneID, session.twoFactorPhoneMode); phoneErr != nil {
+			if phoneErr := submitPhoneCode(ctx, session, code, session.twoFactorPhoneID, session.twoFactorPhoneMode); phoneErr != nil {
 				return phoneErr
 			}
 		}
@@ -1003,7 +1006,10 @@ func SubmitTwoFactorCode(session *AuthSession, code string) error {
 	}
 }
 
-func submitTrustedDeviceCode(session *AuthSession, code string) error {
+func submitTrustedDeviceCode(ctx context.Context, session *AuthSession, code string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	payload := map[string]interface{}{
 		"securityCode": map[string]string{"code": code},
 	}
@@ -1012,7 +1018,7 @@ func submitTrustedDeviceCode(session *AuthSession, code string) error {
 		return fmt.Errorf("failed to marshal trusted-device payload: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", authServiceURL+"/verify/trusteddevice/securitycode", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", authServiceURL+"/verify/trusteddevice/securitycode", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -1038,7 +1044,10 @@ func submitTrustedDeviceCode(session *AuthSession, code string) error {
 	return &twoFAVerificationFailedError{Kind: "trusted-device", Status: resp.StatusCode, Body: respBody}
 }
 
-func submitPhoneCode(session *AuthSession, code string, phoneID int, mode string) error {
+func submitPhoneCode(ctx context.Context, session *AuthSession, code string, phoneID int, mode string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	payload := map[string]interface{}{
 		"securityCode": map[string]string{"code": code},
 		"phoneNumber":  map[string]int{"id": phoneID},
@@ -1049,7 +1058,7 @@ func submitPhoneCode(session *AuthSession, code string, phoneID int, mode string
 		return fmt.Errorf("failed to marshal phone payload: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", authServiceURL+"/verify/phone/securitycode", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", authServiceURL+"/verify/phone/securitycode", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
