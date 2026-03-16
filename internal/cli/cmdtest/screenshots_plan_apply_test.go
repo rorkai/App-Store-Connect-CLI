@@ -37,6 +37,11 @@ func TestScreenshotsPlanAndApplyValidationErrors(t *testing.T) {
 			args:    []string{"screenshots", "apply", "--app", "123456789", "--version", "1.2.3"},
 			wantErr: "--confirm is required to apply screenshot uploads",
 		},
+		{
+			name:    "screenshots apply positional args rejected",
+			args:    []string{"screenshots", "apply", "--app", "123456789", "--version", "1.2.3", "--confirm", "extra"},
+			wantErr: "screenshots apply does not accept positional arguments",
+		},
 	}
 
 	for _, test := range tests {

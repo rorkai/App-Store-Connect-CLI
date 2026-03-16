@@ -404,6 +404,15 @@ func selectRelevantReviewSubmission(submissions []asc.ReviewSubmissionResource, 
 
 	best := filtered[0]
 	for _, current := range filtered[1:] {
+		cmp := compareRFC3339DateStrings(current.Attributes.SubmittedDate, best.Attributes.SubmittedDate)
+		if cmp > 0 {
+			best = current
+			continue
+		}
+		if cmp < 0 {
+			continue
+		}
+
 		bestPriority := reviewSubmissionPriority(best.Attributes.SubmissionState)
 		currentPriority := reviewSubmissionPriority(current.Attributes.SubmissionState)
 		if currentPriority > bestPriority {
@@ -414,8 +423,7 @@ func selectRelevantReviewSubmission(submissions []asc.ReviewSubmissionResource, 
 			continue
 		}
 
-		cmp := compareRFC3339DateStrings(current.Attributes.SubmittedDate, best.Attributes.SubmittedDate)
-		if cmp > 0 || (cmp == 0 && current.ID > best.ID) {
+		if current.ID > best.ID {
 			best = current
 		}
 	}

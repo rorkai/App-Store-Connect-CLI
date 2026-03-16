@@ -530,6 +530,109 @@ func TestReviewStatusPaginatesVersionsBeforeSelectingLatestTarget(t *testing.T) 
 	}
 }
 
+func TestReviewStatusPrefersNewestSubmissionForSelectedVersion(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/appStoreVersions/ver-2":
+			if req.URL.Query().Get("include") != "app" {
+				t.Fatalf("expected include=app, got %q", req.URL.Query().Get("include"))
+			}
+			return statusJSONResponse(`{
+				"data":{
+					"type":"appStoreVersions",
+					"id":"ver-2",
+					"attributes":{
+						"platform":"IOS",
+						"versionString":"2.0.0",
+						"appVersionState":"PREPARE_FOR_SUBMISSION"
+					},
+					"relationships":{
+						"app":{"data":{"type":"apps","id":"123456789"}}
+					}
+				}
+			}`), nil
+		case "/v1/appStoreVersions/ver-2/appStoreReviewDetail":
+			return statusJSONResponse(`{
+				"data":{
+					"type":"appStoreReviewDetails",
+					"id":"detail-2",
+					"attributes":{"contactEmail":"dev@example.com"}
+				}
+			}`), nil
+		case "/v1/apps/123456789/reviewSubmissions":
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"reviewSubmissions",
+						"id":"review-sub-older",
+						"attributes":{"state":"UNRESOLVED_ISSUES","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+						"relationships":{
+							"appStoreVersionForReview":{
+								"data":{"type":"appStoreVersions","id":"ver-2"}
+							}
+						}
+					},
+					{
+						"type":"reviewSubmissions",
+						"id":"review-sub-newer",
+						"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-16T01:00:00Z"},
+						"relationships":{
+							"appStoreVersionForReview":{
+								"data":{"type":"appStoreVersions","id":"ver-2"}
+							}
+						}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"review", "status", "--app", "123456789", "--version-id", "ver-2"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+	if payload["reviewState"] != "COMPLETE" {
+		t.Fatalf("expected reviewState COMPLETE, got %v", payload["reviewState"])
+	}
+
+	latestSubmission, ok := payload["latestSubmission"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected latestSubmission object, got %T", payload["latestSubmission"])
+	}
+	if latestSubmission["id"] != "review-sub-newer" {
+		t.Fatalf("expected latest submission id review-sub-newer, got %v", latestSubmission["id"])
+	}
+}
+
 func TestReviewStatusAndDoctorRejectVersionIDFromDifferentApp(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
