@@ -297,9 +297,11 @@ func TestClientLookupAPIKeyRolesReturnsTeamListErrorWhenFallbackMisses(t *testin
 	}
 
 	_, err := client.LookupAPIKeyRoles(context.Background(), "missing")
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusForbidden {
-		t.Fatalf("expected team-list APIError 403, got %v", err)
+	if !errors.Is(err, ErrAPIKeyNotVisible) {
+		t.Fatalf("expected ErrAPIKeyNotVisible, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "missing") {
+		t.Fatalf("expected key id in error, got %v", err)
 	}
 }
 

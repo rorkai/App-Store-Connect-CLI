@@ -123,6 +123,11 @@ func TestWrapWebAuthCapabilitiesErrorFormatsLookupFailures(t *testing.T) {
 		t.Fatalf("unexpected not-found error: %v", err)
 	}
 
+	err = wrapWebAuthCapabilitiesError("missing", webcore.ErrAPIKeyNotVisible)
+	if err == nil || !strings.Contains(err.Error(), "not visible in the accessible App Store Connect web key lists") {
+		t.Fatalf("unexpected not-visible error: %v", err)
+	}
+
 	err = wrapWebAuthCapabilitiesError("missing", webcore.ErrAPIKeyRolesUnresolved)
 	if err == nil || !strings.Contains(err.Error(), "exact roles could not be resolved") {
 		t.Fatalf("unexpected unresolved error: %v", err)

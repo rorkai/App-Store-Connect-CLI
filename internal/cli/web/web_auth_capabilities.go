@@ -154,6 +154,9 @@ func wrapWebAuthCapabilitiesError(keyID string, err error) error {
 	if errors.Is(err, webcore.ErrAPIKeyNotFound) {
 		return fmt.Errorf("web auth capabilities failed: key %q not found in App Store Connect web key lists", keyID)
 	}
+	if errors.Is(err, webcore.ErrAPIKeyNotVisible) {
+		return fmt.Errorf("web auth capabilities failed: key %q is not visible in the accessible App Store Connect web key lists (team key list may be unavailable to this account)", keyID)
+	}
 	if errors.Is(err, webcore.ErrAPIKeyRolesUnresolved) {
 		return fmt.Errorf("web auth capabilities failed: exact roles could not be resolved for key %q", keyID)
 	}

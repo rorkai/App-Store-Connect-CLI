@@ -16,6 +16,7 @@ const (
 
 var (
 	ErrAPIKeyNotFound        = errors.New("api key not found")
+	ErrAPIKeyNotVisible      = errors.New("api key not visible in accessible key lists")
 	ErrAPIKeyRolesUnresolved = errors.New("api key roles could not be resolved")
 )
 
@@ -456,7 +457,7 @@ func (c *Client) LookupAPIKeyRoles(ctx context.Context, keyID string) (*APIKeyRo
 	}
 
 	if teamErr != nil {
-		return nil, teamErr
+		return nil, fmt.Errorf("%w: %s", ErrAPIKeyNotVisible, keyID)
 	}
 	return nil, fmt.Errorf("%w: %s", ErrAPIKeyNotFound, keyID)
 }
