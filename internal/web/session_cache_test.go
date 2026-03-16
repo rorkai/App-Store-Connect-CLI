@@ -512,6 +512,66 @@ func TestTryResumeSessionMigratesLegacyIrisFileCache(t *testing.T) {
 	}
 }
 
+func TestTryResumeSessionMigratesLegacyIrisFileCacheKeepsUnrelatedLastMarker(t *testing.T) {
+	withSessionInfoStub(t)
+	webDir := filepath.Join(t.TempDir(), "web-cache")
+	legacyDir := filepath.Join(t.TempDir(), "iris-cache")
+	t.Setenv(webSessionBackendEnv, "file")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionCacheDirEnv, webDir)
+	t.Setenv(legacyIrisSessionCacheEnabledEnv, "1")
+	t.Setenv(legacyIrisSessionCacheDirEnv, legacyDir)
+
+	if err := os.MkdirAll(legacyDir, 0o700); err != nil {
+		t.Fatalf("mkdir legacy dir: %v", err)
+	}
+
+	firstKey := webSessionCacheKey("first@example.com")
+	secondKey := webSessionCacheKey("second@example.com")
+	legacy := persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+		Cookies: map[string][]pCookie{
+			"https://appstoreconnect.apple.com/": {
+				{Name: "myacinfo", Value: "legacy-iris-token", Path: "/", Expires: time.Now().Add(24 * time.Hour)},
+			},
+		},
+	}
+	raw, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatalf("marshal legacy iris session: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(legacyDir, "session-"+firstKey+".json"), raw, 0o600); err != nil {
+		t.Fatalf("write first legacy iris session: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(legacyDir, "session-"+secondKey+".json"), raw, 0o600); err != nil {
+		t.Fatalf("write second legacy iris session: %v", err)
+	}
+	lastRaw, err := json.Marshal(persistedLastSession{Version: webSessionCacheVersion, Key: secondKey})
+	if err != nil {
+		t.Fatalf("marshal unrelated last marker: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(legacyDir, "last.json"), lastRaw, 0o600); err != nil {
+		t.Fatalf("write unrelated last marker: %v", err)
+	}
+
+	resumed, ok, err := TryResumeSession(context.Background(), "first@example.com")
+	if err != nil {
+		t.Fatalf("TryResumeSession error: %v", err)
+	}
+	if !ok || resumed == nil {
+		t.Fatal("expected resumed migrated iris session")
+	}
+
+	lastKey, ok, err := readLegacyIrisLastKeyFromFile()
+	if err != nil {
+		t.Fatalf("readLegacyIrisLastKeyFromFile error: %v", err)
+	}
+	if !ok || lastKey != secondKey {
+		t.Fatalf("expected unrelated legacy last marker to remain %q, got %q (ok=%v)", secondKey, lastKey, ok)
+	}
+}
+
 func TestTryResumeLastSessionMigratesLegacyIrisLastFileCache(t *testing.T) {
 	withSessionInfoStub(t)
 	webDir := filepath.Join(t.TempDir(), "web-cache")
