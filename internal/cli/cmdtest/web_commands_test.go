@@ -43,6 +43,13 @@ func TestWebAppsCreateSubcommandIsRegistered(t *testing.T) {
 	}
 }
 
+func TestWebAuthCapabilitiesSubcommandIsRegistered(t *testing.T) {
+	root := RootCommand("1.2.3")
+	if sub := findSubcommand(root, "web", "auth", "capabilities"); sub == nil {
+		t.Fatalf("expected web auth capabilities to be registered")
+	}
+}
+
 func TestWebXcodeCloudWorkflowsCreateSubcommandIsRegistered(t *testing.T) {
 	root := RootCommand("1.2.3")
 	if sub := findSubcommand(root, "web", "xcode-cloud", "workflows", "create"); sub == nil {

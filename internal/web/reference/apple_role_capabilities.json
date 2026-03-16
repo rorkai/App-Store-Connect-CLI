@@ -1,0 +1,271 @@
+{
+  "last_verified": "2026-03-16",
+  "purpose": "Reference snapshot of Apple-documented App Store Connect role capabilities and API-key constraints. This file is for agent/runtime reference, not authorization logic.",
+  "limitations": [
+    "Exact role lookup comes from the live App Store Connect web session, but the expanded capabilities below come from this bundled Apple documentation snapshot.",
+    "Apple documents some permissions as conditional, separately granted, or account-state dependent, so role mapping is not endpoint-by-endpoint proof of access."
+  ],
+  "sources": [
+    {
+      "title": "Apple Developer Program Roles",
+      "url": "https://developer.apple.com/help/account/access/roles/"
+    },
+    {
+      "title": "Role permissions",
+      "url": "https://developer.apple.com/help/app-store-connect/reference/account-management/role-permissions"
+    },
+    {
+      "title": "App Store Connect API",
+      "url": "https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api"
+    }
+  ],
+  "api_key_notes": {
+    "team_keys": {
+      "required_creator_roles": [
+        "ACCOUNT_HOLDER",
+        "ADMIN"
+      ],
+      "team_scope": "Team API keys apply across all apps. Apple says app access cannot be limited for a team API key.",
+      "editable_after_creation": false,
+      "selectable_roles": [
+        "ADMIN",
+        "APP_MANAGER",
+        "DEVELOPER",
+        "FINANCE",
+        "SALES",
+        "CUSTOMER_SUPPORT",
+        "MARKETING"
+      ]
+    },
+    "individual_keys": {
+      "eligible_user_roles": [
+        "ACCOUNT_HOLDER",
+        "ADMIN",
+        "APP_MANAGER",
+        "CUSTOMER_SUPPORT",
+        "DEVELOPER",
+        "MARKETING"
+      ],
+      "one_active_key_per_user": true,
+      "default_generation_permission": "All App Store Connect users can generate and revoke their own individual API key unless an Admin or Account Holder revokes the Generate Individual API Keys permission.",
+      "manageable_by": [
+        "ACCOUNT_HOLDER",
+        "ADMIN"
+      ]
+    }
+  },
+  "capability_groups": [
+    {
+      "id": "request_api_access",
+      "label": "Request App Store Connect API access",
+      "summary": "Apple documents this as Account Holder only."
+    },
+    {
+      "id": "generate_team_keys",
+      "label": "Generate team API keys",
+      "summary": "Apple documents this as Account Holder or Admin."
+    },
+    {
+      "id": "manage_all_team_and_individual_keys",
+      "label": "View and manage all team and individual API keys",
+      "summary": "Apple documents this as Account Holder or Admin."
+    },
+    {
+      "id": "generate_individual_keys",
+      "label": "Generate individual API keys",
+      "summary": "Allowed for eligible App Store Connect users unless an Admin or Account Holder revokes the Generate Individual API Keys permission."
+    },
+    {
+      "id": "all_apps_access",
+      "label": "Access to all apps",
+      "summary": "Admins have access to all apps. Finance can view all apps in reporting surfaces."
+    },
+    {
+      "id": "app_pricing_and_store_info",
+      "label": "Manage app pricing and App Store information",
+      "summary": "Examples from Apple's role permissions page include setting app price, scheduling price changes, and creating a new version."
+    },
+    {
+      "id": "app_development_and_delivery",
+      "label": "Manage app development and delivery",
+      "summary": "Includes build and delivery responsibilities."
+    },
+    {
+      "id": "marketing_and_promotional_artwork",
+      "label": "Manage marketing materials and promotional artwork",
+      "summary": "Marketing role summary from Apple."
+    },
+    {
+      "id": "customer_reviews",
+      "label": "Analyze and respond to customer reviews",
+      "summary": "Role permissions page includes viewing ratings and reviews and responding to reviews."
+    },
+    {
+      "id": "app_analytics",
+      "label": "View App Analytics",
+      "summary": "Examples from Apple's role permissions page include viewing app metrics, acquisition sources, retention, benchmarks, and downloading App Analytics reports."
+    },
+    {
+      "id": "sales_and_trends",
+      "label": "View Sales and Trends",
+      "summary": "Examples from Apple's role permissions page include viewing units, proceeds, sales, pre-orders, subscription data, and downloading reports."
+    },
+    {
+      "id": "payments_financial_reports_and_tax",
+      "label": "Payments, financial reports, and tax forms",
+      "summary": "Finance role summary from Apple."
+    },
+    {
+      "id": "certificates_identifiers_profiles_default",
+      "label": "Certificates, Identifiers & Profiles by default",
+      "summary": "Apple explicitly says Admins on organization teams have Certificates, Identifiers & Profiles by default."
+    },
+    {
+      "id": "legal_membership_sensitive_account_holder_only",
+      "label": "Legal and membership-sensitive actions",
+      "summary": "Apple documents these as Account Holder only: signing legal agreements, renewing membership, requesting API access, removing auto-renewable subscriptions from sale, submitting Safari Extensions, and creating Developer ID certificates."
+    }
+  ],
+  "roles": [
+    {
+      "code": "ACCOUNT_HOLDER",
+      "label": "Account Holder",
+      "team_key_selectable": false,
+      "individual_key_eligible": true,
+      "summary": "Primary team contact with access to all aspects of App Store Connect, including legal agreements with Apple.",
+      "capabilities": [
+        "request_api_access",
+        "generate_team_keys",
+        "manage_all_team_and_individual_keys",
+        "generate_individual_keys",
+        "all_apps_access",
+        "app_pricing_and_store_info",
+        "app_development_and_delivery",
+        "marketing_and_promotional_artwork",
+        "customer_reviews",
+        "app_analytics",
+        "sales_and_trends",
+        "payments_financial_reports_and_tax",
+        "certificates_identifiers_profiles_default",
+        "legal_membership_sensitive_account_holder_only"
+      ],
+      "notes": [
+        "Apple's current roles documentation says the Account Holder can access all aspects of App Store Connect."
+      ],
+      "notable_exclusive_actions": [
+        "Sign legal agreements",
+        "Renew membership",
+        "Request access to the App Store Connect API",
+        "Remove auto-renewable subscriptions from sale",
+        "Submit Safari Extensions",
+        "Create Developer ID certificates"
+      ]
+    },
+    {
+      "code": "ADMIN",
+      "label": "Admin",
+      "team_key_selectable": true,
+      "individual_key_eligible": true,
+      "summary": "Secondary team contact with access to all apps and many of the same responsibilities as the Account Holder.",
+      "capabilities": [
+        "generate_team_keys",
+        "manage_all_team_and_individual_keys",
+        "generate_individual_keys",
+        "all_apps_access",
+        "app_pricing_and_store_info",
+        "app_development_and_delivery",
+        "marketing_and_promotional_artwork",
+        "customer_reviews",
+        "app_analytics",
+        "sales_and_trends",
+        "payments_financial_reports_and_tax",
+        "certificates_identifiers_profiles_default"
+      ],
+      "notes": [
+        "Apple says Admins on organization teams have Certificates, Identifiers & Profiles by default."
+      ]
+    },
+    {
+      "code": "FINANCE",
+      "label": "Finance",
+      "team_key_selectable": true,
+      "individual_key_eligible": false,
+      "summary": "Manages financial information, including downloading reports and uploading tax forms.",
+      "capabilities": [
+        "payments_financial_reports_and_tax",
+        "sales_and_trends",
+        "app_analytics",
+        "all_apps_access"
+      ],
+      "notes": [
+        "Apple says Finance can view all apps in Payments and Financial Reports, Sales and Trends, and App Analytics."
+      ]
+    },
+    {
+      "code": "APP_MANAGER",
+      "label": "App Manager",
+      "team_key_selectable": true,
+      "individual_key_eligible": true,
+      "summary": "Manages all aspects of an app, including pricing, App Store information, and app development and delivery.",
+      "capabilities": [
+        "app_pricing_and_store_info",
+        "app_development_and_delivery"
+      ],
+      "example_tasks": [
+        "Set a price",
+        "Schedule price changes for apps",
+        "Create a new version",
+        "Release a version update in phases"
+      ]
+    },
+    {
+      "code": "DEVELOPER",
+      "label": "Developer",
+      "team_key_selectable": true,
+      "individual_key_eligible": true,
+      "summary": "Manages development and delivery of an app.",
+      "capabilities": [
+        "app_development_and_delivery"
+      ]
+    },
+    {
+      "code": "MARKETING",
+      "label": "Marketing",
+      "team_key_selectable": true,
+      "individual_key_eligible": true,
+      "summary": "Manages marketing materials and promotional artwork and may be contacted by Apple about featuring.",
+      "capabilities": [
+        "marketing_and_promotional_artwork"
+      ]
+    },
+    {
+      "code": "SALES",
+      "label": "Sales",
+      "ui_aliases": [
+        "Sales and Reports"
+      ],
+      "team_key_selectable": true,
+      "individual_key_eligible": false,
+      "summary": "Analyzes sales, downloads, and other analytics for an app.",
+      "capabilities": [
+        "sales_and_trends",
+        "app_analytics"
+      ]
+    },
+    {
+      "code": "CUSTOMER_SUPPORT",
+      "label": "Customer Support",
+      "team_key_selectable": true,
+      "individual_key_eligible": true,
+      "summary": "Analyzes and responds to customer reviews on the App Store.",
+      "capabilities": [
+        "customer_reviews"
+      ],
+      "example_tasks": [
+        "View ratings and reviews",
+        "Respond to reviews",
+        "Reset an app overview rating"
+      ]
+    }
+  ]
+}

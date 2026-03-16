@@ -300,6 +300,47 @@ func TestClientDoRequestHonorsCanceledContext(t *testing.T) {
 	}
 }
 
+func TestClientDoRequestBaseUsesProvidedBaseAndHeaders(t *testing.T) {
+	var (
+		gotPath    string
+		gotAccept  string
+		gotReferer string
+	)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path + "?" + r.URL.RawQuery
+		gotAccept = r.Header.Get("Accept")
+		gotReferer = r.Header.Get("Referer")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer server.Close()
+
+	client := &Client{
+		httpClient: server.Client(),
+		baseURL:    "https://unused.example.test",
+	}
+	headers := make(http.Header)
+	headers.Set("Accept", "application/vnd.api+json")
+	headers.Set("Referer", "https://example.test/access/integrations/api")
+
+	if _, err := client.doRequestBase(context.Background(), server.URL+"/iris/v2", http.MethodGet, "/apiKeys?limit=1", nil, headers); err != nil {
+		t.Fatalf("doRequestBase() error: %v", err)
+	}
+
+	if gotPath != "/iris/v2/apiKeys?limit=1" {
+		t.Fatalf("expected request path %q, got %q", "/iris/v2/apiKeys?limit=1", gotPath)
+	}
+	if gotAccept != "application/vnd.api+json" {
+		t.Fatalf("expected accept header override, got %q", gotAccept)
+	}
+	if gotReferer != "https://example.test/access/integrations/api" {
+		t.Fatalf("expected referer header override, got %q", gotReferer)
+	}
+	if headers.Get("Content-Type") != "" {
+		t.Fatalf("expected caller headers to remain unmodified, got content-type %q", headers.Get("Content-Type"))
+	}
+}
+
 func TestResolveWebMinRequestInterval(t *testing.T) {
 	t.Run("default interval", func(t *testing.T) {
 		t.Setenv(webMinRequestIntervalEnv, "")

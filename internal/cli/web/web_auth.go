@@ -259,6 +259,7 @@ This is not the official App Store Connect API-key auth flow.
 		Subcommands: []*ffcli.Command{
 			WebAuthLoginCommand(),
 			WebAuthStatusCommand(),
+			WebAuthCapabilitiesCommand(),
 			WebAuthLogoutCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {

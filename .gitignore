@@ -4,6 +4,7 @@
 # Build output
 /build/
 /dist/
+.gocache/
 
 # Binaries for programs and plugins
 *.exe
@@ -46,4 +47,3 @@ worktrees/
 
 # asc screenshots capture output (root-level only; internal/screenshots is code)
 /screenshots/
-
