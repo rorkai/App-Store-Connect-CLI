@@ -36,8 +36,9 @@ const (
 	DefaultBaseDelay  = 1 * time.Second
 	DefaultMaxDelay   = 30 * time.Second
 
-	defaultMaxIdleConns        = 128
-	defaultMaxIdleConnsPerHost = 32
+	defaultMaxIdleConns         = 128
+	defaultMaxIdleConnsPerHost  = 32
+	defaultMutatingRequestLimit = 4
 )
 
 var retryLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
@@ -481,6 +482,9 @@ type Client struct {
 	jwtMu              sync.Mutex
 	cachedJWT          string
 	cachedJWTExpiresAt time.Time
+
+	mutatingRequestLimiterOnce sync.Once
+	mutatingRequestLimiter     chan struct{}
 }
 
 // NewClient creates a new ASC client.
@@ -552,4 +556,13 @@ func newClientWithPrivateKey(keyID, issuerID string, privateKey *ecdsa.PrivateKe
 		issuerID:   issuerID,
 		privateKey: privateKey,
 	}
+}
+
+func (c *Client) getMutatingRequestLimiter() chan struct{} {
+	c.mutatingRequestLimiterOnce.Do(func() {
+		if c.mutatingRequestLimiter == nil {
+			c.mutatingRequestLimiter = make(chan struct{}, defaultMutatingRequestLimit)
+		}
+	})
+	return c.mutatingRequestLimiter
 }

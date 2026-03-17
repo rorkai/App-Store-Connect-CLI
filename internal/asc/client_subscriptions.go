@@ -290,13 +290,14 @@ func (c *Client) SetSubscriptionInitialPrice(ctx context.Context, subID, pricePo
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
 	path := fmt.Sprintf("/v1/subscriptions/%s", subID)
-	data, err := c.do(ctx, http.MethodPatch, path, body)
+	data, err := c.doRetriedSubscriptionMutation(ctx, func() ([]byte, error) {
+		body, err := BuildRequestBody(payload)
+		if err != nil {
+			return nil, err
+		}
+		return c.do(ctx, http.MethodPatch, path, body)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -361,25 +362,13 @@ func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointI
 		},
 	}
 
-	retryOpts := ResolveRetryOptions()
-	data, err := WithRetry(ctx, func() ([]byte, error) {
+	data, err := c.doRetriedSubscriptionMutation(ctx, func() ([]byte, error) {
 		body, err := BuildRequestBody(payload)
 		if err != nil {
 			return nil, err
 		}
-
-		data, err := c.do(ctx, http.MethodPost, "/v1/subscriptionPrices", body)
-		if err != nil {
-			if IsRetryable(err) {
-				return nil, err
-			}
-			if isRetryableSubscriptionPriceCreateError(err) {
-				return nil, &RetryableError{Err: err}
-			}
-			return nil, err
-		}
-		return data, nil
-	}, retryOpts)
+		return c.do(ctx, http.MethodPost, "/v1/subscriptionPrices", body)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +381,24 @@ func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointI
 	return &response, nil
 }
 
-func isRetryableSubscriptionPriceCreateError(err error) bool {
+func (c *Client) doRetriedSubscriptionMutation(ctx context.Context, request func() ([]byte, error)) ([]byte, error) {
+	retryOpts := ResolveRetryOptions()
+	return WithRetry(ctx, func() ([]byte, error) {
+		data, err := request()
+		if err != nil {
+			if IsRetryable(err) {
+				return nil, err
+			}
+			if isRetryableSubscriptionMutationError(err) {
+				return nil, &RetryableError{Err: err}
+			}
+			return nil, err
+		}
+		return data, nil
+	}, retryOpts)
+}
+
+func isRetryableSubscriptionMutationError(err error) bool {
 	apiErr, ok := errors.AsType[*APIError](err)
 	if !ok || apiErr == nil {
 		return false
@@ -451,12 +457,13 @@ func (c *Client) CreateSubscriptionAvailability(ctx context.Context, subID strin
 		},
 	}
 
-	body, err := BuildRequestBody(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := c.do(ctx, http.MethodPost, "/v1/subscriptionAvailabilities", body)
+	data, err := c.doRetriedSubscriptionMutation(ctx, func() ([]byte, error) {
+		body, err := BuildRequestBody(payload)
+		if err != nil {
+			return nil, err
+		}
+		return c.do(ctx, http.MethodPost, "/v1/subscriptionAvailabilities", body)
+	})
 	if err != nil {
 		return nil, err
 	}

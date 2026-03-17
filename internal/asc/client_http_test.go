@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -7110,6 +7111,92 @@ func TestSetSubscriptionInitialPrice(t *testing.T) {
 	}
 }
 
+func TestSetSubscriptionInitialPrice_RetriesUnexpectedServerError(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "2")
+	t.Setenv("ASC_BASE_DELAY", "1ms")
+	t.Setenv("ASC_MAX_DELAY", "2ms")
+	resetConfigCacheForTest()
+	t.Cleanup(resetConfigCacheForTest)
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+
+	attempts := 0
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts++
+				if req.Method != http.MethodPatch {
+					t.Fatalf("expected PATCH, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/subscriptions/sub-1" {
+					t.Fatalf("expected path /v1/subscriptions/sub-1, got %s", req.URL.Path)
+				}
+				assertAuthorized(t, req)
+
+				if attempts < 3 {
+					return jsonResponse(http.StatusGatewayTimeout, `{"errors":[{"status":"504","code":"UNEXPECTED_ERROR","title":"timeout","detail":"timed out"}]}`), nil
+				}
+				return jsonResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.sub.monthly"}}}`), nil
+			}),
+		},
+		keyID:      "KEY123",
+		issuerID:   "ISS456",
+		privateKey: key,
+	}
+
+	_, err = client.SetSubscriptionInitialPrice(context.Background(), "sub-1", "price-point-1", "USA", SubscriptionPriceCreateAttributes{})
+	if err != nil {
+		t.Fatalf("SetSubscriptionInitialPrice() error: %v", err)
+	}
+	if attempts != 3 {
+		t.Fatalf("expected 3 attempts (2 retries + success), got %d", attempts)
+	}
+}
+
+func TestSetSubscriptionInitialPrice_DoesNotRetryConflict(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "3")
+	t.Setenv("ASC_BASE_DELAY", "1ms")
+	t.Setenv("ASC_MAX_DELAY", "2ms")
+	resetConfigCacheForTest()
+	t.Cleanup(resetConfigCacheForTest)
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+
+	attempts := 0
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts++
+				if req.Method != http.MethodPatch {
+					t.Fatalf("expected PATCH, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/subscriptions/sub-1" {
+					t.Fatalf("expected path /v1/subscriptions/sub-1, got %s", req.URL.Path)
+				}
+				assertAuthorized(t, req)
+				return jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR","title":"Conflict","detail":"duplicate"}]}`), nil
+			}),
+		},
+		keyID:      "KEY123",
+		issuerID:   "ISS456",
+		privateKey: key,
+	}
+
+	_, err = client.SetSubscriptionInitialPrice(context.Background(), "sub-1", "price-point-1", "USA", SubscriptionPriceCreateAttributes{})
+	if err == nil {
+		t.Fatal("expected conflict error")
+	}
+	if attempts != 1 {
+		t.Fatalf("expected 1 attempt for non-retryable conflict, got %d", attempts)
+	}
+}
+
 func TestCreateSubscriptionPrice(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01","preserved":true}}}`)
 	client := newTestClient(t, func(req *http.Request) {
@@ -7262,6 +7349,156 @@ func TestCreateSubscriptionAvailability(t *testing.T) {
 	availAttrs := SubscriptionAvailabilityAttributes{AvailableInNewTerritories: true}
 	if _, err := client.CreateSubscriptionAvailability(context.Background(), "sub-1", []string{"USA", "CAN"}, availAttrs); err != nil {
 		t.Fatalf("CreateSubscriptionAvailability() error: %v", err)
+	}
+}
+
+func TestCreateSubscriptionAvailability_RetriesUnexpectedServerError(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "2")
+	t.Setenv("ASC_BASE_DELAY", "1ms")
+	t.Setenv("ASC_MAX_DELAY", "2ms")
+	resetConfigCacheForTest()
+	t.Cleanup(resetConfigCacheForTest)
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+
+	attempts := 0
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts++
+				if req.Method != http.MethodPost {
+					t.Fatalf("expected POST, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/subscriptionAvailabilities" {
+					t.Fatalf("expected path /v1/subscriptionAvailabilities, got %s", req.URL.Path)
+				}
+				assertAuthorized(t, req)
+
+				if attempts < 3 {
+					return jsonResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"UNEXPECTED_ERROR","title":"unexpected","detail":"retry me"}]}`), nil
+				}
+				return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`), nil
+			}),
+		},
+		keyID:      "KEY123",
+		issuerID:   "ISS456",
+		privateKey: key,
+	}
+
+	_, err = client.CreateSubscriptionAvailability(context.Background(), "sub-1", []string{"USA", "CAN"}, SubscriptionAvailabilityAttributes{AvailableInNewTerritories: true})
+	if err != nil {
+		t.Fatalf("CreateSubscriptionAvailability() error: %v", err)
+	}
+	if attempts != 3 {
+		t.Fatalf("expected 3 attempts (2 retries + success), got %d", attempts)
+	}
+}
+
+func TestCreateSubscriptionAvailability_DoesNotRetryValidationError(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "3")
+	t.Setenv("ASC_BASE_DELAY", "1ms")
+	t.Setenv("ASC_MAX_DELAY", "2ms")
+	resetConfigCacheForTest()
+	t.Cleanup(resetConfigCacheForTest)
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+
+	attempts := 0
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				attempts++
+				if req.Method != http.MethodPost {
+					t.Fatalf("expected POST, got %s", req.Method)
+				}
+				if req.URL.Path != "/v1/subscriptionAvailabilities" {
+					t.Fatalf("expected path /v1/subscriptionAvailabilities, got %s", req.URL.Path)
+				}
+				assertAuthorized(t, req)
+				return jsonResponse(http.StatusUnprocessableEntity, `{"errors":[{"status":"422","code":"ENTITY_ERROR","title":"unprocessable","detail":"invalid territory"}]}`), nil
+			}),
+		},
+		keyID:      "KEY123",
+		issuerID:   "ISS456",
+		privateKey: key,
+	}
+
+	_, err = client.CreateSubscriptionAvailability(context.Background(), "sub-1", []string{"USA", "CAN"}, SubscriptionAvailabilityAttributes{AvailableInNewTerritories: true})
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if attempts != 1 {
+		t.Fatalf("expected 1 attempt for non-retryable validation error, got %d", attempts)
+	}
+}
+
+func TestClientLimitsConcurrentMutatingRequests(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+
+	release := make(chan struct{})
+	started := make(chan struct{}, 2)
+	var active atomic.Int32
+	var maxActive atomic.Int32
+
+	client := &Client{
+		httpClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				current := active.Add(1)
+				for {
+					existing := maxActive.Load()
+					if current <= existing || maxActive.CompareAndSwap(existing, current) {
+						break
+					}
+				}
+				started <- struct{}{}
+				<-release
+				active.Add(-1)
+				return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`), nil
+			}),
+		},
+		keyID:                  "KEY123",
+		issuerID:               "ISS456",
+		privateKey:             key,
+		mutatingRequestLimiter: make(chan struct{}, 1),
+	}
+
+	errCh := make(chan error, 2)
+	go func() {
+		_, err := client.CreateSubscriptionAvailability(context.Background(), "sub-1", []string{"USA"}, SubscriptionAvailabilityAttributes{})
+		errCh <- err
+	}()
+	<-started
+
+	go func() {
+		_, err := client.CreateSubscriptionAvailability(context.Background(), "sub-2", []string{"CAN"}, SubscriptionAvailabilityAttributes{})
+		errCh <- err
+	}()
+
+	select {
+	case <-started:
+		t.Fatal("expected second mutating request to wait for limiter")
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	close(release)
+
+	for i := 0; i < 2; i++ {
+		if err := <-errCh; err != nil {
+			t.Fatalf("CreateSubscriptionAvailability() error: %v", err)
+		}
+	}
+
+	if maxActive.Load() != 1 {
+		t.Fatalf("expected at most 1 concurrent mutating request, got %d", maxActive.Load())
 	}
 }
 

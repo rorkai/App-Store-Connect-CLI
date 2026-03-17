@@ -113,8 +113,22 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) ([
 		retryOpts := ResolveRetryOptions()
 		return WithRetry(ctx, request, retryOpts)
 	}
+	if shouldLimitMutatingMethod(method) {
+		return c.doWithMutatingRequestLimiter(ctx, request)
+	}
 
 	return request()
+}
+
+func (c *Client) doWithMutatingRequestLimiter(ctx context.Context, request func() ([]byte, error)) ([]byte, error) {
+	limiter := c.getMutatingRequestLimiter()
+	select {
+	case limiter <- struct{}{}:
+		defer func() { <-limiter }()
+		return request()
+	case <-ctx.Done():
+		return nil, fmt.Errorf("wait for mutating request slot: %w", ctx.Err())
+	}
 }
 
 func (c *Client) doOnce(ctx context.Context, method, path string, body io.Reader) ([]byte, error) {
@@ -197,6 +211,15 @@ func sanitizeURLForLog(rawURL string) string {
 func shouldRetryMethod(method string) bool {
 	switch strings.ToUpper(method) {
 	case http.MethodGet, http.MethodHead:
+		return true
+	default:
+		return false
+	}
+}
+
+func shouldLimitMutatingMethod(method string) bool {
+	switch strings.ToUpper(method) {
+	case http.MethodPost, http.MethodPatch, http.MethodPut, http.MethodDelete:
 		return true
 	default:
 		return false
