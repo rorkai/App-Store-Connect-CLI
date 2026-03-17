@@ -62,6 +62,18 @@ type ExportResult struct {
 	BuildNumber string `json:"build_number,omitempty"`
 }
 
+type ValidateOptions struct {
+	IPAPath   string
+	APIKey    string
+	APIIssuer string
+	LogWriter io.Writer
+}
+
+type ValidateResult struct {
+	IPAPath   string `json:"ipa_path"`
+	Validated bool   `json:"validated"`
+}
+
 type bundleInfo struct {
 	BundleID    string
 	Version     string
@@ -183,6 +195,32 @@ func Export(ctx context.Context, opts ExportOptions) (*ExportResult, error) {
 	}, nil
 }
 
+func Validate(ctx context.Context, opts ValidateOptions) (*ValidateResult, error) {
+	opts = normalizeValidateOptions(opts)
+	if err := validateValidateOptions(opts); err != nil {
+		return nil, err
+	}
+	if err := ensureXcodeAvailable(ctx); err != nil {
+		return nil, err
+	}
+	if _, err := lookPathFn("xcrun"); err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return nil, fmt.Errorf("xcrun not available; install Xcode and ensure the active developer directory is configured")
+		}
+		return nil, fmt.Errorf("locate xcrun: %w", err)
+	}
+	if err := validateExistingFile(opts.IPAPath, "--ipa"); err != nil {
+		return nil, err
+	}
+	if err := runAltoolValidate(ctx, buildValidateCommand(opts), opts.LogWriter); err != nil {
+		return nil, err
+	}
+	return &ValidateResult{
+		IPAPath:   opts.IPAPath,
+		Validated: true,
+	}, nil
+}
+
 // IsDirectUploadMode reports whether ExportOptions.plist uploads directly to
 // App Store Connect instead of producing a local IPA artifact.
 func IsDirectUploadMode(exportOptionsPlistPath string) bool {
@@ -258,6 +296,16 @@ func validateExportInputPaths(opts ExportOptions) error {
 	return nil
 }
 
+func validateValidateOptions(opts ValidateOptions) error {
+	if opts.IPAPath == "" {
+		return fmt.Errorf("--ipa is required")
+	}
+	if !strings.EqualFold(filepath.Ext(opts.IPAPath), ".ipa") {
+		return fmt.Errorf("--ipa must end with .ipa")
+	}
+	return nil
+}
+
 func validateWorkspaceProjectPair(workspacePath, projectPath string) error {
 	hasWorkspace := workspacePath != ""
 	hasProject := projectPath != ""
@@ -280,6 +328,13 @@ func normalizeExportOptions(opts ExportOptions) ExportOptions {
 	opts.ArchivePath = normalizeDirectoryPath(opts.ArchivePath)
 	opts.ExportOptions = strings.TrimSpace(opts.ExportOptions)
 	opts.IPAPath = strings.TrimSpace(opts.IPAPath)
+	return opts
+}
+
+func normalizeValidateOptions(opts ValidateOptions) ValidateOptions {
+	opts.IPAPath = strings.TrimSpace(opts.IPAPath)
+	opts.APIKey = strings.TrimSpace(opts.APIKey)
+	opts.APIIssuer = strings.TrimSpace(opts.APIIssuer)
 	return opts
 }
 
@@ -435,6 +490,22 @@ func buildExportCommand(opts ExportOptions, exportDir string) []string {
 	return args
 }
 
+func buildValidateCommand(opts ValidateOptions) []string {
+	args := []string{
+		"altool",
+		"--validate-app",
+		"--file", opts.IPAPath,
+		"--type", "ios",
+	}
+	if opts.APIKey != "" {
+		args = append(args, "--apiKey", opts.APIKey)
+	}
+	if opts.APIIssuer != "" {
+		args = append(args, "--apiIssuer", opts.APIIssuer)
+	}
+	return args
+}
+
 func cloneStrings(values []string) []string {
 	if len(values) == 0 {
 		return nil
@@ -451,10 +522,18 @@ func cloneStrings(values []string) []string {
 }
 
 func runXcodebuild(ctx context.Context, args []string, logWriter io.Writer) error {
+	return runCommandWithTail(ctx, "xcodebuild", args, logWriter, summarizeAction(args), "xcodebuild")
+}
+
+func runAltoolValidate(ctx context.Context, args []string, logWriter io.Writer) error {
+	return runCommandWithTail(ctx, "xcrun", args, logWriter, "validate", "xcrun altool")
+}
+
+func runCommandWithTail(ctx context.Context, name string, args []string, logWriter io.Writer, action string, commandLabel string) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	cmd := commandContextFn(ctx, "xcodebuild", args...)
+	cmd := commandContextFn(ctx, name, args...)
 	outputTail := newTailBuffer(xcodebuildErrorTailLimit)
 	writer := io.Writer(outputTail)
 	if logWriter != nil {
@@ -467,15 +546,16 @@ func runXcodebuild(ctx context.Context, args []string, logWriter io.Writer) erro
 		if detail != "" {
 			if outputTail.Truncated() {
 				return fmt.Errorf(
-					"xcodebuild %s failed (showing last %d bytes): %s",
-					summarizeAction(args),
+					"%s %s failed (showing last %d bytes): %s",
+					commandLabel,
+					action,
 					xcodebuildErrorTailLimit,
 					detail,
 				)
 			}
-			return fmt.Errorf("xcodebuild %s failed: %s", summarizeAction(args), detail)
+			return fmt.Errorf("%s %s failed: %s", commandLabel, action, detail)
 		}
-		return fmt.Errorf("xcodebuild %s failed: %w", summarizeAction(args), err)
+		return fmt.Errorf("%s %s failed: %w", commandLabel, action, err)
 	}
 	return nil
 }

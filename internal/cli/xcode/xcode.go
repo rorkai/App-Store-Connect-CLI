@@ -18,6 +18,7 @@ import (
 var (
 	runArchive                    = localxcode.Archive
 	runExport                     = localxcode.Export
+	runValidate                   = localxcode.Validate
 	isDirectUploadExportOptionsFn = localxcode.IsDirectUploadMode
 	inferArchivePlatformFn        = localxcode.InferArchivePlatform
 	getASCClientFn                = shared.GetASCClient
@@ -86,6 +87,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			XcodeArchiveCommand(),
 			XcodeExportCommand(),
+			XcodeValidateCommand(),
 			XcodeVersionCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -325,6 +327,66 @@ Examples:
 	}
 }
 
+// XcodeValidateCommand returns the local validate command.
+func XcodeValidateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("xcode validate", flag.ExitOnError)
+
+	ipaPath := fs.String("ipa", "", "Path to the .ipa input (required)")
+	apiKey := fs.String("api-key", "", "App Store Connect API key ID for altool")
+	apiIssuer := fs.String("api-issuer", "", "App Store Connect API issuer ID for altool")
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "validate",
+		ShortUsage: "asc xcode validate [flags]",
+		ShortHelp:  "Validate an IPA with Apple before upload.",
+		LongHelp: `Validate an IPA with Apple before upload.
+
+This command wraps xcrun altool --validate-app to check whether an IPA passes
+Apple's server-side validation before you upload or submit it.
+
+Examples:
+  asc xcode validate --ipa .asc/artifacts/App.ipa
+  asc xcode validate --ipa .asc/artifacts/App.ipa --api-key KEY123ABC --api-issuer 00000000-0000-0000-0000-000000000000 --output json`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				fmt.Fprintln(os.Stderr, "Error: xcode validate does not accept positional arguments")
+				return flag.ErrHelp
+			}
+			if strings.TrimSpace(*ipaPath) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --ipa is required")
+				return flag.ErrHelp
+			}
+
+			result, err := runValidate(ctx, localxcode.ValidateOptions{
+				IPAPath:   strings.TrimSpace(*ipaPath),
+				APIKey:    strings.TrimSpace(*apiKey),
+				APIIssuer: strings.TrimSpace(*apiIssuer),
+				LogWriter: os.Stderr,
+			})
+			if err != nil {
+				return fmt.Errorf("xcode validate: %w", err)
+			}
+
+			return shared.PrintOutputWithRenderers(
+				result,
+				*output.Output,
+				*output.Pretty,
+				func() error {
+					asc.RenderTable([]string{"field", "value"}, validateResultRows(result))
+					return nil
+				},
+				func() error {
+					asc.RenderMarkdown([]string{"field", "value"}, validateResultRows(result))
+					return nil
+				},
+			)
+		},
+	}
+}
+
 func waitForBuildUploadID(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform string, exportStartedAt, exportCompletedAt time.Time, pollInterval time.Duration) (string, error) {
 	if client == nil {
 		return "", fmt.Errorf("client is required")
@@ -454,4 +516,11 @@ func exportResultRows(result xcodeExportCommandResult) [][]string {
 		rows = append(rows, []string{"processing_state", result.ProcessingState})
 	}
 	return rows
+}
+
+func validateResultRows(result *localxcode.ValidateResult) [][]string {
+	return [][]string{
+		{"ipa_path", result.IPAPath},
+		{"validated", fmt.Sprintf("%t", result.Validated)},
+	}
 }

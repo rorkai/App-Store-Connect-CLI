@@ -248,6 +248,107 @@ func TestExportMissingXcodebuild(t *testing.T) {
 	}
 }
 
+func TestValidateUnsupportedPlatform(t *testing.T) {
+	restore := overrideTestEnvironment(t)
+	runtimeGOOS = "linux"
+	t.Cleanup(restore)
+
+	_, err := Validate(context.Background(), ValidateOptions{
+		IPAPath: filepath.Join(t.TempDir(), "Demo.ipa"),
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "supported on macOS only") {
+		t.Fatalf("expected macOS-only error, got %v", err)
+	}
+}
+
+func TestValidateMissingXcrun(t *testing.T) {
+	tempDir := t.TempDir()
+	ipaPath := filepath.Join(tempDir, "Demo.ipa")
+	if err := writeTestIPA(ipaPath); err != nil {
+		t.Fatalf("writeTestIPA() error: %v", err)
+	}
+
+	restore := overrideTestEnvironment(t)
+	runtimeGOOS = "darwin"
+	lookPathFn = func(file string) (string, error) {
+		switch file {
+		case "xcodebuild":
+			return "/usr/bin/xcodebuild", nil
+		case "xcrun":
+			return "", exec.ErrNotFound
+		default:
+			return "", exec.ErrNotFound
+		}
+	}
+	commandContextFn = helperCommandContext(t, filepath.Join(tempDir, "commands.log"))
+	t.Cleanup(restore)
+
+	_, err := Validate(context.Background(), ValidateOptions{IPAPath: ipaPath})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "xcrun not available") {
+		t.Fatalf("expected xcrun error, got %v", err)
+	}
+}
+
+func TestValidateRunsAltoolWithAuthFlags(t *testing.T) {
+	tempDir := t.TempDir()
+	ipaPath := filepath.Join(tempDir, "Demo.ipa")
+	if err := writeTestIPA(ipaPath); err != nil {
+		t.Fatalf("writeTestIPA() error: %v", err)
+	}
+	logPath := filepath.Join(tempDir, "commands.log")
+
+	restore := overrideTestEnvironment(t)
+	runtimeGOOS = "darwin"
+	lookPathFn = func(file string) (string, error) {
+		switch file {
+		case "xcodebuild":
+			return "/usr/bin/xcodebuild", nil
+		case "xcrun":
+			return "/usr/bin/xcrun", nil
+		default:
+			return "", exec.ErrNotFound
+		}
+	}
+	commandContextFn = helperCommandContext(t, logPath)
+	t.Cleanup(restore)
+
+	result, err := Validate(context.Background(), ValidateOptions{
+		IPAPath:   ipaPath,
+		APIKey:    "KEY123ABC",
+		APIIssuer: "issuer-123",
+	})
+	if err != nil {
+		t.Fatalf("Validate() error: %v", err)
+	}
+	if result.IPAPath != ipaPath {
+		t.Fatalf("expected ipa path %q, got %q", ipaPath, result.IPAPath)
+	}
+	if !result.Validated {
+		t.Fatal("expected validated result")
+	}
+
+	logData, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(logData)), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("expected 2 logged commands, got %d: %q", len(lines), string(logData))
+	}
+	if lines[0] != "xcodebuild|-version" {
+		t.Fatalf("expected version probe, got %q", lines[0])
+	}
+	if !strings.Contains(lines[1], "xcrun|altool|--validate-app|--file|"+ipaPath+"|--type|ios|--apiKey|KEY123ABC|--apiIssuer|issuer-123") {
+		t.Fatalf("expected validate invocation with auth flags, got %q", lines[1])
+	}
+}
+
 func TestExportWritesIPAAtExactPathAndReturnsMetadata(t *testing.T) {
 	tempDir := t.TempDir()
 	archivePath := filepath.Join(tempDir, "Demo.xcarchive")
@@ -779,6 +880,18 @@ func TestXcodeHelperProcess(t *testing.T) {
 
 	if len(commandArgs) >= 2 && commandArgs[0] == "xcodebuild" && commandArgs[1] == "-version" {
 		fmt.Fprintln(os.Stdout, "Xcode 16.2")
+		os.Exit(0)
+	}
+
+	if len(commandArgs) >= 2 && commandArgs[0] == "xcrun" && commandArgs[1] == "altool" {
+		if !helperContainsArg(commandArgs[2:], "--validate-app") {
+			fmt.Fprintln(os.Stderr, "missing --validate-app")
+			os.Exit(2)
+		}
+		if _, err := valueAfter(commandArgs[2:], "--file"); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
 		os.Exit(0)
 	}
 
