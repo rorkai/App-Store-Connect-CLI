@@ -3306,6 +3306,34 @@ func TestLocalizationsValidationErrors(t *testing.T) {
 	}
 }
 
+func TestLocalizationsCreateInvalidLocale(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"localizations", "create", "--version", "VERSION_ID", "--locale", "not_a_locale"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected non-help error, got %v", err)
+		}
+		if !strings.Contains(err.Error(), `invalid locale "not_a_locale"`) {
+			t.Fatalf("expected invalid locale error, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
 func TestScreenshotsAndVideoPreviewsValidationErrors(t *testing.T) {
 	tests := []struct {
 		name    string

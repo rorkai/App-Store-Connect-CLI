@@ -384,6 +384,9 @@ func updatePlistExemption(plistPath string) error {
 	if info.IsDir() {
 		return fmt.Errorf("encryption declarations exempt-declare: %q is a directory", plistPath)
 	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("encryption declarations exempt-declare: refusing to read symlink %q", plistPath)
+	}
 
 	data, err := os.ReadFile(plistPath)
 	if err != nil {

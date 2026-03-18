@@ -3,6 +3,7 @@ package encryption
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"howett.net/plist"
@@ -52,6 +53,33 @@ func TestUpdatePlistExemption_UpdatesBinaryPlist(t *testing.T) {
 	}
 	if value {
 		t.Fatal("expected ITSAppUsesNonExemptEncryption to be set to false")
+	}
+}
+
+func TestUpdatePlistExemption_RejectsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	target := writeTestInfoPlist(t, plist.XMLFormat, map[string]any{
+		"CFBundleIdentifier": "com.example.symlink",
+	})
+	link := filepath.Join(dir, "Info.plist")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink not supported: %v", err)
+	}
+
+	err := updatePlistExemption(link)
+	if err == nil {
+		t.Fatal("expected symlink rejection error, got nil")
+	}
+	if !strings.Contains(err.Error(), "refusing to read symlink") {
+		t.Fatalf("expected symlink rejection error, got %v", err)
+	}
+
+	format, payload := readTestInfoPlist(t, target)
+	if format != plist.XMLFormat {
+		t.Fatalf("expected XML plist format, got %d", format)
+	}
+	if _, exists := payload["ITSAppUsesNonExemptEncryption"]; exists {
+		t.Fatalf("expected symlink target to remain unchanged, got %#v", payload["ITSAppUsesNonExemptEncryption"])
 	}
 }
 

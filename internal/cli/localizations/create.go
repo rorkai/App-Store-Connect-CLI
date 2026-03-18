@@ -55,6 +55,9 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --locale is required")
 				return flag.ErrHelp
 			}
+			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
+				return fmt.Errorf("localizations create: %w", err)
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
