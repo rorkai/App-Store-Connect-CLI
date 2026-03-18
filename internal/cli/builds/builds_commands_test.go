@@ -109,3 +109,40 @@ func TestNormalizeBuildProcessingStateFilter(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildsUpdateCommand_Shape(t *testing.T) {
+	cmd := BuildsUpdateCommand()
+	if cmd.Name != "update" {
+		t.Fatalf("unexpected command name: %q", cmd.Name)
+	}
+
+	buildFlag := cmd.FlagSet.Lookup("build")
+	if buildFlag == nil {
+		t.Fatal("expected --build flag to be defined")
+	}
+
+	encFlag := cmd.FlagSet.Lookup("uses-non-exempt-encryption")
+	if encFlag == nil {
+		t.Fatal("expected --uses-non-exempt-encryption flag to be defined")
+	}
+}
+
+func TestBuildsUpdateCommand_HelpContainsExamples(t *testing.T) {
+	cmd := BuildsUpdateCommand()
+	if !strings.Contains(cmd.LongHelp, "--uses-non-exempt-encryption=false") {
+		t.Fatalf("expected long help to include encryption example, got %q", cmd.LongHelp)
+	}
+}
+
+func TestBuildUpdateAttributes_JSON(t *testing.T) {
+	v := false
+	attrs := asc.BuildUpdateAttributes{
+		UsesNonExemptEncryption: &v,
+	}
+	if attrs.UsesNonExemptEncryption == nil {
+		t.Fatal("expected UsesNonExemptEncryption to be set")
+	}
+	if *attrs.UsesNonExemptEncryption != false {
+		t.Fatal("expected UsesNonExemptEncryption to be false")
+	}
+}

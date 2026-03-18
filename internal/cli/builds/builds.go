@@ -136,6 +136,69 @@ func resolveBuildBetaGroupIDsFromList(inputGroups []string, groups *asc.BetaGrou
 	return resolvedIDs, nil
 }
 
+// BuildsUpdateCommand returns the builds update subcommand.
+func BuildsUpdateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("builds update", flag.ExitOnError)
+
+	buildID := fs.String("build", "", "Build ID (required)")
+	usesNonExemptEncryption := fs.String("uses-non-exempt-encryption", "", "Set encryption compliance: true or false")
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "update",
+		ShortUsage: "asc builds update --build BUILD_ID [flags]",
+		ShortHelp:  "Update build attributes.",
+		LongHelp: `Update build attributes such as encryption compliance.
+
+Examples:
+  asc builds update --build "BUILD_ID" --uses-non-exempt-encryption=false
+  asc builds update --build "BUILD_ID" --uses-non-exempt-encryption=true`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			trimmedBuildID := strings.TrimSpace(*buildID)
+			if trimmedBuildID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				return flag.ErrHelp
+			}
+
+			trimmedEncryption := strings.TrimSpace(strings.ToLower(*usesNonExemptEncryption))
+			if trimmedEncryption == "" {
+				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required (e.g. --uses-non-exempt-encryption)")
+				return flag.ErrHelp
+			}
+
+			attrs := asc.BuildUpdateAttributes{}
+			switch trimmedEncryption {
+			case "true":
+				v := true
+				attrs.UsesNonExemptEncryption = &v
+			case "false":
+				v := false
+				attrs.UsesNonExemptEncryption = &v
+			default:
+				return shared.UsageError("--uses-non-exempt-encryption must be 'true' or 'false'")
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("builds update: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			resp, err := client.UpdateBuild(requestCtx, trimmedBuildID, attrs)
+			if err != nil {
+				return fmt.Errorf("builds update: %w", err)
+			}
+
+			fmt.Fprintf(os.Stderr, "Updated build %s\n", trimmedBuildID)
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		},
+	}
+}
+
 // BuildsRemoveGroupsCommand returns the builds remove-groups subcommand.
 func BuildsRemoveGroupsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("remove-groups", flag.ExitOnError)
