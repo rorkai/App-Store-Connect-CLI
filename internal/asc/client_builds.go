@@ -300,6 +300,49 @@ func (c *Client) GetBuildAppEncryptionDeclaration(ctx context.Context, buildID s
 	return &response, nil
 }
 
+// BuildUpdateAttributes describes mutable attributes on a build resource.
+type BuildUpdateAttributes struct {
+	UsesNonExemptEncryption *bool `json:"usesNonExemptEncryption,omitempty"`
+	Expired                 *bool `json:"expired,omitempty"`
+}
+
+// UpdateBuild patches a build resource with the given attributes.
+func (c *Client) UpdateBuild(ctx context.Context, buildID string, attrs BuildUpdateAttributes) (*BuildResponse, error) {
+	buildID = strings.TrimSpace(buildID)
+	if buildID == "" {
+		return nil, fmt.Errorf("buildID is required")
+	}
+
+	payload := struct {
+		Data struct {
+			Type       ResourceType         `json:"type"`
+			ID         string               `json:"id"`
+			Attributes BuildUpdateAttributes `json:"attributes"`
+		} `json:"data"`
+	}{}
+	payload.Data.Type = ResourceTypeBuilds
+	payload.Data.ID = buildID
+	payload.Data.Attributes = attrs
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	path := fmt.Sprintf("/v1/builds/%s", buildID)
+	data, err := c.do(ctx, "PATCH", path, body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response BuildResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // ExpireBuild expires a build for TestFlight testing.
 func (c *Client) ExpireBuild(ctx context.Context, buildID string) (*BuildResponse, error) {
 	payload := struct {
