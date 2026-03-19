@@ -1477,7 +1477,7 @@ func TestCancelStaleReviewSubmissionsWarnsOnGenericConflict(t *testing.T) {
 
 func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
 	stderr := captureSubmitStderr(t, func() {
-		printSubmissionErrorHints(errors.New("ageRatingDeclaration contentRightsDeclaration appDataUsage primaryCategory"), "app-1")
+		printSubmissionErrorHints(errors.New("ageRatingDeclaration contentRightsDeclaration usesNonExemptEncryption appDataUsage primaryCategory"), "app-1")
 	})
 
 	for _, want := range []string{
@@ -1485,6 +1485,7 @@ func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
 		"Hint: Review age-rating update flags: asc age-rating set --help",
 		"Hint: If your app does not use third-party content: asc apps update --id app-1 --content-rights DOES_NOT_USE_THIRD_PARTY_CONTENT",
 		"Hint: If your app uses third-party content: asc apps update --id app-1 --content-rights USES_THIRD_PARTY_CONTENT",
+		"Hint: Set Uses Non-Exempt Encryption for the attached build in App Store Connect, then retry submission.",
 		"Hint: Complete App Privacy at: https://appstoreconnect.apple.com/apps/app-1/appPrivacy",
 		"Hint: List available categories: asc categories list",
 		"Hint: Review category update flags: asc app-setup categories set --help",
@@ -1498,6 +1499,7 @@ func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
 		"--all-none",
 		"content-rights set",
 		"--uses-third-party-content",
+		"builds update",
 		"--primary SPORTS",
 		"...",
 		"|",

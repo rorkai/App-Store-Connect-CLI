@@ -246,7 +246,7 @@ func checkBuildEncryption(ctx context.Context, client *asc.Client, buildID strin
 			Name:    "Encryption compliance",
 			Passed:  false,
 			Message: "usesNonExemptEncryption not set on build",
-			Hint:    fmt.Sprintf("asc builds update --build %s --uses-non-exempt-encryption=false", buildID),
+			Hint:    fmt.Sprintf("Set Uses Non-Exempt Encryption for build %s in App Store Connect, then rerun asc submit preflight", buildID),
 		}
 	}
 

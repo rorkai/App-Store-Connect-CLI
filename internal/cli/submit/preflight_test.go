@@ -194,8 +194,11 @@ func TestCheckBuildEncryption_NotSet(t *testing.T) {
 	if check.Passed {
 		t.Fatal("expected fail when UsesNonExemptEncryption is nil")
 	}
-	if !strings.Contains(check.Hint, "builds update") {
-		t.Fatalf("expected hint with builds update, got %q", check.Hint)
+	if !strings.Contains(check.Hint, "App Store Connect") {
+		t.Fatalf("expected App Store Connect hint, got %q", check.Hint)
+	}
+	if strings.Contains(check.Hint, "builds update") {
+		t.Fatalf("did not expect nonexistent builds update command in hint, got %q", check.Hint)
 	}
 }
 

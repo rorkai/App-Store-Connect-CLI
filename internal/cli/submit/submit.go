@@ -997,7 +997,7 @@ func printSubmissionErrorHints(err error, appID string) {
 	}
 	if strings.Contains(errMsg, "usesNonExemptEncryption") {
 		hints = append(hints,
-			"Set encryption compliance: asc builds update --build BUILD_ID --uses-non-exempt-encryption=false",
+			"Set Uses Non-Exempt Encryption for the attached build in App Store Connect, then retry submission.",
 		)
 	}
 	if strings.Contains(errMsg, "appDataUsage") {
