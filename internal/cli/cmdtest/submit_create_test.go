@@ -48,8 +48,8 @@ func submitCreateJSONResponse(status int, body string) (*http.Response, error) {
 	}, nil
 }
 
-func mustSubmitCreateJSONResponse(status int, body string) *http.Response {
-	resp, err := submitCreateJSONResponse(status, body)
+func mustSubmitCreateOKJSONResponse(body string) *http.Response {
+	resp, err := submitCreateJSONResponse(http.StatusOK, body)
 	if err != nil {
 		panic(err)
 	}
@@ -61,49 +61,49 @@ func submitCreateDefaultReadinessResponse(req *http.Request) (*http.Response, bo
 
 	switch {
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && strings.HasSuffix(path, "/appInfos"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && strings.HasSuffix(path, "/appPriceSchedule"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":{"type":"appPriceSchedules","id":"sched-1","attributes":{}}}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"appPriceSchedules","id":"sched-1","attributes":{}}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && strings.HasSuffix(path, "/appAvailabilityV2"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && strings.HasSuffix(path, "/subscriptionGroups"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":[],"links":{}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && strings.HasSuffix(path, "/inAppPurchasesV2"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":[],"links":{}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && !strings.Contains(strings.TrimPrefix(path, "/v1/apps/"), "/"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US"}}}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US"}}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appInfos/") && strings.HasSuffix(path, "/appInfoLocalizations"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle","privacyPolicyUrl":"https://example.com/privacy"}}]}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle","privacyPolicyUrl":"https://example.com/privacy"}}]}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appInfos/") && strings.HasSuffix(path, "/relationships/primaryCategory"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":{"type":"appCategories","id":"cat-1"}}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"appCategories","id":"cat-1"}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appInfos/") && strings.HasSuffix(path, "/ageRatingDeclaration"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"age-1","attributes":{"advertising":false,"gambling":false,"healthOrWellnessTopics":false,"lootBox":false,"messagingAndChat":true,"parentalControls":true,"ageAssurance":false,"unrestrictedWebAccess":false,"userGeneratedContent":true,"alcoholTobaccoOrDrugUseOrReferences":"NONE","contests":"NONE","gamblingSimulated":"NONE","gunsOrOtherWeapons":"NONE","medicalOrTreatmentInformation":"NONE","profanityOrCrudeHumor":"NONE","sexualContentGraphicAndNudity":"NONE","sexualContentOrNudity":"NONE","horrorOrFearThemes":"NONE","matureOrSuggestiveThemes":"NONE","violenceCartoonOrFantasy":"NONE","violenceRealistic":"NONE","violenceRealisticProlongedGraphicOrSadistic":"NONE"}}}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"ageRatingDeclarations","id":"age-1","attributes":{"advertising":false,"gambling":false,"healthOrWellnessTopics":false,"lootBox":false,"messagingAndChat":true,"parentalControls":true,"ageAssurance":false,"unrestrictedWebAccess":false,"userGeneratedContent":true,"alcoholTobaccoOrDrugUseOrReferences":"NONE","contests":"NONE","gamblingSimulated":"NONE","gunsOrOtherWeapons":"NONE","medicalOrTreatmentInformation":"NONE","profanityOrCrudeHumor":"NONE","sexualContentGraphicAndNudity":"NONE","sexualContentOrNudity":"NONE","horrorOrFearThemes":"NONE","matureOrSuggestiveThemes":"NONE","violenceCartoonOrFantasy":"NONE","violenceRealistic":"NONE","violenceRealisticProlongedGraphicOrSadistic":"NONE"}}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appStoreVersions/") && strings.HasSuffix(path, "/appStoreReviewDetail"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"a@example.com","contactPhone":"123","demoAccountName":"","demoAccountPassword":"","demoAccountRequired":false,"notes":"Review notes"}}}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"a@example.com","contactPhone":"123","demoAccountName":"","demoAccountPassword":"","demoAccountRequired":false,"notes":"Review notes"}}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appStoreVersions/") && strings.HasSuffix(path, "/build"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false}}}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false}}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appStoreVersions/") && !strings.Contains(strings.TrimPrefix(path, "/v1/appStoreVersions/"), "/"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"PREPARE_FOR_SUBMISSION","copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"PREPARE_FOR_SUBMISSION","copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appStoreVersionLocalizations/") && strings.HasSuffix(path, "/appScreenshotSets"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}]}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}]}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appScreenshotSets/") && strings.HasSuffix(path, "/appScreenshots"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"shot.png","fileSize":1024,"imageAsset":{"width":1242,"height":2688}}}]}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"shot.png","fileSize":1024,"imageAsset":{"width":1242,"height":2688}}}]}`), true
 
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v2/appAvailabilities/") && strings.HasSuffix(path, "/territoryAvailabilities"):
-		return mustSubmitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}}]}`), true
+		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}}]}`), true
 	}
 
 	return nil, false
