@@ -902,13 +902,6 @@ func collectUniqueBuildStatusDetails(values []string) []string {
 	return details
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func normalizeBuildStatusLine(raw string) string {
 	line := strings.TrimSpace(raw)
 	if line == "" {
