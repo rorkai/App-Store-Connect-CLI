@@ -123,7 +123,7 @@ func TestRunSubmitCreateReadinessPreflight_PrintsNonBlockingPricingAndAvailabili
 
 			var err error
 			stderr := captureSubmitStderr(t, func() {
-				err = runSubmitCreateReadinessPreflight(context.Background(), "app-123", "version-123", "IOS")
+				err = runSubmitCreateReadinessPreflight(context.Background(), nil, "app-123", "version-123", "IOS", "")
 			})
 			if err != nil {
 				t.Fatalf("expected warning-only readiness report to pass, got %v", err)
@@ -167,7 +167,7 @@ func TestRunSubmitCreateReadinessPreflight_DoesNotSkipOtherBlockingChecks(t *tes
 
 	var err error
 	stderr := captureSubmitStderr(t, func() {
-		err = runSubmitCreateReadinessPreflight(context.Background(), "app-123", "version-123", "IOS")
+		err = runSubmitCreateReadinessPreflight(context.Background(), nil, "app-123", "version-123", "IOS", "")
 	})
 	if err == nil {
 		t.Fatal("expected blocking readiness issues to fail submit preflight")
@@ -194,7 +194,7 @@ func TestRunSubmitCreateReadinessPreflight_PropagatesUnexpectedFetchErrors(t *te
 		})
 	}
 
-	err := runSubmitCreateReadinessPreflight(context.Background(), "app-123", "version-123", "IOS")
+	err := runSubmitCreateReadinessPreflight(context.Background(), nil, "app-123", "version-123", "IOS", "")
 	if err == nil {
 		t.Fatal("expected unexpected readiness fetch error to propagate")
 	}

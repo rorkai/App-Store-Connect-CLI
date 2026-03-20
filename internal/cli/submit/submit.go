@@ -124,17 +124,19 @@ Examples:
 				return err
 			}
 
-			// Attach build to version
+			resolvedBuildID := strings.TrimSpace(*buildID)
+			if err := runSubmitCreateReadinessPreflight(ctx, client, resolvedAppID, resolvedVersionID, effectivePlatform, resolvedBuildID); err != nil {
+				return err
+			}
+
+			// Attach the build only after blocking preflight checks pass so a
+			// failed submit create does not mutate the version unnecessarily.
 			attachCtx, attachCancel := shared.ContextWithTimeout(ctx)
-			if err := client.AttachBuildToVersion(attachCtx, resolvedVersionID, strings.TrimSpace(*buildID)); err != nil {
+			if err := client.AttachBuildToVersion(attachCtx, resolvedVersionID, resolvedBuildID); err != nil {
 				attachCancel()
 				return fmt.Errorf("submit create: failed to attach build: %w", err)
 			}
 			attachCancel()
-
-			if err := runSubmitCreateReadinessPreflight(ctx, resolvedAppID, resolvedVersionID, effectivePlatform); err != nil {
-				return err
-			}
 
 			runSubmitCreateSubscriptionPreflight(ctx, client, resolvedAppID)
 
@@ -242,11 +244,17 @@ func runSubmitCreateLocalizationPreflight(ctx context.Context, client *asc.Clien
 	return fmt.Errorf("submit create: submit preflight failed")
 }
 
-func runSubmitCreateReadinessPreflight(ctx context.Context, appID, versionID, platform string) error {
+func runSubmitCreateReadinessPreflight(ctx context.Context, client *asc.Client, appID, versionID, platform, buildID string) error {
+	build, err := submitCreateReadinessBuild(ctx, client, buildID)
+	if err != nil {
+		return err
+	}
+
 	report, err := submitReadinessReportBuilder(ctx, validatecli.ReadinessOptions{
 		AppID:     appID,
 		VersionID: versionID,
 		Platform:  platform,
+		Build:     build,
 	})
 	if err != nil {
 		return fmt.Errorf("submit create: failed to run readiness preflight: %w", err)
@@ -271,6 +279,28 @@ func runSubmitCreateReadinessPreflight(ctx context.Context, appID, versionID, pl
 		platform,
 	)
 	return fmt.Errorf("submit create: submit preflight failed")
+}
+
+func submitCreateReadinessBuild(ctx context.Context, client *asc.Client, buildID string) (*validation.Build, error) {
+	buildID = strings.TrimSpace(buildID)
+	if buildID == "" || client == nil {
+		return nil, nil
+	}
+
+	buildCtx, buildCancel := shared.ContextWithTimeout(ctx)
+	buildResp, err := client.GetBuild(buildCtx, buildID)
+	buildCancel()
+	if err != nil {
+		return nil, fmt.Errorf("submit create: failed to fetch build %q for preflight: %w", buildID, err)
+	}
+
+	attrs := buildResp.Data.Attributes
+	return &validation.Build{
+		ID:              strings.TrimSpace(buildResp.Data.ID),
+		Version:         attrs.Version,
+		ProcessingState: attrs.ProcessingState,
+		Expired:         attrs.Expired,
+	}, nil
 }
 
 func printSubmitCreateReadinessWarnings(checks []validation.CheckResult) {
@@ -1236,6 +1266,12 @@ func reviewSubmissionAppStoreVersionID(submission *asc.ReviewSubmissionResource)
 	return strings.TrimSpace(submission.Relationships.AppStoreVersionForReview.Data.ID)
 }
 
+type reviewSubmissionItemSummary struct {
+	hasItems         bool
+	hasTargetVersion bool
+	hasOtherItems    bool
+}
+
 func reusableReviewSubmissionForCreate(
 	ctx context.Context,
 	client *asc.Client,
@@ -1259,20 +1295,86 @@ func reusableReviewSubmissionForCreate(
 	}
 
 	resolvedVersionID := reviewSubmissionAppStoreVersionID(refreshed)
-	if resolvedVersionID == "" {
-		resolvedVersionID, err = resolveReviewSubmissionVersionID(ctx, client, refreshed)
-		if err != nil {
-			return "", false, err
+	if resolvedVersionID != "" {
+		if targetVersionID != "" && resolvedVersionID == targetVersionID {
+			return submissionID, true, nil
 		}
+		return "", false, nil
 	}
 
-	if resolvedVersionID == "" {
+	itemSummary, err := summarizeReviewSubmissionItems(ctx, client, submissionID, targetVersionID)
+	if err != nil {
+		return "", false, err
+	}
+	if !itemSummary.hasItems {
 		return submissionID, false, nil
 	}
-	if targetVersionID != "" && resolvedVersionID == targetVersionID {
+	if itemSummary.hasTargetVersion && !itemSummary.hasOtherItems {
 		return submissionID, true, nil
 	}
 	return "", false, nil
+}
+
+func summarizeReviewSubmissionItems(
+	ctx context.Context,
+	client *asc.Client,
+	submissionID, targetVersionID string,
+) (reviewSubmissionItemSummary, error) {
+	var summary reviewSubmissionItemSummary
+
+	submissionID = strings.TrimSpace(submissionID)
+	if submissionID == "" || client == nil {
+		return summary, nil
+	}
+
+	resp, err := client.GetReviewSubmissionItems(ctx, submissionID, asc.WithReviewSubmissionItemsLimit(200))
+	if err != nil {
+		return summary, err
+	}
+
+	for {
+		accumulateReviewSubmissionItemSummary(&summary, resp.Data, targetVersionID)
+
+		nextURL := strings.TrimSpace(resp.Links.Next)
+		if nextURL == "" {
+			return summary, nil
+		}
+
+		resp, err = client.GetReviewSubmissionItems(ctx, submissionID, asc.WithReviewSubmissionItemsNextURL(nextURL))
+		if err != nil {
+			return summary, err
+		}
+	}
+}
+
+func accumulateReviewSubmissionItemSummary(summary *reviewSubmissionItemSummary, items []asc.ReviewSubmissionItemResource, targetVersionID string) {
+	if summary == nil {
+		return
+	}
+
+	targetVersionID = strings.TrimSpace(targetVersionID)
+	for _, item := range items {
+		summary.hasItems = true
+
+		versionID := reviewSubmissionItemVersionID(item)
+		switch {
+		case targetVersionID != "" && versionID == targetVersionID:
+			summary.hasTargetVersion = true
+		case versionID != "":
+			summary.hasOtherItems = true
+		default:
+			// If the item is not the target version, treat it as unrelated and
+			// avoid reusing the submission implicitly.
+			summary.hasOtherItems = true
+		}
+	}
+}
+
+func reviewSubmissionItemVersionID(item asc.ReviewSubmissionItemResource) string {
+	if item.Relationships == nil || item.Relationships.AppStoreVersion == nil {
+		return ""
+	}
+	return strings.TrimSpace(item.Relationships.AppStoreVersion.Data.ID)
 }
 
 func refreshReviewSubmission(ctx context.Context, client *asc.Client, submissionID string) (*asc.ReviewSubmissionResource, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -18,6 +19,7 @@ type ReadinessOptions struct {
 	VersionID string
 	Platform  string
 	Strict    bool
+	Build     *validation.Build
 }
 
 // BuildReadinessReport fetches live App Store Connect data and returns a
@@ -111,18 +113,27 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 	}
 
 	var attachedBuild *validation.Build
-	buildResp, err := client.GetAppStoreVersionBuild(requestCtx, resolvedVersionID)
-	if err != nil {
-		if !asc.IsNotFound(err) {
-			return validation.Report{}, fmt.Errorf("failed to fetch attached build: %w", err)
-		}
-	} else if strings.TrimSpace(buildResp.Data.ID) != "" {
-		attrs := buildResp.Data.Attributes
+	if opts.Build != nil {
 		attachedBuild = &validation.Build{
-			ID:              buildResp.Data.ID,
-			Version:         attrs.Version,
-			ProcessingState: attrs.ProcessingState,
-			Expired:         attrs.Expired,
+			ID:              strings.TrimSpace(opts.Build.ID),
+			Version:         opts.Build.Version,
+			ProcessingState: opts.Build.ProcessingState,
+			Expired:         opts.Build.Expired,
+		}
+	} else {
+		buildResp, err := client.GetAppStoreVersionBuild(requestCtx, resolvedVersionID)
+		if err != nil {
+			if !asc.IsNotFound(err) {
+				return validation.Report{}, fmt.Errorf("failed to fetch attached build: %w", err)
+			}
+		} else if strings.TrimSpace(buildResp.Data.ID) != "" {
+			attrs := buildResp.Data.Attributes
+			attachedBuild = &validation.Build{
+				ID:              buildResp.Data.ID,
+				Version:         attrs.Version,
+				ProcessingState: attrs.ProcessingState,
+				Expired:         attrs.Expired,
+			}
 		}
 	}
 
@@ -256,15 +267,35 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 }
 
 func readinessPricingSkipReason(err error) (string, bool) {
-	if errors.Is(err, asc.ErrForbidden) || asc.IsUnauthorized(err) {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "Review app pricing in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints timed out", true
+	case errors.Is(err, asc.ErrForbidden) || asc.IsUnauthorized(err):
 		return "Review app pricing in App Store Connect; readiness could not verify it automatically because this account cannot read Pricing and Availability", true
+	case asc.IsRetryable(err):
+		return "Review app pricing in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints were temporarily unavailable or rate limited", true
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return "Review app pricing in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints could not be reached", true
 	}
 	return "", false
 }
 
 func readinessAvailabilitySkipReason(err error) (string, bool) {
-	if errors.Is(err, asc.ErrForbidden) || asc.IsUnauthorized(err) {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "Review app availability in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints timed out", true
+	case errors.Is(err, asc.ErrForbidden) || asc.IsUnauthorized(err):
 		return "Review app availability in App Store Connect; readiness could not verify it automatically because this account cannot read Pricing and Availability", true
+	case asc.IsRetryable(err):
+		return "Review app availability in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints were temporarily unavailable or rate limited", true
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return "Review app availability in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints could not be reached", true
 	}
 	return "", false
 }

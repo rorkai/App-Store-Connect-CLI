@@ -60,6 +60,13 @@ func submitCreateDefaultReadinessResponse(req *http.Request) (*http.Response, bo
 	path := req.URL.Path
 
 	switch {
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/builds/") && !strings.Contains(strings.TrimPrefix(path, "/v1/builds/"), "/"):
+		buildID := strings.TrimSpace(strings.TrimPrefix(path, "/v1/builds/"))
+		if buildID == "" {
+			buildID = "build-1"
+		}
+		return mustSubmitCreateOKJSONResponse(fmt.Sprintf(`{"data":{"type":"builds","id":"%s","attributes":{"version":"1.0","processingState":"VALID","expired":false}}}`, buildID)), true
+
 	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && strings.HasSuffix(path, "/appInfos"):
 		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), true
 
@@ -831,6 +838,9 @@ func TestSubmitCreateFailsReadinessPreflightBeforeCreatingReviewSubmission(t *te
 		t.Fatalf("expected readiness preflight output to mention review details, got %q", stderr)
 	}
 	for _, req := range requests {
+		if req == "PATCH /v1/appStoreVersions/version-1/relationships/build" {
+			t.Fatalf("did not expect build attachment before readiness preflight failure, requests: %v", requests)
+		}
 		if req == "POST /v1/reviewSubmissions" {
 			t.Fatalf("did not expect review submission creation after readiness preflight failure, requests: %v", requests)
 		}
@@ -1277,6 +1287,123 @@ func TestSubmitCreateReusesExistingEmptySubmissionWithoutVersionItemsAfterConfli
 	}
 	if !strings.Contains(stderr, "Reusing existing empty review submission existing-empty because App Store Connect would not cancel it.") {
 		t.Fatalf("expected stderr to explain why the existing empty submission was reused, got %q", stderr)
+	}
+}
+
+func TestSubmitCreateDoesNotReuseSubmissionContainingNonVersionItemsAfterConflictRefresh(t *testing.T) {
+	setupSubmitCreateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 20)
+	cancelAttempted := false
+	http.DefaultTransport = submitCreateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		key := req.Method + " " + req.URL.Path
+		requests = append(requests, key)
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			query := req.URL.Query()
+			if strings.Contains(query.Get("filter[appStoreState]"), "READY_FOR_SALE") {
+				return submitCreateJSONResponse(http.StatusOK, `{"data":[]}`)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return submitCreateJSONResponse(http.StatusNoContent, "")
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			if req.URL.Query().Get("filter[state]") != "READY_FOR_REVIEW" || req.URL.Query().Get("filter[platform]") != "IOS" {
+				return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"existing-items","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}],"links":{}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/existing-items":
+			if !cancelAttempted {
+				cancelAttempted = true
+				return submitCreateJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"existing-items","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-20T00:00:00Z"}}}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-items":
+			return submitCreateJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "reviewSubmissions",
+					"id": "existing-items",
+					"attributes": {"state": "READY_FOR_REVIEW", "platform": "IOS"}
+				}
+			}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-items/items":
+			return submitCreateJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissionItems",
+					"id": "asset-item-1",
+					"relationships": {
+						"backgroundAssetVersion": {
+							"data": {"type": "backgroundAssetVersions", "id": "asset-1"}
+						}
+					}
+				}],
+				"links": {}
+			}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-sub-1":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-20T00:00:00Z"}}}`)
+
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"submit", "create",
+			"--app", "app-1",
+			"--version", "1.0",
+			"--build", "build-1",
+			"--platform", "IOS",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	foundNewSubmissionCreate := false
+	for _, req := range requests {
+		if req == "POST /v1/reviewSubmissions" {
+			foundNewSubmissionCreate = true
+		}
+	}
+	if !foundNewSubmissionCreate {
+		t.Fatalf("expected a fresh review submission when the conflicting submission contains non-version items, requests: %v", requests)
+	}
+	if !strings.Contains(strings.Join(requests, "\n"), "GET /v1/reviewSubmissions/existing-items/items") {
+		t.Fatalf("expected existing submission items lookup before deciding whether to reuse, requests: %v", requests)
+	}
+	if !strings.Contains(stdout, "new-sub-1") {
+		t.Fatalf("expected output to reference the new submission ID, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Skipped stale submission existing-items: already transitioned to a non-cancellable state") {
+		t.Fatalf("expected stderr to explain why the conflicting submission was not reused, got %q", stderr)
 	}
 }
 
