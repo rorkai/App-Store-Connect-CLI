@@ -31,7 +31,7 @@ const (
 	FrameDeviceIPhone17    FrameDevice = "iphone-17"
 	FrameDeviceMac         FrameDevice = "mac"
 
-	pinnedKoubouVersion = "0.14.0"
+	pinnedKoubouVersion = "0.17.1"
 )
 
 const (
@@ -73,35 +73,42 @@ var supportedFrameDevices = []FrameDevice{
 
 type frameDeviceKoubouSpec struct {
 	FrameName   string
+	Aliases     []string
 	OutputSize  string // Koubou named size (e.g. "iPhone6_9" or "AppDesktop_2880")
 	DisplayType string
 	Canvas      bool // true = plain canvas, no device bezel; screenshot scaled to fill
 }
 
-// Keeps the existing asc device slugs while delegating rendering to Koubou frame names.
+// Keeps the existing asc device slugs while delegating rendering to pinned
+// Koubou v0.17.1 frame names.
 var frameDeviceKoubouSpecs = map[FrameDevice]frameDeviceKoubouSpec{
 	FrameDeviceIPhoneAir: {
-		FrameName:   "iPhone Air - Light Gold - Portrait",
+		FrameName:   "iPhone 16 Pro - White Titanium - Portrait",
+		Aliases:     []string{"iPhone Air - Light Gold - Portrait"},
 		OutputSize:  "iPhone6_9",
 		DisplayType: "APP_IPHONE_69",
 	},
 	FrameDeviceIPhone17PM: {
-		FrameName:   "iPhone 17 Pro Max - Silver - Portrait",
+		FrameName:   "iPhone 16 Pro Max - White Titanium - Portrait",
+		Aliases:     []string{"iPhone 17 Pro Max - Silver - Portrait"},
 		OutputSize:  "iPhone6_9",
 		DisplayType: "APP_IPHONE_69",
 	},
 	FrameDeviceIPhone17Pro: {
-		FrameName:   "iPhone 17 Pro - Silver - Portrait",
+		FrameName:   "iPhone 15 Pro - White Titanium - Portrait",
+		Aliases:     []string{"iPhone 17 Pro - Silver - Portrait"},
 		OutputSize:  "iPhone6_7",
 		DisplayType: "APP_IPHONE_67",
 	},
 	FrameDeviceIPhone17: {
-		FrameName:   "iPhone 17 - Teal - Portrait",
+		FrameName:   "iPhone 14 Pro Portrait",
+		Aliases:     []string{"iPhone 17 - Teal - Portrait"},
 		OutputSize:  "iPhone6_7",
 		DisplayType: "APP_IPHONE_67",
 	},
 	FrameDeviceIPhone16e: {
-		FrameName:   "iPhone 16e - White - Portrait",
+		FrameName:   "iPhone 16 - White - Portrait",
+		Aliases:     []string{"iPhone 16e - White - Portrait"},
 		OutputSize:  "iPhone6_1",
 		DisplayType: "APP_IPHONE_61",
 	},
@@ -558,11 +565,23 @@ func resolveFrameDeviceForConfig(frameRef, fallback string) string {
 		return fallback
 	}
 	for device, spec := range frameDeviceKoubouSpecs {
-		if strings.EqualFold(strings.TrimSpace(spec.FrameName), trimmedFrameRef) {
+		if frameSpecMatchesFrameRef(spec, trimmedFrameRef) {
 			return string(device)
 		}
 	}
 	return trimmedFrameRef
+}
+
+func frameSpecMatchesFrameRef(spec frameDeviceKoubouSpec, frameRef string) bool {
+	if strings.EqualFold(strings.TrimSpace(spec.FrameName), frameRef) {
+		return true
+	}
+	for _, alias := range spec.Aliases {
+		if strings.EqualFold(strings.TrimSpace(alias), frameRef) {
+			return true
+		}
+	}
+	return false
 }
 
 // ResolveFrameDeviceFromConfig resolves the config device to a supported CLI slug.

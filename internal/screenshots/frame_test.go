@@ -45,6 +45,27 @@ func TestFrameDeviceOptions_DefaultMarked(t *testing.T) {
 	}
 }
 
+func TestFrameDeviceKoubouSpecs_UsePinnedKoubouFrames(t *testing.T) {
+	want := map[FrameDevice]string{
+		FrameDeviceIPhoneAir:   "iPhone 16 Pro - White Titanium - Portrait",
+		FrameDeviceIPhone17PM:  "iPhone 16 Pro Max - White Titanium - Portrait",
+		FrameDeviceIPhone17Pro: "iPhone 15 Pro - White Titanium - Portrait",
+		FrameDeviceIPhone17:    "iPhone 14 Pro Portrait",
+		FrameDeviceIPhone16e:   "iPhone 16 - White - Portrait",
+		FrameDeviceMac:         "Mac",
+	}
+
+	for device, wantFrame := range want {
+		spec, ok := frameDeviceKoubouSpecs[device]
+		if !ok {
+			t.Fatalf("missing Koubou spec for %q", device)
+		}
+		if spec.FrameName != wantFrame {
+			t.Fatalf("%q FrameName = %q, want %q", device, spec.FrameName, wantFrame)
+		}
+	}
+}
+
 func TestParseFrameDevice_NormalizesInput(t *testing.T) {
 	tests := []struct {
 		name string
@@ -267,7 +288,7 @@ func installFrameTestMockKou(t *testing.T, fixturePath, outputPath string) {
 	kouPath := filepath.Join(binDir, "kou")
 	script := `#!/bin/sh
 if [ "$1" = "--version" ]; then
-  echo "kou 0.14.0"
+  echo "kou 0.17.1"
   exit 0
 fi
 if [ "$1" = "generate" ]; then
@@ -500,7 +521,7 @@ func TestRunKoubouGenerate_ParsesJSONFromStdoutWhenStderrHasWarnings(t *testing.
 	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
 set -eu
 if [ "$1" = "--version" ]; then
-  echo "kou 0.14.0"
+  echo "kou 0.17.1"
   exit 0
 fi
 if [ "$1" != "generate" ]; then
@@ -548,7 +569,7 @@ exit 1
 	if !strings.Contains(err.Error(), "unsupported Koubou version 0.12.0") {
 		t.Fatalf("expected unsupported version error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "0.14.0") {
+	if !strings.Contains(err.Error(), "0.17.1") {
 		t.Fatalf("expected pinned version in error, got %v", err)
 	}
 }
@@ -560,7 +581,7 @@ func TestRunKoubouGenerate_NotFoundIncludesPinnedInstallHint(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected not found error")
 	}
-	if !strings.Contains(err.Error(), "pip install koubou==0.14.0") {
+	if !strings.Contains(err.Error(), "pip install koubou==0.17.1") {
 		t.Fatalf("expected pinned install command in error, got %v", err)
 	}
 }

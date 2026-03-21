@@ -99,7 +99,12 @@ func TestShotsFrame_DefaultDeviceIsIPhoneAir(t *testing.T) {
 	writeFramePNG(t, rawPath, makeRawImage(100, 220))
 	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
 	writeFramePNG(t, kouFixturePath, makeRawImage(1320, 2868))
-	installMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
+	installValidatingMockKou(
+		t,
+		kouFixturePath,
+		filepath.Join(t.TempDir(), "kou-out", "framed.png"),
+		"iPhone 16 Pro - White Titanium - Portrait",
+	)
 
 	outputDir := filepath.Join(t.TempDir(), "framed")
 	root := RootCommand("1.2.3")
@@ -626,7 +631,7 @@ func installMockKou(t *testing.T, fixturePath, outputPath string) {
 	kouPath := filepath.Join(binDir, "kou")
 	script := `#!/bin/sh
 if [ "$1" = "--version" ]; then
-  echo "kou 0.14.0"
+  echo "kou 0.17.1"
   exit 0
 fi
 if [ "$1" = "generate" ]; then
@@ -642,6 +647,39 @@ exit 1
 		t.Fatalf("write kou mock script: %v", err)
 	}
 
+	t.Setenv("MOCK_KOU_FIXTURE", fixturePath)
+	t.Setenv("MOCK_KOU_OUTPUT", outputPath)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+func installValidatingMockKou(t *testing.T, fixturePath, outputPath, expectedDevice string) {
+	t.Helper()
+
+	binDir := t.TempDir()
+	kouPath := filepath.Join(binDir, "kou")
+	script := `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "kou 0.17.1"
+  exit 0
+fi
+if [ "$1" = "generate" ]; then
+  if ! grep -F "$MOCK_KOU_EXPECTED_DEVICE" "$2" >/dev/null 2>&1; then
+    echo "Unexpected error: unsupported device frame" >&2
+    exit 1
+  fi
+  mkdir -p "$(dirname "$MOCK_KOU_OUTPUT")"
+  cp "$MOCK_KOU_FIXTURE" "$MOCK_KOU_OUTPUT"
+  printf '[{"name":"framed","path":"%s","success":true}]' "$MOCK_KOU_OUTPUT"
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`
+	if err := os.WriteFile(kouPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write kou mock script: %v", err)
+	}
+
+	t.Setenv("MOCK_KOU_EXPECTED_DEVICE", expectedDevice)
 	t.Setenv("MOCK_KOU_FIXTURE", fixturePath)
 	t.Setenv("MOCK_KOU_OUTPUT", outputPath)
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))

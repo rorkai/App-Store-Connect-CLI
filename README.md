@@ -282,7 +282,7 @@ For full command families, flags, and discovery patterns, see:
 
 ## Acknowledgements
 
-Local screenshot framing uses Koubou (pinned to `0.14.0`) for deterministic device-frame rendering.
+Local screenshot framing uses Koubou (pinned to `0.17.1`) for deterministic device-frame rendering.
 GitHub: https://github.com/bitomule/koubou
 
 Simulator UI automation for screenshot capture and interactions uses AXe CLI.
