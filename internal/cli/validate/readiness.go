@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -18,6 +19,7 @@ type ReadinessOptions struct {
 	VersionID string
 	Platform  string
 	Strict    bool
+	Build     *validation.Build
 }
 
 // BuildReadinessReport fetches live App Store Connect data and returns a
@@ -29,7 +31,18 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 	}
 
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
-	defer cancel()
+	defer func() {
+		if cancel != nil {
+			cancel()
+		}
+	}()
+
+	refreshRequestCtx := func() {
+		if cancel != nil {
+			cancel()
+		}
+		requestCtx, cancel = shared.ContextWithTimeout(ctx)
+	}
 
 	resolvedVersionID := strings.TrimSpace(opts.VersionID)
 	if resolvedVersionID == "" {
@@ -111,34 +124,67 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 	}
 
 	var attachedBuild *validation.Build
-	buildResp, err := client.GetAppStoreVersionBuild(requestCtx, resolvedVersionID)
-	if err != nil {
-		if !asc.IsNotFound(err) {
-			return validation.Report{}, fmt.Errorf("failed to fetch attached build: %w", err)
-		}
-	} else if strings.TrimSpace(buildResp.Data.ID) != "" {
-		attrs := buildResp.Data.Attributes
+	if opts.Build != nil {
 		attachedBuild = &validation.Build{
-			ID:              buildResp.Data.ID,
-			Version:         attrs.Version,
-			ProcessingState: attrs.ProcessingState,
-			Expired:         attrs.Expired,
+			ID:              strings.TrimSpace(opts.Build.ID),
+			Version:         opts.Build.Version,
+			ProcessingState: opts.Build.ProcessingState,
+			Expired:         opts.Build.Expired,
+		}
+	} else {
+		buildResp, err := client.GetAppStoreVersionBuild(requestCtx, resolvedVersionID)
+		if err != nil {
+			if !asc.IsNotFound(err) {
+				return validation.Report{}, fmt.Errorf("failed to fetch attached build: %w", err)
+			}
+		} else if strings.TrimSpace(buildResp.Data.ID) != "" {
+			attrs := buildResp.Data.Attributes
+			attachedBuild = &validation.Build{
+				ID:              buildResp.Data.ID,
+				Version:         attrs.Version,
+				ProcessingState: attrs.ProcessingState,
+				Expired:         attrs.Expired,
+			}
 		}
 	}
 
 	priceScheduleID := ""
+	pricingFetchSkipReason := ""
 	priceScheduleResp, err := client.GetAppPriceSchedule(requestCtx, opts.AppID)
 	if err != nil {
-		if !asc.IsNotFound(err) {
+		if asc.IsNotFound(err) {
+			// Leave priceScheduleID empty so validation reports a missing schedule.
+		} else if reason, ok := readinessPricingSkipReason(err); ok {
+			pricingFetchSkipReason = reason
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+				refreshRequestCtx()
+			}
+		} else {
 			return validation.Report{}, fmt.Errorf("failed to fetch app price schedule: %w", err)
 		}
 	} else {
 		priceScheduleID = priceScheduleResp.Data.ID
 	}
 
-	availabilityID, availableTerritories, err := fetchAvailableTerritories(requestCtx, client, opts.AppID)
+	availabilityID := ""
+	availableTerritories := 0
+	availabilityFetchSkipReason := ""
+	pricingCoverageSkipReason := ""
+	availabilityID, availableTerritories, err = fetchAvailableTerritoriesFn(requestCtx, client, opts.AppID)
 	if err != nil {
-		return validation.Report{}, err
+		if reason, ok := readinessAvailabilitySkipReason(err); ok {
+			availabilityFetchSkipReason = reason
+			availabilityID = ""
+			availableTerritories = 0
+			if coverageReason, coverageOK := availabilityCheckSkipReason(err); coverageOK {
+				pricingCoverageSkipReason = coverageReason
+			}
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+				refreshRequestCtx()
+			}
+		} else {
+			return validation.Report{}, err
+		}
 	}
 
 	versionLocalizations := make([]validation.VersionLocalization, 0, len(versionLocsResp.Data))
@@ -169,7 +215,7 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		})
 	}
 
-	screenshotSets, err := fetchScreenshotSets(requestCtx, client, versionLocsResp.Data)
+	screenshotSets, err := fetchScreenshotSetsFn(requestCtx, client, versionLocsResp.Data)
 	if err != nil {
 		return validation.Report{}, err
 	}
@@ -225,8 +271,11 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		PrimaryCategoryID:           primaryCategoryID,
 		Build:                       attachedBuild,
 		PriceScheduleID:             priceScheduleID,
+		PricingFetchSkipReason:      pricingFetchSkipReason,
 		AvailabilityID:              availabilityID,
 		AvailableTerritories:        availableTerritories,
+		AvailabilityFetchSkipReason: availabilityFetchSkipReason,
+		PricingCoverageSkipReason:   pricingCoverageSkipReason,
 		ScreenshotSets:              screenshotSets,
 		Subscriptions:               subscriptions,
 		SubscriptionFetchSkipReason: subscriptionFetchSkipReason,
@@ -239,4 +288,38 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 	}, opts.Strict)
 
 	return report, nil
+}
+
+func readinessPricingSkipReason(err error) (string, bool) {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "Review app pricing in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints timed out", true
+	case errors.Is(err, asc.ErrForbidden) || asc.IsUnauthorized(err):
+		return "Review app pricing in App Store Connect; readiness could not verify it automatically because this account cannot read Pricing and Availability", true
+	case asc.IsRetryable(err):
+		return "Review app pricing in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints were temporarily unavailable or rate limited", true
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return "Review app pricing in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints could not be reached", true
+	}
+	return "", false
+}
+
+func readinessAvailabilitySkipReason(err error) (string, bool) {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "Review app availability in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints timed out", true
+	case errors.Is(err, asc.ErrForbidden) || asc.IsUnauthorized(err):
+		return "Review app availability in App Store Connect; readiness could not verify it automatically because this account cannot read Pricing and Availability", true
+	case asc.IsRetryable(err):
+		return "Review app availability in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints were temporarily unavailable or rate limited", true
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return "Review app availability in App Store Connect; readiness could not verify it automatically because the Pricing and Availability endpoints could not be reached", true
+	}
+	return "", false
 }

@@ -72,6 +72,75 @@ func TestTypeConstants(t *testing.T) {
 	}
 }
 
+func TestParsePagingTotalOK(t *testing.T) {
+	tests := []struct {
+		name      string
+		meta      string
+		wantTotal int
+		wantOK    bool
+	}{
+		{
+			name:      "nil meta",
+			meta:      "",
+			wantTotal: 0,
+			wantOK:    false,
+		},
+		{
+			name:      "meta missing total field",
+			meta:      `{"paging":{"limit":1}}`,
+			wantTotal: 0,
+			wantOK:    false,
+		},
+		{
+			name:      "meta with total zero",
+			meta:      `{"paging":{"total":0,"limit":1}}`,
+			wantTotal: 0,
+			wantOK:    true,
+		},
+		{
+			name:      "meta with positive total",
+			meta:      `{"paging":{"total":42,"limit":1}}`,
+			wantTotal: 42,
+			wantOK:    true,
+		},
+		{
+			name:      "invalid json",
+			meta:      `not-json`,
+			wantTotal: 0,
+			wantOK:    false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var raw json.RawMessage
+			if tc.meta != "" {
+				raw = json.RawMessage(tc.meta)
+			}
+			got, ok := ParsePagingTotalOK(raw)
+			if ok != tc.wantOK {
+				t.Errorf("ParsePagingTotalOK() ok = %v, want %v", ok, tc.wantOK)
+			}
+			if got != tc.wantTotal {
+				t.Errorf("ParsePagingTotalOK() total = %d, want %d", got, tc.wantTotal)
+			}
+		})
+	}
+}
+
+func TestParsePagingTotal_BackwardCompatibility(t *testing.T) {
+	// Verify ParsePagingTotal still returns 0 in all absent-total cases.
+	if got := ParsePagingTotal(nil); got != 0 {
+		t.Errorf("ParsePagingTotal(nil) = %d, want 0", got)
+	}
+	if got := ParsePagingTotal(json.RawMessage(`{"paging":{"limit":1}}`)); got != 0 {
+		t.Errorf("ParsePagingTotal(no total) = %d, want 0", got)
+	}
+	if got := ParsePagingTotal(json.RawMessage(`{"paging":{"total":7,"limit":1}}`)); got != 7 {
+		t.Errorf("ParsePagingTotal(total=7) = %d, want 7", got)
+	}
+}
+
 func TestRelationshipRequest_MarshalJSON_EncodesEmptyArray(t *testing.T) {
 	// RelationshipRequest represents a to-many relationship payload. In JSON:API, an empty
 	// relationship list is encoded as {"data":[]} (not {"data":null}).

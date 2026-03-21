@@ -106,6 +106,7 @@ Lower-level alternative:
 
 ```bash
 asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
+asc builds add-groups --build "BUILD_ID" --group "GROUP_ID" --submit --confirm
 ```
 
 ### Migrate Metadata (Fastlane)

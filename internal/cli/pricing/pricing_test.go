@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"strings"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -248,6 +249,20 @@ func TestPricingAvailabilitySetCommand_HasAvailableInNewTerritoriesFlag(t *testi
 
 	if f := cmd.FlagSet.Lookup("available-in-new-territories"); f == nil {
 		t.Fatal("expected --available-in-new-territories flag to be defined")
+	}
+}
+
+func TestPricingAvailabilityCommand_UsesExistingAvailabilitySurface(t *testing.T) {
+	cmd := PricingAvailabilityCommand()
+
+	for _, subcommand := range cmd.Subcommands {
+		if subcommand.Name == "create" {
+			t.Fatal("did not expect pricing availability create to be registered")
+		}
+	}
+
+	if !strings.Contains(cmd.LongHelp, `"asc web apps availability create"`) {
+		t.Fatalf("expected pricing availability help to point at web bootstrap flow, got %q", cmd.LongHelp)
 	}
 }
 

@@ -22,7 +22,38 @@ func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return fn(req)
 }
 
-func newTestClient(t *testing.T, check func(*http.Request), response *http.Response) *Client {
+func newTestClient(t *testing.T, check func(*http.Request), responses ...*http.Response) *Client {
+	t.Helper()
+	if len(responses) == 0 {
+		t.Fatal("expected at least one response")
+	}
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+
+	var responseIndex atomic.Int32
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if check != nil {
+			check(req)
+		}
+		index := int(responseIndex.Add(1)) - 1
+		if index >= len(responses) {
+			t.Fatalf("unexpected request %d: %s %s", index+1, req.Method, req.URL.String())
+		}
+		return responses[index], nil
+	})
+
+	return &Client{
+		httpClient: &http.Client{Transport: transport},
+		keyID:      "KEY123",
+		issuerID:   "ISS456",
+		privateKey: key,
+	}
+}
+
+func newTestClientWithResponses(t *testing.T, check func(*http.Request), responses ...*http.Response) *Client {
 	t.Helper()
 
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -30,11 +61,17 @@ func newTestClient(t *testing.T, check func(*http.Request), response *http.Respo
 		t.Fatalf("GenerateKey() error: %v", err)
 	}
 
+	var idx atomic.Int32
 	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if check != nil {
 			check(req)
 		}
-		return response, nil
+		i := int(idx.Load())
+		if i >= len(responses) {
+			t.Fatalf("unexpected extra request %d: %s %s", i+1, req.Method, req.URL.Path)
+		}
+		idx.Add(1)
+		return responses[i], nil
 	})
 
 	return &Client{
@@ -1529,33 +1566,276 @@ func TestAddBetaGroupsToBuild_SendsRequest(t *testing.T) {
 	}
 }
 
-func TestAddBetaGroupsToBuildWithNotify_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusNoContent, ``)
+func TestAddBetaGroupsToBuildWithNotify_SendsBuildBetaNotificationWhenAutoNotifyDisabled(t *testing.T) {
+	responses := []*http.Response{
+		jsonResponse(http.StatusNoContent, ``),
+		jsonResponse(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`),
+		jsonResponse(http.StatusCreated, `{"data":{"type":"buildBetaNotifications","id":"notif-1"}}`),
+	}
+	requestCount := 0
 	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodPost {
-			t.Fatalf("expected POST, got %s", req.Method)
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodPost {
+				t.Fatalf("expected POST, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
+				t.Fatalf("expected path /v1/builds/build-1/relationships/betaGroups, got %s", req.URL.Path)
+			}
+			if req.URL.RawQuery != "" {
+				t.Fatalf("expected no query string, got %q", req.URL.RawQuery)
+			}
+			var payload RelationshipRequest
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("failed to decode request: %v", err)
+			}
+			if len(payload.Data) != 1 {
+				t.Fatalf("expected 1 relationship, got %d", len(payload.Data))
+			}
+			if payload.Data[0].Type != ResourceTypeBetaGroups || payload.Data[0].ID != "group-1" {
+				t.Fatalf("unexpected relationship: %+v", payload.Data[0])
+			}
+			assertAuthorized(t, req)
+		case 2:
+			if req.Method != http.MethodGet {
+				t.Fatalf("expected GET, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
+				t.Fatalf("expected path /v1/builds/build-1/buildBetaDetail, got %s", req.URL.Path)
+			}
+			assertAuthorized(t, req)
+		case 3:
+			if req.Method != http.MethodPost {
+				t.Fatalf("expected POST, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/buildBetaNotifications" {
+				t.Fatalf("expected path /v1/buildBetaNotifications, got %s", req.URL.Path)
+			}
+			var payload BuildBetaNotificationCreateRequest
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("failed to decode request: %v", err)
+			}
+			if payload.Data.Type != ResourceTypeBuildBetaNotifications {
+				t.Fatalf("expected type buildBetaNotifications, got %q", payload.Data.Type)
+			}
+			if payload.Data.Relationships.Build.Data.Type != ResourceTypeBuilds || payload.Data.Relationships.Build.Data.ID != "build-1" {
+				t.Fatalf("unexpected build relationship: %+v", payload.Data.Relationships.Build.Data)
+			}
+			assertAuthorized(t, req)
+		default:
+			t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 		}
-		if req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
-			t.Fatalf("expected path /v1/builds/build-1/relationships/betaGroups, got %s", req.URL.Path)
-		}
-		if req.URL.RawQuery != "notify=true" {
-			t.Fatalf("expected notify query, got %q", req.URL.RawQuery)
-		}
-		var payload RelationshipRequest
-		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-			t.Fatalf("failed to decode request: %v", err)
-		}
-		if len(payload.Data) != 1 {
-			t.Fatalf("expected 1 relationship, got %d", len(payload.Data))
-		}
-		if payload.Data[0].Type != ResourceTypeBetaGroups || payload.Data[0].ID != "group-1" {
-			t.Fatalf("unexpected relationship: %+v", payload.Data[0])
-		}
-		assertAuthorized(t, req)
-	}, response)
+	}, responses...)
 
-	if err := client.AddBetaGroupsToBuildWithNotify(context.Background(), "build-1", []string{"group-1"}, true); err != nil {
+	action, err := client.AddBetaGroupsToBuildWithNotify(context.Background(), "build-1", []string{"group-1"}, true)
+	if err != nil {
 		t.Fatalf("AddBetaGroupsToBuildWithNotify() error: %v", err)
+	}
+	if action != BuildBetaGroupsNotificationActionManual {
+		t.Fatalf("expected manual notification action, got %q", action)
+	}
+	if requestCount != 3 {
+		t.Fatalf("expected 3 requests, got %d", requestCount)
+	}
+}
+
+func TestAddBetaGroupsToBuildWithNotify_SkipsBuildBetaNotificationWhenAutoNotifyEnabled(t *testing.T) {
+	responses := []*http.Response{
+		jsonResponse(http.StatusNoContent, ``),
+		jsonResponse(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":true}}}`),
+	}
+	requestCount := 0
+	client := newTestClient(t, func(req *http.Request) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodPost {
+				t.Fatalf("expected POST, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
+				t.Fatalf("expected path /v1/builds/build-1/relationships/betaGroups, got %s", req.URL.Path)
+			}
+			if req.URL.RawQuery != "" {
+				t.Fatalf("expected no query string, got %q", req.URL.RawQuery)
+			}
+			var payload RelationshipRequest
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("failed to decode request: %v", err)
+			}
+			if len(payload.Data) != 1 {
+				t.Fatalf("expected 1 relationship, got %d", len(payload.Data))
+			}
+			if payload.Data[0].Type != ResourceTypeBetaGroups || payload.Data[0].ID != "group-1" {
+				t.Fatalf("unexpected relationship: %+v", payload.Data[0])
+			}
+			assertAuthorized(t, req)
+		case 2:
+			if req.Method != http.MethodGet {
+				t.Fatalf("expected GET, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
+				t.Fatalf("expected path /v1/builds/build-1/buildBetaDetail, got %s", req.URL.Path)
+			}
+			assertAuthorized(t, req)
+		default:
+			t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+		}
+	}, responses...)
+
+	action, err := client.AddBetaGroupsToBuildWithNotify(context.Background(), "build-1", []string{"group-1"}, true)
+	if err != nil {
+		t.Fatalf("AddBetaGroupsToBuildWithNotify() error: %v", err)
+	}
+	if action != BuildBetaGroupsNotificationActionAutoNotifyEnabled {
+		t.Fatalf("expected auto-notify-enabled action, got %q", action)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected 2 requests, got %d", requestCount)
+	}
+}
+
+func TestAddBetaGroupsToBuildWithNotify_BuildBetaDetailFailureExplainsGroupsAlreadyAdded(t *testing.T) {
+	responses := []*http.Response{
+		jsonResponse(http.StatusNoContent, ``),
+		jsonResponse(http.StatusConflict, `{"errors":[{"code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"Temporary outage","detail":"try again later"}]}`),
+	}
+	requestCount := 0
+	client := newTestClient(t, func(req *http.Request) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+		case 2:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+		default:
+			t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+		}
+	}, responses...)
+
+	_, err := client.AddBetaGroupsToBuildWithNotify(context.Background(), "build-1", []string{"group-1"}, true)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var partialErr *BuildBetaGroupsPartialError
+	if !errors.As(err, &partialErr) {
+		t.Fatalf("expected BuildBetaGroupsPartialError, got %T", err)
+	}
+	if partialErr.BuildID != "build-1" {
+		t.Fatalf("expected buildID build-1, got %q", partialErr.BuildID)
+	}
+	if partialErr.Step != "checking notification state" {
+		t.Fatalf("expected step checking notification state, got %q", partialErr.Step)
+	}
+	if partialErr.Unwrap() == nil {
+		t.Fatal("expected partial error to unwrap underlying error")
+	}
+	if !strings.Contains(err.Error(), `beta groups were added to build "build-1", but checking notification state failed`) {
+		t.Fatalf("expected partial-success detail fetch error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "Temporary outage: try again later") {
+		t.Fatalf("expected underlying API error, got %v", err)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected 2 requests, got %d", requestCount)
+	}
+}
+
+func TestAddBetaGroupsToBuildWithNotify_NotificationFailureExplainsGroupsAlreadyAdded(t *testing.T) {
+	responses := []*http.Response{
+		jsonResponse(http.StatusNoContent, ``),
+		jsonResponse(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`),
+		jsonResponse(http.StatusServiceUnavailable, `{"errors":[{"code":"INTERNAL_ERROR","title":"Service unavailable","detail":"email delivery temporarily unavailable"}]}`),
+	}
+	requestCount := 0
+	client := newTestClient(t, func(req *http.Request) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+		case 2:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+		case 3:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/buildBetaNotifications" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+		default:
+			t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+		}
+	}, responses...)
+
+	_, err := client.AddBetaGroupsToBuildWithNotify(context.Background(), "build-1", []string{"group-1"}, true)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var partialErr *BuildBetaGroupsPartialError
+	if !errors.As(err, &partialErr) {
+		t.Fatalf("expected BuildBetaGroupsPartialError, got %T", err)
+	}
+	if partialErr.BuildID != "build-1" {
+		t.Fatalf("expected buildID build-1, got %q", partialErr.BuildID)
+	}
+	if partialErr.Step != "notifying testers" {
+		t.Fatalf("expected step notifying testers, got %q", partialErr.Step)
+	}
+	if partialErr.Unwrap() == nil {
+		t.Fatal("expected partial error to unwrap underlying error")
+	}
+	if !strings.Contains(err.Error(), `beta groups were added to build "build-1", but notifying testers failed`) {
+		t.Fatalf("expected partial-success notify error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "Service unavailable: email delivery temporarily unavailable") {
+		t.Fatalf("expected underlying API error, got %v", err)
+	}
+	if requestCount != 3 {
+		t.Fatalf("expected 3 requests, got %d", requestCount)
+	}
+}
+
+func TestAddBetaGroupsToBuildWithNotify_TreatsAutoNotifyConflictAsAlreadyEnabled(t *testing.T) {
+	responses := []*http.Response{
+		jsonResponse(http.StatusNoContent, ``),
+		jsonResponse(http.StatusOK, `{"data":{"type":"buildBetaDetails","id":"detail-1","attributes":{"autoNotifyEnabled":false}}}`),
+		jsonResponse(http.StatusConflict, `{"errors":[{"code":"STATE_ERROR.ENTITY_STATE_INVALID","title":"There is a problem with the request entity","detail":"Auto-notify already enabled"}]}`),
+	}
+	requestCount := 0
+	client := newTestClient(t, func(req *http.Request) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-1/relationships/betaGroups" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+		case 2:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/buildBetaDetail" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+		case 3:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/buildBetaNotifications" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+		default:
+			t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+		}
+	}, responses...)
+
+	action, err := client.AddBetaGroupsToBuildWithNotify(context.Background(), "build-1", []string{"group-1"}, true)
+	if err != nil {
+		t.Fatalf("AddBetaGroupsToBuildWithNotify() error: %v", err)
+	}
+	if action != BuildBetaGroupsNotificationActionAutoNotifyEnabled {
+		t.Fatalf("expected auto-notify-enabled action, got %q", action)
+	}
+	if requestCount != 3 {
+		t.Fatalf("expected 3 requests, got %d", requestCount)
 	}
 }
 
@@ -1867,6 +2147,199 @@ func TestExpireBuild_SendsPatch(t *testing.T) {
 
 	if _, err := client.ExpireBuild(context.Background(), "123"); err != nil {
 		t.Fatalf("ExpireBuild() error: %v", err)
+	}
+}
+
+func TestUpdateBuild_SendsPatch(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-99","attributes":{"version":"2.0","uploadedDate":"2026-03-18T00:00:00Z","usesNonExemptEncryption":false}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds/build-99" {
+			t.Fatalf("expected path /v1/builds/build-99, got %s", req.URL.Path)
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		var payload struct {
+			Data struct {
+				Type       string `json:"type"`
+				ID         string `json:"id"`
+				Attributes struct {
+					UsesNonExemptEncryption *bool `json:"usesNonExemptEncryption"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body error: %v", err)
+		}
+		if payload.Data.Type != "builds" {
+			t.Fatalf("expected type builds, got %q", payload.Data.Type)
+		}
+		if payload.Data.ID != "build-99" {
+			t.Fatalf("expected id build-99, got %q", payload.Data.ID)
+		}
+		if payload.Data.Attributes.UsesNonExemptEncryption == nil || *payload.Data.Attributes.UsesNonExemptEncryption != false {
+			t.Fatalf("expected usesNonExemptEncryption=false")
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	enc := false
+	resp, err := client.UpdateBuild(context.Background(), "build-99", BuildUpdateAttributes{UsesNonExemptEncryption: &enc})
+	if err != nil {
+		t.Fatalf("UpdateBuild() error: %v", err)
+	}
+	if resp.Data.ID != "build-99" {
+		t.Fatalf("expected build-99, got %q", resp.Data.ID)
+	}
+}
+
+func TestUpdateBuild_EmptyBuildIDReturnsError(t *testing.T) {
+	client := newTestClient(t, func(req *http.Request) {
+		t.Fatal("should not make HTTP request for empty buildID")
+	}, jsonResponse(http.StatusOK, `{}`))
+
+	_, err := client.UpdateBuild(context.Background(), "", BuildUpdateAttributes{})
+	if err == nil {
+		t.Fatal("expected error for empty buildID")
+	}
+}
+
+func TestUpdateBuild_RefetchesCurrentStateAfterPatchError(t *testing.T) {
+	requestCount := 0
+	client := newTestClientWithResponses(t, func(req *http.Request) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodPatch {
+				t.Fatalf("expected PATCH, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-99" {
+				t.Fatalf("expected path /v1/builds/build-99, got %s", req.URL.Path)
+			}
+			assertAuthorized(t, req)
+		case 2:
+			if req.Method != http.MethodGet {
+				t.Fatalf("expected GET, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-99" {
+				t.Fatalf("expected path /v1/builds/build-99, got %s", req.URL.Path)
+			}
+			assertAuthorized(t, req)
+		default:
+			t.Fatalf("unexpected request count %d", requestCount)
+		}
+	},
+		jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Build update conflict","detail":"The request could not be completed."}]}`),
+		jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-99","attributes":{"version":"2.0","uploadedDate":"2026-03-18T00:00:00Z","usesNonExemptEncryption":false}}}`),
+	)
+
+	enc := false
+	resp, err := client.UpdateBuild(context.Background(), "build-99", BuildUpdateAttributes{UsesNonExemptEncryption: &enc})
+	if err != nil {
+		t.Fatalf("UpdateBuild() error: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("expected response")
+	}
+	if resp.Data.Attributes.UsesNonExemptEncryption == nil || *resp.Data.Attributes.UsesNonExemptEncryption != false {
+		t.Fatalf("expected usesNonExemptEncryption=false, got %+v", resp.Data.Attributes.UsesNonExemptEncryption)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected PATCH then GET, got %d requests", requestCount)
+	}
+}
+
+func TestUpdateBuild_ReturnsOriginalErrorWhenCurrentStateDoesNotMatch(t *testing.T) {
+	requestCount := 0
+	client := newTestClientWithResponses(t, func(req *http.Request) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodPatch {
+				t.Fatalf("expected PATCH, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-99" {
+				t.Fatalf("expected path /v1/builds/build-99, got %s", req.URL.Path)
+			}
+			assertAuthorized(t, req)
+		case 2:
+			if req.Method != http.MethodGet {
+				t.Fatalf("expected GET, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-99" {
+				t.Fatalf("expected path /v1/builds/build-99, got %s", req.URL.Path)
+			}
+			assertAuthorized(t, req)
+		default:
+			t.Fatalf("unexpected request count %d", requestCount)
+		}
+	},
+		jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.ATTRIBUTE.INVALID","title":"Build update conflict","detail":"The request could not be completed."}]}`),
+		jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-99","attributes":{"version":"2.0","uploadedDate":"2026-03-18T00:00:00Z","usesNonExemptEncryption":true}}}`),
+	)
+
+	enc := false
+	resp, err := client.UpdateBuild(context.Background(), "build-99", BuildUpdateAttributes{UsesNonExemptEncryption: &enc})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if resp != nil {
+		t.Fatalf("expected nil response, got %+v", resp)
+	}
+	if !strings.Contains(err.Error(), "Build update conflict") {
+		t.Fatalf("expected original PATCH error, got %v", err)
+	}
+	if requestCount != 2 {
+		t.Fatalf("expected PATCH then GET, got %d requests", requestCount)
+	}
+}
+
+func TestUpdateBuild_DoesNotTreatNonConflictErrorAsNoOp(t *testing.T) {
+	requestCount := 0
+	client := newTestClientWithResponses(t, func(req *http.Request) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodPatch {
+				t.Fatalf("expected PATCH, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-99" {
+				t.Fatalf("expected path /v1/builds/build-99, got %s", req.URL.Path)
+			}
+			assertAuthorized(t, req)
+		case 2:
+			if req.Method != http.MethodGet {
+				t.Fatalf("expected GET, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/builds/build-99" {
+				t.Fatalf("expected path /v1/builds/build-99, got %s", req.URL.Path)
+			}
+			assertAuthorized(t, req)
+		default:
+			t.Fatalf("unexpected request count %d", requestCount)
+		}
+	},
+		jsonResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`),
+		jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-99","attributes":{"version":"2.0","uploadedDate":"2026-03-18T00:00:00Z","usesNonExemptEncryption":false}}}`),
+	)
+
+	enc := false
+	resp, err := client.UpdateBuild(context.Background(), "build-99", BuildUpdateAttributes{UsesNonExemptEncryption: &enc})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if resp != nil {
+		t.Fatalf("expected nil response, got %+v", resp)
+	}
+	if !strings.Contains(err.Error(), "Forbidden") {
+		t.Fatalf("expected original PATCH error, got %v", err)
+	}
+	if requestCount != 1 {
+		t.Fatalf("expected only PATCH request, got %d requests", requestCount)
 	}
 }
 

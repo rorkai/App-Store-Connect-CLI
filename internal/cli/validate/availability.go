@@ -11,6 +11,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+var fetchAvailableTerritoriesFn = fetchAvailableTerritories
+
 func fetchAvailableTerritories(ctx context.Context, client *asc.Client, appID string) (string, int, error) {
 	availabilityID := ""
 	availableTerritories := 0

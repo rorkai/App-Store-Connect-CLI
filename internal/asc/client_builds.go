@@ -3,7 +3,9 @@ package asc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -300,20 +302,29 @@ func (c *Client) GetBuildAppEncryptionDeclaration(ctx context.Context, buildID s
 	return &response, nil
 }
 
-// ExpireBuild expires a build for TestFlight testing.
-func (c *Client) ExpireBuild(ctx context.Context, buildID string) (*BuildResponse, error) {
+// BuildUpdateAttributes describes mutable attributes on a build resource.
+type BuildUpdateAttributes struct {
+	UsesNonExemptEncryption *bool `json:"usesNonExemptEncryption,omitempty"`
+	Expired                 *bool `json:"expired,omitempty"`
+}
+
+// UpdateBuild patches a build resource with the given attributes.
+func (c *Client) UpdateBuild(ctx context.Context, buildID string, attrs BuildUpdateAttributes) (*BuildResponse, error) {
+	buildID = strings.TrimSpace(buildID)
+	if buildID == "" {
+		return nil, fmt.Errorf("buildID is required")
+	}
+
 	payload := struct {
 		Data struct {
-			Type       ResourceType `json:"type"`
-			ID         string       `json:"id"`
-			Attributes struct {
-				Expired bool `json:"expired"`
-			} `json:"attributes"`
+			Type       ResourceType          `json:"type"`
+			ID         string                `json:"id"`
+			Attributes BuildUpdateAttributes `json:"attributes"`
 		} `json:"data"`
 	}{}
 	payload.Data.Type = ResourceTypeBuilds
 	payload.Data.ID = buildID
-	payload.Data.Attributes.Expired = true
+	payload.Data.Attributes = attrs
 
 	body, err := BuildRequestBody(payload)
 	if err != nil {
@@ -323,6 +334,9 @@ func (c *Client) ExpireBuild(ctx context.Context, buildID string) (*BuildRespons
 	path := fmt.Sprintf("/v1/builds/%s", buildID)
 	data, err := c.do(ctx, "PATCH", path, body)
 	if err != nil {
+		if current, ok := c.resolveBuildUpdateNoOp(ctx, buildID, attrs, err); ok {
+			return current, nil
+		}
 		return nil, err
 	}
 
@@ -334,20 +348,101 @@ func (c *Client) ExpireBuild(ctx context.Context, buildID string) (*BuildRespons
 	return &response, nil
 }
 
+func (c *Client) resolveBuildUpdateNoOp(ctx context.Context, buildID string, attrs BuildUpdateAttributes, patchErr error) (*BuildResponse, bool) {
+	if !isBuildUpdateConflict(patchErr) {
+		return nil, false
+	}
+	current, err := c.GetBuild(ctx, buildID)
+	if err != nil {
+		return nil, false
+	}
+	if !buildUpdateMatchesCurrent(current, attrs) {
+		return nil, false
+	}
+	return current, true
+}
+
+func isBuildUpdateConflict(err error) bool {
+	apiErr, ok := errors.AsType[*APIError](err)
+	return ok && apiErr != nil && apiErr.StatusCode == http.StatusConflict
+}
+
+func buildUpdateMatchesCurrent(resp *BuildResponse, attrs BuildUpdateAttributes) bool {
+	if resp == nil {
+		return false
+	}
+
+	matched := false
+	current := resp.Data.Attributes
+
+	if attrs.UsesNonExemptEncryption != nil {
+		matched = true
+		if current.UsesNonExemptEncryption == nil || *current.UsesNonExemptEncryption != *attrs.UsesNonExemptEncryption {
+			return false
+		}
+	}
+	if attrs.Expired != nil {
+		matched = true
+		if current.Expired != *attrs.Expired {
+			return false
+		}
+	}
+
+	return matched
+}
+
+// ExpireBuild expires a build for TestFlight testing.
+func (c *Client) ExpireBuild(ctx context.Context, buildID string) (*BuildResponse, error) {
+	expired := true
+	return c.UpdateBuild(ctx, buildID, BuildUpdateAttributes{Expired: &expired})
+}
+
 // AddBetaGroupsToBuild adds beta groups to a build for TestFlight distribution.
 func (c *Client) AddBetaGroupsToBuild(ctx context.Context, buildID string, groupIDs []string) error {
-	return c.AddBetaGroupsToBuildWithNotify(ctx, buildID, groupIDs, false)
+	_, err := c.AddBetaGroupsToBuildWithNotify(ctx, buildID, groupIDs, false)
+	return err
+}
+
+// BuildBetaGroupsNotificationAction describes how notify=true was satisfied.
+type BuildBetaGroupsNotificationAction string
+
+const (
+	BuildBetaGroupsNotificationActionNone              BuildBetaGroupsNotificationAction = ""
+	BuildBetaGroupsNotificationActionManual            BuildBetaGroupsNotificationAction = "manual"
+	BuildBetaGroupsNotificationActionAutoNotifyEnabled BuildBetaGroupsNotificationAction = "auto_notify_enabled"
+)
+
+// BuildBetaGroupsPartialError reports that the beta-group assignment succeeded,
+// but a follow-up notification step failed.
+type BuildBetaGroupsPartialError struct {
+	BuildID string
+	Step    string
+	Err     error
+}
+
+func (e *BuildBetaGroupsPartialError) Error() string {
+	if e == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("beta groups were added to build %q, but %s failed: %v", e.BuildID, e.Step, e.Err)
+}
+
+func (e *BuildBetaGroupsPartialError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
 }
 
 // AddBetaGroupsToBuildWithNotify adds beta groups to a build with optional notifications.
-func (c *Client) AddBetaGroupsToBuildWithNotify(ctx context.Context, buildID string, groupIDs []string, notify bool) error {
+func (c *Client) AddBetaGroupsToBuildWithNotify(ctx context.Context, buildID string, groupIDs []string, notify bool) (BuildBetaGroupsNotificationAction, error) {
 	buildID = strings.TrimSpace(buildID)
 	groupIDs = normalizeList(groupIDs)
 	if buildID == "" {
-		return fmt.Errorf("buildID is required")
+		return BuildBetaGroupsNotificationActionNone, fmt.Errorf("buildID is required")
 	}
 	if len(groupIDs) == 0 {
-		return fmt.Errorf("groupIDs are required")
+		return BuildBetaGroupsNotificationActionNone, fmt.Errorf("groupIDs are required")
 	}
 
 	payload := RelationshipRequest{
@@ -362,17 +457,51 @@ func (c *Client) AddBetaGroupsToBuildWithNotify(ctx context.Context, buildID str
 
 	body, err := BuildRequestBody(payload)
 	if err != nil {
-		return err
+		return BuildBetaGroupsNotificationActionNone, err
 	}
 
 	path := fmt.Sprintf("/v1/builds/%s/relationships/betaGroups", buildID)
-	if notify {
-		path += "?notify=true"
-	}
 	if _, err := c.do(ctx, "POST", path, body); err != nil {
-		return err
+		return BuildBetaGroupsNotificationActionNone, err
 	}
-	return nil
+	if notify {
+		detail, err := c.GetBuildBuildBetaDetail(ctx, buildID)
+		if err != nil {
+			return BuildBetaGroupsNotificationActionNone, buildBetaGroupsNotifyPartialError(buildID, "checking notification state", err)
+		}
+		if detail.Data.Attributes.AutoNotifyEnabled {
+			return BuildBetaGroupsNotificationActionAutoNotifyEnabled, nil
+		}
+		if _, err := c.CreateBuildBetaNotification(ctx, buildID); err != nil {
+			// Apple can still reject the follow-up create with the same
+			// already-enabled state even after buildBetaDetail says false.
+			if isAutoNotifyAlreadyEnabledNotificationError(err) {
+				return BuildBetaGroupsNotificationActionAutoNotifyEnabled, nil
+			}
+			return BuildBetaGroupsNotificationActionNone, buildBetaGroupsNotifyPartialError(buildID, "notifying testers", err)
+		}
+		return BuildBetaGroupsNotificationActionManual, nil
+	}
+	return BuildBetaGroupsNotificationActionNone, nil
+}
+
+func buildBetaGroupsNotifyPartialError(buildID, step string, err error) error {
+	return &BuildBetaGroupsPartialError{
+		BuildID: buildID,
+		Step:    step,
+		Err:     err,
+	}
+}
+
+func isAutoNotifyAlreadyEnabledNotificationError(err error) bool {
+	apiErr, ok := errors.AsType[*APIError](err)
+	if !ok || apiErr == nil {
+		return false
+	}
+	if !strings.EqualFold(strings.TrimSpace(apiErr.Code), "STATE_ERROR.ENTITY_STATE_INVALID") {
+		return false
+	}
+	return strings.Contains(strings.ToLower(strings.TrimSpace(apiErr.Detail)), "auto-notify already enabled")
 }
 
 // RemoveBetaGroupsFromBuild removes beta groups from a build.

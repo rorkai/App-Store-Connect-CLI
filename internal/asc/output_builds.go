@@ -38,6 +38,18 @@ type BuildUploadDeleteResult struct {
 	Deleted bool   `json:"deleted"`
 }
 
+// BuildsCountResult represents the output of the builds count command.
+type BuildsCountResult struct {
+	AppID string `json:"appId"`
+	Total int    `json:"total"`
+}
+
+func buildsCountRows(result *BuildsCountResult) ([]string, [][]string) {
+	headers := []string{"App ID", "Total Builds"}
+	rows := [][]string{{result.AppID, fmt.Sprintf("%d", result.Total)}}
+	return headers, rows
+}
+
 // BuildsLatestNextResult represents CLI output for next build number selection.
 type BuildsLatestNextResult struct {
 	LatestProcessedBuildNumber *string  `json:"latestProcessedBuildNumber"`

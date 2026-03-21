@@ -133,7 +133,13 @@ func TestBuildsListPlatformFilterWithVersionLookup(t *testing.T) {
 			if query.Get("filter[version]") != "1.2.3" {
 				t.Fatalf("expected filter[version]=1.2.3, got %q", query.Get("filter[version]"))
 			}
-			body := `{"data":[{"type":"preReleaseVersions","id":"prv-ios"},{"type":"preReleaseVersions","id":"prv-vision"}],"links":{"next":""}}`
+			body := `{
+				"data":[
+					{"type":"preReleaseVersions","id":"prv-ios","attributes":{"version":"1.2.3","platform":"IOS"}},
+					{"type":"preReleaseVersions","id":"prv-vision","attributes":{"version":"1.2.3","platform":"VISION_OS"}}
+				],
+				"links":{"next":""}
+			}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),

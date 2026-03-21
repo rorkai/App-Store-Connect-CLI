@@ -148,8 +148,40 @@ func TestSubmitCreatePreflightSkipsWhatsNewForFirstVersionOnDifferentPlatform(t 
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-tv":
+			body := `{"data":{"type":"appStoreVersions","id":"version-tv","attributes":{"versionString":"1.0.0","appStoreState":"PREPARE_FOR_SUBMISSION","platform":"TV_OS","copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-123"}}}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-1/appScreenshotSets":
+			body := `{"data":[{"type":"appScreenshotSets","id":"set-tv","attributes":{"screenshotDisplayType":"APP_APPLE_TV"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-tv/appScreenshots":
+			body := `{"data":[{"type":"appScreenshots","id":"shot-tv","attributes":{"fileName":"tv.png","imageAsset":{"width":1920,"height":1080}}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-123/subscriptionGroups":
 			body := `{"data":[]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-tv":
+			body := `{"data":{"type":"builds","id":"build-tv","attributes":{"version":"1.0.0","processingState":"VALID","expired":false}}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
@@ -165,6 +197,9 @@ func TestSubmitCreatePreflightSkipsWhatsNewForFirstVersionOnDifferentPlatform(t 
 			}, nil
 
 		default:
+			if fallback, ok := submitCreateDefaultReadinessResponse(req); ok {
+				return fallback, nil
+			}
 			t.Logf("unexpected request: %s %s", req.Method, req.URL.String())
 			return &http.Response{
 				StatusCode: http.StatusNotFound,
@@ -306,7 +341,7 @@ func TestSubmitCreateVersionIDUsesActualVersionPlatform(t *testing.T) {
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-tv":
-			body := `{"data":{"type":"appStoreVersions","id":"version-tv","attributes":{"versionString":"1.0.0","appStoreState":"PREPARE_FOR_SUBMISSION","platform":"TV_OS"}}}`
+			body := `{"data":{"type":"appStoreVersions","id":"version-tv","attributes":{"versionString":"1.0.0","appStoreState":"PREPARE_FOR_SUBMISSION","platform":"TV_OS","copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-123"}}}}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
@@ -363,6 +398,22 @@ func TestSubmitCreateVersionIDUsesActualVersionPlatform(t *testing.T) {
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
 
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-1/appScreenshotSets":
+			body := `{"data":[{"type":"appScreenshotSets","id":"set-tv","attributes":{"screenshotDisplayType":"APP_APPLE_TV"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-tv/appScreenshots":
+			body := `{"data":[{"type":"appScreenshots","id":"shot-tv","attributes":{"fileName":"tv.png","imageAsset":{"width":1920,"height":1080}}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-123/reviewSubmissions":
 			if req.URL.Query().Get("filter[state]") != "READY_FOR_REVIEW" || req.URL.Query().Get("filter[platform]") != "TV_OS" {
 				t.Fatalf("unexpected review submissions filters: %s", req.URL.RawQuery)
@@ -407,6 +458,9 @@ func TestSubmitCreateVersionIDUsesActualVersionPlatform(t *testing.T) {
 			}, nil
 
 		default:
+			if fallback, ok := submitCreateDefaultReadinessResponse(req); ok {
+				return fallback, nil
+			}
 			t.Logf("unexpected request: %s %s", req.Method, req.URL.String())
 			return &http.Response{
 				StatusCode: http.StatusNotFound,
@@ -543,6 +597,9 @@ func TestSubmitCreatePreflightSkipsWhatsNewForFirstVersion(t *testing.T) {
 			}, nil
 
 		default:
+			if fallback, ok := submitCreateDefaultReadinessResponse(req); ok {
+				return fallback, nil
+			}
 			t.Logf("unexpected request: %s %s", req.Method, req.URL.String())
 			return &http.Response{
 				StatusCode: http.StatusNotFound,

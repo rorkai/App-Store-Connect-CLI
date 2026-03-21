@@ -34,7 +34,8 @@ Examples:
   asc web auth login --apple-id "user@example.com"
   asc web privacy plan --app "123456789" --file "./privacy.json"
   asc web review list --app "123456789" --apple-id "user@example.com"
-  asc web review show --app "123456789" --apple-id "user@example.com"`,
+  asc web review show --app "123456789" --apple-id "user@example.com"
+  asc web review subscriptions list --app "123456789" --apple-id "user@example.com"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{

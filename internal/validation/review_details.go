@@ -2,6 +2,8 @@ package validation
 
 import "strings"
 
+const reviewDetailsDemoCredentialsRemediation = "You set demoAccountRequired=true, so provide both demoAccountName and demoAccountPassword in App Store Connect. Use notes for supplemental reviewer guidance, not as a replacement for required credentials."
+
 func reviewDetailsChecks(details *ReviewDetails) []CheckResult {
 	if details == nil {
 		return []CheckResult{
@@ -45,6 +47,12 @@ func reviewDetailsChecks(details *ReviewDetails) []CheckResult {
 }
 
 func missingReviewDetailsField(field string, resourceID string) CheckResult {
+	remediation := "Complete App Store review details in App Store Connect"
+	switch field {
+	case "demoAccountName", "demoAccountPassword":
+		remediation = reviewDetailsDemoCredentialsRemediation
+	}
+
 	return CheckResult{
 		ID:           "review_details.missing_field",
 		Severity:     SeverityError,
@@ -52,6 +60,6 @@ func missingReviewDetailsField(field string, resourceID string) CheckResult {
 		ResourceType: "appStoreReviewDetail",
 		ResourceID:   resourceID,
 		Message:      "review detail field is missing",
-		Remediation:  "Complete App Store review details in App Store Connect",
+		Remediation:  remediation,
 	}
 }

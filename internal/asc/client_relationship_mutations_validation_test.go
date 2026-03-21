@@ -20,14 +20,16 @@ func TestRelationshipMutationValidationErrors(t *testing.T) {
 			name:    "AddBetaGroupsToBuildWithNotify missing buildID",
 			wantErr: "buildID is required",
 			call: func(client *Client) error {
-				return client.AddBetaGroupsToBuildWithNotify(ctx, "", []string{"group-1"}, false)
+				_, err := client.AddBetaGroupsToBuildWithNotify(ctx, "", []string{"group-1"}, false)
+				return err
 			},
 		},
 		{
 			name:    "AddBetaGroupsToBuildWithNotify missing groupIDs",
 			wantErr: "groupIDs are required",
 			call: func(client *Client) error {
-				return client.AddBetaGroupsToBuildWithNotify(ctx, "build-1", []string{" ", ""}, false)
+				_, err := client.AddBetaGroupsToBuildWithNotify(ctx, "build-1", []string{" ", ""}, false)
+				return err
 			},
 		},
 		{

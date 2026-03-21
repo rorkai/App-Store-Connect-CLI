@@ -29,7 +29,9 @@ Keyword workflow:
     ` + "`asc apps search-keywords ...`" + ` and ` + "`asc localizations search-keywords ...`" + `
 
 Not yet included in this group:
-  - categories, copyright, review information, age ratings, screenshots
+  - categories, review information, age ratings, screenshots
+
+Note: copyright is managed via "asc versions create --copyright" or "asc versions update --copyright".
 
 Examples:
   asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata"

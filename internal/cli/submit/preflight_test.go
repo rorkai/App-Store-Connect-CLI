@@ -172,6 +172,140 @@ func TestAgeRatingMissingFields_AllMissing(t *testing.T) {
 	}
 }
 
+func TestCheckBuildEncryption_NilAttrs(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+	}))
+	check := checkBuildEncryption(context.Background(), client, "build-1", nil)
+	if check.Passed {
+		t.Fatal("expected fail when attrs is nil")
+	}
+	if !strings.Contains(check.Message, "not set") {
+		t.Fatalf("unexpected message: %q", check.Message)
+	}
+}
+
+func TestCheckBuildEncryption_NotSet(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+	}))
+	attrs := &asc.BuildAttributes{Version: "1"}
+	check := checkBuildEncryption(context.Background(), client, "build-1", attrs)
+	if check.Passed {
+		t.Fatal("expected fail when UsesNonExemptEncryption is nil")
+	}
+	if !strings.Contains(check.Hint, "App Store Connect") {
+		t.Fatalf("expected App Store Connect hint, got %q", check.Hint)
+	}
+	if strings.Contains(check.Hint, "builds update") {
+		t.Fatalf("did not expect nonexistent builds update command in hint, got %q", check.Hint)
+	}
+}
+
+func TestCheckBuildEncryption_False(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+	}))
+	enc := false
+	attrs := &asc.BuildAttributes{Version: "1", UsesNonExemptEncryption: &enc}
+	check := checkBuildEncryption(context.Background(), client, "build-1", attrs)
+	if !check.Passed {
+		t.Fatalf("expected pass when encryption=false, got: %q", check.Message)
+	}
+}
+
+func TestCheckBuildEncryption_TrueWithApprovedDeclaration(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1/appEncryptionDeclaration" {
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appEncryptionDeclarationState":"APPROVED"}}}`)
+		}
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+	}))
+	enc := true
+	attrs := &asc.BuildAttributes{Version: "1", UsesNonExemptEncryption: &enc}
+	check := checkBuildEncryption(context.Background(), client, "build-1", attrs)
+	if !check.Passed {
+		t.Fatalf("expected pass when encryption=true with declaration, got: %q", check.Message)
+	}
+}
+
+func TestCheckBuildEncryption_NonApprovedDeclarationStatesFail(t *testing.T) {
+	tests := []struct {
+		name        string
+		response    string
+		wantMessage string
+	}{
+		{
+			name:        "created",
+			response:    `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appEncryptionDeclarationState":"CREATED"}}}`,
+			wantMessage: "CREATED",
+		},
+		{
+			name:        "in review",
+			response:    `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appEncryptionDeclarationState":"IN_REVIEW"}}}`,
+			wantMessage: "IN_REVIEW",
+		},
+		{
+			name:        "rejected",
+			response:    `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appEncryptionDeclarationState":"REJECTED"}}}`,
+			wantMessage: "REJECTED",
+		},
+		{
+			name:        "invalid",
+			response:    `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appEncryptionDeclarationState":"INVALID"}}}`,
+			wantMessage: "INVALID",
+		},
+		{
+			name:        "expired",
+			response:    `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{"appEncryptionDeclarationState":"EXPIRED"}}}`,
+			wantMessage: "EXPIRED",
+		},
+		{
+			name:        "missing state",
+			response:    `{"data":{"type":"appEncryptionDeclarations","id":"decl-1","attributes":{}}}`,
+			wantMessage: "missing approval state",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1/appEncryptionDeclaration" {
+					return submitJSONResponse(http.StatusOK, tt.response)
+				}
+				return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+			}))
+			enc := true
+			attrs := &asc.BuildAttributes{Version: "1", UsesNonExemptEncryption: &enc}
+			check := checkBuildEncryption(context.Background(), client, "build-1", attrs)
+			if check.Passed {
+				t.Fatalf("expected fail for %s declaration state", tt.name)
+			}
+			if !strings.Contains(check.Message, tt.wantMessage) {
+				t.Fatalf("expected %q in failure message, got %q", tt.wantMessage, check.Message)
+			}
+		})
+	}
+}
+
+func TestCheckBuildEncryption_TrueWithoutDeclaration(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1/appEncryptionDeclaration" {
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		}
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+	}))
+	enc := true
+	attrs := &asc.BuildAttributes{Version: "1", UsesNonExemptEncryption: &enc}
+	check := checkBuildEncryption(context.Background(), client, "build-1", attrs)
+	if check.Passed {
+		t.Fatal("expected fail when encryption=true but declaration missing")
+	}
+	if !strings.Contains(check.Message, "no encryption declaration attached") {
+		t.Fatalf("unexpected message: %q", check.Message)
+	}
+}
+
 func TestResolveAppInfoID_UsesVersionScopedResolution(t *testing.T) {
 	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
@@ -263,6 +397,11 @@ func TestRunPreflight_VersionFailureStillRunsAppLevelChecks(t *testing.T) {
 	}
 }
 
+func checkBuildAttachedWrapper(ctx context.Context, client *asc.Client, versionID string) checkResult {
+	_, _, check := checkBuildAttachedWithAttrs(ctx, client, versionID)
+	return check
+}
+
 func TestCheckBuildAttached_NoBuild(t *testing.T) {
 	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method == http.MethodGet && strings.Contains(req.URL.Path, "/build") {
@@ -271,7 +410,7 @@ func TestCheckBuildAttached_NoBuild(t *testing.T) {
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 	}))
 
-	check := checkBuildAttached(context.Background(), client, "version-123")
+	check := checkBuildAttachedWrapper(context.Background(), client, "version-123")
 	if check.Passed {
 		t.Fatal("expected check to fail for missing build")
 	}
@@ -285,7 +424,7 @@ func TestCheckBuildAttached_HasBuild(t *testing.T) {
 		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
 	}))
 
-	check := checkBuildAttached(context.Background(), client, "version-123")
+	check := checkBuildAttachedWrapper(context.Background(), client, "version-123")
 	if !check.Passed {
 		t.Fatalf("expected check to pass, got message: %s", check.Message)
 	}
@@ -306,8 +445,8 @@ func TestCheckContentRights_NotSet(t *testing.T) {
 	if check.Passed {
 		t.Fatal("expected check to fail when contentRightsDeclaration is nil")
 	}
-	if check.Hint == "" {
-		t.Fatal("expected hint to be set")
+	if check.Hint != "asc apps update --id app-123 --content-rights DOES_NOT_USE_THIRD_PARTY_CONTENT" {
+		t.Fatalf("unexpected hint: %q", check.Hint)
 	}
 }
 
@@ -344,7 +483,7 @@ func TestCheckLocalizationMetadata_UsesSubmitReadinessRulesPerLocale(t *testing.
 				Keywords:    "un,deux",
 			},
 		},
-	}, "version-1", shared.SubmitReadinessOptions{})
+	}, "app-123", "1.0", "IOS", shared.SubmitReadinessOptions{})
 
 	if check.Passed {
 		t.Fatal("expected localization metadata check to fail")
@@ -352,7 +491,7 @@ func TestCheckLocalizationMetadata_UsesSubmitReadinessRulesPerLocale(t *testing.
 	if !strings.Contains(check.Message, "fr-FR (supportUrl)") {
 		t.Fatalf("expected missing supportUrl to be reported, got %q", check.Message)
 	}
-	if check.Hint != "asc metadata push --version-id version-1" {
+	if check.Hint != "asc metadata push --app app-123 --version 1.0 --platform IOS --dir ./metadata" {
 		t.Fatalf("expected metadata push hint, got %q", check.Hint)
 	}
 }
@@ -433,9 +572,9 @@ func TestRunPreflight_AllPass(t *testing.T) {
 				}
 			}`)
 
-		// Build attached
+		// Build attached (includes encryption attributes — no separate fetch needed)
 		case req.Method == http.MethodGet && strings.HasSuffix(path, "/build"):
-			return submitJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1"}}}`)
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1","usesNonExemptEncryption":false}}}`)
 
 		// App infos
 		case req.Method == http.MethodGet && strings.HasSuffix(path, "/appInfos"):

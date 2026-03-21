@@ -36,6 +36,10 @@ type PaginatedResponse = types.PaginatedResponse
 // ParsePagingTotal extracts the total count from a response's paging metadata.
 var ParsePagingTotal = types.ParsePagingTotal
 
+// ParsePagingTotalOK extracts the total count from a response's paging metadata.
+// Returns (total, true) when the field is present, (0, false) when absent or unparseable.
+var ParsePagingTotalOK = types.ParsePagingTotalOK
+
 // ResourceType constants — re-exported from types package.
 const (
 	ResourceTypeApps                                            = types.ResourceTypeApps

@@ -8,11 +8,18 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestBuildsUploadWaitFailsFastWhenBuildUploadFails(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	restoreDiagnostics := shared.SetBuildUploadFailureDiagnosticsForTesting(func(context.Context, *asc.Client, string, *asc.BuildUploadResponse) (string, error) {
+		return `Invalid Siri Support. App Intent description "Searches Apple Music" cannot contain "apple"`, nil
+	})
+	t.Cleanup(restoreDiagnostics)
 
 	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
 	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
@@ -90,6 +97,9 @@ func TestBuildsUploadWaitFailsFastWhenBuildUploadFails(t *testing.T) {
 	}
 	if !strings.Contains(runErr.Error(), "90062") || !strings.Contains(runErr.Error(), "90186") {
 		t.Fatalf("expected Apple error codes in error, got %v", runErr)
+	}
+	if !strings.Contains(runErr.Error(), `Invalid Siri Support. App Intent description "Searches Apple Music" cannot contain "apple"`) {
+		t.Fatalf("expected enriched processing detail in error, got %v", runErr)
 	}
 	if buildUploadChecks == 0 {
 		t.Fatal("expected build upload status to be checked")

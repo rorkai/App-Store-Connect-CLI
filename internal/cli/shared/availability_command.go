@@ -84,7 +84,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 			if err != nil {
 				if isAppAvailabilityMissing(err) {
 					return fmt.Errorf(
-						"%s: app availability not found for app %q; this command only updates existing app availability, so initialize availability in App Store Connect first",
+						"%s: app availability not found for app %q; this command only updates existing app availability, so initialize availability in App Store Connect first or use the experimental \"asc web apps availability create\" flow",
 						config.ErrorPrefix,
 						resolvedAppID,
 					)

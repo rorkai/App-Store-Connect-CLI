@@ -505,7 +505,12 @@ Examples:
   asc pricing availability get --app "123456789"
   asc pricing availability get --id "AVAILABILITY_ID"
   asc pricing availability set --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true
-  asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"`,
+  asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"
+
+Note:
+  Pricing availability commands operate on existing availability records.
+  For initial bootstrap, use App Store Connect or the experimental
+  "asc web apps availability create" flow.`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			PricingAvailabilityGetCommand(),
@@ -642,7 +647,9 @@ Examples:
   asc pricing availability set --app "123456789" --territory "USA,GBR,DEU" --available true --available-in-new-territories true
 
 Note:
-  This command only updates an existing app availability. If the app has no availability record yet, initialize availability in App Store Connect first.`,
+  This command only updates an existing app availability. If the app has no
+  availability record yet, initialize availability in App Store Connect first,
+  or use the experimental "asc web apps availability create" flow.`,
 		ErrorPrefix:                      "pricing availability set",
 		IncludeAvailableInNewTerritories: true,
 	})

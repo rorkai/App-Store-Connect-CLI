@@ -226,18 +226,29 @@ func (r *Response[T]) GetData() any {
 // provides the total count even when limit is less than the total.
 // Returns 0 if the metadata is absent or unparseable.
 func ParsePagingTotal(meta json.RawMessage) int {
+	total, _ := ParsePagingTotalOK(meta)
+	return total
+}
+
+// ParsePagingTotalOK extracts the total count from a response's paging metadata.
+// Returns (total, true) when the field is present, (0, false) when absent or unparseable.
+// Use this when you need to distinguish "zero builds" from "API did not return a total".
+func ParsePagingTotalOK(meta json.RawMessage) (int, bool) {
 	if len(meta) == 0 {
-		return 0
+		return 0, false
 	}
 	var parsed struct {
 		Paging struct {
-			Total int `json:"total"`
+			Total *int `json:"total"`
 		} `json:"paging"`
 	}
 	if err := json.Unmarshal(meta, &parsed); err != nil {
-		return 0
+		return 0, false
 	}
-	return parsed.Paging.Total
+	if parsed.Paging.Total == nil {
+		return 0, false
+	}
+	return *parsed.Paging.Total, true
 }
 
 // SingleResponse is a generic ASC API response wrapper for single resources.

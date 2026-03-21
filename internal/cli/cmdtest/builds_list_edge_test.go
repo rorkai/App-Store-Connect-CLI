@@ -40,7 +40,13 @@ func TestBuildsListAllowsIndependentVersionAndBuildNumberFilters(t *testing.T) {
 			if query.Get("limit") != "200" {
 				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 			}
-			body := `{"data":[{"type":"preReleaseVersions","id":"prv-1"},{"type":"preReleaseVersions","id":"prv-2"}],"links":{"next":""}}`
+			body := `{
+				"data":[
+					{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}},
+					{"type":"preReleaseVersions","id":"prv-2"}
+				],
+				"links":{"next":""}
+			}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
@@ -125,7 +131,7 @@ func TestBuildsListVersionLookupPaginatesAndUsesAllPreReleaseVersions(t *testing
 			if query.Get("limit") != "200" {
 				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 			}
-			body := `{"data":[{"type":"preReleaseVersions","id":"prv-1"}],"links":{"next":"` + nextPreReleaseURL + `"}}`
+			body := `{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"2.0.0","platform":"IOS"}}],"links":{"next":"` + nextPreReleaseURL + `"}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
@@ -135,7 +141,7 @@ func TestBuildsListVersionLookupPaginatesAndUsesAllPreReleaseVersions(t *testing
 			if req.Method != http.MethodGet || req.URL.String() != nextPreReleaseURL {
 				t.Fatalf("unexpected second request: %s %s", req.Method, req.URL.String())
 			}
-			body := `{"data":[{"type":"preReleaseVersions","id":"prv-2"}],"links":{"next":""}}`
+			body := `{"data":[{"type":"preReleaseVersions","id":"prv-2","attributes":{"version":"2.0.0","platform":"MAC_OS"}}],"links":{"next":""}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),

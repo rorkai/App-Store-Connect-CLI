@@ -30,6 +30,7 @@ type validateFixture struct {
 	primaryCategory            string
 	build                      string
 	priceSchedule              string
+	waitForPriceScheduleCtx    bool
 	availabilityV2             string
 	availabilityV2Status       int
 	territories                string
@@ -101,6 +102,10 @@ func newValidateTestClient(t *testing.T, fixture validateFixture) *asc.Client {
 			}
 			return jsonResponse(http.StatusNotFound, `{"errors":[{"code":"NOT_FOUND","title":"Not Found","detail":"resource not found"}]}`)
 		case path == "/v1/apps/app-1/appPriceSchedule":
+			if fixture.waitForPriceScheduleCtx {
+				<-req.Context().Done()
+				return nil, req.Context().Err()
+			}
 			if fixture.priceSchedule != "" {
 				return jsonResponse(http.StatusOK, fixture.priceSchedule)
 			}
@@ -1315,6 +1320,61 @@ func TestValidateFailsWhenReviewDetailsMissingContactEmail(t *testing.T) {
 	}
 }
 
+func TestValidateFailsWhenDemoCredentialsMissingAfterOptIn(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.reviewDetails = `{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"a@example.com","contactPhone":"123","demoAccountName":"","demoAccountPassword":"","demoAccountRequired":true,"notes":"Reviewer signs in with the seeded account below."}}}`
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+
+	var runErr error
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatalf("expected error")
+	}
+	if _, ok := errors.AsType[ReportedError](runErr); !ok {
+		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+
+	foundFields := map[string]bool{
+		"demoAccountName":     false,
+		"demoAccountPassword": false,
+	}
+	for _, check := range report.Checks {
+		if _, ok := foundFields[check.Field]; !ok {
+			continue
+		}
+		foundFields[check.Field] = true
+		if !strings.Contains(check.Remediation, "demoAccountRequired=true") {
+			t.Fatalf("expected remediation for %s to mention explicit opt-in, got %q", check.Field, check.Remediation)
+		}
+		if !strings.Contains(check.Remediation, "notes") {
+			t.Fatalf("expected remediation for %s to mention notes as supplemental guidance, got %q", check.Field, check.Remediation)
+		}
+	}
+	for field, found := range foundFields {
+		if !found {
+			t.Fatalf("expected missing-field check for %s, got %+v", field, report.Checks)
+		}
+	}
+}
+
 func TestValidateFailsWhenPrimaryCategoryMissing(t *testing.T) {
 	fixture := validValidateFixture()
 	fixture.primaryCategory = `{"data":null}`
@@ -1704,6 +1764,136 @@ func TestValidateWarnsPartialSubscriptionPricingCoverageAcrossTerritoryPages(t *
 	}
 	if !hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
 		t.Fatalf("expected paginated availability to trigger pricing coverage warning, got %+v", report.Checks)
+	}
+}
+
+func TestValidateRenewsRequestContextAfterPricingTimeoutDowngrade(t *testing.T) {
+	fixture := validValidateFixture()
+	fixture.waitForPriceScheduleCtx = true
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	t.Setenv("ASC_TIMEOUT", "40ms")
+
+	var sawFreshScreenshotCtx bool
+	restoreScreenshots := validate.SetFetchScreenshotSetsFunc(func(ctx context.Context, _ *asc.Client, localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) ([]validation.ScreenshotSet, error) {
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("expected refreshed screenshot context, got %w", err)
+		}
+		sawFreshScreenshotCtx = true
+		if len(localizations) != 1 || localizations[0].ID != "ver-loc-1" {
+			t.Fatalf("unexpected localizations: %+v", localizations)
+		}
+		return []validation.ScreenshotSet{{
+			ID:             "set-1",
+			DisplayType:    "APP_IPHONE_65",
+			Locale:         "en-US",
+			LocalizationID: "ver-loc-1",
+			Screenshots: []validation.Screenshot{{
+				ID:       "shot-1",
+				FileName: "shot.png",
+				Width:    1242,
+				Height:   2688,
+			}},
+		}}, nil
+	})
+	defer restoreScreenshots()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected validate to stay non-blocking after pricing timeout downgrade, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !sawFreshScreenshotCtx {
+		t.Fatal("expected screenshot fetch to run after refreshing the timed-out request context")
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if !hasCheckWithID(report.Checks, "pricing.schedule.unverified") {
+		t.Fatalf("expected pricing.schedule.unverified check, got %+v", report.Checks)
+	}
+}
+
+func TestValidateRenewsRequestContextAfterAvailabilityTimeoutDowngrade(t *testing.T) {
+	fixture := validValidateFixture()
+
+	client := newValidateTestClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	t.Setenv("ASC_TIMEOUT", "40ms")
+
+	restoreAvailability := validate.SetFetchAvailableTerritoriesFunc(func(ctx context.Context, _ *asc.Client, appID string) (string, int, error) {
+		if appID != "app-1" {
+			t.Fatalf("expected app-1, got %q", appID)
+		}
+		<-ctx.Done()
+		return "", 0, ctx.Err()
+	})
+	defer restoreAvailability()
+
+	var sawFreshScreenshotCtx bool
+	restoreScreenshots := validate.SetFetchScreenshotSetsFunc(func(ctx context.Context, _ *asc.Client, localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) ([]validation.ScreenshotSet, error) {
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("expected refreshed screenshot context, got %w", err)
+		}
+		sawFreshScreenshotCtx = true
+		if len(localizations) != 1 || localizations[0].ID != "ver-loc-1" {
+			t.Fatalf("unexpected localizations: %+v", localizations)
+		}
+		return []validation.ScreenshotSet{{
+			ID:             "set-1",
+			DisplayType:    "APP_IPHONE_65",
+			Locale:         "en-US",
+			LocalizationID: "ver-loc-1",
+			Screenshots: []validation.Screenshot{{
+				ID:       "shot-1",
+				FileName: "shot.png",
+				Width:    1242,
+				Height:   2688,
+			}},
+		}}, nil
+	})
+	defer restoreScreenshots()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "--app", "app-1", "--version-id", "ver-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected validate to stay non-blocking after availability timeout downgrade, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !sawFreshScreenshotCtx {
+		t.Fatal("expected screenshot fetch to run after refreshing the timed-out request context")
+	}
+
+	var report validation.Report
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if !hasCheckWithID(report.Checks, "availability.unverified") {
+		t.Fatalf("expected availability.unverified check, got %+v", report.Checks)
 	}
 }
 

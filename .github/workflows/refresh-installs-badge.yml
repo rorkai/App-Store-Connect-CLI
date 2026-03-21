@@ -9,7 +9,9 @@ on:
     types: [published]
 
 permissions:
+  actions: write
   contents: write
+  pull-requests: write
 
 concurrency:
   group: refresh-installs-badge
@@ -21,11 +23,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # release.* checks out the tag by default; we must commit on main.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: main
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -37,27 +39,32 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: python3 scripts/download_stats_total.py --write-badge docs/badges/installs-total.json
 
-      - name: Commit if changed
+      - name: Create or update badge refresh PR
+        id: create_pr
+        uses: peter-evans/create-pull-request@v8
+        with:
+          add-paths: docs/badges/installs-total.json
+          base: main
+          branch: automation/refresh-installs-badge
+          commit-message: "chore: refresh estimated downloads badge"
+          delete-branch: true
+          title: "chore: refresh estimated downloads badge"
+          body: |
+            Automated refresh for `docs/badges/installs-total.json`.
+
+            This PR is created by the `refresh-installs-badge` workflow because
+            `main` is protected and badge updates must go through the normal PR checks.
+
+      - name: Dispatch PR checks for bot branch
+        if: steps.create_pr.outputs.pull-request-operation != 'none'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BRANCH: ${{ steps.create_pr.outputs.pull-request-branch }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/badges/installs-total.json
-          if git diff --staged --quiet; then
-            echo "Badge JSON unchanged."
-          else
-            git commit -m "chore: refresh estimated downloads badge"
-            ok=0
-            for attempt in 1 2 3; do
-              if git pull --rebase origin main && git push origin HEAD:main; then
-                ok=1
-                break
-              fi
-              git rebase --abort >/dev/null 2>&1 || true
-              echo "push attempt ${attempt} failed, retrying in 15s..."
-              sleep 15
-            done
-            if [ "$ok" != 1 ]; then
-              echo "::error::could not push badge update to main"
-              exit 1
-            fi
-          fi
+          curl --fail-with-body --location \
+            --request POST \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/pr-checks.yml/dispatches" \
+            --data "{\"ref\":\"${PR_BRANCH}\"}"

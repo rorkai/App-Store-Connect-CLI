@@ -14,6 +14,7 @@ func TestAvailabilitySet_MissingAvailabilityReturnsUpdateOnlyError(t *testing.T)
 		name       string
 		args       []string
 		wantPrefix string
+		wantHint   string
 	}{
 		{
 			name: "pricing availability set",
@@ -26,6 +27,7 @@ func TestAvailabilitySet_MissingAvailabilityReturnsUpdateOnlyError(t *testing.T)
 				"--output", "json",
 			},
 			wantPrefix: `pricing availability set: app availability not found for app "app-1"; this command only updates existing app availability`,
+			wantHint:   `use the experimental "asc web apps availability create" flow`,
 		},
 		{
 			name: "app-setup availability set",
@@ -38,6 +40,7 @@ func TestAvailabilitySet_MissingAvailabilityReturnsUpdateOnlyError(t *testing.T)
 				"--output", "json",
 			},
 			wantPrefix: `app-setup availability set: app availability not found for app "app-1"; this command only updates existing app availability`,
+			wantHint:   `use the experimental "asc web apps availability create" flow`,
 		},
 	}
 
@@ -76,6 +79,9 @@ func TestAvailabilitySet_MissingAvailabilityReturnsUpdateOnlyError(t *testing.T)
 				}
 				if !strings.Contains(err.Error(), tc.wantPrefix) {
 					t.Fatalf("expected update-only error, got %q", err.Error())
+				}
+				if !strings.Contains(err.Error(), tc.wantHint) {
+					t.Fatalf("expected bootstrap hint in error, got %q", err.Error())
 				}
 			})
 

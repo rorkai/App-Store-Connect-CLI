@@ -55,8 +55,11 @@ type Input struct {
 	PrimaryCategoryID           string
 	Build                       *Build
 	PriceScheduleID             string
+	PricingFetchSkipReason      string
 	AvailabilityID              string
 	AvailableTerritories        int
+	AvailabilityFetchSkipReason string
+	PricingCoverageSkipReason   string
 	ScreenshotSets              []ScreenshotSet
 	Subscriptions               []Subscription
 	SubscriptionFetchSkipReason string

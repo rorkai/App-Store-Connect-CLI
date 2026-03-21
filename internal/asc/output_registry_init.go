@@ -107,6 +107,7 @@ func init() {
 	registerRows(appPriceScheduleRows)
 	registerRows(appPricesRows)
 	registerRowsWithSingleResourceAdapter(buildsRows)
+	registerRows(buildsCountRows)
 	registerRows(buildBundlesRows)
 	registerRows(buildBundleFileSizesRows)
 	registerRowsWithSingleResourceAdapter(betaAppClipInvocationsRows)
