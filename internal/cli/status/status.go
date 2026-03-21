@@ -612,7 +612,7 @@ func optionalRelationshipResourceID(relationships json.RawMessage, key string) (
 }
 
 func fillAppStoreAndPhasedRelease(ctx context.Context, client *asc.Client, appID string, includes includeSet, resp *dashboardResponse) error {
-	versions, err := fetchAllAppStoreVersions(ctx, client, appID, asc.WithAppStoreVersionsLimit(200))
+	versions, err := shared.FetchAllAppStoreVersions(ctx, client, appID, asc.WithAppStoreVersionsLimit(200))
 	if err != nil {
 		return err
 	}
@@ -656,7 +656,7 @@ func fillAppStoreAndPhasedRelease(ctx context.Context, client *asc.Client, appID
 }
 
 func fillSubmissionAndReview(ctx context.Context, client *asc.Client, appID string, includes includeSet, resp *dashboardResponse) error {
-	submissions, err := fetchAllReviewSubmissions(ctx, client, appID, asc.WithReviewSubmissionsLimit(200))
+	submissions, err := shared.FetchAllReviewSubmissions(ctx, client, appID, asc.WithReviewSubmissionsLimit(200))
 	if err != nil {
 		return err
 	}
@@ -694,60 +694,6 @@ func fillSubmissionAndReview(ctx context.Context, client *asc.Client, appID stri
 	return nil
 }
 
-func fetchAllAppStoreVersions(ctx context.Context, client *asc.Client, appID string, opts ...asc.AppStoreVersionsOption) ([]asc.Resource[asc.AppStoreVersionAttributes], error) {
-	firstPage, err := client.GetAppStoreVersions(ctx, appID, opts...)
-	if err != nil {
-		return nil, err
-	}
-	if firstPage == nil {
-		return []asc.Resource[asc.AppStoreVersionAttributes]{}, nil
-	}
-
-	resp, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppStoreVersions(ctx, appID, asc.WithAppStoreVersionsNextURL(nextURL))
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	aggregated, ok := resp.(*asc.AppStoreVersionsResponse)
-	if !ok {
-		return nil, fmt.Errorf("unexpected app store versions pagination response type %T", resp)
-	}
-	if aggregated == nil || aggregated.Data == nil {
-		return []asc.Resource[asc.AppStoreVersionAttributes]{}, nil
-	}
-
-	return aggregated.Data, nil
-}
-
-func fetchAllReviewSubmissions(ctx context.Context, client *asc.Client, appID string, opts ...asc.ReviewSubmissionsOption) ([]asc.ReviewSubmissionResource, error) {
-	firstPage, err := client.GetReviewSubmissions(ctx, appID, opts...)
-	if err != nil {
-		return nil, err
-	}
-	if firstPage == nil {
-		return []asc.ReviewSubmissionResource{}, nil
-	}
-
-	resp, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetReviewSubmissions(ctx, appID, asc.WithReviewSubmissionsNextURL(nextURL))
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	aggregated, ok := resp.(*asc.ReviewSubmissionsResponse)
-	if !ok {
-		return nil, fmt.Errorf("unexpected review submissions pagination response type %T", resp)
-	}
-	if aggregated == nil || aggregated.Data == nil {
-		return []asc.ReviewSubmissionResource{}, nil
-	}
-
-	return aggregated.Data, nil
-}
-
 func selectLatestAppStoreVersion(versions []asc.Resource[asc.AppStoreVersionAttributes]) *asc.Resource[asc.AppStoreVersionAttributes] {
 	if len(versions) == 0 {
 		return nil
@@ -755,7 +701,7 @@ func selectLatestAppStoreVersion(versions []asc.Resource[asc.AppStoreVersionAttr
 
 	best := versions[0]
 	for _, current := range versions[1:] {
-		dateOrder := compareRFC3339DateStrings(current.Attributes.CreatedDate, best.Attributes.CreatedDate)
+		dateOrder := shared.CompareRFC3339DateStrings(current.Attributes.CreatedDate, best.Attributes.CreatedDate)
 		if dateOrder > 0 {
 			best = current
 			continue
@@ -774,52 +720,11 @@ func selectLatestReviewSubmission(submissions []asc.ReviewSubmissionResource) *a
 
 	best := submissions[0]
 	for _, current := range submissions[1:] {
-		if shouldPreferLatestReviewSubmission(current, best) {
+		if shared.ShouldPreferLatestReviewSubmission(current, best) {
 			best = current
 		}
 	}
 	return &best
-}
-
-func shouldPreferLatestReviewSubmission(current, best asc.ReviewSubmissionResource) bool {
-	currentPriority := statusReviewSubmissionPriority(current.Attributes.SubmissionState)
-	bestPriority := statusReviewSubmissionPriority(best.Attributes.SubmissionState)
-
-	currentTime, currentValid := parseRFC3339Date(current.Attributes.SubmittedDate)
-	bestTime, bestValid := parseRFC3339Date(best.Attributes.SubmittedDate)
-
-	switch {
-	case currentValid && bestValid:
-		if currentTime.After(bestTime) {
-			return true
-		}
-		if currentTime.Before(bestTime) {
-			return false
-		}
-	case currentValid != bestValid:
-		if currentPriority != bestPriority {
-			return currentPriority > bestPriority
-		}
-		return currentValid
-	}
-
-	if currentPriority != bestPriority {
-		return currentPriority > bestPriority
-	}
-	return current.ID > best.ID
-}
-
-func statusReviewSubmissionPriority(state asc.ReviewSubmissionState) int {
-	switch state {
-	case asc.ReviewSubmissionStateReadyForReview,
-		asc.ReviewSubmissionStateWaitingForReview,
-		asc.ReviewSubmissionStateInReview,
-		asc.ReviewSubmissionStateUnresolvedIssues,
-		asc.ReviewSubmissionStateCanceling:
-		return 2
-	default:
-		return 1
-	}
 }
 
 func selectLatestBetaReviewSubmission(submissions []asc.Resource[asc.BetaAppReviewSubmissionAttributes]) *asc.Resource[asc.BetaAppReviewSubmissionAttributes] {
@@ -829,7 +734,7 @@ func selectLatestBetaReviewSubmission(submissions []asc.Resource[asc.BetaAppRevi
 
 	best := submissions[0]
 	for _, current := range submissions[1:] {
-		dateOrder := compareRFC3339DateStrings(current.Attributes.SubmittedDate, best.Attributes.SubmittedDate)
+		dateOrder := shared.CompareRFC3339DateStrings(current.Attributes.SubmittedDate, best.Attributes.SubmittedDate)
 		if dateOrder > 0 {
 			best = current
 			continue
@@ -839,50 +744,6 @@ func selectLatestBetaReviewSubmission(submissions []asc.Resource[asc.BetaAppRevi
 		}
 	}
 	return &best
-}
-
-func compareRFC3339DateStrings(current, best string) int {
-	currentTime, currentValid := parseRFC3339Date(current)
-	bestTime, bestValid := parseRFC3339Date(best)
-
-	switch {
-	case currentValid && bestValid:
-		if currentTime.After(bestTime) {
-			return 1
-		}
-		if currentTime.Before(bestTime) {
-			return -1
-		}
-		return 0
-	case currentValid:
-		return 1
-	case bestValid:
-		return -1
-	default:
-		current = strings.TrimSpace(current)
-		best = strings.TrimSpace(best)
-		if current > best {
-			return 1
-		}
-		if current < best {
-			return -1
-		}
-		return 0
-	}
-}
-
-func parseRFC3339Date(value string) (time.Time, bool) {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return time.Time{}, false
-	}
-	if parsed, err := time.Parse(time.RFC3339, trimmed); err == nil {
-		return parsed, true
-	}
-	if parsed, err := time.Parse(time.RFC3339Nano, trimmed); err == nil {
-		return parsed, true
-	}
-	return time.Time{}, false
 }
 
 func isDistributedState(state string) bool {
@@ -1222,7 +1083,7 @@ func formatDateWithRelative(value string) string {
 }
 
 func parseRelativeDate(value string) (time.Time, bool) {
-	if parsed, ok := parseRFC3339Date(value); ok {
+	if parsed, ok := shared.ParseRFC3339Date(value); ok {
 		return parsed.UTC(), true
 	}
 	if parsed, err := time.Parse("2006-01-02", value); err == nil {

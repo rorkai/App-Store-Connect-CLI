@@ -254,7 +254,7 @@ func buildReviewSnapshot(ctx context.Context, client *asc.Client, appID, version
 		submissionOpts = append(submissionOpts, asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}))
 	}
 
-	reviewSubmissions, err := fetchAllReviewSubmissions(ctx, client, appID, submissionOpts...)
+	reviewSubmissions, err := shared.FetchAllReviewSubmissions(ctx, client, appID, submissionOpts...)
 	if err != nil {
 		return snapshot, fmt.Errorf("fetch review submissions: %w", err)
 	}
@@ -265,60 +265,6 @@ func buildReviewSnapshot(ctx context.Context, client *asc.Client, appID, version
 	snapshot.LatestSubmission = selectRelevantReviewSubmission(reviewSubmissions, selectedVersionID)
 
 	return snapshot, nil
-}
-
-func fetchAllReviewSubmissions(ctx context.Context, client *asc.Client, appID string, opts ...asc.ReviewSubmissionsOption) ([]asc.ReviewSubmissionResource, error) {
-	firstPage, err := client.GetReviewSubmissions(ctx, appID, opts...)
-	if err != nil {
-		return nil, err
-	}
-	if firstPage == nil {
-		return []asc.ReviewSubmissionResource{}, nil
-	}
-
-	resp, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetReviewSubmissions(ctx, appID, asc.WithReviewSubmissionsNextURL(nextURL))
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	aggregated, ok := resp.(*asc.ReviewSubmissionsResponse)
-	if !ok {
-		return nil, fmt.Errorf("unexpected review submissions pagination response type %T", resp)
-	}
-	if aggregated == nil || aggregated.Data == nil {
-		return []asc.ReviewSubmissionResource{}, nil
-	}
-
-	return aggregated.Data, nil
-}
-
-func fetchAllAppStoreVersions(ctx context.Context, client *asc.Client, appID string, opts ...asc.AppStoreVersionsOption) ([]asc.Resource[asc.AppStoreVersionAttributes], error) {
-	firstPage, err := client.GetAppStoreVersions(ctx, appID, opts...)
-	if err != nil {
-		return nil, err
-	}
-	if firstPage == nil {
-		return []asc.Resource[asc.AppStoreVersionAttributes]{}, nil
-	}
-
-	resp, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		return client.GetAppStoreVersions(ctx, appID, asc.WithAppStoreVersionsNextURL(nextURL))
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	aggregated, ok := resp.(*asc.AppStoreVersionsResponse)
-	if !ok {
-		return nil, fmt.Errorf("unexpected app store versions pagination response type %T", resp)
-	}
-	if aggregated == nil || aggregated.Data == nil {
-		return []asc.Resource[asc.AppStoreVersionAttributes]{}, nil
-	}
-
-	return aggregated.Data, nil
 }
 
 func resolveReviewVersion(ctx context.Context, client *asc.Client, appID, version, versionID, platform string) (*reviewVersionContext, error) {
@@ -349,7 +295,7 @@ func resolveReviewVersion(ctx context.Context, client *asc.Client, appID, versio
 		opts = append(opts, asc.WithAppStoreVersionsPlatforms([]string{platform}))
 	}
 
-	versions, err := fetchAllAppStoreVersions(ctx, client, appID, opts...)
+	versions, err := shared.FetchAllAppStoreVersions(ctx, client, appID, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("fetch app store versions: %w", err)
 	}
@@ -370,7 +316,7 @@ func resolveReviewVersion(ctx context.Context, client *asc.Client, appID, versio
 	best := mapReviewVersion(versions[0])
 	for _, item := range versions[1:] {
 		current := mapReviewVersion(item)
-		cmp := compareRFC3339DateStrings(current.CreatedDate, best.CreatedDate)
+		cmp := shared.CompareRFC3339DateStrings(current.CreatedDate, best.CreatedDate)
 		if cmp > 0 || (cmp == 0 && current.ID > best.ID) {
 			best = current
 		}
@@ -404,7 +350,7 @@ func selectRelevantReviewSubmission(submissions []asc.ReviewSubmissionResource, 
 
 	best := filtered[0]
 	for _, current := range filtered[1:] {
-		if shouldPreferReviewSubmission(current, best) {
+		if shared.ShouldPreferLatestReviewSubmission(current, best) {
 			best = current
 		}
 	}
@@ -423,47 +369,6 @@ func reviewSubmissionVersionID(submission asc.ReviewSubmissionResource) string {
 		return ""
 	}
 	return strings.TrimSpace(submission.Relationships.AppStoreVersionForReview.Data.ID)
-}
-
-func reviewSubmissionPriority(state asc.ReviewSubmissionState) int {
-	switch state {
-	case asc.ReviewSubmissionStateReadyForReview,
-		asc.ReviewSubmissionStateWaitingForReview,
-		asc.ReviewSubmissionStateInReview,
-		asc.ReviewSubmissionStateUnresolvedIssues,
-		asc.ReviewSubmissionStateCanceling:
-		return 2
-	default:
-		return 1
-	}
-}
-
-func shouldPreferReviewSubmission(current, best asc.ReviewSubmissionResource) bool {
-	currentPriority := reviewSubmissionPriority(current.Attributes.SubmissionState)
-	bestPriority := reviewSubmissionPriority(best.Attributes.SubmissionState)
-
-	currentTime, currentValid := parseRFC3339Date(current.Attributes.SubmittedDate)
-	bestTime, bestValid := parseRFC3339Date(best.Attributes.SubmittedDate)
-
-	switch {
-	case currentValid && bestValid:
-		if currentTime.After(bestTime) {
-			return true
-		}
-		if currentTime.Before(bestTime) {
-			return false
-		}
-	case currentValid != bestValid:
-		if currentPriority != bestPriority {
-			return currentPriority > bestPriority
-		}
-		return currentValid
-	}
-
-	if currentPriority != bestPriority {
-		return currentPriority > bestPriority
-	}
-	return current.ID > best.ID
 }
 
 func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {
