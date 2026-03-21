@@ -84,20 +84,15 @@ func TestResolveSessionUsesProgressLabels(t *testing.T) {
 func TestLoginWithOptionalTwoFactorUsesProgressLabels(t *testing.T) {
 	labels := stubWebProgressLabels(t)
 
-	origPrompt := promptTwoFactorCodeFn
 	origLogin := webLoginFn
 	origSubmit := submitTwoFactorCodeFn
 	t.Cleanup(func() {
-		promptTwoFactorCodeFn = origPrompt
 		webLoginFn = origLogin
 		submitTwoFactorCodeFn = origSubmit
 	})
 
 	webLoginFn = func(ctx context.Context, creds webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		return &webcore.AuthSession{}, &webcore.TwoFactorRequiredError{}
-	}
-	promptTwoFactorCodeFn = func() (string, error) {
-		return "654321", nil
 	}
 	submitTwoFactorCodeFn = func(ctx context.Context, session *webcore.AuthSession, code string) error {
 		if code != "654321" {
@@ -106,7 +101,7 @@ func TestLoginWithOptionalTwoFactorUsesProgressLabels(t *testing.T) {
 		return nil
 	}
 
-	if _, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", ""); err != nil {
+	if _, err := loginWithOptionalTwoFactor(context.Background(), "user@example.com", "secret", "654321"); err != nil {
 		t.Fatalf("loginWithOptionalTwoFactor() error = %v", err)
 	}
 

@@ -2,6 +2,7 @@ package shared
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -16,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
@@ -1316,5 +1318,26 @@ func TestSetNoProgress(t *testing.T) {
 	SetNoProgress(false)
 	if noProgress {
 		t.Fatal("expected noProgress to be false after SetNoProgress(false)")
+	}
+}
+
+func TestContextWithoutTimeoutUnwrapsNestedSharedTimeouts(t *testing.T) {
+	parent, parentCancel := context.WithCancel(context.Background())
+	t.Cleanup(parentCancel)
+
+	firstCtx, firstCancel := ContextWithTimeoutDuration(parent, time.Minute)
+	t.Cleanup(firstCancel)
+
+	nestedCtx, nestedCancel := ContextWithResolvedTimeout(firstCtx, time.Minute)
+	t.Cleanup(nestedCancel)
+
+	baseCtx := ContextWithoutTimeout(nestedCtx)
+	if _, ok := baseCtx.Deadline(); ok {
+		t.Fatal("expected timeout wrapper to be removed")
+	}
+
+	parentCancel()
+	if !errors.Is(baseCtx.Err(), context.Canceled) {
+		t.Fatalf("expected parent cancellation to be preserved, got %v", baseCtx.Err())
 	}
 }

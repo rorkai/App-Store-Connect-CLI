@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
@@ -15,7 +16,14 @@ func SetResolveWebAuthCredentials(fn func(string) (shared.ResolvedAuthCredential
 	}
 }
 
-func SetResolveWebSession(fn func(context.Context, string, string, string) (*webcore.AuthSession, string, error)) func() {
+func SetResolveWebSession(fn any) func() {
+	switch fn.(type) {
+	case func(context.Context, string, string, string) (*webcore.AuthSession, string, error):
+	case func(context.Context, string, string, string, string) (*webcore.AuthSession, string, error):
+	case func(context.Context, string, string, string, ...string) (*webcore.AuthSession, string, error):
+	default:
+		panic(fmt.Sprintf("unsupported resolve session hook type %T", fn))
+	}
 	prev := resolveSessionFn
 	resolveSessionFn = fn
 	return func() {

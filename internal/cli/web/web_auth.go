@@ -8,7 +8,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"golang.org/x/term"
@@ -17,27 +20,37 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-const webPasswordEnv = "ASC_WEB_PASSWORD"
+const (
+	webPasswordEnv             = "ASC_WEB_PASSWORD"
+	webTwoFactorCodeCommandEnv = "ASC_WEB_2FA_CODE_COMMAND"
+	webTwoFactorCommandTimeout = 60 * time.Second
+)
 
 var errAutoReauthRequiresAppleID = errors.New("cached web session is missing stored apple id metadata")
 
 var (
-	promptTwoFactorCodeFn              = promptTwoFactorCodeInteractive
-	promptPasswordFn                   = promptPasswordInteractive
-	webLoginFn                         = webcore.Login
-	persistWebSessionFn                = webcore.PersistSession
-	submitTwoFactorCodeFn              = webcore.SubmitTwoFactorCode
-	signalProcessInterruptFn           = signalProcessInterrupt
-	termReadPasswordFn                 = term.ReadPassword
-	termIsTerminalFn                   = term.IsTerminal
-	tryResumeSessionFn                 = webcore.TryResumeSession
-	tryResumeLastFn                    = webcore.TryResumeLastSession
-	loadCachedSessionFn                = webcore.LoadCachedSession
-	loadLastCachedSessionFn            = webcore.LoadLastCachedSession
-	webLoginWithClientFn               = webcore.LoginWithClient
-	resolveSessionFn                   = resolveSession
-	sessionExpiredWriter     io.Writer = os.Stderr
+	openTTYFn                                = openTTY
+	promptTwoFactorCodeFn                    = promptTwoFactorCodeInteractive
+	promptPasswordFn                         = promptPasswordInteractive
+	readTwoFactorCodeFromCommandFn           = readTwoFactorCodeFromCommand
+	webLoginFn                               = webcore.Login
+	persistWebSessionFn                      = webcore.PersistSession
+	submitTwoFactorCodeFn                    = webcore.SubmitTwoFactorCode
+	signalProcessInterruptFn                 = signalProcessInterrupt
+	termReadPasswordFn                       = term.ReadPassword
+	termIsTerminalFn                         = term.IsTerminal
+	tryResumeSessionFn                       = webcore.TryResumeSession
+	tryResumeLastFn                          = webcore.TryResumeLastSession
+	loadCachedSessionFn                      = webcore.LoadCachedSession
+	loadLastCachedSessionFn                  = webcore.LoadLastCachedSession
+	webLoginWithClientFn                     = webcore.LoginWithClient
+	resolveSessionFn               any       = resolveSession
+	sessionExpiredWriter           io.Writer = os.Stderr
 )
+
+func openTTY() (*os.File, error) {
+	return os.OpenFile("/dev/tty", os.O_RDWR, 0)
+}
 
 type webAuthStatus struct {
 	Authenticated bool   `json:"authenticated"`
@@ -53,6 +66,19 @@ func signalProcessInterrupt() error {
 		return err
 	}
 	return process.Signal(os.Interrupt)
+}
+
+func callResolveSessionFn(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
+	switch fn := resolveSessionFn.(type) {
+	case func(context.Context, string, string, string) (*webcore.AuthSession, string, error):
+		return fn(ctx, appleID, password, twoFactorCode)
+	case func(context.Context, string, string, string, string) (*webcore.AuthSession, string, error):
+		return fn(ctx, appleID, password, twoFactorCode, twoFactorCodeCommand)
+	case func(context.Context, string, string, string, ...string) (*webcore.AuthSession, string, error):
+		return fn(ctx, appleID, password, twoFactorCode, twoFactorCodeCommand)
+	default:
+		return nil, "", fmt.Errorf("internal error: unsupported web session resolver type %T", resolveSessionFn)
+	}
 }
 
 func readPasswordFromInput(ctx context.Context) (string, error) {
@@ -155,7 +181,7 @@ func readPasswordFromTerminal(ctx context.Context, terminal *os.File, writer io.
 }
 
 func promptPasswordInteractive(ctx context.Context) (string, error) {
-	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
+	if tty, err := openTTYFn(); err == nil {
 		return readPasswordFromTerminal(ctx, tty, tty, true)
 	}
 	if termIsTerminalFn(int(os.Stdin.Fd())) {
@@ -202,14 +228,59 @@ func readTwoFactorCodeFromTerminalFD(fd int, writer io.Writer) (string, error) {
 }
 
 func promptTwoFactorCodeInteractive() (string, error) {
-	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err == nil {
+	if tty, err := openTTYFn(); err == nil {
 		defer func() { _ = tty.Close() }()
 		return readTwoFactorCodeFromTerminalFD(int(tty.Fd()), tty)
 	}
 	if termIsTerminalFn(int(os.Stdin.Fd())) {
 		return readTwoFactorCodeFromTerminalFD(int(os.Stdin.Fd()), os.Stderr)
 	}
-	return "", fmt.Errorf("2fa required: re-run with --two-factor-code")
+	return "", fmt.Errorf("2fa required: run in a terminal for an interactive prompt, pass --two-factor-code-command, set %s, or re-run with deprecated --%s", webTwoFactorCodeCommandEnv, deprecatedTwoFactorCodeFlagName)
+}
+
+func twoFactorCodeCommandShellArgs(command string) []string {
+	if runtime.GOOS == "windows" {
+		return []string{"/d", "/s", "/c", command}
+	}
+	// Avoid login-shell startup noise contaminating stdout before the 2FA code.
+	return []string{"-c", command}
+}
+
+func readTwoFactorCodeFromCommand(ctx context.Context, command string) (string, error) {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return "", fmt.Errorf("2fa required: empty 2fa code command")
+	}
+
+	commandCtx, cancel := shared.ContextWithResolvedTimeout(shared.ContextWithoutTimeout(ctx), webTwoFactorCommandTimeout)
+	defer cancel()
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.CommandContext(commandCtx, "cmd", twoFactorCodeCommandShellArgs(command)...)
+	} else {
+		cmd = exec.CommandContext(commandCtx, "/bin/sh", twoFactorCodeCommandShellArgs(command)...)
+	}
+
+	output, err := cmd.Output()
+	if err != nil {
+		if ctxErr := commandCtx.Err(); ctxErr != nil {
+			return "", fmt.Errorf("2fa required: two-factor code command interrupted: %w", ctxErr)
+		}
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			stderr := strings.TrimSpace(string(exitErr.Stderr))
+			if stderr != "" {
+				return "", fmt.Errorf("2fa required: two-factor code command failed: %s", stderr)
+			}
+		}
+		return "", fmt.Errorf("2fa required: two-factor code command failed: %w", err)
+	}
+
+	code := strings.TrimSpace(string(output))
+	if code == "" {
+		return "", fmt.Errorf("2fa required: two-factor code command returned empty output")
+	}
+	return code, nil
 }
 
 func printExpiredSessionNotice(writer io.Writer) {
@@ -219,7 +290,7 @@ func printExpiredSessionNotice(writer io.Writer) {
 	_, _ = fmt.Fprintln(writer, "Session expired.")
 }
 
-func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, error) {
+func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, error) {
 	session, err := withWebSpinnerValue("Signing in to Apple web session", func() (*webcore.AuthSession, error) {
 		return webLoginFn(ctx, webcore.LoginCredentials{
 			Username: appleID,
@@ -233,15 +304,29 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 	var tfaErr *webcore.TwoFactorRequiredError
 	if session != nil && errors.As(err, &tfaErr) {
 		code := strings.TrimSpace(twoFactorCode)
+		command := ""
+		if len(twoFactorCodeCommand) > 0 {
+			command = strings.TrimSpace(twoFactorCodeCommand[0])
+		}
 		if code == "" {
-			var promptErr error
-			code, promptErr = promptTwoFactorCodeFn()
-			if promptErr != nil {
-				return nil, promptErr
+			if command != "" {
+				resolvedCode, codeErr := readTwoFactorCodeFromCommandFn(ctx, command)
+				if codeErr != nil {
+					return nil, codeErr
+				}
+				code = resolvedCode
+			} else {
+				var promptErr error
+				code, promptErr = promptTwoFactorCodeFn()
+				if promptErr != nil {
+					return nil, promptErr
+				}
 			}
 		}
+		verifyCtx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+		defer cancel()
 		if err := withWebSpinner("Verifying two-factor code", func() error {
-			return submitTwoFactorCodeFn(ctx, session, code)
+			return submitTwoFactorCodeFn(verifyCtx, session, code)
 		}); err != nil {
 			return nil, fmt.Errorf("2fa verification failed: %w", err)
 		}
@@ -326,12 +411,19 @@ func tryResumeLastWebSession(ctx context.Context) (*webcore.AuthSession, bool, e
 	return session, ok, err
 }
 
-func resolveSession(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+func resolveSession(ctx context.Context, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, string, error) {
 	shared.ApplyRootLoggingOverrides()
 
 	appleID = strings.TrimSpace(appleID)
 	password = strings.TrimSpace(password)
 	twoFactorCode = strings.TrimSpace(twoFactorCode)
+	command := ""
+	if len(twoFactorCodeCommand) > 0 {
+		command = strings.TrimSpace(twoFactorCodeCommand[0])
+	}
+	if command == "" {
+		command = strings.TrimSpace(os.Getenv(webTwoFactorCodeCommandEnv))
+	}
 	cacheExpired := false
 
 	if appleID != "" {
@@ -378,7 +470,7 @@ func resolveSession(ctx context.Context, appleID, password, twoFactorCode string
 		return nil, "", shared.UsageError("password is required: run in a terminal for an interactive prompt or set ASC_WEB_PASSWORD")
 	}
 
-	session, err := loginWithOptionalTwoFactor(ctx, appleID, password, twoFactorCode)
+	session, err := loginWithOptionalTwoFactor(ctx, appleID, password, twoFactorCode, command)
 	if err != nil {
 		return nil, "", fmt.Errorf("web auth login failed: %w", err)
 	}
@@ -421,12 +513,13 @@ func WebAuthLoginCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("web auth login", flag.ExitOnError)
 
 	appleID := fs.String("apple-id", "", "Apple Account email")
-	twoFactorCode := fs.String("two-factor-code", "", "2FA code for accounts requiring verification")
+	twoFactorCode := bindDeprecatedTwoFactorCodeFlag(fs)
+	twoFactorCodeCommand := fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "login",
-		ShortUsage: "asc web auth login --apple-id EMAIL [--two-factor-code CODE]",
+		ShortUsage: "asc web auth login --apple-id EMAIL [--two-factor-code-command CMD]",
 		ShortHelp:  "[experimental] Authenticate unofficial Apple web session.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
@@ -436,19 +529,26 @@ Password input options:
   - secure interactive prompt (default and recommended for local use)
   - ASC_WEB_PASSWORD environment variable
 
+Two-factor input options:
+  - secure interactive prompt (default for manual use)
+  - --two-factor-code-command
+  - ` + webTwoFactorCodeCommandEnv + ` environment variable (recommended for automation)
+  - --two-factor-code (deprecated compatibility alias when the code is already known)
+
 ` + webWarningText + `
 
 Examples:
   asc web auth login --apple-id "user@example.com"
   ASC_WEB_PASSWORD="..." asc web auth login --apple-id "user@example.com"
-  asc web auth login --apple-id "user@example.com" --two-factor-code 123456`,
+  ` + webTwoFactorCodeCommandEnv + `='osascript /path/to/get-apple-2fa-code.scpt' asc web auth login --apple-id "user@example.com"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			session, source, err := resolveSessionFn(requestCtx, *appleID, "", *twoFactorCode)
+			warnDeprecatedTwoFactorCodeFlag(*twoFactorCode)
+			session, source, err := callResolveSessionFn(requestCtx, *appleID, "", *twoFactorCode, *twoFactorCodeCommand)
 			if err != nil {
 				return err
 			}

@@ -24,10 +24,7 @@ var (
 
 // ContextWithTimeoutDuration creates a context with a specific timeout.
 func ContextWithTimeoutDuration(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithTimeout(ctx, timeout)
+	return withTimeoutContext(ctx, timeout)
 }
 
 // WaitForBuildByNumberOrUploadFailure waits for a build matching version/build

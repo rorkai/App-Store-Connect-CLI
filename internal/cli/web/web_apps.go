@@ -196,7 +196,8 @@ func WebAppsCreateCommand() *ffcli.Command {
 	companyName := fs.String("company-name", "", "Company name (optional)")
 
 	appleID := fs.String("apple-id", "", "Apple Account email (required when no cache is available)")
-	twoFactorCode := fs.String("two-factor-code", "", "2FA code if your account requires verification")
+	twoFactorCode := bindDeprecatedTwoFactorCodeFlag(fs)
+	twoFactorCodeCommand := fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required")
 	autoRename := fs.Bool("auto-rename", true, "Retry with unique name suffix if app name is already taken")
 	output := shared.BindOutputFlags(fs)
 
@@ -216,6 +217,9 @@ Authentication:
   --apple-id with one of:
     - secure interactive prompt (default and recommended for local use)
     - ASC_WEB_PASSWORD environment variable
+  Two-factor verification can use --two-factor-code-command
+  or ` + webTwoFactorCodeCommandEnv + ` if a fresh login is required.
+  The legacy --two-factor-code flag still works as a deprecated compatibility alias.
   If you already have a cached web session, --apple-id can be omitted.
 
 ` + webWarningText + `
@@ -242,7 +246,8 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			session, source, err := resolveSessionFn(ctx, *appleID, "", *twoFactorCode)
+			warnDeprecatedTwoFactorCodeFlag(*twoFactorCode)
+			session, source, err := callResolveSessionFn(ctx, *appleID, "", *twoFactorCode, *twoFactorCodeCommand)
 			if err != nil {
 				return err
 			}

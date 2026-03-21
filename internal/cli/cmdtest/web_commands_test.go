@@ -97,7 +97,7 @@ func TestWebXcodeCloudWorkflowsCreateMissingRequiredFlags(t *testing.T) {
 	}
 }
 
-func TestWebAuthLoginDoesNotExposePlaintextPasswordFlag(t *testing.T) {
+func TestWebAuthLoginExposesDeprecatedTwoFactorAliasWithoutPlaintextPasswordFlag(t *testing.T) {
 	root := RootCommand("1.2.3")
 	cmd := findSubcommand(root, "web", "auth", "login")
 	if cmd == nil {
@@ -108,5 +108,34 @@ func TestWebAuthLoginDoesNotExposePlaintextPasswordFlag(t *testing.T) {
 	}
 	if cmd.FlagSet.Lookup("password-stdin") != nil {
 		t.Fatal("did not expect --password-stdin flag on web auth login")
+	}
+	twoFactorCodeFlag := cmd.FlagSet.Lookup("two-factor-code")
+	if twoFactorCodeFlag == nil {
+		t.Fatal("expected deprecated --two-factor-code flag on web auth login")
+	}
+	if !strings.Contains(twoFactorCodeFlag.Usage, "Deprecated:") {
+		t.Fatalf("expected deprecated help text for --two-factor-code, got %q", twoFactorCodeFlag.Usage)
+	}
+	if cmd.FlagSet.Lookup("two-factor-code-command") == nil {
+		t.Fatal("expected --two-factor-code-command flag on web auth login")
+	}
+}
+
+func TestWebAppsCreateExposesDeprecatedTwoFactorAlias(t *testing.T) {
+	root := RootCommand("1.2.3")
+	cmd := findSubcommand(root, "web", "apps", "create")
+	if cmd == nil {
+		t.Fatal("expected web apps create command")
+	}
+
+	twoFactorCodeFlag := cmd.FlagSet.Lookup("two-factor-code")
+	if twoFactorCodeFlag == nil {
+		t.Fatal("expected deprecated --two-factor-code flag on web apps create")
+	}
+	if !strings.Contains(twoFactorCodeFlag.Usage, "Deprecated:") {
+		t.Fatalf("expected deprecated help text for --two-factor-code, got %q", twoFactorCodeFlag.Usage)
+	}
+	if cmd.FlagSet.Lookup("two-factor-code-command") == nil {
+		t.Fatal("expected --two-factor-code-command flag on web apps create")
 	}
 }

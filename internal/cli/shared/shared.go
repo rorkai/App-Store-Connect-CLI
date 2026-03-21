@@ -1002,18 +1002,32 @@ func resolveAppID(appID string) string {
 	return strings.TrimSpace(cfg.AppID)
 }
 
-func contextWithTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+type timeoutParentContextKey struct{}
+
+func withTimeoutContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return context.WithTimeout(ctx, asc.ResolveTimeout())
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	return context.WithValue(timeoutCtx, timeoutParentContextKey{}, ctx), cancel
+}
+
+func contextWithoutTimeout(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	if base, ok := ctx.Value(timeoutParentContextKey{}).(context.Context); ok && base != nil {
+		return contextWithoutTimeout(base)
+	}
+	return ctx
+}
+
+func contextWithTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	return withTimeoutContext(ctx, asc.ResolveTimeout())
 }
 
 func contextWithUploadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithTimeout(ctx, asc.ResolveUploadTimeout())
+	return withTimeoutContext(ctx, asc.ResolveUploadTimeout())
 }
 
 func splitCSV(value string) []string {
@@ -1162,6 +1176,10 @@ func ContextWithTimeout(ctx context.Context) (context.Context, context.CancelFun
 
 func ContextWithUploadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	return contextWithUploadTimeout(ctx)
+}
+
+func ContextWithoutTimeout(ctx context.Context) context.Context {
+	return contextWithoutTimeout(ctx)
 }
 
 func SplitCSV(value string) []string {
