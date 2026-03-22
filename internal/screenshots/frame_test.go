@@ -343,6 +343,9 @@ if [ "$1" = "--version" ]; then
   echo "kou 0.18.0"
   exit 0
 fi
+if [ "$1" = "setup-frames" ]; then
+  exit 0
+fi
 if [ "$1" = "generate" ]; then
   mkdir -p "$(dirname "$MOCK_KOU_OUTPUT")"
   cp "$MOCK_KOU_FIXTURE" "$MOCK_KOU_OUTPUT"
@@ -576,6 +579,9 @@ if [ "$1" = "--version" ]; then
   echo "kou 0.18.0"
   exit 0
 fi
+if [ "$1" = "setup-frames" ]; then
+  exit 0
+fi
 if [ "$1" != "generate" ]; then
   echo "unsupported args" >&2
   exit 1
@@ -594,6 +600,84 @@ echo '[{"name":"framed","path":"output/framed.png","success":true,"error":""}]'
 	}
 	if !results[0].Success || results[0].Path != "output/framed.png" {
 		t.Fatalf("unexpected parsed result: %+v", results[0])
+	}
+}
+
+func TestRunKoubouGenerate_RunsSetupFramesBeforeGenerate(t *testing.T) {
+	resetKoubouVersionCacheForTest()
+
+	binDir := t.TempDir()
+	logPath := filepath.Join(t.TempDir(), "kou.log")
+	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
+set -eu
+if [ "$1" = "--version" ]; then
+  echo "kou 0.18.0"
+  exit 0
+fi
+if [ "$1" = "setup-frames" ]; then
+  echo "setup-frames" >> "$KOU_LOG_PATH"
+  exit 0
+fi
+if [ "$1" = "generate" ]; then
+  echo "generate" >> "$KOU_LOG_PATH"
+  echo '[{"name":"framed","path":"output/framed.png","success":true,"error":""}]'
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`)
+	t.Setenv("KOU_LOG_PATH", logPath)
+	t.Setenv("PATH", binDir)
+
+	results, err := runKoubouGenerate(context.Background(), "frame.yaml")
+	if err != nil {
+		t.Fatalf("runKoubouGenerate() error = %v", err)
+	}
+	if len(results) != 1 || results[0].Path != "output/framed.png" {
+		t.Fatalf("unexpected parsed results: %+v", results)
+	}
+
+	logBytes, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", logPath, err)
+	}
+	if got := strings.TrimSpace(string(logBytes)); got != "setup-frames\ngenerate" {
+		t.Fatalf("expected setup-frames before generate, got %q", got)
+	}
+}
+
+func TestRunKoubouGenerate_SetupFramesFailureIncludesHint(t *testing.T) {
+	resetKoubouVersionCacheForTest()
+
+	binDir := t.TempDir()
+	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
+set -eu
+if [ "$1" = "--version" ]; then
+  echo "kou 0.18.0"
+  exit 0
+fi
+if [ "$1" = "setup-frames" ]; then
+  echo "network unavailable" >&2
+  exit 1
+fi
+if [ "$1" = "generate" ]; then
+  echo '[{"name":"framed","path":"output/framed.png","success":true,"error":""}]'
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`)
+	t.Setenv("PATH", binDir)
+
+	_, err := runKoubouGenerate(context.Background(), "frame.yaml")
+	if err == nil {
+		t.Fatal("expected setup-frames error")
+	}
+	if !strings.Contains(err.Error(), "kou setup-frames") {
+		t.Fatalf("expected setup-frames command in error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "run `kou setup-frames` with network access once before framing") {
+		t.Fatalf("expected setup hint in error, got %v", err)
 	}
 }
 

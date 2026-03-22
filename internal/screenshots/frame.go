@@ -60,6 +60,7 @@ var (
 	cachedKoubouBinaryPath    string
 	cachedKoubouResolvedPATH  string
 	cachedKoubouVersionIsGood bool
+	cachedKoubouFramesReady   bool
 )
 
 var supportedFrameDevices = []FrameDevice{
@@ -758,6 +759,9 @@ func runKoubouGenerate(ctx context.Context, configPath string) ([]koubouGenerate
 	if err != nil {
 		return nil, err
 	}
+	if err := ensurePinnedKoubouFrames(ctx, kouBinaryPath); err != nil {
+		return nil, err
+	}
 
 	cmd := exec.CommandContext(ctx, kouBinaryPath, "generate", configPath, "--output", "json")
 	var stderr bytes.Buffer
@@ -853,6 +857,41 @@ func ensurePinnedKoubouVersion(ctx context.Context) (string, error) {
 	return kouBinaryPath, nil
 }
 
+func ensurePinnedKoubouFrames(ctx context.Context, kouBinaryPath string) error {
+	resolvedPATH := os.Getenv("PATH")
+
+	koubouVersionCacheMu.Lock()
+	if cachedKoubouFramesReady &&
+		cachedKoubouResolvedPATH == resolvedPATH &&
+		cachedKoubouBinaryPath == kouBinaryPath {
+		koubouVersionCacheMu.Unlock()
+		return nil
+	}
+	koubouVersionCacheMu.Unlock()
+
+	cmd := exec.CommandContext(ctx, kouBinaryPath, "setup-frames")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		trimmedOutput := strings.TrimSpace(string(output))
+		setupHint := fmt.Sprintf(
+			"Koubou %s requires downloaded device frames; run `%s` with network access once before framing",
+			pinnedKoubouVersion,
+			pinnedKoubouSetupFramesCommand(),
+		)
+		if trimmedOutput == "" {
+			return fmt.Errorf("kou setup-frames: %w. %s", err, setupHint)
+		}
+		return fmt.Errorf("kou setup-frames: %w (output: %s). %s", err, trimmedOutput, setupHint)
+	}
+
+	koubouVersionCacheMu.Lock()
+	cachedKoubouBinaryPath = kouBinaryPath
+	cachedKoubouResolvedPATH = resolvedPATH
+	cachedKoubouFramesReady = true
+	koubouVersionCacheMu.Unlock()
+	return nil
+}
+
 func parseKoubouVersion(output []byte) (string, bool) {
 	matches := koubouVersionPattern.FindSubmatch(output)
 	if len(matches) < 2 {
@@ -868,6 +907,10 @@ func parseKoubouVersion(output []byte) (string, bool) {
 
 func pinnedKoubouInstallCommand() string {
 	return fmt.Sprintf("pip install koubou==%s", pinnedKoubouVersion)
+}
+
+func pinnedKoubouSetupFramesCommand() string {
+	return "kou setup-frames"
 }
 
 // extractJSONArray finds the JSON array of objects in raw output that may
@@ -945,6 +988,7 @@ func resetKoubouVersionCacheForTest() {
 	cachedKoubouBinaryPath = ""
 	cachedKoubouResolvedPATH = ""
 	cachedKoubouVersionIsGood = false
+	cachedKoubouFramesReady = false
 }
 
 func normalizeFrameDevice(raw string) string {
