@@ -876,6 +876,117 @@ func TestWebAppsCreateFailsWhenBundleIDPreflightFails(t *testing.T) {
 	}
 }
 
+func TestWebAppsCreateRollsBackCreatedBundleIDWhenCreateFails(t *testing.T) {
+	origResolveAppCreateSession := resolveAppCreateSessionFn
+	origNewWebClient := newWebClientFn
+	origEnsureBundleID := ensureBundleIDFn
+	origCreateWebApp := createWebAppFn
+	origDeleteBundleID := deleteBundleIDFn
+	t.Cleanup(func() {
+		resolveAppCreateSessionFn = origResolveAppCreateSession
+		newWebClientFn = origNewWebClient
+		ensureBundleIDFn = origEnsureBundleID
+		createWebAppFn = origCreateWebApp
+		deleteBundleIDFn = origDeleteBundleID
+	})
+
+	resolveAppCreateSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{}, "cache", nil
+	}
+	newWebClientFn = func(session *webcore.AuthSession) *webcore.Client {
+		return &webcore.Client{}
+	}
+
+	createErr := errors.New("create failed")
+	deletedBundleID := ""
+	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+		return true, nil
+	}
+	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
+		return nil, createErr
+	}
+	deleteBundleIDFn = func(ctx context.Context, bundleID string) error {
+		deletedBundleID = bundleID
+		return nil
+	}
+
+	cmd := WebAppsCreateCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--name", "My App",
+		"--bundle-id", "com.example.app",
+		"--sku", "SKU123",
+		"--apple-id", "user@example.com",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, createErr) {
+		t.Fatalf("expected wrapped create error, got %v", err)
+	}
+	if deletedBundleID != "com.example.app" {
+		t.Fatalf("expected rollback for bundle id %q, got %q", "com.example.app", deletedBundleID)
+	}
+}
+
+func TestWebAppsCreateSurfacesBundleIDRollbackFailure(t *testing.T) {
+	origResolveAppCreateSession := resolveAppCreateSessionFn
+	origNewWebClient := newWebClientFn
+	origEnsureBundleID := ensureBundleIDFn
+	origCreateWebApp := createWebAppFn
+	origDeleteBundleID := deleteBundleIDFn
+	t.Cleanup(func() {
+		resolveAppCreateSessionFn = origResolveAppCreateSession
+		newWebClientFn = origNewWebClient
+		ensureBundleIDFn = origEnsureBundleID
+		createWebAppFn = origCreateWebApp
+		deleteBundleIDFn = origDeleteBundleID
+	})
+
+	resolveAppCreateSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
+		return &webcore.AuthSession{}, "cache", nil
+	}
+	newWebClientFn = func(session *webcore.AuthSession) *webcore.Client {
+		return &webcore.Client{}
+	}
+
+	createErr := errors.New("create failed")
+	rollbackErr := errors.New("rollback failed")
+	ensureBundleIDFn = func(ctx context.Context, bundleID, appName, platform string) (bool, error) {
+		return true, nil
+	}
+	createWebAppFn = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
+		return nil, createErr
+	}
+	deleteBundleIDFn = func(ctx context.Context, bundleID string) error {
+		return rollbackErr
+	}
+
+	cmd := WebAppsCreateCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--name", "My App",
+		"--bundle-id", "com.example.app",
+		"--sku", "SKU123",
+		"--apple-id", "user@example.com",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !errors.Is(err, createErr) {
+		t.Fatalf("expected wrapped create error, got %v", err)
+	}
+	if !errors.Is(err, rollbackErr) {
+		t.Fatalf("expected rollback error to be surfaced, got %v", err)
+	}
+}
+
 func TestBundleIDPlatformForWebApp(t *testing.T) {
 	t.Run("maps UNIVERSAL to IOS for bundle id create", func(t *testing.T) {
 		got, err := bundleIDPlatformForWebApp("UNIVERSAL")

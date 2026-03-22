@@ -1194,16 +1194,12 @@ func DeleteSession(username string) error {
 	case sessionBackendKeychain:
 		if deleteErr := deleteSessionFromKeychain(key); deleteErr != nil {
 			if selection.fallbackFile && isKeyringUnavailable(deleteErr) {
-				if fallbackErr := deleteSessionFromFile(key); fallbackErr != nil {
-					err = fallbackErr
-				} else {
-					err = clearLastKeyInFileIfMatches(key)
-				}
+				err = deleteMirroredSessionFromFile(key)
 			} else {
 				err = deleteErr
 			}
-		} else {
-			bestEffortDeleteSessionFromFile(key)
+		} else if selection.fallbackFile {
+			err = deleteMirroredSessionFromFile(key)
 		}
 	case sessionBackendFile:
 		if deleteErr := deleteSessionFromFile(key); deleteErr != nil {
@@ -1230,16 +1226,12 @@ func DeleteAllSessions() error {
 	case sessionBackendKeychain:
 		if deleteErr := deleteAllFromKeychain(); deleteErr != nil {
 			if selection.fallbackFile && isKeyringUnavailable(deleteErr) {
-				if fallbackErr := deleteAllFromFile(); fallbackErr != nil {
-					err = fallbackErr
-				} else {
-					err = clearLastSessionMarker()
-				}
+				err = deleteAllFromFile()
 			} else {
 				err = deleteErr
 			}
-		} else {
-			bestEffortDeleteAllFromFile()
+		} else if selection.fallbackFile {
+			err = deleteAllFromFile()
 		}
 	case sessionBackendFile:
 		if deleteErr := deleteAllFromFile(); deleteErr != nil {
@@ -1273,13 +1265,8 @@ func ignoreUnavailableKeyringError(err error) error {
 	return err
 }
 
-func bestEffortDeleteSessionFromFile(key string) {
-	_ = deleteSessionFromFile(key)
-	_ = clearLastKeyInFileIfMatches(key)
-}
-
-func bestEffortDeleteAllFromFile() {
-	_ = deleteAllFromFile()
+func deleteMirroredSessionFromFile(key string) error {
+	return joinDeleteErrors(deleteSessionFromFile(key), clearLastKeyInFileIfMatches(key))
 }
 
 // clearLastSessionMarker clears the "last used session" pointer.

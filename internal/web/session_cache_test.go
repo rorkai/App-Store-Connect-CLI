@@ -702,6 +702,39 @@ func TestDeleteSessionKeychainBackendAlsoRemovesFileCache(t *testing.T) {
 	}
 }
 
+func TestDeleteSessionKeychainBackendSurfacesMirroredFileDeleteError(t *testing.T) {
+	withArraySessionKeyring(t)
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "keychain")
+
+	webCachePath := filepath.Join(t.TempDir(), "web-cache-file")
+	if err := os.WriteFile(webCachePath, []byte("not-a-directory"), 0o600); err != nil {
+		t.Fatalf("write web cache file: %v", err)
+	}
+	t.Setenv(webSessionCacheDirEnv, webCachePath)
+
+	key := webSessionCacheKey("user@example.com")
+	if err := writeSessionToKeychain(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("writeSessionToKeychain error: %v", err)
+	}
+
+	err := DeleteSession("user@example.com")
+	if err == nil {
+		t.Fatal("expected mirrored file delete error")
+	}
+	if !strings.Contains(err.Error(), webCachePath) {
+		t.Fatalf("expected mirrored file delete error to mention %q, got %v", webCachePath, err)
+	}
+	if _, ok, readErr := readSessionFromKeychain(key); readErr != nil {
+		t.Fatalf("readSessionFromKeychain error: %v", readErr)
+	} else if ok {
+		t.Fatal("expected keychain-backed session to still be removed")
+	}
+}
+
 func TestDeleteSessionKeychainFallbackPreservesDifferentFileLastSessionMarker(t *testing.T) {
 	withUnavailableSessionKeyring(t)
 	t.Setenv(webSessionCacheEnabledEnv, "1")
@@ -1784,6 +1817,39 @@ func TestDeleteAllSessionsKeychainBackendAlsoRemovesFileCache(t *testing.T) {
 		t.Fatalf("readLastKeyFromFile error: %v", err)
 	} else if ok {
 		t.Fatal("expected mirrored file-backed last marker to be removed")
+	}
+}
+
+func TestDeleteAllSessionsKeychainBackendSurfacesMirroredFileDeleteError(t *testing.T) {
+	withArraySessionKeyring(t)
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "keychain")
+
+	webCachePath := filepath.Join(t.TempDir(), "web-cache-file")
+	if err := os.WriteFile(webCachePath, []byte("not-a-directory"), 0o600); err != nil {
+		t.Fatalf("write web cache file: %v", err)
+	}
+	t.Setenv(webSessionCacheDirEnv, webCachePath)
+
+	key := webSessionCacheKey("user@example.com")
+	if err := writeSessionToKeychain(key, persistedSession{
+		Version:   webSessionCacheVersion,
+		UpdatedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("writeSessionToKeychain error: %v", err)
+	}
+
+	err := DeleteAllSessions()
+	if err == nil {
+		t.Fatal("expected mirrored file delete error")
+	}
+	if !strings.Contains(err.Error(), webCachePath) {
+		t.Fatalf("expected mirrored file delete error to mention %q, got %v", webCachePath, err)
+	}
+	if _, ok, readErr := readSessionFromKeychain(key); readErr != nil {
+		t.Fatalf("readSessionFromKeychain error: %v", readErr)
+	} else if ok {
+		t.Fatal("expected keychain-backed session store to still be removed")
 	}
 }
 

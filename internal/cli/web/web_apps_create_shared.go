@@ -231,6 +231,18 @@ func persistFreshAppCreateSession(session *webcore.AuthSession) error {
 	return nil
 }
 
+func rollbackCreatedBundleID(ctx context.Context, bundleID string) error {
+	bundleID = strings.TrimSpace(bundleID)
+	if bundleID == "" {
+		return nil
+	}
+	rollbackCtx, cancel := shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
+	defer cancel()
+	return withWebSpinner("Rolling back created Bundle ID", func() error {
+		return deleteBundleIDFn(rollbackCtx, bundleID)
+	})
+}
+
 func resolveAppCreateSession(ctx context.Context, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, string, error) {
 	command := ""
 	if len(twoFactorCodeCommand) > 0 {
@@ -365,6 +377,11 @@ func RunAppsCreate(ctx context.Context, opts AppsCreateRunOptions) error {
 		}
 	}
 	if err != nil {
+		if createdBundleID {
+			if rollbackErr := rollbackCreatedBundleID(ctx, opts.BundleID); rollbackErr != nil {
+				err = errors.Join(err, fmt.Errorf("failed to roll back created bundle id %q: %w", opts.BundleID, rollbackErr))
+			}
+		}
 		return fmt.Errorf("web apps create failed: %w", err)
 	}
 

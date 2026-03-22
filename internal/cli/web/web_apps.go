@@ -46,6 +46,7 @@ const maxAppNameLen = 30
 var (
 	newWebClientFn   = webcore.NewClient
 	ensureBundleIDFn = ensureBundleIDExists
+	deleteBundleIDFn = deleteBundleIDByIdentifier
 	createWebAppFn   = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
 		return client.CreateApp(ctx, attrs)
 	}
@@ -124,6 +125,28 @@ func ensureBundleIDExists(ctx context.Context, bundleID, appName, platform strin
 	}
 
 	return true, nil
+}
+
+func deleteBundleIDByIdentifier(ctx context.Context, bundleID string) error {
+	bundleID = strings.TrimSpace(bundleID)
+	if bundleID == "" {
+		return nil
+	}
+
+	client, err := shared.GetASCClient()
+	if err != nil {
+		return err
+	}
+
+	existing, err := client.GetBundleIDs(ctx, asc.WithBundleIDsFilterIdentifier(bundleID), asc.WithBundleIDsLimit(1))
+	if err != nil {
+		return err
+	}
+	if existing == nil || len(existing.Data) == 0 {
+		return nil
+	}
+
+	return client.DeleteBundleID(ctx, strings.TrimSpace(existing.Data[0].ID))
 }
 
 func bundleIDNameSuffix(bundleID string) string {
