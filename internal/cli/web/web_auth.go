@@ -59,6 +59,22 @@ var (
 	sessionExpiredWriter           io.Writer = os.Stderr
 )
 
+func callSessionResolverHook(ctx context.Context, hook any, hookName, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
+	switch fn := hook.(type) {
+	case func(context.Context, string, string, string) (*webcore.AuthSession, string, error):
+		if strings.TrimSpace(twoFactorCodeCommand) != "" {
+			return nil, "", fmt.Errorf("internal error: %s test hook cannot accept --two-factor-code-command", hookName)
+		}
+		return fn(ctx, appleID, password, twoFactorCode)
+	case func(context.Context, string, string, string, string) (*webcore.AuthSession, string, error):
+		return fn(ctx, appleID, password, twoFactorCode, twoFactorCodeCommand)
+	case func(context.Context, string, string, string, ...string) (*webcore.AuthSession, string, error):
+		return fn(ctx, appleID, password, twoFactorCode, twoFactorCodeCommand)
+	default:
+		return nil, "", fmt.Errorf("internal error: unsupported %s type %T", hookName, hook)
+	}
+}
+
 func webPasswordProvided(password string) bool {
 	return strings.TrimSpace(password) != ""
 }
@@ -84,16 +100,7 @@ func signalProcessInterrupt() error {
 }
 
 func callResolveSessionFn(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
-	switch fn := resolveSessionFn.(type) {
-	case func(context.Context, string, string, string) (*webcore.AuthSession, string, error):
-		return fn(ctx, appleID, password, twoFactorCode)
-	case func(context.Context, string, string, string, string) (*webcore.AuthSession, string, error):
-		return fn(ctx, appleID, password, twoFactorCode, twoFactorCodeCommand)
-	case func(context.Context, string, string, string, ...string) (*webcore.AuthSession, string, error):
-		return fn(ctx, appleID, password, twoFactorCode, twoFactorCodeCommand)
-	default:
-		return nil, "", fmt.Errorf("internal error: unsupported web session resolver type %T", resolveSessionFn)
-	}
+	return callSessionResolverHook(ctx, resolveSessionFn, "web session resolver", appleID, password, twoFactorCode, twoFactorCodeCommand)
 }
 
 func readPasswordFromInput(ctx context.Context) (string, error) {

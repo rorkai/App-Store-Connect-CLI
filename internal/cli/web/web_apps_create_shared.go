@@ -46,16 +46,7 @@ var (
 )
 
 func callResolveAppCreateSessionFn(ctx context.Context, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
-	switch fn := resolveAppCreateSessionFn.(type) {
-	case func(context.Context, string, string, string) (*webcore.AuthSession, string, error):
-		return fn(ctx, appleID, password, twoFactorCode)
-	case func(context.Context, string, string, string, string) (*webcore.AuthSession, string, error):
-		return fn(ctx, appleID, password, twoFactorCode, twoFactorCodeCommand)
-	case func(context.Context, string, string, string, ...string) (*webcore.AuthSession, string, error):
-		return fn(ctx, appleID, password, twoFactorCode, twoFactorCodeCommand)
-	default:
-		return nil, "", fmt.Errorf("internal error: unsupported app create session resolver type %T", resolveAppCreateSessionFn)
-	}
+	return callSessionResolverHook(ctx, resolveAppCreateSessionFn, "app create session resolver", appleID, password, twoFactorCode, twoFactorCodeCommand)
 }
 
 func appCreateCanPromptInteractively() bool {
@@ -229,8 +220,9 @@ func resolveAppCreatePassword(_ context.Context, password string) (string, error
 	return password, nil
 }
 
-func persistAppCreateSession(_ *webcore.AuthSession) error {
+func persistFreshAppCreateSession(session *webcore.AuthSession) error {
 	// App creation can proceed with the in-memory session even if cache persistence fails.
+	_ = persistWebSessionFn(session)
 	return nil
 }
 
@@ -242,14 +234,11 @@ func resolveAppCreateSession(ctx context.Context, appleID, password, twoFactorCo
 	session, source, err := resolveWebSession(ctx, appleID, password, twoFactorCode, webSessionResolveOptions{
 		promptAppleID:        promptAppsCreateSessionAppleID,
 		resolvePassword:      resolveAppCreatePassword,
-		persistFresh:         persistAppCreateSession,
+		persistFresh:         persistFreshAppCreateSession,
 		twoFactorCodeCommand: command,
 	})
 	if err != nil {
 		return nil, "", err
-	}
-	if source == "fresh" {
-		_ = webcore.PersistSession(session)
 	}
 	return session, source, nil
 }
