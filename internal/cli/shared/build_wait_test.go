@@ -22,6 +22,12 @@ func (fn buildWaitRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, e
 	return fn(req)
 }
 
+type transientBuildWaitError struct{}
+
+func (transientBuildWaitError) Error() string   { return "temporary network failure" }
+func (transientBuildWaitError) Timeout() bool   { return true }
+func (transientBuildWaitError) Temporary() bool { return true }
+
 func newBuildWaitTestClient(t *testing.T, transport buildWaitRoundTripFunc) *asc.Client {
 	t.Helper()
 
@@ -462,6 +468,50 @@ func TestWaitForBuildByNumberOrUploadFailureReturnsMalformedUploadRelationships(
 	}
 	if !strings.Contains(err.Error(), `parse build upload "upload-current" relationships`) {
 		t.Fatalf("expected malformed relationship error, got %v", err)
+	}
+}
+
+func TestVerifyBuildUploadAfterCommitIgnoresRetryableLookupErrorsUntilBuildLinks(t *testing.T) {
+	lookupCalls := 0
+	client := newBuildWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			return nil, fmt.Errorf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/buildUploads/upload-current" {
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+		lookupCalls++
+		if lookupCalls == 1 {
+			return nil, transientBuildWaitError{}
+		}
+		return buildWaitJSONResponse(`{
+			"data": {
+				"type": "buildUploads",
+				"id": "upload-current",
+				"attributes": {
+					"cfBundleShortVersionString": "1.2.3",
+					"cfBundleVersion": "42",
+					"platform": "IOS",
+					"state": {"state": "UPLOADED"}
+				},
+				"relationships": {
+					"build": {
+						"data": {
+							"type": "builds",
+							"id": "build-123"
+						}
+					}
+				}
+			}
+		}`)
+	})
+
+	err := VerifyBuildUploadAfterCommit(context.Background(), client, "app-1", "upload-current", time.Millisecond, 50*time.Millisecond)
+	if err != nil {
+		t.Fatalf("VerifyBuildUploadAfterCommit() error: %v", err)
+	}
+	if lookupCalls < 2 {
+		t.Fatalf("expected retryable lookup error to be retried, got %d lookup(s)", lookupCalls)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -119,7 +120,7 @@ func VerifyBuildUploadAfterCommit(ctx context.Context, client *asc.Client, appID
 	_, err := asc.PollUntil(verifyCtx, effectiveInterval, func(ctx context.Context) (*asc.BuildUploadResponse, bool, error) {
 		upload, err := client.GetBuildUpload(ctx, uploadID)
 		if err != nil {
-			if shouldIgnoreBuildWaitLookupError(err) {
+			if shouldIgnoreBuildWaitLookupError(err) || shouldIgnorePostCommitBuildUploadLookupError(ctx, err) {
 				return nil, false, nil
 			}
 			return nil, false, err
@@ -143,6 +144,40 @@ func VerifyBuildUploadAfterCommit(ctx context.Context, client *asc.Client, appID
 		return nil
 	}
 	return err
+}
+
+func shouldIgnorePostCommitBuildUploadLookupError(ctx context.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+	if asc.IsRetryable(err) {
+		return true
+	}
+
+	var apiErr *asc.APIError
+	if errors.As(err, &apiErr) && apiErr.StatusCode >= 500 {
+		return true
+	}
+
+	if errors.Is(err, context.DeadlineExceeded) && ctx != nil && ctx.Err() == nil {
+		return true
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) && (netErr.Timeout() || isTemporaryNetError(netErr)) {
+		return true
+	}
+
+	return false
+}
+
+type temporaryNetError interface {
+	Temporary() bool
+}
+
+func isTemporaryNetError(err net.Error) bool {
+	tempErr, ok := err.(temporaryNetError)
+	return ok && tempErr.Temporary()
 }
 
 func findBuildByNumber(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform, uploadID string) (*asc.BuildResponse, error) {
