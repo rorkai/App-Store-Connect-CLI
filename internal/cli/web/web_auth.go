@@ -58,6 +58,7 @@ var (
 	resolveSessionFn               any       = resolveSession
 	twoFactorStatusWriter          io.Writer = os.Stderr
 	sessionExpiredWriter           io.Writer = os.Stderr
+	sessionCacheWarningWriter      io.Writer = os.Stderr
 )
 
 func callSessionResolverHook(ctx context.Context, hook any, hookName, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
@@ -328,6 +329,13 @@ func printExpiredSessionNotice(writer io.Writer) {
 	_, _ = fmt.Fprintln(writer, "Session expired.")
 }
 
+func printCacheLookupWarning(writer io.Writer, err error) {
+	if writer == nil || err == nil {
+		return
+	}
+	_, _ = fmt.Fprintf(writer, "Warning: %v; continuing with fresh login.\n", err)
+}
+
 func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, error) {
 	session, err := withWebSpinnerValue("Signing in to Apple web session", func() (*webcore.AuthSession, error) {
 		return webLoginFn(ctx, webcore.LoginCredentials{
@@ -498,15 +506,15 @@ func tryResumeKnownWebSession(ctx context.Context, appleID string) (*webcore.Aut
 	return resumed, ok, errors.Is(err, webcore.ErrCachedSessionExpired), err
 }
 
-func resolveKnownWebSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, bool) {
+func resolveKnownWebSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, bool, error) {
 	resumed, ok, cacheExpired, err := tryResumeKnownWebSession(ctx, appleID)
 	if err == nil {
-		return resumed, ok, false
+		return resumed, ok, false, nil
 	}
 	if cacheExpired {
-		return nil, false, true
+		return nil, false, true, nil
 	}
-	return nil, false, false
+	return nil, false, false, fmt.Errorf("checking cached web session failed: %w", err)
 }
 
 func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode string, opts webSessionResolveOptions) (*webcore.AuthSession, string, error) {
@@ -540,7 +548,9 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 		return nil, "", false, nil
 	}
 
-	if resumed, ok, cacheExpired := resolveKnownWebSession(ctx, appleID); ok {
+	if resumed, ok, cacheExpired, err := resolveKnownWebSession(ctx, appleID); err != nil {
+		printCacheLookupWarning(sessionCacheWarningWriter, err)
+	} else if ok {
 		return resumed, "cache", nil
 	} else if cacheExpired {
 		if session, source, ok, err := tryHandleExpiredSession(appleID); err != nil {
@@ -558,7 +568,9 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 			return nil, "", err
 		}
 		appleID = strings.TrimSpace(appleID)
-		if resumed, ok, cacheExpired := resolveKnownWebSession(ctx, appleID); ok {
+		if resumed, ok, cacheExpired, err := resolveKnownWebSession(ctx, appleID); err != nil {
+			printCacheLookupWarning(sessionCacheWarningWriter, err)
+		} else if ok {
 			return resumed, "cache", nil
 		} else if cacheExpired {
 			if session, source, ok, err := tryHandleExpiredSession(appleID); err != nil {

@@ -294,12 +294,29 @@ on extractFirstCode(sourceText)
 	if extractedCode is not "" then
 		return extractedCode
 	end if
+	set extractedCode to my extractSpacedCodeText(sourceText)
+	if extractedCode is not "" then
+		return extractedCode
+	end if
 	set digitsOnly to my digitsOnlyText(sourceText)
 	if (length of digitsOnly) is 6 then
 		return digitsOnly
 	end if
 	return ""
 end extractFirstCode
+
+on extractSpacedCodeText(sourceText)
+	set sourceText to sourceText as text
+	try
+		set extractedCode to do shell script "/bin/echo " & quoted form of sourceText & " | /usr/bin/grep -Eo '[0-9]([[:space:][:punct:]]+[0-9]){5}' | /usr/bin/head -n1 | /usr/bin/tr -cd '0-9'"
+	on error
+		set extractedCode to ""
+	end try
+	if (length of extractedCode) is 6 then
+		return extractedCode
+	end if
+	return ""
+end extractSpacedCodeText
 
 on digitsOnlyText(sourceText)
 	set sourceText to sourceText as text

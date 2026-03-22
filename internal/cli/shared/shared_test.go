@@ -1270,6 +1270,42 @@ func TestResolveAuthCredentialsMetadata_UsesKeychainMetadataDefault(t *testing.T
 	}
 }
 
+func TestResolveAuthCredentialsMetadata_PrefersKeychainMetadataOverConfigDuplicate(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+
+	previousProfile := selectedProfile
+	selectedProfile = ""
+	t.Cleanup(func() { selectedProfile = previousProfile })
+
+	if err := config.SaveAt(configPath, &config.Config{
+		DefaultKeyName: "client",
+		Keys: []config.Credential{{
+			Name:     "client",
+			KeyID:    "CONFIGKEY",
+			IssuerID: "CONFIGISS",
+		}},
+		KeychainMetadata: []config.KeychainMetadata{{
+			Name:     "client",
+			KeyID:    "METAKEY",
+			IssuerID: "METAISS",
+		}},
+	}); err != nil {
+		t.Fatalf("config.SaveAt() error: %v", err)
+	}
+
+	resolved, err := ResolveAuthCredentialsMetadata("")
+	if err != nil {
+		t.Fatalf("ResolveAuthCredentialsMetadata() error: %v", err)
+	}
+	if resolved.KeyID != "METAKEY" || resolved.IssuerID != "METAISS" || resolved.Profile != "client" {
+		t.Fatalf("expected keychain metadata to win over stale config duplicate, got %+v", resolved)
+	}
+}
+
 func TestResolveAuthCredentialsMetadata_UsesSelectedProfileMetadata(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.json")
 	t.Setenv("ASC_CONFIG_PATH", configPath)

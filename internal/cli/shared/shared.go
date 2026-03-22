@@ -615,23 +615,6 @@ func configCredentialMetadataSummaries(cfg *config.Config) []credentialMetadataS
 	summaries := make([]credentialMetadataSummary, 0, len(cfg.Keys)+len(cfg.KeychainMetadata)+1)
 	seen := make(map[string]struct{}, len(cfg.Keys)+len(cfg.KeychainMetadata)+1)
 
-	for _, cred := range cfg.Keys {
-		name := strings.TrimSpace(cred.Name)
-		keyID := strings.TrimSpace(cred.KeyID)
-		if name == "" || keyID == "" {
-			continue
-		}
-		if _, ok := seen[name]; ok {
-			continue
-		}
-		seen[name] = struct{}{}
-		summaries = append(summaries, credentialMetadataSummary{
-			name:     name,
-			keyID:    keyID,
-			issuerID: strings.TrimSpace(cred.IssuerID),
-		})
-	}
-
 	for _, entry := range cfg.KeychainMetadata {
 		name := strings.TrimSpace(entry.Name)
 		keyID := strings.TrimSpace(entry.KeyID)
@@ -646,6 +629,23 @@ func configCredentialMetadataSummaries(cfg *config.Config) []credentialMetadataS
 			name:     name,
 			keyID:    keyID,
 			issuerID: strings.TrimSpace(entry.IssuerID),
+		})
+	}
+
+	for _, cred := range cfg.Keys {
+		name := strings.TrimSpace(cred.Name)
+		keyID := strings.TrimSpace(cred.KeyID)
+		if name == "" || keyID == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		summaries = append(summaries, credentialMetadataSummary{
+			name:     name,
+			keyID:    keyID,
+			issuerID: strings.TrimSpace(cred.IssuerID),
 		})
 	}
 

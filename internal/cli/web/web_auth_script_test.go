@@ -111,11 +111,20 @@ func TestAppleTwoFactorScriptExtractsSpacedSixDigitCodes(t *testing.T) {
 	if !strings.Contains(script, "if extractedCode is not \"\" then") {
 		t.Fatalf("expected script to fall back only after checking for an empty shell extraction result")
 	}
+	if !strings.Contains(script, "set extractedCode to my extractSpacedCodeText(sourceText)") {
+		t.Fatalf("expected labeled spaced-digit extraction before the digit-only fallback")
+	}
+	if !strings.Contains(script, "on extractSpacedCodeText(sourceText)") {
+		t.Fatalf("expected dedicated spaced-digit extraction helper in script")
+	}
+	if !strings.Contains(script, "/usr/bin/grep -Eo '[0-9]([[:space:][:punct:]]+[0-9]){5}'") {
+		t.Fatalf("expected spaced-digit helper to extract six-digit sequences without concatenating unrelated label digits")
+	}
 	if !strings.Contains(script, "set digitsOnly to my digitsOnlyText(sourceText)") {
 		t.Fatalf("expected spaced-digit fallback extraction in script")
 	}
 	if !strings.Contains(script, "if (length of digitsOnly) is 6 then") {
-		t.Fatalf("expected spaced-digit fallback to accept exactly six digits even when the AX text includes labels")
+		t.Fatalf("expected plain digit-normalization fallback for already-isolated six-digit text")
 	}
 	if !strings.Contains(script, "on digitsOnlyText(sourceText)") {
 		t.Fatalf("expected digit-normalization helper in script")

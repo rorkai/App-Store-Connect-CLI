@@ -1040,12 +1040,17 @@ func TestResolveSessionFallsBackToFreshLoginWhenCacheLookupFailsBeforePrompt(t *
 	origTryResumeLast := tryResumeLastFn
 	origPromptPassword := promptPasswordFn
 	origWebLogin := webLoginFn
+	origCacheWarningWriter := sessionCacheWarningWriter
 	t.Cleanup(func() {
 		tryResumeSessionFn = origTryResume
 		tryResumeLastFn = origTryResumeLast
 		promptPasswordFn = origPromptPassword
 		webLoginFn = origWebLogin
+		sessionCacheWarningWriter = origCacheWarningWriter
 	})
+
+	var warning bytes.Buffer
+	sessionCacheWarningWriter = &warning
 
 	cacheErr := errors.New("cache permission denied")
 	tryResumeSessionFn = func(ctx context.Context, username string) (*webcore.AuthSession, bool, error) {
@@ -1082,17 +1087,25 @@ func TestResolveSessionFallsBackToFreshLoginWhenCacheLookupFailsBeforePrompt(t *
 	if session == nil || session.UserEmail != "user@example.com" {
 		t.Fatalf("expected fresh login session for %q, got %+v", "user@example.com", session)
 	}
+	if got := warning.String(); !strings.Contains(got, cacheErr.Error()) || !strings.Contains(got, "continuing with fresh login") {
+		t.Fatalf("expected cache warning to mention %q and fresh login fallback, got %q", cacheErr.Error(), got)
+	}
 }
 
 func TestResolveWebSessionFallsBackToFreshLoginAfterPromptedAppleIDCacheError(t *testing.T) {
 	origTryResume := tryResumeSessionFn
 	origTryResumeLast := tryResumeLastFn
 	origWebLogin := webLoginFn
+	origCacheWarningWriter := sessionCacheWarningWriter
 	t.Cleanup(func() {
 		tryResumeSessionFn = origTryResume
 		tryResumeLastFn = origTryResumeLast
 		webLoginFn = origWebLogin
+		sessionCacheWarningWriter = origCacheWarningWriter
 	})
+
+	var warning bytes.Buffer
+	sessionCacheWarningWriter = &warning
 
 	cacheErr := errors.New("cache metadata unreadable")
 	tryResumeLastFn = func(ctx context.Context) (*webcore.AuthSession, bool, error) {
@@ -1143,6 +1156,9 @@ func TestResolveWebSessionFallsBackToFreshLoginAfterPromptedAppleIDCacheError(t 
 	}
 	if session == nil || session.UserEmail != "user@example.com" {
 		t.Fatalf("expected prompted fresh session for %q, got %+v", "user@example.com", session)
+	}
+	if got := warning.String(); !strings.Contains(got, cacheErr.Error()) || !strings.Contains(got, "continuing with fresh login") {
+		t.Fatalf("expected prompted cache warning to mention %q and fresh login fallback, got %q", cacheErr.Error(), got)
 	}
 }
 
