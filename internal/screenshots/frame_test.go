@@ -288,7 +288,7 @@ func installFrameTestMockKou(t *testing.T, fixturePath, outputPath string) {
 	kouPath := filepath.Join(binDir, "kou")
 	script := `#!/bin/sh
 if [ "$1" = "--version" ]; then
-  echo "kou 0.17.1"
+  echo "kou 0.18.0"
   exit 0
 fi
 if [ "$1" = "generate" ]; then
@@ -521,7 +521,7 @@ func TestRunKoubouGenerate_ParsesJSONFromStdoutWhenStderrHasWarnings(t *testing.
 	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
 set -eu
 if [ "$1" = "--version" ]; then
-  echo "kou 0.17.1"
+  echo "kou 0.18.0"
   exit 0
 fi
 if [ "$1" != "generate" ]; then
@@ -569,7 +569,7 @@ exit 1
 	if !strings.Contains(err.Error(), "unsupported Koubou version 0.12.0") {
 		t.Fatalf("expected unsupported version error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "0.17.1") {
+	if !strings.Contains(err.Error(), "0.18.0") {
 		t.Fatalf("expected pinned version in error, got %v", err)
 	}
 }
@@ -581,7 +581,7 @@ func TestRunKoubouGenerate_NotFoundIncludesPinnedInstallHint(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected not found error")
 	}
-	if !strings.Contains(err.Error(), "pip install koubou==0.17.1") {
+	if !strings.Contains(err.Error(), "pip install koubou==0.18.0") {
 		t.Fatalf("expected pinned install command in error, got %v", err)
 	}
 }
