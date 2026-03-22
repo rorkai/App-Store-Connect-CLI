@@ -103,7 +103,7 @@ var frameDeviceKoubouSpecs = map[FrameDevice]frameDeviceKoubouSpec{
 	},
 	FrameDeviceIPhone17: {
 		FrameName:   "iPhone 17 - White - Portrait",
-		Aliases:     []string{"iPhone 14 Pro Portrait"},
+		Aliases:     []string{"iPhone 17 - Teal - Portrait", "iPhone 14 Pro Portrait"},
 		OutputSize:  "iPhone6_3",
 		DisplayType: "APP_IPHONE_61",
 	},

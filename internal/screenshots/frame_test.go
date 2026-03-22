@@ -266,6 +266,7 @@ func TestResolveFrameDeviceFromConfig_LegacyFallbackAliases(t *testing.T) {
 		{name: "iphone air", frameRef: "iPhone 16 Pro - White Titanium - Portrait", sizeName: "iPhone6_9", want: FrameDeviceIPhoneAir},
 		{name: "iphone 17 pro max", frameRef: "iPhone 16 Pro Max - White Titanium - Portrait", sizeName: "iPhone6_9", want: FrameDeviceIPhone17PM},
 		{name: "iphone 17 pro", frameRef: "iPhone 15 Pro - White Titanium - Portrait", sizeName: "iPhone6_7", want: FrameDeviceIPhone17Pro},
+		{name: "iphone 17 teal alias", frameRef: "iPhone 17 - Teal - Portrait", sizeName: "iPhone6_7", want: FrameDeviceIPhone17},
 		{name: "iphone 17", frameRef: "iPhone 14 Pro Portrait", sizeName: "iPhone6_7", want: FrameDeviceIPhone17},
 	}
 
