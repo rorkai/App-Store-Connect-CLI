@@ -287,8 +287,41 @@ end normalizeText
 on extractFirstCode(sourceText)
 	set sourceText to sourceText as text
 	try
-		return do shell script "/bin/echo " & quoted form of sourceText & " | /usr/bin/grep -Eo '(^|[^0-9])[0-9]{6}([^0-9]|$)' | /usr/bin/head -n1 | /usr/bin/tr -cd '0-9'"
+		set extractedCode to do shell script "/bin/echo " & quoted form of sourceText & " | /usr/bin/grep -Eo '(^|[^0-9])[0-9]{6}([^0-9]|$)' | /usr/bin/head -n1 | /usr/bin/tr -cd '0-9'"
 	on error
-		return ""
+		set extractedCode to ""
 	end try
+	if extractedCode is not "" then
+		return extractedCode
+	end if
+	set digitsOnly to my digitsOnlyText(sourceText)
+	if (length of digitsOnly) is 6 and not (my containsLatinLetters(sourceText)) then
+		return digitsOnly
+	end if
+	return ""
 end extractFirstCode
+
+on digitsOnlyText(sourceText)
+	set sourceText to sourceText as text
+	set extractedDigits to ""
+	repeat with currentCharacter in characters of sourceText
+		set currentCharacter to contents of currentCharacter
+		if currentCharacter is in "0123456789" then
+			set extractedDigits to extractedDigits & currentCharacter
+		end if
+	end repeat
+	return extractedDigits
+end digitsOnlyText
+
+on containsLatinLetters(sourceText)
+	set sourceText to sourceText as text
+	ignoring case
+		repeat with currentCharacter in characters of sourceText
+			set currentCharacter to contents of currentCharacter
+			if currentCharacter is in "abcdefghijklmnopqrstuvwxyz" then
+				return true
+			end if
+		end repeat
+	end ignoring
+	return false
+end containsLatinLetters

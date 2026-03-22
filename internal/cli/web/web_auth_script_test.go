@@ -101,3 +101,26 @@ func TestAppleTwoFactorScriptExtractsStandaloneSixDigitCodes(t *testing.T) {
 		t.Fatalf("expected standalone 6-digit extraction pattern in script")
 	}
 }
+
+func TestAppleTwoFactorScriptExtractsSpacedSixDigitCodes(t *testing.T) {
+	script := loadAppleTwoFactorScript(t)
+
+	if !strings.Contains(script, "set extractedCode to do shell script") {
+		t.Fatalf("expected primary shell-based extraction in script")
+	}
+	if !strings.Contains(script, "if extractedCode is not \"\" then") {
+		t.Fatalf("expected script to fall back only after checking for an empty shell extraction result")
+	}
+	if !strings.Contains(script, "set digitsOnly to my digitsOnlyText(sourceText)") {
+		t.Fatalf("expected spaced-digit fallback extraction in script")
+	}
+	if !strings.Contains(script, "if (length of digitsOnly) is 6 and not (my containsLatinLetters(sourceText)) then") {
+		t.Fatalf("expected spaced-digit fallback to require exactly six digits and no letters")
+	}
+	if !strings.Contains(script, "on digitsOnlyText(sourceText)") {
+		t.Fatalf("expected digit-normalization helper in script")
+	}
+	if !strings.Contains(script, "on containsLatinLetters(sourceText)") {
+		t.Fatalf("expected letter guard helper in script")
+	}
+}
