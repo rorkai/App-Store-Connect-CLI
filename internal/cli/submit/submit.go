@@ -186,7 +186,6 @@ Examples:
 						AppID:         resolvedAppID,
 						VersionID:     resolvedVersionID,
 						VersionString: strings.TrimSpace(*version),
-						SubmissionID:  submissionIDToSubmit,
 					})
 					return fmt.Errorf("submit create: failed to add version to submission: %w", err)
 				}
@@ -202,7 +201,6 @@ Examples:
 					AppID:         resolvedAppID,
 					VersionID:     resolvedVersionID,
 					VersionString: strings.TrimSpace(*version),
-					SubmissionID:  submissionIDToSubmit,
 				})
 				return fmt.Errorf("submit create: failed to submit for review: %w", err)
 			}
@@ -1162,7 +1160,6 @@ type submissionErrorHintContext struct {
 	AppID         string
 	VersionID     string
 	VersionString string
-	SubmissionID  string
 }
 
 type submissionErrorSignals struct {

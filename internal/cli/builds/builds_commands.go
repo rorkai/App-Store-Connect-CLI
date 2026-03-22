@@ -366,7 +366,7 @@ Examples:
 					}
 				} else if *verifyTimeout > 0 {
 					fmt.Fprintf(os.Stderr, "Verifying initial App Store Connect processing for up to %s...\n", verifyTimeout.String())
-					if err := shared.VerifyBuildUploadAfterCommit(requestCtx, client, resolvedAppID, uploadResp.Data.ID, *pollInterval, *verifyTimeout); err != nil {
+					if err := shared.VerifyBuildUploadAfterCommit(ctx, client, resolvedAppID, uploadResp.Data.ID, *pollInterval, *verifyTimeout); err != nil {
 						return fmt.Errorf("builds upload: %w", err)
 					}
 				}

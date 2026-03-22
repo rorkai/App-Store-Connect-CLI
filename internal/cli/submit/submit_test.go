@@ -2907,7 +2907,6 @@ func TestPrintSubmissionErrorHintsUsesAssociatedErrorsForSubmissionStateConflict
 			AppID:         "app-1",
 			VersionID:     "version-1",
 			VersionString: "1.0",
-			SubmissionID:  "draft-submission-1",
 		})
 	})
 
