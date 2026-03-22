@@ -182,7 +182,12 @@ Examples:
 					if createdSubmissionID != "" {
 						cleanupEmptyReviewSubmission(requestCtx, client, createdSubmissionID)
 					}
-					printSubmissionErrorHints(err, resolvedAppID)
+					printSubmissionErrorHints(err, submissionErrorHintContext{
+						AppID:         resolvedAppID,
+						VersionID:     resolvedVersionID,
+						VersionString: strings.TrimSpace(*version),
+						SubmissionID:  submissionIDToSubmit,
+					})
 					return fmt.Errorf("submit create: failed to add version to submission: %w", err)
 				}
 			}
@@ -193,7 +198,12 @@ Examples:
 			// Step 3: Submit for review
 			submitResp, err := client.SubmitReviewSubmission(requestCtx, submissionIDToSubmit)
 			if err != nil {
-				printSubmissionErrorHints(err, resolvedAppID)
+				printSubmissionErrorHints(err, submissionErrorHintContext{
+					AppID:         resolvedAppID,
+					VersionID:     resolvedVersionID,
+					VersionString: strings.TrimSpace(*version),
+					SubmissionID:  submissionIDToSubmit,
+				})
 				return fmt.Errorf("submit create: failed to submit for review: %w", err)
 			}
 
@@ -1119,22 +1129,124 @@ var alreadyAddedPattern = regexp.MustCompile(
 	`(?i)already added to another reviewSubmission with id\s+(\S+)`,
 )
 
+var stillInProgressPattern = regexp.MustCompile(
+	`(?i)reviewSubmission[s]?\s+with id\s+(\S+)\s+still in progress`,
+)
+
+type submissionConflictKind string
+
+const (
+	submissionConflictNone            submissionConflictKind = ""
+	submissionConflictAlreadyAttached submissionConflictKind = "already_attached"
+	submissionConflictStillInProgress submissionConflictKind = "still_in_progress"
+)
+
+type submissionConflict struct {
+	Kind         submissionConflictKind
+	SubmissionID string
+}
+
+type submissionErrorHintContext struct {
+	AppID         string
+	VersionID     string
+	VersionString string
+	SubmissionID  string
+}
+
+type submissionErrorSignals struct {
+	existingSubmissionID string
+	activeSubmissionID   string
+	versionNotReady      bool
+	ageRating            bool
+	contentRights        bool
+	usesNonExempt        bool
+	appDataUsage         bool
+	primaryCategory      bool
+}
+
+func collectSubmissionErrorSignals(err error) submissionErrorSignals {
+	var signals submissionErrorSignals
+	if err == nil {
+		return signals
+	}
+
+	var apiErr *asc.APIError
+	if errors.As(err, &apiErr) {
+		signals.ingest("", apiErr.Code, apiErr.Detail)
+		for path, entries := range apiErr.AssociatedErrors {
+			signals.ingest(path, "", "")
+			for _, entry := range entries {
+				signals.ingest(path, entry.Code, entry.Detail)
+			}
+		}
+	}
+
+	signals.ingest("", "", err.Error())
+	return signals
+}
+
+func (signals *submissionErrorSignals) ingest(path, code, detail string) {
+	combined := strings.ToLower(strings.Join([]string{path, code, detail}, " "))
+	pathLower := strings.ToLower(path)
+
+	if signals.existingSubmissionID == "" {
+		if m := alreadyAddedPattern.FindStringSubmatch(detail); len(m) == 2 {
+			signals.existingSubmissionID = m[1]
+		}
+	}
+	if signals.activeSubmissionID == "" {
+		if m := stillInProgressPattern.FindStringSubmatch(detail); len(m) == 2 {
+			signals.activeSubmissionID = m[1]
+		}
+	}
+
+	if strings.Contains(combined, "ageratingdeclaration") || strings.Contains(pathLower, "ageratingdeclaration") {
+		signals.ageRating = true
+	}
+	if strings.Contains(combined, "contentrightsdeclaration") || strings.Contains(pathLower, "contentrightsdeclaration") {
+		signals.contentRights = true
+	}
+	if strings.Contains(combined, "usesnonexemptencryption") {
+		signals.usesNonExempt = true
+	}
+	if strings.Contains(combined, "appdatausage") || strings.Contains(pathLower, "appdatausages") || strings.Contains(pathLower, "appdatausage") {
+		signals.appDataUsage = true
+	}
+	if strings.Contains(combined, "primarycategory") || strings.Contains(pathLower, "primarycategory") {
+		signals.primaryCategory = true
+	}
+	if strings.Contains(combined, "not ready to be submitted") || strings.Contains(combined, "not in valid state") {
+		signals.versionNotReady = true
+	}
+}
+
+func extractSubmissionConflict(err error) submissionConflict {
+	signals := collectSubmissionErrorSignals(err)
+	switch {
+	case signals.existingSubmissionID != "":
+		return submissionConflict{
+			Kind:         submissionConflictAlreadyAttached,
+			SubmissionID: signals.existingSubmissionID,
+		}
+	case signals.activeSubmissionID != "":
+		return submissionConflict{
+			Kind:         submissionConflictStillInProgress,
+			SubmissionID: signals.activeSubmissionID,
+		}
+	default:
+		return submissionConflict{}
+	}
+}
+
 // extractExistingSubmissionID inspects an error returned by AddReviewSubmissionItem
 // to see if it indicates the version is already in another review submission.
 // If so, it returns the existing submission's ID; otherwise it returns "".
 func extractExistingSubmissionID(err error) string {
-	var apiErr *asc.APIError
-	if !errors.As(err, &apiErr) {
+	conflict := extractSubmissionConflict(err)
+	if conflict.Kind != submissionConflictAlreadyAttached {
 		return ""
 	}
-	for _, entries := range apiErr.AssociatedErrors {
-		for _, entry := range entries {
-			if m := alreadyAddedPattern.FindStringSubmatch(entry.Detail); len(m) == 2 {
-				return m[1]
-			}
-		}
-	}
-	return ""
+	return conflict.SubmissionID
 }
 
 func addVersionToSubmissionOrRecover(
@@ -1149,10 +1261,11 @@ func addVersionToSubmissionOrRecover(
 			return submissionID, nil
 		}
 
-		existingID := extractExistingSubmissionID(err)
-		if existingID == "" {
+		conflict := extractSubmissionConflict(err)
+		if conflict.Kind != submissionConflictAlreadyAttached || strings.TrimSpace(conflict.SubmissionID) == "" {
 			return "", err
 		}
+		existingID := conflict.SubmissionID
 		if _, ok := recentlyCanceledSubmissionIDs[existingID]; !ok {
 			fmt.Fprintf(os.Stderr, "Version already in review submission %s, reusing it.\n", existingID)
 			return existingID, nil
@@ -1462,38 +1575,61 @@ func cleanupEmptyReviewSubmission(ctx context.Context, client *asc.Client, submi
 
 // printSubmissionErrorHints inspects an error returned by App Store Connect
 // during submission and prints actionable fix suggestions to stderr.
-func printSubmissionErrorHints(err error, appID string) {
+func printSubmissionErrorHints(err error, ctx submissionErrorHintContext) {
 	if err == nil {
 		return
 	}
-	errMsg := err.Error()
 
+	signals := collectSubmissionErrorSignals(err)
 	var hints []string
-	if strings.Contains(errMsg, "ageRatingDeclaration") {
+	if signals.ageRating && strings.TrimSpace(ctx.AppID) != "" {
 		hints = append(hints,
-			fmt.Sprintf("Review current age rating: asc age-rating view --app %s", appID),
+			fmt.Sprintf("Review current age rating: asc age-rating view --app %s", ctx.AppID),
 			"Review age-rating update flags: asc age-rating set --help",
 		)
 	}
-	if strings.Contains(errMsg, "contentRightsDeclaration") {
+	if signals.contentRights && strings.TrimSpace(ctx.AppID) != "" {
 		hints = append(hints,
-			fmt.Sprintf("If your app does not use third-party content: asc apps update --id %s --content-rights DOES_NOT_USE_THIRD_PARTY_CONTENT", appID),
-			fmt.Sprintf("If your app uses third-party content: asc apps update --id %s --content-rights USES_THIRD_PARTY_CONTENT", appID),
+			fmt.Sprintf("If your app does not use third-party content: asc apps update --id %s --content-rights DOES_NOT_USE_THIRD_PARTY_CONTENT", ctx.AppID),
+			fmt.Sprintf("If your app uses third-party content: asc apps update --id %s --content-rights USES_THIRD_PARTY_CONTENT", ctx.AppID),
 		)
 	}
-	if strings.Contains(errMsg, "usesNonExemptEncryption") {
+	if signals.usesNonExempt {
 		hints = append(hints,
 			"Set Uses Non-Exempt Encryption for the attached build in App Store Connect, then retry submission.",
 		)
 	}
-	if strings.Contains(errMsg, "appDataUsage") {
-		hints = append(hints, fmt.Sprintf("Complete App Privacy at: https://appstoreconnect.apple.com/apps/%s/appPrivacy", appID))
+	if signals.appDataUsage && strings.TrimSpace(ctx.AppID) != "" {
+		hints = append(hints, fmt.Sprintf("Complete App Privacy at: https://appstoreconnect.apple.com/apps/%s/appPrivacy", ctx.AppID))
 	}
-	if strings.Contains(errMsg, "primaryCategory") {
+	if signals.primaryCategory {
 		hints = append(hints,
 			"List available categories: asc categories list",
 			"Review category update flags: asc app-setup categories set --help",
 		)
+	}
+	if activeID := strings.TrimSpace(signals.activeSubmissionID); activeID != "" {
+		hints = appendUniqueHints(hints,
+			fmt.Sprintf("Check the active submission: asc submit status --id %s", activeID),
+			fmt.Sprintf("Inspect the active submission payload: asc review submissions-get --id %s", activeID),
+		)
+	}
+	if strings.TrimSpace(signals.existingSubmissionID) != "" && strings.TrimSpace(signals.activeSubmissionID) == "" {
+		hints = appendUniqueHints(hints,
+			fmt.Sprintf("Inspect the existing submission: asc submit status --id %s", signals.existingSubmissionID),
+			fmt.Sprintf("Inspect the existing submission payload: asc review submissions-get --id %s", signals.existingSubmissionID),
+		)
+	}
+	if signals.versionNotReady {
+		if strings.TrimSpace(ctx.AppID) != "" && strings.TrimSpace(ctx.VersionID) != "" {
+			hints = appendUniqueHints(hints, fmt.Sprintf("Re-run readiness validation: asc validate --app %s --version-id %s", ctx.AppID, ctx.VersionID))
+		}
+		if strings.TrimSpace(ctx.AppID) != "" && strings.TrimSpace(ctx.VersionString) != "" {
+			hints = appendUniqueHints(hints, fmt.Sprintf("Re-run submit preflight: asc submit preflight --app %s --version %s", ctx.AppID, ctx.VersionString))
+		}
+		if strings.TrimSpace(ctx.AppID) != "" {
+			hints = appendUniqueHints(hints, fmt.Sprintf("Review the release dashboard: asc status --app %s --include submission,appstore,review", ctx.AppID))
+		}
 	}
 
 	if len(hints) > 0 {
@@ -1502,6 +1638,25 @@ func printSubmissionErrorHints(err error, appID string) {
 			fmt.Fprintf(os.Stderr, "Hint: %s\n", hint)
 		}
 	}
+}
+
+func appendUniqueHints(hints []string, values ...string) []string {
+	seen := make(map[string]struct{}, len(hints))
+	for _, hint := range hints {
+		seen[hint] = struct{}{}
+	}
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		hints = append(hints, value)
+		seen[value] = struct{}{}
+	}
+	return hints
 }
 
 func isExpectedNonCancellableReviewSubmissionError(err error) bool {

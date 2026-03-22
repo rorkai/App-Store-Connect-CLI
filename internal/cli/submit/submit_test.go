@@ -2211,6 +2211,42 @@ func TestExtractExistingSubmissionID(t *testing.T) {
 	})
 }
 
+func TestExtractSubmissionConflict(t *testing.T) {
+	t.Run("captures still-in-progress submission ID", func(t *testing.T) {
+		err := &asc.APIError{
+			Code:   "ENTITY_ERROR",
+			Title:  "The request entity is not valid.",
+			Detail: "An attribute value is not valid.",
+			AssociatedErrors: map[string][]asc.APIAssociatedError{
+				"/v1/reviewSubmissionItems": {
+					{
+						Code:   "ENTITY_ERROR.RELATIONSHIP.INVALID",
+						Detail: "appStoreVersions with id 883340862 is already in another reviewSubmission with id active-submission-1 still in progress",
+					},
+				},
+			},
+		}
+
+		conflict := extractSubmissionConflict(err)
+		if conflict.Kind != submissionConflictStillInProgress {
+			t.Fatalf("expected still-in-progress conflict kind, got %q", conflict.Kind)
+		}
+		if conflict.SubmissionID != "active-submission-1" {
+			t.Fatalf("expected submission ID active-submission-1, got %q", conflict.SubmissionID)
+		}
+	})
+
+	t.Run("returns no conflict without associated errors", func(t *testing.T) {
+		conflict := extractSubmissionConflict(&asc.APIError{Code: "ENTITY_ERROR"})
+		if conflict.Kind != submissionConflictNone {
+			t.Fatalf("expected no conflict, got %q", conflict.Kind)
+		}
+		if conflict.SubmissionID != "" {
+			t.Fatalf("expected empty submission ID, got %q", conflict.SubmissionID)
+		}
+	})
+}
+
 func TestAddVersionToSubmissionOrRecover_ExhaustsRetriesForRecentlyCanceledSubmission(t *testing.T) {
 	const staleSubmissionID = "stale-1"
 
@@ -2770,7 +2806,9 @@ func TestPrepareReviewSubmissionForCreatePaginatesReadyForReviewLookups(t *testi
 
 func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
 	stderr := captureSubmitStderr(t, func() {
-		printSubmissionErrorHints(errors.New("ageRatingDeclaration contentRightsDeclaration usesNonExemptEncryption appDataUsage primaryCategory"), "app-1")
+		printSubmissionErrorHints(errors.New("ageRatingDeclaration contentRightsDeclaration usesNonExemptEncryption appDataUsage primaryCategory"), submissionErrorHintContext{
+			AppID: "app-1",
+		})
 	})
 
 	for _, want := range []string{
@@ -2799,6 +2837,49 @@ func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
 	} {
 		if strings.Contains(stderr, unwanted) {
 			t.Fatalf("did not expect %q in stderr, got %q", unwanted, stderr)
+		}
+	}
+}
+
+func TestPrintSubmissionErrorHintsUsesAssociatedErrorsForSubmissionStateConflicts(t *testing.T) {
+	err := &asc.APIError{
+		Code:   "ENTITY_ERROR",
+		Title:  "The request entity is not valid.",
+		Detail: "This resource cannot be reviewed, please check associated errors to see why.",
+		AssociatedErrors: map[string][]asc.APIAssociatedError{
+			"/v1/reviewSubmissionItems": {
+				{
+					Code:   "ENTITY_ERROR.RELATIONSHIP.INVALID",
+					Detail: "appStoreVersions with id version-1 is already in another reviewSubmission with id active-submission-1 still in progress",
+				},
+			},
+			"/v1/appStoreVersions/version-1": {
+				{
+					Code:   "STATE_ERROR.ENTITY_INVALID",
+					Detail: "appStoreVersions with id version-1 is not ready to be submitted for review",
+				},
+			},
+		},
+	}
+
+	stderr := captureSubmitStderr(t, func() {
+		printSubmissionErrorHints(err, submissionErrorHintContext{
+			AppID:         "app-1",
+			VersionID:     "version-1",
+			VersionString: "1.0",
+			SubmissionID:  "draft-submission-1",
+		})
+	})
+
+	for _, want := range []string{
+		"Hint: Check the active submission: asc submit status --id active-submission-1",
+		"Hint: Inspect the active submission payload: asc review submissions-get --id active-submission-1",
+		"Hint: Re-run readiness validation: asc validate --app app-1 --version-id version-1",
+		"Hint: Re-run submit preflight: asc submit preflight --app app-1 --version 1.0",
+		"Hint: Review the release dashboard: asc status --app app-1 --include submission,appstore,review",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected hint %q in stderr, got %q", want, stderr)
 		}
 	}
 }
