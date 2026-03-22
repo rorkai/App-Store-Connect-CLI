@@ -1448,7 +1448,7 @@ func TestSubmitCreatePrintsHintsWhenAnotherSubmissionIsStillInProgress(t *testin
 		"Hint: Check the active submission: asc submit status --id active-submission-1",
 		"Hint: Inspect the active submission payload: asc review submissions-get --id active-submission-1",
 		"Hint: Re-run readiness validation: asc validate --app app-1 --version-id version-1",
-		"Hint: Re-run submit preflight: asc submit preflight --app app-1 --version 1.0",
+		"Hint: Re-run submit preflight: asc submit preflight --app app-1 --version 1.0 --platform IOS",
 	} {
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
