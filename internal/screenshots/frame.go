@@ -850,9 +850,13 @@ func ensurePinnedKoubouVersion(ctx context.Context) (string, error) {
 	}
 
 	koubouVersionCacheMu.Lock()
+	cacheTargetChanged := cachedKoubouResolvedPATH != resolvedPATH || cachedKoubouBinaryPath != kouBinaryPath
 	cachedKoubouBinaryPath = kouBinaryPath
 	cachedKoubouResolvedPATH = resolvedPATH
 	cachedKoubouVersionIsGood = true
+	if cacheTargetChanged {
+		cachedKoubouFramesReady = false
+	}
 	koubouVersionCacheMu.Unlock()
 	return kouBinaryPath, nil
 }

@@ -682,6 +682,79 @@ exit 1
 	}
 }
 
+func TestRunKoubouGenerate_RechecksSetupFramesWhenKouBinaryChanges(t *testing.T) {
+	resetKoubouVersionCacheForTest()
+
+	logPath := filepath.Join(t.TempDir(), "kou.log")
+
+	firstBinDir := t.TempDir()
+	writeExecutable(t, filepath.Join(firstBinDir, "kou"), `#!/bin/sh
+set -eu
+if [ "$1" = "--version" ]; then
+  echo "kou 0.18.0"
+  exit 0
+fi
+if [ "$1" = "setup-frames" ]; then
+  echo "setup-first" >> "$KOU_LOG_PATH"
+  exit 0
+fi
+if [ "$1" = "generate" ]; then
+  echo "generate-first" >> "$KOU_LOG_PATH"
+  echo '[{"name":"framed","path":"output/first.png","success":true,"error":""}]'
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`)
+
+	secondBinDir := t.TempDir()
+	writeExecutable(t, filepath.Join(secondBinDir, "kou"), `#!/bin/sh
+set -eu
+if [ "$1" = "--version" ]; then
+  echo "kou 0.18.0"
+  exit 0
+fi
+if [ "$1" = "setup-frames" ]; then
+  echo "setup-second" >> "$KOU_LOG_PATH"
+  exit 0
+fi
+if [ "$1" = "generate" ]; then
+  echo "generate-second" >> "$KOU_LOG_PATH"
+  echo '[{"name":"framed","path":"output/second.png","success":true,"error":""}]'
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`)
+
+	t.Setenv("KOU_LOG_PATH", logPath)
+	t.Setenv("PATH", firstBinDir)
+	results, err := runKoubouGenerate(context.Background(), "frame.yaml")
+	if err != nil {
+		t.Fatalf("first runKoubouGenerate() error = %v", err)
+	}
+	if len(results) != 1 || results[0].Path != "output/first.png" {
+		t.Fatalf("unexpected first parsed results: %+v", results)
+	}
+
+	t.Setenv("PATH", secondBinDir)
+	results, err = runKoubouGenerate(context.Background(), "frame.yaml")
+	if err != nil {
+		t.Fatalf("second runKoubouGenerate() error = %v", err)
+	}
+	if len(results) != 1 || results[0].Path != "output/second.png" {
+		t.Fatalf("unexpected second parsed results: %+v", results)
+	}
+
+	logBytes, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", logPath, err)
+	}
+	if got := strings.TrimSpace(string(logBytes)); got != "setup-first\ngenerate-first\nsetup-second\ngenerate-second" {
+		t.Fatalf("expected setup-frames rerun after binary swap, got %q", got)
+	}
+}
+
 func TestRunKoubouGenerate_RejectsUnpinnedKoubouVersion(t *testing.T) {
 	binDir := t.TempDir()
 	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
