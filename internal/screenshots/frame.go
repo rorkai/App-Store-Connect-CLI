@@ -759,8 +759,10 @@ func runKoubouGenerate(ctx context.Context, configPath string) ([]koubouGenerate
 	if err != nil {
 		return nil, err
 	}
-	if err := ensurePinnedKoubouFrames(ctx, kouBinaryPath); err != nil {
-		return nil, err
+	if koubouConfigNeedsDeviceFrames(configPath) {
+		if err := ensurePinnedKoubouFrames(ctx, kouBinaryPath); err != nil {
+			return nil, err
+		}
 	}
 
 	cmd := exec.CommandContext(ctx, kouBinaryPath, "generate", configPath, "--output", "json")
@@ -915,6 +917,40 @@ func pinnedKoubouInstallCommand() string {
 
 func pinnedKoubouSetupFramesCommand() string {
 	return "kou setup-frames"
+}
+
+func koubouConfigNeedsDeviceFrames(configPath string) bool {
+	type parsedContentItem struct {
+		Type  string `yaml:"type"`
+		Frame *bool  `yaml:"frame,omitempty"`
+	}
+	type parsedScreenshotSpec struct {
+		Content []parsedContentItem `yaml:"content"`
+	}
+	type parsedConfig struct {
+		Screenshots map[string]parsedScreenshotSpec `yaml:"screenshots"`
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return true
+	}
+	var parsed parsedConfig
+	if err := yaml.Unmarshal(data, &parsed); err != nil {
+		return true
+	}
+
+	for _, screenshot := range parsed.Screenshots {
+		for _, item := range screenshot.Content {
+			if !strings.EqualFold(strings.TrimSpace(item.Type), "image") {
+				continue
+			}
+			if item.Frame == nil || *item.Frame {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // extractJSONArray finds the JSON array of objects in raw output that may

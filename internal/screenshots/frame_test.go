@@ -755,6 +755,55 @@ exit 1
 	}
 }
 
+func TestRunKoubouGenerate_SkipsSetupFramesForCanvasOnlyConfig(t *testing.T) {
+	resetKoubouVersionCacheForTest()
+
+	binDir := t.TempDir()
+	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
+set -eu
+if [ "$1" = "--version" ]; then
+  echo "kou 0.18.0"
+  exit 0
+fi
+if [ "$1" = "setup-frames" ]; then
+  echo "setup-frames should be skipped" >&2
+  exit 1
+fi
+if [ "$1" = "generate" ]; then
+  echo '[{"name":"framed","path":"output/mac.png","success":true,"error":""}]'
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`)
+	t.Setenv("PATH", binDir)
+
+	configPath := filepath.Join(t.TempDir(), "frame.yaml")
+	config := `project:
+  name: "Demo"
+  output_dir: "./out"
+  device: "Mac"
+  output_size: [2880, 1800]
+screenshots:
+  framed:
+    content:
+      - type: "image"
+        asset: "screenshots/raw.png"
+        frame: false
+`
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	results, err := runKoubouGenerate(context.Background(), configPath)
+	if err != nil {
+		t.Fatalf("runKoubouGenerate() error = %v", err)
+	}
+	if len(results) != 1 || results[0].Path != "output/mac.png" {
+		t.Fatalf("unexpected parsed results: %+v", results)
+	}
+}
+
 func TestRunKoubouGenerate_RejectsUnpinnedKoubouVersion(t *testing.T) {
 	binDir := t.TempDir()
 	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
