@@ -98,12 +98,12 @@ func TestShotsFrame_DefaultDeviceIsIPhoneAir(t *testing.T) {
 	rawPath := filepath.Join(t.TempDir(), "raw.png")
 	writeFramePNG(t, rawPath, makeRawImage(100, 220))
 	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
-	writeFramePNG(t, kouFixturePath, makeRawImage(1320, 2868))
+	writeFramePNG(t, kouFixturePath, makeRawImage(1260, 2736))
 	installValidatingMockKou(
 		t,
 		kouFixturePath,
 		filepath.Join(t.TempDir(), "kou-out", "framed.png"),
-		"iPhone 16 Pro - White Titanium - Portrait",
+		"iPhone Air - Light Gold - Portrait",
 	)
 
 	outputDir := filepath.Join(t.TempDir(), "framed")
@@ -154,11 +154,11 @@ func TestShotsFrame_DefaultDeviceIsIPhoneAir(t *testing.T) {
 	if result.DisplayType != "APP_IPHONE_69" {
 		t.Fatalf("expected display type APP_IPHONE_69, got %q", result.DisplayType)
 	}
-	if result.UploadWidth != 1320 || result.UploadHeight != 2868 {
-		t.Fatalf("expected upload target 1320x2868, got %dx%d", result.UploadWidth, result.UploadHeight)
+	if result.UploadWidth != 1260 || result.UploadHeight != 2736 {
+		t.Fatalf("expected upload target 1260x2736, got %dx%d", result.UploadWidth, result.UploadHeight)
 	}
-	if result.Width != 1320 || result.Height != 2868 {
-		t.Fatalf("expected normalized output 1320x2868, got %dx%d", result.Width, result.Height)
+	if result.Width != 1260 || result.Height != 2736 {
+		t.Fatalf("expected normalized output 1260x2736, got %dx%d", result.Width, result.Height)
 	}
 	if !result.Normalized {
 		t.Fatal("expected normalization to be applied")
@@ -172,8 +172,13 @@ func TestShotsFrame_ExplicitDeviceIPhone17Pro(t *testing.T) {
 	rawPath := filepath.Join(t.TempDir(), "raw.png")
 	writeFramePNG(t, rawPath, makeRawImage(120, 240))
 	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
-	writeFramePNG(t, kouFixturePath, makeRawImage(1290, 2796))
-	installMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
+	writeFramePNG(t, kouFixturePath, makeRawImage(1206, 2622))
+	installValidatingMockKou(
+		t,
+		kouFixturePath,
+		filepath.Join(t.TempDir(), "kou-out", "framed.png"),
+		"iPhone 17 Pro - Silver - Portrait",
+	)
 
 	root := RootCommand("1.2.3")
 	if err := root.Parse([]string{
@@ -197,6 +202,7 @@ func TestShotsFrame_ExplicitDeviceIPhone17Pro(t *testing.T) {
 	}
 
 	var result struct {
+		FramePath    string `json:"frame_path"`
 		Device       string `json:"device"`
 		DisplayType  string `json:"display_type"`
 		UploadWidth  int    `json:"upload_width"`
@@ -210,14 +216,17 @@ func TestShotsFrame_ExplicitDeviceIPhone17Pro(t *testing.T) {
 	if result.Device != "iphone-17-pro" {
 		t.Fatalf("expected device iphone-17-pro, got %q", result.Device)
 	}
-	if result.DisplayType != "APP_IPHONE_67" {
-		t.Fatalf("expected display type APP_IPHONE_67, got %q", result.DisplayType)
+	if result.FramePath != "iPhone 17 Pro - Silver - Portrait" {
+		t.Fatalf("expected native iPhone 17 Pro frame, got %q", result.FramePath)
 	}
-	if result.UploadWidth != 1290 || result.UploadHeight != 2796 {
-		t.Fatalf("expected upload target 1290x2796, got %dx%d", result.UploadWidth, result.UploadHeight)
+	if result.DisplayType != "APP_IPHONE_61" {
+		t.Fatalf("expected display type APP_IPHONE_61, got %q", result.DisplayType)
 	}
-	if result.Width != 1290 || result.Height != 2796 {
-		t.Fatalf("expected normalized output 1290x2796, got %dx%d", result.Width, result.Height)
+	if result.UploadWidth != 1206 || result.UploadHeight != 2622 {
+		t.Fatalf("expected upload target 1206x2622, got %dx%d", result.UploadWidth, result.UploadHeight)
+	}
+	if result.Width != 1206 || result.Height != 2622 {
+		t.Fatalf("expected normalized output 1206x2622, got %dx%d", result.Width, result.Height)
 	}
 }
 
@@ -226,7 +235,7 @@ func TestShotsFrame_ConfigOnlyPath(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
 	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
-	writeFramePNG(t, kouFixturePath, makeRawImage(1320, 2868))
+	writeFramePNG(t, kouFixturePath, makeRawImage(1260, 2736))
 	installMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
 
 	configPath := filepath.Join(t.TempDir(), "frame.yaml")
@@ -234,7 +243,7 @@ func TestShotsFrame_ConfigOnlyPath(t *testing.T) {
   name: "Demo"
   output_dir: "./out"
   device: "iPhone Air - Light Gold - Portrait"
-  output_size: "iPhone6_9"
+  output_size: "iPhone6_9_alt"
 screenshots:
   framed:
     content:
@@ -273,8 +282,8 @@ screenshots:
 	if _, err := os.Stat(result.Path); err != nil {
 		t.Fatalf("expected output file to exist at %q: %v", result.Path, err)
 	}
-	if result.Width != 1320 || result.Height != 2868 {
-		t.Fatalf("expected output 1320x2868, got %dx%d", result.Width, result.Height)
+	if result.Width != 1260 || result.Height != 2736 {
+		t.Fatalf("expected output 1260x2736, got %dx%d", result.Width, result.Height)
 	}
 }
 
@@ -283,7 +292,7 @@ func TestShotsFrame_ConfigDefaultOutputUsesConfigDeviceInFilename(t *testing.T) 
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
 
 	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
-	writeFramePNG(t, kouFixturePath, makeRawImage(1290, 2796))
+	writeFramePNG(t, kouFixturePath, makeRawImage(1206, 2622))
 	installMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
 
 	configPath := filepath.Join(t.TempDir(), "frame.yaml")
@@ -291,7 +300,7 @@ func TestShotsFrame_ConfigDefaultOutputUsesConfigDeviceInFilename(t *testing.T) 
   name: "Demo"
   output_dir: "./out"
   device: "iPhone 17 Pro - Silver - Portrait"
-  output_size: "iPhone6_7"
+  output_size: "iPhone6_3"
 screenshots:
   framed:
     content:

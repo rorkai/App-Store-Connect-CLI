@@ -83,28 +83,28 @@ type frameDeviceKoubouSpec struct {
 // Koubou v0.18.0 frame names.
 var frameDeviceKoubouSpecs = map[FrameDevice]frameDeviceKoubouSpec{
 	FrameDeviceIPhoneAir: {
-		FrameName:   "iPhone 16 Pro - White Titanium - Portrait",
-		Aliases:     []string{"iPhone Air - Light Gold - Portrait"},
-		OutputSize:  "iPhone6_9",
+		FrameName:   "iPhone Air - Light Gold - Portrait",
+		Aliases:     []string{"iPhone 16 Pro - White Titanium - Portrait"},
+		OutputSize:  "iPhone6_9_alt",
 		DisplayType: "APP_IPHONE_69",
 	},
 	FrameDeviceIPhone17PM: {
-		FrameName:   "iPhone 16 Pro Max - White Titanium - Portrait",
-		Aliases:     []string{"iPhone 17 Pro Max - Silver - Portrait"},
+		FrameName:   "iPhone 17 Pro Max - Silver - Portrait",
+		Aliases:     []string{"iPhone 16 Pro Max - White Titanium - Portrait"},
 		OutputSize:  "iPhone6_9",
 		DisplayType: "APP_IPHONE_69",
 	},
 	FrameDeviceIPhone17Pro: {
-		FrameName:   "iPhone 15 Pro - White Titanium - Portrait",
-		Aliases:     []string{"iPhone 17 Pro - Silver - Portrait"},
-		OutputSize:  "iPhone6_7",
-		DisplayType: "APP_IPHONE_67",
+		FrameName:   "iPhone 17 Pro - Silver - Portrait",
+		Aliases:     []string{"iPhone 15 Pro - White Titanium - Portrait"},
+		OutputSize:  "iPhone6_3",
+		DisplayType: "APP_IPHONE_61",
 	},
 	FrameDeviceIPhone17: {
-		FrameName:   "iPhone 14 Pro Portrait",
-		Aliases:     []string{"iPhone 17 - Teal - Portrait"},
-		OutputSize:  "iPhone6_7",
-		DisplayType: "APP_IPHONE_67",
+		FrameName:   "iPhone 17 - White - Portrait",
+		Aliases:     []string{"iPhone 14 Pro Portrait"},
+		OutputSize:  "iPhone6_3",
+		DisplayType: "APP_IPHONE_61",
 	},
 	FrameDeviceIPhone16e: {
 		FrameName:   "iPhone 16 - White - Portrait",
@@ -638,10 +638,12 @@ func parseKoubouConfigMetadata(configPath string) *frameExecutionMetadata {
 
 func koubouDisplayTypeForSizeName(sizeName string) (string, bool) {
 	switch strings.ToLower(strings.TrimSpace(sizeName)) {
-	case "iphone6_9":
+	case "iphone6_9", "iphone6_9_alt":
 		return "APP_IPHONE_69", true
 	case "iphone6_7":
 		return "APP_IPHONE_67", true
+	case "iphone6_3":
+		return "APP_IPHONE_61", true
 	case "iphone6_1":
 		return "APP_IPHONE_61", true
 	case "iphone5_8":
@@ -658,11 +660,13 @@ func resolveKoubouOutputSize(value any) (int, int, bool) {
 		Width  int
 		Height int
 	}{
-		"iphone6_9": {Width: 1320, Height: 2868},
-		"iphone6_7": {Width: 1290, Height: 2796},
-		"iphone6_1": {Width: 1179, Height: 2556},
-		"iphone5_8": {Width: 1170, Height: 2532},
-		"iphone5_5": {Width: 1242, Height: 2208},
+		"iphone6_9":     {Width: 1320, Height: 2868},
+		"iphone6_9_alt": {Width: 1260, Height: 2736},
+		"iphone6_3":     {Width: 1206, Height: 2622},
+		"iphone6_7":     {Width: 1290, Height: 2796},
+		"iphone6_1":     {Width: 1179, Height: 2556},
+		"iphone5_8":     {Width: 1170, Height: 2532},
+		"iphone5_5":     {Width: 1242, Height: 2208},
 		// Mac App Store desktop (16:10)
 		"appdesktop_1280": {Width: 1280, Height: 800},
 		"appdesktop_1440": {Width: 1440, Height: 900},

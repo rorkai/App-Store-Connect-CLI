@@ -46,22 +46,32 @@ func TestFrameDeviceOptions_DefaultMarked(t *testing.T) {
 }
 
 func TestFrameDeviceKoubouSpecs_UsePinnedKoubouFrames(t *testing.T) {
-	want := map[FrameDevice]string{
-		FrameDeviceIPhoneAir:   "iPhone 16 Pro - White Titanium - Portrait",
-		FrameDeviceIPhone17PM:  "iPhone 16 Pro Max - White Titanium - Portrait",
-		FrameDeviceIPhone17Pro: "iPhone 15 Pro - White Titanium - Portrait",
-		FrameDeviceIPhone17:    "iPhone 14 Pro Portrait",
-		FrameDeviceIPhone16e:   "iPhone 16 - White - Portrait",
-		FrameDeviceMac:         "Mac",
+	want := map[FrameDevice]struct {
+		frameName   string
+		outputSize  string
+		displayType string
+	}{
+		FrameDeviceIPhoneAir:   {frameName: "iPhone Air - Light Gold - Portrait", outputSize: "iPhone6_9_alt", displayType: "APP_IPHONE_69"},
+		FrameDeviceIPhone17PM:  {frameName: "iPhone 17 Pro Max - Silver - Portrait", outputSize: "iPhone6_9", displayType: "APP_IPHONE_69"},
+		FrameDeviceIPhone17Pro: {frameName: "iPhone 17 Pro - Silver - Portrait", outputSize: "iPhone6_3", displayType: "APP_IPHONE_61"},
+		FrameDeviceIPhone17:    {frameName: "iPhone 17 - White - Portrait", outputSize: "iPhone6_3", displayType: "APP_IPHONE_61"},
+		FrameDeviceIPhone16e:   {frameName: "iPhone 16 - White - Portrait", outputSize: "iPhone6_1", displayType: "APP_IPHONE_61"},
+		FrameDeviceMac:         {frameName: "Mac", outputSize: "AppDesktop_2880", displayType: "APP_DESKTOP"},
 	}
 
-	for device, wantFrame := range want {
+	for device, wantSpec := range want {
 		spec, ok := frameDeviceKoubouSpecs[device]
 		if !ok {
 			t.Fatalf("missing Koubou spec for %q", device)
 		}
-		if spec.FrameName != wantFrame {
-			t.Fatalf("%q FrameName = %q, want %q", device, spec.FrameName, wantFrame)
+		if spec.FrameName != wantSpec.frameName {
+			t.Fatalf("%q FrameName = %q, want %q", device, spec.FrameName, wantSpec.frameName)
+		}
+		if spec.OutputSize != wantSpec.outputSize {
+			t.Fatalf("%q OutputSize = %q, want %q", device, spec.OutputSize, wantSpec.outputSize)
+		}
+		if spec.DisplayType != wantSpec.displayType {
+			t.Fatalf("%q DisplayType = %q, want %q", device, spec.DisplayType, wantSpec.displayType)
 		}
 	}
 }
@@ -109,6 +119,8 @@ func TestResolveKoubouOutputSize(t *testing.T) {
 		wantOK     bool
 	}{
 		{name: "named size", value: "iPhone6_9", wantWidth: 1320, wantHeight: 2868, wantOK: true},
+		{name: "alternate named size", value: "iPhone6_9_alt", wantWidth: 1260, wantHeight: 2736, wantOK: true},
+		{name: "iphone 6.3 size", value: "iPhone6_3", wantWidth: 1206, wantHeight: 2622, wantOK: true},
 		{name: "desktop named size", value: "AppDesktop_2880", wantWidth: 2880, wantHeight: 1800, wantOK: true},
 		{name: "custom list", value: []any{1200, 2500}, wantWidth: 1200, wantHeight: 2500, wantOK: true},
 		{name: "unknown name", value: "iphone7_2", wantOK: false},
@@ -146,7 +158,7 @@ func TestParseKoubouConfigMetadata(t *testing.T) {
   name: "Demo"
   output_dir: "./out"
   device: "iPhone 17 Pro - Silver - Portrait"
-  output_size: "iPhone6_7"
+  output_size: "iPhone6_3"
 screenshots:
   framed:
     content:
@@ -165,10 +177,10 @@ screenshots:
 	if metadata.FrameRef != "iPhone 17 Pro - Silver - Portrait" {
 		t.Fatalf("unexpected frame ref %q", metadata.FrameRef)
 	}
-	if metadata.DisplayType != "APP_IPHONE_67" {
+	if metadata.DisplayType != "APP_IPHONE_61" {
 		t.Fatalf("unexpected display type %q", metadata.DisplayType)
 	}
-	if metadata.UploadWidth != 1290 || metadata.UploadHeight != 2796 {
+	if metadata.UploadWidth != 1206 || metadata.UploadHeight != 2622 {
 		t.Fatalf("unexpected upload dimensions %dx%d", metadata.UploadWidth, metadata.UploadHeight)
 	}
 }
@@ -212,7 +224,7 @@ func TestSelectGeneratedScreenshot_RejectsEscapingRelativePath(t *testing.T) {
 
 func TestFrame_ConfigModeReportsDeviceFromConfig(t *testing.T) {
 	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
-	writeFrameTestPNG(t, kouFixturePath, makeFrameTestImage(1290, 2796))
+	writeFrameTestPNG(t, kouFixturePath, makeFrameTestImage(1206, 2622))
 	installFrameTestMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
 
 	configPath := filepath.Join(t.TempDir(), "frame.yaml")
@@ -220,7 +232,7 @@ func TestFrame_ConfigModeReportsDeviceFromConfig(t *testing.T) {
   name: "Demo"
   output_dir: "./out"
   device: "iPhone 17 Pro - Silver - Portrait"
-  output_size: "iPhone6_7"
+  output_size: "iPhone6_3"
 screenshots:
   framed:
     content:
@@ -241,6 +253,46 @@ screenshots:
 	}
 	if result.Device != string(FrameDeviceIPhone17Pro) {
 		t.Fatalf("result.Device = %q, want %q", result.Device, FrameDeviceIPhone17Pro)
+	}
+}
+
+func TestResolveFrameDeviceFromConfig_LegacyFallbackAliases(t *testing.T) {
+	tests := []struct {
+		name     string
+		frameRef string
+		sizeName string
+		want     FrameDevice
+	}{
+		{name: "iphone air", frameRef: "iPhone 16 Pro - White Titanium - Portrait", sizeName: "iPhone6_9", want: FrameDeviceIPhoneAir},
+		{name: "iphone 17 pro max", frameRef: "iPhone 16 Pro Max - White Titanium - Portrait", sizeName: "iPhone6_9", want: FrameDeviceIPhone17PM},
+		{name: "iphone 17 pro", frameRef: "iPhone 15 Pro - White Titanium - Portrait", sizeName: "iPhone6_7", want: FrameDeviceIPhone17Pro},
+		{name: "iphone 17", frameRef: "iPhone 14 Pro Portrait", sizeName: "iPhone6_7", want: FrameDeviceIPhone17},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "frame.yaml")
+			config := `project:
+  name: "Demo"
+  output_dir: "./out"
+  device: "` + tt.frameRef + `"
+  output_size: "` + tt.sizeName + `"
+screenshots:
+  framed:
+    content:
+      - type: "image"
+        asset: "screenshots/raw.png"
+        frame: true
+`
+			if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
+				t.Fatalf("WriteFile() error = %v", err)
+			}
+
+			got := ResolveFrameDeviceFromConfig(configPath, string(DefaultFrameDevice()))
+			if got != string(tt.want) {
+				t.Fatalf("ResolveFrameDeviceFromConfig() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
