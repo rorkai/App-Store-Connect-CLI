@@ -384,10 +384,30 @@ func buildAppAvailabilityCoverageDiagnosticRow(sub Subscription, appTerritories 
 	}
 
 	priced := sortedUniqueNonEmpty(sub.PriceTerritories)
+	subscriptionTerritories := sortedUniqueNonEmpty(sub.AvailabilityTerritories)
+	if len(subscriptionTerritories) > 0 {
+		if len(appTerritories) > 0 {
+			appOnly := missingValues(appTerritories, subscriptionTerritories)
+			if len(appOnly) > 0 {
+				row.Status = DiagnosticStatusOptional
+				row.Blocking = false
+				row.Evidence = fmt.Sprintf("subscription=%s app_only=%s", formatList(subscriptionTerritories), formatList(appOnly))
+				row.Remediation = "Optional: if this subscription should be sold everywhere the app is available, add the extra app territories to subscription availability first and then configure prices for them."
+				return row
+			}
+		} else if appTerritoryCount > len(subscriptionTerritories) {
+			row.Status = DiagnosticStatusOptional
+			row.Blocking = false
+			row.Evidence = fmt.Sprintf("subscription_count=%d app_count=%d", len(subscriptionTerritories), appTerritoryCount)
+			row.Remediation = "Optional: if this subscription should be sold everywhere the app is available, expand subscription availability first and then configure prices for the extra territories."
+			return row
+		}
+	}
 	if len(appTerritories) == 0 {
 		if appTerritoryCount <= 0 {
+			row.Blocking = false
 			row.Evidence = "app availability territories unavailable"
-			row.Remediation = "Verify app availability before comparing subscription pricing coverage against the app."
+			row.Remediation = "App availability could not be compared for this app because no App Availability V2 territories were available."
 			return row
 		}
 

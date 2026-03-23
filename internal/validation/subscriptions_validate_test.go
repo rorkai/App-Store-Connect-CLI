@@ -561,6 +561,90 @@ func TestValidateSubscriptionsFallsBackToAppTerritoryCountInDiagnostics(t *testi
 	}
 }
 
+func TestValidateSubscriptionsTreatsAppOnlyTerritoriesAsAdvisoryInDiagnostics(t *testing.T) {
+	report := ValidateSubscriptions(SubscriptionsInput{
+		AppID:                   "app-1",
+		AppAvailableTerritories: []string{"USA", "CAN"},
+		Subscriptions: []Subscription{
+			{
+				ID:                      "sub-1",
+				Name:                    "Monthly",
+				ProductID:               "com.example.monthly",
+				State:                   "MISSING_METADATA",
+				GroupID:                 "group-1",
+				GroupName:               "Premium",
+				GroupLocalizations:      []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:           []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:      "shot-1",
+				AvailabilityID:          "avail-1",
+				AvailabilityTerritories: []string{"USA"},
+				PriceCount:              1,
+				PriceTerritories:        []string{"USA"},
+			},
+		},
+	}, false)
+
+	if len(report.Diagnostics) != 1 {
+		t.Fatalf("expected one subscription diagnostics entry, got %+v", report.Diagnostics)
+	}
+
+	diag := report.Diagnostics[0]
+	if diag.Conclusion != "opaque_apple_state" {
+		t.Fatalf("expected opaque_apple_state when only app-only territories remain, got %+v", diag)
+	}
+
+	appCoverageRow, ok := findSubscriptionDiagnosticRow(diag.Rows, "price_coverage_app_availability")
+	if !ok {
+		t.Fatalf("expected app coverage diagnostic row, got %+v", diag.Rows)
+	}
+	if appCoverageRow.Status != DiagnosticStatusOptional || appCoverageRow.Blocking {
+		t.Fatalf("expected app-only territory gap to be advisory, got %+v", appCoverageRow)
+	}
+	if !strings.Contains(appCoverageRow.Evidence, "app_only=CAN") {
+		t.Fatalf("expected advisory evidence to name app-only territory, got %+v", appCoverageRow)
+	}
+}
+
+func TestValidateSubscriptionsDoesNotBlockDiagnosticsWhenAppAvailabilityIsMissing(t *testing.T) {
+	report := ValidateSubscriptions(SubscriptionsInput{
+		AppID: "app-1",
+		Subscriptions: []Subscription{
+			{
+				ID:                      "sub-1",
+				Name:                    "Monthly",
+				ProductID:               "com.example.monthly",
+				State:                   "MISSING_METADATA",
+				GroupID:                 "group-1",
+				GroupName:               "Premium",
+				GroupLocalizations:      []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:           []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:      "shot-1",
+				AvailabilityID:          "avail-1",
+				AvailabilityTerritories: []string{"USA"},
+				PriceCount:              1,
+				PriceTerritories:        []string{"USA"},
+			},
+		},
+	}, false)
+
+	if len(report.Diagnostics) != 1 {
+		t.Fatalf("expected one subscription diagnostics entry, got %+v", report.Diagnostics)
+	}
+
+	diag := report.Diagnostics[0]
+	if diag.Conclusion != "opaque_apple_state" {
+		t.Fatalf("expected opaque_apple_state when app availability is unavailable, got %+v", diag)
+	}
+
+	appCoverageRow, ok := findSubscriptionDiagnosticRow(diag.Rows, "price_coverage_app_availability")
+	if !ok {
+		t.Fatalf("expected app coverage diagnostic row, got %+v", diag.Rows)
+	}
+	if appCoverageRow.Status != DiagnosticStatusUnknown || appCoverageRow.Blocking {
+		t.Fatalf("expected missing app availability to be non-blocking unknown, got %+v", appCoverageRow)
+	}
+}
+
 func findSubscriptionDiagnosticRow(rows []SubscriptionDiagnosticRow, key string) (SubscriptionDiagnosticRow, bool) {
 	for _, row := range rows {
 		if row.Key == key {
