@@ -252,6 +252,126 @@ func fetchAnalyticsReportInstances(ctx context.Context, client *asc.Client, repo
 	return all, nil
 }
 
+func normalizeCompareDateRange(from, fromEnd string, freq asc.SalesReportFrequency) (string, string, error) {
+	from = strings.TrimSpace(from)
+	fromEnd = strings.TrimSpace(fromEnd)
+	if fromEnd == "" {
+		fromEnd = from
+	}
+
+	switch freq {
+	case asc.SalesReportFrequencyYearly:
+		start, err := time.Parse("2006", from)
+		if err != nil {
+			return "", "", fmt.Errorf("--from must be in YYYY format for yearly frequency")
+		}
+		end, err := time.Parse("2006", fromEnd)
+		if err != nil {
+			return "", "", fmt.Errorf("--from-end must be in YYYY format for yearly frequency")
+		}
+		if end.Before(start) {
+			return "", "", fmt.Errorf("--from-end must not be before --from")
+		}
+		return start.Format("2006"), end.Format("2006"), nil
+
+	case asc.SalesReportFrequencyMonthly:
+		start, err := time.Parse("2006-01", from)
+		if err != nil {
+			return "", "", fmt.Errorf("--from must be in YYYY-MM format for monthly frequency")
+		}
+		end, err := time.Parse("2006-01", fromEnd)
+		if err != nil {
+			return "", "", fmt.Errorf("--from-end must be in YYYY-MM format for monthly frequency")
+		}
+		if end.Before(start) {
+			return "", "", fmt.Errorf("--from-end must not be before --from")
+		}
+		return start.Format("2006-01"), end.Format("2006-01"), nil
+
+	default:
+		start, err := time.Parse("2006-01-02", from)
+		if err != nil {
+			return "", "", fmt.Errorf("--from must be in YYYY-MM-DD format")
+		}
+		end, err := time.Parse("2006-01-02", fromEnd)
+		if err != nil {
+			return "", "", fmt.Errorf("--from-end must be in YYYY-MM-DD format")
+		}
+		if end.Before(start) {
+			return "", "", fmt.Errorf("--from-end must not be before --from")
+		}
+		return start.Format("2006-01-02"), end.Format("2006-01-02"), nil
+	}
+}
+
+func generateReportDates(start, end string, freq asc.SalesReportFrequency) ([]string, error) {
+	switch freq {
+	case asc.SalesReportFrequencyYearly:
+		s, err := time.Parse("2006", start)
+		if err != nil {
+			return nil, fmt.Errorf("invalid start year %q", start)
+		}
+		e, err := time.Parse("2006", end)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end year %q", end)
+		}
+		var dates []string
+		for cur := s; !cur.After(e); cur = cur.AddDate(1, 0, 0) {
+			dates = append(dates, cur.Format("2006"))
+		}
+		return dates, nil
+
+	case asc.SalesReportFrequencyMonthly:
+		s, err := time.Parse("2006-01", start)
+		if err != nil {
+			return nil, fmt.Errorf("invalid start month %q", start)
+		}
+		e, err := time.Parse("2006-01", end)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end month %q", end)
+		}
+		var dates []string
+		for cur := s; !cur.After(e); cur = cur.AddDate(0, 1, 0) {
+			dates = append(dates, cur.Format("2006-01"))
+		}
+		return dates, nil
+
+	case asc.SalesReportFrequencyWeekly:
+		s, err := time.Parse("2006-01-02", start)
+		if err != nil {
+			return nil, fmt.Errorf("invalid start date %q", start)
+		}
+		e, err := time.Parse("2006-01-02", end)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end date %q", end)
+		}
+		var dates []string
+		for cur := s; !cur.After(e); cur = cur.AddDate(0, 0, 7) {
+			reportDate, normErr := normalizeReportDate(cur.Format("2006-01-02"), asc.SalesReportFrequencyWeekly)
+			if normErr != nil {
+				return nil, normErr
+			}
+			dates = append(dates, reportDate)
+		}
+		return dates, nil
+
+	default:
+		s, err := time.Parse("2006-01-02", start)
+		if err != nil {
+			return nil, fmt.Errorf("invalid start date %q", start)
+		}
+		e, err := time.Parse("2006-01-02", end)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end date %q", end)
+		}
+		var dates []string
+		for cur := s; !cur.After(e); cur = cur.AddDate(0, 0, 1) {
+			dates = append(dates, cur.Format("2006-01-02"))
+		}
+		return dates, nil
+	}
+}
+
 func fetchAnalyticsReportSegments(ctx context.Context, client *asc.Client, instanceID string) ([]asc.Resource[asc.AnalyticsReportSegmentAttributes], error) {
 	var (
 		all  []asc.Resource[asc.AnalyticsReportSegmentAttributes]
