@@ -225,6 +225,7 @@ func TestPricingAvailabilitySetCommand_MissingFlags(t *testing.T) {
 	}{
 		{name: "missing app", args: []string{"--territory", "USA", "--available", "true", "--available-in-new-territories", "true"}},
 		{name: "missing territory", args: []string{"--app", "APP", "--available", "true", "--available-in-new-territories", "true"}},
+		{name: "invalid territory csv", args: []string{"--app", "APP", "--territory", ",,,", "--available", "true", "--available-in-new-territories", "true"}},
 		{name: "missing available", args: []string{"--app", "APP", "--territory", "USA", "--available-in-new-territories", "true"}},
 		{name: "missing available in new territories", args: []string{"--app", "APP", "--territory", "USA", "--available", "true"}},
 	}

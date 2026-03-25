@@ -69,6 +69,15 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				return flag.ErrHelp
 			}
 
+			var territories []string
+			if !*allTerritories {
+				territories = splitCSVUpper(*territory)
+				if len(territories) == 0 {
+					fmt.Fprintln(os.Stderr, "Error: --territory must include at least one value")
+					return flag.ErrHelp
+				}
+			}
+
 			availableValue := available.Value()
 
 			client, err := getASCClient()
@@ -134,11 +143,6 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				}
 				fmt.Fprintf(os.Stderr, "Updating availability for %d territories...\n", len(territoryAvailabilityIDs))
 			} else {
-				territories := splitCSVUpper(*territory)
-				if len(territories) == 0 {
-					fmt.Fprintln(os.Stderr, "Error: --territory must include at least one value")
-					return flag.ErrHelp
-				}
 				missingTerritories := make([]string, 0)
 				territoryAvailabilityIDs = make([]string, 0, len(territories))
 				for _, territoryID := range territories {
