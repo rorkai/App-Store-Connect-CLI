@@ -2,8 +2,10 @@ package shared
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -96,4 +98,79 @@ func TestTierCacheDifferentTerritory(t *testing.T) {
 	if loadedJPN[0].PricePointID != "pp-jpn" {
 		t.Fatalf("expected pp-jpn, got %s", loadedJPN[0].PricePointID)
 	}
+}
+
+func TestResetTierCacheForTestUsesIsolatedTempDir(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	resetTierCacheDirOverrideForTest()
+	t.Cleanup(resetTierCacheDirOverrideForTest)
+
+	realCacheDir := filepath.Join(home, ".asc", "cache")
+	if err := os.MkdirAll(realCacheDir, 0o755); err != nil {
+		t.Fatalf("mkdir real cache dir: %v", err)
+	}
+
+	sentinelPath := filepath.Join(realCacheDir, "sentinel.txt")
+	if err := os.WriteFile(sentinelPath, []byte("keep"), 0o644); err != nil {
+		t.Fatalf("write sentinel: %v", err)
+	}
+
+	ResetTierCacheForTest()
+
+	if _, err := os.Stat(sentinelPath); err != nil {
+		t.Fatalf("expected real cache sentinel to remain, got %v", err)
+	}
+
+	tiers := []TierEntry{{Tier: 1, PricePointID: "pp-1", CustomerPrice: "0.99"}}
+	if err := SaveTierCache("app123", "USA", tiers); err != nil {
+		t.Fatalf("save error: %v", err)
+	}
+
+	realCachePath := filepath.Join(realCacheDir, "tiers-app123-USA.json")
+	if _, err := os.Stat(realCachePath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected real cache path to stay untouched, got err=%v", err)
+	}
+
+	overridePath, err := tierCachePath("app123", "USA")
+	if err != nil {
+		t.Fatalf("tierCachePath error: %v", err)
+	}
+	if overridePath == realCachePath {
+		t.Fatalf("expected isolated tier cache path, got real cache path %q", overridePath)
+	}
+
+	loaded, err := LoadTierCache("app123", "USA")
+	if err != nil {
+		t.Fatalf("load error: %v", err)
+	}
+	if len(loaded) != 1 || loaded[0].PricePointID != "pp-1" {
+		t.Fatalf("unexpected loaded tiers: %+v", loaded)
+	}
+}
+
+func TestResetTierCacheForTestPanicsWhenTempDirCreationFails(t *testing.T) {
+	resetTierCacheDirOverrideForTest()
+	t.Cleanup(resetTierCacheDirOverrideForTest)
+
+	previousMkdirTemp := mkdirTempForTest
+	mkdirTempForTest = func(string, string) (string, error) {
+		return "", errors.New("boom")
+	}
+	t.Cleanup(func() {
+		mkdirTempForTest = previousMkdirTemp
+	})
+
+	defer func() {
+		recovered := recover()
+		if recovered == nil {
+			t.Fatal("expected panic when isolated tier cache dir creation fails")
+		}
+		if got := recovered.(error).Error(); !strings.Contains(got, "create isolated tier cache dir") {
+			t.Fatalf("expected panic to mention isolated tier cache dir creation, got %q", got)
+		}
+	}()
+
+	ResetTierCacheForTest()
 }

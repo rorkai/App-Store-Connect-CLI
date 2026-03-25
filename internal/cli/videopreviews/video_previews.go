@@ -24,7 +24,8 @@ Examples:
   asc video-previews list --version-localization "LOC_ID"
   asc video-previews upload --version-localization "LOC_ID" --path "./previews" --device-type "IPHONE_69"
   asc video-previews download --version-localization "LOC_ID" --output-dir "./previews/downloaded"
-  asc video-previews delete --id "PREVIEW_ID" --confirm`,
+  asc video-previews delete --id "PREVIEW_ID" --confirm
+  asc video-previews set-poster-frame --id "PREVIEW_ID" --time-code "00:00:05:00"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -32,6 +33,7 @@ Examples:
 			assets.AssetsPreviewsUploadCommand(),
 			assets.AssetsPreviewsDownloadCommand(),
 			assets.AssetsPreviewsDeleteCommand(),
+			assets.AssetsPreviewsSetPosterFrameCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

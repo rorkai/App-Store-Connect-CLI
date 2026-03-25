@@ -3,6 +3,7 @@ package submit
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -102,11 +103,12 @@ func TestPreflightResult_TallyCounts(t *testing.T) {
 			{Name: "b", Passed: false},
 			{Name: "c", Passed: true},
 			{Name: "d", Passed: false},
+			{Name: "info", Passed: true, Advisory: true},
 		},
 	}
 	tallyCounts(result)
-	if result.PassCount != 2 {
-		t.Fatalf("expected 2 passes, got %d", result.PassCount)
+	if result.PassCount != 3 {
+		t.Fatalf("expected 3 passes including advisories, got %d", result.PassCount)
 	}
 	if result.FailCount != 2 {
 		t.Fatalf("expected 2 failures, got %d", result.FailCount)
@@ -118,11 +120,34 @@ func TestPreflightResult_AllPass(t *testing.T) {
 		Checks: []checkResult{
 			{Name: "a", Passed: true},
 			{Name: "b", Passed: true},
+			{Name: "info", Passed: true, Advisory: true},
 		},
 	}
 	tallyCounts(result)
+	if result.PassCount != 3 {
+		t.Fatalf("expected 3 passes including advisories, got %d", result.PassCount)
+	}
 	if result.FailCount != 0 {
 		t.Fatalf("expected 0 failures, got %d", result.FailCount)
+	}
+}
+
+func TestPrivacyPublishStateAdvisoryCheck_SetsPassedWhenPresent(t *testing.T) {
+	check, ok := privacyPublishStateAdvisoryCheck("app-1")
+	if !ok {
+		t.Fatal("expected advisory check for non-empty app ID")
+	}
+	if !check.Advisory {
+		t.Fatalf("expected advisory flag, got %+v", check)
+	}
+	if !check.Passed {
+		t.Fatalf("expected advisory check to serialize as passed, got %+v", check)
+	}
+}
+
+func TestPrivacyPublishStateAdvisoryCheck_SkipsBlankAppID(t *testing.T) {
+	if _, ok := privacyPublishStateAdvisoryCheck(" \t "); ok {
+		t.Fatal("expected blank app ID to skip advisory check")
 	}
 }
 
@@ -384,7 +409,7 @@ func TestRunPreflight_VersionFailureStillRunsAppLevelChecks(t *testing.T) {
 		checksByName[check.Name] = check
 	}
 
-	for _, name := range []string{"Version exists", "Age rating", "Content rights", "Primary category"} {
+	for _, name := range []string{"Version exists", "Age rating", "Content rights", "Primary category", "App Privacy"} {
 		if _, ok := checksByName[name]; !ok {
 			t.Fatalf("expected %q check to run even when version lookup fails", name)
 		}
@@ -547,101 +572,34 @@ func TestScreenshotUploadHint_UsesPlatformDefaults(t *testing.T) {
 func TestRunPreflight_AllPass(t *testing.T) {
 	setupSubmitAuth(t)
 
-	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		path := req.URL.Path
-
-		switch {
-		// Version resolve
-		case req.Method == http.MethodGet && strings.Contains(path, "/appStoreVersions") && strings.Contains(path, "/apps/"):
-			return submitJSONResponse(http.StatusOK, `{
-				"data": [{
-					"type": "appStoreVersions",
-					"id": "version-1",
-					"attributes": {"platform": "IOS", "versionString": "1.0"}
-				}]
-			}`)
-
-		// Version details for app-info resolution
-		case req.Method == http.MethodGet && path == "/v1/appStoreVersions/version-1":
-			return submitJSONResponse(http.StatusOK, `{
-				"data": {
-					"type": "appStoreVersions",
-					"id": "version-1",
-					"attributes": {"appStoreState": "PREPARE_FOR_SUBMISSION", "platform": "IOS", "versionString": "1.0"},
-					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
-				}
-			}`)
-
-		// Build attached (includes encryption attributes — no separate fetch needed)
-		case req.Method == http.MethodGet && strings.HasSuffix(path, "/build"):
-			return submitJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1","usesNonExemptEncryption":false}}}`)
-
-		// App infos
-		case req.Method == http.MethodGet && strings.HasSuffix(path, "/appInfos"):
-			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
-
-		// Age rating
-		case req.Method == http.MethodGet && strings.HasSuffix(path, "/ageRatingDeclaration"):
-			return submitJSONResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"rating-1","attributes":{
-				"gambling": false, "lootBox": false, "unrestrictedWebAccess": false,
-				"alcoholTobaccoOrDrugUseOrReferences": "NONE", "gamblingSimulated": "NONE",
-				"horrorOrFearThemes": "NONE", "matureOrSuggestiveThemes": "NONE",
-				"profanityOrCrudeHumor": "NONE", "sexualContentGraphicAndNudity": "NONE",
-				"sexualContentOrNudity": "NONE", "violenceCartoonOrFantasy": "NONE",
-				"violenceRealistic": "NONE", "violenceRealisticProlongedGraphicOrSadistic": "NONE"
-			}}}`)
-
-		// App (content rights)
-		case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && !strings.Contains(path, "/"):
-			return submitJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"name":"Test","bundleId":"com.test","sku":"test","contentRightsDeclaration":"DOES_NOT_USE_THIRD_PARTY_CONTENT"}}}`)
-
-		// Primary category
-		case req.Method == http.MethodGet && strings.HasSuffix(path, "/primaryCategory"):
-			return submitJSONResponse(http.StatusOK, `{"data":{"type":"appCategories","id":"SPORTS","attributes":{}}}`)
-
-		// Localizations
-		case req.Method == http.MethodGet && strings.Contains(path, "/appStoreVersionLocalizations"):
-			return submitJSONResponse(http.StatusOK, `{
-				"data": [{
-					"type": "appStoreVersionLocalizations",
-					"id": "loc-1",
-					"attributes": {
-						"locale": "en-US",
-						"description": "A great app",
-						"keywords": "test,app",
-						"supportUrl": "https://example.com/support",
-						"whatsNew": "Bug fixes"
-					}
-				}]
-			}`)
-
-		// Screenshot sets
-		case req.Method == http.MethodGet && strings.Contains(path, "/appScreenshotSets"):
-			return submitJSONResponse(http.StatusOK, `{
-				"data": [{
-					"type": "appScreenshotSets",
-					"id": "ss-1",
-					"attributes": {"screenshotDisplayType": "APP_IPHONE_67"}
-				}]
-			}`)
-		}
-
-		// For the app endpoint without sub-paths
-		if req.Method == http.MethodGet && path == "/v1/apps/app-1" {
-			return submitJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"name":"Test","bundleId":"com.test","sku":"test","contentRightsDeclaration":"DOES_NOT_USE_THIRD_PARTY_CONTENT"}}}`)
-		}
-
-		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, path)
-	}))
+	client := newSubmitTestClient(t, submitAllPassTransport())
 
 	result := runPreflight(context.Background(), client, "app-1", "1.0", "IOS")
 	if result.FailCount != 0 {
 		for _, c := range result.Checks {
-			if !c.Passed {
+			if !c.Passed && !c.Advisory {
 				t.Errorf("check %q failed: %s (hint: %s)", c.Name, c.Message, c.Hint)
 			}
 		}
 		t.Fatalf("expected 0 failures, got %d", result.FailCount)
+	}
+	foundPrivacyAdvisory := false
+	for _, check := range result.Checks {
+		if check.Name == "App Privacy" {
+			foundPrivacyAdvisory = true
+			if !check.Advisory {
+				t.Fatalf("expected App Privacy check to be advisory, got %+v", check)
+			}
+			if !check.Passed {
+				t.Fatalf("expected App Privacy advisory to serialize as passed, got %+v", check)
+			}
+			if strings.Contains(strings.ToLower(check.Hint), "asc web") {
+				t.Fatalf("did not expect web command hint in advisory, got %q", check.Hint)
+			}
+		}
+	}
+	if !foundPrivacyAdvisory {
+		t.Fatalf("expected App Privacy advisory in result, got %+v", result.Checks)
 	}
 }
 
@@ -655,12 +613,131 @@ func TestPreflightTextOutput(t *testing.T) {
 		Checks: []checkResult{
 			{Name: "Version exists", Passed: true, Message: "Version 1.0 found"},
 			{Name: "Build attached", Passed: false, Message: "No build", Hint: "asc submit create ..."},
+			{Name: "App Privacy", Advisory: true, Message: "App Privacy publish state is not verifiable via the public App Store Connect API and may still block submission", Hint: "Confirm App Privacy is published in App Store Connect before submitting: https://appstoreconnect.apple.com/apps/123/appPrivacy"},
 		},
 		PassCount: 1,
 		FailCount: 1,
 	})
 	if !strings.Contains(buf.String(), "Preflight check for app 123 v1.0 (IOS)") {
 		t.Fatalf("expected header in text output, got %q", buf.String())
+	}
+	if !strings.Contains(buf.String(), "App Privacy publish state is not verifiable via the public App Store Connect API") {
+		t.Fatalf("expected advisory in text output, got %q", buf.String())
+	}
+}
+
+func TestPreflightTextOutput_AdvisoryOnlyDoesNotClaimReadyToSubmit(t *testing.T) {
+	var buf bytes.Buffer
+	printPreflightText(&buf, &preflightResult{
+		AppID:    "123",
+		Version:  "1.0",
+		Platform: "IOS",
+		Checks: []checkResult{
+			{
+				Name:     "App Privacy",
+				Passed:   true,
+				Advisory: true,
+				Message:  "App Privacy publish state is not verifiable via the public App Store Connect API and may still block submission",
+				Hint:     "Confirm App Privacy is published in App Store Connect before submitting: https://appstoreconnect.apple.com/apps/123/appPrivacy",
+			},
+		},
+	})
+
+	output := buf.String()
+	if strings.Contains(output, "Ready to submit") {
+		t.Fatalf("did not expect advisory-only result to claim readiness, got %q", output)
+	}
+	if !strings.Contains(output, "Result: Required checks passed, but 1 advisory should be reviewed before submitting.") {
+		t.Fatalf("expected advisory summary in text output, got %q", output)
+	}
+}
+
+func TestSubmitPreflightCommand_AllPassIncludesPrivacyAdvisory(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = submitAllPassTransport()
+
+	cmd := SubmitPreflightCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--version", "1.0", "--output", "text"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	var runErr error
+	stdout, stderr := capturePreflightCommandOutput(t, func() {
+		runErr = cmd.Exec(context.Background(), nil)
+	})
+	if runErr != nil {
+		t.Fatalf("expected success when only advisory is present, got %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "App Privacy publish state is not verifiable via the public App Store Connect API") {
+		t.Fatalf("expected App Privacy advisory in stdout, got %q", stdout)
+	}
+	if strings.Contains(strings.ToLower(stdout), "asc web") {
+		t.Fatalf("did not expect private/web command references in stdout, got %q", stdout)
+	}
+}
+
+func TestSubmitPreflightCommand_JSONAllPassIncludesPrivacyAdvisoryAsPassed(t *testing.T) {
+	setupSubmitAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	http.DefaultTransport = submitAllPassTransport()
+
+	cmd := SubmitPreflightCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{"--app", "app-1", "--version", "1.0", "--output", "json"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	var (
+		runErr error
+		result preflightResult
+	)
+	stdout, stderr := capturePreflightCommandOutput(t, func() {
+		runErr = cmd.Exec(context.Background(), nil)
+	})
+	if runErr != nil {
+		t.Fatalf("expected success when only advisory is present, got %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("failed to parse JSON output %q: %v", stdout, err)
+	}
+	if result.FailCount != 0 {
+		t.Fatalf("expected advisory-only JSON result to stay non-blocking, got %+v", result)
+	}
+	if result.PassCount != len(result.Checks) {
+		t.Fatalf("expected advisory-only JSON pass count to include every check, got %+v", result)
+	}
+
+	foundPrivacyAdvisory := false
+	for _, check := range result.Checks {
+		if check.Name != "App Privacy" {
+			continue
+		}
+		foundPrivacyAdvisory = true
+		if !check.Advisory {
+			t.Fatalf("expected App Privacy advisory in JSON output, got %+v", check)
+		}
+		if !check.Passed {
+			t.Fatalf("expected App Privacy advisory to serialize as passed, got %+v", check)
+		}
+	}
+	if !foundPrivacyAdvisory {
+		t.Fatalf("expected App Privacy advisory in JSON output, got %+v", result.Checks)
 	}
 }
 
@@ -746,6 +823,12 @@ func TestSubmitPreflightCommand_TextOutput(t *testing.T) {
 	if !strings.Contains(stdout, "Preflight check for app 123 v1.0 (IOS)") {
 		t.Fatalf("expected text output header, got %q", stdout)
 	}
+	if !strings.Contains(stdout, "asc age-rating edit --app 123 --gambling false --violence-realistic NONE ...") {
+		t.Fatalf("expected text output to suggest age-rating edit, got %q", stdout)
+	}
+	if strings.Contains(stdout, "asc age-rating set --app 123") {
+		t.Fatalf("expected text output to avoid stale age-rating set hint, got %q", stdout)
+	}
 }
 
 // --- Helpers ---
@@ -815,4 +898,71 @@ func newAgeRatingAllSet(boolVal bool, strVal string) asc.AgeRatingDeclarationAtt
 		ViolenceRealistic:                           &strVal,
 		ViolenceRealisticProlongedGraphicOrSadistic: &strVal,
 	}
+}
+
+func submitAllPassTransport() http.RoundTripper {
+	return submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		path := req.URL.Path
+
+		switch {
+		case req.Method == http.MethodGet && strings.Contains(path, "/appStoreVersions") && strings.Contains(path, "/apps/"):
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "appStoreVersions",
+					"id": "version-1",
+					"attributes": {"platform": "IOS", "versionString": "1.0"}
+				}]
+			}`)
+		case req.Method == http.MethodGet && path == "/v1/appStoreVersions/version-1":
+			return submitJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "appStoreVersions",
+					"id": "version-1",
+					"attributes": {"appStoreState": "PREPARE_FOR_SUBMISSION", "platform": "IOS", "versionString": "1.0"},
+					"relationships": {"app": {"data": {"type": "apps", "id": "app-1"}}}
+				}
+			}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(path, "/build"):
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1","usesNonExemptEncryption":false}}}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(path, "/appInfos"):
+			return submitJSONResponse(http.StatusOK, `{"data":[{"type":"appInfos","id":"info-1","attributes":{"appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(path, "/ageRatingDeclaration"):
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"ageRatingDeclarations","id":"rating-1","attributes":{
+				"gambling": false, "lootBox": false, "unrestrictedWebAccess": false,
+				"alcoholTobaccoOrDrugUseOrReferences": "NONE", "gamblingSimulated": "NONE",
+				"horrorOrFearThemes": "NONE", "matureOrSuggestiveThemes": "NONE",
+				"profanityOrCrudeHumor": "NONE", "sexualContentGraphicAndNudity": "NONE",
+				"sexualContentOrNudity": "NONE", "violenceCartoonOrFantasy": "NONE",
+				"violenceRealistic": "NONE", "violenceRealisticProlongedGraphicOrSadistic": "NONE"
+			}}}`)
+		case req.Method == http.MethodGet && path == "/v1/apps/app-1":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1","attributes":{"name":"Test","bundleId":"com.test","sku":"test","contentRightsDeclaration":"DOES_NOT_USE_THIRD_PARTY_CONTENT"}}}`)
+		case req.Method == http.MethodGet && strings.HasSuffix(path, "/primaryCategory"):
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"appCategories","id":"SPORTS","attributes":{}}}`)
+		case req.Method == http.MethodGet && strings.Contains(path, "/appStoreVersionLocalizations"):
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "appStoreVersionLocalizations",
+					"id": "loc-1",
+					"attributes": {
+						"locale": "en-US",
+						"description": "A great app",
+						"keywords": "test,app",
+						"supportUrl": "https://example.com/support",
+						"whatsNew": "Bug fixes"
+					}
+				}]
+			}`)
+		case req.Method == http.MethodGet && strings.Contains(path, "/appScreenshotSets"):
+			return submitJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "appScreenshotSets",
+					"id": "ss-1",
+					"attributes": {"screenshotDisplayType": "APP_IPHONE_67"}
+				}]
+			}`)
+		}
+
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, path)
+	})
 }

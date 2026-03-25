@@ -45,6 +45,11 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				fmt.Fprintln(os.Stderr, "Error: reviews ratings does not accept positional arguments")
+				return flag.ErrHelp
+			}
+
 			if strings.TrimSpace(*appID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required")
 				return flag.ErrHelp
@@ -53,6 +58,12 @@ Examples:
 			if *workers < 1 {
 				fmt.Fprintln(os.Stderr, "Error: --workers must be at least 1")
 				return flag.ErrHelp
+			}
+			if !*all {
+				if _, err := itunes.NormalizeCountryCode(*country); err != nil {
+					fmt.Fprintln(os.Stderr, "Error: "+err.Error())
+					return flag.ErrHelp
+				}
 			}
 
 			return executeRatings(ctx, *appID, *country, *all, *workers, *output.Output, *output.Pretty)

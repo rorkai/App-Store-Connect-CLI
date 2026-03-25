@@ -2,9 +2,11 @@ package validate
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -68,13 +70,21 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 	}
 
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
-	defer cancel()
+	defer func() { cancel() }()
+
+	refreshRequestCtx := func() {
+		cancel()
+		requestCtx, cancel = shared.ContextWithTimeout(ctx)
+	}
 
 	pricingCoverageSkipReason := ""
-	_, availableTerritories, err := fetchAvailableTerritories(requestCtx, client, opts.AppID)
+	_, appAvailableTerritories, availableTerritories, err := fetchAvailableTerritoryDetailsFn(requestCtx, client, opts.AppID)
 	if err != nil {
 		if reason, ok := availabilityCheckSkipReason(err); ok {
 			pricingCoverageSkipReason = reason
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+				refreshRequestCtx()
+			}
 		} else {
 			return fmt.Errorf("validate subscriptions: %w", err)
 		}
@@ -85,11 +95,32 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 		return fmt.Errorf("validate subscriptions: %w", err)
 	}
 
+	buildCount := 0
+	buildCheckSkipped := false
+	buildCheckSkipReason := ""
+	var buildStatus metadataCheckStatus
+	for _, sub := range subs {
+		if strings.EqualFold(strings.TrimSpace(sub.State), "MISSING_METADATA") {
+			refreshRequestCtx()
+			buildCount, buildStatus, err = fetchAppBuildCountFn(requestCtx, client, opts.AppID)
+			if err != nil {
+				return fmt.Errorf("validate subscriptions: %w", err)
+			}
+			buildCheckSkipped = !buildStatus.Verified
+			buildCheckSkipReason = buildStatus.SkipReason
+			break
+		}
+	}
+
 	report := validation.ValidateSubscriptions(validation.SubscriptionsInput{
 		AppID:                     opts.AppID,
 		Subscriptions:             subs,
 		AvailableTerritories:      availableTerritories,
+		AppAvailableTerritories:   appAvailableTerritories,
 		PricingCoverageSkipReason: pricingCoverageSkipReason,
+		AppBuildCount:             buildCount,
+		BuildCheckSkipped:         buildCheckSkipped,
+		BuildCheckSkipReason:      buildCheckSkipReason,
 	}, opts.Strict)
 
 	if err := shared.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {

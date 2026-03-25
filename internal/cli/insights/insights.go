@@ -265,31 +265,38 @@ type reportWeekWindow struct {
 	end   time.Time
 }
 
-type salesWeekMetrics struct {
-	rowCount                       int
-	unitsColumnPresent             bool
-	developerProceedsColumnPresent bool
-	customerPriceColumnPresent     bool
-	subscriptionColumnPresent      bool
-	unitsTotal                     float64
-	downloadUnitsTotal             float64
-	monetizedUnitsTotal            float64
-	developerProceedsTotal         float64
-	customerPriceTotal             float64
-	subscriptionRows               int
-	subscriptionUnitsTotal         float64
-	subscriptionDeveloperProceeds  float64
-	subscriptionCustomerPrice      float64
-	renewalRows                    int
-	renewalUnitsTotal              float64
-	renewalDeveloperProceeds       float64
-	renewalCustomerPrice           float64
+// SalesMetrics holds aggregated metrics from a parsed sales report.
+type SalesMetrics struct {
+	RowCount                       int
+	UnitsColumnPresent             bool
+	DeveloperProceedsColumnPresent bool
+	CustomerPriceColumnPresent     bool
+	SubscriptionColumnPresent      bool
+	UnitsTotal                     float64
+	DownloadUnitsTotal             float64
+	MonetizedUnitsTotal            float64
+	DeveloperProceedsTotal         float64
+	CustomerPriceTotal             float64
+	SubscriptionRows               int
+	SubscriptionUnitsTotal         float64
+	SubscriptionDeveloperProceeds  float64
+	SubscriptionCustomerPrice      float64
+	RenewalRows                    int
+	RenewalUnitsTotal              float64
+	RenewalDeveloperProceeds       float64
+	RenewalCustomerPrice           float64
 }
 
-type salesScope struct {
-	appID  string
-	appSKU string
+// Unexported alias so all internal references keep compiling with the old name.
+type salesWeekMetrics = SalesMetrics
+
+// SalesScope identifies an app for scoping sales report row filtering.
+type SalesScope struct {
+	AppID  string
+	AppSKU string
 }
+
+type salesScope = SalesScope
 
 func collectWeeklyInsights(ctx context.Context, client *asc.Client, appID, sourceName, vendor string, weekStart time.Time) (*weeklyInsightsResponse, error) {
 	thisWeek := weekWindowFromStart(weekStart)
@@ -319,10 +326,10 @@ func collectWeeklyInsights(ctx context.Context, client *asc.Client, appID, sourc
 			return nil, appErr
 		}
 		scope := salesScope{
-			appID:  appID,
-			appSKU: strings.TrimSpace(appResp.Data.Attributes.SKU),
+			AppID:  appID,
+			AppSKU: strings.TrimSpace(appResp.Data.Attributes.SKU),
 		}
-		resp.Source.AppSKU = scope.appSKU
+		resp.Source.AppSKU = scope.AppSKU
 		metrics := collectSalesMetrics(ctx, client, vendor, scope, thisWeek, previousWeek)
 		resp.Metrics = metrics
 	case sourceAnalytics:
@@ -346,8 +353,8 @@ func collectDailyInsights(ctx context.Context, client *asc.Client, appID, vendor
 	}
 
 	scope := salesScope{
-		appID:  appID,
-		appSKU: strings.TrimSpace(appResp.Data.Attributes.SKU),
+		AppID:  appID,
+		AppSKU: strings.TrimSpace(appResp.Data.Attributes.SKU),
 	}
 	thisDay := reportDate.Format("2006-01-02")
 	previousDay := reportDate.AddDate(0, 0, -1).Format("2006-01-02")
@@ -372,7 +379,7 @@ func collectDailyInsights(ctx context.Context, client *asc.Client, appID, vendor
 		Source: dailyInsightsSource{
 			Name:          sourceSales,
 			VendorNumber:  vendor,
-			AppSKU:        scope.appSKU,
+			AppSKU:        scope.AppSKU,
 			ReportType:    string(asc.SalesReportTypeSales),
 			ReportSubType: string(asc.SalesReportSubTypeSummary),
 			Frequency:     string(asc.SalesReportFrequencyDaily),
@@ -387,73 +394,73 @@ func collectDailyInsights(ctx context.Context, client *asc.Client, appID, vendor
 	metrics = append(metrics, dailyMetricFromOptionalTotals(
 		"renewal_rows",
 		"count",
-		thisData.subscriptionColumnPresent && prevData.subscriptionColumnPresent && availabilityReason == "",
-		float64(thisData.renewalRows),
-		float64(prevData.renewalRows),
-		resolveSalesReason("subscription column", availabilityReason, thisData.subscriptionColumnPresent, prevData.subscriptionColumnPresent),
+		thisData.SubscriptionColumnPresent && prevData.SubscriptionColumnPresent && availabilityReason == "",
+		float64(thisData.RenewalRows),
+		float64(prevData.RenewalRows),
+		resolveSalesReason("subscription column", availabilityReason, thisData.SubscriptionColumnPresent, prevData.SubscriptionColumnPresent),
 	))
 	metrics = append(metrics, dailyMetricFromOptionalTotals(
 		"renewal_units",
 		"count",
-		thisData.subscriptionColumnPresent && prevData.subscriptionColumnPresent &&
-			thisData.unitsColumnPresent && prevData.unitsColumnPresent &&
+		thisData.SubscriptionColumnPresent && prevData.SubscriptionColumnPresent &&
+			thisData.UnitsColumnPresent && prevData.UnitsColumnPresent &&
 			availabilityReason == "",
-		thisData.renewalUnitsTotal,
-		prevData.renewalUnitsTotal,
-		resolveSalesReason("renewal units", availabilityReason, thisData.unitsColumnPresent && thisData.subscriptionColumnPresent, prevData.unitsColumnPresent && prevData.subscriptionColumnPresent),
+		thisData.RenewalUnitsTotal,
+		prevData.RenewalUnitsTotal,
+		resolveSalesReason("renewal units", availabilityReason, thisData.UnitsColumnPresent && thisData.SubscriptionColumnPresent, prevData.UnitsColumnPresent && prevData.SubscriptionColumnPresent),
 	))
 	metrics = append(metrics, dailyMetricFromOptionalTotals(
 		"renewal_developer_proceeds",
 		"currency",
-		thisData.subscriptionColumnPresent && prevData.subscriptionColumnPresent &&
-			thisData.developerProceedsColumnPresent && prevData.developerProceedsColumnPresent &&
+		thisData.SubscriptionColumnPresent && prevData.SubscriptionColumnPresent &&
+			thisData.DeveloperProceedsColumnPresent && prevData.DeveloperProceedsColumnPresent &&
 			availabilityReason == "",
-		thisData.renewalDeveloperProceeds,
-		prevData.renewalDeveloperProceeds,
-		resolveSalesReason("renewal developer proceeds", availabilityReason, thisData.developerProceedsColumnPresent && thisData.subscriptionColumnPresent, prevData.developerProceedsColumnPresent && prevData.subscriptionColumnPresent),
+		thisData.RenewalDeveloperProceeds,
+		prevData.RenewalDeveloperProceeds,
+		resolveSalesReason("renewal developer proceeds", availabilityReason, thisData.DeveloperProceedsColumnPresent && thisData.SubscriptionColumnPresent, prevData.DeveloperProceedsColumnPresent && prevData.SubscriptionColumnPresent),
 	))
 	metrics = append(metrics, dailyMetricFromOptionalTotals(
 		"subscription_rows",
 		"count",
-		thisData.subscriptionColumnPresent && prevData.subscriptionColumnPresent && availabilityReason == "",
-		float64(thisData.subscriptionRows),
-		float64(prevData.subscriptionRows),
-		resolveSalesReason("subscription column", availabilityReason, thisData.subscriptionColumnPresent, prevData.subscriptionColumnPresent),
+		thisData.SubscriptionColumnPresent && prevData.SubscriptionColumnPresent && availabilityReason == "",
+		float64(thisData.SubscriptionRows),
+		float64(prevData.SubscriptionRows),
+		resolveSalesReason("subscription column", availabilityReason, thisData.SubscriptionColumnPresent, prevData.SubscriptionColumnPresent),
 	))
 	metrics = append(metrics, dailyMetricFromOptionalTotals(
 		"subscription_units",
 		"count",
-		thisData.subscriptionColumnPresent && prevData.subscriptionColumnPresent &&
-			thisData.unitsColumnPresent && prevData.unitsColumnPresent &&
+		thisData.SubscriptionColumnPresent && prevData.SubscriptionColumnPresent &&
+			thisData.UnitsColumnPresent && prevData.UnitsColumnPresent &&
 			availabilityReason == "",
-		thisData.subscriptionUnitsTotal,
-		prevData.subscriptionUnitsTotal,
-		resolveSalesReason("subscription units", availabilityReason, thisData.unitsColumnPresent && thisData.subscriptionColumnPresent, prevData.unitsColumnPresent && prevData.subscriptionColumnPresent),
+		thisData.SubscriptionUnitsTotal,
+		prevData.SubscriptionUnitsTotal,
+		resolveSalesReason("subscription units", availabilityReason, thisData.UnitsColumnPresent && thisData.SubscriptionColumnPresent, prevData.UnitsColumnPresent && prevData.SubscriptionColumnPresent),
 	))
 	metrics = append(metrics, dailyMetricFromOptionalTotals(
 		"subscription_developer_proceeds",
 		"currency",
-		thisData.subscriptionColumnPresent && prevData.subscriptionColumnPresent &&
-			thisData.developerProceedsColumnPresent && prevData.developerProceedsColumnPresent &&
+		thisData.SubscriptionColumnPresent && prevData.SubscriptionColumnPresent &&
+			thisData.DeveloperProceedsColumnPresent && prevData.DeveloperProceedsColumnPresent &&
 			availabilityReason == "",
-		thisData.subscriptionDeveloperProceeds,
-		prevData.subscriptionDeveloperProceeds,
-		resolveSalesReason("subscription developer proceeds", availabilityReason, thisData.developerProceedsColumnPresent && thisData.subscriptionColumnPresent, prevData.developerProceedsColumnPresent && prevData.subscriptionColumnPresent),
+		thisData.SubscriptionDeveloperProceeds,
+		prevData.SubscriptionDeveloperProceeds,
+		resolveSalesReason("subscription developer proceeds", availabilityReason, thisData.DeveloperProceedsColumnPresent && thisData.SubscriptionColumnPresent, prevData.DeveloperProceedsColumnPresent && prevData.SubscriptionColumnPresent),
 	))
 	metrics = append(metrics, dailyMetricFromOptionalTotals(
 		"monetized_units",
 		"count",
-		thisData.unitsColumnPresent && prevData.unitsColumnPresent && availabilityReason == "",
-		thisData.monetizedUnitsTotal,
-		prevData.monetizedUnitsTotal,
-		resolveSalesReason("monetized units", availabilityReason, thisData.unitsColumnPresent, prevData.unitsColumnPresent),
+		thisData.UnitsColumnPresent && prevData.UnitsColumnPresent && availabilityReason == "",
+		thisData.MonetizedUnitsTotal,
+		prevData.MonetizedUnitsTotal,
+		resolveSalesReason("monetized units", availabilityReason, thisData.UnitsColumnPresent, prevData.UnitsColumnPresent),
 	))
 	metrics = append(metrics, dailyMetricFromOptionalTotals(
 		"report_rows",
 		"count",
 		availabilityReason == "",
-		float64(thisData.rowCount),
-		float64(prevData.rowCount),
+		float64(thisData.RowCount),
+		float64(prevData.RowCount),
 		availabilityReason,
 	))
 
@@ -481,50 +488,50 @@ func collectSalesMetrics(ctx context.Context, client *asc.Client, vendor string,
 	metrics = append(metrics, metricFromOptionalTotals(
 		"download_units",
 		"count",
-		thisData.unitsColumnPresent && prevData.unitsColumnPresent && availabilityReason == "",
-		thisData.downloadUnitsTotal,
-		prevData.downloadUnitsTotal,
-		resolveSalesReason("download units", availabilityReason, thisData.unitsColumnPresent, prevData.unitsColumnPresent),
+		thisData.UnitsColumnPresent && prevData.UnitsColumnPresent && availabilityReason == "",
+		thisData.DownloadUnitsTotal,
+		prevData.DownloadUnitsTotal,
+		resolveSalesReason("download units", availabilityReason, thisData.UnitsColumnPresent, prevData.UnitsColumnPresent),
 	))
 	metrics = append(metrics, metricFromOptionalTotals(
 		"monetized_units",
 		"count",
-		thisData.unitsColumnPresent && prevData.unitsColumnPresent && availabilityReason == "",
-		thisData.monetizedUnitsTotal,
-		prevData.monetizedUnitsTotal,
-		resolveSalesReason("monetized units", availabilityReason, thisData.unitsColumnPresent, prevData.unitsColumnPresent),
+		thisData.UnitsColumnPresent && prevData.UnitsColumnPresent && availabilityReason == "",
+		thisData.MonetizedUnitsTotal,
+		prevData.MonetizedUnitsTotal,
+		resolveSalesReason("monetized units", availabilityReason, thisData.UnitsColumnPresent, prevData.UnitsColumnPresent),
 	))
 	metrics = append(metrics, metricFromOptionalTotals(
 		"units",
 		"count",
-		thisData.unitsColumnPresent && prevData.unitsColumnPresent && availabilityReason == "",
-		thisData.unitsTotal,
-		prevData.unitsTotal,
-		resolveSalesReason("units", availabilityReason, thisData.unitsColumnPresent, prevData.unitsColumnPresent),
+		thisData.UnitsColumnPresent && prevData.UnitsColumnPresent && availabilityReason == "",
+		thisData.UnitsTotal,
+		prevData.UnitsTotal,
+		resolveSalesReason("units", availabilityReason, thisData.UnitsColumnPresent, prevData.UnitsColumnPresent),
 	))
 	metrics = append(metrics, metricFromOptionalTotals(
 		"developer_proceeds",
 		"currency",
-		thisData.developerProceedsColumnPresent && prevData.developerProceedsColumnPresent && availabilityReason == "",
-		thisData.developerProceedsTotal,
-		prevData.developerProceedsTotal,
-		resolveSalesReason("developer proceeds", availabilityReason, thisData.developerProceedsColumnPresent, prevData.developerProceedsColumnPresent),
+		thisData.DeveloperProceedsColumnPresent && prevData.DeveloperProceedsColumnPresent && availabilityReason == "",
+		thisData.DeveloperProceedsTotal,
+		prevData.DeveloperProceedsTotal,
+		resolveSalesReason("developer proceeds", availabilityReason, thisData.DeveloperProceedsColumnPresent, prevData.DeveloperProceedsColumnPresent),
 	))
 	metrics = append(metrics, metricFromOptionalTotals(
 		"customer_price",
 		"currency",
-		thisData.customerPriceColumnPresent && prevData.customerPriceColumnPresent && availabilityReason == "",
-		thisData.customerPriceTotal,
-		prevData.customerPriceTotal,
-		resolveSalesReason("customer price", availabilityReason, thisData.customerPriceColumnPresent, prevData.customerPriceColumnPresent),
+		thisData.CustomerPriceColumnPresent && prevData.CustomerPriceColumnPresent && availabilityReason == "",
+		thisData.CustomerPriceTotal,
+		prevData.CustomerPriceTotal,
+		resolveSalesReason("customer price", availabilityReason, thisData.CustomerPriceColumnPresent, prevData.CustomerPriceColumnPresent),
 	))
 
 	metrics = append(metrics, metricFromOptionalTotals(
 		"report_rows",
 		"count",
 		availabilityReason == "",
-		float64(thisData.rowCount),
-		float64(prevData.rowCount),
+		float64(thisData.RowCount),
+		float64(prevData.RowCount),
 		availabilityReason,
 	))
 	metrics = append(metrics, unavailableMetric("active_devices", "count", "not derivable from sales summary exports"))
@@ -546,7 +553,7 @@ func fetchSalesWeekMetrics(ctx context.Context, client *asc.Client, vendor, repo
 	}
 	defer download.Body.Close()
 
-	metrics, err := parseSalesReportMetrics(download.Body, scope)
+	metrics, err := ParseSalesReportMetrics(download.Body, scope)
 	if err != nil {
 		return salesWeekMetrics{}, err
 	}
@@ -567,14 +574,16 @@ func fetchSalesDayMetrics(ctx context.Context, client *asc.Client, vendor, repor
 	}
 	defer download.Body.Close()
 
-	metrics, err := parseSalesReportMetrics(download.Body, scope)
+	metrics, err := ParseSalesReportMetrics(download.Body, scope)
 	if err != nil {
 		return salesWeekMetrics{}, err
 	}
 	return metrics, nil
 }
 
-func parseSalesReportMetrics(reader io.Reader, scope salesScope) (salesWeekMetrics, error) {
+// ParseSalesReportMetrics reads a gzip-compressed sales TSV from reader and
+// returns aggregated metrics scoped to the given app.
+func ParseSalesReportMetrics(reader io.Reader, scope salesScope) (salesWeekMetrics, error) {
 	gzipReader, err := gzip.NewReader(reader)
 	if err != nil {
 		return salesWeekMetrics{}, fmt.Errorf("read gzip report: %w", err)
@@ -606,12 +615,12 @@ func parseSalesReportMetrics(reader io.Reader, scope salesScope) (salesWeekMetri
 		return salesWeekMetrics{}, fmt.Errorf("report is missing Apple Identifier and Parent Identifier columns")
 	}
 
-	scope = enrichSalesScopeFromRows(scope, rows[1:], appleIdentifierIdx, skuIdx)
+	scope = EnrichSalesScopeFromRows(scope, rows[1:], appleIdentifierIdx, skuIdx)
 	metrics := salesWeekMetrics{
-		unitsColumnPresent:             unitsIdx >= 0,
-		developerProceedsColumnPresent: developerProceedsIdx >= 0,
-		customerPriceColumnPresent:     customerPriceIdx >= 0,
-		subscriptionColumnPresent:      subscriptionIdx >= 0,
+		UnitsColumnPresent:             unitsIdx >= 0,
+		DeveloperProceedsColumnPresent: developerProceedsIdx >= 0,
+		CustomerPriceColumnPresent:     customerPriceIdx >= 0,
+		SubscriptionColumnPresent:      subscriptionIdx >= 0,
 	}
 	for _, row := range rows[1:] {
 		if isEmptyRow(row) {
@@ -620,7 +629,7 @@ func parseSalesReportMetrics(reader io.Reader, scope salesScope) (salesWeekMetri
 
 		appleIdentifier := strings.TrimSpace(valueAtIndex(row, appleIdentifierIdx))
 		parentIdentifier := strings.TrimSpace(valueAtIndex(row, parentIdentifierIdx))
-		isAppRow, isMonetizedRow, include := rowMatchesSalesScope(scope, appleIdentifier, parentIdentifier)
+		isAppRow, isMonetizedRow, include := RowMatchesSalesScope(scope, appleIdentifier, parentIdentifier)
 		if !include {
 			continue
 		}
@@ -628,50 +637,50 @@ func parseSalesReportMetrics(reader io.Reader, scope salesScope) (salesWeekMetri
 		isSubscriptionRow := subscriptionValue != ""
 		isRenewalRow := isRenewalSubscriptionState(subscriptionValue)
 
-		metrics.rowCount++
+		metrics.RowCount++
 		if isSubscriptionRow {
-			metrics.subscriptionRows++
+			metrics.SubscriptionRows++
 		}
 		if isRenewalRow {
-			metrics.renewalRows++
+			metrics.RenewalRows++
 		}
 
 		if unitsIdx >= 0 {
 			if value, ok := parseNumericValue(valueAtIndex(row, unitsIdx)); ok {
-				metrics.unitsTotal += value
+				metrics.UnitsTotal += value
 				if isAppRow {
-					metrics.downloadUnitsTotal += value
+					metrics.DownloadUnitsTotal += value
 				}
 				if isMonetizedRow {
-					metrics.monetizedUnitsTotal += value
+					metrics.MonetizedUnitsTotal += value
 				}
 				if isSubscriptionRow {
-					metrics.subscriptionUnitsTotal += value
+					metrics.SubscriptionUnitsTotal += value
 				}
 				if isRenewalRow {
-					metrics.renewalUnitsTotal += value
+					metrics.RenewalUnitsTotal += value
 				}
 			}
 		}
 		if developerProceedsIdx >= 0 {
 			if value, ok := parseNumericValue(valueAtIndex(row, developerProceedsIdx)); ok {
-				metrics.developerProceedsTotal += value
+				metrics.DeveloperProceedsTotal += value
 				if isSubscriptionRow {
-					metrics.subscriptionDeveloperProceeds += value
+					metrics.SubscriptionDeveloperProceeds += value
 				}
 				if isRenewalRow {
-					metrics.renewalDeveloperProceeds += value
+					metrics.RenewalDeveloperProceeds += value
 				}
 			}
 		}
 		if customerPriceIdx >= 0 {
 			if value, ok := parseNumericValue(valueAtIndex(row, customerPriceIdx)); ok {
-				metrics.customerPriceTotal += value
+				metrics.CustomerPriceTotal += value
 				if isSubscriptionRow {
-					metrics.subscriptionCustomerPrice += value
+					metrics.SubscriptionCustomerPrice += value
 				}
 				if isRenewalRow {
-					metrics.renewalCustomerPrice += value
+					metrics.RenewalCustomerPrice += value
 				}
 			}
 		}
@@ -680,8 +689,10 @@ func parseSalesReportMetrics(reader io.Reader, scope salesScope) (salesWeekMetri
 	return metrics, nil
 }
 
-func enrichSalesScopeFromRows(scope salesScope, rows [][]string, appleIdentifierIdx, skuIdx int) salesScope {
-	if strings.TrimSpace(scope.appSKU) != "" {
+// EnrichSalesScopeFromRows resolves the app SKU from report data when it is
+// not already set on scope.
+func EnrichSalesScopeFromRows(scope salesScope, rows [][]string, appleIdentifierIdx, skuIdx int) salesScope {
+	if strings.TrimSpace(scope.AppSKU) != "" {
 		return scope
 	}
 	if appleIdentifierIdx < 0 || skuIdx < 0 {
@@ -692,21 +703,23 @@ func enrichSalesScopeFromRows(scope salesScope, rows [][]string, appleIdentifier
 			continue
 		}
 		appleIdentifier := strings.TrimSpace(valueAtIndex(row, appleIdentifierIdx))
-		if appleIdentifier != strings.TrimSpace(scope.appID) {
+		if appleIdentifier != strings.TrimSpace(scope.AppID) {
 			continue
 		}
 		sku := strings.TrimSpace(valueAtIndex(row, skuIdx))
 		if sku != "" {
-			scope.appSKU = sku
+			scope.AppSKU = sku
 			return scope
 		}
 	}
 	return scope
 }
 
-func rowMatchesSalesScope(scope salesScope, appleIdentifier, parentIdentifier string) (isAppRow bool, isMonetizedRow bool, include bool) {
-	appID := strings.TrimSpace(scope.appID)
-	appSKU := strings.TrimSpace(scope.appSKU)
+// RowMatchesSalesScope determines whether a report row belongs to the app,
+// represents a monetized product, or should be included in aggregation.
+func RowMatchesSalesScope(scope salesScope, appleIdentifier, parentIdentifier string) (isAppRow bool, isMonetizedRow bool, include bool) {
+	appID := strings.TrimSpace(scope.AppID)
+	appSKU := strings.TrimSpace(scope.AppSKU)
 	appleIdentifier = strings.TrimSpace(appleIdentifier)
 	parentIdentifier = strings.TrimSpace(parentIdentifier)
 

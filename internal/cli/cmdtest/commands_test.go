@@ -26,6 +26,9 @@ import (
 func captureOutput(t *testing.T, fn func()) (string, string) {
 	t.Helper()
 
+	resetCmdtestState()
+	t.Cleanup(resetCmdtestState)
+
 	oldStdout := os.Stdout
 	oldStderr := os.Stderr
 
@@ -77,6 +80,23 @@ func captureOutput(t *testing.T, fn func()) (string, string) {
 	os.Stderr = oldStderr
 
 	return stdout, stderr
+}
+
+func withNonTTYStdin(t *testing.T, fn func()) {
+	t.Helper()
+
+	oldStdin := os.Stdin
+	stdinFile, err := os.CreateTemp(t.TempDir(), "stdin")
+	if err != nil {
+		t.Fatalf("failed to create non-tty stdin file: %v", err)
+	}
+	defer func() {
+		os.Stdin = oldStdin
+		_ = stdinFile.Close()
+	}()
+
+	os.Stdin = stdinFile
+	fn()
 }
 
 func writeECDSAPEM(t *testing.T, path string) {

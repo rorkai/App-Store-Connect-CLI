@@ -53,14 +53,34 @@ func SetFetchIAPsFunc(fn func(context.Context, *asc.Client, string) ([]validatio
 // SetFetchAvailableTerritoriesFunc replaces the availability fetcher for tests.
 // It returns a restore function to reset the previous handler.
 func SetFetchAvailableTerritoriesFunc(fn func(context.Context, *asc.Client, string) (string, int, error)) func() {
-	previous := fetchAvailableTerritoriesFn
+	previousDetails := fetchAvailableTerritoryDetailsFn
 	if fn == nil {
-		fetchAvailableTerritoriesFn = fetchAvailableTerritories
+		fetchAvailableTerritoryDetailsFn = fetchAvailableTerritoryDetails
 	} else {
-		fetchAvailableTerritoriesFn = fn
+		fetchAvailableTerritoryDetailsFn = func(ctx context.Context, client *asc.Client, appID string) (string, []string, int, error) {
+			availabilityID, availableTerritories, err := fn(ctx, client, appID)
+			return availabilityID, nil, availableTerritories, err
+		}
 	}
 	return func() {
-		fetchAvailableTerritoriesFn = previous
+		fetchAvailableTerritoryDetailsFn = previousDetails
+	}
+}
+
+// SetFetchAppBuildCountFunc replaces the app build-count fetcher for tests.
+// It returns a restore function to reset the previous handler.
+func SetFetchAppBuildCountFunc(fn func(context.Context, *asc.Client, string) (int, bool, string, error)) func() {
+	previous := fetchAppBuildCountFn
+	if fn == nil {
+		fetchAppBuildCountFn = fetchAppBuildCount
+	} else {
+		fetchAppBuildCountFn = func(ctx context.Context, client *asc.Client, appID string) (int, metadataCheckStatus, error) {
+			count, verified, skipReason, err := fn(ctx, client, appID)
+			return count, metadataCheckStatus{Verified: verified, SkipReason: skipReason}, err
+		}
+	}
+	return func() {
+		fetchAppBuildCountFn = previous
 	}
 }
 

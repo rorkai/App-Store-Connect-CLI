@@ -1361,6 +1361,111 @@ func TestSubmitCreateReusesExistingEmptySubmissionWithoutVersionItemsAfterConfli
 	}
 }
 
+func TestSubmitCreatePrintsHintsWhenAnotherSubmissionIsStillInProgress(t *testing.T) {
+	setupSubmitCreateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 16)
+	http.DefaultTransport = submitCreateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		key := req.Method + " " + req.URL.Path
+		requests = append(requests, key)
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return submitCreateJSONResponse(http.StatusNoContent, "")
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			return submitCreateJSONResponse(http.StatusConflict, `{
+				"errors": [{
+					"status": "409",
+					"code": "ENTITY_ERROR",
+					"title": "The request entity is not valid.",
+					"detail": "This resource cannot be reviewed, please check associated errors to see why.",
+					"meta": {
+						"associatedErrors": {
+							"/v1/reviewSubmissionItems": [{
+								"code": "ENTITY_ERROR.RELATIONSHIP.INVALID",
+								"detail": "appStoreVersions with id version-1 is already in another reviewSubmission with id active-submission-1 still in progress"
+							}],
+							"/v1/appStoreVersions/version-1": [{
+								"code": "STATE_ERROR.ENTITY_INVALID",
+								"detail": "appStoreVersions with id version-1 is not ready to be submitted for review"
+							}]
+						}
+					}
+				}]
+			}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-sub-1":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"CANCELING"}}}`)
+
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"submit", "create",
+			"--app", "app-1",
+			"--version", "1.0",
+			"--build", "build-1",
+			"--platform", "IOS",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected submit create to fail, got nil")
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout on failure, got %q", stdout)
+	}
+	for _, want := range []string{
+		"Hint: Check the active submission: asc submit status --id active-submission-1",
+		"Hint: Inspect the active submission payload: asc review submissions-get --id active-submission-1",
+		"Hint: Re-run readiness validation: asc validate --app app-1 --version-id version-1",
+		"Hint: Re-run submit preflight: asc submit preflight --app app-1 --version 1.0 --platform IOS",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+		}
+	}
+	foundCleanup := false
+	for _, req := range requests {
+		if req == "PATCH /v1/reviewSubmissions/new-sub-1" {
+			foundCleanup = true
+			break
+		}
+	}
+	if !foundCleanup {
+		t.Fatal("expected empty created submission cleanup request")
+	}
+}
+
 func TestSubmitCreateDoesNotReuseSubmissionContainingNonVersionItemsAfterConflictRefresh(t *testing.T) {
 	setupSubmitCreateAuth(t)
 

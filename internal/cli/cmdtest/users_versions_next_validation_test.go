@@ -275,7 +275,7 @@ func TestUsersVisibleAppsGetPaginateFromNextWithoutID(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"users", "visible-apps", "get", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"users", "visible-apps", "view", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

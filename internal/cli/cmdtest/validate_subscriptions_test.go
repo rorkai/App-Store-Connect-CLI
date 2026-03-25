@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
@@ -19,25 +20,39 @@ import (
 )
 
 type validateSubscriptionsFixture struct {
-	groups                     string
-	availabilityV2             string
-	availabilityV2Status       int
-	territories                string
-	territoriesByQuery         map[string]string
-	territoryStatusByQuery     map[string]int
-	subscriptionsByGroup       map[string]string
-	groupLocalizationsByGroup  map[string]string
-	groupLocalizationStatus    map[string]int
-	imagesBySubscription       map[string]string
-	imageStatusBySubscription  map[string]int
-	imageErrorBySubscription   map[string]error
-	localizationsBySub         map[string]string
-	localizationsStatusBySub   map[string]int
-	pricesBySubscription       map[string]string
-	expectedPriceInclude       string
-	pricesStatusBySubscription map[string]int
-	priceErrorBySubscription   map[string]error
-	subscriptionGroupsStatus   int
+	groups                                    string
+	availabilityV2                            string
+	availabilityV2Status                      int
+	territories                               string
+	territoriesByQuery                        map[string]string
+	territoryStatusByQuery                    map[string]int
+	builds                                    string
+	buildsStatus                              int
+	subscriptionsByGroup                      map[string]string
+	groupLocalizationsByGroup                 map[string]string
+	groupLocalizationStatus                   map[string]int
+	imagesBySubscription                      map[string]string
+	imageStatusBySubscription                 map[string]int
+	imageErrorBySubscription                  map[string]error
+	reviewScreenshotBySub                     map[string]string
+	reviewScreenshotStatusBySub               map[string]int
+	localizationsBySub                        map[string]string
+	localizationsStatusBySub                  map[string]int
+	subscriptionAvailabilityBySub             map[string]string
+	subscriptionAvailabilityStatusBySub       map[string]int
+	availabilityTerritoriesByAvailability     map[string]string
+	availabilityTerritoryStatusByAvailability map[string]int
+	pricesBySubscription                      map[string]string
+	expectedPriceInclude                      string
+	pricesStatusBySubscription                map[string]int
+	priceErrorBySubscription                  map[string]error
+	introductoryOffersBySub                   map[string]string
+	introductoryOffersStatusBySub             map[string]int
+	promotionalOffersBySub                    map[string]string
+	promotionalOffersStatusBySub              map[string]int
+	winBackOffersBySub                        map[string]string
+	winBackOffersStatusBySub                  map[string]int
+	subscriptionGroupsStatus                  int
 }
 
 func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsFixture) *asc.Client {
@@ -69,6 +84,14 @@ func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsF
 				return jsonResponse(http.StatusOK, fixture.availabilityV2)
 			}
 			return jsonResponse(http.StatusNotFound, notFound)
+		case path == "/v1/apps/app-1/builds":
+			if fixture.buildsStatus != 0 {
+				return jsonResponse(fixture.buildsStatus, apiErrorJSONForStatus(fixture.buildsStatus))
+			}
+			if fixture.builds != "" {
+				return jsonResponse(http.StatusOK, fixture.builds)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case strings.HasPrefix(path, "/v2/appAvailabilities/") && strings.HasSuffix(path, "/territoryAvailabilities"):
 			if status, ok := fixture.territoryStatusByQuery[req.URL.RawQuery]; ok {
 				return jsonResponse(status, apiErrorJSONForStatus(status))
@@ -104,6 +127,24 @@ func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsF
 				return jsonResponse(http.StatusOK, body)
 			}
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/subscriptionAvailability"):
+			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/subscriptionAvailability")
+			if status, ok := fixture.subscriptionAvailabilityStatusBySub[subscriptionID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
+			if body, ok := fixture.subscriptionAvailabilityBySub[subscriptionID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusNotFound, notFound)
+		case strings.HasPrefix(path, "/v1/subscriptionAvailabilities/") && strings.HasSuffix(path, "/availableTerritories"):
+			availabilityID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptionAvailabilities/"), "/availableTerritories")
+			if status, ok := fixture.availabilityTerritoryStatusByAvailability[availabilityID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
+			if body, ok := fixture.availabilityTerritoriesByAvailability[availabilityID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/prices"):
 			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/prices")
 			if fixture.expectedPriceInclude != "" && req.URL.Query().Get("include") != fixture.expectedPriceInclude {
@@ -128,6 +169,42 @@ func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsF
 				return jsonResponse(status, apiErrorJSONForStatus(status))
 			}
 			if body, ok := fixture.imagesBySubscription[subscriptionID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/appStoreReviewScreenshot"):
+			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/appStoreReviewScreenshot")
+			if status, ok := fixture.reviewScreenshotStatusBySub[subscriptionID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
+			if body, ok := fixture.reviewScreenshotBySub[subscriptionID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusNotFound, notFound)
+		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/introductoryOffers"):
+			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/introductoryOffers")
+			if status, ok := fixture.introductoryOffersStatusBySub[subscriptionID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
+			if body, ok := fixture.introductoryOffersBySub[subscriptionID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/promotionalOffers"):
+			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/promotionalOffers")
+			if status, ok := fixture.promotionalOffersStatusBySub[subscriptionID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
+			if body, ok := fixture.promotionalOffersBySub[subscriptionID]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case strings.HasPrefix(path, "/v1/subscriptions/") && strings.HasSuffix(path, "/winBackOffers"):
+			subscriptionID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/subscriptions/"), "/winBackOffers")
+			if status, ok := fixture.winBackOffersStatusBySub[subscriptionID]; ok {
+				return jsonResponse(status, apiErrorJSONForStatus(status))
+			}
+			if body, ok := fixture.winBackOffersBySub[subscriptionID]; ok {
 				return jsonResponse(http.StatusOK, body)
 			}
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
@@ -308,6 +385,60 @@ func TestValidateSubscriptionsCountsAvailableTerritoriesAcrossPages(t *testing.T
 	}
 }
 
+func TestValidateSubscriptionsFallsBackToCountWhenAppTerritoryIDsAreIncomplete(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`
+	fixture.territories = `{"data":[
+		{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},
+		{"type":"territoryAvailabilities","id":"ta-2","attributes":{"available":true}}
+	]}`
+	fixture.expectedPriceInclude = "territory"
+	fixture.pricesBySubscription = map[string]string{
+		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}]}`,
+	}
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected warning-only validate subscriptions run, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+
+	var coverageCheck *validation.CheckResult
+	for i := range report.Checks {
+		if report.Checks[i].ID == "subscriptions.pricing.partial_territory_coverage" {
+			coverageCheck = &report.Checks[i]
+			break
+		}
+	}
+	if coverageCheck == nil {
+		t.Fatalf("expected pricing coverage warning when app territory IDs are incomplete, got %+v", report.Checks)
+	}
+	if !strings.Contains(coverageCheck.Message, "1 of 2 available territories") {
+		t.Fatalf("expected count-based fallback coverage warning, got %+v", *coverageCheck)
+	}
+	if strings.Contains(coverageCheck.Message, "missing:") {
+		t.Fatalf("did not expect exact territory diff when app territory IDs are incomplete, got %+v", *coverageCheck)
+	}
+}
+
 func TestValidateSubscriptionsSkipsPricingCoverageWhenAvailabilityForbidden(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
 	fixture.availabilityV2Status = http.StatusForbidden
@@ -442,6 +573,263 @@ func TestValidateSubscriptionsSkipsPricingCoverageWhenPaginatedAvailabilityRateL
 	}
 	if hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
 		t.Fatalf("did not expect pricing coverage warning when paginated availability is retryable, got %+v", report.Checks)
+	}
+}
+
+func TestValidateSubscriptionsSkipsPricingCoverageWhenPaginatedAvailabilityTimeoutHasPartialCount(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`
+	fixture.territories = `{"data":[
+		{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}},
+		{"type":"territoryAvailabilities","id":"ta-2","attributes":{"available":true}}
+	],"links":{"next":"https://api.appstoreconnect.apple.com/v2/appAvailabilities/avail-1/territoryAvailabilities?cursor=page-2"}}`
+	fixture.territoryStatusByQuery = map[string]int{
+		"cursor=page-2": http.StatusTooManyRequests,
+	}
+	fixture.expectedPriceInclude = "territory"
+	fixture.pricesBySubscription = map[string]string{
+		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}]}`,
+	}
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected paginated availability timeout/rate-limit downgrade to stay non-blocking, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if !hasCheckWithID(report.Checks, "subscriptions.pricing_coverage.unverified") {
+		t.Fatalf("expected pricing coverage skip info check, got %+v", report.Checks)
+	}
+	if hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
+		t.Fatalf("did not expect pricing coverage warning when only a partial availability count was fetched, got %+v", report.Checks)
+	}
+}
+
+func TestValidateSubscriptionsRefreshesContextBeforeBuildProbeAfterAvailabilityTimeout(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restoreClient := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restoreClient()
+
+	t.Setenv("ASC_TIMEOUT", "40ms")
+
+	restoreAvailability := validate.SetFetchAvailableTerritoriesFunc(func(ctx context.Context, _ *asc.Client, appID string) (string, int, error) {
+		if appID != "app-1" {
+			t.Fatalf("expected app-1, got %q", appID)
+		}
+		<-ctx.Done()
+		return "", 0, ctx.Err()
+	})
+	defer restoreAvailability()
+
+	var buildProbeCtx context.Context
+	restoreBuilds := validate.SetFetchAppBuildCountFunc(func(ctx context.Context, _ *asc.Client, appID string) (int, bool, string, error) {
+		if appID != "app-1" {
+			t.Fatalf("expected app-1, got %q", appID)
+		}
+		buildProbeCtx = ctx
+		if err := ctx.Err(); err != nil {
+			return 0, false, "stale build ctx", nil
+		}
+		return 1, true, "", nil
+	})
+	defer restoreBuilds()
+
+	restoreSubscriptions := validate.SetFetchSubscriptionsFunc(func(context.Context, *asc.Client, string) ([]validation.Subscription, error) {
+		return []validation.Subscription{{
+			ID:                      "sub-1",
+			Name:                    "Monthly",
+			ProductID:               "com.example.monthly",
+			State:                   "MISSING_METADATA",
+			GroupID:                 "group-1",
+			GroupName:               "Premium",
+			GroupLocalizations:      []validation.SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+			Localizations:           []validation.SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+			ReviewScreenshotID:      "shot-1",
+			AvailabilityID:          "avail-1",
+			AvailabilityTerritories: []string{"USA"},
+			PriceCount:              1,
+			PriceTerritories:        []string{"USA"},
+		}}, nil
+	})
+	defer restoreSubscriptions()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected availability timeout downgrade to keep validate subscriptions running, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if len(report.Diagnostics) != 1 {
+		t.Fatalf("expected one diagnostics entry, got %+v", report.Diagnostics)
+	}
+	buildRow, ok := findSubscriptionDiagnosticRow(t, report.Diagnostics[0].Rows, "app_has_build")
+	if !ok {
+		t.Fatalf("expected app_has_build diagnostic row, got %+v", report.Diagnostics[0].Rows)
+	}
+	if buildRow.Status != validation.DiagnosticStatusYes {
+		t.Fatalf("expected refreshed context to let build probe succeed, got %+v", buildRow)
+	}
+	if buildProbeCtx == nil {
+		t.Fatal("expected build probe to capture the refreshed request context")
+	}
+	if !errors.Is(buildProbeCtx.Err(), context.Canceled) {
+		t.Fatalf("expected refreshed request context to be canceled on return, got %v", buildProbeCtx.Err())
+	}
+}
+
+func TestValidateSubscriptionsRefreshesContextBeforeBuildProbeAfterSlowSubscriptionFetch(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restoreClient := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restoreClient()
+
+	t.Setenv("ASC_TIMEOUT", "40ms")
+
+	restoreAvailability := validate.SetFetchAvailableTerritoriesFunc(func(ctx context.Context, _ *asc.Client, appID string) (string, int, error) {
+		if appID != "app-1" {
+			t.Fatalf("expected app-1, got %q", appID)
+		}
+		return "app-avail-1", 1, nil
+	})
+	defer restoreAvailability()
+
+	var buildProbeCtx context.Context
+	restoreBuilds := validate.SetFetchAppBuildCountFunc(func(ctx context.Context, _ *asc.Client, appID string) (int, bool, string, error) {
+		if appID != "app-1" {
+			t.Fatalf("expected app-1, got %q", appID)
+		}
+		buildProbeCtx = ctx
+		if err := ctx.Err(); err != nil {
+			return 0, false, "", err
+		}
+		return 1, true, "", nil
+	})
+	defer restoreBuilds()
+
+	restoreSubscriptions := validate.SetFetchSubscriptionsFunc(func(context.Context, *asc.Client, string) ([]validation.Subscription, error) {
+		time.Sleep(60 * time.Millisecond)
+		return []validation.Subscription{{
+			ID:                      "sub-1",
+			Name:                    "Monthly",
+			ProductID:               "com.example.monthly",
+			State:                   "MISSING_METADATA",
+			GroupID:                 "group-1",
+			GroupName:               "Premium",
+			GroupLocalizations:      []validation.SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+			Localizations:           []validation.SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+			ReviewScreenshotID:      "shot-1",
+			AvailabilityID:          "avail-1",
+			AvailabilityTerritories: []string{"USA"},
+			HasImage:                true,
+			PriceCount:              1,
+			PriceTerritories:        []string{"USA"},
+		}}, nil
+	})
+	defer restoreSubscriptions()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected slow subscription fetch to still allow build probing, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if len(report.Diagnostics) != 1 {
+		t.Fatalf("expected one diagnostics entry, got %+v", report.Diagnostics)
+	}
+	buildRow, ok := findSubscriptionDiagnosticRow(t, report.Diagnostics[0].Rows, "app_has_build")
+	if !ok {
+		t.Fatalf("expected app_has_build diagnostic row, got %+v", report.Diagnostics[0].Rows)
+	}
+	if buildRow.Status != validation.DiagnosticStatusYes {
+		t.Fatalf("expected refreshed build context after slow subscription fetch, got %+v", buildRow)
+	}
+	if buildProbeCtx == nil {
+		t.Fatal("expected build probe to capture the refreshed request context")
+	}
+	if !errors.Is(buildProbeCtx.Err(), context.Canceled) {
+		t.Fatalf("expected refreshed request context to be canceled on return, got %v", buildProbeCtx.Err())
+	}
+}
+
+func TestValidateSubscriptionsSkipsBuildProbeWhenNoMissingMetadataDiagnosticsNeedIt(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restoreClient := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restoreClient()
+
+	restoreBuilds := validate.SetFetchAppBuildCountFunc(func(context.Context, *asc.Client, string) (int, bool, string, error) {
+		return 0, false, "", errors.New("unexpected build probe")
+	})
+	defer restoreBuilds()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected validate subscriptions to skip build probing for healthy subscriptions, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if len(report.Diagnostics) != 0 {
+		t.Fatalf("expected no diagnostics for approved subscriptions, got %+v", report.Diagnostics)
 	}
 }
 
@@ -630,6 +1018,192 @@ func TestValidateSubscriptionsMissingMetadataDiagnosticsWarnByDefault(t *testing
 	}
 	if _, ok := errors.AsType[ReportedError](runErr); !ok {
 		t.Fatalf("expected ReportedError, got %v", runErr)
+	}
+}
+
+func TestValidateSubscriptionsIncludesDiagnosticsMatrixForOpaqueMissingMetadata(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"app-avail-1","attributes":{"availableInNewTerritories":true}}}`
+	fixture.territories = `{"data":[
+		{"type":"territoryAvailabilities","id":"ta-us","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},
+		{"type":"territoryAvailabilities","id":"ta-ca","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}
+	]}`
+	fixture.builds = `{"data":[{"type":"builds","id":"build-1"}]}`
+	fixture.subscriptionsByGroup["group-1"] = `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"MISSING_METADATA"}}]}`
+	fixture.groupLocalizationsByGroup = map[string]string{
+		"group-1": `{"data":[{"type":"subscriptionGroupLocalizations","id":"group-loc-1","attributes":{"locale":"en-US","name":"Premium"}}]}`,
+	}
+	fixture.localizationsBySub = map[string]string{
+		"sub-1": `{"data":[{"type":"subscriptionLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"Monthly","description":"Unlimited access"}}]}`,
+	}
+	fixture.expectedPriceInclude = "territory"
+	fixture.pricesBySubscription = map[string]string{
+		"sub-1": `{"data":[
+			{"type":"subscriptionPrices","id":"price-1","relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},
+			{"type":"subscriptionPrices","id":"price-2","relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}
+		]}`,
+	}
+	fixture.subscriptionAvailabilityBySub = map[string]string{
+		"sub-1": `{"data":{"type":"subscriptionAvailabilities","id":"sub-avail-1","attributes":{"availableInNewTerritories":true}}}`,
+	}
+	fixture.availabilityTerritoriesByAvailability = map[string]string{
+		"sub-avail-1": `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}]}`,
+	}
+	fixture.reviewScreenshotBySub = map[string]string{
+		"sub-1": `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png"}}}`,
+	}
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected opaque missing metadata diagnostics to stay warning-only, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if len(report.Diagnostics) != 1 {
+		t.Fatalf("expected one diagnostics entry, got %+v", report.Diagnostics)
+	}
+
+	diag := report.Diagnostics[0]
+	if diag.Conclusion != "opaque_apple_state" {
+		t.Fatalf("expected opaque_apple_state conclusion, got %+v", diag)
+	}
+	if !strings.Contains(diag.Summary, "Apple still reports MISSING_METADATA") {
+		t.Fatalf("expected opaque-state summary, got %+v", diag)
+	}
+
+	for _, key := range []string{
+		"group_localizations",
+		"subscription_localizations",
+		"review_screenshot",
+		"subscription_availability",
+		"price_records",
+		"price_coverage_subscription_availability",
+		"price_coverage_app_availability",
+		"promotional_image",
+		"app_has_build",
+	} {
+		row, ok := findSubscriptionDiagnosticRow(t, diag.Rows, key)
+		if !ok {
+			t.Fatalf("expected diagnostic row %q, got %+v", key, diag.Rows)
+		}
+		if row.Status != validation.DiagnosticStatusYes {
+			t.Fatalf("expected %s row to be yes, got %+v", key, row)
+		}
+	}
+
+	buildRow, ok := findSubscriptionDiagnosticRow(t, diag.Rows, "app_has_build")
+	if !ok {
+		t.Fatalf("expected app_has_build row, got %+v", diag.Rows)
+	}
+	if buildRow.Status != validation.DiagnosticStatusYes {
+		t.Fatalf("expected app_has_build=yes when app build count is non-zero, got %+v", buildRow)
+	}
+
+	root = RootCommand("1.2.3")
+	stdout, _ = captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1", "--output", "table"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected table render to succeed, got %v", err)
+		}
+	})
+	if !strings.Contains(stdout, "Conclusion") || !strings.Contains(stdout, "opaque_apple_state") || !strings.Contains(stdout, "review_screenshot") {
+		t.Fatalf("expected table output to include diagnostics rows, got %q", stdout)
+	}
+}
+
+func TestValidateSubscriptionsPrefersAdvisoryConclusionOverOpaqueAppleState(t *testing.T) {
+	fixture := validValidateSubscriptionsFixture()
+	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"app-avail-1","attributes":{"availableInNewTerritories":true}}}`
+	fixture.territories = `{"data":[
+		{"type":"territoryAvailabilities","id":"ta-us","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},
+		{"type":"territoryAvailabilities","id":"ta-ca","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}
+	]}`
+	fixture.builds = `{"data":[{"type":"builds","id":"build-1"}]}`
+	fixture.subscriptionsByGroup["group-1"] = `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"MISSING_METADATA"}}]}`
+	fixture.groupLocalizationsByGroup = map[string]string{
+		"group-1": `{"data":[{"type":"subscriptionGroupLocalizations","id":"group-loc-1","attributes":{"locale":"en-US","name":"Premium"}}]}`,
+	}
+	fixture.localizationsBySub = map[string]string{
+		"sub-1": `{"data":[{"type":"subscriptionLocalizations","id":"loc-1","attributes":{"locale":"en-US","name":"Monthly","description":"Unlimited access"}}]}`,
+	}
+	fixture.expectedPriceInclude = "territory"
+	fixture.pricesBySubscription = map[string]string{
+		"sub-1": `{"data":[
+			{"type":"subscriptionPrices","id":"price-1","relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},
+			{"type":"subscriptionPrices","id":"price-2","relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}
+		]}`,
+	}
+	fixture.subscriptionAvailabilityBySub = map[string]string{
+		"sub-1": `{"data":{"type":"subscriptionAvailabilities","id":"sub-avail-1","attributes":{"availableInNewTerritories":true}}}`,
+	}
+	fixture.availabilityTerritoriesByAvailability = map[string]string{
+		"sub-avail-1": `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}]}`,
+	}
+	fixture.reviewScreenshotBySub = map[string]string{
+		"sub-1": `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png"}}}`,
+	}
+	fixture.imagesBySubscription["sub-1"] = `{"data":[]}`
+
+	client := newValidateSubscriptionsClient(t, fixture)
+	restore := validate.SetClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	defer restore()
+
+	root := RootCommand("1.2.3")
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"validate", "subscriptions", "--app", "app-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected advisory-only diagnostics to stay warning-only, got %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var report validation.SubscriptionsReport
+	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if len(report.Diagnostics) != 1 {
+		t.Fatalf("expected one diagnostics entry, got %+v", report.Diagnostics)
+	}
+
+	diag := report.Diagnostics[0]
+	if diag.Conclusion != "advisory_only" {
+		t.Fatalf("expected advisory_only conclusion when only advisory findings remain, got %+v", diag)
+	}
+	if !strings.Contains(diag.Summary, "only advisory subscription findings remain") {
+		t.Fatalf("expected advisory-only summary, got %+v", diag)
+	}
+
+	imageRow, ok := findSubscriptionDiagnosticRow(t, diag.Rows, "promotional_image")
+	if !ok {
+		t.Fatalf("expected promotional_image row, got %+v", diag.Rows)
+	}
+	if imageRow.Status != validation.DiagnosticStatusNo || imageRow.Blocking {
+		t.Fatalf("expected promotional_image row to remain advisory, got %+v", imageRow)
 	}
 }
 
@@ -992,4 +1566,14 @@ func TestValidateSubscriptionsFailsWhenSubscriptionGroupsForbidden(t *testing.T)
 	if runErr == nil {
 		t.Fatal("expected validate subscriptions to fail when subscription groups cannot be read")
 	}
+}
+
+func findSubscriptionDiagnosticRow(t *testing.T, rows []validation.SubscriptionDiagnosticRow, key string) (validation.SubscriptionDiagnosticRow, bool) {
+	t.Helper()
+	for _, row := range rows {
+		if row.Key == key {
+			return row, true
+		}
+	}
+	return validation.SubscriptionDiagnosticRow{}, false
 }

@@ -296,7 +296,7 @@ func RemovedTestFlightAppsCommand() *ffcli.Command {
 		Name:       "apps",
 		ShortUsage: "asc apps <subcommand> [flags]",
 		ShortHelp:  "REMOVED: use `asc apps`.",
-		LongHelp:   "Use `asc apps list` for collection lookup and `asc apps get --id APP_ID` for a single app.",
+		LongHelp:   "Use `asc apps list` for collection lookup and `asc apps view --id APP_ID` for a single app.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -306,7 +306,7 @@ func RemovedTestFlightAppsCommand() *ffcli.Command {
 				case "list":
 					suggestion = "asc apps list"
 				case "get", "view":
-					suggestion = "asc apps get --id APP_ID"
+					suggestion = "asc apps view --id APP_ID"
 				}
 			}
 

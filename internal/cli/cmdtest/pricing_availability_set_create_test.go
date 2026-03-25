@@ -17,29 +17,29 @@ func TestAvailabilitySet_MissingAvailabilityReturnsUpdateOnlyError(t *testing.T)
 		wantHint   string
 	}{
 		{
-			name: "pricing availability set",
+			name: "pricing availability edit",
 			args: []string{
-				"pricing", "availability", "set",
+				"pricing", "availability", "edit",
 				"--app", "app-1",
 				"--territory", "usa,gbr",
 				"--available", "true",
 				"--available-in-new-territories", "false",
 				"--output", "json",
 			},
-			wantPrefix: `pricing availability set: app availability not found for app "app-1"; this command only updates existing app availability`,
+			wantPrefix: `pricing availability edit: app availability not found for app "app-1"; this command only updates existing app availability`,
 			wantHint:   `use the experimental "asc web apps availability create" flow`,
 		},
 		{
-			name: "app-setup availability set",
+			name: "app-setup availability edit",
 			args: []string{
-				"app-setup", "availability", "set",
+				"app-setup", "availability", "edit",
 				"--app", "app-1",
 				"--territory", "usa,gbr",
 				"--available", "true",
 				"--available-in-new-territories", "false",
 				"--output", "json",
 			},
-			wantPrefix: `app-setup availability set: app availability not found for app "app-1"; this command only updates existing app availability`,
+			wantPrefix: `app-setup availability edit: app availability not found for app "app-1"; this command only updates existing app availability`,
 			wantHint:   `use the experimental "asc web apps availability create" flow`,
 		},
 	}

@@ -220,8 +220,8 @@ func TestAnalyticsReportsRelationshipsPaginateFromNextWithoutReportID(t *testing
 func TestAnalyticsGetRejectsInvalidNextURL(t *testing.T) {
 	runAnalyticsInvalidNextURLCases(
 		t,
-		[]string{"analytics", "get"},
-		"analytics get: --next",
+		[]string{"analytics", "view"},
+		"analytics view: --next",
 	)
 }
 
@@ -271,7 +271,7 @@ func TestAnalyticsGetPaginateFromNextWithoutRequestID(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"analytics", "get", "--paginate", "--next", reportsURL}); err != nil {
+		if err := root.Parse([]string{"analytics", "view", "--paginate", "--next", reportsURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

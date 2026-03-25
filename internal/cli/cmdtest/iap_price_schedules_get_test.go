@@ -16,7 +16,7 @@ func TestIAPPriceSchedulesGetRejectsInvalidInclude(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"iap", "pricing", "schedules", "get",
+			"iap", "pricing", "schedules", "view",
 			"--schedule-id", "schedule-1",
 			"--include", "unknown",
 		}); err != nil {
@@ -85,7 +85,7 @@ func TestIAPPriceSchedulesGetByIDWithIncludeOptions(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"iap", "pricing", "schedules", "get",
+			"iap", "pricing", "schedules", "view",
 			"--schedule-id", "schedule-1",
 			"--include", "baseTerritory,manualPrices,automaticPrices",
 			"--schedule-fields", "baseTerritory,manualPrices,automaticPrices",
@@ -129,7 +129,7 @@ func TestIAPPriceSchedulesGetUsesCanonicalErrorPrefix(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	if err := root.Parse([]string{
-		"iap", "pricing", "schedules", "get",
+		"iap", "pricing", "schedules", "view",
 		"--iap-id", "iap-1",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -139,7 +139,7 @@ func TestIAPPriceSchedulesGetUsesCanonicalErrorPrefix(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected fetch error")
 	}
-	if !strings.Contains(err.Error(), "iap pricing schedules get: failed to fetch:") {
+	if !strings.Contains(err.Error(), "iap pricing schedules view: failed to fetch:") {
 		t.Fatalf("expected canonical error prefix, got %q", err.Error())
 	}
 	if strings.Contains(err.Error(), "iap price-schedules get:") {

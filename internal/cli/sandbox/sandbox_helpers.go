@@ -22,7 +22,9 @@ func validateSandboxEmail(value string) error {
 	return nil
 }
 
-func normalizeSandboxTerritory(value string) (string, error) {
+// NormalizeSandboxTerritoryCode validates and normalizes a 3-letter App Store
+// territory code used by sandbox tester operations.
+func NormalizeSandboxTerritoryCode(value string) (string, error) {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
 		return "", fmt.Errorf("--territory is required")
@@ -34,11 +36,15 @@ func normalizeSandboxTerritory(value string) (string, error) {
 	return upper, nil
 }
 
+func normalizeSandboxTerritory(value string) (string, error) {
+	return NormalizeSandboxTerritoryCode(value)
+}
+
 func normalizeSandboxTerritoryFilter(value string) (string, error) {
 	if strings.TrimSpace(value) == "" {
 		return "", nil
 	}
-	return normalizeSandboxTerritory(value)
+	return NormalizeSandboxTerritoryCode(value)
 }
 
 var sandboxRenewalRates = map[string]asc.SandboxTesterSubscriptionRenewalRate{

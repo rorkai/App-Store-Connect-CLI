@@ -141,6 +141,46 @@ func TestRunSubmitCreateReadinessPreflight_PrintsNonBlockingPricingAndAvailabili
 	}
 }
 
+func TestRunSubmitCreateReadinessPreflight_PrintsPrivacyPublishStateAdvisory(t *testing.T) {
+	originalBuilder := submitReadinessReportBuilder
+	t.Cleanup(func() {
+		submitReadinessReportBuilder = originalBuilder
+	})
+
+	submitReadinessReportBuilder = func(ctx context.Context, opts validatecli.ReadinessOptions) (validation.Report, error) {
+		return validation.Report{
+			Summary: validation.Summary{Infos: 1},
+			Checks: []validation.CheckResult{
+				{
+					ID:           "privacy.publish_state.unverified",
+					Severity:     validation.SeverityInfo,
+					ResourceType: "appPrivacy",
+					ResourceID:   "app-123",
+					Message:      "App Privacy publish state is not verifiable via the public App Store Connect API and may still block submission",
+					Remediation:  "Confirm App Privacy is published in App Store Connect before submitting: https://appstoreconnect.apple.com/apps/app-123/appPrivacy",
+				},
+			},
+		}, nil
+	}
+
+	var err error
+	stderr := captureSubmitStderr(t, func() {
+		err = runSubmitCreateReadinessPreflight(context.Background(), nil, "app-123", "version-123", "IOS", "")
+	})
+	if err != nil {
+		t.Fatalf("expected advisory-only readiness report to pass, got %v", err)
+	}
+	if !strings.Contains(stderr, "Advisory: App Privacy: App Privacy publish state is not verifiable via the public App Store Connect API and may still block submission") {
+		t.Fatalf("expected App Privacy advisory in stderr, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "Hint: Confirm App Privacy is published in App Store Connect before submitting: https://appstoreconnect.apple.com/apps/app-123/appPrivacy") {
+		t.Fatalf("expected App Privacy hint in stderr, got %q", stderr)
+	}
+	if strings.Contains(strings.ToLower(stderr), "asc web") {
+		t.Fatalf("did not expect private/web command references in stderr, got %q", stderr)
+	}
+}
+
 func TestRunSubmitCreateReadinessPreflight_DoesNotSkipOtherBlockingChecks(t *testing.T) {
 	originalBuilder := submitReadinessReportBuilder
 	t.Cleanup(func() {
@@ -2211,6 +2251,42 @@ func TestExtractExistingSubmissionID(t *testing.T) {
 	})
 }
 
+func TestExtractSubmissionConflict(t *testing.T) {
+	t.Run("captures still-in-progress submission ID", func(t *testing.T) {
+		err := &asc.APIError{
+			Code:   "ENTITY_ERROR",
+			Title:  "The request entity is not valid.",
+			Detail: "An attribute value is not valid.",
+			AssociatedErrors: map[string][]asc.APIAssociatedError{
+				"/v1/reviewSubmissionItems": {
+					{
+						Code:   "ENTITY_ERROR.RELATIONSHIP.INVALID",
+						Detail: "appStoreVersions with id 883340862 is already in another reviewSubmission with id active-submission-1 still in progress",
+					},
+				},
+			},
+		}
+
+		conflict := extractSubmissionConflict(err)
+		if conflict.Kind != submissionConflictStillInProgress {
+			t.Fatalf("expected still-in-progress conflict kind, got %q", conflict.Kind)
+		}
+		if conflict.SubmissionID != "active-submission-1" {
+			t.Fatalf("expected submission ID active-submission-1, got %q", conflict.SubmissionID)
+		}
+	})
+
+	t.Run("returns no conflict without associated errors", func(t *testing.T) {
+		conflict := extractSubmissionConflict(&asc.APIError{Code: "ENTITY_ERROR"})
+		if conflict.Kind != submissionConflictNone {
+			t.Fatalf("expected no conflict, got %q", conflict.Kind)
+		}
+		if conflict.SubmissionID != "" {
+			t.Fatalf("expected empty submission ID, got %q", conflict.SubmissionID)
+		}
+	})
+}
+
 func TestAddVersionToSubmissionOrRecover_ExhaustsRetriesForRecentlyCanceledSubmission(t *testing.T) {
 	const staleSubmissionID = "stale-1"
 
@@ -2248,6 +2324,54 @@ func TestAddVersionToSubmissionOrRecover_ExhaustsRetriesForRecentlyCanceledSubmi
 	}
 	if attempts != 3 {
 		t.Fatalf("expected 3 add-item attempts (initial + 2 retries), got %d", attempts)
+	}
+}
+
+func TestAddVersionToSubmissionOrRecover_RetriesStillInProgressConflictForRecentlyCanceledSubmission(t *testing.T) {
+	const staleSubmissionID = "stale-1"
+
+	attempts := 0
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissionItems" {
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+		attempts++
+		if attempts < 3 {
+			return submitJSONResponse(http.StatusConflict, submitStillInProgressConflictBody(staleSubmissionID))
+		}
+		return submitJSONResponse(http.StatusCreated, `{
+			"data": {
+				"type": "reviewSubmissionItems",
+				"id": "item-123",
+				"attributes": {
+					"state": "READY_FOR_REVIEW"
+				}
+			}
+		}`)
+	}))
+
+	originalDelays := submitCreateRecentlyCanceledRetryDelays
+	submitCreateRecentlyCanceledRetryDelays = []time.Duration{time.Millisecond, time.Millisecond, time.Millisecond}
+	t.Cleanup(func() {
+		submitCreateRecentlyCanceledRetryDelays = originalDelays
+	})
+
+	resolvedID, err := addVersionToSubmissionOrRecover(
+		context.Background(),
+		client,
+		"new-sub-1",
+		"version-1",
+		map[string]struct{}{staleSubmissionID: {}},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("expected retry recovery, got %v", err)
+	}
+	if resolvedID != "new-sub-1" {
+		t.Fatalf("expected new submission ID after retry recovery, got %q", resolvedID)
+	}
+	if attempts != 3 {
+		t.Fatalf("expected 3 add-item attempts (2 conflicts + success), got %d", attempts)
 	}
 }
 
@@ -2772,12 +2896,14 @@ func TestPrepareReviewSubmissionForCreatePaginatesReadyForReviewLookups(t *testi
 
 func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
 	stderr := captureSubmitStderr(t, func() {
-		printSubmissionErrorHints(errors.New("ageRatingDeclaration contentRightsDeclaration usesNonExemptEncryption appDataUsage primaryCategory"), "app-1")
+		printSubmissionErrorHints(errors.New("ageRatingDeclaration contentRightsDeclaration usesNonExemptEncryption appDataUsage primaryCategory"), submissionErrorHintContext{
+			AppID: "app-1",
+		})
 	})
 
 	for _, want := range []string{
 		"Hint: Review current age rating: asc age-rating view --app app-1",
-		"Hint: Review age-rating update flags: asc age-rating set --help",
+		"Hint: Review age-rating update flags: asc age-rating edit --help",
 		"Hint: If your app does not use third-party content: asc apps update --id app-1 --content-rights DOES_NOT_USE_THIRD_PARTY_CONTENT",
 		"Hint: If your app uses third-party content: asc apps update --id app-1 --content-rights USES_THIRD_PARTY_CONTENT",
 		"Hint: Set Uses Non-Exempt Encryption for the attached build in App Store Connect, then retry submission.",
@@ -2837,12 +2963,14 @@ func TestPrintSubmissionErrorHintsTraversesWrappedErrors(t *testing.T) {
 	}
 
 	stderr := captureSubmitStderr(t, func() {
-		printSubmissionErrorHints(wrapped, "app-1")
+		printSubmissionErrorHints(wrapped, submissionErrorHintContext{
+			AppID: "app-1",
+		})
 	})
 
 	for _, want := range []string{
 		"Hint: Review current age rating: asc age-rating view --app app-1",
-		"Hint: Review age-rating update flags: asc age-rating set --help",
+		"Hint: Review age-rating update flags: asc age-rating edit --help",
 		"Hint: Complete App Privacy at: https://appstoreconnect.apple.com/apps/app-1/appPrivacy",
 	} {
 		if !strings.Contains(stderr, want) {
@@ -2860,7 +2988,9 @@ func TestPrintSubmissionErrorHintsTraversesJoinedErrors(t *testing.T) {
 	}
 
 	stderr := captureSubmitStderr(t, func() {
-		printSubmissionErrorHints(joined, "app-1")
+		printSubmissionErrorHints(joined, submissionErrorHintContext{
+			AppID: "app-1",
+		})
 	})
 
 	for _, want := range []string{
@@ -2869,6 +2999,49 @@ func TestPrintSubmissionErrorHintsTraversesJoinedErrors(t *testing.T) {
 	} {
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("expected joined-error hint %q in stderr, got %q", want, stderr)
+		}
+	}
+}
+
+func TestPrintSubmissionErrorHintsUsesAssociatedErrorsForSubmissionStateConflicts(t *testing.T) {
+	err := &asc.APIError{
+		Code:   "ENTITY_ERROR",
+		Title:  "The request entity is not valid.",
+		Detail: "This resource cannot be reviewed, please check associated errors to see why.",
+		AssociatedErrors: map[string][]asc.APIAssociatedError{
+			"/v1/reviewSubmissionItems": {
+				{
+					Code:   "ENTITY_ERROR.RELATIONSHIP.INVALID",
+					Detail: "appStoreVersions with id version-1 is already in another reviewSubmission with id active-submission-1 still in progress",
+				},
+			},
+			"/v1/appStoreVersions/version-1": {
+				{
+					Code:   "STATE_ERROR.ENTITY_INVALID",
+					Detail: "appStoreVersions with id version-1 is not ready to be submitted for review",
+				},
+			},
+		},
+	}
+
+	stderr := captureSubmitStderr(t, func() {
+		printSubmissionErrorHints(err, submissionErrorHintContext{
+			AppID:         "app-1",
+			Platform:      "MAC_OS",
+			VersionID:     "version-1",
+			VersionString: "1.0",
+		})
+	})
+
+	for _, want := range []string{
+		"Hint: Check the active submission: asc submit status --id active-submission-1",
+		"Hint: Inspect the active submission payload: asc review submissions-get --id active-submission-1",
+		"Hint: Re-run readiness validation: asc validate --app app-1 --version-id version-1",
+		"Hint: Re-run submit preflight: asc submit preflight --app app-1 --version 1.0 --platform MAC_OS",
+		"Hint: Review the release dashboard: asc status --app app-1 --include submission,appstore,review",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected hint %q in stderr, got %q", want, stderr)
 		}
 	}
 }
@@ -2929,6 +3102,25 @@ func submitAlreadyAddedConflictBody(existingSubmissionID string) string {
 					"/v1/reviewSubmissionItems": [{
 						"code": "ENTITY_ERROR.RELATIONSHIP.INVALID",
 						"detail": "appStoreVersions with id version-1 was already added to another reviewSubmission with id %s"
+					}]
+				}
+			}
+		}]
+	}`, existingSubmissionID)
+}
+
+func submitStillInProgressConflictBody(existingSubmissionID string) string {
+	return fmt.Sprintf(`{
+		"errors": [{
+			"status": "409",
+			"code": "ENTITY_ERROR",
+			"title": "The request entity is not valid.",
+			"detail": "This resource cannot be reviewed, please check associated errors to see why.",
+			"meta": {
+				"associatedErrors": {
+					"/v1/reviewSubmissionItems": [{
+						"code": "ENTITY_ERROR.RELATIONSHIP.INVALID",
+						"detail": "appStoreVersions with id version-1 is already in another reviewSubmission with id %s still in progress"
 					}]
 				}
 			}

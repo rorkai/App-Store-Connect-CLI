@@ -3,7 +3,9 @@ package shared
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -24,10 +26,7 @@ var (
 
 // ContextWithTimeoutDuration creates a context with a specific timeout.
 func ContextWithTimeoutDuration(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithTimeout(ctx, timeout)
+	return withTimeoutContext(ctx, timeout)
 }
 
 // WaitForBuildByNumberOrUploadFailure waits for a build matching version/build
@@ -82,6 +81,99 @@ func WaitForBuildByNumberOrUploadFailure(ctx context.Context, client *asc.Client
 		}
 		return nil, false, nil
 	})
+}
+
+// VerifyBuildUploadAfterCommit briefly watches a newly committed upload for
+// immediate App Store Connect failures. It returns nil on timeout so the caller
+// can keep the default asynchronous success behavior when no failure is
+// observed during the bounded verification window.
+func VerifyBuildUploadAfterCommit(ctx context.Context, client *asc.Client, appID, uploadID string, pollInterval, verifyTimeout time.Duration) error {
+	if client == nil {
+		return nil
+	}
+	uploadID = strings.TrimSpace(uploadID)
+	if uploadID == "" || verifyTimeout <= 0 {
+		return nil
+	}
+
+	verifyCtx, cancel := ContextWithTimeoutDuration(ctx, verifyTimeout)
+	defer cancel()
+
+	effectiveInterval := pollInterval
+	switch {
+	case effectiveInterval <= 0:
+		effectiveInterval = 5 * time.Second
+	case effectiveInterval > 5*time.Second:
+		effectiveInterval = 5 * time.Second
+	}
+	if effectiveInterval > verifyTimeout {
+		effectiveInterval = verifyTimeout
+	}
+	if effectiveInterval <= 0 {
+		effectiveInterval = time.Millisecond
+	}
+
+	_, err := asc.PollUntil(verifyCtx, effectiveInterval, func(ctx context.Context) (*asc.BuildUploadResponse, bool, error) {
+		upload, err := client.GetBuildUpload(ctx, uploadID)
+		if err != nil {
+			if shouldIgnoreBuildWaitLookupError(err) || shouldIgnorePostCommitBuildUploadLookupError(ctx, err) {
+				return nil, false, nil
+			}
+			return nil, false, err
+		}
+		if err := buildUploadFailureError(upload); err != nil {
+			return nil, false, enrichBuildUploadFailure(ctx, client, appID, upload, err)
+		}
+		buildID, err := buildIDForUpload(upload)
+		if err != nil {
+			return nil, false, err
+		}
+		if buildID != "" {
+			return upload, true, nil
+		}
+		return nil, false, nil
+	})
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil {
+		return nil
+	}
+	return err
+}
+
+func shouldIgnorePostCommitBuildUploadLookupError(ctx context.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+	if asc.IsRetryable(err) {
+		return true
+	}
+
+	var apiErr *asc.APIError
+	if errors.As(err, &apiErr) && apiErr.StatusCode >= 500 {
+		return true
+	}
+
+	if errors.Is(err, context.DeadlineExceeded) && ctx != nil && ctx.Err() == nil {
+		return true
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) && (netErr.Timeout() || isTemporaryNetError(netErr)) {
+		return true
+	}
+
+	return false
+}
+
+type temporaryNetError interface {
+	Temporary() bool
+}
+
+func isTemporaryNetError(err net.Error) bool {
+	tempErr, ok := err.(temporaryNetError)
+	return ok && tempErr.Temporary()
 }
 
 func findBuildByNumber(ctx context.Context, client *asc.Client, appID, version, buildNumber, platform, uploadID string) (*asc.BuildResponse, error) {

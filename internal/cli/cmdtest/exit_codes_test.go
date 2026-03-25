@@ -259,6 +259,16 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "--platform must be one of",
 		},
 		{
+			name:    "builds upload invalid verify-timeout",
+			args:    []string{"builds", "upload", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--build-number", "42", "--verify-timeout", "-1s"},
+			wantErr: "--verify-timeout must be zero or greater",
+		},
+		{
+			name:    "builds upload dry-run rejects verify-timeout",
+			args:    []string{"builds", "upload", "--app", "APP_123", "--ipa", "app.ipa", "--version", "1.0.0", "--build-number", "42", "--dry-run", "--verify-timeout", "5s"},
+			wantErr: "--verify-timeout is not supported with --dry-run",
+		},
+		{
 			name:    "builds wait missing selector",
 			args:    []string{"builds", "wait"},
 			wantErr: "--app is required when --build is not provided",
@@ -279,6 +289,36 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 				"--dry-run",
 			},
 			wantErr: `apps wall submit does not accept parent wall flags (--limit, --output)`,
+		},
+		{
+			name:    "apps public view missing app",
+			args:    []string{"apps", "public", "view"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "apps public search invalid limit",
+			args:    []string{"apps", "public", "search", "--term", "focus", "--limit", "0"},
+			wantErr: "--limit must be between 1 and 200",
+		},
+		{
+			name:    "reviews ratings rejects positional args",
+			args:    []string{"reviews", "ratings", "--app", "123", "extra"},
+			wantErr: "reviews ratings does not accept positional arguments",
+		},
+		{
+			name:    "reviews ratings unsupported country",
+			args:    []string{"reviews", "ratings", "--app", "123", "--country", "zz"},
+			wantErr: "unsupported country code",
+		},
+		{
+			name:    "apps public view unsupported country",
+			args:    []string{"apps", "public", "view", "--app", "123", "--country", "zz"},
+			wantErr: "unsupported country code",
+		},
+		{
+			name:    "apps public view signed app id",
+			args:    []string{"apps", "public", "view", "--app", "-123"},
+			wantErr: "--app must be a numeric App Store app ID",
 		},
 	}
 

@@ -428,6 +428,47 @@ func TestBuildsLatestExcludeExpiredInvalidBooleanExitCode(t *testing.T) {
 	}
 }
 
+func TestWebAuthLoginLegacyTwoFactorFlagExitCode(t *testing.T) {
+	tmpDir := t.TempDir()
+	binaryPath := filepath.Join(tmpDir, "asc-test")
+
+	buildCmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	buildCmd.Dir = ".."
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to build binary: %v\n%s", err, out)
+	}
+
+	runCmd := exec.Command(
+		binaryPath,
+		"web", "auth", "login",
+		"--two-factor-code", "123456",
+	)
+	runCmd.Env = isolatedCLITestEnv(filepath.Join(tmpDir, "config.json"))
+	output, err := runCmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected non-zero exit when apple-id is missing, got success output: %s", output)
+	}
+
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("expected *exec.ExitError, got %T (%v)", err, err)
+	}
+	if exitErr.ExitCode() != ExitUsage {
+		t.Fatalf("expected exit code %d, got %d (output: %s)", ExitUsage, exitErr.ExitCode(), output)
+	}
+
+	stderr := string(output)
+	if !strings.Contains(stderr, "Warning: `--two-factor-code` is deprecated.") {
+		t.Fatalf("expected deprecated flag warning, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "--apple-id is required when no cached web session is available") {
+		t.Fatalf("expected usage error after successful parsing, got %q", stderr)
+	}
+	if strings.Contains(stderr, "flag provided but not defined: -two-factor-code") {
+		t.Fatalf("did not expect unknown flag parse failure, got %q", stderr)
+	}
+}
+
 func TestAuthTokenConfirmInvalidBooleanExitCode(t *testing.T) {
 	tmpDir := t.TempDir()
 	binaryPath := filepath.Join(tmpDir, "asc-test")

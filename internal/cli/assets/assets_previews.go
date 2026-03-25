@@ -530,6 +530,67 @@ Examples:
 	}
 }
 
+// AssetsPreviewsSetPosterFrameCommand returns the set-poster-frame subcommand.
+func AssetsPreviewsSetPosterFrameCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("set-poster-frame", flag.ExitOnError)
+
+	id := fs.String("id", "", "Preview ID")
+	timeCode := fs.String("time-code", "", "Poster frame timecode (e.g., 00:00:05:00 or 00:00:05.000)")
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "set-poster-frame",
+		ShortUsage: `asc video-previews set-poster-frame --id "PREVIEW_ID" --time-code "00:00:05:00"`,
+		ShortHelp:  "Set the poster frame timecode for a preview.",
+		LongHelp: `Set the poster frame timecode for a preview.
+
+The poster frame is the still image shown before the video plays on the
+App Store product page. Accepted timecode formats are HH:MM:SS:FF (frames)
+and HH:MM:SS.mmm (milliseconds).
+
+Examples:
+  asc video-previews set-poster-frame --id "PREVIEW_ID" --time-code "00:00:05:00"
+  asc video-previews set-poster-frame --id "PREVIEW_ID" --time-code "00:00:05.000"`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageError("video-previews set-poster-frame does not accept positional arguments")
+			}
+
+			previewID := strings.TrimSpace(*id)
+			if previewID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				return flag.ErrHelp
+			}
+			tc := strings.TrimSpace(*timeCode)
+			if tc == "" {
+				fmt.Fprintln(os.Stderr, "Error: --time-code is required")
+				return flag.ErrHelp
+			}
+			if !isValidPreviewFrameTimeCode(tc) {
+				fmt.Fprintln(os.Stderr, "Error: --time-code must be in HH:MM:SS:FF or HH:MM:SS.mmm format (e.g., 00:00:05:00 or 00:00:05.000)")
+				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("video-previews set-poster-frame: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			result, err := client.SetAppPreviewFrameTimeCode(requestCtx, previewID, tc)
+			if err != nil {
+				return fmt.Errorf("video-previews set-poster-frame: %w", err)
+			}
+
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		},
+	}
+}
+
 func normalizePreviewType(input string) (string, error) {
 	value := strings.ToUpper(strings.TrimSpace(input))
 	if value == "" {
@@ -540,6 +601,59 @@ func normalizePreviewType(input string) (string, error) {
 		return "", fmt.Errorf("unsupported preview type %q", value)
 	}
 	return value, nil
+}
+
+// isValidPreviewFrameTimeCode checks supported poster frame timecode formats.
+func isValidPreviewFrameTimeCode(tc string) bool {
+	return isValidFrameTimeCode(tc) || isValidMillisecondTimeCode(tc)
+}
+
+func isValidFrameTimeCode(tc string) bool {
+	parts := strings.Split(tc, ":")
+	if len(parts) != 4 {
+		return false
+	}
+
+	return parseFixedWidthInt(parts[0], 2, 99) &&
+		parseFixedWidthInt(parts[1], 2, 59) &&
+		parseFixedWidthInt(parts[2], 2, 59) &&
+		parseFixedWidthInt(parts[3], 2, 29)
+}
+
+func isValidMillisecondTimeCode(tc string) bool {
+	parts := strings.Split(tc, ":")
+	if len(parts) != 3 {
+		return false
+	}
+
+	secondParts := strings.Split(parts[2], ".")
+	if len(secondParts) != 2 {
+		return false
+	}
+
+	return parseFixedWidthInt(parts[0], 2, 99) &&
+		parseFixedWidthInt(parts[1], 2, 59) &&
+		parseFixedWidthInt(secondParts[0], 2, 59) &&
+		parseFixedWidthInt(secondParts[1], 3, 999)
+}
+
+func parseFixedWidthInt(value string, width int, max int) bool {
+	if len(value) != width {
+		return false
+	}
+
+	result := 0
+	for _, c := range value {
+		if c < '0' || c > '9' {
+			return false
+		}
+		result = result*10 + int(c-'0')
+	}
+
+	if result > max {
+		return false
+	}
+	return true
 }
 
 // NormalizePreviewType normalizes and validates a preview type.

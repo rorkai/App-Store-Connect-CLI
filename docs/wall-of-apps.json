@@ -1,12 +1,13 @@
 [
   {
+    "app": "6 Nations - Rugby Scores Live",
+    "link": "https://apps.apple.com/us/app/6-nations-rugby-scores-live/id414001342?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/34/09/f3/3409f3bc-b011-ef18-f9cf-1e885da8f97f/6nations-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "66-Day Streak: Habit Builder",
     "link": "https://apps.apple.com/us/app/66-day-streak-habit-builder/id6759220059",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5c/ce/67/5cce6782-729c-07af-1e0b-7322b8ffd914/SixtysixStreaksIcon-0-0-1x_U007emarketing-0-9-0-85-220.png/512x512bb.jpg"
-  },
-  {
-    "app": "Airmail AI",
-    "link": "https://apps.apple.com/app/id6760087450"
   },
   {
     "app": "Airtist",
@@ -32,6 +33,11 @@
     "app": "Audioer: Convert Audio Formats",
     "link": "https://apps.apple.com/us/app/audioer-convert-audio-formats/id6743841447?mt=12&uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/75/4b/bd/754bbd84-d6f5-3393-1de4-b0b04c6be328/AppIcon-0-0-85-220-0-5-0-2x.png/512x512bb.png"
+  },
+  {
+    "app": "Auto Metric -  Expense Tracker",
+    "link": "https://apps.apple.com/us/app/auto-metric-expense-tracker/id6757914584?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/51/07/86/51078666-e31e-5e8c-14f8-833eb7091863/AppIcon-1x_U007emarketing-0-11-0-85-220-0.png/512x512bb.jpg"
   },
   {
     "app": "Beauty Fonts - Font Keyboard",
@@ -123,6 +129,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/6c/ce/a1/6ccea161-6da4-52c7-1260-f44955b0bc70/ConcertMemories2-0-0-1x_U007epad-0-1-0-sRGB-85-220.png/512x512bb.jpg"
   },
   {
+    "app": "Connectarr",
+    "link": "https://apps.apple.com/us/app/connectarr/id6757109537?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/48/3c/75/483c7585-5910-ef5a-d037-9183b6beafed/Connectarr-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "Constellation: Mind Atlas",
     "link": "https://apps.apple.com/us/app/constellation-mind-atlas/id6756132557?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/5d/39/50/5d3950a0-3c8d-f420-ab62-877c5b05e48f/AppIcon.lsr/512x512bb.jpg"
@@ -161,6 +172,11 @@
     "app": "Dash: Widgets for Workouts",
     "link": "https://apps.apple.com/us/app/dash-widgets-for-workouts/id1556281712",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/cf/14/8f/cf148fbc-2902-8a67-35a7-350b1ec57971/AppIcon-0-0-1x_U007epad-0-1-P3-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "DayBar",
+    "link": "https://apps.apple.com/us/app/daybar/id6739052447?mt=12&uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/79/16/d5/7916d56d-bf7f-37a0-cb0c-bb50f04ed4f3/AppIcon-0-0-85-220-0-5-0-2x.png/512x512bb.png"
   },
   {
     "app": "Deep Hour - Deep Focus Ritual",
@@ -243,6 +259,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/09/e1/ad/09e1adab-b9fd-1707-57fc-387a7e19a7d0/AppIcon-0-1x_U007ephone-0-1-0-sRGB-85-220-0.png/512x512bb.jpg"
   },
   {
+    "app": "FocusCursor: Highlight &Markup",
+    "link": "https://apps.apple.com/us/app/focuscursor-highlight-markup/id6743495172?mt=12&uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/38/68/9e/38689e2a-598d-b3cd-58ac-ae551225d7b7/AppIcon-0-0-85-220-0-5-0-2x.png/512x512bb.png"
+  },
+  {
     "app": "Foundation Lab",
     "link": "https://testflight.apple.com/join/JWR9FpP3"
   },
@@ -255,6 +276,11 @@
     "app": "Fuel: AI Nutrition",
     "link": "https://apps.apple.com/app/id6748624107",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/52/0e/ed/520eed9c-d3f0-5d0e-3e68-5b6e698e5efc/AppIcon-0-0-1x_U007ephone-0-1-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "Gecko Med",
+    "link": "https://apps.apple.com/us/app/gecko-med/id6737719743?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/63/4c/14/634c143e-7e6b-4afb-9748-0816af5d4544/apple-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
   },
   {
     "app": "Geeps: AI Chat BYOK",
@@ -297,6 +323,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/7b/43/73/7b4373fc-26e2-030b-7162-2f0ab0a7681d/AppIcon-0-0-1x_U007ewatch-0-1-P3-85-220.png/512x512bb.jpg"
   },
   {
+    "app": "Iconize Folder",
+    "link": "https://apps.apple.com/us/app/iconize-folder/id6478772538?mt=12&uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/57/e3/94/57e39489-2c7c-c1cc-56bc-13f85096d9cc/AppIcon-0-0-85-220-0-5-0-2x.png/512x512bb.png"
+  },
+  {
     "app": "Impulses: Stop Impulse Buying",
     "link": "https://apps.apple.com/us/app/impulses-stop-impulse-buying/id6754372500?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/8a/05/57/8a055708-4850-8120-8070-91424269b2f7/AppIcon-0-1x_U007ephone-0-1-85-220-0.png/512x512bb.jpg"
@@ -317,9 +348,19 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/6c/ce/46/6cce46eb-8613-c97d-8913-6888c3d4f1d2/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg"
   },
   {
+    "app": "Jurni: Trip Planner",
+    "link": "https://apps.apple.com/us/app/jurni-trip-planner/id6759559463?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/67/19/a1/6719a179-73ef-1266-5682-bf1c944f98b9/AppIcon-0-0-1x_U007ephone-0-1-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "KeepCount: Tally Counter",
     "link": "https://apps.apple.com/us/app/keepcount-tally-counter/id6758891370",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ee/f4/e6/eef4e6d4-c2af-3856-6cdf-80af085b1cb9/AppIcon-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg"
+  },
+  {
+    "app": "KeyClicker",
+    "link": "https://apps.apple.com/us/app/keyclicker/id6740425504?mt=12&uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/b3/48/0f/b3480f03-46d0-aa8e-d172-0c0e054890e3/AppIcon-0-0-85-220-0-5-0-2x-0-0-0.png/512x512bb.png"
   },
   {
     "app": "KeyScreen - Display Keystrokes",
@@ -447,6 +488,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/1c/77/66/1c776632-25a0-9af7-38ac-2d6c31d42826/icon_composed-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg"
   },
   {
+    "app": "NextCatch",
+    "link": "https://apps.apple.com/us/app/nextcatch/id6758589575?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5c/6c/21/5c6c21ac-7b19-3556-a639-55a63601163a/AppIcon-0-0-1x_U007emarketing-0-6-0-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "Notch: Target Scoring Tracker",
     "link": "https://apps.apple.com/us/app/notch-target-scoring-tracker/id6747980153?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d7/83/48/d783480d-74fa-4033-44ce-f4154c3ab7de/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
@@ -504,6 +550,11 @@
     "app": "Pico-8 Emulator: Picpic",
     "link": "https://apps.apple.com/us/app/pico-8-emulator-picpic/id6759208792?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/e7/cb/5c/e7cb5c08-a96f-f0f3-3642-416e1bba991e/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "Pievra: Jules AI Coding Agent",
+    "link": "https://apps.apple.com/us/app/pievra-jules-ai-coding-agent/id6758630855?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/32/40/cf/3240cf5f-61e5-d99e-b395-a24fae6bb6bd/AppIcon-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg"
   },
   {
     "app": "Placify - Map & Trip Planner",
@@ -599,6 +650,16 @@
     "app": "rawcast — Terminal Weather",
     "link": "https://apps.apple.com/us/app/rawcast-terminal-weather/id6760224045?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/7b/a4/47/7ba447d5-d934-754b-3f42-2b03670f82b7/AppIcon-0-0-1x_U007epad-0-5-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "Receipts Manager: Receipteka",
+    "link": "https://apps.apple.com/us/app/receipts-manager-receipteka/id6474066806?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/3c/f7/5a/3cf75a8b-78f9-010e-906d-011849ab7ee2/AppIcon-0-0-1x_U007epad-0-1-0-85-220-0.png/512x512bb.jpg"
+  },
+  {
+    "app": "RegexMate",
+    "link": "https://apps.apple.com/us/app/regexmate/id6479819388?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/6f/b7/29/6fb72938-5335-c724-e9f9-eaea5533a531/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
   },
   {
     "app": "Reloop - AI Transcribe & Speak",
@@ -720,6 +781,11 @@
     "link": "https://apps.apple.com/us/app/sunbreak-nightly-app-blocker/id6752121964"
   },
   {
+    "app": "Super Shot: EXIF Photo Frame",
+    "link": "https://apps.apple.com/us/app/super-shot-exif-photo-frame/id6760384143?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/49/01/f9/4901f9f9-8d90-7283-bbec-6e506aec4391/AppIcon-0-0-1x_U007ephone-0-1-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "SwiftBiu",
     "link": "https://apps.apple.com/app/swiftbiu/id6754772331",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/90/3b/2e/903b2ef1-7097-f00c-3557-db67e054e174/AppIcon-0-0-85-220-0-5-0-2x.png/512x512bb.png"
@@ -828,6 +894,11 @@
     "app": "Writone - Reply Assistant",
     "link": "https://apps.apple.com/app/id6758207392",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/d8/48/f4/d848f4b9-7de8-3d14-57d0-bf534e142069/AppIcon-1x_U007ephone-0-1-85-220-0.png/512x512bb.jpg"
+  },
+  {
+    "app": "wrkout - gym plan, log & track",
+    "link": "https://apps.apple.com/us/app/wrkout-gym-plan-log-track/id6759204353?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/01/0e/ce/010ece8d-5bcf-70fc-ef4a-7ed6c8aaa6ef/Logo-0-0-1x_U007ephone-0-1-sRGB-85-220.png/512x512bb.jpg"
   },
   {
     "app": "XO: Have I Ever",

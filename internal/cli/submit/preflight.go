@@ -12,14 +12,16 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
 // checkResult represents the outcome of a single preflight check.
 type checkResult struct {
-	Name    string `json:"name"`
-	Passed  bool   `json:"passed"`
-	Message string `json:"message,omitempty"`
-	Hint    string `json:"hint,omitempty"`
+	Name     string `json:"name"`
+	Passed   bool   `json:"passed"`
+	Advisory bool   `json:"advisory,omitempty"`
+	Message  string `json:"message,omitempty"`
+	Hint     string `json:"hint,omitempty"`
 }
 
 // preflightResult aggregates all preflight check outcomes.
@@ -154,6 +156,9 @@ func runPreflight(ctx context.Context, client *asc.Client, appID, version, platf
 		locChecks := checkLocalizations(ctx, client, versionID, appID, version, platform)
 		result.Checks = append(result.Checks, locChecks...)
 	}
+	if advisoryCheck, ok := privacyPublishStateAdvisoryCheck(appID); ok {
+		result.Checks = append(result.Checks, advisoryCheck)
+	}
 
 	tallyCounts(result)
 	return result
@@ -165,10 +170,37 @@ func tallyCounts(result *preflightResult) {
 	for _, c := range result.Checks {
 		if c.Passed {
 			result.PassCount++
-		} else {
-			result.FailCount++
+			continue
+		}
+		if c.Advisory {
+			continue
+		}
+		result.FailCount++
+	}
+}
+
+func countAdvisories(checks []checkResult) int {
+	count := 0
+	for _, check := range checks {
+		if check.Advisory {
+			count++
 		}
 	}
+	return count
+}
+
+func privacyPublishStateAdvisoryCheck(appID string) (checkResult, bool) {
+	advisory := validation.PrivacyPublishStateAdvisory(appID)
+	if advisory.ID == "" {
+		return checkResult{}, false
+	}
+	return checkResult{
+		Name:     "App Privacy",
+		Passed:   true,
+		Advisory: true,
+		Message:  advisory.Message,
+		Hint:     advisory.Remediation,
+	}, true
 }
 
 // --- Individual checks ---
@@ -389,7 +421,7 @@ func checkAgeRating(ctx context.Context, client *asc.Client, appInfoID, appID st
 				Name:    "Age rating",
 				Passed:  false,
 				Message: "Age rating declaration not found",
-				Hint:    fmt.Sprintf("asc age-rating set --app %s --gambling false --violence-realistic NONE ...", appID),
+				Hint:    fmt.Sprintf("asc age-rating edit --app %s --gambling false --violence-realistic NONE ...", appID),
 			}
 		}
 		return checkResult{
@@ -406,7 +438,7 @@ func checkAgeRating(ctx context.Context, client *asc.Client, appInfoID, appID st
 			Name:    "Age rating",
 			Passed:  false,
 			Message: fmt.Sprintf("Age rating incomplete (missing: %s)", strings.Join(missing, ", ")),
-			Hint:    fmt.Sprintf("asc age-rating set --app %s --gambling false --violence-realistic NONE ...", appID),
+			Hint:    fmt.Sprintf("asc age-rating edit --app %s --gambling false --violence-realistic NONE ...", appID),
 		}
 	}
 
@@ -705,7 +737,12 @@ func printPreflightText(w io.Writer, result *preflightResult) {
 	fmt.Fprintln(w, strings.Repeat("\u2500", len(header)))
 
 	for _, c := range result.Checks {
-		if c.Passed {
+		if c.Advisory {
+			fmt.Fprintf(w, "! %s\n", c.Message)
+			if c.Hint != "" {
+				fmt.Fprintf(w, "  Hint: %s\n", c.Hint)
+			}
+		} else if c.Passed {
 			fmt.Fprintf(w, "\u2713 %s\n", c.Message)
 		} else {
 			fmt.Fprintf(w, "\u2717 %s\n", c.Message)
@@ -716,8 +753,15 @@ func printPreflightText(w io.Writer, result *preflightResult) {
 	}
 
 	fmt.Fprintln(w)
-	if result.FailCount == 0 {
+	advisoryCount := countAdvisories(result.Checks)
+	if result.FailCount == 0 && advisoryCount == 0 {
 		fmt.Fprintln(w, "Result: All checks passed. Ready to submit.")
+	} else if result.FailCount == 0 {
+		label := "advisories"
+		if advisoryCount == 1 {
+			label = "advisory"
+		}
+		fmt.Fprintf(w, "Result: Required checks passed, but %d %s should be reviewed before submitting.\n", advisoryCount, label)
 	} else {
 		fmt.Fprintf(w, "Result: %d issue(s) found. Fix them before submitting.\n", result.FailCount)
 	}

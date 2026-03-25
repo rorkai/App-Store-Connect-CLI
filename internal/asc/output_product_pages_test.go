@@ -369,6 +369,68 @@ func TestPrintMarkdown_AppPreviewSets_Empty(t *testing.T) {
 	}
 }
 
+func TestPrintTable_AppPreviewResponseIncludesPosterFrame(t *testing.T) {
+	resp := &AppPreviewResponse{
+		Data: Resource[AppPreviewAttributes]{
+			ID: "preview-1",
+			Attributes: AppPreviewAttributes{
+				FileName:             "preview.mov",
+				FileSize:             2048,
+				PreviewFrameTimeCode: "00:00:05:00",
+				AssetDeliveryState:   &AssetDeliveryState{State: "COMPLETE"},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "Poster Frame") {
+		t.Fatalf("expected poster frame header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "00:00:05:00") {
+		t.Fatalf("expected poster frame value in output, got: %s", output)
+	}
+}
+
+func TestPrintTable_AppPreviewListResultIncludesPosterFrame(t *testing.T) {
+	result := &AppPreviewListResult{
+		VersionLocalizationID: "loc-1",
+		Sets: []AppPreviewSetWithPreviews{
+			{
+				Set: Resource[AppPreviewSetAttributes]{
+					ID: "set-1",
+					Attributes: AppPreviewSetAttributes{
+						PreviewType: "IPHONE_65",
+					},
+				},
+				Previews: []Resource[AppPreviewAttributes]{
+					{
+						ID: "preview-1",
+						Attributes: AppPreviewAttributes{
+							FileName:             "preview.mov",
+							FileSize:             2048,
+							PreviewFrameTimeCode: "00:00:05.000",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+
+	if !strings.Contains(output, "Poster Frame") {
+		t.Fatalf("expected poster frame header in output, got: %s", output)
+	}
+	if !strings.Contains(output, "00:00:05.000") {
+		t.Fatalf("expected poster frame value in output, got: %s", output)
+	}
+}
+
 func TestPrintTable_AppScreenshotSets(t *testing.T) {
 	resp := &AppScreenshotSetsResponse{
 		Data: []Resource[AppScreenshotSetAttributes]{

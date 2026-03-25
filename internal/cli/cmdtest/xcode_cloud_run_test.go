@@ -240,7 +240,7 @@ func TestXcodeCloudBuildRunsGetFetchesBuildRun(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"xcode-cloud", "build-runs", "get", "--id", "run-1"}); err != nil {
+		if err := root.Parse([]string{"xcode-cloud", "build-runs", "view", "--id", "run-1"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

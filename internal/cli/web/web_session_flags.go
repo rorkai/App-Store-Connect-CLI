@@ -5,29 +5,47 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
 type webSessionFlags struct {
-	appleID       *string
-	twoFactorCode *string
+	appleID              *string
+	twoFactorCode        *string
+	twoFactorCodeCommand *string
+}
+
+const deprecatedTwoFactorCodeFlagName = "two-factor-code"
+
+func bindDeprecatedTwoFactorCodeFlag(fs *flag.FlagSet) *string {
+	return fs.String(deprecatedTwoFactorCodeFlagName, "", "Deprecated: direct 2FA code if verification is required; prefer --two-factor-code-command")
 }
 
 func bindWebSessionFlags(fs *flag.FlagSet) webSessionFlags {
 	return webSessionFlags{
-		appleID:       fs.String("apple-id", "", "Apple Account email used to scope a user-owned session cache (optional when a cached session exists)"),
-		twoFactorCode: fs.String("two-factor-code", "", "2FA code if your account requires verification"),
+		appleID:              fs.String("apple-id", "", "Apple Account email used to scope a user-owned session cache (optional when a cached session exists)"),
+		twoFactorCode:        bindDeprecatedTwoFactorCodeFlag(fs),
+		twoFactorCodeCommand: fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required"),
 	}
 }
 
+func warnDeprecatedTwoFactorCodeFlag(twoFactorCode string) {
+	if strings.TrimSpace(twoFactorCode) == "" {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "Warning: `--%s` is deprecated. Use `--two-factor-code-command` or `%s` for automation.\n", deprecatedTwoFactorCodeFlagName, webTwoFactorCodeCommandEnv)
+}
+
 func resolveWebSessionForCommand(ctx context.Context, flags webSessionFlags) (*webcore.AuthSession, error) {
-	session, _, err := resolveSessionFn(
+	warnDeprecatedTwoFactorCodeFlag(*flags.twoFactorCode)
+	session, _, err := callResolveSessionFn(
 		ctx,
 		*flags.appleID,
 		"",
 		*flags.twoFactorCode,
+		*flags.twoFactorCodeCommand,
 	)
 	if err != nil {
 		return nil, err

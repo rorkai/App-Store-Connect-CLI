@@ -85,11 +85,13 @@ func TestValidateAvailabilitySkipSuppressesPartialCoverageAndAddsCoverageSkipChe
 		AvailabilityFetchSkipReason: "availability access unavailable",
 		PricingCoverageSkipReason:   "subscription pricing coverage verification was skipped because availability access was unavailable",
 		AvailableTerritories:        175,
+		AppAvailableTerritories:     []string{"USA", "CAN"},
 		Subscriptions: []Subscription{
 			{
-				ID:         "sub-1",
-				State:      "APPROVED",
-				PriceCount: 1,
+				ID:               "sub-1",
+				State:            "APPROVED",
+				PriceCount:       1,
+				PriceTerritories: []string{"USA"},
 			},
 		},
 	}, false)

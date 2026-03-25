@@ -4687,6 +4687,15 @@ func TestUpdateAppPreview(t *testing.T) {
 		if req.URL.Path != "/v1/appPreviews/PREVIEW_123" {
 			t.Fatalf("expected path /v1/appPreviews/PREVIEW_123, got %s", req.URL.Path)
 		}
+		payload := decodeRequestBody(t, req)
+		data := requireMap(t, payload["data"], "data")
+		attrs := requireMap(t, data["attributes"], "data.attributes")
+		if requireString(t, attrs["sourceFileChecksum"], "sourceFileChecksum") != "def456" {
+			t.Fatalf("unexpected sourceFileChecksum %v", attrs["sourceFileChecksum"])
+		}
+		if !requireBool(t, attrs["uploaded"], "uploaded") {
+			t.Fatalf("expected uploaded true")
+		}
 		assertAuthorized(t, req)
 	}, response)
 
@@ -4694,6 +4703,33 @@ func TestUpdateAppPreview(t *testing.T) {
 	result, err := client.UpdateAppPreview(context.Background(), "PREVIEW_123", uploaded, "def456")
 	if err != nil {
 		t.Fatalf("UpdateAppPreview() error: %v", err)
+	}
+	if result.Data.ID != "PREVIEW_123" {
+		t.Fatalf("expected preview ID PREVIEW_123, got %s", result.Data.ID)
+	}
+}
+
+func TestSetAppPreviewFrameTimeCode(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"appPreviews","id":"PREVIEW_123","attributes":{"previewFrameTimeCode":"00:00:01:00"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch {
+			t.Fatalf("expected PATCH, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/appPreviews/PREVIEW_123" {
+			t.Fatalf("expected path /v1/appPreviews/PREVIEW_123, got %s", req.URL.Path)
+		}
+		payload := decodeRequestBody(t, req)
+		data := requireMap(t, payload["data"], "data")
+		attrs := requireMap(t, data["attributes"], "data.attributes")
+		if requireString(t, attrs["previewFrameTimeCode"], "previewFrameTimeCode") != "00:00:01:00" {
+			t.Fatalf("unexpected previewFrameTimeCode %v", attrs["previewFrameTimeCode"])
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	result, err := client.SetAppPreviewFrameTimeCode(context.Background(), "PREVIEW_123", "00:00:01:00")
+	if err != nil {
+		t.Fatalf("SetAppPreviewFrameTimeCode() error: %v", err)
 	}
 	if result.Data.ID != "PREVIEW_123" {
 		t.Fatalf("expected preview ID PREVIEW_123, got %s", result.Data.ID)

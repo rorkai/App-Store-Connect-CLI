@@ -30,6 +30,105 @@ func TestCollectCommunityWallSubmitInputAllowsAppIDOnlyWhenNonInteractive(t *tes
 	}
 }
 
+func TestCollectCommunityWallSubmitInputNormalizesAppStoreIDPrefix(t *testing.T) {
+	previousPromptEnabled := communityWallPromptEnabled
+	communityWallPromptEnabled = func() bool { return false }
+	t.Cleanup(func() { communityWallPromptEnabled = previousPromptEnabled })
+
+	input, err := collectCommunityWallSubmitInput("id1234567890", "", "")
+	if err != nil {
+		t.Fatalf("collect input: %v", err)
+	}
+
+	if input.AppID != "1234567890" {
+		t.Fatalf("expected app ID prefix to be normalized, got %q", input.AppID)
+	}
+}
+
+func TestNormalizeCommunityWallAppID(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "strips lowercase id prefix",
+			input: "id1234567890",
+			want:  "1234567890",
+		},
+		{
+			name:  "strips uppercase id prefix",
+			input: "ID1234567890",
+			want:  "1234567890",
+		},
+		{
+			name:  "trims whitespace",
+			input: "  1234567890  ",
+			want:  "1234567890",
+		},
+		{
+			name:  "keeps bare numeric id",
+			input: "1234567890",
+			want:  "1234567890",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := normalizeCommunityWallAppID(test.input); got != test.want {
+				t.Fatalf("normalizeCommunityWallAppID(%q) = %q, want %q", test.input, got, test.want)
+			}
+		})
+	}
+}
+
+func TestCommunityWallAppStoreURLUsesBareAppID(t *testing.T) {
+	got := communityWallAppStoreURL("1234567890")
+	want := "https://apps.apple.com/app/id1234567890"
+	if got != want {
+		t.Fatalf("communityWallAppStoreURL() = %q, want %q", got, want)
+	}
+}
+
+func TestCommunityWallAppStoreURLCanonicalizesZeroPaddedID(t *testing.T) {
+	got := communityWallAppStoreURL("00123")
+	want := "https://apps.apple.com/app/id123"
+	if got != want {
+		t.Fatalf("communityWallAppStoreURL() = %q, want %q", got, want)
+	}
+}
+
+func TestResolveCommunityWallCandidateCanonicalizesFallbackAppStoreURL(t *testing.T) {
+	previousLookupDetails := communityWallLookupAppDetails
+	communityWallLookupAppDetails = func(ctx context.Context, ids []string) (map[string]communityWallAppDetails, error) {
+		return map[string]communityWallAppDetails{
+			"00123": {
+				Name: "Beta",
+				Link: "",
+			},
+		}, nil
+	}
+	t.Cleanup(func() {
+		communityWallLookupAppDetails = previousLookupDetails
+	})
+
+	candidate, warnings, err := resolveCommunityWallCandidate(context.Background(), communityWallSubmitInput{
+		AppID: "00123",
+	})
+	if err != nil {
+		t.Fatalf("resolve candidate: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("expected no warnings, got %+v", warnings)
+	}
+	if candidate.App != "Beta" {
+		t.Fatalf("App = %q, want Beta", candidate.App)
+	}
+	if candidate.Link != "https://apps.apple.com/app/id123" {
+		t.Fatalf("Link = %q, want canonical App Store URL", candidate.Link)
+	}
+}
+
 func TestSubmitCommunityWallEntryDryRunReturnsPlan(t *testing.T) {
 	sourceJSON := `[
   {
@@ -400,11 +499,17 @@ func TestWaitForRepoReturnsFriendlyTimeoutAfterSleepCancellation(t *testing.T) {
 
 func TestFetchCommunityWallAppDetailsOmitsCountryFilter(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Path; got != "/lookup" {
+			t.Fatalf("expected /lookup path, got %q", got)
+		}
 		if got := r.URL.Query().Get("id"); got != "1234567890" {
 			t.Fatalf("expected id query, got %q", got)
 		}
 		if got := r.URL.Query().Get("country"); got != "" {
 			t.Fatalf("expected no country query filter, got %q", got)
+		}
+		if got := r.URL.Query().Get("entity"); got != "software" {
+			t.Fatalf("expected entity=software, got %q", got)
 		}
 		_, _ = w.Write([]byte(`{"results":[{"trackId":1234567890,"trackName":"Beta","trackViewUrl":"https://apps.apple.com/app/id1234567890","artworkUrl100":"https://example.com/icon.png"}]}`))
 	}))
@@ -422,5 +527,65 @@ func TestFetchCommunityWallAppDetailsOmitsCountryFilter(t *testing.T) {
 	}
 	if got := details["1234567890"].Name; got != "Beta" {
 		t.Fatalf("expected app details for requested ID, got %+v", details)
+	}
+}
+
+func TestFetchCommunityWallAppDetailsPreservesZeroPaddedRequestKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Path; got != "/lookup" {
+			t.Fatalf("expected /lookup path, got %q", got)
+		}
+		if got := r.URL.Query().Get("id"); got != "123" {
+			t.Fatalf("expected canonical id query, got %q", got)
+		}
+		_, _ = w.Write([]byte(`{"results":[{"trackId":123,"trackName":"Beta","trackViewUrl":"https://apps.apple.com/app/id123","artworkUrl100":"https://example.com/icon.png"}]}`))
+	}))
+	defer server.Close()
+
+	previousLookupURL := communityWallAppStoreLookupURL
+	communityWallAppStoreLookupURL = server.URL
+	t.Cleanup(func() {
+		communityWallAppStoreLookupURL = previousLookupURL
+	})
+
+	details, err := fetchCommunityWallAppDetails(context.Background(), []string{"00123"})
+	if err != nil {
+		t.Fatalf("fetch app details: %v", err)
+	}
+	if got := details["00123"].Name; got != "Beta" {
+		t.Fatalf("expected app details for zero-padded requested ID, got %+v", details)
+	}
+}
+
+func TestCommunityWallIconForLinkUsesStorefrontCountry(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Path; got != "/lookup" {
+			t.Fatalf("expected /lookup path, got %q", got)
+		}
+		if got := r.URL.Query().Get("id"); got != "6758220887" {
+			t.Fatalf("expected id query, got %q", got)
+		}
+		if got := r.URL.Query().Get("country"); got != "il" {
+			t.Fatalf("expected country=il, got %q", got)
+		}
+		if got := r.URL.Query().Get("entity"); got != "software" {
+			t.Fatalf("expected entity=software, got %q", got)
+		}
+		_, _ = w.Write([]byte(`{"results":[{"trackId":6758220887,"trackName":"Tamloot","trackViewUrl":"https://apps.apple.com/il/app/tamloot/id6758220887","artworkUrl100":"https://example.com/tamloot.png"}]}`))
+	}))
+	defer server.Close()
+
+	previousLookupURL := communityWallAppStoreLookupURL
+	communityWallAppStoreLookupURL = server.URL
+	t.Cleanup(func() {
+		communityWallAppStoreLookupURL = previousLookupURL
+	})
+
+	iconURL, err := communityWallIconForLink(context.Background(), "https://apps.apple.com/il/app/tamloot/id6758220887")
+	if err != nil {
+		t.Fatalf("refresh icon: %v", err)
+	}
+	if iconURL != "https://example.com/tamloot.png" {
+		t.Fatalf("icon URL = %q, want storefront lookup result", iconURL)
 	}
 }

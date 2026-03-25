@@ -104,7 +104,7 @@ func TestWebReviewShowRequiresAppleIDWhenNoMatchingCache(t *testing.T) {
 	t.Setenv("ASC_WEB_SESSION_CACHE_BACKEND", "file")
 	t.Setenv("ASC_WEB_SESSION_CACHE_DIR", t.TempDir())
 	t.Setenv("ASC_WEB_SESSION_CACHE", "1")
-	t.Setenv("ASC_WEB_PASSWORD", "")
+	t.Setenv(webPasswordEnvNameForTest(), "")
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

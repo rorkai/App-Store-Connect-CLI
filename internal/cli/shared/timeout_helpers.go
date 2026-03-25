@@ -10,8 +10,5 @@ import (
 // ContextWithResolvedTimeout returns a context with ASC timeout resolution and
 // a package-provided default fallback duration.
 func ContextWithResolvedTimeout(ctx context.Context, defaultTimeout time.Duration) (context.Context, context.CancelFunc) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithTimeout(ctx, asc.ResolveTimeoutWithDefault(defaultTimeout))
+	return withTimeoutContext(ctx, asc.ResolveTimeoutWithDefault(defaultTimeout))
 }

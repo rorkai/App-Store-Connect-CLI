@@ -120,7 +120,7 @@ func TestAgeRatingSetAllNoneUsesSafeDefaultsAndPreservesOverrides(t *testing.T) 
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"age-rating", "set",
+			"age-rating", "edit",
 			"--id", "age-1",
 			"--all-none",
 			"--gambling", "true",

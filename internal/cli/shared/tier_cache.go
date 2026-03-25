@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -20,7 +21,22 @@ type tierCacheFile struct {
 	Tiers      []TierEntry `json:"tiers"`
 }
 
+var (
+	tierCacheDirOverride   string
+	tierCacheDirOverrideMu sync.RWMutex
+)
+
 func tierCacheDir() (string, error) {
+	tierCacheDirOverrideMu.RLock()
+	override := tierCacheDirOverride
+	tierCacheDirOverrideMu.RUnlock()
+	if override != "" {
+		if err := os.MkdirAll(override, 0o755); err != nil {
+			return "", fmt.Errorf("create cache dir: %w", err)
+		}
+		return override, nil
+	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("resolve home dir: %w", err)

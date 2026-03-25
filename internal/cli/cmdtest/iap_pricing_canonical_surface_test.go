@@ -16,9 +16,9 @@ import (
 const (
 	iapPricesDeprecationWarning         = "Warning: `asc iap prices` is deprecated. Use `asc iap pricing summary`."
 	iapPricePointsDeprecationWarning    = "Warning: `asc iap price-points list` is deprecated. Use `asc iap pricing price-points list`."
-	iapPriceSchedulesDeprecationWarning = "Warning: `asc iap price-schedules get` is deprecated. Use `asc iap pricing schedules get`."
-	iapAvailabilityDeprecationWarning   = "Warning: `asc iap availability get` is deprecated. Use `asc iap pricing availability get`."
-	iapAvailabilitiesDeprecationWarning = "Warning: `asc iap availabilities get` is deprecated. Use `asc iap pricing availabilities get`."
+	iapPriceSchedulesDeprecationWarning = "Warning: `asc iap price-schedules get` is deprecated. Use `asc iap pricing schedules view`."
+	iapAvailabilityDeprecationWarning   = "Warning: `asc iap availability get` is deprecated. Use `asc iap pricing availability view`."
+	iapAvailabilitiesDeprecationWarning = "Warning: `asc iap availabilities get` is deprecated. Use `asc iap pricing availabilities view`."
 )
 
 func findCommandByPath(t *testing.T, path ...string) *ffcli.Command {
@@ -141,21 +141,21 @@ func TestIAPPricingMovedSurfacesUseCanonicalHelp(t *testing.T) {
 			name:         "schedules",
 			path:         []string{"iap", "pricing", "schedules"},
 			wantUsage:    "asc iap pricing schedules <subcommand> [flags]",
-			wantContains: []string{"get", "base-territory", "create", "manual-prices", "automatic-prices"},
+			wantContains: []string{"view", "base-territory", "create", "manual-prices", "automatic-prices"},
 			wantNotShown: []string{"asc iap price-schedules <subcommand> [flags]"},
 		},
 		{
 			name:         "availability",
 			path:         []string{"iap", "pricing", "availability"},
 			wantUsage:    "asc iap pricing availability <subcommand> [flags]",
-			wantContains: []string{"get", "set"},
+			wantContains: []string{"view", "set"},
 			wantNotShown: []string{"asc iap availability <subcommand> [flags]"},
 		},
 		{
 			name:         "availabilities",
 			path:         []string{"iap", "pricing", "availabilities"},
 			wantUsage:    "asc iap pricing availabilities <subcommand> [flags]",
-			wantContains: []string{"get", "available-territories"},
+			wantContains: []string{"view", "available-territories"},
 			wantNotShown: []string{"asc iap availabilities <subcommand> [flags]"},
 		},
 	}
@@ -265,17 +265,17 @@ func TestCanonicalIAPPricingValidationPaths(t *testing.T) {
 		},
 		{
 			name:    "schedules missing selector",
-			args:    []string{"iap", "pricing", "schedules", "get"},
+			args:    []string{"iap", "pricing", "schedules", "view"},
 			wantErr: "--iap-id or --schedule-id is required",
 		},
 		{
 			name:    "availability missing iap id",
-			args:    []string{"iap", "pricing", "availability", "get"},
+			args:    []string{"iap", "pricing", "availability", "view"},
 			wantErr: "--iap-id is required",
 		},
 		{
 			name:    "availabilities missing id",
-			args:    []string{"iap", "pricing", "availabilities", "get"},
+			args:    []string{"iap", "pricing", "availabilities", "view"},
 			wantErr: "--id is required",
 		},
 	}
