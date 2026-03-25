@@ -78,6 +78,9 @@ func WebAnalyticsCommand() *ffcli.Command {
 
 Examples:
   asc web analytics overview --app "123456789" --start 2025-12-24 --end 2026-03-23 --apple-id "user@example.com"
+  asc web analytics sources --app "123456789" --start 2025-12-24 --end 2026-03-23
+  asc web analytics sales --app "123456789" --start 2025-12-24 --end 2026-03-23 --output markdown
+  asc web analytics benchmarks --app "123456789"
   asc web analytics subscriptions --app "123456789" --start 2025-12-24 --end 2026-03-23 --output table
   asc web analytics metrics --app "123456789" --start 2025-12-24 --end 2026-03-23 --measures units,redownloads
   asc web analytics retention --app "123456789" --start 2026-02-22 --end 2026-03-23
@@ -86,7 +89,15 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			WebAnalyticsOverviewCommand(),
+			WebAnalyticsSourcesCommand(),
+			WebAnalyticsProductPagesCommand(),
+			WebAnalyticsInAppEventsCommand(),
+			WebAnalyticsAppClipsCommand(),
+			WebAnalyticsCampaignsCommand(),
+			WebAnalyticsSalesCommand(),
 			WebAnalyticsSubscriptionsCommand(),
+			WebAnalyticsOffersCommand(),
+			WebAnalyticsBenchmarksCommand(),
 			WebAnalyticsMetricsCommand(),
 			WebAnalyticsRetentionCommand(),
 			WebAnalyticsCohortsCommand(),
@@ -470,14 +481,28 @@ func analyticsMeasureLabel(measure string) string {
 		return "First-Time Downloads"
 	case "redownloads":
 		return "Redownloads"
-	case "conversionRate":
+	case "conversionRate", "benchConversionRate":
 		return "Conversion Rate"
 	case "impressionsTotal":
 		return "Impressions"
+	case "pageViewUnique":
+		return "Product Page Views (Unique Devices)"
 	case "pageViewCount":
 		return "Product Page Views"
 	case "updates":
 		return "Updates"
+	case "eventImpressions":
+		return "Event Impressions"
+	case "eventOpens":
+		return "App Opens"
+	case "appClipViews":
+		return "App Clip Views"
+	case "appClipInstalls":
+		return "App Clip Installs"
+	case "appClipSessions":
+		return "App Clip Sessions"
+	case "appClipCrashes":
+		return "App Clip Crashes"
 	case "proceeds":
 		return "Proceeds"
 	case "payingUsers":
@@ -496,10 +521,40 @@ func analyticsMeasureLabel(measure string) string {
 		return "Paid Plan Starts"
 	case "summary-plans-paid-churned":
 		return "Paid Plan Churn"
+	case "subscription-state-offers":
+		return "Active Offers"
+	case "subscription-state-offers-freeTrial":
+		return "Free Trials"
+	case "subscription-state-offers-paidOffer":
+		return "Paid Offers"
+	case "summary-offers-net":
+		return "Net Offers"
+	case "summary-offers-activations":
+		return "Offer Activations"
+	case "summary-offers-reactivations":
+		return "Offer Reactivations"
+	case "summary-offers-churned":
+		return "Offer Churn"
 	case "cohort-download-to-paid-rate":
 		return "Download to Paid"
+	case "cohort-download-proceeds-per-download-average":
+		return "Accumulated Proceeds"
 	case "cohort-subscription-retention-rate":
 		return "Subscription Retention"
+	case "arppu", "benchArppu":
+		return "Proceeds per Paying User"
+	case "crashRate", "benchCrashRate":
+		return "Crash Rate"
+	case "retentionD1", "benchRetentionD1":
+		return "Day 1 Retention"
+	case "retentionD7", "benchRetentionD7":
+		return "Day 7 Retention"
+	case "retentionD28", "benchRetentionD28":
+		return "Day 28 Retention"
+	case "download-to-paid-rate-d35", "download-to-paid-rate-d35-benchmark":
+		return "D35 Download to Paid Conversion"
+	case "proceeds-per-download-average-d35", "proceeds-per-download-average-d35-benchmark":
+		return "D35 Proceeds per Download"
 	default:
 		return strings.TrimSpace(measure)
 	}
@@ -511,14 +566,26 @@ func analyticsPeriodLabel(period string) string {
 		return "Day 1"
 	case "d7":
 		return "Day 7"
+	case "d14":
+		return "Day 14"
 	case "d35":
 		return "Day 35"
+	case "d60":
+		return "Day 60"
+	case "d90":
+		return "Day 90"
+	case "d180":
+		return "Day 180"
 	case "m1":
 		return "Month 1"
+	case "m2":
+		return "Month 2"
 	case "m3":
 		return "Month 3"
 	case "m6":
 		return "Month 6"
+	case "m9":
+		return "Month 9"
 	case "m12":
 		return "Month 12"
 	default:
@@ -543,9 +610,9 @@ func analyticsMeasureValueString(measure string, value *float64) string {
 	}
 	v := *value
 	switch strings.TrimSpace(measure) {
-	case "conversionRate", "cohort-download-to-paid-rate", "cohort-subscription-retention-rate":
+	case "conversionRate", "cohort-download-to-paid-rate", "cohort-subscription-retention-rate", "download-to-paid-rate-d35", "download-to-paid-rate-d35-benchmark", "crashRate", "benchCrashRate", "retentionD1", "benchRetentionD1", "retentionD7", "benchRetentionD7", "retentionD28", "benchRetentionD28", "benchConversionRate":
 		return fmt.Sprintf("%.2f%%", v)
-	case "proceeds", "revenue-recurring":
+	case "proceeds", "revenue-recurring", "arppu", "benchArppu", "proceeds-per-download-average-d35", "proceeds-per-download-average-d35-benchmark", "cohort-download-proceeds-per-download-average":
 		if v == float64(int64(v)) {
 			return fmt.Sprintf("$%.0f", v)
 		}

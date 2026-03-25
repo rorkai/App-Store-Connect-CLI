@@ -52,6 +52,7 @@ type AnalyticsTimeseriesRequest struct {
 	EndTime          string
 	Measures         []string
 	Frequency        string
+	Group            *AnalyticsTimeseriesGroup
 	DimensionFilters []AnalyticsDimensionFilter
 }
 
@@ -136,6 +137,7 @@ type AnalyticsTimeseriesResult struct {
 	AdamID string           `json:"adamId,omitempty"`
 	Group  any              `json:"group,omitempty"`
 	Data   []map[string]any `json:"data,omitempty"`
+	Totals map[string]any   `json:"totals,omitempty"`
 }
 
 // AnalyticsTimeseriesResponse wraps private timeseries responses.
@@ -439,6 +441,9 @@ func (c *Client) GetAnalyticsTimeseries(ctx context.Context, req AnalyticsTimese
 		"endTime":   endTime,
 		"measures":  measures,
 		"frequency": frequency,
+	}
+	if req.Group != nil {
+		payload["group"] = req.Group
 	}
 	if req.DimensionFilters != nil {
 		payload["dimensionFilters"] = req.DimensionFilters

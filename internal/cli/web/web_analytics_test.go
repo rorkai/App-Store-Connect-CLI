@@ -18,15 +18,29 @@ func TestWebAnalyticsCommandHierarchy(t *testing.T) {
 	if cmd.Name != "analytics" {
 		t.Fatalf("expected command name %q, got %q", "analytics", cmd.Name)
 	}
-	if len(cmd.Subcommands) != 5 {
-		t.Fatalf("expected 5 subcommands, got %d", len(cmd.Subcommands))
+	if len(cmd.Subcommands) != 13 {
+		t.Fatalf("expected 13 subcommands, got %d", len(cmd.Subcommands))
 	}
 
 	names := map[string]bool{}
 	for _, sub := range cmd.Subcommands {
 		names[sub.Name] = true
 	}
-	for _, expected := range []string{"overview", "subscriptions", "metrics", "retention", "cohorts"} {
+	for _, expected := range []string{
+		"overview",
+		"sources",
+		"product-pages",
+		"in-app-events",
+		"app-clips",
+		"campaigns",
+		"sales",
+		"subscriptions",
+		"offers",
+		"retention",
+		"benchmarks",
+		"metrics",
+		"cohorts",
+	} {
 		if !names[expected] {
 			t.Fatalf("expected %q subcommand", expected)
 		}
@@ -45,6 +59,62 @@ func TestWebAnalyticsSubcommandsResolveSessionWithinTimeoutContext(t *testing.T)
 		build func() *ffcli.Command
 		args  []string
 	}{
+		{
+			name:  "sources",
+			build: WebAnalyticsSourcesCommand,
+			args: []string{
+				"--apple-id", "user@example.com",
+				"--app", "app-1",
+				"--start", "2025-12-24",
+				"--end", "2026-03-23",
+			},
+		},
+		{
+			name:  "product-pages",
+			build: WebAnalyticsProductPagesCommand,
+			args: []string{
+				"--apple-id", "user@example.com",
+				"--app", "app-1",
+			},
+		},
+		{
+			name:  "in-app-events",
+			build: WebAnalyticsInAppEventsCommand,
+			args: []string{
+				"--apple-id", "user@example.com",
+				"--app", "app-1",
+				"--start", "2025-12-24",
+				"--end", "2026-03-23",
+			},
+		},
+		{
+			name:  "app-clips",
+			build: WebAnalyticsAppClipsCommand,
+			args: []string{
+				"--apple-id", "user@example.com",
+				"--app", "app-1",
+			},
+		},
+		{
+			name:  "campaigns",
+			build: WebAnalyticsCampaignsCommand,
+			args: []string{
+				"--apple-id", "user@example.com",
+				"--app", "app-1",
+				"--start", "2025-12-24",
+				"--end", "2026-03-23",
+			},
+		},
+		{
+			name:  "sales",
+			build: WebAnalyticsSalesCommand,
+			args: []string{
+				"--apple-id", "user@example.com",
+				"--app", "app-1",
+				"--start", "2025-12-24",
+				"--end", "2026-03-23",
+			},
+		},
 		{
 			name:  "overview",
 			build: WebAnalyticsOverviewCommand,
@@ -66,6 +136,14 @@ func TestWebAnalyticsSubcommandsResolveSessionWithinTimeoutContext(t *testing.T)
 			},
 		},
 		{
+			name:  "offers",
+			build: WebAnalyticsOffersCommand,
+			args: []string{
+				"--apple-id", "user@example.com",
+				"--app", "app-1",
+			},
+		},
+		{
 			name:  "metrics",
 			build: WebAnalyticsMetricsCommand,
 			args: []string{
@@ -74,6 +152,14 @@ func TestWebAnalyticsSubcommandsResolveSessionWithinTimeoutContext(t *testing.T)
 				"--start", "2025-12-24",
 				"--end", "2026-03-23",
 				"--measures", "units,redownloads",
+			},
+		},
+		{
+			name:  "benchmarks",
+			build: WebAnalyticsBenchmarksCommand,
+			args: []string{
+				"--apple-id", "user@example.com",
+				"--app", "app-1",
 			},
 		},
 		{
