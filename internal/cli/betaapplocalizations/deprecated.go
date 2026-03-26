@@ -39,9 +39,9 @@ Examples:
 			),
 			deprecatedBetaAppLocalizationsLeafCommand(
 				BetaAppLocalizationsGetCommand(),
-				betaAppLocalizationsCanonicalRoot+" get --id \"LOCALIZATION_ID\"",
-				betaAppLocalizationsCanonicalRoot+" get",
-				"Warning: `asc beta-app-localizations get` is deprecated. Use `asc testflight app-localizations get`.",
+				betaAppLocalizationsCanonicalRoot+" view --id \"LOCALIZATION_ID\"",
+				betaAppLocalizationsCanonicalRoot+" view",
+				"Warning: `asc beta-app-localizations get` is deprecated. Use `asc testflight app-localizations view`.",
 			),
 			deprecatedBetaAppLocalizationsAppCommand(),
 			deprecatedBetaAppLocalizationsLeafCommand(
@@ -76,16 +76,16 @@ func deprecatedBetaAppLocalizationsAppCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "app",
 		ShortUsage: betaAppLocalizationsCanonicalRoot + " app <subcommand> [flags]",
-		ShortHelp:  "Compatibility alias: use `asc testflight app-localizations app get`.",
-		LongHelp:   "Compatibility alias: use `asc testflight app-localizations app get --id LOCALIZATION_ID`.",
+		ShortHelp:  "Compatibility alias: use `asc testflight app-localizations app view`.",
+		LongHelp:   "Compatibility alias: use `asc testflight app-localizations app view --id LOCALIZATION_ID`.",
 		FlagSet:    fs,
 		UsageFunc:  shared.DeprecatedUsageFunc,
 		Subcommands: []*ffcli.Command{
 			deprecatedBetaAppLocalizationsLeafCommand(
 				BetaAppLocalizationsAppGetCommand(),
-				betaAppLocalizationsCanonicalRoot+" app get --id \"LOCALIZATION_ID\"",
-				betaAppLocalizationsCanonicalRoot+" app get",
-				"Warning: `asc beta-app-localizations app get` is deprecated. Use `asc testflight app-localizations app get`.",
+				betaAppLocalizationsCanonicalRoot+" app view --id \"LOCALIZATION_ID\"",
+				betaAppLocalizationsCanonicalRoot+" app view",
+				"Warning: `asc beta-app-localizations app get` is deprecated. Use `asc testflight app-localizations app view`.",
 			),
 		},
 		Exec: func(ctx context.Context, args []string) error {

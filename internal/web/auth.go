@@ -29,6 +29,7 @@ import (
 	"github.com/1Password/srp"
 	"golang.org/x/crypto/pbkdf2"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleauth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 )
@@ -48,13 +49,18 @@ const (
 
 	// Guardrails for unofficial web/iris calls.
 	webMinRequestIntervalEnv     = "ASC_WEB_MIN_REQUEST_INTERVAL"
-	defaultWebMinRequestInterval = 350 * time.Millisecond
+	defaultWebMinRequestInterval = 1 * time.Second
 	minimumWebMinRequestInterval = 200 * time.Millisecond
 )
 
 var (
 	errTwoFactorRequired              = errors.New("two-factor authentication required")
 	errInvalidAppleAccountCredentials = errors.New("incorrect Apple Account email or password")
+	errAppleAccountActionRequired     = errors.New("complete the pending Apple Account web prompt in a browser (privacy acknowledgement or 2FA upgrade) and try again")
+
+	// ErrInvalidAppleAccountCredentials reports rejected Apple Account
+	// credentials during web login flows.
+	ErrInvalidAppleAccountCredentials = errInvalidAppleAccountCredentials
 )
 
 var webTLSRootBundlePaths = []string{
@@ -99,6 +105,13 @@ type AuthSession struct {
 	ServiceKey       string
 	AppleIDSessionID string
 	SCNT             string
+
+	// Prepared 2FA delivery state so callers can request code delivery before prompting.
+	twoFactorMethod        string
+	twoFactorPhoneID       int
+	twoFactorPhoneMode     string
+	twoFactorDestination   string
+	twoFactorCodeRequested bool
 }
 
 // LoginCredentials holds Apple ID credentials.
@@ -116,6 +129,13 @@ type TwoFactorRequiredError struct {
 func (e *TwoFactorRequiredError) Error() string {
 	return errTwoFactorRequired.Error()
 }
+
+type TwoFactorChallenge = appleauth.TwoFactorChallenge
+
+const (
+	twoFactorMethodTrustedDevice = appleauth.TwoFactorMethodTrustedDevice
+	twoFactorMethodPhone         = appleauth.TwoFactorMethodPhone
+)
 
 // Client is an internal web API client using a web session cookie jar.
 type Client struct {
@@ -233,14 +253,7 @@ type sessionInfo struct {
 	} `json:"user"`
 }
 
-type authOptionsResponse struct {
-	TrustedDevices      []map[string]any `json:"trustedDevices"`
-	TrustedPhoneNumbers []struct {
-		ID                 int    `json:"id"`
-		PushMode           string `json:"pushMode"`
-		NumberWithDialCode string `json:"numberWithDialCode"`
-	} `json:"trustedPhoneNumbers"`
-}
+type authOptionsResponse = appleauth.AuthOptionsResponse
 
 type twoFAVerificationFailedError struct {
 	Kind   string
@@ -389,18 +402,37 @@ func Login(ctx context.Context, creds LoginCredentials) (*AuthSession, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cookie jar: %w", err)
+	}
+	client := newWebHTTPClient(jar)
+	return loginWithHTTPClient(ctx, client, creds)
+}
+
+// LoginWithClient performs Apple ID SRP authentication reusing an existing HTTP
+// client and cookie jar. This is used for best-effort relogin attempts that
+// should preserve Apple trust cookies from a cached session.
+func LoginWithClient(ctx context.Context, client *http.Client, creds LoginCredentials) (*AuthSession, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if client == nil {
+		return nil, fmt.Errorf("client is required")
+	}
+	if client.Jar == nil {
+		return nil, fmt.Errorf("client jar is required")
+	}
+	return loginWithHTTPClient(ctx, client, creds)
+}
+
+func loginWithHTTPClient(ctx context.Context, client *http.Client, creds LoginCredentials) (*AuthSession, error) {
 	if strings.TrimSpace(creds.Username) == "" {
 		return nil, fmt.Errorf("apple id is required")
 	}
 	if strings.TrimSpace(creds.Password) == "" {
 		return nil, fmt.Errorf("password is required")
 	}
-
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cookie jar: %w", err)
-	}
-	client := newWebHTTPClient(jar)
 
 	serviceKey, err := getAuthServiceKey(ctx, client)
 	if err != nil {
@@ -742,7 +774,7 @@ func getHashcash(ctx context.Context, client *http.Client, serviceKey string) (s
 	bitsValue := strings.TrimSpace(resp.Header.Get("X-Apple-HC-Bits"))
 	challenge := strings.TrimSpace(resp.Header.Get("X-Apple-HC-Challenge"))
 	if bitsValue == "" || challenge == "" {
-		return "", fmt.Errorf("missing hashcash headers in signin response")
+		return "", nil
 	}
 	bits, err := strconv.Atoi(bitsValue)
 	if err != nil {
@@ -872,7 +904,9 @@ func signinComplete(ctx context.Context, client *http.Client, username, m1, m2 s
 	req.Header.Set("X-Apple-Widget-Key", serviceKey)
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 	req.Header.Set("Accept", "application/json, text/javascript")
-	req.Header.Set("X-Apple-HC", hashcash)
+	if strings.TrimSpace(hashcash) != "" {
+		req.Header.Set("X-Apple-HC", hashcash)
+	}
 	setModifiedCookieHeader(client, req)
 
 	resp, err := client.Do(req)
@@ -897,6 +931,9 @@ func signinComplete(ctx context.Context, client *http.Client, username, m1, m2 s
 			AppleIDSessionID: strings.TrimSpace(resp.Header.Get("X-Apple-ID-Session-Id")),
 			SCNT:             strings.TrimSpace(resp.Header.Get("scnt")),
 		}
+	}
+	if isAppleAccountActionRequiredSigninComplete(resp.StatusCode, respBody) {
+		return errAppleAccountActionRequired
 	}
 	if isInvalidAppleAccountCredentialsSigninComplete(resp.StatusCode, respBody) {
 		return errInvalidAppleAccountCredentials
@@ -993,41 +1030,105 @@ func getAuthOptions(ctx context.Context, session *AuthSession) (*authOptionsResp
 	return &result, nil
 }
 
+func requestPhoneCode(ctx context.Context, session *AuthSession, phoneID int, mode string) error {
+	payload := map[string]any{
+		"phoneNumber": map[string]int{"id": phoneID},
+		"mode":        mode,
+	}
+	status, respBody, err := appleauth.DoTwoFactorJSONRequest(
+		ctx,
+		session.Client,
+		appleSessionHeaders(session),
+		"request_phone_2fa",
+		http.MethodPut,
+		authServiceURL+"/verify/phone",
+		payload,
+		json.Marshal,
+		func(req *http.Request) {
+			setModifiedCookieHeader(session.Client, req)
+		},
+		logWebAuthHTTP,
+	)
+	if err != nil {
+		var marshalErr *appleauth.MarshalPayloadError
+		if errors.As(err, &marshalErr) {
+			return fmt.Errorf("failed to marshal phone request payload: %w", err)
+		}
+		return err
+	}
+	if status >= 200 && status < 300 {
+		return nil
+	}
+	return &twoFAVerificationFailedError{Kind: "phone-request", Status: status, Body: respBody}
+}
+
+func PrepareTwoFactorChallenge(ctx context.Context, session *AuthSession) (*TwoFactorChallenge, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if session == nil || session.Client == nil {
+		return nil, fmt.Errorf("session is required")
+	}
+	if session.ServiceKey == "" || session.AppleIDSessionID == "" || session.SCNT == "" {
+		return nil, fmt.Errorf("session is missing 2fa continuation state")
+	}
+	challenge, err := appleauth.PrepareTwoFactorChallenge(ctx, session, func(ctx context.Context) (*appleauth.AuthOptions, error) {
+		opts, err := getAuthOptions(ctx, session)
+		if err != nil {
+			return nil, err
+		}
+		return opts.AuthOptions(), nil
+	})
+	return challenge, wrapWebTwoFactorFlowError(err)
+}
+
+func EnsureTwoFactorCodeRequested(ctx context.Context, session *AuthSession) (*TwoFactorChallenge, error) {
+	challenge, err := appleauth.EnsureTwoFactorCodeRequested(
+		ctx,
+		session,
+		func(ctx context.Context) (*appleauth.AuthOptions, error) {
+			opts, err := getAuthOptions(ctx, session)
+			if err != nil {
+				return nil, err
+			}
+			return opts.AuthOptions(), nil
+		},
+		func(ctx context.Context, phoneID int, mode string) error {
+			return requestPhoneCode(ctx, session, phoneID, mode)
+		},
+	)
+	return challenge, wrapWebTwoFactorFlowError(err)
+}
+
 func submitTrustedDeviceCode(ctx context.Context, session *AuthSession, code string) error {
 	payload := map[string]any{
 		"securityCode": map[string]string{"code": code},
 	}
-	body, err := json.Marshal(payload)
+	status, respBody, err := appleauth.DoTwoFactorJSONRequest(
+		ctx,
+		session.Client,
+		appleSessionHeaders(session),
+		"trusted_device_2fa",
+		http.MethodPost,
+		authServiceURL+"/verify/trusteddevice/securitycode",
+		payload,
+		json.Marshal,
+		func(req *http.Request) {
+			setModifiedCookieHeader(session.Client, req)
+		},
+		logWebAuthHTTP,
+	)
 	if err != nil {
-		return fmt.Errorf("failed to marshal trusted-device payload: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", authServiceURL+"/verify/trusteddevice/securitycode", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	for key, values := range appleSessionHeaders(session) {
-		for _, value := range values {
-			req.Header.Add(key, value)
+		var marshalErr *appleauth.MarshalPayloadError
+		if errors.As(err, &marshalErr) {
+			return fmt.Errorf("failed to marshal trusted-device payload: %w", err)
 		}
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-	setModifiedCookieHeader(session.Client, req)
-
-	resp, err := session.Client.Do(req)
-	if err != nil {
-		logWebAuthHTTP("trusted_device_2fa", req, nil, nil, err)
 		return err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	respBody, _ := io.ReadAll(resp.Body)
-	logWebAuthHTTP("trusted_device_2fa", req, resp, respBody, nil)
-
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+	if status >= 200 && status < 300 {
 		return nil
 	}
-	return &twoFAVerificationFailedError{Kind: "trusted-device", Status: resp.StatusCode, Body: respBody}
+	return &twoFAVerificationFailedError{Kind: "trusted-device", Status: status, Body: respBody}
 }
 
 func submitPhoneCode(ctx context.Context, session *AuthSession, code string, phoneID int, mode string) error {
@@ -1036,37 +1137,31 @@ func submitPhoneCode(ctx context.Context, session *AuthSession, code string, pho
 		"phoneNumber":  map[string]int{"id": phoneID},
 		"mode":         mode,
 	}
-	body, err := json.Marshal(payload)
+	status, respBody, err := appleauth.DoTwoFactorJSONRequest(
+		ctx,
+		session.Client,
+		appleSessionHeaders(session),
+		"phone_2fa",
+		http.MethodPost,
+		authServiceURL+"/verify/phone/securitycode",
+		payload,
+		json.Marshal,
+		func(req *http.Request) {
+			setModifiedCookieHeader(session.Client, req)
+		},
+		logWebAuthHTTP,
+	)
 	if err != nil {
-		return fmt.Errorf("failed to marshal phone payload: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", authServiceURL+"/verify/phone/securitycode", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	for key, values := range appleSessionHeaders(session) {
-		for _, value := range values {
-			req.Header.Add(key, value)
+		var marshalErr *appleauth.MarshalPayloadError
+		if errors.As(err, &marshalErr) {
+			return fmt.Errorf("failed to marshal phone payload: %w", err)
 		}
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-	setModifiedCookieHeader(session.Client, req)
-
-	resp, err := session.Client.Do(req)
-	if err != nil {
-		logWebAuthHTTP("phone_2fa", req, nil, nil, err)
 		return err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	respBody, _ := io.ReadAll(resp.Body)
-	logWebAuthHTTP("phone_2fa", req, resp, respBody, nil)
-
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+	if status >= 200 && status < 300 {
 		return nil
 	}
-	return &twoFAVerificationFailedError{Kind: "phone", Status: resp.StatusCode, Body: respBody}
+	return &twoFAVerificationFailedError{Kind: "phone", Status: status, Body: respBody}
 }
 
 func finalizeTwoFactor(ctx context.Context, session *AuthSession) error {
@@ -1126,50 +1221,35 @@ func SubmitTwoFactorCode(ctx context.Context, session *AuthSession, code string)
 	if session.ServiceKey == "" || session.AppleIDSessionID == "" || session.SCNT == "" {
 		return fmt.Errorf("session is missing 2fa continuation state")
 	}
-
-	opts, err := getAuthOptions(ctx, session)
-	if err != nil {
-		return err
-	}
-
-	if err := submitTrustedDeviceCode(ctx, session, code); err == nil {
-		return finalizeTwoFactor(ctx, session)
-	}
-
-	if len(opts.TrustedPhoneNumbers) > 0 {
-		phone := opts.TrustedPhoneNumbers[0]
-		mode := strings.TrimSpace(phone.PushMode)
-		if mode == "" {
-			mode = "sms"
-		}
-		if err := submitPhoneCode(ctx, session, code, phone.ID, mode); err != nil {
-			return err
-		}
-		return finalizeTwoFactor(ctx, session)
-	}
-
-	return fmt.Errorf("2fa failed: no supported verification method found")
+	err := appleauth.SubmitTwoFactorCode(
+		ctx,
+		session,
+		code,
+		func(ctx context.Context) (*appleauth.AuthOptions, error) {
+			opts, err := getAuthOptions(ctx, session)
+			if err != nil {
+				return nil, err
+			}
+			return opts.AuthOptions(), nil
+		},
+		func(ctx context.Context, phoneID int, mode string) error {
+			return requestPhoneCode(ctx, session, phoneID, mode)
+		},
+		func(ctx context.Context, code string) error {
+			return submitTrustedDeviceCode(ctx, session, code)
+		},
+		func(ctx context.Context, code string, phoneID int, mode string) error {
+			return submitPhoneCode(ctx, session, code, phoneID, mode)
+		},
+		func(ctx context.Context) error {
+			return finalizeTwoFactor(ctx, session)
+		},
+	)
+	return wrapWebTwoFactorFlowError(err)
 }
 
 func extractServiceErrorCodes(respBody []byte) []string {
-	var payload struct {
-		ServiceErrors []struct {
-			Code string `json:"code"`
-		} `json:"serviceErrors"`
-	}
-	if err := json.Unmarshal(respBody, &payload); err != nil {
-		return nil
-	}
-	if len(payload.ServiceErrors) == 0 {
-		return nil
-	}
-	codes := make([]string, 0, len(payload.ServiceErrors))
-	for _, serviceErr := range payload.ServiceErrors {
-		if strings.TrimSpace(serviceErr.Code) != "" {
-			codes = append(codes, strings.TrimSpace(serviceErr.Code))
-		}
-	}
-	return codes
+	return appleauth.ExtractServiceErrorCodes(respBody)
 }
 
 // Apple currently returns -20101 when signin/complete rejects SRP credentials.
@@ -1183,6 +1263,10 @@ func isInvalidAppleAccountCredentialsSigninComplete(status int, respBody []byte)
 		}
 	}
 	return false
+}
+
+func isAppleAccountActionRequiredSigninComplete(status int, respBody []byte) bool {
+	return appleauth.IsAppleAccountActionRequiredSigninComplete(status, respBody)
 }
 
 func (c *Client) waitForRateLimit(ctx context.Context) error {

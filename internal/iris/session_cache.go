@@ -1,6 +1,7 @@
 package iris
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -288,7 +289,7 @@ func TryResumeSession(username string) (*AuthSession, bool, error) {
 	}
 	client := newIrisHTTPClient(jar)
 
-	info, err := getSessionInfo(client)
+	info, err := getSessionInfo(context.Background(), client)
 	if err != nil {
 		return nil, false, nil
 	}
@@ -357,7 +358,7 @@ func TryResumeLastSession() (*AuthSession, bool, error) {
 	}
 
 	client := newIrisHTTPClient(jar)
-	info, err := getSessionInfo(client)
+	info, err := getSessionInfo(context.Background(), client)
 	if err != nil {
 		return nil, false, nil
 	}

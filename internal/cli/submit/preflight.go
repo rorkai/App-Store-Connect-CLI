@@ -12,14 +12,16 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
 // checkResult represents the outcome of a single preflight check.
 type checkResult struct {
-	Name    string `json:"name"`
-	Passed  bool   `json:"passed"`
-	Message string `json:"message,omitempty"`
-	Hint    string `json:"hint,omitempty"`
+	Name     string `json:"name"`
+	Passed   bool   `json:"passed"`
+	Advisory bool   `json:"advisory,omitempty"`
+	Message  string `json:"message,omitempty"`
+	Hint     string `json:"hint,omitempty"`
 }
 
 // preflightResult aggregates all preflight check outcomes.
@@ -123,9 +125,13 @@ func runPreflight(ctx context.Context, client *asc.Client, appID, version, platf
 	versionID, versionCheck := checkVersionExists(ctx, client, appID, version, platform)
 	result.Checks = append(result.Checks, versionCheck)
 
-	// 2. Build attached
+	// 2. Build attached + 3. Encryption compliance
 	if versionID != "" {
-		result.Checks = append(result.Checks, checkBuildAttached(ctx, client, versionID))
+		buildID, buildAttrs, buildCheck := checkBuildAttachedWithAttrs(ctx, client, versionID)
+		result.Checks = append(result.Checks, buildCheck)
+		if buildID != "" {
+			result.Checks = append(result.Checks, checkBuildEncryption(ctx, client, buildID, buildAttrs))
+		}
 	}
 
 	appInfoID, appInfoErr := resolveAppInfoID(ctx, client, appID, versionID)
@@ -147,8 +153,11 @@ func runPreflight(ctx context.Context, client *asc.Client, appID, version, platf
 
 	// 6 & 7. Localizations + screenshots
 	if versionID != "" {
-		locChecks := checkLocalizations(ctx, client, versionID, appID, platform)
+		locChecks := checkLocalizations(ctx, client, versionID, appID, version, platform)
 		result.Checks = append(result.Checks, locChecks...)
+	}
+	if advisoryCheck, ok := privacyPublishStateAdvisoryCheck(appID); ok {
+		result.Checks = append(result.Checks, advisoryCheck)
 	}
 
 	tallyCounts(result)
@@ -161,10 +170,37 @@ func tallyCounts(result *preflightResult) {
 	for _, c := range result.Checks {
 		if c.Passed {
 			result.PassCount++
-		} else {
-			result.FailCount++
+			continue
+		}
+		if c.Advisory {
+			continue
+		}
+		result.FailCount++
+	}
+}
+
+func countAdvisories(checks []checkResult) int {
+	count := 0
+	for _, check := range checks {
+		if check.Advisory {
+			count++
 		}
 	}
+	return count
+}
+
+func privacyPublishStateAdvisoryCheck(appID string) (checkResult, bool) {
+	advisory := validation.PrivacyPublishStateAdvisory(appID)
+	if advisory.ID == "" {
+		return checkResult{}, false
+	}
+	return checkResult{
+		Name:     "App Privacy",
+		Passed:   true,
+		Advisory: true,
+		Message:  advisory.Message,
+		Hint:     advisory.Remediation,
+	}, true
 }
 
 // --- Individual checks ---
@@ -189,30 +225,30 @@ func checkVersionExists(ctx context.Context, client *asc.Client, appID, version,
 	}
 }
 
-func checkBuildAttached(ctx context.Context, client *asc.Client, versionID string) checkResult {
+func checkBuildAttachedWithAttrs(ctx context.Context, client *asc.Client, versionID string) (string, *asc.BuildAttributes, checkResult) {
 	buildCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	buildResp, err := client.GetAppStoreVersionBuild(buildCtx, versionID)
 	if err != nil {
 		if asc.IsNotFound(err) {
-			return checkResult{
+			return "", nil, checkResult{
 				Name:    "Build attached",
 				Passed:  false,
 				Message: "No build attached to this version",
 				Hint:    fmt.Sprintf("asc submit create --version-id %s --build BUILD_ID --confirm", versionID),
 			}
 		}
-		return checkResult{
+		return "", nil, checkResult{
 			Name:    "Build attached",
 			Passed:  false,
 			Message: fmt.Sprintf("Failed to check build: %v", err),
 		}
 	}
 
-	buildVersion := buildResp.Data.Attributes.Version
-	if strings.TrimSpace(buildResp.Data.ID) == "" {
-		return checkResult{
+	buildID := strings.TrimSpace(buildResp.Data.ID)
+	if buildID == "" {
+		return "", nil, checkResult{
 			Name:    "Build attached",
 			Passed:  false,
 			Message: "No build attached to this version",
@@ -220,14 +256,105 @@ func checkBuildAttached(ctx context.Context, client *asc.Client, versionID strin
 		}
 	}
 
+	buildVersion := buildResp.Data.Attributes.Version
 	msg := "Build attached"
 	if buildVersion != "" {
 		msg = fmt.Sprintf("Build attached (build %s)", buildVersion)
 	}
-	return checkResult{
+	return buildID, &buildResp.Data.Attributes, checkResult{
 		Name:    "Build attached",
 		Passed:  true,
 		Message: msg,
+	}
+}
+
+// checkBuildEncryption verifies encryption compliance using attributes already
+// fetched by checkBuildAttachedWithAttrs, avoiding a redundant API call. Only
+// makes an additional request when usesNonExemptEncryption=true (to verify the
+// encryption declaration is attached).
+func checkBuildEncryption(ctx context.Context, client *asc.Client, buildID string, attrs *asc.BuildAttributes) checkResult {
+	if attrs == nil || attrs.UsesNonExemptEncryption == nil {
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  false,
+			Message: "usesNonExemptEncryption not set on build",
+			Hint:    fmt.Sprintf("Set Uses Non-Exempt Encryption for build %s in App Store Connect, then rerun asc submit preflight", buildID),
+		}
+	}
+
+	if !*attrs.UsesNonExemptEncryption {
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  true,
+			Message: "No non-exempt encryption used",
+		}
+	}
+
+	// usesNonExemptEncryption=true — verify declaration is attached.
+	declCtx, declCancel := shared.ContextWithTimeout(ctx)
+	defer declCancel()
+
+	declarationResp, err := client.GetBuildAppEncryptionDeclaration(declCtx, buildID)
+	if err != nil {
+		if asc.IsNotFound(err) {
+			return checkResult{
+				Name:    "Encryption compliance",
+				Passed:  false,
+				Message: "usesNonExemptEncryption=true but no encryption declaration attached to build",
+				Hint:    fmt.Sprintf("asc encryption declarations assign-builds --id DECLARATION_ID --build %s", buildID),
+			}
+		}
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  false,
+			Message: fmt.Sprintf("Failed to check encryption declaration: %v", err),
+		}
+	}
+	declarationID := strings.TrimSpace(declarationResp.Data.ID)
+	if declarationID == "" {
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  false,
+			Message: "usesNonExemptEncryption=true but build encryption declaration is missing an ID",
+			Hint:    fmt.Sprintf("asc encryption declarations assign-builds --id DECLARATION_ID --build %s", buildID),
+		}
+	}
+	declarationState := declarationResp.Data.Attributes.AppEncryptionDeclarationState
+	switch declarationState {
+	case asc.AppEncryptionDeclarationStateApproved:
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  true,
+			Message: fmt.Sprintf("Encryption declaration approved and attached (%s)", declarationID),
+		}
+	case asc.AppEncryptionDeclarationStateCreated, asc.AppEncryptionDeclarationStateInReview:
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  false,
+			Message: fmt.Sprintf("Encryption declaration attached (%s) is still %s", declarationID, declarationState),
+			Hint:    "Wait for the encryption declaration to reach APPROVED in App Store Connect, then rerun asc submit preflight",
+		}
+	case asc.AppEncryptionDeclarationStateRejected, asc.AppEncryptionDeclarationStateInvalid, asc.AppEncryptionDeclarationStateExpired:
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  false,
+			Message: fmt.Sprintf("Encryption declaration attached (%s) is %s", declarationID, declarationState),
+			Hint:    fmt.Sprintf("Attach an approved encryption declaration to build %s in App Store Connect, then rerun asc submit preflight", buildID),
+		}
+	case "":
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  false,
+			Message: fmt.Sprintf("Encryption declaration attached (%s) is missing approval state", declarationID),
+			Hint:    fmt.Sprintf("asc builds app-encryption-declaration get --id %s", buildID),
+		}
+	default:
+		return checkResult{
+			Name:    "Encryption compliance",
+			Passed:  false,
+			Message: fmt.Sprintf("Encryption declaration attached (%s) has unsupported state %q", declarationID, declarationState),
+			Hint:    fmt.Sprintf("asc builds app-encryption-declaration get --id %s", buildID),
+		}
 	}
 }
 
@@ -294,7 +421,7 @@ func checkAgeRating(ctx context.Context, client *asc.Client, appInfoID, appID st
 				Name:    "Age rating",
 				Passed:  false,
 				Message: "Age rating declaration not found",
-				Hint:    fmt.Sprintf("asc age-rating set --app %s --gambling false --violence-realistic NONE ...", appID),
+				Hint:    fmt.Sprintf("asc age-rating edit --app %s --gambling false --violence-realistic NONE ...", appID),
 			}
 		}
 		return checkResult{
@@ -311,7 +438,7 @@ func checkAgeRating(ctx context.Context, client *asc.Client, appInfoID, appID st
 			Name:    "Age rating",
 			Passed:  false,
 			Message: fmt.Sprintf("Age rating incomplete (missing: %s)", strings.Join(missing, ", ")),
-			Hint:    fmt.Sprintf("asc age-rating set --app %s --gambling false --violence-realistic NONE ...", appID),
+			Hint:    fmt.Sprintf("asc age-rating edit --app %s --gambling false --violence-realistic NONE ...", appID),
 		}
 	}
 
@@ -391,7 +518,7 @@ func checkContentRights(ctx context.Context, client *asc.Client, appID string) c
 			Name:    "Content rights",
 			Passed:  false,
 			Message: "Content rights declaration not set",
-			Hint:    fmt.Sprintf("asc apps update --app %s --content-rights DOES_NOT_USE_THIRD_PARTY_CONTENT", appID),
+			Hint:    fmt.Sprintf("asc apps update --id %s --content-rights DOES_NOT_USE_THIRD_PARTY_CONTENT", appID),
 		}
 	}
 
@@ -439,7 +566,7 @@ func checkPrimaryCategory(ctx context.Context, client *asc.Client, appInfoID, ap
 	}
 }
 
-func checkLocalizations(ctx context.Context, client *asc.Client, versionID, appID, platform string) []checkResult {
+func checkLocalizations(ctx context.Context, client *asc.Client, versionID, appID, version, platform string) []checkResult {
 	locCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
@@ -465,7 +592,7 @@ func checkLocalizations(ctx context.Context, client *asc.Client, versionID, appI
 				Name:    "Localization metadata",
 				Passed:  false,
 				Message: "No localizations found for this version",
-				Hint:    "asc metadata push --version-id " + versionID,
+				Hint:    metadataPushHint(appID, version, platform),
 			},
 			{
 				Name:    "Screenshots",
@@ -487,7 +614,7 @@ func checkLocalizations(ctx context.Context, client *asc.Client, versionID, appI
 	if err != nil {
 		metadataCheck.Message = fmt.Sprintf("Failed to determine whether whatsNew is required: %v", err)
 	} else {
-		metadataCheck = checkLocalizationMetadata(localizations.Data, versionID, shared.SubmitReadinessOptions{
+		metadataCheck = checkLocalizationMetadata(localizations.Data, appID, version, platform, shared.SubmitReadinessOptions{
 			RequireWhatsNew: requireWhatsNew,
 		})
 	}
@@ -496,7 +623,7 @@ func checkLocalizations(ctx context.Context, client *asc.Client, versionID, appI
 	return []checkResult{metadataCheck, screenshotCheck}
 }
 
-func checkLocalizationMetadata(localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes], versionID string, opts shared.SubmitReadinessOptions) checkResult {
+func checkLocalizationMetadata(localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes], appID, version, platform string, opts shared.SubmitReadinessOptions) checkResult {
 	issues := shared.SubmitReadinessIssuesByLocaleWithOptions(localizations, opts)
 	if len(issues) == 0 {
 		return checkResult{
@@ -510,8 +637,16 @@ func checkLocalizationMetadata(localizations []asc.Resource[asc.AppStoreVersionL
 		Name:    "Localization metadata",
 		Passed:  false,
 		Message: "Missing submission metadata: " + formatSubmitReadinessIssues(issues),
-		Hint:    "asc metadata push --version-id " + versionID,
+		Hint:    metadataPushHint(appID, version, platform),
 	}
+}
+
+func metadataPushHint(appID, version, platform string) string {
+	hint := fmt.Sprintf("asc metadata push --app %s --version %s", appID, version)
+	if strings.TrimSpace(platform) != "" {
+		hint += " --platform " + platform
+	}
+	return hint + " --dir ./metadata"
 }
 
 func formatSubmitReadinessIssues(issues []shared.SubmitReadinessIssue) string {
@@ -602,7 +737,12 @@ func printPreflightText(w io.Writer, result *preflightResult) {
 	fmt.Fprintln(w, strings.Repeat("\u2500", len(header)))
 
 	for _, c := range result.Checks {
-		if c.Passed {
+		if c.Advisory {
+			fmt.Fprintf(w, "! %s\n", c.Message)
+			if c.Hint != "" {
+				fmt.Fprintf(w, "  Hint: %s\n", c.Hint)
+			}
+		} else if c.Passed {
 			fmt.Fprintf(w, "\u2713 %s\n", c.Message)
 		} else {
 			fmt.Fprintf(w, "\u2717 %s\n", c.Message)
@@ -613,8 +753,15 @@ func printPreflightText(w io.Writer, result *preflightResult) {
 	}
 
 	fmt.Fprintln(w)
-	if result.FailCount == 0 {
+	advisoryCount := countAdvisories(result.Checks)
+	if result.FailCount == 0 && advisoryCount == 0 {
 		fmt.Fprintln(w, "Result: All checks passed. Ready to submit.")
+	} else if result.FailCount == 0 {
+		label := "advisories"
+		if advisoryCount == 1 {
+			label = "advisory"
+		}
+		fmt.Fprintf(w, "Result: Required checks passed, but %d %s should be reviewed before submitting.\n", advisoryCount, label)
 	} else {
 		fmt.Fprintf(w, "Result: %d issue(s) found. Fix them before submitting.\n", result.FailCount)
 	}

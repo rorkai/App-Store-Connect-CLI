@@ -244,6 +244,14 @@ func TestExecuteRun_SuccessPath(t *testing.T) {
 			AppID:     "APP_123",
 			VersionID: "VERSION_123",
 			Summary:   validation.Summary{Errors: 0, Warnings: 0, Infos: 1, Blocking: 0},
+			Checks: []validation.CheckResult{{
+				ID:           "privacy.publish_state.unverified",
+				Severity:     validation.SeverityInfo,
+				ResourceType: "appPrivacy",
+				ResourceID:   "APP_123",
+				Message:      "App Privacy publish state is not verifiable via the public App Store Connect API and may still block submission",
+				Remediation:  "Confirm App Privacy is published in App Store Connect before submitting: https://appstoreconnect.apple.com/apps/APP_123/appPrivacy",
+			}},
 		}, nil
 	}
 
@@ -305,6 +313,9 @@ func TestExecuteRun_SuccessPath(t *testing.T) {
 	if !readinessCalled {
 		t.Fatal("expected readiness checks to be executed")
 	}
+	if result.Steps[3].Message != "readiness checks passed with 1 advisory; App Privacy may still block submission" {
+		t.Fatalf("expected readiness advisory message, got %q", result.Steps[3].Message)
+	}
 }
 
 func TestExecuteStage_CopyMetadataSuccessPath(t *testing.T) {
@@ -365,6 +376,14 @@ func TestExecuteStage_CopyMetadataSuccessPath(t *testing.T) {
 			AppID:     "APP_123",
 			VersionID: "VERSION_123",
 			Summary:   validation.Summary{Errors: 0, Warnings: 0, Infos: 1, Blocking: 0},
+			Checks: []validation.CheckResult{{
+				ID:           "privacy.publish_state.unverified",
+				Severity:     validation.SeverityInfo,
+				ResourceType: "appPrivacy",
+				ResourceID:   "APP_123",
+				Message:      "App Privacy publish state is not verifiable via the public App Store Connect API and may still block submission",
+				Remediation:  "Confirm App Privacy is published in App Store Connect before submitting: https://appstoreconnect.apple.com/apps/APP_123/appPrivacy",
+			}},
 		}, nil
 	}
 
@@ -432,6 +451,9 @@ func TestExecuteStage_CopyMetadataSuccessPath(t *testing.T) {
 	}
 	if !readinessCalled {
 		t.Fatal("expected readiness checks to be called")
+	}
+	if result.Steps[3].Message != "readiness checks passed with 1 advisory; App Privacy may still block submission" {
+		t.Fatalf("expected readiness advisory message, got %q", result.Steps[3].Message)
 	}
 }
 

@@ -2,13 +2,14 @@ package asc
 
 // Result types for the publish workflow.
 type TestFlightPublishResult struct {
-	BuildID         string   `json:"buildId"`
-	BuildVersion    string   `json:"buildVersion,omitempty"`
-	BuildNumber     string   `json:"buildNumber,omitempty"`
-	GroupIDs        []string `json:"groupIds,omitempty"`
-	Uploaded        bool     `json:"uploaded"`
-	ProcessingState string   `json:"processingState,omitempty"`
-	Notified        bool     `json:"notified,omitempty"`
+	BuildID            string                            `json:"buildId"`
+	BuildVersion       string                            `json:"buildVersion,omitempty"`
+	BuildNumber        string                            `json:"buildNumber,omitempty"`
+	GroupIDs           []string                          `json:"groupIds,omitempty"`
+	Uploaded           bool                              `json:"uploaded"`
+	ProcessingState    string                            `json:"processingState,omitempty"`
+	Notified           *bool                             `json:"notified,omitempty"`
+	NotificationAction BuildBetaGroupsNotificationAction `json:"notificationAction,omitempty"`
 }
 
 // AppStorePublishResult captures the App Store publish workflow output.

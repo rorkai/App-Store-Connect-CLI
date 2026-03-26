@@ -25,6 +25,7 @@ func LocalizationsCommand() *ffcli.Command {
 
 Examples:
   asc localizations list --version "VERSION_ID"
+  asc localizations create --version "VERSION_ID" --locale "ja"
   asc localizations search-keywords list --localization-id "LOCALIZATION_ID"
   asc localizations preview-sets list --localization-id "LOCALIZATION_ID"
   asc localizations preview-sets get --id "PREVIEW_SET_ID"
@@ -35,6 +36,7 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			LocalizationsListCommand(),
+			LocalizationsCreateCommand(),
 			LocalizationsUpdateCommand(),
 			LocalizationsSearchKeywordsCommand(),
 			LocalizationsPreviewSetsCommand(),

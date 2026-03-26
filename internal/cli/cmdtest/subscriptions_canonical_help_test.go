@@ -96,7 +96,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 		t.Fatal("expected subscriptions pricing price-points command")
 	}
 	pricePointsUsage := pricePointsCmd.UsageFunc(pricePointsCmd)
-	if !strings.Contains(pricePointsUsage, `asc subscriptions pricing price-points get --price-point-id "PRICE_POINT_ID"`) {
+	if !strings.Contains(pricePointsUsage, `asc subscriptions pricing price-points view --price-point-id "PRICE_POINT_ID"`) {
 		t.Fatalf("expected subscriptions pricing price-points help to show canonical price point selector, got %q", pricePointsUsage)
 	}
 	if !strings.Contains(pricePointsUsage, `asc subscriptions pricing price-points equalizations --price-point-id "PRICE_POINT_ID"`) {

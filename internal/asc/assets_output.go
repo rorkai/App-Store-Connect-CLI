@@ -112,7 +112,7 @@ func appPreviewSetsRows(resp *AppPreviewSetsResponse) ([]string, [][]string) {
 }
 
 func appPreviewsRows(resp *AppPreviewsResponse) ([]string, [][]string) {
-	headers := []string{"ID", "File Name", "File Size", "State"}
+	headers := []string{"ID", "File Name", "File Size", "Poster Frame", "State"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		state := ""
@@ -123,6 +123,7 @@ func appPreviewsRows(resp *AppPreviewsResponse) ([]string, [][]string) {
 			item.ID,
 			item.Attributes.FileName,
 			fmt.Sprintf("%d", item.Attributes.FileSize),
+			item.Attributes.PreviewFrameTimeCode,
 			state,
 		})
 	}
@@ -157,12 +158,12 @@ func appScreenshotListResultRows(result *AppScreenshotListResult) ([]string, [][
 }
 
 func appPreviewListResultRows(result *AppPreviewListResult) ([]string, [][]string) {
-	headers := []string{"Set ID", "Preview Type", "Preview ID", "File Name", "File Size", "State"}
+	headers := []string{"Set ID", "Preview Type", "Preview ID", "File Name", "File Size", "Poster Frame", "State"}
 	var rows [][]string
 	for _, set := range result.Sets {
 		previewType := set.Set.Attributes.PreviewType
 		if len(set.Previews) == 0 {
-			rows = append(rows, []string{set.Set.ID, previewType, "", "", "", ""})
+			rows = append(rows, []string{set.Set.ID, previewType, "", "", "", "", ""})
 			continue
 		}
 		for _, item := range set.Previews {
@@ -176,6 +177,7 @@ func appPreviewListResultRows(result *AppPreviewListResult) ([]string, [][]strin
 				item.ID,
 				item.Attributes.FileName,
 				fmt.Sprintf("%d", item.Attributes.FileSize),
+				item.Attributes.PreviewFrameTimeCode,
 				state,
 			})
 		}

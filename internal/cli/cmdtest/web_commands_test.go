@@ -43,6 +43,13 @@ func TestWebAppsCreateSubcommandIsRegistered(t *testing.T) {
 	}
 }
 
+func TestWebSandboxCreateSubcommandIsRegistered(t *testing.T) {
+	root := RootCommand("1.2.3")
+	if sub := findSubcommand(root, "web", "sandbox", "create"); sub == nil {
+		t.Fatalf("expected web sandbox create to be registered")
+	}
+}
+
 func TestWebAuthCapabilitiesSubcommandIsRegistered(t *testing.T) {
 	root := RootCommand("1.2.3")
 	if sub := findSubcommand(root, "web", "auth", "capabilities"); sub == nil {
@@ -62,8 +69,42 @@ func TestWebAppsCreateMissingRequiredFlags(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	var runErr error
+	var stderr string
+	withNonTTYStdin(t, func() {
+		_, stderr = captureOutput(t, func() {
+			if err := root.Parse([]string{"web", "apps", "create", "--name", "My App"}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			runErr = root.Run(context.Background())
+		})
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if !strings.Contains(stderr, "Error: missing required flags: --bundle-id, --sku") {
+		t.Fatalf("expected aggregated missing-flags error, got %q", stderr)
+	}
+}
+
+func TestWebAppsCreateExposesPasswordCompatibilityFlag(t *testing.T) {
+	root := RootCommand("1.2.3")
+	cmd := findSubcommand(root, "web", "apps", "create")
+	if cmd == nil {
+		t.Fatal("expected web apps create command")
+	}
+	if cmd.FlagSet.Lookup("password") == nil {
+		t.Fatal("expected temporary password compatibility flag on web apps create")
+	}
+}
+
+func TestWebSandboxCreateMissingRequiredFlags(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
 	_, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"web", "apps", "create"}); err != nil {
+		if err := root.Parse([]string{"web", "sandbox", "create"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())
@@ -72,8 +113,8 @@ func TestWebAppsCreateMissingRequiredFlags(t *testing.T) {
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
 	}
-	if !strings.Contains(stderr, "Error: --name is required") {
-		t.Fatalf("expected missing --name error, got %q", stderr)
+	if !strings.Contains(stderr, "Error: --first-name is required") {
+		t.Fatalf("expected missing --first-name error, got %q", stderr)
 	}
 }
 
@@ -97,7 +138,7 @@ func TestWebXcodeCloudWorkflowsCreateMissingRequiredFlags(t *testing.T) {
 	}
 }
 
-func TestWebAuthLoginDoesNotExposePlaintextPasswordFlag(t *testing.T) {
+func TestWebAuthLoginExposesDeprecatedTwoFactorAliasWithoutPlaintextPasswordFlag(t *testing.T) {
 	root := RootCommand("1.2.3")
 	cmd := findSubcommand(root, "web", "auth", "login")
 	if cmd == nil {
@@ -108,5 +149,53 @@ func TestWebAuthLoginDoesNotExposePlaintextPasswordFlag(t *testing.T) {
 	}
 	if cmd.FlagSet.Lookup("password-stdin") != nil {
 		t.Fatal("did not expect --password-stdin flag on web auth login")
+	}
+	twoFactorCodeFlag := cmd.FlagSet.Lookup("two-factor-code")
+	if twoFactorCodeFlag == nil {
+		t.Fatal("expected deprecated --two-factor-code flag on web auth login")
+	}
+	if !strings.Contains(twoFactorCodeFlag.Usage, "Deprecated:") {
+		t.Fatalf("expected deprecated help text for --two-factor-code, got %q", twoFactorCodeFlag.Usage)
+	}
+	if cmd.FlagSet.Lookup("two-factor-code-command") == nil {
+		t.Fatal("expected --two-factor-code-command flag on web auth login")
+	}
+}
+
+func TestWebAppsCreateExposesDeprecatedTwoFactorAlias(t *testing.T) {
+	root := RootCommand("1.2.3")
+	cmd := findSubcommand(root, "web", "apps", "create")
+	if cmd == nil {
+		t.Fatal("expected web apps create command")
+	}
+
+	twoFactorCodeFlag := cmd.FlagSet.Lookup("two-factor-code")
+	if twoFactorCodeFlag == nil {
+		t.Fatal("expected deprecated --two-factor-code flag on web apps create")
+	}
+	if !strings.Contains(twoFactorCodeFlag.Usage, "Deprecated:") {
+		t.Fatalf("expected deprecated help text for --two-factor-code, got %q", twoFactorCodeFlag.Usage)
+	}
+	if cmd.FlagSet.Lookup("two-factor-code-command") == nil {
+		t.Fatal("expected --two-factor-code-command flag on web apps create")
+	}
+}
+
+func TestWebSandboxCreateExposesDeprecatedTwoFactorAlias(t *testing.T) {
+	root := RootCommand("1.2.3")
+	cmd := findSubcommand(root, "web", "sandbox", "create")
+	if cmd == nil {
+		t.Fatal("expected web sandbox create command")
+	}
+
+	twoFactorCodeFlag := cmd.FlagSet.Lookup("two-factor-code")
+	if twoFactorCodeFlag == nil {
+		t.Fatal("expected deprecated --two-factor-code flag on web sandbox create")
+	}
+	if !strings.Contains(twoFactorCodeFlag.Usage, "Deprecated:") {
+		t.Fatalf("expected deprecated help text for --two-factor-code, got %q", twoFactorCodeFlag.Usage)
+	}
+	if cmd.FlagSet.Lookup("two-factor-code-command") == nil {
+		t.Fatal("expected --two-factor-code-command flag on web sandbox create")
 	}
 }

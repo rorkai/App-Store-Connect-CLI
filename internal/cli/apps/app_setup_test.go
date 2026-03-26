@@ -150,6 +150,20 @@ func TestAppSetupPricingSetCommand_MissingFlags(t *testing.T) {
 	}
 }
 
+func TestAppSetupPricingSetCommand_HelpMentionsFreeExample(t *testing.T) {
+	cmd := AppSetupPricingSetCommand()
+
+	if !strings.Contains(cmd.LongHelp, "--free") {
+		t.Fatalf("expected --free example in long help, got %q", cmd.LongHelp)
+	}
+	if !strings.Contains(cmd.FlagSet.Lookup("tier").Usage, "--free") {
+		t.Fatalf("expected --tier help to mention --free, got %q", cmd.FlagSet.Lookup("tier").Usage)
+	}
+	if !strings.Contains(cmd.FlagSet.Lookup("price").Usage, "--free") {
+		t.Fatalf("expected --price help to mention --free, got %q", cmd.FlagSet.Lookup("price").Usage)
+	}
+}
+
 func TestAppSetupLocalizationsUploadCommand_MissingPath(t *testing.T) {
 	cmd := AppSetupLocalizationsUploadCommand()
 

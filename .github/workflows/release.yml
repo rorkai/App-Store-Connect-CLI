@@ -12,7 +12,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Validate release tag
         run: |
@@ -26,7 +26,7 @@ jobs:
           printf 'VERSION=%s\n' "$TAG" >> "$GITHUB_ENV"
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '1.26.x'
           cache: true
@@ -46,7 +46,7 @@ jobs:
         run: mkdir -p release
 
       - name: Import Apple certificate
-        uses: apple-actions/import-codesign-certs@v2
+        uses: apple-actions/import-codesign-certs@v6
         with:
           p12-file-base64: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
           p12-password: ${{ secrets.APPLE_DEVELOPER_ID_PASSWORD }}
@@ -88,13 +88,15 @@ jobs:
       - name: Display files
         run: ls -la release/
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: release/**
-          generate_release_notes: true
+      - name: Create or update GitHub Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${VERSION}" >/dev/null 2>&1; then
+            gh release upload "${VERSION}" release/* --clobber
+          else
+            gh release create "${VERSION}" release/* --generate-notes --verify-tag
+          fi
 
       - name: Update Homebrew tap
         env:

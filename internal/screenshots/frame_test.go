@@ -45,6 +45,37 @@ func TestFrameDeviceOptions_DefaultMarked(t *testing.T) {
 	}
 }
 
+func TestFrameDeviceKoubouSpecs_UsePinnedKoubouFrames(t *testing.T) {
+	want := map[FrameDevice]struct {
+		frameName   string
+		outputSize  string
+		displayType string
+	}{
+		FrameDeviceIPhoneAir:   {frameName: "iPhone Air - Light Gold - Portrait", outputSize: "iPhone6_9_alt", displayType: "APP_IPHONE_69"},
+		FrameDeviceIPhone17PM:  {frameName: "iPhone 17 Pro Max - Silver - Portrait", outputSize: "iPhone6_9", displayType: "APP_IPHONE_69"},
+		FrameDeviceIPhone17Pro: {frameName: "iPhone 17 Pro - Silver - Portrait", outputSize: "iPhone6_3", displayType: "APP_IPHONE_61"},
+		FrameDeviceIPhone17:    {frameName: "iPhone 17 - White - Portrait", outputSize: "iPhone6_3", displayType: "APP_IPHONE_61"},
+		FrameDeviceIPhone16e:   {frameName: "iPhone 16 - White - Portrait", outputSize: "iPhone6_1", displayType: "APP_IPHONE_61"},
+		FrameDeviceMac:         {frameName: "Mac", outputSize: "AppDesktop_2880", displayType: "APP_DESKTOP"},
+	}
+
+	for device, wantSpec := range want {
+		spec, ok := frameDeviceKoubouSpecs[device]
+		if !ok {
+			t.Fatalf("missing Koubou spec for %q", device)
+		}
+		if spec.FrameName != wantSpec.frameName {
+			t.Fatalf("%q FrameName = %q, want %q", device, spec.FrameName, wantSpec.frameName)
+		}
+		if spec.OutputSize != wantSpec.outputSize {
+			t.Fatalf("%q OutputSize = %q, want %q", device, spec.OutputSize, wantSpec.outputSize)
+		}
+		if spec.DisplayType != wantSpec.displayType {
+			t.Fatalf("%q DisplayType = %q, want %q", device, spec.DisplayType, wantSpec.displayType)
+		}
+	}
+}
+
 func TestParseFrameDevice_NormalizesInput(t *testing.T) {
 	tests := []struct {
 		name string
@@ -88,6 +119,8 @@ func TestResolveKoubouOutputSize(t *testing.T) {
 		wantOK     bool
 	}{
 		{name: "named size", value: "iPhone6_9", wantWidth: 1320, wantHeight: 2868, wantOK: true},
+		{name: "alternate named size", value: "iPhone6_9_alt", wantWidth: 1260, wantHeight: 2736, wantOK: true},
+		{name: "iphone 6.3 size", value: "iPhone6_3", wantWidth: 1206, wantHeight: 2622, wantOK: true},
 		{name: "desktop named size", value: "AppDesktop_2880", wantWidth: 2880, wantHeight: 1800, wantOK: true},
 		{name: "custom list", value: []any{1200, 2500}, wantWidth: 1200, wantHeight: 2500, wantOK: true},
 		{name: "unknown name", value: "iphone7_2", wantOK: false},
@@ -125,7 +158,7 @@ func TestParseKoubouConfigMetadata(t *testing.T) {
   name: "Demo"
   output_dir: "./out"
   device: "iPhone 17 Pro - Silver - Portrait"
-  output_size: "iPhone6_7"
+  output_size: "iPhone6_3"
 screenshots:
   framed:
     content:
@@ -144,10 +177,10 @@ screenshots:
 	if metadata.FrameRef != "iPhone 17 Pro - Silver - Portrait" {
 		t.Fatalf("unexpected frame ref %q", metadata.FrameRef)
 	}
-	if metadata.DisplayType != "APP_IPHONE_67" {
+	if metadata.DisplayType != "APP_IPHONE_61" {
 		t.Fatalf("unexpected display type %q", metadata.DisplayType)
 	}
-	if metadata.UploadWidth != 1290 || metadata.UploadHeight != 2796 {
+	if metadata.UploadWidth != 1206 || metadata.UploadHeight != 2622 {
 		t.Fatalf("unexpected upload dimensions %dx%d", metadata.UploadWidth, metadata.UploadHeight)
 	}
 }
@@ -191,7 +224,7 @@ func TestSelectGeneratedScreenshot_RejectsEscapingRelativePath(t *testing.T) {
 
 func TestFrame_ConfigModeReportsDeviceFromConfig(t *testing.T) {
 	kouFixturePath := filepath.Join(t.TempDir(), "kou-fixture.png")
-	writeFrameTestPNG(t, kouFixturePath, makeFrameTestImage(1290, 2796))
+	writeFrameTestPNG(t, kouFixturePath, makeFrameTestImage(1206, 2622))
 	installFrameTestMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
 
 	configPath := filepath.Join(t.TempDir(), "frame.yaml")
@@ -199,7 +232,7 @@ func TestFrame_ConfigModeReportsDeviceFromConfig(t *testing.T) {
   name: "Demo"
   output_dir: "./out"
   device: "iPhone 17 Pro - Silver - Portrait"
-  output_size: "iPhone6_7"
+  output_size: "iPhone6_3"
 screenshots:
   framed:
     content:
@@ -220,6 +253,47 @@ screenshots:
 	}
 	if result.Device != string(FrameDeviceIPhone17Pro) {
 		t.Fatalf("result.Device = %q, want %q", result.Device, FrameDeviceIPhone17Pro)
+	}
+}
+
+func TestResolveFrameDeviceFromConfig_LegacyFallbackAliases(t *testing.T) {
+	tests := []struct {
+		name     string
+		frameRef string
+		sizeName string
+		want     FrameDevice
+	}{
+		{name: "iphone air", frameRef: "iPhone 16 Pro - White Titanium - Portrait", sizeName: "iPhone6_9", want: FrameDeviceIPhoneAir},
+		{name: "iphone 17 pro max", frameRef: "iPhone 16 Pro Max - White Titanium - Portrait", sizeName: "iPhone6_9", want: FrameDeviceIPhone17PM},
+		{name: "iphone 17 pro", frameRef: "iPhone 15 Pro - White Titanium - Portrait", sizeName: "iPhone6_7", want: FrameDeviceIPhone17Pro},
+		{name: "iphone 17 teal alias", frameRef: "iPhone 17 - Teal - Portrait", sizeName: "iPhone6_7", want: FrameDeviceIPhone17},
+		{name: "iphone 17", frameRef: "iPhone 14 Pro Portrait", sizeName: "iPhone6_7", want: FrameDeviceIPhone17},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "frame.yaml")
+			config := `project:
+  name: "Demo"
+  output_dir: "./out"
+  device: "` + tt.frameRef + `"
+  output_size: "` + tt.sizeName + `"
+screenshots:
+  framed:
+    content:
+      - type: "image"
+        asset: "screenshots/raw.png"
+        frame: true
+`
+			if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
+				t.Fatalf("WriteFile() error = %v", err)
+			}
+
+			got := ResolveFrameDeviceFromConfig(configPath, string(DefaultFrameDevice()))
+			if got != string(tt.want) {
+				t.Fatalf("ResolveFrameDeviceFromConfig() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -267,7 +341,10 @@ func installFrameTestMockKou(t *testing.T, fixturePath, outputPath string) {
 	kouPath := filepath.Join(binDir, "kou")
 	script := `#!/bin/sh
 if [ "$1" = "--version" ]; then
-  echo "kou 0.14.0"
+  echo "kou 0.18.1"
+  exit 0
+fi
+if [ "$1" = "setup-frames" ]; then
   exit 0
 fi
 if [ "$1" = "generate" ]; then
@@ -500,7 +577,10 @@ func TestRunKoubouGenerate_ParsesJSONFromStdoutWhenStderrHasWarnings(t *testing.
 	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
 set -eu
 if [ "$1" = "--version" ]; then
-  echo "kou 0.14.0"
+  echo "kou 0.18.1"
+  exit 0
+fi
+if [ "$1" = "setup-frames" ]; then
   exit 0
 fi
 if [ "$1" != "generate" ]; then
@@ -521,6 +601,206 @@ echo '[{"name":"framed","path":"output/framed.png","success":true,"error":""}]'
 	}
 	if !results[0].Success || results[0].Path != "output/framed.png" {
 		t.Fatalf("unexpected parsed result: %+v", results[0])
+	}
+}
+
+func TestRunKoubouGenerate_RunsSetupFramesBeforeGenerate(t *testing.T) {
+	resetKoubouVersionCacheForTest()
+
+	binDir := t.TempDir()
+	logPath := filepath.Join(t.TempDir(), "kou.log")
+	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
+set -eu
+if [ "$1" = "--version" ]; then
+  echo "kou 0.18.1"
+  exit 0
+fi
+if [ "$1" = "setup-frames" ]; then
+  echo "setup-frames" >> "$KOU_LOG_PATH"
+  exit 0
+fi
+if [ "$1" = "generate" ]; then
+  echo "generate" >> "$KOU_LOG_PATH"
+  echo '[{"name":"framed","path":"output/framed.png","success":true,"error":""}]'
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`)
+	t.Setenv("KOU_LOG_PATH", logPath)
+	t.Setenv("PATH", binDir)
+
+	results, err := runKoubouGenerate(context.Background(), "frame.yaml")
+	if err != nil {
+		t.Fatalf("runKoubouGenerate() error = %v", err)
+	}
+	if len(results) != 1 || results[0].Path != "output/framed.png" {
+		t.Fatalf("unexpected parsed results: %+v", results)
+	}
+
+	logBytes, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", logPath, err)
+	}
+	if got := strings.TrimSpace(string(logBytes)); got != "setup-frames\ngenerate" {
+		t.Fatalf("expected setup-frames before generate, got %q", got)
+	}
+}
+
+func TestRunKoubouGenerate_SetupFramesFailureIncludesHint(t *testing.T) {
+	resetKoubouVersionCacheForTest()
+
+	binDir := t.TempDir()
+	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
+set -eu
+if [ "$1" = "--version" ]; then
+  echo "kou 0.18.1"
+  exit 0
+fi
+if [ "$1" = "setup-frames" ]; then
+  echo "network unavailable" >&2
+  exit 1
+fi
+if [ "$1" = "generate" ]; then
+  echo '[{"name":"framed","path":"output/framed.png","success":true,"error":""}]'
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`)
+	t.Setenv("PATH", binDir)
+
+	_, err := runKoubouGenerate(context.Background(), "frame.yaml")
+	if err == nil {
+		t.Fatal("expected setup-frames error")
+	}
+	if !strings.Contains(err.Error(), "kou setup-frames") {
+		t.Fatalf("expected setup-frames command in error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "run `kou setup-frames` with network access once before framing") {
+		t.Fatalf("expected setup hint in error, got %v", err)
+	}
+}
+
+func TestRunKoubouGenerate_RechecksSetupFramesWhenKouBinaryChanges(t *testing.T) {
+	resetKoubouVersionCacheForTest()
+
+	logPath := filepath.Join(t.TempDir(), "kou.log")
+
+	firstBinDir := t.TempDir()
+	writeExecutable(t, filepath.Join(firstBinDir, "kou"), `#!/bin/sh
+set -eu
+if [ "$1" = "--version" ]; then
+  echo "kou 0.18.1"
+  exit 0
+fi
+if [ "$1" = "setup-frames" ]; then
+  echo "setup-first" >> "$KOU_LOG_PATH"
+  exit 0
+fi
+if [ "$1" = "generate" ]; then
+  echo "generate-first" >> "$KOU_LOG_PATH"
+  echo '[{"name":"framed","path":"output/first.png","success":true,"error":""}]'
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`)
+
+	secondBinDir := t.TempDir()
+	writeExecutable(t, filepath.Join(secondBinDir, "kou"), `#!/bin/sh
+set -eu
+if [ "$1" = "--version" ]; then
+  echo "kou 0.18.1"
+  exit 0
+fi
+if [ "$1" = "setup-frames" ]; then
+  echo "setup-second" >> "$KOU_LOG_PATH"
+  exit 0
+fi
+if [ "$1" = "generate" ]; then
+  echo "generate-second" >> "$KOU_LOG_PATH"
+  echo '[{"name":"framed","path":"output/second.png","success":true,"error":""}]'
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`)
+
+	t.Setenv("KOU_LOG_PATH", logPath)
+	t.Setenv("PATH", firstBinDir)
+	results, err := runKoubouGenerate(context.Background(), "frame.yaml")
+	if err != nil {
+		t.Fatalf("first runKoubouGenerate() error = %v", err)
+	}
+	if len(results) != 1 || results[0].Path != "output/first.png" {
+		t.Fatalf("unexpected first parsed results: %+v", results)
+	}
+
+	t.Setenv("PATH", secondBinDir)
+	results, err = runKoubouGenerate(context.Background(), "frame.yaml")
+	if err != nil {
+		t.Fatalf("second runKoubouGenerate() error = %v", err)
+	}
+	if len(results) != 1 || results[0].Path != "output/second.png" {
+		t.Fatalf("unexpected second parsed results: %+v", results)
+	}
+
+	logBytes, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) error = %v", logPath, err)
+	}
+	if got := strings.TrimSpace(string(logBytes)); got != "setup-first\ngenerate-first\nsetup-second\ngenerate-second" {
+		t.Fatalf("expected setup-frames rerun after binary swap, got %q", got)
+	}
+}
+
+func TestRunKoubouGenerate_SkipsSetupFramesForCanvasOnlyConfig(t *testing.T) {
+	resetKoubouVersionCacheForTest()
+
+	binDir := t.TempDir()
+	writeExecutable(t, filepath.Join(binDir, "kou"), `#!/bin/sh
+set -eu
+if [ "$1" = "--version" ]; then
+  echo "kou 0.18.1"
+  exit 0
+fi
+if [ "$1" = "setup-frames" ]; then
+  echo "setup-frames should be skipped" >&2
+  exit 1
+fi
+if [ "$1" = "generate" ]; then
+  echo '[{"name":"framed","path":"output/mac.png","success":true,"error":""}]'
+  exit 0
+fi
+echo "unsupported args" >&2
+exit 1
+`)
+	t.Setenv("PATH", binDir)
+
+	configPath := filepath.Join(t.TempDir(), "frame.yaml")
+	config := `project:
+  name: "Demo"
+  output_dir: "./out"
+  device: "Mac"
+  output_size: [2880, 1800]
+screenshots:
+  framed:
+    content:
+      - type: "image"
+        asset: "screenshots/raw.png"
+        frame: false
+`
+	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	results, err := runKoubouGenerate(context.Background(), configPath)
+	if err != nil {
+		t.Fatalf("runKoubouGenerate() error = %v", err)
+	}
+	if len(results) != 1 || results[0].Path != "output/mac.png" {
+		t.Fatalf("unexpected parsed results: %+v", results)
 	}
 }
 
@@ -548,7 +828,7 @@ exit 1
 	if !strings.Contains(err.Error(), "unsupported Koubou version 0.12.0") {
 		t.Fatalf("expected unsupported version error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "0.14.0") {
+	if !strings.Contains(err.Error(), "0.18.1") {
 		t.Fatalf("expected pinned version in error, got %v", err)
 	}
 }
@@ -560,7 +840,7 @@ func TestRunKoubouGenerate_NotFoundIncludesPinnedInstallHint(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected not found error")
 	}
-	if !strings.Contains(err.Error(), "pip install koubou==0.14.0") {
+	if !strings.Contains(err.Error(), "pip install koubou==0.18.1") {
 		t.Fatalf("expected pinned install command in error, got %v", err)
 	}
 }

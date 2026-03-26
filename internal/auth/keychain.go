@@ -1478,10 +1478,6 @@ func saveDefaultName(name string) error {
 		cfg = &config.Config{}
 	}
 	trimmedName := strings.TrimSpace(name)
-	previousDefault := strings.TrimSpace(cfg.DefaultKeyName)
-	if previousDefault == "" {
-		previousDefault = "default"
-	}
 	cfg.DefaultKeyName = trimmedName
 	if trimmedName != "" {
 		for _, cred := range cfg.Keys {
@@ -1492,11 +1488,6 @@ func saveDefaultName(name string) error {
 				return config.Save(cfg)
 			}
 		}
-	}
-	if trimmedName != previousDefault {
-		cfg.KeyID = ""
-		cfg.IssuerID = ""
-		cfg.PrivateKeyPath = ""
 	}
 	return config.Save(cfg)
 }

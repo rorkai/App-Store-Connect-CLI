@@ -34,6 +34,7 @@ func BuildsUploadCommand() *ffcli.Command {
 	locale := fs.String("locale", "", "Locale for --test-notes (e.g., en-US)")
 	wait := fs.Bool("wait", false, "Wait for build processing to complete")
 	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait and --test-notes")
+	verifyTimeout := fs.Duration("verify-timeout", 0, "How long to watch for immediate post-commit upload failures (0 to disable)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -43,7 +44,10 @@ func BuildsUploadCommand() *ffcli.Command {
 		LongHelp: `Upload a build to App Store Connect.
 
 By default, this command uploads the IPA/PKG to the presigned URLs and commits
-the file. Use --dry-run to only reserve the upload operations.
+the file immediately. Use --verify-timeout to briefly watch for immediate
+post-commit processing failures, or --wait for full build discovery and
+processing.
+Use --dry-run to only reserve the upload operations.
 
 Use --ipa for iOS, tvOS, and visionOS apps. Use --pkg for macOS apps.
 When using --pkg, the platform is automatically set to MAC_OS.
@@ -74,6 +78,12 @@ Examples:
 			if hasIPA && hasPKG {
 				fmt.Fprintf(os.Stderr, "Error: --ipa and --pkg are mutually exclusive\n\n")
 				return flag.ErrHelp
+			}
+			if *verifyTimeout < 0 {
+				return shared.UsageError("--verify-timeout must be zero or greater")
+			}
+			if *dryRun && *verifyTimeout > 0 {
+				return shared.UsageError("--verify-timeout is not supported with --dry-run")
 			}
 
 			// Determine file path and UTI based on provided flag
@@ -358,6 +368,11 @@ Examples:
 							return fmt.Errorf("builds upload: %w", err)
 						}
 					}
+				} else if *verifyTimeout > 0 {
+					fmt.Fprintf(os.Stderr, "Verifying initial App Store Connect processing for up to %s...\n", verifyTimeout.String())
+					if err := shared.VerifyBuildUploadAfterCommit(ctx, client, resolvedAppID, uploadResp.Data.ID, *pollInterval, *verifyTimeout); err != nil {
+						return fmt.Errorf("builds upload: %w", err)
+					}
 				}
 			}
 
@@ -396,7 +411,9 @@ Examples:
   asc builds uploads list --app "123456789"
   asc builds test-notes list --build "BUILD_ID"
   asc builds individual-testers list --build "BUILD_ID"
+  asc builds update --build "BUILD_ID" --uses-non-exempt-encryption=false
   asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
+  asc builds add-groups --build "BUILD_ID" --group "GROUP_ID" --submit --confirm
   asc builds remove-groups --build "BUILD_ID" --group "GROUP_ID"
   asc builds app get --build "BUILD_ID"
   asc builds pre-release-version get --build "BUILD_ID"
@@ -421,6 +438,7 @@ Examples:
 			BuildsUploadsCommand(),
 			BuildsTestNotesCommand(),
 			BuildsAppEncryptionDeclarationCommand(),
+			BuildsUpdateCommand(),
 			BuildsAddGroupsCommand(),
 			BuildsRemoveGroupsCommand(),
 			BuildsIndividualTestersCommand(),

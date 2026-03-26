@@ -17,6 +17,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/metadata"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	validatecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
 const (
@@ -605,11 +606,10 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 		}
 
 		status := "ok"
-		message := "readiness checks passed"
 		if opts.DryRun {
 			status = "dry-run"
-			message = "readiness checks passed (dry-run)"
 		}
+		message := releaseReadinessSuccessMessage(report, opts.DryRun)
 		return stepOutcome{
 			Status:  status,
 			Message: message,
@@ -724,6 +724,55 @@ func cancelStaleReviewSubmissions(ctx context.Context, client *asc.Client, appID
 		}
 	}
 	return warnings
+}
+
+func releaseReadinessSuccessMessage(report validation.Report, dryRun bool) string {
+	message := "readiness checks passed"
+	if summary := releaseReadinessNonBlockingSummary(report.Summary); summary != "" {
+		message += " with " + summary
+	}
+	if hasReleaseReadinessCheckID(report.Checks, "privacy.publish_state.unverified") {
+		message += "; App Privacy may still block submission"
+	}
+	if dryRun {
+		message += " (dry-run)"
+	}
+	return message
+}
+
+func releaseReadinessNonBlockingSummary(summary validation.Summary) string {
+	parts := make([]string, 0, 2)
+	if summary.Warnings > 0 {
+		parts = append(parts, releaseReadinessCountLabel(summary.Warnings, "warning", "warnings"))
+	}
+	if summary.Infos > 0 {
+		parts = append(parts, releaseReadinessCountLabel(summary.Infos, "advisory", "advisories"))
+	}
+	switch len(parts) {
+	case 0:
+		return ""
+	case 1:
+		return parts[0]
+	default:
+		return parts[0] + " and " + parts[1]
+	}
+}
+
+func releaseReadinessCountLabel(count int, singular, plural string) string {
+	label := plural
+	if count == 1 {
+		label = singular
+	}
+	return fmt.Sprintf("%d %s", count, label)
+}
+
+func hasReleaseReadinessCheckID(checks []validation.CheckResult, wantID string) bool {
+	for _, check := range checks {
+		if strings.TrimSpace(check.ID) == wantID {
+			return true
+		}
+	}
+	return false
 }
 
 func defaultCheckpointPath(appID, version, buildID, platform string) string {

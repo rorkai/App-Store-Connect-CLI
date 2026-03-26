@@ -1,14 +1,18 @@
 package encryption
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"howett.net/plist"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -26,6 +30,7 @@ Examples:
   asc encryption declarations list --app "APP_ID"
   asc encryption declarations get --id "DECL_ID"
   asc encryption declarations create --app "APP_ID" --app-description "Uses TLS" --contains-proprietary-cryptography=false --contains-third-party-cryptography=true --available-on-french-store=true
+  asc encryption declarations exempt-declare --plist ./Info.plist
   asc encryption declarations assign-builds --id "DECL_ID" --build "BUILD_ID"
   asc encryption documents get --id "DOC_ID"
   asc encryption documents upload --declaration "DECL_ID" --file ./export.pdf`,
@@ -52,6 +57,7 @@ Examples:
   asc encryption declarations list --app "APP_ID"
   asc encryption declarations get --id "DECL_ID"
   asc encryption declarations create --app "APP_ID" --app-description "Uses TLS" --contains-proprietary-cryptography=false --contains-third-party-cryptography=true --available-on-french-store=true
+  asc encryption declarations exempt-declare --plist ./Info.plist
   asc encryption declarations assign-builds --id "DECL_ID" --build "BUILD_ID"`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -60,6 +66,7 @@ Examples:
 			EncryptionDeclarationsAppCommand(),
 			EncryptionDeclarationsDeclarationDocumentCommand(),
 			EncryptionDeclarationsCreateCommand(),
+			EncryptionDeclarationsExemptDeclareCommand(),
 			EncryptionDeclarationsAssignBuildsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -313,6 +320,218 @@ Examples:
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
+	}
+}
+
+// EncryptionDeclarationsExemptDeclareCommand returns the exempt-declare subcommand.
+func EncryptionDeclarationsExemptDeclareCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("encryption declarations exempt-declare", flag.ExitOnError)
+
+	plistPath := fs.String("plist", "", "Path to Info.plist to update with ITSAppUsesNonExemptEncryption=false")
+
+	return &ffcli.Command{
+		Name:       "exempt-declare",
+		ShortUsage: "asc encryption declarations exempt-declare [--plist ./Info.plist]",
+		ShortHelp:  "Guide local Info.plist exemption for exempt encryption.",
+		LongHelp: `Guide local Info.plist exemption for exempt encryption.
+
+The App Store Connect API does not support creating an encryption declaration
+with all cryptography flags set to false. For apps that use no encryption (or
+only exempt encryption like HTTPS/TLS), the correct approach is to set
+ITSAppUsesNonExemptEncryption to false in your Info.plist.
+
+This command can update your Info.plist automatically, or print the required
+entry for you to add manually.
+
+This command only updates local project metadata. It does not create or attach
+an App Store Connect encryption declaration. For uploaded builds, use
+"asc submit preflight" to verify ASC-side encryption state.
+
+Examples:
+  asc encryption declarations exempt-declare
+  asc encryption declarations exempt-declare --plist ./MyApp/Info.plist`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageError("encryption declarations exempt-declare does not accept positional arguments")
+			}
+
+			visited := map[string]bool{}
+			fs.Visit(func(f *flag.Flag) {
+				visited[f.Name] = true
+			})
+
+			plistValue := strings.TrimSpace(*plistPath)
+
+			if visited["plist"] {
+				if plistValue == "" {
+					return shared.UsageError("--plist must not be empty")
+				}
+				return updatePlistExemption(plistValue)
+			}
+
+			fmt.Fprintln(os.Stderr, `To declare encryption exemption, add the following to your Info.plist:
+
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+
+Or pass --plist to update it automatically:
+
+  asc encryption declarations exempt-declare --plist ./MyApp/Info.plist
+
+This eliminates the encryption compliance dialog on each TestFlight and
+App Store submission. Most apps that only use HTTPS/TLS qualify as exempt.
+
+This command only updates local project metadata. It does not create or attach
+an App Store Connect encryption declaration.
+
+For uploaded builds in App Store Connect, verify encryption state with:
+  asc submit preflight --app "APP_ID" --version "1.0"
+
+If a build still reports non-exempt encryption incorrectly, update the build:
+  asc builds update --build "BUILD_ID" --uses-non-exempt-encryption=false
+
+For details, see:
+  https://developer.apple.com/documentation/bundleresources/information-property-list/itsappusesnonexemptencryption`)
+
+			return nil
+		},
+	}
+}
+
+func updatePlistExemption(plistPath string) error {
+	displayPath := strings.TrimSpace(plistPath)
+	if displayPath == "" {
+		return fmt.Errorf("encryption declarations exempt-declare: plist path is required")
+	}
+
+	safePath, err := validatePlistPathNoSymlinkComponents(displayPath)
+	if err != nil {
+		return err
+	}
+
+	file, err := shared.OpenExistingNoFollow(safePath)
+	if err != nil {
+		return fmt.Errorf("encryption declarations exempt-declare: failed to read: %w", err)
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("encryption declarations exempt-declare: failed to stat: %w", err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("encryption declarations exempt-declare: %q is a directory", displayPath)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("encryption declarations exempt-declare: refusing to read non-regular file %q", displayPath)
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("encryption declarations exempt-declare: failed to read: %w", err)
+	}
+
+	var payload map[string]any
+	format, err := plist.Unmarshal(data, &payload)
+	if err != nil {
+		return fmt.Errorf("encryption declarations exempt-declare: failed to decode plist: %w", err)
+	}
+
+	if payload == nil {
+		payload = make(map[string]any)
+	}
+
+	if current, ok := payload["ITSAppUsesNonExemptEncryption"].(bool); ok && !current {
+		fmt.Fprintf(os.Stderr, "Info.plist already sets ITSAppUsesNonExemptEncryption=false: %s\n", displayPath)
+		return nil
+	}
+
+	_, existed := payload["ITSAppUsesNonExemptEncryption"]
+	payload["ITSAppUsesNonExemptEncryption"] = false
+
+	updated, err := plist.Marshal(payload, format)
+	if err != nil {
+		return fmt.Errorf("encryption declarations exempt-declare: failed to encode plist: %w", err)
+	}
+
+	if _, err := shared.WriteFileNoSymlinkOverwrite(
+		safePath,
+		bytes.NewReader(updated),
+		info.Mode().Perm(),
+		".asc-plist-*.tmp",
+		".asc-plist-*.bak",
+	); err != nil {
+		return fmt.Errorf("encryption declarations exempt-declare: failed to write: %w", err)
+	}
+
+	if existed {
+		fmt.Fprintf(os.Stderr, "Updated ITSAppUsesNonExemptEncryption=false in %s\n", displayPath)
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "Added ITSAppUsesNonExemptEncryption=false to %s\n", displayPath)
+	return nil
+}
+
+func validatePlistPathNoSymlinkComponents(plistPath string) (string, error) {
+	absPath, err := filepath.Abs(plistPath)
+	if err != nil {
+		return "", fmt.Errorf("encryption declarations exempt-declare: failed to resolve plist path: %w", err)
+	}
+
+	cleaned := filepath.Clean(absPath)
+	volume := filepath.VolumeName(cleaned)
+	rest := strings.TrimPrefix(cleaned, volume)
+	current := volume
+	if strings.HasPrefix(rest, string(os.PathSeparator)) {
+		current += string(os.PathSeparator)
+	}
+
+	parts := strings.Split(strings.TrimPrefix(rest, string(os.PathSeparator)), string(os.PathSeparator))
+	for i, part := range parts {
+		if part == "" || part == "." {
+			continue
+		}
+
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if err != nil {
+			return "", fmt.Errorf("encryption declarations exempt-declare: %w", err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			if i == len(parts)-1 {
+				return "", fmt.Errorf("encryption declarations exempt-declare: refusing to read symlink %q", cleaned)
+			}
+			if isAllowedPlistSymlinkComponent(current) {
+				continue
+			}
+			return "", fmt.Errorf("encryption declarations exempt-declare: refusing to follow symlink component %q", current)
+		}
+		if i < len(parts)-1 && !info.IsDir() {
+			return "", fmt.Errorf("encryption declarations exempt-declare: path component %q is not a directory", current)
+		}
+	}
+
+	return cleaned, nil
+}
+
+func isAllowedPlistSymlinkComponent(path string) bool {
+	if runtime.GOOS != "darwin" {
+		return false
+	}
+
+	switch filepath.Clean(path) {
+	case "/var", "/tmp", "/etc":
+		resolved, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			return false
+		}
+		expected := filepath.Join("/private", strings.TrimPrefix(filepath.Clean(path), "/"))
+		return filepath.Clean(resolved) == expected
+	default:
+		return false
 	}
 }
 

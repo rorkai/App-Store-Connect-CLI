@@ -25,6 +25,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/itunes"
 )
 
 const (
@@ -38,7 +39,7 @@ const (
 
 var (
 	communityWallGitHubAPIBase     = "https://api.github.com"
-	communityWallAppStoreLookupURL = "https://itunes.apple.com/lookup"
+	communityWallAppStoreLookupURL = "https://itunes.apple.com"
 	communityWallGitHubClient      = func() *http.Client {
 		return &http.Client{Timeout: asc.ResolveTimeout()}
 	}
@@ -54,9 +55,10 @@ var (
 )
 
 var (
-	errCommunityWallUsage          = errors.New("community wall usage")
-	communityWallAppStoreIDPattern = regexp.MustCompile(`/id(\d+)`)
-	communityWallNumericIDPattern  = regexp.MustCompile(`^\d+$`)
+	errCommunityWallUsage               = errors.New("community wall usage")
+	communityWallAppStoreIDPattern      = regexp.MustCompile(`/id(\d+)`)
+	communityWallAppStoreCountryPattern = regexp.MustCompile(`^https?://apps\.apple\.com/([a-zA-Z]{2})/app(?:/|$)`)
+	communityWallNumericIDPattern       = regexp.MustCompile(`^\d+$`)
 )
 
 type communityWallSubmitInput struct {
@@ -764,7 +766,10 @@ func communityWallIconForLink(ctx context.Context, link string) (string, error) 
 		return "", nil
 	}
 
-	detailsByID, err := communityWallLookupAppDetails(ctx, []string{appStoreID})
+	detailsByID, err := fetchCommunityWallAppDetailsWithOptions(ctx, []string{appStoreID}, itunes.LookupOptions{
+		Country:               extractCommunityWallAppStoreCountry(link),
+		IncludeSoftwareEntity: true,
+	})
 	if err != nil {
 		return "", err
 	}
@@ -772,7 +777,7 @@ func communityWallIconForLink(ctx context.Context, link string) (string, error) 
 }
 
 func communityWallAppStoreURL(appStoreID string) string {
-	return "https://apps.apple.com/app/id" + strings.TrimSpace(appStoreID)
+	return "https://apps.apple.com/app/id" + canonicalizeCommunityWallAppID(appStoreID)
 }
 
 func normalizeCommunityWallAppID(value string) string {
@@ -791,6 +796,19 @@ func normalizeCommunityWallAppID(value string) string {
 	return trimmed
 }
 
+func canonicalizeCommunityWallAppID(value string) string {
+	normalized := normalizeCommunityWallAppID(value)
+	if normalized == "" {
+		return ""
+	}
+
+	parsed, err := strconv.ParseInt(normalized, 10, 64)
+	if err != nil {
+		return normalized
+	}
+	return strconv.FormatInt(parsed, 10)
+}
+
 func extractCommunityWallAppStoreID(link string) string {
 	matches := communityWallAppStoreIDPattern.FindStringSubmatch(strings.TrimSpace(link))
 	if len(matches) != 2 {
@@ -799,59 +817,50 @@ func extractCommunityWallAppStoreID(link string) string {
 	return matches[1]
 }
 
-func fetchCommunityWallAppDetails(ctx context.Context, ids []string) (map[string]communityWallAppDetails, error) {
-	query := url.Values{}
-	query.Set("id", strings.Join(ids, ","))
-
-	requestURL := communityWallAppStoreLookupURL + "?" + query.Encode()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("build app store lookup request: %w", err)
+func extractCommunityWallAppStoreCountry(link string) string {
+	matches := communityWallAppStoreCountryPattern.FindStringSubmatch(strings.TrimSpace(link))
+	if len(matches) != 2 {
+		return ""
 	}
-	req.Header.Set("Accept", "application/json")
 
-	httpClient := &http.Client{Timeout: asc.ResolveTimeout()}
-	resp, err := httpClient.Do(req)
+	country, err := itunes.NormalizeCountryCode(matches[1])
+	if err != nil {
+		return ""
+	}
+	return country
+}
+
+func fetchCommunityWallAppDetails(ctx context.Context, ids []string) (map[string]communityWallAppDetails, error) {
+	return fetchCommunityWallAppDetailsWithOptions(ctx, ids, itunes.LookupOptions{
+		IncludeSoftwareEntity: true,
+	})
+}
+
+func fetchCommunityWallAppDetailsWithOptions(ctx context.Context, ids []string, opts itunes.LookupOptions) (map[string]communityWallAppDetails, error) {
+	client := itunes.NewClient()
+	client.HTTPClient = &http.Client{Timeout: asc.ResolveTimeout()}
+	client.BaseURL = communityWallAppStoreLookupURL
+
+	opts.IncludeSoftwareEntity = true
+	apps, err := client.LookupApps(ctx, ids, opts)
 	if err != nil {
 		return nil, fmt.Errorf("app store lookup request failed: %w", err)
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		if strings.TrimSpace(string(body)) == "" {
-			return nil, fmt.Errorf("app store lookup request failed with status %s", resp.Status)
-		}
-		return nil, fmt.Errorf("app store lookup request failed with status %s: %s", resp.Status, strings.TrimSpace(string(body)))
-	}
-
-	var payload struct {
-		Results []struct {
-			TrackID       int64  `json:"trackId"`
-			TrackName     string `json:"trackName"`
-			TrackViewURL  string `json:"trackViewUrl"`
-			ArtworkURL512 string `json:"artworkUrl512"`
-			ArtworkURL100 string `json:"artworkUrl100"`
-		} `json:"results"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return nil, fmt.Errorf("decode app store lookup response: %w", err)
-	}
-
-	detailsByID := make(map[string]communityWallAppDetails, len(payload.Results))
-	for _, result := range payload.Results {
-		if result.TrackID == 0 {
+	detailsByID := make(map[string]communityWallAppDetails, len(ids))
+	for _, id := range ids {
+		trimmedID := strings.TrimSpace(id)
+		if trimmedID == "" {
 			continue
 		}
-		iconURL := strings.TrimSpace(result.ArtworkURL512)
-		if iconURL == "" {
-			iconURL = strings.TrimSpace(result.ArtworkURL100)
+		app, ok := apps[trimmedID]
+		if !ok {
+			continue
 		}
-		appStoreID := strconv.FormatInt(result.TrackID, 10)
-		detailsByID[appStoreID] = communityWallAppDetails{
-			Name: strings.TrimSpace(result.TrackName),
-			Link: strings.TrimSpace(result.TrackViewURL),
-			Icon: iconURL,
+		detailsByID[trimmedID] = communityWallAppDetails{
+			Name: app.Name,
+			Link: app.URL,
+			Icon: app.ArtworkURL,
 		}
 	}
 	return detailsByID, nil

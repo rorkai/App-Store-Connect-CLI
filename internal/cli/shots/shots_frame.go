@@ -17,6 +17,8 @@ import (
 
 const defaultShotsFrameOutputDir = "./screenshots/framed"
 
+var shotsFrameFn = screenshots.Frame
+
 // ShotsFrameCommand returns the screenshots frame subcommand.
 func ShotsFrameCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("frame", flag.ExitOnError)
@@ -47,7 +49,7 @@ func ShotsFrameCommand() *ffcli.Command {
 		ShortHelp:  "[experimental] Compose a screenshot into an Apple device frame.",
 		LongHelp: `Compose screenshots using Koubou's YAML-based rendering flow (experimental).
 
-Requires Koubou v0.14.0 (pip install koubou==0.14.0).
+Requires Koubou v0.18.1 (pip install koubou==0.18.1).
 
 Use either --input (auto-generated Koubou config) or --config (explicit Koubou YAML).
 
@@ -150,7 +152,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				}
 			}
 
-			result, err := screenshots.Frame(timeoutCtx, screenshots.FrameRequest{
+			result, err := shotsFrameFn(timeoutCtx, screenshots.FrameRequest{
 				InputPath:  absInput,
 				OutputPath: outPath,
 				Device:     string(deviceVal),

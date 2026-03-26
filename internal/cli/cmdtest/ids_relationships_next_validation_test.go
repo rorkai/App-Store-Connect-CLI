@@ -127,12 +127,12 @@ func TestPassTypeIDCertificatesGetRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/passTypeIds/pass-1/relationships/certificates?cursor=AQ",
-			wantErr: "pass-type-ids certificates get: --next must be an App Store Connect URL",
+			wantErr: "pass-type-ids certificates view: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "pass-type-ids certificates get: --next must be a valid URL:",
+			wantErr: "pass-type-ids certificates view: --next must be a valid URL:",
 		},
 	}
 
@@ -143,7 +143,7 @@ func TestPassTypeIDCertificatesGetRejectsInvalidNextURL(t *testing.T) {
 
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"pass-type-ids", "certificates", "get", "--pass-type-id", "pass-1", "--next", test.next}); err != nil {
+				if err := root.Parse([]string{"pass-type-ids", "certificates", "view", "--pass-type-id", "pass-1", "--next", test.next}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				runErr = root.Run(context.Background())
@@ -211,7 +211,7 @@ func TestPassTypeIDCertificatesGetPaginateFromNext(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"pass-type-ids", "certificates", "get", "--pass-type-id", "pass-1", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"pass-type-ids", "certificates", "view", "--pass-type-id", "pass-1", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -345,12 +345,12 @@ func TestMerchantIDCertificatesGetRejectsInvalidNextURL(t *testing.T) {
 		{
 			name:    "invalid scheme",
 			next:    "http://api.appstoreconnect.apple.com/v1/merchantIds/merchant-1/relationships/certificates?cursor=AQ",
-			wantErr: "merchant-ids certificates get: --next must be an App Store Connect URL",
+			wantErr: "merchant-ids certificates view: --next must be an App Store Connect URL",
 		},
 		{
 			name:    "malformed URL",
 			next:    "https://api.appstoreconnect.apple.com/%zz",
-			wantErr: "merchant-ids certificates get: --next must be a valid URL:",
+			wantErr: "merchant-ids certificates view: --next must be a valid URL:",
 		},
 	}
 
@@ -361,7 +361,7 @@ func TestMerchantIDCertificatesGetRejectsInvalidNextURL(t *testing.T) {
 
 			var runErr error
 			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"merchant-ids", "certificates", "get", "--next", test.next}); err != nil {
+				if err := root.Parse([]string{"merchant-ids", "certificates", "view", "--next", test.next}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				runErr = root.Run(context.Background())
@@ -429,7 +429,7 @@ func TestMerchantIDCertificatesGetPaginateFromNextWithoutMerchantID(t *testing.T
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"merchant-ids", "certificates", "get", "--paginate", "--next", firstURL}); err != nil {
+		if err := root.Parse([]string{"merchant-ids", "certificates", "view", "--paginate", "--next", firstURL}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

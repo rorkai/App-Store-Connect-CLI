@@ -1,6 +1,7 @@
 package builds
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"reflect"
@@ -107,5 +108,62 @@ func TestNormalizeBuildProcessingStateFilter(t *testing.T) {
 				t.Fatalf("normalizeBuildProcessingStateFilter() = %v, want %v", got, test.want)
 			}
 		})
+	}
+}
+
+func TestBuildsUpdateCommand_Shape(t *testing.T) {
+	cmd := BuildsUpdateCommand()
+	if cmd.Name != "update" {
+		t.Fatalf("unexpected command name: %q", cmd.Name)
+	}
+
+	buildFlag := cmd.FlagSet.Lookup("build")
+	if buildFlag == nil {
+		t.Fatal("expected --build flag to be defined")
+	}
+
+	encFlag := cmd.FlagSet.Lookup("uses-non-exempt-encryption")
+	if encFlag == nil {
+		t.Fatal("expected --uses-non-exempt-encryption flag to be defined")
+	}
+}
+
+func TestBuildsUpdateCommand_HelpContainsExamples(t *testing.T) {
+	cmd := BuildsUpdateCommand()
+	if !strings.Contains(cmd.LongHelp, "--uses-non-exempt-encryption=false") {
+		t.Fatalf("expected long help to include encryption example, got %q", cmd.LongHelp)
+	}
+}
+
+func TestBuildsUpdateCommand_ShortUsageShowsRequiredFlag(t *testing.T) {
+	cmd := BuildsUpdateCommand()
+	want := "asc builds update --build BUILD_ID --uses-non-exempt-encryption [true|false] [flags]"
+	if cmd.ShortUsage != want {
+		t.Fatalf("expected ShortUsage %q, got %q", want, cmd.ShortUsage)
+	}
+}
+
+func TestBuildUpdateAttributes_JSONMarshal(t *testing.T) {
+	v := false
+	attrs := asc.BuildUpdateAttributes{
+		UsesNonExemptEncryption: &v,
+	}
+	data, err := json.Marshal(attrs)
+	if err != nil {
+		t.Fatalf("json.Marshal error: %v", err)
+	}
+	got := string(data)
+	if !strings.Contains(got, `"usesNonExemptEncryption":false`) {
+		t.Fatalf("expected usesNonExemptEncryption in JSON, got %q", got)
+	}
+
+	// Nil fields should be omitted
+	empty := asc.BuildUpdateAttributes{}
+	data, err = json.Marshal(empty)
+	if err != nil {
+		t.Fatalf("json.Marshal error: %v", err)
+	}
+	if string(data) != "{}" {
+		t.Fatalf("expected empty JSON object, got %q", string(data))
 	}
 }

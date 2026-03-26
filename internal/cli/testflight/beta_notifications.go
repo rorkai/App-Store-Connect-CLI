@@ -66,6 +66,14 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			detail, err := client.GetBuildBuildBetaDetail(requestCtx, trimmedBuildID)
+			if err != nil {
+				return fmt.Errorf("beta-notifications create: failed to inspect notification state: %w", err)
+			}
+			if detail.Data.Attributes.AutoNotifyEnabled {
+				return fmt.Errorf("beta-notifications create: auto-notify is already enabled for build %q; no manual build notification is needed", trimmedBuildID)
+			}
+
 			resp, err := client.CreateBuildBetaNotification(requestCtx, trimmedBuildID)
 			if err != nil {
 				return fmt.Errorf("beta-notifications create: failed to send: %w", err)

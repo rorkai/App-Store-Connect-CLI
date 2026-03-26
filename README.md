@@ -41,9 +41,15 @@ https://github.com/rudrankriyam/app-store-connect-cli-skills
   <a href="https://rork.com/">
     <img src="docs/images/rork-logo.svg" alt="Rork logo" width="180">
   </a>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://x.com/vibecodeapp_">
+    <img src="docs/images/vibecode-logo-trimmed.png" alt="Vibecode logo" width="90">
+  </a>
 </p>
 
 [Rork](https://rork.com/) helps you build real mobile apps by chatting with AI, going from idea to phone in minutes and to the App Store in hours.
+
+[Vibecode](https://x.com/vibecodeapp_) helps you build mobile apps and web apps with AI, turning ideas into working products in seconds.
 
 ## Quick Start
 
@@ -282,7 +288,7 @@ For full command families, flags, and discovery patterns, see:
 
 ## Acknowledgements
 
-Local screenshot framing uses Koubou (pinned to `0.14.0`) for deterministic device-frame rendering.
+Local screenshot framing uses Koubou (pinned to `0.18.1`) for deterministic device-frame rendering.
 GitHub: https://github.com/bitomule/koubou
 
 Simulator UI automation for screenshot capture and interactions uses AXe CLI.

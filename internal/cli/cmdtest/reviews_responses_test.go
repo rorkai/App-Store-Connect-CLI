@@ -251,7 +251,7 @@ func TestReviewsResponseParentShowsHelp(t *testing.T) {
 	})
 
 	// Should show help with subcommands listed
-	if !strings.Contains(stderr, "get") || !strings.Contains(stderr, "delete") || !strings.Contains(stderr, "for-review") {
+	if !strings.Contains(stderr, "view") || !strings.Contains(stderr, "delete") || !strings.Contains(stderr, "for-review") {
 		t.Fatalf("expected help output with subcommands, got %q", stderr)
 	}
 }

@@ -37,6 +37,8 @@ func init() {
 		render(h, r)
 		oh, or := subscriptionsValidationCheckRows(v)
 		render(oh, or)
+		dh, dr := subscriptionsValidationDiagnosticRows(v)
+		render(dh, dr)
 		return nil
 	})
 }
@@ -180,6 +182,40 @@ func subscriptionsValidationCheckRows(report *validation.SubscriptionsReport) ([
 			check.Message,
 			check.Remediation,
 		})
+	}
+	return headers, rows
+}
+
+func subscriptionsValidationDiagnosticRows(report *validation.SubscriptionsReport) ([]string, [][]string) {
+	headers := []string{"Subscription", "State", "Conclusion", "Check", "Status", "Source", "Blocking", "Evidence", "Remediation"}
+	if report == nil || len(report.Diagnostics) == 0 {
+		return headers, [][]string{{"", "", "", "diagnostics.none", "info", "", "", "No detailed subscription diagnostics collected", ""}}
+	}
+
+	rows := make([][]string, 0)
+	for _, diagnostic := range report.Diagnostics {
+		subscriptionLabel := diagnostic.SubscriptionID
+		switch {
+		case strings.TrimSpace(diagnostic.Name) != "" && strings.TrimSpace(diagnostic.ProductID) != "":
+			subscriptionLabel = fmt.Sprintf("%s (%s)", strings.TrimSpace(diagnostic.Name), strings.TrimSpace(diagnostic.ProductID))
+		case strings.TrimSpace(diagnostic.Name) != "":
+			subscriptionLabel = strings.TrimSpace(diagnostic.Name)
+		case strings.TrimSpace(diagnostic.ProductID) != "":
+			subscriptionLabel = strings.TrimSpace(diagnostic.ProductID)
+		}
+		for _, row := range diagnostic.Rows {
+			rows = append(rows, []string{
+				subscriptionLabel,
+				diagnostic.State,
+				diagnostic.Conclusion,
+				row.Key,
+				string(row.Status),
+				row.Source,
+				formatBool(row.Blocking),
+				row.Evidence,
+				row.Remediation,
+			})
+		}
 	}
 	return headers, rows
 }

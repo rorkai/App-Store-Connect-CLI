@@ -1,6 +1,8 @@
 package signing
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -44,5 +46,57 @@ func TestSigningSyncCommandLongHelpPullExampleOmitsUnsupportedFlags(t *testing.T
 	}
 	if strings.Contains(cmd.LongHelp, "asc signing sync pull --profile-type") {
 		t.Fatalf("expected pull example to omit --profile-type, got %q", cmd.LongHelp)
+	}
+}
+
+func TestWriteDecryptedOutputFileWritesPlaintext(t *testing.T) {
+	outDir := t.TempDir()
+	relPath := filepath.Join("profiles", "appstore", "app.mobileprovision")
+	plaintext := []byte("profile-data")
+
+	if err := writeDecryptedOutputFile(outDir, relPath, plaintext); err != nil {
+		t.Fatalf("writeDecryptedOutputFile: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(outDir, relPath))
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if string(got) != string(plaintext) {
+		t.Fatalf("output mismatch: got %q, want %q", got, plaintext)
+	}
+}
+
+func TestWriteDecryptedOutputFileRejectsSymlinkTarget(t *testing.T) {
+	outDir := t.TempDir()
+	targetDir := t.TempDir()
+	relPath := filepath.Join("profiles", "appstore", "app.mobileprovision")
+	destPath := filepath.Join(outDir, relPath)
+	targetPath := filepath.Join(targetDir, "app.mobileprovision")
+
+	if err := os.WriteFile(targetPath, []byte("original"), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+		t.Fatalf("mkdir output parent: %v", err)
+	}
+	if err := os.Symlink(targetPath, destPath); err != nil {
+		t.Fatalf("create destination symlink: %v", err)
+	}
+
+	err := writeDecryptedOutputFile(outDir, relPath, []byte("updated"))
+	if err == nil {
+		t.Fatal("expected symlink rejection error, got nil")
+	}
+	if !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("expected symlink rejection error, got %v", err)
+	}
+
+	got, readErr := os.ReadFile(targetPath)
+	if readErr != nil {
+		t.Fatalf("read target file: %v", readErr)
+	}
+	if string(got) != "original" {
+		t.Fatalf("did not expect write through symlink target, got %q", got)
 	}
 }

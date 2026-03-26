@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -22,11 +21,12 @@ func WebAppsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "apps",
 		ShortUsage: "asc web apps <subcommand> [flags]",
-		ShortHelp:  "[experimental] Unofficial app management via web sessions.",
+		ShortHelp:  "[experimental] Unofficial app management via web sessions; canonical path for app creation.",
 		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Manage app operations using Apple web sessions and internal APIs.
 This command group is detached from official App Store Connect API flows.
+Use ` + "`asc web apps create`" + ` as the canonical app-creation command.
 
 ` + webWarningText,
 		FlagSet:   fs,
@@ -46,10 +46,13 @@ const maxAppNameLen = 30
 var (
 	newWebClientFn   = webcore.NewClient
 	ensureBundleIDFn = ensureBundleIDExists
+	deleteBundleIDFn = deleteBundleIDByIdentifier
 	createWebAppFn   = func(ctx context.Context, client *webcore.Client, attrs webcore.AppCreateAttributes) (*webcore.AppResponse, error) {
 		return client.CreateApp(ctx, attrs)
 	}
 )
+
+var errBundleIDPreflightAuthUnavailable = errors.New("bundle id preflight official auth unavailable")
 
 func isDuplicateBundleIDError(err error) bool {
 	var apiErr *asc.APIError
@@ -90,7 +93,7 @@ func bundleIDPlatformForWebApp(platform string) (asc.Platform, error) {
 func ensureBundleIDExists(ctx context.Context, bundleID, appName, platform string) (bool, error) {
 	client, err := shared.GetASCClient()
 	if err != nil {
-		return false, err
+		return false, errors.Join(errBundleIDPreflightAuthUnavailable, err)
 	}
 
 	platformValue, err := bundleIDPlatformForWebApp(platform)
@@ -122,6 +125,28 @@ func ensureBundleIDExists(ctx context.Context, bundleID, appName, platform strin
 	}
 
 	return true, nil
+}
+
+func deleteBundleIDByIdentifier(ctx context.Context, bundleID string) error {
+	bundleID = strings.TrimSpace(bundleID)
+	if bundleID == "" {
+		return nil
+	}
+
+	client, err := shared.GetASCClient()
+	if err != nil {
+		return err
+	}
+
+	existing, err := client.GetBundleIDs(ctx, asc.WithBundleIDsFilterIdentifier(bundleID), asc.WithBundleIDsLimit(1))
+	if err != nil {
+		return err
+	}
+	if existing == nil || len(existing.Data) == 0 {
+		return nil
+	}
+
+	return client.DeleteBundleID(ctx, strings.TrimSpace(existing.Data[0].ID))
 }
 
 func bundleIDNameSuffix(bundleID string) string {
@@ -196,118 +221,71 @@ func WebAppsCreateCommand() *ffcli.Command {
 	companyName := fs.String("company-name", "", "Company name (optional)")
 
 	appleID := fs.String("apple-id", "", "Apple Account email (required when no cache is available)")
-	twoFactorCode := fs.String("two-factor-code", "", "2FA code if your account requires verification")
+	password := fs.String("password", "", "Apple Account password (temporary compatibility flag; will prompt if not provided)")
+	twoFactorCode := bindDeprecatedTwoFactorCodeFlag(fs)
+	twoFactorCodeCommand := fs.String("two-factor-code-command", "", "Shell command that prints the 2FA code to stdout if verification is required")
 	autoRename := fs.Bool("auto-rename", true, "Retry with unique name suffix if app name is already taken")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
-		ShortUsage: "asc web apps create --name NAME --bundle-id BUNDLE_ID --sku SKU [flags]",
-		ShortHelp:  "[experimental] Create app via unofficial web API.",
-		LongHelp: `EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
+		ShortUsage: "asc web apps create [flags]",
+		ShortHelp:  "[experimental] Create app via unofficial Apple web API.",
+		LongHelp: fmt.Sprintf(`EXPERIMENTAL / UNOFFICIAL / DISCOURAGED
 
 Create an app through Apple's internal web API using a web-session login.
-This path is detached from official API-key workflows and may break any time.
+This is the canonical app-creation path for web-session based flows and is
+detached from official API-key workflows.
 
-Required:
-  --name, --bundle-id, --sku
+If required fields are omitted in an interactive terminal, the CLI will prompt
+for the missing app-creation inputs.
 
 Authentication:
   --apple-id with one of:
     - secure interactive prompt (default and recommended for local use)
-    - ASC_WEB_PASSWORD environment variable
+    - %s environment variable
+    - temporary direct-password compatibility flag during the apps-create deprecation window
+  Two-factor verification can use --two-factor-code-command
+  or %s if a fresh login is required.
+  The legacy --two-factor-code flag still works as a deprecated compatibility alias.
   If you already have a cached web session, --apple-id can be omitted.
 
-` + webWarningText + `
+Bundle ID preflight:
+  If official ASC API authentication is available, the CLI will check or create
+  the Bundle ID before app creation. Otherwise it assumes the Bundle ID already exists.
+
+`+webWarningText+`
 
 Examples:
+  asc web apps create
   asc web apps create --name "My App" --bundle-id "com.example.app" --sku "MYAPP123" --apple-id "user@example.com"
-  ASC_WEB_PASSWORD="..." asc web apps create --name "My App" --bundle-id "com.example.app" --sku "MYAPP123" --apple-id "user@example.com"`,
+  %s asc web apps create --name "My App" --bundle-id "com.example.app" --sku "MYAPP123" --apple-id "user@example.com"
+  %s='osascript /path/to/get-apple-2fa-code.scpt' asc web apps create --apple-id "user@example.com"`,
+			webPasswordEnvDisplay(),
+			webTwoFactorCodeCommandEnv,
+			webPasswordEnvAssignmentExample(),
+			webTwoFactorCodeCommandEnv,
+		),
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			nameValue := strings.TrimSpace(*name)
-			if nameValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
-			}
-			bundleIDValue := strings.TrimSpace(*bundleID)
-			if bundleIDValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --bundle-id is required")
-				return flag.ErrHelp
-			}
-			skuValue := strings.TrimSpace(*sku)
-			if skuValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --sku is required")
-				return flag.ErrHelp
-			}
-
-			session, source, err := resolveSessionFn(ctx, *appleID, "", *twoFactorCode)
-			if err != nil {
-				return err
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-			if source == "fresh" {
-				fmt.Fprintln(os.Stderr, "Authenticated via fresh web login.")
-			} else {
-				fmt.Fprintln(os.Stderr, "Using cached web session.")
-			}
-
-			client := newWebClientFn(session)
-			attrs := webcore.AppCreateAttributes{
-				Name:          nameValue,
-				BundleID:      bundleIDValue,
-				SKU:           skuValue,
-				PrimaryLocale: strings.TrimSpace(*primaryLocale),
-				Platform:      strings.TrimSpace(*platform),
-				VersionString: strings.TrimSpace(*version),
-				CompanyName:   strings.TrimSpace(*companyName),
-			}
-
-			createdBundleID, err := withWebSpinnerValue("Checking or creating Bundle ID", func() (bool, error) {
-				return ensureBundleIDFn(requestCtx, bundleIDValue, nameValue, attrs.Platform)
+			warnDeprecatedTwoFactorCodeFlag(*twoFactorCode)
+			return RunAppsCreate(ctx, AppsCreateRunOptions{
+				Name:                 *name,
+				BundleID:             *bundleID,
+				SKU:                  *sku,
+				PrimaryLocale:        *primaryLocale,
+				Platform:             *platform,
+				Version:              *version,
+				CompanyName:          *companyName,
+				AppleID:              *appleID,
+				Password:             *password,
+				TwoFactorCode:        *twoFactorCode,
+				TwoFactorCodeCommand: *twoFactorCodeCommand,
+				AutoRename:           *autoRename,
+				Output:               *output.Output,
+				Pretty:               *output.Pretty,
 			})
-			if err != nil {
-				return fmt.Errorf("web apps create failed: bundle id preflight failed: %w", err)
-			}
-			if createdBundleID {
-				fmt.Fprintf(os.Stderr, "Bundle ID %q was missing; created automatically.\n", bundleIDValue)
-			}
-
-			app, err := withWebSpinnerValue("Creating app via Apple web API", func() (*webcore.AppResponse, error) {
-				return createWebAppFn(requestCtx, client, attrs)
-			})
-			if err != nil && *autoRename && webcore.IsDuplicateAppNameError(err) {
-				suffix := bundleIDNameSuffix(bundleIDValue)
-				if suffix != "" {
-					for i := 0; i < 5; i++ {
-						trySuffix := suffix
-						if i > 0 {
-							trySuffix = fmt.Sprintf("%s-%d", suffix, i+1)
-						}
-						tryName := formatAppNameWithSuffix(nameValue, trySuffix)
-						if tryName == "" || tryName == attrs.Name {
-							continue
-						}
-						fmt.Fprintf(os.Stderr, "App name in use; retrying with %q...\n", tryName)
-						attrs.Name = tryName
-						app, err = withWebSpinnerValue("Creating app via Apple web API", func() (*webcore.AppResponse, error) {
-							return createWebAppFn(requestCtx, client, attrs)
-						})
-						if err == nil || !webcore.IsDuplicateAppNameError(err) {
-							break
-						}
-					}
-				}
-			}
-			if err != nil {
-				return fmt.Errorf("web apps create failed: %w", err)
-			}
-
-			fmt.Fprintf(os.Stderr, "Created app successfully (id=%s)\n", strings.TrimSpace(app.Data.ID))
-			return shared.PrintOutput(app, *output.Output, *output.Pretty)
 		},
 	}
 }

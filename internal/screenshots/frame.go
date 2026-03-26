@@ -31,7 +31,7 @@ const (
 	FrameDeviceIPhone17    FrameDevice = "iphone-17"
 	FrameDeviceMac         FrameDevice = "mac"
 
-	pinnedKoubouVersion = "0.14.0"
+	pinnedKoubouVersion = "0.18.1"
 )
 
 const (
@@ -60,6 +60,7 @@ var (
 	cachedKoubouBinaryPath    string
 	cachedKoubouResolvedPATH  string
 	cachedKoubouVersionIsGood bool
+	cachedKoubouFramesReady   bool
 )
 
 var supportedFrameDevices = []FrameDevice{
@@ -73,35 +74,42 @@ var supportedFrameDevices = []FrameDevice{
 
 type frameDeviceKoubouSpec struct {
 	FrameName   string
+	Aliases     []string
 	OutputSize  string // Koubou named size (e.g. "iPhone6_9" or "AppDesktop_2880")
 	DisplayType string
 	Canvas      bool // true = plain canvas, no device bezel; screenshot scaled to fill
 }
 
-// Keeps the existing asc device slugs while delegating rendering to Koubou frame names.
+// Keeps the existing asc device slugs while delegating rendering to pinned
+// Koubou v0.18.1 frame names.
 var frameDeviceKoubouSpecs = map[FrameDevice]frameDeviceKoubouSpec{
 	FrameDeviceIPhoneAir: {
 		FrameName:   "iPhone Air - Light Gold - Portrait",
-		OutputSize:  "iPhone6_9",
+		Aliases:     []string{"iPhone 16 Pro - White Titanium - Portrait"},
+		OutputSize:  "iPhone6_9_alt",
 		DisplayType: "APP_IPHONE_69",
 	},
 	FrameDeviceIPhone17PM: {
 		FrameName:   "iPhone 17 Pro Max - Silver - Portrait",
+		Aliases:     []string{"iPhone 16 Pro Max - White Titanium - Portrait"},
 		OutputSize:  "iPhone6_9",
 		DisplayType: "APP_IPHONE_69",
 	},
 	FrameDeviceIPhone17Pro: {
 		FrameName:   "iPhone 17 Pro - Silver - Portrait",
-		OutputSize:  "iPhone6_7",
-		DisplayType: "APP_IPHONE_67",
+		Aliases:     []string{"iPhone 15 Pro - White Titanium - Portrait"},
+		OutputSize:  "iPhone6_3",
+		DisplayType: "APP_IPHONE_61",
 	},
 	FrameDeviceIPhone17: {
-		FrameName:   "iPhone 17 - Teal - Portrait",
-		OutputSize:  "iPhone6_7",
-		DisplayType: "APP_IPHONE_67",
+		FrameName:   "iPhone 17 - White - Portrait",
+		Aliases:     []string{"iPhone 17 - Teal - Portrait", "iPhone 14 Pro Portrait"},
+		OutputSize:  "iPhone6_3",
+		DisplayType: "APP_IPHONE_61",
 	},
 	FrameDeviceIPhone16e: {
-		FrameName:   "iPhone 16e - White - Portrait",
+		FrameName:   "iPhone 16 - White - Portrait",
+		Aliases:     []string{"iPhone 16e - White - Portrait"},
 		OutputSize:  "iPhone6_1",
 		DisplayType: "APP_IPHONE_61",
 	},
@@ -558,11 +566,23 @@ func resolveFrameDeviceForConfig(frameRef, fallback string) string {
 		return fallback
 	}
 	for device, spec := range frameDeviceKoubouSpecs {
-		if strings.EqualFold(strings.TrimSpace(spec.FrameName), trimmedFrameRef) {
+		if frameSpecMatchesFrameRef(spec, trimmedFrameRef) {
 			return string(device)
 		}
 	}
 	return trimmedFrameRef
+}
+
+func frameSpecMatchesFrameRef(spec frameDeviceKoubouSpec, frameRef string) bool {
+	if strings.EqualFold(strings.TrimSpace(spec.FrameName), frameRef) {
+		return true
+	}
+	for _, alias := range spec.Aliases {
+		if strings.EqualFold(strings.TrimSpace(alias), frameRef) {
+			return true
+		}
+	}
+	return false
 }
 
 // ResolveFrameDeviceFromConfig resolves the config device to a supported CLI slug.
@@ -619,10 +639,12 @@ func parseKoubouConfigMetadata(configPath string) *frameExecutionMetadata {
 
 func koubouDisplayTypeForSizeName(sizeName string) (string, bool) {
 	switch strings.ToLower(strings.TrimSpace(sizeName)) {
-	case "iphone6_9":
+	case "iphone6_9", "iphone6_9_alt":
 		return "APP_IPHONE_69", true
 	case "iphone6_7":
 		return "APP_IPHONE_67", true
+	case "iphone6_3":
+		return "APP_IPHONE_61", true
 	case "iphone6_1":
 		return "APP_IPHONE_61", true
 	case "iphone5_8":
@@ -639,11 +661,13 @@ func resolveKoubouOutputSize(value any) (int, int, bool) {
 		Width  int
 		Height int
 	}{
-		"iphone6_9": {Width: 1320, Height: 2868},
-		"iphone6_7": {Width: 1290, Height: 2796},
-		"iphone6_1": {Width: 1179, Height: 2556},
-		"iphone5_8": {Width: 1170, Height: 2532},
-		"iphone5_5": {Width: 1242, Height: 2208},
+		"iphone6_9":     {Width: 1320, Height: 2868},
+		"iphone6_9_alt": {Width: 1260, Height: 2736},
+		"iphone6_3":     {Width: 1206, Height: 2622},
+		"iphone6_7":     {Width: 1290, Height: 2796},
+		"iphone6_1":     {Width: 1179, Height: 2556},
+		"iphone5_8":     {Width: 1170, Height: 2532},
+		"iphone5_5":     {Width: 1242, Height: 2208},
 		// Mac App Store desktop (16:10)
 		"appdesktop_1280": {Width: 1280, Height: 800},
 		"appdesktop_1440": {Width: 1440, Height: 900},
@@ -735,6 +759,11 @@ func runKoubouGenerate(ctx context.Context, configPath string) ([]koubouGenerate
 	if err != nil {
 		return nil, err
 	}
+	if koubouConfigNeedsDeviceFrames(configPath) {
+		if err := ensurePinnedKoubouFrames(ctx, kouBinaryPath); err != nil {
+			return nil, err
+		}
+	}
 
 	cmd := exec.CommandContext(ctx, kouBinaryPath, "generate", configPath, "--output", "json")
 	var stderr bytes.Buffer
@@ -823,11 +852,50 @@ func ensurePinnedKoubouVersion(ctx context.Context) (string, error) {
 	}
 
 	koubouVersionCacheMu.Lock()
+	cacheTargetChanged := cachedKoubouResolvedPATH != resolvedPATH || cachedKoubouBinaryPath != kouBinaryPath
 	cachedKoubouBinaryPath = kouBinaryPath
 	cachedKoubouResolvedPATH = resolvedPATH
 	cachedKoubouVersionIsGood = true
+	if cacheTargetChanged {
+		cachedKoubouFramesReady = false
+	}
 	koubouVersionCacheMu.Unlock()
 	return kouBinaryPath, nil
+}
+
+func ensurePinnedKoubouFrames(ctx context.Context, kouBinaryPath string) error {
+	resolvedPATH := os.Getenv("PATH")
+
+	koubouVersionCacheMu.Lock()
+	if cachedKoubouFramesReady &&
+		cachedKoubouResolvedPATH == resolvedPATH &&
+		cachedKoubouBinaryPath == kouBinaryPath {
+		koubouVersionCacheMu.Unlock()
+		return nil
+	}
+	koubouVersionCacheMu.Unlock()
+
+	cmd := exec.CommandContext(ctx, kouBinaryPath, "setup-frames")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		trimmedOutput := strings.TrimSpace(string(output))
+		setupHint := fmt.Sprintf(
+			"Koubou %s requires downloaded device frames; run `%s` with network access once before framing",
+			pinnedKoubouVersion,
+			pinnedKoubouSetupFramesCommand(),
+		)
+		if trimmedOutput == "" {
+			return fmt.Errorf("kou setup-frames: %w. %s", err, setupHint)
+		}
+		return fmt.Errorf("kou setup-frames: %w (output: %s). %s", err, trimmedOutput, setupHint)
+	}
+
+	koubouVersionCacheMu.Lock()
+	cachedKoubouBinaryPath = kouBinaryPath
+	cachedKoubouResolvedPATH = resolvedPATH
+	cachedKoubouFramesReady = true
+	koubouVersionCacheMu.Unlock()
+	return nil
 }
 
 func parseKoubouVersion(output []byte) (string, bool) {
@@ -845,6 +913,44 @@ func parseKoubouVersion(output []byte) (string, bool) {
 
 func pinnedKoubouInstallCommand() string {
 	return fmt.Sprintf("pip install koubou==%s", pinnedKoubouVersion)
+}
+
+func pinnedKoubouSetupFramesCommand() string {
+	return "kou setup-frames"
+}
+
+func koubouConfigNeedsDeviceFrames(configPath string) bool {
+	type parsedContentItem struct {
+		Type  string `yaml:"type"`
+		Frame *bool  `yaml:"frame,omitempty"`
+	}
+	type parsedScreenshotSpec struct {
+		Content []parsedContentItem `yaml:"content"`
+	}
+	type parsedConfig struct {
+		Screenshots map[string]parsedScreenshotSpec `yaml:"screenshots"`
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return true
+	}
+	var parsed parsedConfig
+	if err := yaml.Unmarshal(data, &parsed); err != nil {
+		return true
+	}
+
+	for _, screenshot := range parsed.Screenshots {
+		for _, item := range screenshot.Content {
+			if !strings.EqualFold(strings.TrimSpace(item.Type), "image") {
+				continue
+			}
+			if item.Frame == nil || *item.Frame {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // extractJSONArray finds the JSON array of objects in raw output that may
@@ -922,6 +1028,7 @@ func resetKoubouVersionCacheForTest() {
 	cachedKoubouBinaryPath = ""
 	cachedKoubouResolvedPATH = ""
 	cachedKoubouVersionIsGood = false
+	cachedKoubouFramesReady = false
 }
 
 func normalizeFrameDevice(raw string) string {

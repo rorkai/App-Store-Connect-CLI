@@ -6,7 +6,11 @@ import (
 )
 
 func testFlightPublishResultRows(result *TestFlightPublishResult) ([]string, [][]string) {
-	headers := []string{"Build ID", "Version", "Build Number", "Processing", "Groups", "Uploaded", "Notified"}
+	headers := []string{"Build ID", "Version", "Build Number", "Processing", "Groups", "Uploaded", "Notified", "Notification Action"}
+	notified := ""
+	if result.Notified != nil {
+		notified = fmt.Sprintf("%t", *result.Notified)
+	}
 	rows := [][]string{{
 		result.BuildID,
 		result.BuildVersion,
@@ -14,7 +18,8 @@ func testFlightPublishResultRows(result *TestFlightPublishResult) ([]string, [][
 		result.ProcessingState,
 		strings.Join(result.GroupIDs, ", "),
 		fmt.Sprintf("%t", result.Uploaded),
-		fmt.Sprintf("%t", result.Notified),
+		notified,
+		string(result.NotificationAction),
 	}}
 	return headers, rows
 }

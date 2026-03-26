@@ -329,7 +329,7 @@ func TestSaveDefaultNameAlignsLegacyFields(t *testing.T) {
 	}
 }
 
-func TestSaveDefaultNameClearsLegacyFieldsOnMismatch(t *testing.T) {
+func TestSaveDefaultNamePreservesLegacyFieldsOnMismatch(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 	t.Setenv("ASC_CONFIG_PATH", configPath)
@@ -364,8 +364,14 @@ func TestSaveDefaultNameClearsLegacyFieldsOnMismatch(t *testing.T) {
 	if updated.DefaultKeyName != "other" {
 		t.Fatalf("expected DefaultKeyName to be other, got %q", updated.DefaultKeyName)
 	}
-	if updated.KeyID != "" || updated.IssuerID != "" || updated.PrivateKeyPath != "" {
-		t.Fatal("expected legacy credentials to be cleared when no matching profile")
+	if updated.KeyID != "KEY1" {
+		t.Fatalf("expected legacy KeyID KEY1 to be preserved, got %q", updated.KeyID)
+	}
+	if updated.IssuerID != "ISSUER1" {
+		t.Fatalf("expected legacy IssuerID ISSUER1 to be preserved, got %q", updated.IssuerID)
+	}
+	if updated.PrivateKeyPath != "/tmp/personal.p8" {
+		t.Fatalf("expected legacy PrivateKeyPath /tmp/personal.p8 to be preserved, got %q", updated.PrivateKeyPath)
 	}
 }
 

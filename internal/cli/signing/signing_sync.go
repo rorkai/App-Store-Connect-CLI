@@ -299,16 +299,8 @@ func syncPullCommand() *ffcli.Command {
 					return fmt.Errorf("signing sync pull: decrypt %s: %w", relPath, err)
 				}
 
-				destPath := filepath.Join(outDir, relPath)
-				if err := signingpkg.EnsureInsideDir(outDir, destPath); err != nil {
-					return fmt.Errorf("signing sync pull: path escape in %s: %w", relPath, err)
-				}
-				if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
-					return fmt.Errorf("signing sync pull: create dir: %w", err)
-				}
-
-				if err := os.WriteFile(destPath, plaintext, 0o600); err != nil {
-					return fmt.Errorf("signing sync pull: write %s: %w", relPath, err)
+				if err := writeDecryptedOutputFile(outDir, relPath, plaintext); err != nil {
+					return fmt.Errorf("signing sync pull: %w", err)
 				}
 
 				files = append(files, relPath)
@@ -329,6 +321,23 @@ func syncPullCommand() *ffcli.Command {
 
 func sanitizeRepoURLForOutput(raw string) string {
 	return urlsanitize.SanitizeURLForLog(raw, urlsanitize.DefaultSignedQueryKeys, urlsanitize.DefaultSensitiveQueryKeys)
+}
+
+func writeDecryptedOutputFile(outDir, relPath string, plaintext []byte) error {
+	destPath := filepath.Join(outDir, relPath)
+	if err := signingpkg.EnsureInsideDir(outDir, destPath); err != nil {
+		return fmt.Errorf("path escape in %s: %w", relPath, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+		return fmt.Errorf("create dir: %w", err)
+	}
+	if err := signingpkg.RejectSymlinkIfExists(destPath); err != nil {
+		return fmt.Errorf("path escape in %s: %w", relPath, err)
+	}
+	if err := os.WriteFile(destPath, plaintext, 0o600); err != nil {
+		return fmt.Errorf("write %s: %w", relPath, err)
+	}
+	return nil
 }
 
 func certDirectoryName(profileType string) string {

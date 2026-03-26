@@ -569,8 +569,8 @@ func TestUsersInvitesVisibleAppsListPaginateFromNextWithoutIDPhase63(t *testing.
 func TestUsersVisibleAppsGetRejectsInvalidNextURLPhase63(t *testing.T) {
 	runGameCenterAchievementsInvalidNextURLCases(
 		t,
-		[]string{"users", "visible-apps", "get"},
-		"users visible-apps get: --next",
+		[]string{"users", "visible-apps", "view"},
+		"users visible-apps view: --next",
 	)
 }
 
@@ -583,7 +583,7 @@ func TestUsersVisibleAppsGetPaginateFromNextWithoutIDPhase63(t *testing.T) {
 
 	runGameCenterAchievementsPaginateFromNext(
 		t,
-		[]string{"users", "visible-apps", "get"},
+		[]string{"users", "visible-apps", "view"},
 		firstURL,
 		secondURL,
 		firstBody,

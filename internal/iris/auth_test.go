@@ -2,16 +2,696 @@ package iris
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"io"
 	"math/big"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/1Password/srp"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+type sessionInfoContextKey struct{}
+
+func TestEnsureTwoFactorCodeRequestedRequestsPhoneCodeWhenNoTrustedDevicesHasMultipleNumbers(t *testing.T) {
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodGet && req.URL.String() == authServiceURL:
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body: io.NopCloser(strings.NewReader(`{
+							"noTrustedDevices": true,
+							"trustedPhoneNumbers": [
+								{"id": 7, "pushMode": "sms", "numberWithDialCode": "+1 (•••) •••-••66"},
+								{"id": 9, "pushMode": "sms", "numberWithDialCode": "+1 (•••) •••-••88"}
+							]
+						}`)),
+					}, nil
+				case req.Method == http.MethodPut && req.URL.String() == authServiceURL+"/verify/phone":
+					var payload struct {
+						PhoneNumber struct {
+							ID int `json:"id"`
+						} `json:"phoneNumber"`
+						Mode string `json:"mode"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+						t.Fatalf("decode phone request payload: %v", err)
+					}
+					if payload.PhoneNumber.ID != 7 {
+						t.Fatalf("expected phone id 7, got %d", payload.PhoneNumber.ID)
+					}
+					if payload.Mode != "sms" {
+						t.Fatalf("expected sms mode, got %q", payload.Mode)
+					}
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{}`)),
+					}, nil
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
+	}
+
+	challenge, err := EnsureTwoFactorCodeRequested(context.Background(), session)
+	if err != nil {
+		t.Fatalf("EnsureTwoFactorCodeRequested returned error: %v", err)
+	}
+	if challenge.Method != twoFactorMethodPhone {
+		t.Fatalf("expected phone method, got %q", challenge.Method)
+	}
+	if challenge.Destination != "+1 (•••) •••-••66" {
+		t.Fatalf("expected first phone destination, got %q", challenge.Destination)
+	}
+	if !challenge.Requested {
+		t.Fatal("expected phone code request for multiple fallback numbers")
+	}
+	if session.twoFactorPhoneID != 7 {
+		t.Fatalf("expected stored phone id 7, got %d", session.twoFactorPhoneID)
+	}
+}
+
+func TestEnsureTwoFactorCodeRequestedRequestsPhoneCodeForSingleTrustedPhone(t *testing.T) {
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodGet && req.URL.String() == authServiceURL:
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body: io.NopCloser(strings.NewReader(`{
+							"noTrustedDevices": true,
+							"trustedPhoneNumbers": [
+								{"id": 7, "pushMode": "sms", "numberWithDialCode": "+1 (•••) •••-••66"}
+							]
+						}`)),
+					}, nil
+				case req.Method == http.MethodPut && req.URL.String() == authServiceURL+"/verify/phone":
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{}`)),
+					}, nil
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
+	}
+
+	challenge, err := EnsureTwoFactorCodeRequested(context.Background(), session)
+	if err != nil {
+		t.Fatalf("EnsureTwoFactorCodeRequested returned error: %v", err)
+	}
+	if challenge.Method != twoFactorMethodPhone {
+		t.Fatalf("expected phone method, got %q", challenge.Method)
+	}
+	if !challenge.Requested {
+		t.Fatal("expected single trusted phone to trigger a code request before prompting")
+	}
+}
+
+func TestRequestPhoneCodeReturnsMarshalError(t *testing.T) {
+	sentinel := errors.New("marshal boom")
+	previousMarshal := marshalAuthPayload
+	marshalAuthPayload = func(v any) ([]byte, error) {
+		return nil, sentinel
+	}
+	t.Cleanup(func() {
+		marshalAuthPayload = previousMarshal
+	})
+
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+				return nil, nil
+			}),
+		},
+	}
+
+	err := requestPhoneCode(context.Background(), session, 7, "sms")
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("expected marshal error, got %v", err)
+	}
+	if got := err.Error(); !strings.Contains(got, "failed to marshal phone request payload") {
+		t.Fatalf("expected wrapped marshal error, got %q", got)
+	}
+}
+
+func TestEnsureTwoFactorCodeRequestedHonorsContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if got := req.Context().Err(); !errors.Is(got, context.Canceled) {
+					t.Fatalf("expected canceled request context, got %v", got)
+				}
+				return nil, req.Context().Err()
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
+	}
+
+	if _, err := EnsureTwoFactorCodeRequested(ctx, session); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation, got %v", err)
+	}
+}
+
+func TestPrepareTwoFactorChallengeKeepsPhoneFallbackForTrustedDeviceFlow(t *testing.T) {
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet || req.URL.String() != authServiceURL {
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+					Body: io.NopCloser(strings.NewReader(`{
+						"trustedDevices": [{"id":"device-1"}],
+						"trustedPhoneNumbers": [
+							{"id": 7, "pushMode": "sms", "numberWithDialCode": "+1 (•••) •••-••66"}
+						]
+					}`)),
+				}, nil
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
+	}
+
+	challenge, err := PrepareTwoFactorChallenge(context.Background(), session)
+	if err != nil {
+		t.Fatalf("PrepareTwoFactorChallenge returned error: %v", err)
+	}
+	if challenge.Method != twoFactorMethodTrustedDevice {
+		t.Fatalf("expected trusted-device method, got %q", challenge.Method)
+	}
+	if !challenge.PhoneFallbackAvailable {
+		t.Fatal("expected phone fallback to remain available")
+	}
+	if session.twoFactorPhoneID != 7 {
+		t.Fatalf("expected stored fallback phone id 7, got %d", session.twoFactorPhoneID)
+	}
+	if challenge.Destination != "+1 (•••) •••-••66" {
+		t.Fatalf("expected fallback destination on initial trusted-device challenge, got %q", challenge.Destination)
+	}
+
+	cachedChallenge, err := PrepareTwoFactorChallenge(context.Background(), session)
+	if err != nil {
+		t.Fatalf("PrepareTwoFactorChallenge (cached) returned error: %v", err)
+	}
+	if cachedChallenge.Destination != challenge.Destination {
+		t.Fatalf("expected cached challenge destination %q, got %q", challenge.Destination, cachedChallenge.Destination)
+	}
+}
+
+func TestFinalizeTwoFactorPassesContextToSessionInfo(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.WithValue(context.Background(), sessionInfoContextKey{}, "marker"))
+	defer cancel()
+
+	timer := time.AfterFunc(10*time.Millisecond, cancel)
+	defer timer.Stop()
+
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch req.URL.String() {
+				case authServiceURL + "/2sv/trust":
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{}`)),
+					}, nil
+				case olympusSessionURL:
+					if req.Context().Value(sessionInfoContextKey{}) != "marker" {
+						return nil, errors.New("missing caller context on session info request")
+					}
+					<-req.Context().Done()
+					return nil, req.Context().Err()
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
+	}
+
+	err := finalizeTwoFactor(ctx, session)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected finalizeTwoFactor to return context cancellation, got %v", err)
+	}
+}
+
+func TestTwoFactorChallengeIsPhoneMethod(t *testing.T) {
+	if challenge := (*TwoFactorChallenge)(nil); challenge.IsPhoneMethod() {
+		t.Fatal("expected nil challenge not to report phone method")
+	}
+	if challenge := (&TwoFactorChallenge{Method: twoFactorMethodPhone}); !challenge.IsPhoneMethod() {
+		t.Fatal("expected phone challenge to report phone method")
+	}
+	if challenge := (&TwoFactorChallenge{Method: twoFactorMethodTrustedDevice}); challenge.IsPhoneMethod() {
+		t.Fatal("expected trusted-device challenge not to report phone method")
+	}
+}
+
+func TestSubmitTrustedDeviceCodeReturnsMarshalError(t *testing.T) {
+	sentinel := errors.New("marshal boom")
+	previousMarshal := marshalAuthPayload
+	marshalAuthPayload = func(v any) ([]byte, error) {
+		return nil, sentinel
+	}
+	t.Cleanup(func() {
+		marshalAuthPayload = previousMarshal
+	})
+
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+				return nil, nil
+			}),
+		},
+	}
+
+	err := submitTrustedDeviceCode(context.Background(), session, "123456")
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("expected marshal error, got %v", err)
+	}
+	if got := err.Error(); !strings.Contains(got, "failed to marshal trusted-device payload") {
+		t.Fatalf("expected wrapped marshal error, got %q", got)
+	}
+}
+
+func TestSubmitPhoneCodeReturnsMarshalError(t *testing.T) {
+	sentinel := errors.New("marshal boom")
+	previousMarshal := marshalAuthPayload
+	marshalAuthPayload = func(v any) ([]byte, error) {
+		return nil, sentinel
+	}
+	t.Cleanup(func() {
+		marshalAuthPayload = previousMarshal
+	})
+
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+				return nil, nil
+			}),
+		},
+	}
+
+	err := submitPhoneCode(context.Background(), session, "123456", 7, "sms")
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("expected marshal error, got %v", err)
+	}
+	if got := err.Error(); !strings.Contains(got, "failed to marshal phone payload") {
+		t.Fatalf("expected wrapped marshal error, got %q", got)
+	}
+}
+
+func TestSubmitTwoFactorCodeUsesPreparedPhoneFlow(t *testing.T) {
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodPut && req.URL.String() == authServiceURL+"/verify/phone":
+					var payload struct {
+						PhoneNumber struct {
+							ID int `json:"id"`
+						} `json:"phoneNumber"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+						t.Fatalf("decode phone delivery payload: %v", err)
+					}
+					if payload.PhoneNumber.ID != 7 {
+						t.Fatalf("expected delivery phone id 7, got %d", payload.PhoneNumber.ID)
+					}
+					return &http.Response{
+						StatusCode: http.StatusNoContent,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader("")),
+					}, nil
+				case req.Method == http.MethodPost && req.URL.String() == authServiceURL+"/verify/phone/securitycode":
+					var payload struct {
+						PhoneNumber struct {
+							ID int `json:"id"`
+						} `json:"phoneNumber"`
+						SecurityCode struct {
+							Code string `json:"code"`
+						} `json:"securityCode"`
+						Mode string `json:"mode"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+						t.Fatalf("decode phone verification payload: %v", err)
+					}
+					if payload.PhoneNumber.ID != 7 {
+						t.Fatalf("expected phone id 7, got %d", payload.PhoneNumber.ID)
+					}
+					if payload.SecurityCode.Code != "123456" {
+						t.Fatalf("expected 2fa code 123456, got %q", payload.SecurityCode.Code)
+					}
+					if payload.Mode != "sms" {
+						t.Fatalf("expected sms mode, got %q", payload.Mode)
+					}
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{}`)),
+					}, nil
+				case req.Method == http.MethodGet && req.URL.String() == authServiceURL+"/2sv/trust":
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{}`)),
+					}, nil
+				case req.Method == http.MethodGet && req.URL.String() == olympusSessionURL:
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body: io.NopCloser(strings.NewReader(`{
+							"provider": {"providerId": 123},
+							"user": {"emailAddress": "user@example.com"}
+						}`)),
+					}, nil
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			}),
+		},
+		ServiceKey:           "service-key",
+		AppleIDSessionID:     "session-id",
+		SCNT:                 "scnt-token",
+		twoFactorMethod:      twoFactorMethodPhone,
+		twoFactorPhoneID:     7,
+		twoFactorPhoneMode:   "sms",
+		twoFactorDestination: "+1 (•••) •••-••66",
+	}
+
+	if err := SubmitTwoFactorCode(context.Background(), session, "123456"); err != nil {
+		t.Fatalf("SubmitTwoFactorCode returned error: %v", err)
+	}
+	if session.ProviderID != 123 {
+		t.Fatalf("expected provider id 123, got %d", session.ProviderID)
+	}
+	if session.UserEmail != "user@example.com" {
+		t.Fatalf("expected user email to be refreshed, got %q", session.UserEmail)
+	}
+}
+
+func TestSubmitTwoFactorCodeSubmitsPreparedPhoneFallbackAfterTrustedDeviceFailure(t *testing.T) {
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodPost && req.URL.String() == authServiceURL+"/verify/trusteddevice/securitycode":
+					return &http.Response{
+						StatusCode: http.StatusBadRequest,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{"serviceErrors":[{"code":"-21669"}]}`)),
+					}, nil
+				case req.Method == http.MethodPost && req.URL.String() == authServiceURL+"/verify/phone/securitycode":
+					var payload struct {
+						PhoneNumber struct {
+							ID int `json:"id"`
+						} `json:"phoneNumber"`
+						SecurityCode struct {
+							Code string `json:"code"`
+						} `json:"securityCode"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+						t.Fatalf("decode phone verification payload: %v", err)
+					}
+					if payload.PhoneNumber.ID != 7 {
+						t.Fatalf("expected fallback phone id 7, got %d", payload.PhoneNumber.ID)
+					}
+					if payload.SecurityCode.Code != "123456" {
+						t.Fatalf("expected 2fa code 123456, got %q", payload.SecurityCode.Code)
+					}
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{}`)),
+					}, nil
+				case req.Method == http.MethodGet && req.URL.String() == authServiceURL+"/2sv/trust":
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{}`)),
+					}, nil
+				case req.Method == http.MethodGet && req.URL.String() == olympusSessionURL:
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body: io.NopCloser(strings.NewReader(`{
+							"provider": {"providerId": 123},
+							"user": {"emailAddress": "user@example.com"}
+						}`)),
+					}, nil
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			}),
+		},
+		ServiceKey:             "service-key",
+		AppleIDSessionID:       "session-id",
+		SCNT:                   "scnt-token",
+		twoFactorMethod:        twoFactorMethodPhone,
+		twoFactorPhoneID:       7,
+		twoFactorPhoneMode:     "sms",
+		twoFactorCodeRequested: true,
+	}
+
+	if err := SubmitTwoFactorCode(context.Background(), session, "123456"); err != nil {
+		t.Fatalf("SubmitTwoFactorCode returned error: %v", err)
+	}
+}
+
+func TestSubmitTwoFactorCodeRequestsPhoneDeliveryBeforeVerification(t *testing.T) {
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodGet && req.URL.String() == authServiceURL:
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body: io.NopCloser(strings.NewReader(`{
+							"noTrustedDevices": true,
+							"trustedPhoneNumbers": [
+								{"id": 7, "pushMode": "sms", "numberWithDialCode": "+1 (•••) •••-••66"},
+								{"id": 9, "pushMode": "sms", "numberWithDialCode": "+1 (•••) •••-••88"}
+							]
+						}`)),
+					}, nil
+				case req.Method == http.MethodPut && req.URL.String() == authServiceURL+"/verify/phone":
+					var payload struct {
+						PhoneNumber struct {
+							ID int `json:"id"`
+						} `json:"phoneNumber"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+						t.Fatalf("decode phone delivery payload: %v", err)
+					}
+					if payload.PhoneNumber.ID != 7 {
+						t.Fatalf("expected delivery phone id 7, got %d", payload.PhoneNumber.ID)
+					}
+					return &http.Response{
+						StatusCode: http.StatusNoContent,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader("")),
+					}, nil
+				case req.Method == http.MethodPost && req.URL.String() == authServiceURL+"/verify/phone/securitycode":
+					var payload struct {
+						PhoneNumber struct {
+							ID int `json:"id"`
+						} `json:"phoneNumber"`
+						SecurityCode struct {
+							Code string `json:"code"`
+						} `json:"securityCode"`
+					}
+					if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+						t.Fatalf("decode phone verification payload: %v", err)
+					}
+					if payload.PhoneNumber.ID != 7 {
+						t.Fatalf("expected phone id 7, got %d", payload.PhoneNumber.ID)
+					}
+					if payload.SecurityCode.Code != "123456" {
+						t.Fatalf("expected 2fa code 123456, got %q", payload.SecurityCode.Code)
+					}
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{}`)),
+					}, nil
+				case req.Method == http.MethodGet && req.URL.String() == authServiceURL+"/2sv/trust":
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader(`{}`)),
+					}, nil
+				case req.Method == http.MethodGet && req.URL.String() == olympusSessionURL:
+					return &http.Response{
+						StatusCode: http.StatusOK,
+						Header:     make(http.Header),
+						Body: io.NopCloser(strings.NewReader(`{
+							"provider": {"providerId": 123},
+							"user": {"emailAddress": "user@example.com"}
+						}`)),
+					}, nil
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
+	}
+
+	if err := SubmitTwoFactorCode(context.Background(), session, "123456"); err != nil {
+		t.Fatalf("SubmitTwoFactorCode returned error: %v", err)
+	}
+}
+
+func TestSubmitTwoFactorCodeHonorsContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if got := req.Context().Err(); !errors.Is(got, context.Canceled) {
+					t.Fatalf("expected canceled request context, got %v", got)
+				}
+				return nil, req.Context().Err()
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
+	}
+
+	if err := SubmitTwoFactorCode(ctx, session, "123456"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation, got %v", err)
+	}
+}
+
+func TestSubmitTwoFactorCodeHonorsContextCancellationDuringFinalize(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	session := &AuthSession{
+		Client: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				switch {
+				case req.Method == http.MethodPost && req.URL.String() == authServiceURL+"/verify/trusteddevice/securitycode":
+					cancel()
+					return &http.Response{
+						StatusCode: http.StatusNoContent,
+						Header:     make(http.Header),
+						Body:       io.NopCloser(strings.NewReader("")),
+					}, nil
+				case req.Method == http.MethodGet && req.URL.String() == authServiceURL+"/2sv/trust":
+					if got := req.Context().Err(); !errors.Is(got, context.Canceled) {
+						t.Fatalf("expected canceled finalize request context, got %v", got)
+					}
+					return nil, req.Context().Err()
+				default:
+					t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+					return nil, nil
+				}
+			}),
+		},
+		ServiceKey:       "service-key",
+		AppleIDSessionID: "session-id",
+		SCNT:             "scnt-token",
+		twoFactorMethod:  twoFactorMethodTrustedDevice,
+	}
+
+	if err := SubmitTwoFactorCode(ctx, session, "123456"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected finalize cancellation, got %v", err)
+	}
+}
+
+func TestSigninCompleteReturnsAppleAccountActionRequiredForPreconditionFailed(t *testing.T) {
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusPreconditionFailed,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"authType":"hsa2"}`)),
+			}, nil
+		}),
+	}
+
+	err := signinComplete(client, "user@example.com", "m1-proof", "m2-proof", `{"v":1}`, "service-key", "hashcash-token")
+	if !errors.Is(err, errAppleAccountActionRequired) {
+		t.Fatalf("expected account-action-required error, got %v", err)
+	}
+}
+
+func TestGetHashcashAllowsMissingChallengeHeaders(t *testing.T) {
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if got, want := req.URL.String(), authServiceURL+"/signin?widgetKey=service-key"; got != want {
+				t.Fatalf("expected request URL %q, got %q", want, got)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader("")),
+			}, nil
+		}),
+	}
+
+	hashcash, err := getHashcash(client, "service-key")
+	if err != nil {
+		t.Fatalf("expected missing-hashcash headers to be tolerated, got %v", err)
+	}
+	if hashcash != "" {
+		t.Fatalf("expected empty hashcash when headers are absent, got %q", hashcash)
+	}
+}
 
 func TestPreparePasswordForProtocol(t *testing.T) {
 	t.Run("s2k", func(t *testing.T) {

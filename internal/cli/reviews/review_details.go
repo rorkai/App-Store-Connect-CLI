@@ -13,6 +13,14 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+const (
+	reviewDetailDemoAccountNameUsage     = "Demo account name when demo credentials are required"
+	reviewDetailDemoAccountPasswordUsage = "Demo account password when demo credentials are required"
+	reviewDetailDemoAccountRequiredUsage = "Set true only when App Review needs demo credentials; leave false when reviewer guidance in --notes is enough"
+	reviewDetailNotesUsage               = "Review notes for reviewer instructions or context; supplemental when demo credentials are required"
+	reviewDetailDemoCredentialsError     = "Error: --demo-account-required=true requires both --demo-account-name and --demo-account-password"
+)
+
 // ReviewDetailsGetCommand returns the review details get subcommand.
 func ReviewDetailsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("details-get", flag.ExitOnError)
@@ -106,10 +114,10 @@ func ReviewDetailsCreateCommand() *ffcli.Command {
 	contactLastName := fs.String("contact-last-name", "", "Contact last name")
 	contactEmail := fs.String("contact-email", "", "Contact email")
 	contactPhone := fs.String("contact-phone", "", "Contact phone")
-	demoAccountName := fs.String("demo-account-name", "", "Demo account name")
-	demoAccountPassword := fs.String("demo-account-password", "", "Demo account password")
-	demoAccountRequired := fs.Bool("demo-account-required", false, "Demo account required")
-	notes := fs.String("notes", "", "Review notes")
+	demoAccountName := fs.String("demo-account-name", "", reviewDetailDemoAccountNameUsage)
+	demoAccountPassword := fs.String("demo-account-password", "", reviewDetailDemoAccountPasswordUsage)
+	demoAccountRequired := fs.Bool("demo-account-required", false, reviewDetailDemoAccountRequiredUsage)
+	notes := fs.String("notes", "", reviewDetailNotesUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -118,9 +126,13 @@ func ReviewDetailsCreateCommand() *ffcli.Command {
 		ShortHelp:  "Create App Store review details for a version.",
 		LongHelp: `Create App Store review details for a version.
 
+Leave ` + "`--demo-account-required`" + ` false when ` + "`--notes`" + ` are enough for reviewer instructions.
+Use ` + "`--demo-account-required=true`" + ` only when App Review needs demo credentials.
+Do not use placeholder demo credentials just to satisfy the field shape.
+
 Examples:
-  asc review details-create --version-id "VERSION_ID" --contact-email "dev@example.com"
-  asc review details-create --version-id "VERSION_ID" --notes "Review notes"`,
+  asc review details-create --version-id "VERSION_ID" --contact-first-name "Dev" --contact-last-name "Support" --contact-email "dev@example.com" --contact-phone "+1 555 0100" --notes "Reviewer can use the guest flow from the welcome screen."
+  asc review details-create --version-id "VERSION_ID" --contact-first-name "Dev" --contact-last-name "Support" --contact-email "dev@example.com" --contact-phone "+1 555 0100" --demo-account-required=true --demo-account-name "reviewer@example.com" --demo-account-password "app-specific-password" --notes "2FA is disabled for this review account."`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -134,6 +146,12 @@ Examples:
 			fs.Visit(func(f *flag.Flag) {
 				visited[f.Name] = true
 			})
+
+			if visited["demo-account-required"] && *demoAccountRequired {
+				if err := validateReviewDetailDemoCredentialValues(strings.TrimSpace(*demoAccountName), strings.TrimSpace(*demoAccountPassword)); err != nil {
+					return err
+				}
+			}
 
 			var attrsPtr *asc.AppStoreReviewDetailCreateAttributes
 			if hasReviewDetailUpdates(visited) {
@@ -200,10 +218,10 @@ func ReviewDetailsUpdateCommand() *ffcli.Command {
 	contactLastName := fs.String("contact-last-name", "", "Contact last name")
 	contactEmail := fs.String("contact-email", "", "Contact email")
 	contactPhone := fs.String("contact-phone", "", "Contact phone")
-	demoAccountName := fs.String("demo-account-name", "", "Demo account name")
-	demoAccountPassword := fs.String("demo-account-password", "", "Demo account password")
-	demoAccountRequired := fs.Bool("demo-account-required", false, "Demo account required")
-	notes := fs.String("notes", "", "Review notes")
+	demoAccountName := fs.String("demo-account-name", "", reviewDetailDemoAccountNameUsage)
+	demoAccountPassword := fs.String("demo-account-password", "", reviewDetailDemoAccountPasswordUsage)
+	demoAccountRequired := fs.Bool("demo-account-required", false, reviewDetailDemoAccountRequiredUsage)
+	notes := fs.String("notes", "", reviewDetailNotesUsage)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -212,9 +230,13 @@ func ReviewDetailsUpdateCommand() *ffcli.Command {
 		ShortHelp:  "Update App Store review details.",
 		LongHelp: `Update App Store review details.
 
+Leave ` + "`--demo-account-required`" + ` false when ` + "`--notes`" + ` are enough for reviewer instructions.
+Use ` + "`--demo-account-required=true`" + ` only when App Review needs demo credentials.
+Do not use placeholder demo credentials just to satisfy the field shape.
+
 Examples:
-  asc review details-update --id "DETAIL_ID" --contact-email "dev@example.com"
-  asc review details-update --id "DETAIL_ID" --notes "Updated review notes"`,
+  asc review details-update --id "DETAIL_ID" --notes "Reviewer can use the guest flow from the welcome screen."
+  asc review details-update --id "DETAIL_ID" --demo-account-required=true --demo-account-name "reviewer@example.com" --demo-account-password "rotated-password" --notes "This account has full reviewer access."`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -232,6 +254,26 @@ Examples:
 			if !hasReviewDetailUpdates(visited) {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return flag.ErrHelp
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("review details-update: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			if err := validateReviewDetailUpdateDemoCredentials(
+				requestCtx,
+				client,
+				detailValue,
+				visited,
+				*demoAccountRequired,
+				strings.TrimSpace(*demoAccountName),
+				strings.TrimSpace(*demoAccountPassword),
+			); err != nil {
+				return err
 			}
 
 			attrs := asc.AppStoreReviewDetailUpdateAttributes{}
@@ -268,14 +310,6 @@ Examples:
 				attrs.Notes = &value
 			}
 
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("review details-update: %w", err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			resp, err := client.UpdateAppStoreReviewDetail(requestCtx, detailValue, attrs)
 			if err != nil {
 				return fmt.Errorf("review details-update: failed to update: %w", err)
@@ -295,4 +329,47 @@ func hasReviewDetailUpdates(visited map[string]bool) bool {
 		visited["demo-account-password"] ||
 		visited["demo-account-required"] ||
 		visited["notes"]
+}
+
+func validateReviewDetailUpdateDemoCredentials(
+	ctx context.Context,
+	client *asc.Client,
+	detailID string,
+	visited map[string]bool,
+	demoAccountRequired bool,
+	demoAccountName string,
+	demoAccountPassword string,
+) error {
+	if !visited["demo-account-required"] || !demoAccountRequired {
+		return nil
+	}
+
+	effectiveName := demoAccountName
+	effectivePassword := demoAccountPassword
+	if visited["demo-account-name"] && visited["demo-account-password"] {
+		return validateReviewDetailDemoCredentialValues(effectiveName, effectivePassword)
+	}
+
+	resp, err := client.GetAppStoreReviewDetail(ctx, detailID)
+	if err != nil {
+		return fmt.Errorf("review details-update: failed to fetch existing review details for demo credential validation: %w", err)
+	}
+
+	if !visited["demo-account-name"] {
+		effectiveName = strings.TrimSpace(resp.Data.Attributes.DemoAccountName)
+	}
+	if !visited["demo-account-password"] {
+		effectivePassword = strings.TrimSpace(resp.Data.Attributes.DemoAccountPassword)
+	}
+
+	return validateReviewDetailDemoCredentialValues(effectiveName, effectivePassword)
+}
+
+func validateReviewDetailDemoCredentialValues(demoAccountName, demoAccountPassword string) error {
+	if strings.TrimSpace(demoAccountName) != "" && strings.TrimSpace(demoAccountPassword) != "" {
+		return nil
+	}
+
+	fmt.Fprintln(os.Stderr, reviewDetailDemoCredentialsError)
+	return flag.ErrHelp
 }

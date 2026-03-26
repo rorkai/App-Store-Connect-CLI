@@ -99,8 +99,9 @@ type AppPreviewCreateRequest struct {
 
 // AppPreviewUpdateAttributes describes preview update attributes.
 type AppPreviewUpdateAttributes struct {
-	SourceFileChecksum *string `json:"sourceFileChecksum,omitempty"`
-	Uploaded           *bool   `json:"uploaded,omitempty"`
+	PreviewFrameTimeCode *string `json:"previewFrameTimeCode,omitempty"`
+	SourceFileChecksum   *string `json:"sourceFileChecksum,omitempty"`
+	Uploaded             *bool   `json:"uploaded,omitempty"`
 }
 
 // AppPreviewUpdateData is the data portion of a preview update request.
@@ -597,6 +598,36 @@ func (c *Client) UpdateAppPreview(ctx context.Context, previewID string, uploade
 			Attributes: &AppPreviewUpdateAttributes{
 				Uploaded:           &uploaded,
 				SourceFileChecksum: &checksumHash,
+			},
+		},
+	}
+
+	body, err := BuildRequestBody(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := c.do(ctx, "PATCH", fmt.Sprintf("/v1/appPreviews/%s", previewID), body)
+	if err != nil {
+		return nil, err
+	}
+
+	var response AppPreviewResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// SetAppPreviewFrameTimeCode sets the poster frame timecode for a preview.
+func (c *Client) SetAppPreviewFrameTimeCode(ctx context.Context, previewID string, timeCode string) (*AppPreviewResponse, error) {
+	payload := AppPreviewUpdateRequest{
+		Data: AppPreviewUpdateData{
+			Type: ResourceTypeAppPreviews,
+			ID:   previewID,
+			Attributes: &AppPreviewUpdateAttributes{
+				PreviewFrameTimeCode: &timeCode,
 			},
 		},
 	}

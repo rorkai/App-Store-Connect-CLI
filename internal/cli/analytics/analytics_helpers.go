@@ -252,6 +252,140 @@ func fetchAnalyticsReportInstances(ctx context.Context, client *asc.Client, repo
 	return all, nil
 }
 
+func normalizeCompareDateRange(from, fromEnd string, freq asc.SalesReportFrequency, fromFlag, fromEndFlag string) (string, string, error) {
+	from = strings.TrimSpace(from)
+	fromEnd = strings.TrimSpace(fromEnd)
+	if fromEnd == "" {
+		fromEnd = from
+	}
+
+	start, startTime, err := normalizeCompareRangeBoundary(from, freq, fromFlag)
+	if err != nil {
+		return "", "", err
+	}
+	end, endTime, err := normalizeCompareRangeBoundary(fromEnd, freq, fromEndFlag)
+	if err != nil {
+		return "", "", err
+	}
+	if endTime.Before(startTime) {
+		return "", "", fmt.Errorf("%s must not be before %s", fromEndFlag, fromFlag)
+	}
+	return start, end, nil
+}
+
+func normalizeCompareRangeBoundary(value string, freq asc.SalesReportFrequency, flagName string) (string, time.Time, error) {
+	trimmed := strings.TrimSpace(value)
+	switch freq {
+	case asc.SalesReportFrequencyYearly:
+		parsed, err := time.Parse("2006", trimmed)
+		if err != nil {
+			return "", time.Time{}, fmt.Errorf("%s must be in YYYY format for yearly frequency", flagName)
+		}
+		return parsed.Format("2006"), parsed, nil
+
+	case asc.SalesReportFrequencyMonthly:
+		parsed, err := time.Parse("2006-01", trimmed)
+		if err != nil {
+			return "", time.Time{}, fmt.Errorf("%s must be in YYYY-MM format for monthly frequency", flagName)
+		}
+		return parsed.Format("2006-01"), parsed, nil
+
+	case asc.SalesReportFrequencyWeekly:
+		return normalizeWeeklyCompareBoundary(trimmed, flagName)
+
+	default:
+		parsed, err := time.Parse("2006-01-02", trimmed)
+		if err != nil {
+			return "", time.Time{}, fmt.Errorf("%s must be in YYYY-MM-DD format", flagName)
+		}
+		return parsed.Format("2006-01-02"), parsed, nil
+	}
+}
+
+func normalizeWeeklyCompareBoundary(value, flagName string) (string, time.Time, error) {
+	parsed, err := time.Parse("2006-01-02", strings.TrimSpace(value))
+	if err != nil {
+		return "", time.Time{}, fmt.Errorf("%s must be in YYYY-MM-DD format for weekly reports", flagName)
+	}
+	switch parsed.Weekday() {
+	case time.Monday:
+		weekEnd := parsed.AddDate(0, 0, 6)
+		return weekEnd.Format("2006-01-02"), weekEnd, nil
+	case time.Sunday:
+		return parsed.Format("2006-01-02"), parsed, nil
+	default:
+		return "", time.Time{}, fmt.Errorf("%s for weekly reports must be a Monday (week start) or Sunday (week end)", flagName)
+	}
+}
+
+func generateReportDates(start, end string, freq asc.SalesReportFrequency) ([]string, error) {
+	switch freq {
+	case asc.SalesReportFrequencyYearly:
+		s, err := time.Parse("2006", start)
+		if err != nil {
+			return nil, fmt.Errorf("invalid start year %q", start)
+		}
+		e, err := time.Parse("2006", end)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end year %q", end)
+		}
+		var dates []string
+		for cur := s; !cur.After(e); cur = cur.AddDate(1, 0, 0) {
+			dates = append(dates, cur.Format("2006"))
+		}
+		return dates, nil
+
+	case asc.SalesReportFrequencyMonthly:
+		s, err := time.Parse("2006-01", start)
+		if err != nil {
+			return nil, fmt.Errorf("invalid start month %q", start)
+		}
+		e, err := time.Parse("2006-01", end)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end month %q", end)
+		}
+		var dates []string
+		for cur := s; !cur.After(e); cur = cur.AddDate(0, 1, 0) {
+			dates = append(dates, cur.Format("2006-01"))
+		}
+		return dates, nil
+
+	case asc.SalesReportFrequencyWeekly:
+		s, err := time.Parse("2006-01-02", start)
+		if err != nil {
+			return nil, fmt.Errorf("invalid start date %q", start)
+		}
+		e, err := time.Parse("2006-01-02", end)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end date %q", end)
+		}
+		var dates []string
+		for cur := s; !cur.After(e); cur = cur.AddDate(0, 0, 7) {
+			reportDate, normErr := normalizeReportDate(cur.Format("2006-01-02"), asc.SalesReportFrequencyWeekly)
+			if normErr != nil {
+				return nil, normErr
+			}
+			dates = append(dates, reportDate)
+		}
+		return dates, nil
+
+	default:
+		s, err := time.Parse("2006-01-02", start)
+		if err != nil {
+			return nil, fmt.Errorf("invalid start date %q", start)
+		}
+		e, err := time.Parse("2006-01-02", end)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end date %q", end)
+		}
+		var dates []string
+		for cur := s; !cur.After(e); cur = cur.AddDate(0, 0, 1) {
+			dates = append(dates, cur.Format("2006-01-02"))
+		}
+		return dates, nil
+	}
+}
+
 func fetchAnalyticsReportSegments(ctx context.Context, client *asc.Client, instanceID string) ([]asc.Resource[asc.AnalyticsReportSegmentAttributes], error) {
 	var (
 		all  []asc.Resource[asc.AnalyticsReportSegmentAttributes]

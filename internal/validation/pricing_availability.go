@@ -5,7 +5,18 @@ import (
 	"strings"
 )
 
-func pricingChecks(appID string, priceScheduleID string) []CheckResult {
+func pricingChecks(appID string, priceScheduleID string, skipReason string) []CheckResult {
+	if strings.TrimSpace(skipReason) != "" {
+		return []CheckResult{{
+			ID:           "pricing.schedule.unverified",
+			Severity:     SeverityWarning,
+			Field:        "appPriceSchedule",
+			ResourceType: "app",
+			ResourceID:   strings.TrimSpace(appID),
+			Message:      "could not verify app price schedule",
+			Remediation:  strings.TrimSpace(skipReason),
+		}}
+	}
 	if strings.TrimSpace(priceScheduleID) != "" {
 		return nil
 	}
@@ -22,7 +33,18 @@ func pricingChecks(appID string, priceScheduleID string) []CheckResult {
 	}
 }
 
-func availabilityChecks(appID string, availabilityID string, availableTerritories int) []CheckResult {
+func availabilityChecks(appID string, availabilityID string, availableTerritories int, skipReason string) []CheckResult {
+	if strings.TrimSpace(skipReason) != "" {
+		return []CheckResult{{
+			ID:           "availability.unverified",
+			Severity:     SeverityWarning,
+			Field:        "appAvailabilityV2",
+			ResourceType: "app",
+			ResourceID:   strings.TrimSpace(appID),
+			Message:      "could not verify app availability",
+			Remediation:  strings.TrimSpace(skipReason),
+		}}
+	}
 	if strings.TrimSpace(availabilityID) == "" {
 		return []CheckResult{
 			{

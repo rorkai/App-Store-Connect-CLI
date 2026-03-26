@@ -41,6 +41,7 @@ Do not memorize flags. Always use `--help` for the current interface.
 | Run auth doctor | `asc doctor --output json` |
 | Check account health | `asc account status` |
 | Generate ASC.md | `asc init` |
+| Create an app (unofficial web flow) | `asc web apps create --name "My App" --bundle-id "com.example.app" --sku "SKU123"` |
 | List apps | `asc apps` |
 | List builds | `asc builds list --app "APP_ID"` |
 | List TestFlight groups | `asc testflight groups list --app "APP_ID"` |
@@ -98,6 +99,7 @@ asc submit create --app "APP_ID" --version "1.0.0" --build "BUILD_ID" --confirm
 asc testflight groups list --app "APP_ID"
 asc testflight groups list --app "APP_ID" --internal
 asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
+asc builds add-groups --build "BUILD_ID" --group "GROUP_ID" --submit --confirm
 ```
 
 ### Migrate Metadata (Fastlane)
@@ -114,7 +116,7 @@ Use `asc <command> --help` for subcommands and flags.
 
 - `auth` - Manage authentication for the App Store Connect API.
 - `doctor` - Diagnose authentication configuration issues.
-- `web` - `[experimental]` Unofficial Apple web-session `/iris` workflows (discouraged; not part of the official API). Uses low-rate calls, user-owned Apple ID sessions, and signed-URL redaction by default.
+- `web` - `[experimental]` Unofficial Apple web-session `/iris` workflows (discouraged; not part of the official API). Uses low-rate calls, user-owned Apple ID sessions, and signed-URL redaction by default. Use `asc web apps create` as the canonical app-creation path in this family.
 - `account` - Inspect account-level health and access signals.
 - `install-skills` - Install the asc skill pack for App Store Connect workflows.
 - `init` - Initialize asc helper docs in the current repo.
@@ -128,7 +130,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `analytics` - Request and download analytics and sales reports.
 - `performance` - Access performance metrics and diagnostic logs.
 - `finance` - Download payments and financial reports.
-- `apps` - List and manage apps in App Store Connect.
+- `apps` - List and manage apps in App Store Connect. `asc apps create` is a deprecated compatibility shim; use `asc web apps create` for new app creation.
 - `app-clips` - Manage App Clip experiences and invocations.
 - `android-ios-mapping` - Manage Android-to-iOS app mapping details.
 - `app-setup` - Post-create app setup automation.
@@ -204,6 +206,9 @@ Use `asc <command> --help` for subcommands and flags.
 - `ASC_TIMEOUT`, `ASC_TIMEOUT_SECONDS` - Request timeout
 - `ASC_UPLOAD_TIMEOUT`, `ASC_UPLOAD_TIMEOUT_SECONDS` - Upload timeout
 - `ASC_DEBUG` - Debug output (`api` enables HTTP logs)
+- Web password environment variable (`ASC_WEB` + `_PASSWORD`) - Password source for `asc web auth login` and `asc web apps create`
+- `ASC_WEB_SESSION_CACHE`, `ASC_WEB_SESSION_CACHE_DIR`, `ASC_WEB_SESSION_CACHE_BACKEND` - Web-session cache controls for unofficial web flows
+- `ASC_IRIS_SESSION_CACHE`, `ASC_IRIS_SESSION_CACHE_DIR` - Deprecated legacy app-create cache settings; imported into the web session cache during the transition window
 - `ASC_SPINNER_DISABLED` - Disable interactive stderr spinner
 - `ASC_SKILLS_AUTO_CHECK` - Automatic skills update checks (`true`/`1`/`yes`/`y`/`on` enables, `false`/`0`/`no`/`n`/`off` disables; default enabled)
 

@@ -205,7 +205,7 @@ func TestDeprecatedHelpShowsCanonicalPathsOnly(t *testing.T) {
 		{
 			name:        "beta app localizations leaf help",
 			args:        []string{"beta-app-localizations", "get"},
-			wantUsage:   "asc testflight app-localizations get --id \"LOCALIZATION_ID\"",
+			wantUsage:   "asc testflight app-localizations view --id \"LOCALIZATION_ID\"",
 			wantWarning: "",
 			wantNotShown: []string{
 				"asc beta-app-localizations get --id \"LOCALIZATION_ID\"",
@@ -365,6 +365,50 @@ func TestTestFlightAppsShowsRemovedGuidance(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "asc apps <subcommand> [flags]") {
 		t.Fatalf("expected deprecated usage redirect, got %q", stderr)
+	}
+}
+
+func TestTestFlightAppsSingleAppGuidanceUsesView(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "legacy get path",
+			args: []string{"testflight", "apps", "get"},
+		},
+		{
+			name: "canonical view path",
+			args: []string{"testflight", "apps", "view"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(tt.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "Error: `asc testflight apps` was removed. Use `asc apps view --id APP_ID` instead.") {
+				t.Fatalf("expected removed single-app guidance to use view, got %q", stderr)
+			}
+			if strings.Contains(stderr, "asc apps get --id APP_ID") {
+				t.Fatalf("expected removed single-app guidance to drop get, got %q", stderr)
+			}
+		})
 	}
 }
 
@@ -531,7 +575,7 @@ func TestCanonicalTestFlightValidationPaths(t *testing.T) {
 		},
 		{
 			name:    "app localizations get missing id",
-			args:    []string{"testflight", "app-localizations", "get"},
+			args:    []string{"testflight", "app-localizations", "view"},
 			wantErr: "--id is required",
 		},
 		{
@@ -1342,7 +1386,7 @@ func TestTestFlightAppLocalizationsHelpShowsCanonicalSurface(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	for _, want := range []string{"list", "get", "app", "create", "update", "delete"} {
+	for _, want := range []string{"list", "view", "app", "create", "update", "delete"} {
 		if !strings.Contains(stderr, want) {
 			t.Fatalf("expected app-localizations help to contain %q, got %q", want, stderr)
 		}
@@ -1395,6 +1439,48 @@ func TestLegacyBetaAppLocalizationsAliasWarnsAndDelegates(t *testing.T) {
 		t.Fatalf("expected delegated output, got %q", stdout)
 	}
 	requireStderrContainsWarning(t, stderr, betaAppLocalizationsListDeprecationWarning)
+}
+
+func TestLegacyBetaAppLocalizationsGetAliasWarnsAndDelegates(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/betaAppLocalizations/loc-1" {
+			t.Fatalf("expected path /v1/betaAppLocalizations/loc-1, got %s", req.URL.Path)
+		}
+		body := `{"data":{"type":"betaAppLocalizations","id":"loc-1"}}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"beta-app-localizations", "get", "--id", "loc-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if !strings.Contains(stdout, `"id":"loc-1"`) {
+		t.Fatalf("expected delegated output, got %q", stdout)
+	}
+	requireStderrContainsWarning(t, stderr, "Warning: `asc beta-app-localizations get` is deprecated. Use `asc testflight app-localizations view`.")
 }
 
 func TestTestFlightAppLocalizationsListOutputHasNoDeprecationWarning(t *testing.T) {

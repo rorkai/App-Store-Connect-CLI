@@ -33,8 +33,9 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	pricePointID := fs.String("price-point", "", "App price point ID")
-	tier := fs.Int("tier", 0, "Pricing tier number (1-based, mutually exclusive with --price-point and --price)")
-	price := fs.String("price", "", "Customer price (e.g., 0.99) to select price point")
+	tier := fs.Int("tier", 0, "Pricing tier number (1-based, mutually exclusive with --price-point, --price, and --free)")
+	price := fs.String("price", "", "Customer price (e.g., 0.99, mutually exclusive with --price-point, --tier, and --free) to select price point")
+	free := fs.Bool("free", false, "Set app price to Free ($0), mutually exclusive with --price-point, --tier, and --price")
 	baseTerritory := fs.String("base-territory", "", "Base territory ID (e.g., USA)")
 	startDate := fs.String("start-date", "", config.StartDateHelp)
 	refresh := fs.Bool("refresh", false, "Force refresh of tier cache")
@@ -56,8 +57,9 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 			pricePointValue := strings.TrimSpace(*pricePointID)
 			tierValue := *tier
 			priceValue := strings.TrimSpace(*price)
+			freeValue := *free
 
-			if err := ValidatePriceSelectionFlags(pricePointValue, tierValue, priceValue); err != nil {
+			if err := ValidatePriceSelectionFlags(pricePointValue, tierValue, priceValue, freeValue); err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err)
 				return flag.ErrHelp
 			}
@@ -67,7 +69,7 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 			}
 
 			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
-			if (config.RequireBaseTerritory || tierValue > 0 || priceValue != "") && baseTerritoryValue == "" {
+			if requiresExplicitBaseTerritory(config, baseTerritoryValue, tierValue, priceValue, freeValue) {
 				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
 				return flag.ErrHelp
 			}
@@ -103,7 +105,13 @@ func NewPricingSetCommand(config PricingSetCommandConfig) *ffcli.Command {
 				}
 			}
 
-			if tierValue > 0 || priceValue != "" {
+			if freeValue {
+				resolvedID, err := ResolveFreeAppPricePoint(requestCtx, client, resolvedAppID, baseTerritoryID)
+				if err != nil {
+					return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
+				}
+				pricePointValue = resolvedID
+			} else if tierValue > 0 || priceValue != "" {
 				tiers, err := ResolveTiers(requestCtx, client, resolvedAppID, baseTerritoryID, *refresh)
 				if err != nil {
 					return fmt.Errorf("resolve tiers: %w", err)
@@ -145,6 +153,16 @@ func normalizePricingStartDate(value string) (string, error) {
 		return "", fmt.Errorf("--start-date must be in YYYY-MM-DD format")
 	}
 	return parsed.Format("2006-01-02"), nil
+}
+
+func requiresExplicitBaseTerritory(config PricingSetCommandConfig, baseTerritory string, tier int, price string, free bool) bool {
+	if strings.TrimSpace(baseTerritory) != "" {
+		return false
+	}
+	if free && config.ResolveBaseTerritory && !config.RequireBaseTerritory {
+		return false
+	}
+	return config.RequireBaseTerritory || tier > 0 || strings.TrimSpace(price) != "" || free
 }
 
 func resolveBaseTerritoryID(ctx context.Context, client *asc.Client, appID string, baseTerritory string) (string, error) {

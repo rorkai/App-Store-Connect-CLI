@@ -2,6 +2,7 @@ package publish
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -231,20 +232,39 @@ Examples:
 			}
 
 			addResult, err := shared.AddBuildBetaGroups(requestCtx, client, buildResp.Data.ID, resolvedGroups, shared.AddBuildBetaGroupsOptions{
-				Notify: *notify,
+				// Apple requires Xcode Cloud builds to be added to internal groups manually,
+				// so only skip redundant internal-group adds for builds uploaded by this command.
+				SkipInternalWithAllBuilds: uploadMode,
+				Notify:                    *notify,
 			})
 			if err != nil {
-				return fmt.Errorf("publish testflight: failed to add groups: %w", err)
+				return wrapPublishTestFlightAddGroupsError(err)
+			}
+
+			var notified *bool
+			if *notify {
+				value := addResult.NotificationAction == asc.BuildBetaGroupsNotificationActionManual
+				notified = &value
+			}
+
+			for _, group := range addResult.SkippedInternalAllBuildsGroups {
+				fmt.Fprintf(
+					os.Stderr,
+					"Skipped internal group %q (%s) because it already receives all builds\n",
+					group.NameForDisplay(),
+					group.ID,
+				)
 			}
 
 			result := &asc.TestFlightPublishResult{
-				BuildID:         buildResp.Data.ID,
-				BuildVersion:    resolvedVersionValue,
-				BuildNumber:     resolvedBuildNumberValue,
-				GroupIDs:        addResult.AddedGroupIDs,
-				Uploaded:        uploaded,
-				ProcessingState: buildResp.Data.Attributes.ProcessingState,
-				Notified:        *notify,
+				BuildID:            buildResp.Data.ID,
+				BuildVersion:       resolvedVersionValue,
+				BuildNumber:        resolvedBuildNumberValue,
+				GroupIDs:           resolvedPublishBetaGroupIDs(resolvedGroups),
+				Uploaded:           uploaded,
+				ProcessingState:    buildResp.Data.Attributes.ProcessingState,
+				Notified:           notified,
+				NotificationAction: addResult.NotificationAction,
 			}
 
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
@@ -494,6 +514,14 @@ func validateIPAPath(ipaPath string) (os.FileInfo, error) {
 		return nil, fmt.Errorf("--ipa must be a file")
 	}
 	return fileInfo, nil
+}
+
+func wrapPublishTestFlightAddGroupsError(err error) error {
+	var partialErr *asc.BuildBetaGroupsPartialError
+	if errors.As(err, &partialErr) {
+		return fmt.Errorf("publish testflight: %w", err)
+	}
+	return fmt.Errorf("publish testflight: failed to add groups: %w", err)
 }
 
 func resolveBundleInfoForIPA(ipaPath, version, buildNumber string) (string, string, error) {

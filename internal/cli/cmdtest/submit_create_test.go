@@ -14,7 +14,17 @@ import (
 type submitCreateRoundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn submitCreateRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return fn(req)
+	resp, err := fn(req)
+	if err == nil {
+		return resp, nil
+	}
+	if !strings.HasPrefix(err.Error(), "unexpected request:") {
+		return nil, err
+	}
+	if fallback, ok := submitCreateDefaultReadinessResponse(req); ok {
+		return fallback, nil
+	}
+	return nil, err
 }
 
 func setupSubmitCreateAuth(t *testing.T) {
@@ -36,6 +46,74 @@ func submitCreateJSONResponse(status int, body string) (*http.Response, error) {
 		Header:     http.Header{"Content-Type": []string{"application/json"}},
 		Body:       io.NopCloser(strings.NewReader(body)),
 	}, nil
+}
+
+func mustSubmitCreateOKJSONResponse(body string) *http.Response {
+	resp, err := submitCreateJSONResponse(http.StatusOK, body)
+	if err != nil {
+		panic(err)
+	}
+	return resp
+}
+
+func submitCreateDefaultReadinessResponse(req *http.Request) (*http.Response, bool) {
+	path := req.URL.Path
+
+	switch {
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/builds/") && !strings.Contains(strings.TrimPrefix(path, "/v1/builds/"), "/"):
+		buildID := strings.TrimSpace(strings.TrimPrefix(path, "/v1/builds/"))
+		if buildID == "" {
+			buildID = "build-1"
+		}
+		return mustSubmitCreateOKJSONResponse(fmt.Sprintf(`{"data":{"type":"builds","id":"%s","attributes":{"version":"1.0","processingState":"VALID","expired":false}}}`, buildID)), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && strings.HasSuffix(path, "/appInfos"):
+		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && strings.HasSuffix(path, "/appPriceSchedule"):
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"appPriceSchedules","id":"sched-1","attributes":{}}}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && strings.HasSuffix(path, "/appAvailabilityV2"):
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && strings.HasSuffix(path, "/subscriptionGroups"):
+		return mustSubmitCreateOKJSONResponse(`{"data":[],"links":{}}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && strings.HasSuffix(path, "/inAppPurchasesV2"):
+		return mustSubmitCreateOKJSONResponse(`{"data":[],"links":{}}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/apps/") && !strings.Contains(strings.TrimPrefix(path, "/v1/apps/"), "/"):
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US"}}}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appInfos/") && strings.HasSuffix(path, "/appInfoLocalizations"):
+		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle","privacyPolicyUrl":"https://example.com/privacy"}}]}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appInfos/") && strings.HasSuffix(path, "/relationships/primaryCategory"):
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"appCategories","id":"cat-1"}}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appInfos/") && strings.HasSuffix(path, "/ageRatingDeclaration"):
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"ageRatingDeclarations","id":"age-1","attributes":{"advertising":false,"gambling":false,"healthOrWellnessTopics":false,"lootBox":false,"messagingAndChat":true,"parentalControls":true,"ageAssurance":false,"unrestrictedWebAccess":false,"userGeneratedContent":true,"alcoholTobaccoOrDrugUseOrReferences":"NONE","contests":"NONE","gamblingSimulated":"NONE","gunsOrOtherWeapons":"NONE","medicalOrTreatmentInformation":"NONE","profanityOrCrudeHumor":"NONE","sexualContentGraphicAndNudity":"NONE","sexualContentOrNudity":"NONE","horrorOrFearThemes":"NONE","matureOrSuggestiveThemes":"NONE","violenceCartoonOrFantasy":"NONE","violenceRealistic":"NONE","violenceRealisticProlongedGraphicOrSadistic":"NONE"}}}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appStoreVersions/") && strings.HasSuffix(path, "/appStoreReviewDetail"):
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"a@example.com","contactPhone":"123","demoAccountName":"","demoAccountPassword":"","demoAccountRequired":false,"notes":"Review notes"}}}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appStoreVersions/") && strings.HasSuffix(path, "/build"):
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false}}}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appStoreVersions/") && !strings.Contains(strings.TrimPrefix(path, "/v1/appStoreVersions/"), "/"):
+		return mustSubmitCreateOKJSONResponse(`{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"PREPARE_FOR_SUBMISSION","copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appStoreVersionLocalizations/") && strings.HasSuffix(path, "/appScreenshotSets"):
+		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"appScreenshotSets","id":"set-1","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}]}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v1/appScreenshotSets/") && strings.HasSuffix(path, "/appScreenshots"):
+		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"shot.png","fileSize":1024,"imageAsset":{"width":1242,"height":2688}}}]}`), true
+
+	case req.Method == http.MethodGet && strings.HasPrefix(path, "/v2/appAvailabilities/") && strings.HasSuffix(path, "/territoryAvailabilities"):
+		return mustSubmitCreateOKJSONResponse(`{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}}]}`), true
+	}
+
+	return nil, false
 }
 
 func TestSubmitCreateCancelsStaleSubmissions(t *testing.T) {
@@ -457,7 +535,7 @@ func TestSubmitCreateWarnsWhenStaleSubmissionCancelFails(t *testing.T) {
 	}
 }
 
-func TestSubmitCreateSilentlySkipsConflictOnStaleSubmissionCancel(t *testing.T) {
+func TestSubmitCreateSkipsNonCancellableSubmissionWithoutVersionItems(t *testing.T) {
 	setupSubmitCreateAuth(t)
 
 	originalTransport := http.DefaultTransport
@@ -465,6 +543,7 @@ func TestSubmitCreateSilentlySkipsConflictOnStaleSubmissionCancel(t *testing.T) 
 		http.DefaultTransport = originalTransport
 	})
 
+	cancelAttempted := false
 	http.DefaultTransport = submitCreateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
@@ -478,7 +557,14 @@ func TestSubmitCreateSilentlySkipsConflictOnStaleSubmissionCancel(t *testing.T) 
 
 		// Cancel returns 409 Conflict (submission already transitioned to non-cancellable state)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/stale-1":
-			return submitCreateJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
+			if !cancelAttempted {
+				cancelAttempted = true
+				return submitCreateJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"stale-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-02-22T00:00:00Z"}}}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/stale-1/items":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
 
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
 			return submitCreateJSONResponse(http.StatusNoContent, "")
@@ -521,10 +607,13 @@ func TestSubmitCreateSilentlySkipsConflictOnStaleSubmissionCancel(t *testing.T) 
 		t.Fatalf("expected no warning for 409 conflict on stale cancel, got: %q", stderr)
 	}
 	if !strings.Contains(stderr, "Skipped stale submission stale-1: already transitioned to a non-cancellable state") {
-		t.Fatalf("expected info message about skipped stale submission, got: %q", stderr)
+		t.Fatalf("expected skip message for non-cancellable submission without version items, got: %q", stderr)
 	}
 	if stdout == "" {
 		t.Fatal("expected JSON output on stdout")
+	}
+	if !strings.Contains(stdout, "new-sub-1") {
+		t.Fatalf("expected a fresh submission ID in stdout, got %q", stdout)
 	}
 }
 
@@ -666,11 +755,101 @@ func TestSubmitCreateWarnsForSubscriptionPreflightStates(t *testing.T) {
 	if !strings.Contains(stderr, "Monthly Ready") {
 		t.Fatalf("expected ready-to-submit subscription name, got %q", stderr)
 	}
+	if !strings.Contains(stderr, "asc web review subscriptions attach-group --app \"APP_ID\" --group-id \"GROUP_ID\" --confirm") {
+		t.Fatalf("expected experimental web group attach guidance, got %q", stderr)
+	}
 	if !strings.Contains(stderr, "asc subscriptions review submit --subscription-id \"SUB_ID\" --confirm") {
 		t.Fatalf("expected corrected submit command guidance, got %q", stderr)
 	}
 	if stdout == "" {
 		t.Fatal("expected JSON output on stdout")
+	}
+}
+
+func TestSubmitCreateFailsReadinessPreflightBeforeCreatingReviewSubmission(t *testing.T) {
+	setupSubmitCreateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 24)
+	http.DefaultTransport = submitCreateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		key := req.Method + " " + req.URL.Path
+		requests = append(requests, key)
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			query := req.URL.Query()
+			if strings.Contains(query.Get("filter[appStoreState]"), "READY_FOR_SALE") {
+				return submitCreateJSONResponse(http.StatusOK, `{"data":[]}`)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return submitCreateJSONResponse(http.StatusNoContent, "")
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreReviewDetail":
+			return submitCreateJSONResponse(http.StatusNotFound, `{"errors":[{"code":"NOT_FOUND","title":"Not Found","detail":"resource not found"}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-sub-1":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-20T00:00:00Z"}}}`)
+
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"submit", "create",
+			"--app", "app-1",
+			"--version", "1.0",
+			"--build", "build-1",
+			"--platform", "IOS",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected submit create to fail when full readiness preflight finds blocking issues")
+	}
+	if !strings.Contains(runErr.Error(), "submit preflight failed") {
+		t.Fatalf("expected submit preflight failure, got %v", runErr)
+	}
+	if !strings.Contains(stderr, "App Store review details") {
+		t.Fatalf("expected readiness preflight output to mention review details, got %q", stderr)
+	}
+	for _, req := range requests {
+		if req == "PATCH /v1/appStoreVersions/version-1/relationships/build" {
+			t.Fatalf("did not expect build attachment before readiness preflight failure, requests: %v", requests)
+		}
+		if req == "POST /v1/reviewSubmissions" {
+			t.Fatalf("did not expect review submission creation after readiness preflight failure, requests: %v", requests)
+		}
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout on readiness preflight failure, got %q", stdout)
 	}
 }
 
@@ -890,6 +1069,74 @@ func TestSubmitCreateLocalizationPreflightDoesNotConsumeSubmitTimeoutBudget(t *t
 	}
 }
 
+func TestSubmitCreatePreparationDoesNotConsumeSubmitTimeoutBudget(t *testing.T) {
+	setupSubmitCreateAuth(t)
+	t.Setenv("ASC_TIMEOUT", "100ms")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = submitCreateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			query := req.URL.Query()
+			if strings.Contains(query.Get("filter[appStoreState]"), "READY_FOR_SALE") {
+				return submitCreateJSONResponse(http.StatusOK, `{"data":[]}`)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			if err := sleepWithContext(req.Context()); err != nil {
+				return nil, err
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return submitCreateJSONResponse(http.StatusNoContent, "")
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-sub-1":
+			if err := sleepWithContext(req.Context()); err != nil {
+				return nil, err
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-02-22T00:00:00Z"}}}`)
+
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	if err := root.Parse([]string{
+		"submit", "create",
+		"--app", "app-1",
+		"--version", "1.0",
+		"--build", "build-1",
+		"--platform", "IOS",
+		"--confirm",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("expected submit create to succeed with fresh submission-preparation timeout budget, got %v", err)
+	}
+}
+
 func TestSubmitCreateRecoversFromAlreadyAddedError(t *testing.T) {
 	setupSubmitCreateAuth(t)
 
@@ -1005,6 +1252,452 @@ func TestSubmitCreateRecoversFromAlreadyAddedError(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "fb5dad8e-bd5f-4d96-bc2f-561cf74a7e7a") {
 		t.Errorf("expected output to reference existing submission ID, got: %q", stdout)
+	}
+}
+
+func TestSubmitCreateReusesExistingEmptySubmissionWithoutVersionItemsAfterConflictRefresh(t *testing.T) {
+	setupSubmitCreateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 16)
+	cancelAttempted := false
+	http.DefaultTransport = submitCreateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		key := req.Method + " " + req.URL.Path
+		requests = append(requests, key)
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			query := req.URL.Query()
+			if strings.Contains(query.Get("filter[appStoreState]"), "READY_FOR_SALE") {
+				return submitCreateJSONResponse(http.StatusOK, `{"data":[]}`)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return submitCreateJSONResponse(http.StatusNoContent, "")
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			if req.URL.Query().Get("filter[state]") != "READY_FOR_REVIEW" || req.URL.Query().Get("filter[platform]") != "IOS" {
+				return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"existing-empty","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}],"links":{}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/existing-empty":
+			if !cancelAttempted {
+				cancelAttempted = true
+				return submitCreateJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"existing-empty","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-20T00:00:00Z"}}}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-empty":
+			return submitCreateJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "reviewSubmissions",
+					"id": "existing-empty",
+					"attributes": {"state": "READY_FOR_REVIEW", "platform": "IOS"}
+				}
+			}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-empty/items":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-sub-1":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-20T00:00:00Z"}}}`)
+
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"submit", "create",
+			"--app", "app-1",
+			"--version", "1.0",
+			"--build", "build-1",
+			"--platform", "IOS",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	foundNewSubmissionCreate := false
+	for _, req := range requests {
+		if req == "POST /v1/reviewSubmissions" {
+			foundNewSubmissionCreate = true
+		}
+	}
+	if foundNewSubmissionCreate {
+		t.Fatalf("did not expect a fresh review submission when the refreshed submission is still empty, requests: %v", requests)
+	}
+	if !strings.Contains(strings.Join(requests, "\n"), "GET /v1/reviewSubmissions/existing-empty/items") {
+		t.Fatalf("expected existing submission items lookup before reusing the empty submission, requests: %v", requests)
+	}
+	if !strings.Contains(stdout, "existing-empty") {
+		t.Fatalf("expected output to reference the reused submission ID, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Reusing existing empty review submission existing-empty because App Store Connect would not cancel it.") {
+		t.Fatalf("expected stderr to explain why the existing empty submission was reused, got %q", stderr)
+	}
+}
+
+func TestSubmitCreatePrintsHintsWhenAnotherSubmissionIsStillInProgress(t *testing.T) {
+	setupSubmitCreateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 16)
+	http.DefaultTransport = submitCreateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		key := req.Method + " " + req.URL.Path
+		requests = append(requests, key)
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return submitCreateJSONResponse(http.StatusNoContent, "")
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			return submitCreateJSONResponse(http.StatusConflict, `{
+				"errors": [{
+					"status": "409",
+					"code": "ENTITY_ERROR",
+					"title": "The request entity is not valid.",
+					"detail": "This resource cannot be reviewed, please check associated errors to see why.",
+					"meta": {
+						"associatedErrors": {
+							"/v1/reviewSubmissionItems": [{
+								"code": "ENTITY_ERROR.RELATIONSHIP.INVALID",
+								"detail": "appStoreVersions with id version-1 is already in another reviewSubmission with id active-submission-1 still in progress"
+							}],
+							"/v1/appStoreVersions/version-1": [{
+								"code": "STATE_ERROR.ENTITY_INVALID",
+								"detail": "appStoreVersions with id version-1 is not ready to be submitted for review"
+							}]
+						}
+					}
+				}]
+			}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-sub-1":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"CANCELING"}}}`)
+
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"submit", "create",
+			"--app", "app-1",
+			"--version", "1.0",
+			"--build", "build-1",
+			"--platform", "IOS",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected submit create to fail, got nil")
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout on failure, got %q", stdout)
+	}
+	for _, want := range []string{
+		"Hint: Check the active submission: asc submit status --id active-submission-1",
+		"Hint: Inspect the active submission payload: asc review submissions-get --id active-submission-1",
+		"Hint: Re-run readiness validation: asc validate --app app-1 --version-id version-1",
+		"Hint: Re-run submit preflight: asc submit preflight --app app-1 --version 1.0 --platform IOS",
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+		}
+	}
+	foundCleanup := false
+	for _, req := range requests {
+		if req == "PATCH /v1/reviewSubmissions/new-sub-1" {
+			foundCleanup = true
+			break
+		}
+	}
+	if !foundCleanup {
+		t.Fatal("expected empty created submission cleanup request")
+	}
+}
+
+func TestSubmitCreateDoesNotReuseSubmissionContainingNonVersionItemsAfterConflictRefresh(t *testing.T) {
+	setupSubmitCreateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 20)
+	cancelAttempted := false
+	http.DefaultTransport = submitCreateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		key := req.Method + " " + req.URL.Path
+		requests = append(requests, key)
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			query := req.URL.Query()
+			if strings.Contains(query.Get("filter[appStoreState]"), "READY_FOR_SALE") {
+				return submitCreateJSONResponse(http.StatusOK, `{"data":[]}`)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return submitCreateJSONResponse(http.StatusNoContent, "")
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			if req.URL.Query().Get("filter[state]") != "READY_FOR_REVIEW" || req.URL.Query().Get("filter[platform]") != "IOS" {
+				return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"existing-items","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}],"links":{}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/existing-items":
+			if !cancelAttempted {
+				cancelAttempted = true
+				return submitCreateJSONResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"CONFLICT","title":"Resource state is invalid.","detail":"Resource is not in cancellable state"}]}`)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"existing-items","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-20T00:00:00Z"}}}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-items":
+			return submitCreateJSONResponse(http.StatusOK, `{
+				"data": {
+					"type": "reviewSubmissions",
+					"id": "existing-items",
+					"attributes": {"state": "READY_FOR_REVIEW", "platform": "IOS"}
+				}
+			}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-items/items":
+			return submitCreateJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissionItems",
+					"id": "asset-item-1",
+					"relationships": {
+						"backgroundAssetVersion": {
+							"data": {"type": "backgroundAssetVersions", "id": "asset-1"}
+						}
+					}
+				}],
+				"links": {}
+			}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-sub-1":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-20T00:00:00Z"}}}`)
+
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"submit", "create",
+			"--app", "app-1",
+			"--version", "1.0",
+			"--build", "build-1",
+			"--platform", "IOS",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	foundNewSubmissionCreate := false
+	for _, req := range requests {
+		if req == "POST /v1/reviewSubmissions" {
+			foundNewSubmissionCreate = true
+		}
+	}
+	if !foundNewSubmissionCreate {
+		t.Fatalf("expected a fresh review submission when the conflicting submission contains non-version items, requests: %v", requests)
+	}
+	if !strings.Contains(strings.Join(requests, "\n"), "GET /v1/reviewSubmissions/existing-items/items") {
+		t.Fatalf("expected existing submission items lookup before deciding whether to reuse, requests: %v", requests)
+	}
+	if !strings.Contains(stdout, "new-sub-1") {
+		t.Fatalf("expected output to reference the new submission ID, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Skipped stale submission existing-items: already transitioned to a non-cancellable state") {
+		t.Fatalf("expected stderr to explain why the conflicting submission was not reused, got %q", stderr)
+	}
+}
+
+func TestSubmitCreatePaginatesReadyForReviewSubmissionsBeforeCreatingNewOne(t *testing.T) {
+	setupSubmitCreateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requests := make([]string, 0, 20)
+	http.DefaultTransport = submitCreateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		key := req.Method + " " + req.URL.RequestURI()
+		requests = append(requests, key)
+
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			query := req.URL.Query()
+			if strings.Contains(query.Get("filter[appStoreState]"), "READY_FOR_SALE") {
+				return submitCreateJSONResponse(http.StatusOK, `{"data":[]}`)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}]}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return submitCreateJSONResponse(http.StatusNoContent, "")
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions" && req.URL.Query().Get("cursor") == "":
+			if req.URL.Query().Get("filter[state]") != "READY_FOR_REVIEW" || req.URL.Query().Get("filter[platform]") != "IOS" {
+				return nil, fmt.Errorf("unexpected review submissions filters: %s", req.URL.RawQuery)
+			}
+			return submitCreateJSONResponse(http.StatusOK, `{
+				"data": [],
+				"links": {
+					"next": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions?cursor=page-2"
+				}
+			}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions" && req.URL.Query().Get("cursor") == "page-2":
+			return submitCreateJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissions",
+					"id": "existing-empty-page-2",
+					"attributes": {"state": "READY_FOR_REVIEW", "platform": "IOS"},
+					"relationships": {
+						"appStoreVersionForReview": {
+							"data": {"type": "appStoreVersions", "id": "version-1"}
+						}
+					}
+				}],
+				"links": {}
+			}`)
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/reviewSubmissions/existing-empty-page-2/items":
+			return submitCreateJSONResponse(http.StatusOK, `{
+				"data": [{
+					"type": "reviewSubmissionItems",
+					"id": "version-item",
+					"relationships": {
+						"appStoreVersion": {
+							"data": {"type": "appStoreVersions", "id": "version-1"}
+						}
+					}
+				}]
+			}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			return submitCreateJSONResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/existing-empty-page-2":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"existing-empty-page-2","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-20T00:00:00Z"}}}`)
+
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/new-sub-1":
+			return submitCreateJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"new-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-20T00:00:00Z"}}}`)
+
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"submit", "create",
+			"--app", "app-1",
+			"--version", "1.0",
+			"--build", "build-1",
+			"--platform", "IOS",
+			"--confirm",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	for _, req := range requests {
+		if req == "POST /v1/reviewSubmissions" {
+			t.Fatalf("did not expect a new review submission when a reusable READY_FOR_REVIEW submission exists on a later page, requests: %v", requests)
+		}
+	}
+	if !strings.Contains(strings.Join(requests, "\n"), "GET /v1/apps/app-1/reviewSubmissions?cursor=page-2") {
+		t.Fatalf("expected paginated review submissions lookup, requests: %v", requests)
+	}
+	if !strings.Contains(stdout, "existing-empty-page-2") {
+		t.Fatalf("expected output to reference reused submission ID, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "existing-empty-page-2") {
+		t.Fatalf("expected stderr to mention the reused submission, got %q", stderr)
 	}
 }
 

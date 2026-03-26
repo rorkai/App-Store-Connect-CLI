@@ -180,6 +180,20 @@ func TestPricingScheduleCreateCommand_InvalidDate(t *testing.T) {
 	}
 }
 
+func TestPricingScheduleCreateCommand_HelpMentionsFreeExample(t *testing.T) {
+	cmd := PricingScheduleCreateCommand()
+
+	if !strings.Contains(cmd.LongHelp, "--free") {
+		t.Fatalf("expected --free example in long help, got %q", cmd.LongHelp)
+	}
+	if !strings.Contains(cmd.FlagSet.Lookup("tier").Usage, "--free") {
+		t.Fatalf("expected --tier help to mention --free, got %q", cmd.FlagSet.Lookup("tier").Usage)
+	}
+	if !strings.Contains(cmd.FlagSet.Lookup("price").Usage, "--free") {
+		t.Fatalf("expected --price help to mention --free, got %q", cmd.FlagSet.Lookup("price").Usage)
+	}
+}
+
 func TestPricingAvailabilityGetCommand_MissingAppAndID(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	cmd := PricingAvailabilityGetCommand()
@@ -250,6 +264,20 @@ func TestPricingAvailabilitySetCommand_HasAvailableInNewTerritoriesFlag(t *testi
 
 	if f := cmd.FlagSet.Lookup("available-in-new-territories"); f == nil {
 		t.Fatal("expected --available-in-new-territories flag to be defined")
+	}
+}
+
+func TestPricingAvailabilityCommand_UsesExistingAvailabilitySurface(t *testing.T) {
+	cmd := PricingAvailabilityCommand()
+
+	for _, subcommand := range cmd.Subcommands {
+		if subcommand.Name == "create" {
+			t.Fatal("did not expect pricing availability create to be registered")
+		}
+	}
+
+	if !strings.Contains(cmd.LongHelp, `"asc web apps availability create"`) {
+		t.Fatalf("expected pricing availability help to point at web bootstrap flow, got %q", cmd.LongHelp)
 	}
 }
 

@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	resolveWebAuthCredentialsFn = shared.ResolveAuthCredentials
+	resolveWebAuthCredentialsFn = shared.ResolveAuthCredentialsMetadata
 	newWebAuthClientFn          = webcore.NewClient
 	lookupWebAuthKeyFn          = func(ctx context.Context, client *webcore.Client, keyID string) (*webcore.APIKeyRoleLookup, error) {
 		return client.LookupAPIKeyRoles(ctx, keyID)
@@ -128,7 +128,8 @@ JSON output includes:
   - key-specific notes and scope metadata
   - reference limitations and verification date
 
-If --key-id is omitted, the command resolves the current API key ID from local asc API auth and uses the active web session only for the exact web lookup.
+If --key-id is omitted, the command resolves the current API key ID from the selected asc auth metadata and uses the active web session only for the exact web lookup.
+That metadata-only resolution avoids loading private key material just to pick the key ID.
 For deterministic cache selection, prefer passing --apple-id like other "asc web" commands.
 
 ` + webWarningText + `

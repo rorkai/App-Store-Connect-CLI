@@ -144,7 +144,7 @@ func TestIAPPromotedPurchasesGetRejectsSubscriptionPromotedPurchase(t *testing.T
 
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"iap", "promoted-purchases", "get", "--promoted-purchase-id", "promo-sub"}); err != nil {
+		if err := root.Parse([]string{"iap", "promoted-purchases", "view", "--promoted-purchase-id", "promo-sub"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())

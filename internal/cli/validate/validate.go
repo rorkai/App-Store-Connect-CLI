@@ -24,7 +24,10 @@ type validateOptions struct {
 	Pretty    bool
 }
 
-var clientFactory = shared.GetASCClient
+var (
+	clientFactory         = shared.GetASCClient
+	fetchScreenshotSetsFn = fetchScreenshotSets
+)
 
 // ValidateCommand returns the asc validate command.
 func ValidateCommand() *ffcli.Command {

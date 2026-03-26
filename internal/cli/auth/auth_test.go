@@ -494,6 +494,55 @@ func TestAuthSwitchCommand(t *testing.T) {
 			t.Fatalf("DefaultKeyName = %q, want demo", cfg.DefaultKeyName)
 		}
 	})
+
+	t.Run("preserves legacy fallback fields for summary-only profile", func(t *testing.T) {
+		cfgPath := filepath.Join(t.TempDir(), "config.json")
+		t.Setenv("ASC_CONFIG_PATH", cfgPath)
+
+		if err := config.SaveAt(cfgPath, &config.Config{
+			DefaultKeyName: "personal",
+			KeyID:          "KEY1",
+			IssuerID:       "ISSUER1",
+			PrivateKeyPath: "/tmp/personal.p8",
+		}); err != nil {
+			t.Fatalf("SaveAt() error: %v", err)
+		}
+
+		restoreSummary := SetListCredentialSummaries(func() ([]authsvc.Credential, error) {
+			return []authsvc.Credential{{
+				Name:      "other",
+				KeyID:     "KEY2",
+				IsDefault: false,
+				Source:    "keychain",
+			}}, nil
+		})
+		t.Cleanup(restoreSummary)
+
+		cmd := AuthSwitchCommand()
+		if err := cmd.FlagSet.Parse([]string{"--name", "other"}); err != nil {
+			t.Fatalf("Parse() error: %v", err)
+		}
+		if err := cmd.Exec(context.Background(), []string{}); err != nil {
+			t.Fatalf("Exec() error: %v", err)
+		}
+
+		cfg, err := config.LoadAt(cfgPath)
+		if err != nil {
+			t.Fatalf("LoadAt() error: %v", err)
+		}
+		if cfg.DefaultKeyName != "other" {
+			t.Fatalf("DefaultKeyName = %q, want other", cfg.DefaultKeyName)
+		}
+		if cfg.KeyID != "KEY1" {
+			t.Fatalf("KeyID = %q, want KEY1", cfg.KeyID)
+		}
+		if cfg.IssuerID != "ISSUER1" {
+			t.Fatalf("IssuerID = %q, want ISSUER1", cfg.IssuerID)
+		}
+		if cfg.PrivateKeyPath != "/tmp/personal.p8" {
+			t.Fatalf("PrivateKeyPath = %q, want /tmp/personal.p8", cfg.PrivateKeyPath)
+		}
+	})
 }
 
 func TestAuthLogoutCommand(t *testing.T) {

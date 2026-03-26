@@ -26,6 +26,9 @@ import (
 func captureOutput(t *testing.T, fn func()) (string, string) {
 	t.Helper()
 
+	resetCmdtestState()
+	t.Cleanup(resetCmdtestState)
+
 	oldStdout := os.Stdout
 	oldStderr := os.Stderr
 
@@ -77,6 +80,23 @@ func captureOutput(t *testing.T, fn func()) (string, string) {
 	os.Stderr = oldStderr
 
 	return stdout, stderr
+}
+
+func withNonTTYStdin(t *testing.T, fn func()) {
+	t.Helper()
+
+	oldStdin := os.Stdin
+	stdinFile, err := os.CreateTemp(t.TempDir(), "stdin")
+	if err != nil {
+		t.Fatalf("failed to create non-tty stdin file: %v", err)
+	}
+	defer func() {
+		os.Stdin = oldStdin
+		_ = stdinFile.Close()
+	}()
+
+	os.Stdin = stdinFile
+	fn()
 }
 
 func writeECDSAPEM(t *testing.T, path string) {
@@ -437,6 +457,16 @@ func TestBuildsGroupValidationErrors(t *testing.T) {
 			name:    "builds add-groups missing group",
 			args:    []string{"builds", "add-groups", "--build", "BUILD_123"},
 			wantErr: "Error: --group is required",
+		},
+		{
+			name:    "builds add-groups submit missing confirm",
+			args:    []string{"builds", "add-groups", "--build", "BUILD_123", "--group", "GROUP_123", "--submit"},
+			wantErr: "Error: --confirm is required with --submit",
+		},
+		{
+			name:    "builds add-groups confirm requires submit",
+			args:    []string{"builds", "add-groups", "--build", "BUILD_123", "--group", "GROUP_123", "--confirm"},
+			wantErr: "Error: --confirm requires --submit",
 		},
 		{
 			name:    "builds remove-groups missing build",
@@ -1395,6 +1425,11 @@ func TestPricingValidationErrors(t *testing.T) {
 			name:    "pricing availability set missing available in new territories",
 			args:    []string{"pricing", "availability", "set", "--app", "APP_ID", "--territory", "USA", "--available", "true"},
 			wantErr: "Error: --available-in-new-territories is required",
+		},
+		{
+			name:    "pricing availability create removed",
+			args:    []string{"pricing", "availability", "create"},
+			wantErr: "Pricing availability commands operate on existing availability records.",
 		},
 	}
 
@@ -2671,6 +2706,18 @@ func TestEncryptionValidationErrors(t *testing.T) {
 			wantHelp: true,
 		},
 		{
+			name:     "encryption declarations exempt-declare unexpected args",
+			args:     []string{"encryption", "declarations", "exempt-declare", "unexpected"},
+			wantErr:  "does not accept positional arguments",
+			wantHelp: true,
+		},
+		{
+			name:     "encryption declarations exempt-declare empty plist",
+			args:     []string{"encryption", "declarations", "exempt-declare", "--plist", ""},
+			wantErr:  "--plist must not be empty",
+			wantHelp: true,
+		},
+		{
 			name:     "encryption declarations assign-builds missing id",
 			args:     []string{"encryption", "declarations", "assign-builds", "--build", "BUILD_ID"},
 			wantErr:  "--id is required",
@@ -3214,6 +3261,21 @@ func TestLocalizationsValidationErrors(t *testing.T) {
 			wantErr: "--version is required",
 		},
 		{
+			name:    "localizations create missing version",
+			args:    []string{"localizations", "create", "--locale", "ja"},
+			wantErr: "--version is required",
+		},
+		{
+			name:    "localizations create unexpected args",
+			args:    []string{"localizations", "create", "--version", "VERSION_ID", "--locale", "ja", "unexpected"},
+			wantErr: "does not accept positional arguments",
+		},
+		{
+			name:    "localizations create missing locale",
+			args:    []string{"localizations", "create", "--version", "VERSION_ID"},
+			wantErr: "--locale is required",
+		},
+		{
 			name:    "localizations list missing app for app-info",
 			args:    []string{"localizations", "list", "--type", "app-info"},
 			wantErr: "--app is required",
@@ -3277,6 +3339,31 @@ func TestLocalizationsValidationErrors(t *testing.T) {
 				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
 			}
 		})
+	}
+}
+
+func TestLocalizationsCreateInvalidLocale(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"localizations", "create", "--version", "VERSION_ID", "--locale", "not_a_locale"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected flag.ErrHelp, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, `invalid locale "not_a_locale"`) {
+		t.Fatalf("expected invalid locale error, got %q", stderr)
 	}
 }
 

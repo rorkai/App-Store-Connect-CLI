@@ -697,6 +697,7 @@ Use --app to scope all operations to one app.
 Subcommands:
   list  List review submissions for an app
   show  Show one submission with threads/messages/rejections and auto-download screenshots
+  subscriptions  Inspect and mutate next-version subscription review selection
 
 ` + webWarningText,
 		FlagSet:   fs,
@@ -704,6 +705,7 @@ Subcommands:
 		Subcommands: []*ffcli.Command{
 			WebReviewListCommand(),
 			WebReviewShowCommand(),
+			WebReviewSubscriptionsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

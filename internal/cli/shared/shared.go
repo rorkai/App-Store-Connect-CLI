@@ -71,6 +71,7 @@ var (
 	apiDebug            OptionalBool
 
 	getCredentialsWithSourceFn = auth.GetCredentialsWithSource
+	listCredentialSummariesFn  = auth.ListCredentialSummaries
 )
 
 var (
@@ -476,6 +477,271 @@ func resolveCredentialsForProfile(profileOverride string) (resolvedCredentials, 
 		keyPEM:   actualKeyPEM,
 		profile:  actualProfile,
 	}, nil
+}
+
+type credentialMetadataSummary struct {
+	name     string
+	keyID    string
+	issuerID string
+}
+
+func resolveCredentialsMetadataForProfile(profileOverride string) (ResolvedAuthCredentials, error) {
+	profile := strings.TrimSpace(profileOverride)
+	if profile == "" {
+		profile = resolveProfileName()
+	}
+
+	resolved, err := resolveStoredCredentialMetadata(profile)
+	if err == nil {
+		return resolved, nil
+	}
+	if storedFallback, fallbackErr := resolveStoredCredentialsMetadataFallback(profile); fallbackErr == nil {
+		return storedFallback, nil
+	}
+	if profile != "" || !allowsEnvFallbackForStoredError(err) {
+		return ResolvedAuthCredentials{}, err
+	}
+
+	envKeyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
+	if envKeyID != "" {
+		return ResolvedAuthCredentials{
+			KeyID:    envKeyID,
+			IssuerID: strings.TrimSpace(os.Getenv("ASC_ISSUER_ID")),
+		}, nil
+	}
+
+	if path, pathErr := config.Path(); pathErr == nil {
+		return ResolvedAuthCredentials{}, missingAuthError{msg: fmt.Sprintf("missing authentication. Run 'asc auth login' or create %s (see 'asc auth init')", path)}
+	}
+	return ResolvedAuthCredentials{}, missingAuthError{msg: "missing authentication. Run 'asc auth login' or 'asc auth init'"}
+}
+
+func resolveStoredCredentialsMetadataFallback(profile string) (ResolvedAuthCredentials, error) {
+	credentials, err := listCredentialSummariesFn()
+	if err != nil {
+		var warning *auth.CredentialsWarning
+		if !errors.As(err, &warning) {
+			return ResolvedAuthCredentials{}, err
+		}
+	}
+
+	cred, found, selectErr := selectStoredCredentialMetadataFallback(profile, credentials)
+	if selectErr != nil {
+		return ResolvedAuthCredentials{}, selectErr
+	}
+	if !found {
+		return ResolvedAuthCredentials{}, config.ErrNotFound
+	}
+
+	keyID := strings.TrimSpace(cred.KeyID)
+	issuerID := strings.TrimSpace(cred.IssuerID)
+	if keyID == "" {
+		return ResolvedAuthCredentials{}, config.ErrNotFound
+	}
+
+	return ResolvedAuthCredentials{
+		KeyID:    keyID,
+		IssuerID: issuerID,
+		Profile:  strings.TrimSpace(cred.Name),
+	}, nil
+}
+
+func selectStoredCredentialMetadataFallback(profile string, credentials []auth.Credential) (auth.Credential, bool, error) {
+	profile = strings.TrimSpace(profile)
+	if profile != "" {
+		for _, cred := range credentials {
+			if strings.TrimSpace(cred.Name) == profile {
+				return cred, true, nil
+			}
+		}
+		return auth.Credential{}, false, fmt.Errorf("credentials not found for profile %q", profile)
+	}
+
+	for _, cred := range credentials {
+		if cred.IsDefault {
+			return cred, true, nil
+		}
+	}
+	if len(credentials) > 0 {
+		return auth.Credential{}, false, auth.ErrDefaultCredentialsNotFound
+	}
+	return auth.Credential{}, false, nil
+}
+
+func resolveStoredCredentialMetadata(profile string) (ResolvedAuthCredentials, error) {
+	cfg, _, err := loadConfigForCredentialMetadata()
+	if err != nil {
+		return ResolvedAuthCredentials{}, err
+	}
+
+	summary, err := selectCredentialMetadataSummary(cfg, profile)
+	if err != nil {
+		return ResolvedAuthCredentials{}, err
+	}
+	return ResolvedAuthCredentials{
+		KeyID:    summary.keyID,
+		IssuerID: summary.issuerID,
+		Profile:  summary.name,
+	}, nil
+}
+
+func loadConfigForCredentialMetadata() (*config.Config, string, error) {
+	path, err := config.Path()
+	if err != nil {
+		return nil, "", err
+	}
+	cfg, err := config.LoadAt(path)
+	if err != nil {
+		return nil, "", err
+	}
+	if hasConfigCredentialMetadata(cfg) || strings.TrimSpace(os.Getenv("ASC_CONFIG_PATH")) != "" {
+		return cfg, path, nil
+	}
+	if hasConfigCredentialSelection(cfg) {
+		return cfg, path, nil
+	}
+
+	globalPath, err := config.GlobalPath()
+	if err != nil || globalPath == path {
+		return cfg, path, nil
+	}
+	globalCfg, err := config.LoadAt(globalPath)
+	if err != nil {
+		if errors.Is(err, config.ErrNotFound) {
+			return cfg, path, nil
+		}
+		return nil, "", err
+	}
+	if hasConfigCredentialMetadata(globalCfg) {
+		return globalCfg, globalPath, nil
+	}
+	return cfg, path, nil
+}
+
+func hasConfigCredentialMetadata(cfg *config.Config) bool {
+	return len(configCredentialMetadataSummaries(cfg)) > 0
+}
+
+func hasConfigCredentialSelection(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+	if strings.TrimSpace(cfg.DefaultKeyName) != "" {
+		return true
+	}
+	if strings.TrimSpace(cfg.KeyID) != "" || strings.TrimSpace(cfg.IssuerID) != "" {
+		return true
+	}
+	if strings.TrimSpace(cfg.PrivateKeyPath) != "" || strings.TrimSpace(cfg.PrivateKeyPEM) != "" {
+		return true
+	}
+	return len(cfg.Keys) > 0 || len(cfg.KeychainMetadata) > 0
+}
+
+func configCredentialMetadataSummaries(cfg *config.Config) []credentialMetadataSummary {
+	if cfg == nil {
+		return nil
+	}
+
+	summaries := make([]credentialMetadataSummary, 0, len(cfg.Keys)+len(cfg.KeychainMetadata)+1)
+	seen := make(map[string]struct{}, len(cfg.Keys)+len(cfg.KeychainMetadata)+1)
+
+	for _, entry := range cfg.KeychainMetadata {
+		name := strings.TrimSpace(entry.Name)
+		keyID := strings.TrimSpace(entry.KeyID)
+		if name == "" || keyID == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		summaries = append(summaries, credentialMetadataSummary{
+			name:     name,
+			keyID:    keyID,
+			issuerID: strings.TrimSpace(entry.IssuerID),
+		})
+	}
+
+	for _, cred := range cfg.Keys {
+		name := strings.TrimSpace(cred.Name)
+		keyID := strings.TrimSpace(cred.KeyID)
+		if name == "" || keyID == "" {
+			continue
+		}
+		if _, ok := seen[name]; ok {
+			continue
+		}
+		seen[name] = struct{}{}
+		summaries = append(summaries, credentialMetadataSummary{
+			name:     name,
+			keyID:    keyID,
+			issuerID: strings.TrimSpace(cred.IssuerID),
+		})
+	}
+
+	legacyKeyID := strings.TrimSpace(cfg.KeyID)
+	if legacyKeyID != "" {
+		name := strings.TrimSpace(cfg.DefaultKeyName)
+		if name == "" {
+			name = "default"
+		}
+		if _, ok := seen[name]; !ok {
+			summaries = append(summaries, credentialMetadataSummary{
+				name:     name,
+				keyID:    legacyKeyID,
+				issuerID: strings.TrimSpace(cfg.IssuerID),
+			})
+		}
+	}
+
+	return summaries
+}
+
+func findCredentialMetadataSummary(cfg *config.Config, name string) (credentialMetadataSummary, bool) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return credentialMetadataSummary{}, false
+	}
+	for _, summary := range configCredentialMetadataSummaries(cfg) {
+		if summary.name == name {
+			return summary, true
+		}
+	}
+	return credentialMetadataSummary{}, false
+}
+
+func selectCredentialMetadataSummary(cfg *config.Config, profile string) (credentialMetadataSummary, error) {
+	if cfg == nil {
+		return credentialMetadataSummary{}, config.ErrNotFound
+	}
+
+	profile = strings.TrimSpace(profile)
+	if profile != "" {
+		summary, ok := findCredentialMetadataSummary(cfg, profile)
+		if !ok {
+			return credentialMetadataSummary{}, fmt.Errorf("credentials not found for profile %q", profile)
+		}
+		return summary, nil
+	}
+
+	defaultName := strings.TrimSpace(cfg.DefaultKeyName)
+	if defaultName != "" {
+		summary, ok := findCredentialMetadataSummary(cfg, defaultName)
+		if !ok {
+			return credentialMetadataSummary{}, auth.ErrDefaultCredentialsNotFound
+		}
+		return summary, nil
+	}
+
+	summaries := configCredentialMetadataSummaries(cfg)
+	if len(summaries) == 1 {
+		return summaries[0], nil
+	}
+	if len(summaries) > 0 {
+		return credentialMetadataSummary{}, auth.ErrDefaultCredentialsNotFound
+	}
+	return credentialMetadataSummary{}, config.ErrNotFound
 }
 
 func allowsEnvFallbackForStoredError(err error) bool {
@@ -1002,18 +1268,32 @@ func resolveAppID(appID string) string {
 	return strings.TrimSpace(cfg.AppID)
 }
 
-func contextWithTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+type timeoutParentContextKey struct{}
+
+func withTimeoutContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	return context.WithTimeout(ctx, asc.ResolveTimeout())
+	timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+	return context.WithValue(timeoutCtx, timeoutParentContextKey{}, ctx), cancel
+}
+
+func contextWithoutTimeout(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	if base, ok := ctx.Value(timeoutParentContextKey{}).(context.Context); ok && base != nil {
+		return contextWithoutTimeout(base)
+	}
+	return ctx
+}
+
+func contextWithTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	return withTimeoutContext(ctx, asc.ResolveTimeout())
 }
 
 func contextWithUploadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	return context.WithTimeout(ctx, asc.ResolveUploadTimeout())
+	return withTimeoutContext(ctx, asc.ResolveUploadTimeout())
 }
 
 func splitCSV(value string) []string {
@@ -1124,6 +1404,12 @@ func ResolveAuthCredentials(profile string) (ResolvedAuthCredentials, error) {
 	}, nil
 }
 
+// ResolveAuthCredentialsMetadata resolves the selected auth profile's key metadata
+// without loading private key material from keychain or disk.
+func ResolveAuthCredentialsMetadata(profile string) (ResolvedAuthCredentials, error) {
+	return resolveCredentialsMetadataForProfile(profile)
+}
+
 func ResolveProfileName() string {
 	return resolveProfileName()
 }
@@ -1162,6 +1448,10 @@ func ContextWithTimeout(ctx context.Context) (context.Context, context.CancelFun
 
 func ContextWithUploadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	return contextWithUploadTimeout(ctx)
+}
+
+func ContextWithoutTimeout(ctx context.Context) context.Context {
+	return contextWithoutTimeout(ctx)
 }
 
 func SplitCSV(value string) []string {

@@ -75,3 +75,36 @@ func TestDefaultOutputEnvOverriddenByExplicitFlag(t *testing.T) {
 		t.Fatalf("expected parsed output to be json, got %q", got)
 	}
 }
+
+func TestDefaultOutputEnvIsReevaluatedAcrossRootCommandBuilds(t *testing.T) {
+	resetDefaultOutput(t)
+	t.Setenv("ASC_DEFAULT_OUTPUT", "table")
+
+	firstRoot := RootCommand("1.2.3")
+	firstCmd := findCommand(firstRoot, "categories", "list")
+	if firstCmd == nil {
+		t.Fatal("expected categories list command")
+	}
+	firstOutputFlag := firstCmd.FlagSet.Lookup("output")
+	if firstOutputFlag == nil {
+		t.Fatal("expected --output flag on first root")
+	}
+	if got := firstOutputFlag.DefValue; got != "table" {
+		t.Fatalf("expected first default output to be table, got %q", got)
+	}
+
+	t.Setenv("ASC_DEFAULT_OUTPUT", "json")
+
+	secondRoot := RootCommand("1.2.3")
+	secondCmd := findCommand(secondRoot, "categories", "list")
+	if secondCmd == nil {
+		t.Fatal("expected categories list command on rebuilt root")
+	}
+	secondOutputFlag := secondCmd.FlagSet.Lookup("output")
+	if secondOutputFlag == nil {
+		t.Fatal("expected --output flag on rebuilt root")
+	}
+	if got := secondOutputFlag.DefValue; got != "json" {
+		t.Fatalf("expected rebuilt root default output to be json, got %q", got)
+	}
+}

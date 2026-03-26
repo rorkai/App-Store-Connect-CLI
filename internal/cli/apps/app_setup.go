@@ -29,6 +29,7 @@ Examples:
   asc app-setup availability set --app "APP_ID" --territory "USA,GBR" --available true --available-in-new-territories true
   asc app-setup availability set --app "APP_ID" --all-territories --available true --available-in-new-territories true
   asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA"
+  asc app-setup pricing set --app "APP_ID" --free --start-date "2024-03-01"
   asc app-setup localizations upload --version "VERSION_ID" --path "./localizations"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -335,10 +336,11 @@ func AppSetupPricingCommand() *ffcli.Command {
 		Name:       "pricing",
 		ShortUsage: "asc app-setup pricing <subcommand> [flags]",
 		ShortHelp:  "Set app pricing.",
-		LongHelp: `Set app pricing using a price point.
+		LongHelp: `Set app pricing.
 
 Examples:
-  asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID"`,
+  asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID"
+  asc app-setup pricing set --app "APP_ID" --free --start-date "2024-03-01"`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppSetupPricingSetCommand(),
@@ -355,12 +357,13 @@ func AppSetupPricingSetCommand() *ffcli.Command {
 		FlagSetName: "app-setup pricing set",
 		CommandName: "set",
 		ShortUsage:  "asc app-setup pricing set [flags]",
-		ShortHelp:   "Set app pricing using a price point.",
-		LongHelp: `Set app pricing using a price point.
+		ShortHelp:   "Set app pricing.",
+		LongHelp: `Set app pricing.
 
 Examples:
   asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA"
-  asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"`,
+  asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"
+  asc app-setup pricing set --app "APP_ID" --free --start-date "2024-03-01"`,
 		ErrorPrefix:           "app-setup pricing set",
 		StartDateHelp:         "Start date (YYYY-MM-DD, default: today)",
 		StartDateDefaultToday: true,
