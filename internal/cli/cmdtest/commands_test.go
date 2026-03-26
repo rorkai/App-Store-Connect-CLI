@@ -1541,6 +1541,16 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			wantErr: "--group-level must be a positive integer",
 		},
 		{
+			name:    "subscriptions update conflicting group-level source",
+			args:    []string{"subscriptions", "update", "--id", "SUB_ID", "--group-level", "2", "--with", "OTHER_SUB_ID"},
+			wantErr: "--group-level and --with are mutually exclusive",
+		},
+		{
+			name:    "subscriptions update with self reference",
+			args:    []string{"subscriptions", "update", "--id", "SUB_ID", "--with", "SUB_ID"},
+			wantErr: "--with cannot reference the same subscription as --id",
+		},
+		{
 			name:    "subscriptions delete missing confirm",
 			args:    []string{"subscriptions", "delete", "--id", "SUB_ID"},
 			wantErr: "--confirm is required",

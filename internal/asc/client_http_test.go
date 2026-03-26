@@ -7532,6 +7532,26 @@ func TestCreateSubscription(t *testing.T) {
 	}
 }
 
+func TestGetSubscription_WithInclude(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.sub.monthly","groupLevel":1},"relationships":{"group":{"data":{"type":"subscriptionGroups","id":"group-1"}}}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptions/sub-1" {
+			t.Fatalf("expected path /v1/subscriptions/sub-1, got %s", req.URL.Path)
+		}
+		if req.URL.Query().Get("include") != "group" {
+			t.Fatalf("expected include=group, got %q", req.URL.Query().Get("include"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.GetSubscription(context.Background(), "sub-1", WithSubscriptionInclude([]string{"group"})); err != nil {
+		t.Fatalf("GetSubscription() error: %v", err)
+	}
+}
+
 func TestDeleteSubscription(t *testing.T) {
 	response := jsonResponse(http.StatusNoContent, ``)
 	client := newTestClient(t, func(req *http.Request) {

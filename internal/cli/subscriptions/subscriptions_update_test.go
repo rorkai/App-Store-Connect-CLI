@@ -43,6 +43,14 @@ func TestSubscriptionsUpdateCommand_GroupLevelHelpOmitsSentinelDefault(t *testin
 	if strings.Contains(help, "(default: -1)") {
 		t.Fatalf("expected help output to omit invalid sentinel default, got %q", help)
 	}
+
+	withFlag := cmd.FlagSet.Lookup("with")
+	if withFlag == nil {
+		t.Fatal("expected --with flag to be defined")
+	}
+	if !strings.Contains(help, "--with") {
+		t.Fatalf("expected help output to mention --with, got %q", help)
+	}
 }
 
 func TestSubscriptionsUpdateCommand_GroupLevelWorksAsOnlyUpdateFlag(t *testing.T) {
@@ -56,6 +64,23 @@ func TestSubscriptionsUpdateCommand_GroupLevelWorksAsOnlyUpdateFlag(t *testing.T
 	err := cmd.Exec(context.Background(), []string{})
 	if errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected --group-level to satisfy update validation, got %v", err)
+	}
+	if err == nil {
+		t.Fatal("expected execution to continue to auth/client setup in test environment")
+	}
+}
+
+func TestSubscriptionsUpdateCommand_WithWorksAsOnlyUpdateFlag(t *testing.T) {
+	isolateSubscriptionsAuthEnv(t)
+
+	cmd := SubscriptionsUpdateCommand()
+	if err := cmd.FlagSet.Parse([]string{"--id", "sub-1", "--with", "sub-2"}); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	err := cmd.Exec(context.Background(), []string{})
+	if errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected --with to satisfy update validation, got %v", err)
 	}
 	if err == nil {
 		t.Fatal("expected execution to continue to auth/client setup in test environment")

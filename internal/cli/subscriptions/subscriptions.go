@@ -2,6 +2,7 @@ package subscriptions
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -570,6 +571,7 @@ func SubscriptionsUpdateCommand() *ffcli.Command {
 	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
 	var groupLevel optionalInt
 	fs.Var(&groupLevel, "group-level", "Subscription ordering level (positive integer)")
+	withID := fs.String("with", "", "Copy group level from another subscription in the same group")
 	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
 	output := shared.BindOutputFlags(fs)
 
@@ -583,6 +585,7 @@ Examples:
   asc subscriptions update --id "SUB_ID" --reference-name "New Name"
   asc subscriptions update --id "SUB_ID" --subscription-period ONE_YEAR
   asc subscriptions update --id "SUB_ID" --group-level 3
+  asc subscriptions update --id "SUB_ID" --with "OTHER_SUB_ID"
   asc subscriptions update --id "SUB_ID" --family-sharable`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -594,6 +597,7 @@ Examples:
 			}
 
 			name := strings.TrimSpace(*referenceName)
+			with := strings.TrimSpace(*withID)
 			period, err := normalizeSubscriptionPeriod(*subscriptionPeriod, false)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err.Error())
@@ -603,8 +607,16 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --group-level must be a positive integer")
 				return flag.ErrHelp
 			}
+			if groupLevel.IsSet() && with != "" {
+				fmt.Fprintln(os.Stderr, "Error: --group-level and --with are mutually exclusive")
+				return flag.ErrHelp
+			}
+			if with == id {
+				fmt.Fprintln(os.Stderr, "Error: --with cannot reference the same subscription as --id")
+				return flag.ErrHelp
+			}
 
-			if name == "" && period == "" && !*familySharable && !groupLevel.IsSet() {
+			if name == "" && period == "" && !*familySharable && !groupLevel.IsSet() && with == "" {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return flag.ErrHelp
 			}
@@ -613,9 +625,6 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("subscriptions update: %w", err)
 			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
 
 			attrs := asc.SubscriptionUpdateAttributes{}
 			if name != "" {
@@ -629,10 +638,19 @@ Examples:
 				val := true
 				attrs.FamilySharable = &val
 			}
-			if groupLevel.IsSet() {
+			if with != "" {
+				level, err := resolveSubscriptionGroupLevelFromPeer(ctx, client, id, with)
+				if err != nil {
+					return fmt.Errorf("subscriptions update: %w", err)
+				}
+				attrs.GroupLevel = &level
+			} else if groupLevel.IsSet() {
 				level := groupLevel.Value()
 				attrs.GroupLevel = &level
 			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
 
 			resp, err := client.UpdateSubscription(requestCtx, id, attrs)
 			if err != nil {
@@ -672,6 +690,57 @@ func (i optionalInt) IsSet() bool {
 
 func (i optionalInt) Value() int {
 	return i.value
+}
+
+func resolveSubscriptionGroupLevelFromPeer(ctx context.Context, client *asc.Client, subscriptionID, peerID string) (int, error) {
+	_, sourceGroupID, err := getSubscriptionForGroupLevelCopy(ctx, client, subscriptionID)
+	if err != nil {
+		return 0, fmt.Errorf("resolve subscription %q: %w", subscriptionID, err)
+	}
+
+	peer, peerGroupID, err := getSubscriptionForGroupLevelCopy(ctx, client, peerID)
+	if err != nil {
+		return 0, fmt.Errorf("resolve --with subscription %q: %w", peerID, err)
+	}
+	if sourceGroupID != peerGroupID {
+		return 0, fmt.Errorf("--with subscription %q must belong to the same subscription group as --id %q", peerID, subscriptionID)
+	}
+	if peer.Data.Attributes.GroupLevel <= 0 {
+		return 0, fmt.Errorf("--with subscription %q did not include a valid group level", peerID)
+	}
+	return peer.Data.Attributes.GroupLevel, nil
+}
+
+func getSubscriptionForGroupLevelCopy(ctx context.Context, client *asc.Client, subscriptionID string) (*asc.SubscriptionResponse, string, error) {
+	requestCtx, cancel := shared.ContextWithTimeout(ctx)
+	defer cancel()
+
+	resp, err := client.GetSubscription(requestCtx, subscriptionID, asc.WithSubscriptionInclude([]string{"group"}))
+	if err != nil {
+		return nil, "", err
+	}
+
+	groupID, err := resolveSubscriptionGroupID(resp.Data.Relationships)
+	if err != nil {
+		return nil, "", err
+	}
+	return resp, groupID, nil
+}
+
+func resolveSubscriptionGroupID(raw json.RawMessage) (string, error) {
+	if len(strings.TrimSpace(string(raw))) == 0 {
+		return "", fmt.Errorf("subscription detail did not include a group relationship")
+	}
+
+	var relationships asc.SubscriptionRelationships
+	if err := json.Unmarshal(raw, &relationships); err != nil {
+		return "", fmt.Errorf("failed to parse subscription group relationship: %w", err)
+	}
+	if relationships.Group == nil || strings.TrimSpace(relationships.Group.Data.ID) == "" {
+		return "", fmt.Errorf("subscription detail did not include a group relationship")
+	}
+
+	return strings.TrimSpace(relationships.Group.Data.ID), nil
 }
 
 // SubscriptionsDeleteCommand returns the subscriptions delete subcommand.
