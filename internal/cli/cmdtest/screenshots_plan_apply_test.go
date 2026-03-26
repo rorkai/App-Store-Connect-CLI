@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestScreenshotsPlanAndApplyValidationErrors(t *testing.T) {
@@ -306,7 +308,7 @@ func TestScreenshotsPlanRejectsActualImageDimensionsThatDoNotMatchPlannedDisplay
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	reviewDir, _ := writeScreenshotReviewArtifactsWithSize(t, 1, 1)
+	reviewDir, _ := writeScreenshotReviewArtifactsWithPlannedDisplayType(t, 1, 1, 1284, 2778, []string{"APP_IPHONE_65"})
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
@@ -380,40 +382,96 @@ func writeScreenshotReviewArtifacts(t *testing.T) (string, string) {
 }
 
 func writeScreenshotReviewArtifactsWithSize(t *testing.T, width, height int) (string, string) {
+	displayTypes := []string(nil)
+	validAppStoreSize := screenshotMatchesDisplayType(width, height, "APP_IPHONE_65")
+	if validAppStoreSize {
+		displayTypes = []string{"APP_IPHONE_65"}
+	}
+	status := "ready"
+	readyCount := 1
+	invalidCount := 0
+	if !validAppStoreSize {
+		status = "invalid_size"
+		readyCount = 0
+		invalidCount = 1
+	}
+
+	return writeScreenshotReviewArtifactsFixture(
+		t,
+		width,
+		height,
+		width,
+		height,
+		displayTypes,
+		validAppStoreSize,
+		status,
+		readyCount,
+		invalidCount,
+	)
+}
+
+func writeScreenshotReviewArtifactsWithPlannedDisplayType(t *testing.T, actualWidth, actualHeight, plannedWidth, plannedHeight int, displayTypes []string) (string, string) {
+	t.Helper()
+
+	return writeScreenshotReviewArtifactsFixture(
+		t,
+		actualWidth,
+		actualHeight,
+		plannedWidth,
+		plannedHeight,
+		append([]string(nil), displayTypes...),
+		len(displayTypes) > 0,
+		"ready",
+		1,
+		0,
+	)
+}
+
+func writeScreenshotReviewArtifactsFixture(t *testing.T, actualWidth, actualHeight, manifestWidth, manifestHeight int, displayTypes []string, validAppStoreSize bool, status string, readyCount, invalidCount int) (string, string) {
 	t.Helper()
 
 	reviewDir := t.TempDir()
 	imagePath := filepath.Join(reviewDir, "home.png")
-	if err := os.WriteFile(imagePath, pngBytes(t, width, height), 0o600); err != nil {
+	if err := os.WriteFile(imagePath, pngBytes(t, actualWidth, actualHeight), 0o600); err != nil {
 		t.Fatalf("write screenshot image: %v", err)
 	}
 
-	manifest := `{
-		"generated_at":"2026-03-15T00:00:00Z",
-		"raw_dir":"",
-		"framed_dir":"` + reviewDir + `",
-		"output_dir":"` + reviewDir + `",
-		"approval_path":"` + filepath.Join(reviewDir, "approved.json") + `",
-		"summary":{"total":1,"ready":1,"missing_raw":0,"invalid_size":0,"approved":0,"pending_approval":1},
-		"entries":[
+	manifestBytes, err := json.Marshal(map[string]any{
+		"generated_at":  "2026-03-15T00:00:00Z",
+		"raw_dir":       "",
+		"framed_dir":    reviewDir,
+		"output_dir":    reviewDir,
+		"approval_path": filepath.Join(reviewDir, "approved.json"),
+		"summary": map[string]any{
+			"total":            1,
+			"ready":            readyCount,
+			"missing_raw":      0,
+			"invalid_size":     invalidCount,
+			"approved":         0,
+			"pending_approval": 1,
+		},
+		"entries": []map[string]any{
 			{
-				"key":"en-US|iphone|home",
-				"screenshot_id":"home",
-				"locale":"en-US",
-				"device":"iphone",
-				"framed_path":"` + imagePath + `",
-				"framed_relative_path":"home.png",
-				"width":1284,
-				"height":2778,
-				"display_types":["APP_IPHONE_65"],
-				"valid_app_store_size":true,
-				"status":"ready",
-				"approved":false,
-				"approval_state":"pending"
-			}
-		]
-	}`
-	if err := os.WriteFile(filepath.Join(reviewDir, "manifest.json"), []byte(manifest), 0o600); err != nil {
+				"key":                  "en-US|iphone|home",
+				"screenshot_id":        "home",
+				"locale":               "en-US",
+				"device":               "iphone",
+				"framed_path":          imagePath,
+				"framed_relative_path": "home.png",
+				"width":                manifestWidth,
+				"height":               manifestHeight,
+				"display_types":        displayTypes,
+				"valid_app_store_size": validAppStoreSize,
+				"status":               status,
+				"approved":             false,
+				"approval_state":       "pending",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(reviewDir, "manifest.json"), manifestBytes, 0o600); err != nil {
 		t.Fatalf("write manifest: %v", err)
 	}
 	approvals := `{"approved":["en-US|iphone|home"]}`
@@ -422,6 +480,19 @@ func writeScreenshotReviewArtifactsWithSize(t *testing.T, width, height int) (st
 	}
 
 	return reviewDir, imagePath
+}
+
+func screenshotMatchesDisplayType(width, height int, displayType string) bool {
+	dimensions, ok := asc.ScreenshotDimensions(displayType)
+	if !ok {
+		return false
+	}
+	for _, dimension := range dimensions {
+		if dimension.Width == width && dimension.Height == height {
+			return true
+		}
+	}
+	return false
 }
 
 func pngBytes(t *testing.T, width, height int) []byte {

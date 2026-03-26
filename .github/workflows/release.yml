@@ -116,41 +116,53 @@ jobs:
           cd homebrew-tap
 
           # Update the formula
-          cat > Formula/asc.rb << EOF
-          # typed: false
-          # frozen_string_literal: true
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from textwrap import dedent
 
-          class Asc < Formula
-            desc "A fast, AI-agent friendly CLI for App Store Connect"
-            homepage 'https://github.com/rudrankriyam/App-Store-Connect-CLI'
-            version '${VERSION}'
-            license 'MIT'
+          version = os.environ["VERSION"]
+          sha256_arm64 = os.environ["SHA256"]
+          sha256_amd64 = os.environ["SHA256_AMD64"]
+          formula = dedent(
+              f"""\
+              # typed: false
+              # frozen_string_literal: true
 
-            depends_on :macos
+              class Asc < Formula
+                desc "A fast, AI-agent friendly CLI for App Store Connect"
+                homepage 'https://github.com/rudrankriyam/App-Store-Connect-CLI'
+                version '{version}'
+                license 'MIT'
 
-            on_macos do
-              if Hardware::CPU.arm?
-                url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/${VERSION}/asc_${VERSION}_macOS_arm64'
-                sha256 '${SHA256}'
-              else
-                url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/${VERSION}/asc_${VERSION}_macOS_amd64'
-                sha256 '${SHA256_AMD64}'
+                depends_on :macos
+
+                on_macos do
+                  if Hardware::CPU.arm?
+                    url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/{version}/asc_{version}_macOS_arm64'
+                    sha256 '{sha256_arm64}'
+                  else
+                    url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/{version}/asc_{version}_macOS_amd64'
+                    sha256 '{sha256_amd64}'
+                  end
+                end
+
+                def install
+                  if Hardware::CPU.arm?
+                    bin.install 'asc_{version}_macOS_arm64' => 'asc'
+                  else
+                    bin.install 'asc_{version}_macOS_amd64' => 'asc'
+                  end
+                end
+
+                test do
+                  assert_match "asc is a fast, lightweight cli", shell_output("#{bin}/asc --help")
+                end
               end
-            end
-
-            def install
-              if Hardware::CPU.arm?
-                bin.install 'asc_${VERSION}_macOS_arm64' => 'asc'
-              else
-                bin.install 'asc_${VERSION}_macOS_amd64' => 'asc'
-              end
-            end
-
-            test do
-              assert_match "asc is a fast, lightweight cli", shell_output("#{bin}/asc --help")
-            end
-          end
-          EOF
+              """
+          )
+          Path("Formula/asc.rb").write_text(formula, encoding="utf-8")
+          PY
 
           # Commit and push
           git config user.name "Rudrank Riyam"
