@@ -910,6 +910,7 @@ func TestBuildBetaBuildLocalizationsQuery(t *testing.T) {
 	query := &betaBuildLocalizationsQuery{}
 	opts := []BetaBuildLocalizationsOption{
 		WithBetaBuildLocalizationsLimit(25),
+		WithBetaBuildLocalizationBuildIDs([]string{"build-1", "build-2"}),
 		WithBetaBuildLocalizationLocales([]string{"en-US", "fr-FR"}),
 	}
 	for _, opt := range opts {
@@ -919,6 +920,9 @@ func TestBuildBetaBuildLocalizationsQuery(t *testing.T) {
 	values, err := url.ParseQuery(buildBetaBuildLocalizationsQuery(query))
 	if err != nil {
 		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("filter[build]"); got != "build-1,build-2" {
+		t.Fatalf("expected filter[build]=build-1,build-2, got %q", got)
 	}
 	if got := values.Get("filter[locale]"); got != "en-US,fr-FR" {
 		t.Fatalf("expected filter[locale]=en-US,fr-FR, got %q", got)

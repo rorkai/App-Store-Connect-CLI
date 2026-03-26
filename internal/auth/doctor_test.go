@@ -251,7 +251,7 @@ end
 		`asc auth login --name "MyKey" --key-id "KEY_ID" --issuer-id "ISSUER_ID" --private-key /path/to/AuthKey.p8`,
 		"asc migrate validate --fastlane-dir ./fastlane",
 		`asc migrate import --app "APP_ID" --version-id "VERSION_ID" --fastlane-dir ./fastlane`,
-		`asc builds latest --app "APP_ID"`,
+		`asc builds info --app "APP_ID" --latest`,
 		`asc publish testflight --app "APP_ID" --ipa app.ipa --group "GROUP_ID"`,
 	}
 	if !reflect.DeepEqual(report.Migration.SuggestedCommands, expectedCommands) {
@@ -415,8 +415,8 @@ func TestDoctorMigrationHintsPrefillsVersionFromXcodeAndAppID(t *testing.T) {
 	if report.Migration == nil {
 		t.Fatal("expected migration hints in report")
 	}
-	if !sliceContains(report.Migration.SuggestedCommands, `asc builds latest --app "123456789"`) {
-		t.Fatalf("expected personalized app id in builds latest, got %#v", report.Migration.SuggestedCommands)
+	if !sliceContains(report.Migration.SuggestedCommands, `asc builds info --app "123456789" --latest`) {
+		t.Fatalf("expected personalized app id in builds info latest suggestion, got %#v", report.Migration.SuggestedCommands)
 	}
 	if !sliceContains(report.Migration.SuggestedCommands, `asc publish appstore --app "123456789" --ipa app.ipa --version "2.3.4" --submit --confirm`) {
 		t.Fatalf("expected personalized publish command, got %#v", report.Migration.SuggestedCommands)

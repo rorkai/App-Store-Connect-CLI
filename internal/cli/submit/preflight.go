@@ -346,14 +346,14 @@ func checkBuildEncryption(ctx context.Context, client *asc.Client, buildID strin
 			Name:    "Encryption compliance",
 			Passed:  false,
 			Message: fmt.Sprintf("Encryption declaration attached (%s) is missing approval state", declarationID),
-			Hint:    fmt.Sprintf("asc builds app-encryption-declaration get --id %s", buildID),
+			Hint:    fmt.Sprintf("asc builds app-encryption-declaration view --build-id %s", buildID),
 		}
 	default:
 		return checkResult{
 			Name:    "Encryption compliance",
 			Passed:  false,
 			Message: fmt.Sprintf("Encryption declaration attached (%s) has unsupported state %q", declarationID, declarationState),
-			Hint:    fmt.Sprintf("asc builds app-encryption-declaration get --id %s", buildID),
+			Hint:    fmt.Sprintf("asc builds app-encryption-declaration view --build-id %s", buildID),
 		}
 	}
 }

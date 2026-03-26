@@ -240,7 +240,7 @@ asc workflow run release
 ### Verified local Xcode -> TestFlight workflow
 
 See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for a copyable `.asc/workflow.json`
-and `ExportOptions.plist` that use `asc builds latest`, `asc xcode archive`,
+and `ExportOptions.plist` that use `asc builds next-build-number`, `asc xcode archive`,
 `asc xcode export`, and `asc publish testflight --group ... --wait`.
 
 ```bash

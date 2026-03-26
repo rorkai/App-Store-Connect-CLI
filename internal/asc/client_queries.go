@@ -279,7 +279,8 @@ type betaAppLocalizationsQuery struct {
 
 type betaBuildLocalizationsQuery struct {
 	listQuery
-	locales []string
+	locales  []string
+	buildIDs []string
 }
 
 type betaBuildUsagesQuery struct {
@@ -1349,6 +1350,7 @@ func buildBetaAppLocalizationsQuery(query *betaAppLocalizationsQuery) string {
 
 func buildBetaBuildLocalizationsQuery(query *betaBuildLocalizationsQuery) string {
 	values := url.Values{}
+	addCSV(values, "filter[build]", query.buildIDs)
 	addCSV(values, "filter[locale]", query.locales)
 	addLimit(values, query.limit)
 	return values.Encode()

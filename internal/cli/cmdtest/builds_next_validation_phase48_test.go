@@ -233,7 +233,7 @@ func TestBuildsIndividualTestersListPaginateFromNext(t *testing.T) {
 
 	runBuildsPaginateFromNext(
 		t,
-		[]string{"builds", "individual-testers", "list", "--build", "build-1"},
+		[]string{"builds", "individual-testers", "list", "--build-id", "build-1"},
 		firstURL,
 		secondURL,
 		firstBody,
@@ -294,21 +294,21 @@ func TestBuildsRelationshipsGetPaginateFromNextWithoutBuild(t *testing.T) {
 func TestBuildsTestNotesListRejectsInvalidNextURL(t *testing.T) {
 	runBuildsInvalidNextURLCases(
 		t,
-		[]string{"builds", "test-notes", "list", "--build", "build-1"},
+		[]string{"builds", "test-notes", "list", "--build-id", "build-1"},
 		"builds test-notes list: --next",
 	)
 }
 
 func TestBuildsTestNotesListPaginateFromNext(t *testing.T) {
-	const firstURL = "https://api.appstoreconnect.apple.com/v1/builds/build-1/betaBuildLocalizations?cursor=AQ&limit=200"
-	const secondURL = "https://api.appstoreconnect.apple.com/v1/builds/build-1/betaBuildLocalizations?cursor=BQ&limit=200"
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations?cursor=AQ&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/betaBuildLocalizations?cursor=BQ&limit=200"
 
 	firstBody := `{"data":[{"type":"betaBuildLocalizations","id":"build-test-note-next-1"}],"links":{"next":"` + secondURL + `"}}`
 	secondBody := `{"data":[{"type":"betaBuildLocalizations","id":"build-test-note-next-2"}],"links":{"next":""}}`
 
 	runBuildsPaginateFromNext(
 		t,
-		[]string{"builds", "test-notes", "list", "--build", "build-1"},
+		[]string{"builds", "test-notes", "list", "--build-id", "build-1"},
 		firstURL,
 		secondURL,
 		firstBody,

@@ -10643,6 +10643,24 @@ func TestListBetaBuildLocalizationsGlobal_WithLocaleFilter(t *testing.T) {
 	}
 }
 
+func TestListBetaBuildLocalizationsGlobal_WithBuildFilter(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.URL.Path != "/v1/betaBuildLocalizations" {
+			t.Fatalf("expected path /v1/betaBuildLocalizations, got %s", req.URL.Path)
+		}
+		values := req.URL.Query()
+		if values.Get("filter[build]") != "build-1,build-2" {
+			t.Fatalf("expected filter[build]=build-1,build-2, got %q", values.Get("filter[build]"))
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.ListBetaBuildLocalizations(context.Background(), WithBetaBuildLocalizationBuildIDs([]string{"build-1", "build-2"})); err != nil {
+		t.Fatalf("ListBetaBuildLocalizations() error: %v", err)
+	}
+}
+
 func TestListReviewSubmissionsGlobal_UsesV1ReviewSubmissionsPath(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"reviewSubmissions","id":"rs-1","attributes":{"platform":"IOS","state":"READY_FOR_REVIEW"}}]}`)
 	client := newTestClient(t, func(req *http.Request) {

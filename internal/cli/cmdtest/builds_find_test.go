@@ -202,8 +202,8 @@ func TestBuildsInfoByLatestSuccess(t *testing.T) {
 			if query.Get("sort") != "-uploadedDate" {
 				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
 			}
-			if query.Get("limit") != "1" {
-				t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 			}
 			if query.Get("filter[version]") != "" {
 				t.Fatalf("expected no build-number filter, got %q", query.Get("filter[version]"))
@@ -244,6 +244,396 @@ func TestBuildsInfoByLatestSuccess(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"id":"build-latest"`) {
 		t.Fatalf("expected latest build output, got %q", stdout)
+	}
+}
+
+func TestBuildsInfoByLatestNormalizesLowercasePlatform(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/preReleaseVersions":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "123456789" {
+				t.Fatalf("expected filter[app]=123456789, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("filter[version]") != "1.2.3" {
+				t.Fatalf("expected filter[version]=1.2.3, got %q", query.Get("filter[version]"))
+			}
+			if query.Get("filter[platform]") != "IOS" {
+				t.Fatalf("expected normalized IOS platform filter, got %q", query.Get("filter[platform]"))
+			}
+			body := `{"data":[{"type":"preReleaseVersions","id":"prv-ios","attributes":{"version":"1.2.3","platform":"IOS"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/builds":
+			query := req.URL.Query()
+			if query.Get("filter[preReleaseVersion]") != "prv-ios" {
+				t.Fatalf("expected preReleaseVersion=prv-ios, got %q", query.Get("filter[preReleaseVersion]"))
+			}
+			body := `{"data":[{"type":"builds","id":"build-ios","attributes":{"version":"88","processingState":"VALID"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/builds/build-ios/preReleaseVersion":
+			body := `{"data":{"type":"preReleaseVersions","id":"prv-ios","attributes":{"version":"1.2.3","platform":"IOS"}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request path %s", req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "info", "--app", "123456789", "--latest", "--version", "1.2.3", "--platform", "ios", "--output", "json"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"build-ios"`) {
+		t.Fatalf("expected normalized-platform latest build output, got %q", stdout)
+	}
+}
+
+func TestBuildsInfoByLatestVersionWithoutPlatformSelectsNewestAcrossPlatforms(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/preReleaseVersions":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "123456789" {
+				t.Fatalf("expected filter[app]=123456789, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("filter[version]") != "1.2.3" {
+				t.Fatalf("expected filter[version]=1.2.3, got %q", query.Get("filter[version]"))
+			}
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200 for version-only latest lookup, got %q", query.Get("limit"))
+			}
+			body := `{"data":[{"type":"preReleaseVersions","id":"prv-ios","attributes":{"version":"1.2.3","platform":"IOS"}},{"type":"preReleaseVersions","id":"prv-macos","attributes":{"version":"1.2.3","platform":"MAC_OS"}}],"links":{"next":""}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/builds":
+			query := req.URL.Query()
+			switch query.Get("filter[preReleaseVersion]") {
+			case "prv-ios":
+				body := `{"data":[{"type":"builds","id":"build-ios-old","attributes":{"version":"100","uploadedDate":"2026-03-01T10:00:00Z"}}]}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			case "prv-macos":
+				body := `{"data":[{"type":"builds","id":"build-macos-new","attributes":{"version":"101","uploadedDate":"2026-03-02T10:00:00Z"}}]}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			default:
+				t.Fatalf("unexpected preReleaseVersion filter %q", query.Get("filter[preReleaseVersion]"))
+				return nil, nil
+			}
+		case "/v1/builds/build-macos-new/preReleaseVersion":
+			body := `{"data":{"type":"preReleaseVersions","id":"prv-macos","attributes":{"version":"1.2.3","platform":"MAC_OS"}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request path %s", req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "info", "--app", "123456789", "--latest", "--version", "1.2.3", "--output", "json"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"build-macos-new"`) {
+		t.Fatalf("expected newest cross-platform latest build, got %q", stdout)
+	}
+}
+
+func TestBuildsInfoByLatestVersionIgnoresNearMatchPreReleaseVersions(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/preReleaseVersions":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "123456789" {
+				t.Fatalf("expected filter[app]=123456789, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("filter[version]") != "1.1" {
+				t.Fatalf("expected filter[version]=1.1, got %q", query.Get("filter[version]"))
+			}
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200 for version-only latest lookup, got %q", query.Get("limit"))
+			}
+			body := `{"data":[{"type":"preReleaseVersions","id":"prv-exact","attributes":{"version":"1.1","platform":"MAC_OS"}},{"type":"preReleaseVersions","id":"prv-near","attributes":{"version":"1.1.0","platform":"IOS"}}],"links":{"next":""}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/builds":
+			query := req.URL.Query()
+			if query.Get("filter[preReleaseVersion]") != "prv-exact" {
+				t.Fatalf("expected exact pre-release version match only, got %q", query.Get("filter[preReleaseVersion]"))
+			}
+			body := `{"data":[{"type":"builds","id":"build-exact","attributes":{"version":"101","uploadedDate":"2026-03-03T10:00:00Z"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/builds/build-exact/preReleaseVersion":
+			body := `{"data":{"type":"preReleaseVersions","id":"prv-exact","attributes":{"version":"1.1","platform":"MAC_OS"}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request path %s", req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "info", "--app", "123456789", "--latest", "--version", "1.1", "--output", "json"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"build-exact"`) {
+		t.Fatalf("expected exact-version latest build output, got %q", stdout)
+	}
+}
+
+func TestBuildsInfoByLatestVersionKeepsServerMatchedPreReleaseVersionsWithoutAttributes(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/preReleaseVersions":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "123456789" {
+				t.Fatalf("expected filter[app]=123456789, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("filter[version]") != "1.1" {
+				t.Fatalf("expected filter[version]=1.1, got %q", query.Get("filter[version]"))
+			}
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200 for version-only latest lookup, got %q", query.Get("limit"))
+			}
+			body := `{"data":[{"type":"preReleaseVersions","id":"prv-server","attributes":{}}],"links":{"next":""}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/builds":
+			query := req.URL.Query()
+			if query.Get("filter[preReleaseVersion]") != "prv-server" {
+				t.Fatalf("expected server-matched pre-release version to be preserved, got %q", query.Get("filter[preReleaseVersion]"))
+			}
+			body := `{"data":[{"type":"builds","id":"build-server","attributes":{"version":"101","uploadedDate":"2026-03-03T10:00:00Z"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/builds/build-server/preReleaseVersion":
+			body := `{"data":{"type":"preReleaseVersions","id":"prv-server","attributes":{"version":"1.1","platform":"IOS"}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request path %s", req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "info", "--app", "123456789", "--latest", "--version", "1.1", "--output", "json"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"build-server"`) {
+		t.Fatalf("expected server-matched latest build output, got %q", stdout)
+	}
+}
+
+func TestBuildsInfoByLatestVersionAndPlatformPaginatesPastNearMatches(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	const nextURL = "https://api.appstoreconnect.apple.com/v1/preReleaseVersions?cursor=page-2"
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.URL.String() == nextURL:
+			body := `{"data":[{"type":"preReleaseVersions","id":"prv-exact","attributes":{"version":"1.1","platform":"IOS"}}],"links":{"next":""}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case req.URL.Path == "/v1/preReleaseVersions":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "123456789" {
+				t.Fatalf("expected filter[app]=123456789, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("filter[version]") != "1.1" {
+				t.Fatalf("expected filter[version]=1.1, got %q", query.Get("filter[version]"))
+			}
+			if query.Get("filter[platform]") != "IOS" {
+				t.Fatalf("expected filter[platform]=IOS, got %q", query.Get("filter[platform]"))
+			}
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200 for version+platform latest lookup, got %q", query.Get("limit"))
+			}
+			body := `{"data":[{"type":"preReleaseVersions","id":"prv-near","attributes":{"version":"1.1.0","platform":"IOS"}}],"links":{"next":"` + nextURL + `"}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			switch req.URL.Path {
+			case "/v1/builds":
+				query := req.URL.Query()
+				if query.Get("filter[preReleaseVersion]") != "prv-exact" {
+					t.Fatalf("expected exact pre-release version match after pagination, got %q", query.Get("filter[preReleaseVersion]"))
+				}
+				body := `{"data":[{"type":"builds","id":"build-exact-ios","attributes":{"version":"101","uploadedDate":"2026-03-03T10:00:00Z"}}]}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			case "/v1/builds/build-exact-ios/preReleaseVersion":
+				body := `{"data":{"type":"preReleaseVersions","id":"prv-exact","attributes":{"version":"1.1","platform":"IOS"}}}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			default:
+				t.Fatalf("unexpected request %s %s", req.Method, req.URL.String())
+				return nil, nil
+			}
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "info", "--app", "123456789", "--latest", "--version", "1.1", "--platform", "IOS", "--output", "json"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"build-exact-ios"`) {
+		t.Fatalf("expected paginated exact-version latest build output, got %q", stdout)
 	}
 }
 

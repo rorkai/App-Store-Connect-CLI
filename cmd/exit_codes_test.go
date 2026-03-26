@@ -389,7 +389,13 @@ func TestBuildsTestNotesUpdateConflictingFlagsExitCode(t *testing.T) {
 	}
 
 	stderr := string(output)
-	if !strings.Contains(stderr, "--id cannot be combined with --build or --locale") {
+	if !strings.Contains(stderr, "Warning: `--build` is deprecated. Use `--build-id`.") {
+		t.Fatalf("expected legacy build warning, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "Warning: `--id` is deprecated. Use `--localization-id`.") {
+		t.Fatalf("expected legacy id warning, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "--localization-id cannot be combined with build selectors or --locale") {
 		t.Fatalf("expected conflict message, got %q", stderr)
 	}
 }

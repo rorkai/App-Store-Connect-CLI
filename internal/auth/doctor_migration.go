@@ -572,7 +572,7 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 		add(fmt.Sprintf(`asc migrate import --app %q --version-id %q --fastlane-dir %s`, values.appID, values.versionID, fastlaneDir))
 	}
 	if hasBuildSignal {
-		add(fmt.Sprintf(`asc builds latest --app %q`, values.appID))
+		add(fmt.Sprintf(`asc builds info --app %q --latest`, values.appID))
 	}
 	if hasTestflightSignal {
 		add(fmt.Sprintf(`asc publish testflight --app %q --ipa app.ipa --group "GROUP_ID"`, values.appID))

@@ -24,7 +24,7 @@ preserving compatibility aliases until the broader `1.0.0` cleanup.
 - `asc builds find` becomes a deprecated alias for `asc builds info` once
   `builds info` can resolve by `--build-number`, and removal moves to a later
   cleanup PR.
-- `asc builds next-number` will replace current `asc builds latest --next`.
+- `asc builds next-build-number` will replace current `asc builds latest --next`.
 - `test-notes` becomes build-scoped plus `--locale`, not localization-ID-first.
 
 ## Non-Goals
@@ -119,7 +119,7 @@ Design note:
 
 ### PR 2: Make `builds info` Canonical
 
-Status: in progress
+Status: complete
 
 Scope:
 
@@ -163,38 +163,83 @@ Design note:
    - keep `builds find` hidden from canonical help while preserving execution
    - run focused selector tests, then full required checks
 
-### PR 3: Replace `builds latest` With `builds next-number`
+### PR 3: Replace `builds latest` With `builds next-build-number`
 
-Status: planned
+Status: complete
 
 Scope:
 
-- move `--next` behavior into `asc builds next-number`
+- move `--next` behavior into `asc builds next-build-number`
 - remove `asc builds latest` as a fetch command
+
+Design note:
+
+1. Command placement in taxonomy
+   Canonical "latest build details" lookup moves to `asc builds info --latest`.
+   Canonical next build number calculation moves to `asc builds next-build-number`.
+   `asc builds latest` stays only as a hidden deprecated compatibility shim
+   during the transition.
+
+2. OpenAPI / endpoint impact
+   Reuse the same `GET /v1/builds`, `GET /v1/preReleaseVersions`, and
+   `GET /v1/apps/{id}/buildUploads` calls already used by `builds latest`.
+   No new API surface is required; this PR only redistributes existing lookup
+   behavior across clearer CLI entry points.
+
+3. UX shape
+   Canonical commands become:
+   - `asc builds info --app APP --latest`
+   - `asc builds info --app APP --latest --version 1.2.3 --platform IOS`
+   - `asc builds next-build-number --app APP --version 1.2.3 --platform IOS`
+
+   `builds info --latest` should own latest-build fetch filters such as
+   `--version`, `--platform`, `--processing-state`, and
+   `--exclude-expired` / `--not-expired`.
+
+4. Backward-compatibility / deprecation impact
+   `asc builds latest` should stop being a canonical fetch command in help and
+   docs, but remain available as a hidden deprecated shim for one transition
+   cycle. Without `--next` it should warn toward `asc builds info --latest`;
+   with `--next` it should warn toward `asc builds next-build-number`.
+   Commands that resolve `--latest` through the shared build resolver now use
+   the stronger latest-selection semantics that previously only lived in
+   `asc builds latest`.
+
+5. RED -> GREEN test plan
+   - move latest-fetch coverage to `builds info --latest`
+   - move next-build-number coverage to `builds next-build-number`
+   - add deprecated alias coverage for `builds latest`
+   - update workflow/docs/help text to use `builds info --latest` and
+     `builds next-build-number`
+   - run focused latest/next-build-number tests, then full required checks
 
 ### PR 4: Redesign `builds test-notes`
 
-Status: planned
+Status: in progress on the combined PR 4/5 branch
 
 Scope:
 
 - make `test-notes` build-scoped plus `--locale`
 - replace build-related `--id` usage with `--build-id`
 - optionally keep `--localization-id` as a low-level escape hatch
+- keep hidden deprecated `--build` / `--id` flag aliases during the transition
 
 ### PR 5: Legacy Removal + Remaining Read Commands
 
-Status: planned
+Status: folded into the combined PR 4/5 branch
 
 Scope:
 
-- delete `beta-build-localizations`
-- remove `builds test-notes get`
+- remove live `beta-build-localizations` behavior and leave removed-command guidance
+- remove live `builds test-notes get` behavior and leave removed-command guidance
 - standardize remaining read-oriented build commands on `--build-id`
 
 ## Command Target Shape
 
 Examples for the end state:
+
+The `builds test-notes` examples below describe the planned PR 4 target shape,
+not the current PR 1-3 command surface.
 
 ```bash
 asc builds info --build-id "BUILD_ID"
@@ -213,8 +258,8 @@ asc builds test-notes delete --app "123" --latest --locale "en-US" --confirm
 
 ## Notes
 
-- `builds latest` remains in the repo during PR 1 only to keep the change set
-  narrow.
+- `builds latest` remains in the repo after PR 3 as a hidden deprecated shim
+  that warns toward `builds info --latest` and `builds next-build-number`.
 - Mutating commands like `expire`, `update`, `add-groups`, `remove-groups`, and
   `individual-testers` should be reviewed separately before inheriting inferred
   build selection.

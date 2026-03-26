@@ -22,7 +22,7 @@ func BuildsAppEncryptionDeclarationCommand() *ffcli.Command {
 		LongHelp: `Get the app encryption declaration for a build.
 
 Examples:
-  asc builds app-encryption-declaration get --id "BUILD_ID"`,
+  asc builds app-encryption-declaration get --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -38,23 +38,32 @@ Examples:
 func BuildsAppEncryptionDeclarationGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-encryption-declaration get", flag.ExitOnError)
 
-	buildID := fs.String("id", "", "Build ID")
+	buildID := fs.String("build-id", "", "Build ID")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
+	legacyID := bindHiddenStringFlag(fs, "id")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "get",
-		ShortUsage: "asc builds app-encryption-declaration get --id \"BUILD_ID\"",
+		ShortUsage: "asc builds app-encryption-declaration get --build-id \"BUILD_ID\"",
 		ShortHelp:  "Get the encryption declaration for a build.",
 		LongHelp: `Get the encryption declaration for a build.
 
 Examples:
-  asc builds app-encryption-declaration get --id "BUILD_ID"`,
+  asc builds app-encryption-declaration get --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
+			}
+			if err := applyLegacyIDAlias(buildID, legacyID); err != nil {
+				return err
+			}
+
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --id is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 

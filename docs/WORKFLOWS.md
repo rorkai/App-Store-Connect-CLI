@@ -7,7 +7,7 @@ repeatable release pipelines.
 
 This pattern was validated against a real app using:
 
-- `asc builds latest --next` to choose the next build number for a version
+- `asc builds next-build-number` to choose the next build number for a version
 - `asc xcode archive` to create a deterministic `.xcarchive`
 - `asc xcode export` to create a deterministic `.ipa`
 - `asc publish testflight --group ... --wait` to upload, wait for processing,
@@ -55,7 +55,7 @@ Create `.asc/workflow.json`:
         },
         {
           "name": "beta_resolve_next_build",
-          "run": "asc builds latest --app \"$APP_ID\" --version \"$VERSION\" --platform IOS --next --initial-build-number 1 --output json",
+          "run": "asc builds next-build-number --app \"$APP_ID\" --version \"$VERSION\" --platform IOS --initial-build-number 1 --output json",
           "outputs": {
             "BUILD_NUMBER": "$.nextBuildNumber"
           }

@@ -48,7 +48,7 @@ Tips:
   Preview the plan with asc workflow run --dry-run <name>.
   Run-step outputs can be referenced later as ${steps.resolve_build.BUILD_ID}.
   For asc commands that declare outputs, usually pass --output json.
-  A proven local Xcode -> TestFlight shape is: asc builds latest --next -> asc xcode archive -> asc xcode export -> asc publish testflight --group ... --wait.
+  A proven local Xcode -> TestFlight shape is: asc builds next-build-number --app $APP_ID -> asc xcode archive -> asc xcode export -> asc publish testflight --group ... --wait.
 
 Example workflow file (.asc/workflow.json):
 
@@ -69,7 +69,7 @@ Example workflow file (.asc/workflow.json):
       "steps": [
         {
           "name": "resolve_build",
-          "run": "asc builds latest --app $APP_ID --platform IOS --output json",
+          "run": "asc builds info --app $APP_ID --latest --platform IOS --output json",
           "outputs": {
             "BUILD_ID": "$.id"
           }

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -17,7 +16,33 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// BuildsLatestCommand returns the builds latest subcommand.
+const (
+	deprecatedBuildsLatestFetchWarning = "Warning: `asc builds latest` is deprecated. Use `asc builds info --latest`."
+	deprecatedBuildsLatestNextWarning  = "Warning: `asc builds latest --next` is deprecated. Use `asc builds next-build-number`."
+)
+
+type latestBuildSelectionOptions struct {
+	AppID                 string
+	Version               string
+	Platform              string
+	ProcessingStateValues []string
+	ExcludeExpired        bool
+}
+
+type latestBuildSelectionResult struct {
+	ResolvedAppID      string
+	NormalizedVersion  string
+	NormalizedPlatform string
+	LatestBuild        *asc.BuildResponse
+}
+
+type nextBuildNumberOptions struct {
+	LatestBuildSelectionOptions latestBuildSelectionOptions
+	InitialBuildNumber          int
+}
+
+// BuildsLatestCommand returns a deprecated compatibility wrapper for the old
+// latest-build command surface.
 func BuildsLatestCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("latest", flag.ExitOnError)
 
@@ -34,90 +59,25 @@ func BuildsLatestCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "latest",
 		ShortUsage: "asc builds latest [flags]",
-		ShortHelp:  "Get the latest build for an app.",
-		LongHelp: `Get the latest build for an app.
-
-Returns the most recently uploaded build with full metadata including
-build number, version, processing state, and upload date.
-
-This command is useful for CI/CD scripts and AI agents that need to
-query the current build state before uploading a new build.
-
-Platform and version filtering:
-  --platform alone    Returns latest build for the specified platform
-  --version alone     Returns latest build for that version (may be any platform)
-  --platform + --version  Returns latest build matching both (recommended)
-
-Processing state filtering:
-  --processing-state  Filter by build processing states (VALID, PROCESSING,
-                      FAILED, INVALID) or use "all"
-
-Next build number mode:
-  --next              Returns the next build number (latest + 1) using
-                      processed builds and in-flight uploads
-  --initial-build-number  Starting build number when no history exists (default: 1)
-  --exclude-expired   Ignore expired builds when selecting the latest processed build
-  --not-expired       Alias for --exclude-expired
-
-Examples:
-  # Get latest build (JSON output for AI agents)
-  asc builds latest --app "123456789"
-
-  # Get latest build for a specific version and platform (recommended)
-  asc builds latest --app "123456789" --version "1.2.3" --platform IOS
-
-  # Get latest build for a platform (any version)
-  asc builds latest --app "123456789" --platform IOS
-
-  # Get latest build for a version (any platform - nondeterministic if multi-platform)
-  asc builds latest --app "123456789" --version "1.2.3"
-
-  # Get latest build constrained to processing states
-  asc builds latest --app "123456789" --processing-state "PROCESSING,VALID"
-
-  # Human-readable output
-  asc builds latest --app "123456789" --output table
-
-  # Collision-safe next build number for CI
-  asc builds latest --app "123456789" --version "1.2.3" --platform IOS --next
-
-  # Exclude expired builds when resolving latest or next
-  asc builds latest --app "123456789" --version "1.2.3" --platform IOS --next --exclude-expired
-  asc builds latest --app "123456789" --version "1.2.3" --platform IOS --not-expired`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		ShortHelp:  "DEPRECATED: use `asc builds info --latest` or `asc builds next-build-number`.",
+		LongHelp:   "Deprecated compatibility command for `asc builds info --latest` and `asc builds next-build-number`.",
+		FlagSet:    fs,
+		UsageFunc:  shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			resolvedAppID := shared.ResolveAppID(*appID)
-			if resolvedAppID == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return flag.ErrHelp
+			if *next {
+				fmt.Fprintln(os.Stderr, deprecatedBuildsLatestNextWarning)
+			} else {
+				fmt.Fprintln(os.Stderr, deprecatedBuildsLatestFetchWarning)
 			}
 
-			// Normalize and validate platform if provided
-			normalizedPlatform := ""
-			if strings.TrimSpace(*platform) != "" {
-				validPlatforms := []string{"IOS", "MAC_OS", "TV_OS", "VISION_OS"}
-				normalizedPlatform = strings.ToUpper(strings.TrimSpace(*platform))
-				valid := slices.Contains(validPlatforms, normalizedPlatform)
-				if !valid {
-					fmt.Fprintf(os.Stderr, "Error: --platform must be one of: IOS, MAC_OS, TV_OS, VISION_OS\n\n")
-					return flag.ErrHelp
-				}
-			}
-
-			normalizedVersion := strings.TrimSpace(*version)
-			processingStateValues, err := normalizeBuildProcessingStateFilter(*processingState)
+			excludeExpiredValue := *excludeExpired || *notExpired
+			selectionOpts, err := normalizeLatestBuildSelectionOptions(*appID, *version, *platform, *processingState, excludeExpiredValue)
 			if err != nil {
 				return err
 			}
-			if *initialBuildNumber < 1 {
-				fmt.Fprintf(os.Stderr, "Error: --initial-build-number must be >= 1\n\n")
-				return flag.ErrHelp
+			if *next && *initialBuildNumber < 1 {
+				return shared.UsageError("--initial-build-number must be >= 1")
 			}
-			excludeExpiredValue := *excludeExpired || *notExpired
-
-			hasPreReleaseFilters := normalizedVersion != "" || normalizedPlatform != ""
-
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("builds latest: %w", err)
@@ -126,210 +86,334 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
+			if *next {
+				result, err := resolveNextBuildNumber(requestCtx, client, nextBuildNumberOptions{
+					LatestBuildSelectionOptions: selectionOpts,
+					InitialBuildNumber:          *initialBuildNumber,
+				})
+				if err != nil {
+					return fmt.Errorf("builds latest: %w", err)
+				}
+				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			}
+
+			build, err := resolveLatestBuild(requestCtx, client, selectionOpts)
 			if err != nil {
 				return fmt.Errorf("builds latest: %w", err)
 			}
+			return shared.PrintOutput(build, *output.Output, *output.Pretty)
+		},
+	}
+}
 
-			// Determine which preReleaseVersion(s) to filter by
-			var preReleaseVersionIDs []string
+// BuildsNextBuildNumberCommand returns the canonical next build number subcommand.
+func BuildsNextBuildNumberCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("next-build-number", flag.ExitOnError)
 
-			if hasPreReleaseFilters {
-				// Need to look up preReleaseVersions with the specified filters
-				preReleaseVersionIDs, err = findPreReleaseVersionIDs(requestCtx, client, resolvedAppID, normalizedVersion, normalizedPlatform)
-				if err != nil {
-					return fmt.Errorf("builds latest: %w", err)
-				}
-				if len(preReleaseVersionIDs) == 0 {
-					if !*next {
-						if normalizedVersion != "" && normalizedPlatform != "" {
-							return fmt.Errorf("builds latest: no pre-release version found for version %q on platform %s", normalizedVersion, normalizedPlatform)
-						} else if normalizedVersion != "" {
-							return fmt.Errorf("builds latest: no pre-release version found for version %q", normalizedVersion)
-						} else {
-							return fmt.Errorf("builds latest: no pre-release version found for platform %s", normalizedPlatform)
-						}
-					}
-				}
-			}
+	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required, or ASC_APP_ID env)")
+	version := fs.String("version", "", "Optional version filter for latest processed/uploaded build selection")
+	platform := fs.String("platform", "", "Optional platform filter: IOS, MAC_OS, TV_OS, VISION_OS")
+	processingState := fs.String("processing-state", "", "Optional processing state filter: VALID, PROCESSING, FAILED, INVALID, or all")
+	initialBuildNumber := fs.Int("initial-build-number", 1, "Initial build number when none exist")
+	excludeExpired := fs.Bool("exclude-expired", false, "Exclude expired builds when selecting the latest processed build")
+	notExpired := fs.Bool("not-expired", false, "Alias for --exclude-expired")
+	output := shared.BindOutputFlags(fs)
 
-			// Get latest build with sort by uploadedDate descending
-			// If we have preReleaseVersion filter(s), we need to find the latest across them
-			var latestBuild *asc.BuildResponse
+	return &ffcli.Command{
+		Name:       "next-build-number",
+		ShortUsage: "asc builds next-build-number --app APP [flags]",
+		ShortHelp:  "Calculate the next build number for an app.",
+		LongHelp: `Calculate the next build number for an app.
 
-			if !hasPreReleaseFilters {
-				// No filters: favor the first page (server sorted by uploadedDate), while
-				// probing additional pages only when ordering looks inconsistent.
-				opts := []asc.BuildsOption{
-					asc.WithBuildsSort("-uploadedDate"),
-					asc.WithBuildsLimit(200),
-				}
-				if len(processingStateValues) > 0 {
-					opts = append(opts, asc.WithBuildsProcessingStates(processingStateValues))
-				}
-				if excludeExpiredValue {
-					opts = append(opts, asc.WithBuildsExpired(false))
-				}
+This command compares the latest processed build and in-flight build uploads,
+then returns the next build number that should be safe to use.
 
-				latestBuild, err = findMostRecentlyUploadedBuild(requestCtx, client, resolvedAppID, opts...)
-				if err != nil {
-					return fmt.Errorf("builds latest: %w", err)
-				}
-				if latestBuild == nil && !*next {
-					return fmt.Errorf("builds latest: no builds found for app %s", resolvedAppID)
-				}
-			} else if len(preReleaseVersionIDs) == 1 {
-				// Single preReleaseVersion - straightforward query
-				opts := []asc.BuildsOption{
-					asc.WithBuildsSort("-uploadedDate"),
-					asc.WithBuildsLimit(1),
-					asc.WithBuildsPreReleaseVersion(preReleaseVersionIDs[0]),
-				}
-				if len(processingStateValues) > 0 {
-					opts = append(opts, asc.WithBuildsProcessingStates(processingStateValues))
-				}
-				if excludeExpiredValue {
-					opts = append(opts, asc.WithBuildsExpired(false))
-				}
-				builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
-				if err != nil {
-					return fmt.Errorf("builds latest: failed to fetch: %w", err)
-				}
-				if len(builds.Data) == 0 {
-					if !*next {
-						return fmt.Errorf("builds latest: no builds found matching filters")
-					}
-				} else {
-					latestBuild = &asc.BuildResponse{
-						Data:  builds.Data[0],
-						Links: builds.Links,
-					}
-				}
-			} else if len(preReleaseVersionIDs) > 1 {
-				// Multiple preReleaseVersions (platform filter without version filter)
-				// Query each and find the one with the most recent uploadedDate
-				var newestBuild *asc.Resource[asc.BuildAttributes]
-
-				for _, prvID := range preReleaseVersionIDs {
-					opts := []asc.BuildsOption{
-						asc.WithBuildsSort("-uploadedDate"),
-						asc.WithBuildsLimit(1),
-						asc.WithBuildsPreReleaseVersion(prvID),
-					}
-					if len(processingStateValues) > 0 {
-						opts = append(opts, asc.WithBuildsProcessingStates(processingStateValues))
-					}
-					if excludeExpiredValue {
-						opts = append(opts, asc.WithBuildsExpired(false))
-					}
-					builds, err := client.GetBuilds(requestCtx, resolvedAppID, opts...)
-					if err != nil {
-						return fmt.Errorf("builds latest: failed to fetch: %w", err)
-					}
-					if len(builds.Data) > 0 {
-						candidate := builds.Data[0]
-						if newestBuild == nil || isMoreRecentUploadedBuild(candidate, *newestBuild) {
-							selected := candidate
-							newestBuild = &selected
-						}
-					}
-				}
-
-				if newestBuild == nil {
-					if !*next {
-						return fmt.Errorf("builds latest: no builds found matching filters")
-					}
-				} else {
-					latestBuild = &asc.BuildResponse{
-						Data: *newestBuild,
-					}
-				}
-			}
-
-			if !*next {
-				return shared.PrintOutput(latestBuild, *output.Output, *output.Pretty)
-			}
-
-			var latestProcessedNumber *string
-			var latestUploadNumber *string
-			var latestObservedNumber *string
-			sourcesConsidered := make([]string, 0, 2)
-
-			var latestProcessedValue buildNumber
-			hasProcessed := false
-			if latestBuild != nil {
-				parsed, err := parseBuildNumber(latestBuild.Data.Attributes.Version, fmt.Sprintf("processed build %s", latestBuild.Data.ID))
-				if err != nil {
-					return fmt.Errorf("builds latest: %w", err)
-				}
-				latestProcessedValue = parsed
-				value := parsed.String()
-				latestProcessedNumber = &value
-				hasProcessed = true
-				sourcesConsidered = append(sourcesConsidered, "processed_builds")
-			}
-
-			latestUploadValue, latestUploadNumber, hasUpload, err := findLatestBuildUploadNumber(
-				requestCtx,
-				client,
-				resolvedAppID,
-				normalizedVersion,
-				normalizedPlatform,
-			)
+Examples:
+  asc builds next-build-number --app "123456789"
+  asc builds next-build-number --app "123456789" --version "1.2.3" --platform IOS
+  asc builds next-build-number --app "123456789" --version "1.2.3" --platform IOS --exclude-expired
+  asc builds next-build-number --app "123456789" --initial-build-number 7`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			excludeExpiredValue := *excludeExpired || *notExpired
+			selectionOpts, err := normalizeLatestBuildSelectionOptions(*appID, *version, *platform, *processingState, excludeExpiredValue)
 			if err != nil {
-				return fmt.Errorf("builds latest: %w", err)
+				return err
 			}
-			if hasUpload {
-				sourcesConsidered = append(sourcesConsidered, "build_uploads")
-			}
-
-			var latestObservedValue buildNumber
-			hasObserved := false
-			if hasProcessed {
-				latestObservedValue = latestProcessedValue
-				hasObserved = true
-				latestObservedNumber = latestProcessedNumber
-			}
-			if hasUpload && (!hasObserved || latestUploadValue.Compare(latestObservedValue) > 0) {
-				latestObservedValue = latestUploadValue
-				hasObserved = true
-				latestObservedNumber = latestUploadNumber
+			if *initialBuildNumber < 1 {
+				return shared.UsageError("--initial-build-number must be >= 1")
 			}
 
-			nextBuildNumberValue := strconv.FormatInt(int64(*initialBuildNumber), 10)
-			if hasObserved {
-				nextValue, err := latestObservedValue.Next()
-				if err != nil {
-					return fmt.Errorf("builds latest: %w", err)
-				}
-				nextBuildNumberValue = nextValue.String()
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("builds next-build-number: %w", err)
 			}
 
-			result := &asc.BuildsLatestNextResult{
-				LatestProcessedBuildNumber: latestProcessedNumber,
-				LatestUploadBuildNumber:    latestUploadNumber,
-				LatestObservedBuildNumber:  latestObservedNumber,
-				NextBuildNumber:            nextBuildNumberValue,
-				SourcesConsidered:          sourcesConsidered,
-			}
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
 
+			result, err := resolveNextBuildNumber(requestCtx, client, nextBuildNumberOptions{
+				LatestBuildSelectionOptions: selectionOpts,
+				InitialBuildNumber:          *initialBuildNumber,
+			})
+			if err != nil {
+				return fmt.Errorf("builds next-build-number: %w", err)
+			}
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
 
+func normalizeLatestBuildSelectionOptions(appID, version, platform, processingState string, excludeExpired bool) (latestBuildSelectionOptions, error) {
+	if shared.ResolveAppID(strings.TrimSpace(appID)) == "" {
+		return latestBuildSelectionOptions{}, shared.UsageError("--app is required (or set ASC_APP_ID)")
+	}
+
+	processingStateValues, err := normalizeBuildProcessingStateFilter(processingState)
+	if err != nil {
+		return latestBuildSelectionOptions{}, err
+	}
+
+	normalizedPlatform := strings.TrimSpace(platform)
+	if normalizedPlatform != "" {
+		normalizedPlatform, err = shared.NormalizeAppStoreVersionPlatform(normalizedPlatform)
+		if err != nil {
+			return latestBuildSelectionOptions{}, shared.UsageError(err.Error())
+		}
+	}
+
+	return latestBuildSelectionOptions{
+		AppID:                 strings.TrimSpace(appID),
+		Version:               strings.TrimSpace(version),
+		Platform:              normalizedPlatform,
+		ProcessingStateValues: processingStateValues,
+		ExcludeExpired:        excludeExpired,
+	}, nil
+}
+
+func resolveLatestBuild(ctx context.Context, client *asc.Client, opts latestBuildSelectionOptions) (*asc.BuildResponse, error) {
+	selection, err := resolveLatestBuildSelection(ctx, client, opts, false)
+	if err != nil {
+		return nil, err
+	}
+	return selection.LatestBuild, nil
+}
+
+func resolveNextBuildNumber(ctx context.Context, client *asc.Client, opts nextBuildNumberOptions) (*asc.BuildsNextBuildNumberResult, error) {
+	if opts.InitialBuildNumber < 1 {
+		return nil, shared.UsageError("--initial-build-number must be >= 1")
+	}
+
+	selection, err := resolveLatestBuildSelection(ctx, client, opts.LatestBuildSelectionOptions, true)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestProcessedNumber *string
+	var latestUploadNumber *string
+	var latestObservedNumber *string
+	sourcesConsidered := make([]string, 0, 2)
+
+	var latestProcessedValue buildNumber
+	hasProcessed := false
+	if selection.LatestBuild != nil {
+		parsed, err := parseBuildNumber(selection.LatestBuild.Data.Attributes.Version, fmt.Sprintf("processed build %s", selection.LatestBuild.Data.ID))
+		if err != nil {
+			return nil, err
+		}
+		latestProcessedValue = parsed
+		value := parsed.String()
+		latestProcessedNumber = &value
+		hasProcessed = true
+		sourcesConsidered = append(sourcesConsidered, "processed_builds")
+	}
+
+	latestUploadValue, latestUploadNumber, hasUpload, err := findLatestBuildUploadNumber(
+		ctx,
+		client,
+		selection.ResolvedAppID,
+		selection.NormalizedVersion,
+		selection.NormalizedPlatform,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if hasUpload {
+		sourcesConsidered = append(sourcesConsidered, "build_uploads")
+	}
+
+	var latestObservedValue buildNumber
+	hasObserved := false
+	if hasProcessed {
+		latestObservedValue = latestProcessedValue
+		hasObserved = true
+		latestObservedNumber = latestProcessedNumber
+	}
+	if hasUpload && (!hasObserved || latestUploadValue.Compare(latestObservedValue) > 0) {
+		latestObservedValue = latestUploadValue
+		hasObserved = true
+		latestObservedNumber = latestUploadNumber
+	}
+
+	nextBuildNumberValue := strconv.FormatInt(int64(opts.InitialBuildNumber), 10)
+	if hasObserved {
+		nextValue, err := latestObservedValue.Next()
+		if err != nil {
+			return nil, err
+		}
+		nextBuildNumberValue = nextValue.String()
+	}
+
+	return &asc.BuildsNextBuildNumberResult{
+		LatestProcessedBuildNumber: latestProcessedNumber,
+		LatestUploadBuildNumber:    latestUploadNumber,
+		LatestObservedBuildNumber:  latestObservedNumber,
+		NextBuildNumber:            nextBuildNumberValue,
+		SourcesConsidered:          sourcesConsidered,
+	}, nil
+}
+
+func resolveLatestBuildSelection(ctx context.Context, client *asc.Client, opts latestBuildSelectionOptions, allowEmpty bool) (*latestBuildSelectionResult, error) {
+	if client == nil {
+		return nil, fmt.Errorf("build client is required")
+	}
+
+	resolvedAppID := shared.ResolveAppID(opts.AppID)
+	if resolvedAppID == "" {
+		return nil, shared.UsageError("--app is required (or set ASC_APP_ID)")
+	}
+
+	resolvedAppID, err := shared.ResolveAppIDWithLookup(ctx, client, resolvedAppID)
+	if err != nil {
+		return nil, err
+	}
+
+	hasPreReleaseFilters := opts.Version != "" || opts.Platform != ""
+
+	var preReleaseVersionIDs []string
+	if hasPreReleaseFilters {
+		preReleaseVersionIDs, err = findPreReleaseVersionIDs(ctx, client, resolvedAppID, opts.Version, opts.Platform)
+		if err != nil {
+			return nil, err
+		}
+		if len(preReleaseVersionIDs) == 0 && !allowEmpty {
+			if opts.Version != "" && opts.Platform != "" {
+				return nil, fmt.Errorf("no pre-release version found for version %q on platform %s", opts.Version, opts.Platform)
+			}
+			if opts.Version != "" {
+				return nil, fmt.Errorf("no pre-release version found for version %q", opts.Version)
+			}
+			return nil, fmt.Errorf("no pre-release version found for platform %s", opts.Platform)
+		}
+	}
+
+	var latestBuild *asc.BuildResponse
+	if !hasPreReleaseFilters {
+		buildOpts := []asc.BuildsOption{
+			asc.WithBuildsSort("-uploadedDate"),
+			asc.WithBuildsLimit(200),
+		}
+		if len(opts.ProcessingStateValues) > 0 {
+			buildOpts = append(buildOpts, asc.WithBuildsProcessingStates(opts.ProcessingStateValues))
+		}
+		if opts.ExcludeExpired {
+			buildOpts = append(buildOpts, asc.WithBuildsExpired(false))
+		}
+
+		latestBuild, err = findMostRecentlyUploadedBuild(ctx, client, resolvedAppID, buildOpts...)
+		if err != nil {
+			return nil, err
+		}
+		if latestBuild == nil && !allowEmpty {
+			return nil, fmt.Errorf("no builds found for app %s", resolvedAppID)
+		}
+	} else if len(preReleaseVersionIDs) == 1 {
+		buildOpts := []asc.BuildsOption{
+			asc.WithBuildsSort("-uploadedDate"),
+			asc.WithBuildsLimit(1),
+			asc.WithBuildsPreReleaseVersion(preReleaseVersionIDs[0]),
+		}
+		if len(opts.ProcessingStateValues) > 0 {
+			buildOpts = append(buildOpts, asc.WithBuildsProcessingStates(opts.ProcessingStateValues))
+		}
+		if opts.ExcludeExpired {
+			buildOpts = append(buildOpts, asc.WithBuildsExpired(false))
+		}
+		builds, err := client.GetBuilds(ctx, resolvedAppID, buildOpts...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch: %w", err)
+		}
+		if len(builds.Data) == 0 {
+			if !allowEmpty {
+				return nil, fmt.Errorf("no builds found matching filters")
+			}
+		} else {
+			latestBuild = &asc.BuildResponse{
+				Data:  builds.Data[0],
+				Links: builds.Links,
+			}
+		}
+	} else if len(preReleaseVersionIDs) > 1 {
+		var newestBuild *asc.Resource[asc.BuildAttributes]
+
+		for _, prvID := range preReleaseVersionIDs {
+			buildOpts := []asc.BuildsOption{
+				asc.WithBuildsSort("-uploadedDate"),
+				asc.WithBuildsLimit(1),
+				asc.WithBuildsPreReleaseVersion(prvID),
+			}
+			if len(opts.ProcessingStateValues) > 0 {
+				buildOpts = append(buildOpts, asc.WithBuildsProcessingStates(opts.ProcessingStateValues))
+			}
+			if opts.ExcludeExpired {
+				buildOpts = append(buildOpts, asc.WithBuildsExpired(false))
+			}
+			builds, err := client.GetBuilds(ctx, resolvedAppID, buildOpts...)
+			if err != nil {
+				return nil, fmt.Errorf("failed to fetch: %w", err)
+			}
+			if len(builds.Data) > 0 {
+				candidate := builds.Data[0]
+				if newestBuild == nil || isMoreRecentUploadedBuild(candidate, *newestBuild) {
+					selected := candidate
+					newestBuild = &selected
+				}
+			}
+		}
+
+		if newestBuild == nil {
+			if !allowEmpty {
+				return nil, fmt.Errorf("no builds found matching filters")
+			}
+		} else {
+			latestBuild = &asc.BuildResponse{
+				Data: *newestBuild,
+			}
+		}
+	}
+
+	return &latestBuildSelectionResult{
+		ResolvedAppID:      resolvedAppID,
+		NormalizedVersion:  opts.Version,
+		NormalizedPlatform: opts.Platform,
+		LatestBuild:        latestBuild,
+	}, nil
+}
+
 // findPreReleaseVersionIDs looks up preReleaseVersion IDs for given filters.
-// Returns all matching IDs when only platform is specified (paginates to get all),
-// or a single ID when version is specified.
+// Returns all exact-matching IDs. Version+platform usually narrows to a single
+// ID, but the lookup still paginates because ASC can return near-match version
+// results (for example 1.1.0 for a requested 1.1) ahead of the exact match.
 func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string) ([]string, error) {
 	opts := []asc.PreReleaseVersionsOption{}
+	exactVersion := strings.TrimSpace(version)
 
 	if version != "" {
 		opts = append(opts, asc.WithPreReleaseVersionsVersion(version))
-		// When version is specified, we only need one result (platform narrows it further)
-		opts = append(opts, asc.WithPreReleaseVersionsLimit(1))
+		opts = append(opts, asc.WithPreReleaseVersionsLimit(200))
 	} else {
-		// When only platform is specified, use max limit for pagination
+		// Platform-only lookups can span multiple versions.
 		opts = append(opts, asc.WithPreReleaseVersionsLimit(200))
 	}
 
@@ -343,19 +427,28 @@ func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, ve
 		return nil, fmt.Errorf("failed to lookup pre-release versions: %w", err)
 	}
 
-	// If version is specified, we only need the first result
-	if version != "" {
-		if len(firstPage.Data) == 0 {
-			return nil, nil
+	matchesRequestedVersion := func(preReleaseVersion asc.PreReleaseVersion) bool {
+		if exactVersion == "" {
+			return true
 		}
-		return []string{firstPage.Data[0].ID}, nil
+		// ASC's version filter can return dotted-version near-matches like
+		// 1.1 and 1.1.0 together, so enforce exact matching client-side when
+		// the response includes attributes.version. If ASC omits the attribute
+		// entirely, trust the server-side filter instead.
+		versionAttr := strings.TrimSpace(preReleaseVersion.Attributes.Version)
+		if versionAttr == "" {
+			return true
+		}
+		return versionAttr == exactVersion
 	}
 
-	// For platform-only filtering, stream pages and keep only IDs.
+	// Stream pages and keep only exact-matching IDs.
 	ids := make([]string, 0, len(firstPage.Data))
 	appendIDs := func(page *asc.PreReleaseVersionsResponse) {
 		for _, preReleaseVersion := range page.Data {
-			ids = append(ids, preReleaseVersion.ID)
+			if matchesRequestedVersion(preReleaseVersion) {
+				ids = append(ids, preReleaseVersion.ID)
+			}
 		}
 	}
 

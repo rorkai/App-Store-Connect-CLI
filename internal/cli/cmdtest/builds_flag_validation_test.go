@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestBuildsTestNotesUpdateRejectsIDWithBuild(t *testing.T) {
+func TestBuildsTestNotesUpdateRejectsLocalizationIDWithBuildSelector(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -21,8 +21,8 @@ func TestBuildsTestNotesUpdateRejectsIDWithBuild(t *testing.T) {
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"builds", "test-notes", "update",
-			"--id", "loc-1",
-			"--build", "build-1",
+			"--localization-id", "loc-1",
+			"--build-id", "build-1",
 			"--whats-new", "test",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
@@ -31,9 +31,9 @@ func TestBuildsTestNotesUpdateRejectsIDWithBuild(t *testing.T) {
 	})
 
 	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp when --id combined with --build, got %v", runErr)
+		t.Fatalf("expected flag.ErrHelp when --localization-id combined with --build-id, got %v", runErr)
 	}
-	if !strings.Contains(stderr, "--id cannot be combined with --build or --locale") {
+	if !strings.Contains(stderr, "--localization-id cannot be combined with build selectors or --locale") {
 		t.Fatalf("expected conflict stderr, got %q", stderr)
 	}
 }
@@ -49,7 +49,7 @@ func TestBuildsTestNotesUpdateRejectsBuildWithoutLocale(t *testing.T) {
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"builds", "test-notes", "update",
-			"--build", "build-1",
+			"--build-id", "build-1",
 			"--whats-new", "test",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
@@ -58,9 +58,9 @@ func TestBuildsTestNotesUpdateRejectsBuildWithoutLocale(t *testing.T) {
 	})
 
 	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected flag.ErrHelp when --build set without --locale, got %v", runErr)
+		t.Fatalf("expected flag.ErrHelp when --build-id set without --locale, got %v", runErr)
 	}
-	if !strings.Contains(stderr, "either --id or (--build and --locale) is required") {
+	if !strings.Contains(stderr, "either --localization-id or (--locale and a build selector) is required") {
 		t.Fatalf("expected missing-locale stderr, got %q", stderr)
 	}
 }
@@ -87,7 +87,7 @@ func TestBuildsTestNotesUpdateRejectsLocaleWithoutBuild(t *testing.T) {
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp when --locale set without --build, got %v", runErr)
 	}
-	if !strings.Contains(stderr, "either --id or (--build and --locale) is required") {
+	if !strings.Contains(stderr, "either --localization-id or (--locale and a build selector) is required") {
 		t.Fatalf("expected missing-build stderr, got %q", stderr)
 	}
 }
@@ -103,7 +103,7 @@ func TestBuildsTestNotesUpdateRejectsInvalidLocale(t *testing.T) {
 	captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"builds", "test-notes", "update",
-			"--build", "build-1",
+			"--build-id", "build-1",
 			"--locale", "!!!bad!!!",
 			"--whats-new", "test",
 		}); err != nil {

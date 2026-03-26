@@ -24,7 +24,7 @@ func BuildsIndividualTestersCommand() *ffcli.Command {
 		LongHelp: `Manage individual testers for a build.
 
 Examples:
-  asc builds individual-testers list --build "BUILD_ID"
+  asc builds individual-testers list --build-id "BUILD_ID"
   asc builds individual-testers add --build "BUILD_ID" --tester "TESTER_ID"
   asc builds individual-testers remove --build "BUILD_ID" --tester "TESTER_ID"`,
 		FlagSet:   fs,
@@ -44,7 +44,8 @@ Examples:
 func BuildsIndividualTestersListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("individual-testers list", flag.ExitOnError)
 
-	buildID := fs.String("build", "", "Build ID")
+	buildID := fs.String("build-id", "", "Build ID")
+	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -52,16 +53,19 @@ func BuildsIndividualTestersListCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc builds individual-testers list [flags]",
+		ShortUsage: "asc builds individual-testers list --build-id \"BUILD_ID\" [flags]",
 		ShortHelp:  "List individual testers assigned to a build.",
 		LongHelp: `List individual testers assigned to a build.
 
 Examples:
-  asc builds individual-testers list --build "BUILD_ID"
-  asc builds individual-testers list --build "BUILD_ID" --paginate`,
+  asc builds individual-testers list --build-id "BUILD_ID"
+  asc builds individual-testers list --build-id "BUILD_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
+				return err
+			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("builds individual-testers list: --limit must be between 1 and 200")
 			}
@@ -71,7 +75,7 @@ Examples:
 
 			buildValue := strings.TrimSpace(*buildID)
 			if buildValue == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --build is required")
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 				return flag.ErrHelp
 			}
 
@@ -90,7 +94,7 @@ Examples:
 
 			if *paginate {
 				if buildValue == "" {
-					fmt.Fprintln(os.Stderr, "Error: --build is required")
+					fmt.Fprintln(os.Stderr, "Error: --build-id is required")
 					return flag.ErrHelp
 				}
 

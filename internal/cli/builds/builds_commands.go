@@ -402,19 +402,20 @@ func BuildsCommand() *ffcli.Command {
 Examples:
   asc builds list --app "123456789"
   asc builds count --app "123456789"
-  asc builds latest --app "123456789"
   asc builds wait --build-id "BUILD_ID"
   asc builds wait --app "123456789" --latest
   asc builds info --build-id "BUILD_ID"
   asc builds info --app "123456789" --latest
+  asc builds info --app "123456789" --latest --version "1.2.3" --platform IOS
   asc builds info --app "123456789" --build-number "42"
+  asc builds next-build-number --app "123456789" --version "1.2.3" --platform IOS
   asc builds expire --build "BUILD_ID"
   asc builds expire-all --app "123456789" --older-than 90d --dry-run
   asc builds upload --app "123456789" --ipa "app.ipa"
   asc builds upload --app "123456789" --pkg "app.pkg" --version "1.0.0" --build-number "1"
   asc builds uploads list --app "123456789"
-  asc builds test-notes list --build "BUILD_ID"
-  asc builds individual-testers list --build "BUILD_ID"
+  asc builds test-notes list --build-id "BUILD_ID"
+  asc builds individual-testers list --build-id "BUILD_ID"
   asc builds update --build "BUILD_ID" --uses-non-exempt-encryption=false
   asc builds add-groups --build "BUILD_ID" --group "GROUP_ID"
   asc builds add-groups --build "BUILD_ID" --group "GROUP_ID" --submit --confirm
@@ -432,6 +433,7 @@ Examples:
 		Subcommands: []*ffcli.Command{
 			listCmd,
 			BuildsCountCommand(),
+			BuildsNextBuildNumberCommand(),
 			BuildsLatestCommand(),
 			BuildsWaitCommand(),
 			BuildsInfoCommand(),
@@ -747,8 +749,12 @@ func BuildsInfoCommand() *ffcli.Command {
 	legacyBuildID := bindHiddenStringFlag(fs, "build")
 	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
 	latest := fs.Bool("latest", false, "Show details for the latest build in --app context")
+	version := fs.String("version", "", "Optional version filter for --latest")
 	buildNumber := fs.String("build-number", "", "Build number (CFBundleVersion) for --app; defaults to IOS when --platform is omitted")
 	platform := fs.String("platform", "", "Optional platform filter for app-scoped selectors: IOS, MAC_OS, TV_OS, VISION_OS")
+	processingState := fs.String("processing-state", "", "Optional processing state filter for --latest: VALID, PROCESSING, FAILED, INVALID, or all")
+	excludeExpired := fs.Bool("exclude-expired", false, "Exclude expired builds when resolving --latest")
+	notExpired := fs.Bool("not-expired", false, "Alias for --exclude-expired")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -759,7 +765,9 @@ func BuildsInfoCommand() *ffcli.Command {
 
 Selector modes:
   --build-id BUILD_ID
-  --app APP --latest
+  --app APP --latest [--version VERSION] [--platform IOS]
+                     [--processing-state STATES]
+                     [--exclude-expired | --not-expired]
   --app APP --build-number BUILD_NUMBER [--platform IOS]
 
 When using --app with --build-number, --platform defaults to IOS for
@@ -769,6 +777,8 @@ platforms.
 Examples:
   asc builds info --build-id "BUILD_ID"
   asc builds info --app "123456789" --latest
+  asc builds info --app "123456789" --latest --version "1.2.3" --platform IOS
+  asc builds info --app "123456789" --latest --processing-state "PROCESSING,VALID"
   asc builds info --app "123456789" --build-number "42"
   asc builds info --app "123456789" --build-number "42" --platform IOS`,
 		FlagSet:   fs,
@@ -777,13 +787,21 @@ Examples:
 			if err := applyLegacyBuildIDAlias(buildID, legacyBuildID); err != nil {
 				return err
 			}
+			excludeExpiredValue := *excludeExpired || *notExpired
+			processingStateValues, err := normalizeBuildProcessingStateFilter(*processingState)
+			if err != nil {
+				return err
+			}
 
 			resolveOpts := ResolveBuildOptions{
-				BuildID:     strings.TrimSpace(*buildID),
-				AppID:       strings.TrimSpace(*appID),
-				BuildNumber: strings.TrimSpace(*buildNumber),
-				Platform:    strings.TrimSpace(*platform),
-				Latest:      *latest,
+				BuildID:               strings.TrimSpace(*buildID),
+				AppID:                 strings.TrimSpace(*appID),
+				Version:               strings.TrimSpace(*version),
+				BuildNumber:           strings.TrimSpace(*buildNumber),
+				Platform:              strings.TrimSpace(*platform),
+				Latest:                *latest,
+				ProcessingStateValues: processingStateValues,
+				ExcludeExpired:        excludeExpiredValue,
 			}
 			if resolveOpts.BuildID == "" && !resolveOpts.Latest && resolveOpts.BuildNumber != "" && resolveOpts.Platform == "" {
 				resolveOpts.Platform = buildNumberSelectorDefaultPlatform

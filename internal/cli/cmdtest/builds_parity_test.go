@@ -81,9 +81,9 @@ func TestBuildsParityValidationErrors(t *testing.T) {
 			wantErr: "--limit must be between 1 and 200",
 		},
 		{
-			name:    "builds individual-testers list missing build",
+			name:    "builds individual-testers list missing build id",
 			args:    []string{"builds", "individual-testers", "list"},
-			wantErr: "--build is required",
+			wantErr: "--build-id is required",
 		},
 		{
 			name:    "builds individual-testers add missing build",
@@ -146,9 +146,9 @@ func TestBuildsParityValidationErrors(t *testing.T) {
 			wantErr: "--id is required",
 		},
 		{
-			name:    "builds app-encryption-declaration get missing id",
-			args:    []string{"builds", "app-encryption-declaration", "get"},
-			wantErr: "--id is required",
+			name:    "builds app-encryption-declaration view missing build id",
+			args:    []string{"builds", "app-encryption-declaration", "view"},
+			wantErr: "--build-id is required",
 		},
 	}
 
@@ -196,46 +196,6 @@ func TestBetaLocalizationsValidationErrors(t *testing.T) {
 		{
 			name:    "beta-app-localizations delete missing confirm",
 			args:    []string{"beta-app-localizations", "delete", "--id", "LOC_ID"},
-			wantErr: "--confirm is required",
-		},
-		{
-			name:    "beta-build-localizations list missing build or global",
-			args:    []string{"beta-build-localizations", "list"},
-			wantErr: "--build or --global is required",
-		},
-		{
-			name:    "beta-build-localizations create missing build",
-			args:    []string{"beta-build-localizations", "create", "--locale", "en-US", "--whats-new", "Notes"},
-			wantErr: "--build is required",
-		},
-		{
-			name:    "beta-build-localizations create missing locale",
-			args:    []string{"beta-build-localizations", "create", "--build", "BUILD_ID", "--whats-new", "Notes"},
-			wantErr: "--locale is required",
-		},
-		{
-			name:    "beta-build-localizations create missing whats-new",
-			args:    []string{"beta-build-localizations", "create", "--build", "BUILD_ID", "--locale", "en-US"},
-			wantErr: "--whats-new is required",
-		},
-		{
-			name:    "beta-build-localizations update missing id",
-			args:    []string{"beta-build-localizations", "update"},
-			wantErr: "--id is required",
-		},
-		{
-			name:    "beta-build-localizations update missing whats-new",
-			args:    []string{"beta-build-localizations", "update", "--id", "LOC_ID"},
-			wantErr: "at least one update flag is required",
-		},
-		{
-			name:    "beta-build-localizations delete missing id",
-			args:    []string{"beta-build-localizations", "delete"},
-			wantErr: "--id is required",
-		},
-		{
-			name:    "beta-build-localizations delete missing confirm",
-			args:    []string{"beta-build-localizations", "delete", "--id", "LOC_ID"},
 			wantErr: "--confirm is required",
 		},
 	}
@@ -453,9 +413,9 @@ func TestParityRelatedCommandsValidationErrors(t *testing.T) {
 			wantErr: "--id is required",
 		},
 		{
-			name:    "beta-build-localizations build get missing id",
+			name:    "beta-build-localizations build get removed",
 			args:    []string{"beta-build-localizations", "build", "get"},
-			wantErr: "--id is required",
+			wantErr: "No canonical replacement exists yet",
 		},
 		{
 			name:    "pre-release app view missing id",

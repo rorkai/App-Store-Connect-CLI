@@ -12,6 +12,18 @@ import (
 	"testing"
 )
 
+func assertOnlyBuildsLatestFetchWarning(t *testing.T, stderr string) {
+	t.Helper()
+	requireStderrContainsWarning(t, stderr, "Warning: `asc builds latest` is deprecated. Use `asc builds info --latest`.")
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
+}
+
+func assertOnlyBuildsLatestNextWarning(t *testing.T, stderr string) {
+	t.Helper()
+	requireStderrContainsWarning(t, stderr, "Warning: `asc builds latest --next` is deprecated. Use `asc builds next-build-number`.")
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
+}
+
 func TestBuildsLatestSelectsNewestAcrossPlatformPreReleaseVersions(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -111,9 +123,7 @@ func TestBuildsLatestSelectsNewestAcrossPlatformPreReleaseVersions(t *testing.T)
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -216,9 +226,7 @@ func TestBuildsLatestSelectsNewestAcrossPlatformPreReleaseVersionsWithTimezoneOf
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -478,11 +486,64 @@ func TestBuildsLatestTableOutput(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 	if !strings.Contains(stdout, "2026-03-01T00:00:00Z") {
 		t.Fatalf("expected table output to contain uploaded timestamp, got %q", stdout)
+	}
+}
+
+func TestBuildsLatestFetchIgnoresInitialBuildNumberWithoutNext(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("sort") != "-uploadedDate" {
+				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
+			}
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
+			}
+			body := `{
+				"data":[{"type":"builds","id":"build-fetch","attributes":{"version":"100","uploadedDate":"2026-02-01T00:00:00Z"}}],
+				"links":{"next":""}
+			}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "latest", "--app", "100000001", "--initial-build-number", "0", "--output", "json"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
+	if !strings.Contains(stdout, `"id":"build-fetch"`) {
+		t.Fatalf("expected latest fetch output, got %q", stdout)
 	}
 }
 
@@ -508,11 +569,11 @@ func TestBuildsLatestNextUsesUploadsAndBuilds(t *testing.T) {
 			if query.Get("filter[platform]") != "IOS" {
 				t.Fatalf("expected filter[platform]=IOS, got %q", query.Get("filter[platform]"))
 			}
-			if query.Get("limit") != "1" {
-				t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 			}
 			body := `{
-				"data":[{"type":"preReleaseVersions","id":"prv-1"}],
+				"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}],
 				"links":{"next":""}
 			}`
 			return &http.Response{
@@ -583,9 +644,7 @@ func TestBuildsLatestNextUsesUploadsAndBuilds(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestNextWarning(t, stderr)
 
 	var out struct {
 		LatestProcessedBuildNumber *string  `json:"latestProcessedBuildNumber"`
@@ -627,7 +686,7 @@ func TestBuildsLatestNextProcessedOnly(t *testing.T) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/preReleaseVersions":
 			body := `{
-				"data":[{"type":"preReleaseVersions","id":"prv-1"}],
+				"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}],
 				"links":{"next":""}
 			}`
 			return &http.Response{
@@ -675,9 +734,7 @@ func TestBuildsLatestNextProcessedOnly(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestNextWarning(t, stderr)
 
 	var out struct {
 		LatestProcessedBuildNumber *string `json:"latestProcessedBuildNumber"`
@@ -753,9 +810,7 @@ func TestBuildsLatestNextUploadsOnly(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestNextWarning(t, stderr)
 
 	var out struct {
 		LatestProcessedBuildNumber *string `json:"latestProcessedBuildNumber"`
@@ -831,9 +886,7 @@ func TestBuildsLatestNextNoHistoryUsesInitial(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestNextWarning(t, stderr)
 
 	var out struct {
 		LatestProcessedBuildNumber *string `json:"latestProcessedBuildNumber"`
@@ -922,9 +975,7 @@ func TestBuildsLatestNextSupportsDotSeparatedBuildNumbers(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestNextWarning(t, stderr)
 
 	var out struct {
 		LatestProcessedBuildNumber *string `json:"latestProcessedBuildNumber"`
@@ -1000,9 +1051,7 @@ func TestBuildsLatestExcludeExpiredFiltersOutExpiredBuilds(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -1084,9 +1133,7 @@ func TestBuildsLatestNextExcludeExpiredHonorsFilter(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestNextWarning(t, stderr)
 
 	var out struct {
 		LatestProcessedBuildNumber *string `json:"latestProcessedBuildNumber"`
@@ -1154,9 +1201,7 @@ func TestBuildsLatestNotExpiredAliasHonorsExpiredFilter(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 	if !strings.Contains(stdout, `"id":"build-alias"`) {
 		t.Fatalf("expected build-alias in output, got %q", stdout)
 	}
@@ -1189,7 +1234,7 @@ func TestBuildsLatestNotExpiredAliasSinglePreReleasePath(t *testing.T) {
 			if query.Get("filter[platform]") != "IOS" {
 				t.Fatalf("expected filter[platform]=IOS, got %q", query.Get("filter[platform]"))
 			}
-			body := `{"data":[{"type":"preReleaseVersions","id":"prv-1"}],"links":{"next":""}}`
+			body := `{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
@@ -1230,9 +1275,7 @@ func TestBuildsLatestNotExpiredAliasSinglePreReleasePath(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 	if !strings.Contains(stdout, `"id":"build-single"`) {
 		t.Fatalf("expected build-single in output, got %q", stdout)
 	}
@@ -1317,9 +1360,7 @@ func TestBuildsLatestNotExpiredAliasMultiPreReleasePath(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 	if !strings.Contains(stdout, `"id":"build-new"`) {
 		t.Fatalf("expected newest build from multi-pre-release path, got %q", stdout)
 	}
@@ -1385,9 +1426,7 @@ func TestBuildsLatestSelectsNewestUploadedDateWhenBuildNumberResets(t *testing.T
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -1465,9 +1504,7 @@ func TestBuildsLatestIncludesExpiredByDefaultWhenItIsNewest(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -1545,9 +1582,7 @@ func TestBuildsLatestExcludeExpiredSelectsNewestNonExpiredAcrossPages(t *testing
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -1632,9 +1667,7 @@ func TestBuildsLatestDoesNotExhaustivelyPaginateWhenOrderingIsStable(t *testing.
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -1720,9 +1753,7 @@ func TestBuildsLatestDoesNotTreatIDOnlyTieAsOrderingAnomaly(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -1802,9 +1833,7 @@ func TestBuildsLatestReturnsFirstPageBestWhenProbePageFails(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -2012,9 +2041,7 @@ func TestBuildsLatestReturnsBestFetchedCandidateWhenLaterProbeFails(t *testing.T
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {
@@ -2113,9 +2140,7 @@ func TestBuildsLatestKeepsScanningAfterAnomalyUntilPaginationExhausted(t *testin
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyBuildsLatestFetchWarning(t, stderr)
 
 	var out struct {
 		Data struct {

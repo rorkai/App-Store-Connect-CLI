@@ -11,12 +11,14 @@ import (
 
 // ResolveBuildOptions configures how a build is resolved.
 type ResolveBuildOptions struct {
-	BuildID     string
-	AppID       string
-	Version     string
-	BuildNumber string
-	Platform    string
-	Latest      bool
+	BuildID               string
+	AppID                 string
+	Version               string
+	BuildNumber           string
+	Platform              string
+	Latest                bool
+	ProcessingStateValues []string
+	ExcludeExpired        bool
 }
 
 // ResolveBuild finds a build by ID, by app+build-number+platform, or by latest.
@@ -31,7 +33,6 @@ func ResolveBuild(ctx context.Context, client *asc.Client, opts ResolveBuildOpti
 	}
 
 	buildNumber := strings.TrimSpace(opts.BuildNumber)
-	appID := shared.ResolveAppID(strings.TrimSpace(opts.AppID))
 
 	// Direct build ID.
 	if opts.BuildID != "" {
@@ -42,6 +43,30 @@ func ResolveBuild(ctx context.Context, client *asc.Client, opts ResolveBuildOpti
 		return resp, nil
 	}
 
+	// Latest mode: find the most recently uploaded build.
+	if opts.Latest {
+		platform := strings.TrimSpace(opts.Platform)
+		if platform != "" {
+			normalized, err := shared.NormalizeAppStoreVersionPlatform(platform)
+			if err != nil {
+				return nil, shared.UsageError(err.Error())
+			}
+			platform = normalized
+		}
+		selection, err := resolveLatestBuildSelection(ctx, client, latestBuildSelectionOptions{
+			AppID:                 strings.TrimSpace(opts.AppID),
+			Version:               strings.TrimSpace(opts.Version),
+			Platform:              platform,
+			ProcessingStateValues: opts.ProcessingStateValues,
+			ExcludeExpired:        opts.ExcludeExpired,
+		}, false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch latest build: %w", err)
+		}
+		return selection.LatestBuild, nil
+	}
+
+	appID := shared.ResolveAppID(strings.TrimSpace(opts.AppID))
 	platform := strings.TrimSpace(opts.Platform)
 	if platform != "" {
 		normalized, err := shared.NormalizeAppStoreVersionPlatform(platform)
@@ -57,29 +82,6 @@ func ResolveBuild(ctx context.Context, client *asc.Client, opts ResolveBuildOpti
 	}
 
 	version := strings.TrimSpace(opts.Version)
-
-	// Latest mode: find the most recently uploaded build.
-	if opts.Latest {
-		buildOpts := []asc.BuildsOption{
-			asc.WithBuildsSort("-uploadedDate"),
-			asc.WithBuildsLimit(1),
-		}
-		if platform != "" {
-			buildOpts = append(buildOpts, asc.WithBuildsPreReleaseVersionPlatforms([]string{platform}))
-		}
-		if version != "" {
-			buildOpts = append(buildOpts, asc.WithBuildsPreReleaseVersionVersion(version))
-		}
-
-		buildsResp, err := client.GetBuilds(ctx, resolvedAppID, buildOpts...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch latest build: %w", err)
-		}
-		if len(buildsResp.Data) == 0 {
-			return nil, fmt.Errorf("no builds found for app %s", resolvedAppID)
-		}
-		return &asc.BuildResponse{Data: buildsResp.Data[0], Links: buildsResp.Links}, nil
-	}
 
 	// Build number mode: find by app + build number + platform.
 	buildOpts := []asc.BuildsOption{
@@ -111,10 +113,10 @@ func validateResolveBuildOptions(opts ResolveBuildOptions) error {
 	version := strings.TrimSpace(opts.Version)
 	platform := strings.TrimSpace(opts.Platform)
 	appInput := strings.TrimSpace(opts.AppID)
-	hasExplicitAppSelectors := appInput != "" || opts.Latest || buildNumber != "" || version != "" || platform != ""
+	hasExplicitAppSelectors := appInput != "" || opts.Latest || buildNumber != "" || version != "" || platform != "" || len(opts.ProcessingStateValues) > 0 || opts.ExcludeExpired
 
 	if buildID != "" && hasExplicitAppSelectors {
-		return shared.UsageError("--build-id cannot be combined with --app, --latest, --build-number, --version, or --platform")
+		return shared.UsageError("--build-id cannot be combined with --app, --latest, --build-number, --version, --platform, --processing-state, --exclude-expired, or --not-expired")
 	}
 	if opts.Latest && buildNumber != "" {
 		return shared.UsageError("--latest and --build-number are mutually exclusive")
@@ -125,6 +127,12 @@ func validateResolveBuildOptions(opts ResolveBuildOptions) error {
 
 	if shared.ResolveAppID(appInput) == "" {
 		return shared.UsageError("--build-id or --app is required (or set ASC_APP_ID)")
+	}
+	if len(opts.ProcessingStateValues) > 0 && !opts.Latest {
+		return shared.UsageError("--processing-state requires --latest")
+	}
+	if opts.ExcludeExpired && !opts.Latest {
+		return shared.UsageError("--exclude-expired and --not-expired require --latest")
 	}
 	if !opts.Latest && buildNumber == "" {
 		return shared.UsageError("--build-id, --latest, or --build-number is required")

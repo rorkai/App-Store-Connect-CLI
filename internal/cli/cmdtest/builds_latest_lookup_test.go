@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestBuildsLatestResolvesAppByBundleID(t *testing.T) {
+func TestBuildsInfoLatestResolvesAppByBundleID(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -60,6 +60,16 @@ func TestBuildsLatestResolvesAppByBundleID(t *testing.T) {
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
+		case 3:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/preReleaseVersion" {
+				t.Fatalf("unexpected third request: %s %s", req.Method, req.URL.String())
+			}
+			body := `{"data":{"type":"preReleaseVersions","id":"prv-1"}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
 		default:
 			t.Fatalf("unexpected request count %d", callCount)
 			return nil, nil
@@ -70,7 +80,7 @@ func TestBuildsLatestResolvesAppByBundleID(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "com.example.latest"}); err != nil {
+		if err := root.Parse([]string{"builds", "info", "--app", "com.example.latest", "--latest"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {

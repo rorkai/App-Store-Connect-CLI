@@ -121,7 +121,7 @@ func init() {
 	registerRowsWithSingleToListAdapter[PreReleaseVersionResponse, PreReleaseVersionsResponse](preReleaseVersionsRows)
 	registerRows(buildIconsRows)
 	registerRowsWithSingleResourceAdapter(buildUploadsRows)
-	registerRows(buildsLatestNextRows)
+	registerRows(buildsNextBuildNumberRows)
 	registerRowsWithSingleResourceAdapter(buildUploadFilesRows)
 	registerDirect(func(v *AppClipDomainStatusResult, render func([]string, [][]string)) error {
 		h, r := appClipDomainStatusMainRows(v)

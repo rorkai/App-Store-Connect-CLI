@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestBuildsLatestProcessingStateFilterUsesTopLevelBuildsEndpoint(t *testing.T) {
+func TestBuildsInfoLatestProcessingStateFilterUsesTopLevelBuildsEndpoint(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -25,35 +25,45 @@ func TestBuildsLatestProcessingStateFilterUsesTopLevelBuildsEndpoint(t *testing.
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
 		}
-		if req.URL.Path != "/v1/builds" {
-			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
+		switch req.URL.Path {
+		case "/v1/builds":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "123456789" {
+				t.Fatalf("expected filter[app]=123456789, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("sort") != "-uploadedDate" {
+				t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
+			}
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
+			}
+			if query.Get("filter[processingState]") != "PROCESSING,VALID" {
+				t.Fatalf("expected filter[processingState]=PROCESSING,VALID, got %q", query.Get("filter[processingState]"))
+			}
+			body := `{"data":[{"type":"builds","id":"build-processing","attributes":{"processingState":"PROCESSING"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/builds/build-processing/preReleaseVersion":
+			body := `{"data":{"type":"preReleaseVersions","id":"prv-1"}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("expected path /v1/builds or preReleaseVersion, got %s", req.URL.Path)
+			return nil, nil
 		}
-		query := req.URL.Query()
-		if query.Get("filter[app]") != "123456789" {
-			t.Fatalf("expected filter[app]=123456789, got %q", query.Get("filter[app]"))
-		}
-		if query.Get("sort") != "-uploadedDate" {
-			t.Fatalf("expected sort=-uploadedDate, got %q", query.Get("sort"))
-		}
-		if query.Get("limit") != "200" {
-			t.Fatalf("expected limit=200, got %q", query.Get("limit"))
-		}
-		if query.Get("filter[processingState]") != "PROCESSING,VALID" {
-			t.Fatalf("expected filter[processingState]=PROCESSING,VALID, got %q", query.Get("filter[processingState]"))
-		}
-		body := `{"data":[{"type":"builds","id":"build-processing","attributes":{"processingState":"PROCESSING"}}]}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
 	})
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "123456789", "--processing-state", "processing,valid"}); err != nil {
+		if err := root.Parse([]string{"builds", "info", "--app", "123456789", "--latest", "--processing-state", "processing,valid"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -69,7 +79,7 @@ func TestBuildsLatestProcessingStateFilterUsesTopLevelBuildsEndpoint(t *testing.
 	}
 }
 
-func TestBuildsLatestProcessingStateAllExpandsToAllStates(t *testing.T) {
+func TestBuildsInfoLatestProcessingStateAllExpandsToAllStates(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -83,28 +93,38 @@ func TestBuildsLatestProcessingStateAllExpandsToAllStates(t *testing.T) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
 		}
-		if req.URL.Path != "/v1/builds" {
-			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
+		switch req.URL.Path {
+		case "/v1/builds":
+			if req.URL.Query().Get("filter[processingState]") != "PROCESSING,FAILED,INVALID,VALID" {
+				t.Fatalf(
+					"expected filter[processingState]=PROCESSING,FAILED,INVALID,VALID, got %q",
+					req.URL.Query().Get("filter[processingState]"),
+				)
+			}
+			body := `{"data":[{"type":"builds","id":"build-any-state"}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case "/v1/builds/build-any-state/preReleaseVersion":
+			body := `{"data":{"type":"preReleaseVersions","id":"prv-1"}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("expected path /v1/builds or preReleaseVersion, got %s", req.URL.Path)
+			return nil, nil
 		}
-		if req.URL.Query().Get("filter[processingState]") != "PROCESSING,FAILED,INVALID,VALID" {
-			t.Fatalf(
-				"expected filter[processingState]=PROCESSING,FAILED,INVALID,VALID, got %q",
-				req.URL.Query().Get("filter[processingState]"),
-			)
-		}
-		body := `{"data":[{"type":"builds","id":"build-any-state"}]}`
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
 	})
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "123456789", "--processing-state", "all"}); err != nil {
+		if err := root.Parse([]string{"builds", "info", "--app", "123456789", "--latest", "--processing-state", "all"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -120,7 +140,7 @@ func TestBuildsLatestProcessingStateAllExpandsToAllStates(t *testing.T) {
 	}
 }
 
-func TestBuildsLatestProcessingStateInvalidValueReturnsUsageError(t *testing.T) {
+func TestBuildsInfoLatestProcessingStateInvalidValueReturnsUsageError(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -142,7 +162,7 @@ func TestBuildsLatestProcessingStateInvalidValueReturnsUsageError(t *testing.T) 
 
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "latest", "--app", "123456789", "--processing-state", "WRONG"}); err != nil {
+		if err := root.Parse([]string{"builds", "info", "--app", "123456789", "--latest", "--processing-state", "WRONG"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())

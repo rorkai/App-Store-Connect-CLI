@@ -13,9 +13,6 @@ func expectedLocalizationsStderr(argsPrefix []string) string {
 	if len(argsPrefix) >= 2 && argsPrefix[0] == "beta-app-localizations" && argsPrefix[1] == "list" {
 		return betaAppLocalizationsListDeprecationWarning
 	}
-	if len(argsPrefix) >= 2 && argsPrefix[0] == "beta-build-localizations" && argsPrefix[1] == "list" {
-		return "Warning: `asc beta-build-localizations list` is deprecated. Use `asc builds test-notes list`"
-	}
 	return ""
 }
 
@@ -178,33 +175,6 @@ func TestBetaAppLocalizationsListPaginateFromNextWithoutApp(t *testing.T) {
 		secondBody,
 		"beta-app-localization-next-1",
 		"beta-app-localization-next-2",
-	)
-}
-
-func TestBetaBuildLocalizationsListRejectsInvalidNextURL(t *testing.T) {
-	runLocalizationsInvalidNextURLCases(
-		t,
-		[]string{"beta-build-localizations", "list"},
-		"beta-build-localizations list: --next",
-	)
-}
-
-func TestBetaBuildLocalizationsListPaginateFromNextWithoutBuild(t *testing.T) {
-	const firstURL = "https://api.appstoreconnect.apple.com/v1/builds/build-1/betaBuildLocalizations?cursor=AQ&limit=200"
-	const secondURL = "https://api.appstoreconnect.apple.com/v1/builds/build-1/betaBuildLocalizations?cursor=BQ&limit=200"
-
-	firstBody := `{"data":[{"type":"betaBuildLocalizations","id":"beta-build-localization-next-1"}],"links":{"next":"` + secondURL + `"}}`
-	secondBody := `{"data":[{"type":"betaBuildLocalizations","id":"beta-build-localization-next-2"}],"links":{"next":""}}`
-
-	runLocalizationsPaginateFromNext(
-		t,
-		[]string{"beta-build-localizations", "list"},
-		firstURL,
-		secondURL,
-		firstBody,
-		secondBody,
-		"beta-build-localization-next-1",
-		"beta-build-localization-next-2",
 	)
 }
 

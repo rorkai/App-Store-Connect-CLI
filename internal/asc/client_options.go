@@ -2923,6 +2923,13 @@ func WithBetaBuildLocalizationLocales(locales []string) BetaBuildLocalizationsOp
 	}
 }
 
+// WithBetaBuildLocalizationBuildIDs filters beta build localizations by build ID(s).
+func WithBetaBuildLocalizationBuildIDs(ids []string) BetaBuildLocalizationsOption {
+	return func(q *betaBuildLocalizationsQuery) {
+		q.buildIDs = normalizeList(ids)
+	}
+}
+
 // WithBetaBuildUsagesLimit sets the max number of beta build usage records to return.
 func WithBetaBuildUsagesLimit(limit int) BetaBuildUsagesOption {
 	return func(q *betaBuildUsagesQuery) {
