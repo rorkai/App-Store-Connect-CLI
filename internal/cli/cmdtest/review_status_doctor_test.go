@@ -176,6 +176,93 @@ func TestReviewStatusShowsCurrentReviewState(t *testing.T) {
 	}
 }
 
+func TestReviewStatusUsesGenericNextActionForUnhandledSubmissionState(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/123456789/appStoreVersions":
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"appStoreVersions",
+						"id":"ver-1",
+						"attributes":{
+							"platform":"IOS",
+							"versionString":"1.2.3",
+							"appVersionState":"PREPARE_FOR_SUBMISSION",
+							"createdDate":"2026-03-15T00:00:00Z"
+						}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
+		case "/v1/appStoreVersions/ver-1/appStoreReviewDetail":
+			return statusJSONResponse(`{
+				"data":{
+					"type":"appStoreReviewDetails",
+					"id":"detail-1",
+					"attributes":{"contactEmail":"dev@example.com"}
+				}
+			}`), nil
+		case "/v1/apps/123456789/reviewSubmissions":
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"reviewSubmissions",
+						"id":"review-sub-1",
+						"attributes":{"state":"CANCELING","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+						"relationships":{
+							"appStoreVersionForReview":{
+								"data":{"type":"appStoreVersions","id":"ver-1"}
+							}
+						}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"review", "status", "--app", "123456789"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+
+	if payload["reviewState"] != "CANCELING" {
+		t.Fatalf("expected reviewState CANCELING, got %v", payload["reviewState"])
+	}
+	if payload["nextAction"] != "Review the latest submission state in App Store Connect." {
+		t.Fatalf("expected generic next action for unhandled submission state, got %v", payload["nextAction"])
+	}
+}
+
 func TestReviewStatusFiltersSubmissionsToSelectedVersion(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

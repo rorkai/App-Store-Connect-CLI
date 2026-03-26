@@ -413,6 +413,8 @@ func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {
 			result.NextAction = "Submit the prepared review submission."
 		case "COMPLETE":
 			result.NextAction = reviewPostCompleteAction(snapshot.Version.State)
+		default:
+			result.NextAction = "Review the latest submission state in App Store Connect."
 		}
 	}
 
