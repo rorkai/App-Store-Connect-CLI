@@ -247,9 +247,13 @@ func testSubscriptionsReorderPlacement(t *testing.T, fixture subscriptionsReorde
 
 	listCallCount := 0
 	var capturedBody string
+	sawGroupInclude := false
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/"+fixture.sourceID:
+			if req.URL.Query().Get("include") == "group" {
+				sawGroupInclude = true
+			}
 			return subscriptionsReorderJSONResponse(http.StatusOK, subscriptionDetailBody(fixture.sourceID, fixture.groupID, sourceGroupLevel(fixture.initialOrder, fixture.sourceID)))
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionGroups/"+fixture.groupID+"/subscriptions":
 			listCallCount++
@@ -291,6 +295,9 @@ func testSubscriptionsReorderPlacement(t *testing.T, fixture subscriptionsReorde
 	}
 	if req.Data.Attributes.GroupLevel == nil || *req.Data.Attributes.GroupLevel != fixture.expectedGroupLevel {
 		t.Fatalf("expected groupLevel=%d in request, got %+v", fixture.expectedGroupLevel, req.Data.Attributes)
+	}
+	if !sawGroupInclude {
+		t.Fatalf("expected reorder flow to request include=group on subscription detail fetch")
 	}
 
 	if !strings.Contains(stdout, fmt.Sprintf(`"toGroupLevel":%d`, fixture.expectedGroupLevel)) {

@@ -192,8 +192,16 @@ func (c *Client) CreateSubscription(ctx context.Context, groupID string, attrs S
 }
 
 // GetSubscription retrieves a subscription by ID.
-func (c *Client) GetSubscription(ctx context.Context, subID string) (*SubscriptionResponse, error) {
+func (c *Client) GetSubscription(ctx context.Context, subID string, opts ...SubscriptionGetOption) (*SubscriptionResponse, error) {
+	query := &subscriptionGetQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
 	path := fmt.Sprintf("/v1/subscriptions/%s", strings.TrimSpace(subID))
+	if queryString := buildSubscriptionGetQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err

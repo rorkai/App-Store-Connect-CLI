@@ -213,6 +213,9 @@ type SubscriptionAvailabilityResponse = SingleResponse[SubscriptionAvailabilityA
 // SubscriptionGroupsOption is a functional option for GetSubscriptionGroups.
 type SubscriptionGroupsOption func(*subscriptionGroupsQuery)
 
+// SubscriptionGetOption is a functional option for GetSubscription.
+type SubscriptionGetOption func(*subscriptionGetQuery)
+
 // SubscriptionsOption is a functional option for GetSubscriptions.
 type SubscriptionsOption func(*subscriptionsQuery)
 
@@ -221,6 +224,10 @@ type SubscriptionAvailabilityTerritoriesOption func(*subscriptionAvailabilityTer
 
 type subscriptionGroupsQuery struct {
 	listQuery
+}
+
+type subscriptionGetQuery struct {
+	include []string
 }
 
 type subscriptionsQuery struct {
@@ -267,6 +274,13 @@ func WithSubscriptionsNextURL(next string) SubscriptionsOption {
 	}
 }
 
+// WithSubscriptionInclude includes related resources in a subscription detail response.
+func WithSubscriptionInclude(include []string) SubscriptionGetOption {
+	return func(q *subscriptionGetQuery) {
+		q.include = normalizeUniqueList(append(q.include, include...))
+	}
+}
+
 // WithSubscriptionAvailabilityTerritoriesLimit sets the max number of territories to return.
 func WithSubscriptionAvailabilityTerritoriesLimit(limit int) SubscriptionAvailabilityTerritoriesOption {
 	return func(q *subscriptionAvailabilityTerritoriesQuery) {
@@ -288,6 +302,12 @@ func WithSubscriptionAvailabilityTerritoriesNextURL(next string) SubscriptionAva
 func buildSubscriptionGroupsQuery(query *subscriptionGroupsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildSubscriptionGetQuery(query *subscriptionGetQuery) string {
+	values := url.Values{}
+	addCSV(values, "include", query.include)
 	return values.Encode()
 }
 

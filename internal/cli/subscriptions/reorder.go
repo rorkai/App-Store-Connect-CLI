@@ -96,7 +96,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			source, err := client.GetSubscription(requestCtx, id)
+			source, err := client.GetSubscription(requestCtx, id, asc.WithSubscriptionInclude([]string{"group"}))
 			if err != nil {
 				return fmt.Errorf("subscriptions reorder: resolve subscription: %w", err)
 			}
