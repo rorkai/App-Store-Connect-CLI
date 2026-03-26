@@ -300,54 +300,6 @@ func buildsWaitProcessingStates() []string {
 	}
 }
 
-func resolveBuildForWait(
-	ctx context.Context,
-	client *asc.Client,
-	buildID string,
-	resolvedAppID string,
-	buildNumber string,
-	platform string,
-) (*asc.BuildResponse, error) {
-	if buildID != "" {
-		return &asc.BuildResponse{
-			Data: asc.Resource[asc.BuildAttributes]{
-				ID: buildID,
-			},
-		}, nil
-	}
-
-	resolvedAppID = strings.TrimSpace(resolvedAppID)
-	buildNumber = strings.TrimSpace(buildNumber)
-	if resolvedAppID == "" || buildNumber == "" {
-		return nil, fmt.Errorf("app ID and build number are required when build ID is not provided")
-	}
-
-	lookupAppID, err := shared.ResolveAppIDWithLookup(ctx, client, resolvedAppID)
-	if err != nil {
-		return nil, err
-	}
-
-	opts := []asc.BuildsOption{
-		asc.WithBuildsBuildNumber(buildNumber),
-		asc.WithBuildsSort("-uploadedDate"),
-		asc.WithBuildsLimit(1),
-		asc.WithBuildsProcessingStates(buildsWaitProcessingStates()),
-	}
-	if strings.TrimSpace(platform) != "" {
-		opts = append(opts, asc.WithBuildsPreReleaseVersionPlatforms([]string{platform}))
-	}
-
-	buildsResp, err := client.GetBuilds(ctx, lookupAppID, opts...)
-	if err != nil {
-		return nil, err
-	}
-	if len(buildsResp.Data) == 0 {
-		return nil, fmt.Errorf("no build found for app %q with build number %q", lookupAppID, buildNumber)
-	}
-
-	return &asc.BuildResponse{Data: buildsResp.Data[0], Links: buildsResp.Links}, nil
-}
-
 func waitForBuildProcessingState(
 	ctx context.Context,
 	client *asc.Client,

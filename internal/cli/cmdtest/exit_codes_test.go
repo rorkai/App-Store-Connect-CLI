@@ -274,9 +274,9 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "--app is required when --build-id is not provided",
 		},
 		{
-			name:    "builds find missing build-number",
-			args:    []string{"builds", "find", "--app", "APP_123"},
-			wantErr: "--build-number is required",
+			name:    "builds info missing build-number",
+			args:    []string{"builds", "info", "--app", "APP_123"},
+			wantErr: "--build-id, --latest, or --build-number is required",
 		},
 		{
 			name: "apps wall submit parent wall flags",

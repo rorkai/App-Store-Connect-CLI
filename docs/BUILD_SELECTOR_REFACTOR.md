@@ -21,7 +21,7 @@ preserving compatibility aliases until the broader `1.0.0` cleanup.
 - `--id` remains as a deprecated alias for `--build-id` on build-related read
   surfaces during transition.
 - `asc builds latest` will be removed as a fetch command.
-- `asc builds find` will be removed once `asc builds info` can resolve by
+- `asc builds find` is removed once `asc builds info` can resolve by
   `--build-number`.
 - `asc builds next-number` will replace current `asc builds latest --next`.
 - `test-notes` becomes build-scoped plus `--locale`, not localization-ID-first.
@@ -37,7 +37,7 @@ preserving compatibility aliases until the broader `1.0.0` cleanup.
 
 ### PR 1: Selector Vocabulary + Core Resolver
 
-Status: in progress
+Status: complete
 
 Progress checklist:
 
@@ -118,12 +118,40 @@ Design note:
 
 ### PR 2: Make `builds info` Canonical
 
-Status: planned
+Status: in progress
 
 Scope:
 
 - add shared selector support to `asc builds info`
 - remove `asc builds find`
+
+Design note:
+
+1. Command placement in taxonomy
+   Keep the entry point at `asc builds info`; do not create a parallel
+   replacement command for `find`.
+
+2. OpenAPI / endpoint impact
+   Reuse `GET /v1/builds` filters (`filter[app]`, `filter[version]`,
+   `filter[preReleaseVersion.platform]`) plus `GET /v1/builds/{id}` /
+   `GET /v1/builds/{id}/preReleaseVersion`. No new endpoint surface is needed.
+
+3. UX shape
+   Canonical selector forms become:
+   - `--build-id BUILD_ID`
+   - `--app APP --latest`
+   - `--app APP --build-number NUM [--platform IOS]`
+
+4. Backward-compatibility / deprecation impact
+   `asc builds find` is removed in this PR because its behavior becomes a strict
+   subset of `asc builds info`. The compatibility cost is deliberate to avoid
+   carrying two public entry points for the same lookup job.
+
+5. RED -> GREEN test plan
+   - replace `builds find` tests with `builds info` selector coverage
+   - update validation/exit-code expectations for app-scoped `builds info`
+   - remove `builds find` from help and command registration
+   - run focused selector tests, then full required checks
 
 ### PR 3: Replace `builds latest` With `builds next-number`
 
