@@ -1541,6 +1541,26 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			wantErr: "--group-level must be a positive integer",
 		},
 		{
+			name:    "subscriptions reorder missing id",
+			args:    []string{"subscriptions", "reorder", "--top"},
+			wantErr: "--id is required",
+		},
+		{
+			name:    "subscriptions reorder missing placement",
+			args:    []string{"subscriptions", "reorder", "--id", "SUB_ID"},
+			wantErr: "exactly one of --before, --after, --top, or --bottom is required",
+		},
+		{
+			name:    "subscriptions reorder conflicting placement flags",
+			args:    []string{"subscriptions", "reorder", "--id", "SUB_ID", "--top", "--bottom"},
+			wantErr: "--before, --after, --top, and --bottom are mutually exclusive",
+		},
+		{
+			name:    "subscriptions reorder before self reference",
+			args:    []string{"subscriptions", "reorder", "--id", "SUB_ID", "--before", "SUB_ID"},
+			wantErr: "--before cannot reference the same subscription as --id",
+		},
+		{
 			name:    "subscriptions delete missing confirm",
 			args:    []string{"subscriptions", "delete", "--id", "SUB_ID"},
 			wantErr: "--confirm is required",
