@@ -51,6 +51,9 @@ func TestSubscriptionsUpdateCommand_GroupLevelHelpOmitsSentinelDefault(t *testin
 	if !strings.Contains(help, "--with") {
 		t.Fatalf("expected help output to mention --with, got %q", help)
 	}
+	if !strings.Contains(help, "shifting siblings as needed") {
+		t.Fatalf("expected help output to explain slot-moving behavior, got %q", help)
+	}
 }
 
 func TestSubscriptionsUpdateCommand_GroupLevelWorksAsOnlyUpdateFlag(t *testing.T) {

@@ -571,7 +571,7 @@ func SubscriptionsUpdateCommand() *ffcli.Command {
 	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
 	var groupLevel optionalInt
 	fs.Var(&groupLevel, "group-level", "Subscription ordering level (positive integer)")
-	withID := fs.String("with", "", "Copy group level from another subscription in the same group")
+	withID := fs.String("with", "", "Move into another subscription's current slot, shifting siblings as needed")
 	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
 	output := shared.BindOutputFlags(fs)
 
@@ -639,12 +639,13 @@ Examples:
 				attrs.FamilySharable = &val
 			}
 			if with != "" {
-				level, err := resolveSubscriptionGroupLevelFromPeer(ctx, client, id, with)
+				resp, err := executeSubscriptionUpdateWithPeer(ctx, client, id, with, attrs)
 				if err != nil {
 					return fmt.Errorf("subscriptions update: %w", err)
 				}
-				attrs.GroupLevel = &level
-			} else if groupLevel.IsSet() {
+				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			}
+			if groupLevel.IsSet() {
 				level := groupLevel.Value()
 				attrs.GroupLevel = &level
 			}
@@ -692,39 +693,20 @@ func (i optionalInt) Value() int {
 	return i.value
 }
 
-func resolveSubscriptionGroupLevelFromPeer(ctx context.Context, client *asc.Client, subscriptionID, peerID string) (int, error) {
-	_, sourceGroupID, err := getSubscriptionForGroupLevelCopy(ctx, client, subscriptionID)
-	if err != nil {
-		return 0, fmt.Errorf("resolve subscription %q: %w", subscriptionID, err)
-	}
-
-	peer, peerGroupID, err := getSubscriptionForGroupLevelCopy(ctx, client, peerID)
-	if err != nil {
-		return 0, fmt.Errorf("resolve --with subscription %q: %w", peerID, err)
-	}
-	if sourceGroupID != peerGroupID {
-		return 0, fmt.Errorf("--with subscription %q must belong to the same subscription group as --id %q", peerID, subscriptionID)
-	}
-	if peer.Data.Attributes.GroupLevel <= 0 {
-		return 0, fmt.Errorf("--with subscription %q did not include a valid group level", peerID)
-	}
-	return peer.Data.Attributes.GroupLevel, nil
-}
-
-func getSubscriptionForGroupLevelCopy(ctx context.Context, client *asc.Client, subscriptionID string) (*asc.SubscriptionResponse, string, error) {
+func getSubscriptionForGroupLevelCopy(ctx context.Context, client *asc.Client, subscriptionID string) (string, error) {
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
 	resp, err := client.GetSubscription(requestCtx, subscriptionID, asc.WithSubscriptionInclude([]string{"group"}))
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 
 	groupID, err := resolveSubscriptionGroupID(resp.Data.Relationships)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
-	return resp, groupID, nil
+	return groupID, nil
 }
 
 func resolveSubscriptionGroupID(raw json.RawMessage) (string, error) {
