@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
+
+const iapReviewScreenshotPollInterval = 2 * time.Second
 
 // IAPReviewScreenshotsCommand returns the review screenshots command group.
 func IAPReviewScreenshotsCommand() *ffcli.Command {
@@ -164,9 +167,13 @@ Examples:
 				return fmt.Errorf("iap review-screenshots create: failed to commit upload: %w", err)
 			}
 
-			finalResp, err := client.GetInAppPurchaseAppStoreReviewScreenshot(requestCtx, resp.Data.ID)
-			if err != nil {
-				return fmt.Errorf("iap review-screenshots create: failed to fetch: %w", err)
+			// Verify asset delivery — poll until COMPLETE or FAILED
+			screenshotID := resp.Data.ID
+			verifyCtx, verifyCancel := contextWithAssetUploadTimeout(ctx)
+			defer verifyCancel()
+			finalResp, verifyErr := waitForIAPReviewScreenshotDelivery(verifyCtx, client, screenshotID)
+			if verifyErr != nil {
+				return fmt.Errorf("iap review-screenshots create: %w", verifyErr)
 			}
 
 			return shared.PrintOutput(finalResp, *output.Output, *output.Pretty)
@@ -326,4 +333,46 @@ Examples:
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// waitForIAPReviewScreenshotDelivery polls until the screenshot reaches
+// a terminal delivery state and returns the successful response for output.
+func waitForIAPReviewScreenshotDelivery(ctx context.Context, client *asc.Client, screenshotID string) (*asc.InAppPurchaseAppStoreReviewScreenshotResponse, error) {
+	var verifiedResp *asc.InAppPurchaseAppStoreReviewScreenshotResponse
+	_, err := asc.PollUntil(ctx, iapReviewScreenshotPollInterval, func(ctx context.Context) (struct{}, bool, error) {
+		resp, err := client.GetInAppPurchaseAppStoreReviewScreenshot(ctx, screenshotID)
+		if err != nil {
+			return struct{}{}, false, err
+		}
+		state := resp.Data.Attributes.AssetDeliveryState
+		if state != nil && state.State != nil {
+			switch strings.ToUpper(*state.State) {
+			case "COMPLETE":
+				verifiedResp = resp
+				return struct{}{}, true, nil
+			case "FAILED":
+				errMsgs := make([]string, 0, len(state.Errors))
+				for _, e := range state.Errors {
+					if e.Code != "" {
+						errMsgs = append(errMsgs, e.Code)
+					} else if e.Message != "" {
+						errMsgs = append(errMsgs, e.Message)
+					}
+				}
+				detail := strings.Join(errMsgs, "; ")
+				if detail == "" {
+					detail = "unknown error"
+				}
+				return struct{}{}, false, fmt.Errorf("screenshot %s delivery failed: %s", screenshotID, detail)
+			}
+		}
+		return struct{}{}, false, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if verifiedResp == nil {
+		return nil, fmt.Errorf("screenshot %s delivery completed without a verified response", screenshotID)
+	}
+	return verifiedResp, nil
 }

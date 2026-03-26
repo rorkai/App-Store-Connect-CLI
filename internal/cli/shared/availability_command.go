@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
+
+const bulkAvailabilityTimeout = 5 * time.Minute
 
 // AvailabilitySetCommandConfig configures the availability set command.
 type AvailabilitySetCommandConfig struct {
@@ -31,6 +34,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	territory := fs.String("territory", "", "Territory IDs (comma-separated, e.g., USA,GBR)")
+	allTerritories := fs.Bool("all-territories", false, "Apply to all territories (overrides --territory)")
 	var available OptionalBool
 	fs.Var(&available, "available", "Set availability: true or false")
 	var availableInNewTerritories OptionalBool
@@ -52,8 +56,8 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return flag.ErrHelp
 			}
-			if strings.TrimSpace(*territory) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --territory is required")
+			if !*allTerritories && strings.TrimSpace(*territory) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --territory or --all-territories is required")
 				return flag.ErrHelp
 			}
 			if !available.IsSet() {
@@ -65,11 +69,15 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				return flag.ErrHelp
 			}
 
-			territories := splitCSVUpper(*territory)
-			if len(territories) == 0 {
-				fmt.Fprintln(os.Stderr, "Error: --territory must include at least one value")
-				return flag.ErrHelp
+			var territories []string
+			if !*allTerritories {
+				territories = splitCSVUpper(*territory)
+				if len(territories) == 0 {
+					fmt.Fprintln(os.Stderr, "Error: --territory must include at least one value")
+					return flag.ErrHelp
+				}
 			}
+
 			availableValue := available.Value()
 
 			client, err := getASCClient()
@@ -77,7 +85,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
 
-			requestCtx, cancel := contextWithTimeout(ctx)
+			requestCtx, cancel := contextWithAvailabilityTimeout(ctx, *allTerritories)
 			defer cancel()
 
 			resp, err := client.GetAppAvailabilityV2(requestCtx, resolvedAppID)
@@ -127,18 +135,27 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
 
-			missingTerritories := make([]string, 0)
-			territoryAvailabilityIDs := make([]string, 0, len(territories))
-			for _, territoryID := range territories {
-				territoryAvailabilityID := territoryMap[territoryID]
-				if territoryAvailabilityID == "" {
-					missingTerritories = append(missingTerritories, territoryID)
-					continue
+			var territoryAvailabilityIDs []string
+			if *allTerritories {
+				territoryAvailabilityIDs = make([]string, 0, len(territoryMap))
+				for _, availabilityID := range territoryMap {
+					territoryAvailabilityIDs = append(territoryAvailabilityIDs, availabilityID)
 				}
-				territoryAvailabilityIDs = append(territoryAvailabilityIDs, territoryAvailabilityID)
-			}
-			if len(missingTerritories) > 0 {
-				return fmt.Errorf("%s: territory availability not found for territories: %s", config.ErrorPrefix, strings.Join(missingTerritories, ", "))
+				fmt.Fprintf(os.Stderr, "Updating availability for %d territories...\n", len(territoryAvailabilityIDs))
+			} else {
+				missingTerritories := make([]string, 0)
+				territoryAvailabilityIDs = make([]string, 0, len(territories))
+				for _, territoryID := range territories {
+					territoryAvailabilityID := territoryMap[territoryID]
+					if territoryAvailabilityID == "" {
+						missingTerritories = append(missingTerritories, territoryID)
+						continue
+					}
+					territoryAvailabilityIDs = append(territoryAvailabilityIDs, territoryAvailabilityID)
+				}
+				if len(missingTerritories) > 0 {
+					return fmt.Errorf("%s: territory availability not found for territories: %s", config.ErrorPrefix, strings.Join(missingTerritories, ", "))
+				}
 			}
 
 			for _, territoryAvailabilityID := range territoryAvailabilityIDs {
@@ -152,6 +169,13 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 			return printOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func contextWithAvailabilityTimeout(ctx context.Context, allTerritories bool) (context.Context, context.CancelFunc) {
+	if allTerritories {
+		return ContextWithResolvedTimeout(ctx, bulkAvailabilityTimeout)
+	}
+	return contextWithTimeout(ctx)
 }
 
 type territoryAvailabilityIDPayload struct {

@@ -26,8 +26,10 @@ func AppSetupCommand() *ffcli.Command {
 Examples:
   asc app-setup info set --app "APP_ID" --primary-locale "en-US" --bundle-id "com.example.app"
   asc app-setup categories set --app "APP_ID" --primary GAMES
-  asc app-setup availability set --app "APP_ID" --territory "USA,GBR" --available true
+  asc app-setup availability set --app "APP_ID" --territory "USA,GBR" --available true --available-in-new-territories true
+  asc app-setup availability set --app "APP_ID" --all-territories --available true --available-in-new-territories true
   asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA"
+  asc app-setup pricing set --app "APP_ID" --free --start-date "2024-03-01"
   asc app-setup localizations upload --version "VERSION_ID" --path "./localizations"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -296,7 +298,8 @@ func AppSetupAvailabilityCommand() *ffcli.Command {
 		LongHelp: `Set app availability for territories.
 
 Examples:
-  asc app-setup availability set --app "APP_ID" --territory "USA,GBR" --available true`,
+  asc app-setup availability set --app "APP_ID" --territory "USA,GBR" --available true --available-in-new-territories true
+  asc app-setup availability set --app "APP_ID" --all-territories --available true --available-in-new-territories true`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppSetupAvailabilitySetCommand(),
@@ -318,6 +321,7 @@ func AppSetupAvailabilitySetCommand() *ffcli.Command {
 
 Examples:
   asc app-setup availability set --app "123456789" --territory "USA,GBR" --available true --available-in-new-territories true
+  asc app-setup availability set --app "123456789" --all-territories --available true --available-in-new-territories true
 
 Note:
   This command only updates an existing app availability. If the app has no availability record yet, initialize availability in App Store Connect first.`,
@@ -332,10 +336,11 @@ func AppSetupPricingCommand() *ffcli.Command {
 		Name:       "pricing",
 		ShortUsage: "asc app-setup pricing <subcommand> [flags]",
 		ShortHelp:  "Set app pricing.",
-		LongHelp: `Set app pricing using a price point.
+		LongHelp: `Set app pricing.
 
 Examples:
-  asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID"`,
+  asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID"
+  asc app-setup pricing set --app "APP_ID" --free --start-date "2024-03-01"`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppSetupPricingSetCommand(),
@@ -352,12 +357,13 @@ func AppSetupPricingSetCommand() *ffcli.Command {
 		FlagSetName: "app-setup pricing set",
 		CommandName: "set",
 		ShortUsage:  "asc app-setup pricing set [flags]",
-		ShortHelp:   "Set app pricing using a price point.",
-		LongHelp: `Set app pricing using a price point.
+		ShortHelp:   "Set app pricing.",
+		LongHelp: `Set app pricing.
 
 Examples:
   asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA"
-  asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"`,
+  asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"
+  asc app-setup pricing set --app "APP_ID" --free --start-date "2024-03-01"`,
 		ErrorPrefix:           "app-setup pricing set",
 		StartDateHelp:         "Start date (YYYY-MM-DD, default: today)",
 		StartDateDefaultToday: true,
