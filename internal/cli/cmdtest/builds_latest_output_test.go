@@ -514,8 +514,8 @@ func TestBuildsLatestNextUsesUploadsAndBuilds(t *testing.T) {
 			if query.Get("filter[platform]") != "IOS" {
 				t.Fatalf("expected filter[platform]=IOS, got %q", query.Get("filter[platform]"))
 			}
-			if query.Get("limit") != "1" {
-				t.Fatalf("expected limit=1, got %q", query.Get("limit"))
+			if query.Get("limit") != "200" {
+				t.Fatalf("expected limit=200, got %q", query.Get("limit"))
 			}
 			body := `{
 				"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}],

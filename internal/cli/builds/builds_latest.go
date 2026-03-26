@@ -403,21 +403,16 @@ func resolveLatestBuildSelection(ctx context.Context, client *asc.Client, opts l
 }
 
 // findPreReleaseVersionIDs looks up preReleaseVersion IDs for given filters.
-// Returns all matching IDs when platform is omitted or when only platform is
-// specified, and a single ID when both version and platform are provided.
+// Returns all exact-matching IDs. Version+platform usually narrows to a single
+// ID, but the lookup still paginates because ASC can return near-match version
+// results (for example 1.1.0 for a requested 1.1) ahead of the exact match.
 func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, version, platform string) ([]string, error) {
 	opts := []asc.PreReleaseVersionsOption{}
 	exactVersion := strings.TrimSpace(version)
 
 	if version != "" {
 		opts = append(opts, asc.WithPreReleaseVersionsVersion(version))
-		if platform != "" {
-			// Version+platform narrows to a single pre-release version.
-			opts = append(opts, asc.WithPreReleaseVersionsLimit(1))
-		} else {
-			// Version-only lookups can span multiple platforms.
-			opts = append(opts, asc.WithPreReleaseVersionsLimit(200))
-		}
+		opts = append(opts, asc.WithPreReleaseVersionsLimit(200))
 	} else {
 		// Platform-only lookups can span multiple versions.
 		opts = append(opts, asc.WithPreReleaseVersionsLimit(200))
@@ -440,18 +435,7 @@ func findPreReleaseVersionIDs(ctx context.Context, client *asc.Client, appID, ve
 		return strings.TrimSpace(preReleaseVersion.Attributes.Version) == exactVersion
 	}
 
-	// Version+platform should still enforce exact version matching because ASC
-	// filters can return near matches like 1.1.0 when the caller asked for 1.1.
-	if version != "" && platform != "" {
-		for _, preReleaseVersion := range firstPage.Data {
-			if matchesRequestedVersion(preReleaseVersion) {
-				return []string{preReleaseVersion.ID}, nil
-			}
-		}
-		return nil, nil
-	}
-
-	// For version-only or platform-only filtering, stream pages and keep only IDs.
+	// Stream pages and keep only exact-matching IDs.
 	ids := make([]string, 0, len(firstPage.Data))
 	appendIDs := func(page *asc.PreReleaseVersionsResponse) {
 		for _, preReleaseVersion := range page.Data {
