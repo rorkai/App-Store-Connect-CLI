@@ -40,12 +40,8 @@ while IFS= read -r path; do
       ;;
   esac
 
-  if [ "$path" = "docs/COMMANDS.md" ]; then
-    needs_command_docs=1
-  fi
-
   case "$path" in
-    *.go|go.mod|go.sum|Makefile)
+    docs/COMMANDS.md|*.go|go.mod|go.sum|Makefile)
       # Command docs are generated from live CLI help, so Go/CLI build changes
       # need the sync check even when docs/COMMANDS.md itself is not staged yet.
       needs_command_docs=1
