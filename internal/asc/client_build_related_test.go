@@ -23,4 +23,11 @@ func TestGetBuildBetaAppReviewSubmission_NullDataReturnsNotFound(t *testing.T) {
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
 	}
+	var missingErr MissingBuildBetaAppReviewSubmissionError
+	if !errors.As(err, &missingErr) {
+		t.Fatalf("expected MissingBuildBetaAppReviewSubmissionError, got %T", err)
+	}
+	if missingErr.BuildID != "build-1" {
+		t.Fatalf("expected build id build-1, got %q", missingErr.BuildID)
+	}
 }

@@ -2,6 +2,7 @@ package builds
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"strings"
@@ -352,7 +353,8 @@ Examples:
 
 			resp, err := client.GetBuildBetaAppReviewSubmission(requestCtx, buildID)
 			if err != nil {
-				if asc.IsNotFound(err) {
+				var missingErr asc.MissingBuildBetaAppReviewSubmissionError
+				if errors.As(err, &missingErr) {
 					return buildBetaAppReviewSubmissionNotFoundError{buildID: buildID}
 				}
 				return fmt.Errorf("builds beta-app-review-submission view: failed to fetch: %w", err)
