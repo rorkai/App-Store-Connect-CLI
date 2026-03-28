@@ -606,7 +606,7 @@ class HookChecksTest(unittest.TestCase):
         ).read_text()
         needs_code_case = hook.split('case "$path" in')[4]
         docs_case = needs_code_case.index(
-            'website/*|README.md|CONTRIBUTING.md|SUPPORT.md|docs/*|.github/PULL_REQUEST_TEMPLATE.md)'
+            'docs.json|authentication.mdx|index.mdx|installation.mdx|introduction.mdx|quickstart.mdx|cicd/*|commands/*|concepts/*|configuration/*|guides/*|resources/*|README.md|CONTRIBUTING.md|SUPPORT.md|docs/*|.github/PULL_REQUEST_TEMPLATE.md)'
         )
         go_case = needs_code_case.index("*.go|go.mod|go.sum|Makefile)")
         self.assertLess(go_case, docs_case)

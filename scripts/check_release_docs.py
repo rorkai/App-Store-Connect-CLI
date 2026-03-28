@@ -21,7 +21,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     repo_root = Path(__file__).resolve().parents[1]
-    changelog_path = repo_root / "website" / "resources" / "changelog.mdx"
+    changelog_path = repo_root / "resources" / "changelog.mdx"
     changelog = changelog_path.read_text()
     if version_is_documented(changelog, args.version):
         print(f"Release docs check passed for {args.version}.")

@@ -65,7 +65,7 @@ Before tagging a release, verify:
 
 ```bash
 # 1. Update release-facing docs
-#    - refresh website/resources/changelog.mdx for the new version
+#    - refresh resources/changelog.mdx for the new version
 #    - update any website pages affected by the release
 
 # 2. Verify documentation

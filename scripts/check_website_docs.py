@@ -130,8 +130,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate Mintlify website docs.")
     parser.add_argument(
         "--website-root",
-        default="website",
-        help="Path to the Mintlify website root.",
+        default=".",
+        help="Path to the Mintlify docs root.",
     )
     args = parser.parse_args(argv)
 

@@ -29,7 +29,7 @@ while IFS= read -r path; do
   fi
 
   case "$path" in
-    website/*)
+    docs.json|authentication.mdx|index.mdx|installation.mdx|introduction.mdx|quickstart.mdx|cicd/*|commands/*|concepts/*|configuration/*|guides/*|resources/*)
       needs_website_docs=1
       ;;
   esac
@@ -52,7 +52,7 @@ while IFS= read -r path; do
     *.go|go.mod|go.sum|Makefile)
       needs_code=1
       ;;
-    website/*|README.md|CONTRIBUTING.md|SUPPORT.md|docs/*|.github/PULL_REQUEST_TEMPLATE.md)
+    docs.json|authentication.mdx|index.mdx|installation.mdx|introduction.mdx|quickstart.mdx|cicd/*|commands/*|concepts/*|configuration/*|guides/*|resources/*|README.md|CONTRIBUTING.md|SUPPORT.md|docs/*|.github/PULL_REQUEST_TEMPLATE.md)
       ;;
     *)
       needs_code=1
