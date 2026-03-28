@@ -33,7 +33,7 @@ NC := \033[0m # No Color
 all: build
 
 # Build the binary
-.PHONY: build
+.PHONY: build $(BINARY_NAME)
 build: $(BINARY_NAME)
 	@echo "$(GREEN)✓ Build complete: $(BINARY_NAME)$(NC)"
 
