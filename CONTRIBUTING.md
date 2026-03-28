@@ -57,6 +57,7 @@ export ASC_APP_ID="YOUR_APP_ID"
 
 asc testflight feedback list --app "$ASC_APP_ID"
 asc testflight crashes list --app "$ASC_APP_ID"
+asc review status --app "$ASC_APP_ID"
 asc reviews list --app "$ASC_APP_ID"
 ```
 

@@ -64,11 +64,14 @@ asc --help
 
 ```bash
 # Homebrew (recommended)
-brew install asc
+brew install rudrankriyam/tap/asc
 
 # Install script (macOS/Linux)
 curl -fsSL https://asccli.sh/install | bash
 ```
+
+Windows users can download the signed release binaries directly from the
+[GitHub releases page](https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/latest).
 
 For source builds and contributor setup, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -129,6 +132,15 @@ And explicit flags always win:
 ```bash
 asc apps list --output json
 ```
+
+### Stability labels
+
+`asc` uses visible lifecycle labels so you can judge support expectations before
+depending on a command in CI or scripts:
+
+- No label: stable public CLI contract for normal use
+- `[experimental]`: useful, but still evolving; expect sharper edges and faster iteration
+- `DEPRECATED:` or deprecation warnings: compatibility path kept during migration, but not the long-term home
 
 ## Troubleshooting
 
@@ -199,7 +211,7 @@ asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadat
 asc release run --app "123456789" --version "1.2.3" --build "BUILD_ID" --metadata-dir "./metadata/version/1.2.3" --confirm
 
 # Monitor status after submission
-asc status --app "123456789"
+asc status --app "123456789" --watch
 ```
 
 Lower-level alternatives (for scripting or partial workflows):
@@ -209,17 +221,27 @@ asc validate --app "123456789" --version "1.2.3"
 asc submit create --app "123456789" --version "1.2.3" --build "BUILD_ID" --confirm
 ```
 
+### Review status and blockers
+
+```bash
+asc review status --app "123456789"
+asc review doctor --app "123456789"
+```
+
 ### Metadata and localization
 
 ```bash
 asc localizations list --app "123456789"
+asc metadata apply --app "123456789" --version "1.2.3" --dir "./metadata" --dry-run
 asc apps info view --app "123456789" --output json --pretty
 ```
 
 ### Screenshots and media
 
 ```bash
-asc screenshots list --app "123456789"
+asc screenshots plan --app "123456789" --version "1.2.3" --review-output-dir "./screenshots/review"
+asc screenshots apply --app "123456789" --version "1.2.3" --review-output-dir "./screenshots/review" --confirm
+asc screenshots list --version-localization "LOC_ID"
 asc video-previews list --app "123456789"
 ```
 
@@ -234,7 +256,8 @@ asc bundle-ids list
 ### Workflow automation
 
 ```bash
-asc workflow run release
+asc workflow validate
+asc workflow run --dry-run testflight_beta VERSION:1.2.3
 ```
 
 ### Verified local Xcode -> TestFlight workflow
@@ -271,6 +294,13 @@ asc --help
 asc <command> --help
 asc <command> <subcommand> --help
 ```
+
+Reference hierarchy:
+
+- `asc --help`: authoritative command and flag surface
+- `docs/COMMANDS.md`: generated top-level taxonomy map
+- `asc docs show workflows`: curated workflow recipes
+- `asc docs show reference`: repo-local quick reference template used by `asc init`
 
 For full command families, flags, and discovery patterns, see:
 - [docs/COMMANDS.md](docs/COMMANDS.md)
