@@ -16,6 +16,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/metadata"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	submitcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/submit"
 	validatecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
@@ -529,17 +530,13 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 			return stepOutcome{}, fmt.Errorf("attach build: resolved version ID is empty")
 		}
 
-		existingBuildID := ""
-		buildResp, buildErr := client.GetAppStoreVersionBuild(requestCtx, versionID)
-		if buildErr != nil {
-			if !asc.IsNotFound(buildErr) {
-				return stepOutcome{}, fmt.Errorf("attach build: failed to fetch current build: %w", buildErr)
-			}
-		} else {
-			existingBuildID = strings.TrimSpace(buildResp.Data.ID)
+		attachResult, attachErr := submitcli.EnsureBuildAttached(requestCtx, client, versionID, opts.BuildID, opts.DryRun)
+		if attachErr != nil {
+			return stepOutcome{}, attachErr
 		}
 
-		if existingBuildID == opts.BuildID {
+		switch {
+		case attachResult.AlreadyAttached:
 			status := "skipped"
 			message := "build already attached"
 			if opts.DryRun {
@@ -549,29 +546,24 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 			return stepOutcome{
 				Status:  status,
 				Message: message,
-				Details: map[string]any{"buildId": opts.BuildID, "alreadyAttached": true},
+				Details: attachResult,
 				Persist: !opts.DryRun,
 			}, nil
-		}
-
-		if opts.DryRun {
+		case attachResult.WouldAttach:
 			return stepOutcome{
 				Status:  "dry-run",
 				Message: "would attach build to version",
-				Details: map[string]any{"versionId": versionID, "buildId": opts.BuildID, "currentBuildId": existingBuildID},
+				Details: attachResult,
 				Persist: false,
 			}, nil
+		default:
+			return stepOutcome{
+				Status:  "ok",
+				Message: "attached build to version",
+				Details: attachResult,
+				Persist: true,
+			}, nil
 		}
-
-		if attachErr := client.AttachBuildToVersion(requestCtx, versionID, opts.BuildID); attachErr != nil {
-			return stepOutcome{}, fmt.Errorf("attach build: %w", attachErr)
-		}
-		return stepOutcome{
-			Status:  "ok",
-			Message: "attached build to version",
-			Details: map[string]any{"versionId": versionID, "buildId": opts.BuildID},
-			Persist: true,
-		}, nil
 	}); err != nil {
 		return result, err
 	}
@@ -634,12 +626,24 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 				return stepOutcome{}, fmt.Errorf("submit review: resolved version ID is empty")
 			}
 
-			legacySubmission, subErr := client.GetAppStoreVersionSubmissionForVersion(requestCtx, versionID)
-			if subErr != nil && !asc.IsNotFound(subErr) {
-				return stepOutcome{}, fmt.Errorf("submit review: failed to lookup existing submission: %w", subErr)
+			submitResult, submitErr := submitcli.SubmitResolvedVersion(requestCtx, client, submitcli.SubmitResolvedVersionOptions{
+				AppID:                    opts.AppID,
+				VersionID:                versionID,
+				BuildID:                  opts.BuildID,
+				Platform:                 opts.Platform,
+				EnsureBuildAttached:      false,
+				LookupExistingSubmission: true,
+				DryRun:                   opts.DryRun,
+				Emit: func(message string) {
+					fmt.Fprintln(os.Stderr, message)
+				},
+			})
+			if submitErr != nil {
+				return stepOutcome{Details: submitResult}, submitErr
 			}
-			if subErr == nil && strings.TrimSpace(legacySubmission.Data.ID) != "" {
-				existingID := strings.TrimSpace(legacySubmission.Data.ID)
+
+			switch {
+			case submitResult.AlreadySubmitted:
 				status := "skipped"
 				message := "submission already exists for version"
 				if opts.DryRun {
@@ -649,42 +653,26 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 				return stepOutcome{
 					Status:       status,
 					Message:      message,
-					Details:      map[string]any{"submissionId": existingID, "alreadySubmitted": true},
+					Details:      submitResult,
 					Persist:      !opts.DryRun,
-					SubmissionID: existingID,
+					SubmissionID: submitResult.SubmissionID,
 				}, nil
-			}
-
-			if opts.DryRun {
+			case submitResult.WouldSubmit:
 				return stepOutcome{
 					Status:  "dry-run",
 					Message: "would create and submit review submission",
-					Details: map[string]any{"versionId": versionID, "buildId": opts.BuildID},
+					Details: submitResult,
 					Persist: false,
 				}, nil
+			default:
+				return stepOutcome{
+					Status:       "ok",
+					Message:      "submitted version for review",
+					Details:      submitResult,
+					Persist:      true,
+					SubmissionID: submitResult.SubmissionID,
+				}, nil
 			}
-
-			warnings := cancelStaleReviewSubmissions(requestCtx, client, opts.AppID, opts.Platform)
-
-			reviewSubmission, createErr := client.CreateReviewSubmission(requestCtx, opts.AppID, asc.Platform(opts.Platform))
-			if createErr != nil {
-				return stepOutcome{}, fmt.Errorf("submit review: create review submission: %w", createErr)
-			}
-			if _, addErr := client.AddReviewSubmissionItem(requestCtx, reviewSubmission.Data.ID, versionID); addErr != nil {
-				return stepOutcome{}, fmt.Errorf("submit review: add version to submission: %w", addErr)
-			}
-			submitResp, submitErr := client.SubmitReviewSubmission(requestCtx, reviewSubmission.Data.ID)
-			if submitErr != nil {
-				return stepOutcome{}, fmt.Errorf("submit review: submit for review: %w", submitErr)
-			}
-
-			return stepOutcome{
-				Status:       "ok",
-				Message:      "submitted version for review",
-				Details:      map[string]any{"submissionId": submitResp.Data.ID, "warnings": warnings},
-				Persist:      true,
-				SubmissionID: submitResp.Data.ID,
-			}, nil
 		}); err != nil {
 			return result, err
 		}
@@ -698,32 +686,6 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 	}
 
 	return result, nil
-}
-
-func cancelStaleReviewSubmissions(ctx context.Context, client *asc.Client, appID, platform string) []string {
-	warnings := make([]string, 0)
-	existing, err := client.GetReviewSubmissions(
-		ctx,
-		appID,
-		asc.WithReviewSubmissionsStates([]string{string(asc.ReviewSubmissionStateReadyForReview)}),
-		asc.WithReviewSubmissionsPlatforms([]string{platform}),
-	)
-	if err != nil {
-		return append(warnings, fmt.Sprintf("failed to query stale review submissions: %v", err))
-	}
-	normalizedPlatform := strings.ToUpper(strings.TrimSpace(platform))
-	for _, sub := range existing.Data {
-		if sub.Attributes.SubmissionState != asc.ReviewSubmissionStateReadyForReview {
-			continue
-		}
-		if normalizedPlatform != "" && !strings.EqualFold(string(sub.Attributes.Platform), normalizedPlatform) {
-			continue
-		}
-		if _, cancelErr := client.CancelReviewSubmission(ctx, sub.ID); cancelErr != nil {
-			warnings = append(warnings, fmt.Sprintf("failed to cancel stale submission %s: %v", sub.ID, cancelErr))
-		}
-	}
-	return warnings
 }
 
 func releaseReadinessSuccessMessage(report validation.Report, dryRun bool) string {

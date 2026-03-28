@@ -177,10 +177,13 @@ Examples:
 					submissionIDToSubmit,
 					resolvedVersionID,
 					preparedSubmission.canceledSubmissionIDs,
+					func(message string) {
+						fmt.Fprintln(os.Stderr, message)
+					},
 				)
 				if err != nil {
 					if createdSubmissionID != "" {
-						cleanupEmptyReviewSubmission(requestCtx, client, createdSubmissionID)
+						cleanupEmptyReviewSubmission(requestCtx, client, createdSubmissionID, nil)
 					}
 					printSubmissionErrorHints(err, submissionErrorHintContext{
 						AppID:         resolvedAppID,
@@ -192,7 +195,7 @@ Examples:
 				}
 			}
 			if createdSubmissionID != "" && submissionIDToSubmit != createdSubmissionID {
-				cleanupEmptyReviewSubmission(requestCtx, client, createdSubmissionID)
+				cleanupEmptyReviewSubmission(requestCtx, client, createdSubmissionID, nil)
 			}
 
 			// Step 3: Submit for review
@@ -215,7 +218,7 @@ Examples:
 			result := &asc.AppStoreVersionSubmissionCreateResult{
 				SubmissionID: submitResp.Data.ID,
 				VersionID:    resolvedVersionID,
-				BuildID:      strings.TrimSpace(*buildID),
+				BuildID:      resolvedBuildID,
 				CreatedDate:  createdDatePtr,
 			}
 
@@ -1182,18 +1185,39 @@ func collectSubmissionErrorSignals(err error) submissionErrorSignals {
 		return signals
 	}
 
-	var apiErr *asc.APIError
-	if errors.As(err, &apiErr) {
-		signals.ingest("", apiErr.Code, apiErr.Detail)
-		for path, entries := range apiErr.AssociatedErrors {
-			signals.ingest(path, "", "")
-			for _, entry := range entries {
-				signals.ingest(path, entry.Code, entry.Detail)
+	stack := []error{err}
+	for len(stack) > 0 {
+		current := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if current == nil {
+			continue
+		}
+
+		signals.ingest("", "", current.Error())
+
+		var apiErr *asc.APIError
+		if errors.As(current, &apiErr) {
+			signals.ingest("", apiErr.Code, apiErr.Detail)
+			for path, entries := range apiErr.AssociatedErrors {
+				signals.ingest(path, "", "")
+				for _, entry := range entries {
+					signals.ingest(path, entry.Code, entry.Detail)
+				}
 			}
+		}
+
+		type unwrapMany interface {
+			Unwrap() []error
+		}
+		if multi, ok := current.(unwrapMany); ok {
+			stack = append(stack, multi.Unwrap()...)
+			continue
+		}
+		if next := errors.Unwrap(current); next != nil {
+			stack = append(stack, next)
 		}
 	}
 
-	signals.ingest("", "", err.Error())
 	return signals
 }
 
@@ -1266,6 +1290,7 @@ func addVersionToSubmissionOrRecover(
 	client *asc.Client,
 	submissionID, versionID string,
 	recentlyCanceledSubmissionIDs map[string]struct{},
+	emit func(string),
 ) (string, error) {
 	for attempt := 0; ; attempt++ {
 		_, err := client.AddReviewSubmissionItem(ctx, submissionID, versionID)
@@ -1282,7 +1307,12 @@ func addVersionToSubmissionOrRecover(
 		switch conflict.Kind {
 		case submissionConflictAlreadyAttached:
 			if _, ok := recentlyCanceledSubmissionIDs[conflictSubmissionID]; !ok {
-				fmt.Fprintf(os.Stderr, "Version already in review submission %s, reusing it.\n", conflictSubmissionID)
+				message := fmt.Sprintf("Version already in review submission %s, reusing it.", conflictSubmissionID)
+				if emit != nil {
+					emit(message)
+				} else {
+					fmt.Fprintln(os.Stderr, message)
+				}
 				return conflictSubmissionID, nil
 			}
 		case submissionConflictStillInProgress:
@@ -1302,16 +1332,79 @@ func addVersionToSubmissionOrRecover(
 		}
 
 		delay := submitCreateRecentlyCanceledRetryDelays[attempt]
-		fmt.Fprintf(
-			os.Stderr,
-			"Version is still detaching from recently canceled review submission %s, retrying add in %s.\n",
+		message := fmt.Sprintf(
+			"Version is still detaching from recently canceled review submission %s, retrying add in %s.",
 			conflictSubmissionID,
 			delay,
 		)
+		if emit != nil {
+			emit(message)
+		} else {
+			fmt.Fprintln(os.Stderr, message)
+		}
 		if err := sleepWithContext(ctx, delay); err != nil {
 			return "", fmt.Errorf("waiting for recently canceled review submission %s to clear: %w", conflictSubmissionID, err)
 		}
 	}
+}
+
+// cancelStaleReviewSubmissions cancels any READY_FOR_REVIEW submissions for the
+// given app and platform. These are orphans from prior failed submit attempts.
+// Errors are logged to stderr but do not block the new submission.
+func cancelStaleReviewSubmissions(ctx context.Context, client *asc.Client, appID, platform string, emit func(string)) map[string]struct{} {
+	existing, err := shared.FetchAllReviewSubmissions(
+		ctx,
+		client,
+		appID,
+		asc.WithReviewSubmissionsStates([]string{string(asc.ReviewSubmissionStateReadyForReview)}),
+		asc.WithReviewSubmissionsPlatforms([]string{platform}),
+		asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}),
+		asc.WithReviewSubmissionsLimit(200),
+	)
+	if err != nil {
+		if emit != nil {
+			emit(fmt.Sprintf("Warning: failed to query stale review submissions: %v", err))
+		}
+		return nil
+	}
+	if len(existing) == 0 {
+		return nil
+	}
+
+	canceledSubmissionIDs := make(map[string]struct{}, len(existing))
+	normalizedPlatform := strings.ToUpper(strings.TrimSpace(platform))
+	for _, sub := range existing {
+		if sub.Attributes.SubmissionState != asc.ReviewSubmissionStateReadyForReview {
+			continue
+		}
+		if normalizedPlatform != "" && !strings.EqualFold(string(sub.Attributes.Platform), normalizedPlatform) {
+			continue
+		}
+
+		if _, cancelErr := client.CancelReviewSubmission(ctx, sub.ID); cancelErr != nil {
+			message := ""
+			if isExpectedNonCancellableReviewSubmissionError(cancelErr) {
+				message = fmt.Sprintf("Skipped stale submission %s: already transitioned to a non-cancellable state", sub.ID)
+			} else {
+				message = fmt.Sprintf("Warning: failed to cancel stale submission %s: %v", sub.ID, cancelErr)
+			}
+			if emit != nil {
+				emit(message)
+			} else {
+				fmt.Fprintln(os.Stderr, message)
+			}
+			continue
+		}
+		canceledSubmissionIDs[sub.ID] = struct{}{}
+		if emit != nil {
+			emit(fmt.Sprintf("Canceled stale review submission %s", sub.ID))
+		}
+	}
+
+	if len(canceledSubmissionIDs) == 0 {
+		return nil
+	}
+	return canceledSubmissionIDs
 }
 
 type submitCreateReviewSubmissionPreparation struct {
@@ -1586,12 +1679,17 @@ func reviewSubmissionIsState(ctx context.Context, client *asc.Client, submission
 	return refreshed.Attributes.SubmissionState == wantState, nil
 }
 
-func cleanupEmptyReviewSubmission(ctx context.Context, client *asc.Client, submissionID string) {
+func cleanupEmptyReviewSubmission(ctx context.Context, client *asc.Client, submissionID string, emit func(string)) {
 	if strings.TrimSpace(submissionID) == "" {
 		return
 	}
 	if _, cancelErr := client.CancelReviewSubmission(ctx, submissionID); cancelErr != nil && !isExpectedNonCancellableReviewSubmissionError(cancelErr) {
-		fmt.Fprintf(os.Stderr, "Warning: failed to cancel empty submission %s: %v\n", submissionID, cancelErr)
+		message := fmt.Sprintf("Warning: failed to cancel empty submission %s: %v", submissionID, cancelErr)
+		if emit != nil {
+			emit(message)
+		} else {
+			fmt.Fprintln(os.Stderr, message)
+		}
 	}
 }
 

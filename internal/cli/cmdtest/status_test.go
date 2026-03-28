@@ -241,6 +241,316 @@ func TestStatusDefaultJSONIncludesAllSections(t *testing.T) {
 	}
 }
 
+func TestStatusAppStorePaginatesBeforeChoosingLatestVersion(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	appStoreCalls := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps":
+			return statusJSONResponse(`{
+				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
+			}`), nil
+		case "/v1/apps/app-1/appStoreVersions":
+			appStoreCalls++
+			switch appStoreCalls {
+			case 1:
+				if req.URL.Query().Get("limit") != "200" {
+					t.Fatalf("expected app store versions limit=200, got %q", req.URL.Query().Get("limit"))
+				}
+				return statusJSONResponse(`{
+					"data":[
+						{
+							"type":"appStoreVersions",
+							"id":"ver-1",
+							"attributes":{
+								"platform":"IOS",
+								"versionString":"1.2.2",
+								"appVersionState":"WAITING_FOR_REVIEW",
+								"createdDate":"2026-02-10T02:00:00Z"
+							}
+						}
+					],
+					"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=page-2"}
+				}`), nil
+			case 2:
+				if req.URL.Query().Get("cursor") != "page-2" {
+					t.Fatalf("expected app store versions cursor=page-2, got %q", req.URL.Query().Get("cursor"))
+				}
+				return statusJSONResponse(`{
+					"data":[
+						{
+							"type":"appStoreVersions",
+							"id":"ver-2",
+							"attributes":{
+								"platform":"IOS",
+								"versionString":"1.2.3",
+								"appVersionState":"READY_FOR_SALE",
+								"createdDate":"2026-02-20T02:00:00Z"
+							}
+						}
+					],
+					"links":{"next":""}
+				}`), nil
+			default:
+				t.Fatalf("unexpected extra app store versions request: %s", req.URL.String())
+				return nil, nil
+			}
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"status", "--app", "app-1", "--include", "appstore"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if appStoreCalls != 2 {
+		t.Fatalf("expected 2 app store versions requests, got %d", appStoreCalls)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+
+	appStore, ok := payload["appstore"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected appstore section, got %T", payload["appstore"])
+	}
+	if appStore["versionId"] != "ver-2" {
+		t.Fatalf("expected paginated latest version ver-2, got %v", appStore["versionId"])
+	}
+	if appStore["version"] != "1.2.3" {
+		t.Fatalf("expected paginated latest version string 1.2.3, got %v", appStore["version"])
+	}
+}
+
+func TestStatusSubmissionAndReviewPaginateBeforeDerivingState(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	reviewCalls := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps":
+			return statusJSONResponse(`{
+				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
+			}`), nil
+		case "/v1/apps/app-1/reviewSubmissions":
+			reviewCalls++
+			switch reviewCalls {
+			case 1:
+				if req.URL.Query().Get("limit") != "200" {
+					t.Fatalf("expected review submissions limit=200, got %q", req.URL.Query().Get("limit"))
+				}
+				return statusJSONResponse(`{
+					"data":[
+						{
+							"type":"reviewSubmissions",
+							"id":"review-sub-1",
+							"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-02-10T03:00:00Z"}
+						}
+					],
+					"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions?cursor=page-2"}
+				}`), nil
+			case 2:
+				if req.URL.Query().Get("cursor") != "page-2" {
+					t.Fatalf("expected review submissions cursor=page-2, got %q", req.URL.Query().Get("cursor"))
+				}
+				return statusJSONResponse(`{
+					"data":[
+						{
+							"type":"reviewSubmissions",
+							"id":"review-sub-2",
+							"attributes":{"state":"UNRESOLVED_ISSUES","platform":"IOS","submittedDate":"2026-02-20T03:00:00Z"}
+						}
+					],
+					"links":{"next":""}
+				}`), nil
+			default:
+				t.Fatalf("unexpected extra review submissions request: %s", req.URL.String())
+				return nil, nil
+			}
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"status", "--app", "app-1", "--include", "submission,review"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if reviewCalls != 2 {
+		t.Fatalf("expected 2 review submissions requests, got %d", reviewCalls)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+
+	review, ok := payload["review"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected review section, got %T", payload["review"])
+	}
+	if review["latestSubmissionId"] != "review-sub-2" {
+		t.Fatalf("expected latest paginated submission review-sub-2, got %v", review["latestSubmissionId"])
+	}
+	if review["state"] != "UNRESOLVED_ISSUES" {
+		t.Fatalf("expected latest paginated review state UNRESOLVED_ISSUES, got %v", review["state"])
+	}
+
+	submission, ok := payload["submission"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected submission section, got %T", payload["submission"])
+	}
+	blockingIssues, ok := submission["blockingIssues"].([]any)
+	if !ok {
+		t.Fatalf("expected blockingIssues slice, got %T", submission["blockingIssues"])
+	}
+	if len(blockingIssues) != 1 || blockingIssues[0] != "submission review-sub-2 has unresolved issues" {
+		t.Fatalf("expected paginated blocking issue for review-sub-2, got %#v", blockingIssues)
+	}
+}
+
+func TestStatusSubmissionIgnoresHistoricUnresolvedIssuesWhenLatestSubmissionMovedOn(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	reviewCalls := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps":
+			return statusJSONResponse(`{
+				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
+			}`), nil
+		case "/v1/apps/app-1/reviewSubmissions":
+			reviewCalls++
+			switch req.URL.Query().Get("cursor") {
+			case "":
+				return statusJSONResponse(`{
+					"data":[
+						{
+							"type":"reviewSubmissions",
+							"id":"review-sub-old",
+							"attributes":{"state":"UNRESOLVED_ISSUES","platform":"IOS","submittedDate":"2026-02-10T03:00:00Z"}
+						}
+					],
+					"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions?cursor=page-2"}
+				}`), nil
+			case "page-2":
+				return statusJSONResponse(`{
+					"data":[
+						{
+							"type":"reviewSubmissions",
+							"id":"review-sub-latest",
+							"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-02-20T03:00:00Z"}
+						}
+					],
+					"links":{"next":""}
+				}`), nil
+			default:
+				t.Fatalf("unexpected review submissions cursor: %q", req.URL.Query().Get("cursor"))
+				return nil, nil
+			}
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"status", "--app", "app-1", "--include", "submission,review"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if reviewCalls != 2 {
+		t.Fatalf("expected 2 review submissions requests, got %d", reviewCalls)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+
+	review, ok := payload["review"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected review section, got %T", payload["review"])
+	}
+	if review["latestSubmissionId"] != "review-sub-latest" {
+		t.Fatalf("expected latest submission review-sub-latest, got %v", review["latestSubmissionId"])
+	}
+	if review["state"] != "COMPLETE" {
+		t.Fatalf("expected latest review state COMPLETE, got %v", review["state"])
+	}
+
+	submission, ok := payload["submission"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected submission section, got %T", payload["submission"])
+	}
+	blockingIssues, ok := submission["blockingIssues"].([]any)
+	if !ok {
+		t.Fatalf("expected blockingIssues slice, got %T", submission["blockingIssues"])
+	}
+	if len(blockingIssues) != 0 {
+		t.Fatalf("expected no blocking issues from stale unresolved submissions, got %#v", blockingIssues)
+	}
+}
+
 func TestStatusIncludeBuildsOnlyFiltersSections(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

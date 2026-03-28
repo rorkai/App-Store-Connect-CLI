@@ -1,11 +1,151 @@
 package status
 
 import (
+	"bytes"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
+
+func TestBuildDashboardSnapshotSignatureTreatsNilAndEmptySlicesEqually(t *testing.T) {
+	first := &dashboardResponse{
+		Summary: statusSummary{
+			Health:     "green",
+			NextAction: "No action needed.",
+			Blockers:   nil,
+		},
+		Submission: &submissionSection{
+			InFlight:       false,
+			BlockingIssues: nil,
+		},
+	}
+	second := &dashboardResponse{
+		Summary: statusSummary{
+			Health:     "green",
+			NextAction: "No action needed.",
+			Blockers:   []string{},
+		},
+		Submission: &submissionSection{
+			InFlight:       false,
+			BlockingIssues: []string{},
+		},
+	}
+
+	firstSig, err := buildDashboardSnapshotSignature(first)
+	if err != nil {
+		t.Fatalf("buildDashboardSnapshotSignature(first) error: %v", err)
+	}
+	secondSig, err := buildDashboardSnapshotSignature(second)
+	if err != nil {
+		t.Fatalf("buildDashboardSnapshotSignature(second) error: %v", err)
+	}
+
+	if firstSig != secondSig {
+		t.Fatalf("expected semantically identical snapshots to match, got %q != %q", firstSig, secondSig)
+	}
+}
+
+func TestBuildDashboardSnapshotSignatureChangesWhenVisibleDataChanges(t *testing.T) {
+	first := &dashboardResponse{
+		Review: &reviewSection{
+			State: "WAITING_FOR_REVIEW",
+		},
+	}
+	second := &dashboardResponse{
+		Review: &reviewSection{
+			State: "IN_REVIEW",
+		},
+	}
+
+	firstSig, err := buildDashboardSnapshotSignature(first)
+	if err != nil {
+		t.Fatalf("buildDashboardSnapshotSignature(first) error: %v", err)
+	}
+	secondSig, err := buildDashboardSnapshotSignature(second)
+	if err != nil {
+		t.Fatalf("buildDashboardSnapshotSignature(second) error: %v", err)
+	}
+
+	if firstSig == secondSig {
+		t.Fatalf("expected differing visible review state to change snapshot signature, got %q", firstSig)
+	}
+}
+
+func TestPrintWatchSnapshot_EmptyFormatUsesSharedDefaultOutput(t *testing.T) {
+	shared.ResetDefaultOutputFormat()
+	t.Setenv("ASC_DEFAULT_OUTPUT", "table")
+	t.Cleanup(shared.ResetDefaultOutputFormat)
+
+	resp := &dashboardResponse{
+		Summary: statusSummary{
+			Health:     "green",
+			NextAction: "No action needed.",
+		},
+	}
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := printWatchSnapshot(resp, "", false, false); err != nil {
+			t.Fatalf("printWatchSnapshot() error = %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if strings.Contains(stdout, `"health"`) {
+		t.Fatalf("expected table-style output, got JSON %q", stdout)
+	}
+	if !strings.Contains(stdout, "SUMMARY") {
+		t.Fatalf("expected rendered table section, got %q", stdout)
+	}
+}
+
+func captureOutput(t *testing.T, fn func()) (string, string) {
+	t.Helper()
+
+	origStdout := os.Stdout
+	origStderr := os.Stderr
+
+	stdoutR, stdoutW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stdout pipe: %v", err)
+	}
+	stderrR, stderrW, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("stderr pipe: %v", err)
+	}
+
+	os.Stdout = stdoutW
+	os.Stderr = stderrW
+	t.Cleanup(func() {
+		os.Stdout = origStdout
+		os.Stderr = origStderr
+	})
+
+	fn()
+
+	if err := stdoutW.Close(); err != nil {
+		t.Fatalf("close stdout writer: %v", err)
+	}
+	if err := stderrW.Close(); err != nil {
+		t.Fatalf("close stderr writer: %v", err)
+	}
+
+	var stdoutBuf bytes.Buffer
+	if _, err := stdoutBuf.ReadFrom(stdoutR); err != nil {
+		t.Fatalf("read stdout: %v", err)
+	}
+	var stderrBuf bytes.Buffer
+	if _, err := stderrBuf.ReadFrom(stderrR); err != nil {
+		t.Fatalf("read stderr: %v", err)
+	}
+
+	return stdoutBuf.String(), stderrBuf.String()
+}
 
 func TestParseInclude_DefaultsToAllSections(t *testing.T) {
 	includes, err := parseInclude("")
@@ -135,6 +275,33 @@ func TestSelectLatestReviewSubmission_ParsesRFC3339Offsets(t *testing.T) {
 	}
 	if selected.ID != "sub-newer" {
 		t.Fatalf("expected sub-newer to be selected, got %q", selected.ID)
+	}
+}
+
+func TestSelectLatestReviewSubmission_PrefersActiveSubmissionWithoutSubmittedDate(t *testing.T) {
+	submissions := []asc.ReviewSubmissionResource{
+		{
+			ID: "sub-complete",
+			Attributes: asc.ReviewSubmissionAttributes{
+				SubmissionState: asc.ReviewSubmissionStateComplete,
+				SubmittedDate:   "2026-03-16T10:00:00Z",
+			},
+		},
+		{
+			ID: "sub-ready",
+			Attributes: asc.ReviewSubmissionAttributes{
+				SubmissionState: asc.ReviewSubmissionStateReadyForReview,
+				SubmittedDate:   "",
+			},
+		},
+	}
+
+	selected := selectLatestReviewSubmission(submissions)
+	if selected == nil {
+		t.Fatal("expected selected submission, got nil")
+	}
+	if selected.ID != "sub-ready" {
+		t.Fatalf("expected active ready-for-review submission to win, got %q", selected.ID)
 	}
 }
 
