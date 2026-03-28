@@ -402,6 +402,9 @@ func TestRootCommand_UsageGroupsSubcommands(t *testing.T) {
 	if strings.Contains(usage, "  offer-codes:") || strings.Contains(usage, "  win-back-offers:") || strings.Contains(usage, "  promoted-purchases:") {
 		t.Fatalf("expected deprecated monetization shims to be hidden from primary root usage, got %q", usage)
 	}
+	if strings.Contains(usage, "  beta-build-localizations:") {
+		t.Fatalf("expected beta-build-localizations to remain hidden from primary root usage, got %q", usage)
+	}
 
 	if !strings.Contains(usage, "  subscriptions:") {
 		t.Fatalf("expected subscriptions command to remain visible in root usage, got %q", usage)
