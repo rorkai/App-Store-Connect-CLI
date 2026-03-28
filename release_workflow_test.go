@@ -39,3 +39,21 @@ func TestReleaseWorkflowExportsHomebrewChecksumsBeforeFormulaGeneration(t *testi
 		t.Fatalf("%q must appear before %q", exportArm64, pythonStep)
 	}
 }
+
+func TestReleaseWorkflowPreservesRubyBinInterpolationInFormulaTest(t *testing.T) {
+	data, err := os.ReadFile(".github/workflows/release.yml")
+	if err != nil {
+		t.Fatalf("read release workflow: %v", err)
+	}
+
+	workflow := string(data)
+	want := `shell_output("#{{bin}}/asc --help")`
+	if !strings.Contains(workflow, want) {
+		t.Fatalf("release workflow missing escaped Ruby interpolation %q", want)
+	}
+
+	unwanted := `shell_output("#{bin}/asc --help")`
+	if strings.Contains(workflow, unwanted) {
+		t.Fatalf("release workflow still contains unescaped Ruby interpolation %q", unwanted)
+	}
+}
