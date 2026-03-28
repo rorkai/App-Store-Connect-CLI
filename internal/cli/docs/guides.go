@@ -25,8 +25,13 @@ var guideRegistry = []guideEntry{
 	},
 	{
 		Slug:        "reference",
-		Description: "ASC CLI command reference (also available via 'asc init')",
+		Description: "Repo-local ASC quick reference (also available via 'asc init')",
 		Content:     ascTemplate,
+	},
+	{
+		Slug:        "workflows",
+		Description: "Task-based workflow recipes for release, TestFlight, and Xcode flows",
+		Content:     docsembed.WorkflowsGuide,
 	},
 }
 

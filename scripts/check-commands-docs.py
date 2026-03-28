@@ -11,6 +11,13 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 README_PATH = REPO_ROOT / "README.md"
 COMMANDS_DOC_PATH = REPO_ROOT / "docs" / "COMMANDS.md"
+DOC_EXAMPLE_PATHS = [
+    README_PATH,
+    REPO_ROOT / "docs" / "WORKFLOWS.md",
+    REPO_ROOT / "docs" / "CI_CD.md",
+    REPO_ROOT / "docs" / "CONTRIBUTING.md",
+    REPO_ROOT / "CONTRIBUTING.md",
+]
 
 ROOT_FLAGS_WITH_VALUE = {"--profile", "--report", "--report-file"}
 
@@ -65,9 +72,9 @@ def extract_top_level_command(line: str) -> str | None:
     return command
 
 
-def validate_readme_examples(live_commands: set[str]) -> list[str]:
+def validate_document_examples(path: Path, live_commands: set[str]) -> list[str]:
     errors: list[str] = []
-    for line_number, line in enumerate(README_PATH.read_text().splitlines(), start=1):
+    for line_number, line in enumerate(path.read_text().splitlines(), start=1):
         stripped = line.strip()
         if not stripped.startswith("asc "):
             continue
@@ -76,7 +83,7 @@ def validate_readme_examples(live_commands: set[str]) -> list[str]:
             continue
         if command not in live_commands:
             errors.append(
-                f"README.md:{line_number}: unknown top-level command '{command}' in '{stripped}'"
+                f"{path.relative_to(REPO_ROOT)}:{line_number}: unknown top-level command '{command}' in '{stripped}'"
             )
     return errors
 
@@ -88,14 +95,16 @@ def main() -> int:
 
     missing = sorted(live_commands - doc_commands)
     extra = sorted(doc_commands - live_commands)
-    readme_errors = validate_readme_examples(live_commands)
+    example_errors: list[str] = []
+    for path in DOC_EXAMPLE_PATHS:
+        example_errors.extend(validate_document_examples(path, live_commands))
 
     problems: list[str] = []
     if missing:
         problems.append(f"Missing in docs/COMMANDS.md: {', '.join(missing)}")
     if extra:
         problems.append(f"Extra in docs/COMMANDS.md: {', '.join(extra)}")
-    problems.extend(readme_errors)
+    problems.extend(example_errors)
 
     if problems:
         print("Command docs are out of sync with live CLI help:")
@@ -105,7 +114,7 @@ def main() -> int:
         return 1
 
     print(
-        f"Command docs are up to date ({len(live_commands)} commands, README examples validated)."
+        f"Command docs are up to date ({len(live_commands)} commands, example docs validated)."
     )
     return 0
 

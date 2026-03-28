@@ -44,13 +44,13 @@ var rootUsageGroups = []rootCommandGroup{
 		title: "TESTFLIGHT & BUILD COMMANDS",
 		commands: []string{
 			"testflight", "feedback", "crashes", "builds", "build-bundles",
-			"build-localizations",
+			"build-localizations", "beta-build-localizations", "xcode",
 			"sandbox",
 		},
 	},
 	{
 		title:    "REVIEW & RELEASE COMMANDS",
-		commands: []string{"release", "review", "reviews", "submit", "validate", "publish"},
+		commands: []string{"release", "status", "release-notes", "review", "reviews", "submit", "validate", "publish"},
 	},
 	{
 		title:    "MONETIZATION COMMANDS",
@@ -66,11 +66,11 @@ var rootUsageGroups = []rootCommandGroup{
 	},
 	{
 		title:    "AUTOMATION COMMANDS",
-		commands: []string{"webhooks", "xcode-cloud", "notify", "migrate"},
+		commands: []string{"workflow", "webhooks", "xcode-cloud", "notify", "migrate"},
 	},
 	{
 		title:    "UTILITY COMMANDS",
-		commands: []string{"version", "completion", "schema"},
+		commands: []string{"diff", "snitch", "version", "completion", "schema"},
 	},
 }
 

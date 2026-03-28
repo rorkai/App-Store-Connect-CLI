@@ -35,11 +35,11 @@ func TestDocsListOutputsEmbeddedGuidesAsJSON(t *testing.T) {
 		t.Fatalf("failed to unmarshal guides JSON: %v\nstdout=%s", err, stdout)
 	}
 
-	if len(guides) != 2 {
-		t.Fatalf("expected 2 guides, got %d", len(guides))
+	if len(guides) != 3 {
+		t.Fatalf("expected 3 guides, got %d", len(guides))
 	}
 
-	expectedSlugs := []string{"api-notes", "reference"}
+	expectedSlugs := []string{"api-notes", "reference", "workflows"}
 	for i, expectedSlug := range expectedSlugs {
 		if guides[i].Slug != expectedSlug {
 			t.Fatalf("expected guide %d slug %q, got %q", i, expectedSlug, guides[i].Slug)
@@ -66,13 +66,10 @@ func TestDocsListSupportsMarkdownOutput(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	for _, slug := range []string{"api-notes", "reference"} {
+	for _, slug := range []string{"api-notes", "reference", "workflows"} {
 		if !strings.Contains(stdout, slug) {
 			t.Fatalf("expected markdown output to contain %q, got %q", slug, stdout)
 		}
-	}
-	if strings.Contains(stdout, "workflows") {
-		t.Fatalf("expected workflows guide to be removed, got %q", stdout)
 	}
 }
 
@@ -95,11 +92,8 @@ func TestDocsListSupportsTableOutput(t *testing.T) {
 	if !strings.Contains(stdout, "slug") || !strings.Contains(stdout, "description") {
 		t.Fatalf("expected table output headers, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "api-notes") || !strings.Contains(stdout, "reference") {
+	if !strings.Contains(stdout, "api-notes") || !strings.Contains(stdout, "reference") || !strings.Contains(stdout, "workflows") {
 		t.Fatalf("expected table output to include all guide slugs, got %q", stdout)
-	}
-	if strings.Contains(stdout, "workflows") {
-		t.Fatalf("expected workflows guide to be removed, got %q", stdout)
 	}
 }
 
@@ -160,6 +154,30 @@ func TestDocsShowPrintsReferenceGuide(t *testing.T) {
 	}
 }
 
+func TestDocsShowPrintsWorkflowsGuide(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"docs", "show", "workflows"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, "# Workflow Patterns") {
+		t.Fatalf("expected workflows guide heading, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "asc release run") || !strings.Contains(stdout, "asc publish testflight") {
+		t.Fatalf("expected workflows guide to document canonical release and TestFlight paths, got %q", stdout)
+	}
+}
+
 func TestDocsShowUnknownGuideReturnsUsageError(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -181,11 +199,8 @@ func TestDocsShowUnknownGuideReturnsUsageError(t *testing.T) {
 	if !strings.Contains(stderr, "unknown guide") {
 		t.Fatalf("expected unknown guide error message, got %q", stderr)
 	}
-	if !strings.Contains(stderr, "api-notes") || !strings.Contains(stderr, "reference") {
+	if !strings.Contains(stderr, "api-notes") || !strings.Contains(stderr, "reference") || !strings.Contains(stderr, "workflows") {
 		t.Fatalf("expected stderr to list available guides, got %q", stderr)
-	}
-	if strings.Contains(stderr, "workflows") {
-		t.Fatalf("expected workflows guide to be removed from available guides, got %q", stderr)
 	}
 }
 
