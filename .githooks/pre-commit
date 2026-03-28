@@ -49,6 +49,9 @@ while IFS= read -r path; do
   esac
 
   case "$path" in
+    *.go|go.mod|go.sum|Makefile)
+      needs_code=1
+      ;;
     website/*|README.md|CONTRIBUTING.md|SUPPORT.md|docs/*|.github/PULL_REQUEST_TEMPLATE.md)
       ;;
     *)
