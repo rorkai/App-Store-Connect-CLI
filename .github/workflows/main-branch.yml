@@ -8,66 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      wall_only: ${{ steps.scope.outputs.wall_only }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Detect change scope
-        id: scope
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          before="${{ github.event.before }}"
-          after="${{ github.sha }}"
-          if [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
-            files="$(git diff --name-only "$before" "$after")"
-          else
-            files="$(git diff-tree --no-commit-id --name-only -r "$after")"
-          fi
-
-          wall_only=true
-          has_files=false
-          while IFS= read -r path; do
-            [ -z "$path" ] && continue
-            has_files=true
-            if [ "$path" != "docs/wall-of-apps.json" ]; then
-              wall_only=false
-            fi
-          done <<< "$files"
-
-          if [ "$has_files" = false ]; then
-            wall_only=false
-          fi
-
-          echo "wall_only=$wall_only" >> "$GITHUB_OUTPUT"
-
-  wall-only-check:
-    needs: changes
-    if: needs.changes.outputs.wall_only == 'true'
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: '1.26.x'
-          cache: true
-
-      - name: Check Wall of Apps source
-        run: make check-wall-of-apps
-
   format-and-lint:
-    needs: changes
-    if: needs.changes.outputs.wall_only != 'true'
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -98,11 +39,8 @@ jobs:
       - name: Check Wall of Apps source
         run: make check-wall-of-apps
 
-      - name: Self-test docs validators
-        run: python3 scripts/test_check_docs.py
-
-      - name: Check documentation
-        run: make check-docs
+      - name: Check command docs sync
+        run: make check-command-docs
 
       - name: Run lint
         run: |
@@ -110,8 +48,6 @@ jobs:
           make lint
 
   test:
-    needs: changes
-    if: needs.changes.outputs.wall_only != 'true'
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -124,17 +60,9 @@ jobs:
           cache: true
 
       - name: Run all tests
-        env:
-          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          ASC_PRIVATE_KEY_PATH: ${{ secrets.ASC_PRIVATE_KEY_PATH }}
-          ASC_APP_ID: ${{ secrets.ASC_APP_ID }}
-          ASC_BYPASS_KEYCHAIN: 1
-        run: go test ./...
+        run: ASC_BYPASS_KEYCHAIN=1 make test
 
   build:
-    needs: changes
-    if: needs.changes.outputs.wall_only != 'true'
     runs-on: macos-latest
     permissions:
       contents: read

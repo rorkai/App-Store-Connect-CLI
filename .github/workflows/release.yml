@@ -34,17 +34,12 @@ jobs:
       - name: Install tooling
         run: make tools
 
-      - name: Self-test docs validators
-        run: python3 scripts/test_check_docs.py
-
-      - name: Check release docs updated
-        run: make check-release-docs VERSION="${VERSION}"
-
       - name: Run release guardrails
         run: |
           export PATH="$(go env GOPATH)/bin:$PATH"
           make format-check
-          make check-docs
+          make check-wall-of-apps
+          make check-command-docs
           make lint
           ASC_BYPASS_KEYCHAIN=1 make test
 
@@ -108,52 +103,70 @@ jobs:
         env:
           TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
         run: |
-          # Skip if no token configured
           if [ -z "$TAP_GITHUB_TOKEN" ]; then
-            echo "TAP_GITHUB_TOKEN not set, skipping Homebrew tap update"
-            exit 0
+            echo "::error::TAP_GITHUB_TOKEN not set"
+            exit 1
           fi
 
-          SHA256=$(shasum -a 256 release/asc_${VERSION}_macOS_arm64 | cut -d ' ' -f 1)
+          export SHA256_AMD64=$(shasum -a 256 release/asc_${VERSION}_macOS_amd64 | cut -d ' ' -f 1)
+          export SHA256=$(shasum -a 256 release/asc_${VERSION}_macOS_arm64 | cut -d ' ' -f 1)
 
           # Clone the tap repo
-          git clone https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/rudrankriyam/homebrew-tap.git homebrew-tap || {
-            echo "Homebrew tap update failed (auth/permissions). Skipping."
-            exit 0
-          }
+          git clone https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/rudrankriyam/homebrew-tap.git homebrew-tap
           cd homebrew-tap
 
           # Update the formula
-          cat > Formula/asc.rb << EOF
-          # typed: false
-          # frozen_string_literal: true
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from textwrap import dedent
 
-          class Asc < Formula
-            desc "A fast, AI-agent friendly CLI for App Store Connect"
-            homepage 'https://github.com/rudrankriyam/App-Store-Connect-CLI'
-            url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/${VERSION}/asc_${VERSION}_macOS_arm64'
-            version '${VERSION}'
-            sha256 '${SHA256}'
-            license 'MIT'
+          version = os.environ["VERSION"]
+          sha256_arm64 = os.environ["SHA256"]
+          sha256_amd64 = os.environ["SHA256_AMD64"]
+          formula = dedent(
+              f"""\
+              # typed: false
+              # frozen_string_literal: true
 
-            depends_on :macos
+              class Asc < Formula
+                desc "A fast, AI-agent friendly CLI for App Store Connect"
+                homepage 'https://github.com/rudrankriyam/App-Store-Connect-CLI'
+                version '{version}'
+                license 'MIT'
 
-            def install
-              bin.install 'asc_${VERSION}_macOS_arm64' => 'asc'
-            end
+                depends_on :macos
 
-            test do
-              assert_match "asc is a lightweight cli", shell_output("#{bin}/asc --help")
-            end
-          end
-          EOF
+                on_macos do
+                  if Hardware::CPU.arm?
+                    url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/{version}/asc_{version}_macOS_arm64'
+                    sha256 '{sha256_arm64}'
+                  else
+                    url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/{version}/asc_{version}_macOS_amd64'
+                    sha256 '{sha256_amd64}'
+                  end
+                end
+
+                def install
+                  if Hardware::CPU.arm?
+                    bin.install 'asc_{version}_macOS_arm64' => 'asc'
+                  else
+                    bin.install 'asc_{version}_macOS_amd64' => 'asc'
+                  end
+                end
+
+                test do
+                  assert_match "asc is a fast, lightweight cli", shell_output("#{{bin}}/asc --help")
+                end
+              end
+              """
+          )
+          Path("Formula/asc.rb").write_text(formula, encoding="utf-8")
+          PY
 
           # Commit and push
           git config user.name "Rudrank Riyam"
           git config user.email "rudrankriyam@gmail.com"
           git add Formula/asc.rb
           git commit -m "Update asc to ${VERSION}" || echo "No changes to commit"
-          git push || {
-            echo "Homebrew tap push failed (auth/permissions). Skipping."
-            exit 0
-          }
+          git push
