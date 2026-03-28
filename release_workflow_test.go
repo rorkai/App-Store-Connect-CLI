@@ -57,3 +57,21 @@ func TestReleaseWorkflowPreservesRubyBinInterpolationInFormulaTest(t *testing.T)
 		t.Fatalf("release workflow still contains unescaped Ruby interpolation %q", unwanted)
 	}
 }
+
+func TestReleaseWorkflowKeepsDocsGuardrails(t *testing.T) {
+	data, err := os.ReadFile(".github/workflows/release.yml")
+	if err != nil {
+		t.Fatalf("read release workflow: %v", err)
+	}
+
+	workflow := string(data)
+	for _, want := range []string{
+		`python3 scripts/test_check_docs.py`,
+		`make check-release-docs VERSION="${VERSION}"`,
+		`make check-docs`,
+	} {
+		if !strings.Contains(workflow, want) {
+			t.Fatalf("release workflow missing docs guardrail %q", want)
+		}
+	}
+}

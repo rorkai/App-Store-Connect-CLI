@@ -34,12 +34,18 @@ jobs:
       - name: Install tooling
         run: make tools
 
+      - name: Self-test docs validators
+        run: python3 scripts/test_check_docs.py
+
+      - name: Check release docs updated
+        run: make check-release-docs VERSION="${VERSION}"
+
       - name: Run release guardrails
         run: |
           export PATH="$(go env GOPATH)/bin:$PATH"
           make format-check
+          make check-docs
           make check-wall-of-apps
-          make check-command-docs
           make lint
           ASC_BYPASS_KEYCHAIN=1 make test
 

@@ -33,13 +33,11 @@ NC := \033[0m # No Color
 all: build
 
 # Build the binary
-.PHONY: build $(BINARY_NAME)
-build: $(BINARY_NAME)
-	@echo "$(GREEN)✓ Build complete: $(BINARY_NAME)$(NC)"
-
-$(BINARY_NAME): $(GOMOD)
+.PHONY: build
+build:
 	@echo "$(BLUE)Building $(BINARY_NAME)...$(NC)"
 	$(GO) build -ldflags "$(LDFLAGS)" -o $(BINARY_NAME) .
+	@echo "$(GREEN)✓ Build complete: $(BINARY_NAME)$(NC)"
 
 # Build release-style binaries for supported platforms
 .PHONY: build-all
@@ -180,6 +178,29 @@ check-command-docs:
 	python3 ./scripts/generate-command-docs.py --check
 	python3 ./scripts/check-commands-docs.py
 
+.PHONY: check-repo-docs
+check-repo-docs:
+	@echo "$(BLUE)Checking repository docs links...$(NC)"
+	python3 ./scripts/check_repo_docs.py
+
+.PHONY: check-website-docs
+check-website-docs:
+	@echo "$(BLUE)Checking Mintlify website docs...$(NC)"
+	python3 ./scripts/check_website_docs.py
+	python3 ./scripts/check_website_commands.py
+
+.PHONY: check-release-docs
+check-release-docs:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "$(YELLOW)VERSION is required. Example: make check-release-docs VERSION=0.36.4$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)Checking release docs for $(VERSION)...$(NC)"
+	python3 ./scripts/check_release_docs.py "$(VERSION)"
+
+.PHONY: check-docs
+check-docs: check-command-docs check-repo-docs check-website-docs
+
 .PHONY: check-wall-of-apps
 check-wall-of-apps:
 	@echo "$(BLUE)Checking Wall of Apps source...$(NC)"
@@ -241,6 +262,10 @@ help:
 	@echo "  update-openapi Update OpenAPI paths index"
 	@echo "  generate-command-docs Generate docs/COMMANDS.md from live CLI help"
 	@echo "  check-command-docs Validate docs command lists against live CLI help"
+	@echo "  check-repo-docs Validate local links in repository markdown docs"
+	@echo "  check-website-docs Validate Mintlify website navigation, links, and CLI examples"
+	@echo "  check-release-docs Validate website release docs for VERSION=<x.y.z>"
+	@echo "  check-docs     Run all documentation checks"
 	@echo "  clean          Clean build artifacts"
 	@echo "  install        Install binary"
 	@echo "  uninstall      Uninstall binary"

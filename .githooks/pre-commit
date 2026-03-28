@@ -6,6 +6,87 @@ cd "$repo_root"
 
 export PATH="$(go env GOPATH)/bin:$PATH"
 
+staged_files="$(git diff --cached --name-only --diff-filter=ACMR)"
+if [ -z "$staged_files" ]; then
+  exit 0
+fi
+
+needs_code=0
+needs_repo_docs=0
+needs_website_docs=0
+needs_command_docs=0
+needs_wall_of_apps=0
+
+while IFS= read -r path; do
+  [ -z "$path" ] && continue
+
+  if [ "$path" = "docs/wall-of-apps.json" ]; then
+    # Keep Wall of Apps submissions on the JSON-only fast path requested for
+    # `asc apps wall submit`, instead of routing them through generic doc checks.
+    # CI mirrors this behavior with the wall-only workflow path.
+    needs_wall_of_apps=1
+    continue
+  fi
+
+  case "$path" in
+    docs.json|.mintignore|.mintlify/*|*.mdx|cicd/*|commands/*|concepts/*|configuration/*|guides/*|resources/*)
+      needs_website_docs=1
+      ;;
+  esac
+
+  case "$path" in
+    README.md|CONTRIBUTING.md|SUPPORT.md|docs/*|.github/PULL_REQUEST_TEMPLATE.md)
+      needs_repo_docs=1
+      ;;
+  esac
+
+  case "$path" in
+    docs/COMMANDS.md|*.go|go.mod|go.sum|Makefile)
+      # Command docs are generated from live CLI help, so Go/CLI build changes
+      # need the sync check even when docs/COMMANDS.md itself is not staged yet.
+      needs_command_docs=1
+      ;;
+  esac
+
+  case "$path" in
+    *.go|go.mod|go.sum|Makefile)
+      needs_code=1
+      ;;
+    docs.json|.mintignore|.mintlify/*|*.mdx|cicd/*|commands/*|concepts/*|configuration/*|guides/*|resources/*|README.md|CONTRIBUTING.md|SUPPORT.md|docs/*|.github/PULL_REQUEST_TEMPLATE.md)
+      ;;
+    *)
+      needs_code=1
+      ;;
+  esac
+done <<EOF
+$staged_files
+EOF
+
+if [ "$needs_wall_of_apps" -eq 1 ]; then
+  echo "Running Wall of Apps checks..."
+  make check-wall-of-apps
+fi
+
+if [ "$needs_repo_docs" -eq 1 ]; then
+  echo "Running repository docs checks..."
+  make check-repo-docs
+fi
+
+if [ "$needs_website_docs" -eq 1 ]; then
+  echo "Running website docs checks..."
+  make check-website-docs
+fi
+
+if [ "$needs_command_docs" -eq 1 ]; then
+  echo "Running command docs checks..."
+  make check-command-docs
+fi
+
+if [ "$needs_code" -eq 0 ]; then
+  echo "Docs-only or Wall-only staged changes detected. Skipping Go format, lint, and tests."
+  exit 0
+fi
+
 echo "Running format checks..."
 make format
 if ! git diff --quiet; then
@@ -17,8 +98,5 @@ fi
 echo "Running lint checks..."
 make lint
 
-echo "Checking command docs..."
-make check-command-docs
-
-echo "Running full test suite..."
-ASC_BYPASS_KEYCHAIN=1 make test
+echo "Running short test suite..."
+ASC_BYPASS_KEYCHAIN=1 go test -short ./...

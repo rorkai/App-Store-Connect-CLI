@@ -5,7 +5,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 func TestMakeCleanRemovesReleaseDirectory(t *testing.T) {
@@ -77,7 +76,6 @@ func TestMakeBuildRebuildsBinaryWhenSourceChanges(t *testing.T) {
 		t.Fatalf("expected initial binary output %q, got %q", "first", got)
 	}
 
-	time.Sleep(1100 * time.Millisecond)
 	writeWorkspaceFile("main.go", "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Print(\"second\") }\n")
 
 	runMakeBuild()
