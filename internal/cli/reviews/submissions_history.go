@@ -8,7 +8,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -292,7 +291,7 @@ func enrichSubmissions(ctx context.Context, client *asc.Client, submissions []as
 
 	// Sort by submittedDate descending
 	sort.Slice(entries, func(i, j int) bool {
-		cmp := compareRFC3339DateStrings(entries[i].SubmittedDate, entries[j].SubmittedDate)
+		cmp := shared.CompareRFC3339DateStrings(entries[i].SubmittedDate, entries[j].SubmittedDate)
 		if cmp == 0 {
 			return entries[i].SubmissionID > entries[j].SubmissionID
 		}
@@ -494,48 +493,4 @@ func deriveOutcome(submissionState string, itemStates []string) string {
 		return "rejected"
 	}
 	return strings.ToLower(submissionState)
-}
-
-func compareRFC3339DateStrings(current, best string) int {
-	currentTime, currentValid := parseRFC3339Date(current)
-	bestTime, bestValid := parseRFC3339Date(best)
-
-	switch {
-	case currentValid && bestValid:
-		if currentTime.After(bestTime) {
-			return 1
-		}
-		if currentTime.Before(bestTime) {
-			return -1
-		}
-		return 0
-	case currentValid:
-		return 1
-	case bestValid:
-		return -1
-	default:
-		current = strings.TrimSpace(current)
-		best = strings.TrimSpace(best)
-		if current > best {
-			return 1
-		}
-		if current < best {
-			return -1
-		}
-		return 0
-	}
-}
-
-func parseRFC3339Date(value string) (time.Time, bool) {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return time.Time{}, false
-	}
-	if parsed, err := time.Parse(time.RFC3339, trimmed); err == nil {
-		return parsed, true
-	}
-	if parsed, err := time.Parse(time.RFC3339Nano, trimmed); err == nil {
-		return parsed, true
-	}
-	return time.Time{}, false
 }
