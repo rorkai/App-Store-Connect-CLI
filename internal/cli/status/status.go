@@ -291,8 +291,11 @@ func normalizeStringSlice(values []string) []string {
 
 func printWatchSnapshot(resp *dashboardResponse, output string, pretty bool, separator bool) error {
 	format := strings.ToLower(strings.TrimSpace(output))
+	if format == "" {
+		format = shared.DefaultOutputFormat()
+	}
 	switch format {
-	case "", "json":
+	case "json":
 		var (
 			data []byte
 			err  error
