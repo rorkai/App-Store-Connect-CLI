@@ -1193,8 +1193,6 @@ func collectSubmissionErrorSignals(err error) submissionErrorSignals {
 			continue
 		}
 
-		signals.ingest("", "", current.Error())
-
 		var apiErr *asc.APIError
 		if errors.As(current, &apiErr) {
 			signals.ingest("", apiErr.Code, apiErr.Detail)
@@ -1205,6 +1203,7 @@ func collectSubmissionErrorSignals(err error) submissionErrorSignals {
 				}
 			}
 		}
+		signals.ingest("", "", current.Error())
 
 		type unwrapMany interface {
 			Unwrap() []error
