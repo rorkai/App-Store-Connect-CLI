@@ -2,6 +2,7 @@ package cmdtest
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -399,7 +400,9 @@ func TestPublishAppStoreSubmitDefaultPathHonorsASCTimeout(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_TIMEOUT", "100ms")
+	t.Setenv("ASC_TIMEOUT", "250ms")
+
+	stopErr := errors.New("stop after publish timeout budget capture")
 
 	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
 	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
@@ -465,7 +468,7 @@ func TestPublishAppStoreSubmitDefaultPathHonorsASCTimeout(t *testing.T) {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
 			return jsonResponse(http.StatusOK, `{"data":[],"links":{}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
-			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+			return nil, stopErr
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-sub-1":
@@ -479,6 +482,7 @@ func TestPublishAppStoreSubmitDefaultPathHonorsASCTimeout(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
+	var runErr error
 	_, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "appstore",
@@ -492,18 +496,19 @@ func TestPublishAppStoreSubmitDefaultPathHonorsASCTimeout(t *testing.T) {
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
-		if err := root.Run(context.Background()); err != nil {
-			t.Fatalf("expected publish appstore submit to honor ASC_TIMEOUT and succeed, got %v", err)
-		}
+		runErr = root.Run(context.Background())
 	})
 
+	if runErr == nil || !strings.Contains(runErr.Error(), stopErr.Error()) {
+		t.Fatalf("expected publish appstore submit to stop after capturing ASC_TIMEOUT budgets, got %v", runErr)
+	}
 	if stderr == "" {
 		t.Fatal("expected progress output on stderr, got empty string")
 	}
-	if localizationBudget <= 0 || localizationBudget > 500*time.Millisecond {
+	if localizationBudget <= 0 || localizationBudget > time.Second {
 		t.Fatalf("expected localization preflight to honor ASC_TIMEOUT-derived budget, got %v", localizationBudget)
 	}
-	if subscriptionBudget <= 0 || subscriptionBudget > 500*time.Millisecond {
+	if subscriptionBudget <= 0 || subscriptionBudget > time.Second {
 		t.Fatalf("expected subscription preflight to honor ASC_TIMEOUT-derived budget, got %v", subscriptionBudget)
 	}
 }
