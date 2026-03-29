@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStatusWatchJSONEmitsChangedSnapshots(t *testing.T) {
@@ -171,6 +172,84 @@ func TestStatusWatchCancellationDuringSnapshotFetchExitsCleanly(t *testing.T) {
 
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestStatusWatchDeadlineDuringSnapshotFetchExitsCleanly(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return nil, req.Context().Err()
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"status",
+			"--app", "123456789",
+			"--watch",
+			"--poll-interval", "1ms",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(ctx); err != nil {
+			t.Fatalf("expected clean exit on deadline, got %v", err)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestStatusWatchDeadlineWhileWaitingForNextPollExitsCleanly(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"status",
+			"--app", "123456789",
+			"--include", "links",
+			"--watch",
+			"--poll-interval", "1h",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(ctx); err != nil {
+			t.Fatalf("expected clean exit on deadline, got %v", err)
+		}
+	})
+
+	if !strings.Contains(stdout, `"links"`) {
+		t.Fatalf("expected first snapshot before deadline exit, got %q", stdout)
 	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
