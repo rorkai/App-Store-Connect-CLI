@@ -73,6 +73,7 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 				return jsonResponse(http.StatusOK, `{"data":[]}`)
 			default:
 				t.Fatalf("unexpected app store versions query: %s", req.URL.RawQuery)
+				return nil, nil
 			}
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/build":
 			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
@@ -105,8 +106,6 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
 			return nil, nil
 		}
-
-		return nil, nil
 	})
 
 	root := RootCommand("1.2.3")
