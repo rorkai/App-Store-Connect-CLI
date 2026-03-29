@@ -1098,6 +1098,11 @@ func submitPreflightRequestContext(ctx context.Context, requestTimeout time.Dura
 	if requestTimeout > 0 {
 		return shared.ContextWithTimeoutDuration(shared.ContextWithoutTimeout(ctx), requestTimeout)
 	}
+	if ctx != nil {
+		if _, ok := ctx.Deadline(); ok {
+			return ctx, func() {}
+		}
+	}
 	return shared.ContextWithTimeout(ctx)
 }
 

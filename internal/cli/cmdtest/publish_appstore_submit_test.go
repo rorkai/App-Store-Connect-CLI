@@ -403,7 +403,6 @@ func TestPublishAppStoreSubmitDefaultTimeoutUsesSharedPipelineBudget(t *testing.
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
-	t.Setenv("ASC_TIMEOUT", "100ms")
 
 	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
 	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
@@ -416,6 +415,7 @@ func TestPublishAppStoreSubmitDefaultTimeoutUsesSharedPipelineBudget(t *testing.
 	})
 
 	var localizationBudget time.Duration
+	var subscriptionBudget time.Duration
 	var reviewSubmissionBudget time.Duration
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -470,6 +470,11 @@ func TestPublishAppStoreSubmitDefaultTimeoutUsesSharedPipelineBudget(t *testing.
 			}
 			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
+			deadline, ok := req.Context().Deadline()
+			if !ok {
+				t.Fatal("expected subscription preflight request to have a deadline")
+			}
+			subscriptionBudget = time.Until(deadline)
 			return jsonResponse(http.StatusOK, `{"data":[],"links":{}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
 			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
@@ -522,8 +527,17 @@ func TestPublishAppStoreSubmitDefaultTimeoutUsesSharedPipelineBudget(t *testing.
 	if localizationBudget == 0 {
 		t.Fatal("expected localization preflight budget to be captured")
 	}
+	if subscriptionBudget == 0 {
+		t.Fatal("expected subscription preflight budget to be captured")
+	}
 	if reviewSubmissionBudget == 0 {
 		t.Fatal("expected review submission budget to be captured")
+	}
+	if localizationBudget < time.Minute {
+		t.Fatalf("expected localization preflight to inherit publish pipeline timeout, got %v", localizationBudget)
+	}
+	if subscriptionBudget < time.Minute {
+		t.Fatalf("expected subscription preflight to inherit publish pipeline timeout, got %v", subscriptionBudget)
 	}
 	// The default publish path should keep consuming one shared timeout budget
 	// across preflight and submission instead of refreshing a fresh deadline.

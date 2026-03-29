@@ -2945,6 +2945,43 @@ func TestPrepareReviewSubmissionForCreatePaginatesReadyForReviewLookups(t *testi
 	}
 }
 
+func TestSubmitPreflightRequestContextUsesDefaultTimeoutWithoutCallerDeadline(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "100ms")
+
+	ctx, cancel := submitPreflightRequestContext(context.Background(), 0)
+	defer cancel()
+
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		t.Fatal("expected default preflight context to have a deadline")
+	}
+	if budget := time.Until(deadline); budget <= 0 || budget > 500*time.Millisecond {
+		t.Fatalf("expected default preflight budget near ASC_TIMEOUT, got %v", budget)
+	}
+}
+
+func TestSubmitPreflightRequestContextPreservesCallerDeadlineWithoutOverride(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "100ms")
+
+	parentDeadline := time.Now().Add(2 * time.Minute)
+	parentCtx, parentCancel := context.WithDeadline(context.Background(), parentDeadline)
+	defer parentCancel()
+
+	ctx, cancel := submitPreflightRequestContext(parentCtx, 0)
+	defer cancel()
+
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		t.Fatal("expected inherited preflight context to keep caller deadline")
+	}
+	if deadline.Before(parentDeadline.Add(-time.Second)) || deadline.After(parentDeadline.Add(time.Second)) {
+		t.Fatalf("expected inherited deadline near %v, got %v", parentDeadline, deadline)
+	}
+	if budget := time.Until(deadline); budget < time.Minute {
+		t.Fatalf("expected inherited budget to remain on caller timeout, got %v", budget)
+	}
+}
+
 func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
 	stderr := captureSubmitStderr(t, func() {
 		printSubmissionErrorHints(errors.New("ageRatingDeclaration contentRightsDeclaration usesNonExemptEncryption appDataUsage primaryCategory"), submissionErrorHintContext{

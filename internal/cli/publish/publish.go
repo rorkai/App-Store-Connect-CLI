@@ -345,12 +345,7 @@ Examples:
 			}
 
 			timeoutValue := resolvePublishTimeout(*timeout)
-			var client *asc.Client
-			if *timeout > 0 {
-				client, err = shared.GetASCClientWithTimeout(timeoutValue)
-			} else {
-				client, err = shared.GetASCClient()
-			}
+			client, err := shared.GetASCClientWithTimeout(timeoutValue)
 			if err != nil {
 				return fmt.Errorf("publish appstore: %w", err)
 			}
@@ -432,7 +427,7 @@ Examples:
 					return fmt.Errorf("publish appstore: %w", err)
 				}
 				result.SubmissionID = submitResult.SubmissionID
-				result.Submitted = submitResult.AlreadySubmitted || submitResult.SubmissionID != ""
+				result.Submitted = submitResult.SubmissionID != ""
 			}
 
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
