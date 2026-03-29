@@ -392,28 +392,35 @@ Examples:
 			}
 
 			if *submit {
+				submitCtx := requestCtx
+				submitRequestTimeout := time.Duration(0)
+				if *timeout > 0 {
+					submitCtx = ctx
+					submitRequestTimeout = timeoutValue
+				}
+
 				localizationPreflight := func() error {
-					if *timeout > 0 {
-						return submitcli.SubmissionLocalizationPreflightWithTimeout(ctx, client, resolvedAppID, versionResp.Data.ID, normalizedPlatform, timeoutValue)
+					if submitRequestTimeout > 0 {
+						return submitcli.SubmissionLocalizationPreflightWithTimeout(submitCtx, client, resolvedAppID, versionResp.Data.ID, normalizedPlatform, submitRequestTimeout)
 					}
-					return submitcli.SubmissionLocalizationPreflight(ctx, client, resolvedAppID, versionResp.Data.ID, normalizedPlatform)
+					return submitcli.SubmissionLocalizationPreflight(submitCtx, client, resolvedAppID, versionResp.Data.ID, normalizedPlatform)
 				}
 				if err := localizationPreflight(); err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
 
-				if *timeout > 0 {
-					submitcli.SubmissionSubscriptionPreflightWithTimeout(ctx, client, resolvedAppID, timeoutValue)
+				if submitRequestTimeout > 0 {
+					submitcli.SubmissionSubscriptionPreflightWithTimeout(submitCtx, client, resolvedAppID, submitRequestTimeout)
 				} else {
-					submitcli.SubmissionSubscriptionPreflight(ctx, client, resolvedAppID)
+					submitcli.SubmissionSubscriptionPreflight(submitCtx, client, resolvedAppID)
 				}
 
-				submitResult, err := submitcli.SubmitResolvedVersion(ctx, client, submitcli.SubmitResolvedVersionOptions{
+				submitResult, err := submitcli.SubmitResolvedVersion(submitCtx, client, submitcli.SubmitResolvedVersionOptions{
 					AppID:                    resolvedAppID,
 					VersionID:                versionResp.Data.ID,
 					BuildID:                  buildResp.Data.ID,
 					Platform:                 normalizedPlatform,
-					RequestTimeout:           timeoutValue,
+					RequestTimeout:           submitRequestTimeout,
 					EnsureBuildAttached:      false,
 					LookupExistingSubmission: true,
 					DryRun:                   false,

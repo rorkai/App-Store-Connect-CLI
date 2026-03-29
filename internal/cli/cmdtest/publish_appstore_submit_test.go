@@ -121,6 +121,7 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 			"--build-number", "42",
 			"--submit",
 			"--confirm",
+			"--timeout", "1s",
 			"--poll-interval", "1ms",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
@@ -253,6 +254,7 @@ func TestPublishAppStoreSubmitUsesFreshTimeoutBudgetsForPreflightAndSubmission(t
 			"--build-number", "42",
 			"--submit",
 			"--confirm",
+			"--timeout", "1s",
 			"--poll-interval", "1ms",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
@@ -395,5 +397,120 @@ func TestPublishAppStoreSubmitPreflightUsesPublishTimeoutOverride(t *testing.T) 
 	}
 	if subscriptionBudget < 700*time.Millisecond {
 		t.Fatalf("expected subscription preflight to use publish timeout budget, got %v", subscriptionBudget)
+	}
+}
+
+func TestPublishAppStoreSubmitDefaultTimeoutUsesSharedPipelineBudget(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_TIMEOUT", "100ms")
+
+	ipaPath := filepath.Join(t.TempDir(), "app.ipa")
+	if err := os.WriteFile(ipaPath, []byte("test"), 0o600); err != nil {
+		t.Fatalf("write ipa fixture: %v", err)
+	}
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	var reviewSubmissionBudget time.Duration
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"}}}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploadFiles":
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"fileName":"app.ipa","fileSize":4,"uti":"com.apple.itunes.ipa","assetType":"ASSET","uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part-1","length":4,"offset":0,"requestHeaders":[{"name":"Content-Type","value":"application/octet-stream"}]}]}}}`)
+		case req.Method == http.MethodPut && req.URL.Host == "upload.example.com":
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     http.Header{},
+			}, nil
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/buildUploadFiles/file-1":
+			return jsonResponse(http.StatusOK, `{"data":{"type":"buildUploadFiles","id":"file-1","attributes":{"uploaded":true}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/buildUploads/upload-1":
+			return jsonResponse(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","attributes":{"cfBundleShortVersionString":"1.2.3","cfBundleVersion":"42","platform":"IOS"},"relationships":{"build":{"data":{"type":"builds","id":"build-42"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-42":
+			return jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"VALID"}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/preReleaseVersions":
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds":
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"builds","id":"build-42","attributes":{"version":"42","processingState":"VALID"}}],"links":{"next":""}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			query := req.URL.Query()
+			switch {
+			case query.Get("filter[versionString]") == "1.2.3":
+				return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}]}`)
+			case strings.Contains(query.Get("filter[appStoreState]"), "READY_FOR_SALE"):
+				return jsonResponse(http.StatusOK, `{"data":[]}`)
+			default:
+				t.Fatalf("unexpected app store versions query: %s", req.URL.RawQuery)
+				return nil, nil
+			}
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/build":
+			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			return jsonResponse(http.StatusNoContent, "")
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			if err := sleepWithContext(req.Context()); err != nil {
+				return nil, err
+			}
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
+			return jsonResponse(http.StatusOK, `{"data":[],"links":{}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
+			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions":
+			return jsonResponse(http.StatusOK, `{"data":[],"links":{}}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissions":
+			deadline, ok := req.Context().Deadline()
+			if !ok {
+				t.Fatal("expected review submission request to have a deadline")
+			}
+			reviewSubmissionBudget = time.Until(deadline)
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"READY_FOR_REVIEW","platform":"IOS"}}}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/reviewSubmissionItems":
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"reviewSubmissionItems","id":"item-1"}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/review-sub-1":
+			return jsonResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"review-sub-1","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-15T00:00:00Z"}}}`)
+		default:
+			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"publish", "appstore",
+			"--app", "app-1",
+			"--ipa", ipaPath,
+			"--version", "1.2.3",
+			"--build-number", "42",
+			"--submit",
+			"--confirm",
+			"--poll-interval", "1ms",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("expected publish appstore submit to succeed with default timeout, got %v", err)
+		}
+	})
+
+	if stderr == "" {
+		t.Fatalf("expected progress output on stderr, got empty string")
+	}
+	if !strings.Contains(stdout, `"submissionId":"review-sub-1"`) {
+		t.Fatalf("expected review submission ID in output, got %q", stdout)
+	}
+	if reviewSubmissionBudget >= 60*time.Millisecond {
+		t.Fatalf("expected default publish timeout to keep the shared pipeline budget, got %v", reviewSubmissionBudget)
 	}
 }
