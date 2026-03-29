@@ -392,11 +392,21 @@ Examples:
 			}
 
 			if *submit {
-				if err := submitcli.SubmissionLocalizationPreflightWithTimeout(ctx, client, resolvedAppID, versionResp.Data.ID, normalizedPlatform, timeoutValue); err != nil {
+				localizationPreflight := func() error {
+					if *timeout > 0 {
+						return submitcli.SubmissionLocalizationPreflightWithTimeout(ctx, client, resolvedAppID, versionResp.Data.ID, normalizedPlatform, timeoutValue)
+					}
+					return submitcli.SubmissionLocalizationPreflight(ctx, client, resolvedAppID, versionResp.Data.ID, normalizedPlatform)
+				}
+				if err := localizationPreflight(); err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
 
-				submitcli.SubmissionSubscriptionPreflightWithTimeout(ctx, client, resolvedAppID, timeoutValue)
+				if *timeout > 0 {
+					submitcli.SubmissionSubscriptionPreflightWithTimeout(ctx, client, resolvedAppID, timeoutValue)
+				} else {
+					submitcli.SubmissionSubscriptionPreflight(ctx, client, resolvedAppID)
+				}
 
 				submitResult, err := submitcli.SubmitResolvedVersion(ctx, client, submitcli.SubmitResolvedVersionOptions{
 					AppID:                    resolvedAppID,
