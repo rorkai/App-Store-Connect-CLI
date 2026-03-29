@@ -831,6 +831,58 @@ func TestBuildsWaitFailOnInvalidReturnsError(t *testing.T) {
 	}
 }
 
+func TestBuildsWaitFailedStateReturnsError(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds/build-1" {
+			t.Fatalf("expected path /v1/builds/build-1, got %s", req.URL.Path)
+		}
+		body := `{"data":{"type":"builds","id":"build-1","attributes":{"processingState":"FAILED","version":"42"}}}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "wait", "--build-id", "build-1", "--poll-interval", "1ms", "--timeout", "100ms"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected FAILED-state failure error")
+	}
+	if errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected runtime error, got usage error: %v", runErr)
+	}
+	if !strings.Contains(runErr.Error(), "build processing failed with state FAILED") {
+		t.Fatalf("expected FAILED failure, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout on failure, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Waiting for build build-1... (FAILED") {
+		t.Fatalf("expected progress output on stderr, got %q", stderr)
+	}
+}
+
 type buildsWaitJSONResult struct {
 	Data struct {
 		ID         string `json:"id"`
