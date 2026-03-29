@@ -1369,65 +1369,6 @@ func addVersionToSubmissionOrRecover(
 	}
 }
 
-// cancelStaleReviewSubmissions cancels any READY_FOR_REVIEW submissions for the
-// given app and platform. These are orphans from prior failed submit attempts.
-// Errors are logged to stderr but do not block the new submission.
-func cancelStaleReviewSubmissions(ctx context.Context, client *asc.Client, appID, platform string, emit func(string)) map[string]struct{} {
-	existing, err := shared.FetchAllReviewSubmissions(
-		ctx,
-		client,
-		appID,
-		asc.WithReviewSubmissionsStates([]string{string(asc.ReviewSubmissionStateReadyForReview)}),
-		asc.WithReviewSubmissionsPlatforms([]string{platform}),
-		asc.WithReviewSubmissionsInclude([]string{"appStoreVersionForReview"}),
-		asc.WithReviewSubmissionsLimit(200),
-	)
-	if err != nil {
-		if emit != nil {
-			emit(fmt.Sprintf("Warning: failed to query stale review submissions: %v", err))
-		}
-		return nil
-	}
-	if len(existing) == 0 {
-		return nil
-	}
-
-	canceledSubmissionIDs := make(map[string]struct{}, len(existing))
-	normalizedPlatform := strings.ToUpper(strings.TrimSpace(platform))
-	for _, sub := range existing {
-		if sub.Attributes.SubmissionState != asc.ReviewSubmissionStateReadyForReview {
-			continue
-		}
-		if normalizedPlatform != "" && !strings.EqualFold(string(sub.Attributes.Platform), normalizedPlatform) {
-			continue
-		}
-
-		if _, cancelErr := client.CancelReviewSubmission(ctx, sub.ID); cancelErr != nil {
-			message := ""
-			if isExpectedNonCancellableReviewSubmissionError(cancelErr) {
-				message = fmt.Sprintf("Skipped stale submission %s: already transitioned to a non-cancellable state", sub.ID)
-			} else {
-				message = fmt.Sprintf("Warning: failed to cancel stale submission %s: %v", sub.ID, cancelErr)
-			}
-			if emit != nil {
-				emit(message)
-			} else {
-				fmt.Fprintln(os.Stderr, message)
-			}
-			continue
-		}
-		canceledSubmissionIDs[sub.ID] = struct{}{}
-		if emit != nil {
-			emit(fmt.Sprintf("Canceled stale review submission %s", sub.ID))
-		}
-	}
-
-	if len(canceledSubmissionIDs) == 0 {
-		return nil
-	}
-	return canceledSubmissionIDs
-}
-
 type submitCreateReviewSubmissionPreparation struct {
 	reuseSubmissionID         string
 	reuseSubmissionHasVersion bool

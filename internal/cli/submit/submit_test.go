@@ -2945,66 +2945,6 @@ func TestPrepareReviewSubmissionForCreatePaginatesReadyForReviewLookups(t *testi
 	}
 }
 
-func TestCancelStaleReviewSubmissionsPaginatesReadyForReviewLookups(t *testing.T) {
-	requests := make([]string, 0, 6)
-	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, req.Method+" "+req.URL.RequestURI())
-
-		switch {
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions" && req.URL.Query().Get("cursor") == "":
-			return submitJSONResponse(http.StatusOK, `{
-				"data": [{
-					"type": "reviewSubmissions",
-					"id": "stale-sub-1",
-					"attributes": {
-						"state": "READY_FOR_REVIEW",
-						"platform": "IOS"
-					}
-				}],
-				"links": {
-					"next": "https://api.appstoreconnect.apple.com/v1/apps/app-1/reviewSubmissions?cursor=page-2"
-				}
-			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/reviewSubmissions" && req.URL.Query().Get("cursor") == "page-2":
-			return submitJSONResponse(http.StatusOK, `{
-				"data": [{
-					"type": "reviewSubmissions",
-					"id": "stale-sub-2",
-					"attributes": {
-						"state": "READY_FOR_REVIEW",
-						"platform": "IOS"
-					}
-				}],
-				"links": {}
-			}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/stale-sub-1":
-			return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"stale-sub-1"}}`)
-		case req.Method == http.MethodPatch && req.URL.Path == "/v1/reviewSubmissions/stale-sub-2":
-			return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"stale-sub-2"}}`)
-		default:
-			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
-		}
-	}))
-
-	messages := make([]string, 0, 2)
-	got := cancelStaleReviewSubmissions(context.Background(), client, "app-1", "IOS", func(message string) {
-		messages = append(messages, message)
-	})
-
-	if _, ok := got["stale-sub-1"]; !ok {
-		t.Fatalf("expected first-page stale submission to be canceled, got %#v", got)
-	}
-	if _, ok := got["stale-sub-2"]; !ok {
-		t.Fatalf("expected paginated stale submission to be canceled, got %#v", got)
-	}
-	if !strings.Contains(strings.Join(requests, "\n"), "GET /v1/apps/app-1/reviewSubmissions?cursor=page-2") {
-		t.Fatalf("expected paginated review submissions lookup, got %v", requests)
-	}
-	if !strings.Contains(strings.Join(messages, "\n"), "Canceled stale review submission stale-sub-2") {
-		t.Fatalf("expected emit callback to report paginated stale submission cancellation, got %q", strings.Join(messages, "\n"))
-	}
-}
-
 func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
 	stderr := captureSubmitStderr(t, func() {
 		printSubmissionErrorHints(errors.New("ageRatingDeclaration contentRightsDeclaration usesNonExemptEncryption appDataUsage primaryCategory"), submissionErrorHintContext{
