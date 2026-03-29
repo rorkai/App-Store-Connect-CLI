@@ -12,6 +12,8 @@ func TestNormalizeSubscriptionIntroductoryOfferImportTerritoryID(t *testing.T) {
 		{name: "alpha three", input: "USA", want: "USA"},
 		{name: "alpha two", input: "US", want: "USA"},
 		{name: "english name", input: "Afghanistan", want: "AFG"},
+		{name: "alias kosovo", input: "Kosovo", want: "XKS"},
+		{name: "ascii curacao alias", input: "Curacao", want: "CUW"},
 		{name: "unknown", input: "Atlantis", wantErr: true},
 	}
 
