@@ -227,7 +227,7 @@ func watchDashboard(ctx context.Context, client *asc.Client, appID string, inclu
 		resp, err := collectDashboard(requestCtx, client, appID, includes)
 		cancel()
 		if err != nil {
-			if isWatchExit(err) {
+			if watchContextDone(ctx) {
 				return nil
 			}
 			return fmt.Errorf("status: %w", err)
@@ -248,7 +248,7 @@ func watchDashboard(ctx context.Context, client *asc.Client, appID string, inclu
 			return nil
 		}
 		if err := waitForNextPoll(ctx, pollInterval); err != nil {
-			if isWatchExit(err) {
+			if watchContextDone(ctx) {
 				return nil
 			}
 			return err
@@ -258,8 +258,11 @@ func watchDashboard(ctx context.Context, client *asc.Client, appID string, inclu
 	return nil
 }
 
-func isWatchExit(err error) bool {
-	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+func watchContextDone(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	return errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded)
 }
 
 func buildDashboardSnapshotSignature(resp *dashboardResponse) (string, error) {
