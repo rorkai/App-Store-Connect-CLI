@@ -16,18 +16,12 @@ func TestStatusWatchJSONEmitsChangedSnapshots(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	appStoreCalls := 0
-	reviewCalls := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	var appStoreCalls lockedCounter
+	var reviewCalls lockedCounter
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/v1/apps/123456789/appStoreVersions":
-			appStoreCalls++
-			if appStoreCalls == 1 {
+			if appStoreCalls.Inc() == 1 {
 				return statusJSONResponse(`{
 					"data":[
 						{
@@ -60,8 +54,7 @@ func TestStatusWatchJSONEmitsChangedSnapshots(t *testing.T) {
 				"links":{"next":""}
 			}`), nil
 		case "/v1/apps/123456789/reviewSubmissions":
-			reviewCalls++
-			if reviewCalls == 1 {
+			if reviewCalls.Inc() == 1 {
 				return statusJSONResponse(`{
 					"data":[
 						{
@@ -78,7 +71,7 @@ func TestStatusWatchJSONEmitsChangedSnapshots(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-	})
+	}))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

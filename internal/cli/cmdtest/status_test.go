@@ -246,21 +246,15 @@ func TestStatusAppStorePaginatesBeforeChoosingLatestVersion(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	appStoreCalls := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	var appStoreCalls lockedCounter
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/v1/apps":
 			return statusJSONResponse(`{
 				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
 			}`), nil
 		case "/v1/apps/app-1/appStoreVersions":
-			appStoreCalls++
-			switch appStoreCalls {
+			switch appStoreCalls.Inc() {
 			case 1:
 				if req.URL.Query().Get("limit") != "200" {
 					t.Fatalf("expected app store versions limit=200, got %q", req.URL.Query().Get("limit"))
@@ -307,7 +301,7 @@ func TestStatusAppStorePaginatesBeforeChoosingLatestVersion(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-	})
+	}))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -324,8 +318,8 @@ func TestStatusAppStorePaginatesBeforeChoosingLatestVersion(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if appStoreCalls != 2 {
-		t.Fatalf("expected 2 app store versions requests, got %d", appStoreCalls)
+	if appStoreCalls.Load() != 2 {
+		t.Fatalf("expected 2 app store versions requests, got %d", appStoreCalls.Load())
 	}
 
 	var payload map[string]any

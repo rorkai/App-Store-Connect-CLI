@@ -21,14 +21,9 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 		t.Fatalf("write ipa fixture: %v", err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	requests := make([]string, 0, 20)
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		requests = append(requests, req.Method+" "+req.URL.Path)
+	requests := newRequestLog(20)
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requests.Add(req.Method + " " + req.URL.Path)
 
 		switch {
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/buildUploads":
@@ -106,7 +101,7 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
 			return nil, nil
 		}
-	})
+	}))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -140,12 +135,13 @@ func TestPublishAppStoreSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 		t.Fatalf("expected submitted=true in output, got %q", stdout)
 	}
 
-	joined := strings.Join(requests, "\n")
+	recordedRequests := requests.Snapshot()
+	joined := strings.Join(recordedRequests, "\n")
 	if strings.Contains(joined, "POST /v1/appStoreVersionSubmissions") {
-		t.Fatalf("did not expect legacy submission endpoint, requests: %v", requests)
+		t.Fatalf("did not expect legacy submission endpoint, requests: %v", recordedRequests)
 	}
 	if !strings.Contains(joined, "POST /v1/reviewSubmissions") {
-		t.Fatalf("expected modern review submission create request, requests: %v", requests)
+		t.Fatalf("expected modern review submission create request, requests: %v", recordedRequests)
 	}
 }
 
