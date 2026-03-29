@@ -416,6 +416,7 @@ func TestPublishAppStoreSubmitDefaultTimeoutUsesSharedPipelineBudget(t *testing.
 		http.DefaultTransport = originalTransport
 	})
 
+	var localizationBudget time.Duration
 	var reviewSubmissionBudget time.Duration
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -456,8 +457,17 @@ func TestPublishAppStoreSubmitDefaultTimeoutUsesSharedPipelineBudget(t *testing.
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
 			return jsonResponse(http.StatusNoContent, "")
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			if err := sleepWithContext(req.Context()); err != nil {
-				return nil, err
+			deadline, ok := req.Context().Deadline()
+			if !ok {
+				t.Fatal("expected localization preflight request to have a deadline")
+			}
+			localizationBudget = time.Until(deadline)
+			timer := time.NewTimer(20 * time.Millisecond)
+			defer timer.Stop()
+			select {
+			case <-req.Context().Done():
+				return nil, req.Context().Err()
+			case <-timer.C:
 			}
 			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}]}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
@@ -510,7 +520,15 @@ func TestPublishAppStoreSubmitDefaultTimeoutUsesSharedPipelineBudget(t *testing.
 	if !strings.Contains(stdout, `"submissionId":"review-sub-1"`) {
 		t.Fatalf("expected review submission ID in output, got %q", stdout)
 	}
-	if reviewSubmissionBudget >= 60*time.Millisecond {
-		t.Fatalf("expected default publish timeout to keep the shared pipeline budget, got %v", reviewSubmissionBudget)
+	if localizationBudget == 0 {
+		t.Fatal("expected localization preflight budget to be captured")
+	}
+	if reviewSubmissionBudget == 0 {
+		t.Fatal("expected review submission budget to be captured")
+	}
+	// The default publish path should keep consuming one shared timeout budget
+	// across preflight and submission instead of refreshing a fresh deadline.
+	if reviewSubmissionBudget >= localizationBudget-5*time.Millisecond {
+		t.Fatalf("expected review submission budget %v to be lower than localization preflight budget %v", reviewSubmissionBudget, localizationBudget)
 	}
 }
