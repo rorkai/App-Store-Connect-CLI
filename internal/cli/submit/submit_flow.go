@@ -38,12 +38,12 @@ type SubmitResolvedVersionOptions struct {
 // SubmitResolvedVersionResult captures the outcome of creating/submitting a
 // review submission for an already-resolved version.
 type SubmitResolvedVersionResult struct {
-	SubmissionID     string                `json:"submissionId,omitempty"`
-	SubmittedDate    string                `json:"submittedDate,omitempty"`
-	AlreadySubmitted bool                  `json:"alreadySubmitted,omitempty"`
-	WouldSubmit      bool                  `json:"wouldSubmit,omitempty"`
-	BuildAttachment  BuildAttachmentResult `json:"buildAttachment,omitempty"`
-	Messages         []string              `json:"messages,omitempty"`
+	SubmissionID     string                 `json:"submissionId,omitempty"`
+	SubmittedDate    string                 `json:"submittedDate,omitempty"`
+	AlreadySubmitted bool                   `json:"alreadySubmitted,omitempty"`
+	WouldSubmit      bool                   `json:"wouldSubmit,omitempty"`
+	BuildAttachment  *BuildAttachmentResult `json:"buildAttachment,omitempty"`
+	Messages         []string               `json:"messages,omitempty"`
 }
 
 // SubmissionLocalizationPreflight runs the submission-blocking localization
@@ -145,7 +145,7 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 		attachmentCtx, attachmentCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
 		attachment, err := EnsureBuildAttached(attachmentCtx, client, versionID, opts.BuildID, opts.DryRun)
 		attachmentCancel()
-		result.BuildAttachment = attachment
+		result.BuildAttachment = &attachment
 		if err != nil {
 			return result, err
 		}
@@ -171,31 +171,42 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 	}
 
 	preparationCtx, preparationCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
-	canceledStaleSubmissionIDs := cancelStaleReviewSubmissions(preparationCtx, client, appID, platform, emit)
+	preparedSubmission := prepareReviewSubmissionForCreate(preparationCtx, client, appID, platform, versionID)
 	preparationCancel()
 
 	submitCtx, submitCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
 	defer submitCancel()
 
-	reviewSubmission, err := client.CreateReviewSubmission(submitCtx, appID, asc.Platform(platform))
-	if err != nil {
-		return result, fmt.Errorf("submit review: create review submission: %w", err)
+	submissionIDToSubmit := strings.TrimSpace(preparedSubmission.reuseSubmissionID)
+	createdSubmissionID := ""
+	var err error
+	if submissionIDToSubmit == "" {
+		reviewSubmission, err := client.CreateReviewSubmission(submitCtx, appID, asc.Platform(platform))
+		if err != nil {
+			return result, fmt.Errorf("submit review: create review submission: %w", err)
+		}
+		createdSubmissionID = strings.TrimSpace(reviewSubmission.Data.ID)
+		submissionIDToSubmit = createdSubmissionID
 	}
 
-	submissionIDToSubmit, err := addVersionToSubmissionOrRecover(
-		submitCtx,
-		client,
-		reviewSubmission.Data.ID,
-		versionID,
-		canceledStaleSubmissionIDs,
-		emit,
-	)
-	if err != nil {
-		cleanupEmptyReviewSubmission(submitCtx, client, reviewSubmission.Data.ID, emit)
-		return result, fmt.Errorf("submit review: add version to submission: %w", err)
-	}
-	if submissionIDToSubmit != reviewSubmission.Data.ID {
-		cleanupEmptyReviewSubmission(submitCtx, client, reviewSubmission.Data.ID, emit)
+	if !preparedSubmission.reuseSubmissionHasVersion {
+		submissionIDToSubmit, err = addVersionToSubmissionOrRecover(
+			submitCtx,
+			client,
+			submissionIDToSubmit,
+			versionID,
+			preparedSubmission.canceledSubmissionIDs,
+			emit,
+		)
+		if err != nil {
+			if createdSubmissionID != "" {
+				cleanupEmptyReviewSubmission(submitCtx, client, createdSubmissionID, emit)
+			}
+			return result, fmt.Errorf("submit review: add version to submission: %w", err)
+		}
+		if createdSubmissionID != "" && submissionIDToSubmit != createdSubmissionID {
+			cleanupEmptyReviewSubmission(submitCtx, client, createdSubmissionID, emit)
+		}
 	}
 
 	submitResp, err := client.SubmitReviewSubmission(submitCtx, submissionIDToSubmit)
