@@ -344,21 +344,15 @@ func TestStatusSubmissionAndReviewPaginateBeforeDerivingState(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	reviewCalls := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	var reviewCalls lockedCounter
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/v1/apps":
 			return statusJSONResponse(`{
-				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
-			}`), nil
+					"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
+				}`), nil
 		case "/v1/apps/app-1/reviewSubmissions":
-			reviewCalls++
-			switch reviewCalls {
+			switch reviewCalls.Inc() {
 			case 1:
 				if req.URL.Query().Get("limit") != "200" {
 					t.Fatalf("expected review submissions limit=200, got %q", req.URL.Query().Get("limit"))
@@ -395,7 +389,7 @@ func TestStatusSubmissionAndReviewPaginateBeforeDerivingState(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-	})
+	}))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -412,8 +406,8 @@ func TestStatusSubmissionAndReviewPaginateBeforeDerivingState(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if reviewCalls != 2 {
-		t.Fatalf("expected 2 review submissions requests, got %d", reviewCalls)
+	if reviewCalls.Load() != 2 {
+		t.Fatalf("expected 2 review submissions requests, got %d", reviewCalls.Load())
 	}
 
 	var payload map[string]any
@@ -450,20 +444,15 @@ func TestStatusSubmissionIgnoresHistoricUnresolvedIssuesWhenLatestSubmissionMove
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	reviewCalls := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	var reviewCalls lockedCounter
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/v1/apps":
 			return statusJSONResponse(`{
-				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
-			}`), nil
+					"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
+				}`), nil
 		case "/v1/apps/app-1/reviewSubmissions":
-			reviewCalls++
+			reviewCalls.Inc()
 			switch req.URL.Query().Get("cursor") {
 			case "":
 				return statusJSONResponse(`{
@@ -495,7 +484,7 @@ func TestStatusSubmissionIgnoresHistoricUnresolvedIssuesWhenLatestSubmissionMove
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-	})
+	}))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -512,8 +501,8 @@ func TestStatusSubmissionIgnoresHistoricUnresolvedIssuesWhenLatestSubmissionMove
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if reviewCalls != 2 {
-		t.Fatalf("expected 2 review submissions requests, got %d", reviewCalls)
+	if reviewCalls.Load() != 2 {
+		t.Fatalf("expected 2 review submissions requests, got %d", reviewCalls.Load())
 	}
 
 	var payload map[string]any
@@ -550,20 +539,15 @@ func TestStatusSubmissionTracksLatestSubmissionPerPlatform(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	reviewCalls := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	var reviewCalls lockedCounter
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/v1/apps":
 			return statusJSONResponse(`{
-				"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
-			}`), nil
+					"data": [{"type":"apps","id":"app-1","attributes":{"name":"My App","bundleId":"app-1"}}]
+				}`), nil
 		case "/v1/apps/app-1/reviewSubmissions":
-			reviewCalls++
+			reviewCalls.Inc()
 			switch req.URL.Query().Get("cursor") {
 			case "":
 				return statusJSONResponse(`{
@@ -595,7 +579,7 @@ func TestStatusSubmissionTracksLatestSubmissionPerPlatform(t *testing.T) {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
 		}
-	})
+	}))
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -612,8 +596,8 @@ func TestStatusSubmissionTracksLatestSubmissionPerPlatform(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if reviewCalls != 2 {
-		t.Fatalf("expected 2 review submissions requests, got %d", reviewCalls)
+	if reviewCalls.Load() != 2 {
+		t.Fatalf("expected 2 review submissions requests, got %d", reviewCalls.Load())
 	}
 
 	var payload map[string]any

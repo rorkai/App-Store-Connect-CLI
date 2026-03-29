@@ -188,10 +188,9 @@ Examples:
 				return fmt.Errorf("status: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resolvedAppID, err = shared.ResolveAppIDWithLookup(requestCtx, client, resolvedAppID)
+			lookupCtx, cancel := shared.ContextWithTimeout(ctx)
+			resolvedAppID, err = shared.ResolveAppIDWithLookup(lookupCtx, client, resolvedAppID)
+			cancel()
 			if err != nil {
 				return fmt.Errorf("status: %w", err)
 			}
@@ -200,7 +199,7 @@ Examples:
 				return watchDashboard(ctx, client, resolvedAppID, includes, *output.Output, *output.Pretty, *pollInterval, *maxPolls)
 			}
 
-			requestCtx, cancel = shared.ContextWithTimeout(ctx)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
 			resp, err := collectDashboard(requestCtx, client, resolvedAppID, includes, false)
@@ -394,7 +393,7 @@ func parseInclude(value string) (includeSet, error) {
 	return includes, nil
 }
 
-func collectDashboard(ctx context.Context, client *asc.Client, appID string, includes includeSet, actionableSubmissionPolling bool) (*dashboardResponse, error) {
+func collectDashboard(ctx context.Context, client *asc.Client, appID string, includes includeSet, watchMode bool) (*dashboardResponse, error) {
 	resp := &dashboardResponse{}
 	if includes.app {
 		appResp, err := client.GetApp(ctx, appID)
@@ -438,7 +437,7 @@ func collectDashboard(ctx context.Context, client *asc.Client, appID string, inc
 		tasks = append(tasks, sectionTask{
 			name: "submission/review",
 			run: func() error {
-				return fillSubmissionAndReview(ctx, client, appID, includes, resp, actionableSubmissionPolling)
+				return fillSubmissionAndReview(ctx, client, appID, includes, resp, watchMode)
 			},
 		})
 	}
@@ -665,14 +664,8 @@ func fillAppStoreAndPhasedRelease(ctx context.Context, client *asc.Client, appID
 	return nil
 }
 
-func fillSubmissionAndReview(ctx context.Context, client *asc.Client, appID string, includes includeSet, resp *dashboardResponse, actionableOnly bool) error {
-	opts := []asc.ReviewSubmissionsOption{asc.WithReviewSubmissionsLimit(200)}
-	if actionableOnly {
-		// Watch mode only needs submissions that can still change the dashboard state.
-		opts = append(opts, asc.WithReviewSubmissionsStates(watchReviewSubmissionStates()))
-	}
-
-	submissions, err := shared.FetchAllReviewSubmissions(ctx, client, appID, opts...)
+func fillSubmissionAndReview(ctx context.Context, client *asc.Client, appID string, includes includeSet, resp *dashboardResponse, watchMode bool) error {
+	submissions, err := fetchStatusReviewSubmissions(ctx, client, appID, watchMode)
 	if err != nil {
 		return err
 	}
@@ -711,14 +704,20 @@ func fillSubmissionAndReview(ctx context.Context, client *asc.Client, appID stri
 	return nil
 }
 
-func watchReviewSubmissionStates() []string {
-	return []string{
-		string(asc.ReviewSubmissionStateReadyForReview),
-		string(asc.ReviewSubmissionStateWaitingForReview),
-		string(asc.ReviewSubmissionStateInReview),
-		string(asc.ReviewSubmissionStateUnresolvedIssues),
-		string(asc.ReviewSubmissionStateCanceling),
+func fetchStatusReviewSubmissions(ctx context.Context, client *asc.Client, appID string, watchMode bool) ([]asc.ReviewSubmissionResource, error) {
+	if !watchMode {
+		return shared.FetchAllReviewSubmissions(ctx, client, appID, asc.WithReviewSubmissionsLimit(200))
 	}
+
+	// Watch mode uses a bounded recent snapshot instead of walking submission history on every poll.
+	resp, err := client.GetReviewSubmissions(ctx, appID, asc.WithReviewSubmissionsLimit(200))
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil || resp.Data == nil {
+		return []asc.ReviewSubmissionResource{}, nil
+	}
+	return resp.Data, nil
 }
 
 func selectLatestAppStoreVersion(versions []asc.Resource[asc.AppStoreVersionAttributes]) *asc.Resource[asc.AppStoreVersionAttributes] {

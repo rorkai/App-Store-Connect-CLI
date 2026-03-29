@@ -128,7 +128,7 @@ func TestStatusWatchJSONEmitsChangedSnapshots(t *testing.T) {
 	}
 }
 
-func TestStatusWatchSubmissionPollingUsesActionableStateFilter(t *testing.T) {
+func TestStatusWatchSubmissionAndReviewUseBoundedRecentPage(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 	t.Setenv("ASC_APP_ID", "")
@@ -137,14 +137,28 @@ func TestStatusWatchSubmissionPollingUsesActionableStateFilter(t *testing.T) {
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch req.URL.Path {
 		case "/v1/apps/123456789/reviewSubmissions":
-			if got := req.URL.Query().Get("filter[state]"); got != "READY_FOR_REVIEW,WAITING_FOR_REVIEW,IN_REVIEW,UNRESOLVED_ISSUES,CANCELING" {
-				t.Fatalf("expected actionable review submission states filter, got %q", got)
+			if got := req.URL.Query().Get("filter[state]"); got != "" {
+				t.Fatalf("expected bounded recent-page watch query without state filter, got %q", got)
 			}
 			if got := req.URL.Query().Get("limit"); got != "200" {
 				t.Fatalf("expected review submissions limit=200, got %q", got)
 			}
-			reviewCalls.Inc()
-			return statusJSONResponse(`{"data":[],"links":{"next":""}}`), nil
+			if got := req.URL.Query().Get("cursor"); got != "" {
+				t.Fatalf("expected watch query to stay on the first review submissions page, got cursor %q", got)
+			}
+			if reviewCalls.Inc() != 1 {
+				t.Fatalf("expected exactly one review submissions request, got %d", reviewCalls.Load())
+			}
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"reviewSubmissions",
+						"id":"review-sub-complete",
+						"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-20T00:00:00Z"}
+					}
+				],
+				"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/123456789/reviewSubmissions?cursor=page-2"}
+			}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
@@ -187,6 +201,19 @@ func TestStatusWatchSubmissionPollingUsesActionableStateFilter(t *testing.T) {
 	}
 	if _, ok := payload["review"]; !ok {
 		t.Fatalf("expected review section, got %v", payload)
+	}
+
+	review := payload["review"].(map[string]any)
+	if review["state"] != "COMPLETE" {
+		t.Fatalf("expected review state COMPLETE from bounded recent page, got %v", review["state"])
+	}
+	if review["latestSubmissionId"] != "review-sub-complete" {
+		t.Fatalf("expected latest review submission id review-sub-complete, got %v", review["latestSubmissionId"])
+	}
+
+	submission := payload["submission"].(map[string]any)
+	if submission["inFlight"] != false {
+		t.Fatalf("expected bounded recent page to report no in-flight submissions, got %v", submission["inFlight"])
 	}
 }
 
