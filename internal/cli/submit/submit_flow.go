@@ -181,9 +181,9 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 	createdSubmissionID := ""
 	var err error
 	if submissionIDToSubmit == "" {
-		reviewSubmission, err := client.CreateReviewSubmission(submitCtx, appID, asc.Platform(platform))
-		if err != nil {
-			return result, fmt.Errorf("submit review: create review submission: %w", err)
+		reviewSubmission, createErr := client.CreateReviewSubmission(submitCtx, appID, asc.Platform(platform))
+		if createErr != nil {
+			return result, fmt.Errorf("submit review: create review submission: %w", createErr)
 		}
 		createdSubmissionID = strings.TrimSpace(reviewSubmission.Data.ID)
 		submissionIDToSubmit = createdSubmissionID
