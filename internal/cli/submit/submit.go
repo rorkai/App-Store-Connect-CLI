@@ -141,7 +141,7 @@ Examples:
 			runSubmitCreateSubscriptionPreflight(ctx, client, resolvedAppID, 0)
 
 			preparationCtx, preparationCancel := shared.ContextWithTimeout(ctx)
-			preparedSubmission := prepareReviewSubmissionForCreate(preparationCtx, client, resolvedAppID, effectivePlatform, resolvedVersionID)
+			preparedSubmission := prepareReviewSubmissionForCreate(preparationCtx, client, resolvedAppID, effectivePlatform, resolvedVersionID, nil)
 			preparationCancel()
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -1379,7 +1379,17 @@ func prepareReviewSubmissionForCreate(
 	ctx context.Context,
 	client *asc.Client,
 	appID, platform, versionID string,
+	emit func(string),
 ) submitCreateReviewSubmissionPreparation {
+	emitMessage := func(format string, args ...any) {
+		message := fmt.Sprintf(format, args...)
+		if emit != nil {
+			emit(message)
+			return
+		}
+		fmt.Fprintln(os.Stderr, message)
+	}
+
 	existing, err := client.GetReviewSubmissions(
 		ctx,
 		appID,
@@ -1389,7 +1399,7 @@ func prepareReviewSubmissionForCreate(
 		asc.WithReviewSubmissionsLimit(200),
 	)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to query stale review submissions: %v\n", err)
+		emitMessage("Warning: failed to query stale review submissions: %v", err)
 		return submitCreateReviewSubmissionPreparation{}
 	}
 
@@ -1402,7 +1412,7 @@ func prepareReviewSubmissionForCreate(
 		}
 		existing, err = client.GetReviewSubmissions(ctx, appID, asc.WithReviewSubmissionsNextURL(nextURL))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to query stale review submissions: %v\n", err)
+			emitMessage("Warning: failed to query stale review submissions: %v", err)
 			return submitCreateReviewSubmissionPreparation{}
 		}
 	}
@@ -1428,11 +1438,11 @@ func prepareReviewSubmissionForCreate(
 		if currentVersionID := reviewSubmissionAppStoreVersionID(&sub); targetVersionID != "" && currentVersionID == targetVersionID {
 			reusable, hasVersion, reuseErr := reviewSubmissionCanBeReusedForCreate(ctx, client, &sub, targetVersionID)
 			if reuseErr != nil {
-				fmt.Fprintf(os.Stderr, "Warning: failed to inspect review submission %s before reuse: %v\n", sub.ID, reuseErr)
+				emitMessage("Warning: failed to inspect review submission %s before reuse: %v", sub.ID, reuseErr)
 				continue
 			}
 			if reusable {
-				fmt.Fprintf(os.Stderr, "Reusing existing review submission %s because the target version is already attached.\n", sub.ID)
+				emitMessage("Reusing existing review submission %s because the target version is already attached.", sub.ID)
 				result.reuseSubmissionID = strings.TrimSpace(sub.ID)
 				result.reuseSubmissionHasVersion = hasVersion
 				result.canceledSubmissionIDs = nil
@@ -1455,9 +1465,9 @@ func prepareReviewSubmissionForCreate(
 				reuseSubmission, reuseHasVersion, reuseErr := reusableReviewSubmissionForCreate(ctx, client, &sub, targetVersionID)
 				if reuseErr == nil && reuseSubmission != "" {
 					if reuseHasVersion {
-						fmt.Fprintf(os.Stderr, "Reusing existing review submission %s because the target version is already attached and App Store Connect would not cancel it.\n", reuseSubmission)
+						emitMessage("Reusing existing review submission %s because the target version is already attached and App Store Connect would not cancel it.", reuseSubmission)
 					} else {
-						fmt.Fprintf(os.Stderr, "Reusing existing empty review submission %s because App Store Connect would not cancel it.\n", reuseSubmission)
+						emitMessage("Reusing existing empty review submission %s because App Store Connect would not cancel it.", reuseSubmission)
 					}
 					result.reuseSubmissionID = reuseSubmission
 					result.reuseSubmissionHasVersion = reuseHasVersion
@@ -1467,16 +1477,16 @@ func prepareReviewSubmissionForCreate(
 					return result
 				}
 				if reuseErr != nil {
-					fmt.Fprintf(os.Stderr, "Warning: failed to inspect stale submission %s after cancel conflict: %v\n", sub.ID, reuseErr)
+					emitMessage("Warning: failed to inspect stale submission %s after cancel conflict: %v", sub.ID, reuseErr)
 				}
-				fmt.Fprintf(os.Stderr, "Skipped stale submission %s: already transitioned to a non-cancellable state\n", sub.ID)
+				emitMessage("Skipped stale submission %s: already transitioned to a non-cancellable state", sub.ID)
 			} else {
-				fmt.Fprintf(os.Stderr, "Warning: failed to cancel stale submission %s: %v\n", sub.ID, cancelErr)
+				emitMessage("Warning: failed to cancel stale submission %s: %v", sub.ID, cancelErr)
 			}
 			continue
 		}
 		result.canceledSubmissionIDs[sub.ID] = struct{}{}
-		fmt.Fprintf(os.Stderr, "Canceled stale review submission %s\n", sub.ID)
+		emitMessage("Canceled stale review submission %s", sub.ID)
 	}
 
 	if len(result.canceledSubmissionIDs) == 0 {

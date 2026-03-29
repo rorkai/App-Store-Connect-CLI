@@ -171,7 +171,7 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 	}
 
 	preparationCtx, preparationCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
-	preparedSubmission := prepareReviewSubmissionForCreate(preparationCtx, client, appID, platform, versionID)
+	preparedSubmission := prepareReviewSubmissionForCreate(preparationCtx, client, appID, platform, versionID, emit)
 	preparationCancel()
 
 	submitCtx, submitCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)

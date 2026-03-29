@@ -18,6 +18,7 @@ func TestSubmitResolvedVersionReusesReadySubmissionWithTargetVersion(t *testing.
 		addedItem           bool
 		canceledSubmission  bool
 		submittedSubmission bool
+		emittedMessages     []string
 	)
 
 	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -85,6 +86,9 @@ func TestSubmitResolvedVersionReusesReadySubmissionWithTargetVersion(t *testing.
 		AppID:     "app-1",
 		VersionID: "version-1",
 		Platform:  "IOS",
+		Emit: func(message string) {
+			emittedMessages = append(emittedMessages, message)
+		},
 	})
 	if err != nil {
 		t.Fatalf("SubmitResolvedVersion() error: %v", err)
@@ -104,6 +108,13 @@ func TestSubmitResolvedVersionReusesReadySubmissionWithTargetVersion(t *testing.
 	}
 	if addedItem {
 		t.Fatal("did not expect target version to be re-added when already attached")
+	}
+	wantMessage := "Reusing existing review submission existing-submission because the target version is already attached."
+	if !strings.Contains(strings.Join(got.Messages, "\n"), wantMessage) {
+		t.Fatalf("expected result messages to include reuse notice, got %#v", got.Messages)
+	}
+	if !strings.Contains(strings.Join(emittedMessages, "\n"), wantMessage) {
+		t.Fatalf("expected emit callback to receive reuse notice, got %#v", emittedMessages)
 	}
 }
 

@@ -2569,7 +2569,7 @@ func TestPrepareReviewSubmissionForCreateWarnsOnGenericConflict(t *testing.T) {
 	}))
 
 	stderr := captureSubmitStderr(t, func() {
-		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1")
+		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
 		if got.reuseSubmissionID != "" {
 			t.Fatalf("expected no reusable submission, got %#v", got)
 		}
@@ -2636,7 +2636,7 @@ func TestPrepareReviewSubmissionForCreateDoesNotReuseSubmissionThatBecameCanceli
 	}))
 
 	stderr := captureSubmitStderr(t, func() {
-		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1")
+		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
 		if got.reuseSubmissionID != "" {
 			t.Fatalf("expected no reusable submission after refreshed CANCELING state, got %#v", got)
 		}
@@ -2712,7 +2712,7 @@ func TestPrepareReviewSubmissionForCreateCancelsMixedTargetVersionSubmission(t *
 	}))
 
 	stderr := captureSubmitStderr(t, func() {
-		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1")
+		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
 		if got.reuseSubmissionID != "" {
 			t.Fatalf("expected mixed-item submission not to be reused, got %#v", got)
 		}
@@ -2770,7 +2770,7 @@ func TestPrepareReviewSubmissionForCreateTreatsEmptyItemsAsMissingVersion(t *tes
 	}))
 
 	stderr := captureSubmitStderr(t, func() {
-		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1")
+		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
 		if got.reuseSubmissionID != "empty-items-submission" {
 			t.Fatalf("expected empty-items submission to be reused, got %#v", got)
 		}
@@ -2847,7 +2847,7 @@ func TestPrepareReviewSubmissionForCreatePreservesCanceledIDsWhenReusingAfterCon
 	}))
 
 	stderr := captureSubmitStderr(t, func() {
-		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1")
+		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
 		if got.reuseSubmissionID != "reusable-empty-sub" {
 			t.Fatalf("expected reusable submission after cancel conflict, got %#v", got)
 		}
@@ -2925,7 +2925,7 @@ func TestPrepareReviewSubmissionForCreatePaginatesReadyForReviewLookups(t *testi
 	}))
 
 	stderr := captureSubmitStderr(t, func() {
-		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1")
+		got := prepareReviewSubmissionForCreate(context.Background(), client, "app-1", "IOS", "version-1", nil)
 		if got.reuseSubmissionID != "existing-submission" {
 			t.Fatalf("expected paginated submission to be reused, got %#v", got)
 		}
