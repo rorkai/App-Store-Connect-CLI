@@ -120,7 +120,7 @@ Examples:
 				}
 			}
 
-			if err := runSubmitCreateLocalizationPreflight(ctx, client, resolvedAppID, resolvedVersionID, effectivePlatform); err != nil {
+			if err := runSubmitCreateLocalizationPreflight(ctx, client, resolvedAppID, resolvedVersionID, effectivePlatform, 0); err != nil {
 				return err
 			}
 
@@ -138,7 +138,7 @@ Examples:
 			}
 			attachCancel()
 
-			runSubmitCreateSubscriptionPreflight(ctx, client, resolvedAppID)
+			runSubmitCreateSubscriptionPreflight(ctx, client, resolvedAppID, 0)
 
 			preparationCtx, preparationCancel := shared.ContextWithTimeout(ctx)
 			preparedSubmission := prepareReviewSubmissionForCreate(preparationCtx, client, resolvedAppID, effectivePlatform, resolvedVersionID)
@@ -227,8 +227,8 @@ Examples:
 	}
 }
 
-func runSubmitCreateLocalizationPreflight(ctx context.Context, client *asc.Client, appID, versionID, platform string) error {
-	localizationsCtx, localizationsCancel := shared.ContextWithTimeout(ctx)
+func runSubmitCreateLocalizationPreflight(ctx context.Context, client *asc.Client, appID, versionID, platform string, requestTimeout time.Duration) error {
+	localizationsCtx, localizationsCancel := submitPreflightRequestContext(ctx, requestTimeout)
 	localizations, err := client.GetAppStoreVersionLocalizations(localizationsCtx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
 	localizationsCancel()
 	if err != nil {
@@ -239,7 +239,7 @@ func runSubmitCreateLocalizationPreflight(ctx context.Context, client *asc.Clien
 		return fmt.Errorf("submit create: submit preflight failed")
 	}
 
-	updateCtx, updateCancel := shared.ContextWithTimeout(ctx)
+	updateCtx, updateCancel := submitPreflightRequestContext(ctx, requestTimeout)
 	requireWhatsNew, err := isAppUpdate(updateCtx, client, appID, platform)
 	updateCancel()
 	if err != nil {
@@ -970,8 +970,8 @@ Examples:
 // that need attention before submission. This is advisory (warnings only) because
 // the submit flow cannot include subscriptions in the review submission — they
 // use a separate submission path.
-func runSubmitCreateSubscriptionPreflight(ctx context.Context, client *asc.Client, appID string) {
-	groups, warning := fetchSubscriptionPreflightGroups(ctx, client, appID)
+func runSubmitCreateSubscriptionPreflight(ctx context.Context, client *asc.Client, appID string, requestTimeout time.Duration) {
+	groups, warning := fetchSubscriptionPreflightGroups(ctx, client, appID, requestTimeout)
 	if warning != "" {
 		fmt.Fprintln(os.Stderr, "")
 		fmt.Fprintf(os.Stderr, "Warning: subscription preflight could not check subscriptions: %s.\n", warning)
@@ -992,7 +992,7 @@ func runSubmitCreateSubscriptionPreflight(ctx context.Context, client *asc.Clien
 		}
 		groupLabel := subscriptionPreflightGroupLabel(group)
 
-		subs, warning := fetchSubscriptionPreflightSubscriptions(ctx, client, groupID)
+		subs, warning := fetchSubscriptionPreflightSubscriptions(ctx, client, groupID, requestTimeout)
 		if warning != "" {
 			skippedGroups = append(skippedGroups, fmt.Sprintf("%s: %s", groupLabel, warning))
 			continue
@@ -1046,8 +1046,8 @@ func runSubmitCreateSubscriptionPreflight(ctx context.Context, client *asc.Clien
 	}
 }
 
-func fetchSubscriptionPreflightGroups(ctx context.Context, client *asc.Client, appID string) ([]asc.Resource[asc.SubscriptionGroupAttributes], string) {
-	firstCtx, firstCancel := shared.ContextWithTimeout(ctx)
+func fetchSubscriptionPreflightGroups(ctx context.Context, client *asc.Client, appID string, requestTimeout time.Duration) ([]asc.Resource[asc.SubscriptionGroupAttributes], string) {
+	firstCtx, firstCancel := submitPreflightRequestContext(ctx, requestTimeout)
 	resp, err := client.GetSubscriptionGroups(firstCtx, appID, asc.WithSubscriptionGroupsLimit(200))
 	firstCancel()
 	if err != nil {
@@ -1055,7 +1055,7 @@ func fetchSubscriptionPreflightGroups(ctx context.Context, client *asc.Client, a
 	}
 
 	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
+		pageCtx, pageCancel := submitPreflightRequestContext(ctx, requestTimeout)
 		defer pageCancel()
 		return client.GetSubscriptionGroups(pageCtx, appID, asc.WithSubscriptionGroupsNextURL(nextURL))
 	})
@@ -1070,8 +1070,8 @@ func fetchSubscriptionPreflightGroups(ctx context.Context, client *asc.Client, a
 	return typed.Data, ""
 }
 
-func fetchSubscriptionPreflightSubscriptions(ctx context.Context, client *asc.Client, groupID string) ([]asc.Resource[asc.SubscriptionAttributes], string) {
-	firstCtx, firstCancel := shared.ContextWithTimeout(ctx)
+func fetchSubscriptionPreflightSubscriptions(ctx context.Context, client *asc.Client, groupID string, requestTimeout time.Duration) ([]asc.Resource[asc.SubscriptionAttributes], string) {
+	firstCtx, firstCancel := submitPreflightRequestContext(ctx, requestTimeout)
 	resp, err := client.GetSubscriptions(firstCtx, groupID, asc.WithSubscriptionsLimit(200))
 	firstCancel()
 	if err != nil {
@@ -1079,7 +1079,7 @@ func fetchSubscriptionPreflightSubscriptions(ctx context.Context, client *asc.Cl
 	}
 
 	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
-		pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
+		pageCtx, pageCancel := submitPreflightRequestContext(ctx, requestTimeout)
 		defer pageCancel()
 		return client.GetSubscriptions(pageCtx, groupID, asc.WithSubscriptionsNextURL(nextURL))
 	})
@@ -1092,6 +1092,13 @@ func fetchSubscriptionPreflightSubscriptions(ctx context.Context, client *asc.Cl
 		return nil, fmt.Sprintf("received unexpected subscriptions response type %T", paginated)
 	}
 	return typed.Data, ""
+}
+
+func submitPreflightRequestContext(ctx context.Context, requestTimeout time.Duration) (context.Context, context.CancelFunc) {
+	if requestTimeout > 0 {
+		return shared.ContextWithTimeoutDuration(shared.ContextWithoutTimeout(ctx), requestTimeout)
+	}
+	return shared.ContextWithTimeout(ctx)
 }
 
 func subscriptionPreflightGroupLabel(group asc.Resource[asc.SubscriptionGroupAttributes]) string {

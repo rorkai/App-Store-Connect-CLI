@@ -344,12 +344,17 @@ Examples:
 				return fmt.Errorf("publish appstore: %w", err)
 			}
 
-			client, err := shared.GetASCClient()
+			timeoutValue := resolvePublishTimeout(*timeout)
+			var client *asc.Client
+			if *timeout > 0 {
+				client, err = shared.GetASCClientWithTimeout(timeoutValue)
+			} else {
+				client, err = shared.GetASCClient()
+			}
 			if err != nil {
 				return fmt.Errorf("publish appstore: %w", err)
 			}
 
-			timeoutValue := resolvePublishTimeout(*timeout)
 			requestCtx, cancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
 			defer cancel()
 
@@ -387,24 +392,18 @@ Examples:
 			}
 
 			if *submit {
-				localizationCtx, localizationCancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
-				if err := submitcli.SubmissionLocalizationPreflight(localizationCtx, client, resolvedAppID, versionResp.Data.ID, normalizedPlatform); err != nil {
-					localizationCancel()
+				if err := submitcli.SubmissionLocalizationPreflightWithTimeout(ctx, client, resolvedAppID, versionResp.Data.ID, normalizedPlatform, timeoutValue); err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
-				localizationCancel()
 
-				subscriptionCtx, subscriptionCancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
-				submitcli.SubmissionSubscriptionPreflight(subscriptionCtx, client, resolvedAppID)
-				subscriptionCancel()
+				submitcli.SubmissionSubscriptionPreflightWithTimeout(ctx, client, resolvedAppID, timeoutValue)
 
-				submitCtx, submitCancel := shared.ContextWithTimeoutDuration(ctx, timeoutValue)
-
-				submitResult, err := submitcli.SubmitResolvedVersion(submitCtx, client, submitcli.SubmitResolvedVersionOptions{
+				submitResult, err := submitcli.SubmitResolvedVersion(ctx, client, submitcli.SubmitResolvedVersionOptions{
 					AppID:                    resolvedAppID,
 					VersionID:                versionResp.Data.ID,
 					BuildID:                  buildResp.Data.ID,
 					Platform:                 normalizedPlatform,
+					RequestTimeout:           timeoutValue,
 					EnsureBuildAttached:      false,
 					LookupExistingSubmission: true,
 					DryRun:                   false,
@@ -412,7 +411,6 @@ Examples:
 						fmt.Fprintln(os.Stderr, message)
 					},
 				})
-				submitCancel()
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}

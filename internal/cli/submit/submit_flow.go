@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // BuildAttachmentResult captures the resolved state of ensuring a build is
@@ -26,6 +28,7 @@ type SubmitResolvedVersionOptions struct {
 	VersionID                string
 	BuildID                  string
 	Platform                 string
+	RequestTimeout           time.Duration
 	EnsureBuildAttached      bool
 	LookupExistingSubmission bool
 	DryRun                   bool
@@ -46,13 +49,25 @@ type SubmitResolvedVersionResult struct {
 // SubmissionLocalizationPreflight runs the submission-blocking localization
 // preflight used by submit-style App Store review flows.
 func SubmissionLocalizationPreflight(ctx context.Context, client *asc.Client, appID, versionID, platform string) error {
-	return runSubmitCreateLocalizationPreflight(ctx, client, appID, versionID, platform)
+	return SubmissionLocalizationPreflightWithTimeout(ctx, client, appID, versionID, platform, 0)
+}
+
+// SubmissionLocalizationPreflightWithTimeout runs localization preflight with
+// an explicit request budget when the caller needs a per-phase timeout.
+func SubmissionLocalizationPreflightWithTimeout(ctx context.Context, client *asc.Client, appID, versionID, platform string, requestTimeout time.Duration) error {
+	return runSubmitCreateLocalizationPreflight(ctx, client, appID, versionID, platform, requestTimeout)
 }
 
 // SubmissionSubscriptionPreflight runs the advisory subscription preflight used
 // by submit-style App Store review flows.
 func SubmissionSubscriptionPreflight(ctx context.Context, client *asc.Client, appID string) {
-	runSubmitCreateSubscriptionPreflight(ctx, client, appID)
+	SubmissionSubscriptionPreflightWithTimeout(ctx, client, appID, 0)
+}
+
+// SubmissionSubscriptionPreflightWithTimeout runs subscription preflight with
+// an explicit request budget when the caller needs a per-phase timeout.
+func SubmissionSubscriptionPreflightWithTimeout(ctx context.Context, client *asc.Client, appID string, requestTimeout time.Duration) {
+	runSubmitCreateSubscriptionPreflight(ctx, client, appID, requestTimeout)
 }
 
 // EnsureBuildAttached ensures the target build is attached to the resolved App
@@ -127,7 +142,9 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 	}
 
 	if opts.EnsureBuildAttached {
-		attachment, err := EnsureBuildAttached(ctx, client, versionID, opts.BuildID, opts.DryRun)
+		attachmentCtx, attachmentCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
+		attachment, err := EnsureBuildAttached(attachmentCtx, client, versionID, opts.BuildID, opts.DryRun)
+		attachmentCancel()
 		result.BuildAttachment = attachment
 		if err != nil {
 			return result, err
@@ -135,7 +152,9 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 	}
 
 	if opts.LookupExistingSubmission {
-		legacySubmission, err := client.GetAppStoreVersionSubmissionForVersion(ctx, versionID)
+		lookupCtx, lookupCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
+		legacySubmission, err := client.GetAppStoreVersionSubmissionForVersion(lookupCtx, versionID)
+		lookupCancel()
 		if err != nil && !asc.IsNotFound(err) {
 			return result, fmt.Errorf("submit review: failed to lookup existing submission: %w", err)
 		}
@@ -151,15 +170,20 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 		return result, nil
 	}
 
-	canceledStaleSubmissionIDs := cancelStaleReviewSubmissions(ctx, client, appID, platform, emit)
+	preparationCtx, preparationCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
+	canceledStaleSubmissionIDs := cancelStaleReviewSubmissions(preparationCtx, client, appID, platform, emit)
+	preparationCancel()
 
-	reviewSubmission, err := client.CreateReviewSubmission(ctx, appID, asc.Platform(platform))
+	submitCtx, submitCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
+	defer submitCancel()
+
+	reviewSubmission, err := client.CreateReviewSubmission(submitCtx, appID, asc.Platform(platform))
 	if err != nil {
 		return result, fmt.Errorf("submit review: create review submission: %w", err)
 	}
 
 	submissionIDToSubmit, err := addVersionToSubmissionOrRecover(
-		ctx,
+		submitCtx,
 		client,
 		reviewSubmission.Data.ID,
 		versionID,
@@ -167,14 +191,14 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 		emit,
 	)
 	if err != nil {
-		cleanupEmptyReviewSubmission(ctx, client, reviewSubmission.Data.ID, emit)
+		cleanupEmptyReviewSubmission(submitCtx, client, reviewSubmission.Data.ID, emit)
 		return result, fmt.Errorf("submit review: add version to submission: %w", err)
 	}
 	if submissionIDToSubmit != reviewSubmission.Data.ID {
-		cleanupEmptyReviewSubmission(ctx, client, reviewSubmission.Data.ID, emit)
+		cleanupEmptyReviewSubmission(submitCtx, client, reviewSubmission.Data.ID, emit)
 	}
 
-	submitResp, err := client.SubmitReviewSubmission(ctx, submissionIDToSubmit)
+	submitResp, err := client.SubmitReviewSubmission(submitCtx, submissionIDToSubmit)
 	if err != nil {
 		return result, fmt.Errorf("submit review: submit for review: %w", err)
 	}
@@ -182,4 +206,15 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 	result.SubmissionID = strings.TrimSpace(submitResp.Data.ID)
 	result.SubmittedDate = strings.TrimSpace(submitResp.Data.Attributes.SubmittedDate)
 	return result, nil
+}
+
+func submitResolvedVersionPhaseContext(ctx context.Context, requestTimeout time.Duration) (context.Context, context.CancelFunc) {
+	if requestTimeout <= 0 {
+		if ctx == nil {
+			return context.Background(), func() {}
+		}
+		return ctx, func() {}
+	}
+
+	return shared.ContextWithTimeoutDuration(shared.ContextWithoutTimeout(ctx), requestTimeout)
 }

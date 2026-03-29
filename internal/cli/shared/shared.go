@@ -753,9 +753,27 @@ func getASCClient() (*asc.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	return newASCClientFromResolvedCredentials(resolved, 0)
+}
+
+func getASCClientWithTimeout(timeout time.Duration) (*asc.Client, error) {
+	resolved, err := resolveCredentials()
+	if err != nil {
+		return nil, err
+	}
+	return newASCClientFromResolvedCredentials(resolved, timeout)
+}
+
+func newASCClientFromResolvedCredentials(resolved resolvedCredentials, timeout time.Duration) (*asc.Client, error) {
 	ApplyRootLoggingOverrides()
 	if strings.TrimSpace(resolved.keyPEM) != "" {
+		if timeout > 0 {
+			return asc.NewClientFromPEMWithTimeout(resolved.keyID, resolved.issuerID, resolved.keyPEM, timeout)
+		}
 		return asc.NewClientFromPEM(resolved.keyID, resolved.issuerID, resolved.keyPEM)
+	}
+	if timeout > 0 {
+		return asc.NewClientWithTimeout(resolved.keyID, resolved.issuerID, resolved.keyPath, timeout)
 	}
 	return asc.NewClient(resolved.keyID, resolved.issuerID, resolved.keyPath)
 }
@@ -1377,6 +1395,17 @@ func GetASCClient() (*asc.Client, error) {
 	err := WithSpinnerDelayed("", authSpinnerDelay, func() error {
 		var innerErr error
 		client, innerErr = getASCClient()
+		return innerErr
+	})
+	return client, err
+}
+
+func GetASCClientWithTimeout(timeout time.Duration) (*asc.Client, error) {
+	const authSpinnerDelay = 200 * time.Millisecond
+	var client *asc.Client
+	err := WithSpinnerDelayed("", authSpinnerDelay, func() error {
+		var innerErr error
+		client, innerErr = getASCClientWithTimeout(timeout)
 		return innerErr
 	})
 	return client, err
