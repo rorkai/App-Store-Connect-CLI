@@ -664,17 +664,20 @@ func fillSubmissionAndReview(ctx context.Context, client *asc.Client, appID stri
 		return err
 	}
 	latest := selectLatestReviewSubmission(submissions)
+	latestByPlatform := selectLatestReviewSubmissionsByPlatform(submissions)
 
 	if includes.submission {
 		section := &submissionSection{
 			InFlight:       false,
 			BlockingIssues: []string{},
 		}
-		if latest != nil {
-			state := string(latest.Attributes.SubmissionState)
-			section.InFlight = isInFlightSubmissionState(state)
+		for _, submission := range latestByPlatform {
+			state := string(submission.Attributes.SubmissionState)
+			if isInFlightSubmissionState(state) {
+				section.InFlight = true
+			}
 			if strings.EqualFold(state, string(asc.ReviewSubmissionStateUnresolvedIssues)) {
-				section.BlockingIssues = append(section.BlockingIssues, fmt.Sprintf("submission %s has unresolved issues", latest.ID))
+				section.BlockingIssues = append(section.BlockingIssues, fmt.Sprintf("submission %s has unresolved issues", submission.ID))
 			}
 		}
 		slices.Sort(section.BlockingIssues)
@@ -726,6 +729,34 @@ func selectLatestReviewSubmission(submissions []asc.ReviewSubmissionResource) *a
 		}
 	}
 	return &best
+}
+
+func selectLatestReviewSubmissionsByPlatform(submissions []asc.ReviewSubmissionResource) []asc.ReviewSubmissionResource {
+	if len(submissions) == 0 {
+		return nil
+	}
+
+	latest := make(map[string]asc.ReviewSubmissionResource)
+	for _, current := range submissions {
+		platformKey := strings.ToUpper(strings.TrimSpace(string(current.Attributes.Platform)))
+		if platformKey == "" {
+			platformKey = "__UNKNOWN__"
+		}
+		best, ok := latest[platformKey]
+		if !ok || shared.ShouldPreferLatestReviewSubmission(current, best) {
+			latest[platformKey] = current
+		}
+	}
+
+	selected := make([]asc.ReviewSubmissionResource, 0, len(latest))
+	for _, submission := range latest {
+		selected = append(selected, submission)
+	}
+
+	slices.SortFunc(selected, func(a, b asc.ReviewSubmissionResource) int {
+		return strings.Compare(a.ID, b.ID)
+	})
+	return selected
 }
 
 func selectLatestBetaReviewSubmission(submissions []asc.Resource[asc.BetaAppReviewSubmissionAttributes]) *asc.Resource[asc.BetaAppReviewSubmissionAttributes] {
