@@ -2311,6 +2311,33 @@ func TestCollectSubmissionErrorSignalsPrefersStructuredAPIDetailsOverWrappedErro
 	}
 }
 
+func TestCollectSubmissionErrorSignalsTraversesJoinedErrorTree(t *testing.T) {
+	err := errors.Join(
+		errors.New("unrelated validation failure"),
+		fmt.Errorf(
+			"wrapper already added to another reviewSubmission with id wrapper-submission: %w",
+			&asc.APIError{
+				Code:   "ENTITY_ERROR",
+				Title:  "The request entity is not valid.",
+				Detail: "An attribute value is not valid.",
+				AssociatedErrors: map[string][]asc.APIAssociatedError{
+					"/v1/reviewSubmissionItems": {
+						{
+							Code:   "ENTITY_ERROR.RELATIONSHIP.INVALID",
+							Detail: "appStoreVersions with id version-1 was already added to another reviewSubmission with id canonical-submission",
+						},
+					},
+				},
+			},
+		),
+	)
+
+	signals := collectSubmissionErrorSignals(err)
+	if signals.existingSubmissionID != "canonical-submission" {
+		t.Fatalf("expected joined error tree to preserve structured API detail, got %q", signals.existingSubmissionID)
+	}
+}
+
 func TestAddVersionToSubmissionOrRecover_ExhaustsRetriesForRecentlyCanceledSubmission(t *testing.T) {
 	const staleSubmissionID = "stale-1"
 

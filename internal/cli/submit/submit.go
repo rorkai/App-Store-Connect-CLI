@@ -1192,16 +1192,26 @@ func collectSubmissionErrorSignals(err error) submissionErrorSignals {
 		return signals
 	}
 
-	stack := []error{err}
+	type errorFrame struct {
+		err      error
+		expanded bool
+	}
+
+	stack := []errorFrame{{err: err}}
 	for len(stack) > 0 {
-		current := stack[len(stack)-1]
+		frame := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
+		current := frame.err
 		if current == nil {
 			continue
 		}
 
-		var apiErr *asc.APIError
-		if errors.As(current, &apiErr) {
+		if frame.expanded {
+			signals.ingest("", "", current.Error())
+			continue
+		}
+
+		if apiErr, ok := any(current).(*asc.APIError); ok {
 			signals.ingest("", apiErr.Code, apiErr.Detail)
 			for path, entries := range apiErr.AssociatedErrors {
 				signals.ingest(path, "", "")
@@ -1210,17 +1220,22 @@ func collectSubmissionErrorSignals(err error) submissionErrorSignals {
 				}
 			}
 		}
-		signals.ingest("", "", current.Error())
+
+		// Process descendants before the wrapper text so structured API detail wins.
+		stack = append(stack, errorFrame{err: current, expanded: true})
 
 		type unwrapMany interface {
 			Unwrap() []error
 		}
 		if multi, ok := current.(unwrapMany); ok {
-			stack = append(stack, multi.Unwrap()...)
+			children := multi.Unwrap()
+			for i := len(children) - 1; i >= 0; i-- {
+				stack = append(stack, errorFrame{err: children[i]})
+			}
 			continue
 		}
 		if next := errors.Unwrap(current); next != nil {
-			stack = append(stack, next)
+			stack = append(stack, errorFrame{err: next})
 		}
 	}
 
