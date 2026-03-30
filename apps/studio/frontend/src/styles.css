@@ -1539,3 +1539,20 @@ textarea {
   color: var(--text-primary);
   font-size: 13px;
 }
+
+/* ── Status health badges ────────────────────────── */
+
+.status-pill.status-health-green {
+  background: rgba(52, 199, 89, 0.15);
+  color: #1a9a3a;
+}
+
+.status-pill.status-health-yellow {
+  background: rgba(255, 159, 10, 0.15);
+  color: #b86e00;
+}
+
+.status-pill.status-health-red {
+  background: rgba(255, 59, 48, 0.15);
+  color: var(--red);
+}

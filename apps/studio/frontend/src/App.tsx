@@ -9,16 +9,19 @@ type SidebarGroup = { label: string; items: NavSection[] };
 
 const sidebarGroups: SidebarGroup[] = [
   {
-    label: "General",
+    label: "Distribution",
     items: [
       { id: "overview", label: "App Information", description: "App details and metadata" },
-      { id: "app-review", label: "App Review", description: "Review details and attachments" },
+      { id: "status", label: "Status", description: "Release health dashboard" },
+      { id: "builds", label: "Builds", description: "Build processing and history" },
+      { id: "testflight", label: "TestFlight", description: "Beta groups and testers" },
       { id: "history", label: "History", description: "Version history" },
     ],
   },
   {
-    label: "Trust & Safety",
+    label: "General",
     items: [
+      { id: "app-review", label: "App Review", description: "Review details and attachments" },
       { id: "app-privacy", label: "App Privacy", description: "Privacy declarations" },
       { id: "app-accessibility", label: "App Accessibility", description: "Accessibility declarations" },
       { id: "ratings-reviews", label: "Ratings and Reviews", description: "Customer reviews" },
@@ -43,6 +46,13 @@ const sidebarGroups: SidebarGroup[] = [
     ],
   },
   {
+    label: "Analytics & Finance",
+    items: [
+      { id: "performance", label: "Performance", description: "Metrics and diagnostics" },
+      { id: "insights", label: "Insights", description: "Weekly and daily analytics" },
+    ],
+  },
+  {
     label: "Featuring",
     items: [
       { id: "nominations", label: "Nominations", description: "Featuring nominations" },
@@ -58,6 +68,7 @@ allSections.push({ id: "settings", label: "Settings", description: "Studio prefe
 const sectionCommands: Record<string, string> = {
   "app-review": "review submissions-list --app APP_ID --output json",
   "history": "versions list --app APP_ID --output json",
+  "builds": "builds list --app APP_ID --limit 20 --output json",
   "app-privacy": "age-rating view --app APP_ID --output json",
   "app-accessibility": "accessibility list --app APP_ID --output json",
   "ratings-reviews": "reviews list --app APP_ID --limit 20 --output json",
@@ -117,7 +128,9 @@ const displayValue: Record<string, string> = {
   TWO_MONTHS: "2 months", THREE_MONTHS: "3 months", SIX_MONTHS: "6 months",
   CONSUMABLE: "Consumable", NON_CONSUMABLE: "Non-Consumable",
   AUTO_RENEWABLE: "Auto-Renewable", NON_RENEWING: "Non-Renewing",
-  APPROVED: "Approved", VALID: "Valid",
+  APPROVED: "Approved", VALID: "Valid", COMPLETE: "Complete",
+  READY_FOR_REVIEW: "Ready for Review", WAITING_FOR_EXPORT_COMPLIANCE: "Waiting for Export Compliance",
+  PROCESSING: "Processing", FAILED: "Failed", INVALID: "Invalid",
 };
 function fmt(val: string): string { return displayValue[val] ?? val; }
 
@@ -195,6 +208,9 @@ export default function App() {
   const [appsLoading, setAppsLoading] = useState(false);
   // Cache of section data keyed by section ID. Prefetched in parallel on app select.
   const [sectionCache, setSectionCache] = useState<Record<string, { loading: boolean; error?: string; items: Record<string, unknown>[] }>>({});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [appStatus, setAppStatus] = useState<{ loading: boolean; error?: string; data: any | null }>({ loading: false, data: null });
+  const [testflightGroups, setTestflightGroups] = useState<{ loading: boolean; error?: string; items: Record<string, unknown>[] }>({ loading: false, items: [] });
   const [subscriptions, setSubscriptions] = useState<{ loading: boolean; error?: string; items: { id: string; groupName: string; name: string; productId: string; state: string; subscriptionPeriod: string; reviewNote: string; groupLevel: number }[] }>({ loading: false, items: [] });
   const [pricingOverview, setPricingOverview] = useState<{ loading: boolean; error?: string; availableInNewTerritories: boolean; currentPrice: string; currentProceeds: string; baseCurrency: string; territories: { territory: string; available: boolean; releaseDate: string }[]; subscriptionPricing: { name: string; productId: string; subscriptionPeriod: string; state: string; groupName: string; price: string; currency: string; proceeds: string }[] }>({ loading: false, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
@@ -280,6 +296,29 @@ export default function App() {
       initial[sectionId] = { loading: true, items: [] };
     }
     setSectionCache(initial);
+    // App status dashboard
+    setAppStatus({ loading: true, data: null });
+    RunASCCommand(`status --app ${appId} --output json`)
+      .then((res) => {
+        if (res.error) { setAppStatus({ loading: false, error: res.error, data: null }); return; }
+        try { setAppStatus({ loading: false, data: JSON.parse(res.data) }); }
+        catch { setAppStatus({ loading: false, error: "Failed to parse status", data: null }); }
+      })
+      .catch((e) => setAppStatus({ loading: false, error: String(e), data: null }));
+
+    // TestFlight groups
+    setTestflightGroups({ loading: false, items: [] });
+    RunASCCommand(`testflight groups list --app ${appId} --output json`)
+      .then((res) => {
+        if (res.error) { setTestflightGroups({ loading: false, error: res.error, items: [] }); return; }
+        try {
+          const d = JSON.parse(res.data);
+          const items = (d.data ?? []).map((i: { id: string; attributes: Record<string, unknown> }) => ({ id: i.id, ...i.attributes }));
+          setTestflightGroups({ loading: false, items });
+        } catch { setTestflightGroups({ loading: false, error: "Failed to parse", items: [] }); }
+      })
+      .catch((e) => setTestflightGroups({ loading: false, error: String(e), items: [] }));
+
     // Pricing overview
     setPricingOverview({ loading: true, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
     GetPricingOverview(appId)
@@ -834,6 +873,93 @@ export default function App() {
                 </div>
               );
             })() : null}
+          </div>
+        ) : activeSection.id === "status" && selectedAppId ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">Release Status</h3>
+              {appStatus.loading ? (
+                <p className="empty-hint">Loading…</p>
+              ) : appStatus.error ? (
+                <p className="empty-hint">{appStatus.error}</p>
+              ) : appStatus.data ? (() => {
+                const s = appStatus.data;
+                return (
+                  <>
+                    {/* Health summary */}
+                    <div className="status-health" style={{ marginBottom: 16 }}>
+                      <span className={`status-pill status-health-${s.summary?.health}`} style={{ fontSize: 13, padding: "4px 10px" }}>
+                        {s.summary?.health === "green" ? "Healthy" : s.summary?.health === "yellow" ? "Attention" : s.summary?.health === "red" ? "Blocked" : s.summary?.health}
+                      </span>
+                      {s.summary?.nextAction && <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>{s.summary.nextAction}</p>}
+                    </div>
+
+                    <table className="data-table" style={{ marginBottom: 20 }}>
+                      <tbody>
+                        <tr><td className="vcard-label">App Store Version</td><td>{s.appstore?.version} — {fmt(s.appstore?.state ?? "")}</td></tr>
+                        <tr><td className="vcard-label">Platform</td><td>{fmt(s.appstore?.platform ?? "")}</td></tr>
+                        <tr><td className="vcard-label">Latest Build</td><td>{s.builds?.latest?.version} (#{s.builds?.latest?.buildNumber}) — {fmt(s.builds?.latest?.processingState ?? "")}</td></tr>
+                        <tr><td className="vcard-label">Uploaded</td><td>{s.builds?.latest?.uploadedDate}</td></tr>
+                        <tr><td className="vcard-label">Review</td><td>{fmt(s.review?.state ?? "")} {s.review?.submittedDate ? `(submitted ${s.review.submittedDate.split("T")[0]})` : ""}</td></tr>
+                        <tr><td className="vcard-label">TestFlight</td><td>{fmt(s.testflight?.betaReviewState ?? "")}</td></tr>
+                        <tr><td className="vcard-label">Phased Release</td><td>{s.phasedRelease?.configured ? "Configured" : "Not configured"}</td></tr>
+                        <tr><td className="vcard-label">Submission</td><td>{s.submission?.inFlight ? "In flight" : "None"}{s.submission?.blockingIssues?.length ? ` — ${s.submission.blockingIssues.length} blocking` : ""}</td></tr>
+                      </tbody>
+                    </table>
+                  </>
+                );
+              })() : null}
+            </div>
+          </div>
+        ) : activeSection.id === "testflight" && selectedAppId ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">TestFlight</h3>
+              {testflightGroups.loading ? (
+                <p className="empty-hint">Loading…</p>
+              ) : testflightGroups.error ? (
+                <p className="empty-hint">{testflightGroups.error}</p>
+              ) : testflightGroups.items.length === 0 ? (
+                <p className="empty-hint">No beta groups found.</p>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Group</th>
+                      <th>Type</th>
+                      <th>Public Link</th>
+                      <th>Feedback</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {testflightGroups.items.map((g, idx) => (
+                      <tr key={g.id as string ?? idx}>
+                        <td style={{ fontWeight: 500 }}>{String(g.name ?? "")}</td>
+                        <td>{g.isInternalGroup ? "Internal" : "External"}</td>
+                        <td>{g.publicLink ? <a href={String(g.publicLink)} target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>{String(g.publicLink).replace("https://testflight.apple.com/join/", "")}</a> : "—"}</td>
+                        <td>{g.feedbackEnabled ? "On" : "Off"}</td>
+                        <td>{String(g.createdDate ?? "").split("T")[0]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        ) : activeSection.id === "performance" && selectedAppId ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">Performance</h3>
+              <p className="empty-hint">Performance metrics require a build ID. Use the ACP chat to run: <code>asc performance metrics list --app {selectedAppId}</code></p>
+            </div>
+          </div>
+        ) : activeSection.id === "insights" && selectedAppId ? (
+          <div className="app-detail-view">
+            <div className="app-detail-section">
+              <h3 className="section-label">Insights</h3>
+              <p className="empty-hint">Run weekly insights via ACP chat: <code>asc insights weekly --app {selectedAppId} --source analytics</code></p>
+            </div>
           </div>
         ) : activeSection.id === "pricing" && selectedAppId ? (
           <div className="app-detail-view">
