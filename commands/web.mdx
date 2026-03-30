@@ -1,0 +1,213 @@
+# web
+
+> Unofficial Apple web-session workflows for App Store Connect. Experimental, unofficial, and discouraged.
+
+The `asc web` command family automates workflows that rely on Apple's private App Store Connect web endpoints instead of the public App Store Connect API. Use this surface only when no supported API flow exists and you accept the risk that Apple can change or block these endpoints at any time.
+
+<Warning>
+  `asc web` is experimental, unofficial, and discouraged. These commands use private Apple web-session endpoints, are not sanctioned for third-party automation, can break without notice, and may put your account at risk. Prefer the public App Store Connect API and the non-`web` `asc` commands whenever those can do the job.
+</Warning>
+
+## Quick start
+
+```bash  theme={null}
+# Start or inspect a cached Apple Account web session
+asc web auth login --apple-id "user@example.com"
+asc web auth status
+
+# Create an app through the web flow
+asc web apps create --name "My App" --bundle-id "com.example.app" --sku "MYAPP123"
+
+# Bootstrap app availability where the public API falls short
+asc web apps availability create --app "123456789" --territory "USA,GBR" --available-in-new-territories false
+
+# Declare that an app is not a regulated medical device
+asc web apps medical-device set --app "123456789" --declared false
+
+# Plan and apply privacy declaration changes
+asc web privacy plan --app "123456789" --file ./privacy.json
+asc web privacy apply --app "123456789" --file ./privacy.json --confirm
+
+# Inspect review submissions or analytics dashboards
+asc web review list --app "123456789"
+asc web analytics overview --app "123456789" --start 2026-01-01 --end 2026-03-31
+```
+
+## When to use `asc web`
+
+Use `asc web` only when one of these is true:
+
+* Apple exposes the workflow only in the App Store Connect web UI
+* the public App Store Connect API is missing the specific mutation or report you need
+* you are doing one-off or reviewer-owned operations where breakage risk is acceptable
+
+Avoid `asc web` when:
+
+* an official `asc` command already exists for the workflow
+* you need stable CI or production-critical automation
+* you need guarantees that the endpoint contract will stay consistent over time
+
+## Session model
+
+`asc web` does not use App Store Connect API keys. It uses a cached Apple Account web session created with `asc web auth login`.
+
+Common session commands:
+
+* `asc web auth login` - create or refresh the cached web session
+* `asc web auth status` - inspect whether the current session is usable
+* `asc web auth capabilities` - inspect web-visible API key roles and capabilities
+* `asc web auth logout` - clear the cached web session
+
+## Command families
+
+### `asc web auth`
+
+Apple Account web-session lifecycle and capability inspection.
+
+Available commands:
+
+* `asc web auth login` - create or refresh the cached web session
+* `asc web auth status` - inspect the current session state
+* `asc web auth capabilities` - inspect web-visible capability metadata
+* `asc web auth logout` - clear the cached web session
+
+### `asc web apps`
+
+App management workflows over private web endpoints.
+
+Available commands:
+
+* `asc web apps create` - create a new app via the web flow
+* `asc web apps availability create` - bootstrap initial territory availability
+* `asc web apps medical-device set` - manage the regulated medical device declaration
+
+Notes:
+
+* `asc web apps create` is the canonical app-creation path in the `web` family
+* `asc web apps medical-device set` currently supports only `--declared false`
+* all commands in this group remain experimental and discouraged
+
+### `asc web sandbox`
+
+Sandbox tester creation via the App Store Connect web UI contract.
+
+Available commands:
+
+* `asc web sandbox create` - create a sandbox tester
+
+### `asc web privacy`
+
+App privacy declaration workflows over Apple web-session `/iris` endpoints.
+
+Available commands:
+
+* `asc web privacy catalog` - list valid privacy declaration tokens
+* `asc web privacy pull` - fetch the current declaration state
+* `asc web privacy plan` - diff a local declaration file against remote state
+* `asc web privacy apply` - apply declaration changes without publishing
+* `asc web privacy publish` - explicitly publish the declaration
+
+Recommended flow:
+
+```bash  theme={null}
+asc web privacy pull --app "123456789" --output json > privacy.json
+asc web privacy plan --app "123456789" --file ./privacy.json
+asc web privacy apply --app "123456789" --file ./privacy.json --confirm
+asc web privacy publish --app "123456789" --confirm
+```
+
+### `asc web review`
+
+App-centric review, rejection, and subscription-selection inspection.
+
+Available commands:
+
+* `asc web review list` - list review submissions for an app
+* `asc web review show` - inspect one submission and related messages/screenshots
+* `asc web review subscriptions` - inspect and mutate next-version subscription review selection
+
+### `asc web analytics`
+
+Recreates App Store Connect analytics dashboards using private web analytics endpoints.
+
+Available commands:
+
+* `asc web analytics overview`
+* `asc web analytics sources`
+* `asc web analytics product-pages`
+* `asc web analytics in-app-events`
+* `asc web analytics app-clips`
+* `asc web analytics campaigns`
+* `asc web analytics sales`
+* `asc web analytics subscriptions`
+* `asc web analytics offers`
+* `asc web analytics benchmarks`
+* `asc web analytics metrics`
+* `asc web analytics retention`
+* `asc web analytics cohorts`
+
+Example:
+
+```bash  theme={null}
+asc web analytics sales --app "123456789" --start 2026-01-01 --end 2026-03-31 --output markdown
+```
+
+### `asc web xcode-cloud`
+
+Private Xcode Cloud usage, workflow, and environment-variable management.
+
+Available command groups:
+
+* `asc web xcode-cloud usage` - query plan quota and usage breakdowns
+* `asc web xcode-cloud products` - list Xcode Cloud products
+* `asc web xcode-cloud workflows` - describe, create, and edit workflows
+* `asc web xcode-cloud env-vars` - manage shared and workflow-scoped environment variables
+
+Example:
+
+```bash  theme={null}
+asc web xcode-cloud usage summary --apple-id "user@example.com"
+asc web xcode-cloud workflows create --product-id "UUID" --file ./workflow.json --apple-id "user@example.com"
+```
+
+## Safety notes
+
+* Expect authentication churn; cached web sessions expire
+* prefer one-off human-driven usage over unattended automation
+* expect contract drift in request/response bodies
+* do not treat `asc web` output or behavior as stable API guarantees
+* when an official non-`web` command exists, prefer that command instead
+
+## Discoverability
+
+Use the CLI help directly to explore the current surface:
+
+```bash  theme={null}
+asc web --help
+asc web auth --help
+asc web apps --help
+asc web privacy --help
+asc web review --help
+asc web analytics --help
+asc web xcode-cloud --help
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Apps command" icon="boxes-stacked" href="/commands/apps">
+    Prefer the supported app-management surface when it can do the job
+  </Card>
+
+  <Card title="Sandbox command" icon="flask" href="/commands/sandbox">
+    Compare the official sandbox command family with the web-only creation flow
+  </Card>
+
+  <Card title="Analytics command" icon="chart-line" href="/commands/analytics">
+    Use official analytics and report workflows when those meet your needs
+  </Card>
+
+  <Card title="Xcode Cloud command" icon="cloud" href="/commands/xcode-cloud">
+    Prefer the supported Xcode Cloud command family when possible
+  </Card>
+</CardGroup>

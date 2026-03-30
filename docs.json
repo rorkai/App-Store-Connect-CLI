@@ -69,7 +69,8 @@
             "group": "Overview",
             "pages": [
               "commands/overview",
-              "commands/global-flags"
+              "commands/global-flags",
+              "commands/web"
             ]
           },
           {
