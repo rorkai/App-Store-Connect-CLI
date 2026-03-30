@@ -24,7 +24,7 @@ func TestPublishTestflightExistingBuildIDSkipsUpload(t *testing.T) {
 		requestCount++
 		switch requestCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			body := `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`
@@ -71,7 +71,7 @@ func TestPublishTestflightExistingBuildIDSkipsUpload(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "testflight",
-			"--app", "app-1",
+			"--app", "123",
 			"--build", "build-1",
 			"--group", "group-1",
 		}); err != nil {
@@ -114,7 +114,7 @@ func TestPublishTestflightExistingBuildIDAllowsInternalGroup(t *testing.T) {
 		requestCount++
 		switch requestCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true}}]}`
@@ -161,7 +161,7 @@ func TestPublishTestflightExistingBuildIDAllowsInternalGroup(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "testflight",
-			"--app", "app-1",
+			"--app", "123",
 			"--build", "build-1",
 			"--group", "group-internal",
 		}); err != nil {
@@ -195,7 +195,7 @@ func TestPublishTestflightExistingBuildIDNotifyUsesBuildBetaNotificationsEndpoin
 		requestCount++
 		switch requestCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true}}]}`
@@ -272,7 +272,7 @@ func TestPublishTestflightExistingBuildIDNotifyUsesBuildBetaNotificationsEndpoin
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "testflight",
-			"--app", "app-1",
+			"--app", "123",
 			"--build", "build-1",
 			"--group", "group-internal",
 			"--notify",
@@ -316,7 +316,7 @@ func TestPublishTestflightExistingBuildIDAddsInternalGroupWithAccessToAllBuilds(
 		requestCount++
 		switch requestCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`
@@ -366,7 +366,7 @@ func TestPublishTestflightExistingBuildIDAddsInternalGroupWithAccessToAllBuilds(
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "testflight",
-			"--app", "app-1",
+			"--app", "123",
 			"--build", "build-1",
 			"--group", "group-internal",
 		}); err != nil {
@@ -415,7 +415,7 @@ func TestPublishTestflightExistingBuildIDWithInternalAllBuildsGroupStillNotifies
 		requestCount++
 		switch requestCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`
@@ -492,7 +492,7 @@ func TestPublishTestflightExistingBuildIDWithInternalAllBuildsGroupStillNotifies
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "testflight",
-			"--app", "app-1",
+			"--app", "123",
 			"--build", "build-1",
 			"--group", "group-internal",
 			"--notify",
@@ -536,7 +536,7 @@ func TestPublishTestflightExistingBuildIDNotifySkipsManualNotificationWhenAutoNo
 		requestCount++
 		switch requestCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`
@@ -596,7 +596,7 @@ func TestPublishTestflightExistingBuildIDNotifySkipsManualNotificationWhenAutoNo
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "testflight",
-			"--app", "app-1",
+			"--app", "123",
 			"--build", "build-1",
 			"--group", "group-internal",
 			"--notify",
@@ -640,7 +640,7 @@ func TestPublishTestflightExistingBuildIDAddsInternalAndExternalGroupsWhenIntern
 		requestCount++
 		switch requestCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}},{"type":"betaGroups","id":"group-external","attributes":{"name":"External","isInternalGroup":false}}]}`
@@ -694,7 +694,7 @@ func TestPublishTestflightExistingBuildIDAddsInternalAndExternalGroupsWhenIntern
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "testflight",
-			"--app", "app-1",
+			"--app", "123",
 			"--build", "build-1",
 			"--group", "group-internal,group-external",
 		}); err != nil {
@@ -737,7 +737,7 @@ func TestPublishTestflightExistingBuildIDNotifyTreatsAutoNotifyConflictAsAlready
 		requestCount++
 		switch requestCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`
@@ -807,7 +807,7 @@ func TestPublishTestflightExistingBuildIDNotifyTreatsAutoNotifyConflictAsAlready
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "testflight",
-			"--app", "app-1",
+			"--app", "123",
 			"--build", "build-1",
 			"--group", "group-internal",
 			"--notify",
@@ -851,7 +851,7 @@ func TestPublishTestflightExistingBuildIDNotifyPreservesPartialSuccessMessageWhe
 		requestCount++
 		switch requestCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			body := `{"data":[{"type":"betaGroups","id":"group-internal","attributes":{"name":"Internal","isInternalGroup":true,"hasAccessToAllBuilds":true}}]}`
@@ -912,7 +912,7 @@ func TestPublishTestflightExistingBuildIDNotifyPreservesPartialSuccessMessageWhe
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "testflight",
-			"--app", "app-1",
+			"--app", "123",
 			"--build", "build-1",
 			"--group", "group-internal",
 			"--notify",
@@ -960,7 +960,7 @@ func TestPublishTestflightExistingBuildNumberResolvesAndWaits(t *testing.T) {
 		requestCount++
 		switch requestCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			body := `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`
@@ -974,8 +974,8 @@ func TestPublishTestflightExistingBuildNumberResolvesAndWaits(t *testing.T) {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			query := req.URL.Query()
-			if query.Get("filter[app]") != "app-1" {
-				t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+			if query.Get("filter[app]") != "123" {
+				t.Fatalf("expected filter[app]=123, got %q", query.Get("filter[app]"))
 			}
 			if query.Get("filter[version]") != "42" {
 				t.Fatalf("expected filter[version]=42, got %q", query.Get("filter[version]"))
@@ -1033,7 +1033,7 @@ func TestPublishTestflightExistingBuildNumberResolvesAndWaits(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "testflight",
-			"--app", "app-1",
+			"--app", "123",
 			"--build-number", "42",
 			"--group", "group-1",
 			"--wait",
@@ -1075,7 +1075,7 @@ func TestPublishTestflightExistingBuildNumberNotifyUsesBuildBetaNotificationsEnd
 		requestCount++
 		switch requestCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/betaGroups" {
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/123/betaGroups" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			body := `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`
@@ -1089,8 +1089,8 @@ func TestPublishTestflightExistingBuildNumberNotifyUsesBuildBetaNotificationsEnd
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			query := req.URL.Query()
-			if query.Get("filter[app]") != "app-1" {
-				t.Fatalf("expected filter[app]=app-1, got %q", query.Get("filter[app]"))
+			if query.Get("filter[app]") != "123" {
+				t.Fatalf("expected filter[app]=123, got %q", query.Get("filter[app]"))
 			}
 			if query.Get("filter[version]") != "42" {
 				t.Fatalf("expected filter[version]=42, got %q", query.Get("filter[version]"))
@@ -1162,7 +1162,7 @@ func TestPublishTestflightExistingBuildNumberNotifyUsesBuildBetaNotificationsEnd
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"publish", "testflight",
-			"--app", "app-1",
+			"--app", "123",
 			"--build-number", "42",
 			"--group", "group-1",
 			"--notify",

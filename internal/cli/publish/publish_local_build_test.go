@@ -619,6 +619,120 @@ func TestPublishTestFlightLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testin
 	}
 }
 
+func TestPublishTestFlightIPAUploadResolvesAppIDBeforeGroupLookupAndUpload(t *testing.T) {
+	restore := overridePublishCommandTestHooks(t)
+	defer restore()
+
+	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	validatePublishIPAPathFn = func(string) (os.FileInfo, error) {
+		return newPublishTestFileInfo(t)
+	}
+
+	lookupCalls := 0
+	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, appID string) (string, error) {
+		lookupCalls++
+		if appID != "friendly-app" {
+			t.Fatalf("expected unresolved app input to be passed through lookup, got %q", appID)
+		}
+		return "app-123", nil
+	}
+
+	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, appID, _ string, _ os.FileInfo, version, buildNumber string, platform asc.Platform, pollInterval, _ time.Duration, _ bool) (*publishUploadResult, error) {
+		if appID != "app-123" {
+			t.Fatalf("expected resolved app ID for upload, got %q", appID)
+		}
+		if version != "1.2.3" || buildNumber != "42" {
+			t.Fatalf("unexpected upload metadata: version=%q build=%q", version, buildNumber)
+		}
+		if platform != asc.Platform("IOS") {
+			t.Fatalf("expected IOS platform, got %q", platform)
+		}
+		if pollInterval != 5*time.Second {
+			t.Fatalf("expected poll interval 5s, got %s", pollInterval)
+		}
+		return &publishUploadResult{
+			Build: &asc.BuildResponse{
+				Data: asc.Resource[asc.BuildAttributes]{
+					ID: "build-123",
+					Attributes: asc.BuildAttributes{
+						Version:         buildNumber,
+						ProcessingState: asc.BuildProcessingStateValid,
+					},
+				},
+			},
+			Version:     version,
+			BuildNumber: buildNumber,
+		}, nil
+	}
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	requestCount := 0
+	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-123/betaGroups" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"group-1","isInternalGroup":false}}]}`)
+		case 2:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/builds/build-123/relationships/betaGroups" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return publishCommandJSONResponse(http.StatusNoContent, "")
+		default:
+			t.Fatalf("unexpected request count %d", requestCount)
+			return nil, nil
+		}
+	})
+
+	cmd := PublishTestFlightCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "friendly-app",
+		"--ipa", "Demo.ipa",
+		"--version", "1.2.3",
+		"--build-number", "42",
+		"--group", "group-1",
+		"--poll-interval", "5s",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse flags: %v", err)
+	}
+
+	var runErr error
+	stdout, stderr := capturePublishCommandOutput(t, func() error {
+		runErr = cmd.Exec(context.Background(), nil)
+		return runErr
+	})
+	if runErr != nil {
+		t.Fatalf("Exec() error: %v", runErr)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected no stderr output, got %q", stderr)
+	}
+	if lookupCalls != 1 {
+		t.Fatalf("expected exactly one app lookup, got %d", lookupCalls)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+	}
+	if payload["mode"] != string(asc.PublishModeIPAUpload) {
+		t.Fatalf("expected ipa_upload mode, got %#v", payload["mode"])
+	}
+	if payload["uploaded"] != true {
+		t.Fatalf("expected uploaded=true, got %#v", payload["uploaded"])
+	}
+	if payload["buildId"] != "build-123" {
+		t.Fatalf("expected buildId build-123, got %#v", payload["buildId"])
+	}
+}
+
 func TestPublishAppStoreLocalBuildRequiresExportOptionsWhenDefaultMissing(t *testing.T) {
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()
@@ -802,6 +916,122 @@ func TestPublishAppStoreLocalBuildUsesFreshUploadTimeoutAfterArchive(t *testing.
 
 	if err := cmd.Exec(context.Background(), nil); err != nil {
 		t.Fatalf("Exec() error: %v", err)
+	}
+}
+
+func TestPublishAppStoreIPAUploadResolvesAppIDBeforeUploadAndAttach(t *testing.T) {
+	restore := overridePublishCommandTestHooks(t)
+	defer restore()
+
+	getPublishASCClientFn = func() (*asc.Client, error) { return newPublishCommandTestClient(t), nil }
+	validatePublishIPAPathFn = func(string) (os.FileInfo, error) {
+		return newPublishTestFileInfo(t)
+	}
+
+	lookupCalls := 0
+	resolvePublishAppIDWithLookupFn = func(_ context.Context, _ *asc.Client, appID string) (string, error) {
+		lookupCalls++
+		if appID != "friendly-app" {
+			t.Fatalf("expected unresolved app input to be passed through lookup, got %q", appID)
+		}
+		return "app-123", nil
+	}
+
+	uploadBuildAndWaitForIDFn = func(_ context.Context, _ *asc.Client, appID, _ string, _ os.FileInfo, version, buildNumber string, platform asc.Platform, pollInterval, _ time.Duration, _ bool) (*publishUploadResult, error) {
+		if appID != "app-123" {
+			t.Fatalf("expected resolved app ID for upload, got %q", appID)
+		}
+		if version != "1.2.3" || buildNumber != "42" {
+			t.Fatalf("unexpected upload metadata: version=%q build=%q", version, buildNumber)
+		}
+		if platform != asc.Platform("IOS") {
+			t.Fatalf("expected IOS platform, got %q", platform)
+		}
+		if pollInterval != 5*time.Second {
+			t.Fatalf("expected poll interval 5s, got %s", pollInterval)
+		}
+		return &publishUploadResult{
+			Build: &asc.BuildResponse{
+				Data: asc.Resource[asc.BuildAttributes]{
+					ID: "build-123",
+					Attributes: asc.BuildAttributes{
+						Version:         buildNumber,
+						ProcessingState: asc.BuildProcessingStateValid,
+					},
+				},
+			},
+			Version:     version,
+			BuildNumber: buildNumber,
+		}, nil
+	}
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+	requestCount := 0
+	http.DefaultTransport = publishCommandRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-123/appStoreVersions" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
+		case 2:
+			if req.Method != http.MethodPatch || req.URL.Path != "/v1/appStoreVersions/version-1/relationships/build" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return publishCommandJSONResponse(http.StatusNoContent, "")
+		default:
+			t.Fatalf("unexpected request count %d", requestCount)
+			return nil, nil
+		}
+	})
+
+	cmd := PublishAppStoreCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "friendly-app",
+		"--ipa", "Demo.ipa",
+		"--version", "1.2.3",
+		"--build-number", "42",
+		"--poll-interval", "5s",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse flags: %v", err)
+	}
+
+	var runErr error
+	stdout, stderr := capturePublishCommandOutput(t, func() error {
+		runErr = cmd.Exec(context.Background(), nil)
+		return runErr
+	})
+	if runErr != nil {
+		t.Fatalf("Exec() error: %v", runErr)
+	}
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("expected no stderr output, got %q", stderr)
+	}
+	if lookupCalls != 1 {
+		t.Fatalf("expected exactly one app lookup, got %d", lookupCalls)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v\nstdout=%s", err, stdout)
+	}
+	if payload["mode"] != string(asc.PublishModeIPAUpload) {
+		t.Fatalf("expected ipa_upload mode, got %#v", payload["mode"])
+	}
+	if payload["uploaded"] != true {
+		t.Fatalf("expected uploaded=true, got %#v", payload["uploaded"])
+	}
+	if payload["buildId"] != "build-123" {
+		t.Fatalf("expected buildId build-123, got %#v", payload["buildId"])
+	}
+	if payload["versionId"] != "version-1" {
+		t.Fatalf("expected versionId version-1, got %#v", payload["versionId"])
 	}
 }
 

@@ -203,18 +203,13 @@ Examples:
 				var preflightCancel context.CancelFunc
 				preflightCtx, preflightCancel = newPublishRequestCtx()
 				defer preflightCancel()
-				resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(preflightCtx, client, resolvedPublishAppID)
-				if err != nil {
-					return fmt.Errorf("publish testflight: resolve app: %w", err)
-				}
+			}
+			resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(preflightCtx, client, resolvedPublishAppID)
+			if err != nil {
+				return fmt.Errorf("publish testflight: resolve app: %w", err)
 			}
 
-			var groupLookupCtx context.Context
-			if localBuildMode {
-				groupLookupCtx = preflightCtx
-			} else {
-				groupLookupCtx = requestCtx
-			}
+			groupLookupCtx := preflightCtx
 			resolvedGroups, err := resolvePublishBetaGroups(groupLookupCtx, client, resolvedPublishAppID, parsedGroupIDs)
 			if err != nil {
 				return fmt.Errorf("publish testflight: %w", err)
@@ -472,17 +467,17 @@ Examples:
 				var preflightCancel context.CancelFunc
 				preflightCtx, preflightCancel = newPublishRequestCtx()
 				defer preflightCancel()
-				resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(preflightCtx, client, resolvedPublishAppID)
-				if err != nil {
-					return fmt.Errorf("publish appstore: resolve app: %w", err)
-				}
+			}
+			resolvedPublishAppID, err = resolvePublishAppIDWithLookupFn(preflightCtx, client, resolvedPublishAppID)
+			if err != nil {
+				return fmt.Errorf("publish appstore: resolve app: %w", err)
 			}
 
 			platformValue := asc.Platform(normalizedPlatform)
 			timeoutOverride := *timeout > 0
 			var buildResp *asc.BuildResponse
-			uploaded := true
-			mode := asc.PublishModeIPAUpload
+			uploaded := false
+			var mode asc.PublishMode
 			var localBuildResult *publishLocalBuildExecutionResult
 
 			if localBuildMode {
@@ -511,6 +506,8 @@ Examples:
 				}
 				buildResp = uploadResult.Build
 				versionValue = uploadResult.Version
+				uploaded = true
+				mode = asc.PublishModeIPAUpload
 			}
 
 			if *wait {
