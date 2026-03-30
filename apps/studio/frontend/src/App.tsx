@@ -83,6 +83,22 @@ const fieldLabels: Record<string, string> = {
   subscriptionGroupId: "Group ID", groupLevel: "Group Level",
 };
 
+// Format raw API enum values for display
+const displayValue: Record<string, string> = {
+  IOS: "iOS", MAC_OS: "macOS", TV_OS: "tvOS", VISION_OS: "visionOS",
+  READY_FOR_SALE: "Ready for Sale", READY_FOR_DISTRIBUTION: "Ready for Distribution",
+  PREPARE_FOR_SUBMISSION: "Prepare for Submission", WAITING_FOR_REVIEW: "Waiting for Review",
+  IN_REVIEW: "In Review", PENDING_DEVELOPER_RELEASE: "Pending Developer Release",
+  DEVELOPER_REJECTED: "Developer Rejected", REJECTED: "Rejected",
+  REMOVED_FROM_SALE: "Removed from Sale", AFTER_APPROVAL: "After Approval",
+  MANUAL: "Manual", ONE_MONTH: "1 month", ONE_YEAR: "1 year", ONE_WEEK: "1 week",
+  TWO_MONTHS: "2 months", THREE_MONTHS: "3 months", SIX_MONTHS: "6 months",
+  CONSUMABLE: "Consumable", NON_CONSUMABLE: "Non-Consumable",
+  AUTO_RENEWABLE: "Auto-Renewable", NON_RENEWING: "Non-Renewing",
+  APPROVED: "Approved", VALID: "Valid",
+};
+function fmt(val: string): string { return displayValue[val] ?? val; }
+
 type EnvSnapshot = {
   configPath: string;
   configPresent: boolean;
@@ -938,7 +954,7 @@ export default function App() {
                     {columns.map((key) => (
                       <div key={key} className="env-row">
                         <span className="env-key">{fieldLabels[key] ?? key}</span>
-                        <span className="env-value">{String(item[key] ?? "")}</span>
+                        <span className="env-value">{fmt(String(item[key] ?? ""))}</span>
                       </div>
                     ))}
                   </div>
@@ -967,12 +983,13 @@ export default function App() {
                         {columns.map((col) => {
                           const val = item[col];
                           const isState = col === "state" || col === "appVersionState" || col === "appStoreState" || col === "processingState";
-                          const display = val != null ? String(val) : "";
+                          const raw = val != null ? String(val) : "";
+                          const display = fmt(raw);
                           return (
                             <td key={col}>
                               {isState ? (
-                                <span className={`status-pill status-${display.toLowerCase().replace(/_/g, "-")}`}>
-                                  {display.replace(/_/g, " ")}
+                                <span className={`status-pill status-${raw.toLowerCase().replace(/_/g, "-")}`}>
+                                  {display}
                                 </span>
                               ) : display}
                             </td>

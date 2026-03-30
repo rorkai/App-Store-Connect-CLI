@@ -77,8 +77,8 @@ textarea {
 }
 
 .sidebar-header {
-  padding: 12px 16px 0 78px;
-  height: 38px;
+  padding: 0 16px 0 78px;
+  height: 74px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -114,7 +114,7 @@ textarea {
 /* ── App picker ─────────────────────────────────── */
 
 .sidebar-app-picker {
-  padding: 0 12px 8px;
+  padding: 0 12px 12px;
 }
 
 .app-picker-select {
@@ -239,12 +239,12 @@ textarea {
 }
 
 .sidebar-row.is-active {
-  background: var(--accent-bg);
-  color: var(--accent);
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary);
 }
 
 .sidebar-row.is-active .sidebar-row-icon {
-  color: var(--accent);
+  color: var(--text-secondary);
 }
 
 .sidebar-row-icon {
