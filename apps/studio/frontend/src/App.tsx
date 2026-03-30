@@ -517,6 +517,12 @@ export default function App() {
   const [bundleIDPlatform, setBundleIDPlatform] = useState("IOS");
   const [bundleIDCreateError, setBundleIDCreateError] = useState("");
   const [bundleIDCreating, setBundleIDCreating] = useState(false);
+  const [showDeviceSheet, setShowDeviceSheet] = useState(false);
+  const [deviceName, setDeviceName] = useState("");
+  const [deviceUDID, setDeviceUDID] = useState("");
+  const [devicePlatform, setDevicePlatform] = useState("IOS");
+  const [deviceCreateError, setDeviceCreateError] = useState("");
+  const [deviceCreating, setDeviceCreating] = useState(false);
   const [financeRegions, setFinanceRegions] = useState<{ loading: boolean; error?: string; regions: { reportRegion: string; reportCurrency: string; regionCode: string; countriesOrRegions: string }[] }>({ loading: false, regions: [] });
   const [offerCodes, setOfferCodes] = useState<{ loading: boolean; error?: string; codes: { subscriptionName: string; subscriptionId: string; name: string; offerEligibility: string; customerEligibilities: string[]; duration: string; offerMode: string; numberOfPeriods: number; totalNumberOfCodes: number; productionCodeCount: number }[] }>({ loading: false, codes: [] });
   const [feedbackData, setFeedbackData] = useState<{ loading: boolean; error?: string; total: number; items: { id: string; comment: string; email: string; deviceModel: string; deviceFamily: string; osVersion: string; appPlatform: string; createdDate: string; locale: string; timeZone: string; connectionType: string; batteryPercentage: number; screenshots: { url: string; width: number; height: number }[] }[] }>({ loading: false, total: 0, items: [] });
@@ -811,6 +817,8 @@ export default function App() {
 
   const bundleIDCreateCommand =
     `bundle-ids create --identifier ${shellQuote(bundleIDIdentifier.trim())} --name ${shellQuote(bundleIDName.trim())} --platform ${bundleIDPlatform} --output json`;
+  const deviceRegisterCommand =
+    `devices register --name ${shellQuote(deviceName.trim())} --udid ${shellQuote(deviceUDID.trim())} --platform ${devicePlatform} --output json`;
 
   function closeBundleIDSheet() {
     setShowBundleIDSheet(false);
@@ -859,6 +867,56 @@ export default function App() {
       })
       .finally(() => {
         setBundleIDCreating(false);
+      });
+  }
+
+  function closeDeviceSheet() {
+    setShowDeviceSheet(false);
+    setDeviceCreateError("");
+    setDeviceCreating(false);
+  }
+
+  function resetDeviceForm() {
+    setDeviceName("");
+    setDeviceUDID("");
+    setDevicePlatform("IOS");
+    setDeviceCreateError("");
+    setDeviceCreating(false);
+  }
+
+  function openDeviceSheet() {
+    resetDeviceForm();
+    setShowDeviceSheet(true);
+  }
+
+  function handleCreateDevice() {
+    const trimmedName = deviceName.trim();
+    const trimmedUDID = deviceUDID.trim();
+    if (!trimmedName || !trimmedUDID) {
+      setDeviceCreateError("Name and UDID are required.");
+      return;
+    }
+
+    setDeviceCreating(true);
+    setDeviceCreateError("");
+
+    RunASCCommand(
+      `devices register --name ${shellQuote(trimmedName)} --udid ${shellQuote(trimmedUDID)} --platform ${devicePlatform} --output json`,
+    )
+      .then((res) => {
+        if (res.error) {
+          setDeviceCreateError(res.error);
+          return;
+        }
+        closeDeviceSheet();
+        resetDeviceForm();
+        loadStandaloneSection("devices", true);
+      })
+      .catch((err) => {
+        setDeviceCreateError(String(err));
+      })
+      .finally(() => {
+        setDeviceCreating(false);
       });
   }
 
@@ -2222,6 +2280,16 @@ export default function App() {
                           <span>New Bundle ID</span>
                         </button>
                       )}
+                      {activeSection.id === "devices" && (
+                        <button
+                          type="button"
+                          className="toolbar-btn section-create-btn"
+                          onClick={openDeviceSheet}
+                        >
+                          <span aria-hidden="true">+</span>
+                          <span>New Device</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                   <p className="empty-hint">No matching results.</p>
@@ -2269,6 +2337,16 @@ export default function App() {
                         >
                           <span aria-hidden="true">+</span>
                           <span>New Bundle ID</span>
+                        </button>
+                      )}
+                      {activeSection.id === "devices" && (
+                        <button
+                          type="button"
+                          className="toolbar-btn section-create-btn"
+                          onClick={openDeviceSheet}
+                        >
+                          <span aria-hidden="true">+</span>
+                          <span>New Device</span>
                         </button>
                       )}
                     </div>
@@ -2324,6 +2402,16 @@ export default function App() {
                           <span>New Bundle ID</span>
                         </button>
                       )}
+                      {activeSection.id === "devices" && (
+                        <button
+                          type="button"
+                          className="toolbar-btn section-create-btn"
+                          onClick={openDeviceSheet}
+                        >
+                          <span aria-hidden="true">+</span>
+                          <span>New Device</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                   {filteredItems.map((item, idx) => (
@@ -2376,6 +2464,16 @@ export default function App() {
                       >
                         <span aria-hidden="true">+</span>
                         <span>New Bundle ID</span>
+                      </button>
+                    )}
+                    {activeSection.id === "devices" && (
+                      <button
+                        type="button"
+                        className="toolbar-btn section-create-btn"
+                        onClick={openDeviceSheet}
+                      >
+                        <span aria-hidden="true">+</span>
+                        <span>New Device</span>
                       </button>
                     )}
                   </div>
@@ -2560,6 +2658,81 @@ export default function App() {
                 disabled={bundleIDCreating}
               >
                 {bundleIDCreating ? "Creating…" : "Create"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {showDeviceSheet && (
+        <div className="sheet-backdrop" role="presentation" onClick={closeDeviceSheet}>
+          <section
+            className="sheet-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="device-sheet-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sheet-header">
+              <div>
+                <p className="sheet-eyebrow">Team</p>
+                <h2 id="device-sheet-title" className="sheet-title">Register Device</h2>
+              </div>
+              <button type="button" className="sheet-close" onClick={closeDeviceSheet} aria-label="Close register device sheet">
+                ×
+              </button>
+            </div>
+
+            <div className="sheet-body">
+              <label className="sheet-field">
+                <span className="sheet-label">Name</span>
+                <input
+                  type="text"
+                  value={deviceName}
+                  onChange={(event) => setDeviceName(event.target.value)}
+                  placeholder="Rudrank’s iPhone"
+                />
+              </label>
+
+              <label className="sheet-field">
+                <span className="sheet-label">UDID</span>
+                <input
+                  type="text"
+                  value={deviceUDID}
+                  onChange={(event) => setDeviceUDID(event.target.value)}
+                  placeholder="00008110-001234560E90003A"
+                />
+              </label>
+
+              <label className="sheet-field">
+                <span className="sheet-label">Platform</span>
+                <select value={devicePlatform} onChange={(event) => setDevicePlatform(event.target.value)}>
+                  <option value="IOS">iOS</option>
+                  <option value="MAC_OS">macOS</option>
+                  <option value="TV_OS">tvOS</option>
+                  <option value="VISION_OS">visionOS</option>
+                </select>
+              </label>
+
+              <div className="sheet-preview">
+                <p className="sheet-label">Command preview</p>
+                <code>{deviceRegisterCommand}</code>
+              </div>
+
+              {deviceCreateError && <p className="sheet-error">{deviceCreateError}</p>}
+            </div>
+
+            <div className="sheet-footer">
+              <button type="button" className="toolbar-btn" onClick={closeDeviceSheet}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="toolbar-btn toolbar-btn-primary"
+                onClick={handleCreateDevice}
+                disabled={deviceCreating}
+              >
+                {deviceCreating ? "Registering…" : "Register"}
               </button>
             </div>
           </section>

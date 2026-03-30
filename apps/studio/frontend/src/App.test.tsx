@@ -464,6 +464,52 @@ describe("App", () => {
     });
   });
 
+  it("registers a device from the team devices sheet", async () => {
+    mockRunASCCommand.mockImplementation((cmd: string) => {
+      if (cmd === "devices list --output json") {
+        return Promise.resolve({
+          error: "",
+          data: JSON.stringify({
+            data: [
+              { id: "device-1", type: "devices", attributes: { name: "Existing iPhone", udid: "EXISTING-UDID", platform: "IOS", status: "ENABLED" } },
+            ],
+          }),
+        });
+      }
+      if (cmd === "devices register --name 'QA iPhone' --udid 'NEW-UDID-123' --platform IOS --output json") {
+        return Promise.resolve({
+          error: "",
+          data: JSON.stringify({
+            data: {
+              id: "device-2",
+              type: "devices",
+              attributes: { name: "QA iPhone", udid: "NEW-UDID-123", platform: "IOS", status: "ENABLED" },
+            },
+          }),
+        });
+      }
+      return Promise.resolve({ error: "", data: "{\"data\":[]}" });
+    });
+
+    render(<App />);
+
+    await screen.findByText("Connected");
+    fireEvent.click(screen.getByRole("button", { name: "Team" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Devices" }));
+    await screen.findByText("Existing iPhone");
+
+    fireEvent.click(screen.getByRole("button", { name: /New Device/i }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "QA iPhone" } });
+    fireEvent.change(screen.getByLabelText("UDID"), { target: { value: "NEW-UDID-123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Register" }));
+
+    await waitFor(() => {
+      expect(mockRunASCCommand).toHaveBeenCalledWith(
+        "devices register --name 'QA iPhone' --udid 'NEW-UDID-123' --platform IOS --output json",
+      );
+    });
+  });
+
   it("preserves agent env when saving settings", async () => {
     mockBootstrap.mockResolvedValue({
       appName: "ASC Studio",
