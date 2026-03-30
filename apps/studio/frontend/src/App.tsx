@@ -1054,36 +1054,64 @@ export default function App() {
           // Detail view for a group's testers
           if (selectedGroup) {
             const group = testflightData.groups.find((g) => g.id === selectedGroup);
+            // Compute state breakdown
+            const stateCounts: Record<string, number> = {};
+            for (const t of groupTesters.testers) {
+              stateCounts[t.state] = (stateCounts[t.state] || 0) + 1;
+            }
             return (
               <div className="app-detail-view">
                 <div className="app-detail-section">
                   <button className="back-link" type="button" onClick={() => setSelectedGroup(null)}>← TestFlight</button>
                   <p className="app-detail-name" style={{ marginTop: 8 }}>{group?.name ?? "Group"}</p>
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-secondary)" }}>
+                    {group?.isInternal ? "Internal" : "External"} · {group?.testerCount ?? 0} testers
+                    {group?.publicLink && <> · <a href={group.publicLink} target="_blank" rel="noopener" style={{ color: "var(--accent)" }}>TestFlight Link</a></>}
+                  </p>
+
                   {groupTesters.loading ? (
                     <p className="empty-hint">Loading testers…</p>
                   ) : groupTesters.testers.length === 0 ? (
                     <p className="empty-hint">No testers in this group.</p>
                   ) : (
-                    <table className="data-table" style={{ marginTop: 12 }}>
-                      <thead>
-                        <tr>
-                          <th>Email</th>
-                          <th>Name</th>
-                          <th>Invite</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {groupTesters.testers.map((t, i) => (
-                          <tr key={i}>
-                            <td className="mono">{t.email || "—"}</td>
-                            <td>{[t.firstName, t.lastName].filter(Boolean).join(" ") || "—"}</td>
-                            <td>{fmt(t.inviteType)}</td>
-                            <td><span className={`status-pill status-${t.state.toLowerCase()}`}>{fmt(t.state)}</span></td>
-                          </tr>
+                    <>
+                      {/* State summary */}
+                      <div style={{ display: "flex", gap: 10, margin: "12px 0" }}>
+                        {Object.entries(stateCounts).map(([state, count]) => (
+                          <div key={state} style={{ textAlign: "center" }}>
+                            <span style={{ fontSize: 20, fontWeight: 600, color: "var(--text-primary)" }}>{count}</span>
+                            <p style={{ margin: 0, fontSize: 10, color: "var(--text-secondary)", textTransform: "uppercase" }}>{fmt(state)}</p>
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
+                      </div>
+
+                      {/* Tester table — only show testers with actual email/name data */}
+                      <table className="data-table" style={{ marginTop: 8 }}>
+                        <thead>
+                          <tr>
+                            <th>Email</th>
+                            <th>Name</th>
+                            <th>Invite</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {groupTesters.testers.map((t, i) => (
+                            <tr key={i}>
+                              <td className="mono">{t.email || "—"}</td>
+                              <td>{[t.firstName, t.lastName].filter(Boolean).join(" ") || "Anonymous"}</td>
+                              <td>{fmt(t.inviteType)}</td>
+                              <td><span className={`status-pill status-${t.state.toLowerCase()}`}>{fmt(t.state)}</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {groupTesters.testers.length < (group?.testerCount ?? 0) && (
+                        <p style={{ marginTop: 8, fontSize: 11, color: "var(--text-secondary)" }}>
+                          Showing {groupTesters.testers.length} of {group?.testerCount} testers (API limit 200 per page)
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
