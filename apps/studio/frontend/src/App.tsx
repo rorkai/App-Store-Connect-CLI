@@ -5,19 +5,54 @@ import { ChatMessage, NavSection } from "./types";
 import { Bootstrap, CheckAuthStatus, GetAppDetail, GetScreenshots, GetSettings, GetVersionMetadata, ListApps, SaveSettings } from "../wailsjs/go/main/App";
 import { environment, settings as settingsNS } from "../wailsjs/go/models";
 
-const sections: NavSection[] = [
-  { id: "overview", label: "Overview", description: "Release cockpit" },
-  { id: "builds", label: "Builds", description: "TestFlight and processing" },
-  { id: "submission", label: "Submission", description: "Validation and publish" },
-  { id: "settings", label: "Settings", description: "Studio preferences" },
+type SidebarGroup = { label: string; items: NavSection[] };
+
+const sidebarGroups: SidebarGroup[] = [
+  {
+    label: "General",
+    items: [
+      { id: "overview", label: "App Information", description: "App details and metadata" },
+      { id: "app-review", label: "App Review", description: "Review details and attachments" },
+      { id: "history", label: "History", description: "Version history" },
+    ],
+  },
+  {
+    label: "Trust & Safety",
+    items: [
+      { id: "app-privacy", label: "App Privacy", description: "Privacy declarations" },
+      { id: "app-accessibility", label: "App Accessibility", description: "Accessibility declarations" },
+      { id: "ratings-reviews", label: "Ratings and Reviews", description: "Customer reviews" },
+    ],
+  },
+  {
+    label: "Growth & Marketing",
+    items: [
+      { id: "in-app-events", label: "In-App Events", description: "App events" },
+      { id: "custom-product-pages", label: "Custom Product Pages", description: "Product pages" },
+      { id: "ppo", label: "Product Page Optimization", description: "A/B tests" },
+      { id: "promo-codes", label: "Promo Codes", description: "Promotional codes" },
+      { id: "game-center", label: "Game Center", description: "Game Center resources" },
+    ],
+  },
+  {
+    label: "Monetization",
+    items: [
+      { id: "pricing", label: "Pricing and Availability", description: "Pricing" },
+      { id: "iap", label: "In-App Purchases", description: "In-app purchases" },
+      { id: "subscriptions", label: "Subscriptions", description: "Subscription groups" },
+    ],
+  },
+  {
+    label: "Featuring",
+    items: [
+      { id: "nominations", label: "Nominations", description: "Featuring nominations" },
+    ],
+  },
 ];
 
-const sectionIcons: Record<string, string> = {
-  overview: "◎",
-  builds: "⏣",
-  submission: "↗",
-  settings: "⚙",
-};
+// Flatten for lookup
+const allSections: NavSection[] = sidebarGroups.flatMap((g) => g.items);
+allSections.push({ id: "settings", label: "Settings", description: "Studio preferences" });
 
 type EnvSnapshot = {
   configPath: string;
@@ -58,7 +93,7 @@ const defaultSettings: StudioSettings = {
 };
 
 export default function App() {
-  const [activeSection, setActiveSection] = useState<NavSection>(sections[0]);
+  const [activeSection, setActiveSection] = useState<NavSection>(allSections[0]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [dockExpanded, setDockExpanded] = useState(false);
@@ -265,7 +300,7 @@ export default function App() {
                 const id = e.target.value;
                 if (id) {
                   handleSelectApp(id);
-                  setActiveSection(sections[0]);
+                  setActiveSection(allSections[0]);
                 }
               }}
             >
@@ -305,19 +340,31 @@ export default function App() {
           </div>
         )}
 
+        {selectedAppId && sidebarGroups.map((group) => (
+          <div key={group.label} className="sidebar-section">
+            <p className="sidebar-section-label">{group.label}</p>
+            {group.items.map((section) => (
+              <button
+                key={section.id}
+                type="button"
+                className={`sidebar-row ${section.id === activeSection.id ? "is-active" : ""}`}
+                onClick={() => setActiveSection(section)}
+              >
+                <span>{section.label}</span>
+              </button>
+            ))}
+          </div>
+        ))}
+
         <div className="sidebar-section">
-          <p className="sidebar-section-label">Workspace</p>
-          {sections.map((section) => (
-            <button
-              key={section.id}
-              type="button"
-              className={`sidebar-row ${section.id === activeSection.id ? "is-active" : ""}`}
-              onClick={() => setActiveSection(section)}
-            >
-              <span className="sidebar-row-icon">{sectionIcons[section.id]}</span>
-              <span>{section.label}</span>
-            </button>
-          ))}
+          <button
+            type="button"
+            className={`sidebar-row ${activeSection.id === "settings" ? "is-active" : ""}`}
+            onClick={() => setActiveSection(allSections.find((s) => s.id === "settings")!)}
+          >
+            <span className="sidebar-row-icon">⚙</span>
+            <span>Settings</span>
+          </button>
         </div>
 
         <div className="sidebar-spacer" />
@@ -348,7 +395,7 @@ export default function App() {
               <button
                 className="toolbar-btn"
                 type="button"
-                onClick={() => setActiveSection(sections.find((s) => s.id === "settings")!)}
+                onClick={() => setActiveSection(allSections.find((s) => s.id === "settings")!)}
               >
                 Configure
               </button>
@@ -510,7 +557,7 @@ export default function App() {
             <button
               className="toolbar-btn"
               type="button"
-              onClick={() => setActiveSection(sections.find((s) => s.id === "settings")!)}
+              onClick={() => setActiveSection(allSections.find((s) => s.id === "settings")!)}
             >
               Open Settings
             </button>
