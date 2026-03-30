@@ -801,16 +801,18 @@ func buildBetaGroupTestersQuery(query *betaGroupTestersQuery) string {
 
 func buildBetaTestersQuery(appID string, query *betaTestersQuery) string {
 	values := url.Values{}
-	// API allows only one relationship filter, so prefer builds over apps if provided
+	// API allows only one relationship filter, so use the most specific supported
+	// selector from the CLI and avoid sending multiple relationship filters.
 	if strings.TrimSpace(query.filterBuilds) != "" {
 		values.Set("filter[builds]", strings.TrimSpace(query.filterBuilds))
+	} else if len(query.groupIDs) > 0 {
+		addCSV(values, "filter[betaGroups]", query.groupIDs)
 	} else if strings.TrimSpace(appID) != "" {
 		values.Set("filter[apps]", strings.TrimSpace(appID))
 	}
 	if strings.TrimSpace(query.email) != "" {
 		values.Set("filter[email]", strings.TrimSpace(query.email))
 	}
-	addCSV(values, "filter[betaGroups]", query.groupIDs)
 	addLimit(values, query.limit)
 	return values.Encode()
 }

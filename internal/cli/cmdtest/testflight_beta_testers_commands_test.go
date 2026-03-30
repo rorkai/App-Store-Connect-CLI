@@ -2,6 +2,8 @@ package cmdtest
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -157,6 +159,105 @@ func TestTestFlightBetaTestersRemoveOutput(t *testing.T) {
 	}
 	if !strings.Contains(stdout, `"deleted":true`) {
 		t.Fatalf("expected deleted true in output, got %q", stdout)
+	}
+}
+
+func TestTestFlightBetaTestersListWithGroupUsesOnlyGroupFilter(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	callCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		callCount++
+		switch callCount {
+		case 1:
+			if req.Method != http.MethodGet {
+				t.Fatalf("expected GET, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/apps/app-1/betaGroups" {
+				t.Fatalf("expected path /v1/apps/app-1/betaGroups, got %s", req.URL.Path)
+			}
+			if req.URL.Query().Get("limit") != "200" {
+				t.Fatalf("expected limit 200, got %q", req.URL.Query().Get("limit"))
+			}
+			body := `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"Beta"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case 2:
+			if req.Method != http.MethodGet {
+				t.Fatalf("expected GET, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/betaTesters" {
+				t.Fatalf("expected path /v1/betaTesters, got %s", req.URL.Path)
+			}
+			query := req.URL.Query()
+			if query.Get("filter[apps]") != "" {
+				t.Fatalf("expected no app relationship filter when group filter is set, got %q", query.Get("filter[apps]"))
+			}
+			if query.Get("filter[betaGroups]") != "group-1" {
+				t.Fatalf("expected beta group filter group-1, got %q", query.Get("filter[betaGroups]"))
+			}
+			body := `{"data":[{"type":"betaTesters","id":"tester-1","attributes":{"email":"tester@example.com"}}]}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request count %d", callCount)
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"testflight", "testers", "list", "--app", "app-1", "--group", "Beta"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"tester-1"`) {
+		t.Fatalf("expected tester id in output, got %q", stdout)
+	}
+}
+
+func TestTestFlightBetaTestersListRejectsGroupAndBuildID(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"testflight", "testers", "list", "--app", "app-1", "--group", "group-1", "--build-id", "build-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Error: --group cannot be combined with --build-id") {
+		t.Fatalf("expected conflicting filter error, got %q", stderr)
 	}
 }
 

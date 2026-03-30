@@ -2003,8 +2003,8 @@ func TestGetBetaTesters_WithAppFilter(t *testing.T) {
 		if values.Get("filter[email]") != "tester@example.com" {
 			t.Fatalf("expected filter[email]=tester@example.com, got %q", values.Get("filter[email]"))
 		}
-		if values.Get("filter[betaGroups]") != "group-1,group-2" {
-			t.Fatalf("expected filter[betaGroups]=group-1,group-2, got %q", values.Get("filter[betaGroups]"))
+		if values.Get("filter[betaGroups]") != "" {
+			t.Fatalf("expected no filter[betaGroups], got %q", values.Get("filter[betaGroups]"))
 		}
 		if values.Get("limit") != "5" {
 			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
@@ -2016,7 +2016,6 @@ func TestGetBetaTesters_WithAppFilter(t *testing.T) {
 		context.Background(),
 		"123",
 		WithBetaTestersEmail("tester@example.com"),
-		WithBetaTestersGroupIDs([]string{"group-1", "group-2"}),
 		WithBetaTestersLimit(5),
 	); err != nil {
 		t.Fatalf("GetBetaTesters() error: %v", err)
@@ -2038,6 +2037,9 @@ func TestGetBetaTesters_WithBuildFilter(t *testing.T) {
 		if values.Get("filter[apps]") != "" {
 			t.Fatalf("expected no filter[apps] when filter[builds] is set, got %q", values.Get("filter[apps]"))
 		}
+		if values.Get("filter[betaGroups]") != "" {
+			t.Fatalf("expected no filter[betaGroups] when filter[builds] is set, got %q", values.Get("filter[betaGroups]"))
+		}
 		if values.Get("filter[builds]") != "build-1" {
 			t.Fatalf("expected filter[builds]=build-1, got %q", values.Get("filter[builds]"))
 		}
@@ -2051,6 +2053,7 @@ func TestGetBetaTesters_WithBuildFilter(t *testing.T) {
 		context.Background(),
 		"123", // appID provided but should be ignored when build filter is set
 		WithBetaTestersEmail("tester@example.com"),
+		WithBetaTestersGroupIDs([]string{"group-1"}),
 		WithBetaTestersBuildID("build-1"),
 	); err != nil {
 		t.Fatalf("GetBetaTesters() error: %v", err)

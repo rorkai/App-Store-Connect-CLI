@@ -102,6 +102,9 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("beta-testers list: %w", err)
 			}
+			if strings.TrimSpace(*group) != "" && strings.TrimSpace(*buildID) != "" && strings.TrimSpace(*next) == "" {
+				return shared.UsageError("--group cannot be combined with --build-id")
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
