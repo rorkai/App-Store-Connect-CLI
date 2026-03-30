@@ -78,7 +78,7 @@ func appStoreVersionsRows(resp *AppStoreVersionsResponse) ([]string, [][]string)
 		rows = append(rows, []string{
 			item.ID,
 			item.Attributes.VersionString,
-			string(item.Attributes.Platform),
+			displayPlatform(string(item.Attributes.Platform)),
 			state,
 			item.Attributes.CreatedDate,
 		})
@@ -93,7 +93,7 @@ func preReleaseVersionsRows(resp *PreReleaseVersionsResponse) ([]string, [][]str
 		rows = append(rows, []string{
 			item.ID,
 			compactWhitespace(item.Attributes.Version),
-			string(item.Attributes.Platform),
+			displayPlatform(string(item.Attributes.Platform)),
 		})
 	}
 	return headers, rows
@@ -125,7 +125,7 @@ func appStoreVersionSubmissionStatusRows(result *AppStoreVersionSubmissionStatus
 	if result.CreatedDate != nil {
 		createdDate = *result.CreatedDate
 	}
-	rows := [][]string{{result.ID, result.VersionID, result.VersionString, result.Platform, result.State, createdDate}}
+	rows := [][]string{{result.ID, result.VersionID, result.VersionString, displayPlatform(result.Platform), result.State, createdDate}}
 	return headers, rows
 }
 
@@ -137,7 +137,7 @@ func appStoreVersionSubmissionCancelRows(result *AppStoreVersionSubmissionCancel
 
 func appStoreVersionDetailRows(result *AppStoreVersionDetailResult) ([]string, [][]string) {
 	headers := []string{"Version ID", "Version", "Platform", "State", "Build ID", "Build Version", "Submission ID"}
-	rows := [][]string{{result.ID, result.VersionString, result.Platform, result.State, result.BuildID, result.BuildVersion, result.SubmissionID}}
+	rows := [][]string{{result.ID, result.VersionString, displayPlatform(result.Platform), result.State, result.BuildID, result.BuildVersion, result.SubmissionID}}
 	return headers, rows
 }
 
