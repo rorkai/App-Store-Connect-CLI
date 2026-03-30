@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -79,6 +80,13 @@ type ResolutionResponse struct {
 	AvailablePresets []settings.ProviderPreset `json:"availablePresets"`
 }
 
+type AuthStatus struct {
+	Authenticated bool   `json:"authenticated"`
+	Storage       string `json:"storage"`
+	Profile       string `json:"profile"`
+	RawOutput     string `json:"rawOutput"`
+}
+
 func NewApp() (*App, error) {
 	rootDir, err := settings.DefaultRoot()
 	if err != nil {
@@ -150,6 +158,74 @@ func (a *App) SaveSettings(next settings.StudioSettings) (settings.StudioSetting
 		return settings.StudioSettings{}, err
 	}
 	return a.settings.Load()
+}
+
+func (a *App) CheckAuthStatus() (AuthStatus, error) {
+	ascPath, err := a.resolveASCPath()
+	if err != nil {
+		return AuthStatus{RawOutput: "Could not find asc binary: " + err.Error()}, nil
+	}
+
+	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, ascPath, "auth", "status", "--output", "json")
+	cmd.Env = append(os.Environ(), "ASC_BYPASS_KEYCHAIN=1")
+	out, err := cmd.CombinedOutput()
+	output := strings.TrimSpace(string(out))
+
+	status := AuthStatus{RawOutput: output}
+
+	if err != nil {
+		status.Authenticated = false
+		return status, nil
+	}
+
+	// Exit 0 means credentials exist. Try to parse JSON output.
+	status.Authenticated = true
+
+	var jsonStatus struct {
+		StorageBackend  string `json:"storageBackend"`
+		StorageLocation string `json:"storageLocation"`
+		Credentials     []struct {
+			Name      string `json:"name"`
+			KeyID     string `json:"keyId"`
+			IsDefault bool   `json:"isDefault"`
+		} `json:"credentials"`
+	}
+	if json.Unmarshal([]byte(output), &jsonStatus) == nil {
+		status.Storage = jsonStatus.StorageBackend
+		for _, cred := range jsonStatus.Credentials {
+			if cred.IsDefault {
+				status.Profile = cred.Name
+				break
+			}
+		}
+		if status.Profile == "" && len(jsonStatus.Credentials) > 0 {
+			status.Profile = jsonStatus.Credentials[0].Name
+		}
+	}
+
+	return status, nil
+}
+
+func (a *App) resolveASCPath() (string, error) {
+	cfg, err := a.settings.Load()
+	if err != nil {
+		return "", err
+	}
+
+	bundled := filepath.Join(a.rootDir, "bin", "asc")
+	resolution, err := ascbin.Resolve(ascbin.ResolveOptions{
+		BundledPath:    bundled,
+		SystemOverride: cfg.SystemASCPath,
+		PreferBundled:  cfg.PreferBundledASC,
+		LookPath:       execLookPath,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resolution.Path, nil
 }
 
 func (a *App) ListThreads() ([]threads.Thread, error) {

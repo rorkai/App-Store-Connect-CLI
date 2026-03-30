@@ -100,6 +100,24 @@ export namespace main {
 	        this.mutationSurface = source["mutationSurface"];
 	    }
 	}
+	export class AuthStatus {
+	    authenticated: boolean;
+	    storage: string;
+	    profile: string;
+	    rawOutput: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AuthStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.authenticated = source["authenticated"];
+	        this.storage = source["storage"];
+	        this.profile = source["profile"];
+	        this.rawOutput = source["rawOutput"];
+	    }
+	}
 	export class WorkspaceSection {
 	    id: string;
 	    label: string;

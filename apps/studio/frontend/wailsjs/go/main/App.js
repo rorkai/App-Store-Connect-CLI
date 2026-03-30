@@ -10,6 +10,10 @@ export function Bootstrap() {
   return window['go']['main']['App']['Bootstrap']();
 }
 
+export function CheckAuthStatus() {
+  return window['go']['main']['App']['CheckAuthStatus']();
+}
+
 export function CreateThread(arg1) {
   return window['go']['main']['App']['CreateThread'](arg1);
 }

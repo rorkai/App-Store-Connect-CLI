@@ -9,6 +9,8 @@ export function ApproveAction(arg1:string):Promise<approvals.Action>;
 
 export function Bootstrap():Promise<main.BootstrapData>;
 
+export function CheckAuthStatus():Promise<main.AuthStatus>;
+
 export function CreateThread(arg1:string):Promise<threads.Thread>;
 
 export function GetSettings():Promise<settings.StudioSettings>;

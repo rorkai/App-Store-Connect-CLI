@@ -1,39 +1,95 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { vi } from "vitest";
+
+// Mock the Wails bindings since they don't exist in test environment
+vi.mock("../wailsjs/go/main/App", () => ({
+  CheckAuthStatus: vi.fn().mockResolvedValue({
+    authenticated: true,
+    storage: "System Keychain",
+    profile: "default",
+    rawOutput: "Credential storage: System Keychain\nActive profile: default",
+  }),
+  Bootstrap: vi.fn().mockResolvedValue({
+    appName: "ASC Studio",
+    environment: {
+      configPath: "/Users/test/.asc/config.json",
+      configPresent: true,
+      defaultAppId: "123456",
+      keychainAvailable: true,
+      keychainBypassed: false,
+      workflowPath: "",
+    },
+    settings: {
+      preferredPreset: "codex",
+      agentCommand: "",
+      agentArgs: [],
+      agentEnv: {},
+      preferBundledASC: true,
+      systemASCPath: "",
+      workspaceRoot: "",
+      theme: "glass-light",
+      windowMaterial: "translucent",
+      showCommandPreviews: true,
+    },
+    presets: [],
+    threads: [],
+    approvals: [],
+  }),
+  GetSettings: vi.fn().mockResolvedValue({}),
+  SaveSettings: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock("../wailsjs/go/models", () => ({
+  environment: { Snapshot: class {} },
+  settings: {
+    StudioSettings: class {
+      constructor(source: Record<string, unknown> = {}) {
+        Object.assign(this, source);
+      }
+    },
+    ProviderPreset: class {},
+  },
+}));
 
 import App from "./App";
 
 describe("App", () => {
-  it("shows persistent app context bar", () => {
+  it("renders and calls Bootstrap on mount", async () => {
     render(<App />);
 
-    expect(screen.getByText("MusadoraKit", { selector: ".context-app-name" })).toBeInTheDocument();
-    expect(screen.getByText("iOS", { selector: ".context-badge" })).toBeInTheDocument();
-    expect(screen.getByText(/v2\.3\.0/, { selector: ".context-version" })).toBeInTheDocument();
+    // After bootstrap resolves, should show "Connected" status
+    expect(await screen.findByText("Connected")).toBeInTheDocument();
+    expect(screen.getByText("System Keychain")).toBeInTheDocument();
   });
 
-  it("switches workspace sections from the sidebar", () => {
+  it("navigates to settings view", async () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole("button", { name: /builds/i }));
+    await screen.findByText("Connected");
 
-    // "Builds" appears in sidebar and section label
-    expect(screen.getAllByText("Builds").length).toBeGreaterThanOrEqual(2);
+    fireEvent.click(screen.getByRole("button", { name: /settings/i }));
+
+    expect(screen.getByText("Authentication")).toBeInTheDocument();
+    expect(screen.getByText("ACP Provider")).toBeInTheDocument();
   });
 
-  it("sends a chat message and expands the dock", () => {
+  it("sends a chat message and expands the dock", async () => {
     render(<App />);
+
+    await screen.findByText("Connected");
 
     const textarea = screen.getByLabelText("Chat prompt");
     fireEvent.change(textarea, { target: { value: "list builds" } });
     fireEvent.submit(textarea.closest("form")!);
 
     expect(screen.getByText("list builds")).toBeInTheDocument();
-    expect(screen.getByText(/bootstrap mode/i)).toBeInTheDocument();
     expect(screen.getByText("ACP Chat")).toBeInTheDocument();
   });
 
-  it("collapses the dock when chevron is clicked", () => {
+  it("collapses the dock when chevron is clicked", async () => {
     render(<App />);
+
+    await screen.findByText("Connected");
 
     const textarea = screen.getByLabelText("Chat prompt");
     fireEvent.change(textarea, { target: { value: "test" } });

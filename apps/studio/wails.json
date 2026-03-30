@@ -5,6 +5,6 @@
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
-  "frontend:dir": "frontend",
-  "assetdir": "frontend/dist"
+  "frontend:dev:serverUrl": "auto",
+  "frontend:dir": "frontend"
 }
