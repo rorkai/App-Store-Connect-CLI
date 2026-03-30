@@ -1532,3 +1532,10 @@ textarea {
   color: var(--text-secondary);
   font-size: 12px;
 }
+
+.vertical-card tr:first-child .vcard-label,
+.vertical-card tr:first-child td {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 13px;
+}
