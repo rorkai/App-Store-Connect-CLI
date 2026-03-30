@@ -281,6 +281,36 @@ describe("App", () => {
     });
   });
 
+  it("fetches all bundle IDs with pagination enabled", async () => {
+    render(<App />);
+
+    await screen.findByText("Connected");
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "1" } });
+    await screen.findByText("Test App");
+
+    await waitFor(() => {
+      expect(mockRunASCCommand.mock.calls.map(([cmd]) => cmd)).toContain(
+        "bundle-ids list --paginate --output json",
+      );
+    });
+  });
+
+  it("fetches all certificates and profiles with pagination enabled", async () => {
+    render(<App />);
+
+    await screen.findByText("Connected");
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "1" } });
+    await screen.findByText("Test App");
+
+    await waitFor(() => {
+      const commands = mockRunASCCommand.mock.calls.map(([cmd]) => cmd);
+      expect(commands).toContain("certificates list --paginate --output json");
+      expect(commands).toContain("profiles list --paginate --output json");
+    });
+  });
+
   it("preserves agent env when saving settings", async () => {
     mockBootstrap.mockResolvedValue({
       appName: "ASC Studio",

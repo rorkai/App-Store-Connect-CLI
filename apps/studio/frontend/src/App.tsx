@@ -28,6 +28,8 @@ const scopes: Scope[] = [
           { id: "submit", label: "Submit", description: "Submit for review" },
           { id: "validate", label: "Validate", description: "Pre-submission validation" },
           { id: "release-notes", label: "Release Notes", description: "What's new" },
+          { id: "build-localizations", label: "Build Localizations", description: "Build release notes" },
+          { id: "sandbox", label: "Sandbox", description: "Sandbox testers" },
         ],
       },
       {
@@ -162,9 +164,9 @@ const sectionCommands: Record<string, string> = {
   "account-status": "account status --output json",
   "users": "users list --output json",
   "devices": "devices list --output json",
-  "bundle-ids": "bundle-ids list --output json",
-  "certificates": "certificates list --output json",
-  "profiles": "profiles list --output json",
+  "bundle-ids": "bundle-ids list --paginate --output json",
+  "certificates": "certificates list --paginate --output json",
+  "profiles": "profiles list --paginate --output json",
   "xcode-cloud": "xcode-cloud workflows list --app APP_ID --output json",
   "webhooks": "webhooks list --app APP_ID --output json",
   "background-assets": "background-assets list --app APP_ID --output json",
@@ -177,6 +179,8 @@ const sectionCommands: Record<string, string> = {
   "alt-distribution": "alternative-distribution domains list --output json",
   "routing-coverage": "routing-coverage list --app APP_ID --output json",
   "eula": "eula list --app APP_ID --output json",
+  "build-localizations": "build-localizations list --app APP_ID --output json",
+  "sandbox": "sandbox list --output json",
 };
 
 // Human-readable field labels for known attribute keys
