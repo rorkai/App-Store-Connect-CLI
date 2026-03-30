@@ -186,6 +186,36 @@ type TestFlightResponse struct {
 	Error   string       `json:"error,omitempty"`
 }
 
+type OfferCode struct {
+	SubscriptionName string   `json:"subscriptionName"`
+	SubscriptionID   string   `json:"subscriptionId"`
+	Name             string   `json:"name"`
+	Eligibility      string   `json:"offerEligibility"`
+	Customers        []string `json:"customerEligibilities"`
+	Duration         string   `json:"duration"`
+	OfferMode        string   `json:"offerMode"`
+	Periods          int      `json:"numberOfPeriods"`
+	TotalCodes       int      `json:"totalNumberOfCodes"`
+	ProductionCodes  int      `json:"productionCodeCount"`
+}
+
+type OfferCodesResponse struct {
+	OfferCodes []OfferCode `json:"offerCodes"`
+	Error      string      `json:"error,omitempty"`
+}
+
+type FinanceRegion struct {
+	Region    string `json:"reportRegion"`
+	Currency  string `json:"reportCurrency"`
+	Code      string `json:"regionCode"`
+	Countries string `json:"countriesOrRegions"`
+}
+
+type FinanceResponse struct {
+	Regions []FinanceRegion `json:"regions"`
+	Error   string          `json:"error,omitempty"`
+}
+
 type ASCCommandResponse struct {
 	Data  string `json:"data"`
 	Error string `json:"error,omitempty"`
@@ -892,6 +922,113 @@ func (a *App) GetPricingOverview(appID string) (PricingOverview, error) {
 		Territories:               avail.territories,
 		SubscriptionPricing:       pricing.items,
 	}, nil
+}
+
+// GetFinanceRegions fetches finance report region codes.
+func (a *App) GetFinanceRegions() (FinanceResponse, error) {
+	defer configGuard()()
+	ascPath, err := a.resolveASCPath()
+	if err != nil {
+		return FinanceResponse{Error: err.Error()}, nil
+	}
+	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 20*time.Second)
+	defer cancel()
+
+	cmd := a.newASCCommand(ctx, ascPath, "finance", "regions", "--output", "json")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return FinanceResponse{Error: strings.TrimSpace(string(out))}, nil
+	}
+	var env struct {
+		Regions []FinanceRegion `json:"regions"`
+	}
+	if json.Unmarshal(out, &env) != nil {
+		return FinanceResponse{Error: "failed to parse finance regions"}, nil
+	}
+	return FinanceResponse{Regions: env.Regions}, nil
+}
+
+// GetOfferCodes fetches offer codes for all subscriptions of an app concurrently.
+func (a *App) GetOfferCodes(appID string) (OfferCodesResponse, error) {
+	if strings.TrimSpace(appID) == "" {
+		return OfferCodesResponse{Error: "app ID is required"}, nil
+	}
+	defer configGuard()()
+
+	// First get subscriptions to know which sub IDs to query
+	subsResp, err := a.GetSubscriptions(appID)
+	if err != nil {
+		return OfferCodesResponse{Error: err.Error()}, nil
+	}
+	if subsResp.Error != "" {
+		return OfferCodesResponse{Error: subsResp.Error}, nil
+	}
+
+	ascPath, err := a.resolveASCPath()
+	if err != nil {
+		return OfferCodesResponse{Error: err.Error()}, nil
+	}
+	ctx, cancel := context.WithTimeout(a.contextOrBackground(), 30*time.Second)
+	defer cancel()
+
+	type offerResult struct {
+		codes []OfferCode
+	}
+	ch := make(chan offerResult, len(subsResp.Subscriptions))
+
+	for _, sub := range subsResp.Subscriptions {
+		go func(subID, subName string) {
+			cmd := a.newASCCommand(ctx, ascPath, "subscriptions", "offers", "offer-codes", "list",
+				"--subscription-id", subID, "--output", "json")
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				ch <- offerResult{}
+				return
+			}
+			type rawCode struct {
+				Attributes struct {
+					Name                  string   `json:"name"`
+					OfferEligibility      string   `json:"offerEligibility"`
+					CustomerEligibilities []string `json:"customerEligibilities"`
+					Duration              string   `json:"duration"`
+					OfferMode             string   `json:"offerMode"`
+					NumberOfPeriods       int      `json:"numberOfPeriods"`
+					TotalNumberOfCodes    int      `json:"totalNumberOfCodes"`
+					ProductionCodeCount   int      `json:"productionCodeCount"`
+				} `json:"attributes"`
+			}
+			var env struct {
+				Data []rawCode `json:"data"`
+			}
+			if json.Unmarshal(out, &env) != nil {
+				ch <- offerResult{}
+				return
+			}
+			codes := make([]OfferCode, 0, len(env.Data))
+			for _, c := range env.Data {
+				codes = append(codes, OfferCode{
+					SubscriptionName: subName,
+					SubscriptionID:   subID,
+					Name:             c.Attributes.Name,
+					Eligibility:      c.Attributes.OfferEligibility,
+					Customers:        c.Attributes.CustomerEligibilities,
+					Duration:         c.Attributes.Duration,
+					OfferMode:        c.Attributes.OfferMode,
+					Periods:          c.Attributes.NumberOfPeriods,
+					TotalCodes:       c.Attributes.TotalNumberOfCodes,
+					ProductionCodes:  c.Attributes.ProductionCodeCount,
+				})
+			}
+			ch <- offerResult{codes: codes}
+		}(sub.ID, sub.Name)
+	}
+
+	var all []OfferCode
+	for range subsResp.Subscriptions {
+		r := <-ch
+		all = append(all, r.codes...)
+	}
+	return OfferCodesResponse{OfferCodes: all}, nil
 }
 
 // RunASCCommand runs an arbitrary asc CLI command and returns the raw output.

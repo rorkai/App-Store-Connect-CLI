@@ -22,6 +22,14 @@ export function GetAppDetail(arg1) {
   return window['go']['main']['App']['GetAppDetail'](arg1);
 }
 
+export function GetFinanceRegions() {
+  return window['go']['main']['App']['GetFinanceRegions']();
+}
+
+export function GetOfferCodes(arg1) {
+  return window['go']['main']['App']['GetOfferCodes'](arg1);
+}
+
 export function GetPricingOverview(arg1) {
   return window['go']['main']['App']['GetPricingOverview'](arg1);
 }

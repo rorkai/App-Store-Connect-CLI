@@ -2,7 +2,7 @@ import { FormEvent, startTransition, useEffect, useEffectEvent, useRef, useState
 
 import "./styles.css";
 import { ChatMessage, NavSection } from "./types";
-import { Bootstrap, CheckAuthStatus, GetAppDetail, GetPricingOverview, GetScreenshots, GetSettings, GetSubscriptions, GetTestFlight, GetTestFlightTesters, GetVersionMetadata, ListApps, RunASCCommand, SaveSettings } from "../wailsjs/go/main/App";
+import { Bootstrap, CheckAuthStatus, GetAppDetail, GetFinanceRegions, GetOfferCodes, GetPricingOverview, GetScreenshots, GetSettings, GetSubscriptions, GetTestFlight, GetTestFlightTesters, GetVersionMetadata, ListApps, RunASCCommand, SaveSettings } from "../wailsjs/go/main/App";
 import { environment, settings as settingsNS } from "../wailsjs/go/models";
 
 type SidebarGroup = { label: string; items: NavSection[] };
@@ -131,7 +131,9 @@ const displayValue: Record<string, string> = {
   TWO_MONTHS: "2 months", THREE_MONTHS: "3 months", SIX_MONTHS: "6 months",
   CONSUMABLE: "Consumable", NON_CONSUMABLE: "Non-Consumable",
   AUTO_RENEWABLE: "Auto-Renewable", NON_RENEWING: "Non-Renewing",
-  APPROVED: "Approved", VALID: "Valid", COMPLETE: "Complete",
+  APPROVED: "Approved", VALID: "Valid", COMPLETE: "Complete", UNAVAILABLE: "Unavailable",
+  FREE_TRIAL: "Free Trial", PAY_AS_YOU_GO: "Pay as You Go", PAY_UP_FRONT: "Pay Up Front",
+  STACK_WITH_INTRO_OFFERS: "Stack with Intro", EXISTING: "Existing", EXPIRED: "Expired", NEW: "New",
   READY_FOR_REVIEW: "Ready for Review", WAITING_FOR_EXPORT_COMPLIANCE: "Waiting for Export Compliance",
   PROCESSING: "Processing", FAILED: "Failed", INVALID: "Invalid",
   INSTALLED: "Installed", INVITED: "Invited", ACCEPTED: "Accepted",
@@ -255,7 +257,7 @@ export default function App() {
     versions: { id: string; platform: string; version: string; state: string }[];
     error?: string;
   } | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
+  const [, setDetailLoading] = useState(false);
   const [allLocalizations, setAllLocalizations] = useState<{
     localizationId: string; locale: string; description: string; keywords: string;
     whatsNew: string; promotionalText: string; supportUrl: string; marketingUrl: string;
@@ -271,7 +273,17 @@ export default function App() {
   // Cache of section data keyed by section ID. Prefetched in parallel on app select.
   const [sectionCache, setSectionCache] = useState<Record<string, { loading: boolean; error?: string; items: Record<string, unknown>[] }>>({});
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [appStatus, setAppStatus] = useState<{ loading: boolean; error?: string; data: any | null }>({ loading: false, data: null });
+  type AppStatusData = {
+    summary?: { health: string; nextAction?: string; blockers?: string[] };
+    builds?: { latest?: { version: string; buildNumber: string; processingState: string; uploadedDate: string; platform: string } };
+    testflight?: { betaReviewState: string; submittedDate?: string };
+    appstore?: { version: string; state: string; platform: string; createdDate: string; versionId: string };
+    submission?: { inFlight: boolean; blockingIssues?: string[] };
+    review?: { state: string; submittedDate?: string; platform?: string };
+    phasedRelease?: { configured: boolean };
+    links?: { appStoreConnect?: string; testFlight?: string; review?: string };
+  };
+  const [appStatus, setAppStatus] = useState<{ loading: boolean; error?: string; data: AppStatusData | null }>({ loading: false, data: null });
   const [testflightData, setTestflightData] = useState<{ loading: boolean; error?: string; groups: { id: string; name: string; isInternal: boolean; publicLink: string; feedbackEnabled: boolean; createdDate: string; testerCount: number }[] }>({ loading: false, groups: [] });
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [groupTesters, setGroupTesters] = useState<{ loading: boolean; testers: { email: string; firstName: string; lastName: string; inviteType: string; state: string }[] }>({ loading: false, testers: [] });
@@ -279,8 +291,11 @@ export default function App() {
   const [subscriptions, setSubscriptions] = useState<{ loading: boolean; error?: string; items: { id: string; groupName: string; name: string; productId: string; state: string; subscriptionPeriod: string; reviewNote: string; groupLevel: number }[] }>({ loading: false, items: [] });
   const [pricingOverview, setPricingOverview] = useState<{ loading: boolean; error?: string; availableInNewTerritories: boolean; currentPrice: string; currentProceeds: string; baseCurrency: string; territories: { territory: string; available: boolean; releaseDate: string }[]; subscriptionPricing: { name: string; productId: string; subscriptionPeriod: string; state: string; groupName: string; price: string; currency: string; proceeds: string }[] }>({ loading: false, availableInNewTerritories: false, currentPrice: "", currentProceeds: "", baseCurrency: "", territories: [], subscriptionPricing: [] });
   const [selectedSub, setSelectedSub] = useState<string | null>(null);
+  const [financeRegions, setFinanceRegions] = useState<{ loading: boolean; error?: string; regions: { reportRegion: string; reportCurrency: string; regionCode: string; countriesOrRegions: string }[] }>({ loading: false, regions: [] });
+  const [offerCodes, setOfferCodes] = useState<{ loading: boolean; error?: string; codes: { subscriptionName: string; subscriptionId: string; name: string; offerEligibility: string; customerEligibilities: string[]; duration: string; offerMode: string; numberOfPeriods: number; totalNumberOfCodes: number; productionCodeCount: number }[] }>({ loading: false, codes: [] });
   const appSelectionRequestRef = useRef(0);
   const screenshotRequestRef = useRef(0);
+  const groupTesterRequestRef = useRef(0);
 
   const loadStudioShell = useEffectEvent(async (options?: {
     clearApps?: boolean;
@@ -449,6 +464,26 @@ export default function App() {
         if (isStale()) return;
         setSubscriptions({ loading: false, error: String(e), items: [] });
       });
+
+    // Finance regions
+    setFinanceRegions({ loading: true, regions: [] });
+    GetFinanceRegions()
+      .then((res) => {
+        if (isStale()) return;
+        if (res.error) setFinanceRegions({ loading: false, error: res.error, regions: [] });
+        else setFinanceRegions({ loading: false, regions: res.regions ?? [] });
+      })
+      .catch((e) => { if (!isStale()) setFinanceRegions({ loading: false, error: String(e), regions: [] }); });
+
+    // Offer codes for all subscriptions
+    setOfferCodes({ loading: true, codes: [] });
+    GetOfferCodes(appId)
+      .then((res) => {
+        if (isStale()) return;
+        if (res.error) setOfferCodes({ loading: false, error: res.error, codes: [] });
+        else setOfferCodes({ loading: false, codes: res.offerCodes ?? [] });
+      })
+      .catch((e) => { if (!isStale()) setOfferCodes({ loading: false, error: String(e), codes: [] }); });
 
     for (const [sectionId, cmdTemplate] of Object.entries(sectionCommands)) {
       const cmd = cmdTemplate.replace(/APP_ID/g, appId);
@@ -1049,9 +1084,9 @@ export default function App() {
                     </div>
 
                     {/* Blockers */}
-                    {s.summary?.blockers?.length > 0 && (
+                    {(s.summary?.blockers?.length ?? 0) > 0 && (
                       <div className="status-blockers" style={{ marginBottom: 16 }}>
-                        {s.summary.blockers.map((b: string, i: number) => (
+                        {s.summary!.blockers!.map((b: string, i: number) => (
                           <div key={i} className="blocker-row">
                             <span className="blocker-icon">!</span>
                             <span>{b}</span>
@@ -1265,18 +1300,33 @@ export default function App() {
         })() : activeSection.id === "finance" && selectedAppId ? (
           <div className="app-detail-view">
             <div className="app-detail-section">
-              <h3 className="section-label">Finance</h3>
-              <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px" }}>
-                Financial reports require a vendor number. Set it in Settings or <code>~/.asc/config.json</code>.
-              </p>
-              <table className="data-table">
-                <thead><tr><th>Command</th><th>Description</th></tr></thead>
-                <tbody>
-                  <tr><td className="mono">asc finance reports --vendor VN --report-type FINANCIAL --region US --date 2025-12</td><td>Download financial report</td></tr>
-                  <tr><td className="mono">asc finance regions</td><td>List region codes</td></tr>
-                  <tr><td className="mono">asc analytics sales --vendor VN --type SALES --subtype SUMMARY --frequency DAILY --date 2026-03-29</td><td>Sales report</td></tr>
-                </tbody>
-              </table>
+              <h3 className="section-label">Finance Regions</h3>
+              {financeRegions.loading ? (
+                <p className="empty-hint">Loading…</p>
+              ) : financeRegions.error ? (
+                <p className="empty-hint">{financeRegions.error}</p>
+              ) : financeRegions.regions.length === 0 ? (
+                <p className="empty-hint">No finance regions found.</p>
+              ) : (
+                <>
+                  <div className="section-header-row">
+                    <span className="section-count">{financeRegions.regions.length} regions</span>
+                  </div>
+                  <table className="data-table">
+                    <thead><tr><th>Region</th><th>Code</th><th>Currency</th><th>Countries</th></tr></thead>
+                    <tbody>
+                      {financeRegions.regions.map((r) => (
+                        <tr key={r.regionCode}>
+                          <td style={{ fontWeight: 500 }}>{r.reportRegion}</td>
+                          <td className="mono">{r.regionCode}</td>
+                          <td>{r.reportCurrency}</td>
+                          <td>{r.countriesOrRegions}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
             </div>
           </div>
         ) : activeSection.id === "pricing" && selectedAppId ? (
@@ -1501,29 +1551,45 @@ export default function App() {
         ) : activeSection.id === "promo-codes" && selectedAppId ? (
           <div className="app-detail-view">
             <div className="app-detail-section">
-              <h3 className="section-label">Promo Codes</h3>
-              <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 12px" }}>
-                Offer codes are per-subscription. Select a subscription to manage codes.
-              </p>
-              {subscriptions.loading ? (
-                <p className="empty-hint">Loading subscriptions…</p>
-              ) : subscriptions.items.length === 0 ? (
-                <p className="empty-hint">No subscriptions found for this app.</p>
+              <h3 className="section-label">Offer Codes</h3>
+              {offerCodes.loading ? (
+                <p className="empty-hint">Loading…</p>
+              ) : offerCodes.error ? (
+                <p className="empty-hint">{offerCodes.error}</p>
+              ) : offerCodes.codes.length === 0 ? (
+                <p className="empty-hint">No offer codes found for this app's subscriptions.</p>
               ) : (
-                <table className="data-table">
-                  <thead><tr><th>Subscription</th><th>Product ID</th><th>Group</th><th>Status</th><th>Action</th></tr></thead>
-                  <tbody>
-                    {subscriptions.items.map((s) => (
-                      <tr key={s.id}>
-                        <td style={{ fontWeight: 500 }}>{s.name}</td>
-                        <td className="mono">{s.productId}</td>
-                        <td>{s.groupName}</td>
-                        <td><span className={`status-pill status-${s.state.toLowerCase()}`}>{fmt(s.state)}</span></td>
-                        <td><code style={{ fontSize: 10, color: "var(--text-secondary)" }}>asc subscriptions offers offer-codes list --subscription-id {s.id}</code></td>
+                <>
+                  <div className="section-header-row">
+                    <span className="section-count">{offerCodes.codes.length} offer codes</span>
+                  </div>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Subscription</th>
+                        <th>Offer Name</th>
+                        <th>Duration</th>
+                        <th>Mode</th>
+                        <th>Eligibility</th>
+                        <th>Total Codes</th>
+                        <th>Remaining</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {offerCodes.codes.map((c, i) => (
+                        <tr key={i}>
+                          <td style={{ fontWeight: 500 }}>{c.subscriptionName}</td>
+                          <td>{c.name}</td>
+                          <td>{fmt(c.duration)}</td>
+                          <td>{fmt(c.offerMode)}</td>
+                          <td>{fmt(c.offerEligibility)}</td>
+                          <td>{c.totalNumberOfCodes}</td>
+                          <td>{c.productionCodeCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
               )}
             </div>
           </div>

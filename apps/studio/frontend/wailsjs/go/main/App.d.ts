@@ -13,6 +13,10 @@ export function CreateThread(arg1:string):Promise<main.StudioThread>;
 
 export function GetAppDetail(arg1:string):Promise<main.AppDetail>;
 
+export function GetFinanceRegions():Promise<main.FinanceResponse>;
+
+export function GetOfferCodes(arg1:string):Promise<main.OfferCodesResponse>;
+
 export function GetPricingOverview(arg1:string):Promise<main.PricingOverview>;
 
 export function GetScreenshots(arg1:string):Promise<main.ScreenshotsResponse>;
