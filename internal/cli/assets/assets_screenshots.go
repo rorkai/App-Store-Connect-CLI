@@ -910,9 +910,9 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 	uploadCtx, cancel := cfg.UploadContext(ctx)
 	defer cancel()
 
-	if replace {
-		if err := deleteExistingScreenshots(uploadCtx, client, existingScreenshots); err != nil {
-			return asc.AppScreenshotUploadResult{}, err
+	if cfg.Replace {
+		if err := deleteExistingScreenshots(uploadCtx, cfg.Client, existingScreenshots); err != nil {
+			return zero, err
 		}
 	}
 
