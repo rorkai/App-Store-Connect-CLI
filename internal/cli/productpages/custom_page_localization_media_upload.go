@@ -255,23 +255,6 @@ func collectCustomPageMediaFiles(path string) ([]string, error) {
 	return assets.CollectAssetFiles(path)
 }
 
-func ensureCustomPageLocalizationScreenshotSet(ctx context.Context, client *asc.Client, localizationID, displayType string) (asc.Resource[asc.AppScreenshotSetAttributes], error) {
-	resp, err := client.GetAppCustomProductPageLocalizationScreenshotSets(ctx, localizationID)
-	if err != nil {
-		return asc.Resource[asc.AppScreenshotSetAttributes]{}, err
-	}
-	for _, set := range resp.Data {
-		if strings.EqualFold(set.Attributes.ScreenshotDisplayType, displayType) {
-			return set, nil
-		}
-	}
-	created, err := client.CreateAppScreenshotSetForCustomProductPageLocalization(ctx, localizationID, displayType)
-	if err != nil {
-		return asc.Resource[asc.AppScreenshotSetAttributes]{}, err
-	}
-	return created.Data, nil
-}
-
 func ensureCustomPageLocalizationPreviewSet(ctx context.Context, client *asc.Client, localizationID, previewType string) (asc.Resource[asc.AppPreviewSetAttributes], error) {
 	resp, err := client.GetAppCustomProductPageLocalizationPreviewSets(ctx, localizationID)
 	if err != nil {
