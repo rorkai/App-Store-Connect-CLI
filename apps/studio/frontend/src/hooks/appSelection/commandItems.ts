@@ -60,7 +60,7 @@ export function parseCommandItems(raw: string): Record<string, unknown>[] {
   if (Array.isArray(parsed?.data)) {
     return parsed.data
       .map((item: unknown) => normalizeResource(item))
-      .filter((item): item is Record<string, unknown> => item !== null);
+      .filter((item: Record<string, unknown> | null): item is Record<string, unknown> => item !== null);
   }
 
   if (parsed?.data) {
@@ -80,7 +80,7 @@ export function parseCommandItems(raw: string): Record<string, unknown>[] {
         }
         return normalized;
       })
-      .filter((item): item is Record<string, unknown> => item !== null);
+      .filter((item: Record<string, unknown> | null): item is Record<string, unknown> => item !== null);
   }
 
   if (isPlainObject(parsed)) {
