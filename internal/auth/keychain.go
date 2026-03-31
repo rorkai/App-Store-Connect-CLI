@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -187,6 +188,10 @@ var legacyKeyringOpener = func() (keyring.Keyring, error) {
 
 // ValidateKeyFile validates that the private key file exists and is valid
 func ValidateKeyFile(path string) error {
+	return validateKeyFileForOS(path, runtime.GOOS)
+}
+
+func validateKeyFileForOS(path, goos string) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("failed to open key file: %w", err)
@@ -200,7 +205,7 @@ func ValidateKeyFile(path string) error {
 	if info.IsDir() {
 		return fmt.Errorf("private key path is a directory")
 	}
-	if info.Mode().Perm()&0o077 != 0 {
+	if filePermissionsTooPermissiveForOS(info.Mode(), goos) {
 		return fmt.Errorf("private key file is too permissive; run: chmod 600 %q", path)
 	}
 

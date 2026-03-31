@@ -131,7 +131,7 @@ func inspectStorage(options DoctorOptions) DoctorSection {
 		Message: fmt.Sprintf("Config file exists at %s", configPath),
 	})
 
-	if info.Mode().Perm()&0o077 != 0 {
+	if filePermissionsTooPermissive(info.Mode()) {
 		check := DoctorCheck{
 			Status:         DoctorWarn,
 			Message:        fmt.Sprintf("Config file permissions are too permissive (%#o)", info.Mode().Perm()),
@@ -331,7 +331,7 @@ func inspectPrivateKeyPath(path string, options DoctorOptions) DoctorCheck {
 		Message: fmt.Sprintf("%s - permissions %#o", path, info.Mode().Perm()),
 	}
 
-	if info.Mode().Perm()&0o077 != 0 {
+	if filePermissionsTooPermissive(info.Mode()) {
 		check.Status = DoctorWarn
 		check.Message = fmt.Sprintf("%s - permissions %#o (expected 0600)", path, info.Mode().Perm())
 		check.Recommendation = fmt.Sprintf("Run: chmod 600 %q", path)
