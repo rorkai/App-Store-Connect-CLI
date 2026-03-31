@@ -61,6 +61,14 @@ type CustomProductPageScreenshotUploadResult struct {
 	Results                         []AssetUploadResultItem `json:"results"`
 }
 
+// ExperimentTreatmentLocalizationScreenshotUploadResult represents PPO treatment localization screenshot upload output.
+type ExperimentTreatmentLocalizationScreenshotUploadResult struct {
+	ExperimentTreatmentLocalizationID string                  `json:"experimentTreatmentLocalizationId"`
+	SetID                             string                  `json:"setId"`
+	DisplayType                       string                  `json:"displayType"`
+	Results                           []AssetUploadResultItem `json:"results"`
+}
+
 // CustomProductPagePreviewUploadResult represents custom product page preview upload output.
 type CustomProductPagePreviewUploadResult struct {
 	CustomProductPageLocalizationID string                  `json:"customProductPageLocalizationId"`
