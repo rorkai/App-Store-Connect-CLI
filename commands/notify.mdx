@@ -258,21 +258,21 @@ asc notify slack \
 set -e
 
 VERSION="1.2.3"
-BUILD_ID="12345"
+IPA_PATH="./build/MyApp.ipa"
 
 # Publish to the App Store
-asc release run \
+asc publish appstore \
   --app "$APP_ID" \
+  --ipa "$IPA_PATH" \
   --version "$VERSION" \
-  --build "$BUILD_ID" \
-  --metadata-dir "./metadata/version/$VERSION" \
+  --submit \
   --confirm
 
 # Notify Slack with success
 asc notify slack \
   --message "Version $VERSION submitted for review" \
   --pretext "App Store submission" \
-  --payload-json '{"app":"MyApp","version":"'$VERSION'","build":"'$BUILD_ID'"}' \
+  --payload-json '{"app":"MyApp","version":"'$VERSION'","ipa":"'$IPA_PATH'"}' \
   
 ```
 

@@ -1022,6 +1022,7 @@ func TestSubmitCreateLocalizationPreflightDoesNotConsumeSubmitTimeoutBudget(t *t
 	const longDelay = 120 * time.Millisecond
 	stopErr := errors.New("stop after localization timeout budget capture")
 	var reviewSubmissionBudget time.Duration
+	localizationRequests := 0
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
@@ -1041,8 +1042,11 @@ func TestSubmitCreateLocalizationPreflightDoesNotConsumeSubmitTimeoutBudget(t *t
 			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.0","platform":"IOS"}}]}`)
 
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			if err := sleepWithContextDuration(req.Context(), longDelay); err != nil {
-				return nil, err
+			localizationRequests++
+			if localizationRequests == 1 {
+				if err := sleepWithContextDuration(req.Context(), longDelay); err != nil {
+					return nil, err
+				}
 			}
 			return submitCreateJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support","whatsNew":""}}]}`)
 
@@ -1090,6 +1094,9 @@ func TestSubmitCreateLocalizationPreflightDoesNotConsumeSubmitTimeoutBudget(t *t
 	err := root.Run(context.Background())
 	if err == nil || !strings.Contains(err.Error(), stopErr.Error()) {
 		t.Fatalf("expected submit create to stop after capturing fresh localization timeout budget, got %v", err)
+	}
+	if localizationRequests < 2 {
+		t.Fatalf("expected submit create to fetch localizations during both localization and readiness preflight, got %d request(s)", localizationRequests)
 	}
 	if reviewSubmissionBudget < 100*time.Millisecond {
 		t.Fatalf("expected fresh submit timeout budget after localization preflight, got %v", reviewSubmissionBudget)

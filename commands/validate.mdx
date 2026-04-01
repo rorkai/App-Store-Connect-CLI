@@ -69,7 +69,7 @@ Validation failed for version 1.2.0:
 # Validate version
 if asc validate --app 123456789 --version 1.2.0; then
   echo "Version is ready, running the release pipeline..."
-  asc release run --app 123456789 --version 1.2.0 --build BUILD_ID --metadata-dir ./metadata/version/1.2.0 --confirm
+  asc publish appstore --app 123456789 --ipa ./build/MyApp.ipa --version 1.2.0 --submit --confirm
 else
   echo "Validation failed, fix issues before publishing"
   exit 1
@@ -89,7 +89,7 @@ fi
     fi
 
 - name: Publish to App Store
-  run: asc release run --app ${{ secrets.APP_ID }} --version ${{ github.ref_name }} --build "${{ env.BUILD_ID }}" --metadata-dir ./metadata/version/${{ github.ref_name }} --confirm
+  run: asc publish appstore --app ${{ secrets.APP_ID }} --ipa ./build/MyApp.ipa --version ${{ github.ref_name }} --submit --confirm
 ```
 
 ## Exit codes
