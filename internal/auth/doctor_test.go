@@ -540,14 +540,14 @@ func TestBuildSuggestedCommandsUploadOnlyUsesUploadedBuildPlaceholder(t *testing
 		}
 	})
 
-	if !sliceContains(commands, `asc versions attach-build --version-id "version-id-123" --build "UPLOADED_BUILD_ID"`) {
+	if !sliceContains(commands, `asc versions attach-build --version-id "VERSION_ID" --build "UPLOADED_BUILD_ID"`) {
 		t.Fatalf("expected attach-build guidance to use uploaded build placeholder, got %#v", commands)
 	}
-	if sliceContains(commands, `asc versions attach-build --version-id "version-id-123" --build "build-id-456"`) {
-		t.Fatalf("expected upload-only attach-build guidance to avoid stale resolved build ID, got %#v", commands)
+	if sliceContains(commands, `asc versions attach-build --version-id "version-id-123" --build "UPLOADED_BUILD_ID"`) {
+		t.Fatalf("expected upload-only guidance to avoid a platform-agnostic resolved version ID, got %#v", commands)
 	}
-	if sliceContains(commands, `asc versions create --app "123456789" --version "1.2.3"`) {
-		t.Fatalf("expected upload-only guidance with a resolved version ID to skip duplicate version creation, got %#v", commands)
+	if !sliceContains(commands, `asc versions create --app "123456789" --version "1.2.3"`) {
+		t.Fatalf("expected upload-only guidance to keep version creation when no platform-aware version ID is available, got %#v", commands)
 	}
 }
 
@@ -564,8 +564,8 @@ func TestBuildSuggestedCommandsUploadOnlyDoesNotRequestResolvedBuildID(t *testin
 		return MigrationSuggestionResolverOutput{VersionID: "version-id-123"}
 	})
 
-	if !resolverInput.NeedVersionID {
-		t.Fatal("expected upload-only migration hints to still request a version ID")
+	if resolverInput.NeedVersionID {
+		t.Fatalf("expected upload-only migration hints to avoid requesting a platform-agnostic version ID, got %+v", resolverInput)
 	}
 	if resolverInput.NeedBuildID {
 		t.Fatalf("expected upload-only migration hints to avoid requesting a resolved build ID, got %+v", resolverInput)

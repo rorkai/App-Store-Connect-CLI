@@ -560,7 +560,9 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 	hasAppStoreSignal := containsAction(signals.detectedActions, "upload_to_app_store") || containsAction(signals.detectedActions, "precheck")
 	needsAppID := hasMetadataSignal || hasBuildSignal || hasTestflightSignal || hasAppStoreSignal
 	needsVersionString := hasAppStoreSignal
-	needsVersionID := hasMetadataSignal || hasAppStoreSignal
+	// Upload-only App Store hints do not have enough platform context to resolve
+	// a safe version ID, so keep that path on an explicit placeholder instead.
+	needsVersionID := hasMetadataSignal
 	needsBuildID := false
 	values := resolveMigrationCommandValues(signals, resolver, needsAppID, needsVersionString, needsVersionID, needsBuildID)
 	hasResolvedVersionID := strings.TrimSpace(values.versionID) != ""
@@ -628,11 +630,15 @@ func resolveMigrationCommandValues(
 		if appID := strings.TrimSpace(result.AppID); appID != "" {
 			values.appID = appID
 		}
-		if versionID := strings.TrimSpace(result.VersionID); versionID != "" {
-			values.versionID = versionID
+		if needsVersionID {
+			if versionID := strings.TrimSpace(result.VersionID); versionID != "" {
+				values.versionID = versionID
+			}
 		}
-		if buildID := strings.TrimSpace(result.BuildID); buildID != "" {
-			values.buildID = buildID
+		if needsBuildID {
+			if buildID := strings.TrimSpace(result.BuildID); buildID != "" {
+				values.buildID = buildID
+			}
 		}
 	}
 

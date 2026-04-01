@@ -88,7 +88,7 @@ func TestSubmitCreateHelpShowsDeprecatedCompatibilityGuidance(t *testing.T) {
 	}
 	for _, expected := range []string{
 		"asc versions attach-build",
-		"asc review submissions-create",
+		`asc review submissions-create --app "APP_ID" --platform "PLATFORM"`,
 		"asc review items-add",
 		"asc review submissions-submit",
 		"asc publish appstore --submit",

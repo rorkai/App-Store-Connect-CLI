@@ -72,7 +72,7 @@ func SubmitCreateCommand() *ffcli.Command {
 
 For already-uploaded builds, use:
   - ` + "`asc versions attach-build --version-id \"VERSION_ID\" --build \"BUILD_ID\"`" + `
-  - ` + "`asc review submissions-create --app \"APP_ID\" --platform IOS`" + `
+  - ` + "`asc review submissions-create --app \"APP_ID\" --platform \"PLATFORM\"`" + `
   - ` + "`asc review items-add --submission \"SUBMISSION_ID\" --item-type appStoreVersions --item-id \"VERSION_ID\"`" + `
   - ` + "`asc review submissions-submit --id \"SUBMISSION_ID\" --confirm`" + `
 
