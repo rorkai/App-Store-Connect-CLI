@@ -40,6 +40,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/51/07/86/51078666-e31e-5e8c-14f8-833eb7091863/AppIcon-1x_U007emarketing-0-11-0-85-220-0.png/512x512bb.jpg"
   },
   {
+    "app": "Baby feeding & diaper tracker",
+    "link": "https://apps.apple.com/us/app/baby-feeding-diaper-tracker/id6451158784?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/03/45/5a/03455ad1-896f-c341-6d38-13bab0c40e8b/AppIcon-0-1x_U007epad-0-1-P3-85-220-0.png/512x512bb.jpg"
+  },
+  {
     "app": "Beauty Fonts - Font Keyboard",
     "link": "https://apps.apple.com/us/app/beauty-fonts-font-keyboard/id1438854446?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ce/85/c5/ce85c50d-e009-34b8-96f1-924e6881a364/AppIcon-0-0-1x_U007epad-0-1-0-85-220-0.png/512x512bb.jpg"
@@ -929,6 +934,11 @@
     "app": "Timefall",
     "link": "https://apps.apple.com/app/id6757712804",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d5/00/51/d500514a-c728-8598-f562-105dcc8005b9/AppIcon-0-0-1x_U007epad-0-1-0-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "TMS - Bible Memory",
+    "link": "https://apps.apple.com/us/app/tms-bible-memory/id6463799590?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/9a/7a/a3/9a7aa376-7dd9-8939-d6ba-90012b0cf417/tmsAppIcon-0-0-1x_U007ephone-0-1-0-85-220.png/512x512bb.jpg"
   },
   {
     "app": "ToMe: Save to Self",
