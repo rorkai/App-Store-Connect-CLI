@@ -34,20 +34,6 @@ HIDDEN_DEPRECATED_ALIAS_FLAGS: dict[tuple[str, ...], dict[str, bool]] = {
     # DeprecatedUsageFunc intentionally hides FLAGS in help output for
     # compatibility aliases, but we still need accurate flag validation so docs
     # examples fail on deprecations instead of bogus unknown-flag errors.
-    ("publish", "appstore"): {
-        "--app": False,
-        "--build-number": False,
-        "--confirm": True,
-        "--ipa": False,
-        "--output": False,
-        "--platform": False,
-        "--poll-interval": False,
-        "--pretty": True,
-        "--submit": True,
-        "--timeout": False,
-        "--version": False,
-        "--wait": True,
-    },
     ("submit", "create"): {
         "--app": False,
         "--build": False,
@@ -710,8 +696,6 @@ def collect_errors(
         example_errors = validate_example(example, index, binary_path)
         errors.extend(example_errors)
         if example_errors or binary_path is None:
-            continue
-        if example.source != "fenced":
             continue
         errors.extend(validate_not_deprecated(example, binary_path, index[()].flags))
     return errors

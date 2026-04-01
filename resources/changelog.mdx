@@ -32,13 +32,13 @@ No unreleased changes yet.
 
 **Highlights**:
 
-* `asc validate` is now the canonical App Store submission readiness report with broader checks and clearer upgrade guidance from `asc submit preflight`
+* `asc validate` is now the canonical App Store submission readiness report with broader checks and clearer upgrade guidance from the legacy `submit preflight` wrapper
 * Pricing workflows are easier to inspect with `asc pricing current` and more reliable current-price pagination/filtering
 * Subscription introductory offers can now be created in bulk from CSV with shared defaults and row-level overrides
 
 **Changes**:
 
-* `feat(validate)`: Make `asc validate` the canonical App Store submission readiness command and deprecate `asc submit preflight` as a compatibility wrapper
+* `feat(validate)`: Make `asc validate` the canonical App Store submission readiness command and deprecate the legacy `submit preflight` wrapper
 * `feat(pricing)`: Add `asc pricing current` for current app price lookup with territory filtering
 * `fix(pricing)`: Preserve pricing query params while paginating and tighten current-price territory behavior
 * `feat(subscriptions)`: Add CSV import for subscription introductory offers with inherited defaults, row overrides, dry-run summaries, and stronger validation
