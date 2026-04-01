@@ -112,6 +112,11 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 		}
 	}
 
+	// No further network calls use the request-scoped timeout context beyond this point.
+	// Cancel it eagerly so slow report rendering cannot race the refreshed context into
+	// DeadlineExceeded after the build probe already succeeded.
+	cancel()
+
 	report := validation.ValidateSubscriptions(validation.SubscriptionsInput{
 		AppID:                     opts.AppID,
 		Subscriptions:             subs,
