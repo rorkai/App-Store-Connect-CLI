@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	releaseRunDeprecationWarning   = "Warning: `asc release run` is deprecated. Use `asc publish appstore`."
+	releaseRunDeprecationWarning   = "Warning: `asc release run` is deprecated. Use `asc publish appstore --submit`."
 	submitCreateDeprecationWarning = "Warning: `asc submit create` is deprecated. Use `asc publish appstore --submit`."
 )
 

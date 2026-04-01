@@ -30,7 +30,7 @@ const (
 	releaseModeRun               = "run"
 	releaseModeStage             = "stage"
 	releaseRunTimeout            = 30 * time.Minute
-	releaseRunDeprecationWarning = "Warning: `asc release run` is deprecated. Use `asc publish appstore`."
+	releaseRunDeprecationWarning = "Warning: `asc release run` is deprecated. Use `asc publish appstore --submit`."
 )
 
 var (
@@ -130,8 +130,8 @@ func ReleaseRunCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "run",
 		ShortUsage: "asc release run --app \"APP_ID\" --version \"2.4.0\" --build \"BUILD_ID\" --metadata-dir \"./metadata/version/2.4.0\" [flags]",
-		ShortHelp:  "DEPRECATED: use `asc publish appstore`.",
-		LongHelp: `DEPRECATED: use ` + "`asc publish appstore`" + `.
+		ShortHelp:  "DEPRECATED: use `asc publish appstore --submit`.",
+		LongHelp: `DEPRECATED: use ` + "`asc publish appstore --submit`" + `.
 
 Deprecated compatibility pipeline that still runs the old single-command
 release flow:
