@@ -560,7 +560,7 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 	needsAppID := hasMetadataSignal || hasBuildSignal || hasTestflightSignal || hasAppStoreSignal
 	needsVersionString := hasAppStoreSignal
 	needsVersionID := hasMetadataSignal || hasAppStoreSignal
-	needsBuildID := hasAppStoreSignal
+	needsBuildID := hasAppStoreSignal && hasMetadataSignal
 	values := resolveMigrationCommandValues(signals, resolver, needsAppID, needsVersionString, needsVersionID, needsBuildID)
 	values = fallbackMigrationCommandValues(values)
 

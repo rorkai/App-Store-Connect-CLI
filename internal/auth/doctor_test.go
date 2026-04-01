@@ -548,6 +548,27 @@ func TestBuildSuggestedCommandsUploadOnlyUsesUploadedBuildPlaceholder(t *testing
 	}
 }
 
+func TestBuildSuggestedCommandsUploadOnlyDoesNotRequestResolvedBuildID(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "123456789")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+
+	var resolverInput MigrationSuggestionResolverInput
+	buildSuggestedCommands(migrationSignals{
+		detectedActions:  []string{"upload_to_app_store"},
+		marketingVersion: "1.2.3",
+	}, func(input MigrationSuggestionResolverInput) MigrationSuggestionResolverOutput {
+		resolverInput = input
+		return MigrationSuggestionResolverOutput{VersionID: "version-id-123"}
+	})
+
+	if !resolverInput.NeedVersionID {
+		t.Fatal("expected upload-only migration hints to still request a version ID")
+	}
+	if resolverInput.NeedBuildID {
+		t.Fatalf("expected upload-only migration hints to avoid requesting a resolved build ID, got %+v", resolverInput)
+	}
+}
+
 func TestBuildSuggestedCommandsQuotesDerivedMetadataDir(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
