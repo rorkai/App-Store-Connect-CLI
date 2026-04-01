@@ -582,6 +582,8 @@ func buildSuggestedCommands(signals migrationSignals, resolver MigrationSuggesti
 			metadataDir := fmt.Sprintf("./metadata/version/%s", values.versionString)
 			add(fmt.Sprintf(`asc release run --app %q --version %q --build %q --metadata-dir %q --confirm`, values.appID, values.versionString, values.buildID, metadataDir))
 		} else {
+			add(fmt.Sprintf(`asc builds upload --app %q --ipa app.ipa --version %q --build-number %q --wait`, values.appID, values.versionString, values.buildID))
+			add(fmt.Sprintf(`asc builds info --app %q --build-number %q --version %q`, values.appID, values.buildID, values.versionString))
 			add(fmt.Sprintf(`asc versions create --app %q --version %q`, values.appID, values.versionString))
 			add(fmt.Sprintf(`asc versions attach-build --version-id %q --build %q`, values.versionID, values.buildID))
 		}

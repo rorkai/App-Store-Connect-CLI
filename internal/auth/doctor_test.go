@@ -427,6 +427,12 @@ func TestDoctorMigrationHintsPrefillsVersionFromXcodeAndAppID(t *testing.T) {
 	if !sliceContains(report.Migration.SuggestedCommands, `asc validate --app "123456789" --version "2.3.4"`) {
 		t.Fatalf("expected personalized validate command, got %#v", report.Migration.SuggestedCommands)
 	}
+	if !sliceContains(report.Migration.SuggestedCommands, `asc builds upload --app "123456789" --ipa app.ipa --version "2.3.4" --build-number "BUILD_ID" --wait`) {
+		t.Fatalf("expected upload step for upload-only migration hints, got %#v", report.Migration.SuggestedCommands)
+	}
+	if !sliceContains(report.Migration.SuggestedCommands, `asc builds info --app "123456789" --build-number "BUILD_ID" --version "2.3.4"`) {
+		t.Fatalf("expected build lookup step for upload-only migration hints, got %#v", report.Migration.SuggestedCommands)
+	}
 	if !sliceContains(report.Migration.SuggestedCommands, `asc versions create --app "123456789" --version "2.3.4"`) {
 		t.Fatalf("expected personalized version create command, got %#v", report.Migration.SuggestedCommands)
 	}
