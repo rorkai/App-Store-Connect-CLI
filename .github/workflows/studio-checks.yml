@@ -1,0 +1,74 @@
+name: Studio Checks
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - 'apps/studio/**'
+      - 'internal/asc/**'
+      - 'internal/auth/**'
+      - 'internal/config/**'
+      - 'internal/screenshots/**'
+      - 'internal/validation/**'
+      - 'internal/workflow/**'
+      - 'internal/xcode/**'
+      - 'go.mod'
+      - 'go.sum'
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/studio/**'
+      - 'internal/asc/**'
+      - 'internal/auth/**'
+      - 'internal/config/**'
+      - 'internal/screenshots/**'
+      - 'internal/validation/**'
+      - 'internal/workflow/**'
+      - 'internal/xcode/**'
+      - 'go.mod'
+      - 'go.sum'
+
+jobs:
+  studio:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: apps/studio/frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/studio/frontend/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+          cache: true
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend tests
+        run: npm run test -- --run
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Run Studio Go tests
+        working-directory: ${{ github.workspace }}
+        run: go test ./apps/studio/...
+
+      - name: Build Studio bootstrap binary
+        working-directory: ${{ github.workspace }}
+        run: go build ./apps/studio

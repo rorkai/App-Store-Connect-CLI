@@ -1,0 +1,90 @@
+name: Release Studio
+
+on:
+  push:
+    tags:
+      - 'studio/v*'
+
+jobs:
+  release-studio:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Validate studio tag
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ ! "$TAG" =~ ^studio/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Studio release tags must match studio/vA.B.C. Got: ${TAG}"
+            exit 1
+          fi
+          VERSION="${TAG#studio/}"
+          VERSION="${VERSION#v}"
+          printf 'VERSION=%s\n' "$VERSION" >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: apps/studio/frontend/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+          cache: true
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+
+      - name: Install Studio frontend dependencies
+        working-directory: apps/studio/frontend
+        run: npm ci
+
+      - name: Run Studio frontend tests
+        working-directory: apps/studio/frontend
+        run: npm run test -- --run
+
+      - name: Build frontend assets
+        working-directory: apps/studio/frontend
+        run: npm run build
+
+      - name: Build bundled asc helper
+        run: |
+          mkdir -p apps/studio/bin
+          GOOS=darwin GOARCH=arm64 go build -o apps/studio/bin/asc-arm64 .
+          GOOS=darwin GOARCH=amd64 go build -o apps/studio/bin/asc-amd64 .
+          lipo -create -output apps/studio/bin/asc apps/studio/bin/asc-arm64 apps/studio/bin/asc-amd64
+          chmod +x apps/studio/bin/asc
+
+      - name: Build ASC Studio app
+        working-directory: apps/studio
+        run: |
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          wails build -clean -platform darwin/universal
+          mkdir -p "build/bin/ASC Studio.app/Contents/Resources/bin"
+          cp bin/asc "build/bin/ASC Studio.app/Contents/Resources/bin/asc"
+
+      - name: Stage release bundle
+        run: |
+          mkdir -p release
+          cp -R apps/studio/build/bin/ASC\ Studio.app release/
+
+      - name: Archive Studio release
+        run: |
+          cd release
+          ditto -c -k --sequesterRsrc --keepParent "ASC Studio.app" "ASC-Studio-${VERSION}.zip"
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" release/ASC-Studio-${VERSION}.zip --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" release/ASC-Studio-${VERSION}.zip --generate-notes --verify-tag
+          fi

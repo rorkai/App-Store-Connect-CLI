@@ -4,6 +4,7 @@
 # Build output
 /build/
 /dist/
+# ASC Studio embeds apps/studio/frontend/dist via Wails, so that nested dist is tracked on purpose.
 .gocache/
 
 # Binaries for programs and plugins
@@ -47,3 +48,8 @@ worktrees/
 
 # asc screenshots capture output (root-level only; internal/screenshots is code)
 /screenshots/
+
+# ASC Studio generated artifacts
+/apps/studio/build/bin/
+/apps/studio/build/darwin/Info.dev.plist
+/apps/studio/frontend/package.json.md5

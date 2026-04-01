@@ -1,9 +1,9 @@
-name: Release
+name: Release CLI
 
 on:
   push:
     tags:
-      - '[0-9]*.[0-9]*.[0-9]*'
+      - 'asc/v*'
 
 jobs:
   release:
@@ -18,12 +18,16 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
 
-          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Release tags must match x.y.z. Got: ${TAG}"
+          if [[ ! "$TAG" =~ ^asc/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tags must match asc/vX.Y.Z. Got: ${TAG}"
             exit 1
           fi
 
-          printf 'VERSION=%s\n' "$TAG" >> "$GITHUB_ENV"
+          VERSION_TAG="${TAG#asc/}"
+          VERSION="${VERSION_TAG#v}"
+
+          printf 'VERSION_TAG=%s\n' "$VERSION_TAG" >> "$GITHUB_ENV"
+          printf 'VERSION=%s\n' "$VERSION" >> "$GITHUB_ENV"
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -99,10 +103,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view "${VERSION}" >/dev/null 2>&1; then
-            gh release upload "${VERSION}" release/* --clobber
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" release/* --clobber
           else
-            gh release create "${VERSION}" release/* --generate-notes --verify-tag
+            gh release create "${GITHUB_REF_NAME}" release/* --generate-notes --verify-tag
           fi
 
       - name: Update Homebrew tap
@@ -145,10 +149,10 @@ jobs:
 
                 on_macos do
                   if Hardware::CPU.arm?
-                    url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/{version}/asc_{version}_macOS_arm64'
+                    url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/asc%2Fv{version}/asc_{version}_macOS_arm64'
                     sha256 '{sha256_arm64}'
                   else
-                    url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/{version}/asc_{version}_macOS_amd64'
+                    url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/asc%2Fv{version}/asc_{version}_macOS_amd64'
                     sha256 '{sha256_amd64}'
                   end
                 end
