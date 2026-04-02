@@ -1108,6 +1108,84 @@ describe("App", () => {
     });
   });
 
+  it("ignores stale device registration completions after the sheet is reopened", async () => {
+    let resolveRegister: ((value: { error: string; data: string }) => void) | undefined;
+
+    mockRunASCCommand.mockImplementation((cmd: string) => {
+      if (cmd === "devices list --output json") {
+        return Promise.resolve({
+          error: "",
+          data: JSON.stringify({
+            data: [
+              {
+                id: "device-1",
+                type: "devices",
+                attributes: {
+                  name: "Existing iPhone",
+                  udid: "EXISTING-UDID",
+                  platform: "IOS",
+                  status: "ENABLED",
+                },
+              },
+            ],
+          }),
+        });
+      }
+      if (cmd === "devices register --name 'QA iPhone' --udid 'NEW-UDID-123' --platform 'IOS' --output json") {
+        return new Promise((resolve) => {
+          resolveRegister = resolve as (value: { error: string; data: string }) => void;
+        });
+      }
+      return Promise.resolve({ error: "", data: "{\"data\":[]}" });
+    });
+
+    render(<App />);
+
+    await screen.findByRole("img", { name: /Connected/i });
+    fireEvent.click(screen.getByRole("tab", { name: "Team" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Devices" }));
+    await screen.findByText("Existing iPhone");
+
+    fireEvent.click(screen.getByRole("button", { name: /New Device/i }));
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "QA iPhone" } });
+    fireEvent.change(screen.getByLabelText("UDID"), { target: { value: "NEW-UDID-123" } });
+    fireEvent.click(screen.getByRole("button", { name: "Register" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: /Register Device/i })).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /New Device/i }));
+    expect(screen.getByRole("dialog", { name: /Register Device/i })).toBeInTheDocument();
+
+    await act(async () => {
+      resolveRegister?.({
+        error: "",
+        data: JSON.stringify({
+          data: {
+            id: "device-2",
+            type: "devices",
+            attributes: {
+              name: "QA iPhone",
+              udid: "NEW-UDID-123",
+              platform: "IOS",
+              status: "ENABLED",
+            },
+          },
+        }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: /Register Device/i })).toBeInTheDocument();
+    });
+
+    expect(
+      mockRunASCCommand.mock.calls.filter(([cmd]) => cmd === "devices list --output json"),
+    ).toHaveLength(2);
+  });
+
   it("closes the bundle ID sheet when escape is pressed inside the dialog", async () => {
     mockRunASCCommand.mockImplementation((cmd: string) => {
       if (cmd === "bundle-ids list --paginate --output json") {
