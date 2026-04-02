@@ -221,14 +221,24 @@ asc screenshots delete --id "SCREENSHOT_ID" --confirm
     Or approve selectively in the browser UI.
   </Step>
 
-  <Step title="Upload approved screenshots">
-    Upload the approved screenshots to App Store Connect:
+  <Step title="Preview uploads from approved screenshots">
+    Build a deterministic upload plan from the approved review artifacts:
 
     ```bash  theme={null}
-    asc screenshots upload \
-      --version-localization "LOCALIZATION_ID" \
-      --path "./screenshots/review/approved" \
-      --device-type "IPHONE_65"
+    asc screenshots plan \
+      --app "123456789" \
+      --version "1.2.3"
+    ```
+  </Step>
+
+  <Step title="Apply the approved upload plan">
+    Apply the reviewed upload plan explicitly:
+
+    ```bash  theme={null}
+    asc screenshots apply \
+      --app "123456789" \
+      --version "1.2.3" \
+      --confirm
     ```
   </Step>
 </Steps>

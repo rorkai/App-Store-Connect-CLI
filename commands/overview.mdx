@@ -61,26 +61,43 @@ Commands are organized into logical families based on functionality:
 * `apps` - List and manage apps in App Store Connect
 * `app-setup` - Post-create app setup automation
 * `app-tags` - Manage app tags for App Store visibility
-* `app-info` - Manage App Store version metadata
 * `versions` - Manage App Store versions
 * `localizations` - Manage App Store localization metadata
+* `metadata` - Manage app metadata with deterministic file workflows
 * `screenshots` - Capture, frame, review, and upload App Store screenshots
 * `video-previews` - Manage App Store app preview videos
+* `background-assets` - Manage background assets
+* `product-pages` - Manage custom product pages and experiments
+* `routing-coverage` - Manage routing app coverage files
 * `pricing` - Manage app pricing and availability
+* `pre-orders` - Manage app pre-orders
 * `categories` - Manage App Store categories
 * `age-rating` - Manage App Store age rating declarations
+* `accessibility` - Manage accessibility declarations
+* `encryption` - Manage app encryption declarations and documents
+* `eula` - Manage end-user license agreements
+* `agreements` - Manage App Store Connect agreements
+* `app-clips` - Manage App Clip experiences and invocations
+* `android-ios-mapping` - Manage Android-to-iOS app mapping details
+* `marketplace` - Manage marketplace resources
+* `alternative-distribution` - Manage alternative distribution resources
+* `nominations` - Manage featuring nominations
+* `game-center` - Manage Game Center resources
 
 ### TestFlight and Builds
 
-* `testflight` - Manage TestFlight resources
+* `testflight` - Manage TestFlight workflows
 * `builds` - Manage builds in App Store Connect
 * `build-bundles` - Manage build bundles and App Clip data
-* `pre-release-versions` - Manage TestFlight pre-release versions
 * `build-localizations` - Manage build release notes localizations
+* `xcode` - Local Xcode archive/export helpers
 * `sandbox` - Manage sandbox testers in App Store Connect
 
 ### Review and Release
 
+* `release` - Run high-level App Store release workflows
+* `status` - Show a release pipeline dashboard for an app
+* `release-notes` - Generate and manage App Store release notes
 * `review` - Manage App Store review details, attachments, and submissions
 * `reviews` - List and manage App Store customer reviews
 * `submit` - Submission lifecycle tools for App Store review state
@@ -92,8 +109,6 @@ Commands are organized into logical families based on functionality:
 * `iap` - Manage in-app purchases in App Store Connect
 * `app-events` - Manage App Store in-app events
 * `subscriptions` - Manage subscription groups and subscriptions
-* `offer-codes` - Manage subscription offer codes
-* `win-back-offers` - Manage win-back offers for subscriptions
 
 ### Signing
 
@@ -102,6 +117,7 @@ Commands are organized into logical families based on functionality:
 * `certificates` - Manage signing certificates
 * `profiles` - Manage provisioning profiles
 * `merchant-ids` - Manage merchant IDs and certificates
+* `pass-type-ids` - Manage pass type IDs
 * `notarization` - Manage macOS notarization submissions
 
 ### Team and Access
@@ -124,8 +140,7 @@ Commands are organized into logical families based on functionality:
 * `version` - Print version information and exit
 * `completion` - Print shell completion scripts
 * `diff` - Generate deterministic non-mutating diff plans
-* `status` - Show a release pipeline dashboard for an app
-* `metadata` - Manage app metadata with deterministic file workflows
+* `schema` - Inspect App Store Connect API endpoint schemas at runtime
 
 ## TTY-Aware Output Defaults
 

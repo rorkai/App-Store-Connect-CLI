@@ -48,6 +48,25 @@ Get rating summary:
 asc reviews ratings --app APP_ID
 ```
 
+### Review summarizations
+
+List App Store review summarizations for an app:
+
+```bash  theme={null}
+asc reviews summarizations --app "APP_ID"
+asc reviews summarizations --app "APP_ID" --platform IOS --territory USA
+```
+
+### Manage existing review responses
+
+Inspect or delete an existing response:
+
+```bash  theme={null}
+asc reviews response view --id "RESPONSE_ID"
+asc reviews response delete --id "RESPONSE_ID" --confirm
+asc reviews response for-review --review-id "REVIEW_ID"
+```
+
 ## List flags
 
 <ParamField path="--app" type="string" required>
@@ -58,10 +77,8 @@ asc reviews ratings --app APP_ID
   Sort order: `createdDate`, `-createdDate`, `rating`, `-rating`
 </ParamField>
 
-<ParamField path="--filter" type="string">
-  Filter reviews by rating
-
-  Example: `rating==5` or `rating<=2`
+<ParamField path="--stars" type="number">
+  Filter by star rating (1-5)
 </ParamField>
 
 <ParamField path="--territory" type="string">
@@ -108,7 +125,7 @@ asc reviews ratings --app APP_ID
 ```bash  theme={null}
 asc reviews list \
   --app 123456789 \
-  --stars 1,2 \
+  --stars 1 \
   --sort -createdDate \
   --output table
 ```
@@ -117,7 +134,7 @@ asc reviews list \
 
 ```bash  theme={null}
 # Get low-rated reviews
-asc reviews list --app 123456789 --stars 1,2 --output json | \
+asc reviews list --app 123456789 --stars 1 --output json | \
 jq -r '.data[].id' | while read review_id; do
   asc reviews respond \
     --review-id "$review_id" \

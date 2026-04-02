@@ -2,34 +2,68 @@
 
 > Manage App Store review details, attachments, submissions, and history
 
-The `review` command uses hyphenated leaf subcommands for App Store review
-details, attachments, submissions, and submission items.
-
-For simple submission status checks by submission ID or version ID, use
-`asc submit status`.
+The `review` command uses hyphenated leaf subcommands for app-scoped review
+status, blocker diagnosis, review details, attachments, submissions, and
+submission items.
 
 ## Overview
 
 Common review commands:
 
 ```bash  theme={null}
+asc review status --app "123456789"
+asc review doctor --app "123456789"
 asc review details-get --id "DETAIL_ID"
 asc review details-for-version --version-id "VERSION_ID"
 asc review details-create --version-id "VERSION_ID" --contact-email "dev@example.com"
 asc review details-update --id "DETAIL_ID" --notes "Updated review notes"
 asc review attachments-list --review-detail "DETAIL_ID"
+asc review attachments-get --id "ATTACHMENT_ID"
 asc review attachments-upload --review-detail "DETAIL_ID" --file ./review-doc.pdf
 asc review submissions-list --app "123456789"
 asc review submissions-get --id "SUBMISSION_ID"
 asc review submissions-create --app "123456789" --platform IOS
 asc review submissions-submit --id "SUBMISSION_ID" --confirm
 asc review submissions-cancel --id "SUBMISSION_ID" --confirm
+asc review submissions-update --id "SUBMISSION_ID" --canceled true
+asc review submissions-items-ids --id "SUBMISSION_ID"
 asc review items-get --id "ITEM_ID"
+asc review items-list --submission "SUBMISSION_ID"
 asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
+asc review items-update --id "ITEM_ID" --state READY_FOR_REVIEW
+asc review items-remove --id "ITEM_ID" --confirm
 asc review history --app "123456789"
 ```
 
 ## Commands
+
+### `asc review status`
+
+Show app-scoped App Review status and the next recommended action.
+
+**Examples:**
+
+```bash  theme={null}
+asc review status --app "123456789"
+asc review status --app "123456789" --version "1.2.3"
+asc review status --app "123456789" --version-id "VERSION_ID"
+```
+
+***
+
+### `asc review doctor`
+
+Explain why an app cannot be submitted for review.
+
+**Examples:**
+
+```bash  theme={null}
+asc review doctor --app "123456789"
+asc review doctor --app "123456789" --version "1.2.3"
+asc review doctor --app "123456789" --version-id "VERSION_ID"
+```
+
+***
 
 ### `asc review submissions-list`
 
@@ -189,6 +223,20 @@ asc review history --app "123456789"
 asc review history --app "123456789" --platform IOS --state COMPLETE
 asc review history --app "123456789" --version "1.2.0"
 ```
+
+## Additional Current Subcommands
+
+The live `review` surface also includes:
+
+* `asc review attachments-get`
+* `asc review attachments-delete`
+* `asc review submissions-update`
+* `asc review submissions-items-ids`
+* `asc review items-list`
+* `asc review items-update`
+* `asc review items-remove`
+
+Use `asc review --help` for the full current subcommand list.
 
 ## Related
 

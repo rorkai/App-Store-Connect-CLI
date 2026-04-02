@@ -1,10 +1,13 @@
-# App Management Commands
+# Apps
 
 > List, create, and manage apps in App Store Connect
 
 ## Overview
 
-App management commands allow you to list, create, retrieve, and update apps in App Store Connect.
+The `apps` command is the main app-management surface for App Store Connect.
+
+`asc apps create` still exists as a deprecated compatibility shim, but the
+canonical web-session app-creation path is `asc web apps create`.
 
 ## Commands
 
@@ -121,10 +124,12 @@ asc apps view --id "APP_ID" --output table
 
 ### `asc apps create`
 
-Create a new app in App Store Connect.
+Create a new app through the deprecated compatibility shim.
 
 <Note>
-  App creation requires Apple ID authentication (not API key). If 2FA is enabled, you may need to complete authentication in a browser first.
+  `asc apps create` is deprecated. Prefer `asc web apps create`, which is the
+  canonical unofficial web-session app-creation path and supports the newer
+  bundle-ID preflight behavior.
 </Note>
 
 <ParamField path="--name" type="string" required>
@@ -166,10 +171,10 @@ Create a new app in App Store Connect.
 **Examples:**
 
 ```bash  theme={null}
-asc apps create
+asc web apps create
+asc web apps create --name "My App" --bundle-id "com.example.myapp" --sku "MYAPP123"
 asc apps create --name "My App" --bundle-id "com.example.myapp" --sku "MYAPP123"
-asc apps create --name "My App" --bundle-id "com.example.myapp" --sku "MYAPP123" --primary-locale "en-GB" --platform IOS
-asc apps create --apple-id "user@example.com" --password "APP_SPECIFIC_PASSWORD"
+asc apps create --apple-id "user@example.com" --password
 ```
 
 **Response:**
@@ -248,6 +253,23 @@ asc apps wall
 ```
 
 ***
+
+## Other App Surfaces
+
+The `apps` family also includes several app-scoped surfaces that are not fully
+expanded on this page yet:
+
+* `asc apps wall` - Show or contribute to the community Wall of Apps
+* `asc apps public` - Inspect public App Store storefront data
+* `asc apps ci-product` - View the CI product for an app
+* `asc apps remove-beta-testers` - Remove beta testers from an app
+* `asc apps subscription-grace-period` - Inspect an app's subscription grace period
+* `asc apps search-keywords` - Manage raw search-keyword relationships
+* `asc apps app-encryption-declarations` - List app encryption declarations
+* `asc apps content-rights` - Manage content-rights declarations
+
+Use `asc apps --help` and `asc apps <subcommand> --help` to inspect the current
+surface before scripting against a specific app workflow.
 
 ## Common Usage Patterns
 
