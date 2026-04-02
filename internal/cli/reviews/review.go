@@ -29,7 +29,7 @@ Examples:
   asc review submissions-list --app "123456789"
   asc review submissions-create --app "123456789" --platform IOS
   asc review submissions-submit --id "SUBMISSION_ID" --confirm
-  asc review submissions-update --id "SUBMISSION_ID" --canceled true
+  asc review submissions-update --id "SUBMISSION_ID" --canceled=true
   asc review submissions-items-ids --id "SUBMISSION_ID"
   asc review items-get --id "ITEM_ID"
   asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"

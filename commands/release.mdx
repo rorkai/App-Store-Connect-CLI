@@ -8,7 +8,7 @@ Use these paths deliberately:
 
 * `asc release stage` - deterministic pre-submit staging without submission
 * `asc publish appstore --submit` - canonical App Store upload + submit flow
-* `asc release run` - deprecated compatibility pipeline for older automation
+* Deprecated compatibility pipeline: `release run`
 
 ## Usage
 
@@ -61,9 +61,9 @@ asc release stage \
 * `--platform` - Platform: `IOS`, `MAC_OS`, `TV_OS`, `VISION_OS`
 * `--timeout` - Maximum time to run the staging pipeline
 
-### `asc release run`
+### Deprecated Compatibility Pipeline
 
-Deprecated compatibility pipeline that still performs the old one-command
+The deprecated `release run` subcommand still performs the old one-command
 metadata-aware release flow:
 
 1. Ensure or create the version
@@ -72,18 +72,9 @@ metadata-aware release flow:
 4. Run readiness checks
 5. Submit for review
 
-```bash  theme={null}
-asc release run \
-  --app "APP_ID" \
-  --version "2.4.0" \
-  --build "BUILD_ID" \
-  --metadata-dir "./metadata/version/2.4.0" \
-  --dry-run
-```
-
 Prefer:
 
-* `asc release stage` plus `asc review submissions-*` when you need the older metadata-dir workflow
+* `asc release stage` plus `asc review submissions-create`, `asc review items-add`, and `asc review submissions-submit` when you need the older metadata-dir workflow
 * `asc publish appstore --submit` for the canonical App Store upload + submit path
 
 ## Related Flows

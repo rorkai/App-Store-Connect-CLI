@@ -211,7 +211,7 @@ Examples:
   asc web apps create
   asc web apps create --name "My App" --bundle-id "com.example.myapp" --sku "MYAPP123"
   asc apps create --name "My App" --bundle-id "com.example.myapp" --sku "MYAPP123"
-  asc apps create --apple-id "user@example.com" --password`,
+  asc apps create --apple-id "user@example.com" --password "APP_SPECIFIC_PASSWORD"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

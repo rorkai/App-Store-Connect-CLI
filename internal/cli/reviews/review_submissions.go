@@ -241,12 +241,12 @@ func ReviewSubmissionsUpdateCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "submissions-update",
-		ShortUsage: "asc review submissions-update --id \"SUBMISSION_ID\" --canceled true [flags]",
+		ShortUsage: "asc review submissions-update --id \"SUBMISSION_ID\" --canceled=true [flags]",
 		ShortHelp:  "Update a review submission.",
 		LongHelp: `Update a review submission.
 
 Examples:
-  asc review submissions-update --id "SUBMISSION_ID" --canceled true`,
+  asc review submissions-update --id "SUBMISSION_ID" --canceled=true`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
