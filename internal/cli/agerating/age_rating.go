@@ -68,7 +68,7 @@ Examples:
   asc age-rating view --app-info-id APP_INFO_ID
   asc age-rating edit --app APP_ID --kids-age-band FIVE_AND_UNDER --gambling false`,
 		FlagSet:   fs,
-		UsageFunc: ageRatingUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AgeRatingViewCommand(),
 			AgeRatingEditCommand(),
@@ -129,21 +129,6 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
-}
-
-func ageRatingUsageFunc(c *ffcli.Command) string {
-	if c == nil {
-		return ""
-	}
-	clone := *c
-	clone.Subcommands = make([]*ffcli.Command, 0, len(c.Subcommands))
-	for _, sub := range c.Subcommands {
-		if sub == nil {
-			continue
-		}
-		clone.Subcommands = append(clone.Subcommands, sub)
-	}
-	return shared.DefaultUsageFunc(&clone)
 }
 
 // AgeRatingEditCommand returns the age-rating edit subcommand.
