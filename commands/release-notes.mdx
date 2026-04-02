@@ -1,0 +1,62 @@
+# release-notes
+
+> Generate App Store release notes from git history
+
+The `release-notes` command currently provides a `generate` workflow for
+producing App Store "What's New" text from local git history.
+
+## Usage
+
+```bash  theme={null}
+asc release-notes <subcommand> [flags]
+```
+
+## Subcommands
+
+### `asc release-notes generate`
+
+Generate release notes from local git history.
+
+Exactly one of `--since-tag` or `--since-ref` is required.
+
+```bash  theme={null}
+asc release-notes generate --since-tag "v1.2.2"
+asc release-notes generate --since-tag "v1.2.2" --output markdown
+asc release-notes generate --since-ref "origin/main" --until-ref "HEAD" --max-chars 4000
+```
+
+**Flags:**
+
+* `--since-tag` - Start from tag (exclusive), e.g. `v1.2.2`
+* `--since-ref` - Start from ref or SHA (exclusive), e.g. `origin/main`
+* `--until-ref` - End at ref or SHA (inclusive), default `HEAD`
+* `--format` - Notes format: `plain` or `markdown`
+* `--include-merges` - Include merge commits
+* `--max-chars` - Maximum characters in generated notes
+* `--output` - Output format: `json`, `text`, `table`, `markdown`
+
+## Typical Use
+
+Generate candidate "What's New" text, then review and edit it before applying
+it to App Store metadata:
+
+```bash  theme={null}
+asc release-notes generate --since-tag "v1.2.2" --format markdown
+asc apps info edit --app "APP_ID" --locale "en-US" --whats-new "Bug fixes and improvements"
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Release command" icon="rocket" href="/commands/release">
+    Stage a version before submission
+  </Card>
+
+  <Card title="Apps info" icon="note-sticky" href="/commands/app-info">
+    Apply generated "What's New" text to version metadata
+  </Card>
+
+  <Card title="Publish command" icon="paper-plane" href="/commands/publish">
+    Use the canonical App Store shipping path after metadata is ready
+  </Card>
+</CardGroup>

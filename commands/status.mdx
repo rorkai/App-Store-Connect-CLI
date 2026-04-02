@@ -1,0 +1,102 @@
+# status
+
+> Release pipeline dashboard for an app
+
+The `status` command aggregates App Store release signals into one deterministic
+payload for CI, agents, and human review.
+
+## Usage
+
+```bash  theme={null}
+asc status [flags]
+```
+
+## What It Includes
+
+Use `--include` to choose which sections to fetch:
+
+* `app`
+* `builds`
+* `testflight`
+* `appstore`
+* `submission`
+* `review`
+* `phased-release`
+* `links`
+
+## Examples
+
+```bash  theme={null}
+asc status --app "123456789"
+asc status --app "com.example.app"
+asc status --app "My App"
+asc status --app "123456789" --include builds,testflight,submission
+asc status --app "123456789" --watch --poll-interval 15s
+asc status --app "123456789" --output table
+```
+
+## Flags
+
+<ParamField path="--app" type="string" required>
+  App Store Connect app ID, bundle ID, or exact app name (required, or `ASC_APP_ID`)
+</ParamField>
+
+<ParamField path="--include" type="string">
+  Comma-separated sections: `app`, `builds`, `testflight`, `appstore`, `submission`, `review`, `phased-release`, `links`
+</ParamField>
+
+<ParamField path="--watch" type="boolean" default="false">
+  Poll and emit snapshots when status changes
+</ParamField>
+
+<ParamField path="--poll-interval" type="string" default="30s">
+  Polling interval for `--watch`
+</ParamField>
+
+<ParamField path="--max-polls" type="integer" default="0">
+  Maximum polls for `--watch` (`0` = unlimited)
+</ParamField>
+
+<ParamField path="--output" type="string" default="json">
+  Output format: `json`, `table`, `markdown`
+</ParamField>
+
+## Typical Uses
+
+### Check release health once
+
+```bash  theme={null}
+asc status --app "123456789" --output table
+```
+
+### Watch review and submission progress
+
+```bash  theme={null}
+asc status \
+  --app "123456789" \
+  --include submission,review,appstore \
+  --watch \
+  --poll-interval 30s
+```
+
+### Feed structured output into CI or automation
+
+```bash  theme={null}
+asc status --app "123456789" --output json
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Release command" icon="rocket" href="/commands/release">
+    Stage an App Store release before submission
+  </Card>
+
+  <Card title="Publish command" icon="paper-plane" href="/commands/publish">
+    Run the canonical App Store upload + submit workflow
+  </Card>
+
+  <Card title="Review command" icon="clipboard-check" href="/commands/review">
+    Inspect app-scoped review state and blockers directly
+  </Card>
+</CardGroup>

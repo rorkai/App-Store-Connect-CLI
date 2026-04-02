@@ -1,0 +1,114 @@
+# release
+
+> High-level App Store release workflows for staging and compatibility pipelines
+
+The `release` command handles pre-submit App Store release staging.
+
+Use these paths deliberately:
+
+* `asc release stage` - deterministic pre-submit staging without submission
+* `asc publish appstore --submit` - canonical App Store upload + submit flow
+* `asc release run` - deprecated compatibility pipeline for older automation
+
+## Usage
+
+```bash  theme={null}
+asc release <subcommand> [flags]
+```
+
+## Subcommands
+
+### `asc release stage`
+
+Run a deterministic pre-submit staging pipeline:
+
+1. Ensure or create the version
+2. Apply metadata/localizations or copy from another version
+3. Attach a selected build
+4. Run readiness checks
+
+Stops before creating a review submission.
+
+```bash  theme={null}
+asc release stage \
+  --app "APP_ID" \
+  --version "2.4.0" \
+  --build "BUILD_ID" \
+  --copy-metadata-from "2.3.2" \
+  --dry-run
+
+asc release stage \
+  --app "APP_ID" \
+  --version "2.4.0" \
+  --build "BUILD_ID" \
+  --metadata-dir "./metadata/version/2.4.0" \
+  --confirm
+```
+
+**Flags:**
+
+* `--app` - App Store Connect app ID (or `ASC_APP_ID`)
+* `--version` - App Store version string
+* `--build` - Build ID to attach
+* `--metadata-dir` - Metadata directory to apply
+* `--copy-metadata-from` - Source version string to copy localization metadata from
+* `--copy-fields` - Comma-separated metadata fields to copy
+* `--exclude-fields` - Comma-separated metadata fields to exclude from copy
+* `--checkpoint-file` - Checkpoint path for resumable runs
+* `--dry-run` - Preview the deterministic plan without mutations
+* `--confirm` - Confirm staging mutations
+* `--strict-validate` - Treat readiness warnings as blocking
+* `--platform` - Platform: `IOS`, `MAC_OS`, `TV_OS`, `VISION_OS`
+* `--timeout` - Maximum time to run the staging pipeline
+
+### `asc release run`
+
+Deprecated compatibility pipeline that still performs the old one-command
+metadata-aware release flow:
+
+1. Ensure or create the version
+2. Apply metadata/localizations
+3. Attach a selected build
+4. Run readiness checks
+5. Submit for review
+
+```bash  theme={null}
+asc release run \
+  --app "APP_ID" \
+  --version "2.4.0" \
+  --build "BUILD_ID" \
+  --metadata-dir "./metadata/version/2.4.0" \
+  --dry-run
+```
+
+Prefer:
+
+* `asc release stage` plus `asc review submissions-*` when you need the older metadata-dir workflow
+* `asc publish appstore --submit` for the canonical App Store upload + submit path
+
+## Related Flows
+
+After staging or submission:
+
+```bash  theme={null}
+asc status --app "APP_ID"
+asc validate --app "APP_ID" --version "2.4.0"
+asc submit status --version-id "VERSION_ID"
+asc submit cancel --version-id "VERSION_ID" --confirm
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Publish command" icon="paper-plane" href="/commands/publish">
+    Use `publish appstore --submit` for the canonical App Store shipping path
+  </Card>
+
+  <Card title="Status command" icon="activity" href="/commands/status">
+    Monitor the resulting release pipeline state for an app
+  </Card>
+
+  <Card title="Submit command" icon="clipboard-check" href="/commands/submit">
+    Inspect or cancel lower-level review submission lifecycle state
+  </Card>
+</CardGroup>

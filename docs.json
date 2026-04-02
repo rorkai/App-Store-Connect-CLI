@@ -121,6 +121,9 @@
           {
             "group": "Review & Release",
             "pages": [
+              "commands/release",
+              "commands/status",
+              "commands/release-notes",
               "commands/review",
               "commands/reviews",
               "commands/submit",
