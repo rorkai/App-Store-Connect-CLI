@@ -80,6 +80,29 @@ asc screenshots review-open --output-dir ./screenshots/review
 asc screenshots review-approve --all-ready --output-dir ./screenshots/review
 ```
 
+### Plan and Apply Approved Artifacts
+
+Turn approved review artifacts into a deterministic upload plan before mutating
+remote screenshot state:
+
+```bash  theme={null}
+# Preview upload intent from approved review artifacts
+asc screenshots plan --app "123456789" --version "1.2.3"
+
+# Apply the approved upload plan
+asc screenshots apply --app "123456789" --version "1.2.3" --confirm
+```
+
+**Plan/Apply Options:**
+
+* `--app` - App Store Connect app ID
+* `--version` - App Store version string
+* `--version-id` - App Store version ID (alternative to `--version`)
+* `--review-output-dir` - Directory containing `manifest.json` and `approved.json`
+* `--skip-existing` - Skip files whose checksum already exists remotely
+* `--replace` - Delete existing screenshots in each target set before uploading
+* `--confirm` - Required for `apply`
+
 ### Run from Plan
 
 Execute the full capture and framing workflow from a JSON plan:
@@ -222,10 +245,11 @@ asc screenshots review-generate --framed-dir ./screenshots/framed
 asc screenshots review-open --output-dir ./screenshots/review
 asc screenshots review-approve --all-ready --output-dir ./screenshots/review
 
-# 4. Upload to App Store Connect
-asc screenshots upload --version-localization "LOC_ID" \
-  --path "./screenshots/framed" \
-  --device-type "APP_IPHONE_65"
+# 4. Preview upload intent from approved artifacts
+asc screenshots plan --app "123456789" --version "1.2.3"
+
+# 5. Apply the approved upload plan
+asc screenshots apply --app "123456789" --version "1.2.3" --confirm
 ```
 
 ## Related Commands
