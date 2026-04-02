@@ -1,0 +1,156 @@
+# app-tags
+
+> Inspect app tag visibility and territory scope
+
+The `app-tags` command works with the `appTags` resources attached to an app in
+App Store Connect.
+
+Each tag resource currently exposes:
+
+* `name` - the label returned by App Store Connect
+* `visibleInAppStore` - whether that tag is currently visible in the storefront
+* `territories` - the storefront territories linked to that tag
+
+Use this command group when you want to answer:
+
+* Which tags are attached to an app?
+* Which of those tags are visible in the App Store?
+* Which territories are linked to a specific tag?
+* Do I need full tag resources or just linkage IDs?
+
+## Usage
+
+```bash  theme={null}
+asc app-tags <subcommand> [flags]
+```
+
+## Quick Start
+
+```bash  theme={null}
+asc app-tags list --app "APP_ID"
+asc app-tags view --app "APP_ID" --id "TAG_ID"
+asc app-tags update --id "TAG_ID" --visible-in-app-store=false --confirm
+asc app-tags territories --id "TAG_ID"
+asc app-tags links --app "APP_ID"
+```
+
+## What Each Command Returns
+
+* `list` returns full `appTags` resources for an app.
+* `view` returns one full `appTags` resource by tag ID.
+* `update` mutates the tag's `visibleInAppStore` value.
+* `territories` returns full territory resources linked to a tag.
+* `territories-links` returns territory relationship IDs only.
+* `links` returns app-tag relationship IDs only for an app.
+
+If you are starting from scratch, begin with `list` to discover tag IDs, then
+use `view`, `territories`, or `update` against one specific tag.
+
+## Common Flow
+
+### 1. List the tags on an app
+
+```bash  theme={null}
+asc app-tags list --app "APP_ID"
+asc app-tags list --app "APP_ID" --visible-in-app-store true
+asc app-tags list --app "APP_ID" --include territories --territory-fields currency
+```
+
+<ParamField path="--app" type="string" required>
+  App Store Connect app ID (or `ASC_APP_ID`)
+</ParamField>
+
+<ParamField path="--visible-in-app-store" type="string">
+  Filter by visibility with `true`, `false`, or a comma-separated combination
+</ParamField>
+
+<ParamField path="--include" type="string">
+  Include related resources. `territories` is the useful value here.
+</ParamField>
+
+<ParamField path="--territory-fields" type="string">
+  Territory fields to include when `--include territories` is set. Currently:
+  `currency`
+</ParamField>
+
+<ParamField path="--territory-limit" type="integer">
+  Maximum included territories per tag when `--include territories` is set
+</ParamField>
+
+<ParamField path="--sort" type="string">
+  Sort by `name` or `-name`
+</ParamField>
+
+### 2. Inspect one tag in detail
+
+```bash  theme={null}
+asc app-tags view --app "APP_ID" --id "TAG_ID"
+asc app-tags view --app "APP_ID" --id "TAG_ID" --include territories --territory-fields currency
+```
+
+Use `view` when you already know the tag ID and want the full resource payload.
+
+### 3. Toggle storefront visibility
+
+```bash  theme={null}
+asc app-tags update --id "TAG_ID" --visible-in-app-store --confirm
+asc app-tags update --id "TAG_ID" --visible-in-app-store=false --confirm
+```
+
+Only `visibleInAppStore` is currently mutable through this command surface.
+
+<ParamField path="--id" type="string" required>
+  App tag ID
+</ParamField>
+
+<ParamField path="--visible-in-app-store" type="boolean" required>
+  Set storefront visibility to `true` or `false`
+</ParamField>
+
+<ParamField path="--confirm" type="boolean" default="false" required>
+  Required for mutations
+</ParamField>
+
+### 4. Inspect linked territories
+
+```bash  theme={null}
+asc app-tags territories --id "TAG_ID"
+asc app-tags territories --id "TAG_ID" --fields currency
+asc app-tags territories-links --id "TAG_ID"
+```
+
+Use `territories` for full territory resources and `territories-links` when you
+only need the relationship IDs.
+
+### 5. Inspect tag linkages for an app
+
+```bash  theme={null}
+asc app-tags links --app "APP_ID"
+asc app-tags links --app "APP_ID" --paginate
+```
+
+`links` returns linkage IDs only. It is useful when you want to compare or
+diff relationships without fetching full tag attributes.
+
+## Pagination
+
+The collection-style subcommands support standard pagination:
+
+```bash  theme={null}
+asc app-tags list --app "APP_ID" --paginate
+asc app-tags list --next "<links.next>"
+asc app-tags territories --id "TAG_ID" --paginate
+asc app-tags links --app "APP_ID" --paginate
+```
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Apps command" icon="mobile" href="/commands/apps">
+    Start from the broader app-management surface
+  </Card>
+
+  <Card title="Metadata command" icon="folder-open" href="/commands/metadata">
+    Manage other App Store metadata in a file-based workflow
+  </Card>
+</CardGroup>

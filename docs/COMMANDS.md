@@ -57,7 +57,7 @@ asc <subcommand> [flags]
 
 - `apps` - List and manage apps in App Store Connect.
 - `app-setup` - Post-create app setup automation.
-- `app-tags` - Manage app tags for App Store visibility.
+- `app-tags` - Inspect app tag visibility and territory scope.
 - `versions` - Manage App Store versions.
 - `localizations` - Manage App Store localization metadata.
 - `metadata` - Manage app metadata with deterministic workflows and keyword tooling.
