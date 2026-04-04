@@ -97,7 +97,10 @@ Examples:
 				return shared.UsageError("--available-in-new-territories is required (true or false)")
 			}
 
-			territoryIDs := shared.SplitCSVUpper(*territory)
+			territoryIDs, err := shared.NormalizeASCTerritoryCSV(*territory)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 			if len(territoryIDs) == 0 {
 				return shared.UsageError("--territory must include at least one value")
 			}

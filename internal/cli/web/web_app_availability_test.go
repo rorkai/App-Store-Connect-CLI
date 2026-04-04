@@ -74,6 +74,7 @@ func TestWebAppsAvailabilityCreateValidationErrors(t *testing.T) {
 		{name: "missing app", args: []string{"--territory", "USA", "--available-in-new-territories", "false"}, wantErr: "--app is required"},
 		{name: "missing territory", args: []string{"--app", "app-1", "--available-in-new-territories", "false"}, wantErr: "--territory is required"},
 		{name: "missing available in new territories", args: []string{"--app", "app-1", "--territory", "USA"}, wantErr: "--available-in-new-territories is required"},
+		{name: "invalid territory", args: []string{"--app", "app-1", "--territory", "Atlantis", "--available-in-new-territories", "false"}, wantErr: "territory \"Atlantis\" could not be mapped to an App Store Connect territory ID"},
 	}
 
 	for _, tc := range tests {
@@ -216,7 +217,7 @@ func TestWebAppsAvailabilityCreateCreatesMissingAvailability(t *testing.T) {
 	cmd := WebAppsAvailabilityCreateCommand()
 	if err := cmd.FlagSet.Parse([]string{
 		"--app", "app-1",
-		"--territory", "usa,gbr",
+		"--territory", "US,France",
 		"--available-in-new-territories", "false",
 		"--output", "json",
 	}); err != nil {
@@ -244,8 +245,8 @@ func TestWebAppsAvailabilityCreateCreatesMissingAvailability(t *testing.T) {
 	if received.AvailableInNewTerritories {
 		t.Fatal("expected availableInNewTerritories=false")
 	}
-	if got := strings.Join(received.AvailableTerritories, ","); got != "USA,GBR" {
-		t.Fatalf("expected normalized territory ids USA,GBR, got %q", got)
+	if got := strings.Join(received.AvailableTerritories, ","); got != "USA,FRA" {
+		t.Fatalf("expected normalized territory ids USA,FRA, got %q", got)
 	}
 }
 
