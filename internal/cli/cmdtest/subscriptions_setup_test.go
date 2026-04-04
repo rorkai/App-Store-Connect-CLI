@@ -574,3 +574,88 @@ func TestSubscriptionsSetupCreateLocalizationPricingAndAvailabilitySuccess(t *te
 		t.Fatalf("expected verified current price 3.99 USD, got %+v", result.Verification.CurrentPrice)
 	}
 }
+
+func TestSubscriptionsSetupNormalizesTerritories(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("HOME", t.TempDir())
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionGroups" {
+				t.Fatalf("unexpected group create request: %s %s", req.Method, req.URL.Path)
+			}
+			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Pro"}}}`), nil
+		case 2:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptions" {
+				t.Fatalf("unexpected subscription create request: %s %s", req.Method, req.URL.Path)
+			}
+			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptions","id":"sub-1","attributes":{"name":"Pro Monthly","productId":"com.example.pro.monthly","subscriptionPeriod":"ONE_MONTH","state":"MISSING_METADATA"}}}`), nil
+		case 3:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/sub-1/pricePoints" {
+				t.Fatalf("unexpected price-point lookup request: %s %s", req.Method, req.URL.String())
+			}
+			if got := req.URL.Query().Get("filter[territory]"); got != "USA" {
+				t.Fatalf("expected normalized filter[territory]=USA, got %q", got)
+			}
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-399","attributes":{"customerPrice":"3.99","proceeds":"3.39","proceedsYear2":"3.39"}}],"links":{"next":""}}`), nil
+		case 4:
+			if req.Method != http.MethodPatch || req.URL.Path != "/v1/subscriptions/sub-1" {
+				t.Fatalf("unexpected initial price request: %s %s", req.Method, req.URL.Path)
+			}
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"sub-1","attributes":{"name":"Pro Monthly","productId":"com.example.pro.monthly","subscriptionPeriod":"ONE_MONTH","state":"MISSING_METADATA"}}}`), nil
+		case 5:
+			if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionAvailabilities" {
+				t.Fatalf("unexpected availability request: %s %s", req.Method, req.URL.Path)
+			}
+			var payload asc.SubscriptionAvailabilityCreateRequest
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode availability payload: %v", err)
+			}
+			if len(payload.Data.Relationships.AvailableTerritories.Data) != 2 {
+				t.Fatalf("expected two availability territories, got %+v", payload.Data.Relationships.AvailableTerritories.Data)
+			}
+			if got := payload.Data.Relationships.AvailableTerritories.Data[0].ID; got != "USA" {
+				t.Fatalf("expected first territory USA, got %q", got)
+			}
+			if got := payload.Data.Relationships.AvailableTerritories.Data[1].ID; got != "FRA" {
+				t.Fatalf("expected second territory FRA, got %q", got)
+			}
+			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":false}}}`), nil
+		default:
+			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	if err := root.Parse([]string{
+		"subscriptions", "setup",
+		"--app", "app-1",
+		"--group-reference-name", "Pro",
+		"--reference-name", "Pro Monthly",
+		"--product-id", "com.example.pro.monthly",
+		"--subscription-period", "ONE_MONTH",
+		"--price", "3.99",
+		"--price-territory", "United States",
+		"--territories", "US,France",
+		"--no-verify",
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	if requestCount != 5 {
+		t.Fatalf("expected 5 setup requests, got %d", requestCount)
+	}
+}

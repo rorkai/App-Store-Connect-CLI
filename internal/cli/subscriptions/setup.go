@@ -9,6 +9,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -179,6 +180,18 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 
+			priceTerritoryValue := strings.TrimSpace(*priceTerritory)
+			if priceTerritoryValue != "" {
+				priceTerritoryValue, err = ascterritory.Normalize(priceTerritoryValue)
+				if err != nil {
+					return shared.UsageError(err.Error())
+				}
+			}
+			territoryValues, err := shared.NormalizeASCTerritoryCSV(*territories)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+
 			opts := subscriptionsSetupOptions{
 				AppID:                     shared.ResolveAppID(*appID),
 				GroupID:                   strings.TrimSpace(*groupID),
@@ -189,11 +202,11 @@ Examples:
 				Locale:                    strings.TrimSpace(*locale),
 				DisplayName:               displayNameValue,
 				Description:               strings.TrimSpace(*description),
-				PriceTerritory:            strings.ToUpper(strings.TrimSpace(*priceTerritory)),
+				PriceTerritory:            priceTerritoryValue,
 				PricePointID:              strings.TrimSpace(*pricePointID),
 				Tier:                      *tier,
 				Price:                     strings.TrimSpace(*price),
-				Territories:               shared.SplitCSVUpper(*territories),
+				Territories:               territoryValues,
 				AvailableInNewTerritories: *availableInNewTerritories,
 				RefreshTierCache:          *refresh,
 				NoVerify:                  *noVerify,

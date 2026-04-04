@@ -1234,7 +1234,10 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			territoryIDs := shared.SplitCSV(*territories)
+			territoryIDs, err := shared.NormalizeASCTerritoryCSV(*territories)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 			if len(territoryIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --territories is required")
 				return flag.ErrHelp
