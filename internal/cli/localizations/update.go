@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -157,7 +158,12 @@ func updateAppInfoLocalization(ctx context.Context, p updateAppInfoParams) error
 
 	resp, err := client.UpdateAppInfoLocalization(requestCtx, localizationID, attrs)
 	if err != nil {
-		return fmt.Errorf("localizations update: %w", err)
+		return fmt.Errorf(
+			"localizations update: update app-info localization %q (fields: %s): %w",
+			p.locale,
+			formatAttemptedFields(appInfoAttemptedFields(p)),
+			err,
+		)
 	}
 
 	return shared.PrintOutput(resp, *p.output.Output, *p.output.Pretty)
@@ -221,7 +227,12 @@ func updateVersionLocalization(ctx context.Context, p updateVersionParams) error
 
 	resp, err := client.UpdateAppStoreVersionLocalization(requestCtx, localizationID, attrs)
 	if err != nil {
-		return fmt.Errorf("localizations update: %w", err)
+		return fmt.Errorf(
+			"localizations update: update version localization %q (fields: %s): %w",
+			p.locale,
+			formatAttemptedFields(versionAttemptedFields(p)),
+			err,
+		)
 	}
 
 	return shared.PrintOutput(resp, *p.output.Output, *p.output.Pretty)
@@ -229,4 +240,56 @@ func updateVersionLocalization(ctx context.Context, p updateVersionParams) error
 
 func hasAnyVersionField(p updateVersionParams) bool {
 	return p.description != "" || p.keywords != "" || p.whatsNew != "" || p.promotionalText != "" || p.supportURL != "" || p.marketingURL != ""
+}
+
+func appInfoAttemptedFields(p updateAppInfoParams) []string {
+	fields := make([]string, 0, 5)
+	if p.name != "" {
+		fields = append(fields, "name")
+	}
+	if p.subtitle != "" {
+		fields = append(fields, "subtitle")
+	}
+	if p.privacyPolicyURL != "" {
+		fields = append(fields, "privacyPolicyUrl")
+	}
+	if p.privacyChoicesURL != "" {
+		fields = append(fields, "privacyChoicesUrl")
+	}
+	if p.privacyPolicyText != "" {
+		fields = append(fields, "privacyPolicyText")
+	}
+	return fields
+}
+
+func versionAttemptedFields(p updateVersionParams) []string {
+	fields := make([]string, 0, 6)
+	if p.description != "" {
+		fields = append(fields, "description")
+	}
+	if p.keywords != "" {
+		fields = append(fields, "keywords")
+	}
+	if p.marketingURL != "" {
+		fields = append(fields, "marketingUrl")
+	}
+	if p.promotionalText != "" {
+		fields = append(fields, "promotionalText")
+	}
+	if p.supportURL != "" {
+		fields = append(fields, "supportUrl")
+	}
+	if p.whatsNew != "" {
+		fields = append(fields, "whatsNew")
+	}
+	return fields
+}
+
+func formatAttemptedFields(fields []string) string {
+	if len(fields) == 0 {
+		return "none"
+	}
+	values := append([]string(nil), fields...)
+	sort.Strings(values)
+	return strings.Join(values, ", ")
 }

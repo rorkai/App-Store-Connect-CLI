@@ -695,7 +695,12 @@ func applyAppInfoChanges(
 			}
 			resp, err := client.CreateAppInfoLocalization(ctx, appInfoID, appInfoAttributes(locale, localPatch.localization, true))
 			if err != nil {
-				return nil, fmt.Errorf("create app-info localization %s: %w", locale, err)
+				return nil, fmt.Errorf(
+					"create app-info localization %s (fields: %s): %w",
+					locale,
+					formatAttemptedFieldMap(appInfoPlanFields, localPatch.setFields),
+					err,
+				)
 			}
 			actions = append(actions, ApplyAction{
 				Scope:          appInfoDirName,
@@ -706,7 +711,12 @@ func applyAppInfoChanges(
 		case remoteExists:
 			resp, err := client.UpdateAppInfoLocalization(ctx, remoteState.id, appInfoAttributes(locale, localPatch.localization, false))
 			if err != nil {
-				return nil, fmt.Errorf("update app-info localization %s: %w", locale, err)
+				return nil, fmt.Errorf(
+					"update app-info localization %s (fields: %s): %w",
+					locale,
+					formatAttemptedFieldMap(appInfoPlanFields, localPatch.setFields),
+					err,
+				)
 			}
 			actions = append(actions, ApplyAction{
 				Scope:          appInfoDirName,
@@ -789,7 +799,12 @@ func applyVersionChanges(
 			}
 			resp, err := client.CreateAppStoreVersionLocalization(ctx, versionID, versionAttributes(locale, createLoc, true))
 			if err != nil {
-				return nil, fmt.Errorf("create version localization %s: %w", locale, err)
+				return nil, fmt.Errorf(
+					"create version localization %s (fields: %s): %w",
+					locale,
+					formatAttemptedFieldMap(versionPlanFields, localPatch.setFields),
+					err,
+				)
 			}
 			actions = append(actions, ApplyAction{
 				Scope:          versionDirName,
@@ -801,7 +816,12 @@ func applyVersionChanges(
 		case remoteExists:
 			resp, err := client.UpdateAppStoreVersionLocalization(ctx, remoteState.id, versionAttributes(locale, localPatch.localization, false))
 			if err != nil {
-				return nil, fmt.Errorf("update version localization %s: %w", locale, err)
+				return nil, fmt.Errorf(
+					"update version localization %s (fields: %s): %w",
+					locale,
+					formatAttemptedFieldMap(versionPlanFields, localPatch.setFields),
+					err,
+				)
 			}
 			actions = append(actions, ApplyAction{
 				Scope:          versionDirName,
@@ -833,6 +853,36 @@ func countIntentChanges(fields []string, localSet map[string]string, remote map[
 		}
 	}
 	return adds, updates
+}
+
+func formatAttemptedFieldMap(orderedFields []string, values map[string]string) string {
+	if len(values) == 0 {
+		return "none"
+	}
+
+	fields := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, field := range orderedFields {
+		if _, ok := values[field]; !ok {
+			continue
+		}
+		fields = append(fields, field)
+		seen[field] = struct{}{}
+	}
+
+	if len(fields) != len(values) {
+		extra := make([]string, 0, len(values)-len(fields))
+		for field := range values {
+			if _, ok := seen[field]; ok {
+				continue
+			}
+			extra = append(extra, field)
+		}
+		sort.Strings(extra)
+		fields = append(fields, extra...)
+	}
+
+	return strings.Join(fields, ", ")
 }
 
 func sortedLocaleUnion[T any](local map[string]T, remote map[string]remoteLocalizationState) []string {

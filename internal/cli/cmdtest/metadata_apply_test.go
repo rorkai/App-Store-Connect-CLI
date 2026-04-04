@@ -247,6 +247,9 @@ func TestMetadataApplyFailsOnPartialMutation(t *testing.T) {
 	if !strings.Contains(runErr.Error(), "metadata apply: update version localization en-US") {
 		t.Fatalf("expected apply-prefixed version-localization failure, got %v", runErr)
 	}
+	if !strings.Contains(runErr.Error(), "description") {
+		t.Fatalf("expected version-localization failure to include attempted fields, got %v", runErr)
+	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout on failure, got %q", stdout)
 	}

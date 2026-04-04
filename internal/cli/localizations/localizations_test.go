@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"reflect"
 	"testing"
 )
 
@@ -71,5 +72,29 @@ func TestLocalizationsCreateCommand_InvalidLocale(t *testing.T) {
 	}
 	if !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp, got %v", err)
+	}
+}
+
+func TestAppInfoAttemptedFieldsKeepsWhitespaceOnlyValues(t *testing.T) {
+	got := appInfoAttemptedFields(updateAppInfoParams{
+		name:              " ",
+		privacyChoicesURL: "\t",
+	})
+
+	want := []string{"name", "privacyChoicesUrl"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("appInfoAttemptedFields() = %v, want %v", got, want)
+	}
+}
+
+func TestVersionAttemptedFieldsKeepsWhitespaceOnlyValues(t *testing.T) {
+	got := versionAttemptedFields(updateVersionParams{
+		description: " ",
+		supportURL:  "\n",
+	})
+
+	want := []string{"description", "supportUrl"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("versionAttemptedFields() = %v, want %v", got, want)
 	}
 }

@@ -229,3 +229,63 @@ func TestLocalizationsUpdateAppInfoFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 		}
 	}
 }
+
+func TestLocalizationsUpdateVersionErrorIncludesAttemptedFields(t *testing.T) {
+	setupLocUpdateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	http.DefaultTransport = locUpdateRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
+			return locUpdateJSONResponse(`{"data":[{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"locale":"fr-FR","description":"Old","supportUrl":"https://example.com/support-old"}}],"links":{}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersionLocalizations/loc-fr":
+			body := `{"errors":[{"status":"409","code":"ENTITY_ERROR.INVALID","title":"One or more parameters passed to the function were not valid.","detail":"(-50)"}]}`
+			return &http.Response{
+				StatusCode: http.StatusConflict,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(body)),
+			}, nil
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"localizations", "update",
+			"--version", "ver-1",
+			"--locale", "fr-FR",
+			"--description", "Updated description",
+			"--support-url", "https://example.com/support-new",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected run error, got nil")
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	for _, want := range []string{
+		`localizations update: update version localization "fr-FR"`,
+		"description",
+		"supportUrl",
+		"(-50)",
+	} {
+		if !strings.Contains(runErr.Error(), want) {
+			t.Fatalf("expected error to contain %q, got %v", want, runErr)
+		}
+	}
+}
