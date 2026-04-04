@@ -284,15 +284,20 @@ func ReadLocalizationStrings(inputPath string, locales []string) (map[string]map
 }
 
 func UploadVersionLocalizations(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool) ([]asc.LocalizationUploadLocaleResult, error) {
+	results, _, err := UploadVersionLocalizationsWithWarnings(ctx, client, versionID, valuesByLocale, dryRun)
+	return results, err
+}
+
+func UploadVersionLocalizationsWithWarnings(ctx context.Context, client versionLocalizationClient, versionID string, valuesByLocale map[string]map[string]string, dryRun bool) ([]asc.LocalizationUploadLocaleResult, []SubmitReadinessCreateWarning, error) {
 	for locale, values := range valuesByLocale {
 		if err := ValidateVersionLocalizationKeys(locale, values); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
 	existing, err := client.GetAppStoreVersionLocalizations(ctx, versionID, asc.WithAppStoreVersionLocalizationsLimit(200))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	existingByLocale := make(map[string]string, len(existing.Data))
 	for _, item := range existing.Data {
@@ -302,9 +307,18 @@ func UploadVersionLocalizations(ctx context.Context, client versionLocalizationC
 		existingByLocale[item.Attributes.Locale] = item.ID
 	}
 
-	return uploadLocalizationValues(valuesByLocale, existingByLocale, func(locale string, values map[string]string, existingID string) (asc.LocalizationUploadLocaleResult, error) {
+	mode := SubmitReadinessCreateModeApplied
+	if dryRun {
+		mode = SubmitReadinessCreateModePlanned
+	}
+	warnings := make([]SubmitReadinessCreateWarning, 0, len(valuesByLocale))
+
+	results, err := uploadLocalizationValues(valuesByLocale, existingByLocale, func(locale string, values map[string]string, existingID string) (asc.LocalizationUploadLocaleResult, error) {
 		attributes := buildVersionLocalizationAttributes(locale, values, existingID == "")
 		if existingID == "" {
+			if warning, ok := SubmitReadinessCreateWarningForLocale(locale, attributes, mode); ok {
+				warnings = append(warnings, warning)
+			}
 			if dryRun {
 				return asc.LocalizationUploadLocaleResult{Locale: locale, Action: "create"}, nil
 			}
@@ -330,6 +344,10 @@ func UploadVersionLocalizations(ctx context.Context, client versionLocalizationC
 		}
 		return asc.LocalizationUploadLocaleResult{Locale: locale, Action: "update", LocalizationID: resp.Data.ID}, nil
 	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return results, NormalizeSubmitReadinessCreateWarnings(warnings), nil
 }
 
 func UploadAppInfoLocalizations(ctx context.Context, client appInfoLocalizationClient, appInfoID string, valuesByLocale map[string]map[string]string, dryRun bool) ([]asc.LocalizationUploadLocaleResult, error) {
