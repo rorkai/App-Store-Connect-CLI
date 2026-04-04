@@ -89,13 +89,13 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	if !strings.Contains(availabilityUsage, `asc subscriptions pricing availability view --availability-id "AVAILABILITY_ID"`) {
 		t.Fatalf("expected subscriptions pricing availability help to show canonical availability selector, got %q", availabilityUsage)
 	}
-	if !strings.Contains(availabilityUsage, `asc subscriptions pricing availability edit --subscription-id "SUB_ID" --territories "USA,CAN"`) {
+	if !strings.Contains(availabilityUsage, `asc subscriptions pricing availability edit --subscription-id "SUB_ID" --territories "US,Canada"`) {
 		t.Fatalf("expected subscriptions pricing availability help to show canonical territory flags, got %q", availabilityUsage)
 	}
 	if strings.Contains(availabilityUsage, `asc subscriptions pricing availability get --availability-id "AVAILABILITY_ID"`) {
 		t.Fatalf("expected subscriptions pricing availability help to hide deprecated get alias, got %q", availabilityUsage)
 	}
-	if strings.Contains(availabilityUsage, `asc subscriptions pricing availability set --subscription-id "SUB_ID" --territories "USA,CAN"`) {
+	if strings.Contains(availabilityUsage, `asc subscriptions pricing availability set --subscription-id "SUB_ID" --territories "US,Canada"`) {
 		t.Fatalf("expected subscriptions pricing availability help to hide deprecated set alias, got %q", availabilityUsage)
 	}
 
@@ -136,7 +136,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	if !strings.Contains(offerCodesUsage, "  values") {
 		t.Fatalf("expected subscriptions offers offer-codes help to list values, got %q", offerCodesUsage)
 	}
-	if !strings.Contains(offerCodesUsage, `--prices "USA:PRICE_POINT_ID"`) {
+	if !strings.Contains(offerCodesUsage, `--prices "US:PRICE_POINT_ID"`) {
 		t.Fatalf("expected subscriptions offers offer-codes help to show territory-qualified price examples, got %q", offerCodesUsage)
 	}
 	if strings.Contains(offerCodesUsage, `--prices "PRICE_ID"`) {

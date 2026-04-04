@@ -622,18 +622,6 @@ func isSubscriptionPricesImportRecordEmpty(record []string) bool {
 	return true
 }
 
-func isThreeLetterCode(value string) bool {
-	if len(value) != 3 {
-		return false
-	}
-	for _, r := range value {
-		if r < 'A' || r > 'Z' {
-			return false
-		}
-	}
-	return true
-}
-
 func isISO4217Code(value string) bool {
 	if len(value) != 3 {
 		return false
