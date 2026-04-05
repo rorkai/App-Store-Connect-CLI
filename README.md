@@ -1,4 +1,4 @@
-# App Store Connect CLI and ASC Studio
+# App Store Connect CLI
 
 <p align="center">
   <a href="https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/latest"><img src="https://img.shields.io/github/v/release/rudrankriyam/App-Store-Connect-CLI?style=for-the-badge&color=blue" alt="Latest Release"></a>
@@ -15,8 +15,6 @@
 
 A fast, lightweight, and scriptable CLI for the App Store Connect API.
 Automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, IDE, or CI/CD pipeline.
-
-And ASC Studio, an App Store Connect client built on top of ASC CLI.
 
 ## Table of Contents
 
@@ -66,7 +64,7 @@ asc --help
 
 ```bash
 # Homebrew (recommended)
-brew install rudrankriyam/tap/asc
+brew install asc
 
 # Install script (macOS/Linux)
 curl -fsSL https://asccli.sh/install | bash
@@ -336,24 +334,11 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## Author
-
-[Rudrank Riyam](https://github.com/rudrankriyam)
-
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=rudrankriyam/App-Store-Connect-CLI&type=Date)](https://star-history.com/#rudrankriyam/App-Store-Connect-CLI&Date)
 
 ---
-
-<p align="center">
-  <img src="docs/images/codex-logo.png" alt="Codex logo" width="24" height="24" />
-  <img src="https://cursor.com/marketing-static/icon-192x192.png" alt="Cursor logo" width="24" height="24" />
-</p>
-
-<p align="center">
-  Built with Codex &amp; Cursor using GPT-5.3-Codex and GPT-5.4
-</p>
 
 <p align="center">
   <sub>This project is an independent, unofficial tool and is not affiliated with, endorsed by, or sponsored by Apple Inc. App Store Connect, TestFlight, Xcode Cloud, and Apple are trademarks of Apple Inc., registered in the U.S. and other countries.</sub>
