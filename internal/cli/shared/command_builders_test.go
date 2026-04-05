@@ -75,6 +75,37 @@ func TestBuildPaginatedListCommand_MissingParentIDReturnsUsageError(t *testing.T
 	}
 }
 
+func TestBuildPricePointEqualizationsCommand_UsesSharedHelpTemplate(t *testing.T) {
+	cmd := BuildPricePointEqualizationsCommand(PricePointEqualizationsCommandConfig{
+		FlagSetName: "pricing price-points equalizations",
+		Name:        "equalizations",
+		ShortUsage:  "asc pricing price-points equalizations --price-point PRICE_POINT_ID",
+		BaseExample: `asc pricing price-points equalizations --price-point "PRICE_POINT_ID"`,
+		Subject:     "a price point",
+		ParentFlag:  "price-point",
+		ParentUsage: "App price point ID",
+		ErrorPrefix: "pricing price-points equalizations",
+		FetchPage: func(context.Context, *asc.Client, string, int, string) (asc.PaginatedResponse, error) {
+			return &testPaginatedResponse{}, nil
+		},
+		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
+			return context.WithCancel(ctx)
+		},
+	})
+
+	usage := cmd.UsageFunc(cmd)
+	for _, want := range []string{
+		"asc pricing price-points equalizations --price-point PRICE_POINT_ID [--limit N] [--next URL] [--paginate]",
+		`asc pricing price-points equalizations --price-point "PRICE_POINT_ID" --limit 175`,
+		`asc pricing price-points equalizations --price-point "PRICE_POINT_ID" --paginate`,
+		`asc pricing price-points equalizations --next "NEXT_URL"`,
+	} {
+		if !strings.Contains(usage, want) {
+			t.Fatalf("expected usage to contain %q, got %q", want, usage)
+		}
+	}
+}
+
 func TestBuildConfirmDeleteCommand_MissingConfirmReturnsUsageError(t *testing.T) {
 	cmd := BuildConfirmDeleteCommand(ConfirmDeleteCommandConfig{
 		FlagSetName: "test-delete",

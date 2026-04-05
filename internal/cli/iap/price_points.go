@@ -172,18 +172,12 @@ func filterIAPPricePoints(resp *asc.InAppPurchasePricePointsResponse, pf shared.
 
 // IAPPricePointsEqualizationsCommand returns the price point equalizations subcommand.
 func IAPPricePointsEqualizationsCommand() *ffcli.Command {
-	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+	return shared.BuildPricePointEqualizationsCommand(shared.PricePointEqualizationsCommandConfig{
 		FlagSetName: "price-points equalizations",
 		Name:        "equalizations",
-		ShortUsage:  "asc iap pricing price-points equalizations --id \"PRICE_POINT_ID\" [--limit N] [--next URL] [--paginate]",
-		ShortHelp:   "List equalized price points for an in-app purchase price point.",
-		LongHelp: `List equalized price points for an in-app purchase price point.
-
-Examples:
-  asc iap pricing price-points equalizations --id "PRICE_POINT_ID"
-  asc iap pricing price-points equalizations --id "PRICE_POINT_ID" --limit 175
-  asc iap pricing price-points equalizations --id "PRICE_POINT_ID" --paginate
-  asc iap pricing price-points equalizations --next "NEXT_URL"`,
+		ShortUsage:  `asc iap pricing price-points equalizations --id "PRICE_POINT_ID"`,
+		BaseExample: `asc iap pricing price-points equalizations --id "PRICE_POINT_ID"`,
+		Subject:     "an in-app purchase price point",
 		ParentFlag:  "id",
 		ParentUsage: "In-app purchase price point ID",
 		LimitMax:    200,

@@ -268,18 +268,12 @@ Examples:
 
 // SubscriptionsPricePointsEqualizationsCommand returns the price point equalizations subcommand.
 func SubscriptionsPricePointsEqualizationsCommand() *ffcli.Command {
-	return shared.BuildPaginatedListCommand(shared.PaginatedListCommandConfig{
+	return shared.BuildPricePointEqualizationsCommand(shared.PricePointEqualizationsCommandConfig{
 		FlagSetName: "price-points equalizations",
 		Name:        "equalizations",
-		ShortUsage:  "asc subscriptions price-points equalizations --price-point-id \"PRICE_POINT_ID\" [--limit N] [--next URL] [--paginate]",
-		ShortHelp:   "List equalized price points for a subscription price point.",
-		LongHelp: `List equalized price points for a subscription price point.
-
-Examples:
-  asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID"
-  asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID" --limit 175
-  asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID" --paginate
-  asc subscriptions price-points equalizations --next "NEXT_URL"`,
+		ShortUsage:  `asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID"`,
+		BaseExample: `asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID"`,
+		Subject:     "a subscription price point",
 		ParentFlag:  "price-point-id",
 		ParentUsage: "Subscription price point ID",
 		LimitMax:    200,

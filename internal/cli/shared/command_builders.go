@@ -183,6 +183,70 @@ func BuildPaginatedListCommand(config PaginatedListCommandConfig) *ffcli.Command
 	}
 }
 
+// PricePointEqualizationsCommandConfig configures a standard equalizations list
+// command for app, IAP, and subscription price points.
+type PricePointEqualizationsCommandConfig struct {
+	FlagSetName string
+	Name        string
+
+	ShortUsage  string
+	BaseExample string
+	Subject     string
+
+	ParentFlag  string
+	ParentUsage string
+	LimitMax    int
+
+	ErrorPrefix string
+
+	ContextTimeout func(context.Context) (context.Context, context.CancelFunc)
+	FetchPage      func(context.Context, *asc.Client, string, int, string) (asc.PaginatedResponse, error)
+}
+
+// BuildPricePointEqualizationsCommand builds a standard equalizations list
+// command with shared help/examples and --limit/--next/--paginate semantics.
+func BuildPricePointEqualizationsCommand(config PricePointEqualizationsCommandConfig) *ffcli.Command {
+	baseUsage := strings.TrimSpace(config.ShortUsage)
+	if baseUsage == "" {
+		baseUsage = "asc equalizations"
+	}
+
+	baseExample := strings.TrimSpace(config.BaseExample)
+	if baseExample == "" {
+		baseExample = baseUsage
+	}
+
+	commandPath := commandPathFromUsage(baseUsage)
+	if commandPath == "" {
+		commandPath = baseUsage
+	}
+
+	subject := strings.TrimSpace(config.Subject)
+	if subject == "" {
+		subject = "a price point"
+	}
+
+	return BuildPaginatedListCommand(PaginatedListCommandConfig{
+		FlagSetName: config.FlagSetName,
+		Name:        config.Name,
+		ShortUsage:  baseUsage + " [--limit N] [--next URL] [--paginate]",
+		ShortHelp:   fmt.Sprintf("List equalized price points for %s.", subject),
+		LongHelp: fmt.Sprintf(`List equalized price points for %s.
+
+Examples:
+  %s
+  %s --limit 175
+  %s --paginate
+  %s --next "NEXT_URL"`, subject, baseExample, baseExample, baseExample, commandPath),
+		ParentFlag:     config.ParentFlag,
+		ParentUsage:    config.ParentUsage,
+		LimitMax:       config.LimitMax,
+		ErrorPrefix:    config.ErrorPrefix,
+		ContextTimeout: config.ContextTimeout,
+		FetchPage:      config.FetchPage,
+	})
+}
+
 // ConfirmDeleteCommandConfig configures a standard delete command requiring
 // --id and --confirm.
 type ConfirmDeleteCommandConfig struct {
