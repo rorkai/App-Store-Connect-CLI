@@ -437,23 +437,7 @@ func submitCreateReadinessCheckLabel(check validation.CheckResult) string {
 // READY_FOR_SALE as well as removed-from-sale states, since apps that were
 // previously published then removed are still considered updates by Apple.
 func isAppUpdate(ctx context.Context, client *asc.Client, appID, platform string) (bool, error) {
-	opts := []asc.AppStoreVersionsOption{
-		asc.WithAppStoreVersionsStates([]string{
-			"READY_FOR_SALE",
-			"DEVELOPER_REMOVED_FROM_SALE",
-			"REMOVED_FROM_SALE",
-		}),
-		asc.WithAppStoreVersionsLimit(1),
-	}
-	if strings.TrimSpace(platform) != "" {
-		opts = append(opts, asc.WithAppStoreVersionsPlatforms([]string{platform}))
-	}
-
-	versions, err := client.GetAppStoreVersions(ctx, appID, opts...)
-	if err != nil {
-		return false, err
-	}
-	return len(versions.Data) > 0, nil
+	return shared.AppUpdateRequiresWhatsNew(ctx, client, appID, platform)
 }
 
 func SubmitStatusCommand() *ffcli.Command {

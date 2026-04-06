@@ -31,6 +31,25 @@ func TestCommandWrapperReturnsAuthCommand(t *testing.T) {
 	}
 }
 
+func TestAuthHelpHighlightsStatusDiscoverability(t *testing.T) {
+	cmd := AuthCommand()
+
+	for _, expected := range []string{
+		`Use "asc auth status" to see which credentials/profile are currently active.`,
+		"asc auth status --verbose",
+		"asc auth switch --name work",
+	} {
+		if !strings.Contains(cmd.LongHelp, expected) {
+			t.Fatalf("expected AuthCommand().LongHelp to contain %q, got %q", expected, cmd.LongHelp)
+		}
+	}
+
+	statusCmd := AuthStatusCommand()
+	if !strings.Contains(statusCmd.ShortHelp, "active profile") {
+		t.Fatalf("expected AuthStatusCommand().ShortHelp to mention active profile, got %q", statusCmd.ShortHelp)
+	}
+}
+
 func TestAuthCommandUnknownSubcommand(t *testing.T) {
 	cmd := AuthCommand()
 	_, stderr := captureAuthOutput(t, func() {

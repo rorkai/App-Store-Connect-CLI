@@ -48,7 +48,14 @@ Credential resolution order:
   2) Environment variables (fallback for missing fields)
 
 Use --strict-auth or ASC_STRICT_AUTH=true (also: 1, yes, y, on) to fail when sources are mixed.
-Set ASC_BYPASS_KEYCHAIN to 1/true/yes/on to bypass keychain.`,
+Set ASC_BYPASS_KEYCHAIN to 1/true/yes/on to bypass keychain.
+
+Use "asc auth status" to see which credentials/profile are currently active.
+
+Examples:
+  asc auth status
+  asc auth status --verbose
+  asc auth switch --name work`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -632,7 +639,7 @@ func AuthStatusCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "status",
 		ShortUsage: "asc auth status",
-		ShortHelp:  "Show current authentication status.",
+		ShortHelp:  "Show active profile and authentication status.",
 		LongHelp: `Show current authentication status.
 
 Displays information about stored API keys and which one is currently active.

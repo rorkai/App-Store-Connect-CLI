@@ -13,6 +13,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+var appEventsClientFactory = shared.GetASCClient
+
 // AppEventsCommand returns the app events command group.
 func AppEventsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-events", flag.ExitOnError)
@@ -85,7 +87,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := appEventsClientFactory()
 			if err != nil {
 				return fmt.Errorf("app-events list: %w", err)
 			}
@@ -148,7 +150,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := appEventsClientFactory()
 			if err != nil {
 				return fmt.Errorf("app-events get: %w", err)
 			}
@@ -237,31 +239,10 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			scheduleProvided := strings.TrimSpace(*start) != "" ||
-				strings.TrimSpace(*end) != "" ||
-				strings.TrimSpace(*publishStart) != "" ||
-				strings.TrimSpace(*territories) != ""
-
-			var schedules []asc.AppEventTerritorySchedule
-			if scheduleProvided {
-				startValue, err := normalizeRFC3339(*start, "--start", true)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err.Error())
-					return flag.ErrHelp
-				}
-				endValue, err := normalizeRFC3339(*end, "--end", true)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err.Error())
-					return flag.ErrHelp
-				}
-				publishValue, err := normalizeRFC3339(*publishStart, "--publish-start", false)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err.Error())
-					return flag.ErrHelp
-				}
-				territoryValues := shared.SplitCSVUpper(*territories)
-				schedule := buildAppEventTerritorySchedule(territoryValues, publishValue, startValue, endValue)
-				schedules = []asc.AppEventTerritorySchedule{schedule}
+			schedule, scheduleProvided, err := normalizeAppEventTerritorySchedule(*start, *end, *publishStart, *territories)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				return flag.ErrHelp
 			}
 
 			attrs := asc.AppEventCreateAttributes{
@@ -272,20 +253,55 @@ Examples:
 				PrimaryLocale:       strings.TrimSpace(*primaryLocale),
 				Priority:            normalizedPriority,
 				Purpose:             normalizedPurpose,
-				TerritorySchedules:  schedules,
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := appEventsClientFactory()
 			if err != nil {
 				return fmt.Errorf("app-events create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
+			createCtx, cancelCreate := shared.ContextWithTimeout(ctx)
+			defer cancelCreate()
 
-			resp, err := client.CreateAppEvent(requestCtx, resolvedAppID, attrs)
+			resp, err := client.CreateAppEvent(createCtx, resolvedAppID, attrs)
 			if err != nil {
 				return fmt.Errorf("app-events create: failed to create: %w", err)
+			}
+			if scheduleProvided {
+				createdID := strings.TrimSpace(resp.Data.ID)
+				if createdID == "" {
+					return fmt.Errorf("app-events create: event was created but the response did not include an id; unable to apply schedule")
+				}
+
+				updateCtx, cancelUpdate := shared.ContextWithTimeout(ctx)
+				defer cancelUpdate()
+
+				resp, err = client.UpdateAppEvent(updateCtx, createdID, asc.AppEventUpdateAttributes{
+					TerritorySchedules: []asc.AppEventTerritorySchedule{schedule},
+				})
+				if err != nil {
+					verifyCtx, cancelVerify := shared.ContextWithTimeout(ctx)
+					defer cancelVerify()
+
+					verifiedResp, verifyErr := client.GetAppEvent(verifyCtx, createdID)
+					if verifyErr == nil {
+						if appEventHasTerritorySchedule(verifiedResp, schedule) {
+							resp = verifiedResp
+						} else {
+							cleanupCtx, cancelCleanup := shared.ContextWithTimeout(ctx)
+							defer cancelCleanup()
+
+							cleanupErr := client.DeleteAppEvent(cleanupCtx, createdID)
+							if cleanupErr != nil {
+								return fmt.Errorf("app-events create: created event %q but failed to apply schedule: %w (verification confirmed the schedule is still missing; cleanup also failed: %s)", createdID, err, cleanupErr.Error())
+							}
+
+							return fmt.Errorf("app-events create: failed to apply schedule after creating event %q; verification confirmed the schedule was not applied and the event was deleted so the command is safe to retry: %w", createdID, err)
+						}
+					} else {
+						return fmt.Errorf("app-events create: created event %q but could not confirm whether the schedule update succeeded: %w (verification failed: %s)", createdID, err, verifyErr.Error())
+					}
+				}
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -404,28 +420,12 @@ Examples:
 				}
 			}
 
-			scheduleProvided := strings.TrimSpace(*start) != "" ||
-				strings.TrimSpace(*end) != "" ||
-				strings.TrimSpace(*publishStart) != "" ||
-				strings.TrimSpace(*territories) != ""
+			schedule, scheduleProvided, err := normalizeAppEventTerritorySchedule(*start, *end, *publishStart, *territories)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err.Error())
+				return flag.ErrHelp
+			}
 			if scheduleProvided {
-				startValue, err := normalizeRFC3339(*start, "--start", true)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err.Error())
-					return flag.ErrHelp
-				}
-				endValue, err := normalizeRFC3339(*end, "--end", true)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err.Error())
-					return flag.ErrHelp
-				}
-				publishValue, err := normalizeRFC3339(*publishStart, "--publish-start", false)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error:", err.Error())
-					return flag.ErrHelp
-				}
-				territoryValues := shared.SplitCSVUpper(*territories)
-				schedule := buildAppEventTerritorySchedule(territoryValues, publishValue, startValue, endValue)
 				attrs.TerritorySchedules = []asc.AppEventTerritorySchedule{schedule}
 				hasUpdate = true
 			}
@@ -435,7 +435,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := appEventsClientFactory()
 			if err != nil {
 				return fmt.Errorf("app-events update: %w", err)
 			}
@@ -482,7 +482,7 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := appEventsClientFactory()
 			if err != nil {
 				return fmt.Errorf("app-events delete: %w", err)
 			}

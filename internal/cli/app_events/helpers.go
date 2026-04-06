@@ -135,6 +135,81 @@ func buildAppEventTerritorySchedule(territories []string, publishStart, start, e
 	return schedule
 }
 
+func normalizeAppEventTerritorySchedule(start, end, publishStart, territories string) (asc.AppEventTerritorySchedule, bool, error) {
+	scheduleProvided := strings.TrimSpace(start) != "" ||
+		strings.TrimSpace(end) != "" ||
+		strings.TrimSpace(publishStart) != "" ||
+		strings.TrimSpace(territories) != ""
+	if !scheduleProvided {
+		return asc.AppEventTerritorySchedule{}, false, nil
+	}
+
+	startValue, err := normalizeRFC3339(start, "--start", true)
+	if err != nil {
+		return asc.AppEventTerritorySchedule{}, false, err
+	}
+	endValue, err := normalizeRFC3339(end, "--end", true)
+	if err != nil {
+		return asc.AppEventTerritorySchedule{}, false, err
+	}
+	publishValue, err := normalizeRFC3339(publishStart, "--publish-start", false)
+	if err != nil {
+		return asc.AppEventTerritorySchedule{}, false, err
+	}
+	territoryValues := shared.SplitCSVUpper(territories)
+
+	return buildAppEventTerritorySchedule(territoryValues, publishValue, startValue, endValue), true, nil
+}
+
+func appEventHasTerritorySchedule(event *asc.AppEventResponse, expected asc.AppEventTerritorySchedule) bool {
+	if event == nil {
+		return false
+	}
+
+	expectedTerritories := sortedTerritories(expected.Territories)
+
+	for _, actual := range event.Data.Attributes.TerritorySchedules {
+		if equalRFC3339Instant(actual.PublishStart, expected.PublishStart) &&
+			equalRFC3339Instant(actual.EventStart, expected.EventStart) &&
+			equalRFC3339Instant(actual.EventEnd, expected.EventEnd) &&
+			slices.Equal(sortedTerritories(actual.Territories), expectedTerritories) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func sortedTerritories(territories []string) []string {
+	sorted := slices.Clone(territories)
+	slices.Sort(sorted)
+	return sorted
+}
+
+func equalRFC3339Instant(actual, expected string) bool {
+	actual = strings.TrimSpace(actual)
+	expected = strings.TrimSpace(expected)
+	if actual == "" || expected == "" {
+		return actual == expected
+	}
+
+	actualTime, actualOK := parseRFC3339Instant(actual)
+	expectedTime, expectedOK := parseRFC3339Instant(expected)
+	if actualOK && expectedOK {
+		return actualTime.Equal(expectedTime)
+	}
+
+	return actual == expected
+}
+
+func parseRFC3339Instant(value string) (time.Time, bool) {
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return parsed, true
+}
+
 func resolveAppEventLocalizationID(ctx context.Context, client *asc.Client, eventID, localizationID, locale string) (string, error) {
 	localizationID = strings.TrimSpace(localizationID)
 	if localizationID != "" {

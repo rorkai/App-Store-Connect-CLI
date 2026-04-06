@@ -10,6 +10,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/5c/ce/67/5cce6782-729c-07af-1e0b-7322b8ffd914/SixtysixStreaksIcon-0-0-1x_U007emarketing-0-9-0-85-220.png/512x512bb.jpg"
   },
   {
+    "app": "AdMate App",
+    "link": "https://apps.apple.com/us/app/admate-app/id6705137320?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/fb/86/59/fb865967-771a-6e3f-d5b6-325f5c60287f/AppIcon-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg"
+  },
+  {
     "app": "aether: Remote Deck ControlPad",
     "link": "https://apps.apple.com/us/app/aether-remote-deck-controlpad/id6761128470?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/4e/44/bd/4e44bde8-ee38-ba9a-c1f1-ff8485e5e5ff/aetherIcon-0-0-1x_U007ephone-0-1-P3-85-220.png/512x512bb.jpg"
@@ -269,6 +274,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/c3/12/31/c31231ef-8a43-d6dd-84e2-23728b669d59/AppIcon-0-0-1x_U007epad-0-0-0-1-0-0-85-220-0.png/512x512bb.jpg"
   },
   {
+    "app": "EchoKeep: Smarter RSS Reader",
+    "link": "https://apps.apple.com/us/app/echokeep-smarter-rss-reader/id6752524967?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/23/4a/dc/234adc2b-ac03-64c7-b503-05112d5ad183/EchoKeep-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg"
+  },
+  {
     "app": "EduSwipe: AI Flashcards & SRS",
     "link": "https://apps.apple.com/us/app/eduswipe-ai-flashcards-srs/id6744727106?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/23/60/71/236071d7-7827-efd9-4c8f-03db0cee6aa9/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
@@ -297,6 +307,11 @@
     "app": "Fisherman SMS Filtering",
     "link": "https://apps.apple.com/app/id6449192504",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/8d/e5/c9/8de5c9bd-5ad9-3371-378a-b30f074a671a/AppIcon-0-0-1x_U007epad-0-11-0-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "FitPretty",
+    "link": "https://apps.apple.com/app/id6654895919",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/7f/a8/5a/7fa85a04-f258-17dd-f120-63c68061241b/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
   },
   {
     "app": "Fix My Treadmill",
@@ -391,6 +406,11 @@
     "app": "Hands Time - Minimalist Widget",
     "link": "https://apps.apple.com/us/app/hands-time-minimalist-widget/id6462440720?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ea/cd/e9/eacde9d6-4e33-e631-55fc-05aa961523a5/AppIcon-0-0-1x_U007ephone-0-0-0-1-0-0-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "Haven: Setup Codes",
+    "link": "https://apps.apple.com/us/app/haven-setup-codes/id6760440926?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/72/e6/1f/72e61fe0-7f0e-bb59-732d-c89ed669ed59/Haven-0-0-1x_U007epad-0-0-0-1-0-sRGB-85-220.png/512x512bb.jpg"
   },
   {
     "app": "HoverCalc",
@@ -518,6 +538,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/70/6a/e1/706ae16e-f081-eef4-6970-9d6896c4dbf4/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg"
   },
   {
+    "app": "Mahjong AI - Mahjong Assistant",
+    "link": "https://apps.apple.com/app/id6758575182",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/12/8e/fb/128efb33-a5ee-d321-2720-924431d772dd/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "Masseter: Jaw Clench Tracker",
     "link": "https://apps.apple.com/us/app/masseter-jaw-clench-tracker/id6758920098?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/9d/34/53/9d345362-2b78-96c5-5294-33d2e084bb90/AppIcon-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg"
@@ -611,6 +636,11 @@
     "app": "Notch: Target Scoring Tracker",
     "link": "https://apps.apple.com/us/app/notch-target-scoring-tracker/id6747980153?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/d7/83/48/d783480d-74fa-4033-44ce-f4154c3ab7de/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "Noteit - AI Journal",
+    "link": "https://apps.apple.com/app/id1659178001",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/59/57/b4/5957b419-040d-763a-3c16-cf799bdaaa76/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg"
   },
   {
     "app": "OffScreen: Screen Time Control",
@@ -732,6 +762,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/7a/04/14/7a04148e-e548-f6bf-8c0e-c26b9157a7cb/AppIcon-0-1x_U007ephone-0-1-85-220-0.png/512x512bb.jpg"
   },
   {
+    "app": "Printer Tools App",
+    "link": "https://apps.apple.com/us/app/printer-tools-app/id6745528803?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/0c/4b/03/0c4b03c9-821c-d641-4c9a-27eb39885edc/AppIcon-0-1x_U007epad-0-1-0-85-220-0.png/512x512bb.jpg"
+  },
+  {
     "app": "PrivaNota: Private AI Notes",
     "link": "https://apps.apple.com/us/app/privanota-private-ai-notes/id6752555660",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/7f/e6/22/7fe622bc-1260-bcfd-a8e2-c179ba33e727/PrivaNota-0.6-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg"
@@ -835,6 +870,11 @@
     "app": "Scap: Screenshot & Markup Edit",
     "link": "https://apps.apple.com/us/app/scap-screenshot-markup-edit/id6758053530?mt=12&uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/95/ed/7c/95ed7cad-90a7-5d3b-8742-444542d3dc55/AppIcon-0-0-85-220-0-0-5-0-2x-0-0-0.png/512x512bb.png"
+  },
+  {
+    "app": "Scooter Tools",
+    "link": "https://apps.apple.com/us/app/scooter-tools/id6452079114?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/cf/8e/88/cf8e88b7-50bc-e82f-f37b-734549d82fcd/AppIcon-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg"
   },
   {
     "app": "SF Catalog",
@@ -1114,6 +1154,11 @@
     "app": "Zenther: AI Calorie Tracker",
     "link": "https://apps.apple.com/us/app/zenther-ai-calorie-tracker/id6748252780?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/c6/49/14/c6491404-390d-82e2-3c3c-1b6053594311/Zenther-0-1x_U007epad-0-1-85-220-0.png/512x512bb.jpg"
+  },
+  {
+    "app": "知了，RSS智能聚合阅读",
+    "link": "https://apps.apple.com/app/id1525056652",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/11/3e/43/113e432e-0c18-db1b-fff8-0dec1e3d1fcb/AppIcon-0-0-1x_U007emarketing-0-6-0-85-220.png/512x512bb.jpg"
   },
   {
     "app": "시선 - 사진 한 장, 시 한 줄",

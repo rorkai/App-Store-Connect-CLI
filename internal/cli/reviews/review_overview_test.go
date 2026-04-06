@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -70,6 +71,40 @@ func TestBuildReviewStatusResultMissingVersion(t *testing.T) {
 	}
 }
 
+func TestBuildReviewStatusResultExplainsRemovedOnlyCompletedSubmission(t *testing.T) {
+	snapshot := reviewSnapshot{
+		AppID: "123456789",
+		Version: &reviewVersionContext{
+			ID:       "ver-1",
+			Version:  "1.2.3",
+			Platform: "IOS",
+			State:    "DEVELOPER_REJECTED",
+		},
+		ReviewDetailID: "detail-1",
+		LatestSubmission: &reviewSubmissionContext{
+			ID:    "review-sub-1",
+			State: "COMPLETE",
+		},
+		SubmissionItems: &reviewSubmissionItemsContext{
+			TotalCount:   1,
+			RemovedCount: 1,
+			ActiveCount:  0,
+		},
+	}
+
+	result := buildReviewStatusResult(snapshot)
+
+	if result.ReviewState != "COMPLETE" {
+		t.Fatalf("expected COMPLETE state, got %q", result.ReviewState)
+	}
+	if result.NextAction != "Create a fresh review submission for the current version." {
+		t.Fatalf("expected stale submission next action, got %q", result.NextAction)
+	}
+	if !slices.Contains(result.Blockers, staleReviewSubmissionBlocker()) {
+		t.Fatalf("expected stale submission blocker in %v", result.Blockers)
+	}
+}
+
 func TestBuildReviewDoctorResultAddsSyntheticUnresolvedIssuesBlocker(t *testing.T) {
 	snapshot := reviewSnapshot{
 		AppID: "123456789",
@@ -109,6 +144,93 @@ func TestBuildReviewDoctorResultAddsSyntheticUnresolvedIssuesBlocker(t *testing.
 	}
 	if result.NextAction == "" {
 		t.Fatal("expected next action")
+	}
+}
+
+func TestBuildReviewDoctorResultAddsRemovedItemsOnlyBlocker(t *testing.T) {
+	snapshot := reviewSnapshot{
+		AppID: "123456789",
+		Version: &reviewVersionContext{
+			ID:       "ver-1",
+			Version:  "1.2.3",
+			Platform: "IOS",
+			State:    "DEVELOPER_REJECTED",
+		},
+		LatestSubmission: &reviewSubmissionContext{
+			ID:    "review-sub-1",
+			State: "COMPLETE",
+		},
+		SubmissionItems: &reviewSubmissionItemsContext{
+			TotalCount:   1,
+			RemovedCount: 1,
+			ActiveCount:  0,
+		},
+	}
+
+	result := buildReviewDoctorResult(snapshot, validation.Report{})
+
+	if result.NextAction != "Create a fresh review submission for the current version." {
+		t.Fatalf("expected stale submission next action, got %q", result.NextAction)
+	}
+	if len(result.BlockingChecks) != 1 {
+		t.Fatalf("expected one synthetic blocker, got %d", len(result.BlockingChecks))
+	}
+	if result.BlockingChecks[0].ID != "review.submission.removed_items_only" {
+		t.Fatalf("expected removed-items-only blocker, got %q", result.BlockingChecks[0].ID)
+	}
+	if result.Summary.Blocking != 1 || result.Summary.Errors != 1 {
+		t.Fatalf("expected summary to include synthetic blocker, got %+v", result.Summary)
+	}
+}
+
+func TestAccumulateReviewSubmissionItemsIgnoresUnrelatedSubmissionItems(t *testing.T) {
+	summary := reviewSubmissionItemsContext{}
+	items := []asc.ReviewSubmissionItemResource{
+		{
+			ID: "item-removed-version",
+			Attributes: asc.ReviewSubmissionItemAttributes{
+				State: "REMOVED",
+			},
+			Relationships: &asc.ReviewSubmissionItemRelationships{
+				AppStoreVersion: &asc.Relationship{
+					Data: asc.ResourceData{ID: "ver-1", Type: asc.ResourceTypeAppStoreVersions},
+				},
+			},
+		},
+		{
+			ID: "item-active-background",
+			Attributes: asc.ReviewSubmissionItemAttributes{
+				State: "APPROVED",
+			},
+			Relationships: &asc.ReviewSubmissionItemRelationships{
+				BackgroundAssetVersion: &asc.Relationship{
+					Data: asc.ResourceData{ID: "bg-1", Type: asc.ResourceTypeBackgroundAssetVersions},
+				},
+			},
+		},
+		{
+			ID: "item-other-version",
+			Attributes: asc.ReviewSubmissionItemAttributes{
+				State: "APPROVED",
+			},
+			Relationships: &asc.ReviewSubmissionItemRelationships{
+				AppStoreVersion: &asc.Relationship{
+					Data: asc.ResourceData{ID: "ver-2", Type: asc.ResourceTypeAppStoreVersions},
+				},
+			},
+		},
+	}
+
+	accumulateReviewSubmissionItems(&summary, items, "ver-1")
+
+	if summary.TotalCount != 1 {
+		t.Fatalf("expected only selected version item to count, got total=%d", summary.TotalCount)
+	}
+	if summary.RemovedCount != 1 {
+		t.Fatalf("expected removed count 1, got %d", summary.RemovedCount)
+	}
+	if summary.ActiveCount != 0 {
+		t.Fatalf("expected no active selected-version items, got %d", summary.ActiveCount)
 	}
 }
 

@@ -825,17 +825,12 @@ func shouldBackfillAppInfoSetField(explicitValue string, targetExists bool, targ
 }
 
 func warnAppInfoSetSubmitIncompleteLocale(locale string, attrs asc.AppStoreVersionLocalizationAttributes) {
-	missing := shared.MissingSubmitRequiredLocalizationFields(attrs)
-	if len(missing) == 0 {
+	warning := shared.SubmitIncompleteLocaleWarning(locale, attrs)
+	if warning == "" {
 		return
 	}
 
-	fmt.Fprintf(
-		os.Stderr,
-		"Warning: locale %s is missing submit-required fields: %s. This may block `asc publish appstore --submit`.\n",
-		locale,
-		strings.Join(missing, ", "),
-	)
+	fmt.Fprint(os.Stderr, warning)
 }
 
 func resolveAppStoreVersionForAppInfo(

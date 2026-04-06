@@ -84,7 +84,57 @@ Examples:
 				return fmt.Errorf("localizations create: failed to create: %w", err)
 			}
 
+			warning := shared.SubmitIncompleteLocaleWarning(resp.Data.Attributes.Locale, resp.Data.Attributes)
+			if strings.TrimSpace(resp.Data.Attributes.WhatsNew) == "" {
+				opts, warningErr := submitReadinessOptionsForVersion(requestCtx, client, vid)
+				if warningErr == nil {
+					warning = shared.SubmitIncompleteLocaleWarningWithOptions(resp.Data.Attributes.Locale, resp.Data.Attributes, opts)
+				} else if warning == "" {
+					localeLabel := strings.TrimSpace(resp.Data.Attributes.Locale)
+					if localeLabel == "" {
+						localeLabel = "<unknown>"
+					}
+					fmt.Fprintf(
+						os.Stderr,
+						"Warning: locale %s was created without whatsNew, but the CLI could not determine whether this version is an app update: %v\n",
+						localeLabel,
+						warningErr,
+					)
+				}
+			}
+			if warning != "" {
+				fmt.Fprint(os.Stderr, warning)
+			}
+
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func submitReadinessOptionsForVersion(ctx context.Context, client *asc.Client, versionID string) (shared.SubmitReadinessOptions, error) {
+	versionResp, err := client.GetAppStoreVersion(
+		ctx,
+		strings.TrimSpace(versionID),
+		asc.WithAppStoreVersionInclude([]string{"app"}),
+	)
+	if err != nil {
+		return shared.SubmitReadinessOptions{}, fmt.Errorf("fetch version context: %w", err)
+	}
+
+	appID, err := asc.AppStoreVersionAppID(versionResp)
+	if err != nil {
+		return shared.SubmitReadinessOptions{}, fmt.Errorf("resolve app for version: %w", err)
+	}
+
+	requireWhatsNew, err := shared.AppUpdateRequiresWhatsNew(
+		ctx,
+		client,
+		appID,
+		strings.TrimSpace(string(versionResp.Data.Attributes.Platform)),
+	)
+	if err != nil {
+		return shared.SubmitReadinessOptions{}, fmt.Errorf("check update submit requirements: %w", err)
+	}
+
+	return shared.SubmitReadinessOptions{RequireWhatsNew: requireWhatsNew}, nil
 }

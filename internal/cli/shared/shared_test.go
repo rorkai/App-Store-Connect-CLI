@@ -158,6 +158,81 @@ func TestNormalizeASCTerritoryCSVSupportsCommaContainingNames(t *testing.T) {
 	}
 }
 
+func TestNormalizeASCTerritoryCSVSupportsMixedCommaAndSimpleNames(t *testing.T) {
+	got, err := NormalizeASCTerritoryCSV("Moldova, Republic of,US,France")
+	if err != nil {
+		t.Fatalf("unexpected normalize error: %v", err)
+	}
+	want := []string{"MDA", "USA", "FRA"}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d territories, got %d (%v)", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("expected %v, got %v", want, got)
+		}
+	}
+}
+
+func TestNormalizeASCTerritoryCSVReturnsAmbiguousTerritoryError(t *testing.T) {
+	_, err := NormalizeASCTerritoryCSV("Congo,US")
+	if err == nil {
+		t.Fatal("expected ambiguous territory error, got nil")
+	}
+	if !strings.Contains(err.Error(), "is ambiguous") {
+		t.Fatalf("expected ambiguous error, got %v", err)
+	}
+}
+
+func TestParseASCTerritoryValueCSVSupportsCommaContainingNames(t *testing.T) {
+	got, err := ParseASCTerritoryValueCSV("Moldova, Republic of:P1,US:P2")
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+	want := []ASCTerritoryValuePair{
+		{TerritoryID: "MDA", Value: "P1"},
+		{TerritoryID: "USA", Value: "P2"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("expected %d entries, got %d (%v)", len(want), len(got), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("expected %v, got %v", want, got)
+		}
+	}
+}
+
+func TestParseASCTerritoryValueCSVRejectsMissingValue(t *testing.T) {
+	_, err := ParseASCTerritoryValueCSV("US:")
+	if err == nil {
+		t.Fatal("expected missing value error, got nil")
+	}
+	if !strings.Contains(err.Error(), "--prices must use TERRITORY:PRICE_POINT_ID entries") {
+		t.Fatalf("expected usage error, got %v", err)
+	}
+}
+
+func TestParseASCTerritoryValueCSVRejectsMissingSeparator(t *testing.T) {
+	_, err := ParseASCTerritoryValueCSV("US")
+	if err == nil {
+		t.Fatal("expected missing separator error, got nil")
+	}
+	if !strings.Contains(err.Error(), "--prices must use TERRITORY:PRICE_POINT_ID entries") {
+		t.Fatalf("expected usage error, got %v", err)
+	}
+}
+
+func TestParseASCTerritoryValueCSVPropagatesTerritoryNormalizationErrors(t *testing.T) {
+	_, err := ParseASCTerritoryValueCSV("Unknownland:P1")
+	if err == nil {
+		t.Fatal("expected territory normalization error, got nil")
+	}
+	if !strings.Contains(err.Error(), "could not be mapped") {
+		t.Fatalf("expected normalization error, got %v", err)
+	}
+}
+
 func TestDefaultOutputFormat_MD(t *testing.T) {
 	resetDefaultOutput(t)
 	t.Setenv("ASC_DEFAULT_OUTPUT", "md")

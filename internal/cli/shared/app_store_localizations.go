@@ -135,25 +135,30 @@ func SupportedMetadataLocales() []string {
 // NormalizeAppStoreLocalizationLocale validates locale syntax and canonicalizes known codes.
 // Unknown but well-formed locale codes are preserved for forward compatibility.
 func NormalizeAppStoreLocalizationLocale(value string) (string, error) {
+	normalized, _, err := resolveAppStoreLocalizationLocale(value)
+	return normalized, err
+}
+
+func resolveAppStoreLocalizationLocale(value string) (string, bool, error) {
 	normalized := NormalizeLocaleCode(value)
 	if normalized == "" || !appStoreLocalizationLocalePattern.MatchString(normalized) {
-		return "", fmt.Errorf("invalid locale %q: must match pattern like en or en-US", value)
+		return "", false, fmt.Errorf("invalid locale %q: must match pattern like en or en-US", value)
 	}
 	if locale, ok := appStoreLocalizationByFold[strings.ToLower(normalized)]; ok {
-		return locale.Code, nil
+		return locale.Code, true, nil
 	}
-	return normalized, nil
+	return normalized, false, nil
 }
 
 // CanonicalizeAppStoreLocalizationLocale validates a locale against the known catalog
 // and returns a helpful suggestion when the input is well-formed but unsupported.
 func CanonicalizeAppStoreLocalizationLocale(value string) (string, error) {
-	normalized, err := NormalizeAppStoreLocalizationLocale(value)
+	normalized, known, err := resolveAppStoreLocalizationLocale(value)
 	if err != nil {
 		return "", err
 	}
-	if locale, ok := appStoreLocalizationByFold[strings.ToLower(normalized)]; ok {
-		return locale.Code, nil
+	if known {
+		return normalized, nil
 	}
 
 	rootCandidates := appStoreLocalizationCandidatesByRoot[LocaleRoot(normalized)]
