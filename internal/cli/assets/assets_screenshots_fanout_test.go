@@ -302,6 +302,34 @@ func TestCollectLocaleAssetFilesRejectsDuplicateCanonicalLocales(t *testing.T) {
 	}
 }
 
+func TestCollectLocaleAssetFilesRejectsSymlinkLocaleDirectories(t *testing.T) {
+	rootDir := t.TempDir()
+	frDir := filepath.Join(rootDir, "fr-FR", "iphone")
+	if err := os.MkdirAll(frDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	writeAssetsTestPNGWithSize(t, frDir, "01-home.png", 1242, 2688)
+
+	sharedDir := filepath.Join(t.TempDir(), "shared-en", "iphone")
+	if err := os.MkdirAll(sharedDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	writeAssetsTestPNGWithSize(t, sharedDir, "01-home.png", 1242, 2688)
+
+	symlinkPath := filepath.Join(rootDir, "en-US")
+	if err := os.Symlink(filepath.Dir(sharedDir), symlinkPath); err != nil {
+		t.Skipf("symlink not supported: %v", err)
+	}
+
+	_, err := collectLocaleAssetFiles(rootDir, asc.CanonicalScreenshotDisplayTypeForAPI("APP_IPHONE_65"))
+	if err == nil {
+		t.Fatal("expected symlink locale directory error")
+	}
+	if !strings.Contains(err.Error(), "refusing to read symlink") || !strings.Contains(err.Error(), symlinkPath) {
+		t.Fatalf("expected symlink rejection error, got %v", err)
+	}
+}
+
 func TestCollectLocaleAssetFilesRecursiveSkipsNonImageFiles(t *testing.T) {
 	rootDir := t.TempDir()
 	if err := os.MkdirAll(rootDir, 0o755); err != nil {

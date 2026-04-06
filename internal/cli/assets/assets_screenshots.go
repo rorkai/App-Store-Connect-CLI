@@ -636,11 +636,22 @@ func collectLocaleAssetFiles(rootPath, displayType string) ([]screenshotLocaleAs
 	results := make([]screenshotLocaleAssetFiles, 0, len(entries))
 	seenLocales := make(map[string]string, len(entries))
 	for _, entry := range entries {
-		if !entry.IsDir() || shouldIgnoreFanoutEntryName(entry.Name()) {
+		if shouldIgnoreFanoutEntryName(entry.Name()) {
 			continue
 		}
 
 		entryPath := filepath.Join(rootPath, entry.Name())
+		info, err := os.Lstat(entryPath)
+		if err != nil {
+			return nil, err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil, fmt.Errorf("refusing to read symlink %q", entryPath)
+		}
+		if !info.IsDir() {
+			continue
+		}
+
 		locale, err := shared.CanonicalizeAppStoreLocalizationLocale(entry.Name())
 		if err != nil {
 			hasMatchingFiles, matchErr := directoryContainsMatchingScreenshotFiles(entryPath, displayType)
