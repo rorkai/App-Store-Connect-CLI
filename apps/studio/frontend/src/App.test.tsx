@@ -75,36 +75,8 @@ import App, { insightsWeekStart } from "./App";
 import { sectionCommands } from "./constants";
 
 function stubCurrentDate(iso = FIXED_INSIGHTS_NOW) {
-  const RealDate = Date;
-  const fixedTime = new RealDate(iso).getTime();
-
-  class MockDate extends RealDate {
-    constructor(
-      value?: string | number | Date,
-      month?: number,
-      date?: number,
-      hours?: number,
-      minutes?: number,
-      seconds?: number,
-      ms?: number,
-    ) {
-      if (month === undefined) {
-        super(value ?? fixedTime);
-        return;
-      }
-
-      super(value as number, month, date, hours, minutes, seconds, ms);
-    }
-
-    static now() {
-      return fixedTime;
-    }
-
-    static parse = RealDate.parse;
-    static UTC = RealDate.UTC;
-  }
-
-  vi.stubGlobal("Date", MockDate);
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(iso));
 }
 
 function insightsWeeklyCommand(appID: string) {
@@ -118,7 +90,7 @@ async function pickApp(name: string) {
 
 describe("App", () => {
   beforeEach(() => {
-    vi.unstubAllGlobals();
+    vi.useRealTimers();
     vi.clearAllMocks();
 
     mockListApps.mockResolvedValue({
@@ -186,6 +158,10 @@ describe("App", () => {
     mockGetFinanceRegions.mockResolvedValue({ regions: [] });
     mockGetOfferCodes.mockResolvedValue({ offerCodes: [] });
     mockGetFeedback.mockResolvedValue({ feedback: [], total: 0 });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renders and calls Bootstrap on mount", async () => {
@@ -1604,6 +1580,7 @@ describe("App", () => {
 
   it("reloads insights when refreshing the selected app on the insights view", async () => {
     const insightsCommand = insightsWeeklyCommand("1");
+    let insightsLoads = 0;
     const firstInsights = {
       error: "",
       data: JSON.stringify({
@@ -1621,11 +1598,8 @@ describe("App", () => {
 
     mockRunASCCommand.mockImplementation((cmd: string) => {
       if (cmd === insightsCommand) {
-        return Promise.resolve(
-          mockRunASCCommand.mock.calls.filter(([calledCmd]) => calledCmd === cmd).length === 1
-            ? firstInsights
-            : refreshedInsights,
-        );
+        insightsLoads++;
+        return Promise.resolve(insightsLoads === 1 ? firstInsights : refreshedInsights);
       }
       return Promise.resolve({ error: "", data: "{\"data\":[]}" });
     });
@@ -1641,7 +1615,7 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: /Refresh/i }));
 
     expect(await screen.findByText("refreshed metric")).toBeInTheDocument();
-    expect(mockRunASCCommand.mock.calls.filter(([cmd]) => cmd === insightsCommand)).toHaveLength(2);
+    expect(insightsLoads).toBe(2);
   });
 
   it("ignores stale tester responses after switching groups", async () => {
