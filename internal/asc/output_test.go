@@ -387,6 +387,42 @@ func TestPrintTable_SkippedAssetUploadResultShowsSkippedState(t *testing.T) {
 	}
 }
 
+func TestPrintTable_AppScreenshotUploadResultShowsFailureArtifactAndFailures(t *testing.T) {
+	resp := &AppScreenshotUploadResult{
+		VersionLocalizationID: "LOC_123",
+		SetID:                 "SET_123",
+		DisplayType:           "APP_IPHONE_65",
+		Resumed:               true,
+		Total:                 3,
+		Uploaded:              1,
+		Pending:               2,
+		Failed:                1,
+		FailureArtifactPath:   ".asc/reports/screenshots-upload/failures-1.json",
+		Results: []AssetUploadResultItem{
+			{FileName: "01-home.png", AssetID: "SHOT_123", State: "COMPLETE"},
+		},
+		Failures: []AssetUploadFailureItem{
+			{FileName: "02-settings.png", FilePath: "/tmp/02-settings.png", Error: "create failed"},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	for _, want := range []string{
+		"Failure Artifact",
+		".asc/reports/screenshots-upload/failures-1.json",
+		"02-settings.png",
+		"/tmp/02-settings.png",
+		"create failed",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected output to contain %q, got: %s", want, output)
+		}
+	}
+}
+
 func TestPrintTableAndMarkdown_BuildUploadResultIncludesOperations(t *testing.T) {
 	resp := &BuildUploadResult{
 		UploadID: "UPLOAD_123",

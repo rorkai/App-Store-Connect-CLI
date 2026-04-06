@@ -35,13 +35,28 @@ type AssetUploadResultItem struct {
 	Skipped  bool   `json:"skipped,omitempty"`
 }
 
+// AssetUploadFailureItem represents a failed upload item.
+type AssetUploadFailureItem struct {
+	FileName string `json:"fileName,omitempty"`
+	FilePath string `json:"filePath,omitempty"`
+	Error    string `json:"error"`
+}
+
 // AppScreenshotUploadResult represents screenshot upload output.
 type AppScreenshotUploadResult struct {
-	VersionLocalizationID string                  `json:"versionLocalizationId"`
-	SetID                 string                  `json:"setId"`
-	DisplayType           string                  `json:"displayType"`
-	DryRun                bool                    `json:"dryRun,omitempty"`
-	Results               []AssetUploadResultItem `json:"results"`
+	VersionLocalizationID string                   `json:"versionLocalizationId"`
+	SetID                 string                   `json:"setId"`
+	DisplayType           string                   `json:"displayType"`
+	DryRun                bool                     `json:"dryRun,omitempty"`
+	Resumed               bool                     `json:"resumed,omitempty"`
+	Total                 int                      `json:"total,omitempty"`
+	Uploaded              int                      `json:"uploaded,omitempty"`
+	Skipped               int                      `json:"skipped,omitempty"`
+	Pending               int                      `json:"pending,omitempty"`
+	Failed                int                      `json:"failed,omitempty"`
+	FailureArtifactPath   string                   `json:"failureArtifactPath,omitempty"`
+	Results               []AssetUploadResultItem  `json:"results"`
+	Failures              []AssetUploadFailureItem `json:"failures,omitempty"`
 }
 
 // AppPreviewUploadResult represents preview upload output.
@@ -194,8 +209,20 @@ func appPreviewListResultRows(result *AppPreviewListResult) ([]string, [][]strin
 }
 
 func appScreenshotUploadResultMainRows(result *AppScreenshotUploadResult) ([]string, [][]string) {
-	headers := []string{"Localization ID", "Set ID", "Display Type", "Dry Run"}
-	rows := [][]string{{result.VersionLocalizationID, result.SetID, result.DisplayType, fmt.Sprintf("%t", result.DryRun)}}
+	headers := []string{"Localization ID", "Set ID", "Display Type", "Dry Run", "Resumed", "Total", "Uploaded", "Skipped", "Pending", "Failed", "Failure Artifact"}
+	rows := [][]string{{
+		result.VersionLocalizationID,
+		result.SetID,
+		result.DisplayType,
+		fmt.Sprintf("%t", result.DryRun),
+		fmt.Sprintf("%t", result.Resumed),
+		fmt.Sprintf("%d", result.Total),
+		fmt.Sprintf("%d", result.Uploaded),
+		fmt.Sprintf("%d", result.Skipped),
+		fmt.Sprintf("%d", result.Pending),
+		fmt.Sprintf("%d", result.Failed),
+		result.FailureArtifactPath,
+	}}
 	return headers, rows
 }
 
@@ -232,6 +259,15 @@ func assetUploadResultItemRows(results []AssetUploadResultItem) ([]string, [][]s
 			state = "skipped"
 		}
 		rows = append(rows, []string{item.FileName, item.AssetID, state})
+	}
+	return headers, rows
+}
+
+func assetUploadFailureItemRows(results []AssetUploadFailureItem) ([]string, [][]string) {
+	headers := []string{"File Name", "File Path", "Error"}
+	rows := make([][]string, 0, len(results))
+	for _, item := range results {
+		rows = append(rows, []string{item.FileName, item.FilePath, item.Error})
 	}
 	return headers, rows
 }

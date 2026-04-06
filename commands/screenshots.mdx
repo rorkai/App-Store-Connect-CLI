@@ -189,6 +189,15 @@ asc screenshots upload --version-localization "LOC_ID" \
 * Format: PNG or JPEG
 * Exact dimensions must match the device type specification
 * Use `asc screenshots sizes` to verify required dimensions
+* Partial failures write a retry artifact under `.asc/reports/screenshots-upload/`
+
+**Resume a Failed Upload:**
+
+```bash  theme={null}
+# Resume from the artifact printed by the failed run
+asc screenshots upload \
+  --resume ".asc/reports/screenshots-upload/failures-123.json"
+```
 
 **Typical Submission:**
 

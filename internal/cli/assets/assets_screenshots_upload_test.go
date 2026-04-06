@@ -185,6 +185,9 @@ func TestUploadScreenshotsDryRunWithReplaceReportsWouldDelete(t *testing.T) {
 	if result.Results[1].State != "would-upload" {
 		t.Fatalf("expected second result state would-upload, got %q", result.Results[1].State)
 	}
+	if result.Uploaded != 0 {
+		t.Fatalf("expected uploaded=0 for dry-run replace preview, got %d", result.Uploaded)
+	}
 }
 
 func TestUploadScreenshotsDryRunWithSkipExistingReportsSkipped(t *testing.T) {

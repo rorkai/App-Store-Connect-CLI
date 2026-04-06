@@ -8,6 +8,13 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
+type screenshotUploadProgress struct {
+	Results      []asc.AssetUploadResultItem
+	OrderedIDs   []string
+	PendingFiles []string
+	FailedFile   string
+}
+
 // UploadScreenshotsToSet uploads screenshots in the provided file order and then
 // applies that order to the remote screenshot set.
 func UploadScreenshotsToSet(ctx context.Context, client *asc.Client, setID string, files []string, preserveExistingOrder bool) ([]asc.AssetUploadResultItem, error) {
@@ -20,23 +27,40 @@ func UploadScreenshotsToSet(ctx context.Context, client *asc.Client, setID strin
 		orderedIDs = append(orderedIDs, existingIDs...)
 	}
 
-	results := make([]asc.AssetUploadResultItem, 0, len(files))
-	for _, filePath := range files {
-		item, err := uploadScreenshotAsset(ctx, client, setID, filePath)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, item)
-		orderedIDs = appendUniqueScreenshotID(orderedIDs, item.AssetID)
-	}
-
-	if len(results) == 0 {
-		return results, nil
-	}
-	if err := SetOrderedAppScreenshots(ctx, client, setID, orderedIDs); err != nil {
+	progress, err := uploadScreenshotsWithOrderState(ctx, client, setID, orderedIDs, files, false)
+	if err != nil {
 		return nil, err
 	}
-	return results, nil
+	return progress.Results, nil
+}
+
+func uploadScreenshotsWithOrderState(ctx context.Context, client *asc.Client, setID string, orderedIDs, files []string, syncIfNoNew bool) (screenshotUploadProgress, error) {
+	progress := screenshotUploadProgress{
+		Results:    make([]asc.AssetUploadResultItem, 0, len(files)),
+		OrderedIDs: append([]string(nil), orderedIDs...),
+	}
+
+	for idx, filePath := range files {
+		item, err := uploadScreenshotAsset(ctx, client, setID, filePath)
+		if err != nil {
+			progress.PendingFiles = append([]string{filePath}, files[idx+1:]...)
+			progress.FailedFile = filePath
+			return progress, err
+		}
+		progress.Results = append(progress.Results, item)
+		progress.OrderedIDs = appendUniqueScreenshotID(progress.OrderedIDs, item.AssetID)
+	}
+
+	if len(progress.OrderedIDs) == 0 {
+		return progress, nil
+	}
+	if len(progress.Results) == 0 && !syncIfNoNew {
+		return progress, nil
+	}
+	if err := SetOrderedAppScreenshots(ctx, client, setID, progress.OrderedIDs); err != nil {
+		return progress, err
+	}
+	return progress, nil
 }
 
 // GetOrderedAppScreenshotIDs returns screenshot IDs in the current remote order.
