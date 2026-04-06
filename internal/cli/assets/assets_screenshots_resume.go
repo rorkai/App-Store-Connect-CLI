@@ -335,12 +335,56 @@ func defaultScreenshotUploadFailureArtifactPath() string {
 	)
 }
 
+func normalizeScreenshotUploadArtifactFilePath(path string) (string, error) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return "", nil
+	}
+	if filepath.IsAbs(trimmed) {
+		return filepath.Clean(trimmed), nil
+	}
+	return filepath.Abs(trimmed)
+}
+
+func normalizeScreenshotUploadFailureArtifactPaths(artifact screenshotUploadFailureArtifact) (screenshotUploadFailureArtifact, error) {
+	for i := range artifact.PendingFiles {
+		normalized, err := normalizeScreenshotUploadArtifactFilePath(artifact.PendingFiles[i])
+		if err != nil {
+			return screenshotUploadFailureArtifact{}, err
+		}
+		artifact.PendingFiles[i] = normalized
+	}
+
+	for i := range artifact.Results {
+		normalized, err := normalizeScreenshotUploadArtifactFilePath(artifact.Results[i].FilePath)
+		if err != nil {
+			return screenshotUploadFailureArtifact{}, err
+		}
+		artifact.Results[i].FilePath = normalized
+	}
+
+	for i := range artifact.Failures {
+		normalized, err := normalizeScreenshotUploadArtifactFilePath(artifact.Failures[i].FilePath)
+		if err != nil {
+			return screenshotUploadFailureArtifact{}, err
+		}
+		artifact.Failures[i].FilePath = normalized
+	}
+
+	return artifact, nil
+}
+
 func persistScreenshotUploadFailureArtifact(path string, artifact screenshotUploadFailureArtifact) (string, error) {
 	target := strings.TrimSpace(path)
 	if target == "" {
 		target = defaultScreenshotUploadFailureArtifactPath()
 	}
 	artifact.Path = filepath.Clean(target)
+
+	artifact, err := normalizeScreenshotUploadFailureArtifactPaths(artifact)
+	if err != nil {
+		return "", err
+	}
 
 	data, err := json.MarshalIndent(artifact, "", "  ")
 	if err != nil {

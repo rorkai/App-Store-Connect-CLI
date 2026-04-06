@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -246,5 +247,93 @@ func TestExecuteAppScreenshotUploadOrderSyncFailureSurfacesOrderingError(t *test
 	}
 	if len(artifactData.Failures) != 1 || artifactData.Failures[0].FileName != "screenshot ordering" {
 		t.Fatalf("expected ordering failure in artifact, got %#v", artifactData.Failures)
+	}
+}
+
+func TestPersistScreenshotUploadFailureArtifactNormalizesPendingPathsForResume(t *testing.T) {
+	workDir := t.TempDir()
+	otherDir := t.TempDir()
+	screenshotsDir := filepath.Join(workDir, "screenshots")
+	if err := os.MkdirAll(screenshotsDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+
+	previousDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error: %v", err)
+	}
+	if err := os.Chdir(workDir); err != nil {
+		t.Fatalf("Chdir(%q) error: %v", workDir, err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(previousDir)
+	})
+
+	relativeFile := filepath.Join("screenshots", "02-settings.png")
+	absoluteFile := writeAssetsTestPNG(t, screenshotsDir, "02-settings.png")
+	artifactPath := filepath.Join(workDir, "resume-artifact.json")
+	expectedPendingPath, err := filepath.Abs(relativeFile)
+	if err != nil {
+		t.Fatalf("Abs(%q) error: %v", relativeFile, err)
+	}
+
+	_, err = persistScreenshotUploadFailureArtifact(artifactPath, screenshotUploadFailureArtifact{
+		VersionLocalizationID: "LOC_123",
+		DisplayType:           "APP_IPHONE_65",
+		SetID:                 "set-1",
+		OrderedIDs:            []string{"new-1"},
+		PendingFiles:          []string{relativeFile},
+		GeneratedAt:           time.Now().UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		t.Fatalf("persistScreenshotUploadFailureArtifact() error: %v", err)
+	}
+
+	artifactData, err := loadScreenshotUploadFailureArtifact(artifactPath)
+	if err != nil {
+		t.Fatalf("loadScreenshotUploadFailureArtifact() error: %v", err)
+	}
+	if len(artifactData.PendingFiles) != 1 || artifactData.PendingFiles[0] != expectedPendingPath {
+		t.Fatalf("expected absolute pending file path %q, got %#v", expectedPendingPath, artifactData.PendingFiles)
+	}
+
+	if err := os.Chdir(otherDir); err != nil {
+		t.Fatalf("Chdir(%q) error: %v", otherDir, err)
+	}
+
+	fileSizeBytes := fileSize(t, absoluteFile)
+	origTransport := http.DefaultTransport
+	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
+			return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-2","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-2","length":%d,"offset":0}]}}}`, fileSizeBytes))
+		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
+			return assetsJSONResponse(http.StatusOK, `{}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshots/new-2":
+			return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-2","attributes":{"uploaded":true}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/new-2":
+			return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-2","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+			return assetsJSONResponse(http.StatusNoContent, "")
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+	t.Cleanup(func() {
+		http.DefaultTransport = origTransport
+	})
+
+	client := newAssetsUploadTestClient(t)
+	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	if err != nil {
+		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
+	}
+
+	if len(result.Results) != 1 {
+		t.Fatalf("expected 1 resumed result, got %#v", result.Results)
+	}
+	if result.Results[0].FilePath != expectedPendingPath {
+		t.Fatalf("expected resumed upload to use absolute file path %q, got %#v", expectedPendingPath, result.Results[0])
 	}
 }
