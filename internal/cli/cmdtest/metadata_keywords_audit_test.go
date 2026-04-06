@@ -193,6 +193,75 @@ func TestMetadataKeywordsAuditLoadsBlockedTermsFile(t *testing.T) {
 	}
 }
 
+func TestRunMetadataKeywordsAuditSuggestsAppInfoOverrideWhenResolutionIsAmbiguous(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	installDefaultTransport(t, metadataKeywordsAuditAmbiguousAppInfoTransport(t))
+
+	_, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{
+			"metadata", "keywords", "audit",
+			"--app", "app-1",
+			"--version-id", "ver-1",
+		}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+
+	if !strings.Contains(stderr, `multiple app infos found for app "app-1"`) {
+		t.Fatalf("expected ambiguous app-info stderr, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "--app-info") {
+		t.Fatalf("expected app-info guidance in stderr, got %q", stderr)
+	}
+}
+
+func TestMetadataKeywordsAuditUsesAppInfoOverride(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	installDefaultTransport(t, metadataKeywordsAuditAmbiguousAppInfoTransport(t))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"metadata", "keywords", "audit",
+			"--app", "app-1",
+			"--version-id", "ver-1",
+			"--app-info", "info-override",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		Checks []struct {
+			ID string `json:"id"`
+		} `json:"checks"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%q", err, stdout)
+	}
+	if !hasAuditCheckID(payload.Checks, "metadata.keywords.overlap_name") {
+		t.Fatalf("expected overlap_name check when --app-info override is used, got %+v", payload.Checks)
+	}
+}
+
 func metadataKeywordsAuditTransport(t *testing.T, keywords string) http.RoundTripper {
 	t.Helper()
 
@@ -231,6 +300,56 @@ func metadataKeywordsAuditTransport(t *testing.T, keywords string) http.RoundTri
 						"type":"appStoreVersionLocalizations",
 						"id":"ver-loc-en",
 						"attributes":{"locale":"en-US","keywords":"`+keywords+`"}
+					}
+				],
+				"links":{}
+			}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, nil
+		}
+	})
+}
+
+func metadataKeywordsAuditAmbiguousAppInfoTransport(t *testing.T) http.RoundTripper {
+	t.Helper()
+
+	return roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1":
+			return jsonResponse(http.StatusOK, `{
+				"data":{
+					"type":"appStoreVersions",
+					"id":"ver-1",
+					"attributes":{"platform":"IOS","versionString":"1.2.3","appVersionState":"PREPARE_FOR_SUBMISSION"},
+					"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}
+				}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appInfos":
+			return jsonResponse(http.StatusOK, `{
+				"data":[
+					{"type":"appInfos","id":"info-a","attributes":{"state":"PREPARE_FOR_SUBMISSION"}},
+					{"type":"appInfos","id":"info-override","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}
+				]
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appInfos/info-override/appInfoLocalizations":
+			return jsonResponse(http.StatusOK, `{
+				"data":[
+					{
+						"type":"appInfoLocalizations",
+						"id":"info-loc-en",
+						"attributes":{"locale":"en-US","name":"Habit Tracker","subtitle":"Daily progress"}
+					}
+				],
+				"links":{}
+			}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/ver-1/appStoreVersionLocalizations":
+			return jsonResponse(http.StatusOK, `{
+				"data":[
+					{
+						"type":"appStoreVersionLocalizations",
+						"id":"ver-loc-en",
+						"attributes":{"locale":"en-US","keywords":"habit tracker,focus"}
 					}
 				],
 				"links":{}

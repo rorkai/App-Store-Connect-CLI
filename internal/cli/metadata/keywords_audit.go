@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -30,6 +31,7 @@ func MetadataKeywordsAuditCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("metadata keywords audit", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	appInfoID := fs.String("app-info", "", "App Info ID (optional override for apps with multiple app-infos)")
 	version := fs.String("version", "", "App version string (for example 1.2.3)")
 	versionID := fs.String("version-id", "", "App Store version ID")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
@@ -41,7 +43,7 @@ func MetadataKeywordsAuditCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "audit",
-		ShortUsage: "asc metadata keywords audit --app \"APP_ID\" (--version \"1.2.3\" | --version-id \"VERSION_ID\") [flags]",
+		ShortUsage: "asc metadata keywords audit --app \"APP_ID\" (--version \"1.2.3\" | --version-id \"VERSION_ID\") [--app-info \"APP_INFO_ID\"] [flags]",
 		ShortHelp:  "Audit live ASC keywords for ASO-quality issues.",
 		LongHelp: `Audit live App Store Connect keyword metadata for ASO-quality issues.
 
@@ -56,6 +58,7 @@ then reports:
 
 Examples:
   asc metadata keywords audit --app "APP_ID" --version "1.2.3"
+  asc metadata keywords audit --app "APP_ID" --app-info "APP_INFO_ID" --version "1.2.3"
   asc metadata keywords audit --app "APP_ID" --version-id "VERSION_ID" --strict
   asc metadata keywords audit --app "APP_ID" --version "1.2.3" --blocked-term "free"
   asc metadata keywords audit --app "APP_ID" --version "1.2.3" --blocked-terms-file "./blocked-terms.txt"`,
@@ -102,6 +105,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			var versionStateValue string
 			if versionIDValue != "" {
 				versionResource, err := shared.ResolveOwnedAppStoreVersionByID(requestCtx, client, resolvedAppID, versionIDValue, platformValue)
 				if err != nil {
@@ -109,19 +113,32 @@ Examples:
 				}
 				versionIDValue = strings.TrimSpace(versionResource.ID)
 				versionValue = strings.TrimSpace(versionResource.Attributes.VersionString)
+				versionStateValue = asc.ResolveAppStoreVersionState(versionResource.Attributes)
 				if platformValue == "" {
 					platformValue = strings.TrimSpace(string(versionResource.Attributes.Platform))
 				}
 			} else {
-				resolvedVersionID, _, err := resolveVersionID(requestCtx, client, resolvedAppID, versionValue, platformValue)
+				resolvedVersionID, resolvedVersionState, err := resolveVersionID(requestCtx, client, resolvedAppID, versionValue, platformValue)
 				if err != nil {
 					return fmt.Errorf("metadata keywords audit: %w", err)
 				}
 				versionIDValue = resolvedVersionID
+				versionStateValue = resolvedVersionState
 			}
 
-			appInfoIDValue, err := client.ResolveAppInfoIDForAppStoreVersion(requestCtx, versionIDValue)
+			appInfoIDValue, err := resolveMetadataKeywordsAuditAppInfoID(
+				requestCtx,
+				client,
+				resolvedAppID,
+				strings.TrimSpace(*appInfoID),
+				versionValue,
+				platformValue,
+				versionStateValue,
+			)
 			if err != nil {
+				if errors.Is(err, flag.ErrHelp) {
+					return err
+				}
 				return fmt.Errorf("metadata keywords audit: %w", err)
 			}
 
@@ -162,6 +179,35 @@ Examples:
 	}
 }
 
+func resolveMetadataKeywordsAuditAppInfoID(
+	ctx context.Context,
+	client *asc.Client,
+	appID string,
+	appInfoID string,
+	version string,
+	platform string,
+	versionState string,
+) (string, error) {
+	return resolveMetadataAppInfoID(ctx, client, appID, appInfoID, version, platform, "", versionState, func(aid, v, p, _ string, infoID string) string {
+		return buildMetadataKeywordsAuditAppInfoExample(aid, v, p, infoID)
+	})
+}
+
+func buildMetadataKeywordsAuditAppInfoExample(appID, version, platform, appInfoID string) string {
+	parts := []string{
+		"asc metadata keywords audit",
+		fmt.Sprintf(`--app %q`, appID),
+		fmt.Sprintf(`--version %q`, version),
+	}
+	if platform != "" {
+		parts = append(parts, fmt.Sprintf(`--platform %q`, platform))
+	}
+	if appInfoID != "" {
+		parts = append(parts, fmt.Sprintf(`--app-info %q`, appInfoID))
+	}
+	return strings.Join(parts, " ")
+}
+
 func loadKeywordAuditBlockedTerms(flagValues []string, filePath string) ([]string, error) {
 	terms := make([]string, 0, len(flagValues))
 	for _, value := range flagValues {
@@ -199,11 +245,10 @@ func loadKeywordAuditBlockedTerms(flagValues []string, filePath string) ([]strin
 		}
 	}
 
-	normalized := validation.NormalizeKeywordAuditTerms(terms)
-	if filePath != "" && len(normalized) == 0 {
+	if filePath != "" && len(terms) == 0 {
 		return nil, fmt.Errorf("--blocked-terms-file must include at least one blocked term")
 	}
-	return normalized, nil
+	return terms, nil
 }
 
 func mapVersionLocalizationsForAudit(items []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) []validation.VersionLocalization {
