@@ -3323,6 +3323,11 @@ func TestLocalizationsValidationErrors(t *testing.T) {
 			wantErr: "--locale is required",
 		},
 		{
+			name:    "localizations supported-locales missing version",
+			args:    []string{"localizations", "supported-locales"},
+			wantErr: "--version is required",
+		},
+		{
 			name:    "localizations list missing app for app-info",
 			args:    []string{"localizations", "list", "--type", "app-info"},
 			wantErr: "--app is required",

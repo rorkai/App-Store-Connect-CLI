@@ -701,6 +701,177 @@ func TestLocalizationsCreate_InvalidLocaleReturnsUsageError(t *testing.T) {
 	}
 }
 
+func TestLocalizationsCreate_NormalizesKnownLocaleCodes(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	var seenLocale string
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appStoreVersionLocalizations":
+			var payload struct {
+				Data struct {
+					Attributes struct {
+						Locale string `json:"locale"`
+					} `json:"attributes"`
+				} `json:"data"`
+			}
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode payload: %v", err)
+			}
+			seenLocale = payload.Data.Attributes.Locale
+
+			body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Updated app","keywords":"timer,focus","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}}`
+			return &http.Response{
+				StatusCode: http.StatusCreated,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
+		}
+		return nil, nil
+	})
+
+	stdout, stderr := captureOutput(t, func() {
+		root := RootCommand("1.2.3")
+		root.FlagSet.SetOutput(io.Discard)
+
+		if err := root.Parse([]string{
+			"localizations", "create",
+			"--version", "version-1",
+			"--locale", "en_us",
+			"--description", "Updated app",
+			"--keywords", "timer,focus",
+			"--support-url", "https://example.com/support",
+			"--whats-new", "Bug fixes",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"locale":"en-US"`) {
+		t.Fatalf("expected canonicalized locale in output, got %q", stdout)
+	}
+	if seenLocale != "en-US" {
+		t.Fatalf("expected request locale en-US, got %q", seenLocale)
+	}
+}
+
+func TestLocalizationsCreate_RejectsUnsupportedLocaleWithSuggestion(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL.Path)
+		return nil, nil
+	})
+
+	stdout, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{
+			"localizations", "create",
+			"--version", "version-1",
+			"--locale", "nl",
+		}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	for _, want := range []string{`unsupported locale "nl"`, "nl-NL"} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected stderr to contain %q, got %q", want, stderr)
+		}
+	}
+	if requestCount != 0 {
+		t.Fatalf("expected no HTTP requests, got %d", requestCount)
+	}
+}
+
+func TestLocalizationsCreate_AllowsForwardCompatibleLocaleCodes(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	var seenLocale string
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPost || req.URL.Path != "/v1/appStoreVersionLocalizations" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+
+		var payload struct {
+			Data struct {
+				Attributes struct {
+					Locale string `json:"locale"`
+				} `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode payload: %v", err)
+		}
+		seenLocale = payload.Data.Attributes.Locale
+
+		body := `{"data":{"type":"appStoreVersionLocalizations","id":"loc-forward","attributes":{"locale":"zh-Hant-HK","description":"Updated app","keywords":"timer,focus","supportUrl":"https://example.com/support","whatsNew":"Bug fixes"}}}`
+		return &http.Response{
+			StatusCode: http.StatusCreated,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	stdout, stderr := captureOutput(t, func() {
+		root := RootCommand("1.2.3")
+		root.FlagSet.SetOutput(io.Discard)
+
+		if err := root.Parse([]string{
+			"localizations", "create",
+			"--version", "version-1",
+			"--locale", "zh-Hant-HK",
+			"--description", "Updated app",
+			"--keywords", "timer,focus",
+			"--support-url", "https://example.com/support",
+			"--whats-new", "Bug fixes",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"locale":"zh-Hant-HK"`) {
+		t.Fatalf("expected forward-compatible locale in output, got %q", stdout)
+	}
+	if seenLocale != "zh-Hant-HK" {
+		t.Fatalf("expected request locale zh-Hant-HK, got %q", seenLocale)
+	}
+}
+
 func TestLocalizationsCreate_RejectsPositionalArgs(t *testing.T) {
 	setupAuth(t)
 

@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/suggest"
 )
 
 const (
@@ -23,47 +22,7 @@ const (
 
 var localePattern = regexp.MustCompile(`^[a-zA-Z]{2,3}(-[a-zA-Z0-9]+)*$`)
 
-var supportedMetadataLocales = []string{
-	"ar-SA",
-	"ca",
-	"cs",
-	"da",
-	"de-DE",
-	"el",
-	"en-AU",
-	"en-CA",
-	"en-GB",
-	"en-US",
-	"es-ES",
-	"es-MX",
-	"fi",
-	"fr-CA",
-	"fr-FR",
-	"he",
-	"hi",
-	"hr",
-	"hu",
-	"id",
-	"it",
-	"ja",
-	"ko",
-	"ms",
-	"nl-NL",
-	"no",
-	"pl",
-	"pt-BR",
-	"pt-PT",
-	"ro",
-	"ru",
-	"sk",
-	"sv",
-	"th",
-	"tr",
-	"uk",
-	"vi",
-	"zh-Hans",
-	"zh-Hant",
-}
+var supportedMetadataLocales = append([]string(nil), shared.SupportedMetadataLocales()...)
 
 var supportedMetadataLocaleByFold = func() map[string]string {
 	result := make(map[string]string, len(supportedMetadataLocales))
@@ -76,7 +35,7 @@ var supportedMetadataLocaleByFold = func() map[string]string {
 var metadataLocaleCandidatesByRoot = func() map[string][]string {
 	result := make(map[string][]string)
 	for _, locale := range supportedMetadataLocales {
-		root := metadataLocaleRoot(locale)
+		root := shared.LocaleRoot(locale)
 		result[root] = append(result[root], locale)
 	}
 	for root := range result {
@@ -486,7 +445,7 @@ func validateLocale(locale string) (string, error) {
 		return DefaultLocale, nil
 	}
 
-	normalizedCode := normalizeMetadataLocaleCode(resolved)
+	normalizedCode := shared.NormalizeLocaleCode(resolved)
 	if canonical, ok := supportedMetadataLocaleByFold[strings.ToLower(normalizedCode)]; ok {
 		return canonical, nil
 	}
@@ -503,7 +462,7 @@ func validateLocale(locale string) (string, error) {
 		return "", fmt.Errorf("ambiguous locale %q; use one of: %s", resolved, strings.Join(candidates, ", "))
 	}
 
-	root := metadataLocaleRoot(normalizedCode)
+	root := shared.LocaleRoot(normalizedCode)
 	if candidates, ok := metadataLocaleCandidatesByRoot[root]; ok && root != "" {
 		if strings.EqualFold(normalizedCode, root) {
 			if len(candidates) == 1 {
@@ -517,20 +476,16 @@ func validateLocale(locale string) (string, error) {
 	}
 
 	if len(normalizedCode) > 20 || !localePattern.MatchString(normalizedCode) {
-		if suggestions := metadataLocaleSuggestions(aliasKey); len(suggestions) > 0 {
+		if suggestions := shared.SuggestCanonicalLocaleCodes(aliasKey, supportedMetadataLocales, supportedMetadataLocaleByFold); len(suggestions) > 0 {
 			return "", fmt.Errorf("invalid locale %q; did you mean: %s", resolved, strings.Join(suggestions, ", "))
 		}
 		return "", fmt.Errorf("invalid locale %q", resolved)
 	}
 
-	if suggestions := metadataLocaleSuggestions(normalizedCode); len(suggestions) > 0 {
+	if suggestions := shared.SuggestCanonicalLocaleCodes(normalizedCode, supportedMetadataLocales, supportedMetadataLocaleByFold); len(suggestions) > 0 {
 		return "", fmt.Errorf("unsupported locale %q; did you mean: %s", resolved, strings.Join(suggestions, ", "))
 	}
 	return "", fmt.Errorf("unsupported locale %q", resolved)
-}
-
-func normalizeMetadataLocaleCode(value string) string {
-	return strings.ReplaceAll(strings.TrimSpace(value), "_", "-")
 }
 
 func normalizeMetadataLocaleAliasKey(value string) string {
@@ -550,36 +505,6 @@ func normalizeMetadataLocaleAliasKey(value string) string {
 		}
 	}
 	return strings.Trim(b.String(), "-")
-}
-
-func metadataLocaleRoot(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return ""
-	}
-	parts := strings.SplitN(strings.ToLower(trimmed), "-", 2)
-	return parts[0]
-}
-
-func metadataLocaleSuggestions(value string) []string {
-	suggestions := suggest.Commands(strings.ToLower(strings.TrimSpace(value)), supportedMetadataLocales)
-	if len(suggestions) == 0 {
-		return nil
-	}
-	result := make([]string, 0, len(suggestions))
-	seen := make(map[string]struct{}, len(suggestions))
-	for _, item := range suggestions {
-		canonical, ok := supportedMetadataLocaleByFold[strings.ToLower(item)]
-		if !ok {
-			continue
-		}
-		if _, exists := seen[canonical]; exists {
-			continue
-		}
-		seen[canonical] = struct{}{}
-		result = append(result, canonical)
-	}
-	return result
 }
 
 func validatePathSegment(label, value string) (string, error) {

@@ -33,6 +33,9 @@ func TestLocalizationsCommandConstructors(t *testing.T) {
 	if got := LocalizationsCreateCommand(); got == nil {
 		t.Fatal("expected create command")
 	}
+	if got := LocalizationsSupportedLocalesCommand(); got == nil {
+		t.Fatal("expected supported locales command")
+	}
 }
 
 func TestLocalizationsCreateCommand_MissingFlags(t *testing.T) {
@@ -71,6 +74,17 @@ func TestLocalizationsCreateCommand_InvalidLocale(t *testing.T) {
 		t.Fatal("expected invalid locale error, got nil")
 	}
 	if !errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp, got %v", err)
+	}
+}
+
+func TestLocalizationsSupportedLocalesCommand_MissingVersion(t *testing.T) {
+	cmd := LocalizationsSupportedLocalesCommand()
+	if err := cmd.FlagSet.Parse(nil); err != nil {
+		t.Fatalf("failed to parse flags: %v", err)
+	}
+
+	if err := cmd.Exec(context.Background(), []string{}); !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp, got %v", err)
 	}
 }

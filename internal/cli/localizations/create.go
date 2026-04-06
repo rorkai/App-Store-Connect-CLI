@@ -55,9 +55,11 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --locale is required")
 				return flag.ErrHelp
 			}
-			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
+			normalizedLocale, err := shared.CanonicalizeAppStoreLocalizationLocale(localeValue)
+			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+			localeValue = normalizedLocale
 
 			client, err := shared.GetASCClient()
 			if err != nil {

@@ -67,6 +67,10 @@ At least one field flag must be provided.`,
 				fmt.Fprintln(os.Stderr, "Error: --locale is required")
 				return flag.ErrHelp
 			}
+			localeValue, err = shared.CanonicalizeAppStoreLocalizationLocale(localeValue)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 
 			switch normalizedType {
 			case shared.LocalizationTypeAppInfo:
