@@ -33,11 +33,18 @@ type reviewSubmissionContext struct {
 	SubmittedDate string `json:"submittedDate,omitempty"`
 }
 
+type reviewSubmissionItemsContext struct {
+	TotalCount   int
+	RemovedCount int
+	ActiveCount  int
+}
+
 type reviewSnapshot struct {
 	AppID            string
 	Version          *reviewVersionContext
 	ReviewDetailID   string
 	LatestSubmission *reviewSubmissionContext
+	SubmissionItems  *reviewSubmissionItemsContext
 }
 
 type reviewStatusResult struct {
@@ -263,6 +270,13 @@ func buildReviewSnapshot(ctx context.Context, client *asc.Client, appID, version
 		selectedVersionID = strings.TrimSpace(versionContext.ID)
 	}
 	snapshot.LatestSubmission = selectRelevantReviewSubmission(reviewSubmissions, selectedVersionID)
+	if selectedVersionID != "" && shouldInspectReviewSubmissionItems(snapshot.LatestSubmission) {
+		submissionItems, err := summarizeReviewSubmissionItems(ctx, client, snapshot.LatestSubmission.ID, selectedVersionID)
+		if err != nil {
+			return snapshot, fmt.Errorf("fetch review submission items for %q: %w", snapshot.LatestSubmission.ID, err)
+		}
+		snapshot.SubmissionItems = &submissionItems
+	}
 
 	return snapshot, nil
 }
@@ -361,6 +375,92 @@ func reviewSubmissionVersionID(submission asc.ReviewSubmissionResource) string {
 	return strings.TrimSpace(submission.Relationships.AppStoreVersionForReview.Data.ID)
 }
 
+func shouldInspectReviewSubmissionItems(submission *reviewSubmissionContext) bool {
+	if submission == nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(submission.State), string(asc.ReviewSubmissionStateComplete))
+}
+
+func summarizeReviewSubmissionItems(ctx context.Context, client *asc.Client, submissionID, versionID string) (reviewSubmissionItemsContext, error) {
+	var summary reviewSubmissionItemsContext
+
+	submissionID = strings.TrimSpace(submissionID)
+	versionID = strings.TrimSpace(versionID)
+	if submissionID == "" || client == nil {
+		return summary, nil
+	}
+
+	resp, err := client.GetReviewSubmissionItems(
+		ctx,
+		submissionID,
+		asc.WithReviewSubmissionItemsLimit(200),
+		asc.WithReviewSubmissionItemsFields([]string{"state", "appStoreVersion"}),
+	)
+	if err != nil {
+		return summary, err
+	}
+
+	for {
+		accumulateReviewSubmissionItems(&summary, resp.Data, versionID)
+
+		nextURL := strings.TrimSpace(resp.Links.Next)
+		if nextURL == "" {
+			return summary, nil
+		}
+
+		resp, err = client.GetReviewSubmissionItems(ctx, submissionID, asc.WithReviewSubmissionItemsNextURL(nextURL))
+		if err != nil {
+			return summary, err
+		}
+	}
+}
+
+func accumulateReviewSubmissionItems(summary *reviewSubmissionItemsContext, items []asc.ReviewSubmissionItemResource, versionID string) {
+	if summary == nil {
+		return
+	}
+
+	for _, item := range items {
+		if !reviewSubmissionItemTargetsVersion(item, versionID) {
+			continue
+		}
+		summary.TotalCount++
+		if strings.EqualFold(strings.TrimSpace(item.Attributes.State), "REMOVED") {
+			summary.RemovedCount++
+			continue
+		}
+		summary.ActiveCount++
+	}
+}
+
+func reviewSubmissionItemTargetsVersion(item asc.ReviewSubmissionItemResource, versionID string) bool {
+	if strings.TrimSpace(versionID) == "" {
+		return true
+	}
+	if item.Relationships == nil || item.Relationships.AppStoreVersion == nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(item.Relationships.AppStoreVersion.Data.ID), strings.TrimSpace(versionID))
+}
+
+func reviewSnapshotHasOnlyRemovedItems(snapshot reviewSnapshot) bool {
+	if snapshot.LatestSubmission == nil || snapshot.SubmissionItems == nil {
+		return false
+	}
+	return snapshot.SubmissionItems.TotalCount > 0 &&
+		snapshot.SubmissionItems.RemovedCount == snapshot.SubmissionItems.TotalCount &&
+		snapshot.SubmissionItems.ActiveCount == 0
+}
+
+func staleReviewSubmissionBlocker() string {
+	return "Latest completed review submission no longer contains active review items because all items were removed."
+}
+
+func staleReviewSubmissionNextAction() string {
+	return "Create a fresh review submission for the current version."
+}
+
 func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {
 	result := reviewStatusResult{
 		AppID:            snapshot.AppID,
@@ -386,6 +486,10 @@ func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {
 	if strings.TrimSpace(snapshot.ReviewDetailID) == "" {
 		result.Blockers = append(result.Blockers, "No App Store review detail is configured for the current version")
 	}
+	hasOnlyRemovedItems := reviewSnapshotHasOnlyRemovedItems(snapshot)
+	if hasOnlyRemovedItems {
+		result.Blockers = append(result.Blockers, staleReviewSubmissionBlocker())
+	}
 
 	versionState := strings.ToUpper(strings.TrimSpace(snapshot.Version.State))
 	switch versionState {
@@ -410,6 +514,8 @@ func buildReviewStatusResult(snapshot reviewSnapshot) reviewStatusResult {
 
 	if len(result.Blockers) > 0 {
 		switch {
+		case hasOnlyRemovedItems:
+			result.NextAction = staleReviewSubmissionNextAction()
 		case strings.Contains(result.Blockers[0], "review detail"):
 			result.NextAction = "Create or update the App Store review detail for the current version."
 		case strings.Contains(strings.ToLower(result.Blockers[0]), "unresolved issues"):
@@ -485,6 +591,17 @@ func buildReviewDoctorResult(snapshot reviewSnapshot, report validation.Report) 
 		result.Summary.Errors++
 		result.Summary.Blocking++
 	}
+	if reviewSnapshotHasOnlyRemovedItems(snapshot) {
+		synthetic := validation.CheckResult{
+			ID:          "review.submission.removed_items_only",
+			Severity:    validation.SeverityError,
+			Message:     staleReviewSubmissionBlocker(),
+			Remediation: staleReviewSubmissionNextAction(),
+		}
+		result.BlockingChecks = append(result.BlockingChecks, synthetic)
+		result.Summary.Errors++
+		result.Summary.Blocking++
+	}
 
 	slices.SortFunc(result.BlockingChecks, func(a, b validation.CheckResult) int {
 		return strings.Compare(a.ID, b.ID)
@@ -494,6 +611,8 @@ func buildReviewDoctorResult(snapshot reviewSnapshot, report validation.Report) 
 	})
 
 	switch {
+	case reviewSnapshotHasOnlyRemovedItems(snapshot):
+		result.NextAction = staleReviewSubmissionNextAction()
 	case len(result.BlockingChecks) > 0 && strings.TrimSpace(result.BlockingChecks[0].Remediation) != "":
 		result.NextAction = result.BlockingChecks[0].Remediation
 	case len(result.BlockingChecks) > 0:

@@ -273,6 +273,286 @@ func TestReviewStatusUsesGenericNextActionForUnhandledSubmissionState(t *testing
 	}
 }
 
+func TestReviewStatusExplainsCompleteSubmissionWithOnlyRemovedItems(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	itemRequests := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/123456789/appStoreVersions":
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"appStoreVersions",
+						"id":"ver-1",
+						"attributes":{
+							"platform":"IOS",
+							"versionString":"1.2.3",
+							"appVersionState":"DEVELOPER_REJECTED",
+							"createdDate":"2026-03-15T00:00:00Z"
+						}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
+		case "/v1/appStoreVersions/ver-1/appStoreReviewDetail":
+			return statusJSONResponse(`{
+				"data":{
+					"type":"appStoreReviewDetails",
+					"id":"detail-1",
+					"attributes":{"contactEmail":"dev@example.com"}
+				}
+			}`), nil
+		case "/v1/apps/123456789/reviewSubmissions":
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"reviewSubmissions",
+						"id":"review-sub-1",
+						"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+						"relationships":{
+							"appStoreVersionForReview":{
+								"data":{"type":"appStoreVersions","id":"ver-1"}
+							}
+						}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
+		case "/v1/reviewSubmissions/review-sub-1/items":
+			itemRequests++
+			if req.URL.Query().Get("limit") != "200" {
+				t.Fatalf("expected items limit 200, got %q", req.URL.Query().Get("limit"))
+			}
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"reviewSubmissionItems",
+						"id":"item-1",
+						"attributes":{"state":"REMOVED"},
+						"relationships":{
+							"appStoreVersion":{
+								"data":{"type":"appStoreVersions","id":"ver-1"}
+							},
+							"reviewSubmission":{
+								"data":{"type":"reviewSubmissions","id":"review-sub-1"}
+							}
+						}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"review", "status", "--app", "123456789"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if itemRequests != 1 {
+		t.Fatalf("expected 1 review submission item request, got %d", itemRequests)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+	if payload["reviewState"] != "COMPLETE" {
+		t.Fatalf("expected reviewState COMPLETE, got %v", payload["reviewState"])
+	}
+	if payload["nextAction"] != "Create a fresh review submission for the current version." {
+		t.Fatalf("expected stale submission next action, got %v", payload["nextAction"])
+	}
+
+	blockers, ok := payload["blockers"].([]any)
+	if !ok {
+		t.Fatalf("expected blockers array, got %T", payload["blockers"])
+	}
+	if len(blockers) == 0 {
+		t.Fatal("expected stale submission blocker")
+	}
+
+	found := false
+	for _, blocker := range blockers {
+		if strings.Contains(blocker.(string), "no longer contains active review items") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected stale submission blocker in %v", blockers)
+	}
+}
+
+func TestReviewStatusIgnoresUnrelatedActiveSubmissionItems(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	itemRequests := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/apps/123456789/appStoreVersions":
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"appStoreVersions",
+						"id":"ver-1",
+						"attributes":{
+							"platform":"IOS",
+							"versionString":"1.2.3",
+							"appVersionState":"DEVELOPER_REJECTED",
+							"createdDate":"2026-03-15T00:00:00Z"
+						}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
+		case "/v1/appStoreVersions/ver-1/appStoreReviewDetail":
+			return statusJSONResponse(`{
+				"data":{
+					"type":"appStoreReviewDetails",
+					"id":"detail-1",
+					"attributes":{"contactEmail":"dev@example.com"}
+				}
+			}`), nil
+		case "/v1/apps/123456789/reviewSubmissions":
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"reviewSubmissions",
+						"id":"review-sub-1",
+						"attributes":{"state":"COMPLETE","platform":"IOS","submittedDate":"2026-03-15T01:00:00Z"},
+						"relationships":{
+							"appStoreVersionForReview":{
+								"data":{"type":"appStoreVersions","id":"ver-1"}
+							}
+						}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
+		case "/v1/reviewSubmissions/review-sub-1/items":
+			itemRequests++
+			if req.URL.Query().Get("limit") != "200" {
+				t.Fatalf("expected items limit 200, got %q", req.URL.Query().Get("limit"))
+			}
+			if req.URL.Query().Get("fields[reviewSubmissionItems]") != "state,appStoreVersion" {
+				t.Fatalf("expected item fields state,appStoreVersion, got %q", req.URL.Query().Get("fields[reviewSubmissionItems]"))
+			}
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"reviewSubmissionItems",
+						"id":"item-version-removed",
+						"attributes":{"state":"REMOVED"},
+						"relationships":{
+							"appStoreVersion":{
+								"data":{"type":"appStoreVersions","id":"ver-1"}
+							},
+							"reviewSubmission":{
+								"data":{"type":"reviewSubmissions","id":"review-sub-1"}
+							}
+						}
+					},
+					{
+						"type":"reviewSubmissionItems",
+						"id":"item-background-active",
+						"attributes":{"state":"APPROVED"},
+						"relationships":{
+							"backgroundAssetVersion":{
+								"data":{"type":"backgroundAssetVersions","id":"bg-1"}
+							},
+							"reviewSubmission":{
+								"data":{"type":"reviewSubmissions","id":"review-sub-1"}
+							}
+						}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"review", "status", "--app", "123456789"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if itemRequests != 1 {
+		t.Fatalf("expected 1 review submission item request, got %d", itemRequests)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+	if payload["reviewState"] != "COMPLETE" {
+		t.Fatalf("expected reviewState COMPLETE, got %v", payload["reviewState"])
+	}
+	if payload["nextAction"] != "Create a fresh review submission for the current version." {
+		t.Fatalf("expected stale submission next action, got %v", payload["nextAction"])
+	}
+
+	blockers, ok := payload["blockers"].([]any)
+	if !ok {
+		t.Fatalf("expected blockers array, got %T", payload["blockers"])
+	}
+	if len(blockers) == 0 {
+		t.Fatal("expected stale submission blocker")
+	}
+
+	found := false
+	for _, blocker := range blockers {
+		if strings.Contains(blocker.(string), "no longer contains active review items") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected stale submission blocker in %v", blockers)
+	}
+}
+
 func TestReviewStatusFiltersSubmissionsToSelectedVersion(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -336,6 +616,25 @@ func TestReviewStatusFiltersSubmissionsToSelectedVersion(t *testing.T) {
 						"relationships":{
 							"appStoreVersionForReview":{
 								"data":{"type":"appStoreVersions","id":"ver-2"}
+							}
+						}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
+		case "/v1/reviewSubmissions/review-sub-target/items":
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"reviewSubmissionItems",
+						"id":"item-1",
+						"attributes":{"state":"APPROVED"},
+						"relationships":{
+							"appStoreVersion":{
+								"data":{"type":"appStoreVersions","id":"ver-2"}
+							},
+							"reviewSubmission":{
+								"data":{"type":"reviewSubmissions","id":"review-sub-target"}
 							}
 						}
 					}
@@ -467,6 +766,25 @@ func TestReviewStatusPaginatesSubmissionsToSelectedVersion(t *testing.T) {
 				t.Fatalf("unexpected cursor %q", req.URL.Query().Get("cursor"))
 				return nil, nil
 			}
+		case "/v1/reviewSubmissions/review-sub-target/items":
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"reviewSubmissionItems",
+						"id":"item-1",
+						"attributes":{"state":"APPROVED"},
+						"relationships":{
+							"appStoreVersion":{
+								"data":{"type":"appStoreVersions","id":"ver-2"}
+							},
+							"reviewSubmission":{
+								"data":{"type":"reviewSubmissions","id":"review-sub-target"}
+							}
+						}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
@@ -685,6 +1003,25 @@ func TestReviewStatusPrefersNewestSubmissionForSelectedVersion(t *testing.T) {
 						"relationships":{
 							"appStoreVersionForReview":{
 								"data":{"type":"appStoreVersions","id":"ver-2"}
+							}
+						}
+					}
+				],
+				"links":{"next":""}
+			}`), nil
+		case "/v1/reviewSubmissions/review-sub-newer/items":
+			return statusJSONResponse(`{
+				"data":[
+					{
+						"type":"reviewSubmissionItems",
+						"id":"item-1",
+						"attributes":{"state":"APPROVED"},
+						"relationships":{
+							"appStoreVersion":{
+								"data":{"type":"appStoreVersions","id":"ver-2"}
+							},
+							"reviewSubmission":{
+								"data":{"type":"reviewSubmissions","id":"review-sub-newer"}
 							}
 						}
 					}
