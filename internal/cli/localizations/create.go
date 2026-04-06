@@ -36,6 +36,9 @@ func LocalizationsCreateCommand() *ffcli.Command {
 Use canonical App Store Connect locale identifiers when possible. Common accepted
 forms include en-US, es-MX, de-DE, ja, ar-SA, zh-Hans, and zh-Hant.
 
+To inspect the shared CLI locale catalog for a version, run:
+  asc localizations supported-locales --version "VERSION_ID"
+
 Common failures:
   "ar" is usually rejected; use "ar-SA"
   "de" should usually be "de-DE"

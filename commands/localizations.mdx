@@ -198,13 +198,45 @@ asc localizations upload --version "VERSION_ID" --path "./localizations" --dry-r
 
 ***
 
+### `asc localizations supported-locales`
+
+List the shared App Store localization catalog for a version and show which
+locales are already configured.
+
+<ParamField path="--version" type="string" required>
+  App Store version ID to inspect against the shared CLI locale catalog
+</ParamField>
+
+Use this command when you need the canonical locale codes accepted by ASC for a
+version workflow, such as `ar-SA`, `de-DE`, `zh-Hans`, and `zh-Hant`.
+
+**Examples:**
+
+```bash  theme={null}
+asc localizations supported-locales --version "VERSION_ID"
+asc localizations supported-locales --version "VERSION_ID" --output json --pretty
+```
+
+***
+
 ### `asc localizations create`
 
 Create a new version localization.
 
+<ParamField path="--version" type="string" required>
+  App Store version ID to create the localization under
+</ParamField>
+
+<ParamField path="--locale" type="string" required>
+  Canonical App Store Connect locale code to create
+</ParamField>
+
 Use canonical App Store Connect locale identifiers for `--locale`. Common
 accepted forms include `en-US`, `es-MX`, `de-DE`, `ja`, `ar-SA`, `zh-Hans`, and
 `zh-Hant`.
+
+Run `asc localizations supported-locales --version "VERSION_ID"` to inspect the
+shared CLI locale catalog for that version before creating a new locale.
 
 Common failures:
 
@@ -226,9 +258,36 @@ asc localizations create --version "VERSION_ID" --locale "zh-Hans" --description
 
 Update localization metadata.
 
+<ParamField path="--version" type="string">
+  App Store version ID for version localizations
+</ParamField>
+
+<ParamField path="--app" type="string">
+  App Store Connect app ID (or `ASC_APP_ID`) for app-info localizations
+</ParamField>
+
+<ParamField path="--app-info" type="string">
+  App Info ID (optional override for app-info localizations)
+</ParamField>
+
+<ParamField path="--type" type="string" default="version">
+  Localization type: `version` (default) or `app-info`
+</ParamField>
+
+<ParamField path="--locale" type="string" required>
+  Exact App Store Connect locale value to update
+</ParamField>
+
 Use the exact App Store Connect locale already present on the app or version
 when you pass `--locale`. If update fails with a locale mismatch, run
 `asc localizations list` and reuse the `locale` value returned by ASC.
+
+For version workflows, run `asc localizations supported-locales --version
+"VERSION_ID"` to inspect the shared CLI catalog, and `asc localizations list
+--version "VERSION_ID"` to see locales already configured on the version.
+
+For app-info workflows, use `asc localizations list --app "APP_ID" --type
+app-info` to inspect the configured locale values before updating.
 
 Common accepted forms include `en-US`, `de-DE`, `ja`, `ar-SA`, `zh-Hans`, and
 `zh-Hant`.
@@ -289,6 +348,9 @@ The .strings file format is a simple key-value format:
 ```
 
 ## Supported Locales
+
+For the authoritative CLI catalog on a specific version, run
+`asc localizations supported-locales --version "VERSION_ID"`.
 
 Use canonical App Store Connect locale identifiers when possible. For example,
 prefer `ar-SA` over `ar`, and `zh-Hans` / `zh-Hant` over regional variants like

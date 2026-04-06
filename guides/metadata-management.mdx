@@ -337,13 +337,16 @@ asc localizations list --version "$VERSION_ID" --output table
 
 Common App Store locales:
 
+Use `asc localizations supported-locales --version "VERSION_ID"` to inspect the
+shared CLI locale catalog and see which version locales are already configured.
+
 * `en-US` - English (US)
 * `en-GB` - English (UK)
 * `es-ES` - Spanish (Spain)
 * `es-MX` - Spanish (Mexico)
 * `fr-FR` - French
 * `de-DE` - German
-* `it-IT` - Italian
+* `it` - Italian
 * `ja` - Japanese
 * `ko` - Korean
 * `pt-BR` - Portuguese (Brazil)
@@ -371,7 +374,7 @@ Common App Store locales:
 
   <Step title="Create version localization">
     ```bash  theme={null}
-    asc localizations update \
+    asc localizations create \
       --version "VERSION_ID" \
       --locale "ja" \
       --description "日本語の説明" \
@@ -419,7 +422,7 @@ echo "All locales created. Update translations in App Store Connect or via CLI."
 
 2. **Use dry-run**: Test uploads with `--dry-run` to catch errors before applying changes
 
-3. **Separate app info from version metadata**: Update persistent metadata (name, subtitle) via `app-setup info set`, version-specific content via `localizations update`
+3. **Separate app info from version metadata**: Update persistent metadata (name, subtitle) via `app-setup info set`; create new version locales with `localizations create`, then edit existing version metadata with `localizations update`
 
 4. **Optimize keywords**: Research popular search terms and use all 100 characters effectively
 
@@ -440,7 +443,7 @@ echo "All locales created. Update translations in App Store Connect or via CLI."
 **Solution**: Create the localization first:
 
 ```bash  theme={null}
-asc localizations update \
+asc localizations create \
   --version "VERSION_ID" \
   --locale "ja" \
   --description "Initial description"

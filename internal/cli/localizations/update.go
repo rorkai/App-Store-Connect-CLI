@@ -55,8 +55,12 @@ Common failures:
   "de" is usually stored as "de-DE"
   "zh-Hans-CN" and "zh-Hant-TW" are usually stored as "zh-Hans" and "zh-Hant"
 
-If a locale is rejected or not found, run asc localizations list and reuse the
-exact locale value from the response.
+If a version locale is rejected or not found, run:
+  asc localizations supported-locales --version "VERSION_ID"
+  asc localizations list --version "VERSION_ID"
+
+For app-info localizations, inspect configured locales with:
+  asc localizations list --app "APP_ID" --type app-info
 
 For app-info localizations (name, subtitle, privacy URLs):
   asc localizations update --app "APP_ID" --type app-info --locale "ar-SA" --subtitle "Arabic subtitle"

@@ -92,6 +92,7 @@ func TestLocalizationsCreateCommand_HelpMentionsCanonicalLocaleForms(t *testing.
 		}
 	}
 	for _, want := range []string{
+		`asc localizations supported-locales --version "VERSION_ID"`,
 		`"ar" is usually rejected; use "ar-SA"`,
 		`"de" should usually be "de-DE"`,
 		`"zh-Hans-CN"`,
@@ -116,10 +117,12 @@ func TestLocalizationsUpdateCommand_HelpMentionsCanonicalLocaleForms(t *testing.
 		}
 	}
 	for _, want := range []string{
+		`asc localizations supported-locales --version "VERSION_ID"`,
+		`asc localizations list --version "VERSION_ID"`,
+		`asc localizations list --app "APP_ID" --type app-info`,
 		`"ar" is usually stored as "ar-SA"`,
 		`"de" is usually stored as "de-DE"`,
 		`"zh-Hans-CN" and "zh-Hant-TW"`,
-		`run asc localizations list and reuse the`,
 	} {
 		if !strings.Contains(cmd.LongHelp, want) {
 			t.Fatalf("expected long help to contain %q, got %q", want, cmd.LongHelp)
