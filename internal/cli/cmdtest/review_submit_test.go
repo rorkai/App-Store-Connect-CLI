@@ -104,6 +104,8 @@ func TestReviewSubmitLocalizationPreflightUsesReviewSubmitGuidance(t *testing.T)
 				t.Fatalf("expected appStoreState filter, got %q", req.URL.RawQuery)
 			}
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
+			return jsonResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
 		default:
 			t.Fatalf("unexpected request during localization preflight: %s %s?%s", req.Method, req.URL.Path, req.URL.RawQuery)
 			return nil, nil
@@ -454,7 +456,7 @@ func TestReviewSubmitUsesModernReviewSubmissionFlow(t *testing.T) {
 	}
 }
 
-func TestReviewSubmitAlreadySubmittedSkipsBuildAttachment(t *testing.T) {
+func TestReviewSubmitAlreadySubmittedSkipsPreflightAndBuildAttachment(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -477,17 +479,17 @@ func TestReviewSubmitAlreadySubmittedSkipsBuildAttachment(t *testing.T) {
 				},
 				"included":[{"type":"apps","id":"app-1","attributes":{"bundleId":"app-1","name":"App One"}}]
 			}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":"Description","keywords":"keyword","supportUrl":"https://example.com/support"}}]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
-			if !strings.Contains(req.URL.RawQuery, "filter%5BappStoreState%5D=") {
-				t.Fatalf("expected appStoreState filter, got %q", req.URL.RawQuery)
-			}
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
-		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
-			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
 			return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":"legacy-sub-1"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			t.Fatalf("did not expect localization preflight when version is already submitted")
+			return nil, nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions":
+			t.Fatalf("did not expect publish-state preflight when version is already submitted")
+			return nil, nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/subscriptionGroups":
+			t.Fatalf("did not expect subscription preflight when version is already submitted")
+			return nil, nil
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/build":
 			t.Fatalf("did not expect build lookup when version is already submitted")
 			return nil, nil

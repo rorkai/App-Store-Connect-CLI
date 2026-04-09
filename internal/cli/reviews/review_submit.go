@@ -125,6 +125,24 @@ Examples:
 				}
 			}
 
+			existingSubmissionID, err := submitcli.LookupExistingSubmissionForVersion(requestCtx, client, resolvedVersionID, 0)
+			if err != nil {
+				return fmt.Errorf("review submit: failed to lookup existing submission: %w", err)
+			}
+			if existingSubmissionID != "" {
+				result := reviewSubmitResult{
+					AppID:            resolvedAppID,
+					Version:          versionString,
+					VersionID:        resolvedVersionID,
+					BuildID:          strings.TrimSpace(*buildID),
+					Platform:         effectivePlatform,
+					DryRun:           *dryRun,
+					SubmissionID:     existingSubmissionID,
+					AlreadySubmitted: true,
+				}
+				return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			}
+
 			if err := submitcli.SubmissionLocalizationPreflight(requestCtx, client, resolvedAppID, resolvedVersionID, effectivePlatform, "asc review submit"); err != nil {
 				return fmt.Errorf("review submit: %w", err)
 			}

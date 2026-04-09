@@ -82,6 +82,27 @@ func SubmissionSubscriptionPreflightWithTimeout(
 	runSubmissionSubscriptionPreflight(ctx, client, appID, requestTimeout, retryCommand)
 }
 
+// LookupExistingSubmissionForVersion returns the existing legacy submission ID
+// for an App Store version, if one already exists.
+func LookupExistingSubmissionForVersion(ctx context.Context, client *asc.Client, versionID string, requestTimeout time.Duration) (string, error) {
+	resolvedVersionID := strings.TrimSpace(versionID)
+	if resolvedVersionID == "" {
+		return "", fmt.Errorf("resolved version ID is empty")
+	}
+
+	lookupCtx, lookupCancel := submitResolvedVersionPhaseContext(ctx, requestTimeout)
+	legacySubmission, err := client.GetAppStoreVersionSubmissionForVersion(lookupCtx, resolvedVersionID)
+	lookupCancel()
+	if err != nil {
+		if asc.IsNotFound(err) {
+			return "", nil
+		}
+		return "", err
+	}
+
+	return strings.TrimSpace(legacySubmission.Data.ID), nil
+}
+
 // EnsureBuildAttached ensures the target build is attached to the resolved App
 // Store version. In dry-run mode it reports the planned change without mutating.
 func EnsureBuildAttached(ctx context.Context, client *asc.Client, versionID, buildID string, dryRun bool) (BuildAttachmentResult, error) {
@@ -154,15 +175,13 @@ func SubmitResolvedVersion(ctx context.Context, client *asc.Client, opts SubmitR
 	}
 
 	if opts.LookupExistingSubmission {
-		lookupCtx, lookupCancel := submitResolvedVersionPhaseContext(ctx, opts.RequestTimeout)
-		legacySubmission, err := client.GetAppStoreVersionSubmissionForVersion(lookupCtx, versionID)
-		lookupCancel()
-		if err != nil && !asc.IsNotFound(err) {
+		existingSubmissionID, err := LookupExistingSubmissionForVersion(ctx, client, versionID, opts.RequestTimeout)
+		if err != nil {
 			return result, fmt.Errorf("submit review: failed to lookup existing submission: %w", err)
 		}
-		if err == nil && strings.TrimSpace(legacySubmission.Data.ID) != "" {
+		if existingSubmissionID != "" {
 			result.AlreadySubmitted = true
-			result.SubmissionID = strings.TrimSpace(legacySubmission.Data.ID)
+			result.SubmissionID = existingSubmissionID
 			return result, nil
 		}
 	}
