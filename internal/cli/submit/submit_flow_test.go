@@ -180,3 +180,137 @@ func TestSubmitResolvedVersionResultJSONOmitsBuildAttachmentWhenUnused(t *testin
 		t.Fatalf("expected buildAttachment to be omitted when unset, got %s", data)
 	}
 }
+
+func TestEnsureBuildAttachedAlreadyAttached(t *testing.T) {
+	var buildAttach bool
+
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/build":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1"}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			buildAttach = true
+			return submitJSONResponse(http.StatusNoContent, "")
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	got, err := EnsureBuildAttached(context.Background(), client, " version-1 ", " build-1 ", false)
+	if err != nil {
+		t.Fatalf("EnsureBuildAttached() error: %v", err)
+	}
+	if got.VersionID != "version-1" || got.BuildID != "build-1" {
+		t.Fatalf("expected trimmed IDs in result, got %#v", got)
+	}
+	if !got.AlreadyAttached {
+		t.Fatalf("expected already attached result, got %#v", got)
+	}
+	if got.CurrentBuildID != "build-1" {
+		t.Fatalf("expected current build ID build-1, got %#v", got)
+	}
+	if got.Attached || got.WouldAttach {
+		t.Fatalf("did not expect attach or dry-run flags, got %#v", got)
+	}
+	if buildAttach {
+		t.Fatal("did not expect attach request when build is already attached")
+	}
+}
+
+func TestEnsureBuildAttachedDryRunSkipsMutation(t *testing.T) {
+	var buildAttach bool
+
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/build":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-old"}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			buildAttach = true
+			return submitJSONResponse(http.StatusNoContent, "")
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	got, err := EnsureBuildAttached(context.Background(), client, "version-1", "build-new", true)
+	if err != nil {
+		t.Fatalf("EnsureBuildAttached() error: %v", err)
+	}
+	if !got.WouldAttach {
+		t.Fatalf("expected dry-run would-attach result, got %#v", got)
+	}
+	if got.CurrentBuildID != "build-old" {
+		t.Fatalf("expected current build ID build-old, got %#v", got)
+	}
+	if got.Attached || got.AlreadyAttached {
+		t.Fatalf("did not expect attached/already-attached flags, got %#v", got)
+	}
+	if buildAttach {
+		t.Fatal("did not expect attach request during dry run")
+	}
+}
+
+func TestEnsureBuildAttachedAttachesWhenNoCurrentBuild(t *testing.T) {
+	var buildAttach bool
+
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/build":
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appStoreVersions/version-1/relationships/build":
+			buildAttach = true
+			return submitJSONResponse(http.StatusNoContent, "")
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	got, err := EnsureBuildAttached(context.Background(), client, "version-1", "build-new", false)
+	if err != nil {
+		t.Fatalf("EnsureBuildAttached() error: %v", err)
+	}
+	if !got.Attached {
+		t.Fatalf("expected attached result, got %#v", got)
+	}
+	if got.CurrentBuildID != "" {
+		t.Fatalf("expected empty current build ID when none exists, got %#v", got)
+	}
+	if !buildAttach {
+		t.Fatal("expected attach request when no current build exists")
+	}
+}
+
+func TestLookupExistingSubmissionForVersionReturnsTrimmedID(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
+			return submitJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersionSubmissions","id":" legacy-submission-1 "}}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	got, err := LookupExistingSubmissionForVersion(context.Background(), client, " version-1 ", 0)
+	if err != nil {
+		t.Fatalf("LookupExistingSubmissionForVersion() error: %v", err)
+	}
+	if got != "legacy-submission-1" {
+		t.Fatalf("expected trimmed submission ID, got %q", got)
+	}
+}
+
+func TestLookupExistingSubmissionForVersionServerError(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
+			return submitJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_SERVER_ERROR","title":"Internal Error"}]}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	_, err := LookupExistingSubmissionForVersion(context.Background(), client, "version-1", 0)
+	if err == nil {
+		t.Fatal("expected lookup error for server failure")
+	}
+}
