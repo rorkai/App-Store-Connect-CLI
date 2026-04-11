@@ -314,3 +314,36 @@ func TestLookupExistingSubmissionForVersionServerError(t *testing.T) {
 		t.Fatal("expected lookup error for server failure")
 	}
 }
+
+func TestLookupExistingSubmissionForVersionNotFoundReturnsEmptyID(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
+			return submitJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+		}
+	}))
+
+	got, err := LookupExistingSubmissionForVersion(context.Background(), client, "version-1", 0)
+	if err != nil {
+		t.Fatalf("LookupExistingSubmissionForVersion() error: %v", err)
+	}
+	if got != "" {
+		t.Fatalf("expected empty submission ID when lookup returns 404, got %q", got)
+	}
+}
+
+func TestLookupExistingSubmissionForVersionRejectsEmptyVersionID(t *testing.T) {
+	client := newSubmitTestClient(t, submitRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+	}))
+
+	_, err := LookupExistingSubmissionForVersion(context.Background(), client, " \t ", 0)
+	if err == nil {
+		t.Fatal("expected validation error for empty version ID")
+	}
+	if !strings.Contains(err.Error(), "resolved version ID is empty") {
+		t.Fatalf("expected empty version ID validation error, got %v", err)
+	}
+}
