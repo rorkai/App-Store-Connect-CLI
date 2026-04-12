@@ -166,3 +166,32 @@ func TestResolveImportInputs_AllowsMissingFastlaneScreenshotsWhenSkipped(t *test
 		t.Fatalf("expected screenshots dir %q, got %q", filepath.Join(fastlaneDir, "screenshots"), inputs.ScreenshotsDir)
 	}
 }
+
+func TestResolveImportInputs_AllowsMissingFastlaneScreenshotsWhenDeliverfileSkips(t *testing.T) {
+	root := t.TempDir()
+	fastlaneDir := filepath.Join(root, "fastlane")
+	if err := os.MkdirAll(filepath.Join(fastlaneDir, "metadata"), 0o755); err != nil {
+		t.Fatalf("mkdir metadata: %v", err)
+	}
+	deliverfile := filepath.Join(fastlaneDir, "Deliverfile")
+	if err := os.WriteFile(deliverfile, []byte("skip_screenshots true\n"), 0o644); err != nil {
+		t.Fatalf("write deliverfile: %v", err)
+	}
+
+	inputs, skipped, err := resolveImportInputs(importInputOptions{
+		WorkDir:     root,
+		FastlaneDir: fastlaneDir,
+	})
+	if err != nil {
+		t.Fatalf("resolveImportInputs() error: %v", err)
+	}
+	if len(skipped) != 0 {
+		t.Fatalf("expected no skipped entries during path resolution, got %+v", skipped)
+	}
+	if !inputs.DeliverfileConfig.SkipScreenshots {
+		t.Fatalf("expected deliverfile skip_screenshots to be true, got %+v", inputs.DeliverfileConfig)
+	}
+	if inputs.ScreenshotsDir != filepath.Join(fastlaneDir, "screenshots") {
+		t.Fatalf("expected screenshots dir %q, got %q", filepath.Join(fastlaneDir, "screenshots"), inputs.ScreenshotsDir)
+	}
+}
