@@ -767,6 +767,99 @@ func TestMigrateImportDryRunDeliverfileSkipScreenshotsAllowsMissingFastlaneScree
 	}
 }
 
+func TestMigrateImportDryRunDeliverfileSkipMetadataSkipsMetadataRead(t *testing.T) {
+	root := t.TempDir()
+	metadataDir := filepath.Join(root, "metadata", "en-US")
+	if err := os.MkdirAll(metadataDir, 0o755); err != nil {
+		t.Fatalf("mkdir metadata: %v", err)
+	}
+	writeFile(t, filepath.Join(metadataDir, "description.txt"), "English description")
+	writeFile(t, filepath.Join(metadataDir, "name.txt"), "App Name")
+
+	reviewDir := filepath.Join(root, "metadata", "review_information")
+	if err := os.MkdirAll(reviewDir, 0o755); err != nil {
+		t.Fatalf("mkdir review_information: %v", err)
+	}
+	writeFile(t, filepath.Join(reviewDir, "first_name.txt"), "Rita")
+
+	screenshotsDir := filepath.Join(root, "screenshots", "en-US")
+	if err := os.MkdirAll(screenshotsDir, 0o755); err != nil {
+		t.Fatalf("mkdir screenshots: %v", err)
+	}
+	writePNGForMigrate(t, filepath.Join(screenshotsDir, "iphone_65_screen.png"), 1242, 2688)
+
+	writeFile(t, filepath.Join(root, "Deliverfile"), "skip_metadata true\n")
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(cwd)
+	})
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	rootCmd := RootCommand("1.2.3")
+	rootCmd.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := rootCmd.Parse([]string{
+			"migrate", "import",
+			"--app", "APP_ID",
+			"--version-id", "VERSION_ID",
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := rootCmd.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result migrate.MigrateImportResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if result.MetadataDir != "" {
+		t.Fatalf("expected metadata dir to be skipped, got %q", result.MetadataDir)
+	}
+	if len(result.Localizations) != 0 {
+		t.Fatalf("expected no version localizations when metadata is skipped, got %+v", result.Localizations)
+	}
+	if len(result.MetadataFiles) != 0 {
+		t.Fatalf("expected no metadata file plan when metadata is skipped, got %+v", result.MetadataFiles)
+	}
+	if len(result.AppInfoLocalizations) != 0 {
+		t.Fatalf("expected no app-info localizations when metadata is skipped, got %+v", result.AppInfoLocalizations)
+	}
+	if len(result.AppInfoFiles) != 0 {
+		t.Fatalf("expected no app-info file plan when metadata is skipped, got %+v", result.AppInfoFiles)
+	}
+	if result.ReviewInformation != nil {
+		t.Fatalf("expected review information to be skipped, got %+v", result.ReviewInformation)
+	}
+	if len(result.ScreenshotPlan) != 1 {
+		t.Fatalf("expected screenshot discovery to continue, got %+v", result.ScreenshotPlan)
+	}
+
+	foundDeliverfileSkip := false
+	for _, skipped := range result.Skipped {
+		if skipped.Reason == "skip_metadata in Deliverfile" {
+			foundDeliverfileSkip = true
+			break
+		}
+	}
+	if !foundDeliverfileSkip {
+		t.Fatalf("expected skipped list to include Deliverfile skip_metadata reason, got %+v", result.Skipped)
+	}
+}
+
 func migrateJSONResponse(status int, body string) *http.Response {
 	return &http.Response{
 		StatusCode: status,
