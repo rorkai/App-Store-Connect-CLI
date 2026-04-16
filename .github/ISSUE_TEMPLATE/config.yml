@@ -1,16 +1,16 @@
 blank_issues_enabled: false
 contact_links:
   - name: Start here / troubleshooting
-    url: https://github.com/rudrankriyam/App-Store-Connect-CLI#quick-start
+    url: https://github.com/rorkai/App-Store-Connect-CLI#quick-start
     about: Install asc, authenticate, validate auth, and troubleshoot common Homebrew or output issues
   - name: Questions and workflow help
-    url: https://github.com/rudrankriyam/App-Store-Connect-CLI/discussions
+    url: https://github.com/rorkai/App-Store-Connect-CLI/discussions
     about: Ask "how do I...?" questions, get install help, and share workflows
   - name: Support policy
-    url: https://github.com/rudrankriyam/App-Store-Connect-CLI/blob/main/SUPPORT.md
+    url: https://github.com/rorkai/App-Store-Connect-CLI/blob/main/SUPPORT.md
     about: See when to use Discussions vs Issues and what to include in a bug report
   - name: asc skills
-    url: https://github.com/rudrankriyam/app-store-connect-cli-skills
+    url: https://github.com/rorkai/app-store-connect-cli-skills
     about: Agent skills to automate asc workflows
   - name: Documentation
     url: https://asccli.sh

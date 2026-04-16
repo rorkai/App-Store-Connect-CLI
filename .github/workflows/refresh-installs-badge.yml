@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   update:
-    if: github.repository == 'rudrankriyam/App-Store-Connect-CLI'
+    if: github.repository == 'rorkai/App-Store-Connect-CLI'
     runs-on: ubuntu-latest
     steps:
       # release.* checks out the tag by default; we must commit on main.

@@ -20,7 +20,7 @@ import (
 
 const (
 	communityWallSourceEnv     = "ASC_WALL_SOURCE"
-	communityWallRemoteURL     = "https://raw.githubusercontent.com/rudrankriyam/App-Store-Connect-CLI/main/docs/wall-of-apps.json"
+	communityWallRemoteURL     = "https://raw.githubusercontent.com/rorkai/App-Store-Connect-CLI/main/docs/wall-of-apps.json"
 	communityWallSourcePath    = "docs/wall-of-apps.json"
 	defaultCommunityWallSort   = "name"
 	defaultCommunityWallOutput = "table"

@@ -3,8 +3,8 @@
 ## Start Here
 
 - Quick start and troubleshooting: [README.md](README.md)
-- Questions and workflow help: [GitHub Discussions](https://github.com/rudrankriyam/App-Store-Connect-CLI/discussions)
-- Bugs and feature requests: [GitHub Issues](https://github.com/rudrankriyam/App-Store-Connect-CLI/issues)
+- Questions and workflow help: [GitHub Discussions](https://github.com/rorkai/App-Store-Connect-CLI/discussions)
+- Bugs and feature requests: [GitHub Issues](https://github.com/rorkai/App-Store-Connect-CLI/issues)
 
 ## Use Discussions For
 

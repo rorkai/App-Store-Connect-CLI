@@ -21,7 +21,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-REPO = "rudrankriyam/App-Store-Connect-CLI"
+REPO = "rorkai/App-Store-Connect-CLI"
 FORMULA = "asc"
 WRITEUP = "https://til.bhupesh.me/shell/get-download-stats-github-brew"
 

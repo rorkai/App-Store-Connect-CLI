@@ -401,7 +401,7 @@ jobs:
       
       - name: Install asc CLI
         run: |
-          curl -fsSL https://raw.githubusercontent.com/rudrankriyam/App-Store-Connect-CLI/main/install.sh | bash
+          curl -fsSL https://raw.githubusercontent.com/rorkai/App-Store-Connect-CLI/main/install.sh | bash
       
       - name: Configure credentials
         env:
@@ -434,7 +434,7 @@ release:production:
   tags:
     - linux
   script:
-    - curl -fsSL https://raw.githubusercontent.com/rudrankriyam/App-Store-Connect-CLI/main/install.sh | bash
+    - curl -fsSL https://raw.githubusercontent.com/rorkai/App-Store-Connect-CLI/main/install.sh | bash
     - asc workflow run release VERSION:$VERSION
   variables:
     VERSION: "1.0.0"

@@ -4,7 +4,7 @@ Unofficial, fast, lightweight, agent-assisted, reviewer-owned CLI for the App St
 
 ## asc skills
 
-Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing. https://github.com/rudrankriyam/app-store-connect-cli-skills
+Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing. https://github.com/rorkai/app-store-connect-cli-skills
 
 ## Core Principles
 

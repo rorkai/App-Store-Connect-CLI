@@ -9,7 +9,7 @@ Requirements:
 
 Clone and build:
 ```bash
-git clone https://github.com/rudrankriyam/App-Store-Connect-CLI.git
+git clone https://github.com/rorkai/App-Store-Connect-CLI.git
 cd App-Store-Connect-CLI
 make build
 ```

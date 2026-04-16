@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="rudrankriyam/App-Store-Connect-CLI"
+REPO="rorkai/App-Store-Connect-CLI"
 BIN_NAME="asc"
 DEFAULT_INSTALL_DIR="/usr/local/bin"
 if [ -n "${HOME:-}" ]; then

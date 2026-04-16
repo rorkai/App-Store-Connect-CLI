@@ -64,7 +64,7 @@ func TestSnitchDryRunWithValidLabels(t *testing.T) {
 		callCount++
 		switch callCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Host != "api.github.com" || req.URL.Path != "/repos/rudrankriyam/App-Store-Connect-CLI/labels" {
+			if req.Method != http.MethodGet || req.URL.Host != "api.github.com" || req.URL.Path != "/repos/rorkai/App-Store-Connect-CLI/labels" {
 				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
 			}
 			if req.Header.Get("Authorization") != "Bearer test-token" {
@@ -126,7 +126,7 @@ func TestSnitchDryRunContinuesWhenLabelValidationLookupFails(t *testing.T) {
 		callCount++
 		switch callCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Host != "api.github.com" || req.URL.Path != "/repos/rudrankriyam/App-Store-Connect-CLI/labels" {
+			if req.Method != http.MethodGet || req.URL.Host != "api.github.com" || req.URL.Path != "/repos/rorkai/App-Store-Connect-CLI/labels" {
 				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
 			}
 			return &http.Response{
@@ -188,7 +188,7 @@ func TestSnitchDryRunContinuesAfterLabelValidationTimeout(t *testing.T) {
 		callCount++
 		switch callCount {
 		case 1:
-			if req.Method != http.MethodGet || req.URL.Host != "api.github.com" || req.URL.Path != "/repos/rudrankriyam/App-Store-Connect-CLI/labels" {
+			if req.Method != http.MethodGet || req.URL.Host != "api.github.com" || req.URL.Path != "/repos/rorkai/App-Store-Connect-CLI/labels" {
 				t.Fatalf("unexpected first request: %s %s", req.Method, req.URL.String())
 			}
 			<-req.Context().Done()
@@ -242,7 +242,7 @@ func TestSnitchInvalidLabelReturnsUsage(t *testing.T) {
 	})
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-		if req.Method != http.MethodGet || req.URL.Host != "api.github.com" || req.URL.Path != "/repos/rudrankriyam/App-Store-Connect-CLI/labels" {
+		if req.Method != http.MethodGet || req.URL.Host != "api.github.com" || req.URL.Path != "/repos/rorkai/App-Store-Connect-CLI/labels" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
 		body := `[{"name":"enhancement"},{"name":"p3"},{"name":"easy"},{"name":"asc-snitch"}]`

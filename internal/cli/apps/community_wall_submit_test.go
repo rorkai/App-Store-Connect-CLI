@@ -143,13 +143,13 @@ func TestSubmitCommunityWallEntryDryRunReturnsPlan(t *testing.T) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/repos/tester/App-Store-Connect-CLI":
 			http.NotFound(w, r)
-		case r.Method == http.MethodGet && r.URL.Path == "/repos/rudrankriyam/App-Store-Connect-CLI/git/ref/heads/main":
+		case r.Method == http.MethodGet && r.URL.Path == "/repos/rorkai/App-Store-Connect-CLI/git/ref/heads/main":
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"object": map[string]any{
 					"sha": "base-sha-123",
 				},
 			})
-		case r.Method == http.MethodGet && r.URL.Path == "/repos/rudrankriyam/App-Store-Connect-CLI/contents/docs/wall-of-apps.json":
+		case r.Method == http.MethodGet && r.URL.Path == "/repos/rorkai/App-Store-Connect-CLI/contents/docs/wall-of-apps.json":
 			if got := r.URL.Query().Get("ref"); got != "base-sha-123" {
 				t.Fatalf("expected ref=base-sha-123, got %q", got)
 			}
@@ -238,14 +238,14 @@ func TestSubmitCommunityWallEntryRejectsDuplicateAppID(t *testing.T) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/repos/tester/App-Store-Connect-CLI":
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"full_name":"tester/App-Store-Connect-CLI","fork":true,"parent":{"full_name":"rudrankriyam/App-Store-Connect-CLI"}}`))
-		case r.Method == http.MethodGet && r.URL.Path == "/repos/rudrankriyam/App-Store-Connect-CLI/git/ref/heads/main":
+			_, _ = w.Write([]byte(`{"full_name":"tester/App-Store-Connect-CLI","fork":true,"parent":{"full_name":"rorkai/App-Store-Connect-CLI"}}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/repos/rorkai/App-Store-Connect-CLI/git/ref/heads/main":
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"object": map[string]any{
 					"sha": "base-sha-123",
 				},
 			})
-		case r.Method == http.MethodGet && r.URL.Path == "/repos/rudrankriyam/App-Store-Connect-CLI/contents/docs/wall-of-apps.json":
+		case r.Method == http.MethodGet && r.URL.Path == "/repos/rorkai/App-Store-Connect-CLI/contents/docs/wall-of-apps.json":
 			if got := r.URL.Query().Get("ref"); got != "base-sha-123" {
 				t.Fatalf("expected ref=base-sha-123, got %q", got)
 			}
@@ -309,14 +309,14 @@ func TestSubmitCommunityWallEntryRejectsMalformedExistingSource(t *testing.T) {
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == "/repos/tester/App-Store-Connect-CLI":
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"full_name":"tester/App-Store-Connect-CLI","fork":true,"parent":{"full_name":"rudrankriyam/App-Store-Connect-CLI"}}`))
-		case r.Method == http.MethodGet && r.URL.Path == "/repos/rudrankriyam/App-Store-Connect-CLI/git/ref/heads/main":
+			_, _ = w.Write([]byte(`{"full_name":"tester/App-Store-Connect-CLI","fork":true,"parent":{"full_name":"rorkai/App-Store-Connect-CLI"}}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/repos/rorkai/App-Store-Connect-CLI/git/ref/heads/main":
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"object": map[string]any{
 					"sha": "base-sha-123",
 				},
 			})
-		case r.Method == http.MethodGet && r.URL.Path == "/repos/rudrankriyam/App-Store-Connect-CLI/contents/docs/wall-of-apps.json":
+		case r.Method == http.MethodGet && r.URL.Path == "/repos/rorkai/App-Store-Connect-CLI/contents/docs/wall-of-apps.json":
 			if got := r.URL.Query().Get("ref"); got != "base-sha-123" {
 				t.Fatalf("expected ref=base-sha-123, got %q", got)
 			}
@@ -405,7 +405,7 @@ func TestSubmitCommunityWallEntryRejectsExistingNonForkRepo(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected non-fork repo error")
 	}
-	if !strings.Contains(err.Error(), "is not a fork of rudrankriyam/App-Store-Connect-CLI") {
+	if !strings.Contains(err.Error(), "is not a fork of rorkai/App-Store-Connect-CLI") {
 		t.Fatalf("expected non-fork repo error, got %v", err)
 	}
 }

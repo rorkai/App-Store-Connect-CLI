@@ -1,12 +1,12 @@
 # App Store Connect CLI
 
 <p align="center">
-  <a href="https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/latest"><img src="https://img.shields.io/github/v/release/rudrankriyam/App-Store-Connect-CLI?style=for-the-badge&color=blue" alt="Latest Release"></a>
-  <a href="https://github.com/rudrankriyam/App-Store-Connect-CLI/stargazers"><img src="https://img.shields.io/github/stars/rudrankriyam/App-Store-Connect-CLI?style=for-the-badge" alt="GitHub Stars"></a>
+  <a href="https://github.com/rorkai/App-Store-Connect-CLI/releases/latest"><img src="https://img.shields.io/github/v/release/rorkai/App-Store-Connect-CLI?style=for-the-badge&color=blue" alt="Latest Release"></a>
+  <a href="https://github.com/rorkai/App-Store-Connect-CLI/stargazers"><img src="https://img.shields.io/github/stars/rorkai/App-Store-Connect-CLI?style=for-the-badge" alt="GitHub Stars"></a>
   <img src="https://img.shields.io/badge/Go-1.26+-00ADD8?style=for-the-badge&logo=go" alt="Go Version">
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License">
   <img src="https://img.shields.io/badge/Homebrew-compatible-blue?style=for-the-badge" alt="Homebrew">
-  <a href="https://github.com/rudrankriyam/App-Store-Connect-CLI/releases" title="GitHub release assets (all-time) + Homebrew installs (365d), see docs/badges/README.md"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Frudrankriyam%2FApp-Store-Connect-CLI%2Fmain%2Fdocs%2Fbadges%2Finstalls-total.json&amp;style=for-the-badge&amp;color=brightgreen" alt="Estimated total downloads"></a>
+  <a href="https://github.com/rorkai/App-Store-Connect-CLI/releases" title="GitHub release assets (all-time) + Homebrew installs (365d), see docs/badges/README.md"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Frorkai%2FApp-Store-Connect-CLI%2Fmain%2Fdocs%2Fbadges%2Finstalls-total.json&amp;style=for-the-badge&amp;color=brightgreen" alt="Estimated total downloads"></a>
 </p>
 
 <p align="center">
@@ -33,7 +33,7 @@ Automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, ID
 ## asc skills
 
 Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing:
-https://github.com/rudrankriyam/app-store-connect-cli-skills
+https://github.com/rorkai/app-store-connect-cli-skills
 
 ## Sponsors
 
@@ -71,7 +71,7 @@ curl -fsSL https://asccli.sh/install | bash
 ```
 
 Windows users can download the signed release binaries directly from the
-[GitHub releases page](https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/latest).
+[GitHub releases page](https://github.com/rorkai/App-Store-Connect-CLI/releases/latest).
 
 For source builds and contributor setup, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -167,8 +167,8 @@ depending on a command in CI or scripts:
 
 ## Support
 
-- Use [GitHub Discussions](https://github.com/rudrankriyam/App-Store-Connect-CLI/discussions) for install help, authentication setup, workflow advice, and "how do I...?" questions
-- Use [GitHub Issues](https://github.com/rudrankriyam/App-Store-Connect-CLI/issues) for reproducible bugs and concrete feature requests
+- Use [GitHub Discussions](https://github.com/rorkai/App-Store-Connect-CLI/discussions) for install help, authentication setup, workflow advice, and "how do I...?" questions
+- Use [GitHub Issues](https://github.com/rorkai/App-Store-Connect-CLI/issues) for reproducible bugs and concrete feature requests
 - See [SUPPORT.md](SUPPORT.md) for the support policy and bug-report checklist
 - Before filing an auth or API bug, retry with `ASC_BYPASS_KEYCHAIN=1`; if it is safe to do so, include redacted output from `ASC_DEBUG=api asc ...` or `asc --api-debug ...`
 
@@ -342,7 +342,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=rudrankriyam/App-Store-Connect-CLI&type=Date)](https://star-history.com/#rudrankriyam/App-Store-Connect-CLI&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=rorkai/App-Store-Connect-CLI&type=Date)](https://star-history.com/#rorkai/App-Store-Connect-CLI&Date)
 
 ---
 

@@ -23,7 +23,7 @@ func ScreenshotsCommand() *ffcli.Command {
 
 Local screenshot automation commands are experimental.
 If you face issues, please file feedback at:
-https://github.com/rudrankriyam/App-Store-Connect-CLI/issues/new/choose
+https://github.com/rorkai/App-Store-Connect-CLI/issues/new/choose
 
 Local workflow (experimental):
   asc screenshots run --plan .asc/screenshots.json

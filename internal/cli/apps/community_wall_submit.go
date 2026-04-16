@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	communityWallUpstreamOwner        = "rudrankriyam"
+	communityWallUpstreamOwner        = "rorkai"
 	communityWallUpstreamRepo         = "App-Store-Connect-CLI"
 	communityWallUpstreamBranch       = "main"
 	communityWallGitHubMaxBodyBytes   = 8192

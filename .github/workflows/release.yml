@@ -137,7 +137,7 @@ jobs:
 
               class Asc < Formula
                 desc "A fast, AI-agent friendly CLI for App Store Connect"
-                homepage 'https://github.com/rudrankriyam/App-Store-Connect-CLI'
+                homepage 'https://github.com/rorkai/App-Store-Connect-CLI'
                 version '{version}'
                 license 'MIT'
 
@@ -145,10 +145,10 @@ jobs:
 
                 on_macos do
                   if Hardware::CPU.arm?
-                    url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/{version}/asc_{version}_macOS_arm64'
+                    url 'https://github.com/rorkai/App-Store-Connect-CLI/releases/download/{version}/asc_{version}_macOS_arm64'
                     sha256 '{sha256_arm64}'
                   else
-                    url 'https://github.com/rudrankriyam/App-Store-Connect-CLI/releases/download/{version}/asc_{version}_macOS_amd64'
+                    url 'https://github.com/rorkai/App-Store-Connect-CLI/releases/download/{version}/asc_{version}_macOS_amd64'
                     sha256 '{sha256_amd64}'
                   end
                 end

@@ -26,7 +26,7 @@ import (
 const (
 	githubTokenEnvVar    = "GITHUB_TOKEN"
 	githubTokenGHEnvVar  = "GH_TOKEN"
-	defaultOwner         = "rudrankriyam"
+	defaultOwner         = "rorkai"
 	defaultRepo          = "App-Store-Connect-CLI"
 	maxSearchResults     = 5
 	maxResponseBodyBytes = 8192

@@ -178,7 +178,7 @@ func TestSearchIssues(t *testing.T) {
 		}
 
 		q := r.URL.Query().Get("q")
-		if !strings.Contains(q, "repo:rudrankriyam/App-Store-Connect-CLI") {
+		if !strings.Contains(q, "repo:rorkai/App-Store-Connect-CLI") {
 			t.Errorf("query missing repo filter: %s", q)
 		}
 		if !strings.Contains(q, "is:open") {
@@ -202,7 +202,7 @@ func TestSearchIssues(t *testing.T) {
 				{
 					"number":   42,
 					"title":    "crashes --app doesn't support bundle ID",
-					"html_url": "https://github.com/rudrankriyam/App-Store-Connect-CLI/issues/42",
+					"html_url": "https://github.com/rorkai/App-Store-Connect-CLI/issues/42",
 					"state":    "open",
 				},
 			},
@@ -244,7 +244,7 @@ func TestSnitchCommandPreviewWithoutConfirmDoesNotCreateIssue(t *testing.T) {
 			if err := json.NewEncoder(w).Encode(resp); err != nil {
 				t.Fatalf("json.NewEncoder().Encode() error: %v", err)
 			}
-		case "/repos/rudrankriyam/App-Store-Connect-CLI/issues":
+		case "/repos/rorkai/App-Store-Connect-CLI/issues":
 			createCalls++
 			t.Fatal("createIssue should not be called without --confirm")
 		default:
@@ -295,19 +295,19 @@ func TestSnitchCommandConfirmCreatesIssue(t *testing.T) {
 			if err := json.NewEncoder(w).Encode(resp); err != nil {
 				t.Fatalf("json.NewEncoder().Encode() error: %v", err)
 			}
-		case "/repos/rudrankriyam/App-Store-Connect-CLI/issues":
+		case "/repos/rorkai/App-Store-Connect-CLI/issues":
 			createCalls++
 			resp := map[string]any{
 				"number":   77,
 				"title":    "confirmed issue",
-				"html_url": "https://github.com/rudrankriyam/App-Store-Connect-CLI/issues/77",
+				"html_url": "https://github.com/rorkai/App-Store-Connect-CLI/issues/77",
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			if err := json.NewEncoder(w).Encode(resp); err != nil {
 				t.Fatalf("json.NewEncoder().Encode() error: %v", err)
 			}
-		case "/repos/rudrankriyam/App-Store-Connect-CLI/issues/77/labels":
+		case "/repos/rorkai/App-Store-Connect-CLI/issues/77/labels":
 			labelCalls++
 			w.Header().Set("Content-Type", "application/json")
 			if err := json.NewEncoder(w).Encode(map[string]any{"labels": []string{"asc-snitch", "bug"}}); err != nil {
@@ -361,7 +361,7 @@ func TestSnitchCommandConfirmCreatesIssueWhenLabelsCannotBeApplied(t *testing.T)
 			if err := json.NewEncoder(w).Encode(resp); err != nil {
 				t.Fatalf("json.NewEncoder().Encode() error: %v", err)
 			}
-		case "/repos/rudrankriyam/App-Store-Connect-CLI/issues":
+		case "/repos/rorkai/App-Store-Connect-CLI/issues":
 			createCalls++
 
 			var payload map[string]any
@@ -379,14 +379,14 @@ func TestSnitchCommandConfirmCreatesIssueWhenLabelsCannotBeApplied(t *testing.T)
 			resp := map[string]any{
 				"number":   77,
 				"title":    "confirmed issue",
-				"html_url": "https://github.com/rudrankriyam/App-Store-Connect-CLI/issues/77",
+				"html_url": "https://github.com/rorkai/App-Store-Connect-CLI/issues/77",
 			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			if err := json.NewEncoder(w).Encode(resp); err != nil {
 				t.Fatalf("json.NewEncoder().Encode() error: %v", err)
 			}
-		case "/repos/rudrankriyam/App-Store-Connect-CLI/issues/77/labels":
+		case "/repos/rorkai/App-Store-Connect-CLI/issues/77/labels":
 			labelCalls++
 			w.WriteHeader(http.StatusForbidden)
 			if _, err := w.Write([]byte(`{"message":"Resource not accessible by integration"}`)); err != nil {
@@ -447,7 +447,7 @@ func TestCreateIssue(t *testing.T) {
 		resp := map[string]any{
 			"number":   99,
 			"title":    receivedPayload["title"],
-			"html_url": "https://github.com/rudrankriyam/App-Store-Connect-CLI/issues/99",
+			"html_url": "https://github.com/rorkai/App-Store-Connect-CLI/issues/99",
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -489,7 +489,7 @@ func TestAddIssueLabels(t *testing.T) {
 		if r.Method != "POST" {
 			t.Errorf("expected POST, got %s", r.Method)
 		}
-		if r.URL.Path != "/repos/rudrankriyam/App-Store-Connect-CLI/issues/99/labels" {
+		if r.URL.Path != "/repos/rorkai/App-Store-Connect-CLI/issues/99/labels" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
 
@@ -532,7 +532,7 @@ func TestListRepoLabelsPaginatesAndDedupes(t *testing.T) {
 	githubHTTPClient = func() *http.Client {
 		return &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
 			pageCalls++
-			if r.URL.Path != "/repos/rudrankriyam/App-Store-Connect-CLI/labels" {
+			if r.URL.Path != "/repos/rorkai/App-Store-Connect-CLI/labels" {
 				t.Fatalf("unexpected path: %s", r.URL.Path)
 			}
 

@@ -11,7 +11,7 @@ body:
 
         If this is a question, install issue, auth setup problem, or workflow support request,
         please use GitHub Discussions instead:
-        https://github.com/rudrankriyam/App-Store-Connect-CLI/discussions
+        https://github.com/rorkai/App-Store-Connect-CLI/discussions
 
   - type: textarea
     id: problem

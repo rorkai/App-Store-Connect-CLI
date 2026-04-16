@@ -174,7 +174,7 @@
       "anchors": [
         {
           "anchor": "GitHub",
-          "href": "https://github.com/rudrankriyam/App-Store-Connect-CLI",
+          "href": "https://github.com/rorkai/App-Store-Connect-CLI",
           "icon": "github"
         }
       ]
@@ -190,7 +190,7 @@
     "primary": {
       "type": "button",
       "label": "GitHub",
-      "href": "https://github.com/rudrankriyam/App-Store-Connect-CLI"
+      "href": "https://github.com/rorkai/App-Store-Connect-CLI"
     }
   },
   "contextual": {
@@ -207,7 +207,7 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/rudrankriyam/App-Store-Connect-CLI",
+      "github": "https://github.com/rorkai/App-Store-Connect-CLI",
       "x": "https://x.com/rudrankriyam"
     }
   },
