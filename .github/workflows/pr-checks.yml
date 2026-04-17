@@ -126,9 +126,6 @@ jobs:
           go-version: '1.26.x'
           cache: true
 
-      - name: Download stats badge script self-test
-        run: python3 scripts/test_download_stats_total.py
-
       - name: Run unit tests
         run: ASC_BYPASS_KEYCHAIN=1 go test -short ./...
 
