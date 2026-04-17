@@ -1,0 +1,26 @@
+FROM golang:1.26-bookworm
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY . .
+
+RUN go mod download
+
+RUN chmod +x .helix/run-tests-eval.sh
+
+# Run tests as a non-root user so permission-sensitive tests (e.g. legacy session cache cleanup)
+# behave like developer/CI environments instead of root-only Linux semantics.
+RUN useradd -m -u 1000 helix \
+	&& mkdir -p /tmp/gocache \
+	&& chown -R helix:helix /app /tmp/gocache
+
+USER helix
+
+ENV ASC_BYPASS_KEYCHAIN=1
+ENV GOCACHE=/tmp/gocache
+
+CMD ["./.helix/run-tests-eval.sh"]
