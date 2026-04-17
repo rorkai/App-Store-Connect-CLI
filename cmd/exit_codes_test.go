@@ -632,11 +632,11 @@ func TestWebAuthLoginPromptInterruptDoesNotFallBackToUsageError(t *testing.T) {
 		t.Fatalf("process did not exit promptly after interrupt\noutput:\n%s", output.String())
 	}
 
-	_ = ptmx.Close()
-
 	select {
 	case <-readDone:
 	case <-time.After(2 * time.Second):
+		// Let the child close the PTY so the reader can drain the final
+		// interrupt-specific stderr before we tear the PTY down ourselves.
 		t.Fatalf("PTY reader did not exit after process completion\noutput:\n%s", output.String())
 	}
 
