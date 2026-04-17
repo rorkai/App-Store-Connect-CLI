@@ -118,7 +118,7 @@ jobs:
           export SHA256=$(shasum -a 256 release/asc_${VERSION}_macOS_arm64 | cut -d ' ' -f 1)
 
           # Clone the tap repo
-          git clone https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/rudrankriyam/homebrew-tap.git homebrew-tap
+          git clone https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/rorkai/homebrew-tap.git homebrew-tap
           cd homebrew-tap
 
           # Update the formula
