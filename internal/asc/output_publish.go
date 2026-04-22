@@ -6,10 +6,14 @@ import (
 )
 
 func testFlightPublishResultRows(result *TestFlightPublishResult) ([]string, [][]string) {
-	headers := []string{"Build ID", "Version", "Build Number", "Processing", "Groups", "Uploaded", "Notified", "Notification Action"}
+	headers := []string{"Build ID", "Version", "Build Number", "Processing", "Groups", "Uploaded", "Notified", "Notification Action", "Beta Review Submitted", "Beta Review Submission ID"}
 	notified := ""
 	if result.Notified != nil {
 		notified = fmt.Sprintf("%t", *result.Notified)
+	}
+	betaReviewSubmitted := ""
+	if result.BetaReviewSubmitted != nil {
+		betaReviewSubmitted = fmt.Sprintf("%t", *result.BetaReviewSubmitted)
 	}
 	rows := [][]string{{
 		result.BuildID,
@@ -20,6 +24,8 @@ func testFlightPublishResultRows(result *TestFlightPublishResult) ([]string, [][
 		fmt.Sprintf("%t", result.Uploaded),
 		notified,
 		string(result.NotificationAction),
+		betaReviewSubmitted,
+		result.BetaReviewSubmissionID,
 	}}
 	return headers, rows
 }

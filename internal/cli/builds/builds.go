@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"slices"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -87,7 +86,7 @@ Examples:
 				return fmt.Errorf("builds add-groups: failed to add groups: %w", err)
 			}
 
-			submissionMessage, err := submitBuildBetaReviewIfNeeded(requestCtx, client, buildID, resolvedGroups, addResult.AddedGroupIDs, *submit)
+			submissionResult, err := shared.SubmitBuildBetaReviewIfNeeded(requestCtx, client, buildID, resolvedGroups, addResult.AddedGroupIDs, *submit, "builds add-groups")
 			if err != nil {
 				return err
 			}
@@ -106,8 +105,8 @@ Examples:
 			} else {
 				fmt.Fprintf(os.Stderr, "Successfully added %d group(s) to build %s\n", len(addResult.AddedGroupIDs), buildID)
 			}
-			if submissionMessage != "" {
-				fmt.Fprintln(os.Stderr, submissionMessage)
+			if submissionResult.Message != "" {
+				fmt.Fprintln(os.Stderr, submissionResult.Message)
 			}
 
 			if len(addResult.AddedGroupIDs) == 0 {
@@ -165,56 +164,6 @@ func resolveBuildBetaGroupIDsFromList(inputGroups []string, groups *asc.BetaGrou
 		resolvedIDs = append(resolvedIDs, group.ID)
 	}
 	return resolvedIDs, nil
-}
-
-func submitBuildBetaReviewIfNeeded(ctx context.Context, client *asc.Client, buildID string, groups []resolvedBuildBetaGroup, addedGroupIDs []string, submit bool) (string, error) {
-	if !submit {
-		return "", nil
-	}
-
-	if !hasAddedExternalBuildBetaGroup(groups, addedGroupIDs) {
-		return fmt.Sprintf("Skipped beta app review submission for build %s because no external groups were added", buildID), nil
-	}
-
-	existingSubmission, err := client.GetBuildBetaAppReviewSubmission(ctx, buildID)
-	if err == nil {
-		submissionID := strings.TrimSpace(existingSubmission.Data.ID)
-		if submissionID == "" {
-			return fmt.Sprintf("Build %s already has a beta app review submission", buildID), nil
-		}
-		return fmt.Sprintf("Build %s already has beta app review submission %s", buildID, submissionID), nil
-	}
-	if !asc.IsNotFound(err) {
-		return "", fmt.Errorf("builds add-groups: failed to inspect beta app review submission: %w", err)
-	}
-
-	submission, err := client.CreateBetaAppReviewSubmission(ctx, buildID)
-	if err != nil {
-		return "", fmt.Errorf("builds add-groups: beta groups were added to build %q, but beta app review submission failed: %w", buildID, err)
-	}
-
-	submissionID := strings.TrimSpace(submission.Data.ID)
-	if submissionID == "" {
-		return fmt.Sprintf("Submitted build %s for beta app review", buildID), nil
-	}
-	return fmt.Sprintf("Submitted build %s for beta app review (%s)", buildID, submissionID), nil
-}
-
-func hasAddedExternalBuildBetaGroup(groups []resolvedBuildBetaGroup, addedGroupIDs []string) bool {
-	if len(groups) == 0 || len(addedGroupIDs) == 0 {
-		return false
-	}
-
-	for _, group := range groups {
-		if group.IsInternalGroup {
-			continue
-		}
-		if slices.Contains(addedGroupIDs, group.ID) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // BuildsUpdateCommand returns the builds update subcommand.

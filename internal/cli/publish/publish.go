@@ -68,6 +68,8 @@ func PublishTestFlightCommand() *ffcli.Command {
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	groupIDs := fs.String("group", "", "Beta group ID(s) or name(s), comma-separated")
 	notify := fs.Bool("notify", false, "Notify testers after adding to groups")
+	submit := fs.Bool("submit", false, "Submit build for beta app review after adding external groups")
+	confirm := fs.Bool("confirm", false, "Confirm beta app review submission (required with --submit)")
 	wait := fs.Bool("wait", false, "Wait for build processing to complete")
 	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait and build discovery")
 	timeout := fs.Duration("timeout", 0, "Override upload + processing timeout (e.g., 30m)")
@@ -87,12 +89,14 @@ Steps:
 2. Wait for processing (if --wait)
 3. Add build to specified beta groups
 4. Optionally notify testers
+5. Optionally submit for beta app review with --submit --confirm
 
 Examples:
   asc publish testflight --app "123" --ipa app.ipa --group "GROUP_ID"
   asc publish testflight --app "123" --workspace App.xcworkspace --scheme App --version 1.2.3 --group "GROUP_ID"
   asc publish testflight --app "123" --ipa app.ipa --group "External Testers"
   asc publish testflight --app "123" --ipa app.ipa --group "G1,G2" --wait --notify
+  asc publish testflight --app "123" --ipa app.ipa --group "External Testers" --submit --confirm
   asc publish testflight --app "123" --ipa app.ipa --group "GROUP_ID" --test-notes "Test instructions" --locale "en-US" --wait
   asc publish testflight --app "123" --build "BUILD_ID" --group "GROUP_ID" --wait
   asc publish testflight --app "123" --build-number "42" --group "GROUP_ID" --wait`,
@@ -149,6 +153,14 @@ Examples:
 			parsedGroupIDs := shared.SplitCSV(*groupIDs)
 			if len(parsedGroupIDs) == 0 {
 				fmt.Fprintf(os.Stderr, "Error: --group is required\n\n")
+				return flag.ErrHelp
+			}
+			if *submit && !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required with --submit")
+				return flag.ErrHelp
+			}
+			if *confirm && !*submit {
+				fmt.Fprintln(os.Stderr, "Error: --confirm requires --submit")
 				return flag.ErrHelp
 			}
 
@@ -316,10 +328,23 @@ Examples:
 				return wrapPublishTestFlightAddGroupsError(err)
 			}
 
+			submissionResult, err := shared.SubmitBuildBetaReviewIfNeeded(requestCtx, client, buildResp.Data.ID, resolvedGroups, addResult.AddedGroupIDs, *submit, "publish testflight")
+			if err != nil {
+				return err
+			}
+			if submissionResult.Message != "" {
+				fmt.Fprintln(os.Stderr, submissionResult.Message)
+			}
+
 			var notified *bool
 			if *notify {
 				value := addResult.NotificationAction == asc.BuildBetaGroupsNotificationActionManual
 				notified = &value
+			}
+			var betaReviewSubmitted *bool
+			if *submit {
+				value := submissionResult.Submitted
+				betaReviewSubmitted = &value
 			}
 
 			for _, group := range addResult.SkippedInternalAllBuildsGroups {
@@ -332,28 +357,32 @@ Examples:
 			}
 
 			result := &asc.TestFlightPublishResult{
-				Mode:               mode,
-				BuildID:            buildResp.Data.ID,
-				BuildVersion:       resolvedVersionValue,
-				BuildNumber:        resolvedBuildNumberValue,
-				GroupIDs:           resolvedPublishBetaGroupIDs(resolvedGroups),
-				Uploaded:           uploaded,
-				ProcessingState:    buildResp.Data.Attributes.ProcessingState,
-				Notified:           notified,
-				NotificationAction: addResult.NotificationAction,
+				Mode:                   mode,
+				BuildID:                buildResp.Data.ID,
+				BuildVersion:           resolvedVersionValue,
+				BuildNumber:            resolvedBuildNumberValue,
+				GroupIDs:               resolvedPublishBetaGroupIDs(resolvedGroups),
+				Uploaded:               uploaded,
+				ProcessingState:        buildResp.Data.Attributes.ProcessingState,
+				Notified:               notified,
+				NotificationAction:     addResult.NotificationAction,
+				BetaReviewSubmitted:    betaReviewSubmitted,
+				BetaReviewSubmissionID: submissionResult.SubmissionID,
 			}
 			if localBuildResult != nil {
 				result.Archive = localBuildResult.Archive
 				result.Export = localBuildResult.Export
 				result.Publish = &asc.TestFlightPublishStageResult{
-					BuildID:            result.BuildID,
-					BuildVersion:       result.BuildVersion,
-					BuildNumber:        result.BuildNumber,
-					GroupIDs:           append([]string(nil), result.GroupIDs...),
-					Uploaded:           result.Uploaded,
-					ProcessingState:    result.ProcessingState,
-					Notified:           result.Notified,
-					NotificationAction: result.NotificationAction,
+					BuildID:                result.BuildID,
+					BuildVersion:           result.BuildVersion,
+					BuildNumber:            result.BuildNumber,
+					GroupIDs:               append([]string(nil), result.GroupIDs...),
+					Uploaded:               result.Uploaded,
+					ProcessingState:        result.ProcessingState,
+					Notified:               result.Notified,
+					NotificationAction:     result.NotificationAction,
+					BetaReviewSubmitted:    result.BetaReviewSubmitted,
+					BetaReviewSubmissionID: result.BetaReviewSubmissionID,
 				}
 			}
 

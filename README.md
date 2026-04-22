@@ -255,7 +255,9 @@ asc workflow run --dry-run testflight_beta VERSION:1.2.3
 
 See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for a copyable `.asc/workflow.json`
 and `ExportOptions.plist` that use `asc builds next-build-number`, `asc xcode archive`,
-`asc xcode export`, and `asc publish testflight --group ... --wait`.
+`asc xcode export`, and `asc publish testflight --group ... --wait`. Add
+`--submit --confirm` when distributing to an external TestFlight group that needs
+beta app review submission.
 
 ```bash
 asc workflow validate

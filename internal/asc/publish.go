@@ -42,14 +42,16 @@ type PublishPlanStep struct {
 // TestFlightPublishStageResult duplicates the publish summary inside
 // local-build mode so agents can inspect stage-specific output.
 type TestFlightPublishStageResult struct {
-	BuildID            string                            `json:"buildId"`
-	BuildVersion       string                            `json:"buildVersion,omitempty"`
-	BuildNumber        string                            `json:"buildNumber,omitempty"`
-	GroupIDs           []string                          `json:"groupIds,omitempty"`
-	Uploaded           bool                              `json:"uploaded"`
-	ProcessingState    string                            `json:"processingState,omitempty"`
-	Notified           *bool                             `json:"notified,omitempty"`
-	NotificationAction BuildBetaGroupsNotificationAction `json:"notificationAction,omitempty"`
+	BuildID                string                            `json:"buildId"`
+	BuildVersion           string                            `json:"buildVersion,omitempty"`
+	BuildNumber            string                            `json:"buildNumber,omitempty"`
+	GroupIDs               []string                          `json:"groupIds,omitempty"`
+	Uploaded               bool                              `json:"uploaded"`
+	ProcessingState        string                            `json:"processingState,omitempty"`
+	Notified               *bool                             `json:"notified,omitempty"`
+	NotificationAction     BuildBetaGroupsNotificationAction `json:"notificationAction,omitempty"`
+	BetaReviewSubmitted    *bool                             `json:"betaReviewSubmitted,omitempty"`
+	BetaReviewSubmissionID string                            `json:"betaReviewSubmissionId,omitempty"`
 }
 
 // AppStorePublishStageResult duplicates the publish summary inside local-build
@@ -67,18 +69,20 @@ type AppStorePublishStageResult struct {
 
 // Result types for the publish workflow.
 type TestFlightPublishResult struct {
-	Mode               PublishMode                       `json:"mode,omitempty"`
-	BuildID            string                            `json:"buildId"`
-	BuildVersion       string                            `json:"buildVersion,omitempty"`
-	BuildNumber        string                            `json:"buildNumber,omitempty"`
-	GroupIDs           []string                          `json:"groupIds,omitempty"`
-	Uploaded           bool                              `json:"uploaded"`
-	ProcessingState    string                            `json:"processingState,omitempty"`
-	Notified           *bool                             `json:"notified,omitempty"`
-	NotificationAction BuildBetaGroupsNotificationAction `json:"notificationAction,omitempty"`
-	Archive            *PublishArchiveStageResult        `json:"archive,omitempty"`
-	Export             *PublishExportStageResult         `json:"export,omitempty"`
-	Publish            *TestFlightPublishStageResult     `json:"publish,omitempty"`
+	Mode                   PublishMode                       `json:"mode,omitempty"`
+	BuildID                string                            `json:"buildId"`
+	BuildVersion           string                            `json:"buildVersion,omitempty"`
+	BuildNumber            string                            `json:"buildNumber,omitempty"`
+	GroupIDs               []string                          `json:"groupIds,omitempty"`
+	Uploaded               bool                              `json:"uploaded"`
+	ProcessingState        string                            `json:"processingState,omitempty"`
+	Notified               *bool                             `json:"notified,omitempty"`
+	NotificationAction     BuildBetaGroupsNotificationAction `json:"notificationAction,omitempty"`
+	BetaReviewSubmitted    *bool                             `json:"betaReviewSubmitted,omitempty"`
+	BetaReviewSubmissionID string                            `json:"betaReviewSubmissionId,omitempty"`
+	Archive                *PublishArchiveStageResult        `json:"archive,omitempty"`
+	Export                 *PublishExportStageResult         `json:"export,omitempty"`
+	Publish                *TestFlightPublishStageResult     `json:"publish,omitempty"`
 }
 
 // AppStorePublishResult captures the App Store publish workflow output.

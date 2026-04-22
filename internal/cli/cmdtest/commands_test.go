@@ -3757,6 +3757,16 @@ func TestPublishValidationErrors(t *testing.T) {
 			wantErr: "Error: --test-notes is required with --locale",
 		},
 		{
+			name:    "publish testflight submit missing confirm",
+			args:    []string{"publish", "testflight", "--app", "APP_123", "--build", "BUILD_123", "--group", "GROUP_ID", "--submit"},
+			wantErr: "Error: --confirm is required with --submit",
+		},
+		{
+			name:    "publish testflight confirm requires submit",
+			args:    []string{"publish", "testflight", "--app", "APP_123", "--build", "BUILD_123", "--group", "GROUP_ID", "--confirm"},
+			wantErr: "Error: --confirm requires --submit",
+		},
+		{
 			name:    "publish appstore missing app",
 			args:    []string{"publish", "appstore", "--ipa", "app.ipa", "--version", "1.0.0"},
 			wantErr: "Error: --app is required",

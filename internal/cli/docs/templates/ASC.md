@@ -100,6 +100,7 @@ asc submit cancel --version-id "VERSION_ID" --confirm
 ```bash
 asc testflight groups list --app "APP_ID"
 asc publish testflight --app "APP_ID" --ipa "./App.ipa" --group "GROUP_ID" --wait
+asc publish testflight --app "APP_ID" --ipa "./App.ipa" --group "EXTERNAL_GROUP_ID" --wait --submit --confirm
 ```
 
 Lower-level alternative:

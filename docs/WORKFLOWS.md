@@ -18,6 +18,8 @@ This pattern was validated against a real app using:
 - `asc xcode export` to create a deterministic `.ipa`
 - `asc publish testflight --group ... --wait` to upload, wait for processing,
   and add the build to a TestFlight group
+- `--submit --confirm` on `asc publish testflight` when the target is an
+  external group that should trigger beta app review submission
 
 Create `.asc/export-options-app-store.plist`:
 
