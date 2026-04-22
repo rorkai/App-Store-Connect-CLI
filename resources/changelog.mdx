@@ -14,6 +14,21 @@ The App Store Connect CLI follows semantic versioning. All releases are availabl
 
 No unreleased changes yet.
 
+### 1.2.4
+
+**Highlights**:
+
+* `asc publish testflight --submit --confirm` now handles beta app review submission for external TestFlight groups and automatically waits for build processing when that submission path needs it
+* Screenshot upload docs are clearer: the README now shows the single-locale upload flow end to end, uses copy-paste-safe placeholders, and fixes the general localization example to call out the app-info variant explicitly
+* Community surfaces keep growing with Focus Rail: Pomodoro Timer, Kosaku - Beautify the content, and FlightCatcherPro – Plane Spot
+
+**Changes**:
+
+* `feat(testflight)`: Add beta review submission support to `asc publish testflight`, reuse the shared submission helper from `builds add-groups`, and report beta review submission status in publish output
+* `test(cmdtest)`: Cover `publish testflight --submit/--confirm` validation, wait-before-submit behavior, and beta review submission scenarios more aggressively
+* `docs(testflight)`: Update README, workflows, and ASC reference docs for external TestFlight submission and single-locale screenshot upload discovery
+* `build(community)`: Add Focus Rail: Pomodoro Timer, Kosaku - Beautify the content, and FlightCatcherPro – Plane Spot to the Wall of Apps
+
 ### 1.2.3
 
 **Highlights**:
