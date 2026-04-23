@@ -96,6 +96,10 @@ asc workflow validate
 asc workflow validate --file ./.asc/workflow.json
 ```
 
+Independent workflows can reuse output-producing step names like `archive`. If a
+single workflow execution can reach both producers, validation still rejects the
+duplicate name.
+
 ### workflow run
 
 Run a workflow by name and pass runtime parameters as `KEY:VALUE` arguments:
@@ -105,7 +109,7 @@ asc workflow run beta
 asc workflow run beta BUILD_ID:123456789 GROUP_ID:abcdef
 asc workflow run release VERSION:2.1.0
 asc workflow run --dry-run beta
-asc workflow run --resume beta-20260312T120000Z-deadbeef release
+asc workflow run release --resume beta-20260312T120000Z-deadbeef
 ```
 
 ## Features
@@ -121,6 +125,10 @@ Steps can reference another workflow with a `workflow` key and pass scoped varia
 ### Persistent outputs
 
 If a step emits JSON and declares `outputs`, later steps can reference values like `${steps.resolve_build.BUILD_ID}`.
+
+Independent workflows can reuse output-producing step names. For example,
+`testflight_beta.archive` and `appstore_release.archive` are both valid as long
+as no single workflow run can reach both producers.
 
 ### Repo-local run state
 

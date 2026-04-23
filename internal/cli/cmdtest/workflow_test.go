@@ -49,6 +49,9 @@ func TestWorkflow_ShowsHelp(t *testing.T) {
 	if !strings.Contains(stderr, "${steps.resolve_build.BUILD_ID}") {
 		t.Fatalf("expected help to document step output references, got %q", stderr)
 	}
+	if !strings.Contains(stderr, "Output-producing step names only need to stay unique across workflows that can execute together in the same run graph.") {
+		t.Fatalf("expected help to explain output-producing step name scoping, got %q", stderr)
+	}
 	if !strings.Contains(stderr, `"BUILD_ID": "$.data.id"`) {
 		t.Fatalf("expected help example to extract build IDs from $.data.id, got %q", stderr)
 	}
@@ -1690,5 +1693,82 @@ func TestWorkflowValidate_AllowsDuplicateOutputProducerNamesAcrossIndependentWor
 	}
 	if result["valid"] != true {
 		t.Fatalf("expected valid=true, got %v", result["valid"])
+	}
+}
+
+func TestWorkflowValidate_RejectsDuplicateOutputProducerNamesInSameRunGraph(t *testing.T) {
+	dir := t.TempDir()
+	path := writeWorkflowJSON(t, dir, `{
+		"workflows": {
+			"ship": {
+				"steps": [
+					{"workflow": "testflight_beta"},
+					{"workflow": "appstore_release"}
+				]
+			},
+			"testflight_beta": {
+				"steps": [
+					{
+						"name": "archive",
+						"run": "printf '{\"buildId\":\"beta\"}'",
+						"outputs": {
+							"BUILD_ID": "$.buildId"
+						}
+					}
+				]
+			},
+			"appstore_release": {
+				"steps": [
+					{
+						"name": "archive",
+						"run": "printf '{\"buildId\":\"release\"}'",
+						"outputs": {
+							"BUILD_ID": "$.buildId"
+						}
+					}
+				]
+			}
+		}
+	}`)
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, _ := captureOutput(t, func() {
+		if err := root.Parse([]string{"workflow", "validate", "--file", path}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected validation failure")
+		}
+		if _, ok := errors.AsType[ReportedError](err); !ok {
+			t.Fatalf("expected ReportedError, got %T: %v", err, err)
+		}
+	})
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("expected valid JSON, got %q: %v", stdout, err)
+	}
+	if result["valid"] != false {
+		t.Fatalf("expected valid=false, got %v", result["valid"])
+	}
+	errs, ok := result["errors"].([]any)
+	if !ok || len(errs) == 0 {
+		t.Fatalf("expected validation errors, got %T: %v", result["errors"], result["errors"])
+	}
+	foundDuplicate := false
+	for _, entry := range errs {
+		errMap, ok := entry.(map[string]any)
+		if !ok {
+			t.Fatalf("expected error entry object, got %T: %v", entry, entry)
+		}
+		if errMap["code"] == "duplicate_output_producer_name" {
+			foundDuplicate = true
+		}
+	}
+	if !foundDuplicate {
+		t.Fatalf("expected duplicate_output_producer_name error, got %v", errs)
 	}
 }

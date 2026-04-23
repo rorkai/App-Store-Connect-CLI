@@ -62,15 +62,15 @@ Create `.asc/workflow.json`:
           "run": "if [ -z \"$VERSION\" ]; then echo \"VERSION is required\" >&2; exit 1; fi"
         },
         {
-          "name": "beta_resolve_next_build",
+          "name": "resolve_next_build",
           "run": "asc builds latest --app \"$APP_ID\" --version \"$VERSION\" --platform IOS --next --initial-build-number 1 --output json",
           "outputs": {
             "BUILD_NUMBER": "$.nextBuildNumber"
           }
         },
         {
-          "name": "beta_archive",
-          "run": "asc xcode archive --project \"$PROJECT_PATH\" --scheme \"$SCHEME\" --configuration \"$CONFIGURATION\" --archive-path \".asc/artifacts/App-$VERSION-${steps.beta_resolve_next_build.BUILD_NUMBER}.xcarchive\" --clean --overwrite --xcodebuild-flag=-destination --xcodebuild-flag=generic/platform=iOS --xcodebuild-flag=-allowProvisioningUpdates --xcodebuild-flag=MARKETING_VERSION=$VERSION --xcodebuild-flag=CURRENT_PROJECT_VERSION=${steps.beta_resolve_next_build.BUILD_NUMBER} --output json",
+          "name": "archive",
+          "run": "asc xcode archive --project \"$PROJECT_PATH\" --scheme \"$SCHEME\" --configuration \"$CONFIGURATION\" --archive-path \".asc/artifacts/App-$VERSION-${steps.resolve_next_build.BUILD_NUMBER}.xcarchive\" --clean --overwrite --xcodebuild-flag=-destination --xcodebuild-flag=generic/platform=iOS --xcodebuild-flag=-allowProvisioningUpdates --xcodebuild-flag=MARKETING_VERSION=$VERSION --xcodebuild-flag=CURRENT_PROJECT_VERSION=${steps.resolve_next_build.BUILD_NUMBER} --output json",
           "outputs": {
             "ARCHIVE_PATH": "$.archive_path",
             "VERSION": "$.version",
@@ -78,8 +78,8 @@ Create `.asc/workflow.json`:
           }
         },
         {
-          "name": "beta_export",
-          "run": "asc xcode export --archive-path ${steps.beta_archive.ARCHIVE_PATH} --export-options \"$EXPORT_OPTIONS\" --ipa-path \".asc/artifacts/App-$VERSION-${steps.beta_archive.BUILD_NUMBER}.ipa\" --overwrite --xcodebuild-flag=-allowProvisioningUpdates --output json",
+          "name": "export",
+          "run": "asc xcode export --archive-path ${steps.archive.ARCHIVE_PATH} --export-options \"$EXPORT_OPTIONS\" --ipa-path \".asc/artifacts/App-$VERSION-${steps.archive.BUILD_NUMBER}.ipa\" --overwrite --xcodebuild-flag=-allowProvisioningUpdates --output json",
           "outputs": {
             "IPA_PATH": "$.ipa_path",
             "VERSION": "$.version",
@@ -87,8 +87,8 @@ Create `.asc/workflow.json`:
           }
         },
         {
-          "name": "beta_publish",
-          "run": "asc publish testflight --app \"$APP_ID\" --ipa ${steps.beta_export.IPA_PATH} --group \"$TESTFLIGHT_GROUP\" --wait --poll-interval 10s --output json",
+          "name": "publish",
+          "run": "asc publish testflight --app \"$APP_ID\" --ipa ${steps.export.IPA_PATH} --group \"$TESTFLIGHT_GROUP\" --wait --poll-interval 10s --output json",
           "outputs": {
             "BUILD_ID": "$.buildId",
             "BUILD_NUMBER": "$.buildNumber"
@@ -120,3 +120,38 @@ Notes:
 - Output-producing step names only need to stay unique within workflows that
   can execute together in the same run graph. Independent workflows can reuse
   names like `archive` or `publish`.
+
+Example:
+
+```json
+{
+  "workflows": {
+    "testflight_beta": {
+      "steps": [
+        {
+          "name": "archive",
+          "run": "printf '{\"buildId\":\"beta\"}'",
+          "outputs": {
+            "BUILD_ID": "$.buildId"
+          }
+        }
+      ]
+    },
+    "appstore_release": {
+      "steps": [
+        {
+          "name": "archive",
+          "run": "printf '{\"buildId\":\"release\"}'",
+          "outputs": {
+            "BUILD_ID": "$.buildId"
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
+This is valid because those workflows are independent. If a third workflow can
+call both of them in the same run, the duplicate `archive` producers still need
+to be renamed.
