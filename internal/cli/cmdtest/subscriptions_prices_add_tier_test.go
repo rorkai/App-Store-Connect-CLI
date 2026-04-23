@@ -327,6 +327,103 @@ func TestSubscriptionsPricesAdd_InitialPriceForwardsAttributes(t *testing.T) {
 	}
 }
 
+func TestSubscriptionsPricesAdd_ExistingPriceForwardsTerritoryOverridePayload(t *testing.T) {
+	setupAuth(t)
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/relationships/prices"):
+			body := `{"data":[{"type":"subscriptionPrices","id":"existing-price-1"}],"links":{}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
+			var payload map[string]any
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("failed to decode post payload: %v", err)
+			}
+
+			data, ok := payload["data"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected data object, got %#v", payload["data"])
+			}
+			if got := data["type"]; got != "subscriptionPrices" {
+				t.Fatalf("expected type subscriptionPrices, got %#v", got)
+			}
+
+			attrs, ok := data["attributes"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected attributes object, got %#v", data["attributes"])
+			}
+			if attrs["startDate"] != "2026-05-01" {
+				t.Fatalf("expected startDate 2026-05-01, got %#v", attrs["startDate"])
+			}
+			if attrs["preserveCurrentPrice"] != true {
+				t.Fatalf("expected preserveCurrentPrice true, got %#v", attrs["preserveCurrentPrice"])
+			}
+
+			relationships, ok := data["relationships"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected relationships object, got %#v", data["relationships"])
+			}
+			subscription := relationships["subscription"].(map[string]any)["data"].(map[string]any)
+			if subscription["id"] != "8000000003" {
+				t.Fatalf("expected subscription id 8000000003, got %#v", subscription["id"])
+			}
+			pricePoint := relationships["subscriptionPricePoint"].(map[string]any)["data"].(map[string]any)
+			if pricePoint["id"] != "PP_ID" {
+				t.Fatalf("expected price point PP_ID, got %#v", pricePoint["id"])
+			}
+			territory := relationships["territory"].(map[string]any)["data"].(map[string]any)
+			if territory["id"] != "NOR" {
+				t.Fatalf("expected territory NOR, got %#v", territory["id"])
+			}
+
+			return &http.Response{
+				StatusCode: http.StatusCreated,
+				Body: io.NopCloser(strings.NewReader(
+					`{"data":{"type":"subscriptionPrices","id":"sub-price-1","attributes":{"startDate":"2026-05-01","preserved":true}}}`,
+				)),
+				Header: http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	t.Setenv("HOME", t.TempDir())
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "prices", "set",
+			"--subscription-id", "8000000003",
+			"--price-point", "PP_ID",
+			"--territory", "Norway",
+			"--start-date", "2026-05-01",
+			"--preserved",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"sub-price-1"`) {
+		t.Fatalf("expected subscription price response in stdout, got %q", stdout)
+	}
+}
+
 func TestSubscriptionsPricesAdd_TierRequiresTerritory(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

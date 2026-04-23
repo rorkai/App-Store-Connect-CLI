@@ -297,6 +297,8 @@ Examples:
 }
 
 func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptions) (subscriptionsSetupResult, error) {
+	availabilityTerritories := subscriptionsSetupAvailabilityTerritories(opts)
+
 	result := subscriptionsSetupResult{
 		Status:             "ok",
 		AppID:              opts.AppID,
@@ -480,7 +482,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		})
 	}
 
-	if !opts.hasAvailability() {
+	if len(availabilityTerritories) == 0 {
 		result.Steps = append(result.Steps, subscriptionsSetupStepResult{
 			Name:    subscriptionsSetupStepSetAvailability,
 			Status:  "skipped",
@@ -488,7 +490,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		})
 	} else {
 		availabilityCtx, availabilityCancel := shared.ContextWithTimeout(ctx)
-		availabilityResp, err := client.CreateSubscriptionAvailability(availabilityCtx, result.SubscriptionID, opts.Territories, asc.SubscriptionAvailabilityAttributes{
+		availabilityResp, err := client.CreateSubscriptionAvailability(availabilityCtx, result.SubscriptionID, availabilityTerritories, asc.SubscriptionAvailabilityAttributes{
 			AvailableInNewTerritories: opts.AvailableInNewTerritories,
 		})
 		availabilityCancel()
@@ -505,9 +507,10 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		}
 		result.AvailabilityID = strings.TrimSpace(availabilityResp.Data.ID)
 		result.Steps = append(result.Steps, subscriptionsSetupStepResult{
-			Name:   subscriptionsSetupStepSetAvailability,
-			Status: "completed",
-			ID:     result.AvailabilityID,
+			Name:    subscriptionsSetupStepSetAvailability,
+			Status:  "completed",
+			ID:      result.AvailabilityID,
+			Message: subscriptionsSetupAvailabilityMessage(opts, availabilityTerritories),
 		})
 	}
 
@@ -521,7 +524,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		return result, nil
 	}
 
-	verification, verifyStep, err := verifySubscriptionsSetupState(ctx, client, result, opts)
+	verification, verifyStep, err := verifySubscriptionsSetupState(ctx, client, result, opts, availabilityTerritories)
 	if err != nil {
 		result.Status = "error"
 		result.Error = err.Error()
@@ -536,7 +539,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 	return result, nil
 }
 
-func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, result subscriptionsSetupResult, opts subscriptionsSetupOptions) (*subscriptionsSetupVerification, subscriptionsSetupStepResult, error) {
+func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, result subscriptionsSetupResult, opts subscriptionsSetupOptions, availabilityTerritories []string) (*subscriptionsSetupVerification, subscriptionsSetupStepResult, error) {
 	verification := &subscriptionsSetupVerification{Status: "verified"}
 
 	groupCtx, groupCancel := shared.ContextWithTimeout(ctx)
@@ -638,7 +641,7 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 		verification.PriceVerified = &value
 	}
 
-	if opts.hasAvailability() {
+	if len(availabilityTerritories) > 0 {
 		availabilityCtx, availabilityCancel := shared.ContextWithTimeout(ctx)
 		availabilityResp, err := client.GetSubscriptionAvailabilityForSubscription(availabilityCtx, result.SubscriptionID)
 		availabilityCancel()
@@ -672,7 +675,7 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 			actualTerritories = append(actualTerritories, id)
 			actualSet[id] = struct{}{}
 		}
-		for _, expected := range opts.Territories {
+		for _, expected := range availabilityTerritories {
 			if _, ok := actualSet[expected]; !ok {
 				verification.Status = "failed"
 				return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: fmt.Sprintf("missing availability territory %q", expected)}, fmt.Errorf("missing availability territory %q", expected)
@@ -684,6 +687,26 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 	}
 
 	return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "completed"}, nil
+}
+
+func subscriptionsSetupAvailabilityTerritories(opts subscriptionsSetupOptions) []string {
+	if len(opts.Territories) > 0 {
+		return opts.Territories
+	}
+	if opts.hasPricing(opts.StartDate) && opts.PriceTerritory != "" {
+		return []string{opts.PriceTerritory}
+	}
+	return nil
+}
+
+func subscriptionsSetupAvailabilityMessage(opts subscriptionsSetupOptions, territories []string) string {
+	if len(opts.Territories) > 0 {
+		return ""
+	}
+	if len(territories) == 1 && opts.PriceTerritory != "" {
+		return fmt.Sprintf("auto-enabled pricing territory %q", territories[0])
+	}
+	return ""
 }
 
 func resolveExpectedSubscriptionSetupPricePoint(ctx context.Context, client *asc.Client, subID string, opts subscriptionsSetupOptions) (string, error) {
