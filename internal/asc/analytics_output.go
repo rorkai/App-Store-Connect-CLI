@@ -26,6 +26,16 @@ type AnalyticsReportRequestResult struct {
 	CreatedDate string `json:"createdDate,omitempty"`
 }
 
+// AnalyticsReportRequestEnsureResult represents CLI output for idempotent request creation.
+type AnalyticsReportRequestEnsureResult struct {
+	RequestID   string `json:"requestId"`
+	AppID       string `json:"appId"`
+	AccessType  string `json:"accessType"`
+	State       string `json:"state,omitempty"`
+	CreatedDate string `json:"createdDate,omitempty"`
+	Created     bool   `json:"created"`
+}
+
 // AnalyticsReportRequestDeleteResult represents CLI output for deleted requests.
 type AnalyticsReportRequestDeleteResult struct {
 	RequestID string `json:"requestId"`
@@ -100,6 +110,19 @@ func salesReportResultRows(result *SalesReportResult) ([]string, [][]string) {
 func analyticsReportRequestResultRows(result *AnalyticsReportRequestResult) ([]string, [][]string) {
 	headers := []string{"Request ID", "App ID", "Access Type", "State", "Created Date"}
 	rows := [][]string{{result.RequestID, result.AppID, result.AccessType, result.State, result.CreatedDate}}
+	return headers, rows
+}
+
+func analyticsReportRequestEnsureResultRows(result *AnalyticsReportRequestEnsureResult) ([]string, [][]string) {
+	headers := []string{"Request ID", "App ID", "Access Type", "State", "Created Date", "Created"}
+	rows := [][]string{{
+		result.RequestID,
+		result.AppID,
+		result.AccessType,
+		result.State,
+		result.CreatedDate,
+		fmt.Sprintf("%t", result.Created),
+	}}
 	return headers, rows
 }
 

@@ -101,6 +101,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			AnalyticsRequestsEnsureCommand(),
 			AnalyticsRequestsDeleteCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -186,6 +187,120 @@ Examples:
 
 			return shared.PrintOutput(response, *output.Output, *output.Pretty)
 		},
+	}
+}
+
+// AnalyticsRequestsEnsureCommand creates an analytics report request only when one does not already exist.
+func AnalyticsRequestsEnsureCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("ensure", flag.ExitOnError)
+
+	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	accessType := fs.String("access-type", "", "Access type to ensure: ONGOING or ONE_TIME_SNAPSHOT")
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "ensure",
+		ShortUsage: "asc analytics requests ensure --app \"APP_ID\" --access-type ONGOING",
+		ShortHelp:  "Ensure an analytics report request exists.",
+		LongHelp: `Ensure an analytics report request exists for an app.
+
+The command first lists existing analytics report requests for the app. If it
+finds an active request with the requested access type, it returns that request
+with created=false. Otherwise, it creates a new request and returns it with
+created=true.
+
+Examples:
+  asc analytics requests ensure --app "123456789" --access-type ONGOING
+  asc analytics requests ensure --app "123456789" --access-type ONGOING --output json`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return flag.ErrHelp
+			}
+
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if resolvedAppID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
+				return flag.ErrHelp
+			}
+			if strings.TrimSpace(*accessType) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --access-type is required")
+				return flag.ErrHelp
+			}
+			normalizedAccessType, err := normalizeAnalyticsAccessType(*accessType)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("analytics requests ensure: %w", err)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			result, err := ensureAnalyticsReportRequest(requestCtx, client, resolvedAppID, normalizedAccessType)
+			if err != nil {
+				return fmt.Errorf("analytics requests ensure: %w", err)
+			}
+
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+		},
+	}
+}
+
+func ensureAnalyticsReportRequest(ctx context.Context, client *asc.Client, appID string, accessType asc.AnalyticsAccessType) (*asc.AnalyticsReportRequestEnsureResult, error) {
+	existing, err := client.GetAnalyticsReportRequests(ctx, appID, asc.WithAnalyticsReportRequestsLimit(200))
+	if err != nil {
+		return nil, fmt.Errorf("failed to list requests: %w", err)
+	}
+
+	paginated, err := asc.PaginateAll(ctx, existing, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetAnalyticsReportRequests(ctx, appID, asc.WithAnalyticsReportRequestsNextURL(nextURL))
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	requests, ok := paginated.(*asc.AnalyticsReportRequestsResponse)
+	if !ok || requests == nil {
+		requests = existing
+	}
+
+	for _, request := range requests.Data {
+		if analyticsReportRequestMatches(request, accessType) {
+			return analyticsReportRequestEnsureResult(appID, request, false), nil
+		}
+	}
+
+	created, err := client.CreateAnalyticsReportRequest(ctx, appID, accessType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	return analyticsReportRequestEnsureResult(appID, created.Data, true), nil
+}
+
+func analyticsReportRequestMatches(request asc.AnalyticsReportRequestResource, accessType asc.AnalyticsAccessType) bool {
+	if request.Attributes.AccessType != accessType {
+		return false
+	}
+	if request.Attributes.State == asc.AnalyticsReportRequestStateFailed {
+		return false
+	}
+	return request.Attributes.StoppedDueToInactivity == nil || !*request.Attributes.StoppedDueToInactivity
+}
+
+func analyticsReportRequestEnsureResult(appID string, request asc.AnalyticsReportRequestResource, created bool) *asc.AnalyticsReportRequestEnsureResult {
+	return &asc.AnalyticsReportRequestEnsureResult{
+		RequestID:   request.ID,
+		AppID:       appID,
+		AccessType:  string(request.Attributes.AccessType),
+		State:       string(request.Attributes.State),
+		CreatedDate: request.Attributes.CreatedDate,
+		Created:     created,
 	}
 }
 

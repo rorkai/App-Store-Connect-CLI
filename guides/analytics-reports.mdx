@@ -76,7 +76,15 @@ Request custom analytics reports for detailed app metrics.
 
 <Steps>
   <Step title="Request analytics report">
-    Create a request for ongoing analytics access:
+    Ensure ongoing analytics access exists without creating duplicate requests:
+
+    ```bash  theme={null}
+    asc analytics requests ensure \
+      --app "YOUR_APP_ID" \
+      --access-type ONGOING
+    ```
+
+    Or create a request directly:
 
     ```bash  theme={null}
     asc analytics request \
@@ -218,18 +226,13 @@ if [ $(date +%u) -eq 1 ]; then
     --output "$REPORT_DIR/weekly-sales.txt"
 fi
 
-# 3. Request analytics if not already requested
-echo "Checking for analytics request..."
-REQUESTS=$(asc analytics requests --app "$ASC_APP_ID" --output json)
-
-if [ "$(echo $REQUESTS | jq '.data | length')" -eq 0 ]; then
-  echo "Creating analytics request..."
-  asc analytics request --app "$ASC_APP_ID" --access-type ONGOING
-fi
+# 3. Ensure analytics access exists
+echo "Ensuring analytics request..."
+REQUEST=$(asc analytics requests ensure --app "$ASC_APP_ID" --access-type ONGOING --output json)
+REQUEST_ID=$(echo "$REQUEST" | jq -r '.requestId')
 
 # 4. Download available analytics instances
-REQUEST_ID=$(echo $REQUESTS | jq -r '.data[0].id')
-if [ -n "$REQUEST_ID" ]; then
+if [ -n "$REQUEST_ID" ] && [ "$REQUEST_ID" != "null" ]; then
   echo "Downloading analytics instances..."
   REPORTS=$(asc analytics view --request-id "$REQUEST_ID" --output json)
   

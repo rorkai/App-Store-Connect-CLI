@@ -50,6 +50,16 @@ func TestAnalyticsValidationErrors(t *testing.T) {
 			args:    []string{"analytics", "requests", "delete", "--request-id", "11111111-1111-1111-1111-111111111111"},
 			wantErr: "--confirm is required",
 		},
+		{
+			name:    "requests ensure missing app",
+			args:    []string{"analytics", "requests", "ensure", "--access-type", "ONGOING"},
+			wantErr: "--app is required",
+		},
+		{
+			name:    "requests ensure missing access type",
+			args:    []string{"analytics", "requests", "ensure", "--app", "APP_ID"},
+			wantErr: "--access-type is required",
+		},
 	}
 
 	for _, test := range tests {

@@ -22,6 +22,7 @@ Examples:
   asc analytics sales --vendor "12345678" --type SALES --subtype SUMMARY --frequency DAILY --date "2024-01-20"
   asc analytics request --app "APP_ID" --access-type ONGOING
   asc analytics requests --app "APP_ID"
+  asc analytics requests ensure --app "APP_ID" --access-type ONGOING
   asc analytics get --request-id "REQUEST_ID"
   asc analytics reports get --report-id "REPORT_ID"
   asc analytics instances links --instance-id "INSTANCE_ID"
