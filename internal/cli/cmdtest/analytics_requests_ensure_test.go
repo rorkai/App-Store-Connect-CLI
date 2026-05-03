@@ -101,6 +101,76 @@ func TestAnalyticsRequestsEnsureUsesExistingRequest(t *testing.T) {
 	}
 }
 
+func TestAnalyticsRequestsEnsureUsesExistingRequestFromLaterPage(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	var requestCount lockedCounter
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch count := requestCount.Inc(); count {
+		case 1:
+			if req.Method != http.MethodGet {
+				t.Fatalf("expected first request GET, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/apps/app-1/analyticsReportRequests" {
+				t.Fatalf("expected analytics requests path, got %s", req.URL.Path)
+			}
+			body := `{"data":[` +
+				`{"type":"analyticsReportRequests","id":"req-snapshot","attributes":{"accessType":"ONE_TIME_SNAPSHOT","state":"COMPLETED"}}` +
+				`],"links":{"next":"/v1/apps/app-1/analyticsReportRequests?cursor=2"}}`
+			return analyticsEnsureJSONResponse(http.StatusOK, body), nil
+		case 2:
+			if req.Method != http.MethodGet {
+				t.Fatalf("expected second request GET, got %s", req.Method)
+			}
+			if req.URL.Path != "/v1/apps/app-1/analyticsReportRequests" {
+				t.Fatalf("expected analytics requests path, got %s", req.URL.Path)
+			}
+			if req.URL.Query().Get("cursor") != "2" {
+				t.Fatalf("expected cursor=2, got %q", req.URL.Query().Get("cursor"))
+			}
+			body := `{"data":[` +
+				`{"type":"analyticsReportRequests","id":"req-existing-page-2","attributes":{"accessType":"ONGOING","state":"PROCESSING","createdDate":"2026-05-01T00:00:00Z"}}` +
+				`],"links":{"next":""}}`
+			return analyticsEnsureJSONResponse(http.StatusOK, body), nil
+		default:
+			t.Fatalf("unexpected extra request %d: %s %s", count, req.Method, req.URL.String())
+			return nil, nil
+		}
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"analytics", "requests", "ensure",
+			"--app", "app-1",
+			"--access-type", "ONGOING",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	var result map[string]any
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("failed to parse JSON output %q: %v", stdout, err)
+	}
+	if result["requestId"] != "req-existing-page-2" {
+		t.Fatalf("expected existing request id from second page, got %#v", result["requestId"])
+	}
+	if result["created"] != false {
+		t.Fatalf("expected created=false, got %#v", result["created"])
+	}
+}
+
 func TestAnalyticsRequestsEnsureCreatesMissingRequest(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

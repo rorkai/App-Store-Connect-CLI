@@ -264,9 +264,12 @@ func ensureAnalyticsReportRequest(ctx context.Context, client *asc.Client, appID
 		return nil, err
 	}
 
+	if paginated == nil {
+		return nil, fmt.Errorf("failed to list requests: empty paginated response")
+	}
 	requests, ok := paginated.(*asc.AnalyticsReportRequestsResponse)
 	if !ok || requests == nil {
-		requests = existing
+		return nil, fmt.Errorf("failed to list requests: unexpected paginated response type %T", paginated)
 	}
 
 	for _, request := range requests.Data {
