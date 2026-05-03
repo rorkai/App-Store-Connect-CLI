@@ -167,7 +167,10 @@ func appsRegistrySync(ctx context.Context, opts appsRegistrySyncOptions) error {
 		return fmt.Errorf("apps registry sync: unexpected apps response type %T", response)
 	}
 
-	result, registry := mergeAppRegistry(existing, appsResponse.Data, opts.PruneMissing)
+	result, registry, err := mergeAppRegistry(existing, appsResponse.Data, opts.PruneMissing)
+	if err != nil {
+		return fmt.Errorf("apps registry sync: %w", err)
+	}
 	result.Path = path
 	result.DryRun = opts.DryRun
 	if opts.DryRun {
@@ -280,8 +283,14 @@ func writeAppRegistry(path string, registry appRegistryFile) error {
 	return nil
 }
 
-func mergeAppRegistry(existing appRegistryFile, resources []asc.Resource[asc.AppAttributes], pruneMissing bool) (appRegistrySyncResult, appRegistryFile) {
+func mergeAppRegistry(existing appRegistryFile, resources []asc.Resource[asc.AppAttributes], pruneMissing bool) (appRegistrySyncResult, appRegistryFile, error) {
 	normalizeRegistryEntries(existing.Apps)
+	if err := validateUniqueRegistryASCAppIDs(existing.Apps); err != nil {
+		return appRegistrySyncResult{}, appRegistryFile{}, err
+	}
+	if err := validateUniqueASCResources(resources); err != nil {
+		return appRegistrySyncResult{}, appRegistryFile{}, err
+	}
 
 	existingByID := make(map[string]appRegistryEntry, len(existing.Apps))
 	for _, app := range existing.Apps {
@@ -368,7 +377,37 @@ func mergeAppRegistry(existing appRegistryFile, resources []asc.Resource[asc.App
 
 	sortAppRegistryEntries(merged)
 	result.Total = len(merged)
-	return result, appRegistryFile{Apps: merged}
+	return result, appRegistryFile{Apps: merged}, nil
+}
+
+func validateUniqueRegistryASCAppIDs(apps []appRegistryEntry) error {
+	seen := make(map[string]struct{}, len(apps))
+	for _, app := range apps {
+		appID := strings.TrimSpace(app.ASCAppID)
+		if appID == "" {
+			continue
+		}
+		if _, ok := seen[appID]; ok {
+			return fmt.Errorf("registry contains duplicate asc_app_id %q", appID)
+		}
+		seen[appID] = struct{}{}
+	}
+	return nil
+}
+
+func validateUniqueASCResources(resources []asc.Resource[asc.AppAttributes]) error {
+	seen := make(map[string]struct{}, len(resources))
+	for _, resource := range resources {
+		appID := strings.TrimSpace(resource.ID)
+		if appID == "" {
+			continue
+		}
+		if _, ok := seen[appID]; ok {
+			return fmt.Errorf("App Store Connect returned duplicate app id %q", appID)
+		}
+		seen[appID] = struct{}{}
+	}
+	return nil
 }
 
 func normalizeRegistryEntries(entries []appRegistryEntry) {
