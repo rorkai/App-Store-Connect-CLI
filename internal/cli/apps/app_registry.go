@@ -403,7 +403,7 @@ func validateUniqueASCResources(resources []asc.Resource[asc.AppAttributes]) err
 			continue
 		}
 		if _, ok := seen[appID]; ok {
-			return fmt.Errorf("App Store Connect returned duplicate app id %q", appID)
+			return fmt.Errorf("app store connect returned duplicate app id %q", appID)
 		}
 		seen[appID] = struct{}{}
 	}
