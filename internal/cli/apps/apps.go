@@ -48,7 +48,7 @@ Examples:
   asc apps public view --app "1234567890"
   asc apps public search --term "focus" --country us
   asc apps public storefronts list
-  asc apps registry sync --path ".asc/app-registry.json"
+  asc apps registry pull --path ".asc/app-registry.json"
   asc apps view --id "APP_ID"
   asc apps info view --app "APP_ID"
   asc apps info edit --app "APP_ID" --locale "en-US" --whats-new "Bug fixes"

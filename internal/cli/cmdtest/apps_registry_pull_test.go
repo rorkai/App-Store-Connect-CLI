@@ -1,6 +1,7 @@
 package cmdtest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,12 +9,13 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestAppsRegistrySyncDryRunMergesAndPreservesLocalFields(t *testing.T) {
+func TestAppsRegistryPullDryRunMergesAndPreservesLocalFields(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -75,7 +77,7 @@ func TestAppsRegistrySyncDryRunMergesAndPreservesLocalFields(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"apps", "registry", "sync",
+			"apps", "registry", "pull",
 			"--path", registryPath,
 			"--dry-run",
 			"--output", "json",
@@ -131,7 +133,7 @@ func TestAppsRegistrySyncDryRunMergesAndPreservesLocalFields(t *testing.T) {
 	}
 }
 
-func TestAppsRegistrySyncWritesRegistryFile(t *testing.T) {
+func TestAppsRegistryPullWritesRegistryFile(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -146,7 +148,7 @@ func TestAppsRegistrySyncWritesRegistryFile(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"apps", "registry", "sync",
+			"apps", "registry", "pull",
 			"--path", registryPath,
 			"--output", "json",
 		}); err != nil {
@@ -190,7 +192,7 @@ func TestAppsRegistrySyncWritesRegistryFile(t *testing.T) {
 	}
 }
 
-func TestAppsRegistrySyncWriteFailsWhenPathIsDirectory(t *testing.T) {
+func TestAppsRegistryPullWriteFailsWhenPathIsDirectory(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -205,7 +207,7 @@ func TestAppsRegistrySyncWriteFailsWhenPathIsDirectory(t *testing.T) {
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"apps", "registry", "sync",
+			"apps", "registry", "pull",
 			"--path", registryPath,
 			"--output", "json",
 		}); err != nil {
@@ -225,7 +227,7 @@ func TestAppsRegistrySyncWriteFailsWhenPathIsDirectory(t *testing.T) {
 	}
 }
 
-func TestAppsRegistrySyncPrunesMissingWhenRequested(t *testing.T) {
+func TestAppsRegistryPullPrunesMissingWhenRequested(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -243,7 +245,7 @@ func TestAppsRegistrySyncPrunesMissingWhenRequested(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"apps", "registry", "sync",
+			"apps", "registry", "pull",
 			"--path", registryPath,
 			"--prune-missing",
 			"--dry-run",
@@ -274,7 +276,7 @@ func TestAppsRegistrySyncPrunesMissingWhenRequested(t *testing.T) {
 	}
 }
 
-func TestAppsRegistrySyncRejectsInvalidRegistryJSON(t *testing.T) {
+func TestAppsRegistryPullRejectsInvalidRegistryJSON(t *testing.T) {
 	registryPath := filepath.Join(t.TempDir(), "app_registry.json")
 	if err := os.WriteFile(registryPath, []byte(`{"apps":[`), 0o600); err != nil {
 		t.Fatalf("WriteFile() error: %v", err)
@@ -286,7 +288,7 @@ func TestAppsRegistrySyncRejectsInvalidRegistryJSON(t *testing.T) {
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"apps", "registry", "sync",
+			"apps", "registry", "pull",
 			"--path", registryPath,
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
@@ -311,7 +313,7 @@ func TestAppsRegistrySyncRejectsInvalidRegistryJSON(t *testing.T) {
 	}
 }
 
-func TestAppsRegistrySyncRejectsDuplicateExistingASCAppIDs(t *testing.T) {
+func TestAppsRegistryPullRejectsDuplicateExistingASCAppIDs(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -334,7 +336,7 @@ func TestAppsRegistrySyncRejectsDuplicateExistingASCAppIDs(t *testing.T) {
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"apps", "registry", "sync",
+			"apps", "registry", "pull",
 			"--path", registryPath,
 			"--dry-run",
 		}); err != nil {
@@ -351,7 +353,47 @@ func TestAppsRegistrySyncRejectsDuplicateExistingASCAppIDs(t *testing.T) {
 	}
 }
 
-func TestAppsRegistrySyncRejectsDuplicateASCResponseIDs(t *testing.T) {
+func TestAppsRegistryPullRejectsDuplicateExistingKeys(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	registryPath := filepath.Join(t.TempDir(), "app_registry.json")
+	duplicateRegistry := `{"apps":[` +
+		`{"key":"same","name":"First","asc_app_id":"app-1","bundle_id":"one.bundle","platform":null,"primary_locale":"en-US","repo_path":null,"ga4_property_id":null,"aliases":[]},` +
+		`{"key":"same","name":"Second","asc_app_id":"app-2","bundle_id":"two.bundle","platform":null,"primary_locale":"en-US","repo_path":null,"ga4_property_id":null,"aliases":[]}` +
+		`]}`
+	if err := os.WriteFile(registryPath, []byte(duplicateRegistry), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return appsRegistryJSONResponse(`{"data":[],"links":{"next":""}}`), nil
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"apps", "registry", "pull",
+			"--path", registryPath,
+			"--dry-run",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil || !strings.Contains(runErr.Error(), `duplicate key "same"`) {
+		t.Fatalf("expected duplicate key error, got %v", runErr)
+	}
+	if stdout != "" || stderr != "" {
+		t.Fatalf("expected empty output, got stdout=%q stderr=%q", stdout, stderr)
+	}
+}
+
+func TestAppsRegistryPullRejectsDuplicateASCResponseIDs(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -369,7 +411,7 @@ func TestAppsRegistrySyncRejectsDuplicateASCResponseIDs(t *testing.T) {
 	var runErr error
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"apps", "registry", "sync",
+			"apps", "registry", "pull",
 			"--path", filepath.Join(t.TempDir(), "registry.json"),
 			"--dry-run",
 		}); err != nil {
@@ -386,7 +428,7 @@ func TestAppsRegistrySyncRejectsDuplicateASCResponseIDs(t *testing.T) {
 	}
 }
 
-func TestAppsRegistrySyncParserPermutations(t *testing.T) {
+func TestAppsRegistryPullParserPermutations(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -400,15 +442,15 @@ func TestAppsRegistrySyncParserPermutations(t *testing.T) {
 	}{
 		{
 			name: "root flag before subcommand",
-			args: []string{"--debug=false", "apps", "registry", "sync", "--path", filepath.Join(t.TempDir(), "registry.json"), "--dry-run", "--output", "json"},
+			args: []string{"--debug=false", "apps", "registry", "pull", "--path", filepath.Join(t.TempDir(), "registry.json"), "--dry-run", "--output", "json"},
 		},
 		{
 			name: "mixed flag order",
-			args: []string{"apps", "registry", "sync", "--output", "json", "--dry-run", "--path", filepath.Join(t.TempDir(), "registry.json")},
+			args: []string{"apps", "registry", "pull", "--output", "json", "--dry-run", "--path", filepath.Join(t.TempDir(), "registry.json")},
 		},
 		{
 			name: "flag value equals subcommand name",
-			args: []string{"apps", "registry", "sync", "--path", filepath.Join(t.TempDir(), "sync"), "--dry-run", "--output", "json"},
+			args: []string{"apps", "registry", "pull", "--path", filepath.Join(t.TempDir(), "pull"), "--dry-run", "--output", "json"},
 		},
 	}
 
@@ -440,7 +482,7 @@ func TestAppsRegistrySyncParserPermutations(t *testing.T) {
 	}
 }
 
-func TestAppsRegistrySyncInvalidFlagValues(t *testing.T) {
+func TestAppsRegistryPullInvalidFlagValues(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -455,17 +497,17 @@ func TestAppsRegistrySyncInvalidFlagValues(t *testing.T) {
 	}{
 		{
 			name:    "empty path",
-			args:    []string{"apps", "registry", "sync", "--path", ""},
+			args:    []string{"apps", "registry", "pull", "--path", ""},
 			wantErr: "--path is required",
 		},
 		{
 			name:    "output value equals subcommand",
-			args:    []string{"apps", "registry", "sync", "--path", filepath.Join(t.TempDir(), "registry.json"), "--dry-run", "--output", "sync"},
-			wantErr: "unsupported format: sync",
+			args:    []string{"apps", "registry", "pull", "--path", filepath.Join(t.TempDir(), "registry.json"), "--dry-run", "--output", "pull"},
+			wantErr: "unsupported format: pull",
 		},
 		{
 			name:    "pretty with table output",
-			args:    []string{"apps", "registry", "sync", "--path", filepath.Join(t.TempDir(), "registry.json"), "--dry-run", "--output", "table", "--pretty"},
+			args:    []string{"apps", "registry", "pull", "--path", filepath.Join(t.TempDir(), "registry.json"), "--dry-run", "--output", "table", "--pretty"},
 			wantErr: "--pretty is only valid with JSON output",
 		},
 	}
@@ -496,7 +538,72 @@ func TestAppsRegistrySyncInvalidFlagValues(t *testing.T) {
 	}
 }
 
-func TestAppsRegistrySyncTableOutput(t *testing.T) {
+func TestAppsRegistryPullInvalidBoolExitCode(t *testing.T) {
+	binaryPath := buildASCBlackBoxBinary(t)
+
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name: "invalid dry run",
+			args: []string{
+				"apps", "registry", "pull",
+				"--path", filepath.Join(t.TempDir(), "registry.json"),
+				"--dry-run=maybe",
+			},
+			wantErr: `invalid boolean value "maybe" for -dry-run`,
+		},
+		{
+			name: "invalid prune missing",
+			args: []string{
+				"apps", "registry", "pull",
+				"--path", filepath.Join(t.TempDir(), "registry.json"),
+				"--prune-missing=maybe",
+			},
+			wantErr: `invalid boolean value "maybe" for -prune-missing`,
+		},
+		{
+			name: "invalid dry run mixed flag order",
+			args: []string{
+				"apps", "registry", "pull",
+				"--output", "json",
+				"--dry-run=maybe",
+				"--path", filepath.Join(t.TempDir(), "registry.json"),
+			},
+			wantErr: `invalid boolean value "maybe" for -dry-run`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cmd := exec.Command(binaryPath, test.args...)
+
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+
+			err := cmd.Run()
+			var exitErr *exec.ExitError
+			if !errors.As(err, &exitErr) {
+				t.Fatalf("expected process exit error, got %v", err)
+			}
+			if exitErr.ExitCode() != 2 {
+				t.Fatalf("expected exit code 2, got %d", exitErr.ExitCode())
+			}
+			if stdout.String() != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout.String())
+			}
+			if !strings.Contains(stderr.String(), test.wantErr) {
+				t.Fatalf("expected stderr %q, got %q", test.wantErr, stderr.String())
+			}
+		})
+	}
+}
+
+func TestAppsRegistryPullTableOutput(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -509,7 +616,7 @@ func TestAppsRegistrySyncTableOutput(t *testing.T) {
 
 	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
-			"apps", "registry", "sync",
+			"apps", "registry", "pull",
 			"--path", filepath.Join(t.TempDir(), "registry.json"),
 			"--dry-run",
 			"--output", "table",

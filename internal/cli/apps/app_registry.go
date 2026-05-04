@@ -37,7 +37,7 @@ type appRegistryEntry struct {
 	Aliases       []string `json:"aliases"`
 }
 
-type appRegistrySyncResult struct {
+type appRegistryPullResult struct {
 	Path      string           `json:"path"`
 	DryRun    bool             `json:"dryRun"`
 	Total     int              `json:"total"`
@@ -56,22 +56,22 @@ func AppsRegistryCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "registry",
 		ShortUsage: "asc apps registry <subcommand> [flags]",
-		ShortHelp:  "Manage a local app registry for agent workflows.",
-		LongHelp: `Manage a local app registry for agent workflows.
+		ShortHelp:  "Manage a local app registry for automation.",
+		LongHelp: `Manage a local app registry for automation.
 
 The registry mirrors App Store Connect app identity fields and preserves
 local-only automation fields such as repo paths, analytics IDs, aliases, and
 platform hints.
 
 Examples:
-  asc apps registry sync
-  asc apps registry sync --path ".asc/app-registry.json"
-  asc apps registry sync --path "/Users/me/clawd/config/app_registry.json" --dry-run
-  asc apps registry sync --prune-missing`,
+  asc apps registry pull
+  asc apps registry pull --path ".asc/app-registry.json"
+  asc apps registry pull --path "/Users/me/clawd/config/app_registry.json" --dry-run
+  asc apps registry pull --prune-missing`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			AppsRegistrySyncCommand(),
+			AppsRegistryPullCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -79,9 +79,9 @@ Examples:
 	}
 }
 
-// AppsRegistrySyncCommand returns the app registry sync subcommand.
-func AppsRegistrySyncCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps registry sync", flag.ExitOnError)
+// AppsRegistryPullCommand returns the app registry pull subcommand.
+func AppsRegistryPullCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("apps registry pull", flag.ExitOnError)
 
 	path := fs.String("path", defaultAppRegistryPath, "Registry JSON path")
 	dryRun := fs.Bool("dry-run", false, "Preview the merged registry without writing it")
@@ -89,10 +89,10 @@ func AppsRegistrySyncCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "sync",
-		ShortUsage: "asc apps registry sync [--path PATH] [--dry-run] [--prune-missing] [flags]",
-		ShortHelp:  "Sync a local app registry from App Store Connect.",
-		LongHelp: `Sync a local app registry from App Store Connect.
+		Name:       "pull",
+		ShortUsage: "asc apps registry pull [--path PATH] [--dry-run] [--prune-missing] [flags]",
+		ShortHelp:  "Pull App Store Connect apps into a local registry.",
+		LongHelp: `Pull App Store Connect apps into a local registry.
 
 The command fetches all apps available to the configured API key, updates ASC
 identity fields, and preserves local-only fields by asc_app_id. By default,
@@ -100,18 +100,18 @@ entries not returned by App Store Connect are kept to avoid accidental data
 loss when using a limited API key. Use --prune-missing to remove them.
 
 Examples:
-  asc apps registry sync
-  asc apps registry sync --dry-run --output json
-  asc apps registry sync --path "/Users/me/clawd/config/app_registry.json"
-  asc apps registry sync --path ".asc/app-registry.json" --prune-missing`,
+  asc apps registry pull
+  asc apps registry pull --dry-run --output json
+  asc apps registry pull --path "/Users/me/clawd/config/app_registry.json"
+  asc apps registry pull --path ".asc/app-registry.json" --prune-missing`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
-				fmt.Fprintln(os.Stderr, "Error: apps registry sync does not accept positional arguments")
+				fmt.Fprintln(os.Stderr, "Error: apps registry pull does not accept positional arguments")
 				return flag.ErrHelp
 			}
-			return appsRegistrySync(ctx, appsRegistrySyncOptions{
+			return appsRegistryPull(ctx, appsRegistryPullOptions{
 				Path:         *path,
 				DryRun:       *dryRun,
 				PruneMissing: *pruneMissing,
@@ -122,7 +122,7 @@ Examples:
 	}
 }
 
-type appsRegistrySyncOptions struct {
+type appsRegistryPullOptions struct {
 	Path         string
 	DryRun       bool
 	PruneMissing bool
@@ -130,7 +130,7 @@ type appsRegistrySyncOptions struct {
 	Pretty       bool
 }
 
-func appsRegistrySync(ctx context.Context, opts appsRegistrySyncOptions) error {
+func appsRegistryPull(ctx context.Context, opts appsRegistryPullOptions) error {
 	path := strings.TrimSpace(opts.Path)
 	if path == "" {
 		fmt.Fprintln(os.Stderr, "Error: --path is required")
@@ -139,12 +139,12 @@ func appsRegistrySync(ctx context.Context, opts appsRegistrySyncOptions) error {
 
 	existing, err := readAppRegistry(path)
 	if err != nil {
-		return fmt.Errorf("apps registry sync: %w", err)
+		return fmt.Errorf("apps registry pull: %w", err)
 	}
 
 	client, err := shared.GetASCClient()
 	if err != nil {
-		return fmt.Errorf("apps registry sync: %w", err)
+		return fmt.Errorf("apps registry pull: %w", err)
 	}
 
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -159,17 +159,17 @@ func appsRegistrySync(ctx context.Context, opts appsRegistrySyncOptions) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("apps registry sync: failed to fetch apps: %w", err)
+		return fmt.Errorf("apps registry pull: failed to fetch apps: %w", err)
 	}
 
 	appsResponse, ok := response.(*asc.AppsResponse)
 	if !ok {
-		return fmt.Errorf("apps registry sync: unexpected apps response type %T", response)
+		return fmt.Errorf("apps registry pull: unexpected apps response type %T", response)
 	}
 
 	result, registry, err := mergeAppRegistry(existing, appsResponse.Data, opts.PruneMissing)
 	if err != nil {
-		return fmt.Errorf("apps registry sync: %w", err)
+		return fmt.Errorf("apps registry pull: %w", err)
 	}
 	result.Path = path
 	result.DryRun = opts.DryRun
@@ -179,11 +179,11 @@ func appsRegistrySync(ctx context.Context, opts appsRegistrySyncOptions) error {
 
 	if !opts.DryRun {
 		if err := writeAppRegistry(path, registry); err != nil {
-			return fmt.Errorf("apps registry sync: failed to write registry: %w", err)
+			return fmt.Errorf("apps registry pull: failed to write registry: %w", err)
 		}
 	}
 
-	return printAppRegistrySyncResult(&result, opts.Output, opts.Pretty)
+	return printAppRegistryPullResult(&result, opts.Output, opts.Pretty)
 }
 
 func readAppRegistry(path string) (appRegistryFile, error) {
@@ -283,13 +283,16 @@ func writeAppRegistry(path string, registry appRegistryFile) error {
 	return nil
 }
 
-func mergeAppRegistry(existing appRegistryFile, resources []asc.Resource[asc.AppAttributes], pruneMissing bool) (appRegistrySyncResult, appRegistryFile, error) {
+func mergeAppRegistry(existing appRegistryFile, resources []asc.Resource[asc.AppAttributes], pruneMissing bool) (appRegistryPullResult, appRegistryFile, error) {
 	normalizeRegistryEntries(existing.Apps)
+	if err := validateUniqueRegistryKeys(existing.Apps); err != nil {
+		return appRegistryPullResult{}, appRegistryFile{}, err
+	}
 	if err := validateUniqueRegistryASCAppIDs(existing.Apps); err != nil {
-		return appRegistrySyncResult{}, appRegistryFile{}, err
+		return appRegistryPullResult{}, appRegistryFile{}, err
 	}
 	if err := validateUniqueASCResources(resources); err != nil {
-		return appRegistrySyncResult{}, appRegistryFile{}, err
+		return appRegistryPullResult{}, appRegistryFile{}, err
 	}
 
 	existingByID := make(map[string]appRegistryEntry, len(existing.Apps))
@@ -320,7 +323,7 @@ func mergeAppRegistry(existing appRegistryFile, resources []asc.Resource[asc.App
 
 	seenASCIDs := make(map[string]struct{}, len(resources))
 	merged := make([]appRegistryEntry, 0, len(existing.Apps)+len(resources))
-	result := appRegistrySyncResult{}
+	result := appRegistryPullResult{}
 
 	for _, resource := range resources {
 		appID := strings.TrimSpace(resource.ID)
@@ -378,6 +381,21 @@ func mergeAppRegistry(existing appRegistryFile, resources []asc.Resource[asc.App
 	sortAppRegistryEntries(merged)
 	result.Total = len(merged)
 	return result, appRegistryFile{Apps: merged}, nil
+}
+
+func validateUniqueRegistryKeys(apps []appRegistryEntry) error {
+	seen := make(map[string]struct{}, len(apps))
+	for _, app := range apps {
+		key := strings.TrimSpace(app.Key)
+		if key == "" {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			return fmt.Errorf("registry contains duplicate key %q", key)
+		}
+		seen[key] = struct{}{}
+	}
+	return nil
 }
 
 func validateUniqueRegistryASCAppIDs(apps []appRegistryEntry) error {
@@ -501,19 +519,19 @@ func uniqueAppRegistryKey(base string, used map[string]struct{}) string {
 	}
 }
 
-func printAppRegistrySyncResult(result *appRegistrySyncResult, format string, pretty bool) error {
+func printAppRegistryPullResult(result *appRegistryPullResult, format string, pretty bool) error {
 	return shared.PrintOutputWithRenderers(
 		result,
 		format,
 		pretty,
-		func() error { return renderAppRegistrySyncResult(result, false) },
-		func() error { return renderAppRegistrySyncResult(result, true) },
+		func() error { return renderAppRegistryPullResult(result, false) },
+		func() error { return renderAppRegistryPullResult(result, true) },
 	)
 }
 
-func renderAppRegistrySyncResult(result *appRegistrySyncResult, markdown bool) error {
+func renderAppRegistryPullResult(result *appRegistryPullResult, markdown bool) error {
 	if result == nil {
-		return fmt.Errorf("registry sync result is nil")
+		return fmt.Errorf("registry pull result is nil")
 	}
 
 	headers := []string{"Path", "Dry Run", "Total", "Created", "Updated", "Unchanged", "Preserved", "Pruned"}
