@@ -37,6 +37,7 @@ var (
 	waitForPublishBuildProcessingFn = func(ctx context.Context, client *asc.Client, buildID string, pollInterval time.Duration) (*asc.BuildResponse, error) {
 		return client.WaitForBuildProcessing(ctx, buildID, pollInterval)
 	}
+	applyPublishVersionMetadataFn = applyPublishVersionMetadata
 )
 
 type publishLocalBuildFlagValues struct {
