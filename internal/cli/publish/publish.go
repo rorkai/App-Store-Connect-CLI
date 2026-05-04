@@ -25,6 +25,7 @@ const (
 	publishPlanStepUploadBuild            = "upload_build"
 	publishPlanStepWaitForBuildProcessing = "wait_for_build_processing"
 	publishPlanStepEnsureVersion          = "ensure_version"
+	publishPlanStepApplyMetadata          = "apply_metadata"
 	publishPlanStepAttachBuild            = "attach_build"
 	publishPlanStepSubmitReview           = "submit_review"
 )
@@ -400,6 +401,7 @@ func PublishAppStoreCommand() *ffcli.Command {
 	version := fs.String("version", "", "App Store version string (defaults to IPA version)")
 	buildNumber := fs.String("build-number", "", "CFBundleVersion (auto-extracted from IPA if not provided)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
+	metadataDir := fs.String("metadata-dir", "", "Metadata directory with version/<version>/*.json files to apply after ensuring the App Store version")
 	submit := fs.Bool("submit", false, "Submit for review after attaching build")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required with --submit)")
 	dryRun := fs.Bool("dry-run", false, "Preview high-level publish plan without uploading or submitting")
@@ -419,8 +421,9 @@ Workflow:
 1. Build locally with Xcode or upload an IPA
 2. Wait for build processing (if --wait)
 3. Find or create the App Store version
-4. Attach the build to the version
-5. Optionally submit for review with --submit --confirm
+4. Apply version localization metadata (if --metadata-dir)
+5. Attach the build to the version
+6. Optionally submit for review with --submit --confirm
 
 Use ` + "`asc release stage`" + ` when you want metadata-driven preparation without
 submission. Use ` + "`asc validate`" + ` to run readiness checks before you add
@@ -429,6 +432,7 @@ sequence without uploading or submitting.
 
 Examples:
   asc publish appstore --app "123" --ipa app.ipa --version 1.2.3
+  asc publish appstore --app "123" --ipa app.ipa --version 1.2.3 --metadata-dir ./metadata --submit --confirm
   asc publish appstore --app "123" --ipa app.ipa --version 1.2.3 --submit --dry-run
   asc publish appstore --app "123" --workspace App.xcworkspace --scheme App --version 1.2.3
   asc publish appstore --app "123" --ipa app.ipa --version 1.2.3 --submit --confirm`,
@@ -450,9 +454,13 @@ Examples:
 			ipaValue := strings.TrimSpace(*ipaPath)
 			versionValue := strings.TrimSpace(*version)
 			buildNumberValue := strings.TrimSpace(*buildNumber)
+			metadataDirValue := strings.TrimSpace(*metadataDir)
 			localBuildMode := localBuild.localBuildMode()
 			if err := validateLocalBuildFlagUsage(localBuildMode, setFlags); err != nil {
 				return err
+			}
+			if setFlags["metadata-dir"] && metadataDirValue == "" {
+				return shared.UsageError("--metadata-dir cannot be empty")
 			}
 			switch {
 			case localBuildMode:
@@ -552,7 +560,7 @@ Examples:
 			}
 
 			if *dryRun {
-				result := plannedAppStorePublishResult(mode, versionValue, buildNumberValue, *wait, *submit, localBuildMode, localBuildConfig)
+				result := plannedAppStorePublishResult(mode, versionValue, buildNumberValue, *wait, *submit, metadataDirValue != "", localBuildMode, localBuildConfig)
 				return shared.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
@@ -591,6 +599,16 @@ Examples:
 			versionResp, err := client.FindOrCreateAppStoreVersion(requestCtx, resolvedPublishAppID, versionValue, platformValue)
 			if err != nil {
 				return fmt.Errorf("publish appstore: %w", err)
+			}
+
+			if metadataDirValue != "" {
+				if _, err := applyPublishVersionMetadataFn(requestCtx, client, publishVersionMetadataOptions{
+					VersionID: versionResp.Data.ID,
+					Version:   versionValue,
+					Dir:       metadataDirValue,
+				}); err != nil {
+					return fmt.Errorf("publish appstore: apply metadata: %w", err)
+				}
 			}
 
 			resolvedBuildNumberValue := firstNonEmpty(strings.TrimSpace(buildResp.Data.Attributes.Version), buildNumberValue)
@@ -720,7 +738,7 @@ Examples:
 	}
 }
 
-func plannedAppStorePublishResult(mode asc.PublishMode, version, buildNumber string, wait, submit, localBuildMode bool, localBuildConfig publishLocalBuildConfig) *asc.AppStorePublishResult {
+func plannedAppStorePublishResult(mode asc.PublishMode, version, buildNumber string, wait, submit, applyMetadata, localBuildMode bool, localBuildConfig publishLocalBuildConfig) *asc.AppStorePublishResult {
 	result := &asc.AppStorePublishResult{
 		Mode:         mode,
 		DryRun:       true,
@@ -729,7 +747,7 @@ func plannedAppStorePublishResult(mode asc.PublishMode, version, buildNumber str
 		Uploaded:     false,
 		Attached:     false,
 		Submitted:    false,
-		Plan:         plannedAppStorePublishSteps(localBuildMode, wait, submit),
+		Plan:         plannedAppStorePublishSteps(localBuildMode, wait, submit, applyMetadata),
 	}
 
 	if !localBuildMode {
@@ -755,8 +773,8 @@ func plannedAppStorePublishResult(mode asc.PublishMode, version, buildNumber str
 	return result
 }
 
-func plannedAppStorePublishSteps(localBuildMode, wait, submit bool) []asc.PublishPlanStep {
-	steps := make([]asc.PublishPlanStep, 0, 5)
+func plannedAppStorePublishSteps(localBuildMode, wait, submit, applyMetadata bool) []asc.PublishPlanStep {
+	steps := make([]asc.PublishPlanStep, 0, 8)
 	if localBuildMode {
 		steps = append(
 			steps,
@@ -769,11 +787,11 @@ func plannedAppStorePublishSteps(localBuildMode, wait, submit bool) []asc.Publis
 	if wait {
 		steps = append(steps, newPublishPlanStep(publishPlanStepWaitForBuildProcessing, "Wait for App Store Connect build processing to reach a terminal state."))
 	}
-	steps = append(
-		steps,
-		newPublishPlanStep(publishPlanStepEnsureVersion, "Find the requested App Store version or create it if missing."),
-		newPublishPlanStep(publishPlanStepAttachBuild, "Attach the resolved build to the App Store version."),
-	)
+	steps = append(steps, newPublishPlanStep(publishPlanStepEnsureVersion, "Find the requested App Store version or create it if missing."))
+	if applyMetadata {
+		steps = append(steps, newPublishPlanStep(publishPlanStepApplyMetadata, "Apply version localization metadata from --metadata-dir."))
+	}
+	steps = append(steps, newPublishPlanStep(publishPlanStepAttachBuild, "Attach the resolved build to the App Store version."))
 	if submit {
 		steps = append(steps, newPublishPlanStep(publishPlanStepSubmitReview, "Run submission preflight and submit the version for App Store review."))
 	}
