@@ -71,6 +71,49 @@ func TestWebXcodeCloudWorkflowsCreateSubcommandIsRegistered(t *testing.T) {
 	}
 }
 
+func TestWebUnsupportedSigningCommandsExplainAPIKeyBoundary(t *testing.T) {
+	tests := []struct {
+		name             string
+		supportedCommand string
+	}{
+		{name: "certificates", supportedCommand: "asc certificates"},
+		{name: "signing", supportedCommand: "asc signing"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			cmd := findSubcommand(root, "web", tc.name)
+			if cmd == nil {
+				t.Fatalf("expected web %s command", tc.name)
+			}
+
+			usage := cmd.UsageFunc(cmd)
+			for _, want := range []string{"Unsupported web-session signing workflow", tc.supportedCommand, "API-key authentication"} {
+				if !strings.Contains(usage, want) {
+					t.Fatalf("expected %q in usage, got %q", want, usage)
+				}
+			}
+
+			root.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			_, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{"web", tc.name}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected ErrHelp, got %v", runErr)
+			}
+			if !strings.Contains(stderr, "unsupported") || !strings.Contains(stderr, tc.supportedCommand) {
+				t.Fatalf("expected unsupported guidance in stderr, got %q", stderr)
+			}
+		})
+	}
+}
+
 func TestWebAppsCreateMissingRequiredFlags(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

@@ -50,12 +50,36 @@ Examples:
 			WebReviewCommand(),
 			WebAnalyticsCommand(),
 			WebXcodeCloudCommand(),
+			webUnsupportedSigningCommand("certificates", "asc certificates"),
+			webUnsupportedSigningCommand("signing", "asc signing"),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) == 0 {
 				return flag.ErrHelp
 			}
 			fmt.Fprintf(os.Stderr, "Unknown subcommand: %s\n\n", strings.TrimSpace(args[0]))
+			return flag.ErrHelp
+		},
+	}
+}
+
+func webUnsupportedSigningCommand(name, supportedCommand string) *ffcli.Command {
+	fs := flag.NewFlagSet(name, flag.ExitOnError)
+	return &ffcli.Command{
+		Name:       name,
+		ShortUsage: "asc web " + name,
+		ShortHelp:  "[experimental] [unsupported] Use " + supportedCommand + "; web sessions do not support signing management.",
+		LongHelp: `Unsupported web-session signing workflow.
+
+Certificate and signing management is not supported through ` + "`asc web`" + ` sessions.
+Use ` + "`" + supportedCommand + "`" + ` with App Store Connect API-key authentication instead.
+
+Examples:
+  ` + supportedCommand + ` --help`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			fmt.Fprintf(os.Stderr, "Error: asc web %s is unsupported; use %s with App Store Connect API-key auth instead.\n", name, supportedCommand)
 			return flag.ErrHelp
 		},
 	}
