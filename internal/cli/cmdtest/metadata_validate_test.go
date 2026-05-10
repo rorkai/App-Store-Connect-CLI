@@ -126,6 +126,45 @@ func TestMetadataValidateReportsMissingRequiredFields(t *testing.T) {
 	}
 }
 
+func TestMetadataValidateRejectsEmptyTemplateKeys(t *testing.T) {
+	dir := t.TempDir()
+	appInfoDir := filepath.Join(dir, "app-info")
+	versionDir := filepath.Join(dir, "version", "1.2.3")
+	if err := os.MkdirAll(appInfoDir, 0o755); err != nil {
+		t.Fatalf("mkdir app-info: %v", err)
+	}
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		t.Fatalf("mkdir version dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(appInfoDir, "en-US.json"), []byte(`{"name":"App","subtitle":""}`), 0o644); err != nil {
+		t.Fatalf("write app-info file: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(versionDir, "en-US.json"), []byte(`{"description":"Description","keywords":""}`), 0o644); err != nil {
+		t.Fatalf("write version file: %v", err)
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"metadata", "validate", "--dir", dir}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, `field "subtitle" cannot be empty`) {
+		t.Fatalf("expected empty-field schema error, got %q", stderr)
+	}
+}
+
 func TestMetadataValidatePassesForValidFiles(t *testing.T) {
 	dir := t.TempDir()
 	appInfoDir := filepath.Join(dir, "app-info")

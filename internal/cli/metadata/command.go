@@ -34,12 +34,14 @@ Not yet included in this group:
 Note: copyright is managed via "asc versions create --copyright" or "asc versions update --copyright".
 
 Examples:
+  asc metadata init --dir "./metadata" --version "1.2.3" --locale "en-US"
   asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata"
   asc metadata pull --app "APP_ID" --version "1.2.3" --platform IOS --dir "./metadata"
   asc metadata keywords import --dir "./metadata" --version "1.2.3" --locale "en-US" --input "./keywords.csv"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			MetadataInitCommand(),
 			MetadataPullCommand(),
 			MetadataApplyCommand(),
 			MetadataKeywordsCommand(),

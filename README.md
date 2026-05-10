@@ -217,6 +217,7 @@ asc review doctor --app "123456789"
 
 ```bash
 asc localizations list --app "123456789" --type app-info
+asc metadata init --dir "./metadata" --version "1.2.3" --locale "en-US"
 asc metadata apply --app "123456789" --version "1.2.3" --dir "./metadata" --dry-run
 asc metadata keywords audit --app "123456789" --version "1.2.3" --blocked-terms-file "./blocked-terms.txt"
 asc apps info view --app "123456789" --output json --pretty

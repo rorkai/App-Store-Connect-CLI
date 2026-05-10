@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -131,7 +132,14 @@ func validateDir(dir string, subscriptionApp bool) (ValidateResult, error) {
 			}
 			filePath := filepath.Join(appInfoDir, entry.Name())
 
-			loc, readErr := ReadAppInfoLocalizationFile(filePath)
+			data, readErr := readFileNoFollow(filePath)
+			if readErr != nil {
+				return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
+			}
+			if blankErr := rejectBlankMetadataFieldsWithContent(data, appInfoPlanFields); blankErr != nil {
+				return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, blankErr)
+			}
+			loc, readErr := DecodeAppInfoLocalization(data)
 			if readErr != nil {
 				return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
 			}
@@ -185,7 +193,14 @@ func validateDir(dir string, subscriptionApp bool) (ValidateResult, error) {
 				}
 				filePath := filepath.Join(versionPath, localeEntry.Name())
 
-				loc, readErr := ReadVersionLocalizationFile(filePath)
+				data, readErr := readFileNoFollow(filePath)
+				if readErr != nil {
+					return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
+				}
+				if blankErr := rejectBlankMetadataFieldsWithContent(data, versionPlanFields); blankErr != nil {
+					return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, blankErr)
+				}
+				loc, readErr := DecodeVersionLocalization(data)
 				if readErr != nil {
 					return ValidateResult{}, shared.UsageErrorf("invalid metadata schema in %s: %v", filePath, readErr)
 				}
@@ -241,6 +256,41 @@ func validateDir(dir string, subscriptionApp bool) (ValidateResult, error) {
 	result.Valid = result.ErrorCount == 0
 
 	return result, nil
+}
+
+func rejectBlankMetadataFieldsWithContent(data []byte, allowed []string) error {
+	var raw map[string]json.RawMessage
+	if err := decodeStrictJSON(data, &raw); err != nil {
+		return err
+	}
+
+	hasContent := false
+	blankField := ""
+	for key, rawValue := range raw {
+		canonicalKey, err := canonicalStringFieldPatchKey(key, allowed)
+		if err != nil {
+			return err
+		}
+		var value string
+		if err := json.Unmarshal(rawValue, &value); err != nil {
+			return err
+		}
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "__ASC_DELETE__" {
+			return fmt.Errorf("field %q uses unsupported clear token __ASC_DELETE__; omit the key to keep the remote value", canonicalKey)
+		}
+		if trimmed == "" {
+			if blankField == "" {
+				blankField = canonicalKey
+			}
+			continue
+		}
+		hasContent = true
+	}
+	if hasContent && blankField != "" {
+		return fmt.Errorf("field %q cannot be empty; omit the key to leave the remote value unchanged", blankField)
+	}
+	return nil
 }
 
 func versionLengthIssues(filePath, version, locale string, loc VersionLocalization) []ValidateIssue {
