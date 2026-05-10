@@ -296,7 +296,7 @@ func capabilityRows() []Capability {
 			Area:       "metadata",
 			Capability: "Metadata and localization sync",
 			Status:     statusCLISupported,
-			Commands:   []string{"asc metadata pull", "asc metadata apply", "asc localizations update"},
+			Commands:   []string{"asc metadata init", "asc metadata pull", "asc metadata validate", "asc metadata apply", "asc localizations update"},
 			APIResources: []string{
 				"appInfos",
 				"appInfoLocalizations",
