@@ -266,7 +266,8 @@ func rejectBlankMetadataFieldsWithContent(data []byte, allowed []string) error {
 
 	hasContent := false
 	blankField := ""
-	for key, rawValue := range raw {
+	for _, key := range sortedKeys(raw) {
+		rawValue := raw[key]
 		canonicalKey, err := canonicalStringFieldPatchKey(key, allowed)
 		if err != nil {
 			return err
