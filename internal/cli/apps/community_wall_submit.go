@@ -62,9 +62,10 @@ var (
 )
 
 type communityWallSubmitInput struct {
-	AppID string
-	Name  string
-	Link  string
+	AppID   string
+	Name    string
+	Link    string
+	Country string
 }
 
 type communityWallSubmitRequest struct {
@@ -153,6 +154,7 @@ func AppsWallSubmitCommand(parentWallFlags *flag.FlagSet) *ffcli.Command {
 	appID := fs.String("app", "", "App Store or App Store Connect app ID")
 	name := fs.String("name", "", "Override the app name resolved from the App Store lookup")
 	link := fs.String("link", "", "Manual app URL for non-App-Store entries")
+	country := fs.String("country", "", "Storefront country code for the App Store lookup (e.g. \"jp\", \"kr\"); defaults to the US storefront")
 	confirm := fs.Bool("confirm", false, defaultCommunityWallSubmitMessage)
 	dryRun := fs.Bool("dry-run", false, "Preview the fork, branch, and pull request plan without creating anything")
 	output := shared.BindOutputFlagsWithAllowed(fs, "output", defaultCommunityWallSubmitOutput, "Output format: json (default)", "json")
@@ -173,6 +175,7 @@ docs/wall-of-apps.json so community submissions stay focused to a single file.
 Examples:
   asc apps wall submit --app "1234567890" --dry-run
   asc apps wall submit --app "1234567890" --confirm
+  asc apps wall submit --app "1435783608" --country "jp" --confirm
   asc apps wall submit --link "https://testflight.apple.com/join/ABCDEFG" --name "My Beta App" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -195,7 +198,7 @@ Examples:
 				return fmt.Errorf("apps wall submit: %w", err)
 			}
 
-			input, err := collectCommunityWallSubmitInput(*appID, *name, *link)
+			input, err := collectCommunityWallSubmitInput(*appID, *name, *link, *country)
 			if err != nil {
 				if errors.Is(err, errCommunityWallUsage) {
 					fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
@@ -288,15 +291,27 @@ func resolveCommunityWallGitHubIdentity(ctx context.Context) (string, string, er
 	return token, login, nil
 }
 
-func collectCommunityWallSubmitInput(appIDValue, nameValue, linkValue string) (communityWallSubmitInput, error) {
+func collectCommunityWallSubmitInput(appIDValue, nameValue, linkValue, countryValue string) (communityWallSubmitInput, error) {
 	canPrompt := communityWallPromptEnabled()
 
 	appIDValue = normalizeCommunityWallAppID(appIDValue)
 	nameValue = strings.TrimSpace(nameValue)
 	linkValue = strings.TrimSpace(linkValue)
+	countryValue = strings.TrimSpace(countryValue)
 
 	if appIDValue != "" && linkValue != "" {
 		return communityWallSubmitInput{}, communityWallUsageError{message: "use either --app or --link, not both"}
+	}
+
+	if countryValue != "" {
+		if linkValue != "" {
+			return communityWallSubmitInput{}, communityWallUsageError{message: "--country is only valid with --app; the storefront is read from the URL when --link is used"}
+		}
+		normalizedCountry, err := itunes.NormalizeCountryCode(countryValue)
+		if err != nil {
+			return communityWallSubmitInput{}, communityWallUsageError{message: fmt.Sprintf("--country %q is not a supported App Store storefront", countryValue)}
+		}
+		countryValue = normalizedCountry
 	}
 
 	if appIDValue == "" && linkValue == "" {
@@ -354,9 +369,10 @@ func collectCommunityWallSubmitInput(appIDValue, nameValue, linkValue string) (c
 	}
 
 	input := communityWallSubmitInput{
-		AppID: appIDValue,
-		Name:  nameValue,
-		Link:  linkValue,
+		AppID:   appIDValue,
+		Name:    nameValue,
+		Link:    linkValue,
+		Country: countryValue,
 	}
 
 	if input.AppID == "" && input.Link == "" {
@@ -425,13 +441,16 @@ func resolveCommunityWallCandidate(ctx context.Context, input communityWallSubmi
 	warnings := []string{}
 
 	if input.AppID != "" {
-		detailsByID, err := communityWallLookupAppDetails(ctx, []string{input.AppID})
+		detailsByID, err := communityWallLookupAppDetails(ctx, []string{input.AppID}, input.Country)
 		if err != nil {
 			return communityWallEntry{}, nil, fmt.Errorf("failed to resolve app %q from the App Store lookup: %w", input.AppID, err)
 		}
 		details, ok := detailsByID[input.AppID]
 		if !ok {
-			return communityWallEntry{}, nil, fmt.Errorf("app %q was not found in the App Store lookup; use --link with --name for non-App-Store entries", input.AppID)
+			if input.Country == "" {
+				return communityWallEntry{}, nil, fmt.Errorf("app %q was not found in the App Store lookup; pass --country if the app is only published in a non-US storefront (e.g. --country jp), or use --link with --name for non-App-Store entries", input.AppID)
+			}
+			return communityWallEntry{}, nil, fmt.Errorf("app %q was not found in the %q App Store storefront; verify the storefront or use --link with --name for non-App-Store entries", input.AppID, strings.ToUpper(input.Country))
 		}
 
 		candidate.App = strings.TrimSpace(input.Name)
@@ -830,8 +849,9 @@ func extractCommunityWallAppStoreCountry(link string) string {
 	return country
 }
 
-func fetchCommunityWallAppDetails(ctx context.Context, ids []string) (map[string]communityWallAppDetails, error) {
+func fetchCommunityWallAppDetails(ctx context.Context, ids []string, country string) (map[string]communityWallAppDetails, error) {
 	return fetchCommunityWallAppDetailsWithOptions(ctx, ids, itunes.LookupOptions{
+		Country:               country,
 		IncludeSoftwareEntity: true,
 	})
 }
