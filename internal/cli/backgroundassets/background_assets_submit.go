@@ -170,7 +170,7 @@ Examples:
 						if _, cancelErr := client.CancelReviewSubmission(requestCtx, currentSubmissionID); cancelErr == nil {
 							return fmt.Errorf("background-assets submit: attach version %q (index %d, %d already attached) to submission %q failed; rolled back the submission: %w", item.BackgroundAssetVersionID, i, result.AttachedItems, currentSubmissionID, err)
 						} else {
-							return fmt.Errorf("background-assets submit: attach version %q (index %d, %d already attached) to submission %q failed; rollback also failed (submission %q is leaked with %d partial item(s)): attach err=%v; rollback err=%v", item.BackgroundAssetVersionID, i, result.AttachedItems, currentSubmissionID, currentSubmissionID, result.AttachedItems, err, cancelErr)
+							return fmt.Errorf("background-assets submit: attach version %q (index %d, %d already attached) to submission %q failed; rollback also failed (submission %q is leaked with %d partial item(s); rollback err=%v): %w", item.BackgroundAssetVersionID, i, result.AttachedItems, currentSubmissionID, currentSubmissionID, result.AttachedItems, cancelErr, err)
 						}
 					}
 					return fmt.Errorf("background-assets submit: attach version %q (index %d) to submission %q: %w", item.BackgroundAssetVersionID, i, currentSubmissionID, err)
@@ -397,8 +397,10 @@ func versionSupportsPlatform(v ascBackgroundAssetVersionItem, platform string) b
 	return false
 }
 
-type ascBackgroundAssetItem = asc.Resource[asc.BackgroundAssetAttributes]
-type ascBackgroundAssetVersionItem = asc.Resource[asc.BackgroundAssetVersionAttributes]
+type (
+	ascBackgroundAssetItem        = asc.Resource[asc.BackgroundAssetAttributes]
+	ascBackgroundAssetVersionItem = asc.Resource[asc.BackgroundAssetVersionAttributes]
+)
 
 func fetchAllBackgroundAssets(ctx context.Context, client backgroundAssetSubmitClient, appID string, opts ...asc.BackgroundAssetsOption) ([]ascBackgroundAssetItem, error) {
 	first, err := client.GetBackgroundAssets(ctx, appID, opts...)
