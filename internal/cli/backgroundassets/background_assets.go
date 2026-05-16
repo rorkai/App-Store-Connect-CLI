@@ -31,7 +31,8 @@ Examples:
   asc background-assets update --id "ASSET_ID" --archived true
   asc background-assets versions list --background-asset-id "ASSET_ID"
   asc background-assets app-store-releases get --id "RELEASE_ID"
-  asc background-assets upload-files create --version-id "VERSION_ID" --file "./asset.zip" --asset-type ASSET`,
+  asc background-assets upload-files create --version-id "VERSION_ID" --file "./asset.zip" --asset-type ASSET
+  asc background-assets submit --app "APP_ID" --background-asset-id "ASSET_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -44,6 +45,7 @@ Examples:
 			BackgroundAssetsExternalBetaReleasesCommand(),
 			BackgroundAssetsInternalBetaReleasesCommand(),
 			BackgroundAssetsUploadFilesCommand(),
+			BackgroundAssetsSubmitCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
