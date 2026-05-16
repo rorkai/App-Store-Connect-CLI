@@ -4,11 +4,15 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"flag"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/AlecAivazis/survey/v2"
 )
 
 func TestCollectCommunityWallSubmitInputAllowsAppIDOnlyWhenNonInteractive(t *testing.T) {
@@ -18,6 +22,7 @@ func TestCollectCommunityWallSubmitInputAllowsAppIDOnlyWhenNonInteractive(t *tes
 
 	input, err := collectCommunityWallSubmitInput(
 		"1234567890",
+		"",
 		"",
 		"",
 	)
@@ -35,7 +40,7 @@ func TestCollectCommunityWallSubmitInputNormalizesAppStoreIDPrefix(t *testing.T)
 	communityWallPromptEnabled = func() bool { return false }
 	t.Cleanup(func() { communityWallPromptEnabled = previousPromptEnabled })
 
-	input, err := collectCommunityWallSubmitInput("id1234567890", "", "")
+	input, err := collectCommunityWallSubmitInput("id1234567890", "", "", "")
 	if err != nil {
 		t.Fatalf("collect input: %v", err)
 	}
@@ -98,9 +103,231 @@ func TestCommunityWallAppStoreURLCanonicalizesZeroPaddedID(t *testing.T) {
 	}
 }
 
+func TestResolveCommunityWallCandidatePassesCountryToLookup(t *testing.T) {
+	var capturedCountry string
+	previousLookupDetails := communityWallLookupAppDetails
+	communityWallLookupAppDetails = func(ctx context.Context, ids []string, country string) (map[string]communityWallAppDetails, error) {
+		capturedCountry = country
+		return map[string]communityWallAppDetails{
+			"1435783608": {
+				Name: "PayPay-ペイペイ",
+				Link: "https://apps.apple.com/jp/app/paypay/id1435783608",
+			},
+		}, nil
+	}
+	t.Cleanup(func() {
+		communityWallLookupAppDetails = previousLookupDetails
+	})
+
+	candidate, warnings, err := resolveCommunityWallCandidate(context.Background(), communityWallSubmitInput{
+		AppID:   "1435783608",
+		Country: "jp",
+	})
+	if err != nil {
+		t.Fatalf("resolve candidate: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("expected no warnings, got %+v", warnings)
+	}
+	if capturedCountry != "jp" {
+		t.Fatalf("lookup country = %q, want %q", capturedCountry, "jp")
+	}
+	if candidate.App != "PayPay-ペイペイ" {
+		t.Fatalf("App = %q, want PayPay-ペイペイ", candidate.App)
+	}
+	if candidate.Link != "https://apps.apple.com/jp/app/paypay/id1435783608" {
+		t.Fatalf("Link = %q, want the JP storefront URL", candidate.Link)
+	}
+}
+
+func TestResolveCommunityWallCandidateMentionsCountryFlagWhenLookupMissesInDefaultStorefront(t *testing.T) {
+	previousLookupDetails := communityWallLookupAppDetails
+	communityWallLookupAppDetails = func(ctx context.Context, ids []string, country string) (map[string]communityWallAppDetails, error) {
+		return map[string]communityWallAppDetails{}, nil
+	}
+	t.Cleanup(func() {
+		communityWallLookupAppDetails = previousLookupDetails
+	})
+
+	_, _, err := resolveCommunityWallCandidate(context.Background(), communityWallSubmitInput{
+		AppID: "1435783608",
+	})
+	if err == nil {
+		t.Fatalf("expected an error when the lookup returns no results")
+	}
+	if !strings.Contains(err.Error(), "--country") {
+		t.Fatalf("expected error to suggest --country, got: %v", err)
+	}
+}
+
+func TestCollectCommunityWallSubmitInputNormalizesCountry(t *testing.T) {
+	previousPromptEnabled := communityWallPromptEnabled
+	communityWallPromptEnabled = func() bool { return false }
+	t.Cleanup(func() { communityWallPromptEnabled = previousPromptEnabled })
+
+	input, err := collectCommunityWallSubmitInput("1234567890", "", "", "JP")
+	if err != nil {
+		t.Fatalf("collect input: %v", err)
+	}
+	if input.Country != "jp" {
+		t.Fatalf("Country = %q, want %q", input.Country, "jp")
+	}
+}
+
+func TestCollectCommunityWallSubmitInputRejectsInvalidCountry(t *testing.T) {
+	previousPromptEnabled := communityWallPromptEnabled
+	communityWallPromptEnabled = func() bool { return false }
+	t.Cleanup(func() { communityWallPromptEnabled = previousPromptEnabled })
+
+	_, err := collectCommunityWallSubmitInput("1234567890", "", "", "zz")
+	if err == nil {
+		t.Fatalf("expected an error for an unsupported country code")
+	}
+	if !strings.Contains(err.Error(), "--country") {
+		t.Fatalf("expected error to mention --country, got: %v", err)
+	}
+}
+
+func TestCollectCommunityWallSubmitInputRejectsCountryWithLink(t *testing.T) {
+	previousPromptEnabled := communityWallPromptEnabled
+	communityWallPromptEnabled = func() bool { return false }
+	t.Cleanup(func() { communityWallPromptEnabled = previousPromptEnabled })
+
+	_, err := collectCommunityWallSubmitInput("", "My Beta", "https://example.com/beta", "jp")
+	if err == nil {
+		t.Fatalf("expected an error when --country is combined with --link")
+	}
+	if !strings.Contains(err.Error(), "--country") {
+		t.Fatalf("expected error to mention --country, got: %v", err)
+	}
+}
+
+func TestCollectCommunityWallSubmitInputRejectsPromptedManualLinkWithCountry(t *testing.T) {
+	previousPromptEnabled := communityWallPromptEnabled
+	previousPromptText := communityWallPromptSubmitText
+	communityWallPromptEnabled = func() bool { return true }
+	responses := []string{"", "https://example.com/beta"}
+	communityWallPromptSubmitText = func(message, help string, validator survey.Validator) (string, error) {
+		if len(responses) == 0 {
+			t.Fatalf("unexpected prompt %q", message)
+		}
+		response := responses[0]
+		responses = responses[1:]
+		if validator != nil {
+			if err := validator(response); err != nil {
+				return "", err
+			}
+		}
+		return response, nil
+	}
+	t.Cleanup(func() {
+		communityWallPromptEnabled = previousPromptEnabled
+		communityWallPromptSubmitText = previousPromptText
+	})
+
+	_, err := collectCommunityWallSubmitInput("", "My Beta", "", "jp")
+	if err == nil {
+		t.Fatal("expected an error when --country is kept after prompting for a manual link")
+	}
+	if !strings.Contains(err.Error(), "--country") {
+		t.Fatalf("expected error to mention --country, got: %v", err)
+	}
+}
+
+func TestAppsWallSubmitCommandPassesCountryFlagToDryRunLookup(t *testing.T) {
+	previousPromptEnabled := communityWallPromptEnabled
+	previousRunner := communityWallGHCommandRunner
+	previousAPIBase := communityWallGitHubAPIBase
+	previousHTTPClient := communityWallGitHubClient
+	previousLookupDetails := communityWallLookupAppDetails
+	previousNow := communityWallNow
+	communityWallPromptEnabled = func() bool { return false }
+	communityWallGHCommandRunner = func(ctx context.Context, args ...string) ([]byte, []byte, error) {
+		switch strings.Join(args, " ") {
+		case "auth status":
+			return nil, nil, nil
+		case "auth token":
+			return []byte("token"), nil, nil
+		default:
+			t.Fatalf("unexpected gh command: %v", args)
+			return nil, nil, nil
+		}
+	}
+	var capturedCountry string
+	communityWallLookupAppDetails = func(ctx context.Context, ids []string, country string) (map[string]communityWallAppDetails, error) {
+		capturedCountry = country
+		return map[string]communityWallAppDetails{
+			"1435783608": {
+				Name: "PayPay-ペイペイ",
+				Link: "https://apps.apple.com/jp/app/paypay/id1435783608",
+				Icon: "https://example.com/paypay.png",
+			},
+		}, nil
+	}
+	communityWallNow = func() time.Time {
+		return time.Date(2026, time.March, 10, 12, 0, 0, 0, time.UTC)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/user":
+			_ = json.NewEncoder(w).Encode(map[string]string{"login": "tester"})
+		case r.Method == http.MethodGet && r.URL.Path == "/repos/tester/App-Store-Connect-CLI":
+			http.NotFound(w, r)
+		case r.Method == http.MethodGet && r.URL.Path == "/repos/rorkai/App-Store-Connect-CLI/git/ref/heads/main":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"object": map[string]any{
+					"sha": "base-sha-123",
+				},
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/repos/rorkai/App-Store-Connect-CLI/contents/docs/wall-of-apps.json":
+			if got := r.URL.Query().Get("ref"); got != "base-sha-123" {
+				t.Fatalf("expected ref=base-sha-123, got %q", got)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"sha":      "blob123",
+				"encoding": "base64",
+				"content":  base64.StdEncoding.EncodeToString([]byte(`[{"app":"Alpha","link":"https://example.com/alpha"}]`)),
+			})
+		default:
+			t.Fatalf("unexpected request during command dry-run: %s %s", r.Method, r.URL.String())
+		}
+	}))
+	defer server.Close()
+	communityWallGitHubAPIBase = server.URL
+	communityWallGitHubClient = func() *http.Client { return server.Client() }
+	t.Cleanup(func() {
+		communityWallPromptEnabled = previousPromptEnabled
+		communityWallGHCommandRunner = previousRunner
+		communityWallGitHubAPIBase = previousAPIBase
+		communityWallGitHubClient = previousHTTPClient
+		communityWallLookupAppDetails = previousLookupDetails
+		communityWallNow = previousNow
+	})
+
+	cmd := AppsWallSubmitCommand(flag.NewFlagSet("wall", flag.ContinueOnError))
+	cmd.FlagSet.SetOutput(io.Discard)
+	var runErr error
+	stderr := captureAppsCreateOutput(t, func() {
+		if err := cmd.Parse([]string{"--dry-run", "--country", "JP", "--app", "1435783608"}); err != nil {
+			t.Fatalf("parse command: %v", err)
+		}
+		runErr = cmd.Run(context.Background())
+	})
+
+	if runErr != nil {
+		t.Fatalf("run command: %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if capturedCountry != "jp" {
+		t.Fatalf("lookup country = %q, want %q", capturedCountry, "jp")
+	}
+}
+
 func TestResolveCommunityWallCandidateCanonicalizesFallbackAppStoreURL(t *testing.T) {
 	previousLookupDetails := communityWallLookupAppDetails
-	communityWallLookupAppDetails = func(ctx context.Context, ids []string) (map[string]communityWallAppDetails, error) {
+	communityWallLookupAppDetails = func(ctx context.Context, ids []string, country string) (map[string]communityWallAppDetails, error) {
 		return map[string]communityWallAppDetails{
 			"00123": {
 				Name: "Beta",
@@ -170,7 +397,7 @@ func TestSubmitCommunityWallEntryDryRunReturnsPlan(t *testing.T) {
 	previousNow := communityWallNow
 	communityWallGitHubAPIBase = server.URL
 	communityWallGitHubClient = func() *http.Client { return server.Client() }
-	communityWallLookupAppDetails = func(ctx context.Context, ids []string) (map[string]communityWallAppDetails, error) {
+	communityWallLookupAppDetails = func(ctx context.Context, ids []string, country string) (map[string]communityWallAppDetails, error) {
 		return map[string]communityWallAppDetails{
 			"1234567890": {
 				Name: "Beta",
@@ -265,7 +492,7 @@ func TestSubmitCommunityWallEntryRejectsDuplicateAppID(t *testing.T) {
 	previousLookupDetails := communityWallLookupAppDetails
 	communityWallGitHubAPIBase = server.URL
 	communityWallGitHubClient = func() *http.Client { return server.Client() }
-	communityWallLookupAppDetails = func(ctx context.Context, ids []string) (map[string]communityWallAppDetails, error) {
+	communityWallLookupAppDetails = func(ctx context.Context, ids []string, country string) (map[string]communityWallAppDetails, error) {
 		return map[string]communityWallAppDetails{
 			"1234567890": {
 				Name: "Beta 2",
@@ -336,7 +563,7 @@ func TestSubmitCommunityWallEntryRejectsMalformedExistingSource(t *testing.T) {
 	previousLookupDetails := communityWallLookupAppDetails
 	communityWallGitHubAPIBase = server.URL
 	communityWallGitHubClient = func() *http.Client { return server.Client() }
-	communityWallLookupAppDetails = func(ctx context.Context, ids []string) (map[string]communityWallAppDetails, error) {
+	communityWallLookupAppDetails = func(ctx context.Context, ids []string, country string) (map[string]communityWallAppDetails, error) {
 		return map[string]communityWallAppDetails{
 			"1234567890": {
 				Name: "Beta",
@@ -380,7 +607,7 @@ func TestSubmitCommunityWallEntryRejectsExistingNonForkRepo(t *testing.T) {
 	previousLookupDetails := communityWallLookupAppDetails
 	communityWallGitHubAPIBase = server.URL
 	communityWallGitHubClient = func() *http.Client { return server.Client() }
-	communityWallLookupAppDetails = func(ctx context.Context, ids []string) (map[string]communityWallAppDetails, error) {
+	communityWallLookupAppDetails = func(ctx context.Context, ids []string, country string) (map[string]communityWallAppDetails, error) {
 		return map[string]communityWallAppDetails{
 			"1234567890": {
 				Name: "Beta",
@@ -521,7 +748,7 @@ func TestFetchCommunityWallAppDetailsOmitsCountryFilter(t *testing.T) {
 		communityWallAppStoreLookupURL = previousLookupURL
 	})
 
-	details, err := fetchCommunityWallAppDetails(context.Background(), []string{"1234567890"})
+	details, err := fetchCommunityWallAppDetails(context.Background(), []string{"1234567890"}, "")
 	if err != nil {
 		t.Fatalf("fetch app details: %v", err)
 	}
@@ -548,7 +775,7 @@ func TestFetchCommunityWallAppDetailsPreservesZeroPaddedRequestKey(t *testing.T)
 		communityWallAppStoreLookupURL = previousLookupURL
 	})
 
-	details, err := fetchCommunityWallAppDetails(context.Background(), []string{"00123"})
+	details, err := fetchCommunityWallAppDetails(context.Background(), []string{"00123"}, "")
 	if err != nil {
 		t.Fatalf("fetch app details: %v", err)
 	}

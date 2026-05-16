@@ -12,6 +12,8 @@ import (
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func findSubcommand(root *ffcli.Command, path ...string) *ffcli.Command {
@@ -160,6 +162,50 @@ func TestAppsWallSubmitRejectsMultipleParentWallFlags(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "--limit, --output") {
 		t.Fatalf("expected sorted offending flags in stderr, got %q", stderr)
+	}
+}
+
+func TestAppsWallSubmitInvalidCountryReturnsUsageExitCode(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "country before app",
+			args: []string{
+				"apps", "wall", "submit",
+				"--country", "zz",
+				"--app", "1234567890",
+				"--dry-run",
+			},
+		},
+		{
+			name: "country after dry run",
+			args: []string{
+				"apps", "wall", "submit",
+				"--app", "1234567890",
+				"--dry-run",
+				"--country", "zz",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := captureOutput(t, func() {
+				code := rootcmd.Run(test.args, "1.2.3")
+				if code != rootcmd.ExitUsage {
+					t.Fatalf("expected exit code %d, got %d", rootcmd.ExitUsage, code)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "--country") {
+				t.Fatalf("expected --country guidance in stderr, got %q", stderr)
+			}
+		})
 	}
 }
 
