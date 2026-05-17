@@ -131,6 +131,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `docs` - Generate asc cli reference docs for a repo.
 - `diff` - Generate deterministic non-mutating diff plans.
 - `capabilities` - Show CLI, API, web-only, and public-API-limited capability coverage.
+- `search` - Search asc commands and examples for agent-oriented command discovery.
 - `status` - Show a release pipeline dashboard for an app.
 - `insights` - Generate weekly insights from App Store data sources.
 - `release-notes` - Generate and manage App Store release notes.
