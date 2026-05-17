@@ -68,6 +68,50 @@ func writeReviewBatchFile(t *testing.T, body string) string {
 	return path
 }
 
+type reviewBatchTestOutput struct {
+	Summary reviewBatchTestSummary  `json:"summary"`
+	Results []reviewBatchTestResult `json:"results"`
+}
+
+type reviewBatchTestSummary struct {
+	Total   int `json:"total"`
+	Created int `json:"created"`
+	Skipped int `json:"skipped"`
+	Failed  int `json:"failed"`
+	Planned int `json:"planned"`
+}
+
+type reviewBatchTestResult struct {
+	ReviewID           string `json:"reviewId"`
+	Status             string `json:"status"`
+	ResponseID         string `json:"responseId"`
+	ExistingResponseID string `json:"existingResponseId"`
+	Reason             string `json:"reason"`
+	Error              string `json:"error"`
+}
+
+func decodeReviewBatchTestOutput(t *testing.T, stdout string) reviewBatchTestOutput {
+	t.Helper()
+
+	var payload reviewBatchTestOutput
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+	return payload
+}
+
+func findReviewBatchTestResult(t *testing.T, payload reviewBatchTestOutput, reviewID string) reviewBatchTestResult {
+	t.Helper()
+
+	for _, result := range payload.Results {
+		if result.ReviewID == reviewID {
+			return result
+		}
+	}
+	t.Fatalf("expected result for review %q, got %+v", reviewID, payload.Results)
+	return reviewBatchTestResult{}
+}
+
 func TestReviewsRespondBatchCreatesGroupedReplies(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -252,8 +296,13 @@ func TestReviewsRespondBatchSkipExisting(t *testing.T) {
 	if posts != 1 {
 		t.Fatalf("expected one create request, got %d", posts)
 	}
-	if !strings.Contains(stdout, `"skipped":1`) || !strings.Contains(stdout, `"existingResponseId":"existing-response"`) {
-		t.Fatalf("expected skip-existing result in stdout, got %s", stdout)
+	payload := decodeReviewBatchTestOutput(t, stdout)
+	if payload.Summary.Skipped != 1 || payload.Summary.Created != 1 {
+		t.Fatalf("unexpected skip-existing summary: %+v", payload.Summary)
+	}
+	skipped := findReviewBatchTestResult(t, payload, "review-1")
+	if skipped.Status != "skipped" || skipped.ExistingResponseID != "existing-response" || skipped.Reason != "existing-response" {
+		t.Fatalf("unexpected skipped result: %+v", skipped)
 	}
 }
 
@@ -297,8 +346,13 @@ func TestReviewsRespondBatchResponseStateUnrespondedSkipsRespondedReviews(t *tes
 	if posts != 1 {
 		t.Fatalf("expected one create request, got %d", posts)
 	}
-	if !strings.Contains(stdout, `"reason":"response-state-mismatch"`) || !strings.Contains(stdout, `"created":1`) {
-		t.Fatalf("expected response-state skip and one create, got %s", stdout)
+	payload := decodeReviewBatchTestOutput(t, stdout)
+	if payload.Summary.Created != 1 || payload.Summary.Skipped != 1 {
+		t.Fatalf("unexpected response-state summary: %+v", payload.Summary)
+	}
+	skipped := findReviewBatchTestResult(t, payload, "review-1")
+	if skipped.Status != "skipped" || skipped.Reason != "response-state-mismatch" {
+		t.Fatalf("unexpected response-state skipped result: %+v", skipped)
 	}
 }
 
@@ -318,12 +372,6 @@ func TestReviewsRespondBatchValidationErrors(t *testing.T) {
 			name:    "missing file",
 			args:    []string{"reviews", "respond-batch", "--app", "app-1"},
 			wantErr: "--file is required",
-		},
-		{
-			name:    "invalid response state",
-			args:    []string{"reviews", "respond-batch", "--app", "app-1", "--file", "FILE", "--response-state", "maybe"},
-			body:    `{"replies":[{"response":"Thanks","reviewIds":["review-1"]}]}`,
-			wantErr: "--response-state must be one of: any, unresponded, responded",
 		},
 		{
 			name:    "bad json",
@@ -392,6 +440,24 @@ func TestReviewsRespondBatchValidationErrors(t *testing.T) {
 	}
 }
 
+func TestRunReviewsRespondBatchInvalidResponseStateReturnsUsageExit(t *testing.T) {
+	inputPath := writeReviewBatchFile(t, `{"replies":[{"response":"Thanks","reviewIds":["review-1"]}]}`)
+
+	stdout, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{"reviews", "respond-batch", "--app", "app-1", "--file", inputPath, "--response-state", "maybe"}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--response-state must be one of: any, unresponded, responded") {
+		t.Fatalf("expected response-state validation, got %q", stderr)
+	}
+}
+
 func TestReviewsListResponseStateAndIncludeResponse(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -424,22 +490,24 @@ func TestReviewsListResponseStateAndIncludeResponse(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, `"id":"review-1"`) {
-		t.Fatalf("expected review output, got %q", stdout)
+	var payload struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout=%s", err, stdout)
+	}
+	if len(payload.Data) != 1 || payload.Data[0].ID != "review-1" {
+		t.Fatalf("unexpected review output: %+v", payload.Data)
 	}
 }
 
 func TestReviewsListRejectsInvalidResponseState(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"reviews", "list", "--app", "app-1", "--response-state", "maybe"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		err := root.Run(context.Background())
-		if !errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected ErrHelp, got %v", err)
+		code := cmd.Run([]string{"reviews", "list", "--app", "app-1", "--response-state", "maybe"}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
 		}
 	})
 
@@ -483,8 +551,13 @@ func TestRunReviewsRespondBatchPartialFailureReturnsExitError(t *testing.T) {
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !strings.Contains(stdout, `"created":1`) || !strings.Contains(stdout, `"failed":1`) || !strings.Contains(stdout, `"error":`) {
-		t.Fatalf("expected partial result on stdout, got %s", stdout)
+	payload := decodeReviewBatchTestOutput(t, stdout)
+	if payload.Summary.Created != 1 || payload.Summary.Failed != 1 {
+		t.Fatalf("unexpected partial failure summary: %+v", payload.Summary)
+	}
+	failed := findReviewBatchTestResult(t, payload, "review-2")
+	if failed.Status != "failed" || failed.Error == "" {
+		t.Fatalf("unexpected failed result: %+v", failed)
 	}
 }
 
