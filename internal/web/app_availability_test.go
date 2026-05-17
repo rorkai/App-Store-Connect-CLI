@@ -110,6 +110,7 @@ func TestCreateAppAvailabilityBuildsExpectedRequest(t *testing.T) {
 	}
 	if created == nil {
 		t.Fatal("expected created app availability")
+		return
 	}
 	if created.ID != "avail-123" {
 		t.Fatalf("expected id avail-123, got %q", created.ID)
@@ -156,6 +157,7 @@ func TestGetAppAvailabilityBuildsExpectedRequest(t *testing.T) {
 	}
 	if got == nil {
 		t.Fatal("expected app availability")
+		return
 	}
 	if got.ID != "avail-123" || !got.AvailableInNewTerritories {
 		t.Fatalf("unexpected app availability payload: %#v", got)

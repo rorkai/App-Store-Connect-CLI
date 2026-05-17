@@ -14,6 +14,7 @@ func TestAgeRatingCommandShape(t *testing.T) {
 	cmd := AgeRatingCommand()
 	if cmd == nil {
 		t.Fatal("expected age-rating command")
+		return
 	}
 	if cmd.Name != "age-rating" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)

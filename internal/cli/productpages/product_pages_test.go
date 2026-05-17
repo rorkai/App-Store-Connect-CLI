@@ -6,6 +6,7 @@ func TestProductPagesCommandConstructors(t *testing.T) {
 	top := ProductPagesCommand()
 	if top == nil {
 		t.Fatal("expected product-pages command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")

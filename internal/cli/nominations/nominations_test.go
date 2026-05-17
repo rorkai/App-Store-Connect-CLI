@@ -13,6 +13,7 @@ func TestNominationsCommandShape(t *testing.T) {
 	cmd := NominationsCommand()
 	if cmd == nil {
 		t.Fatal("expected nominations command")
+		return
 	}
 	if cmd.Name != "nominations" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)

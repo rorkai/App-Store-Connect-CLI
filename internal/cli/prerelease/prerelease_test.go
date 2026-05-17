@@ -6,6 +6,7 @@ func TestPreReleaseCommandConstructors(t *testing.T) {
 	top := PreReleaseVersionsCommand()
 	if top == nil {
 		t.Fatal("expected pre-release command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")

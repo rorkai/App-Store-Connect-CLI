@@ -11,6 +11,7 @@ func TestEULACommandShape(t *testing.T) {
 	cmd := EULACommand()
 	if cmd == nil {
 		t.Fatal("expected eula command")
+		return
 	}
 	if cmd.Name != "eula" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)

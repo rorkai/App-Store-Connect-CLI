@@ -13,6 +13,7 @@ func TestMerchantIDsCommandShape(t *testing.T) {
 	cmd := MerchantIDsCommand()
 	if cmd == nil {
 		t.Fatal("expected merchant-ids command")
+		return
 	}
 	if cmd.Name != "merchant-ids" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)

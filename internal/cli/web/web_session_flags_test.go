@@ -20,6 +20,7 @@ func TestBindWebSessionFlagsIncludesDeprecatedTwoFactorAlias(t *testing.T) {
 	twoFactorCodeFlag := fs.Lookup(deprecatedTwoFactorCodeFlagName)
 	if twoFactorCodeFlag == nil {
 		t.Fatalf("expected --%s to be registered", deprecatedTwoFactorCodeFlagName)
+		return
 	}
 	if !strings.Contains(twoFactorCodeFlag.Usage, "Deprecated:") {
 		t.Fatalf("expected deprecated help text, got %q", twoFactorCodeFlag.Usage)

@@ -14,6 +14,7 @@ func TestBetaBuildLocalizationsCommandConstructors(t *testing.T) {
 	top := BetaBuildLocalizationsCommand()
 	if top == nil {
 		t.Fatal("expected beta-build-localizations command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")
@@ -34,11 +35,13 @@ func TestBetaBuildLocalizationsCreateCommandUpsertFlag(t *testing.T) {
 	cmd := BetaBuildLocalizationsCreateCommand()
 	if cmd == nil {
 		t.Fatal("expected create command")
+		return
 	}
 
 	upsertFlag := cmd.FlagSet.Lookup("upsert")
 	if upsertFlag == nil {
 		t.Fatal("expected --upsert flag")
+		return
 	}
 	if !strings.Contains(upsertFlag.Usage, "Create-or-update") {
 		t.Fatalf("expected --upsert usage text, got %q", upsertFlag.Usage)

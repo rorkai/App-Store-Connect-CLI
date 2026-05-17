@@ -11,6 +11,7 @@ func TestCategoriesCommandShape(t *testing.T) {
 	cmd := CategoriesCommand()
 	if cmd == nil {
 		t.Fatal("expected categories command")
+		return
 	}
 	if cmd.Name != "categories" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)

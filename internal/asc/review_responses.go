@@ -73,6 +73,29 @@ const ResourceTypeCustomerReviewResponses ResourceType = "customerReviewResponse
 // ResourceTypeCustomerReviews is the resource type for customer reviews.
 const ResourceTypeCustomerReviews ResourceType = "customerReviews"
 
+// CustomerReviewPublishedResponseID extracts the response relationship from a customer review resource.
+func CustomerReviewPublishedResponseID(review Resource[ReviewAttributes]) (string, bool) {
+	if len(review.Relationships) == 0 {
+		return "", false
+	}
+
+	var relationships struct {
+		Response *Relationship `json:"response"`
+	}
+	if err := json.Unmarshal(review.Relationships, &relationships); err != nil {
+		return "", false
+	}
+	if relationships.Response == nil {
+		return "", false
+	}
+
+	id := strings.TrimSpace(relationships.Response.Data.ID)
+	if id == "" {
+		return "", false
+	}
+	return id, true
+}
+
 // CreateCustomerReviewResponse creates a response to a customer review.
 func (c *Client) CreateCustomerReviewResponse(ctx context.Context, reviewID, responseBody string) (*CustomerReviewResponseResponse, error) {
 	reviewID = strings.TrimSpace(reviewID)

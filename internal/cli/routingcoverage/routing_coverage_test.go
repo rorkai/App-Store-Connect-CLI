@@ -11,6 +11,7 @@ func TestRoutingCoverageCommandShape(t *testing.T) {
 	cmd := RoutingCoverageCommand()
 	if cmd == nil {
 		t.Fatal("expected routing-coverage command")
+		return
 	}
 	if cmd.Name != "routing-coverage" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)

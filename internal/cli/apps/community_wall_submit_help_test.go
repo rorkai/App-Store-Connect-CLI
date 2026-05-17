@@ -10,6 +10,7 @@ func TestAppsWallSubmitHelpMentionsPublicAppStoreLookup(t *testing.T) {
 	cmd := AppsWallSubmitCommand(flag.NewFlagSet("wall", flag.ContinueOnError))
 	if cmd == nil {
 		t.Fatal("expected apps wall submit command")
+		return
 	}
 
 	usage := cmd.UsageFunc(cmd)

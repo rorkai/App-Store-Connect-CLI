@@ -15,6 +15,7 @@ func TestInitCommandMetadata(t *testing.T) {
 	cmd := InitCommand()
 	if cmd == nil {
 		t.Fatal("expected init command")
+		return
 	}
 	if cmd.Name != "init" {
 		t.Fatalf("expected command name init, got %q", cmd.Name)

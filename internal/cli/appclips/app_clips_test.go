@@ -6,6 +6,7 @@ func TestAppClipsCommandConstructors(t *testing.T) {
 	top := AppClipsCommand()
 	if top == nil {
 		t.Fatal("expected app-clips command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected top-level command name")

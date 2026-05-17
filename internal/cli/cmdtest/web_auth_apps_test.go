@@ -67,6 +67,7 @@ func TestWebAppsCreateHelpMentionsInteractiveContract(t *testing.T) {
 	cmd := findSubcommand(root, "web", "apps", "create")
 	if cmd == nil {
 		t.Fatal("expected web apps create command")
+		return
 	}
 
 	usage := cmd.UsageFunc(cmd)

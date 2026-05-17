@@ -68,6 +68,7 @@ func TestNormalizeViewEditCommandTreeRemovesLegacyVerbPath(t *testing.T) {
 	}
 	if canonical == nil {
 		t.Fatal("expected canonical view command to remain in tree")
+		return
 	}
 	for _, sub := range root.Subcommands {
 		if sub != nil && sub.Name == "get" {

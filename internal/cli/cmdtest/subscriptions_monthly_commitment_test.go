@@ -18,6 +18,7 @@ func TestSubscriptionsPricingMonthlyCommitmentHelp(t *testing.T) {
 	cmd := findSubcommand(root, "subscriptions", "pricing")
 	if cmd == nil {
 		t.Fatal("expected subscriptions pricing command")
+		return
 	}
 	usage := cmd.UsageFunc(cmd)
 	if !strings.Contains(usage, "monthly-commitment") {
@@ -27,6 +28,7 @@ func TestSubscriptionsPricingMonthlyCommitmentHelp(t *testing.T) {
 	monthlyCmd := findSubcommand(root, "subscriptions", "pricing", "monthly-commitment")
 	if monthlyCmd == nil {
 		t.Fatal("expected monthly-commitment command")
+		return
 	}
 	monthlyUsage := monthlyCmd.UsageFunc(monthlyCmd)
 	if !strings.Contains(monthlyUsage, "April 27, 2026") {

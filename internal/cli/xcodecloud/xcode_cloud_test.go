@@ -6,6 +6,7 @@ func TestXcodeCloudCommandConstructors(t *testing.T) {
 	top := XcodeCloudCommand()
 	if top == nil {
 		t.Fatal("expected xcode-cloud command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")

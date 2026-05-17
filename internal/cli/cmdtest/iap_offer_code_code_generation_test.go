@@ -519,6 +519,7 @@ func TestIAPOfferCodesOneTimeCodesCreateHelpShowsEnvironmentFlag(t *testing.T) {
 	cmd := findSubcommand(root, "iap", "offer-codes", "one-time-codes", "create")
 	if cmd == nil {
 		t.Fatal("expected iap offer-codes one-time-codes create command")
+		return
 	}
 
 	usage := cmd.UsageFunc(cmd)

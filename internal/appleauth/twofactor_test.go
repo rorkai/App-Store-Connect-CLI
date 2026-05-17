@@ -51,6 +51,7 @@ func TestAuthOptionsResponseAuthOptionsCopiesTrustedPhoneNumbers(t *testing.T) {
 	got := resp.AuthOptions()
 	if got == nil {
 		t.Fatal("expected auth options response conversion result")
+		return
 	}
 	if !got.NoTrustedDevices {
 		t.Fatal("expected noTrustedDevices to be preserved")
@@ -73,6 +74,7 @@ func TestNilAuthOptionsResponseReturnsEmptyOptions(t *testing.T) {
 	got := resp.AuthOptions()
 	if got == nil {
 		t.Fatal("expected empty auth options for nil response")
+		return
 	}
 	if got.NoTrustedDevices {
 		t.Fatal("did not expect noTrustedDevices on nil response")

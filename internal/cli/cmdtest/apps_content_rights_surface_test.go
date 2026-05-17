@@ -16,6 +16,7 @@ func TestAppsContentRightsCommandSurface(t *testing.T) {
 	group := findSubcommand(root, "apps", "content-rights")
 	if group == nil {
 		t.Fatal("expected apps content-rights command")
+		return
 	}
 	if findSubcommand(root, "apps", "content-rights", "view") == nil {
 		t.Fatal("expected apps content-rights view command")

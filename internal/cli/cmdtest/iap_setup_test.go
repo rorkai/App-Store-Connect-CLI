@@ -52,6 +52,7 @@ func TestIAPHelpShowsSetupCommand(t *testing.T) {
 	iapCmd := findSubcommand(root, "iap")
 	if iapCmd == nil {
 		t.Fatal("expected iap command")
+		return
 	}
 	iapUsage := iapCmd.UsageFunc(iapCmd)
 	if !usageListsSubcommand(iapUsage, "setup") {
@@ -61,6 +62,7 @@ func TestIAPHelpShowsSetupCommand(t *testing.T) {
 	setupCmd := findSubcommand(root, "iap", "setup")
 	if setupCmd == nil {
 		t.Fatal("expected iap setup command")
+		return
 	}
 	setupUsage := setupCmd.UsageFunc(setupCmd)
 	if !strings.Contains(setupUsage, "--reference-name") {

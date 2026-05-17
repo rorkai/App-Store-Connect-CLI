@@ -19,6 +19,7 @@ func TestWorkflowsCommandHierarchy(t *testing.T) {
 	workflowsCmd := findSub(cmd, "workflows")
 	if workflowsCmd == nil {
 		t.Fatal("expected 'workflows' subcommand")
+		return
 	}
 	if len(workflowsCmd.Subcommands) != 6 {
 		t.Fatalf("expected 6 subcommands (describe, create, options, edit, enable, disable), got %d", len(workflowsCmd.Subcommands))

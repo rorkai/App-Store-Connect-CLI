@@ -6,6 +6,7 @@ func TestGameCenterCommandConstructors(t *testing.T) {
 	top := GameCenterCommand()
 	if top == nil {
 		t.Fatal("expected game-center command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")

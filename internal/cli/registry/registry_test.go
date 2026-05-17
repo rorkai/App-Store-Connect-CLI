@@ -10,6 +10,7 @@ func TestVersionCommand(t *testing.T) {
 	cmd := VersionCommand("v1.2.3")
 	if cmd == nil {
 		t.Fatal("expected non-nil version command")
+		return
 	}
 	if cmd.Name != "version" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)
@@ -29,6 +30,7 @@ func TestSubcommandsIncludesCoreEntries(t *testing.T) {
 	for _, sub := range subs {
 		if sub == nil {
 			t.Fatal("expected no nil root subcommands")
+			return
 		}
 		name := strings.TrimSpace(sub.Name)
 		if name == "" {

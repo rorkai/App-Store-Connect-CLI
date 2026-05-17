@@ -13,6 +13,7 @@ func TestLocalizationsCommandConstructors(t *testing.T) {
 	top := LocalizationsCommand()
 	if top == nil {
 		t.Fatal("expected localizations command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")

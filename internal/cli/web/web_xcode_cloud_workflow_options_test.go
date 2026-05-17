@@ -31,6 +31,7 @@ func TestWorkflowsOptionsCommandHierarchy(t *testing.T) {
 	optionsCmd := findSub(cmd, "options")
 	if optionsCmd == nil {
 		t.Fatal("expected 'options' subcommand")
+		return
 	}
 	if len(optionsCmd.Subcommands) != 7 {
 		t.Fatalf("expected 7 options subcommands, got %d", len(optionsCmd.Subcommands))

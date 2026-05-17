@@ -17,6 +17,7 @@ func TestBuildsListCommand_VersionAndBuildNumberDescriptions(t *testing.T) {
 	versionFlag := cmd.FlagSet.Lookup("version")
 	if versionFlag == nil {
 		t.Fatal("expected --version flag to be defined")
+		return
 	}
 	if !strings.Contains(versionFlag.Usage, "CFBundleShortVersionString") {
 		t.Fatalf("expected --version usage to mention marketing version, got %q", versionFlag.Usage)
@@ -25,6 +26,7 @@ func TestBuildsListCommand_VersionAndBuildNumberDescriptions(t *testing.T) {
 	buildNumberFlag := cmd.FlagSet.Lookup("build-number")
 	if buildNumberFlag == nil {
 		t.Fatal("expected --build-number flag to be defined")
+		return
 	}
 	if !strings.Contains(buildNumberFlag.Usage, "CFBundleVersion") {
 		t.Fatalf("expected --build-number usage to mention build number, got %q", buildNumberFlag.Usage)
@@ -44,6 +46,7 @@ func TestBuildsListCommand_ProcessingStateFlagDescription(t *testing.T) {
 	processingStateFlag := cmd.FlagSet.Lookup("processing-state")
 	if processingStateFlag == nil {
 		t.Fatal("expected --processing-state flag to be defined")
+		return
 	}
 	if !strings.Contains(processingStateFlag.Usage, "VALID") || !strings.Contains(processingStateFlag.Usage, "all") {
 		t.Fatalf("expected --processing-state usage to mention supported values, got %q", processingStateFlag.Usage)

@@ -405,6 +405,7 @@ func TestCreateReviewSubmissionItem_SupportedItemTypes(t *testing.T) {
 				relationship := test.getRelationship(payload.Data.Relationships)
 				if relationship == nil {
 					t.Fatalf("expected relationship for item type %q", test.itemType)
+					return
 				}
 				if relationship.Data.Type != test.wantType {
 					t.Fatalf("expected relationship type %q, got %q", test.wantType, relationship.Data.Type)

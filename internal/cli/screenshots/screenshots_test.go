@@ -6,6 +6,7 @@ func TestScreenshotsCommandConstructors(t *testing.T) {
 	cmd := ScreenshotsCommand()
 	if cmd == nil {
 		t.Fatal("expected screenshots command")
+		return
 	}
 	if cmd.Name != "screenshots" {
 		t.Fatalf("expected command name screenshots, got %q", cmd.Name)

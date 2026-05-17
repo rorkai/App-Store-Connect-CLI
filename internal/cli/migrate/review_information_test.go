@@ -35,6 +35,7 @@ func TestReadFastlaneReviewInformation_ParsesFiles(t *testing.T) {
 	}
 	if info == nil {
 		t.Fatal("expected review information, got nil")
+		return
 	}
 	if info.ContactFirstName == nil || *info.ContactFirstName != "Rita" {
 		t.Fatalf("expected contact first name Rita, got %#v", info.ContactFirstName)

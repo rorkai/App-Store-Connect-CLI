@@ -82,6 +82,7 @@ func TestAppsPublicHelpShowsSubcommands(t *testing.T) {
 	publicCmd := findSubcommand(root, "apps", "public")
 	if publicCmd == nil {
 		t.Fatal("expected apps public command")
+		return
 	}
 
 	usage := publicCmd.UsageFunc(publicCmd)

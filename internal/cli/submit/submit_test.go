@@ -30,6 +30,7 @@ func TestSubmitCommandShape(t *testing.T) {
 	cmd := SubmitCommand()
 	if cmd == nil {
 		t.Fatal("expected submit command")
+		return
 	}
 	if cmd.Name != "submit" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)
@@ -1979,6 +1980,7 @@ func TestFindReviewSubmissionForVersion_FallsBackToSubmissionItems(t *testing.T)
 	}
 	if submission == nil {
 		t.Fatal("expected review submission match, got nil")
+		return
 	}
 	if submission.ID != "review-submission-123" {
 		t.Fatalf("expected review submission ID review-submission-123, got %q", submission.ID)
@@ -2045,6 +2047,7 @@ func TestFindReviewSubmissionForVersion_ContinuesAfterPerSubmissionLookupErrors(
 	}
 	if submission == nil {
 		t.Fatal("expected review submission match, got nil")
+		return
 	}
 	if submission.ID != "current-submission" {
 		t.Fatalf("expected current-submission, got %q", submission.ID)
@@ -2102,6 +2105,7 @@ func TestFindReviewSubmissionForVersion_PrefersCurrentSubmissionOverHistoricalMa
 	}
 	if submission == nil {
 		t.Fatal("expected review submission match, got nil")
+		return
 	}
 	if submission.ID != "current-submission" {
 		t.Fatalf("expected current-submission, got %q", submission.ID)

@@ -125,6 +125,7 @@ func TestCertificatesCSRGenerate_GeneratesKeyAndCSR(t *testing.T) {
 	block, _ := pem.Decode(keyPEM)
 	if block == nil {
 		t.Fatalf("failed to decode private key PEM")
+		return
 	}
 	privAny, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
@@ -141,6 +142,7 @@ func TestCertificatesCSRGenerate_GeneratesKeyAndCSR(t *testing.T) {
 	csrBlock, _ := pem.Decode(csrPEM)
 	if csrBlock == nil {
 		t.Fatalf("failed to decode CSR PEM")
+		return
 	}
 	csr, err := x509.ParseCertificateRequest(csrBlock.Bytes)
 	if err != nil {

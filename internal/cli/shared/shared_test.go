@@ -373,6 +373,7 @@ func TestBindPrettyJSONFlagDefaultsFalseAndParses(t *testing.T) {
 	pretty := BindPrettyJSONFlag(fs)
 	if pretty == nil {
 		t.Fatal("expected pretty flag pointer to be set")
+		return
 	}
 	if *pretty {
 		t.Fatal("expected pretty default false")

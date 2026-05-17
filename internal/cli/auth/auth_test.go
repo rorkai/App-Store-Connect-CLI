@@ -25,6 +25,7 @@ func TestCommandWrapperReturnsAuthCommand(t *testing.T) {
 	cmd := AuthCommand()
 	if cmd == nil {
 		t.Fatal("AuthCommand() returned nil")
+		return
 	}
 	if cmd.Name != "auth" {
 		t.Fatalf("AuthCommand().Name = %q, want %q", cmd.Name, "auth")

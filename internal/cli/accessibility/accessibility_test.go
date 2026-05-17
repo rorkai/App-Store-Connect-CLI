@@ -11,6 +11,7 @@ func TestAccessibilityCommandShape(t *testing.T) {
 	cmd := AccessibilityCommand()
 	if cmd == nil {
 		t.Fatal("expected accessibility command")
+		return
 	}
 	if cmd.Name != "accessibility" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)

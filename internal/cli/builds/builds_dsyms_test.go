@@ -10,6 +10,7 @@ func TestDsymsCommandShape(t *testing.T) {
 	cmd := BuildsDsymsCommand()
 	if cmd == nil {
 		t.Fatal("expected dsyms command")
+		return
 	}
 	if cmd.Name != "dsyms" {
 		t.Errorf("expected name dsyms, got %s", cmd.Name)

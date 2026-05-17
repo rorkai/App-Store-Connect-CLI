@@ -6,6 +6,7 @@ func TestAndroidIosMappingCommandConstructors(t *testing.T) {
 	cmd := AndroidIosMappingCommand()
 	if cmd == nil {
 		t.Fatal("expected android-ios-mapping command")
+		return
 	}
 	if cmd.Name == "" {
 		t.Fatal("expected command name")

@@ -6,6 +6,7 @@ func TestWinBackOffersCommandConstructors(t *testing.T) {
 	top := WinBackOffersCommand()
 	if top == nil {
 		t.Fatal("expected win-back-offers command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")

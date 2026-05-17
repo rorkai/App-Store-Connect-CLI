@@ -6,6 +6,7 @@ func TestBuildLocalizationsCommandConstructors(t *testing.T) {
 	top := BuildLocalizationsCommand()
 	if top == nil {
 		t.Fatal("expected build-localizations command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")

@@ -31,6 +31,7 @@ func TestSubscriptionsUpdateCommand_GroupLevelHelpOmitsSentinelDefault(t *testin
 	groupLevelFlag := cmd.FlagSet.Lookup("group-level")
 	if groupLevelFlag == nil {
 		t.Fatal("expected --group-level flag to be defined")
+		return
 	}
 	if groupLevelFlag.DefValue != "" {
 		t.Fatalf("expected --group-level to have no displayed default, got %q", groupLevelFlag.DefValue)

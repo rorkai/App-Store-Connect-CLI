@@ -39,11 +39,13 @@ func TestAppsWallFlagDefaults(t *testing.T) {
 	cmd := findSubcommand(root, "apps", "wall")
 	if cmd == nil {
 		t.Fatal("expected apps wall command")
+		return
 	}
 
 	outputFlag := cmd.FlagSet.Lookup("output")
 	if outputFlag == nil {
 		t.Fatal("expected --output flag")
+		return
 	}
 	if got := outputFlag.DefValue; got != "table" {
 		t.Fatalf("expected --output default table, got %q", got)
@@ -52,6 +54,7 @@ func TestAppsWallFlagDefaults(t *testing.T) {
 	sortFlag := cmd.FlagSet.Lookup("sort")
 	if sortFlag == nil {
 		t.Fatal("expected --sort flag")
+		return
 	}
 	if got := sortFlag.DefValue; got != "name" {
 		t.Fatalf("expected --sort default name, got %q", got)
@@ -63,11 +66,13 @@ func TestAppsWallSubmitCommandExists(t *testing.T) {
 	cmd := findSubcommand(root, "apps", "wall", "submit")
 	if cmd == nil {
 		t.Fatal("expected apps wall submit command")
+		return
 	}
 
 	outputFlag := cmd.FlagSet.Lookup("output")
 	if outputFlag == nil {
 		t.Fatal("expected --output flag")
+		return
 	}
 	if got := outputFlag.DefValue; got != "json" {
 		t.Fatalf("expected --output default json, got %q", got)

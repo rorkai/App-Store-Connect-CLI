@@ -6,6 +6,7 @@ func TestBetaAppLocalizationsCommandConstructors(t *testing.T) {
 	top := BetaAppLocalizationsCommand()
 	if top == nil {
 		t.Fatal("expected beta-app-localizations command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")

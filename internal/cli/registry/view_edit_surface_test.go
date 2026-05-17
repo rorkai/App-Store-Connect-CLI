@@ -93,6 +93,7 @@ func TestHelpHidesDeprecatedLegacyVerbs(t *testing.T) {
 			cmd := findCommandByPath(subs, tt.path)
 			if cmd == nil {
 				t.Fatalf("expected command %q", tt.path)
+				return
 			}
 
 			usage := cmd.UsageFunc(cmd)
@@ -132,6 +133,7 @@ func TestHelpRetainsCanonicalCommandsThatMentionLegacyAliases(t *testing.T) {
 			cmd := findCommandByPath(subs, tt.path)
 			if cmd == nil {
 				t.Fatalf("expected command %q", tt.path)
+				return
 			}
 
 			usage := cmd.UsageFunc(cmd)

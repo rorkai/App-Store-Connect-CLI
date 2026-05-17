@@ -6,6 +6,7 @@ func TestReviewsCommandConstructors(t *testing.T) {
 	top := ReviewsCommand()
 	if top == nil {
 		t.Fatal("expected reviews command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")
@@ -24,6 +25,7 @@ func TestReviewsCommandConstructors(t *testing.T) {
 		func() any { return ReviewDoctorCommand() },
 		func() any { return ReviewsGetCommand() },
 		func() any { return ReviewsRatingsCommand() },
+		func() any { return ReviewsRespondBatchCommand() },
 		func() any { return ReviewsResponseCommand() },
 		func() any { return ReviewDetailsAttachmentsListCommand() },
 	}

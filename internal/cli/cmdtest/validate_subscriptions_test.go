@@ -430,6 +430,7 @@ func TestValidateSubscriptionsFallsBackToCountWhenAppTerritoryIDsAreIncomplete(t
 	}
 	if coverageCheck == nil {
 		t.Fatalf("expected pricing coverage warning when app territory IDs are incomplete, got %+v", report.Checks)
+		return
 	}
 	if !strings.Contains(coverageCheck.Message, "1 of 2 available territories") {
 		t.Fatalf("expected count-based fallback coverage warning, got %+v", *coverageCheck)
@@ -513,6 +514,7 @@ func TestValidateSubscriptionsSkipsPricingCoverageWhenAvailabilityRateLimited(t 
 	}
 	if skipCheck == nil {
 		t.Fatalf("expected pricing coverage skip info check, got %+v", report.Checks)
+		return
 	}
 	if !strings.Contains(skipCheck.Remediation, "temporarily unavailable or rate limited") {
 		t.Fatalf("expected retryable remediation, got %+v", *skipCheck)
@@ -567,6 +569,7 @@ func TestValidateSubscriptionsSkipsPricingCoverageWhenPaginatedAvailabilityRateL
 	}
 	if skipCheck == nil {
 		t.Fatalf("expected pricing coverage skip info check, got %+v", report.Checks)
+		return
 	}
 	if !strings.Contains(skipCheck.Remediation, "temporarily unavailable or rate limited") {
 		t.Fatalf("expected retryable remediation, got %+v", *skipCheck)

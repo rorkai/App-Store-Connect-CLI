@@ -6,6 +6,7 @@ func TestBuildBundlesCommandConstructors(t *testing.T) {
 	top := BuildBundlesCommand()
 	if top == nil {
 		t.Fatal("expected build-bundles command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")
