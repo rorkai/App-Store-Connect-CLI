@@ -230,6 +230,9 @@ func scoreCommandDoc(doc commandDoc, queryTokens []string) (int, []string) {
 		}
 
 		for _, alias := range aliasesFor(token) {
+			if alias == token {
+				continue
+			}
 			aliasScore, aliasReasons := scoreTerm(doc, alias, "alias:"+token)
 			if aliasScore == 0 {
 				continue
@@ -254,11 +257,12 @@ func scoreTerm(doc commandDoc, term, reason string) (int, []string) {
 	reasons := make([]string, 0, 4)
 	commandWithoutASC := strings.TrimPrefix(doc.Command, "asc ")
 
-	if commandWithoutASC == term || doc.Command == term {
+	exactCommandMatch := commandWithoutASC == term || doc.Command == term
+	if exactCommandMatch {
 		score += 120
 		reasons = append(reasons, reason, "command:"+term)
 	}
-	if tokenContains(doc.PathTokens, term) {
+	if !exactCommandMatch && tokenContains(doc.PathTokens, term) {
 		score += 60
 		reasons = append(reasons, reason, "command:"+term)
 	}
