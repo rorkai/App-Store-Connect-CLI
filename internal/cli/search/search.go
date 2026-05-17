@@ -90,7 +90,11 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			query := strings.Join(args, " ")
+			query := normalizeQuery(strings.Join(args, " "))
+			if query == "" {
+				fmt.Fprintln(os.Stderr, "Error: search query is required")
+				return flag.ErrHelp
+			}
 			response := SearchCommands(commands(), query, *limit)
 			return shared.PrintOutputWithRenderers(
 				response,

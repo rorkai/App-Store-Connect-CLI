@@ -184,6 +184,92 @@ func TestSearchReturnsEmptyResultsForNoMatches(t *testing.T) {
 	}
 }
 
+func TestSearchSupportsLimitFlag(t *testing.T) {
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = rootcmd.Run([]string{"search", "--output", "json", "--limit", "2", "build"}, "1.2.3")
+	})
+
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var response searchResponse
+	if err := json.Unmarshal([]byte(stdout), &response); err != nil {
+		t.Fatalf("failed to unmarshal search JSON: %v\nstdout=%s", err, stdout)
+	}
+	if response.Count > 2 || len(response.Results) > 2 {
+		t.Fatalf("expected at most 2 results, got %#v", response)
+	}
+}
+
+func TestSearchRejectsNonPositiveLimit(t *testing.T) {
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = rootcmd.Run([]string{"search", "--limit", "0", "build"}, "1.2.3")
+	})
+
+	if code != 2 {
+		t.Fatalf("expected exit code 2, got %d", code)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--limit must be greater than 0") {
+		t.Fatalf("expected limit validation error, got %q", stderr)
+	}
+}
+
+func TestSearchAcceptsRootFlagsBeforeSubcommand(t *testing.T) {
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = rootcmd.Run([]string{"--profile", "ci", "search", "--output", "json", "--limit", "1", "build"}, "1.2.3")
+	})
+
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var response searchResponse
+	if err := json.Unmarshal([]byte(stdout), &response); err != nil {
+		t.Fatalf("failed to unmarshal search JSON: %v\nstdout=%s", err, stdout)
+	}
+	if response.Count != 1 || len(response.Results) != 1 {
+		t.Fatalf("expected one limited result, got %#v", response)
+	}
+}
+
+func TestSearchFlagValueCanMatchSubcommandName(t *testing.T) {
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = rootcmd.Run([]string{"search", "--output", "json", "--limit", "3", "completion"}, "1.2.3")
+	})
+
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var response searchResponse
+	if err := json.Unmarshal([]byte(stdout), &response); err != nil {
+		t.Fatalf("failed to unmarshal search JSON: %v\nstdout=%s", err, stdout)
+	}
+	if response.Query != "completion" {
+		t.Fatalf("expected completion query, got %q", response.Query)
+	}
+	if !searchResultsContain(response.Results, "asc completion") {
+		t.Fatalf("expected completion command in results, got %#v", response.Results)
+	}
+}
+
 func TestSearchRequiresQuery(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -198,6 +284,23 @@ func TestSearchRequiresQuery(t *testing.T) {
 
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected ErrHelp, got %v", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "search query is required") {
+		t.Fatalf("expected missing query error, got %q", stderr)
+	}
+}
+
+func TestSearchRejectsBlankQuery(t *testing.T) {
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = rootcmd.Run([]string{"search", "--output", "json", "   "}, "1.2.3")
+	})
+
+	if code != 2 {
+		t.Fatalf("expected exit code 2, got %d", code)
 	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
