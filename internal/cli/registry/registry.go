@@ -61,6 +61,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/sandbox"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/schema"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/screenshots"
+	searchcmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/search"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/signing"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/snitch"
@@ -101,7 +102,8 @@ func Subcommands(version string) []*ffcli.Command {
 		"asc pricing availability set":   {},
 	}
 
-	subs := []*ffcli.Command{
+	var subs []*ffcli.Command
+	subs = []*ffcli.Command{
 		auth.AuthCommand(),
 		auth.AuthDoctorCommand(),
 		web.WebCommand(),
@@ -174,6 +176,7 @@ func Subcommands(version string) []*ffcli.Command {
 		gamecenter.GameCenterCommand(),
 		capabilities.Command(),
 		schema.SchemaCommand(),
+		searchcmd.SearchCommand(func() []*ffcli.Command { return subs }),
 		snitch.SnitchCommand(version),
 		VersionCommand(version),
 	}
