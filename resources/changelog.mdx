@@ -16,6 +16,20 @@ The App Store Connect CLI follows semantic versioning. All releases are availabl
 
 * No unreleased changes yet.
 
+### 1.5.0
+
+**Highlights**:
+
+* `asc search` adds local, deterministic command discovery for agents and humans who know the App Store Connect task they want but not the exact CLI path
+* Search indexes command paths, summaries, usage strings, examples, and flag names, with JSON, table, and markdown output for both automation and interactive use
+* Customer review workflows can now create grouped batch responses and filter reviews by response state, making reply automation safer at scale
+
+**Changes**:
+
+* `feat(search)`: Add `asc search` with command ranking, agent-vocabulary aliases, typo-tolerant fallback matching, `--limit`, and structured output support
+* `feat(reviews)`: Add `asc reviews respond-batch` for grouped customer review replies with dry-run, skip-existing, and response-state filtering
+* `feat(reviews)`: Add review response filters for response fields and responded/unresponded review lookup flows
+
 ### 1.4.2
 
 **Highlights**:
