@@ -6,6 +6,7 @@ func TestPerformanceCommandConstructors(t *testing.T) {
 	top := PerformanceCommand()
 	if top == nil {
 		t.Fatal("expected performance command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")

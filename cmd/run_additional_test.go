@@ -451,6 +451,7 @@ func TestRootCommand_ReleaseHelpMentionsCanonicalPathAndStatus(t *testing.T) {
 	}
 	if releaseCmd == nil {
 		t.Fatal("expected release subcommand to be registered")
+		return
 	}
 
 	usage := releaseCmd.UsageFunc(releaseCmd)
@@ -492,6 +493,7 @@ func TestRootCommand_WorkflowHelpMentionsReleaseAndStatusMonitoring(t *testing.T
 	}
 	if workflowCmd == nil {
 		t.Fatal("expected workflow subcommand to be registered")
+		return
 	}
 
 	usage := workflowCmd.UsageFunc(workflowCmd)

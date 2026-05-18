@@ -11,6 +11,7 @@ func TestActorsCommandShape(t *testing.T) {
 	cmd := ActorsCommand()
 	if cmd == nil {
 		t.Fatal("expected actors command")
+		return
 	}
 	if cmd.Name != "actors" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)

@@ -22,6 +22,7 @@ func TestSharedEnvVarsCommandHierarchy(t *testing.T) {
 	sharedCmd := findSub(envVarsCmd, "shared")
 	if sharedCmd == nil {
 		t.Fatal("expected 'shared' subcommand under env-vars")
+		return
 	}
 	if len(sharedCmd.Subcommands) != 3 {
 		t.Fatalf("expected 3 subcommands (list, set, delete), got %d", len(sharedCmd.Subcommands))

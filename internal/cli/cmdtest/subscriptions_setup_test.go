@@ -49,6 +49,7 @@ func TestSubscriptionsHelpShowsSetupCommand(t *testing.T) {
 	subscriptionsCmd := findSubcommand(root, "subscriptions")
 	if subscriptionsCmd == nil {
 		t.Fatal("expected subscriptions command")
+		return
 	}
 	subscriptionsUsage := subscriptionsCmd.UsageFunc(subscriptionsCmd)
 	if !usageListsSubcommand(subscriptionsUsage, "setup") {
@@ -58,6 +59,7 @@ func TestSubscriptionsHelpShowsSetupCommand(t *testing.T) {
 	setupCmd := findSubcommand(root, "subscriptions", "setup")
 	if setupCmd == nil {
 		t.Fatal("expected subscriptions setup command")
+		return
 	}
 	setupUsage := setupCmd.UsageFunc(setupCmd)
 	if !strings.Contains(setupUsage, "--group-reference-name") {

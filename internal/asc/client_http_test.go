@@ -2266,6 +2266,7 @@ func TestUpdateBuild_RefetchesCurrentStateAfterPatchError(t *testing.T) {
 	}
 	if resp == nil {
 		t.Fatal("expected response")
+		return
 	}
 	if resp.Data.Attributes.UsesNonExemptEncryption == nil || *resp.Data.Attributes.UsesNonExemptEncryption != false {
 		t.Fatalf("expected usesNonExemptEncryption=false, got %+v", resp.Data.Attributes.UsesNonExemptEncryption)

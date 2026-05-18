@@ -94,6 +94,7 @@ func TestReleaseCommandShape(t *testing.T) {
 	cmd := ReleaseCommand()
 	if cmd == nil {
 		t.Fatal("expected release command")
+		return
 	}
 	if cmd.Name != "release" {
 		t.Fatalf("expected command name release, got %q", cmd.Name)

@@ -248,6 +248,7 @@ func TestCreateAppDataUsageBuildsExpectedRequest(t *testing.T) {
 	}
 	if created == nil {
 		t.Fatal("expected created usage")
+		return
 	}
 	if created.ID != "usage-new" || created.Category != "NAME" || created.Purpose != "APP_FUNCTIONALITY" || created.DataProtection != "DATA_LINKED_TO_YOU" {
 		t.Fatalf("unexpected created usage: %#v", created)
@@ -329,6 +330,7 @@ func TestUpdateAppDataUsageBuildsExpectedRequest(t *testing.T) {
 	}
 	if updated == nil {
 		t.Fatal("expected updated usage")
+		return
 	}
 	if updated.ID != "usage-1" || updated.Category != "NAME" || updated.Purpose != "APP_FUNCTIONALITY" || updated.DataProtection != "DATA_NOT_LINKED_TO_YOU" {
 		t.Fatalf("unexpected updated usage: %#v", updated)
@@ -385,6 +387,7 @@ func TestGetAppDataUsagesPublishStateParsesResponse(t *testing.T) {
 	}
 	if state == nil {
 		t.Fatal("expected non-nil publish state")
+		return
 	}
 	if state.ID != "publish-state-1" || state.Published {
 		t.Fatalf("unexpected publish state: %#v", state)
@@ -436,6 +439,7 @@ func TestSetAppDataUsagesPublishedBuildsPatchRequest(t *testing.T) {
 	}
 	if state == nil {
 		t.Fatal("expected non-nil publish state")
+		return
 	}
 	if state.ID != "publish-state-1" || !state.Published {
 		t.Fatalf("unexpected publish state: %#v", state)

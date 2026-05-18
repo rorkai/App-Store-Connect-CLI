@@ -6,6 +6,7 @@ func TestVideoPreviewsCommandConstructors(t *testing.T) {
 	cmd := VideoPreviewsCommand()
 	if cmd == nil {
 		t.Fatal("expected video-previews command")
+		return
 	}
 	if cmd.Name != "video-previews" {
 		t.Fatalf("expected command name video-previews, got %q", cmd.Name)

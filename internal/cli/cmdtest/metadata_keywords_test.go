@@ -19,6 +19,7 @@ func TestMetadataHelpShowsKeywordsWorkflow(t *testing.T) {
 	metadataCmd := findSubcommand(root, "metadata")
 	if metadataCmd == nil {
 		t.Fatal("expected metadata command")
+		return
 	}
 
 	metadataUsage := metadataCmd.UsageFunc(metadataCmd)
@@ -32,6 +33,7 @@ func TestMetadataHelpShowsKeywordsWorkflow(t *testing.T) {
 	keywordsCmd := findSubcommand(root, "metadata", "keywords")
 	if keywordsCmd == nil {
 		t.Fatal("expected metadata keywords command")
+		return
 	}
 	keywordsUsage := keywordsCmd.UsageFunc(keywordsCmd)
 	for _, subcommand := range []string{"import", "audit", "plan", "diff", "localize", "apply", "push", "sync"} {
@@ -50,6 +52,7 @@ func TestRawSearchKeywordsHelpPointsToMetadataKeywords(t *testing.T) {
 	appsCmd := findSubcommand(root, "apps", "search-keywords")
 	if appsCmd == nil {
 		t.Fatal("expected apps search-keywords command")
+		return
 	}
 	appsUsage := appsCmd.UsageFunc(appsCmd)
 	if !strings.Contains(appsUsage, "asc metadata keywords") {
@@ -59,6 +62,7 @@ func TestRawSearchKeywordsHelpPointsToMetadataKeywords(t *testing.T) {
 	localizationsCmd := findSubcommand(root, "localizations", "search-keywords")
 	if localizationsCmd == nil {
 		t.Fatal("expected localizations search-keywords command")
+		return
 	}
 	localizationsUsage := localizationsCmd.UsageFunc(localizationsCmd)
 	if !strings.Contains(localizationsUsage, "asc metadata keywords") {

@@ -197,6 +197,7 @@ func TestSelectLatestAppStoreVersion_DeterministicTieBreak(t *testing.T) {
 	selected := selectLatestAppStoreVersion(versions)
 	if selected == nil {
 		t.Fatal("expected selected version, got nil")
+		return
 	}
 	if selected.ID != "ver-2" {
 		t.Fatalf("expected deterministic tie-break to choose ver-2, got %q", selected.ID)
@@ -222,6 +223,7 @@ func TestSelectLatestAppStoreVersion_ParsesRFC3339Offsets(t *testing.T) {
 	selected := selectLatestAppStoreVersion(versions)
 	if selected == nil {
 		t.Fatal("expected selected version, got nil")
+		return
 	}
 	if selected.ID != "ver-newer" {
 		t.Fatalf("expected ver-newer to be selected, got %q", selected.ID)
@@ -247,6 +249,7 @@ func TestSelectLatestReviewSubmission_DeterministicTieBreak(t *testing.T) {
 	selected := selectLatestReviewSubmission(submissions)
 	if selected == nil {
 		t.Fatal("expected selected submission, got nil")
+		return
 	}
 	if selected.ID != "sub-2" {
 		t.Fatalf("expected deterministic tie-break to choose sub-2, got %q", selected.ID)
@@ -272,6 +275,7 @@ func TestSelectLatestReviewSubmission_ParsesRFC3339Offsets(t *testing.T) {
 	selected := selectLatestReviewSubmission(submissions)
 	if selected == nil {
 		t.Fatal("expected selected submission, got nil")
+		return
 	}
 	if selected.ID != "sub-newer" {
 		t.Fatalf("expected sub-newer to be selected, got %q", selected.ID)
@@ -299,6 +303,7 @@ func TestSelectLatestReviewSubmission_PrefersActiveSubmissionWithoutSubmittedDat
 	selected := selectLatestReviewSubmission(submissions)
 	if selected == nil {
 		t.Fatal("expected selected submission, got nil")
+		return
 	}
 	if selected.ID != "sub-ready" {
 		t.Fatalf("expected active ready-for-review submission to win, got %q", selected.ID)
@@ -324,6 +329,7 @@ func TestSelectLatestBetaReviewSubmission_ParsesRFC3339Offsets(t *testing.T) {
 	selected := selectLatestBetaReviewSubmission(submissions)
 	if selected == nil {
 		t.Fatal("expected selected submission, got nil")
+		return
 	}
 	if selected.ID != "beta-sub-newer" {
 		t.Fatalf("expected beta-sub-newer to be selected, got %q", selected.ID)

@@ -6,6 +6,7 @@ func TestAppEventsCommandConstructors(t *testing.T) {
 	top := AppEventsCommand()
 	if top == nil {
 		t.Fatal("expected app-events command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected top-level command name")

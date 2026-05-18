@@ -11,6 +11,7 @@ func TestAgreementsCommandShape(t *testing.T) {
 	cmd := AgreementsCommand()
 	if cmd == nil {
 		t.Fatal("expected agreements command")
+		return
 	}
 	if cmd.Name != "agreements" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)

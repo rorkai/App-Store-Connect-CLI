@@ -92,6 +92,7 @@ func TestWebXcodeCloudUsageSubcommands(t *testing.T) {
 	usageCmd := findSub(cmd, "usage")
 	if usageCmd == nil {
 		t.Fatal("could not find 'usage' subcommand")
+		return
 	}
 	if len(usageCmd.Subcommands) != 5 {
 		t.Fatalf("expected 5 usage subcommands, got %d", len(usageCmd.Subcommands))
@@ -561,11 +562,13 @@ func TestWebXcodeCloudUsageDaysFlagSet(t *testing.T) {
 	daysCmd := findSub(findSub(cmd, "usage"), "days")
 	if daysCmd == nil {
 		t.Fatal("could not find 'usage days' subcommand")
+		return
 	}
 
 	fs := daysCmd.FlagSet
 	if fs == nil {
 		t.Fatal("expected flag set on days command")
+		return
 	}
 
 	for _, name := range []string{"product-ids", "start", "end"} {
@@ -580,6 +583,7 @@ func TestWebXcodeCloudUsageMonthsFlagSet(t *testing.T) {
 	monthsCmd := findSub(findSub(cmd, "usage"), "months")
 	if monthsCmd == nil {
 		t.Fatal("could not find 'usage months' subcommand")
+		return
 	}
 
 	fs := monthsCmd.FlagSet
@@ -609,6 +613,7 @@ func TestWebXcodeCloudUsageMonthsDefaultsLast12Months(t *testing.T) {
 	endYear := fs.Lookup("end-year")
 	if startMonth == nil || startYear == nil || endMonth == nil || endYear == nil {
 		t.Fatal("expected start/end month/year flags")
+		return
 	}
 
 	expectedStart := fixedNow.AddDate(0, -11, 0)
@@ -1094,6 +1099,7 @@ func TestWebXcodeCloudUsageWorkflowsFlagSet(t *testing.T) {
 	workflowsCmd := findSub(findSub(cmd, "usage"), "workflows")
 	if workflowsCmd == nil {
 		t.Fatal("could not find 'usage workflows' subcommand")
+		return
 	}
 
 	fs := workflowsCmd.FlagSet

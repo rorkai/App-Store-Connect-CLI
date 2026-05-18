@@ -173,6 +173,7 @@ screenshots:
 	metadata := parseKoubouConfigMetadata(configPath)
 	if metadata == nil {
 		t.Fatal("expected parsed metadata")
+		return
 	}
 	if metadata.FrameRef != "iPhone 17 Pro - Silver - Portrait" {
 		t.Fatalf("unexpected frame ref %q", metadata.FrameRef)

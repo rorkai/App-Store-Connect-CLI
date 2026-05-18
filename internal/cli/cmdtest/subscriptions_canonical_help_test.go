@@ -13,6 +13,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	subscriptionsCmd := findSubcommand(root, "subscriptions")
 	if subscriptionsCmd == nil {
 		t.Fatal("expected subscriptions command")
+		return
 	}
 	subscriptionsUsage := subscriptionsCmd.UsageFunc(subscriptionsCmd)
 	for _, expected := range []string{"pricing", "offers", "review", "promoted-purchases"} {
@@ -41,6 +42,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	groupsCmd := findSubcommand(root, "subscriptions", "groups")
 	if groupsCmd == nil {
 		t.Fatal("expected subscriptions groups command")
+		return
 	}
 	groupsUsage := groupsCmd.UsageFunc(groupsCmd)
 	if usageListsSubcommand(groupsUsage, "submit") {
@@ -50,6 +52,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	pricingCmd := findSubcommand(root, "subscriptions", "pricing")
 	if pricingCmd == nil {
 		t.Fatal("expected subscriptions pricing command")
+		return
 	}
 	pricingUsage := pricingCmd.UsageFunc(pricingCmd)
 	for _, expected := range []string{"summary", "prices", "price-points", "availability"} {
@@ -64,6 +67,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	pricesCmd := findSubcommand(root, "subscriptions", "pricing", "prices")
 	if pricesCmd == nil {
 		t.Fatal("expected subscriptions pricing prices command")
+		return
 	}
 	pricesUsage := pricesCmd.UsageFunc(pricesCmd)
 	if !strings.Contains(pricesUsage, `asc subscriptions pricing prices list --subscription-id "SUB_ID"`) {
@@ -75,6 +79,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	pricesListCmd := findSubcommand(root, "subscriptions", "pricing", "prices", "list")
 	if pricesListCmd == nil {
 		t.Fatal("expected subscriptions pricing prices list command")
+		return
 	}
 	pricesListUsage := pricesListCmd.UsageFunc(pricesListCmd)
 	if !strings.Contains(pricesListUsage, "--resolved") {
@@ -84,6 +89,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	availabilityCmd := findSubcommand(root, "subscriptions", "pricing", "availability")
 	if availabilityCmd == nil {
 		t.Fatal("expected subscriptions pricing availability command")
+		return
 	}
 	availabilityUsage := availabilityCmd.UsageFunc(availabilityCmd)
 	if !strings.Contains(availabilityUsage, `asc subscriptions pricing availability view --availability-id "AVAILABILITY_ID"`) {
@@ -102,6 +108,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	pricePointsCmd := findSubcommand(root, "subscriptions", "pricing", "price-points")
 	if pricePointsCmd == nil {
 		t.Fatal("expected subscriptions pricing price-points command")
+		return
 	}
 	pricePointsUsage := pricePointsCmd.UsageFunc(pricePointsCmd)
 	if !strings.Contains(pricePointsUsage, `asc subscriptions pricing price-points view --price-point-id "PRICE_POINT_ID"`) {
@@ -117,6 +124,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	offersCmd := findSubcommand(root, "subscriptions", "offers")
 	if offersCmd == nil {
 		t.Fatal("expected subscriptions offers command")
+		return
 	}
 	offersUsage := offersCmd.UsageFunc(offersCmd)
 	for _, expected := range []string{"introductory", "promotional", "offer-codes", "win-back"} {
@@ -128,6 +136,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	offerCodesCmd := findSubcommand(root, "subscriptions", "offers", "offer-codes")
 	if offerCodesCmd == nil {
 		t.Fatal("expected subscriptions offers offer-codes command")
+		return
 	}
 	offerCodesUsage := offerCodesCmd.UsageFunc(offerCodesCmd)
 	if !strings.Contains(offerCodesUsage, "  generate") {
@@ -146,6 +155,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	reviewCmd := findSubcommand(root, "subscriptions", "review")
 	if reviewCmd == nil {
 		t.Fatal("expected subscriptions review command")
+		return
 	}
 	reviewUsage := reviewCmd.UsageFunc(reviewCmd)
 	for _, expected := range []string{"screenshots", "app-store-screenshot", "submit", "submit-group"} {
@@ -157,6 +167,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	promotedPurchasesCreateCmd := findSubcommand(root, "subscriptions", "promoted-purchases", "create")
 	if promotedPurchasesCreateCmd == nil {
 		t.Fatal("expected subscriptions promoted-purchases create command")
+		return
 	}
 	promotedPurchasesCreateUsage := promotedPurchasesCreateCmd.UsageFunc(promotedPurchasesCreateCmd)
 	if strings.Contains(promotedPurchasesCreateUsage, "--product-type") {
@@ -166,6 +177,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	subscriptionsPromotedPurchasesCmd := findSubcommand(root, "subscriptions", "promoted-purchases")
 	if subscriptionsPromotedPurchasesCmd == nil {
 		t.Fatal("expected subscriptions promoted-purchases command")
+		return
 	}
 	subscriptionsPromotedPurchasesUsage := subscriptionsPromotedPurchasesCmd.UsageFunc(subscriptionsPromotedPurchasesCmd)
 	if strings.Contains(subscriptionsPromotedPurchasesUsage, "subscriptions and in-app purchases") {
@@ -181,6 +193,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	iapCmd := findSubcommand(root, "iap")
 	if iapCmd == nil {
 		t.Fatal("expected iap command")
+		return
 	}
 	iapUsage := iapCmd.UsageFunc(iapCmd)
 	if !strings.Contains(iapUsage, "  promoted-purchases") {
@@ -193,6 +206,7 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	iapPromotedPurchasesCmd := findSubcommand(root, "iap", "promoted-purchases")
 	if iapPromotedPurchasesCmd == nil {
 		t.Fatal("expected iap promoted-purchases command")
+		return
 	}
 	iapPromotedPurchasesUsage := iapPromotedPurchasesCmd.UsageFunc(iapPromotedPurchasesCmd)
 	if strings.Contains(iapPromotedPurchasesUsage, "subscriptions and in-app purchases") {

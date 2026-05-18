@@ -2094,6 +2094,7 @@ func TestValidateNamesMissingSubscriptionPricingTerritoriesWhenAppTerritoryIDsAr
 	}
 	if coverageCheck == nil {
 		t.Fatalf("expected pricing coverage warning, got %+v", report.Checks)
+		return
 	}
 	if !strings.Contains(coverageCheck.Message, "missing: CAN") {
 		t.Fatalf("expected exact missing territory in coverage warning, got %+v", *coverageCheck)

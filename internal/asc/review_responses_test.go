@@ -298,3 +298,41 @@ func TestGetCustomerReviewResponseForReview_ValidationErrors(t *testing.T) {
 		t.Fatalf("expected error for whitespace reviewID, got nil")
 	}
 }
+
+func TestCustomerReviewPublishedResponseID(t *testing.T) {
+	review := Resource[ReviewAttributes]{
+		ID: "review-1",
+		Relationships: json.RawMessage(`{
+			"response": {
+				"data": {
+					"type": "customerReviewResponses",
+					"id": "response-1"
+				}
+			}
+		}`),
+	}
+
+	got, ok := CustomerReviewPublishedResponseID(review)
+	if !ok {
+		t.Fatal("expected response relationship")
+	}
+	if got != "response-1" {
+		t.Fatalf("expected response-1, got %q", got)
+	}
+}
+
+func TestCustomerReviewPublishedResponseIDReturnsFalseWhenUnset(t *testing.T) {
+	review := Resource[ReviewAttributes]{
+		ID: "review-1",
+		Relationships: json.RawMessage(`{
+			"response": {
+				"data": null
+			}
+		}`),
+	}
+
+	got, ok := CustomerReviewPublishedResponseID(review)
+	if ok {
+		t.Fatalf("expected no response relationship, got %q", got)
+	}
+}

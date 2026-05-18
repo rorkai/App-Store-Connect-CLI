@@ -479,6 +479,7 @@ func TestRun_ResumeSkipsCompletedStepsAndReusesOutputs(t *testing.T) {
 	}
 	if firstResult == nil {
 		t.Fatal("expected structured result on failure")
+		return
 	}
 	if firstResult.Status != "error" {
 		t.Fatalf("expected status error, got %q", firstResult.Status)
@@ -577,6 +578,7 @@ func TestRun_ResumeReusesOriginalParams(t *testing.T) {
 	}
 	if firstResult == nil {
 		t.Fatal("expected structured result on failure")
+		return
 	}
 	if !firstResult.Recoverable {
 		t.Fatal("expected first failure to be recoverable")

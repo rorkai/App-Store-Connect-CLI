@@ -11,6 +11,7 @@ func TestBuildAppKeywordsResponse(t *testing.T) {
 	resp := BuildAppKeywordsResponse(keywords)
 	if resp == nil {
 		t.Fatal("expected non-nil response")
+		return
 	}
 	if len(resp.Data) != len(keywords) {
 		t.Fatalf("expected %d keywords, got %d", len(keywords), len(resp.Data))

@@ -37,6 +37,7 @@ func TestRewriteCommandTreePathRewritesRuntimeErrorPrefix(t *testing.T) {
 	rewritten := RewriteCommandTreePath(cmd, "asc offer-codes", "asc subscriptions offer-codes")
 	if rewritten == nil {
 		t.Fatal("expected rewritten command")
+		return
 	}
 
 	err := rewritten.Exec(context.Background(), nil)

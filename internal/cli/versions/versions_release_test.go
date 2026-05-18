@@ -46,6 +46,7 @@ func TestVersionsReleaseCommand_DefaultOutputJSON(t *testing.T) {
 	f := cmd.FlagSet.Lookup("output")
 	if f == nil {
 		t.Fatal("expected --output flag to be defined")
+		return
 	}
 	if f.DefValue != "json" {
 		t.Errorf("expected --output default to be 'json', got %q", f.DefValue)

@@ -188,6 +188,7 @@ func TestWaitForBuildByNumberOrUploadFailureReturnsBuildLinkedFromUpload(t *test
 	}
 	if buildResp == nil {
 		t.Fatal("expected linked build response")
+		return
 	}
 	if buildResp.Data.ID != "build-123" {
 		t.Fatalf("expected linked build ID build-123, got %q", buildResp.Data.ID)
@@ -298,6 +299,7 @@ func TestWaitForBuildByNumberOrUploadFailureFallsBackWhenUploadLookupFails(t *te
 	}
 	if buildResp == nil {
 		t.Fatal("expected build response after falling back to build discovery")
+		return
 	}
 	if buildResp.Data.ID != "build-123" {
 		t.Fatalf("expected build ID build-123, got %q", buildResp.Data.ID)
@@ -387,6 +389,7 @@ func TestWaitForBuildByNumberOrUploadFailureFallsBackWhenLinkedBuildLookupFails(
 	}
 	if buildResp == nil {
 		t.Fatal("expected build response after falling back from linked build lookup")
+		return
 	}
 	if buildResp.Data.ID != "build-123" {
 		t.Fatalf("expected build ID build-123, got %q", buildResp.Data.ID)

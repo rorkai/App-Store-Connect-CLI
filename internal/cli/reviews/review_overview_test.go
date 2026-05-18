@@ -287,6 +287,7 @@ func TestSelectRelevantReviewSubmissionPrefersActiveSubmissionWithoutSubmittedDa
 	selected := selectRelevantReviewSubmission(submissions, "ver-1")
 	if selected == nil {
 		t.Fatal("expected selected submission, got nil")
+		return
 	}
 	if selected.ID != "review-sub-ready" {
 		t.Fatalf("expected active ready-for-review submission to win, got %q", selected.ID)

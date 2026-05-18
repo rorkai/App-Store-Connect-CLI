@@ -1019,6 +1019,21 @@ func WithReviewSort(sort string) ReviewOption {
 	}
 }
 
+// WithPublishedResponseExists filters reviews by whether a published response exists.
+func WithPublishedResponseExists(exists bool) ReviewOption {
+	return func(r *reviewQuery) {
+		value := exists
+		r.publishedResponseExists = &value
+	}
+}
+
+// WithReviewIncludeResponse includes review response relationships in review results.
+func WithReviewIncludeResponse() ReviewOption {
+	return func(r *reviewQuery) {
+		r.includeResponse = true
+	}
+}
+
 // WithLimit sets the max number of reviews to return.
 func WithLimit(limit int) ReviewOption {
 	return func(r *reviewQuery) {

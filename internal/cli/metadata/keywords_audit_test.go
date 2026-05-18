@@ -11,6 +11,7 @@ func TestMetadataKeywordsAuditCommandHelpMentionsBlockedTerms(t *testing.T) {
 	cmd := MetadataKeywordsAuditCommand()
 	if cmd == nil {
 		t.Fatal("expected audit command")
+		return
 	}
 	if !strings.Contains(cmd.LongHelp, "--app-info") {
 		t.Fatalf("expected long help to mention --app-info, got %q", cmd.LongHelp)

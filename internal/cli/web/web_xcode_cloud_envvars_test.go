@@ -18,6 +18,7 @@ func TestEnvVarsCommandHierarchy(t *testing.T) {
 	envVarsCmd := findSub(cmd, "env-vars")
 	if envVarsCmd == nil {
 		t.Fatal("expected 'env-vars' subcommand")
+		return
 	}
 	if len(envVarsCmd.Subcommands) != 4 {
 		t.Fatalf("expected 4 subcommands (list, set, delete, shared), got %d", len(envVarsCmd.Subcommands))

@@ -12,6 +12,7 @@ func TestSubmitPreflightCommandIsRemoved(t *testing.T) {
 	cmd := findSubcommand(root, "submit", "preflight")
 	if cmd == nil {
 		t.Fatal("expected removed submit preflight shim to remain for migration guidance")
+		return
 	}
 	if !strings.Contains(cmd.ShortHelp, "removed") {
 		t.Fatalf("expected removed submit preflight shim, got short help %q", cmd.ShortHelp)

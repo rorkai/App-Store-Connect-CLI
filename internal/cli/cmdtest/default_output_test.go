@@ -41,11 +41,13 @@ func TestDefaultOutputEnvSetsFlagDefault(t *testing.T) {
 	cmd := findCommand(root, "categories", "list")
 	if cmd == nil {
 		t.Fatal("expected categories list command")
+		return
 	}
 
 	outputFlag := cmd.FlagSet.Lookup("output")
 	if outputFlag == nil {
 		t.Fatal("expected --output flag")
+		return
 	}
 	if got := outputFlag.DefValue; got != "table" {
 		t.Fatalf("expected default output to be table, got %q", got)
@@ -65,11 +67,13 @@ func TestDefaultOutputEnvOverriddenByExplicitFlag(t *testing.T) {
 	cmd := findCommand(root, "categories", "list")
 	if cmd == nil {
 		t.Fatal("expected categories list command")
+		return
 	}
 
 	outputFlag := cmd.FlagSet.Lookup("output")
 	if outputFlag == nil {
 		t.Fatal("expected --output flag")
+		return
 	}
 	if got := outputFlag.Value.String(); got != "json" {
 		t.Fatalf("expected parsed output to be json, got %q", got)
@@ -84,10 +88,12 @@ func TestDefaultOutputEnvIsReevaluatedAcrossRootCommandBuilds(t *testing.T) {
 	firstCmd := findCommand(firstRoot, "categories", "list")
 	if firstCmd == nil {
 		t.Fatal("expected categories list command")
+		return
 	}
 	firstOutputFlag := firstCmd.FlagSet.Lookup("output")
 	if firstOutputFlag == nil {
 		t.Fatal("expected --output flag on first root")
+		return
 	}
 	if got := firstOutputFlag.DefValue; got != "table" {
 		t.Fatalf("expected first default output to be table, got %q", got)
@@ -99,10 +105,12 @@ func TestDefaultOutputEnvIsReevaluatedAcrossRootCommandBuilds(t *testing.T) {
 	secondCmd := findCommand(secondRoot, "categories", "list")
 	if secondCmd == nil {
 		t.Fatal("expected categories list command on rebuilt root")
+		return
 	}
 	secondOutputFlag := secondCmd.FlagSet.Lookup("output")
 	if secondOutputFlag == nil {
 		t.Fatal("expected --output flag on rebuilt root")
+		return
 	}
 	if got := secondOutputFlag.DefValue; got != "json" {
 		t.Fatalf("expected rebuilt root default output to be json, got %q", got)

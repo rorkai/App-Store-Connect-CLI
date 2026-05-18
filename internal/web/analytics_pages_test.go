@@ -405,6 +405,7 @@ func TestGetAnalyticsBenchmarksMergesAppAndPercentiles(t *testing.T) {
 	}
 	if conversion == nil {
 		t.Fatalf("expected conversionRate metric, got %#v", resp.Metrics)
+		return
 	}
 	if conversion.AppValue == nil || *conversion.AppValue != 0.62 {
 		t.Fatalf("unexpected app value: %#v", conversion)

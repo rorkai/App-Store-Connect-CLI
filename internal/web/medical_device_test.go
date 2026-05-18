@@ -127,6 +127,7 @@ func TestSetMedicalDeviceDeclarationPostsExpectedRequest(t *testing.T) {
 	}
 	if got == nil {
 		t.Fatal("expected result")
+		return
 	}
 	if got.AppID != "app-123" {
 		t.Fatalf("expected app id app-123, got %q", got.AppID)
@@ -227,6 +228,7 @@ func TestSetMedicalDeviceDeclarationPrefersExactContentIDRequirements(t *testing
 	}
 	if got == nil {
 		t.Fatal("expected result")
+		return
 	}
 	if got.RequirementID != "req-app" {
 		t.Fatalf("expected exact app requirement id req-app, got %q", got.RequirementID)

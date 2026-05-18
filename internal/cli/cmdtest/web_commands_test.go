@@ -26,6 +26,7 @@ func TestWebCommandIncludesWarningContract(t *testing.T) {
 	webCmd := findSubcommand(root, "web")
 	if webCmd == nil {
 		t.Fatal("expected web command")
+		return
 	}
 
 	usage := webCmd.UsageFunc(webCmd)
@@ -99,6 +100,7 @@ func TestWebAppsCreateExposesPasswordCompatibilityFlag(t *testing.T) {
 	cmd := findSubcommand(root, "web", "apps", "create")
 	if cmd == nil {
 		t.Fatal("expected web apps create command")
+		return
 	}
 	if cmd.FlagSet.Lookup("password") == nil {
 		t.Fatal("expected temporary password compatibility flag on web apps create")
@@ -150,6 +152,7 @@ func TestWebAuthLoginExposesDeprecatedTwoFactorAliasWithoutPlaintextPasswordFlag
 	cmd := findSubcommand(root, "web", "auth", "login")
 	if cmd == nil {
 		t.Fatal("expected web auth login command")
+		return
 	}
 	if cmd.FlagSet.Lookup("password") != nil {
 		t.Fatal("did not expect --password flag on web auth login")
@@ -160,6 +163,7 @@ func TestWebAuthLoginExposesDeprecatedTwoFactorAliasWithoutPlaintextPasswordFlag
 	twoFactorCodeFlag := cmd.FlagSet.Lookup("two-factor-code")
 	if twoFactorCodeFlag == nil {
 		t.Fatal("expected deprecated --two-factor-code flag on web auth login")
+		return
 	}
 	if !strings.Contains(twoFactorCodeFlag.Usage, "Deprecated:") {
 		t.Fatalf("expected deprecated help text for --two-factor-code, got %q", twoFactorCodeFlag.Usage)
@@ -174,11 +178,13 @@ func TestWebAppsCreateExposesDeprecatedTwoFactorAlias(t *testing.T) {
 	cmd := findSubcommand(root, "web", "apps", "create")
 	if cmd == nil {
 		t.Fatal("expected web apps create command")
+		return
 	}
 
 	twoFactorCodeFlag := cmd.FlagSet.Lookup("two-factor-code")
 	if twoFactorCodeFlag == nil {
 		t.Fatal("expected deprecated --two-factor-code flag on web apps create")
+		return
 	}
 	if !strings.Contains(twoFactorCodeFlag.Usage, "Deprecated:") {
 		t.Fatalf("expected deprecated help text for --two-factor-code, got %q", twoFactorCodeFlag.Usage)
@@ -193,11 +199,13 @@ func TestWebSandboxCreateExposesDeprecatedTwoFactorAlias(t *testing.T) {
 	cmd := findSubcommand(root, "web", "sandbox", "create")
 	if cmd == nil {
 		t.Fatal("expected web sandbox create command")
+		return
 	}
 
 	twoFactorCodeFlag := cmd.FlagSet.Lookup("two-factor-code")
 	if twoFactorCodeFlag == nil {
 		t.Fatal("expected deprecated --two-factor-code flag on web sandbox create")
+		return
 	}
 	if !strings.Contains(twoFactorCodeFlag.Usage, "Deprecated:") {
 		t.Fatalf("expected deprecated help text for --two-factor-code, got %q", twoFactorCodeFlag.Usage)

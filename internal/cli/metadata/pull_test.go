@@ -17,6 +17,7 @@ func TestMetadataPullCommand_AppInfoFlagDefault(t *testing.T) {
 	f := cmd.FlagSet.Lookup("app-info")
 	if f == nil {
 		t.Fatal("expected --app-info flag to be defined")
+		return
 	}
 	if f.DefValue != "" {
 		t.Fatalf("expected --app-info default to be empty, got %q", f.DefValue)

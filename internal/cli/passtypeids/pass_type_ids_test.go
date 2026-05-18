@@ -11,6 +11,7 @@ func TestPassTypeIDsCommandShape(t *testing.T) {
 	cmd := PassTypeIDsCommand()
 	if cmd == nil {
 		t.Fatal("expected pass-type-ids command")
+		return
 	}
 	if cmd.Name != "pass-type-ids" {
 		t.Fatalf("unexpected command name: %q", cmd.Name)

@@ -15,6 +15,7 @@ func TestXcodeCommandExists(t *testing.T) {
 	xcodeCmd := findSubcommand(root, "xcode")
 	if xcodeCmd == nil {
 		t.Fatal("expected xcode command")
+		return
 	}
 	if strings.HasPrefix(xcodeCmd.ShortHelp, "[experimental]") {
 		t.Fatalf("expected xcode command not to be experimental, got %q", xcodeCmd.ShortHelp)
@@ -35,12 +36,17 @@ func TestXcodeCommandExists(t *testing.T) {
 		t.Fatal("expected xcode version view command")
 	}
 	viewCmd := findSubcommand(root, "xcode", "version", "view")
+	if viewCmd == nil {
+		t.Fatal("expected xcode version view command")
+		return
+	}
 	if viewCmd.FlagSet.Lookup("project") == nil {
 		t.Fatal("expected xcode version view to expose --project")
 	}
 	editCmd := findSubcommand(root, "xcode", "version", "edit")
 	if editCmd == nil {
 		t.Fatal("expected xcode version edit command")
+		return
 	}
 	if editCmd.FlagSet.Lookup("project") == nil {
 		t.Fatal("expected xcode version edit to expose --project")
@@ -51,6 +57,7 @@ func TestXcodeCommandExists(t *testing.T) {
 	bumpCmd := findSubcommand(root, "xcode", "version", "bump")
 	if bumpCmd == nil {
 		t.Fatal("expected xcode version bump command")
+		return
 	}
 	if bumpCmd.FlagSet.Lookup("project") == nil {
 		t.Fatal("expected xcode version bump to expose --project")
@@ -101,6 +108,7 @@ func TestXcodeExportHelpMentionsDirectUploadMode(t *testing.T) {
 	exportCmd := findSubcommand(root, "xcode", "export")
 	if exportCmd == nil {
 		t.Fatal("expected xcode export command")
+		return
 	}
 	if !strings.Contains(exportCmd.ShortHelp, "direct upload") {
 		t.Fatalf("expected short help to mention direct upload, got %q", exportCmd.ShortHelp)
@@ -122,6 +130,7 @@ func TestXcodeValidateHelpMentionsAltool(t *testing.T) {
 	validateCmd := findSubcommand(root, "xcode", "validate")
 	if validateCmd == nil {
 		t.Fatal("expected xcode validate command")
+		return
 	}
 	if !strings.Contains(validateCmd.LongHelp, "xcrun altool --validate-app") {
 		t.Fatalf("expected long help to mention altool validation, got %q", validateCmd.LongHelp)

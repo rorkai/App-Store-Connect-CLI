@@ -154,6 +154,7 @@ func TestBuildsLatestCommand_ProcessingStateFlagDescription(t *testing.T) {
 	processingStateFlag := cmd.FlagSet.Lookup("processing-state")
 	if processingStateFlag == nil {
 		t.Fatal("expected --processing-state flag to be defined")
+		return
 	}
 	if !strings.Contains(processingStateFlag.Usage, "VALID") || !strings.Contains(processingStateFlag.Usage, "all") {
 		t.Fatalf("expected --processing-state usage to mention supported values, got %q", processingStateFlag.Usage)
@@ -232,6 +233,7 @@ func TestSelectNewestBuild(t *testing.T) {
 
 	if newestBuild == nil {
 		t.Fatal("expected to find a newest build")
+		return
 	}
 	if newestBuild.ID != "build-newest" {
 		t.Errorf("expected build-newest to be selected, got %s", newestBuild.ID)

@@ -19,6 +19,7 @@ func TestMetadataInitCommandDefaultsLocale(t *testing.T) {
 	f := cmd.FlagSet.Lookup("locale")
 	if f == nil {
 		t.Fatal("expected --locale flag to be defined")
+		return
 	}
 	if f.DefValue != "en-US" {
 		t.Fatalf("expected --locale default en-US, got %q", f.DefValue)

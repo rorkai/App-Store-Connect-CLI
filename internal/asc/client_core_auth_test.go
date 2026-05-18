@@ -19,6 +19,7 @@ func TestNewClientFromPEM(t *testing.T) {
 	}
 	if client == nil {
 		t.Fatal("expected non-nil client")
+		return
 	}
 	if client.privateKey == nil {
 		t.Fatal("expected private key to be initialized")

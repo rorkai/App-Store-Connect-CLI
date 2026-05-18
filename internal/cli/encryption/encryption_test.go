@@ -11,6 +11,7 @@ func TestEncryptionCommandConstructors(t *testing.T) {
 	top := EncryptionCommand()
 	if top == nil {
 		t.Fatal("expected encryption command")
+		return
 	}
 	if top.Name == "" {
 		t.Fatal("expected command name")
