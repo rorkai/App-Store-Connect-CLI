@@ -57,3 +57,34 @@ func TestScoreTermDoesNotStackExactCommandWithSelfReferentialHelpText(t *testing
 		}
 	}
 }
+
+func TestScoreCommandDocsIgnoresLeadingASCToken(t *testing.T) {
+	docs := []commandDoc{
+		{
+			Command:    "asc builds upload",
+			Summary:    "Upload a build.",
+			Usage:      "asc builds upload [flags]",
+			PathTokens: []string{"builds", "upload"},
+			AllTokens:  []string{"builds", "upload"},
+		},
+		{
+			Command:    "asc apps list",
+			Summary:    "List apps.",
+			Usage:      "asc apps list [flags]",
+			PathTokens: []string{"apps", "list"},
+			AllTokens:  []string{"apps", "list"},
+		},
+	}
+
+	results := scoreCommandDocs(docs, "asc build upload")
+
+	if len(results) != 1 {
+		t.Fatalf("expected only the build upload result, got %#v", results)
+	}
+	if results[0].result.Command != "asc builds upload" {
+		t.Fatalf("expected build upload result, got %#v", results[0].result)
+	}
+	if slices.Contains(results[0].result.Matched, "command:asc") {
+		t.Fatalf("expected leading asc token to be ignored, got matches %v", results[0].result.Matched)
+	}
+}

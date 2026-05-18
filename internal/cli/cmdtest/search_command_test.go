@@ -206,6 +206,51 @@ func TestSearchSupportsLimitFlag(t *testing.T) {
 	}
 }
 
+func TestSearchDoesNotLeakFlagsAcrossRepeatedRuns(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"search", "--output", "json", "--limit", "1", "build"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var limited searchResponse
+	if err := json.Unmarshal([]byte(stdout), &limited); err != nil {
+		t.Fatalf("failed to unmarshal limited search JSON: %v\nstdout=%s", err, stdout)
+	}
+	if limited.Count != 1 || len(limited.Results) != 1 {
+		t.Fatalf("expected one limited result, got %#v", limited)
+	}
+
+	stdout, stderr = captureOutput(t, func() {
+		if err := root.Parse([]string{"search", "--output", "json", "build"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var defaultLimit searchResponse
+	if err := json.Unmarshal([]byte(stdout), &defaultLimit); err != nil {
+		t.Fatalf("failed to unmarshal default-limit search JSON: %v\nstdout=%s", err, stdout)
+	}
+	if defaultLimit.Count <= 1 || len(defaultLimit.Results) <= 1 {
+		t.Fatalf("expected default limit after repeated run, got %#v", defaultLimit)
+	}
+}
+
 func TestSearchRejectsNonPositiveLimit(t *testing.T) {
 	var code int
 	stdout, stderr := captureOutput(t, func() {

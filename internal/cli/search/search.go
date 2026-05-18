@@ -81,6 +81,8 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			_ = ctx
+			defer resetFlagSet(fs)
+
 			args, err := parseInterspersedSearchFlags(fs, args)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -100,11 +102,15 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: search query is required")
 				return flag.ErrHelp
 			}
-			response := SearchCommands(commands(), query, *limit)
+			selectedOutput := *output.Output
+			selectedPretty := *output.Pretty
+			selectedLimit := *limit
+
+			response := SearchCommands(commands(), query, selectedLimit)
 			return shared.PrintOutputWithRenderers(
 				response,
-				*output.Output,
-				*output.Pretty,
+				selectedOutput,
+				selectedPretty,
 				func() error {
 					asc.RenderTable([]string{"score", "command", "summary", "matched"}, searchRows(response.Results))
 					return nil
@@ -116,6 +122,18 @@ Examples:
 			)
 		},
 	}
+}
+
+func resetFlagSet(fs *flag.FlagSet) {
+	if fs == nil {
+		return
+	}
+	fs.VisitAll(func(f *flag.Flag) {
+		if f == nil {
+			return
+		}
+		_ = f.Value.Set(f.DefValue)
+	})
 }
 
 func parseInterspersedSearchFlags(fs *flag.FlagSet, args []string) ([]string, error) {
@@ -270,7 +288,7 @@ func collectCommandDoc(docs *[]commandDoc, cmd *ffcli.Command, parents []string)
 }
 
 func scoreCommandDocs(docs []commandDoc, query string) []scoredResult {
-	queryTokens := uniqueTokens(query)
+	queryTokens := dropLeadingRootToken(uniqueTokens(query))
 	if len(queryTokens) == 0 {
 		return nil
 	}
@@ -304,6 +322,13 @@ func scoreCommandDocs(docs []commandDoc, query string) []scoredResult {
 		return results[i].result.Command < results[j].result.Command
 	})
 	return results
+}
+
+func dropLeadingRootToken(tokens []string) []string {
+	if len(tokens) == 0 || tokens[0] != "asc" {
+		return tokens
+	}
+	return tokens[1:]
 }
 
 func scoreCommandDoc(doc commandDoc, queryTokens []string) (int, []string) {
