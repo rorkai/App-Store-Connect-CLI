@@ -400,6 +400,23 @@ func TestSearchInvalidOutputExitsWithUsageCode(t *testing.T) {
 	}
 }
 
+func TestSearchInvalidMixedOrderOutputExitsWithUsageCode(t *testing.T) {
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = rootcmd.Run([]string{"search", "builds", "--output", "yaml"}, "1.2.3")
+	})
+
+	if code != 2 {
+		t.Fatalf("expected exit code 2, got %d", code)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "unsupported format: yaml") {
+		t.Fatalf("expected unsupported format error, got %q", stderr)
+	}
+}
+
 func searchResultsContain(results []searchResult, commandPrefix string) bool {
 	for _, result := range results {
 		if strings.HasPrefix(result.Command, commandPrefix) {

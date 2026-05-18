@@ -107,7 +107,7 @@ Examples:
 			selectedLimit := *limit
 
 			response := SearchCommands(commands(), query, selectedLimit)
-			return shared.PrintOutputWithRenderers(
+			if err := shared.PrintOutputWithRenderers(
 				response,
 				selectedOutput,
 				selectedPretty,
@@ -119,7 +119,10 @@ Examples:
 					asc.RenderMarkdown([]string{"score", "command", "summary", "matched"}, searchRows(response.Results))
 					return nil
 				},
-			)
+			); err != nil {
+				return shared.UsageError(err.Error())
+			}
+			return nil
 		},
 	}
 }
