@@ -270,6 +270,34 @@ func TestSearchFlagValueCanMatchSubcommandName(t *testing.T) {
 	}
 }
 
+func TestSearchSupportsMixedFlagOrder(t *testing.T) {
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = rootcmd.Run([]string{"search", "--output", "json", "build", "--limit", "1"}, "1.2.3")
+	})
+
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d with stderr %q", code, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var response searchResponse
+	if err := json.Unmarshal([]byte(stdout), &response); err != nil {
+		t.Fatalf("failed to unmarshal search JSON: %v\nstdout=%s", err, stdout)
+	}
+	if response.Query != "build" {
+		t.Fatalf("expected build query, got %q", response.Query)
+	}
+	if response.Count != 1 || len(response.Results) != 1 {
+		t.Fatalf("expected one limited result, got %#v", response)
+	}
+	if !searchResultsContain(response.Results, "asc build") {
+		t.Fatalf("expected build command in results, got %#v", response.Results)
+	}
+}
+
 func TestSearchRequiresQuery(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

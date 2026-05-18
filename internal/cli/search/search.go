@@ -81,6 +81,11 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			_ = ctx
+			args, err := parseInterspersedSearchFlags(fs, args)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				return flag.ErrHelp
+			}
 			if len(args) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: search query is required")
 				return flag.ErrHelp
@@ -111,6 +116,86 @@ Examples:
 			)
 		},
 	}
+}
+
+func parseInterspersedSearchFlags(fs *flag.FlagSet, args []string) ([]string, error) {
+	if fs == nil || len(args) == 0 {
+		return args, nil
+	}
+
+	queryArgs := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		if arg == "--" {
+			queryArgs = append(queryArgs, args[i+1:]...)
+			break
+		}
+
+		name, value, hasValue, ok := splitSearchFlagArg(arg)
+		if !ok {
+			queryArgs = append(queryArgs, arg)
+			continue
+		}
+
+		f := fs.Lookup(name)
+		if f == nil {
+			queryArgs = append(queryArgs, arg)
+			continue
+		}
+
+		if isBoolSearchFlag(f) && !hasValue {
+			if err := f.Value.Set("true"); err != nil {
+				return nil, fmt.Errorf("invalid value %q for --%s: %w", "true", name, err)
+			}
+			continue
+		}
+
+		if !hasValue {
+			if i+1 >= len(args) {
+				return nil, fmt.Errorf("flag needs an argument: --%s", name)
+			}
+			i++
+			value = args[i]
+		}
+
+		if err := f.Value.Set(value); err != nil {
+			return nil, fmt.Errorf("invalid value %q for --%s: %w", value, name, err)
+		}
+	}
+
+	return queryArgs, nil
+}
+
+func splitSearchFlagArg(arg string) (name, value string, hasValue, ok bool) {
+	if arg == "" || arg == "-" || !strings.HasPrefix(arg, "-") {
+		return "", "", false, false
+	}
+
+	trimmed := strings.TrimPrefix(arg, "--")
+	if trimmed == arg {
+		trimmed = strings.TrimPrefix(arg, "-")
+	}
+	if trimmed == "" {
+		return "", "", false, false
+	}
+
+	name, value, hasValue = strings.Cut(trimmed, "=")
+	if name == "" {
+		return "", "", false, false
+	}
+	return name, value, hasValue, true
+}
+
+func isBoolSearchFlag(f *flag.Flag) bool {
+	type boolFlag interface {
+		IsBoolFlag() bool
+	}
+
+	if f == nil {
+		return false
+	}
+	boolValue, ok := f.Value.(boolFlag)
+	return ok && boolValue.IsBoolFlag()
 }
 
 // SearchCommands searches a command tree and returns ranked results.
