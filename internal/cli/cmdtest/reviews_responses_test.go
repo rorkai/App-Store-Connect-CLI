@@ -357,6 +357,8 @@ func TestReviewsRespondBatchResponseStateUnrespondedSkipsRespondedReviews(t *tes
 }
 
 func TestReviewsRespondBatchValidationErrors(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
 	tests := []struct {
 		name    string
 		args    []string
@@ -453,12 +455,12 @@ func TestRunReviewsRespondBatchInvalidResponseStateReturnsUsageExit(t *testing.T
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "--response-state must be one of: any, unresponded, responded") {
+	if !strings.Contains(stderr, "--response-state must be one of: any, unresponded, unreplied, responded, replied") {
 		t.Fatalf("expected response-state validation, got %q", stderr)
 	}
 }
 
-func TestReviewsListResponseStateAndIncludeResponse(t *testing.T) {
+func TestReviewsListResponseStateIncludeResponseAndResponseFields(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -472,6 +474,9 @@ func TestReviewsListResponseStateAndIncludeResponse(t *testing.T) {
 		if got := req.URL.Query().Get("include"); got != "response" {
 			t.Fatalf("expected include=response, got %q", got)
 		}
+		if got := req.URL.Query().Get("fields[customerReviewResponses]"); got != "responseBody,state" {
+			t.Fatalf("expected response response fields, got %q", got)
+		}
 		return jsonResponse(http.StatusOK, `{"data":[{"type":"customerReviews","id":"review-1"}]}`)
 	}))
 
@@ -479,7 +484,7 @@ func TestReviewsListResponseStateAndIncludeResponse(t *testing.T) {
 	root.FlagSet.SetOutput(io.Discard)
 
 	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"reviews", "list", "--app", "app-1", "--response-state", "unresponded", "--include-response", "--output", "json"}); err != nil {
+		if err := root.Parse([]string{"reviews", "list", "--app", "app-1", "--response-state", "unreplied", "--include-response", "--response-fields", "responseBody,state", "--output", "json"}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		if err := root.Run(context.Background()); err != nil {
@@ -503,6 +508,40 @@ func TestReviewsListResponseStateAndIncludeResponse(t *testing.T) {
 	}
 }
 
+func TestReviewsListOnlyUnrespondedMapsToPublishedResponseFilter(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/customerReviews" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+		if got := req.URL.Query().Get("exists[publishedResponse]"); got != "false" {
+			t.Fatalf("expected exists[publishedResponse]=false, got %q", got)
+		}
+		return jsonResponse(http.StatusOK, `{"data":[]}`)
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"reviews", "list", "--app", "app-1", "--only-unresponded", "--output", "json"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"data":[]`) {
+		t.Fatalf("expected empty reviews output, got %q", stdout)
+	}
+}
+
 func TestReviewsListRejectsInvalidResponseState(t *testing.T) {
 	stdout, stderr := captureOutput(t, func() {
 		code := cmd.Run([]string{"reviews", "list", "--app", "app-1", "--response-state", "maybe"}, "1.2.3")
@@ -514,8 +553,24 @@ func TestReviewsListRejectsInvalidResponseState(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "--response-state must be one of: any, unresponded, responded") {
+	if !strings.Contains(stderr, "--response-state must be one of: any, unresponded, unreplied, responded, replied") {
 		t.Fatalf("expected response-state validation, got %q", stderr)
+	}
+}
+
+func TestReviewsListRejectsInvalidResponseFields(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() {
+		code := cmd.Run([]string{"reviews", "list", "--app", "app-1", "--response-fields", "bogus"}, "1.2.3")
+		if code != cmd.ExitUsage {
+			t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--response-fields must be a comma-separated list of: responseBody,lastModifiedDate,state,review") {
+		t.Fatalf("expected response-fields validation, got %q", stderr)
 	}
 }
 

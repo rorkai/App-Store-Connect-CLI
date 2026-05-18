@@ -17,10 +17,6 @@ import (
 )
 
 const (
-	reviewResponseStateAny         = "any"
-	reviewResponseStateUnresponded = "unresponded"
-	reviewResponseStateResponded   = "responded"
-
 	reviewBatchStatusCreated = "created"
 	reviewBatchStatusFailed  = "failed"
 	reviewBatchStatusPlanned = "planned"
@@ -78,7 +74,7 @@ func ReviewsRespondBatchCommand() *ffcli.Command {
 	filePath := fs.String("file", "", "Path to grouped JSON replies file (required)")
 	dryRun := fs.Bool("dry-run", false, "Preview responses without creating them")
 	skipExisting := fs.Bool("skip-existing", false, "Skip reviews that already have a published response")
-	responseState := fs.String("response-state", reviewResponseStateAny, "Filter by response state: any, unresponded, responded")
+	responseState := fs.String("response-state", reviewResponseStateAny, "Filter by response state: any, unresponded/unreplied, responded/replied")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -156,30 +152,6 @@ Examples:
 			}
 			return nil
 		},
-	}
-}
-
-func normalizeReviewResponseState(value string) (string, error) {
-	normalized := strings.ToLower(strings.TrimSpace(value))
-	if normalized == "" {
-		normalized = reviewResponseStateAny
-	}
-	switch normalized {
-	case reviewResponseStateAny, reviewResponseStateUnresponded, reviewResponseStateResponded:
-		return normalized, nil
-	default:
-		return "", fmt.Errorf("--response-state must be one of: any, unresponded, responded")
-	}
-}
-
-func publishedResponseExistsFilter(responseState string) (bool, bool) {
-	switch responseState {
-	case reviewResponseStateUnresponded:
-		return false, true
-	case reviewResponseStateResponded:
-		return true, true
-	default:
-		return false, false
 	}
 }
 

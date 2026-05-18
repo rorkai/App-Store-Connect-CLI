@@ -1034,6 +1034,13 @@ func WithReviewIncludeResponse() ReviewOption {
 	}
 }
 
+// WithReviewResponseFields limits fields returned for included review responses.
+func WithReviewResponseFields(fields []string) ReviewOption {
+	return func(r *reviewQuery) {
+		r.responseFields = normalizeList(fields)
+	}
+}
+
 // WithLimit sets the max number of reviews to return.
 func WithLimit(limit int) ReviewOption {
 	return func(r *reviewQuery) {

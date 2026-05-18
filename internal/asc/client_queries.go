@@ -44,6 +44,7 @@ type reviewQuery struct {
 	sort                    string
 	publishedResponseExists *bool
 	includeResponse         bool
+	responseFields          []string
 }
 
 type appsQuery struct {
@@ -634,6 +635,7 @@ func buildReviewQuery(opts []ReviewOption) string {
 	if query.includeResponse {
 		values.Set("include", "response")
 	}
+	addCSV(values, "fields[customerReviewResponses]", query.responseFields)
 	addLimit(values, query.limit)
 
 	return values.Encode()
