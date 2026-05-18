@@ -33,3 +33,27 @@ func TestScoreTermDoesNotStackExactCommandAndPathTokenScores(t *testing.T) {
 		t.Fatalf("expected exact command score only, got %d with matches %v", score, matched)
 	}
 }
+
+func TestScoreTermDoesNotStackExactCommandWithSelfReferentialHelpText(t *testing.T) {
+	doc := commandDoc{
+		Command:    "asc search",
+		Summary:    "Search asc commands and examples.",
+		Usage:      "asc search [flags] <query>",
+		LongHelp:   "Search asc commands and examples.\n\nExamples:\n  asc search \"external testers\"",
+		Examples:   []string{`asc search "external testers"`},
+		PathTokens: []string{"search"},
+		FlagTokens: []string{"search"},
+	}
+
+	score, matched := scoreTerm(doc, "search", "query:search")
+
+	if score != 120 {
+		t.Fatalf("expected exact command score only, got %d with matches %v", score, matched)
+	}
+
+	for _, unexpected := range []string{"summary:search", "usage:search", "flag:search", "example:search", "help:search"} {
+		if slices.Contains(matched, unexpected) {
+			t.Fatalf("expected exact command match to skip %q, got matches %v", unexpected, matched)
+		}
+	}
+}

@@ -95,8 +95,8 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			query := normalizeQuery(strings.Join(args, " "))
-			if query == "" {
+			query := strings.Join(args, " ")
+			if strings.TrimSpace(query) == "" {
 				fmt.Fprintln(os.Stderr, "Error: search query is required")
 				return flag.ErrHelp
 			}
@@ -348,8 +348,7 @@ func scoreTerm(doc commandDoc, term, reason string) (int, []string) {
 
 	exactCommandMatch := commandWithoutASC == term || doc.Command == term
 	if exactCommandMatch {
-		score += 120
-		reasons = append(reasons, reason, "command:"+term)
+		return 120, []string{reason, "command:" + term}
 	}
 	if !exactCommandMatch && tokenContains(doc.PathTokens, term) {
 		score += 60
