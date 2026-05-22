@@ -583,6 +583,62 @@ func TestSubscriptionsOfferCodesListPaginateFromNextWithoutSubscription(t *testi
 	}
 }
 
+func TestSubscriptionsOfferCodesListTableOutput(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptions/8000000001/offerCodes" {
+			t.Fatalf("expected path /v1/subscriptions/8000000001/offerCodes, got %s", req.URL.Path)
+		}
+		body := `{
+			"data":[{"type":"subscriptionOfferCodes","id":"sub-code-table-1","attributes":{"name":"Spring","offerEligibility":"REPLACE_INTRO_OFFERS","customerEligibilities":["NEW","EXISTING"],"duration":"ONE_MONTH","offerMode":"FREE_TRIAL","numberOfPeriods":1,"active":true,"totalNumberOfCodes":500,"productionCodeCount":300,"sandboxCodeCount":200}}],
+			"links":{"next":""}
+		}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "offers", "offer-codes", "list",
+			"--subscription-id", "8000000001",
+			"--output", "table",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if strings.Contains(stdout, `"data"`) {
+		t.Fatalf("expected table output, got JSON: %q", stdout)
+	}
+	for _, want := range []string{"ID", "Name", "Customer Eligibilities", "sub-code-table-1", "Spring", "NEW, EXISTING", "500"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("expected table output to contain %q, got %q", want, stdout)
+		}
+	}
+}
+
 func TestSubscriptionsOfferCodesListMarkdownOutput(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
