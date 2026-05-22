@@ -28,7 +28,7 @@ func subscriptionOfferCodesRows(resp *SubscriptionOfferCodesResponse) ([]string,
 		attrs := item.Attributes
 		rows = append(rows, []string{
 			sanitizeTerminal(item.ID),
-			compactWhitespace(attrs.Name),
+			sanitizeTerminal(compactWhitespace(attrs.Name)),
 			sanitizeTerminal(formatOfferCodeCustomerEligibilities(attrs.CustomerEligibilities)),
 			sanitizeTerminal(string(attrs.OfferEligibility)),
 			sanitizeTerminal(string(attrs.Duration)),

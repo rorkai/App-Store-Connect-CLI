@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestOfferCodesValidationErrors(t *testing.T) {
@@ -167,7 +169,34 @@ func TestOfferCodesValuesWritesCSVFile(t *testing.T) {
 	}
 }
 
-func TestOfferCodesValuesRejectsInvalidFormat(t *testing.T) {
+func TestOfferCodesValuesWritesCSVFile_WriteFailure(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionOfferCodeOneTimeUseCodes/batch-1/values" {
+			t.Fatalf("expected values path, got %s", req.URL.Path)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("code\nABC123\n")),
+			Header:     http.Header{"Content-Type": []string{"text/csv"}},
+		}, nil
+	})
+
+	outputPath := filepath.Join(t.TempDir(), "codes.csv")
+	if err := os.Mkdir(outputPath, 0o755); err != nil {
+		t.Fatalf("mkdir output path: %v", err)
+	}
+
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
 
@@ -176,20 +205,87 @@ func TestOfferCodesValuesRejectsInvalidFormat(t *testing.T) {
 		if err := root.Parse([]string{
 			"subscriptions", "offers", "offer-codes", "values",
 			"--batch-id", "batch-1",
-			"--format", "yaml",
+			"--output", outputPath,
+			"--format", "csv",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
 		runErr = root.Run(context.Background())
 	})
 
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
+	if runErr == nil {
+		t.Fatal("expected write failure")
 	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "Error: --format must be text or csv") {
-		t.Fatalf("expected format error, got %q", stderr)
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(runErr.Error(), "offer-codes values:") {
+		t.Fatalf("expected offer-codes values error, got %v", runErr)
+	}
+	if info, err := os.Stat(outputPath); err != nil || !info.IsDir() {
+		t.Fatalf("expected output path to remain directory, info=%v err=%v", info, err)
+	}
+}
+
+func TestOfferCodesValuesRejectsInvalidFormat(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "invalid format",
+			args: []string{
+				"subscriptions", "offers", "offer-codes", "values",
+				"--batch-id", "batch-1",
+				"--format", "yaml",
+			},
+		},
+		{
+			name: "root flags before subcommands",
+			args: []string{
+				"--profile", "ci",
+				"subscriptions", "offers", "offer-codes", "values",
+				"--batch-id", "batch-1",
+				"--format", "yaml",
+			},
+		},
+		{
+			name: "mixed flag order",
+			args: []string{
+				"subscriptions", "offers", "offer-codes", "values",
+				"--format", "yaml",
+				"--batch-id", "batch-1",
+			},
+		},
+		{
+			name: "format value matches subcommand",
+			args: []string{
+				"subscriptions", "offers", "offer-codes", "values",
+				"--batch-id", "batch-1",
+				"--format", "values",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var code int
+			stdout, stderr := captureOutput(t, func() {
+				code = rootcmd.Run(test.args, "1.2.3")
+			})
+
+			if code != rootcmd.ExitUsage {
+				t.Fatalf("expected exit code %d, got %d", rootcmd.ExitUsage, code)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "Error: --format must be text or csv") {
+				t.Fatalf("expected format error, got %q", stderr)
+			}
+		})
 	}
 }
