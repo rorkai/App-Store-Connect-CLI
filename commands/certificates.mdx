@@ -123,6 +123,15 @@ asc certificates create --certificate-type IOS_DISTRIBUTION \
   --csr ./cert.csr
 ```
 
+Or generate the private key and CSR as part of the create command:
+
+```bash  theme={null}
+asc certificates create --certificate-type IOS_DISTRIBUTION \
+  --generate-csr \
+  --key-out ./signing/dist.key \
+  --csr-out ./signing/dist.csr
+```
+
 ### Generate CSR (Certificate Signing Request)
 
 Before creating a certificate, generate a CSR:

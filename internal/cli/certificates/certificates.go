@@ -16,6 +16,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+var getCertificatesASCClient = shared.GetASCClient
+
 // CertificatesCommand returns the certificates command with subcommands.
 func CertificatesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("certificates", flag.ExitOnError)
@@ -188,16 +190,28 @@ func CertificatesCreateCommand() *ffcli.Command {
 
 	certificateType := fs.String("certificate-type", "", "Certificate type (e.g., IOS_DISTRIBUTION)")
 	csrPath := fs.String("csr", "", "CSR file path")
+	generateCSR := fs.Bool("generate-csr", false, "Generate a private key and CSR before creating the certificate")
+	keyOut := fs.String("key-out", "", "Private key output path for --generate-csr (PEM)")
+	csrOut := fs.String("csr-out", "", "CSR output path for --generate-csr (PEM)")
+	commonName := fs.String("common-name", "asc", "CSR subject Common Name (CN) for --generate-csr")
+	email := fs.String("email", "", "CSR subject email address for --generate-csr")
+	organization := fs.String("organization", "", "CSR subject organization (O) for --generate-csr")
+	orgUnit := fs.String("organizational-unit", "", "CSR subject organizational unit (OU) for --generate-csr")
+	country := fs.String("country", "", "CSR subject country (C) for --generate-csr")
+	keyType := fs.String("key-type", "rsa", "CSR key type for --generate-csr: rsa")
+	keySize := fs.Int("key-size", 2048, "CSR RSA key size in bits for --generate-csr")
+	force := fs.Bool("force", false, "Overwrite generated CSR/key output files")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "create",
-		ShortUsage: "asc certificates create --certificate-type TYPE --csr ./cert.csr",
+		ShortUsage: "asc certificates create --certificate-type TYPE (--csr ./cert.csr | --generate-csr --key-out ./cert.key --csr-out ./cert.csr)",
 		ShortHelp:  "Create a signing certificate.",
 		LongHelp: `Create a signing certificate.
 
 Examples:
-  asc certificates create --certificate-type IOS_DISTRIBUTION --csr "./cert.csr"`,
+  asc certificates create --certificate-type IOS_DISTRIBUTION --csr "./cert.csr"
+  asc certificates create --certificate-type IOS_DISTRIBUTION --generate-csr --key-out "./signing/dist.key" --csr-out "./signing/dist.csr"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -207,17 +221,59 @@ Examples:
 				return flag.ErrHelp
 			}
 			csrValue := strings.TrimSpace(*csrPath)
-			if csrValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --csr is required")
-				return flag.ErrHelp
+
+			var csrContent string
+			if *generateCSR {
+				if csrValue != "" {
+					return shared.UsageError("--csr cannot be used with --generate-csr")
+				}
+				keyOutValue := strings.TrimSpace(*keyOut)
+				if keyOutValue == "" {
+					fmt.Fprintln(os.Stderr, "Error: --key-out is required with --generate-csr")
+					return flag.ErrHelp
+				}
+				csrOutValue := strings.TrimSpace(*csrOut)
+				if csrOutValue == "" {
+					fmt.Fprintln(os.Stderr, "Error: --csr-out is required with --generate-csr")
+					return flag.ErrHelp
+				}
+
+				_, csrPEM, err := generateCSRFiles(csrGenerateOptions{
+					KeyOut:             keyOutValue,
+					CSROut:             csrOutValue,
+					CommonName:         *commonName,
+					Email:              *email,
+					Organization:       *organization,
+					OrganizationalUnit: *orgUnit,
+					Country:            *country,
+					KeyType:            *keyType,
+					KeySize:            *keySize,
+					Force:              *force,
+				})
+				if err != nil {
+					return fmt.Errorf("certificates create: generate csr: %w", err)
+				}
+				csrContent, err = encodeCSRContent(csrPEM)
+				if err != nil {
+					return fmt.Errorf("certificates create: generate csr: %w", err)
+				}
+			} else {
+				if csrCreateOnlyFlagsSet(keyOut, csrOut, commonName, email, organization, orgUnit, country, keyType, keySize, force) {
+					return shared.UsageError("--key-out, --csr-out, CSR subject flags, --key-type, --key-size, and --force require --generate-csr")
+				}
+				if csrValue == "" {
+					fmt.Fprintln(os.Stderr, "Error: --csr is required (or use --generate-csr with --key-out and --csr-out)")
+					return flag.ErrHelp
+				}
+
+				var err error
+				csrContent, err = readCSRContent(csrValue)
+				if err != nil {
+					return fmt.Errorf("certificates create: %w", err)
+				}
 			}
 
-			csrContent, err := readCSRContent(csrValue)
-			if err != nil {
-				return fmt.Errorf("certificates create: %w", err)
-			}
-
-			client, err := shared.GetASCClient()
+			client, err := getCertificatesASCClient()
 			if err != nil {
 				return fmt.Errorf("certificates create: %w", err)
 			}
@@ -233,6 +289,30 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func csrCreateOnlyFlagsSet(
+	keyOut *string,
+	csrOut *string,
+	commonName *string,
+	email *string,
+	organization *string,
+	orgUnit *string,
+	country *string,
+	keyType *string,
+	keySize *int,
+	force *bool,
+) bool {
+	return strings.TrimSpace(*keyOut) != "" ||
+		strings.TrimSpace(*csrOut) != "" ||
+		strings.TrimSpace(*commonName) != "asc" ||
+		strings.TrimSpace(*email) != "" ||
+		strings.TrimSpace(*organization) != "" ||
+		strings.TrimSpace(*orgUnit) != "" ||
+		strings.TrimSpace(*country) != "" ||
+		strings.TrimSpace(*keyType) != "rsa" ||
+		*keySize != 2048 ||
+		*force
 }
 
 // CertificatesUpdateCommand returns the certificates update subcommand.
@@ -346,6 +426,10 @@ func readCSRContent(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return encodeCSRContent(data)
+}
+
+func encodeCSRContent(data []byte) (string, error) {
 	if len(bytes.TrimSpace(data)) == 0 {
 		return "", fmt.Errorf("CSR file is empty")
 	}

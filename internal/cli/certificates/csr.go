@@ -36,6 +36,19 @@ type csrGenerateResult struct {
 	Subject csrGenerateSubject `json:"subject"`
 }
 
+type csrGenerateOptions struct {
+	KeyOut             string
+	CSROut             string
+	CommonName         string
+	Email              string
+	Organization       string
+	OrganizationalUnit string
+	Country            string
+	KeyType            string
+	KeySize            int
+	Force              bool
+}
+
 // CertificatesCSRCommand returns the certificates csr command group.
 func CertificatesCSRCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("csr", flag.ExitOnError)
@@ -105,99 +118,20 @@ Examples:
 				return shared.UsageError("--key-out and --csr-out must be different paths")
 			}
 
-			normalizedKeyType := strings.ToLower(strings.TrimSpace(*keyType))
-			if normalizedKeyType == "" {
-				normalizedKeyType = "rsa"
-			}
-			if normalizedKeyType != "rsa" {
-				return shared.UsageError("--key-type must be one of: rsa")
-			}
-			if *keySize < 2048 {
-				return shared.UsageError("--key-size must be at least 2048")
-			}
-
-			subject := csrGenerateSubject{
-				CommonName:         strings.TrimSpace(*commonName),
-				Email:              strings.TrimSpace(*email),
-				Organization:       strings.TrimSpace(*organization),
-				OrganizationalUnit: strings.TrimSpace(*orgUnit),
-				Country:            strings.TrimSpace(*country),
-			}
-			if subject.CommonName == "" {
-				subject.CommonName = "asc"
-			}
-
-			// Pre-check output paths to avoid leaving an orphaned key when CSR write fails.
-			// This is not atomic (TOCTOU), but it prevents the common confusing case.
-			if !*force {
-				if _, err := os.Lstat(keyOutValue); err == nil {
-					return fmt.Errorf("certificates csr generate: write --key-out: output file already exists: %w", os.ErrExist)
-				} else if !errors.Is(err, os.ErrNotExist) {
-					return fmt.Errorf("certificates csr generate: write --key-out: %w", err)
-				}
-				if _, err := os.Lstat(csrOutValue); err == nil {
-					return fmt.Errorf("certificates csr generate: write --csr-out: output file already exists: %w", os.ErrExist)
-				} else if !errors.Is(err, os.ErrNotExist) {
-					return fmt.Errorf("certificates csr generate: write --csr-out: %w", err)
-				}
-			}
-
-			// Generate RSA private key.
-			privateKey, err := rsa.GenerateKey(rand.Reader, *keySize)
+			result, _, err := generateCSRFiles(csrGenerateOptions{
+				KeyOut:             keyOutValue,
+				CSROut:             csrOutValue,
+				CommonName:         *commonName,
+				Email:              *email,
+				Organization:       *organization,
+				OrganizationalUnit: *orgUnit,
+				Country:            *country,
+				KeyType:            *keyType,
+				KeySize:            *keySize,
+				Force:              *force,
+			})
 			if err != nil {
-				return fmt.Errorf("certificates csr generate: generate key: %w", err)
-			}
-			keyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
-			if err != nil {
-				return fmt.Errorf("certificates csr generate: marshal key: %w", err)
-			}
-			keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
-			if keyPEM == nil {
-				return fmt.Errorf("certificates csr generate: encode key PEM failed")
-			}
-
-			req := &x509.CertificateRequest{
-				SignatureAlgorithm: x509.SHA256WithRSA,
-				Subject: pkix.Name{
-					CommonName: subject.CommonName,
-				},
-			}
-			if subject.Organization != "" {
-				req.Subject.Organization = []string{subject.Organization}
-			}
-			if subject.OrganizationalUnit != "" {
-				req.Subject.OrganizationalUnit = []string{subject.OrganizationalUnit}
-			}
-			if subject.Country != "" {
-				req.Subject.Country = []string{subject.Country}
-			}
-			if subject.Email != "" {
-				req.EmailAddresses = []string{subject.Email}
-			}
-
-			csrDER, err := x509.CreateCertificateRequest(rand.Reader, req, privateKey)
-			if err != nil {
-				return fmt.Errorf("certificates csr generate: create csr: %w", err)
-			}
-			csrPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER})
-			if csrPEM == nil {
-				return fmt.Errorf("certificates csr generate: encode csr PEM failed")
-			}
-
-			// Write key first: if anything fails, do not leave a CSR without its key.
-			if err := writeFileBytesNoSymlink(keyOutValue, keyPEM, 0o600, *force); err != nil {
-				return fmt.Errorf("certificates csr generate: write --key-out: %w", err)
-			}
-			if err := writeFileBytesNoSymlink(csrOutValue, csrPEM, 0o644, *force); err != nil {
-				return fmt.Errorf("certificates csr generate: write --csr-out: %w", err)
-			}
-
-			result := &csrGenerateResult{
-				KeyOut:  keyOutValue,
-				CSROut:  csrOutValue,
-				KeyType: normalizedKeyType,
-				KeySize: *keySize,
-				Subject: subject,
+				return fmt.Errorf("certificates csr generate: %w", err)
 			}
 
 			return shared.PrintOutputWithRenderers(
@@ -209,6 +143,115 @@ Examples:
 			)
 		},
 	}
+}
+
+func generateCSRFiles(opts csrGenerateOptions) (*csrGenerateResult, []byte, error) {
+	keyOutValue := strings.TrimSpace(opts.KeyOut)
+	if keyOutValue == "" {
+		return nil, nil, fmt.Errorf("--key-out is required")
+	}
+	csrOutValue := strings.TrimSpace(opts.CSROut)
+	if csrOutValue == "" {
+		return nil, nil, fmt.Errorf("--csr-out is required")
+	}
+	if filepath.Clean(keyOutValue) == filepath.Clean(csrOutValue) {
+		return nil, nil, shared.UsageError("--key-out and --csr-out must be different paths")
+	}
+
+	normalizedKeyType := strings.ToLower(strings.TrimSpace(opts.KeyType))
+	if normalizedKeyType == "" {
+		normalizedKeyType = "rsa"
+	}
+	if normalizedKeyType != "rsa" {
+		return nil, nil, shared.UsageError("--key-type must be one of: rsa")
+	}
+	if opts.KeySize < 2048 {
+		return nil, nil, shared.UsageError("--key-size must be at least 2048")
+	}
+
+	subject := csrGenerateSubject{
+		CommonName:         strings.TrimSpace(opts.CommonName),
+		Email:              strings.TrimSpace(opts.Email),
+		Organization:       strings.TrimSpace(opts.Organization),
+		OrganizationalUnit: strings.TrimSpace(opts.OrganizationalUnit),
+		Country:            strings.TrimSpace(opts.Country),
+	}
+	if subject.CommonName == "" {
+		subject.CommonName = "asc"
+	}
+
+	// Pre-check output paths to avoid leaving an orphaned key when CSR write fails.
+	// This is not atomic (TOCTOU), but it prevents the common confusing case.
+	if !opts.Force {
+		if _, err := os.Lstat(keyOutValue); err == nil {
+			return nil, nil, fmt.Errorf("write --key-out: output file already exists: %w", os.ErrExist)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, nil, fmt.Errorf("write --key-out: %w", err)
+		}
+		if _, err := os.Lstat(csrOutValue); err == nil {
+			return nil, nil, fmt.Errorf("write --csr-out: output file already exists: %w", os.ErrExist)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, nil, fmt.Errorf("write --csr-out: %w", err)
+		}
+	}
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, opts.KeySize)
+	if err != nil {
+		return nil, nil, fmt.Errorf("generate key: %w", err)
+	}
+	keyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal key: %w", err)
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
+	if keyPEM == nil {
+		return nil, nil, fmt.Errorf("encode key PEM failed")
+	}
+
+	req := &x509.CertificateRequest{
+		SignatureAlgorithm: x509.SHA256WithRSA,
+		Subject: pkix.Name{
+			CommonName: subject.CommonName,
+		},
+	}
+	if subject.Organization != "" {
+		req.Subject.Organization = []string{subject.Organization}
+	}
+	if subject.OrganizationalUnit != "" {
+		req.Subject.OrganizationalUnit = []string{subject.OrganizationalUnit}
+	}
+	if subject.Country != "" {
+		req.Subject.Country = []string{subject.Country}
+	}
+	if subject.Email != "" {
+		req.EmailAddresses = []string{subject.Email}
+	}
+
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, req, privateKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create csr: %w", err)
+	}
+	csrPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER})
+	if csrPEM == nil {
+		return nil, nil, fmt.Errorf("encode csr PEM failed")
+	}
+
+	// Write key first: if anything fails, do not leave a CSR without its key.
+	if err := writeFileBytesNoSymlink(keyOutValue, keyPEM, 0o600, opts.Force); err != nil {
+		return nil, nil, fmt.Errorf("write --key-out: %w", err)
+	}
+	if err := writeFileBytesNoSymlink(csrOutValue, csrPEM, 0o644, opts.Force); err != nil {
+		return nil, nil, fmt.Errorf("write --csr-out: %w", err)
+	}
+
+	result := &csrGenerateResult{
+		KeyOut:  keyOutValue,
+		CSROut:  csrOutValue,
+		KeyType: normalizedKeyType,
+		KeySize: opts.KeySize,
+		Subject: subject,
+	}
+	return result, csrPEM, nil
 }
 
 func renderCSRGenerateResult(result *csrGenerateResult, markdown bool) error {
