@@ -2036,6 +2036,78 @@ func TestCertificatesValidationErrors(t *testing.T) {
 	}
 }
 
+func TestCertificatesCreateGenerateCSRFlagValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "generate csr missing key out value",
+			args:    []string{"certificates", "create", "--certificate-type", "IOS_DISTRIBUTION", "--generate-csr", "--key-out"},
+			wantErr: "flag needs an argument: -key-out",
+		},
+		{
+			name:    "generate csr invalid bool value",
+			args:    []string{"certificates", "create", "--certificate-type", "IOS_DISTRIBUTION", "--generate-csr=maybe", "--key-out", "./dist.key", "--csr-out", "./dist.csr"},
+			wantErr: "invalid boolean value",
+		},
+		{
+			name:    "generate csr missing csr out value",
+			args:    []string{"certificates", "create", "--certificate-type", "IOS_DISTRIBUTION", "--generate-csr", "--key-out", "./dist.key", "--csr-out"},
+			wantErr: "flag needs an argument: -csr-out",
+		},
+		{
+			name:    "generation only default key type still requires generate csr",
+			args:    []string{"certificates", "create", "--certificate-type", "IOS_DISTRIBUTION", "--csr", "./dist.csr", "--key-type", "rsa"},
+			wantErr: "--key-out, --csr-out, CSR subject flags, --key-type, --key-size, and --force require --generate-csr",
+		},
+		{
+			name:    "generation only flag mixed order still requires generate csr",
+			args:    []string{"certificates", "create", "--certificate-type", "IOS_DISTRIBUTION", "--key-out", "./dist.key", "--csr", "./dist.csr"},
+			wantErr: "--key-out, --csr-out, CSR subject flags, --key-type, --key-size, and --force require --generate-csr",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cmd := exec.Command(os.Args[0], append([]string{"-test.run=TestCertificatesCreateGenerateCSRFlagValidationHelper", "--"}, test.args...)...)
+			cmd.Env = append(os.Environ(), "ASC_CERT_CREATE_FLAG_HELPER=1")
+			stdout, err := cmd.Output()
+			stderr := ""
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				stderr = string(exitErr.Stderr)
+				if exitErr.ExitCode() != 2 {
+					t.Fatalf("expected exit code 2, got %d with stderr %q", exitErr.ExitCode(), stderr)
+				}
+			} else if err != nil {
+				t.Fatalf("helper command failed: %v", err)
+			} else {
+				t.Fatalf("expected exit code 2, got 0")
+			}
+			if string(stdout) != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected error %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestCertificatesCreateGenerateCSRFlagValidationHelper(t *testing.T) {
+	if os.Getenv("ASC_CERT_CREATE_FLAG_HELPER") != "1" {
+		return
+	}
+	for i, arg := range os.Args {
+		if arg == "--" {
+			os.Exit(rootcmd.Run(os.Args[i+1:], "1.2.3"))
+		}
+	}
+	os.Exit(2)
+}
+
 func TestDevicesListLimitValidation(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

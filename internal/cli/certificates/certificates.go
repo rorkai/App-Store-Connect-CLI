@@ -258,7 +258,7 @@ Examples:
 					return fmt.Errorf("certificates create: generate csr: %w", err)
 				}
 			} else {
-				if csrCreateOnlyFlagsSet(keyOut, csrOut, commonName, email, organization, orgUnit, country, keyType, keySize, force) {
+				if csrCreateOnlyFlagsSet(fs) {
 					return shared.UsageError("--key-out, --csr-out, CSR subject flags, --key-type, --key-size, and --force require --generate-csr")
 				}
 				if csrValue == "" {
@@ -291,28 +291,15 @@ Examples:
 	}
 }
 
-func csrCreateOnlyFlagsSet(
-	keyOut *string,
-	csrOut *string,
-	commonName *string,
-	email *string,
-	organization *string,
-	orgUnit *string,
-	country *string,
-	keyType *string,
-	keySize *int,
-	force *bool,
-) bool {
-	return strings.TrimSpace(*keyOut) != "" ||
-		strings.TrimSpace(*csrOut) != "" ||
-		strings.TrimSpace(*commonName) != "asc" ||
-		strings.TrimSpace(*email) != "" ||
-		strings.TrimSpace(*organization) != "" ||
-		strings.TrimSpace(*orgUnit) != "" ||
-		strings.TrimSpace(*country) != "" ||
-		strings.TrimSpace(*keyType) != "rsa" ||
-		*keySize != 2048 ||
-		*force
+func csrCreateOnlyFlagsSet(fs *flag.FlagSet) bool {
+	seen := false
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "key-out", "csr-out", "common-name", "email", "organization", "organizational-unit", "country", "key-type", "key-size", "force":
+			seen = true
+		}
+	})
+	return seen
 }
 
 // CertificatesUpdateCommand returns the certificates update subcommand.

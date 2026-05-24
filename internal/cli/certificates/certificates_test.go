@@ -137,6 +137,69 @@ func TestCertificatesCreateCommand_GenerateCSRCreatesFilesAndPostsCSR(t *testing
 	}
 }
 
+func TestCertificatesCreateCommand_GenerateCSRWriteFailures(t *testing.T) {
+	tests := []struct {
+		name string
+		key  func(dir string, parentFile string) string
+		csr  func(dir string, parentFile string) string
+	}{
+		{
+			name: "key output parent is file",
+			key:  func(dir string, parentFile string) string { return filepath.Join(parentFile, "dist.key") },
+			csr:  func(dir string, parentFile string) string { return filepath.Join(dir, "dist.csr") },
+		},
+		{
+			name: "csr output parent is file",
+			key:  func(dir string, parentFile string) string { return filepath.Join(dir, "dist.key") },
+			csr:  func(dir string, parentFile string) string { return filepath.Join(parentFile, "dist.csr") },
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			parentFile := filepath.Join(dir, "parent")
+			if err := os.WriteFile(parentFile, []byte{}, 0o644); err != nil {
+				t.Fatalf("write parent file: %v", err)
+			}
+			keyOut := test.key(dir, parentFile)
+			csrOut := test.csr(dir, parentFile)
+
+			client := newCertificatesTestClient(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				t.Fatalf("ASC request should not be sent when CSR artifacts cannot be written")
+				return nil, nil
+			}))
+			originalGetClient := getCertificatesASCClient
+			getCertificatesASCClient = func() (*asc.Client, error) { return client, nil }
+			t.Cleanup(func() { getCertificatesASCClient = originalGetClient })
+
+			cmd := CertificatesCreateCommand()
+			if err := cmd.FlagSet.Parse([]string{
+				"--certificate-type", "IOS_DISTRIBUTION",
+				"--generate-csr",
+				"--key-out", keyOut,
+				"--csr-out", csrOut,
+			}); err != nil {
+				t.Fatalf("failed to parse flags: %v", err)
+			}
+
+			err := cmd.Exec(context.Background(), []string{})
+			if err == nil {
+				t.Fatalf("expected write failure")
+			}
+			if !strings.Contains(err.Error(), parentFile) {
+				t.Fatalf("expected error to mention parent path %q, got %v", parentFile, err)
+			}
+			if _, err := os.Stat(keyOut); err == nil {
+				t.Fatalf("expected key output to not be created")
+			}
+			if _, err := os.Stat(csrOut); err == nil {
+				t.Fatalf("expected CSR output to not be created")
+			}
+		})
+	}
+}
+
 func TestCertificatesRevokeCommand_MissingID(t *testing.T) {
 	cmd := CertificatesRevokeCommand()
 
