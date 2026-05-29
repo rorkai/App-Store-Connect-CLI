@@ -157,6 +157,10 @@ asc <subcommand> [flags]
 # List apps
 asc apps list --output table
 
+# Manage App Store compatibility opt-ins through a web session
+asc web apps compatibility view --app "123456789"
+asc web apps compatibility edit --app "123456789" --ios-app-on-mac=false --ios-app-on-vision-pro=false
+
 # Upload a build
 asc builds upload --app "123456789" --ipa "/path/to/MyApp.ipa"
 

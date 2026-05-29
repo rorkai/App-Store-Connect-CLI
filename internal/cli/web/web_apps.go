@@ -34,6 +34,7 @@ Use ` + "`asc web apps create`" + ` as the canonical app-creation command.
 		Subcommands: []*ffcli.Command{
 			WebAppsCreateCommand(),
 			WebAppsAvailabilityCommand(),
+			WebAppsCompatibilityCommand(),
 			WebAppsMedicalDeviceCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
