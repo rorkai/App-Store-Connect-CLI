@@ -174,15 +174,17 @@ type AppInfoAttributes map[string]any
 
 // BetaGroupAttributes describes a beta group resource.
 type BetaGroupAttributes struct {
-	Name                   string `json:"name"`
-	CreatedDate            string `json:"createdDate,omitempty"`
-	IsInternalGroup        bool   `json:"isInternalGroup,omitempty"`
-	HasAccessToAllBuilds   bool   `json:"hasAccessToAllBuilds,omitempty"`
-	PublicLinkEnabled      bool   `json:"publicLinkEnabled,omitempty"`
-	PublicLinkLimitEnabled bool   `json:"publicLinkLimitEnabled,omitempty"`
-	PublicLinkLimit        int    `json:"publicLinkLimit,omitempty"`
-	PublicLink             string `json:"publicLink,omitempty"`
-	FeedbackEnabled        bool   `json:"feedbackEnabled,omitempty"`
+	Name                                 string `json:"name"`
+	CreatedDate                          string `json:"createdDate,omitempty"`
+	IsInternalGroup                      bool   `json:"isInternalGroup,omitempty"`
+	HasAccessToAllBuilds                 bool   `json:"hasAccessToAllBuilds,omitempty"`
+	PublicLinkEnabled                    bool   `json:"publicLinkEnabled,omitempty"`
+	PublicLinkLimitEnabled               bool   `json:"publicLinkLimitEnabled,omitempty"`
+	PublicLinkLimit                      int    `json:"publicLinkLimit,omitempty"`
+	PublicLink                           string `json:"publicLink,omitempty"`
+	FeedbackEnabled                      bool   `json:"feedbackEnabled,omitempty"`
+	IOSBuildsAvailableForAppleSiliconMac bool   `json:"iosBuildsAvailableForAppleSiliconMac"`
+	IOSBuildsAvailableForAppleVision     bool   `json:"iosBuildsAvailableForAppleVision"`
 }
 
 // BetaTesterAttributes describes a beta tester resource.
@@ -352,11 +354,13 @@ type BetaGroupCreateRequest struct {
 
 // BetaGroupUpdateAttributes describes attributes for updating a beta group.
 type BetaGroupUpdateAttributes struct {
-	Name                   string `json:"name,omitempty"`
-	PublicLinkEnabled      *bool  `json:"publicLinkEnabled,omitempty"`
-	PublicLinkLimitEnabled *bool  `json:"publicLinkLimitEnabled,omitempty"`
-	PublicLinkLimit        int    `json:"publicLinkLimit,omitempty"`
-	FeedbackEnabled        *bool  `json:"feedbackEnabled,omitempty"`
+	Name                                 string `json:"name,omitempty"`
+	PublicLinkEnabled                    *bool  `json:"publicLinkEnabled,omitempty"`
+	PublicLinkLimitEnabled               *bool  `json:"publicLinkLimitEnabled,omitempty"`
+	PublicLinkLimit                      int    `json:"publicLinkLimit,omitempty"`
+	FeedbackEnabled                      *bool  `json:"feedbackEnabled,omitempty"`
+	IOSBuildsAvailableForAppleSiliconMac *bool  `json:"iosBuildsAvailableForAppleSiliconMac,omitempty"`
+	IOSBuildsAvailableForAppleVision     *bool  `json:"iosBuildsAvailableForAppleVision,omitempty"`
 }
 
 // BetaGroupUpdateData is the data portion of a beta group update request.

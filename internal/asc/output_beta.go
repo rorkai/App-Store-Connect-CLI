@@ -70,7 +70,7 @@ func formatBetaTesterName(attr BetaTesterAttributes) string {
 }
 
 func betaGroupsRows(resp *BetaGroupsResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Name", "Internal", "Public Link Enabled", "Public Link"}
+	headers := []string{"ID", "Name", "Internal", "Public Link Enabled", "Public Link", "iOS Builds on Mac", "iOS Builds on Vision"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{
@@ -79,6 +79,8 @@ func betaGroupsRows(resp *BetaGroupsResponse) ([]string, [][]string) {
 			fmt.Sprintf("%t", item.Attributes.IsInternalGroup),
 			fmt.Sprintf("%t", item.Attributes.PublicLinkEnabled),
 			item.Attributes.PublicLink,
+			fmt.Sprintf("%t", item.Attributes.IOSBuildsAvailableForAppleSiliconMac),
+			fmt.Sprintf("%t", item.Attributes.IOSBuildsAvailableForAppleVision),
 		})
 	}
 	return headers, rows

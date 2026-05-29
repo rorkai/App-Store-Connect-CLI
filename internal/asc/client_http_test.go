@@ -2453,7 +2453,7 @@ func TestGetBetaTester_SendsRequest(t *testing.T) {
 }
 
 func TestUpdateBetaGroup_SendsRequest(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"betaGroups","id":"bg1","attributes":{"name":"Updated Beta Testers","publicLinkEnabled":true}}}`)
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"betaGroups","id":"bg1","attributes":{"name":"Updated Beta Testers","publicLinkEnabled":true,"iosBuildsAvailableForAppleSiliconMac":false,"iosBuildsAvailableForAppleVision":false}}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodPatch {
 			t.Fatalf("expected PATCH, got %s", req.Method)
@@ -2481,14 +2481,26 @@ func TestUpdateBetaGroup_SendsRequest(t *testing.T) {
 		if payload.Data.Attributes.Name != "Updated Beta Testers" {
 			t.Fatalf("expected name Updated Beta Testers, got %q", payload.Data.Attributes.Name)
 		}
+		if payload.Data.Attributes.IOSBuildsAvailableForAppleSiliconMac == nil || *payload.Data.Attributes.IOSBuildsAvailableForAppleSiliconMac {
+			t.Fatalf("expected iosBuildsAvailableForAppleSiliconMac=false, got %#v", payload.Data.Attributes.IOSBuildsAvailableForAppleSiliconMac)
+		}
+		if payload.Data.Attributes.IOSBuildsAvailableForAppleVision == nil || *payload.Data.Attributes.IOSBuildsAvailableForAppleVision {
+			t.Fatalf("expected iosBuildsAvailableForAppleVision=false, got %#v", payload.Data.Attributes.IOSBuildsAvailableForAppleVision)
+		}
 		assertAuthorized(t, req)
 	}, response)
 
+	availableForAppleSiliconMac := false
+	availableForAppleVision := false
 	req := BetaGroupUpdateRequest{
 		Data: BetaGroupUpdateData{
-			Type:       ResourceTypeBetaGroups,
-			ID:         "bg1",
-			Attributes: &BetaGroupUpdateAttributes{Name: "Updated Beta Testers"},
+			Type: ResourceTypeBetaGroups,
+			ID:   "bg1",
+			Attributes: &BetaGroupUpdateAttributes{
+				Name:                                 "Updated Beta Testers",
+				IOSBuildsAvailableForAppleSiliconMac: &availableForAppleSiliconMac,
+				IOSBuildsAvailableForAppleVision:     &availableForAppleVision,
+			},
 		},
 	}
 	if _, err := client.UpdateBetaGroup(context.Background(), "bg1", req); err != nil {
