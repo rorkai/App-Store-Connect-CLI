@@ -356,10 +356,6 @@ func BetaGroupsUpdateCommand() *ffcli.Command {
 	publicLinkLimitEnabled := fs.Bool("public-link-limit-enabled", false, "Enable public link limit")
 	publicLinkLimit := fs.Int("public-link-limit", 0, "Public link limit (1-10000)")
 	feedbackEnabled := fs.Bool("feedback-enabled", false, "Enable feedback")
-	var iosBuildsAvailableForAppleSiliconMac shared.OptionalBool
-	fs.Var(&iosBuildsAvailableForAppleSiliconMac, "ios-builds-available-for-apple-silicon-mac", "Set whether iOS builds are available for Apple silicon Mac: true or false")
-	var iosBuildsAvailableForAppleVision shared.OptionalBool
-	fs.Var(&iosBuildsAvailableForAppleVision, "ios-builds-available-for-apple-vision", "Set whether iOS builds are available for Apple Vision: true or false")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -371,8 +367,7 @@ func BetaGroupsUpdateCommand() *ffcli.Command {
 Examples:
   asc testflight beta-groups update --id "GROUP_ID" --name "New Name"
   asc testflight beta-groups update --id "GROUP_ID" --public-link-enabled --public-link-limit 100
-  asc testflight beta-groups update --id "GROUP_ID" --feedback-enabled
-  asc testflight beta-groups update --id "GROUP_ID" --ios-builds-available-for-apple-silicon-mac false --ios-builds-available-for-apple-vision false`,
+  asc testflight beta-groups update --id "GROUP_ID" --feedback-enabled`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -396,9 +391,7 @@ Examples:
 				visited["public-link-enabled"] ||
 				visited["public-link-limit-enabled"] ||
 				visited["public-link-limit"] ||
-				visited["feedback-enabled"] ||
-				iosBuildsAvailableForAppleSiliconMac.IsSet() ||
-				iosBuildsAvailableForAppleVision.IsSet()
+				visited["feedback-enabled"]
 			if !hasUpdates {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return flag.ErrHelp
@@ -420,8 +413,6 @@ Examples:
 			var publicLinkEnabledAttr *bool
 			var publicLinkLimitEnabledAttr *bool
 			var feedbackEnabledAttr *bool
-			var iosBuildsAvailableForAppleSiliconMacAttr *bool
-			var iosBuildsAvailableForAppleVisionAttr *bool
 
 			if visited["public-link-enabled"] {
 				publicLinkEnabledAttr = publicLinkEnabled
@@ -432,27 +423,17 @@ Examples:
 			if visited["feedback-enabled"] {
 				feedbackEnabledAttr = feedbackEnabled
 			}
-			if iosBuildsAvailableForAppleSiliconMac.IsSet() {
-				v := iosBuildsAvailableForAppleSiliconMac.Value()
-				iosBuildsAvailableForAppleSiliconMacAttr = &v
-			}
-			if iosBuildsAvailableForAppleVision.IsSet() {
-				v := iosBuildsAvailableForAppleVision.Value()
-				iosBuildsAvailableForAppleVisionAttr = &v
-			}
 
 			req := asc.BetaGroupUpdateRequest{
 				Data: asc.BetaGroupUpdateData{
 					Type: asc.ResourceTypeBetaGroups,
 					ID:   trimmedID,
 					Attributes: &asc.BetaGroupUpdateAttributes{
-						Name:                                 strings.TrimSpace(*name),
-						PublicLinkEnabled:                    publicLinkEnabledAttr,
-						PublicLinkLimitEnabled:               publicLinkLimitEnabledAttr,
-						PublicLinkLimit:                      *publicLinkLimit,
-						FeedbackEnabled:                      feedbackEnabledAttr,
-						IOSBuildsAvailableForAppleSiliconMac: iosBuildsAvailableForAppleSiliconMacAttr,
-						IOSBuildsAvailableForAppleVision:     iosBuildsAvailableForAppleVisionAttr,
+						Name:                   strings.TrimSpace(*name),
+						PublicLinkEnabled:      publicLinkEnabledAttr,
+						PublicLinkLimitEnabled: publicLinkLimitEnabledAttr,
+						PublicLinkLimit:        *publicLinkLimit,
+						FeedbackEnabled:        feedbackEnabledAttr,
 					},
 				},
 			}
