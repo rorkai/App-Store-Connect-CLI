@@ -215,10 +215,10 @@ func findCertificates(ctx context.Context, client *asc.Client, profileType, cert
 func findOrCreateProfile(ctx context.Context, client *asc.Client, bundleIDResourceID, bundleIdentifier, profileType string, certIDs, deviceIDs []string, createMissing bool) (*asc.ProfileResponse, bool, error) {
 	next := ""
 	for {
-		profiles, err := client.GetProfiles(
+		profiles, err := client.GetBundleIDProfiles(
 			ctx,
-			asc.WithProfilesFilterType(profileType),
-			asc.WithProfilesNextURL(next),
+			bundleIDResourceID,
+			asc.WithBundleIDProfilesNextURL(next),
 		)
 		if err != nil {
 			return nil, false, err
@@ -228,15 +228,7 @@ func findOrCreateProfile(ctx context.Context, client *asc.Client, bundleIDResour
 			if profile.Attributes.ProfileState != asc.ProfileStateActive {
 				continue
 			}
-			content := strings.TrimSpace(profile.Attributes.ProfileContent)
-			if content == "" {
-				continue
-			}
-			decoded, err := decodeBase64Content("profile", content)
-			if err != nil {
-				return nil, false, err
-			}
-			if strings.Contains(string(decoded), bundleIdentifier) {
+			if strings.EqualFold(strings.TrimSpace(profile.Attributes.ProfileType), profileType) {
 				return &asc.ProfileResponse{Data: profile}, false, nil
 			}
 		}
@@ -248,7 +240,7 @@ func findOrCreateProfile(ctx context.Context, client *asc.Client, bundleIDResour
 	}
 
 	if !createMissing {
-		return nil, false, fmt.Errorf("no active profile found for bundle ID; use --create-missing to create one")
+		return nil, false, fmt.Errorf("no active %s profile found for bundle ID %s; use --create-missing to create one", profileType, bundleIdentifier)
 	}
 	if len(certIDs) == 0 {
 		return nil, false, fmt.Errorf("no certificates available to create profile")

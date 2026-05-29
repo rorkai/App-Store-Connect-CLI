@@ -3,15 +3,23 @@ package signing
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -168,5 +176,100 @@ func TestSigningFetchWriteFiles_NoOverwrite(t *testing.T) {
 		t.Fatal("expected error when overwriting certificate file")
 	} else if !errors.Is(err, os.ErrExist) {
 		t.Fatalf("expected ErrExist, got %v", err)
+	}
+}
+
+func TestFindOrCreateProfileUsesBundleIDRelationship(t *testing.T) {
+	widgetProfileContent := base64.StdEncoding.EncodeToString([]byte("application-identifier=TEAM.com.example.signing.profile.widget"))
+	mainProfileContent := base64.StdEncoding.EncodeToString([]byte("application-identifier=TEAM.com.example.signing.profile"))
+	requestPaths := []string{}
+	client := newSigningFetchTestClient(t, func(req *http.Request) *http.Response {
+		requestPaths = append(requestPaths, req.URL.Path)
+
+		switch req.URL.Path {
+		case "/v1/profiles":
+			return signingFetchJSONResponse(
+				http.StatusOK,
+				fmt.Sprintf(
+					`{"data":[{"type":"profiles","id":"profile-widget","attributes":{"name":"Widget-stamped main profile","profileType":"IOS_APP_STORE","profileState":"ACTIVE","profileContent":%q}}]}`,
+					widgetProfileContent,
+				),
+			)
+		case "/v1/bundleIds/bundle-main/profiles":
+			return signingFetchJSONResponse(
+				http.StatusOK,
+				fmt.Sprintf(
+					`{"data":[{"type":"profiles","id":"profile-main","attributes":{"name":"Main App Store","profileType":"IOS_APP_STORE","profileState":"ACTIVE","profileContent":%q}}]}`,
+					mainProfileContent,
+				),
+			)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return signingFetchJSONResponse(http.StatusInternalServerError, `{}`)
+		}
+	})
+
+	profile, created, err := findOrCreateProfile(
+		context.Background(),
+		client,
+		"bundle-main",
+		"com.example.signing.profile",
+		"IOS_APP_STORE",
+		[]string{"cert-1"},
+		nil,
+		false,
+	)
+	if err != nil {
+		t.Fatalf("findOrCreateProfile() error: %v", err)
+	}
+	if created {
+		t.Fatal("expected existing profile, got created profile")
+	}
+	if profile.Data.ID != "profile-main" {
+		t.Fatalf("expected exact bundle profile, got %s", profile.Data.ID)
+	}
+
+	if len(requestPaths) != 1 || requestPaths[0] != "/v1/bundleIds/bundle-main/profiles" {
+		t.Fatalf("expected Bundle ID scoped profile lookup, got %v", requestPaths)
+	}
+}
+
+type signingFetchRoundTripFunc func(*http.Request) *http.Response
+
+func (fn signingFetchRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req), nil
+}
+
+func newSigningFetchTestClient(t *testing.T, fn signingFetchRoundTripFunc) *asc.Client {
+	t.Helper()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey() error: %v", err)
+	}
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		t.Fatalf("MarshalPKCS8PrivateKey() error: %v", err)
+	}
+	keyPath := filepath.Join(t.TempDir(), "key.p8")
+	if err := os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}), 0o600); err != nil {
+		t.Fatalf("write key: %v", err)
+	}
+
+	client, err := asc.NewClientWithHTTPClient("KEY123", "ISS456", keyPath, &http.Client{
+		Transport: fn,
+	})
+	if err != nil {
+		t.Fatalf("NewClientWithHTTPClient() error: %v", err)
+	}
+	return client
+}
+
+func signingFetchJSONResponse(status int, body string) *http.Response {
+	return &http.Response{
+		Status:     fmt.Sprintf("%d %s", status, http.StatusText(status)),
+		StatusCode: status,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 }
