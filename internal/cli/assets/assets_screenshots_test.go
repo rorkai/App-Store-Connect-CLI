@@ -48,6 +48,25 @@ func TestAssetsScreenshotsSizesCommandDefaultFocused(t *testing.T) {
 	}
 }
 
+func TestOrderScreenshotsForDownloadUsesRelationshipOrder(t *testing.T) {
+	shots := []asc.Resource[asc.AppScreenshotAttributes]{
+		{ID: "shot-b", Attributes: asc.AppScreenshotAttributes{FileName: "01-home.png"}},
+		{ID: "shot-c", Attributes: asc.AppScreenshotAttributes{FileName: "02-settings.png"}},
+		{ID: "shot-a", Attributes: asc.AppScreenshotAttributes{FileName: "03-paywall.png"}},
+	}
+
+	ordered := orderScreenshotsForDownload(shots, []string{"shot-a", "shot-b"})
+
+	gotIDs := make([]string, 0, len(ordered))
+	for _, shot := range ordered {
+		gotIDs = append(gotIDs, shot.ID)
+	}
+	wantIDs := []string{"shot-a", "shot-b", "shot-c"}
+	if strings.Join(gotIDs, ",") != strings.Join(wantIDs, ",") {
+		t.Fatalf("ordered IDs = %v, want %v", gotIDs, wantIDs)
+	}
+}
+
 func TestAssetsScreenshotsSizesCommandFilter(t *testing.T) {
 	cmd := AssetsScreenshotsSizesCommand()
 	cmd.FlagSet.SetOutput(io.Discard)

@@ -144,6 +144,13 @@ func TestScreenshotsDownload_ByLocalization_WritesFiles(t *testing.T) {
 					Body:       io.NopCloser(strings.NewReader(body)),
 					Header:     http.Header{"Content-Type": []string{"application/json"}},
 				}, nil
+			case "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+				body := `{"data":[{"type":"appScreenshots","id":"shot-1"}],"links":{}}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
 			default:
 				t.Fatalf("unexpected API path: %s", req.URL.Path)
 				return nil, nil
@@ -233,6 +240,13 @@ func TestScreenshotsDownload_ByLocalization_RetriesTransientForbidden(t *testing
 				}, nil
 			case "/v1/appScreenshotSets/set-1/appScreenshots":
 				body := `{"data":[{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"screen.png","fileSize":7,"imageAsset":{"templateUrl":"https://example.com/screen_{w}x{h}.{f}","width":100,"height":200}}}]}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			case "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+				body := `{"data":[{"type":"appScreenshots","id":"shot-1"}],"links":{}}`
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(strings.NewReader(body)),

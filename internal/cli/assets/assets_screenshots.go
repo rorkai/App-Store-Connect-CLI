@@ -1391,16 +1391,13 @@ Examples:
 						return fmt.Errorf("screenshots download: failed to fetch screenshots for set %s: %w", set.ID, err)
 					}
 
-					shots := make([]asc.Resource[asc.AppScreenshotAttributes], 0, len(shotsResp.Data))
-					shots = append(shots, shotsResp.Data...)
-					sort.Slice(shots, func(i, j int) bool {
-						fi := strings.ToLower(strings.TrimSpace(shots[i].Attributes.FileName))
-						fj := strings.ToLower(strings.TrimSpace(shots[j].Attributes.FileName))
-						if fi == fj {
-							return shots[i].ID < shots[j].ID
-						}
-						return fi < fj
-					})
+					requestCtx, cancel = shared.ContextWithTimeout(ctx)
+					orderedIDs, err := GetOrderedAppScreenshotIDs(requestCtx, client, set.ID)
+					cancel()
+					if err != nil {
+						return fmt.Errorf("screenshots download: failed to fetch screenshot order for set %s: %w", set.ID, err)
+					}
+					shots := orderScreenshotsForDownload(shotsResp.Data, orderedIDs)
 
 					for idx, shot := range shots {
 						base := sanitizeBaseFileName(shot.Attributes.FileName)
@@ -1498,6 +1495,43 @@ Examples:
 			return nil
 		},
 	}
+}
+
+func orderScreenshotsForDownload(shots []asc.Resource[asc.AppScreenshotAttributes], orderedIDs []string) []asc.Resource[asc.AppScreenshotAttributes] {
+	ordered := append([]asc.Resource[asc.AppScreenshotAttributes](nil), shots...)
+	orderByID := make(map[string]int, len(orderedIDs))
+	for idx, id := range orderedIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, exists := orderByID[id]; exists {
+			continue
+		}
+		orderByID[id] = idx
+	}
+
+	sort.SliceStable(ordered, func(i, j int) bool {
+		iOrder, iOK := orderByID[strings.TrimSpace(ordered[i].ID)]
+		jOrder, jOK := orderByID[strings.TrimSpace(ordered[j].ID)]
+		switch {
+		case iOK && jOK:
+			return iOrder < jOrder
+		case iOK:
+			return true
+		case jOK:
+			return false
+		}
+
+		fi := strings.ToLower(strings.TrimSpace(ordered[i].Attributes.FileName))
+		fj := strings.ToLower(strings.TrimSpace(ordered[j].Attributes.FileName))
+		if fi == fj {
+			return ordered[i].ID < ordered[j].ID
+		}
+		return fi < fj
+	})
+
+	return ordered
 }
 
 func renderScreenshotDownloadResult(result *screenshotDownloadResult, markdown bool) error {
