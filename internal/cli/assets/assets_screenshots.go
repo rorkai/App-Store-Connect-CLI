@@ -1152,6 +1152,9 @@ func canonicalizeUniqueScreenshotFanoutLocaleAssets(localeAssets []screenshotLoc
 		if err := registerUniqueCanonicalFanoutLocale(canonicalLocale, item.Locale, "fan-out upload", "inputs", seen); err != nil {
 			return nil, err
 		}
+		if err := validateUniqueScreenshotUploadFileNames(item.Files); err != nil {
+			return nil, fmt.Errorf("locale %s: %w", canonicalLocale, err)
+		}
 		result = append(result, screenshotLocaleAssetFiles{
 			Locale: canonicalLocale,
 			Files:  item.Files,

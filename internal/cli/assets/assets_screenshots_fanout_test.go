@@ -652,3 +652,47 @@ func TestUploadScreenshotsFanoutRejectsDuplicateLocaleAssets(t *testing.T) {
 		t.Fatalf("expected duplicate locale upload error, got %v", err)
 	}
 }
+
+func TestUploadScreenshotsFanoutRejectsDuplicateLocaleAssetFileNames(t *testing.T) {
+	rootDir := t.TempDir()
+	firstDir := filepath.Join(rootDir, "iphone-a")
+	secondDir := filepath.Join(rootDir, "iphone-b")
+	if err := os.MkdirAll(firstDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	if err := os.MkdirAll(secondDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	firstPath := writeAssetsTestPNGWithSize(t, firstDir, "01-home.png", 1242, 2688)
+	secondPath := writeAssetsTestPNGWithSize(t, secondDir, "01-home.png", 1242, 2688)
+
+	origTransport := http.DefaultTransport
+	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("unexpected request before duplicate file name validation: %s %s", req.Method, req.URL.String())
+		return nil, nil
+	})
+	t.Cleanup(func() {
+		http.DefaultTransport = origTransport
+	})
+
+	_, err := uploadScreenshotsFanout(context.Background(), screenshotUploadFanoutConfig{
+		Client:    newAssetsUploadTestClient(t),
+		VersionID: "version-1",
+		LocaleAssets: []screenshotLocaleAssetFiles{
+			{Locale: "en-US", Files: []string{firstPath, secondPath}},
+		},
+		DisplayType: asc.CanonicalScreenshotDisplayTypeForAPI("APP_IPHONE_65"),
+	})
+	if err == nil {
+		t.Fatal("expected duplicate screenshot file name error")
+	}
+	for _, want := range []string{
+		`locale en-US: duplicate screenshot file name "01-home.png"`,
+		firstPath,
+		secondPath,
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected error to contain %q, got %v", want, err)
+		}
+	}
+}
