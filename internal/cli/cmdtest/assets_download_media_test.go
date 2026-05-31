@@ -138,14 +138,14 @@ func TestScreenshotsDownload_ByLocalization_WritesFiles(t *testing.T) {
 					Header:     http.Header{"Content-Type": []string{"application/json"}},
 				}, nil
 			case "/v1/appScreenshotSets/set-1/appScreenshots":
-				body := `{"data":[{"type":"appScreenshots","id":"shot-1","attributes":{"fileName":"screen.png","fileSize":7,"imageAsset":{"templateUrl":"https://example.com/screen_{w}x{h}.{f}","width":100,"height":200}}}]}`
+				body := `{"data":[{"type":"appScreenshots","id":"shot-b","attributes":{"fileName":"01-home.png","fileSize":7,"imageAsset":{"templateUrl":"https://example.com/shot-b_{w}x{h}.{f}","width":100,"height":200}}},{"type":"appScreenshots","id":"shot-a","attributes":{"fileName":"02-paywall.png","fileSize":7,"imageAsset":{"templateUrl":"https://example.com/shot-a_{w}x{h}.{f}","width":100,"height":200}}}]}`
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(strings.NewReader(body)),
 					Header:     http.Header{"Content-Type": []string{"application/json"}},
 				}, nil
 			case "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
-				body := `{"data":[{"type":"appScreenshots","id":"shot-1"}],"links":{}}`
+				body := `{"data":[{"type":"appScreenshots","id":"shot-a"},{"type":"appScreenshots","id":"shot-b"}],"links":{}}`
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(strings.NewReader(body)),
@@ -159,12 +159,12 @@ func TestScreenshotsDownload_ByLocalization_WritesFiles(t *testing.T) {
 			if req.Method != http.MethodGet {
 				t.Fatalf("expected GET, got %s", req.Method)
 			}
-			if req.URL.Path != "/screen_100x200.png" {
+			if req.URL.Path != "/shot-a_100x200.png" && req.URL.Path != "/shot-b_100x200.png" {
 				t.Fatalf("unexpected asset path: %s", req.URL.Path)
 			}
 			return &http.Response{
 				StatusCode: http.StatusOK,
-				Body:       io.NopCloser(strings.NewReader("PNGDATA")),
+				Body:       io.NopCloser(strings.NewReader("PNGDATA:" + req.URL.Path)),
 				Header:     http.Header{"Content-Type": []string{"image/png"}},
 			}, nil
 		default:
@@ -182,6 +182,10 @@ func TestScreenshotsDownload_ByLocalization_WritesFiles(t *testing.T) {
 		Total      int `json:"total"`
 		Downloaded int `json:"downloaded"`
 		Failed     int `json:"failed"`
+		Items      []struct {
+			ID         string `json:"id"`
+			OutputPath string `json:"outputPath"`
+		} `json:"items"`
 	}
 
 	stdout, stderr := captureOutput(t, func() {
@@ -201,16 +205,37 @@ func TestScreenshotsDownload_ByLocalization_WritesFiles(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
 		t.Fatalf("decode stdout JSON: %v (stdout=%q)", err, stdout)
 	}
-	if got.Total != 1 || got.Downloaded != 1 || got.Failed != 0 {
+	if got.Total != 2 || got.Downloaded != 2 || got.Failed != 0 {
 		t.Fatalf("unexpected result: %+v", got)
 	}
+	if len(got.Items) != 2 {
+		t.Fatalf("expected 2 result items, got %d", len(got.Items))
+	}
+	if got.Items[0].ID != "shot-a" || got.Items[1].ID != "shot-b" {
+		t.Fatalf("expected relationship-ordered item IDs [shot-a shot-b], got [%s %s]", got.Items[0].ID, got.Items[1].ID)
+	}
 
-	wantPath := filepath.Join(outDir, "APP_IPHONE_65", "01_shot-1_screen.png")
-	data, err := os.ReadFile(wantPath)
+	wantFirstPath := filepath.Join(outDir, "APP_IPHONE_65", "01_shot-a_02-paywall.png")
+	wantSecondPath := filepath.Join(outDir, "APP_IPHONE_65", "02_shot-b_01-home.png")
+	if filepath.Clean(got.Items[0].OutputPath) != filepath.Clean(wantFirstPath) {
+		t.Fatalf("expected first outputPath %q, got %q", wantFirstPath, got.Items[0].OutputPath)
+	}
+	if filepath.Clean(got.Items[1].OutputPath) != filepath.Clean(wantSecondPath) {
+		t.Fatalf("expected second outputPath %q, got %q", wantSecondPath, got.Items[1].OutputPath)
+	}
+
+	data, err := os.ReadFile(wantFirstPath)
 	if err != nil {
 		t.Fatalf("ReadFile() error: %v", err)
 	}
-	if string(data) != "PNGDATA" {
+	if string(data) != "PNGDATA:/shot-a_100x200.png" {
+		t.Fatalf("unexpected file contents: %q", string(data))
+	}
+	data, err = os.ReadFile(wantSecondPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+	if string(data) != "PNGDATA:/shot-b_100x200.png" {
 		t.Fatalf("unexpected file contents: %q", string(data))
 	}
 }
