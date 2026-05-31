@@ -1035,6 +1035,9 @@ func collectLocaleAssetFilesRecursiveWithLimit(rootPath, displayType string, max
 		return nil, fmt.Errorf("no screenshot files matching %s found in %q", displayType, rootPath)
 	}
 	sort.Strings(files)
+	if err := validateUniqueScreenshotUploadFileNames(files); err != nil {
+		return nil, err
+	}
 	return files, nil
 }
 
@@ -1063,7 +1066,28 @@ func collectLimitedLocaleAssetFilesRecursive(rootPath, displayType string, maxSc
 	if len(files) == 0 {
 		return nil, fmt.Errorf("no screenshot files matching %s found in %q", displayType, rootPath)
 	}
+	if err := validateUniqueScreenshotUploadFileNames(files); err != nil {
+		return nil, err
+	}
 	return files, nil
+}
+
+func validateUniqueScreenshotUploadFileNames(files []string) error {
+	seen := make(map[string]string, len(files))
+	for _, filePath := range files {
+		fileName := filepath.Base(filePath)
+		key := strings.ToLower(fileName)
+		if previous, ok := seen[key]; ok {
+			return fmt.Errorf(
+				"duplicate screenshot file name %q (%q, %q); App Store screenshot ordering uses uploaded file names, so rename one file before uploading",
+				fileName,
+				previous,
+				filePath,
+			)
+		}
+		seen[key] = filePath
+	}
+	return nil
 }
 
 func collectSupportedScreenshotCandidateFiles(rootPath string) ([]string, error) {

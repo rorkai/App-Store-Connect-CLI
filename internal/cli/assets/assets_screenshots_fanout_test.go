@@ -514,6 +514,37 @@ func TestCollectLocaleAssetFilesRecursiveSkipsNonImageFiles(t *testing.T) {
 	}
 }
 
+func TestCollectLocaleAssetFilesRecursiveRejectsDuplicateFileNames(t *testing.T) {
+	rootDir := t.TempDir()
+	firstDir := filepath.Join(rootDir, "iphone-a")
+	secondDir := filepath.Join(rootDir, "iphone-b")
+	if err := os.MkdirAll(firstDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	if err := os.MkdirAll(secondDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	firstPath := filepath.Join(firstDir, "01-home.png")
+	secondPath := filepath.Join(secondDir, "01-home.png")
+	writeAssetsTestPNGWithSize(t, firstDir, "01-home.png", 1242, 2688)
+	writeAssetsTestPNGWithSize(t, secondDir, "01-home.png", 1242, 2688)
+
+	_, err := collectLocaleAssetFilesRecursive(rootDir, asc.CanonicalScreenshotDisplayTypeForAPI("APP_IPHONE_65"))
+	if err == nil {
+		t.Fatal("expected duplicate screenshot file name error")
+	}
+	for _, want := range []string{
+		`duplicate screenshot file name "01-home.png"`,
+		firstPath,
+		secondPath,
+		"rename one file",
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("expected error to contain %q, got %v", want, err)
+		}
+	}
+}
+
 func TestCollectLocaleAssetFilesRecursiveWithLimitSortsBeforeValidation(t *testing.T) {
 	rootDir := t.TempDir()
 	if err := os.MkdirAll(rootDir, 0o755); err != nil {
