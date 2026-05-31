@@ -239,6 +239,54 @@ func TestReviewDetailsUpdateRejectsOverlongDemoAccountPassword(t *testing.T) {
 	}
 }
 
+func TestReviewDetailsUpdateAcceptsMaxLengthDemoAccountPassword(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPatch || req.URL.Path != "/v1/appStoreReviewDetails/detail-1" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+		payload, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body error: %v", err)
+		}
+		body := string(payload)
+		if !strings.Contains(body, `"demoAccountPassword":"`+strings.Repeat("p", 100)+`"`) {
+			t.Fatalf("expected max-length demo account password in body, got %s", body)
+		}
+		return jsonResponse(http.StatusOK, `{"data":{"type":"appStoreReviewDetails","id":"detail-1","attributes":{"demoAccountPassword":"`+strings.Repeat("p", 100)+`"}}}`)
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"review", "details-update",
+			"--id", "detail-1",
+			"--demo-account-password", strings.Repeat("p", 100),
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"detail-1"`) {
+		t.Fatalf("expected detail id in output, got %q", stdout)
+	}
+}
+
 func TestRunReviewDetailsRejectsOverlongDemoAccountPasswordWithUsageExit(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_KEY_ID", "")
