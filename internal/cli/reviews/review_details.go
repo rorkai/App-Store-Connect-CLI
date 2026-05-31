@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -19,6 +20,8 @@ const (
 	reviewDetailDemoAccountRequiredUsage = "Set true only when App Review needs demo credentials; leave false when reviewer guidance in --notes is enough"
 	reviewDetailNotesUsage               = "Review notes for reviewer instructions or context; supplemental when demo credentials are required"
 	reviewDetailDemoCredentialsError     = "Error: --demo-account-required=true requires both --demo-account-name and --demo-account-password"
+	reviewDetailDemoPasswordLengthError  = "Error: --demo-account-password must be 100 characters or fewer"
+	reviewDetailDemoPasswordMaxLength    = 100
 )
 
 // ReviewDetailsGetCommand returns the review details get subcommand.
@@ -176,6 +179,10 @@ Examples:
 				if err := validateReviewDetailDemoCredentialValues(strings.TrimSpace(*demoAccountName), strings.TrimSpace(*demoAccountPassword)); err != nil {
 					return err
 				}
+			} else if visited["demo-account-password"] {
+				if err := validateReviewDetailDemoPasswordLength(strings.TrimSpace(*demoAccountPassword)); err != nil {
+					return err
+				}
 			}
 
 			var attrsPtr *asc.AppStoreReviewDetailCreateAttributes
@@ -279,6 +286,11 @@ Examples:
 			if !hasReviewDetailUpdates(visited) {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return flag.ErrHelp
+			}
+			if visited["demo-account-password"] {
+				if err := validateReviewDetailDemoPasswordLength(strings.TrimSpace(*demoAccountPassword)); err != nil {
+					return err
+				}
 			}
 
 			client, err := shared.GetASCClient()
@@ -391,10 +403,19 @@ func validateReviewDetailUpdateDemoCredentials(
 }
 
 func validateReviewDetailDemoCredentialValues(demoAccountName, demoAccountPassword string) error {
-	if strings.TrimSpace(demoAccountName) != "" && strings.TrimSpace(demoAccountPassword) != "" {
+	if strings.TrimSpace(demoAccountName) == "" || strings.TrimSpace(demoAccountPassword) == "" {
+		fmt.Fprintln(os.Stderr, reviewDetailDemoCredentialsError)
+		return flag.ErrHelp
+	}
+
+	return validateReviewDetailDemoPasswordLength(demoAccountPassword)
+}
+
+func validateReviewDetailDemoPasswordLength(demoAccountPassword string) error {
+	if utf8.RuneCountInString(strings.TrimSpace(demoAccountPassword)) <= reviewDetailDemoPasswordMaxLength {
 		return nil
 	}
 
-	fmt.Fprintln(os.Stderr, reviewDetailDemoCredentialsError)
+	fmt.Fprintln(os.Stderr, reviewDetailDemoPasswordLengthError)
 	return flag.ErrHelp
 }
