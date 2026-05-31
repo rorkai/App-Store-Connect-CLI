@@ -85,6 +85,9 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("versions list: %w", err)
 			}
+			if err := shared.ValidateAppStoreVersionStateFilterCombination(states); err != nil {
+				return fmt.Errorf("versions list: %w", err)
+			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {

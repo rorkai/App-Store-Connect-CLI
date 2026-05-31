@@ -24,3 +24,19 @@ func TestAppStoreVersionStateListMentionsReadyForDistribution(t *testing.T) {
 		t.Fatalf("expected error to mention READY_FOR_DISTRIBUTION, got %q", err.Error())
 	}
 }
+
+func TestValidateAppStoreVersionStateFilterCombinationRejectsMixedFilterOnlyStates(t *testing.T) {
+	err := ValidateAppStoreVersionStateFilterCombination([]string{"READY_FOR_SALE", "READY_FOR_DISTRIBUTION"})
+	if err == nil {
+		t.Fatal("expected mixed filter-only states to be rejected")
+	}
+	if !strings.Contains(err.Error(), "READY_FOR_SALE") {
+		t.Fatalf("expected error to mention appStoreState-only state, got %q", err.Error())
+	}
+}
+
+func TestValidateAppStoreVersionStateFilterCombinationAllowsCompatibleVersionStates(t *testing.T) {
+	if err := ValidateAppStoreVersionStateFilterCombination([]string{"READY_FOR_REVIEW", "READY_FOR_DISTRIBUTION"}); err != nil {
+		t.Fatalf("ValidateAppStoreVersionStateFilterCombination() error = %v", err)
+	}
+}

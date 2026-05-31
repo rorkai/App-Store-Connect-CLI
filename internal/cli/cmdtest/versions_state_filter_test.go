@@ -106,3 +106,19 @@ func TestVersionsListMixedReadyStatesUsesSingleAppVersionStateFilter(t *testing.
 		t.Fatalf("expected both versions in output, got %q", stdout)
 	}
 }
+
+func TestVersionsListRejectsMixedAppStoreAndAppVersionOnlyStates(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	if err := root.Parse([]string{"versions", "list", "--app", "123456789", "--state", "READY_FOR_SALE,READY_FOR_DISTRIBUTION"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	err := root.Run(context.Background())
+	if err == nil {
+		t.Fatal("expected mixed state filter error")
+	}
+	if !strings.Contains(err.Error(), "cannot mix appVersionState-only values with appStoreState-only values") {
+		t.Fatalf("expected mixed state filter error, got %q", err.Error())
+	}
+}

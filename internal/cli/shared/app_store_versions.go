@@ -75,6 +75,31 @@ func NormalizeAppStoreVersionStates(values []string) ([]string, error) {
 	return values, nil
 }
 
+// ValidateAppStoreVersionStateFilterCombination rejects state combinations that
+// cannot be represented by one App Store Connect version-list request.
+func ValidateAppStoreVersionStateFilterCombination(values []string) error {
+	hasAppVersionOnly := false
+	appStoreOnly := make([]string, 0)
+	for _, value := range values {
+		switch value {
+		case "PROCESSING_FOR_DISTRIBUTION", "READY_FOR_DISTRIBUTION":
+			hasAppVersionOnly = true
+		case "DEVELOPER_REMOVED_FROM_SALE",
+			"PENDING_CONTRACT",
+			"PREORDER_READY_FOR_SALE",
+			"PROCESSING_FOR_APP_STORE",
+			"READY_FOR_SALE",
+			"REMOVED_FROM_SALE",
+			"NOT_APPLICABLE":
+			appStoreOnly = append(appStoreOnly, value)
+		}
+	}
+	if hasAppVersionOnly && len(appStoreOnly) > 0 {
+		return fmt.Errorf("--state cannot mix appVersionState-only values with appStoreState-only values (%s); run separate commands for those states", strings.Join(appStoreOnly, ", "))
+	}
+	return nil
+}
+
 func appStoreVersionPlatformList() []string {
 	return []string{"IOS", "MAC_OS", "TV_OS", "VISION_OS"}
 }

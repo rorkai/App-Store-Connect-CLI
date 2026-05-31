@@ -123,6 +123,9 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+			if err := shared.ValidateAppStoreVersionStateFilterCombination(states); err != nil {
+				return shared.UsageError(err.Error())
+			}
 			if strings.TrimSpace(*version) != "" && len(platforms) != 1 {
 				fmt.Fprintln(os.Stderr, "Error: --platform is required with --version")
 				return flag.ErrHelp
@@ -266,6 +269,9 @@ Examples:
 			}
 			states, err := shared.NormalizeAppStoreVersionStates(shared.SplitCSVUpper(*state))
 			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+			if err := shared.ValidateAppStoreVersionStateFilterCombination(states); err != nil {
 				return shared.UsageError(err.Error())
 			}
 			if strings.TrimSpace(*version) != "" && len(platforms) != 1 {
