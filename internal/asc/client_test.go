@@ -813,6 +813,38 @@ func TestBuildAppStoreVersionsQuery(t *testing.T) {
 	}
 }
 
+func TestBuildAppStoreVersionsQueryMixedReadyStatesUseAppVersionStateFilter(t *testing.T) {
+	query := &appStoreVersionsQuery{}
+	WithAppStoreVersionsStates([]string{"READY_FOR_REVIEW", "READY_FOR_DISTRIBUTION"})(query)
+
+	values, err := url.ParseQuery(buildAppStoreVersionsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("filter[appVersionState]"); got != "READY_FOR_REVIEW,READY_FOR_DISTRIBUTION" {
+		t.Fatalf("expected filter[appVersionState]=READY_FOR_REVIEW,READY_FOR_DISTRIBUTION, got %q", got)
+	}
+	if got := values.Get("filter[appStoreState]"); got != "" {
+		t.Fatalf("expected no filter[appStoreState], got %q", got)
+	}
+}
+
+func TestBuildAppStoreVersionsQueryMixedExclusiveStatesKeepSeparateFilters(t *testing.T) {
+	query := &appStoreVersionsQuery{}
+	WithAppStoreVersionsStates([]string{"READY_FOR_SALE", "READY_FOR_DISTRIBUTION"})(query)
+
+	values, err := url.ParseQuery(buildAppStoreVersionsQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values.Get("filter[appStoreState]"); got != "READY_FOR_SALE" {
+		t.Fatalf("expected filter[appStoreState]=READY_FOR_SALE, got %q", got)
+	}
+	if got := values.Get("filter[appVersionState]"); got != "READY_FOR_DISTRIBUTION" {
+		t.Fatalf("expected filter[appVersionState]=READY_FOR_DISTRIBUTION, got %q", got)
+	}
+}
+
 func TestBuildAppSearchKeywordsQuery(t *testing.T) {
 	query := &appSearchKeywordsQuery{}
 	opts := []AppSearchKeywordsOption{
