@@ -431,7 +431,7 @@ func TestBuildsTestNotesUpdateConflictingFlagsExitCode(t *testing.T) {
 	}
 }
 
-func TestBuildsLatestExcludeExpiredInvalidBooleanExitCode(t *testing.T) {
+func TestBuildsExpiredFlagsInvalidBooleanExitCode(t *testing.T) {
 	tmpDir := t.TempDir()
 	binaryPath := filepath.Join(tmpDir, "asc-test")
 
@@ -441,27 +441,63 @@ func TestBuildsLatestExcludeExpiredInvalidBooleanExitCode(t *testing.T) {
 		t.Fatalf("failed to build binary: %v\n%s", err, out)
 	}
 
-	runCmd := exec.Command(binaryPath, "builds", "latest", "--app", "APP_ID", "--exclude-expired=maybe")
-	runCmd.Env = isolatedCLITestEnv(filepath.Join(tmpDir, "config.json"))
-	output, err := runCmd.CombinedOutput()
-	if err == nil {
-		t.Fatalf("expected non-zero exit for invalid boolean value, got success output: %s", output)
+	tests := []struct {
+		name string
+		args []string
+		flag string
+	}{
+		{
+			name: "latest exclude-expired",
+			args: []string{"builds", "latest", "--app", "APP_ID", "--exclude-expired=maybe"},
+			flag: "exclude-expired",
+		},
+		{
+			name: "list exclude-expired",
+			args: []string{"builds", "list", "--app", "APP_ID", "--exclude-expired=maybe"},
+			flag: "exclude-expired",
+		},
+		{
+			name: "list not-expired",
+			args: []string{"builds", "list", "--app", "APP_ID", "--not-expired=maybe"},
+			flag: "not-expired",
+		},
+		{
+			name: "count exclude-expired",
+			args: []string{"builds", "count", "--app", "APP_ID", "--exclude-expired=maybe"},
+			flag: "exclude-expired",
+		},
+		{
+			name: "count not-expired",
+			args: []string{"builds", "count", "--app", "APP_ID", "--not-expired=maybe"},
+			flag: "not-expired",
+		},
 	}
 
-	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) {
-		t.Fatalf("expected *exec.ExitError, got %T (%v)", err, err)
-	}
-	if exitErr.ExitCode() != ExitUsage {
-		t.Fatalf("expected exit code %d, got %d (output: %s)", ExitUsage, exitErr.ExitCode(), output)
-	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			runCmd := exec.Command(binaryPath, test.args...)
+			runCmd.Env = isolatedCLITestEnv(filepath.Join(tmpDir, "config.json"))
+			output, err := runCmd.CombinedOutput()
+			if err == nil {
+				t.Fatalf("expected non-zero exit for invalid boolean value, got success output: %s", output)
+			}
 
-	stderr := string(output)
-	if !strings.Contains(stderr, "invalid boolean value") {
-		t.Fatalf("expected stderr to contain invalid boolean message, got %q", stderr)
-	}
-	if !strings.Contains(stderr, "exclude-expired") {
-		t.Fatalf("expected stderr to mention exclude-expired flag, got %q", stderr)
+			var exitErr *exec.ExitError
+			if !errors.As(err, &exitErr) {
+				t.Fatalf("expected *exec.ExitError, got %T (%v)", err, err)
+			}
+			if exitErr.ExitCode() != ExitUsage {
+				t.Fatalf("expected exit code %d, got %d (output: %s)", ExitUsage, exitErr.ExitCode(), output)
+			}
+
+			stderr := string(output)
+			if !strings.Contains(stderr, "invalid boolean value") {
+				t.Fatalf("expected stderr to contain invalid boolean message, got %q", stderr)
+			}
+			if !strings.Contains(stderr, test.flag) {
+				t.Fatalf("expected stderr to mention %s flag, got %q", test.flag, stderr)
+			}
+		})
 	}
 }
 
