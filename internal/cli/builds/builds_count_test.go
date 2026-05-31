@@ -81,7 +81,7 @@ func TestBuildsCountCommand_UsesAppIDEnv(t *testing.T) {
 func TestBuildsCountCommand_FlagsExist(t *testing.T) {
 	cmd := BuildsCountCommand()
 
-	required := []string{"app", "version", "build-number", "platform", "processing-state", "output"}
+	required := []string{"app", "version", "build-number", "platform", "processing-state", "exclude-expired", "not-expired", "output"}
 	for _, name := range required {
 		if cmd.FlagSet.Lookup(name) == nil {
 			t.Errorf("expected --%s flag to be defined", name)

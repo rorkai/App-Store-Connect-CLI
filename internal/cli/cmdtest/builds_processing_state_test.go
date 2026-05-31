@@ -119,6 +119,106 @@ func TestBuildsListProcessingStateAllExpandsToAllStates(t *testing.T) {
 	}
 }
 
+func TestBuildsListExcludeExpiredSendsExpiredFilter(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds" {
+			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
+		}
+		if got := req.URL.Query().Get("filter[expired]"); got != "false" {
+			t.Fatalf("expected filter[expired]=false, got %q", got)
+		}
+		body := `{"data":[{"type":"builds","id":"build-active","attributes":{"expired":false,"version":"42"}}]}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "list", "--app", "123456789", "--exclude-expired"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"id":"build-active"`) {
+		t.Fatalf("expected build output, got %q", stdout)
+	}
+}
+
+func TestBuildsCountNotExpiredSendsExpiredFilter(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/builds" {
+			t.Fatalf("expected path /v1/builds, got %s", req.URL.Path)
+		}
+		query := req.URL.Query()
+		if got := query.Get("filter[expired]"); got != "false" {
+			t.Fatalf("expected filter[expired]=false, got %q", got)
+		}
+		if got := query.Get("limit"); got != "1" {
+			t.Fatalf("expected limit=1 probe request, got %q", got)
+		}
+		body := `{"data":[],"meta":{"paging":{"total":7,"limit":1}}}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "count", "--app", "123456789", "--not-expired"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !strings.Contains(stdout, `"total":7`) {
+		t.Fatalf("expected total output, got %q", stdout)
+	}
+}
+
 func TestBuildsListProcessingStateInvalidValueReturnsUsageError(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

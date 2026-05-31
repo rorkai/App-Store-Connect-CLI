@@ -22,6 +22,8 @@ func BuildsCountCommand() *ffcli.Command {
 	buildNumber := fs.String("build-number", "", "Filter by build number (CFBundleVersion)")
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	processingState := fs.String("processing-state", "", "Filter by processing state: VALID, PROCESSING, FAILED, INVALID, or all")
+	excludeExpired := fs.Bool("exclude-expired", false, "Exclude expired builds")
+	notExpired := fs.Bool("not-expired", false, "Alias for --exclude-expired")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -44,6 +46,7 @@ Examples:
   asc builds count --app "123456789" --platform IOS
   asc builds count --app "123456789" --processing-state VALID
   asc builds count --app "123456789" --processing-state all
+  asc builds count --app "123456789" --exclude-expired
   asc builds count --app "123456789" --version "2.1.0" --platform IOS --output json`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -106,6 +109,9 @@ Examples:
 			}
 			if len(processingStateValues) > 0 {
 				filterOpts = append(filterOpts, asc.WithBuildsProcessingStates(processingStateValues))
+			}
+			if *excludeExpired || *notExpired {
+				filterOpts = append(filterOpts, asc.WithBuildsExpired(false))
 			}
 			if len(preReleaseVersionIDs) > 0 {
 				filterOpts = append(filterOpts, asc.WithBuildsPreReleaseVersions(preReleaseVersionIDs))

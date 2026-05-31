@@ -53,6 +53,25 @@ func TestBuildsListCommand_ProcessingStateFlagDescription(t *testing.T) {
 	}
 }
 
+func TestBuildsListCommand_ExcludeExpiredFlagsExist(t *testing.T) {
+	cmd := BuildsListCommand()
+
+	excludeExpiredFlag := cmd.FlagSet.Lookup("exclude-expired")
+	if excludeExpiredFlag == nil {
+		t.Fatal("expected --exclude-expired flag to be defined")
+	}
+	if !strings.Contains(excludeExpiredFlag.Usage, "expired") {
+		t.Fatalf("expected --exclude-expired usage to mention expired builds, got %q", excludeExpiredFlag.Usage)
+	}
+
+	if cmd.FlagSet.Lookup("not-expired") == nil {
+		t.Fatal("expected --not-expired alias to be defined")
+	}
+	if !strings.Contains(cmd.LongHelp, "--exclude-expired") {
+		t.Fatalf("expected long help to include --exclude-expired example, got %q", cmd.LongHelp)
+	}
+}
+
 func TestNormalizeBuildProcessingStateFilter(t *testing.T) {
 	tests := []struct {
 		name    string
