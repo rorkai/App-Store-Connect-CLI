@@ -239,10 +239,11 @@ type winBackOfferPricesQuery struct {
 
 type appStoreVersionsQuery struct {
 	listQuery
-	platforms      []string
-	versionStrings []string
-	states         []string
-	include        []string
+	platforms        []string
+	versionStrings   []string
+	states           []string
+	appVersionStates []string
+	include          []string
 }
 
 type appStoreVersionQuery struct {
@@ -1317,6 +1318,7 @@ func buildAppStoreVersionsQuery(query *appStoreVersionsQuery) string {
 	addCSV(values, "filter[platform]", query.platforms)
 	addCSV(values, "filter[versionString]", query.versionStrings)
 	addCSV(values, "filter[appStoreState]", query.states)
+	addCSV(values, "filter[appVersionState]", query.appVersionStates)
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()

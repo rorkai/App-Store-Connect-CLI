@@ -782,6 +782,7 @@ func TestBuildAppStoreVersionsQuery(t *testing.T) {
 		WithAppStoreVersionsPlatforms([]string{"ios", "MAC_OS"}),
 		WithAppStoreVersionsVersionStrings([]string{"1.0.0", "1.1.0"}),
 		WithAppStoreVersionsStates([]string{"ready_for_review"}),
+		WithAppStoreVersionsVersionStates([]string{"ready_for_distribution"}),
 		WithAppStoreVersionsInclude([]string{"appStoreReviewDetail"}),
 	}
 	for _, opt := range opts {
@@ -800,6 +801,9 @@ func TestBuildAppStoreVersionsQuery(t *testing.T) {
 	}
 	if got := values.Get("filter[appStoreState]"); got != "READY_FOR_REVIEW" {
 		t.Fatalf("expected filter[appStoreState]=READY_FOR_REVIEW, got %q", got)
+	}
+	if got := values.Get("filter[appVersionState]"); got != "READY_FOR_DISTRIBUTION" {
+		t.Fatalf("expected filter[appVersionState]=READY_FOR_DISTRIBUTION, got %q", got)
 	}
 	if got := values.Get("include"); got != "appStoreReviewDetail" {
 		t.Fatalf("expected include=appStoreReviewDetail, got %q", got)

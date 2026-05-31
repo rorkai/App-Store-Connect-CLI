@@ -1368,6 +1368,9 @@ func TestGetAppStoreVersions_WithFilters(t *testing.T) {
 		if values.Get("filter[appStoreState]") != "READY_FOR_REVIEW" {
 			t.Fatalf("expected filter[appStoreState]=READY_FOR_REVIEW, got %q", values.Get("filter[appStoreState]"))
 		}
+		if values.Get("filter[appVersionState]") != "READY_FOR_DISTRIBUTION" {
+			t.Fatalf("expected filter[appVersionState]=READY_FOR_DISTRIBUTION, got %q", values.Get("filter[appVersionState]"))
+		}
 		if values.Get("limit") != "5" {
 			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
 		}
@@ -1381,6 +1384,7 @@ func TestGetAppStoreVersions_WithFilters(t *testing.T) {
 		WithAppStoreVersionsPlatforms([]string{"IOS"}),
 		WithAppStoreVersionsVersionStrings([]string{"1.0.0"}),
 		WithAppStoreVersionsStates([]string{"READY_FOR_REVIEW"}),
+		WithAppStoreVersionsVersionStates([]string{"READY_FOR_DISTRIBUTION"}),
 	); err != nil {
 		t.Fatalf("GetAppStoreVersions() error: %v", err)
 	}

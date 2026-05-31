@@ -1697,10 +1697,34 @@ func WithAppStoreVersionsVersionStrings(versions []string) AppStoreVersionsOptio
 	}
 }
 
-// WithAppStoreVersionsStates filters versions by app store state.
+// WithAppStoreVersionsStates filters versions by state. Deprecated app store
+// states are sent as filter[appStoreState]; modern version-only states use
+// filter[appVersionState].
 func WithAppStoreVersionsStates(states []string) AppStoreVersionsOption {
 	return func(q *appStoreVersionsQuery) {
-		q.states = normalizeUpperList(states)
+		for _, state := range normalizeUpperList(states) {
+			if isAppVersionStateOnly(state) {
+				q.appVersionStates = append(q.appVersionStates, state)
+				continue
+			}
+			q.states = append(q.states, state)
+		}
+	}
+}
+
+// WithAppStoreVersionsVersionStates filters versions by app version state.
+func WithAppStoreVersionsVersionStates(states []string) AppStoreVersionsOption {
+	return func(q *appStoreVersionsQuery) {
+		q.appVersionStates = normalizeUpperList(states)
+	}
+}
+
+func isAppVersionStateOnly(state string) bool {
+	switch state {
+	case "PROCESSING_FOR_DISTRIBUTION", "READY_FOR_DISTRIBUTION":
+		return true
+	default:
+		return false
 	}
 }
 
