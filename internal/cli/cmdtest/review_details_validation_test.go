@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestReviewDetailsCreateRejectsDemoAccountRequiredWithoutCredentials(t *testing.T) {
@@ -234,6 +236,54 @@ func TestReviewDetailsUpdateRejectsOverlongDemoAccountPassword(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "--demo-account-password must be 100 characters or fewer") {
 		t.Fatalf("expected local demo account password length error, got %q", stderr)
+	}
+}
+
+func TestRunReviewDetailsRejectsOverlongDemoAccountPasswordWithUsageExit(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "details-create",
+			args: []string{
+				"review", "details-create",
+				"--version-id", "version-1",
+				"--demo-account-password", strings.Repeat("p", 101),
+			},
+		},
+		{
+			name: "details-update",
+			args: []string{
+				"review", "details-update",
+				"--id", "detail-1",
+				"--demo-account-password", strings.Repeat("p", 101),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := captureOutput(t, func() {
+				code := cmd.Run(test.args, "1.2.3")
+				if code != cmd.ExitUsage {
+					t.Fatalf("expected exit code %d, got %d", cmd.ExitUsage, code)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "--demo-account-password must be 100 characters or fewer") {
+				t.Fatalf("expected local demo account password length error, got %q", stderr)
+			}
+		})
 	}
 }
 

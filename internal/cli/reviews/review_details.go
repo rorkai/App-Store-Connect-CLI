@@ -16,7 +16,7 @@ import (
 
 const (
 	reviewDetailDemoAccountNameUsage     = "Demo account name when demo credentials are required"
-	reviewDetailDemoAccountPasswordUsage = "Demo account password when demo credentials are required"
+	reviewDetailDemoAccountPasswordUsage = "Demo account password when demo credentials are required; 100 characters or fewer"
 	reviewDetailDemoAccountRequiredUsage = "Set true only when App Review needs demo credentials; leave false when reviewer guidance in --notes is enough"
 	reviewDetailNotesUsage               = "Review notes for reviewer instructions or context; supplemental when demo credentials are required"
 	reviewDetailDemoCredentialsError     = "Error: --demo-account-required=true requires both --demo-account-name and --demo-account-password"
