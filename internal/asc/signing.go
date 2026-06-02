@@ -173,7 +173,8 @@ type CertificateResponse = SingleResponse[CertificateAttributes]
 type ProfileState string
 
 const (
-	ProfileStateActive ProfileState = "ACTIVE"
+	ProfileStateActive  ProfileState = "ACTIVE"
+	ProfileStateInvalid ProfileState = "INVALID"
 )
 
 // ProfileAttributes describes a profile resource.

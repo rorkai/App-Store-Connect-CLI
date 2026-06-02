@@ -59,6 +59,7 @@ func ProfilesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	profileType := fs.String("profile-type", "", "Filter by profile type(s), comma-separated")
+	profileState := fs.String("profile-state", "", "Filter by profile state(s): ACTIVE, INVALID (default: ACTIVE,INVALID)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -73,6 +74,7 @@ func ProfilesListCommand() *ffcli.Command {
 Examples:
   asc profiles list
   asc profiles list --profile-type IOS_APP_DEVELOPMENT
+  asc profiles list --profile-state INVALID
   asc profiles list --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -85,6 +87,10 @@ Examples:
 			}
 
 			profileTypes := shared.SplitCSVUpper(*profileType)
+			profileStates, err := normalizeProfileStates(*profileState)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -97,6 +103,7 @@ Examples:
 			opts := []asc.ProfilesOption{
 				asc.WithProfilesLimit(*limit),
 				asc.WithProfilesNextURL(*next),
+				asc.WithProfilesStates(profileStates),
 			}
 			if len(profileTypes) > 0 {
 				opts = append(opts, asc.WithProfilesTypes(profileTypes))
@@ -401,4 +408,29 @@ func normalizeProfileInclude(value string) ([]string, error) {
 
 func profileIncludeList() []string {
 	return []string{"bundleId", "certificates", "devices"}
+}
+
+func normalizeProfileStates(value string) ([]string, error) {
+	states := shared.SplitCSVUpper(value)
+	if len(states) == 0 {
+		return defaultProfileStates(), nil
+	}
+	allowed := map[string]struct{}{}
+	for _, item := range profileStateList() {
+		allowed[item] = struct{}{}
+	}
+	for _, item := range states {
+		if _, ok := allowed[item]; !ok {
+			return nil, fmt.Errorf("--profile-state must be one of: %s", strings.Join(profileStateList(), ", "))
+		}
+	}
+	return states, nil
+}
+
+func defaultProfileStates() []string {
+	return []string{string(asc.ProfileStateActive), string(asc.ProfileStateInvalid)}
+}
+
+func profileStateList() []string {
+	return []string{string(asc.ProfileStateActive), string(asc.ProfileStateInvalid)}
 }

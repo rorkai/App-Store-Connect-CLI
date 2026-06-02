@@ -7189,6 +7189,9 @@ func TestGetProfiles_WithFilter(t *testing.T) {
 		if values.Get("filter[profileType]") != "IOS_APP_DEVELOPMENT,IOS_APP_STORE" {
 			t.Fatalf("expected filter[profileType] to be set, got %q", values.Get("filter[profileType]"))
 		}
+		if values.Get("filter[profileState]") != "ACTIVE,INVALID" {
+			t.Fatalf("expected filter[profileState] to be set, got %q", values.Get("filter[profileState]"))
+		}
 		if values.Get("limit") != "5" {
 			t.Fatalf("expected limit=5, got %q", values.Get("limit"))
 		}
@@ -7198,6 +7201,7 @@ func TestGetProfiles_WithFilter(t *testing.T) {
 	if _, err := client.GetProfiles(
 		context.Background(),
 		WithProfilesTypes([]string{"IOS_APP_DEVELOPMENT", "IOS_APP_STORE"}),
+		WithProfilesStates([]string{"ACTIVE", "INVALID"}),
 		WithProfilesLimit(5),
 	); err != nil {
 		t.Fatalf("GetProfiles() error: %v", err)

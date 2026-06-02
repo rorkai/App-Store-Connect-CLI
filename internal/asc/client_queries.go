@@ -464,9 +464,10 @@ type merchantIDCertificatesQuery struct {
 
 type profilesQuery struct {
 	listQuery
-	bundleID     string
-	profileTypes []string
-	include      []string
+	bundleID      string
+	profileTypes  []string
+	profileStates []string
+	include       []string
 }
 
 type usersQuery struct {
@@ -974,6 +975,7 @@ func buildProfilesQuery(query *profilesQuery) string {
 		values.Set("filter[bundleId]", strings.TrimSpace(query.bundleID))
 	}
 	addCSV(values, "filter[profileType]", query.profileTypes)
+	addCSV(values, "filter[profileState]", query.profileStates)
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()

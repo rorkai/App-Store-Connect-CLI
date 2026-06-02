@@ -2552,6 +2552,13 @@ func WithProfilesTypes(types []string) ProfilesOption {
 	}
 }
 
+// WithProfilesStates filters profiles by profile state.
+func WithProfilesStates(states []string) ProfilesOption {
+	return func(q *profilesQuery) {
+		q.profileStates = normalizeUpperList(states)
+	}
+}
+
 // WithProfilesInclude sets include for profile responses.
 func WithProfilesInclude(include []string) ProfilesOption {
 	return func(q *profilesQuery) {
