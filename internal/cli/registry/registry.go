@@ -68,6 +68,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/status"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/submit"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
+	telemetrycmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/telemetry"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/testflight"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/users"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
@@ -176,6 +177,7 @@ func Subcommands(version string) []*ffcli.Command {
 		gamecenter.GameCenterCommand(),
 		capabilities.Command(),
 		schema.SchemaCommand(),
+		telemetrycmd.TelemetryCommand(),
 		searchcmd.SearchCommand(func() []*ffcli.Command { return subs }),
 		snitch.SnitchCommand(version),
 		VersionCommand(version),

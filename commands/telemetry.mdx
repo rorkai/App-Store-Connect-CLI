@@ -1,0 +1,125 @@
+# telemetry
+
+> Manage anonymous CLI telemetry settings
+
+The `telemetry` command controls anonymous product telemetry for the CLI.
+Telemetry records coarse command-level usage so maintainers can understand which
+commands are used, which versions are active, and where reliability work is
+needed.
+
+Telemetry does **not** collect raw arguments, Apple account identifiers, team
+IDs, issuer IDs, key IDs, app IDs, bundle IDs, usernames, hostnames, repository
+names, IP addresses, user-agent strings, or file paths.
+
+## Usage
+
+```bash  theme={null}
+asc telemetry <subcommand>
+```
+
+## Subcommands
+
+<ParamField path="status">
+  Show whether telemetry is enabled, the local state path, endpoint, and the
+  anonymous local install ID when one exists.
+</ParamField>
+
+<ParamField path="enable">
+  Enable anonymous telemetry in local CLI state.
+</ParamField>
+
+<ParamField path="disable">
+  Disable anonymous telemetry in local CLI state.
+</ParamField>
+
+<ParamField path="reset-id">
+  Reset the anonymous local install ID.
+</ParamField>
+
+## Examples
+
+```bash  theme={null}
+asc telemetry status
+asc telemetry status --output json
+asc telemetry disable
+asc telemetry enable
+asc telemetry reset-id
+```
+
+## Environment Controls
+
+<ParamField path="ASC_TELEMETRY_DISABLED" type="boolean">
+  Disable telemetry for the current process when set to `true`, `1`, `yes`,
+  `y`, or `on`.
+</ParamField>
+
+<ParamField path="DO_NOT_TRACK" type="boolean">
+  Disable telemetry for the current process when set to `true`, `1`, `yes`,
+  `y`, or `on`.
+</ParamField>
+
+<ParamField path="ASC_TELEMETRY_ENDPOINT" type="string">
+  Override the telemetry collector endpoint. The endpoint must be HTTPS.
+</ParamField>
+
+## Event Payload
+
+The CLI sends a single best-effort JSON event after command completion:
+
+```json
+{
+  "event_id": "2d2f86dd-6d75-4a6f-b97f-a6ce15d4bc79",
+  "schema_version": 1,
+  "asc_version": "1.13.0",
+  "os": "darwin",
+  "arch": "arm64",
+  "command_path": "asc builds list",
+  "command_family": "builds",
+  "duration_ms": 842,
+  "duration_bucket": "500ms_1s",
+  "exit_code": 0,
+  "success": true,
+  "execution_context": "local",
+  "install_id": "5fd9bf39-2e0d-45c1-8e4a-b65a58159ed7",
+  "session_id": "ac8062e3-e6d2-4301-8d08-bb444cd55004"
+}
+```
+
+The `install_id` is only sent for `local` execution context. For CI, agent, and
+sandbox contexts it is `null`, so ephemeral machines do not inflate local active
+install metrics.
+
+## Collector Contract
+
+Collectors should accept `POST /asc/v1/events`, validate the event schema, add
+server-side receive metadata, and insert accepted events into analytics storage.
+Collector credentials must never be shipped in the CLI.
+
+Recommended ClickHouse table:
+
+```sql
+CREATE TABLE asc_cli_events
+(
+  received_at DateTime64(3, 'UTC') DEFAULT now64(3),
+  event_date Date MATERIALIZED toDate(received_at),
+  event_id UUID,
+  schema_version UInt8,
+  asc_version String,
+  os LowCardinality(String),
+  arch LowCardinality(String),
+  command_path LowCardinality(String),
+  command_family LowCardinality(String),
+  duration_ms UInt32,
+  duration_bucket LowCardinality(String),
+  exit_code Int16,
+  success Bool,
+  execution_context LowCardinality(String),
+  install_id Nullable(UUID),
+  session_id UUID,
+  source LowCardinality(String),
+  collector_version LowCardinality(String)
+)
+ENGINE = MergeTree
+PARTITION BY toYYYYMM(event_date)
+ORDER BY (event_date, execution_context, command_family, asc_version);
+```

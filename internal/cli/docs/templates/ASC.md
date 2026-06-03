@@ -198,6 +198,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `completion` - Print shell completion scripts.
 - `schema` - Inspect App Store Connect API endpoint schemas at runtime.
 - `snitch` - Report CLI friction as a GitHub issue.
+- `telemetry` - Manage anonymous CLI telemetry settings.
 
 ## Global Flags
 

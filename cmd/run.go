@@ -15,6 +15,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/install"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/telemetry"
 )
 
 var maybeCheckForSkillUpdates = install.MaybeCheckForSkillUpdates
@@ -88,6 +89,7 @@ func Run(args []string, versionInfo string) int {
 			// Report write failure is a hard error - CI depends on it
 			fmt.Fprintf(os.Stderr, "Error: failed to write JUnit report: %v\n", reportErr)
 			if runErr == nil {
+				telemetry.Emit(args, commandName, versionInfo, elapsed, ExitError)
 				return ExitError
 			}
 		}
@@ -95,15 +97,20 @@ func Run(args []string, versionInfo string) int {
 
 	if runErr != nil {
 		if _, ok := errors.AsType[shared.ReportedError](runErr); ok {
-			return ExitCodeFromError(runErr)
+			exitCode := ExitCodeFromError(runErr)
+			telemetry.Emit(args, commandName, versionInfo, elapsed, exitCode)
+			return exitCode
 		}
 		if errors.Is(runErr, flag.ErrHelp) {
 			return ExitUsage
 		}
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(runErr))
-		return ExitCodeFromError(runErr)
+		exitCode := ExitCodeFromError(runErr)
+		telemetry.Emit(args, commandName, versionInfo, elapsed, exitCode)
+		return exitCode
 	}
 
+	telemetry.Emit(args, commandName, versionInfo, elapsed, ExitSuccess)
 	return ExitSuccess
 }
 

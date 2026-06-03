@@ -17,6 +17,7 @@ func TestMain(m *testing.M) {
 
 	_ = os.Setenv("ASC_CONFIG_PATH", testConfigPath)
 	_ = os.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	_ = os.Setenv("ASC_TELEMETRY_DISABLED", "1")
 	_ = os.Setenv("HOME", tempDir)
 
 	code := m.Run()

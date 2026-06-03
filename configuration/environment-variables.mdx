@@ -188,6 +188,26 @@ Configure default output formats.
   Explicit `--output` flags always override this variable.
 </ParamField>
 
+## Telemetry variables
+
+Configure anonymous command-level CLI telemetry.
+
+<ParamField path="ASC_TELEMETRY_DISABLED" type="boolean">
+  Disable anonymous telemetry for the current process
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to disable telemetry.
+</ParamField>
+
+<ParamField path="DO_NOT_TRACK" type="boolean">
+  Disable anonymous telemetry for the current process
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to disable telemetry.
+</ParamField>
+
+<ParamField path="ASC_TELEMETRY_ENDPOINT" type="string">
+  Override the HTTPS telemetry collector endpoint.
+</ParamField>
+
 ## Configuration path
 
 <ParamField path="ASC_CONFIG_PATH" type="string">
