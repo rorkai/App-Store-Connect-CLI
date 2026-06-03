@@ -3,6 +3,7 @@ package telemetry
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -77,6 +78,45 @@ func TestReadStatusHonorsOptOuts(t *testing.T) {
 	}
 	if status.Enabled || status.Reason != "DO_NOT_TRACK" {
 		t.Fatalf("expected DO_NOT_TRACK-disabled status, got %+v", status)
+	}
+}
+
+func TestConcurrentStateUpdatesPreserveOptOutAndInstallID(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ASC_TELEMETRY_DISABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+
+	var wg sync.WaitGroup
+	errs := make(chan error, 100)
+	for i := 0; i < 50; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			_, err := EnsureInstallID()
+			errs <- err
+		}()
+		go func() {
+			defer wg.Done()
+			errs <- SetEnabled(false)
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent state update failed: %v", err)
+		}
+	}
+
+	status, err := ReadStatus()
+	if err != nil {
+		t.Fatalf("ReadStatus() error = %v", err)
+	}
+	if status.Enabled || status.Reason != "state" {
+		t.Fatalf("expected opt-out to survive concurrent updates, got %+v", status)
+	}
+	if status.InstallID == "" {
+		t.Fatalf("expected install ID to survive concurrent updates, got %+v", status)
 	}
 }
 

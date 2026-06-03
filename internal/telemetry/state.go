@@ -15,6 +15,7 @@ import (
 const (
 	stateDirName  = ".asc"
 	stateFileName = "telemetry.json"
+	lockTimeout   = 2 * time.Second
 )
 
 type State struct {
@@ -63,18 +64,18 @@ func EnsureInstallID() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	st, err := loadState(path)
-	if err != nil {
+
+	var installID string
+	if err := updateState(path, func(st *State) error {
+		if strings.TrimSpace(st.InstallID) == "" {
+			st.InstallID = uuid.NewString()
+		}
+		installID = st.InstallID
+		return nil
+	}); err != nil {
 		return "", err
 	}
-	if strings.TrimSpace(st.InstallID) != "" {
-		return st.InstallID, nil
-	}
-	st.InstallID = uuid.NewString()
-	if err := saveState(path, st); err != nil {
-		return "", err
-	}
-	return st.InstallID, nil
+	return installID, nil
 }
 
 func SetEnabled(enabled bool) error {
@@ -82,12 +83,10 @@ func SetEnabled(enabled bool) error {
 	if err != nil {
 		return err
 	}
-	st, err := loadState(path)
-	if err != nil {
-		return err
-	}
-	st.Disabled = !enabled
-	return saveState(path, st)
+	return updateState(path, func(st *State) error {
+		st.Disabled = !enabled
+		return nil
+	})
 }
 
 func ResetInstallID() (string, error) {
@@ -95,15 +94,16 @@ func ResetInstallID() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	st, err := loadState(path)
-	if err != nil {
+
+	var installID string
+	if err := updateState(path, func(st *State) error {
+		st.InstallID = uuid.NewString()
+		installID = st.InstallID
+		return nil
+	}); err != nil {
 		return "", err
 	}
-	st.InstallID = uuid.NewString()
-	if err := saveState(path, st); err != nil {
-		return "", err
-	}
-	return st.InstallID, nil
+	return installID, nil
 }
 
 func loadState(path string) (State, error) {
@@ -126,6 +126,43 @@ func loadState(path string) (State, error) {
 	return st, nil
 }
 
+func updateState(path string, mutate func(*State) error) error {
+	unlock, err := lockState(path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	st, err := loadState(path)
+	if err != nil {
+		return err
+	}
+	if err := mutate(&st); err != nil {
+		return err
+	}
+	return saveState(path, st)
+}
+
+func lockState(path string) (func(), error) {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("telemetry: failed to create state directory: %w", err)
+	}
+	lockPath := path + ".lock"
+	deadline := time.Now().Add(lockTimeout)
+	for {
+		if err := os.Mkdir(lockPath, 0o700); err == nil {
+			return func() { _ = os.Remove(lockPath) }, nil
+		} else if !errors.Is(err, os.ErrExist) {
+			return nil, fmt.Errorf("telemetry: failed to lock state: %w", err)
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("telemetry: timed out locking state")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func saveState(path string, st State) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
@@ -137,10 +174,27 @@ func saveState(path string, st State) error {
 		return fmt.Errorf("telemetry: failed to encode state: %w", err)
 	}
 	data = append(data, '\n')
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	tmp, err := os.CreateTemp(dir, stateFileName+".*.tmp")
+	if err != nil {
+		return fmt.Errorf("telemetry: failed to create temp state: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer func() { _ = os.Remove(tmpPath) }()
+
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
 		return fmt.Errorf("telemetry: failed to write state: %w", err)
 	}
-	_ = os.Chmod(path, 0o600)
+	if err := tmp.Chmod(0o600); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("telemetry: failed to set state permissions: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("telemetry: failed to close state: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("telemetry: failed to replace state: %w", err)
+	}
 	return nil
 }
 
