@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -545,7 +546,13 @@ func TestGetAppAvailabilityV2ByID_RequiresID(t *testing.T) {
 func TestGetTerritoryAvailabilities(t *testing.T) {
 	resp := TerritoryAvailabilitiesResponse{
 		Data: []Resource[TerritoryAvailabilityAttributes]{
-			{Type: ResourceTypeTerritoryAvailabilities, ID: "ta-1"},
+			{
+				Type: ResourceTypeTerritoryAvailabilities,
+				ID:   "ta-1",
+				Attributes: TerritoryAvailabilityAttributes{
+					ContentStatuses: []string{"BRAZIL_GAMBLING_NOT_VERIFIED"},
+				},
+			},
 		},
 	}
 	body, _ := json.Marshal(resp)
@@ -559,13 +566,17 @@ func TestGetTerritoryAvailabilities(t *testing.T) {
 		if query.Get("include") != "territory" {
 			t.Fatalf("expected include=territory, got %q", query.Get("include"))
 		}
-		if query.Get("fields[territoryAvailabilities]") != "available,releaseDate,preOrderEnabled,territory" {
+		if query.Get("fields[territoryAvailabilities]") != "available,releaseDate,preOrderEnabled,contentStatuses,territory" {
 			t.Fatalf("expected territory availability fields, got %q", query.Get("fields[territoryAvailabilities]"))
 		}
 	}, jsonResponse(http.StatusOK, string(body)))
 
-	if _, err := client.GetTerritoryAvailabilities(context.Background(), "availability-1"); err != nil {
+	got, err := client.GetTerritoryAvailabilities(context.Background(), "availability-1")
+	if err != nil {
 		t.Fatalf("GetTerritoryAvailabilities() error: %v", err)
+	}
+	if len(got.Data) != 1 || !slices.Contains(got.Data[0].Attributes.ContentStatuses, "BRAZIL_GAMBLING_NOT_VERIFIED") {
+		t.Fatalf("expected Brazil gambling status in response, got %#v", got.Data)
 	}
 }
 
