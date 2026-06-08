@@ -1,6 +1,9 @@
 package asc
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 func territoriesRows(resp *TerritoriesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Currency"}
@@ -51,7 +54,7 @@ func appAvailabilityRows(resp *AppAvailabilityV2Response) ([]string, [][]string)
 }
 
 func territoryAvailabilitiesRows(resp *TerritoryAvailabilitiesResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Available", "Release Date", "Preorder Enabled"}
+	headers := []string{"ID", "Available", "Release Date", "Preorder Enabled", "Content Statuses"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{
@@ -59,6 +62,7 @@ func territoryAvailabilitiesRows(resp *TerritoryAvailabilitiesResponse) ([]strin
 			fmt.Sprintf("%t", item.Attributes.Available),
 			compactWhitespace(item.Attributes.ReleaseDate),
 			fmt.Sprintf("%t", item.Attributes.PreOrderEnabled),
+			compactWhitespace(strings.Join(item.Attributes.ContentStatuses, ", ")),
 		})
 	}
 	return headers, rows

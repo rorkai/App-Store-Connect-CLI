@@ -30,9 +30,10 @@ type AppAvailabilityV2Attributes struct {
 
 // TerritoryAvailabilityAttributes describes availability for a territory.
 type TerritoryAvailabilityAttributes struct {
-	Available       bool   `json:"available"`
-	ReleaseDate     string `json:"releaseDate,omitempty"`
-	PreOrderEnabled bool   `json:"preOrderEnabled,omitempty"`
+	Available       bool     `json:"available"`
+	ReleaseDate     string   `json:"releaseDate,omitempty"`
+	PreOrderEnabled bool     `json:"preOrderEnabled,omitempty"`
+	ContentStatuses []string `json:"contentStatuses,omitempty"`
 }
 
 // Response types

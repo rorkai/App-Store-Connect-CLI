@@ -214329,6 +214329,7 @@
                     "MISSING_RATING",
                     "CANNOT_SELL_RESTRICTED_RATING",
                     "BRAZIL_REQUIRED_TAX_ID",
+                    "BRAZIL_GAMBLING_NOT_VERIFIED",
                     "MISSING_GRN",
                     "UNVERIFIED_GRN",
                     "ICP_NUMBER_INVALID",
