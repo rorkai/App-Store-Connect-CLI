@@ -13,8 +13,8 @@ import (
 func TestPricingAvailabilityTerritoryAvailabilitiesPaginate(t *testing.T) {
 	setupAuth(t)
 
-	const firstURL = "https://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?fields%5BterritoryAvailabilities%5D=available%2CreleaseDate%2CpreOrderEnabled%2Cterritory&include=territory&limit=200"
-	const secondURL = "https://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?fields%5BterritoryAvailabilities%5D=available%2CreleaseDate%2CpreOrderEnabled%2Cterritory&include=territory&cursor=Mg"
+	const firstURL = "https://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?fields%5BterritoryAvailabilities%5D=available%2CreleaseDate%2CpreOrderEnabled%2CcontentStatuses%2Cterritory&include=territory&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?fields%5BterritoryAvailabilities%5D=available%2CreleaseDate%2CpreOrderEnabled%2CcontentStatuses%2Cterritory&include=territory&cursor=Mg"
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
@@ -125,7 +125,7 @@ func TestPricingAvailabilityTerritoryAvailabilitiesLimit(t *testing.T) {
 func TestPricingAvailabilityTerritoryAvailabilitiesNext(t *testing.T) {
 	setupAuth(t)
 
-	const nextURL = "https://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?fields%5BterritoryAvailabilities%5D=available%2CreleaseDate%2CpreOrderEnabled%2Cterritory&include=territory&cursor=Mg"
+	const nextURL = "https://api.appstoreconnect.apple.com/v2/appAvailabilities/availability-1/territoryAvailabilities?fields%5BterritoryAvailabilities%5D=available%2CreleaseDate%2CpreOrderEnabled%2CcontentStatuses%2Cterritory&include=territory&cursor=Mg"
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() {
