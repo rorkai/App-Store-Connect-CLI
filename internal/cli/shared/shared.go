@@ -486,6 +486,10 @@ func resolveCredentialsForProfile(profileOverride string) (resolvedCredentials, 
 		}
 		return resolvedCredentials{}, missingAuthError{msg: "missing authentication. Run 'asc auth login' or 'asc auth init'"}
 	}
+	if config.IsIndividualCredentialKeyType(actualKeyType) {
+		actualIssuerID = ""
+		sources.issuerID = ""
+	}
 	if err := checkMixedCredentialSources(sources); err != nil {
 		return resolvedCredentials{}, err
 	}
