@@ -166,6 +166,7 @@ var perfPowerMetricTypes = map[string]struct{}{
 	string(asc.PerfPowerMetricTypeMemory):      {},
 	string(asc.PerfPowerMetricTypeAnimation):   {},
 	string(asc.PerfPowerMetricTypeTermination): {},
+	string(asc.PerfPowerMetricTypeStorage):     {},
 }
 
 func perfPowerMetricTypeList() []string {
@@ -176,6 +177,7 @@ func perfPowerMetricTypeList() []string {
 		string(asc.PerfPowerMetricTypeHang),
 		string(asc.PerfPowerMetricTypeLaunch),
 		string(asc.PerfPowerMetricTypeMemory),
+		string(asc.PerfPowerMetricTypeStorage),
 		string(asc.PerfPowerMetricTypeTermination),
 	}
 }

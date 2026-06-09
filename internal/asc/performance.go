@@ -13,6 +13,7 @@ const (
 	PerfPowerMetricTypeMemory      PerfPowerMetricType = "MEMORY"
 	PerfPowerMetricTypeAnimation   PerfPowerMetricType = "ANIMATION"
 	PerfPowerMetricTypeTermination PerfPowerMetricType = "TERMINATION"
+	PerfPowerMetricTypeStorage     PerfPowerMetricType = "STORAGE"
 )
 
 // DiagnosticSignatureType represents a diagnostic signature category.
