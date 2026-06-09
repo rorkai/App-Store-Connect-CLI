@@ -210,10 +210,12 @@ type backgroundAssetsQuery struct {
 	listQuery
 	archived             []string
 	assetPackIdentifiers []string
+	versionsLocales      []string
 }
 
 type backgroundAssetVersionsQuery struct {
 	listQuery
+	locales []string
 }
 
 type backgroundAssetUploadFilesQuery struct {
@@ -1268,12 +1270,14 @@ func buildBackgroundAssetsQuery(query *backgroundAssetsQuery) string {
 	values := url.Values{}
 	addCSV(values, "filter[archived]", query.archived)
 	addCSV(values, "filter[assetPackIdentifier]", query.assetPackIdentifiers)
+	addCSV(values, "filter[versions.locale]", query.versionsLocales)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
 
 func buildBackgroundAssetVersionsQuery(query *backgroundAssetVersionsQuery) string {
 	values := url.Values{}
+	addCSV(values, "filter[locale]", query.locales)
 	addLimit(values, query.limit)
 	return values.Encode()
 }

@@ -27,6 +27,9 @@ func TestGetBackgroundAssets_SendsRequest(t *testing.T) {
 		if values.Get("filter[assetPackIdentifier]") != "pack-1,pack-2" {
 			t.Fatalf("expected filter[assetPackIdentifier]=pack-1,pack-2, got %q", values.Get("filter[assetPackIdentifier]"))
 		}
+		if values.Get("filter[versions.locale]") != "en-US,ja" {
+			t.Fatalf("expected filter[versions.locale]=en-US,ja, got %q", values.Get("filter[versions.locale]"))
+		}
 		assertAuthorized(t, req)
 	}, response)
 
@@ -36,6 +39,7 @@ func TestGetBackgroundAssets_SendsRequest(t *testing.T) {
 		WithBackgroundAssetsLimit(5),
 		WithBackgroundAssetsFilterArchived([]string{"true"}),
 		WithBackgroundAssetsFilterAssetPackIdentifier([]string{"pack-1", "pack-2"}),
+		WithBackgroundAssetsFilterVersionsLocale([]string{"en-US", "ja"}),
 	)
 	if err != nil {
 		t.Fatalf("GetBackgroundAssets() error: %v", err)
@@ -145,10 +149,13 @@ func TestGetBackgroundAssetVersions_SendsRequest(t *testing.T) {
 		if values.Get("limit") != "10" {
 			t.Fatalf("expected limit=10, got %q", values.Get("limit"))
 		}
+		if values.Get("filter[locale]") != "en-US" {
+			t.Fatalf("expected filter[locale]=en-US, got %q", values.Get("filter[locale]"))
+		}
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetBackgroundAssetVersions(context.Background(), "asset-1", WithBackgroundAssetVersionsLimit(10)); err != nil {
+	if _, err := client.GetBackgroundAssetVersions(context.Background(), "asset-1", WithBackgroundAssetVersionsLimit(10), WithBackgroundAssetVersionsFilterLocale([]string{"en-US"})); err != nil {
 		t.Fatalf("GetBackgroundAssetVersions() error: %v", err)
 	}
 }
