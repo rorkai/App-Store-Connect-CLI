@@ -340,12 +340,13 @@ func validateStoredCredential(ctx context.Context, cred authsvc.Credential) erro
 		client     *asc.Client
 		err        error
 	)
+	signingIssuerID := credentialSigningIssuerID(cred)
 	if pemValue := strings.TrimSpace(cred.PrivateKeyPEM); pemValue != "" {
 		privateKey, err = authsvc.LoadPrivateKeyFromPEM([]byte(pemValue))
 		if err != nil {
 			return fmt.Errorf("invalid private key: %w", err)
 		}
-		client, err = asc.NewClientFromPEM(cred.KeyID, cred.IssuerID, pemValue)
+		client, err = asc.NewClientFromPEM(cred.KeyID, signingIssuerID, pemValue)
 		if err != nil {
 			return err
 		}
@@ -357,12 +358,12 @@ func validateStoredCredential(ctx context.Context, cred authsvc.Credential) erro
 		if err != nil {
 			return fmt.Errorf("failed to load private key: %w", err)
 		}
-		client, err = asc.NewClient(cred.KeyID, cred.IssuerID, cred.PrivateKeyPath)
+		client, err = asc.NewClient(cred.KeyID, signingIssuerID, cred.PrivateKeyPath)
 		if err != nil {
 			return err
 		}
 	}
-	if _, err := asc.GenerateJWT(cred.KeyID, cred.IssuerID, privateKey); err != nil {
+	if _, err := asc.GenerateJWT(cred.KeyID, signingIssuerID, privateKey); err != nil {
 		return fmt.Errorf("failed to generate JWT: %w", err)
 	}
 	if _, err := client.GetApps(ctx, asc.WithAppsLimit(1)); err != nil {
@@ -372,6 +373,13 @@ func validateStoredCredential(ctx context.Context, cred authsvc.Credential) erro
 		return err
 	}
 	return nil
+}
+
+func credentialSigningIssuerID(cred authsvc.Credential) string {
+	if config.IsIndividualCredentialKeyType(cred.KeyType) {
+		return ""
+	}
+	return cred.IssuerID
 }
 
 func validateLoginCredentials(ctx context.Context, keyID, issuerID, keyPath string, network bool) error {
@@ -929,15 +937,18 @@ Examples:
 			profile := shared.ResolveProfileName()
 			envKeyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
 			envIssuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
-			envKeyType := config.NormalizeCredentialKeyType(os.Getenv("ASC_KEY_TYPE"))
+			envKeyTypeRaw := strings.TrimSpace(os.Getenv("ASC_KEY_TYPE"))
+			envKeyType := config.NormalizeCredentialKeyType(envKeyTypeRaw)
+			envKeyTypeValid := envKeyTypeRaw == "" || config.IsValidCredentialKeyType(envKeyType)
 			hasKeyEnv := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")) != "" ||
 				strings.TrimSpace(os.Getenv(shared.PrivateKeyEnvVar)) != "" ||
 				strings.TrimSpace(os.Getenv(shared.PrivateKeyBase64EnvVar)) != ""
-			envProvided := envKeyID != "" || envIssuerID != "" || hasKeyEnv || strings.TrimSpace(os.Getenv("ASC_KEY_TYPE")) != ""
+			envProvided := envKeyID != "" || envIssuerID != "" || hasKeyEnv || envKeyTypeRaw != ""
 			envComplete := envKeyID != "" && hasKeyEnv &&
+				envKeyTypeValid &&
 				(envIssuerID != "" || config.IsIndividualCredentialKeyType(envKeyType))
 
-			environmentNote := authStatusEnvironmentNote(profile, bypassKeychain, envProvided, envComplete)
+			environmentNote := authStatusEnvironmentNote(profile, bypassKeychain, envProvided, envComplete, envKeyTypeValid)
 			if normalizedOutput == "table" && environmentNote != "" {
 				fmt.Println(environmentNote)
 			}
@@ -1035,12 +1046,15 @@ func defaultAuthStatusOutputFormat() string {
 	return "table"
 }
 
-func authStatusEnvironmentNote(profile string, bypassKeychain, envProvided, envComplete bool) string {
+func authStatusEnvironmentNote(profile string, bypassKeychain, envProvided, envComplete, envKeyTypeValid bool) string {
 	if profile != "" && envProvided {
 		return fmt.Sprintf("Profile %q selected; environment credentials will be ignored.", profile)
 	}
 	if !bypassKeychain || !envProvided {
 		return ""
+	}
+	if !envKeyTypeValid {
+		return "Environment credentials are incomplete. ASC_KEY_TYPE must be one of: team, individual."
 	}
 	if !envComplete {
 		return "Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID (unless ASC_KEY_TYPE=individual), and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64."

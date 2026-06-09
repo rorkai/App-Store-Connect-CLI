@@ -80,6 +80,24 @@ func TestDoctorEnvironmentRedactsCredentialIdentifiers(t *testing.T) {
 	}
 }
 
+func TestDoctorEnvironmentWarnsForInvalidKeyType(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	t.Setenv("ASC_KEY_ID", "ENVKEY")
+	t.Setenv("ASC_ISSUER_ID", "ENVISS")
+	t.Setenv("ASC_KEY_TYPE", "personal")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "/tmp/AuthKey.p8")
+
+	report := Doctor(DoctorOptions{})
+	section := findDoctorSection(t, report, "Environment")
+	if !sectionHasStatus(section, DoctorWarn, "ASC_KEY_TYPE is invalid") {
+		t.Fatalf("expected invalid ASC_KEY_TYPE warning, got %#v", section.Checks)
+	}
+	if !sectionHasStatus(section, DoctorWarn, "Environment credentials are incomplete") {
+		t.Fatalf("expected incomplete environment warning, got %#v", section.Checks)
+	}
+}
+
 func TestDoctorTempFilesWarns(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))

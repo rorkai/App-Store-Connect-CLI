@@ -388,13 +388,23 @@ func inspectEnvironment() DoctorSection {
 
 	keyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
 	issuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
-	keyType := config.NormalizeCredentialKeyType(os.Getenv("ASC_KEY_TYPE"))
+	keyTypeRaw := strings.TrimSpace(os.Getenv("ASC_KEY_TYPE"))
+	keyType := config.NormalizeCredentialKeyType(keyTypeRaw)
+	keyTypeValid := keyTypeRaw == "" || config.IsValidCredentialKeyType(keyType)
 	hasKeyPath := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")) != "" ||
 		strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY")) != "" ||
 		strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_B64")) != ""
-	envProvided := keyID != "" || issuerID != "" || hasKeyPath || strings.TrimSpace(os.Getenv("ASC_KEY_TYPE")) != ""
+	envProvided := keyID != "" || issuerID != "" || hasKeyPath || keyTypeRaw != ""
 	envComplete := keyID != "" && hasKeyPath &&
+		keyTypeValid &&
 		(issuerID != "" || config.IsIndividualCredentialKeyType(keyType))
+	if keyTypeRaw != "" && !keyTypeValid {
+		checks = append(checks, DoctorCheck{
+			Status:         DoctorWarn,
+			Message:        "ASC_KEY_TYPE is invalid (expected team or individual)",
+			Recommendation: "Set ASC_KEY_TYPE to team or individual, or clear it",
+		})
+	}
 	if envProvided && !envComplete {
 		checks = append(checks, DoctorCheck{
 			Status:         DoctorWarn,

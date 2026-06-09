@@ -940,6 +940,31 @@ func TestCheckMixedCredentialSourcesStrictAuthEnvErrors(t *testing.T) {
 	}
 }
 
+func TestCheckMixedCredentialSourcesIndividualStrictErrors(t *testing.T) {
+	previousStrict := strictAuth
+	strictAuth = true
+	t.Cleanup(func() {
+		strictAuth = previousStrict
+	})
+	t.Setenv(strictAuthEnvVar, "")
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := checkMixedCredentialSourcesForKeyType(credentialSource{
+			keyID:       "config",
+			keyMaterial: "env",
+		}, config.CredentialKeyTypeIndividual); err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
 func TestStrictAuthEnabled_EnvTruthyValues(t *testing.T) {
 	previousStrict := strictAuth
 	strictAuth = false

@@ -204,6 +204,43 @@ func TestAuthStatusOutputInvalidReturnsExitUsage(t *testing.T) {
 	}
 }
 
+func TestAuthStatusInvalidEnvKeyTypeMarksEnvironmentIncomplete(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "ENVKEY")
+	t.Setenv("ASC_ISSUER_ID", "ENVISS")
+	t.Setenv("ASC_KEY_TYPE", "personal")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "/tmp/AuthKey.p8")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = cmd.Run([]string{"auth", "status", "--output", "json"}, "1.0.0")
+	})
+	if code != cmd.ExitSuccess {
+		t.Fatalf("exit code = %d, want %d; stderr=%q", code, cmd.ExitSuccess, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var payload struct {
+		EnvironmentCredentialsComplete bool   `json:"environmentCredentialsComplete"`
+		EnvironmentNote                string `json:"environmentNote"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &payload); err != nil {
+		t.Fatalf("failed to unmarshal auth status json: %v; stdout=%q", err, stdout)
+	}
+	if payload.EnvironmentCredentialsComplete {
+		t.Fatalf("expected environmentCredentialsComplete=false, got true; stdout=%q", stdout)
+	}
+	if !strings.Contains(payload.EnvironmentNote, "ASC_KEY_TYPE must be one of: team, individual") {
+		t.Fatalf("expected invalid key type environment note, got %q", payload.EnvironmentNote)
+	}
+}
+
 func TestAuthStatusInvalidBypassWarningPrintedOnce(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")

@@ -490,7 +490,7 @@ func resolveCredentialsForProfile(profileOverride string) (resolvedCredentials, 
 		actualIssuerID = ""
 		sources.issuerID = ""
 	}
-	if err := checkMixedCredentialSources(sources); err != nil {
+	if err := checkMixedCredentialSourcesForKeyType(sources, actualKeyType); err != nil {
 		return resolvedCredentials{}, err
 	}
 
@@ -843,13 +843,34 @@ func ApplyRootLoggingOverrides() {
 }
 
 func checkMixedCredentialSources(sources credentialSource) error {
+	return checkMixedCredentialSourcesForKeyType(sources, config.CredentialKeyTypeTeam)
+}
+
+func checkMixedCredentialSourcesForKeyType(sources credentialSource, keyType string) error {
 	keyIDSource := strings.TrimSpace(sources.keyID)
 	issuerSource := strings.TrimSpace(sources.issuerID)
 	keyMaterialSource := strings.TrimSpace(sources.keyMaterial)
-	if keyIDSource == "" || issuerSource == "" || keyMaterialSource == "" {
+	if keyIDSource == "" || keyMaterialSource == "" {
 		return nil
 	}
-	if keyIDSource == issuerSource && issuerSource == keyMaterialSource {
+	if config.IsIndividualCredentialKeyType(keyType) {
+		if keyIDSource == keyMaterialSource {
+			return nil
+		}
+
+		message := fmt.Sprintf(
+			"Warning: credentials loaded from multiple sources:\n  Key ID: %s\n  Private Key: %s\n",
+			keyIDSource,
+			keyMaterialSource,
+		)
+		if strictAuthEnabled() {
+			return fmt.Errorf("mixed authentication sources detected:\n  Key ID: %s\n  Private Key: %s", keyIDSource, keyMaterialSource)
+		}
+		fmt.Fprint(os.Stderr, message)
+		return nil
+	}
+
+	if issuerSource == "" || keyIDSource == issuerSource && issuerSource == keyMaterialSource {
 		return nil
 	}
 

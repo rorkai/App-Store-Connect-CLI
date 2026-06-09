@@ -250,6 +250,25 @@ func TestValidateStoredCredential_UsesPEMWhenPathMissing(t *testing.T) {
 	}
 }
 
+func TestCredentialSigningIssuerIDClearsIndividualIssuer(t *testing.T) {
+	team := authsvc.Credential{
+		KeyID:    "KEY",
+		IssuerID: "ISS",
+	}
+	if got := credentialSigningIssuerID(team); got != "ISS" {
+		t.Fatalf("team signing issuer = %q, want ISS", got)
+	}
+
+	individual := authsvc.Credential{
+		KeyID:    "KEY",
+		IssuerID: "STRAYISS",
+		KeyType:  config.CredentialKeyTypeIndividual,
+	}
+	if got := credentialSigningIssuerID(individual); got != "" {
+		t.Fatalf("individual signing issuer = %q, want empty", got)
+	}
+}
+
 func TestValidateLoginCredentials(t *testing.T) {
 	keyPath := writeTempECDSAKeyFile(t)
 
