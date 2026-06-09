@@ -221,7 +221,7 @@ func inspectProfiles() DoctorSection {
 		if !isCompleteConfigCredential(cred) {
 			checks = append(checks, DoctorCheck{
 				Status:         DoctorWarn,
-				Message:        fmt.Sprintf("%s - incomplete (missing key ID, issuer ID, or private key path)", name),
+				Message:        fmt.Sprintf("%s - incomplete (missing key ID, issuer ID for team keys, or private key path)", name),
 				Recommendation: fmt.Sprintf("Re-run auth login for %q", name),
 			})
 		}
@@ -371,6 +371,7 @@ func inspectEnvironment() DoctorSection {
 		"ASC_PROFILE",
 		"ASC_BYPASS_KEYCHAIN",
 		"ASC_STRICT_AUTH",
+		"ASC_KEY_TYPE",
 	}
 	for _, name := range envVars {
 		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
@@ -387,15 +388,17 @@ func inspectEnvironment() DoctorSection {
 
 	keyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
 	issuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
+	keyType := config.NormalizeCredentialKeyType(os.Getenv("ASC_KEY_TYPE"))
 	hasKeyPath := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")) != "" ||
 		strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY")) != "" ||
 		strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_B64")) != ""
-	envProvided := keyID != "" || issuerID != "" || hasKeyPath
-	envComplete := keyID != "" && issuerID != "" && hasKeyPath
+	envProvided := keyID != "" || issuerID != "" || hasKeyPath || strings.TrimSpace(os.Getenv("ASC_KEY_TYPE")) != ""
+	envComplete := keyID != "" && hasKeyPath &&
+		(issuerID != "" || config.IsIndividualCredentialKeyType(keyType))
 	if envProvided && !envComplete {
 		checks = append(checks, DoctorCheck{
 			Status:         DoctorWarn,
-			Message:        "Environment credentials are incomplete (set ASC_KEY_ID, ASC_ISSUER_ID, and a private key)",
+			Message:        "Environment credentials are incomplete (set ASC_KEY_ID, ASC_ISSUER_ID unless ASC_KEY_TYPE=individual, and a private key)",
 			Recommendation: "Set missing ASC_* variables or clear partial values",
 		})
 	}

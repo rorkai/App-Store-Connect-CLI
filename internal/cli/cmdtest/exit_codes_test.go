@@ -296,6 +296,17 @@ func TestRun_UsageValidationErrorsReturnExitUsage(t *testing.T) {
 			wantErr: "--skip-validation and --network are mutually exclusive",
 		},
 		{
+			name: "auth login invalid key type",
+			args: []string{
+				"auth", "login",
+				"--name", "demo",
+				"--key-id", "KEY",
+				"--key-type", "personal",
+				"--private-key", "/tmp/AuthKey.p8",
+			},
+			wantErr: "--key-type must be one of: team, individual",
+		},
+		{
 			name:    "apps info view conflicting version flags",
 			args:    []string{"apps", "info", "view", "--app", "APP_ID", "--version", "1.0.0", "--version-id", "VERSION_ID"},
 			wantErr: "--version and --version-id are mutually exclusive",

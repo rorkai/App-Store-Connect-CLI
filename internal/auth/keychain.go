@@ -51,6 +51,7 @@ type Credential struct {
 	IssuerID              string    `json:"issuer_id"`
 	PrivateKeyPath        string    `json:"private_key_path"`
 	PrivateKeyPEM         string    `json:"-"`
+	KeyType               string    `json:"key_type,omitempty"`
 	IsDefault             bool      `json:"is_default"`
 	Source                string    `json:"source,omitempty"`
 	SourcePath            string    `json:"source_path,omitempty"`
@@ -108,11 +109,13 @@ type credentialPayload struct {
 	IssuerID       string `json:"issuer_id"`
 	PrivateKeyPath string `json:"private_key_path"`
 	PrivateKeyPEM  string `json:"private_key_pem,omitempty"`
+	KeyType        string `json:"key_type,omitempty"`
 }
 
 type credentialMetadata struct {
 	KeyID    string `json:"key_id,omitempty"`
 	IssuerID string `json:"issuer_id,omitempty"`
+	KeyType  string `json:"key_type,omitempty"`
 }
 
 func keyringConfig(keychainName string) keyring.Config {
@@ -298,10 +301,16 @@ func LoadPrivateKeyFromPEM(data []byte) (*ecdsa.PrivateKey, error) {
 
 // StoreCredentials stores credentials in the keychain when available.
 func StoreCredentials(name, keyID, issuerID, keyPath string) error {
+	return StoreCredentialsWithKeyType(name, keyID, issuerID, keyPath, config.CredentialKeyTypeTeam)
+}
+
+// StoreCredentialsWithKeyType stores credentials with an explicit App Store Connect key type.
+func StoreCredentialsWithKeyType(name, keyID, issuerID, keyPath, keyType string) error {
 	payload := credentialPayload{
 		KeyID:          keyID,
 		IssuerID:       issuerID,
 		PrivateKeyPath: keyPath,
+		KeyType:        normalizedStoredKeyType(keyType),
 	}
 	if privateKeyPEM, err := loadPrivateKeyPEMForStorage(keyPath); err == nil && strings.TrimSpace(privateKeyPEM) != "" {
 		payload.PrivateKeyPEM = privateKeyPEM
@@ -335,10 +344,16 @@ func loadPrivateKeyPEMForStorage(path string) (string, error) {
 
 // StoreCredentialsConfig stores credentials in the config file only.
 func StoreCredentialsConfig(name, keyID, issuerID, keyPath string) error {
+	return StoreCredentialsConfigWithKeyType(name, keyID, issuerID, keyPath, config.CredentialKeyTypeTeam)
+}
+
+// StoreCredentialsConfigWithKeyType stores credentials in the config file only with an explicit key type.
+func StoreCredentialsConfigWithKeyType(name, keyID, issuerID, keyPath, keyType string) error {
 	payload := credentialPayload{
 		KeyID:          keyID,
 		IssuerID:       issuerID,
 		PrivateKeyPath: keyPath,
+		KeyType:        normalizedStoredKeyType(keyType),
 	}
 	path, err := config.GlobalPath()
 	if err != nil {
@@ -349,12 +364,26 @@ func StoreCredentialsConfig(name, keyID, issuerID, keyPath string) error {
 
 // StoreCredentialsConfigAt stores credentials in the specified config file.
 func StoreCredentialsConfigAt(name, keyID, issuerID, keyPath, configPath string) error {
+	return StoreCredentialsConfigAtWithKeyType(name, keyID, issuerID, keyPath, configPath, config.CredentialKeyTypeTeam)
+}
+
+// StoreCredentialsConfigAtWithKeyType stores credentials in the specified config file with an explicit key type.
+func StoreCredentialsConfigAtWithKeyType(name, keyID, issuerID, keyPath, configPath, keyType string) error {
 	payload := credentialPayload{
 		KeyID:          keyID,
 		IssuerID:       issuerID,
 		PrivateKeyPath: keyPath,
+		KeyType:        normalizedStoredKeyType(keyType),
 	}
 	return storeInConfigAt(name, payload, configPath)
+}
+
+func normalizedStoredKeyType(keyType string) string {
+	normalized := config.NormalizeCredentialKeyType(keyType)
+	if normalized == config.CredentialKeyTypeTeam {
+		return ""
+	}
+	return normalized
 }
 
 // MigrateKeychainToConfig copies keychain-backed credentials into config.json.
@@ -420,6 +449,7 @@ func MigrateKeychainToConfig(opts MigrateKeychainToConfigOptions) (MigrateKeycha
 			KeyID:          strings.TrimSpace(cred.KeyID),
 			IssuerID:       strings.TrimSpace(cred.IssuerID),
 			PrivateKeyPath: privateKeyPath,
+			KeyType:        normalizedStoredKeyType(cred.KeyType),
 		}
 		upsertConfigCredential(cfg, configCred)
 		migratedConfigCreds = append(migratedConfigCreds, configCred)
@@ -619,6 +649,7 @@ func applyMigratedDefault(cfg *config.Config, sourceCreds []Credential, migrated
 			cfg.KeyID = cred.KeyID
 			cfg.IssuerID = cred.IssuerID
 			cfg.PrivateKeyPath = cred.PrivateKeyPath
+			cfg.KeyType = normalizedStoredKeyType(cred.KeyType)
 			return
 		}
 	}
@@ -633,6 +664,7 @@ func alignDefaultCredentialFields(cfg *config.Config, defaultName string) bool {
 	cfg.KeyID = cred.KeyID
 	cfg.IssuerID = cred.IssuerID
 	cfg.PrivateKeyPath = cred.PrivateKeyPath
+	cfg.KeyType = normalizedStoredKeyType(cred.KeyType)
 	return true
 }
 
@@ -672,6 +704,7 @@ func clearConfigCredentialsAt(path string) error {
 	cfg.KeyID = ""
 	cfg.IssuerID = ""
 	cfg.PrivateKeyPath = ""
+	cfg.KeyType = ""
 	cfg.DefaultKeyName = ""
 	cfg.Keys = nil
 	cfg.KeychainMetadata = nil
@@ -1013,6 +1046,7 @@ func configFromCredential(cred Credential) *config.Config {
 		IssuerID:       cred.IssuerID,
 		PrivateKeyPath: cred.PrivateKeyPath,
 		PrivateKeyPEM:  cred.PrivateKeyPEM,
+		KeyType:        normalizedStoredKeyType(cred.KeyType),
 		DefaultKeyName: cred.Name,
 	}
 }
@@ -1065,6 +1099,7 @@ func credentialMetadataDescription(payload credentialPayload) string {
 	data, err := json.Marshal(credentialMetadata{
 		KeyID:    strings.TrimSpace(payload.KeyID),
 		IssuerID: strings.TrimSpace(payload.IssuerID),
+		KeyType:  normalizedStoredKeyType(payload.KeyType),
 	})
 	if err != nil {
 		return ""
@@ -1086,7 +1121,9 @@ func parseCredentialMetadataDescription(description string) credentialMetadata {
 }
 
 func hasCredentialMetadata(metadata credentialMetadata) bool {
-	return strings.TrimSpace(metadata.KeyID) != "" || strings.TrimSpace(metadata.IssuerID) != ""
+	return strings.TrimSpace(metadata.KeyID) != "" ||
+		strings.TrimSpace(metadata.IssuerID) != "" ||
+		strings.TrimSpace(metadata.KeyType) != ""
 }
 
 func metadataModifiedAtString(value time.Time) string {
@@ -1098,13 +1135,15 @@ func metadataModifiedAtString(value time.Time) string {
 
 func credentialMetadataMatchesPayload(metadata credentialMetadata, payload credentialPayload) bool {
 	return strings.TrimSpace(metadata.KeyID) == strings.TrimSpace(payload.KeyID) &&
-		strings.TrimSpace(metadata.IssuerID) == strings.TrimSpace(payload.IssuerID)
+		strings.TrimSpace(metadata.IssuerID) == strings.TrimSpace(payload.IssuerID) &&
+		config.NormalizeCredentialKeyType(metadata.KeyType) == config.NormalizeCredentialKeyType(payload.KeyType)
 }
 
 func storedKeychainMetadataSummary(entry config.KeychainMetadata) credentialMetadata {
 	return credentialMetadata{
 		KeyID:    strings.TrimSpace(entry.KeyID),
 		IssuerID: strings.TrimSpace(entry.IssuerID),
+		KeyType:  normalizedStoredKeyType(entry.KeyType),
 	}
 }
 
@@ -1133,6 +1172,7 @@ func loadStoredKeychainMetadata() map[string]config.KeychainMetadata {
 		entry.Name = name
 		entry.KeyID = strings.TrimSpace(entry.KeyID)
 		entry.IssuerID = strings.TrimSpace(entry.IssuerID)
+		entry.KeyType = normalizedStoredKeyType(entry.KeyType)
 		entry.ModifiedAt = strings.TrimSpace(entry.ModifiedAt)
 		stored[name] = entry
 	}
@@ -1159,9 +1199,10 @@ func persistKeychainMetadata(cred Credential) {
 		Name:       name,
 		KeyID:      strings.TrimSpace(cred.KeyID),
 		IssuerID:   strings.TrimSpace(cred.IssuerID),
+		KeyType:    normalizedStoredKeyType(cred.KeyType),
 		ModifiedAt: metadataModifiedAtString(cred.MetadataModifiedAt),
 	}
-	if (metadata.KeyID == "" && metadata.IssuerID == "") || metadata.ModifiedAt == "" {
+	if (metadata.KeyID == "" && metadata.IssuerID == "" && metadata.KeyType == "") || metadata.ModifiedAt == "" {
 		return
 	}
 	updated := false
@@ -1330,6 +1371,7 @@ func listCredentialSummariesFromKeyring(kr keyring.Keyring) ([]Credential, error
 			Name:      name,
 			KeyID:     summary.KeyID,
 			IssuerID:  summary.IssuerID,
+			KeyType:   normalizedStoredKeyType(summary.KeyType),
 			IsDefault: name == defaultName,
 			Source:    "keychain",
 		})
@@ -1396,6 +1438,7 @@ func listFromKeyring(kr keyring.Keyring) ([]Credential, error) {
 			IssuerID:              payload.IssuerID,
 			PrivateKeyPath:        payload.PrivateKeyPath,
 			PrivateKeyPEM:         payload.PrivateKeyPEM,
+			KeyType:               normalizedStoredKeyType(payload.KeyType),
 			IsDefault:             name == defaultName,
 			Source:                "keychain",
 			MetadataNeedsBackfill: metadataNeedsBackfill,
@@ -1413,6 +1456,7 @@ func migrateLegacyCredentials(credentials []Credential) {
 			IssuerID:       cred.IssuerID,
 			PrivateKeyPath: cred.PrivateKeyPath,
 			PrivateKeyPEM:  cred.PrivateKeyPEM,
+			KeyType:        normalizedStoredKeyType(cred.KeyType),
 		}
 		if err := storeInKeychain(cred.Name, payload); err != nil {
 			continue
@@ -1531,6 +1575,7 @@ func storeInConfigAt(name string, payload credentialPayload, configPath string) 
 			cfg.Keys[i].KeyID = payload.KeyID
 			cfg.Keys[i].IssuerID = payload.IssuerID
 			cfg.Keys[i].PrivateKeyPath = payload.PrivateKeyPath
+			cfg.Keys[i].KeyType = normalizedStoredKeyType(payload.KeyType)
 			updated = true
 			break
 		}
@@ -1541,12 +1586,14 @@ func storeInConfigAt(name string, payload credentialPayload, configPath string) 
 			KeyID:          payload.KeyID,
 			IssuerID:       payload.IssuerID,
 			PrivateKeyPath: payload.PrivateKeyPath,
+			KeyType:        normalizedStoredKeyType(payload.KeyType),
 		})
 	}
 
 	cfg.KeyID = payload.KeyID
 	cfg.IssuerID = payload.IssuerID
 	cfg.PrivateKeyPath = payload.PrivateKeyPath
+	cfg.KeyType = normalizedStoredKeyType(payload.KeyType)
 	cfg.DefaultKeyName = name
 	return config.SaveAt(configPath, cfg)
 }
@@ -1561,14 +1608,16 @@ func hasAnyCredentials(cfg *config.Config) bool {
 	}
 	if strings.TrimSpace(cfg.KeyID) != "" ||
 		strings.TrimSpace(cfg.IssuerID) != "" ||
-		strings.TrimSpace(cfg.PrivateKeyPath) != "" {
+		strings.TrimSpace(cfg.PrivateKeyPath) != "" ||
+		strings.TrimSpace(cfg.KeyType) != "" {
 		return true
 	}
 	for _, cred := range cfg.Keys {
 		if strings.TrimSpace(cred.Name) != "" ||
 			strings.TrimSpace(cred.KeyID) != "" ||
 			strings.TrimSpace(cred.IssuerID) != "" ||
-			strings.TrimSpace(cred.PrivateKeyPath) != "" {
+			strings.TrimSpace(cred.PrivateKeyPath) != "" ||
+			strings.TrimSpace(cred.KeyType) != "" {
 			return true
 		}
 	}
@@ -1576,15 +1625,17 @@ func hasAnyCredentials(cfg *config.Config) bool {
 }
 
 func isCompleteConfigCredential(cred config.Credential) bool {
+	hasIssuer := strings.TrimSpace(cred.IssuerID) != "" ||
+		config.IsIndividualCredentialKeyType(cred.KeyType)
 	return strings.TrimSpace(cred.KeyID) != "" &&
-		strings.TrimSpace(cred.IssuerID) != "" &&
+		hasIssuer &&
 		strings.TrimSpace(cred.PrivateKeyPath) != ""
 }
 
 func hasLegacyCredentials(cfg *config.Config) bool {
 	return cfg != nil &&
 		strings.TrimSpace(cfg.KeyID) != "" &&
-		strings.TrimSpace(cfg.IssuerID) != "" &&
+		(strings.TrimSpace(cfg.IssuerID) != "" || config.IsIndividualCredentialKeyType(cfg.KeyType)) &&
 		strings.TrimSpace(cfg.PrivateKeyPath) != ""
 }
 
@@ -1618,6 +1669,7 @@ func configCredentialList(cfg *config.Config) []config.Credential {
 				KeyID:          cfg.KeyID,
 				IssuerID:       cfg.IssuerID,
 				PrivateKeyPath: cfg.PrivateKeyPath,
+				KeyType:        normalizedStoredKeyType(cfg.KeyType),
 			})
 		}
 	}
@@ -1646,12 +1698,14 @@ func findConfigCredential(cfg *config.Config, name string) (config.Credential, b
 	}
 	if name == legacyName && (strings.TrimSpace(cfg.KeyID) != "" ||
 		strings.TrimSpace(cfg.IssuerID) != "" ||
-		strings.TrimSpace(cfg.PrivateKeyPath) != "") {
+		strings.TrimSpace(cfg.PrivateKeyPath) != "" ||
+		strings.TrimSpace(cfg.KeyType) != "") {
 		cred := config.Credential{
 			Name:           legacyName,
 			KeyID:          cfg.KeyID,
 			IssuerID:       cfg.IssuerID,
 			PrivateKeyPath: cfg.PrivateKeyPath,
+			KeyType:        normalizedStoredKeyType(cfg.KeyType),
 		}
 		return cred, true, isCompleteConfigCredential(cred)
 	}
@@ -1664,6 +1718,7 @@ func applyConfigCredential(cfg *config.Config, cred config.Credential) *config.C
 			KeyID:          cred.KeyID,
 			IssuerID:       cred.IssuerID,
 			PrivateKeyPath: cred.PrivateKeyPath,
+			KeyType:        normalizedStoredKeyType(cred.KeyType),
 			DefaultKeyName: strings.TrimSpace(cred.Name),
 		}
 	}
@@ -1671,6 +1726,7 @@ func applyConfigCredential(cfg *config.Config, cred config.Credential) *config.C
 	copied.KeyID = cred.KeyID
 	copied.IssuerID = cred.IssuerID
 	copied.PrivateKeyPath = cred.PrivateKeyPath
+	copied.KeyType = normalizedStoredKeyType(cred.KeyType)
 	if strings.TrimSpace(cred.Name) != "" {
 		copied.DefaultKeyName = strings.TrimSpace(cred.Name)
 	}
@@ -1775,6 +1831,7 @@ func listFromConfig() ([]Credential, error) {
 			KeyID:          cred.KeyID,
 			IssuerID:       cred.IssuerID,
 			PrivateKeyPath: cred.PrivateKeyPath,
+			KeyType:        normalizedStoredKeyType(cred.KeyType),
 			IsDefault:      cred.Name == defaultName,
 			Source:         "config",
 			SourcePath:     path,
@@ -1807,6 +1864,7 @@ func saveDefaultName(name string) error {
 				cfg.KeyID = cred.KeyID
 				cfg.IssuerID = cred.IssuerID
 				cfg.PrivateKeyPath = cred.PrivateKeyPath
+				cfg.KeyType = normalizedStoredKeyType(cred.KeyType)
 				return config.Save(cfg)
 			}
 		}
@@ -1850,6 +1908,7 @@ func removeFromConfigAt(name, path string) error {
 		cfg.KeyID = ""
 		cfg.IssuerID = ""
 		cfg.PrivateKeyPath = ""
+		cfg.KeyType = ""
 		cfg.DefaultKeyName = ""
 		cfg.Keys = nil
 		cfg.KeychainMetadata = nil
@@ -1884,6 +1943,7 @@ func removeFromConfigAt(name, path string) error {
 		cfg.KeyID = ""
 		cfg.IssuerID = ""
 		cfg.PrivateKeyPath = ""
+		cfg.KeyType = ""
 		cfg.DefaultKeyName = ""
 		removed = true
 	}

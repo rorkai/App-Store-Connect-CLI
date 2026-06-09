@@ -7,6 +7,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -5369,6 +5370,97 @@ func TestAuthLoginSkipValidationBypassesJWT(t *testing.T) {
 	configPath := filepath.Join(workDir, ".asc", "config.json")
 	if _, err := os.Stat(configPath); err != nil {
 		t.Fatalf("expected config to be written, got %v", err)
+	}
+}
+
+func TestAuthLoginIndividualKeyAllowsMissingIssuer(t *testing.T) {
+	tempDir := t.TempDir()
+	keyPath := filepath.Join(tempDir, "AuthKey.p8")
+	writeECDSAPEM(t, keyPath)
+
+	workDir := t.TempDir()
+	previousDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error: %v", err)
+	}
+	if err := os.Chdir(workDir); err != nil {
+		t.Fatalf("Chdir() error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(previousDir)
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"auth", "login",
+			"--bypass-keychain",
+			"--local",
+			"--skip-validation",
+			"--key-type", "individual",
+			"--name", "IndividualKey",
+			"--key-id", "KEY123",
+			"--private-key", keyPath,
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	configPath := filepath.Join(workDir, ".asc", "config.json")
+	cfg, err := config.LoadAt(configPath)
+	if err != nil {
+		t.Fatalf("LoadAt() error: %v", err)
+	}
+	if len(cfg.Keys) != 1 {
+		t.Fatalf("expected one stored key, got %d", len(cfg.Keys))
+	}
+	if cfg.Keys[0].IssuerID != "" {
+		t.Fatalf("issuer ID = %q, want empty", cfg.Keys[0].IssuerID)
+	}
+	if cfg.Keys[0].KeyType != config.CredentialKeyTypeIndividual {
+		t.Fatalf("key type = %q, want %q", cfg.Keys[0].KeyType, config.CredentialKeyTypeIndividual)
+	}
+	if cfg.KeyType != config.CredentialKeyTypeIndividual {
+		t.Fatalf("default key type = %q, want %q", cfg.KeyType, config.CredentialKeyTypeIndividual)
+	}
+
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+
+	var statusCode int
+	statusStdout, statusStderr := captureOutput(t, func() {
+		statusCode = rootcmd.Run([]string{"auth", "status", "--output", "json"}, "1.2.3")
+	})
+	if statusCode != rootcmd.ExitSuccess {
+		t.Fatalf("auth status exit code = %d, want %d; stderr=%q", statusCode, rootcmd.ExitSuccess, statusStderr)
+	}
+	if statusStderr != "" {
+		t.Fatalf("expected auth status stderr to be empty, got %q", statusStderr)
+	}
+	var statusPayload struct {
+		Credentials []struct {
+			Name  string `json:"name"`
+			KeyID string `json:"keyId"`
+		} `json:"credentials"`
+	}
+	if err := json.Unmarshal([]byte(statusStdout), &statusPayload); err != nil {
+		t.Fatalf("failed to unmarshal auth status output: %v; stdout=%q", err, statusStdout)
+	}
+	if len(statusPayload.Credentials) != 1 || statusPayload.Credentials[0].Name != "IndividualKey" {
+		t.Fatalf("unexpected auth status credentials: %+v", statusPayload.Credentials)
 	}
 }
 

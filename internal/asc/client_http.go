@@ -71,10 +71,14 @@ func (c *Client) generateJWT() (string, error) {
 func GenerateJWT(keyID, issuerID string, privateKey *ecdsa.PrivateKey) (string, error) {
 	now := time.Now()
 	claims := jwt.RegisteredClaims{
-		Issuer:    issuerID,
 		Audience:  jwt.ClaimStrings{"appstoreconnect-v1"},
 		IssuedAt:  jwt.NewNumericDate(now),
 		ExpiresAt: jwt.NewNumericDate(now.Add(tokenLifetime)),
+	}
+	if strings.TrimSpace(issuerID) == "" {
+		claims.Subject = "user"
+	} else {
+		claims.Issuer = issuerID
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)

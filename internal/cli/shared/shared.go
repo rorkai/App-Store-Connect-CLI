@@ -34,6 +34,7 @@ var (
 const (
 	privateKeyEnvVar       = "ASC_PRIVATE_KEY"
 	privateKeyBase64EnvVar = "ASC_PRIVATE_KEY_B64"
+	keyTypeEnvVar          = "ASC_KEY_TYPE"
 	profileEnvVar          = "ASC_PROFILE"
 	strictAuthEnvVar       = "ASC_STRICT_AUTH"
 	defaultOutputEnvVar    = "ASC_DEFAULT_OUTPUT"
@@ -301,6 +302,7 @@ type envCredentials struct {
 	keyID    string
 	issuerID string
 	keyPath  string
+	keyType  string
 	complete bool
 }
 
@@ -357,6 +359,7 @@ type ResolvedAuthCredentials struct {
 	IssuerID string
 	KeyPath  string
 	KeyPEM   string
+	KeyType  string
 	Profile  string
 }
 
@@ -365,6 +368,7 @@ type resolvedCredentials struct {
 	issuerID string
 	keyPath  string
 	keyPEM   string
+	keyType  string
 	profile  string
 }
 
@@ -377,12 +381,16 @@ type credentialSource struct {
 func resolveEnvCredentials() (envCredentials, error) {
 	keyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
 	issuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
+	keyType := config.NormalizeCredentialKeyType(os.Getenv(keyTypeEnvVar))
 	hasKeyPathEnv := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")) != "" ||
 		strings.TrimSpace(os.Getenv(privateKeyEnvVar)) != "" ||
 		strings.TrimSpace(os.Getenv(privateKeyBase64EnvVar)) != ""
 
-	if keyID == "" && issuerID == "" && !hasKeyPathEnv {
+	if keyID == "" && issuerID == "" && !hasKeyPathEnv && strings.TrimSpace(os.Getenv(keyTypeEnvVar)) == "" {
 		return envCredentials{}, nil
+	}
+	if !config.IsValidCredentialKeyType(keyType) {
+		return envCredentials{}, fmt.Errorf("%s must be one of: team, individual", keyTypeEnvVar)
 	}
 
 	keyPath, err := resolvePrivateKeyPath()
@@ -394,8 +402,11 @@ func resolveEnvCredentials() (envCredentials, error) {
 		keyID:    keyID,
 		issuerID: issuerID,
 		keyPath:  keyPath,
+		keyType:  normalizedResolvedKeyType(keyType),
 	}
-	creds.complete = keyID != "" && issuerID != "" && keyPath != ""
+	creds.complete = keyID != "" &&
+		keyPath != "" &&
+		(issuerID != "" || config.IsIndividualCredentialKeyType(keyType))
 	return creds, nil
 }
 
@@ -404,7 +415,7 @@ func resolveCredentials() (resolvedCredentials, error) {
 }
 
 func resolveCredentialsForProfile(profileOverride string) (resolvedCredentials, error) {
-	var actualKeyID, actualIssuerID, actualKeyPath, actualKeyPEM string
+	var actualKeyID, actualIssuerID, actualKeyPath, actualKeyPEM, actualKeyType string
 	actualProfile := ""
 	profile := strings.TrimSpace(profileOverride)
 	if profile == "" {
@@ -432,6 +443,7 @@ func resolveCredentialsForProfile(profileOverride string) (resolvedCredentials, 
 		actualIssuerID = cfg.IssuerID
 		actualKeyPath = cfg.PrivateKeyPath
 		actualKeyPEM = strings.TrimSpace(cfg.PrivateKeyPEM)
+		actualKeyType = normalizedResolvedKeyType(cfg.KeyType)
 		actualProfile = strings.TrimSpace(cfg.DefaultKeyName)
 		sources.keyID = storedSource
 		sources.issuerID = storedSource
@@ -441,7 +453,9 @@ func resolveCredentialsForProfile(profileOverride string) (resolvedCredentials, 
 	}
 
 	// Priority 2: Environment variables (fallback for CI/CD or when keychain unavailable)
-	if actualKeyID == "" || actualIssuerID == "" || (actualKeyPath == "" && actualKeyPEM == "") {
+	if actualKeyID == "" ||
+		(actualIssuerID == "" && !config.IsIndividualCredentialKeyType(actualKeyType)) ||
+		(actualKeyPath == "" && actualKeyPEM == "") {
 		resolved, err := resolveEnvCredentials()
 		if err != nil {
 			return resolvedCredentials{}, fmt.Errorf("invalid private key environment: %w", err)
@@ -455,13 +469,18 @@ func resolveCredentialsForProfile(profileOverride string) (resolvedCredentials, 
 			actualIssuerID = envCreds.issuerID
 			sources.issuerID = "env"
 		}
+		if actualKeyType == "" && envCreds.keyType != "" {
+			actualKeyType = envCreds.keyType
+		}
 		if actualKeyPath == "" && actualKeyPEM == "" && envCreds.keyPath != "" {
 			actualKeyPath = envCreds.keyPath
 			sources.keyMaterial = "env"
 		}
 	}
 
-	if actualKeyID == "" || actualIssuerID == "" || (actualKeyPath == "" && actualKeyPEM == "") {
+	if actualKeyID == "" ||
+		(actualIssuerID == "" && !config.IsIndividualCredentialKeyType(actualKeyType)) ||
+		(actualKeyPath == "" && actualKeyPEM == "") {
 		if path, err := config.Path(); err == nil {
 			return resolvedCredentials{}, missingAuthError{msg: fmt.Sprintf("missing authentication. Run 'asc auth login' or create %s (see 'asc auth init')", path)}
 		}
@@ -476,14 +495,24 @@ func resolveCredentialsForProfile(profileOverride string) (resolvedCredentials, 
 		issuerID: actualIssuerID,
 		keyPath:  actualKeyPath,
 		keyPEM:   actualKeyPEM,
+		keyType:  normalizedResolvedKeyType(actualKeyType),
 		profile:  actualProfile,
 	}, nil
+}
+
+func normalizedResolvedKeyType(keyType string) string {
+	normalized := config.NormalizeCredentialKeyType(keyType)
+	if normalized == config.CredentialKeyTypeTeam {
+		return ""
+	}
+	return normalized
 }
 
 type credentialMetadataSummary struct {
 	name     string
 	keyID    string
 	issuerID string
+	keyType  string
 }
 
 func resolveCredentialsMetadataForProfile(profileOverride string) (ResolvedAuthCredentials, error) {
@@ -543,6 +572,7 @@ func resolveStoredCredentialsMetadataFallback(profile string) (ResolvedAuthCrede
 	return ResolvedAuthCredentials{
 		KeyID:    keyID,
 		IssuerID: issuerID,
+		KeyType:  normalizedResolvedKeyType(cred.KeyType),
 		Profile:  strings.TrimSpace(cred.Name),
 	}, nil
 }
@@ -582,6 +612,7 @@ func resolveStoredCredentialMetadata(profile string) (ResolvedAuthCredentials, e
 	return ResolvedAuthCredentials{
 		KeyID:    summary.keyID,
 		IssuerID: summary.issuerID,
+		KeyType:  normalizedResolvedKeyType(summary.keyType),
 		Profile:  summary.name,
 	}, nil
 }
@@ -630,7 +661,9 @@ func hasConfigCredentialSelection(cfg *config.Config) bool {
 	if strings.TrimSpace(cfg.DefaultKeyName) != "" {
 		return true
 	}
-	if strings.TrimSpace(cfg.KeyID) != "" || strings.TrimSpace(cfg.IssuerID) != "" {
+	if strings.TrimSpace(cfg.KeyID) != "" ||
+		strings.TrimSpace(cfg.IssuerID) != "" ||
+		strings.TrimSpace(cfg.KeyType) != "" {
 		return true
 	}
 	if strings.TrimSpace(cfg.PrivateKeyPath) != "" || strings.TrimSpace(cfg.PrivateKeyPEM) != "" {
@@ -661,6 +694,7 @@ func configCredentialMetadataSummaries(cfg *config.Config) []credentialMetadataS
 			name:     name,
 			keyID:    keyID,
 			issuerID: strings.TrimSpace(entry.IssuerID),
+			keyType:  normalizedResolvedKeyType(entry.KeyType),
 		})
 	}
 
@@ -678,6 +712,7 @@ func configCredentialMetadataSummaries(cfg *config.Config) []credentialMetadataS
 			name:     name,
 			keyID:    keyID,
 			issuerID: strings.TrimSpace(cred.IssuerID),
+			keyType:  normalizedResolvedKeyType(cred.KeyType),
 		})
 	}
 
@@ -692,6 +727,7 @@ func configCredentialMetadataSummaries(cfg *config.Config) []credentialMetadataS
 				name:     name,
 				keyID:    legacyKeyID,
 				issuerID: strings.TrimSpace(cfg.IssuerID),
+				keyType:  normalizedResolvedKeyType(cfg.KeyType),
 			})
 		}
 	}
@@ -1528,6 +1564,7 @@ func ResolveAuthCredentials(profile string) (ResolvedAuthCredentials, error) {
 		IssuerID: resolved.issuerID,
 		KeyPath:  resolved.keyPath,
 		KeyPEM:   resolved.keyPEM,
+		KeyType:  resolved.keyType,
 		Profile:  resolved.profile,
 	}, nil
 }

@@ -436,6 +436,7 @@ func AuthLoginCommand() *ffcli.Command {
 	name := fs.String("name", "", "Friendly name for this key")
 	keyID := fs.String("key-id", "", "App Store Connect API Key ID")
 	issuerID := fs.String("issuer-id", "", "App Store Connect Issuer ID")
+	keyType := fs.String("key-type", config.CredentialKeyTypeTeam, "App Store Connect API key type: team or individual")
 	keyPath := fs.String("private-key", "", "Path to private key (.p8) file")
 	bypassKeychain := fs.Bool("bypass-keychain", false, "Store credentials in config.json instead of keychain")
 	local := fs.Bool("local", false, "When bypassing keychain, write to ./.asc/config.json")
@@ -455,6 +456,7 @@ Add --local to write ./.asc/config.json for the current repo.
 
 Examples:
   asc auth login --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
+  asc auth login --name "MyIndividualKey" --key-id "ABC123" --key-type individual --private-key /path/to/AuthKey.p8
   asc auth login --bypass-keychain --local --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
   asc auth login --network --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
   asc auth login --skip-validation --name "MyKey" --key-id "ABC123" --issuer-id "DEF456" --private-key /path/to/AuthKey.p8
@@ -476,9 +478,16 @@ so commands continue to work even if the original .p8 file is removed.`,
 				fmt.Fprintln(os.Stderr, "Error: --key-id is required")
 				return flag.ErrHelp
 			}
-			if *issuerID == "" {
+			normalizedKeyType := config.NormalizeCredentialKeyType(*keyType)
+			if !config.IsValidCredentialKeyType(normalizedKeyType) {
+				return shared.UsageError("--key-type must be one of: team, individual")
+			}
+			if normalizedKeyType == config.CredentialKeyTypeTeam && *issuerID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --issuer-id is required")
 				return flag.ErrHelp
+			}
+			if normalizedKeyType == config.CredentialKeyTypeIndividual && strings.TrimSpace(*issuerID) != "" {
+				return shared.UsageError("--issuer-id must be omitted when --key-type individual")
 			}
 			if *keyPath == "" {
 				fmt.Fprintln(os.Stderr, "Error: --private-key is required")
@@ -512,16 +521,16 @@ so commands continue to work even if the original .p8 file is removed.`,
 					if err != nil {
 						return fmt.Errorf("auth login: %w", err)
 					}
-					if err := authsvc.StoreCredentialsConfigAt(*name, *keyID, *issuerID, *keyPath, path); err != nil {
+					if err := authsvc.StoreCredentialsConfigAtWithKeyType(*name, *keyID, *issuerID, *keyPath, path, normalizedKeyType); err != nil {
 						return fmt.Errorf("auth login: failed to store credentials: %w", err)
 					}
 				} else {
-					if err := authsvc.StoreCredentialsConfig(*name, *keyID, *issuerID, *keyPath); err != nil {
+					if err := authsvc.StoreCredentialsConfigWithKeyType(*name, *keyID, *issuerID, *keyPath, normalizedKeyType); err != nil {
 						return fmt.Errorf("auth login: failed to store credentials: %w", err)
 					}
 				}
 			} else {
-				if err := authsvc.StoreCredentials(*name, *keyID, *issuerID, *keyPath); err != nil {
+				if err := authsvc.StoreCredentialsWithKeyType(*name, *keyID, *issuerID, *keyPath, normalizedKeyType); err != nil {
 					return fmt.Errorf("auth login: failed to store credentials: %w", err)
 				}
 			}
@@ -920,11 +929,13 @@ Examples:
 			profile := shared.ResolveProfileName()
 			envKeyID := strings.TrimSpace(os.Getenv("ASC_KEY_ID"))
 			envIssuerID := strings.TrimSpace(os.Getenv("ASC_ISSUER_ID"))
+			envKeyType := config.NormalizeCredentialKeyType(os.Getenv("ASC_KEY_TYPE"))
 			hasKeyEnv := strings.TrimSpace(os.Getenv("ASC_PRIVATE_KEY_PATH")) != "" ||
 				strings.TrimSpace(os.Getenv(shared.PrivateKeyEnvVar)) != "" ||
 				strings.TrimSpace(os.Getenv(shared.PrivateKeyBase64EnvVar)) != ""
-			envProvided := envKeyID != "" || envIssuerID != "" || hasKeyEnv
-			envComplete := envKeyID != "" && envIssuerID != "" && hasKeyEnv
+			envProvided := envKeyID != "" || envIssuerID != "" || hasKeyEnv || strings.TrimSpace(os.Getenv("ASC_KEY_TYPE")) != ""
+			envComplete := envKeyID != "" && hasKeyEnv &&
+				(envIssuerID != "" || config.IsIndividualCredentialKeyType(envKeyType))
 
 			environmentNote := authStatusEnvironmentNote(profile, bypassKeychain, envProvided, envComplete)
 			if normalizedOutput == "table" && environmentNote != "" {
@@ -1032,7 +1043,7 @@ func authStatusEnvironmentNote(profile string, bypassKeychain, envProvided, envC
 		return ""
 	}
 	if !envComplete {
-		return "Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID, and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64."
+		return "Environment credentials are incomplete. Set ASC_KEY_ID, ASC_ISSUER_ID (unless ASC_KEY_TYPE=individual), and one of ASC_PRIVATE_KEY_PATH/ASC_PRIVATE_KEY/ASC_PRIVATE_KEY_B64."
 	}
 	return "Environment credentials detected (ASC_KEY_ID present). In bypass mode, stored config credentials are preferred; environment credentials are only used when no stored config credential is selected."
 }
