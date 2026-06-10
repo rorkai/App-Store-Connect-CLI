@@ -88,7 +88,7 @@ func WinBackOffersCommand() *ffcli.Command {
 Examples:
   asc win-back-offers list --subscription-id "SUB_ID"
   asc win-back-offers get --id "OFFER_ID"
-  asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-1" --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --price "PRICE_ID"
+  asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-1" --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --price "SUBSCRIPTION_PRICE_POINT_ID"
   asc win-back-offers update --id "OFFER_ID" --priority NORMAL
   asc win-back-offers prices --id "OFFER_ID"`,
 		FlagSet:   fs,
@@ -275,7 +275,7 @@ func WinBackOffersCreateCommand() *ffcli.Command {
 	endDate := fs.String("end-date", "", "End date (YYYY-MM-DD)")
 	priority := fs.String("priority", "", "Offer priority: "+strings.Join(winBackOfferPriorityValues, ", "))
 	promotionIntent := fs.String("promotion-intent", "", "Promotion intent: "+strings.Join(winBackOfferPromotionIntentValues, ", "))
-	priceIDs := fs.String("price", "", "Win-back offer price ID(s), comma-separated")
+	priceIDs := fs.String("price", "", "Subscription price point ID(s), comma-separated")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -285,7 +285,7 @@ func WinBackOffersCreateCommand() *ffcli.Command {
 		LongHelp: `Create a win-back offer.
 
 Examples:
-  asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-1" --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --price "PRICE_ID"`,
+  asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-1" --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --price "SUBSCRIPTION_PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

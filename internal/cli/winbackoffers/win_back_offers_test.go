@@ -1,6 +1,9 @@
 package winbackoffers
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestWinBackOffersCommandConstructors(t *testing.T) {
 	top := WinBackOffersCommand()
@@ -23,6 +26,20 @@ func TestWinBackOffersCommandConstructors(t *testing.T) {
 	}
 	if got := WinBackOffersRelationshipsCommand(); got == nil {
 		t.Fatal("expected relationships command")
+	}
+}
+
+func TestWinBackOffersCreateHelpDescribesPricePointIDs(t *testing.T) {
+	cmd := WinBackOffersCreateCommand()
+	priceFlag := cmd.FlagSet.Lookup("price")
+	if priceFlag == nil {
+		t.Fatal("expected --price flag")
+	}
+	if got := priceFlag.Usage; got != "Subscription price point ID(s), comma-separated" {
+		t.Fatalf("unexpected --price usage: %q", got)
+	}
+	if !strings.Contains(cmd.LongHelp, `--price "SUBSCRIPTION_PRICE_POINT_ID"`) {
+		t.Fatalf("expected long help to describe subscription price point IDs, got %q", cmd.LongHelp)
 	}
 }
 
@@ -55,7 +72,7 @@ func TestTerritoryFromPricePointID(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			// base64 of {"s":"1"} — decodes but lacks a territory
+			// base64 of {"s":"1"}; decodes but lacks a territory.
 			name:    "missing territory field",
 			id:      "eyJzIjoiMSJ9",
 			wantErr: true,
