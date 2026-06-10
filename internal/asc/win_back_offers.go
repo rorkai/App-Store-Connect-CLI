@@ -154,9 +154,15 @@ type WinBackOfferPriceRelationships struct {
 }
 
 // WinBackOfferPriceInlineCreate describes inline creation data for prices.
+// Win-back offer prices do not exist before the offer is created, so the
+// create request must inline them via the JSON:API `included` array with
+// temporary `${price-N}` IDs, each carrying territory and
+// subscriptionPricePoint relationships. Without the relationships the API
+// rejects the request with "Missing subscriptionPricePoint relationship".
 type WinBackOfferPriceInlineCreate struct {
-	Type ResourceType `json:"type"`
-	ID   string       `json:"id,omitempty"`
+	Type          ResourceType                    `json:"type"`
+	ID            string                          `json:"id,omitempty"`
+	Relationships *WinBackOfferPriceRelationships `json:"relationships,omitempty"`
 }
 
 // WinBackOffersResponse is the response from list endpoints.

@@ -2,6 +2,8 @@ package winbackoffers
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -406,11 +408,40 @@ Examples:
 				promotionIntentValue = &intent
 			}
 
+			// Each --price value is a subscriptionPricePoint ID. Win-back
+			// offer prices don't exist before the offer does, so inline-create
+			// them in `included` with temp `${price-N}` IDs and territory +
+			// subscriptionPricePoint relationships (the territory is encoded
+			// inside the price point ID itself).
 			priceData := make([]asc.ResourceData, 0, len(prices))
-			for _, priceID := range prices {
+			includedPrices := make([]asc.WinBackOfferPriceInlineCreate, 0, len(prices))
+			for i, priceID := range prices {
+				territory, err := territoryFromPricePointID(priceID)
+				if err != nil {
+					return fmt.Errorf("win-back-offers create: %w", err)
+				}
+				tempID := fmt.Sprintf("${price-%d}", i+1)
 				priceData = append(priceData, asc.ResourceData{
 					Type: asc.ResourceTypeWinBackOfferPrices,
-					ID:   priceID,
+					ID:   tempID,
+				})
+				includedPrices = append(includedPrices, asc.WinBackOfferPriceInlineCreate{
+					Type: asc.ResourceTypeWinBackOfferPrices,
+					ID:   tempID,
+					Relationships: &asc.WinBackOfferPriceRelationships{
+						Territory: asc.Relationship{
+							Data: asc.ResourceData{
+								Type: asc.ResourceTypeTerritories,
+								ID:   territory,
+							},
+						},
+						SubscriptionPricePoint: asc.Relationship{
+							Data: asc.ResourceData{
+								Type: asc.ResourceTypeSubscriptionPricePoints,
+								ID:   priceID,
+							},
+						},
+					},
 				})
 			}
 
@@ -470,6 +501,7 @@ Examples:
 						Prices: asc.RelationshipList{Data: priceData},
 					},
 				},
+				Included: includedPrices,
 			}
 
 			resp, err := client.CreateWinBackOffer(requestCtx, req)
@@ -1024,4 +1056,22 @@ func winBackOfferSubscriptionPricePointFieldsList() []string {
 
 func winBackOfferPriceIncludeList() []string {
 	return []string{"territory", "subscriptionPricePoint"}
+}
+
+// territoryFromPricePointID extracts the territory code embedded in a
+// subscriptionPricePoint ID. Price point IDs are unpadded base64 of
+// {"s":"<subscriptionID>","t":"<territory>","p":"<pricePoint>"}.
+func territoryFromPricePointID(id string) (string, error) {
+	trimmed := strings.TrimRight(strings.TrimSpace(id), "=")
+	decoded, err := base64.RawStdEncoding.DecodeString(trimmed)
+	if err != nil {
+		return "", fmt.Errorf("--price %q is not a subscription price point ID: %w", id, err)
+	}
+	var payload struct {
+		Territory string `json:"t"`
+	}
+	if err := json.Unmarshal(decoded, &payload); err != nil || payload.Territory == "" {
+		return "", fmt.Errorf("--price %q does not decode to a subscription price point ID", id)
+	}
+	return payload.Territory, nil
 }

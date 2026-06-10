@@ -10550,6 +10550,25 @@ func TestCreateWinBackOffer_SendsRequest(t *testing.T) {
 		if len(payload.Data.Relationships.Prices.Data) != 1 {
 			t.Fatalf("expected 1 price relationship, got %d", len(payload.Data.Relationships.Prices.Data))
 		}
+		if payload.Data.Relationships.Prices.Data[0].ID != "${price-1}" {
+			t.Fatalf("expected temporary price id ${price-1}, got %q", payload.Data.Relationships.Prices.Data[0].ID)
+		}
+		if len(payload.Included) != 1 {
+			t.Fatalf("expected 1 included price, got %d", len(payload.Included))
+		}
+		included := payload.Included[0]
+		if included.Type != ResourceTypeWinBackOfferPrices || included.ID != "${price-1}" {
+			t.Fatalf("unexpected included item: %+v", included)
+		}
+		if included.Relationships == nil {
+			t.Fatal("expected included price relationships")
+		}
+		if included.Relationships.Territory.Data.Type != ResourceTypeTerritories || included.Relationships.Territory.Data.ID != "USA" {
+			t.Fatalf("unexpected included territory relationship: %+v", included.Relationships.Territory.Data)
+		}
+		if included.Relationships.SubscriptionPricePoint.Data.Type != ResourceTypeSubscriptionPricePoints || included.Relationships.SubscriptionPricePoint.Data.ID != "price-point-1" {
+			t.Fatalf("unexpected included subscriptionPricePoint relationship: %+v", included.Relationships.SubscriptionPricePoint.Data)
+		}
 		assertAuthorized(t, req)
 	}, response)
 
@@ -10574,8 +10593,22 @@ func TestCreateWinBackOffer_SendsRequest(t *testing.T) {
 					Data: ResourceData{Type: ResourceTypeSubscriptions, ID: "sub-1"},
 				},
 				Prices: RelationshipList{Data: []ResourceData{
-					{Type: ResourceTypeWinBackOfferPrices, ID: "price-1"},
+					{Type: ResourceTypeWinBackOfferPrices, ID: "${price-1}"},
 				}},
+			},
+		},
+		Included: []WinBackOfferPriceInlineCreate{
+			{
+				Type: ResourceTypeWinBackOfferPrices,
+				ID:   "${price-1}",
+				Relationships: &WinBackOfferPriceRelationships{
+					Territory: Relationship{
+						Data: ResourceData{Type: ResourceTypeTerritories, ID: "USA"},
+					},
+					SubscriptionPricePoint: Relationship{
+						Data: ResourceData{Type: ResourceTypeSubscriptionPricePoints, ID: "price-point-1"},
+					},
+				},
 			},
 		},
 	}

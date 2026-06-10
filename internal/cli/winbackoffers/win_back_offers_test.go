@@ -25,3 +25,58 @@ func TestWinBackOffersCommandConstructors(t *testing.T) {
 		t.Fatal("expected relationships command")
 	}
 }
+
+func TestTerritoryFromPricePointID(t *testing.T) {
+	tests := []struct {
+		name    string
+		id      string
+		want    string
+		wantErr bool
+	}{
+		{
+			// base64 of {"s":"6755496237","t":"USA","p":"10101"}
+			name: "valid price point ID",
+			id:   "eyJzIjoiNjc1NTQ5NjIzNyIsInQiOiJVU0EiLCJwIjoiMTAxMDEifQ",
+			want: "USA",
+		},
+		{
+			name: "valid price point ID with padding",
+			id:   "eyJzIjoiNjc1NTQ5NjIzNyIsInQiOiJVU0EiLCJwIjoiMTAxMDEifQ==",
+			want: "USA",
+		},
+		{
+			name:    "not base64",
+			id:      "not-a-price-point!!",
+			wantErr: true,
+		},
+		{
+			name:    "base64 of non-JSON",
+			id:      "aGVsbG8",
+			wantErr: true,
+		},
+		{
+			// base64 of {"s":"1"} — decodes but lacks a territory
+			name:    "missing territory field",
+			id:      "eyJzIjoiMSJ9",
+			wantErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := territoryFromPricePointID(test.id)
+			if test.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got territory %q", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != test.want {
+				t.Fatalf("expected territory %q, got %q", test.want, got)
+			}
+		})
+	}
+}
