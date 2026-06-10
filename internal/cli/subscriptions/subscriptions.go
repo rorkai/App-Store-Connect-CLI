@@ -1056,8 +1056,13 @@ func SubscriptionsAvailabilityCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "availability",
 		ShortUsage: "asc subscriptions availability <subcommand> [flags]",
-		ShortHelp:  "Manage subscription availability.",
+		ShortHelp:  "Manage subscription availability (deprecated by Apple).",
 		LongHelp: `Manage subscription availability.
+
+Deprecated: the underlying Subscription availability resource is deprecated in
+App Store Connect API 4.4 in favor of Subscription plan availability. These
+commands keep working for now; for plan-based availability use
+` + "`asc subscriptions pricing monthly-commitment`" + ` (enable/disable/list).
 
 Examples:
   asc subscriptions availability view --availability-id "AVAILABILITY_ID"

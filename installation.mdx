@@ -180,6 +180,20 @@ ASC_BYPASS_KEYCHAIN=1 make test
   Always use `ASC_BYPASS_KEYCHAIN=1` when running tests to avoid macOS keychain prompts and environment bleed-through.
 </Warning>
 
+## Agent skills
+
+`asc` can install the App Store Connect workflow skills globally so your agent can use them across projects:
+
+```bash  theme={null}
+asc install-skills
+```
+
+Direct install:
+
+```bash  theme={null}
+npx skills add rorkai/app-store-connect-cli-skills --global --agent codex
+```
+
 ## Shell completion
 
 `asc` supports shell completion for bash, zsh, and fish.

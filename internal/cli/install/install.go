@@ -13,7 +13,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-const defaultSkillsPackage = "rudrankriyam/asc-skills"
+const defaultSkillsPackage = "rorkai/app-store-connect-cli-skills"
 
 var (
 	lookupNpx      = exec.LookPath
@@ -28,8 +28,8 @@ func InstallSkillsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "install-skills",
 		ShortUsage: "asc install-skills",
-		ShortHelp:  "Install the asc skill pack for App Store Connect workflows.",
-		LongHelp: `Install the asc skill pack for App Store Connect workflows.
+		ShortHelp:  "Install the asc skill pack globally for App Store Connect workflows.",
+		LongHelp: `Install the asc skill pack globally for App Store Connect workflows.
 
 Examples:
   asc install-skills`,
@@ -45,13 +45,16 @@ Examples:
 }
 
 func installSkills(ctx context.Context) error {
+	ctx, cancel := shared.ContextWithTimeout(ctx)
+	defer cancel()
+
 	path, err := lookupNpx("npx")
 	if err != nil {
 		return fmt.Errorf("%w; install Node.js to continue", errNpxNotFound)
 	}
 
 	// `npx add-skill` is deprecated upstream; use the new subcommand style.
-	return runCommand(ctx, path, "--yes", "skills", "add", defaultSkillsPackage)
+	return runCommand(ctx, path, "--yes", "skills", "add", defaultSkillsPackage, "--global", "--agent", "codex", "--yes")
 }
 
 func defaultRunCommand(ctx context.Context, name string, args ...string) error {

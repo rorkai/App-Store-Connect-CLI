@@ -688,6 +688,13 @@ func WithBackgroundAssetsFilterAssetPackIdentifier(values []string) BackgroundAs
 	}
 }
 
+// WithBackgroundAssetsFilterVersionsLocale filters background assets by uploaded version locale.
+func WithBackgroundAssetsFilterVersionsLocale(values []string) BackgroundAssetsOption {
+	return func(q *backgroundAssetsQuery) {
+		q.versionsLocales = normalizeList(values)
+	}
+}
+
 // WithBackgroundAssetVersionsLimit sets the max number of background asset versions to return.
 func WithBackgroundAssetVersionsLimit(limit int) BackgroundAssetVersionsOption {
 	return func(q *backgroundAssetVersionsQuery) {
@@ -703,6 +710,13 @@ func WithBackgroundAssetVersionsNextURL(next string) BackgroundAssetVersionsOpti
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}
+	}
+}
+
+// WithBackgroundAssetVersionsFilterLocale filters background asset versions by locale.
+func WithBackgroundAssetVersionsFilterLocale(values []string) BackgroundAssetVersionsOption {
+	return func(q *backgroundAssetVersionsQuery) {
+		q.locales = normalizeList(values)
 	}
 }
 

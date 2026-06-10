@@ -45,6 +45,7 @@ func BackgroundAssetsVersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	assetID := fs.String("background-asset-id", "", "Background asset ID")
+	locale := fs.String("locale", "", "Filter by locale(s), comma-separated (e.g., en-US,ja)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -58,6 +59,7 @@ func BackgroundAssetsVersionsListCommand() *ffcli.Command {
 
 Examples:
   asc background-assets versions list --background-asset-id "ASSET_ID"
+  asc background-assets versions list --background-asset-id "ASSET_ID" --locale "en-US"
   asc background-assets versions list --background-asset-id "ASSET_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -85,6 +87,9 @@ Examples:
 			opts := []asc.BackgroundAssetVersionsOption{
 				asc.WithBackgroundAssetVersionsLimit(*limit),
 				asc.WithBackgroundAssetVersionsNextURL(*next),
+			}
+			if locales := shared.SplitCSV(*locale); len(locales) > 0 {
+				opts = append(opts, asc.WithBackgroundAssetVersionsFilterLocale(locales))
 			}
 
 			if *paginate {
