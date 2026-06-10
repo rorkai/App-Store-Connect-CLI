@@ -418,7 +418,7 @@ Examples:
 			for i, priceID := range prices {
 				territory, err := territoryFromPricePointID(priceID)
 				if err != nil {
-					return fmt.Errorf("win-back-offers create: %w", err)
+					return shared.UsageError(fmt.Sprintf("win-back-offers create: %v", err))
 				}
 				tempID := fmt.Sprintf("${price-%d}", i+1)
 				priceData = append(priceData, asc.ResourceData{
