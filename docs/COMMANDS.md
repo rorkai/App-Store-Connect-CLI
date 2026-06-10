@@ -38,7 +38,7 @@ asc <subcommand> [flags]
 
 - `auth` - Manage authentication for the App Store Connect API.
 - `doctor` - Diagnose authentication configuration issues.
-- `install-skills` - Install the asc skill pack for App Store Connect workflows.
+- `install-skills` - Install the asc skill pack globally for App Store Connect workflows.
 - `init` - Initialize asc helper docs in the current repo.
 - `docs` - Access embedded documentation guides and reference helpers.
 

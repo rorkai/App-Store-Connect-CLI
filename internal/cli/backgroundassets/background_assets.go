@@ -60,6 +60,7 @@ func BackgroundAssetsListCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	archived := fs.String("archived", "", "Filter by archived state (true/false)")
 	assetPackIdentifier := fs.String("asset-pack-identifier", "", "Filter by asset pack identifier(s), comma-separated")
+	versionsLocale := fs.String("versions-locale", "", "Filter by uploaded version locale(s), comma-separated (e.g., en-US,ja)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -74,6 +75,7 @@ func BackgroundAssetsListCommand() *ffcli.Command {
 Examples:
   asc background-assets list --app "APP_ID"
   asc background-assets list --app "APP_ID" --archived false
+  asc background-assets list --app "APP_ID" --versions-locale "en-US,ja"
   asc background-assets list --app "APP_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -100,6 +102,7 @@ Examples:
 			}
 
 			assetPackIdentifiers := shared.SplitCSV(*assetPackIdentifier)
+			versionsLocales := shared.SplitCSV(*versionsLocale)
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -118,6 +121,9 @@ Examples:
 			}
 			if len(assetPackIdentifiers) > 0 {
 				opts = append(opts, asc.WithBackgroundAssetsFilterAssetPackIdentifier(assetPackIdentifiers))
+			}
+			if len(versionsLocales) > 0 {
+				opts = append(opts, asc.WithBackgroundAssetsFilterVersionsLocale(versionsLocales))
 			}
 
 			if *paginate {

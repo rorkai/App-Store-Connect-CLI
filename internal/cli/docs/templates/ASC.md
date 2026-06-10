@@ -126,7 +126,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `doctor` - Diagnose authentication configuration issues.
 - `web` - `[experimental]` Unofficial Apple web-session `/iris` workflows (discouraged; not part of the official API). Uses low-rate calls, user-owned Apple ID sessions, and signed-URL redaction by default. Use `asc web apps create` as the canonical app-creation path in this family.
 - `account` - Inspect account-level health and access signals.
-- `install-skills` - Install the asc skill pack for App Store Connect workflows.
+- `install-skills` - Install the asc skill pack globally for App Store Connect workflows.
 - `init` - Initialize asc helper docs in the current repo.
 - `docs` - Generate asc cli reference docs for a repo.
 - `diff` - Generate deterministic non-mutating diff plans.

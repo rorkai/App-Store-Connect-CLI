@@ -51,6 +51,7 @@ type AppStoreAgeRating string
 const (
 	AppStoreAgeRatingL             AppStoreAgeRating = "L"
 	AppStoreAgeRatingAll           AppStoreAgeRating = "ALL"
+	AppStoreAgeRatingZeroZero      AppStoreAgeRating = "ZERO_ZERO"
 	AppStoreAgeRatingOnePlus       AppStoreAgeRating = "ONE_PLUS"
 	AppStoreAgeRatingTwoPlus       AppStoreAgeRating = "TWO_PLUS"
 	AppStoreAgeRatingThreePlus     AppStoreAgeRating = "THREE_PLUS"

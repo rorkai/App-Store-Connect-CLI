@@ -34,6 +34,18 @@ Automate iOS, macOS, tvOS, and visionOS release workflows from your terminal, ID
 Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing:
 https://github.com/rorkai/app-store-connect-cli-skills
 
+Install them globally so they are available across projects:
+
+```bash
+asc install-skills
+```
+
+Direct install:
+
+```bash
+npx skills add rorkai/app-store-connect-cli-skills --global --agent codex
+```
+
 ## Quick Start
 
 If you want to confirm the binary works before configuring authentication:
