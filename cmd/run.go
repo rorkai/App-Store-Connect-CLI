@@ -18,8 +18,10 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/telemetry"
 )
 
-var maybeCheckForSkillUpdates = install.MaybeCheckForSkillUpdates
-var emitTelemetry = telemetry.Emit
+var (
+	maybeCheckForSkillUpdates = install.MaybeCheckForSkillUpdates
+	emitTelemetry             = telemetry.Emit
+)
 
 // Run executes the CLI using the provided args (not including argv[0]) and version string.
 // It returns the intended process exit code.
