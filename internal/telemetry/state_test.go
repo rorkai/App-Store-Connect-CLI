@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 )
 
 func TestInstallIDCreateReuseAndReset(t *testing.T) {
@@ -49,6 +50,55 @@ func TestInstallIDCreateReuseAndReset(t *testing.T) {
 	}
 	if reset == "" || reset == first {
 		t.Fatalf("expected new install ID, got %q after %q", reset, first)
+	}
+}
+
+func TestEnsureInstallIDDoesNotRewriteUnchangedState(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	if _, err := EnsureInstallID(); err != nil {
+		t.Fatalf("EnsureInstallID() error = %v", err)
+	}
+	path, err := StatePath()
+	if err != nil {
+		t.Fatalf("StatePath() error = %v", err)
+	}
+	firstInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat telemetry state: %v", err)
+	}
+
+	time.Sleep(20 * time.Millisecond)
+	if _, err := EnsureInstallID(); err != nil {
+		t.Fatalf("EnsureInstallID() second error = %v", err)
+	}
+	secondInfo, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("stat telemetry state after reuse: %v", err)
+	}
+	if !secondInfo.ModTime().Equal(firstInfo.ModTime()) {
+		t.Fatalf("state modification time changed from %v to %v", firstInfo.ModTime(), secondInfo.ModTime())
+	}
+}
+
+func TestStaleLockIsRecovered(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	path, err := StatePath()
+	if err != nil {
+		t.Fatalf("StatePath() error = %v", err)
+	}
+	lockPath := path + ".lock"
+	if err := os.MkdirAll(lockPath, 0o700); err != nil {
+		t.Fatalf("create stale lock: %v", err)
+	}
+	staleTime := time.Now().Add(-staleLockAge - time.Second)
+	if err := os.Chtimes(lockPath, staleTime, staleTime); err != nil {
+		t.Fatalf("age stale lock: %v", err)
+	}
+
+	if _, err := EnsureInstallID(); err != nil {
+		t.Fatalf("EnsureInstallID() with stale lock error = %v", err)
 	}
 }
 

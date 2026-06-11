@@ -19,6 +19,7 @@ import (
 )
 
 var maybeCheckForSkillUpdates = install.MaybeCheckForSkillUpdates
+var emitTelemetry = telemetry.Emit
 
 // Run executes the CLI using the provided args (not including argv[0]) and version string.
 // It returns the intended process exit code.
@@ -35,9 +36,11 @@ func Run(args []string, versionInfo string) int {
 	root := RootCommand(versionInfo)
 	runCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stopSignals()
+	start := time.Now()
 
 	if err := root.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
+			emitHelpTelemetry(args, root, versionInfo, start, ExitSuccess)
 			return ExitSuccess
 		}
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
@@ -70,7 +73,6 @@ func Run(args []string, versionInfo string) int {
 
 	commandName := getCommandName(root, args)
 
-	start := time.Now()
 	runErr := root.Run(runCtx)
 	elapsed := time.Since(start)
 
@@ -89,7 +91,7 @@ func Run(args []string, versionInfo string) int {
 			// Report write failure is a hard error - CI depends on it
 			fmt.Fprintf(os.Stderr, "Error: failed to write JUnit report: %v\n", reportErr)
 			if runErr == nil {
-				telemetry.Emit(args, commandName, versionInfo, elapsed, ExitError)
+				emitTelemetry(args, commandName, versionInfo, elapsed, ExitError)
 				return ExitError
 			}
 		}
@@ -98,20 +100,25 @@ func Run(args []string, versionInfo string) int {
 	if runErr != nil {
 		if _, ok := errors.AsType[shared.ReportedError](runErr); ok {
 			exitCode := ExitCodeFromError(runErr)
-			telemetry.Emit(args, commandName, versionInfo, elapsed, exitCode)
+			emitTelemetry(args, commandName, versionInfo, elapsed, exitCode)
 			return exitCode
 		}
 		if errors.Is(runErr, flag.ErrHelp) {
+			emitTelemetry(args, commandName, versionInfo, elapsed, ExitUsage)
 			return ExitUsage
 		}
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(runErr))
 		exitCode := ExitCodeFromError(runErr)
-		telemetry.Emit(args, commandName, versionInfo, elapsed, exitCode)
+		emitTelemetry(args, commandName, versionInfo, elapsed, exitCode)
 		return exitCode
 	}
 
-	telemetry.Emit(args, commandName, versionInfo, elapsed, ExitSuccess)
+	emitTelemetry(args, commandName, versionInfo, elapsed, ExitSuccess)
 	return ExitSuccess
+}
+
+func emitHelpTelemetry(args []string, root *ffcli.Command, versionInfo string, start time.Time, exitCode int) {
+	emitTelemetry(args, getCommandName(root, args), versionInfo, time.Since(start), exitCode)
 }
 
 func shouldCancelRunContextAfterError(err error) bool {

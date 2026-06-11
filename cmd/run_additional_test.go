@@ -338,6 +338,26 @@ func TestRun_HelpSkipsAuthResolution(t *testing.T) {
 	}
 }
 
+func TestRun_HelpEmitsTelemetry(t *testing.T) {
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	var commandName string
+	var exitCode int
+	emitTelemetry = func(_ []string, command, _ string, _ time.Duration, code int) {
+		commandName = command
+		exitCode = code
+	}
+
+	emitHelpTelemetry([]string{"builds", "--help"}, RootCommand("1.0.0"), "1.0.0", time.Now(), ExitSuccess)
+	if commandName != "asc builds" {
+		t.Fatalf("telemetry command = %q, want %q", commandName, "asc builds")
+	}
+	if exitCode != ExitSuccess {
+		t.Fatalf("telemetry exit code = %d, want %d", exitCode, ExitSuccess)
+	}
+}
+
 func TestMergeEnvOverridesReplacesExistingKeys(t *testing.T) {
 	env := mergeEnvOverrides(
 		[]string{

@@ -16,6 +16,7 @@ const (
 	stateDirName  = ".asc"
 	stateFileName = "telemetry.json"
 	lockTimeout   = 2 * time.Second
+	staleLockAge  = 30 * time.Second
 )
 
 type State struct {
@@ -137,8 +138,12 @@ func updateState(path string, mutate func(*State) error) error {
 	if err != nil {
 		return err
 	}
+	before := st
 	if err := mutate(&st); err != nil {
 		return err
+	}
+	if st == before {
+		return nil
 	}
 	return saveState(path, st)
 }
@@ -155,6 +160,11 @@ func lockState(path string) (func(), error) {
 			return func() { _ = os.Remove(lockPath) }, nil
 		} else if !errors.Is(err, os.ErrExist) {
 			return nil, fmt.Errorf("telemetry: failed to lock state: %w", err)
+		}
+		if info, statErr := os.Stat(lockPath); statErr == nil && time.Since(info.ModTime()) > staleLockAge {
+			if removeErr := os.Remove(lockPath); removeErr == nil || errors.Is(removeErr, os.ErrNotExist) {
+				continue
+			}
 		}
 		if time.Now().After(deadline) {
 			return nil, fmt.Errorf("telemetry: timed out locking state")
