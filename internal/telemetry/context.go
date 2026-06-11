@@ -41,26 +41,22 @@ func DetectExecutionContext(commandPath string, args []string) ExecutionContext 
 }
 
 func isKnownCIEnv() bool {
-	if envTruthy("CI") {
-		return true
-	}
 	for _, key := range []string{
+		"CI",
 		"GITHUB_ACTIONS",
 		"GITLAB_CI",
 		"CIRCLECI",
 		"BUILDKITE",
 		"BITRISE_IO",
 		"TF_BUILD",
-		"TEAMCITY_VERSION",
-		"JENKINS_URL",
 		"TRAVIS",
 		"APPVEYOR",
 	} {
-		if os.Getenv(key) != "" {
+		if envTruthy(key) {
 			return true
 		}
 	}
-	return false
+	return os.Getenv("TEAMCITY_VERSION") != "" || os.Getenv("JENKINS_URL") != ""
 }
 
 func envTruthy(key string) bool {

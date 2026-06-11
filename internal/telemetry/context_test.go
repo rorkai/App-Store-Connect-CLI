@@ -53,6 +53,12 @@ func TestDetectExecutionContext(t *testing.T) {
 			want:        ContextCI,
 		},
 		{
+			name:        "false ci flags stay local",
+			commandPath: "asc builds list",
+			env:         map[string]string{"CI": "false", "GITHUB_ACTIONS": "0"},
+			want:        ContextLocal,
+		},
+		{
 			name:        "local",
 			commandPath: "asc builds list",
 			want:        ContextLocal,
