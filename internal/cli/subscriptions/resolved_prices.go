@@ -14,7 +14,7 @@ import (
 
 type resolvedSubscriptionPriceCandidate struct {
 	row       shared.ResolvedPriceRow
-	startAt   time.Time
+	startAt   *time.Time
 	preserved bool
 }
 
@@ -136,10 +136,8 @@ func consumeResolvedSubscriptionPricePageForPlanType(
 			if planType == "" {
 				continue
 			}
-			undatedPlanStart := time.Time{}
-			startAt = &undatedPlanStart
 		}
-		if startAt.After(asOf) {
+		if startAt != nil && startAt.After(asOf) {
 			continue
 		}
 
@@ -161,7 +159,7 @@ func consumeResolvedSubscriptionPricePageForPlanType(
 				StartDate:     strings.TrimSpace(price.Attributes.StartDate),
 				Preserved:     boolPtr(price.Attributes.Preserved),
 			},
-			startAt:   *startAt,
+			startAt:   startAt,
 			preserved: price.Attributes.Preserved,
 		}
 
@@ -175,10 +173,16 @@ func consumeResolvedSubscriptionPricePageForPlanType(
 }
 
 func subscriptionResolvedCandidateIsNewer(candidate, existing resolvedSubscriptionPriceCandidate) bool {
-	if candidate.startAt.After(existing.startAt) {
+	if candidate.startAt == nil || existing.startAt == nil {
+		if candidate.startAt != nil {
+			return true
+		}
+		if existing.startAt != nil {
+			return false
+		}
+	} else if candidate.startAt.After(*existing.startAt) {
 		return true
-	}
-	if candidate.startAt.Before(existing.startAt) {
+	} else if candidate.startAt.Before(*existing.startAt) {
 		return false
 	}
 	if candidate.preserved != existing.preserved {
