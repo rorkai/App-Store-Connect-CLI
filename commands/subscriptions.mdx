@@ -407,7 +407,17 @@ asc subscriptions pricing monthly-commitment disable \
 
 asc subscriptions pricing monthly-commitment list \
   --subscription-id "SUB_ID"
+
+asc subscriptions pricing monthly-commitment list \
+  --subscription-id "SUB_ID" \
+  --plan-type MONTHLY
 ```
+
+**Optional Flags:**
+
+* `--plan-type` - Filter results by `MONTHLY` or `UPFRONT`. Filtering is applied
+  client-side because `GET /v1/subscriptions/{id}/planAvailabilities` does not
+  expose `filter[planType]` in the public OpenAPI schema.
 
 Current CLI behavior:
 
