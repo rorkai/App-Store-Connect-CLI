@@ -67,7 +67,7 @@ func fetchResolvedSubscriptionPrices(
 		if !ok {
 			return fmt.Errorf("unexpected subscription prices response type %T", page)
 		}
-		return consumeResolvedSubscriptionPricePage(candidates, resp, now)
+		return consumeResolvedSubscriptionPricePageForPlanType(candidates, resp, now, planType)
 	}); err != nil {
 		return nil, err
 	}
@@ -99,6 +99,15 @@ func consumeResolvedSubscriptionPricePage(
 	page *asc.SubscriptionPricesResponse,
 	now time.Time,
 ) error {
+	return consumeResolvedSubscriptionPricePageForPlanType(candidates, page, now, "")
+}
+
+func consumeResolvedSubscriptionPricePageForPlanType(
+	candidates map[string]resolvedSubscriptionPriceCandidate,
+	page *asc.SubscriptionPricesResponse,
+	now time.Time,
+	planType asc.SubscriptionPlanType,
+) error {
 	if page == nil {
 		return nil
 	}
@@ -123,7 +132,14 @@ func consumeResolvedSubscriptionPricePage(
 		}
 
 		startAt := parseSubscriptionPricingDate(price.Attributes.StartDate)
-		if startAt == nil || startAt.After(asOf) {
+		if startAt == nil {
+			if planType == "" {
+				continue
+			}
+			undatedPlanStart := time.Time{}
+			startAt = &undatedPlanStart
+		}
+		if startAt.After(asOf) {
 			continue
 		}
 

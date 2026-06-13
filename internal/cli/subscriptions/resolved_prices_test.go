@@ -102,6 +102,60 @@ func TestConsumeResolvedSubscriptionPricePage_DoesNotFallbackToFutureOrUndated(t
 	}
 }
 
+func TestConsumeResolvedSubscriptionPricePage_AcceptsUndatedMonthlyPrice(t *testing.T) {
+	now := time.Date(2026, time.June, 13, 12, 0, 0, 0, time.UTC)
+
+	page := &asc.SubscriptionPricesResponse{
+		Data: []asc.Resource[asc.SubscriptionPriceAttributes]{
+			newResolvedSubscriptionPriceResource("price-monthly", "NOR", "pp-monthly", "", false),
+		},
+		Included: mustMarshalJSON(t, []map[string]any{
+			subscriptionPricePointIncluded("pp-monthly", "5.0", "3.4", "3.4"),
+			territoryIncluded("NOR", "NOK"),
+		}),
+	}
+
+	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
+	if err := consumeResolvedSubscriptionPricePageForPlanType(candidates, page, now, asc.SubscriptionPlanTypeMonthly); err != nil {
+		t.Fatalf("consumeResolvedSubscriptionPricePageForPlanType() error = %v", err)
+	}
+
+	row, ok := candidates["NOR"]
+	if !ok {
+		t.Fatal("expected undated MONTHLY price to resolve as the active price")
+	}
+	if row.row.CustomerPrice != "5.0" {
+		t.Fatalf("expected MONTHLY customer price 5.0, got %+v", row.row)
+	}
+}
+
+func TestConsumeResolvedSubscriptionPricePage_AcceptsUndatedUpfrontPrice(t *testing.T) {
+	now := time.Date(2026, time.June, 13, 12, 0, 0, 0, time.UTC)
+
+	page := &asc.SubscriptionPricesResponse{
+		Data: []asc.Resource[asc.SubscriptionPriceAttributes]{
+			newResolvedSubscriptionPriceResource("price-upfront", "NOR", "pp-upfront", "", false),
+		},
+		Included: mustMarshalJSON(t, []map[string]any{
+			subscriptionPricePointIncluded("pp-upfront", "49.0", "34.0", "34.0"),
+			territoryIncluded("NOR", "NOK"),
+		}),
+	}
+
+	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
+	if err := consumeResolvedSubscriptionPricePageForPlanType(candidates, page, now, asc.SubscriptionPlanTypeUpfront); err != nil {
+		t.Fatalf("consumeResolvedSubscriptionPricePageForPlanType() error = %v", err)
+	}
+
+	row, ok := candidates["NOR"]
+	if !ok {
+		t.Fatal("expected undated UPFRONT price to resolve as the active price")
+	}
+	if row.row.CustomerPrice != "49.0" {
+		t.Fatalf("expected UPFRONT customer price 49.0, got %+v", row.row)
+	}
+}
+
 func newResolvedSubscriptionPriceResource(
 	priceID string,
 	territoryID string,
