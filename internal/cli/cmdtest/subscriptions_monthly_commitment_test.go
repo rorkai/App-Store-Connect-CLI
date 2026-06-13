@@ -430,6 +430,99 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableValidatesAllUpfrontPricesBef
 	}
 }
 
+func TestSubscriptionsPricingMonthlyCommitmentEnableValidatesAllMonthlyPricesBeforeMutation(t *testing.T) {
+	setupAuth(t)
+
+	var availabilityMutations int
+	var subscriptionPricePosts int
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.URL.Path == "/v1/subscriptions/8000000001" && req.Method == http.MethodGet:
+			return jsonResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"subscriptionPeriod":"ONE_YEAR"}}}`)
+		case req.URL.Path == "/v1/subscriptions/8000000001/prices" && req.Method == http.MethodGet:
+			switch req.URL.Query().Get("filter[planType]") {
+			case "UPFRONT":
+				return jsonResponse(http.StatusOK, `{
+					"data":[
+						{
+							"type":"subscriptionPrices","id":"price-upfront-nor",
+							"attributes":{"startDate":"2024-01-01"},
+							"relationships":{
+								"territory":{"data":{"type":"territories","id":"NOR"}},
+								"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-upfront-nor"}}
+							}
+						},
+						{
+							"type":"subscriptionPrices","id":"price-upfront-deu",
+							"attributes":{"startDate":"2024-01-01"},
+							"relationships":{
+								"territory":{"data":{"type":"territories","id":"DEU"}},
+								"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-upfront-deu"}}
+							}
+						}
+					],
+					"included":[
+						{"type":"subscriptionPricePoints","id":"pp-upfront-nor","attributes":{"customerPrice":"120.00"}},
+						{"type":"subscriptionPricePoints","id":"pp-upfront-deu","attributes":{"customerPrice":"120.00"}},
+						{"type":"territories","id":"NOR","attributes":{"currency":"NOK"}},
+						{"type":"territories","id":"DEU","attributes":{"currency":"EUR"}}
+					],
+					"links":{"next":""}
+				}`)
+			case "MONTHLY":
+				return jsonResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`)
+			default:
+				t.Fatalf("unexpected prices query: %q", req.URL.RawQuery)
+				return nil, nil
+			}
+		case req.URL.Path == "/v1/subscriptions/8000000001/pricePoints" && req.Method == http.MethodGet:
+			switch req.URL.Query().Get("filter[territory]") {
+			case "NOR":
+				return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-monthly-nor","attributes":{"customerPrice":"10.00"}}],"links":{"next":""}}`)
+			case "DEU":
+				return jsonResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`)
+			default:
+				t.Fatalf("unexpected price-points query: %q", req.URL.RawQuery)
+				return nil, nil
+			}
+		case req.URL.Path == "/v1/subscriptions/8000000001/planAvailabilities" && req.Method == http.MethodGet:
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case req.URL.Path == "/v1/subscriptionPlanAvailabilities" && req.Method == http.MethodPost:
+			availabilityMutations++
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"MONTHLY"}}}`)
+		case req.URL.Path == "/v1/subscriptionPrices" && req.Method == http.MethodPost:
+			subscriptionPricePosts++
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-monthly","attributes":{"planType":"MONTHLY"}}}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	if err := root.Parse([]string{
+		"subscriptions", "pricing", "monthly-commitment", "enable",
+		"--subscription-id", "8000000001",
+		"--price", "10.00",
+		"--price-territory", "Norway",
+		"--territories", "Norway,Germany",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	err := root.Run(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "resolve monthly price for DEU") {
+		t.Fatalf("expected missing DEU monthly price-point error, got %v", err)
+	}
+	if availabilityMutations != 0 {
+		t.Fatalf("expected monthly prices to be validated before mutating availability, got %d mutation(s)", availabilityMutations)
+	}
+	if subscriptionPricePosts != 0 {
+		t.Fatalf("expected no monthly price writes when preflight fails, got %d create request(s)", subscriptionPricePosts)
+	}
+}
+
 func TestSubscriptionsPricingMonthlyCommitmentEnableCreatesMonthlyPrices(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_TIMEOUT", "80ms")
@@ -437,6 +530,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableCreatesMonthlyPrices(t *test
 
 	var postedPlanType string
 	var mutationOrder []string
+	var availabilityDeadlineRemaining time.Duration
 	var createDeadlineRemaining time.Duration
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
@@ -498,6 +592,11 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableCreatesMonthlyPrices(t *test
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case req.URL.Path == "/v1/subscriptionPlanAvailabilities" && req.Method == http.MethodPost:
 			mutationOrder = append(mutationOrder, "availability")
+			deadline, ok := req.Context().Deadline()
+			if !ok {
+				t.Fatal("expected plan availability create request to carry a timeout deadline")
+			}
+			availabilityDeadlineRemaining = time.Until(deadline)
 			var payload asc.SubscriptionPlanAvailabilityCreateRequest
 			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 				t.Fatalf("decode plan availability payload: %v", err)
@@ -537,6 +636,9 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableCreatesMonthlyPrices(t *test
 	}
 	if got := strings.Join(mutationOrder, ","); got != "availability,price" {
 		t.Fatalf("expected availability before price creation, got %q", got)
+	}
+	if availabilityDeadlineRemaining < 35*time.Millisecond {
+		t.Fatalf("expected a fresh timeout for plan availability creation, got only %v remaining", availabilityDeadlineRemaining)
 	}
 	if createDeadlineRemaining < 35*time.Millisecond {
 		t.Fatalf("expected a fresh timeout for price creation, got only %v remaining", createDeadlineRemaining)
@@ -712,6 +814,85 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableSkipsEquivalentMonthlyPrice(
 	}
 	if subscriptionPricePosts != 0 {
 		t.Fatalf("expected equivalent current MONTHLY price to be reused, got %d create request(s)", subscriptionPricePosts)
+	}
+}
+
+func TestSubscriptionsPricingMonthlyCommitmentEnableDoesNotReuseFutureMonthlyPrice(t *testing.T) {
+	setupAuth(t)
+
+	subscriptionPricePosts := 0
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.URL.Path == "/v1/subscriptions/8000000001" && req.Method == http.MethodGet:
+			return jsonResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"subscriptionPeriod":"ONE_YEAR"}}}`)
+		case req.URL.Path == "/v1/subscriptions/8000000001/prices" && req.Method == http.MethodGet:
+			switch req.URL.Query().Get("filter[planType]") {
+			case "UPFRONT":
+				return jsonResponse(http.StatusOK, `{
+					"data":[{
+						"type":"subscriptionPrices","id":"price-upfront",
+						"attributes":{"startDate":"2024-01-01"},
+						"relationships":{
+							"territory":{"data":{"type":"territories","id":"NOR"}},
+							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-upfront"}}
+						}
+					}],
+					"included":[
+						{"type":"subscriptionPricePoints","id":"pp-upfront","attributes":{"customerPrice":"120.00"}},
+						{"type":"territories","id":"NOR","attributes":{"currency":"NOK"}}
+					],
+					"links":{"next":""}
+				}`)
+			case "MONTHLY":
+				return jsonResponse(http.StatusOK, `{
+					"data":[{
+						"type":"subscriptionPrices","id":"price-monthly-future",
+						"attributes":{"startDate":"2099-01-01"},
+						"relationships":{
+							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-future"}}
+						}
+					}],
+					"included":[
+						{"type":"subscriptionPricePoints","id":"pp-future","attributes":{"customerPrice":"10.00"}}
+					],
+					"links":{"next":""}
+				}`)
+			default:
+				t.Fatalf("unexpected prices query: %q", req.URL.RawQuery)
+				return nil, nil
+			}
+		case req.URL.Path == "/v1/subscriptions/8000000001/pricePoints" && req.Method == http.MethodGet:
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-current","attributes":{"customerPrice":"10.00"}}],"links":{"next":""}}`)
+		case req.URL.Path == "/v1/subscriptionPrices" && req.Method == http.MethodPost:
+			subscriptionPricePosts++
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-created","attributes":{"planType":"MONTHLY"}}}`)
+		case req.URL.Path == "/v1/subscriptions/8000000001/planAvailabilities" && req.Method == http.MethodGet:
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case req.URL.Path == "/v1/subscriptionPlanAvailabilities" && req.Method == http.MethodPost:
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"MONTHLY"}}}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	if err := root.Parse([]string{
+		"subscriptions", "pricing", "monthly-commitment", "enable",
+		"--subscription-id", "8000000001",
+		"--price", "10.00",
+		"--price-territory", "Norway",
+		"--territories", "Norway",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	if subscriptionPricePosts != 1 {
+		t.Fatalf("expected a current MONTHLY price to be created despite the matching future schedule, got %d create request(s)", subscriptionPricePosts)
 	}
 }
 

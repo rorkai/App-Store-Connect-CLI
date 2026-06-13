@@ -142,10 +142,9 @@ Examples:
 				return err
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			subResp, err := client.GetSubscription(requestCtx, id)
+			subCtx, subCancel := shared.ContextWithTimeout(ctx)
+			subResp, err := client.GetSubscription(subCtx, id)
+			subCancel()
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to fetch subscription: %w", err)
 			}
@@ -153,7 +152,9 @@ Examples:
 				return shared.UsageError("--subscription-id must refer to a ONE_YEAR subscription for monthly-commitment billing")
 			}
 
-			summary, err := resolveSubscriptionPriceSummary(requestCtx, client, subWithGroup{Sub: subResp.Data}, priceTerritoryID)
+			summaryCtx, summaryCancel := shared.ContextWithTimeout(ctx)
+			summary, err := resolveSubscriptionPriceSummary(summaryCtx, client, subWithGroup{Sub: subResp.Data}, priceTerritoryID)
+			summaryCancel()
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to fetch upfront price: %w", err)
 			}
@@ -166,30 +167,40 @@ Examples:
 			if err := validateMonthlyCommitmentUpfrontPrices(ctx, client, id, territoryIDs); err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
 			}
+			monthlyPriceCreates, err := prepareMonthlySubscriptionPrices(ctx, client, id, territoryIDs, monthlyPrice)
+			if err != nil {
+				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
+			}
 
 			attrs := asc.SubscriptionPlanAvailabilityAttributes{
 				PlanType: asc.SubscriptionPlanTypeMonthly,
 			}
 
-			existing, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(requestCtx, id)
+			availabilityListCtx, availabilityListCancel := shared.ContextWithTimeout(ctx)
+			existing, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(availabilityListCtx, id)
+			availabilityListCancel()
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to fetch plan availabilities: %w", err)
 			}
 
 			var availabilityResp *asc.SubscriptionPlanAvailabilityResponse
+			availabilityWriteCtx, availabilityWriteCancel := shared.ContextWithTimeout(ctx)
 			if monthlyPlan, ok := findMonthlySubscriptionPlanAvailability(existing); ok {
-				availabilityResp, err = client.UpdateSubscriptionPlanAvailability(requestCtx, monthlyPlan.ID, territoryIDs, nil)
+				availabilityResp, err = client.UpdateSubscriptionPlanAvailability(availabilityWriteCtx, monthlyPlan.ID, territoryIDs, nil)
 				if err != nil {
+					availabilityWriteCancel()
 					return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to update plan availability: %w", err)
 				}
 			} else {
-				availabilityResp, err = client.CreateSubscriptionPlanAvailability(requestCtx, id, territoryIDs, attrs)
+				availabilityResp, err = client.CreateSubscriptionPlanAvailability(availabilityWriteCtx, id, territoryIDs, attrs)
 				if err != nil {
+					availabilityWriteCancel()
 					return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to create plan availability: %w", err)
 				}
 			}
+			availabilityWriteCancel()
 
-			if err := ensureMonthlySubscriptionPrices(ctx, client, id, territoryIDs, monthlyPrice); err != nil {
+			if err := createMonthlySubscriptionPrices(ctx, client, id, monthlyPriceCreates); err != nil {
 				return fmt.Errorf(
 					"subscriptions pricing monthly-commitment enable: plan availability %q is ready, but failed to configure MONTHLY prices: %w",
 					availabilityResp.Data.ID,
@@ -516,25 +527,31 @@ func validateMonthlyCommitmentUpfrontPrices(
 	return nil
 }
 
-func ensureMonthlySubscriptionPrices(
+type monthlySubscriptionPriceCreate struct {
+	territoryID  string
+	pricePointID string
+}
+
+func prepareMonthlySubscriptionPrices(
 	ctx context.Context,
 	client *asc.Client,
 	subscriptionID string,
 	territoryIDs []string,
 	monthlyPrice string,
-) error {
+) ([]monthlySubscriptionPriceCreate, error) {
 	now := time.Now().UTC()
+	creates := make([]monthlySubscriptionPriceCreate, 0, len(territoryIDs))
 	for _, territoryID := range territoryIDs {
 		tierCtx, tierCancel := shared.ContextWithTimeout(ctx)
 		tiers, err := shared.ResolveSubscriptionTiers(tierCtx, client, subscriptionID, territoryID, false)
 		tierCancel()
 		if err != nil {
-			return fmt.Errorf("resolve tiers for %s: %w", territoryID, err)
+			return nil, fmt.Errorf("resolve tiers for %s: %w", territoryID, err)
 		}
 
 		pricePointID, err := shared.ResolvePricePointByPrice(tiers, monthlyPrice)
 		if err != nil {
-			return fmt.Errorf("resolve monthly price for %s: %w", territoryID, err)
+			return nil, fmt.Errorf("resolve monthly price for %s: %w", territoryID, err)
 		}
 		resolvedMonthlyPrice := monthlyPrice
 		for _, tier := range tiers {
@@ -556,23 +573,38 @@ func ensureMonthlySubscriptionPrices(
 		)
 		pricesCancel()
 		if err != nil {
-			return fmt.Errorf("fetch monthly prices for %s: %w", territoryID, err)
+			return nil, fmt.Errorf("fetch monthly prices for %s: %w", territoryID, err)
 		}
 
 		pricePointValues, _ := parseSubscriptionPricesIncluded(pricesResp.Included)
-		if current, ok := selectCurrentSubscriptionPriceValue(pricesResp.Data, pricePointValues, now); ok {
+		if current, ok := selectInEffectSubscriptionPriceValue(pricesResp.Data, pricePointValues, now); ok {
 			if monthlyCommitmentPricesEqual(current.CustomerPrice, resolvedMonthlyPrice) {
 				continue
 			}
 		}
 
+		creates = append(creates, monthlySubscriptionPriceCreate{
+			territoryID:  territoryID,
+			pricePointID: pricePointID,
+		})
+	}
+	return creates, nil
+}
+
+func createMonthlySubscriptionPrices(
+	ctx context.Context,
+	client *asc.Client,
+	subscriptionID string,
+	creates []monthlySubscriptionPriceCreate,
+) error {
+	for _, create := range creates {
 		createCtx, createCancel := shared.ContextWithTimeout(ctx)
-		_, err = client.CreateSubscriptionPrice(createCtx, subscriptionID, pricePointID, territoryID, asc.SubscriptionPriceCreateAttributes{
+		_, err := client.CreateSubscriptionPrice(createCtx, subscriptionID, create.pricePointID, create.territoryID, asc.SubscriptionPriceCreateAttributes{
 			PlanType: asc.SubscriptionPlanTypeMonthly,
 		})
 		createCancel()
 		if err != nil {
-			return fmt.Errorf("create monthly price for %s: %w", territoryID, err)
+			return fmt.Errorf("create monthly price for %s: %w", create.territoryID, err)
 		}
 	}
 	return nil

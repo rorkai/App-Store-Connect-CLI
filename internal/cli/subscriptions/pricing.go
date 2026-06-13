@@ -327,6 +327,23 @@ func selectCurrentSubscriptionPriceValue(
 	pricePointValues map[string]subscriptionPricePointValue,
 	now time.Time,
 ) (subscriptionPricePointValue, bool) {
+	return selectSubscriptionPriceValue(prices, pricePointValues, now, true)
+}
+
+func selectInEffectSubscriptionPriceValue(
+	prices []asc.Resource[asc.SubscriptionPriceAttributes],
+	pricePointValues map[string]subscriptionPricePointValue,
+	now time.Time,
+) (subscriptionPricePointValue, bool) {
+	return selectSubscriptionPriceValue(prices, pricePointValues, now, false)
+}
+
+func selectSubscriptionPriceValue(
+	prices []asc.Resource[asc.SubscriptionPriceAttributes],
+	pricePointValues map[string]subscriptionPricePointValue,
+	now time.Time,
+	allowFutureFallback bool,
+) (subscriptionPricePointValue, bool) {
 	asOf := dateOnlyUTC(now)
 
 	var bestCurrent *subscriptionPriceCandidate
@@ -377,7 +394,7 @@ func selectCurrentSubscriptionPriceValue(
 		return bestCurrent.value, true
 	case bestUndated != nil:
 		return bestUndated.value, true
-	case bestFuture != nil:
+	case allowFutureFallback && bestFuture != nil:
 		return bestFuture.value, true
 	default:
 		return subscriptionPricePointValue{}, false
