@@ -860,7 +860,7 @@ Examples:
 
 			nextURL := strings.TrimSpace(*next)
 			if nextURL != "" && planTypeFilter != "" {
-				nextURL, err = shared.MergeNextURLQuery(nextURL, subscriptionPricesPlanTypeQuery(planTypeFilter))
+				nextURL, err = mergeSubscriptionPricesPlanType(nextURL, planTypeFilter)
 				if err != nil {
 					return fmt.Errorf("subscriptions prices list: %w", err)
 				}
@@ -881,7 +881,7 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					nextURL, err := shared.MergeNextURLQuery(nextURL, subscriptionPricesPlanTypeQuery(planTypeFilter))
+					nextURL, err := mergeSubscriptionPricesPlanType(nextURL, planTypeFilter)
 					if err != nil {
 						return nil, err
 					}
@@ -904,12 +904,24 @@ Examples:
 	}
 }
 
-func subscriptionPricesPlanTypeQuery(planType asc.SubscriptionPlanType) url.Values {
-	values := url.Values{}
-	if planType != "" {
-		values.Set("filter[planType]", string(planType))
+func mergeSubscriptionPricesPlanType(next string, planType asc.SubscriptionPlanType) (string, error) {
+	if planType == "" {
+		return next, nil
 	}
-	return values
+
+	parsed, err := url.Parse(next)
+	if err != nil {
+		return "", err
+	}
+	additions := url.Values{"filter[planType]": []string{string(planType)}}
+	if parsed.IsAbs() || parsed.Host != "" {
+		return shared.MergeNextURLQuery(next, additions)
+	}
+
+	query := parsed.Query()
+	query.Set("filter[planType]", string(planType))
+	parsed.RawQuery = query.Encode()
+	return parsed.String(), nil
 }
 
 // SubscriptionsPricesAddCommand returns the subscriptions prices add subcommand.
