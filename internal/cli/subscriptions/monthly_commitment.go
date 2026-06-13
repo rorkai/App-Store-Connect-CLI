@@ -163,6 +163,9 @@ Examples:
 			if err := validateMonthlyCommitmentPriceRange(monthlyPrice, summary.CurrentPrice.Amount); err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
 			}
+			if err := validateMonthlyCommitmentUpfrontPrices(ctx, client, id, territoryIDs); err != nil {
+				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
+			}
 
 			attrs := asc.SubscriptionPlanAvailabilityAttributes{
 				PlanType: asc.SubscriptionPlanTypeMonthly,
@@ -468,6 +471,49 @@ func formatMoneyRat(value *big.Rat) string {
 		return ""
 	}
 	return value.FloatString(2)
+}
+
+func validateMonthlyCommitmentUpfrontPrices(
+	ctx context.Context,
+	client *asc.Client,
+	subscriptionID string,
+	territoryIDs []string,
+) error {
+	pricesCtx, pricesCancel := shared.ContextWithTimeout(ctx)
+	defer pricesCancel()
+
+	resolved, err := fetchResolvedSubscriptionPrices(
+		pricesCtx,
+		client,
+		subscriptionID,
+		200,
+		"",
+		time.Now().UTC(),
+		asc.SubscriptionPlanTypeUpfront,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to fetch UPFRONT subscription prices: %w", err)
+	}
+
+	available := make(map[string]struct{}, len(resolved.Prices))
+	for _, price := range resolved.Prices {
+		if strings.TrimSpace(price.CustomerPrice) == "" {
+			continue
+		}
+		available[strings.ToUpper(strings.TrimSpace(price.Territory))] = struct{}{}
+	}
+
+	missing := make([]string, 0)
+	for _, territoryID := range territoryIDs {
+		territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
+		if _, ok := available[territoryID]; !ok {
+			missing = append(missing, territoryID)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("current UPFRONT subscription price is missing for %s", strings.Join(missing, ","))
+	}
+	return nil
 }
 
 func ensureMonthlySubscriptionPrices(
