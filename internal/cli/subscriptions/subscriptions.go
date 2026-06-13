@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -857,9 +858,16 @@ Examples:
 				return shared.PrintResolvedPrices(resp, *output.Output, *output.Pretty)
 			}
 
+			nextURL := strings.TrimSpace(*next)
+			if nextURL != "" && planTypeFilter != "" {
+				nextURL, err = shared.MergeNextURLQuery(nextURL, subscriptionPricesPlanTypeQuery(planTypeFilter))
+				if err != nil {
+					return fmt.Errorf("subscriptions prices list: %w", err)
+				}
+			}
 			opts := []asc.SubscriptionPricesOption{
 				asc.WithSubscriptionPricesLimit(*limit),
-				asc.WithSubscriptionPricesNextURL(*next),
+				asc.WithSubscriptionPricesNextURL(nextURL),
 			}
 			if planTypeFilter != "" {
 				opts = append(opts, asc.WithSubscriptionPricesPlanType(planTypeFilter))
@@ -873,6 +881,10 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					nextURL, err := shared.MergeNextURLQuery(nextURL, subscriptionPricesPlanTypeQuery(planTypeFilter))
+					if err != nil {
+						return nil, err
+					}
 					return client.GetSubscriptionPrices(ctx, id, asc.WithSubscriptionPricesNextURL(nextURL))
 				})
 				if err != nil {
@@ -890,6 +902,14 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func subscriptionPricesPlanTypeQuery(planType asc.SubscriptionPlanType) url.Values {
+	values := url.Values{}
+	if planType != "" {
+		values.Set("filter[planType]", string(planType))
+	}
+	return values
 }
 
 // SubscriptionsPricesAddCommand returns the subscriptions prices add subcommand.
