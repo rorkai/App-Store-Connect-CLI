@@ -25,6 +25,7 @@ func fetchResolvedSubscriptionPrices(
 	limit int,
 	nextURL string,
 	now time.Time,
+	planType asc.SubscriptionPlanType,
 ) (*shared.ResolvedPricesResult, error) {
 	if limit <= 0 {
 		limit = 200
@@ -37,6 +38,9 @@ func fetchResolvedSubscriptionPrices(
 		asc.WithSubscriptionPricesPricePointFields([]string{"customerPrice", "proceeds", "proceedsYear2"}),
 		asc.WithSubscriptionPricesTerritoryFields([]string{"currency"}),
 	}
+	if planType != "" {
+		opts = append(opts, asc.WithSubscriptionPricesPlanType(planType))
+	}
 
 	firstPage, err := client.GetSubscriptionPrices(ctx, subscriptionID, opts...)
 	if err != nil {
@@ -45,7 +49,7 @@ func fetchResolvedSubscriptionPrices(
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
 	if err := asc.PaginateEach(ctx, firstPage, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
-		nextURL, err := shared.MergeNextURLQuery(next, resolvedSubscriptionPricesQuery(limit))
+		nextURL, err := shared.MergeNextURLQuery(next, resolvedSubscriptionPricesQuery(limit, planType))
 		if err != nil {
 			return nil, err
 		}
@@ -56,6 +60,7 @@ func fetchResolvedSubscriptionPrices(
 			asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory"}),
 			asc.WithSubscriptionPricesPricePointFields([]string{"customerPrice", "proceeds", "proceedsYear2"}),
 			asc.WithSubscriptionPricesTerritoryFields([]string{"currency"}),
+			asc.WithSubscriptionPricesPlanType(planType),
 		)
 	}, func(page asc.PaginatedResponse) error {
 		resp, ok := page.(*asc.SubscriptionPricesResponse)
@@ -75,13 +80,16 @@ func fetchResolvedSubscriptionPrices(
 	return &shared.ResolvedPricesResult{Prices: rows}, nil
 }
 
-func resolvedSubscriptionPricesQuery(limit int) url.Values {
+func resolvedSubscriptionPricesQuery(limit int, planType asc.SubscriptionPlanType) url.Values {
 	values := url.Values{}
 	values.Set("include", "subscriptionPricePoint,territory")
 	values.Set("fields[subscriptionPricePoints]", "customerPrice,proceeds,proceedsYear2")
 	values.Set("fields[territories]", "currency")
 	if limit > 0 {
 		values.Set("limit", fmt.Sprintf("%d", limit))
+	}
+	if planType != "" {
+		values.Set("filter[planType]", string(planType))
 	}
 	return values
 }

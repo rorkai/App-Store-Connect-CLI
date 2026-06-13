@@ -526,7 +526,7 @@ func reconcileEqualizeFailures(ctx context.Context, client *asc.Client, subID st
 	verifyCtx, verifyCancel := shared.ContextWithTimeout(ctx)
 	defer verifyCancel()
 
-	resolved, err := fetchResolvedSubscriptionPrices(verifyCtx, client, subID, 200, "", effectiveAt)
+	resolved, err := fetchResolvedSubscriptionPrices(verifyCtx, client, subID, 200, "", effectiveAt, "")
 	if err != nil {
 		return 0, failures, err
 	}

@@ -776,6 +776,7 @@ func SubscriptionsPricesListCommand() *ffcli.Command {
 
 	subID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
+	planType := fs.String("plan-type", "", "Filter by plan type: MONTHLY or UPFRONT")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -784,14 +785,17 @@ func SubscriptionsPricesListCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc subscriptions prices list --subscription-id \"SUB_ID\"",
+		ShortUsage: "asc subscriptions prices list --subscription-id \"SUB_ID\" [--plan-type MONTHLY|UPFRONT]",
 		ShortHelp:  "List prices for a subscription.",
 		LongHelp: `List prices for a subscription.
+
+Use --plan-type to filter by MONTHLY or UPFRONT billing plan prices.
 
 Examples:
   asc subscriptions prices list --subscription-id "SUB_ID"
   asc subscriptions prices list --subscription-id "SUB_ID" --paginate
-  asc subscriptions prices list --subscription-id "SUB_ID" --resolved`,
+  asc subscriptions prices list --subscription-id "SUB_ID" --resolved
+  asc subscriptions prices list --subscription-id "SUB_ID" --plan-type MONTHLY`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -812,6 +816,24 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			var planTypeFilter asc.SubscriptionPlanType
+			planTypeProvided := false
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name == "plan-type" {
+					planTypeProvided = true
+				}
+			})
+			if planTypeProvided {
+				if strings.TrimSpace(*planType) == "" {
+					return shared.UsageError("invalid value for --plan-type: cannot be empty")
+				}
+				normalized, err := normalizeSubscriptionPlanType(*planType)
+				if err != nil {
+					return shared.UsageError(err.Error())
+				}
+				planTypeFilter = normalized
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions prices list: %w", err)
@@ -828,7 +850,7 @@ Examples:
 			defer cancel()
 
 			if *resolved {
-				resp, err := fetchResolvedSubscriptionPrices(requestCtx, client, id, *limit, *next, time.Now().UTC())
+				resp, err := fetchResolvedSubscriptionPrices(requestCtx, client, id, *limit, *next, time.Now().UTC(), planTypeFilter)
 				if err != nil {
 					return fmt.Errorf("subscriptions prices list: failed to resolve: %w", err)
 				}
@@ -838,6 +860,9 @@ Examples:
 			opts := []asc.SubscriptionPricesOption{
 				asc.WithSubscriptionPricesLimit(*limit),
 				asc.WithSubscriptionPricesNextURL(*next),
+			}
+			if planTypeFilter != "" {
+				opts = append(opts, asc.WithSubscriptionPricesPlanType(planTypeFilter))
 			}
 
 			if *paginate {

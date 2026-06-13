@@ -222,10 +222,12 @@ List current prices for a subscription.
 
 ```bash  theme={null}
 asc subscriptions pricing prices list --subscription-id "SUB_ID"
+asc subscriptions pricing prices list --subscription-id "SUB_ID" --plan-type MONTHLY
 ```
 
 **Optional Flags:**
 
+* `--plan-type` - Filter by `MONTHLY` or `UPFRONT` billing plan prices
 * `--limit` - Results per page (1-200)
 * `--paginate` - Fetch all pages
 
