@@ -68,7 +68,7 @@ func SubscriptionsPricingMonthlyCommitmentEnableCommand() *ffcli.Command {
 	price := fs.String("price", "", "Monthly customer price; total commitment is price x 12")
 	priceTerritory := fs.String("price-territory", "", "Territory used to compare the upfront annual price")
 	territories := fs.String("territories", "", "Territories to enable, comma-separated; USA and Singapore are excluded")
-	availableInNew := fs.Bool("available-in-new-territories", false, "Include new eligible territories automatically")
+	availableInNew := fs.Bool("available-in-new-territories", false, "Unsupported for MONTHLY plan availability")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -81,8 +81,8 @@ The subscription must use subscriptionPeriod ONE_YEAR. USA and Singapore are
 removed from --territories because Apple excludes those storefronts. The CLI
 also checks that the 12-payment total is at least the upfront annual price and
 no more than 1.5x the upfront annual price when the current upfront price can be
-read from App Store Connect. The CLI creates MONTHLY subscriptionPrices for each
-eligible territory before updating subscriptionPlanAvailabilities.
+read from App Store Connect. The CLI configures MONTHLY plan availability before
+creating MONTHLY subscriptionPrices for each eligible territory.
 
 Examples:
   asc subscriptions pricing monthly-commitment enable --subscription-id "SUB_ID" --price "9.99" --price-territory "Norway" --territories "Norway,Germany,France"`,
@@ -94,6 +94,9 @@ Examples:
 			}
 			if len(args) > 0 {
 				return shared.UsageError("subscriptions pricing monthly-commitment enable does not accept positional arguments")
+			}
+			if *availableInNew {
+				return shared.UsageError("--available-in-new-territories is not supported for MONTHLY plan availability")
 			}
 
 			id := strings.TrimSpace(*subscriptionID)
@@ -160,14 +163,8 @@ Examples:
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
 			}
 
-			if err := ensureMonthlySubscriptionPrices(requestCtx, client, id, territoryIDs, monthlyPrice); err != nil {
-				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
-			}
-
-			availableInNewValue := *availableInNew
 			attrs := asc.SubscriptionPlanAvailabilityAttributes{
-				AvailableInNewTerritories: &availableInNewValue,
-				PlanType:                  asc.SubscriptionPlanTypeMonthly,
+				PlanType: asc.SubscriptionPlanTypeMonthly,
 			}
 
 			existing, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(requestCtx, id)
@@ -175,19 +172,28 @@ Examples:
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to fetch plan availabilities: %w", err)
 			}
 
+			var availabilityResp *asc.SubscriptionPlanAvailabilityResponse
 			if monthlyPlan, ok := findMonthlySubscriptionPlanAvailability(existing); ok {
-				resp, err := client.UpdateSubscriptionPlanAvailability(requestCtx, monthlyPlan.ID, territoryIDs, &attrs)
+				availabilityResp, err = client.UpdateSubscriptionPlanAvailability(requestCtx, monthlyPlan.ID, territoryIDs, nil)
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to update plan availability: %w", err)
 				}
-				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			} else {
+				availabilityResp, err = client.CreateSubscriptionPlanAvailability(requestCtx, id, territoryIDs, attrs)
+				if err != nil {
+					return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to create plan availability: %w", err)
+				}
 			}
 
-			resp, err := client.CreateSubscriptionPlanAvailability(requestCtx, id, territoryIDs, attrs)
-			if err != nil {
-				return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to create plan availability: %w", err)
+			if err := ensureMonthlySubscriptionPrices(requestCtx, client, id, territoryIDs, monthlyPrice); err != nil {
+				return fmt.Errorf(
+					"subscriptions pricing monthly-commitment enable: plan availability %q is ready, but failed to configure MONTHLY prices: %w",
+					availabilityResp.Data.ID,
+					err,
+				)
 			}
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+
+			return shared.PrintOutput(availabilityResp, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -477,6 +483,13 @@ func ensureMonthlySubscriptionPrices(
 		if err != nil {
 			return fmt.Errorf("resolve monthly price for %s: %w", territoryID, err)
 		}
+		resolvedMonthlyPrice := monthlyPrice
+		for _, tier := range tiers {
+			if strings.TrimSpace(tier.PricePointID) == pricePointID {
+				resolvedMonthlyPrice = tier.CustomerPrice
+				break
+			}
+		}
 
 		pricesCtx, pricesCancel := shared.ContextWithTimeout(ctx)
 		pricesResp, err := client.GetSubscriptionPrices(
@@ -495,7 +508,7 @@ func ensureMonthlySubscriptionPrices(
 
 		pricePointValues, _ := parseSubscriptionPricesIncluded(pricesResp.Included)
 		if current, ok := selectCurrentSubscriptionPriceValue(pricesResp.Data, pricePointValues, now); ok {
-			if resolved, exists := pricePointValues[pricePointID]; exists && resolved.CustomerPrice == current.CustomerPrice {
+			if monthlyCommitmentPricesEqual(current.CustomerPrice, resolvedMonthlyPrice) {
 				continue
 			}
 		}
@@ -508,4 +521,16 @@ func ensureMonthlySubscriptionPrices(
 		}
 	}
 	return nil
+}
+
+func monthlyCommitmentPricesEqual(left string, right string) bool {
+	leftPrice, err := parsePositiveMoneyRat(left, "current monthly price")
+	if err != nil {
+		return false
+	}
+	rightPrice, err := parsePositiveMoneyRat(right, "requested monthly price")
+	if err != nil {
+		return false
+	}
+	return leftPrice.Cmp(rightPrice) == 0
 }

@@ -24,6 +24,11 @@ type SubscriptionPlanAvailabilityAttributes struct {
 	PlanType                  SubscriptionPlanType `json:"planType,omitempty"`
 }
 
+// SubscriptionPlanAvailabilityUpdateAttributes describes mutable plan availability attributes.
+type SubscriptionPlanAvailabilityUpdateAttributes struct {
+	AvailableInNewTerritories *bool `json:"availableInNewTerritories,omitempty"`
+}
+
 // SubscriptionPlanAvailabilityRelationships describes relationships for plan availability.
 type SubscriptionPlanAvailabilityRelationships struct {
 	Subscription         *Relationship     `json:"subscription,omitempty"`
@@ -44,10 +49,10 @@ type SubscriptionPlanAvailabilityCreateRequest struct {
 
 // SubscriptionPlanAvailabilityUpdateData is the data portion of plan availability update requests.
 type SubscriptionPlanAvailabilityUpdateData struct {
-	Type          ResourceType                               `json:"type"`
-	ID            string                                     `json:"id"`
-	Attributes    *SubscriptionPlanAvailabilityAttributes    `json:"attributes,omitempty"`
-	Relationships *SubscriptionPlanAvailabilityRelationships `json:"relationships,omitempty"`
+	Type          ResourceType                                  `json:"type"`
+	ID            string                                        `json:"id"`
+	Attributes    *SubscriptionPlanAvailabilityUpdateAttributes `json:"attributes,omitempty"`
+	Relationships *SubscriptionPlanAvailabilityRelationships    `json:"relationships,omitempty"`
 }
 
 // SubscriptionPlanAvailabilityUpdateRequest is a request to update plan availability.
@@ -133,7 +138,7 @@ func (c *Client) CreateSubscriptionPlanAvailability(ctx context.Context, subID s
 }
 
 // UpdateSubscriptionPlanAvailability updates subscription plan availability in territories.
-func (c *Client) UpdateSubscriptionPlanAvailability(ctx context.Context, planAvailabilityID string, territoryIDs []string, attrs *SubscriptionPlanAvailabilityAttributes) (*SubscriptionPlanAvailabilityResponse, error) {
+func (c *Client) UpdateSubscriptionPlanAvailability(ctx context.Context, planAvailabilityID string, territoryIDs []string, attrs *SubscriptionPlanAvailabilityUpdateAttributes) (*SubscriptionPlanAvailabilityResponse, error) {
 	planAvailabilityID = strings.TrimSpace(planAvailabilityID)
 	territoryIDs = normalizeList(territoryIDs)
 	if planAvailabilityID == "" {

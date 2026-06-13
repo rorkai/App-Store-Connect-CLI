@@ -1344,6 +1344,9 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 			if normalizedBillingMode == subscriptionBillingModeMonthlyCommitment {
+				if *availableInNew {
+					return shared.UsageError("--available-in-new-territories is not supported for MONTHLY plan availability")
+				}
 				territoryIDs, excluded := filterMonthlyCommitmentTerritories(territoryIDs)
 				printMonthlyCommitmentTerritoryWarning(excluded)
 				if len(territoryIDs) == 0 {
@@ -1365,10 +1368,8 @@ Examples:
 			defer cancel()
 
 			if normalizedBillingMode == subscriptionBillingModeMonthlyCommitment {
-				availableInNewValue := *availableInNew
 				resp, err := client.CreateSubscriptionPlanAvailability(requestCtx, id, territoryIDs, asc.SubscriptionPlanAvailabilityAttributes{
-					AvailableInNewTerritories: &availableInNewValue,
-					PlanType:                  asc.SubscriptionPlanTypeMonthly,
+					PlanType: asc.SubscriptionPlanTypeMonthly,
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions availability edit: failed to set monthly-commitment plan availability: %w", err)
