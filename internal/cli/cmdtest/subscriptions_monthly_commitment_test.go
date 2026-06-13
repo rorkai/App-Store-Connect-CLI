@@ -741,6 +741,7 @@ func TestSubscriptionsPricingAvailabilityEditMonthlyCommitmentUpdatesExistingPla
 func TestSubscriptionsPricingMonthlyCommitmentEnableSkipsEquivalentMonthlyPrice(t *testing.T) {
 	setupAuth(t)
 
+	monthlyPricePages := 0
 	subscriptionPricePosts := 0
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
@@ -765,11 +766,20 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableSkipsEquivalentMonthlyPrice(
 					"links":{"next":""}
 				}`)
 			case "MONTHLY":
-				return jsonResponse(http.StatusOK, `{
+				monthlyPricePages++
+				switch req.URL.Query().Get("cursor") {
+				case "":
+					return jsonResponse(http.StatusOK, `{
+						"data":[],
+						"links":{"next":"/v1/subscriptions/8000000001/prices?cursor=monthly-page-2"}
+					}`)
+				case "monthly-page-2":
+					return jsonResponse(http.StatusOK, `{
 					"data":[{
 						"type":"subscriptionPrices","id":"price-monthly",
 						"attributes":{"startDate":"2024-01-01"},
 						"relationships":{
+							"territory":{"data":{"type":"territories","id":"NOR"}},
 							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-existing"}}
 						}
 					}],
@@ -778,6 +788,10 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableSkipsEquivalentMonthlyPrice(
 					],
 					"links":{"next":""}
 				}`)
+				default:
+					t.Fatalf("unexpected MONTHLY pagination query: %q", req.URL.RawQuery)
+					return nil, nil
+				}
 			default:
 				t.Fatalf("unexpected prices query: %q", req.URL.RawQuery)
 				return nil, nil
@@ -815,6 +829,9 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableSkipsEquivalentMonthlyPrice(
 	if subscriptionPricePosts != 0 {
 		t.Fatalf("expected equivalent current MONTHLY price to be reused, got %d create request(s)", subscriptionPricePosts)
 	}
+	if monthlyPricePages != 2 {
+		t.Fatalf("expected MONTHLY idempotency to inspect both pages, got %d page request(s)", monthlyPricePages)
+	}
 }
 
 func TestSubscriptionsPricingMonthlyCommitmentEnableDoesNotReuseFutureMonthlyPrice(t *testing.T) {
@@ -849,6 +866,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableDoesNotReuseFutureMonthlyPri
 						"type":"subscriptionPrices","id":"price-monthly-future",
 						"attributes":{"startDate":"2099-01-01"},
 						"relationships":{
+							"territory":{"data":{"type":"territories","id":"NOR"}},
 							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-future"}}
 						}
 					}],
@@ -901,6 +919,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableOmitsPlanTypeOnUpdate(t *tes
 
 	sentPlanType := false
 	sentAvailableInNewTerritories := false
+	var updatedTerritoryIDs []string
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.URL.Path == "/v1/subscriptions/8000000001" && req.Method == http.MethodGet:
@@ -929,6 +948,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableOmitsPlanTypeOnUpdate(t *tes
 						"type":"subscriptionPrices","id":"price-monthly",
 						"attributes":{"startDate":"2024-01-01"},
 						"relationships":{
+							"territory":{"data":{"type":"territories","id":"NOR"}},
 							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-monthly"}}
 						}
 					}],
@@ -945,10 +965,22 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableOmitsPlanTypeOnUpdate(t *tes
 			return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-monthly","attributes":{"customerPrice":"10.00"}}],"links":{"next":""}}`)
 		case req.URL.Path == "/v1/subscriptions/8000000001/planAvailabilities" && req.Method == http.MethodGet:
 			return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"MONTHLY"}}]}`)
+		case req.URL.Path == "/v1/subscriptionPlanAvailabilities/plan-1/relationships/availableTerritories" && req.Method == http.MethodGet:
+			if got := req.URL.Query().Get("limit"); got != "200" {
+				t.Fatalf("expected territory relationship limit 200, got %q", got)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"DEU"}],"links":{"next":""}}`)
 		case req.URL.Path == "/v1/subscriptionPlanAvailabilities/plan-1" && req.Method == http.MethodPatch:
 			var payload struct {
 				Data struct {
-					Attributes map[string]any `json:"attributes"`
+					Attributes    map[string]any `json:"attributes"`
+					Relationships struct {
+						AvailableTerritories struct {
+							Data []struct {
+								ID string `json:"id"`
+							} `json:"data"`
+						} `json:"availableTerritories"`
+					} `json:"relationships"`
 				} `json:"data"`
 			}
 			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
@@ -956,6 +988,9 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableOmitsPlanTypeOnUpdate(t *tes
 			}
 			_, sentPlanType = payload.Data.Attributes["planType"]
 			_, sentAvailableInNewTerritories = payload.Data.Attributes["availableInNewTerritories"]
+			for _, territory := range payload.Data.Relationships.AvailableTerritories.Data {
+				updatedTerritoryIDs = append(updatedTerritoryIDs, territory.ID)
+			}
 			return jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"MONTHLY"}}}`)
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -983,5 +1018,8 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableOmitsPlanTypeOnUpdate(t *tes
 	}
 	if sentAvailableInNewTerritories {
 		t.Fatal("MONTHLY update payload must not include availableInNewTerritories")
+	}
+	if got := strings.Join(updatedTerritoryIDs, ","); got != "DEU,NOR" {
+		t.Fatalf("expected enable to preserve DEU while adding NOR, got %q", got)
 	}
 }

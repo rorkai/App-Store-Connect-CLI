@@ -184,21 +184,26 @@ Examples:
 			}
 
 			var availabilityResp *asc.SubscriptionPlanAvailabilityResponse
-			availabilityWriteCtx, availabilityWriteCancel := shared.ContextWithTimeout(ctx)
 			if monthlyPlan, ok := findMonthlySubscriptionPlanAvailability(existing); ok {
-				availabilityResp, err = client.UpdateSubscriptionPlanAvailability(availabilityWriteCtx, monthlyPlan.ID, territoryIDs, nil)
+				currentTerritoryIDs, fetchErr := subscriptionPlanAvailabilityTerritories(ctx, client, monthlyPlan.ID)
+				if fetchErr != nil {
+					return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to fetch available territories: %w", fetchErr)
+				}
+				updatedTerritoryIDs := unionSubscriptionPlanAvailabilityTerritories(currentTerritoryIDs, territoryIDs)
+				availabilityWriteCtx, availabilityWriteCancel := shared.ContextWithTimeout(ctx)
+				availabilityResp, err = client.UpdateSubscriptionPlanAvailability(availabilityWriteCtx, monthlyPlan.ID, updatedTerritoryIDs, nil)
+				availabilityWriteCancel()
 				if err != nil {
-					availabilityWriteCancel()
 					return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to update plan availability: %w", err)
 				}
 			} else {
+				availabilityWriteCtx, availabilityWriteCancel := shared.ContextWithTimeout(ctx)
 				availabilityResp, err = client.CreateSubscriptionPlanAvailability(availabilityWriteCtx, id, territoryIDs, attrs)
+				availabilityWriteCancel()
 				if err != nil {
-					availabilityWriteCancel()
 					return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to create plan availability: %w", err)
 				}
 			}
-			availabilityWriteCancel()
 
 			if err := createMonthlySubscriptionPrices(ctx, client, id, monthlyPriceCreates); err != nil {
 				return fmt.Errorf(
@@ -540,6 +545,30 @@ func prepareMonthlySubscriptionPrices(
 	monthlyPrice string,
 ) ([]monthlySubscriptionPriceCreate, error) {
 	now := time.Now().UTC()
+	pricesCtx, pricesCancel := shared.ContextWithTimeout(ctx)
+	resolvedPrices, err := fetchResolvedSubscriptionPrices(
+		pricesCtx,
+		client,
+		subscriptionID,
+		200,
+		"",
+		now,
+		asc.SubscriptionPlanTypeMonthly,
+	)
+	pricesCancel()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch MONTHLY subscription prices: %w", err)
+	}
+
+	currentPrices := make(map[string]string, len(resolvedPrices.Prices))
+	for _, price := range resolvedPrices.Prices {
+		territoryID := strings.ToUpper(strings.TrimSpace(price.Territory))
+		if territoryID == "" {
+			continue
+		}
+		currentPrices[territoryID] = strings.TrimSpace(price.CustomerPrice)
+	}
+
 	creates := make([]monthlySubscriptionPriceCreate, 0, len(territoryIDs))
 	for _, territoryID := range territoryIDs {
 		tierCtx, tierCancel := shared.ContextWithTimeout(ctx)
@@ -561,26 +590,9 @@ func prepareMonthlySubscriptionPrices(
 			}
 		}
 
-		pricesCtx, pricesCancel := shared.ContextWithTimeout(ctx)
-		pricesResp, err := client.GetSubscriptionPrices(
-			pricesCtx,
-			subscriptionID,
-			asc.WithSubscriptionPricesTerritory(territoryID),
-			asc.WithSubscriptionPricesPlanType(asc.SubscriptionPlanTypeMonthly),
-			asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint"}),
-			asc.WithSubscriptionPricesPricePointFields([]string{"customerPrice"}),
-			asc.WithSubscriptionPricesLimit(10),
-		)
-		pricesCancel()
-		if err != nil {
-			return nil, fmt.Errorf("fetch monthly prices for %s: %w", territoryID, err)
-		}
-
-		pricePointValues, _ := parseSubscriptionPricesIncluded(pricesResp.Included)
-		if current, ok := selectInEffectSubscriptionPriceValue(pricesResp.Data, pricePointValues, now); ok {
-			if monthlyCommitmentPricesEqual(current.CustomerPrice, resolvedMonthlyPrice) {
-				continue
-			}
+		if currentPrice := currentPrices[strings.ToUpper(strings.TrimSpace(territoryID))]; currentPrice != "" &&
+			monthlyCommitmentPricesEqual(currentPrice, resolvedMonthlyPrice) {
+			continue
 		}
 
 		creates = append(creates, monthlySubscriptionPriceCreate{
@@ -628,12 +640,32 @@ func remainingSubscriptionPlanAvailabilityTerritories(
 	planAvailabilityID string,
 	removedTerritoryIDs []string,
 ) ([]string, error) {
+	currentTerritoryIDs, err := subscriptionPlanAvailabilityTerritories(ctx, client, planAvailabilityID)
+	if err != nil {
+		return nil, err
+	}
+
 	removed := make(map[string]struct{}, len(removedTerritoryIDs))
 	for _, territoryID := range removedTerritoryIDs {
 		removed[strings.ToUpper(strings.TrimSpace(territoryID))] = struct{}{}
 	}
 
-	remaining := make([]string, 0)
+	remaining := make([]string, 0, len(currentTerritoryIDs))
+	for _, territoryID := range currentTerritoryIDs {
+		if _, remove := removed[territoryID]; remove {
+			continue
+		}
+		remaining = append(remaining, territoryID)
+	}
+	return remaining, nil
+}
+
+func subscriptionPlanAvailabilityTerritories(
+	ctx context.Context,
+	client *asc.Client,
+	planAvailabilityID string,
+) ([]string, error) {
+	territoryIDs := make([]string, 0)
 	seenTerritories := make(map[string]struct{})
 	seenNextURLs := make(map[string]struct{})
 	nextURL := ""
@@ -663,19 +695,35 @@ func remainingSubscriptionPlanAvailabilityTerritories(
 			if territoryID == "" {
 				continue
 			}
-			if _, remove := removed[territoryID]; remove {
-				continue
-			}
 			if _, seen := seenTerritories[territoryID]; seen {
 				continue
 			}
 			seenTerritories[territoryID] = struct{}{}
-			remaining = append(remaining, territoryID)
+			territoryIDs = append(territoryIDs, territoryID)
 		}
 
 		nextURL = strings.TrimSpace(resp.Links.Next)
 		if nextURL == "" {
-			return remaining, nil
+			return territoryIDs, nil
 		}
 	}
+}
+
+func unionSubscriptionPlanAvailabilityTerritories(existing []string, added []string) []string {
+	territoryIDs := make([]string, 0, len(existing)+len(added))
+	seen := make(map[string]struct{}, len(existing)+len(added))
+	for _, values := range [][]string{existing, added} {
+		for _, territoryID := range values {
+			territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
+			if territoryID == "" {
+				continue
+			}
+			if _, ok := seen[territoryID]; ok {
+				continue
+			}
+			seen[territoryID] = struct{}{}
+			territoryIDs = append(territoryIDs, territoryID)
+		}
+	}
+	return territoryIDs
 }
