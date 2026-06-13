@@ -164,7 +164,7 @@ Examples:
 			if err := validateMonthlyCommitmentPriceRange(monthlyPrice, summary.CurrentPrice.Amount); err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
 			}
-			if err := validateMonthlyCommitmentUpfrontPrices(ctx, client, id, territoryIDs); err != nil {
+			if err := validateMonthlyCommitmentUpfrontPrices(ctx, client, id, territoryIDs, monthlyPrice); err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
 			}
 			monthlyPriceCreates, err := prepareMonthlySubscriptionPrices(ctx, client, id, territoryIDs, monthlyPrice)
@@ -494,6 +494,7 @@ func validateMonthlyCommitmentUpfrontPrices(
 	client *asc.Client,
 	subscriptionID string,
 	territoryIDs []string,
+	monthlyPrice string,
 ) error {
 	pricesCtx, pricesCancel := shared.ContextWithTimeout(ctx)
 	defer pricesCancel()
@@ -511,23 +512,32 @@ func validateMonthlyCommitmentUpfrontPrices(
 		return fmt.Errorf("failed to fetch UPFRONT subscription prices: %w", err)
 	}
 
-	available := make(map[string]struct{}, len(resolved.Prices))
+	upfrontPrices := make(map[string]string, len(resolved.Prices))
 	for _, price := range resolved.Prices {
-		if strings.TrimSpace(price.CustomerPrice) == "" {
+		territoryID := strings.ToUpper(strings.TrimSpace(price.Territory))
+		customerPrice := strings.TrimSpace(price.CustomerPrice)
+		if territoryID == "" || customerPrice == "" {
 			continue
 		}
-		available[strings.ToUpper(strings.TrimSpace(price.Territory))] = struct{}{}
+		upfrontPrices[territoryID] = customerPrice
 	}
 
 	missing := make([]string, 0)
 	for _, territoryID := range territoryIDs {
 		territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
-		if _, ok := available[territoryID]; !ok {
+		if upfrontPrices[territoryID] == "" {
 			missing = append(missing, territoryID)
 		}
 	}
 	if len(missing) > 0 {
 		return fmt.Errorf("current UPFRONT subscription price is missing for %s", strings.Join(missing, ","))
+	}
+
+	for _, territoryID := range territoryIDs {
+		territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
+		if err := validateMonthlyCommitmentPriceRange(monthlyPrice, upfrontPrices[territoryID]); err != nil {
+			return fmt.Errorf("monthly price is invalid for %s: %w", territoryID, err)
+		}
 	}
 	return nil
 }
