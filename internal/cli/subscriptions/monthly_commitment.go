@@ -581,6 +581,12 @@ func prepareMonthlySubscriptionPrices(
 
 	creates := make([]monthlySubscriptionPriceCreate, 0, len(territoryIDs))
 	for _, territoryID := range territoryIDs {
+		normalizedTerritoryID := strings.ToUpper(strings.TrimSpace(territoryID))
+		if currentPrice := currentPrices[normalizedTerritoryID]; currentPrice != "" &&
+			monthlyCommitmentPricesEqual(currentPrice, monthlyPrice) {
+			continue
+		}
+
 		tierCtx, tierCancel := shared.ContextWithTimeout(ctx)
 		tiers, err := shared.ResolveSubscriptionTiers(tierCtx, client, subscriptionID, territoryID, false)
 		tierCancel()
@@ -600,7 +606,7 @@ func prepareMonthlySubscriptionPrices(
 			}
 		}
 
-		if currentPrice := currentPrices[strings.ToUpper(strings.TrimSpace(territoryID))]; currentPrice != "" &&
+		if currentPrice := currentPrices[normalizedTerritoryID]; currentPrice != "" &&
 			monthlyCommitmentPricesEqual(currentPrice, resolvedMonthlyPrice) {
 			continue
 		}

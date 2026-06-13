@@ -829,6 +829,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableSkipsEquivalentMonthlyPrice(
 	setupAuth(t)
 
 	monthlyPricePages := 0
+	pricePointRequests := 0
 	subscriptionPricePosts := 0
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
@@ -884,7 +885,8 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableSkipsEquivalentMonthlyPrice(
 				return nil, nil
 			}
 		case req.URL.Path == "/v1/subscriptions/8000000001/pricePoints" && req.Method == http.MethodGet:
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-resolved","attributes":{"customerPrice":"10.00"}}],"links":{"next":""}}`)
+			pricePointRequests++
+			return jsonResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`)
 		case req.URL.Path == "/v1/subscriptionPrices" && req.Method == http.MethodPost:
 			subscriptionPricePosts++
 			return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-created"}}`)
@@ -918,6 +920,9 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableSkipsEquivalentMonthlyPrice(
 	}
 	if monthlyPricePages != 2 {
 		t.Fatalf("expected MONTHLY idempotency to inspect both pages, got %d page request(s)", monthlyPricePages)
+	}
+	if pricePointRequests != 0 {
+		t.Fatalf("expected equivalent current MONTHLY price to skip price-point lookup, got %d request(s)", pricePointRequests)
 	}
 }
 
