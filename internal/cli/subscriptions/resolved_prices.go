@@ -49,7 +49,7 @@ func fetchResolvedSubscriptionPrices(
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
 	if err := asc.PaginateEach(ctx, firstPage, func(ctx context.Context, next string) (asc.PaginatedResponse, error) {
-		nextURL, err := shared.MergeNextURLQuery(next, resolvedSubscriptionPricesQuery(limit, planType))
+		nextURL, err := mergeSubscriptionPricesNextQuery(next, resolvedSubscriptionPricesQuery(limit, planType))
 		if err != nil {
 			return nil, err
 		}

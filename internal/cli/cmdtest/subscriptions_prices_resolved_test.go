@@ -164,6 +164,93 @@ func TestSubscriptionsPricingPricesListResolvedJSON(t *testing.T) {
 	}
 }
 
+func TestSubscriptionsPricingPricesListResolvedPlanTypeSupportsRelativeNextURL(t *testing.T) {
+	setupAuth(t)
+
+	requestCount := 0
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/prices" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+		query := req.URL.Query()
+		if got := query.Get("filter[planType]"); got != "MONTHLY" {
+			t.Fatalf("request %d: expected filter[planType]=MONTHLY, got %q", requestCount, got)
+		}
+		if got := query.Get("include"); got != "subscriptionPricePoint,territory" {
+			t.Fatalf("request %d: expected resolved includes, got %q", requestCount, got)
+		}
+
+		switch requestCount {
+		case 1:
+			return jsonResponse(http.StatusOK, `{
+				"data":[{
+					"type":"subscriptionPrices",
+					"id":"price-nor",
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"NOR"}},
+						"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-nor"}}
+					}
+				}],
+				"included":[
+					{"type":"subscriptionPricePoints","id":"pp-nor","attributes":{"customerPrice":"5.00"}},
+					{"type":"territories","id":"NOR","attributes":{"currency":"NOK"}}
+				],
+				"links":{"next":"/v1/subscriptions/8000000001/prices?cursor=next"}
+			}`)
+		case 2:
+			if got := query.Get("cursor"); got != "next" {
+				t.Fatalf("expected cursor=next, got %q", got)
+			}
+			return jsonResponse(http.StatusOK, `{
+				"data":[{
+					"type":"subscriptionPrices",
+					"id":"price-deu",
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"DEU"}},
+						"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-deu"}}
+					}
+				}],
+				"included":[
+					{"type":"subscriptionPricePoints","id":"pp-deu","attributes":{"customerPrice":"4.99"}},
+					{"type":"territories","id":"DEU","attributes":{"currency":"EUR"}}
+				],
+				"links":{"next":""}
+			}`)
+		default:
+			t.Fatalf("unexpected request count: %d", requestCount)
+			return nil, nil
+		}
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "prices", "list",
+			"--subscription-id", "8000000001",
+			"--resolved",
+			"--plan-type", "MONTHLY",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if runErr != nil {
+		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
+	}
+
+	var result shared.ResolvedPricesResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v, stdout = %q", err, stdout)
+	}
+	if len(result.Prices) != 2 {
+		t.Fatalf("expected two resolved prices, got %+v", result.Prices)
+	}
+}
+
 func TestSubscriptionsPricingPricesListResolvedTable(t *testing.T) {
 	setupAuth(t)
 

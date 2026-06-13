@@ -909,17 +909,36 @@ func mergeSubscriptionPricesPlanType(next string, planType asc.SubscriptionPlanT
 		return next, nil
 	}
 
+	return mergeSubscriptionPricesNextQuery(
+		next,
+		url.Values{"filter[planType]": []string{string(planType)}},
+	)
+}
+
+func mergeSubscriptionPricesNextQuery(next string, additions url.Values) (string, error) {
+	next = strings.TrimSpace(next)
+	if next == "" {
+		return "", nil
+	}
+
 	parsed, err := url.Parse(next)
 	if err != nil {
 		return "", err
 	}
-	additions := url.Values{"filter[planType]": []string{string(planType)}}
 	if parsed.IsAbs() || parsed.Host != "" {
 		return shared.MergeNextURLQuery(next, additions)
 	}
 
 	query := parsed.Query()
-	query.Set("filter[planType]", string(planType))
+	for key, values := range additions {
+		query.Del(key)
+		for _, value := range values {
+			value = strings.TrimSpace(value)
+			if value != "" {
+				query.Add(key, value)
+			}
+		}
+	}
 	parsed.RawQuery = query.Encode()
 	return parsed.String(), nil
 }
