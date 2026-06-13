@@ -289,7 +289,16 @@ Examples:
 				return shared.UsageError("--subscription-id is required")
 			}
 			var planTypeFilter asc.SubscriptionPlanType
-			if strings.TrimSpace(*planType) != "" {
+			planTypeProvided := false
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name == "plan-type" {
+					planTypeProvided = true
+				}
+			})
+			if planTypeProvided {
+				if strings.TrimSpace(*planType) == "" {
+					return shared.UsageError("invalid value for --plan-type: cannot be empty")
+				}
 				normalized, err := normalizeSubscriptionPlanType(*planType)
 				if err != nil {
 					return shared.UsageError(err.Error())

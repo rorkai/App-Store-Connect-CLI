@@ -82,6 +82,11 @@ func TestSubscriptionsPricingMonthlyCommitmentValidationErrors(t *testing.T) {
 			args:    []string{"subscriptions", "pricing", "monthly-commitment", "list", "--subscription-id", "sub-1", "--plan-type", "annual"},
 			wantErr: "--plan-type must be one of: MONTHLY, UPFRONT",
 		},
+		{
+			name:    "list empty plan type",
+			args:    []string{"subscriptions", "pricing", "monthly-commitment", "list", "--subscription-id", "sub-1", "--plan-type", ""},
+			wantErr: "invalid value for --plan-type: cannot be empty",
+		},
 	}
 
 	for _, test := range tests {
@@ -136,6 +141,11 @@ func TestSubscriptionsPricingMonthlyCommitmentUsageExitCodes(t *testing.T) {
 			name:    "list invalid plan type returns usage",
 			args:    []string{"subscriptions", "pricing", "monthly-commitment", "list", "--subscription-id", "sub-1", "--plan-type", "annual"},
 			wantErr: "--plan-type must be one of: MONTHLY, UPFRONT",
+		},
+		{
+			name:    "list empty plan type returns usage",
+			args:    []string{"subscriptions", "pricing", "monthly-commitment", "list", "--subscription-id", "sub-1", "--plan-type", ""},
+			wantErr: "invalid value for --plan-type: cannot be empty",
 		},
 		{
 			name:    "availability edit invalid billing mode returns usage",
@@ -198,6 +208,7 @@ func TestSubscriptionsPricingMonthlyCommitmentListFiltersPlanType(t *testing.T) 
 			"subscriptions", "pricing", "monthly-commitment", "list",
 			"--subscription-id", "8000000001",
 			"--plan-type", "UPFRONT",
+			"--output", "json",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -206,11 +217,16 @@ func TestSubscriptionsPricingMonthlyCommitmentListFiltersPlanType(t *testing.T) 
 	if runErr != nil {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
 	}
-	if !strings.Contains(stdout, `"id":"plan-upfront"`) {
-		t.Fatalf("expected upfront plan availability, got %q", stdout)
+	var got struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
 	}
-	if strings.Contains(stdout, `"id":"plan-monthly"`) {
-		t.Fatalf("expected monthly plan availability to be filtered out, got %q", stdout)
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("expected valid JSON output, got parse error: %v; stdout=%q", err, stdout)
+	}
+	if len(got.Data) != 1 || got.Data[0].ID != "plan-upfront" {
+		t.Fatalf("expected only plan-upfront, got %#v", got.Data)
 	}
 }
 
