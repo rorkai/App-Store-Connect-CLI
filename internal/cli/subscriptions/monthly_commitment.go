@@ -262,16 +262,22 @@ func SubscriptionsPricingMonthlyCommitmentListCommand() *ffcli.Command {
 
 	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
+	planType := fs.String("plan-type", "", "Filter by plan type: MONTHLY or UPFRONT")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc subscriptions pricing monthly-commitment list --subscription-id \"SUB_ID\"",
+		ShortUsage: "asc subscriptions pricing monthly-commitment list --subscription-id \"SUB_ID\" [--plan-type MONTHLY|UPFRONT]",
 		ShortHelp:  "List monthly-commitment plan availability.",
 		LongHelp: `List Monthly with 12-Month Commitment plan availability.
 
+Use --plan-type to filter results by MONTHLY or UPFRONT. Filtering is applied
+client-side because the planAvailabilities list endpoint does not expose
+filter[planType] in the public OpenAPI schema.
+
 Examples:
-  asc subscriptions pricing monthly-commitment list --subscription-id "SUB_ID"`,
+  asc subscriptions pricing monthly-commitment list --subscription-id "SUB_ID"
+  asc subscriptions pricing monthly-commitment list --subscription-id "SUB_ID" --plan-type MONTHLY`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -281,6 +287,23 @@ Examples:
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
 				return shared.UsageError("--subscription-id is required")
+			}
+			var planTypeFilter asc.SubscriptionPlanType
+			planTypeProvided := false
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name == "plan-type" {
+					planTypeProvided = true
+				}
+			})
+			if planTypeProvided {
+				if strings.TrimSpace(*planType) == "" {
+					return shared.UsageError("invalid value for --plan-type: cannot be empty")
+				}
+				normalized, err := normalizeSubscriptionPlanType(*planType)
+				if err != nil {
+					return shared.UsageError(err.Error())
+				}
+				planTypeFilter = normalized
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -294,7 +317,12 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(requestCtx, id)
+			opts := []asc.SubscriptionPlanAvailabilitiesOption{}
+			if planTypeFilter != "" {
+				opts = append(opts, asc.WithSubscriptionPlanAvailabilitiesPlanTypes(planTypeFilter))
+			}
+
+			resp, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(requestCtx, id, opts...)
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment list: failed to fetch: %w", err)
 			}
@@ -313,6 +341,18 @@ func findMonthlySubscriptionPlanAvailability(resp *asc.SubscriptionPlanAvailabil
 		}
 	}
 	return asc.Resource[asc.SubscriptionPlanAvailabilityAttributes]{}, false
+}
+
+func normalizeSubscriptionPlanType(value string) (asc.SubscriptionPlanType, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	switch normalized {
+	case string(asc.SubscriptionPlanTypeMonthly):
+		return asc.SubscriptionPlanTypeMonthly, nil
+	case string(asc.SubscriptionPlanTypeUpfront):
+		return asc.SubscriptionPlanTypeUpfront, nil
+	default:
+		return "", fmt.Errorf("--plan-type must be one of: MONTHLY, UPFRONT")
+	}
 }
 
 func normalizeSubscriptionBillingMode(value string) (subscriptionBillingMode, error) {
