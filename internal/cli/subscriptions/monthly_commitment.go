@@ -82,7 +82,8 @@ removed from --territories because Apple excludes those storefronts. The CLI
 also checks that the 12-payment total is at least the upfront annual price and
 no more than 1.5x the upfront annual price when the current upfront price can be
 read from App Store Connect. The CLI configures MONTHLY plan availability before
-creating MONTHLY subscriptionPrices for each eligible territory.
+creating MONTHLY subscriptionPrices because Apple rejects the reverse order.
+Each eligible territory must already have an UPFRONT subscription price.
 
 Examples:
   asc subscriptions pricing monthly-commitment enable --subscription-id "SUB_ID" --price "9.99" --price-territory "Norway" --territories "Norway,Germany,France"`,

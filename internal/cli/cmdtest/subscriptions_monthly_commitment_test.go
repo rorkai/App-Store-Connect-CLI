@@ -484,6 +484,9 @@ func TestSubscriptionsPricingAvailabilityEditMonthlyCommitmentOmitsAvailableInNe
 	setupAuth(t)
 
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path == "/v1/subscriptions/8000000001/planAvailabilities" && req.Method == http.MethodGet {
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		}
 		if req.URL.Path != "/v1/subscriptionPlanAvailabilities" || req.Method != http.MethodPost {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
@@ -513,6 +516,57 @@ func TestSubscriptionsPricingAvailabilityEditMonthlyCommitmentOmitsAvailableInNe
 	}
 	if err := root.Run(context.Background()); err != nil {
 		t.Fatalf("run error: %v", err)
+	}
+}
+
+func TestSubscriptionsPricingAvailabilityEditMonthlyCommitmentUpdatesExistingPlanAvailability(t *testing.T) {
+	setupAuth(t)
+
+	var requests []string
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.URL.Path == "/v1/subscriptions/8000000001/planAvailabilities" && req.Method == http.MethodGet:
+			requests = append(requests, "list")
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"MONTHLY"}}]}`)
+		case req.URL.Path == "/v1/subscriptionPlanAvailabilities/plan-1" && req.Method == http.MethodPatch:
+			requests = append(requests, "update")
+			var payload asc.SubscriptionPlanAvailabilityUpdateRequest
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode plan availability payload: %v", err)
+			}
+			if payload.Data.Attributes != nil {
+				t.Fatalf("MONTHLY update must omit attributes, got %#v", payload.Data.Attributes)
+			}
+			got := payload.Data.Relationships.AvailableTerritories.Data
+			if len(got) != 1 || got[0].ID != "NOR" {
+				t.Fatalf("expected NOR territory update, got %#v", got)
+			}
+			return jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"MONTHLY"}}}`)
+		case req.URL.Path == "/v1/subscriptionPlanAvailabilities" && req.Method == http.MethodPost:
+			requests = append(requests, "create")
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionPlanAvailabilities","id":"plan-2","attributes":{"planType":"MONTHLY"}}}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	if err := root.Parse([]string{
+		"subscriptions", "pricing", "availability", "edit",
+		"--subscription-id", "8000000001",
+		"--billing-mode", "monthly-commitment",
+		"--territories", "Norway",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatalf("run error: %v", err)
+	}
+	if got := strings.Join(requests, ","); got != "list,update" {
+		t.Fatalf("expected existing MONTHLY availability to be updated, got %q", got)
 	}
 }
 

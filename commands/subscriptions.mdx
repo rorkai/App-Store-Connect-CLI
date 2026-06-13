@@ -429,7 +429,9 @@ Current CLI behavior:
   upfront`.
 * Removes USA and Singapore from `--territories` with a warning because Apple
   excludes those storefronts.
-* Creates or updates `subscriptionPlanAvailabilities` with `planType=MONTHLY`.
+* Requires an existing UPFRONT subscription price in each eligible territory.
+* Creates or updates `subscriptionPlanAvailabilities` with `planType=MONTHLY`
+  before creating MONTHLY `subscriptionPrices`, as required by Apple.
 * Creates MONTHLY `subscriptionPrices` for each eligible territory at `--price`.
 
 Monthly with 12-Month Commitment is available only outside the United States and
