@@ -2,9 +2,9 @@ package cmdtest
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 )
 
@@ -28,6 +28,7 @@ func TestUsersUpdateWarnsDeprecatedAccessToReportsRole(t *testing.T) {
 			"users", "update",
 			"--id", "user-1",
 			"--roles", "ACCESS_TO_REPORTS",
+			"--output", "json",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -37,8 +38,17 @@ func TestUsersUpdateWarnsDeprecatedAccessToReportsRole(t *testing.T) {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
 	}
 	requireStderrContainsWarning(t, stderr, "Warning: ACCESS_TO_REPORTS is deprecated in App Store Connect API 4.4")
-	if !strings.Contains(stdout, `"id":"user-1"`) {
-		t.Fatalf("expected user response, got %q", stdout)
+
+	var got struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("expected valid JSON output, got parse error: %v; stdout=%q", err, stdout)
+	}
+	if got.Data.ID != "user-1" {
+		t.Fatalf("expected user-1, got %#v", got.Data)
 	}
 }
 
@@ -65,6 +75,7 @@ func TestUsersInviteWarnsDeprecatedAccessToReportsRole(t *testing.T) {
 			"--last-name", "Doe",
 			"--roles", "ACCESS_TO_REPORTS",
 			"--all-apps",
+			"--output", "json",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -74,7 +85,16 @@ func TestUsersInviteWarnsDeprecatedAccessToReportsRole(t *testing.T) {
 		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
 	}
 	requireStderrContainsWarning(t, stderr, "Warning: ACCESS_TO_REPORTS is deprecated in App Store Connect API 4.4")
-	if !strings.Contains(stdout, `"id":"invite-1"`) {
-		t.Fatalf("expected invite response, got %q", stdout)
+
+	var got struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("expected valid JSON output, got parse error: %v; stdout=%q", err, stdout)
+	}
+	if got.Data.ID != "invite-1" {
+		t.Fatalf("expected invite-1, got %#v", got.Data)
 	}
 }
