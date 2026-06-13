@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -80,7 +81,8 @@ The subscription must use subscriptionPeriod ONE_YEAR. USA and Singapore are
 removed from --territories because Apple excludes those storefronts. The CLI
 also checks that the 12-payment total is at least the upfront annual price and
 no more than 1.5x the upfront annual price when the current upfront price can be
-read from App Store Connect.
+read from App Store Connect. The CLI creates MONTHLY subscriptionPrices for each
+eligible territory before updating subscriptionPlanAvailabilities.
 
 Examples:
   asc subscriptions pricing monthly-commitment enable --subscription-id "SUB_ID" --price "9.99" --price-territory "Norway" --territories "Norway,Germany,France"`,
@@ -155,6 +157,10 @@ Examples:
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: current upfront price is missing for %s", priceTerritoryID)
 			}
 			if err := validateMonthlyCommitmentPriceRange(monthlyPrice, summary.CurrentPrice.Amount); err != nil {
+				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
+			}
+
+			if err := ensureMonthlySubscriptionPrices(requestCtx, client, id, territoryIDs, monthlyPrice); err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
 			}
 
@@ -449,4 +455,57 @@ func formatMoneyRat(value *big.Rat) string {
 		return ""
 	}
 	return value.FloatString(2)
+}
+
+func ensureMonthlySubscriptionPrices(
+	ctx context.Context,
+	client *asc.Client,
+	subscriptionID string,
+	territoryIDs []string,
+	monthlyPrice string,
+) error {
+	now := time.Now().UTC()
+	for _, territoryID := range territoryIDs {
+		tierCtx, tierCancel := shared.ContextWithTimeout(ctx)
+		tiers, err := shared.ResolveSubscriptionTiers(tierCtx, client, subscriptionID, territoryID, false)
+		tierCancel()
+		if err != nil {
+			return fmt.Errorf("resolve tiers for %s: %w", territoryID, err)
+		}
+
+		pricePointID, err := shared.ResolvePricePointByPrice(tiers, monthlyPrice)
+		if err != nil {
+			return fmt.Errorf("resolve monthly price for %s: %w", territoryID, err)
+		}
+
+		pricesCtx, pricesCancel := shared.ContextWithTimeout(ctx)
+		pricesResp, err := client.GetSubscriptionPrices(
+			pricesCtx,
+			subscriptionID,
+			asc.WithSubscriptionPricesTerritory(territoryID),
+			asc.WithSubscriptionPricesPlanType(asc.SubscriptionPlanTypeMonthly),
+			asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint"}),
+			asc.WithSubscriptionPricesPricePointFields([]string{"customerPrice"}),
+			asc.WithSubscriptionPricesLimit(10),
+		)
+		pricesCancel()
+		if err != nil {
+			return fmt.Errorf("fetch monthly prices for %s: %w", territoryID, err)
+		}
+
+		pricePointValues, _ := parseSubscriptionPricesIncluded(pricesResp.Included)
+		if current, ok := selectCurrentSubscriptionPriceValue(pricesResp.Data, pricePointValues, now); ok {
+			if resolved, exists := pricePointValues[pricePointID]; exists && resolved.CustomerPrice == current.CustomerPrice {
+				continue
+			}
+		}
+
+		_, err = client.CreateSubscriptionPrice(ctx, subscriptionID, pricePointID, territoryID, asc.SubscriptionPriceCreateAttributes{
+			PlanType: asc.SubscriptionPlanTypeMonthly,
+		})
+		if err != nil {
+			return fmt.Errorf("create monthly price for %s: %w", territoryID, err)
+		}
+	}
+	return nil
 }

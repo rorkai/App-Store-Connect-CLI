@@ -275,6 +275,7 @@ func resolveSubscriptionPriceSummary(
 		pricesCtx,
 		sub.Sub.ID,
 		asc.WithSubscriptionPricesTerritory(territory),
+		asc.WithSubscriptionPricesPlanType(asc.SubscriptionPlanTypeUpfront),
 		asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory"}),
 		asc.WithSubscriptionPricesPricePointFields([]string{"customerPrice", "proceeds", "proceedsYear2"}),
 		asc.WithSubscriptionPricesTerritoryFields([]string{"currency"}),

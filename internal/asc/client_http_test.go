@@ -8039,6 +8039,26 @@ func TestCreateSubscriptionPrice(t *testing.T) {
 	}
 }
 
+func TestCreateSubscriptionPriceWithPlanType(t *testing.T) {
+	response := jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-1","attributes":{"planType":"MONTHLY"}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		var payload SubscriptionPriceCreateRequest
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("failed to decode request: %v", err)
+		}
+		if payload.Data.Attributes == nil || payload.Data.Attributes.PlanType != SubscriptionPlanTypeMonthly {
+			t.Fatalf("expected planType MONTHLY, got %#v", payload.Data.Attributes)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	if _, err := client.CreateSubscriptionPrice(context.Background(), "sub-1", "price-point-1", "NOR", SubscriptionPriceCreateAttributes{
+		PlanType: SubscriptionPlanTypeMonthly,
+	}); err != nil {
+		t.Fatalf("CreateSubscriptionPrice() error: %v", err)
+	}
+}
+
 func TestCreateSubscriptionPrice_RetriesUnexpectedServerError(t *testing.T) {
 	t.Setenv("ASC_MAX_RETRIES", "2")
 	t.Setenv("ASC_BASE_DELAY", "1ms")

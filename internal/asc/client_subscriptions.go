@@ -250,7 +250,7 @@ func (c *Client) SetSubscriptionInitialPrice(ctx context.Context, subID, pricePo
 	}
 
 	var attributes *SubscriptionPriceCreateAttributes
-	if attrs.StartDate != "" || attrs.Preserved != nil {
+	if attrs.StartDate != "" || attrs.Preserved != nil || attrs.PlanType != "" {
 		attributes = &attrs
 	}
 
@@ -327,7 +327,7 @@ func (c *Client) CreateSubscriptionPrice(ctx context.Context, subID, pricePointI
 	}
 
 	var attributes *SubscriptionPriceCreateAttributes
-	if attrs.StartDate != "" || attrs.Preserved != nil {
+	if attrs.StartDate != "" || attrs.Preserved != nil || attrs.PlanType != "" {
 		attributes = &attrs
 	}
 

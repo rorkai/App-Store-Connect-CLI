@@ -290,6 +290,9 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableRejectsPriceOutsideRange(t *
 			if got := req.URL.Query().Get("filter[territory]"); got != "NOR" {
 				t.Fatalf("expected price territory NOR, got %q", got)
 			}
+			if got := req.URL.Query().Get("filter[planType]"); got != "UPFRONT" {
+				t.Fatalf("expected upfront planType filter, got %q", got)
+			}
 			body := `{
 				"data":[{
 					"type":"subscriptionPrices","id":"price-1",
@@ -336,5 +339,100 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableRejectsPriceOutsideRange(t *
 	}
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+}
+
+func TestSubscriptionsPricingMonthlyCommitmentEnableCreatesMonthlyPrices(t *testing.T) {
+	setupAuth(t)
+
+	var postedPlanType string
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.URL.Path == "/v1/subscriptions/8000000001" && req.Method == http.MethodGet:
+			body := `{"data":{"type":"subscriptions","id":"8000000001","attributes":{"name":"Yearly","productId":"com.example.yearly","subscriptionPeriod":"ONE_YEAR","state":"APPROVED"}}}`
+			return jsonResponse(http.StatusOK, body)
+		case req.URL.Path == "/v1/subscriptions/8000000001/prices" && req.Method == http.MethodGet:
+			query := req.URL.Query()
+			switch query.Get("filter[planType]") {
+			case "UPFRONT":
+				body := `{
+					"data":[{
+						"type":"subscriptionPrices","id":"price-upfront",
+						"attributes":{"planType":"UPFRONT","startDate":"2024-01-01"},
+						"relationships":{
+							"territory":{"data":{"type":"territories","id":"NOR"}},
+							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-upfront"}}
+						}
+					}],
+					"included":[
+						{"type":"subscriptionPricePoints","id":"pp-upfront","attributes":{"customerPrice":"120.00"}},
+						{"type":"territories","id":"NOR","attributes":{"currency":"NOK"}}
+					],
+					"links":{"next":""}
+				}`
+				return jsonResponse(http.StatusOK, body)
+			case "MONTHLY":
+				return jsonResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`)
+			default:
+				t.Fatalf("unexpected prices query: %q", req.URL.RawQuery)
+				return nil, nil
+			}
+		case req.URL.Path == "/v1/subscriptions/8000000001/pricePoints" && req.Method == http.MethodGet:
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"pp-monthly","attributes":{"customerPrice":"10.00","proceeds":"7.00"}}],"links":{"next":""}}`
+			return jsonResponse(http.StatusOK, body)
+		case req.URL.Path == "/v1/subscriptionPrices" && req.Method == http.MethodPost:
+			var payload asc.SubscriptionPriceCreateRequest
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode create price payload: %v", err)
+			}
+			if payload.Data.Attributes == nil || payload.Data.Attributes.PlanType != asc.SubscriptionPlanTypeMonthly {
+				t.Fatalf("expected planType MONTHLY, got %#v", payload.Data.Attributes)
+			}
+			if payload.Data.Relationships == nil || payload.Data.Relationships.Territory == nil || payload.Data.Relationships.Territory.Data.ID != "NOR" {
+				t.Fatalf("expected NOR territory, got %#v", payload.Data.Relationships)
+			}
+			if payload.Data.Relationships.SubscriptionPricePoint == nil || payload.Data.Relationships.SubscriptionPricePoint.Data.ID != "pp-monthly" {
+				t.Fatalf("expected pp-monthly price point, got %#v", payload.Data.Relationships)
+			}
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-monthly","attributes":{"planType":"MONTHLY"}}}`)
+		case req.URL.Path == "/v1/subscriptions/8000000001/planAvailabilities" && req.Method == http.MethodGet:
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case req.URL.Path == "/v1/subscriptionPlanAvailabilities" && req.Method == http.MethodPost:
+			var payload asc.SubscriptionPlanAvailabilityCreateRequest
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode plan availability payload: %v", err)
+			}
+			postedPlanType = string(payload.Data.Attributes.PlanType)
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"MONTHLY","availableInNewTerritories":false}}}`)
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "monthly-commitment", "enable",
+			"--subscription-id", "8000000001",
+			"--price", "10.00",
+			"--price-territory", "Norway",
+			"--territories", "Norway",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if runErr != nil {
+		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
+	}
+	if postedPlanType != string(asc.SubscriptionPlanTypeMonthly) {
+		t.Fatalf("expected plan availability planType MONTHLY, got %q", postedPlanType)
+	}
+	if !strings.Contains(stdout, `"id":"plan-1"`) {
+		t.Fatalf("expected plan availability response, got %q", stdout)
 	}
 }
