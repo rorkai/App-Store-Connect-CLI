@@ -209,6 +209,24 @@ func (c *Client) GetSubscriptionPlanAvailabilitiesForSubscription(ctx context.Co
 	return filterSubscriptionPlanAvailabilities(&response, query.planTypes), nil
 }
 
+// GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships retrieves
+// available territory linkages for a subscription plan availability.
+func (c *Client) GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(
+	ctx context.Context,
+	planAvailabilityID string,
+	opts ...LinkagesOption,
+) (*LinkagesResponse, error) {
+	return c.getResourceLinkages(
+		ctx,
+		planAvailabilityID,
+		"availableTerritories",
+		"planAvailabilityID",
+		"/v1/subscriptionPlanAvailabilities/%s/relationships/%s",
+		"subscriptionPlanAvailabilityAvailableTerritoriesRelationships",
+		opts...,
+	)
+}
+
 func filterSubscriptionPlanAvailabilities(resp *SubscriptionPlanAvailabilitiesResponse, planTypes []SubscriptionPlanType) *SubscriptionPlanAvailabilitiesResponse {
 	if resp == nil || len(planTypes) == 0 {
 		return resp

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
@@ -246,16 +247,27 @@ func TestSubscriptionsPricingMonthlyCommitmentDisableFiltersExcludedTerritories(
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.URL.Path == "/v1/subscriptions/8000000001/planAvailabilities" && req.Method == http.MethodGet:
-			return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"MONTHLY","availableInNewTerritories":true}}]}`)
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"MONTHLY","availableInNewTerritories":false}}]}`)
+		case req.URL.Path == "/v1/subscriptionPlanAvailabilities/plan-1/relationships/availableTerritories" && req.Method == http.MethodGet && req.URL.Query().Get("cursor") == "":
+			if got := req.URL.Query().Get("limit"); got != "200" {
+				t.Fatalf("expected territory relationship limit 200, got %q", got)
+			}
+			return jsonResponse(http.StatusOK, `{
+				"data":[{"type":"territories","id":"NOR"},{"type":"territories","id":"DEU"}],
+				"links":{"next":"https://api.appstoreconnect.apple.com/v1/subscriptionPlanAvailabilities/plan-1/relationships/availableTerritories?cursor=page-2"}
+			}`)
+		case req.URL.Path == "/v1/subscriptionPlanAvailabilities/plan-1/relationships/availableTerritories" && req.Method == http.MethodGet && req.URL.Query().Get("cursor") == "page-2":
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"FRA"}],"links":{"next":""}}`)
 		case req.URL.Path == "/v1/subscriptionPlanAvailabilities/plan-1" && req.Method == http.MethodPatch:
 			var payload asc.SubscriptionPlanAvailabilityUpdateRequest
 			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 				t.Fatalf("decode payload: %v", err)
 			}
-			if len(payload.Data.Relationships.AvailableTerritories.Data) != 0 {
-				t.Fatalf("expected empty territory list, got %#v", payload.Data.Relationships.AvailableTerritories.Data)
+			got := payload.Data.Relationships.AvailableTerritories.Data
+			if len(got) != 2 || got[0].ID != "DEU" || got[1].ID != "FRA" {
+				t.Fatalf("expected only DEU,FRA to remain, got %#v", got)
 			}
-			return jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"MONTHLY","availableInNewTerritories":true}}}`)
+			return jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionPlanAvailabilities","id":"plan-1","attributes":{"planType":"MONTHLY","availableInNewTerritories":false}}}`)
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
@@ -354,9 +366,12 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableRejectsPriceOutsideRange(t *
 
 func TestSubscriptionsPricingMonthlyCommitmentEnableCreatesMonthlyPrices(t *testing.T) {
 	setupAuth(t)
+	t.Setenv("ASC_TIMEOUT", "80ms")
+	t.Setenv("ASC_TIMEOUT_SECONDS", "")
 
 	var postedPlanType string
 	var mutationOrder []string
+	var createDeadlineRemaining time.Duration
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.URL.Path == "/v1/subscriptions/8000000001" && req.Method == http.MethodGet:
@@ -383,6 +398,7 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableCreatesMonthlyPrices(t *test
 				}`
 				return jsonResponse(http.StatusOK, body)
 			case "MONTHLY":
+				time.Sleep(60 * time.Millisecond)
 				return jsonResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`)
 			default:
 				t.Fatalf("unexpected prices query: %q", req.URL.RawQuery)
@@ -393,6 +409,11 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableCreatesMonthlyPrices(t *test
 			return jsonResponse(http.StatusOK, body)
 		case req.URL.Path == "/v1/subscriptionPrices" && req.Method == http.MethodPost:
 			mutationOrder = append(mutationOrder, "price")
+			deadline, ok := req.Context().Deadline()
+			if !ok {
+				t.Fatal("expected subscription price create request to carry a timeout deadline")
+			}
+			createDeadlineRemaining = time.Until(deadline)
 			var payload asc.SubscriptionPriceCreateRequest
 			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 				t.Fatalf("decode create price payload: %v", err)
@@ -450,6 +471,9 @@ func TestSubscriptionsPricingMonthlyCommitmentEnableCreatesMonthlyPrices(t *test
 	}
 	if got := strings.Join(mutationOrder, ","); got != "availability,price" {
 		t.Fatalf("expected availability before price creation, got %q", got)
+	}
+	if createDeadlineRemaining < 35*time.Millisecond {
+		t.Fatalf("expected a fresh timeout for price creation, got only %v remaining", createDeadlineRemaining)
 	}
 	if !strings.Contains(stdout, `"id":"plan-1"`) {
 		t.Fatalf("expected plan availability response, got %q", stdout)

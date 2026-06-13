@@ -185,7 +185,7 @@ Examples:
 				}
 			}
 
-			if err := ensureMonthlySubscriptionPrices(requestCtx, client, id, territoryIDs, monthlyPrice); err != nil {
+			if err := ensureMonthlySubscriptionPrices(ctx, client, id, territoryIDs, monthlyPrice); err != nil {
 				return fmt.Errorf(
 					"subscriptions pricing monthly-commitment enable: plan availability %q is ready, but failed to configure MONTHLY prices: %w",
 					availabilityResp.Data.ID,
@@ -248,9 +248,8 @@ Examples:
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			existing, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(requestCtx, id)
+			cancel()
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment disable: failed to fetch plan availabilities: %w", err)
 			}
@@ -259,7 +258,14 @@ Examples:
 				return fmt.Errorf("subscriptions pricing monthly-commitment disable: no monthly-commitment plan availability found for subscription %q", id)
 			}
 
-			resp, err := client.UpdateSubscriptionPlanAvailability(requestCtx, monthlyPlan.ID, nil, nil)
+			remainingTerritoryIDs, err := remainingSubscriptionPlanAvailabilityTerritories(ctx, client, monthlyPlan.ID, territoryIDs)
+			if err != nil {
+				return fmt.Errorf("subscriptions pricing monthly-commitment disable: failed to fetch available territories: %w", err)
+			}
+
+			updateCtx, updateCancel := shared.ContextWithTimeout(ctx)
+			resp, err := client.UpdateSubscriptionPlanAvailability(updateCtx, monthlyPlan.ID, remainingTerritoryIDs, nil)
+			updateCancel()
 			if err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment disable: failed to update plan availability: %w", err)
 			}
@@ -513,9 +519,11 @@ func ensureMonthlySubscriptionPrices(
 			}
 		}
 
-		_, err = client.CreateSubscriptionPrice(ctx, subscriptionID, pricePointID, territoryID, asc.SubscriptionPriceCreateAttributes{
+		createCtx, createCancel := shared.ContextWithTimeout(ctx)
+		_, err = client.CreateSubscriptionPrice(createCtx, subscriptionID, pricePointID, territoryID, asc.SubscriptionPriceCreateAttributes{
 			PlanType: asc.SubscriptionPlanTypeMonthly,
 		})
+		createCancel()
 		if err != nil {
 			return fmt.Errorf("create monthly price for %s: %w", territoryID, err)
 		}
@@ -533,4 +541,62 @@ func monthlyCommitmentPricesEqual(left string, right string) bool {
 		return false
 	}
 	return leftPrice.Cmp(rightPrice) == 0
+}
+
+func remainingSubscriptionPlanAvailabilityTerritories(
+	ctx context.Context,
+	client *asc.Client,
+	planAvailabilityID string,
+	removedTerritoryIDs []string,
+) ([]string, error) {
+	removed := make(map[string]struct{}, len(removedTerritoryIDs))
+	for _, territoryID := range removedTerritoryIDs {
+		removed[strings.ToUpper(strings.TrimSpace(territoryID))] = struct{}{}
+	}
+
+	remaining := make([]string, 0)
+	seenTerritories := make(map[string]struct{})
+	seenNextURLs := make(map[string]struct{})
+	nextURL := ""
+	for {
+		opts := []asc.LinkagesOption{asc.WithLinkagesLimit(200)}
+		if nextURL != "" {
+			if _, seen := seenNextURLs[nextURL]; seen {
+				return nil, fmt.Errorf("repeated pagination URL: %s", nextURL)
+			}
+			seenNextURLs[nextURL] = struct{}{}
+			opts = []asc.LinkagesOption{asc.WithLinkagesNextURL(nextURL)}
+		}
+
+		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		resp, err := client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(
+			requestCtx,
+			planAvailabilityID,
+			opts...,
+		)
+		cancel()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, territory := range resp.Data {
+			territoryID := strings.ToUpper(strings.TrimSpace(territory.ID))
+			if territoryID == "" {
+				continue
+			}
+			if _, remove := removed[territoryID]; remove {
+				continue
+			}
+			if _, seen := seenTerritories[territoryID]; seen {
+				continue
+			}
+			seenTerritories[territoryID] = struct{}{}
+			remaining = append(remaining, territoryID)
+		}
+
+		nextURL = strings.TrimSpace(resp.Links.Next)
+		if nextURL == "" {
+			return remaining, nil
+		}
+	}
 }

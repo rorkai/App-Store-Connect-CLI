@@ -113,6 +113,34 @@ func TestGetSubscriptionPlanAvailabilitiesForSubscriptionFiltersPlanType(t *test
 	}
 }
 
+func TestGetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"NOR"},{"type":"territories","id":"DEU"}],"links":{"next":""}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionPlanAvailabilities/plan-1/relationships/availableTerritories" {
+			t.Fatalf("unexpected path %s", req.URL.Path)
+		}
+		if got := req.URL.Query().Get("limit"); got != "200" {
+			t.Fatalf("expected limit 200, got %q", got)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	resp, err := client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(
+		context.Background(),
+		"plan-1",
+		WithLinkagesLimit(200),
+	)
+	if err != nil {
+		t.Fatalf("GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships() error: %v", err)
+	}
+	if len(resp.Data) != 2 || resp.Data[0].ID != "NOR" || resp.Data[1].ID != "DEU" {
+		t.Fatalf("expected NOR,DEU territory linkages, got %#v", resp.Data)
+	}
+}
+
 func TestAdjustFilteredPagingMetadata(t *testing.T) {
 	t.Parallel()
 
