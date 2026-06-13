@@ -61,6 +61,26 @@ type SubscriptionPlanAvailabilityResponse = SingleResponse[SubscriptionPlanAvail
 // SubscriptionPlanAvailabilitiesResponse is the response from plan availability list endpoints.
 type SubscriptionPlanAvailabilitiesResponse = Response[SubscriptionPlanAvailabilityAttributes]
 
+// SubscriptionPlanAvailabilitiesOption is a functional option for plan availability list endpoints.
+type SubscriptionPlanAvailabilitiesOption func(*subscriptionPlanAvailabilitiesQuery)
+
+type subscriptionPlanAvailabilitiesQuery struct {
+	planTypes []SubscriptionPlanType
+}
+
+// WithSubscriptionPlanAvailabilitiesPlanTypes filters returned plan availabilities by plan type.
+// The App Store Connect API does not expose filter[planType] on planAvailabilities, so filtering
+// is applied client-side after the list response is fetched.
+func WithSubscriptionPlanAvailabilitiesPlanTypes(planTypes ...SubscriptionPlanType) SubscriptionPlanAvailabilitiesOption {
+	return func(q *subscriptionPlanAvailabilitiesQuery) {
+		for _, planType := range planTypes {
+			if planType != "" {
+				q.planTypes = append(q.planTypes, planType)
+			}
+		}
+	}
+}
+
 // CreateSubscriptionPlanAvailability sets subscription plan availability in territories.
 func (c *Client) CreateSubscriptionPlanAvailability(ctx context.Context, subID string, territoryIDs []string, attrs SubscriptionPlanAvailabilityAttributes) (*SubscriptionPlanAvailabilityResponse, error) {
 	subID = strings.TrimSpace(subID)
@@ -157,10 +177,17 @@ func (c *Client) UpdateSubscriptionPlanAvailability(ctx context.Context, planAva
 }
 
 // GetSubscriptionPlanAvailabilitiesForSubscription retrieves plan availabilities for a subscription.
-func (c *Client) GetSubscriptionPlanAvailabilitiesForSubscription(ctx context.Context, subID string) (*SubscriptionPlanAvailabilitiesResponse, error) {
+func (c *Client) GetSubscriptionPlanAvailabilitiesForSubscription(ctx context.Context, subID string, opts ...SubscriptionPlanAvailabilitiesOption) (*SubscriptionPlanAvailabilitiesResponse, error) {
 	subID = strings.TrimSpace(subID)
 	if subID == "" {
 		return nil, fmt.Errorf("subscription ID is required")
+	}
+
+	query := &subscriptionPlanAvailabilitiesQuery{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(query)
+		}
 	}
 
 	path := fmt.Sprintf("/v1/subscriptions/%s/planAvailabilities", subID)
@@ -174,5 +201,66 @@ func (c *Client) GetSubscriptionPlanAvailabilitiesForSubscription(ctx context.Co
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return &response, nil
+	return filterSubscriptionPlanAvailabilities(&response, query.planTypes), nil
+}
+
+func filterSubscriptionPlanAvailabilities(resp *SubscriptionPlanAvailabilitiesResponse, planTypes []SubscriptionPlanType) *SubscriptionPlanAvailabilitiesResponse {
+	if resp == nil || len(planTypes) == 0 {
+		return resp
+	}
+
+	allowed := make(map[SubscriptionPlanType]struct{}, len(planTypes))
+	for _, planType := range planTypes {
+		allowed[planType] = struct{}{}
+	}
+
+	filtered := make([]Resource[SubscriptionPlanAvailabilityAttributes], 0, len(resp.Data))
+	for _, item := range resp.Data {
+		if _, ok := allowed[item.Attributes.PlanType]; ok {
+			filtered = append(filtered, item)
+		}
+	}
+
+	out := *resp
+	out.Data = filtered
+	out.Links.Next = ""
+	out.Meta = adjustFilteredPagingMetadata(out.Meta, len(filtered))
+	return &out
+}
+
+func adjustFilteredPagingMetadata(meta json.RawMessage, filteredCount int) json.RawMessage {
+	if len(meta) == 0 {
+		return meta
+	}
+
+	var parsed map[string]json.RawMessage
+	if err := json.Unmarshal(meta, &parsed); err != nil {
+		return meta
+	}
+
+	pagingRaw, ok := parsed["paging"]
+	if !ok {
+		return meta
+	}
+
+	var paging map[string]any
+	if err := json.Unmarshal(pagingRaw, &paging); err != nil {
+		return meta
+	}
+	if _, hasTotal := paging["total"]; !hasTotal {
+		return meta
+	}
+
+	paging["total"] = filteredCount
+	updatedPaging, err := json.Marshal(paging)
+	if err != nil {
+		return meta
+	}
+	parsed["paging"] = updatedPaging
+
+	updated, err := json.Marshal(parsed)
+	if err != nil {
+		return meta
+	}
+	return updated
 }
