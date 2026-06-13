@@ -869,7 +869,7 @@ Examples:
 				asc.WithSubscriptionPricesLimit(*limit),
 				asc.WithSubscriptionPricesNextURL(nextURL),
 			}
-			if planTypeFilter != "" {
+			if planTypeFilter != "" && nextURL == "" {
 				opts = append(opts, asc.WithSubscriptionPricesPlanType(planTypeFilter))
 			}
 

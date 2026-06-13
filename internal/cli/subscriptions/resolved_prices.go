@@ -132,6 +132,7 @@ func consumeResolvedSubscriptionPricePageForPlanType(
 		}
 
 		startAt := parseSubscriptionPricingDate(price.Attributes.StartDate)
+		// Preserve the legacy undated-price skip unless a plan-specific view was requested.
 		if startAt == nil {
 			if planType == "" {
 				continue
