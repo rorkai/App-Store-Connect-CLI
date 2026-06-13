@@ -78,3 +78,31 @@ func TestUpdateSubscriptionPlanAvailability(t *testing.T) {
 		t.Fatalf("UpdateSubscriptionPlanAvailability() error: %v", err)
 	}
 }
+
+func TestGetSubscriptionPlanAvailabilitiesForSubscriptionFiltersPlanType(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[
+		{"type":"subscriptionPlanAvailabilities","id":"plan-monthly","attributes":{"planType":"MONTHLY","availableInNewTerritories":true}},
+		{"type":"subscriptionPlanAvailabilities","id":"plan-upfront","attributes":{"planType":"UPFRONT","availableInNewTerritories":false}}
+	]}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptions/sub-1/planAvailabilities" {
+			t.Fatalf("expected path /v1/subscriptions/sub-1/planAvailabilities, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	resp, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(
+		context.Background(),
+		"sub-1",
+		WithSubscriptionPlanAvailabilitiesPlanTypes(SubscriptionPlanTypeMonthly),
+	)
+	if err != nil {
+		t.Fatalf("GetSubscriptionPlanAvailabilitiesForSubscription() error: %v", err)
+	}
+	if len(resp.Data) != 1 || resp.Data[0].ID != "plan-monthly" {
+		t.Fatalf("expected only monthly plan availability, got %#v", resp.Data)
+	}
+}

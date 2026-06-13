@@ -77,6 +77,11 @@ func TestSubscriptionsPricingMonthlyCommitmentValidationErrors(t *testing.T) {
 			args:    []string{"subscriptions", "pricing", "monthly-commitment", "list"},
 			wantErr: "--subscription-id is required",
 		},
+		{
+			name:    "list invalid plan type",
+			args:    []string{"subscriptions", "pricing", "monthly-commitment", "list", "--subscription-id", "sub-1", "--plan-type", "annual"},
+			wantErr: "--plan-type must be one of: MONTHLY, UPFRONT",
+		},
 	}
 
 	for _, test := range tests {
@@ -128,6 +133,11 @@ func TestSubscriptionsPricingMonthlyCommitmentUsageExitCodes(t *testing.T) {
 			wantErr: "territory \"list\" could not be mapped",
 		},
 		{
+			name:    "list invalid plan type returns usage",
+			args:    []string{"subscriptions", "pricing", "monthly-commitment", "list", "--subscription-id", "sub-1", "--plan-type", "annual"},
+			wantErr: "--plan-type must be one of: MONTHLY, UPFRONT",
+		},
+		{
 			name:    "availability edit invalid billing mode returns usage",
 			args:    []string{"subscriptions", "pricing", "availability", "edit", "--subscription-id", "sub-1", "--territories", "Norway", "--billing-mode", "list"},
 			wantErr: "--billing-mode must be one of: upfront, monthly-commitment",
@@ -158,6 +168,49 @@ func TestSubscriptionsPricingMonthlyCommitmentUsageExitCodes(t *testing.T) {
 				t.Fatalf("expected error %q, got %q", test.wantErr, stderr.String())
 			}
 		})
+	}
+}
+
+func TestSubscriptionsPricingMonthlyCommitmentListFiltersPlanType(t *testing.T) {
+	setupAuth(t)
+
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/v1/subscriptions/8000000001/planAvailabilities" || req.Method != http.MethodGet {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+		if got := req.URL.Query().Get("filter[planType]"); got != "" {
+			t.Fatalf("expected no server-side planType filter, got %q", got)
+		}
+		body := `{"data":[
+			{"type":"subscriptionPlanAvailabilities","id":"plan-monthly","attributes":{"planType":"MONTHLY","availableInNewTerritories":true}},
+			{"type":"subscriptionPlanAvailabilities","id":"plan-upfront","attributes":{"planType":"UPFRONT","availableInNewTerritories":false}}
+		]}`
+		return jsonResponse(http.StatusOK, body)
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "monthly-commitment", "list",
+			"--subscription-id", "8000000001",
+			"--plan-type", "UPFRONT",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if runErr != nil {
+		t.Fatalf("run error: %v; stderr=%q stdout=%q", runErr, stderr, stdout)
+	}
+	if !strings.Contains(stdout, `"id":"plan-upfront"`) {
+		t.Fatalf("expected upfront plan availability, got %q", stdout)
+	}
+	if strings.Contains(stdout, `"id":"plan-monthly"`) {
+		t.Fatalf("expected monthly plan availability to be filtered out, got %q", stdout)
 	}
 }
 

@@ -38,6 +38,37 @@ func TestNormalizeSubscriptionBillingModeRejectsUnknown(t *testing.T) {
 	}
 }
 
+func TestNormalizeSubscriptionPlanType(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{input: "MONTHLY", want: "MONTHLY"},
+		{input: "monthly", want: "MONTHLY"},
+		{input: "UPFRONT", want: "UPFRONT"},
+		{input: "upfront", want: "UPFRONT"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.input, func(t *testing.T) {
+			got, err := normalizeSubscriptionPlanType(test.input)
+			if err != nil {
+				t.Fatalf("normalizeSubscriptionPlanType() error = %v", err)
+			}
+			if string(got) != test.want {
+				t.Fatalf("normalizeSubscriptionPlanType() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestNormalizeSubscriptionPlanTypeRejectsUnknown(t *testing.T) {
+	_, err := normalizeSubscriptionPlanType("annual")
+	if err == nil || !strings.Contains(err.Error(), "--plan-type must be one of") {
+		t.Fatalf("expected plan type error, got %v", err)
+	}
+}
+
 func TestFilterMonthlyCommitmentTerritories(t *testing.T) {
 	eligible, excluded := filterMonthlyCommitmentTerritories([]string{"USA", "NOR", "SGP", "DEU", "USA"})
 	if got := strings.Join(eligible, ","); got != "NOR,DEU" {
