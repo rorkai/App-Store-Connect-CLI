@@ -164,13 +164,6 @@ Examples:
 			if err := validateMonthlyCommitmentPriceRange(monthlyPrice, summary.CurrentPrice.Amount); err != nil {
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
 			}
-			if err := validateMonthlyCommitmentUpfrontPrices(ctx, client, id, territoryIDs, monthlyPrice); err != nil {
-				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
-			}
-			monthlyPriceCreates, err := prepareMonthlySubscriptionPrices(ctx, client, id, territoryIDs, monthlyPrice)
-			if err != nil {
-				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
-			}
 
 			attrs := asc.SubscriptionPlanAvailabilityAttributes{
 				PlanType: asc.SubscriptionPlanTypeMonthly,
@@ -183,22 +176,35 @@ Examples:
 				return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to fetch plan availabilities: %w", err)
 			}
 
-			var availabilityResp *asc.SubscriptionPlanAvailabilityResponse
-			if monthlyPlan, ok := findMonthlySubscriptionPlanAvailability(existing); ok {
+			availabilityTerritoryIDs := territoryIDs
+			monthlyPlan, hasMonthlyPlan := findMonthlySubscriptionPlanAvailability(existing)
+			if hasMonthlyPlan {
 				currentTerritoryIDs, fetchErr := subscriptionPlanAvailabilityTerritories(ctx, client, monthlyPlan.ID)
 				if fetchErr != nil {
 					return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to fetch available territories: %w", fetchErr)
 				}
-				updatedTerritoryIDs := unionSubscriptionPlanAvailabilityTerritories(currentTerritoryIDs, territoryIDs)
+				availabilityTerritoryIDs = unionSubscriptionPlanAvailabilityTerritories(currentTerritoryIDs, territoryIDs)
+			}
+
+			if err := validateMonthlyCommitmentUpfrontPrices(ctx, client, id, availabilityTerritoryIDs, monthlyPrice); err != nil {
+				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
+			}
+			monthlyPriceCreates, err := prepareMonthlySubscriptionPrices(ctx, client, id, availabilityTerritoryIDs, monthlyPrice)
+			if err != nil {
+				return fmt.Errorf("subscriptions pricing monthly-commitment enable: %w", err)
+			}
+
+			var availabilityResp *asc.SubscriptionPlanAvailabilityResponse
+			if hasMonthlyPlan {
 				availabilityWriteCtx, availabilityWriteCancel := shared.ContextWithTimeout(ctx)
-				availabilityResp, err = client.UpdateSubscriptionPlanAvailability(availabilityWriteCtx, monthlyPlan.ID, updatedTerritoryIDs, nil)
+				availabilityResp, err = client.UpdateSubscriptionPlanAvailability(availabilityWriteCtx, monthlyPlan.ID, availabilityTerritoryIDs, nil)
 				availabilityWriteCancel()
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to update plan availability: %w", err)
 				}
 			} else {
 				availabilityWriteCtx, availabilityWriteCancel := shared.ContextWithTimeout(ctx)
-				availabilityResp, err = client.CreateSubscriptionPlanAvailability(availabilityWriteCtx, id, territoryIDs, attrs)
+				availabilityResp, err = client.CreateSubscriptionPlanAvailability(availabilityWriteCtx, id, availabilityTerritoryIDs, attrs)
 				availabilityWriteCancel()
 				if err != nil {
 					return fmt.Errorf("subscriptions pricing monthly-commitment enable: failed to create plan availability: %w", err)
