@@ -223,5 +223,44 @@ func filterSubscriptionPlanAvailabilities(resp *SubscriptionPlanAvailabilitiesRe
 
 	out := *resp
 	out.Data = filtered
+	out.Links.Next = ""
+	out.Meta = adjustFilteredPagingMetadata(out.Meta, len(filtered))
 	return &out
+}
+
+func adjustFilteredPagingMetadata(meta json.RawMessage, filteredCount int) json.RawMessage {
+	if len(meta) == 0 {
+		return meta
+	}
+
+	var parsed map[string]json.RawMessage
+	if err := json.Unmarshal(meta, &parsed); err != nil {
+		return meta
+	}
+
+	pagingRaw, ok := parsed["paging"]
+	if !ok {
+		return meta
+	}
+
+	var paging map[string]any
+	if err := json.Unmarshal(pagingRaw, &paging); err != nil {
+		return meta
+	}
+	if _, hasTotal := paging["total"]; !hasTotal {
+		return meta
+	}
+
+	paging["total"] = filteredCount
+	updatedPaging, err := json.Marshal(paging)
+	if err != nil {
+		return meta
+	}
+	parsed["paging"] = updatedPaging
+
+	updated, err := json.Marshal(parsed)
+	if err != nil {
+		return meta
+	}
+	return updated
 }
