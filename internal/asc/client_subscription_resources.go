@@ -648,54 +648,53 @@ func (c *Client) CreateSubscriptionOfferCode(ctx context.Context, subscriptionID
 	if subscriptionID == "" {
 		return nil, fmt.Errorf("subscription ID is required")
 	}
-	// FREE_TRIAL offers must not include a subscriptionPricePoint — the API rejects it.
-	if len(prices) > 0 && attrs.OfferMode == SubscriptionOfferModeFreeTrial {
-		return nil, fmt.Errorf("prices must not be set for FREE_TRIAL offer mode")
-	}
-	if len(prices) == 0 && attrs.OfferMode != SubscriptionOfferModeFreeTrial {
+	if len(prices) == 0 {
 		return nil, fmt.Errorf("at least one price is required")
 	}
 
-	var included []SubscriptionOfferCodePriceInlineCreate
-	var pricesRel *RelationshipList
-
-	if attrs.OfferMode != SubscriptionOfferModeFreeTrial {
-		priceData := make([]ResourceData, 0, len(prices))
-		included = make([]SubscriptionOfferCodePriceInlineCreate, 0, len(prices))
-		for idx, price := range prices {
-			territoryID := strings.ToUpper(strings.TrimSpace(price.TerritoryID))
-			pricePointID := strings.TrimSpace(price.PricePointID)
-			if territoryID == "" {
-				return nil, fmt.Errorf("territory ID is required")
-			}
-			if pricePointID == "" {
-				return nil, fmt.Errorf("price point ID is required")
-			}
-			resourceID := fmt.Sprintf("${local-price-%d}", idx+1)
-			priceData = append(priceData, ResourceData{
-				Type: ResourceTypeSubscriptionOfferCodePrices,
-				ID:   resourceID,
-			})
-			included = append(included, SubscriptionOfferCodePriceInlineCreate{
-				Type: ResourceTypeSubscriptionOfferCodePrices,
-				ID:   resourceID,
-				Relationships: SubscriptionOfferCodePriceRelationships{
-					Territory: Relationship{
-						Data: ResourceData{
-							Type: ResourceTypeTerritories,
-							ID:   territoryID,
-						},
-					},
-					SubscriptionPricePoint: Relationship{
-						Data: ResourceData{
-							Type: ResourceTypeSubscriptionPricePoints,
-							ID:   pricePointID,
-						},
-					},
-				},
-			})
+	isFreeTrial := attrs.OfferMode == SubscriptionOfferModeFreeTrial
+	priceData := make([]ResourceData, 0, len(prices))
+	included := make([]SubscriptionOfferCodePriceInlineCreate, 0, len(prices))
+	for idx, price := range prices {
+		territoryID := strings.ToUpper(strings.TrimSpace(price.TerritoryID))
+		pricePointID := strings.TrimSpace(price.PricePointID)
+		if territoryID == "" {
+			return nil, fmt.Errorf("territory ID is required")
 		}
-		pricesRel = &RelationshipList{Data: priceData}
+		if isFreeTrial && pricePointID != "" {
+			return nil, fmt.Errorf("price point must not be set for FREE_TRIAL offer mode")
+		}
+		if !isFreeTrial && pricePointID == "" {
+			return nil, fmt.Errorf("price point ID is required")
+		}
+
+		priceRelationships := SubscriptionOfferCodePriceRelationships{
+			Territory: Relationship{
+				Data: ResourceData{
+					Type: ResourceTypeTerritories,
+					ID:   territoryID,
+				},
+			},
+		}
+		if pricePointID != "" {
+			priceRelationships.SubscriptionPricePoint = &Relationship{
+				Data: ResourceData{
+					Type: ResourceTypeSubscriptionPricePoints,
+					ID:   pricePointID,
+				},
+			}
+		}
+
+		resourceID := fmt.Sprintf("${local-price-%d}", idx+1)
+		priceData = append(priceData, ResourceData{
+			Type: ResourceTypeSubscriptionOfferCodePrices,
+			ID:   resourceID,
+		})
+		included = append(included, SubscriptionOfferCodePriceInlineCreate{
+			Type:          ResourceTypeSubscriptionOfferCodePrices,
+			ID:            resourceID,
+			Relationships: priceRelationships,
+		})
 	}
 
 	payload := SubscriptionOfferCodeCreateRequest{
@@ -709,7 +708,7 @@ func (c *Client) CreateSubscriptionOfferCode(ctx context.Context, subscriptionID
 						ID:   subscriptionID,
 					},
 				},
-				Prices: pricesRel,
+				Prices: RelationshipList{Data: priceData},
 			},
 		},
 		Included: included,

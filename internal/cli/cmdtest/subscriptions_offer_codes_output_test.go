@@ -133,7 +133,7 @@ func TestSubscriptionsOfferCodesCreateNormalizesValuesAndBuildsPayload(t *testin
 	}
 }
 
-func TestSubscriptionsOfferCodesCreateFreeTrialOmitsPrices(t *testing.T) {
+func TestSubscriptionsOfferCodesCreateFreeTrialIncludesTerritoryOnlyPrice(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -169,11 +169,36 @@ func TestSubscriptionsOfferCodesCreateFreeTrialOmitsPrices(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected payload.data.relationships to be an object, got %T", data["relationships"])
 		}
-		if _, ok := relationships["prices"]; ok {
-			t.Fatalf("expected no prices relationship for FREE_TRIAL, but found one: %#v", relationships["prices"])
+		pricesRelationship, ok := relationships["prices"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected prices relationship for FREE_TRIAL, got %#v", relationships["prices"])
 		}
-		if _, ok := payload["included"]; ok {
-			t.Fatalf("expected no included entries for FREE_TRIAL, but found some: %#v", payload["included"])
+		priceRefs, ok := pricesRelationship["data"].([]any)
+		if !ok || len(priceRefs) != 1 {
+			t.Fatalf("expected one price relationship, got %#v", pricesRelationship["data"])
+		}
+		included, ok := payload["included"].([]any)
+		if !ok || len(included) != 1 {
+			t.Fatalf("expected one included price, got %#v", payload["included"])
+		}
+		includedPrice, ok := included[0].(map[string]any)
+		if !ok {
+			t.Fatalf("expected included price object, got %T", included[0])
+		}
+		priceRelationships, ok := includedPrice["relationships"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected included price relationships, got %T", includedPrice["relationships"])
+		}
+		territory, ok := priceRelationships["territory"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected territory relationship, got %#v", priceRelationships["territory"])
+		}
+		territoryData, ok := territory["data"].(map[string]any)
+		if !ok || territoryData["id"] != "DEU" {
+			t.Fatalf("expected normalized territory DEU, got %#v", territory["data"])
+		}
+		if _, ok := priceRelationships["subscriptionPricePoint"]; ok {
+			t.Fatalf("expected subscriptionPricePoint to be omitted, got %#v", priceRelationships["subscriptionPricePoint"])
 		}
 
 		body := `{"data":{"type":"subscriptionOfferCodes","id":"sub-offer-ft-1","attributes":{"name":"One Year Free","active":true}}}`
@@ -197,6 +222,7 @@ func TestSubscriptionsOfferCodesCreateFreeTrialOmitsPrices(t *testing.T) {
 			"--offer-duration", "one_year",
 			"--offer-mode", "free_trial",
 			"--number-of-periods", "1",
+			"--prices", "de",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -222,13 +248,14 @@ func TestSubscriptionsOfferCodesCreateFreeTrialOmitsPrices(t *testing.T) {
 	}
 }
 
-func TestSubscriptionsOfferCodesCreateNonFreeTrialRequiresPrices(t *testing.T) {
+func TestSubscriptionsOfferCodesCreateRequiresPrices(t *testing.T) {
 	tests := []struct {
 		name      string
 		offerMode string
 	}{
 		{"pay_as_you_go", "pay_as_you_go"},
 		{"pay_up_front", "pay_up_front"},
+		{"free_trial", "free_trial"},
 	}
 
 	for _, test := range tests {

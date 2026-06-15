@@ -222,10 +222,12 @@ List current prices for a subscription.
 
 ```bash  theme={null}
 asc subscriptions pricing prices list --subscription-id "SUB_ID"
+asc subscriptions pricing prices list --subscription-id "SUB_ID" --plan-type MONTHLY
 ```
 
 **Optional Flags:**
 
+* `--plan-type` - Filter by `MONTHLY` or `UPFRONT` billing plan prices
 * `--limit` - Results per page (1-200)
 * `--paginate` - Fetch all pages
 
@@ -369,12 +371,11 @@ asc subscriptions pricing availability edit \
 **Optional Flags:**
 
 * `--available-in-new-territories` - Automatically include new App Store territories
-* `--billing-mode` - Experimental billing mode target: `upfront` (default) or `monthly-commitment`
+* `--billing-mode` - Billing mode target: `upfront` (default) or `monthly-commitment`
 
-`monthly-commitment` is reserved for Apple's Monthly with 12-Month Commitment
-subscription option. The public App Store Connect API does not yet expose the
-needed billing-mode resource/field, so the CLI validates inputs and returns a
-clear upstream-API error until Apple publishes support.
+For `monthly-commitment`, prefer the dedicated commands below. The
+`--billing-mode monthly-commitment` flag on `availability edit` uses the same
+App Store Connect API 4.4 `subscriptionPlanAvailabilities` resource.
 
 ### List Available Territories
 
@@ -392,8 +393,8 @@ new product type or subscription period. App Store Connect shows both `1 Year
 Upfront` and `Monthly with 12-Month Commitment` availability for the same
 subscription product.
 
-This command surface is experimental. It is intentionally guarded until Apple
-publishes a stable public API for the billing mode.
+App Store Connect API 4.4 exposes `subscriptionPlanAvailabilities` for configuring
+monthly subscriptions with a 12-month commitment.
 
 ```bash  theme={null}
 asc subscriptions pricing monthly-commitment enable \
@@ -408,7 +409,17 @@ asc subscriptions pricing monthly-commitment disable \
 
 asc subscriptions pricing monthly-commitment list \
   --subscription-id "SUB_ID"
+
+asc subscriptions pricing monthly-commitment list \
+  --subscription-id "SUB_ID" \
+  --plan-type MONTHLY
 ```
+
+**Optional Flags:**
+
+* `--plan-type` - Filter results by `MONTHLY` or `UPFRONT`. Filtering is applied
+  client-side because `GET /v1/subscriptions/{id}/planAvailabilities` does not
+  expose `filter[planType]` in the public OpenAPI schema.
 
 Current CLI behavior:
 
@@ -418,10 +429,10 @@ Current CLI behavior:
   upfront`.
 * Removes USA and Singapore from `--territories` with a warning because Apple
   excludes those storefronts.
-* Returns a clear "not yet supported by Apple's public App Store Connect API"
-  error before attempting changes, because Apple's public REST schema currently
-  has no billing-mode field on `subscriptionAvailabilities` or
-  `subscriptionPrices`.
+* Requires an existing UPFRONT subscription price in each eligible territory.
+* Creates or updates `subscriptionPlanAvailabilities` with `planType=MONTHLY`
+  before creating MONTHLY `subscriptionPrices`, as required by Apple.
+* Creates MONTHLY `subscriptionPrices` for each eligible territory at `--price`.
 
 Monthly with 12-Month Commitment is available only outside the United States and
 Singapore, requires devices on OS version 26.4 or later, excludes watchOS, and

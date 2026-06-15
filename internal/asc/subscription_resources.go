@@ -250,8 +250,8 @@ type SubscriptionOfferCodeUpdateAttributes struct {
 
 // SubscriptionOfferCodeRelationships describes relationships for offer codes.
 type SubscriptionOfferCodeRelationships struct {
-	Subscription Relationship      `json:"subscription"`
-	Prices       *RelationshipList `json:"prices,omitempty"`
+	Subscription Relationship     `json:"subscription"`
+	Prices       RelationshipList `json:"prices"`
 }
 
 // SubscriptionOfferCodeCreateData is the data portion of an offer code create request.

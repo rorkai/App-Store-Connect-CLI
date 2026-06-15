@@ -80,6 +80,7 @@ type subscriptionPricePointsQuery struct {
 type subscriptionPricesQuery struct {
 	listQuery
 	territory        string
+	planType         SubscriptionPlanType
 	include          []string
 	pricePointFields []string
 	territoryFields  []string
@@ -301,6 +302,15 @@ func WithSubscriptionPricesTerritory(territory string) SubscriptionPricesOption 
 	}
 }
 
+// WithSubscriptionPricesPlanType filters subscription prices by plan type (MONTHLY or UPFRONT).
+func WithSubscriptionPricesPlanType(planType SubscriptionPlanType) SubscriptionPricesOption {
+	return func(q *subscriptionPricesQuery) {
+		if planType != "" {
+			q.planType = planType
+		}
+	}
+}
+
 // WithSubscriptionPricesInclude sets the relationships to include (e.g., "subscriptionPricePoint", "territory").
 func WithSubscriptionPricesInclude(include []string) SubscriptionPricesOption {
 	return func(q *subscriptionPricesQuery) {
@@ -403,6 +413,9 @@ func buildSubscriptionPricesQuery(query *subscriptionPricesQuery) string {
 	values := url.Values{}
 	if strings.TrimSpace(query.territory) != "" {
 		values.Set("filter[territory]", strings.TrimSpace(query.territory))
+	}
+	if query.planType != "" {
+		values.Set("filter[planType]", string(query.planType))
 	}
 	addCSV(values, "include", query.include)
 	addCSV(values, "fields[subscriptionPricePoints]", query.pricePointFields)

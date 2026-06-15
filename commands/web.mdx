@@ -131,14 +131,24 @@ Available commands:
 
 ### `asc web subscriptions`
 
-Subscription sale availability workflows over Apple web-session `/iris` endpoints.
+Subscription sale availability and private pricing workflows over Apple
+web-session `/iris` endpoints.
 
 Available commands:
 
 * `asc web subscriptions availability remove-from-sale` - remove an approved auto-renewable subscription from sale
+* `asc web subscriptions pricing monthly-commitment bootstrap` - create or reuse MONTHLY availability and attach paired UPFRONT/MONTHLY prices
+* `asc web subscriptions pricing adjusted-equalizations view` - inspect Apple's adjusted price matrix for a MONTHLY subscription price point
 
 <Warning>
   Removing an approved auto-renewable subscription from sale requires an Account Holder web session. App Store Connect rejects Admin and App Manager users for this action.
+</Warning>
+
+<Warning>
+  Prefer `asc subscriptions pricing monthly-commitment enable` for normal
+  monthly-commitment setup. The `asc web subscriptions pricing` commands are
+  private-endpoint escape hatches for App Store Connect's paired pricing and
+  adjusted-equalization workflows.
 </Warning>
 
 Example:
@@ -156,6 +166,27 @@ asc web subscriptions availability remove-from-sale \
   --subscription-id "SUB_ID" \
   --plan-availability-id "PLAN_AVAILABILITY_ID" \
   --confirm
+```
+
+Plan a paired monthly-commitment price bootstrap without mutating App Store
+Connect:
+
+```bash  theme={null}
+asc web subscriptions pricing monthly-commitment bootstrap \
+  --subscription-id "SUB_ID" \
+  --territory "NOR" \
+  --upfront-price "49" \
+  --monthly-price "5" \
+  --dry-run
+```
+
+Inspect Apple's adjusted equalizations for a monthly price point:
+
+```bash  theme={null}
+asc web subscriptions pricing adjusted-equalizations view \
+  --price-point-id "PRICE_POINT_ID" \
+  --plan-type "MONTHLY" \
+  --output json
 ```
 
 ### `asc web analytics`

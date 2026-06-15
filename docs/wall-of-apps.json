@@ -778,6 +778,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/50/8e/ed/508eedf3-5d31-7f42-c7dc-4c5551ce5d4a/AppIcon-0-0-1x_U007epad-0-0-0-1-0-85-220.jpeg/512x512bb.jpg"
   },
   {
+    "app": "Midnight: Couples App & Games",
+    "link": "https://apps.apple.com/us/app/midnight-couples-app-games/id6758623374?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/e5/81/e1/e581e1f6-fed0-f6b0-0e70-cb2ad5a0c764/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "MileIO",
     "link": "https://apps.apple.com/app/id6758225631",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/09/0a/21/090a21e8-5b19-ec94-c5d0-6c2d0f5175bd/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
@@ -917,6 +922,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/22/a4/41/22a441e6-20c5-a464-2b0f-3db405633856/AppIcon-0-1x_U007ephone-0-1-85-220-0.png/512x512bb.jpg"
   },
   {
+    "app": "Peptide Protocol: Dose Tracker",
+    "link": "https://apps.apple.com/us/app/peptide-protocol-dose-tracker/id6762055081?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/ff/c5/73/ffc57381-77f1-ded8-db61-f9272cf32cc5/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "Petal - AI Voice Recorder",
     "link": "https://apps.apple.com/us/app/petal-ai-voice-recorder/id6759932376?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/ec/77/3a/ec773a74-274b-bcd4-4587-7f28cbb0cee2/AppIcon-0-1x_U007ephone-0-1-85-220-0.png/512x512bb.jpg"
@@ -950,6 +960,11 @@
     "app": "PicSeek: AI Photo Manager",
     "link": "https://apps.apple.com/us/app/picseek-ai-photo-manager/id6755383937?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f3/90/bc/f390bc5a-185e-095a-7ea2-c4a105bd89f7/AppIcon-1x_U007emarketing-0-8-0-85-220-0.png/512x512bb.jpg"
+  },
+  {
+    "app": "PicVore: Photo Cleaner",
+    "link": "https://apps.apple.com/us/app/picvore-photo-cleaner/id6759577942?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/58/a3/4b/58a34be8-0aed-098e-505b-a497386e5db8/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
   },
   {
     "app": "Pievra: Jules AI Coding Agent",
@@ -1456,6 +1471,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/6a/1e/8f/6a1e8f8e-1f53-fcde-f26b-f814416eeb69/glass-0-0-85-220-0-6-0-2x-sRGB.png/512x512bb.png"
   },
   {
+    "app": "Unseen Accessibility",
+    "link": "https://apps.apple.com/us/app/unseen-accessibility/id6770270032?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/59/52/01/595201c5-02a2-75ac-0e10-a00f7a4bd04c/AppIcon-0-0-1x_U007epad-0-1-sRGB-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "UrbanAir: Unlock all escooters",
     "link": "https://apps.apple.com/us/app/urbanair-unlock-all-escooters/id1491025864?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple122/v4/7f/75/08/7f750858-b379-719d-f98c-06e4fbc9a984/AppIcon-0-0-1x_U007emarketing-0-0-0-10-0-0-sRGB-0-0-0-GLES2_U002c0-512MB-85-220-0-0.png/512x512bb.jpg"
@@ -1524,6 +1544,11 @@
     "app": "Watchletic - Run tracker",
     "link": "https://apps.apple.com/us/app/watchletic-run-tracker/id1606429298?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e0/4b/bd/e04bbd15-6b77-184e-381f-3d5e5654d97b/app-0-0-1x_U007epad-0-0-0-1-0-0-sRGB-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "WatchRadar: Watches Identifier",
+    "link": "https://apps.apple.com/us/app/watchradar-watches-identifier/id6760263209?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/c9/7e/e0/c97ee08b-0e99-5233-ebcc-acba477cafd3/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg"
   },
   {
     "app": "Weather mini - Trip Forecasts",

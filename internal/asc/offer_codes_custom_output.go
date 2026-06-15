@@ -43,7 +43,11 @@ func offerCodePriceRelationshipIDs(raw json.RawMessage) (string, string, error) 
 	if err := json.Unmarshal(raw, &relationships); err != nil {
 		return "", "", fmt.Errorf("decode offer code price relationships: %w", err)
 	}
-	return relationships.Territory.Data.ID, relationships.SubscriptionPricePoint.Data.ID, nil
+	pricePointID := ""
+	if relationships.SubscriptionPricePoint != nil {
+		pricePointID = relationships.SubscriptionPricePoint.Data.ID
+	}
+	return relationships.Territory.Data.ID, pricePointID, nil
 }
 
 func offerCodeValuesRows(result *OfferCodeValuesResult) ([]string, [][]string) {

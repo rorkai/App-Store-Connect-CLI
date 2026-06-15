@@ -70,7 +70,22 @@ var offerCodeCustomerEligibilityMap = map[string]asc.SubscriptionCustomerEligibi
 	string(asc.SubscriptionCustomerEligibilityExpired):  asc.SubscriptionCustomerEligibilityExpired,
 }
 
-func parseOfferCodePrices(value string) ([]asc.SubscriptionOfferCodePrice, error) {
+func parseOfferCodePrices(value string, mode asc.SubscriptionOfferMode) ([]asc.SubscriptionOfferCodePrice, error) {
+	if mode == asc.SubscriptionOfferModeFreeTrial {
+		if strings.Contains(value, ":") {
+			return nil, fmt.Errorf("--prices for FREE_TRIAL must use TERRITORY entries without price point IDs")
+		}
+		territoryIDs, err := shared.NormalizeASCTerritoryCSV(value)
+		if err != nil {
+			return nil, err
+		}
+		prices := make([]asc.SubscriptionOfferCodePrice, 0, len(territoryIDs))
+		for _, territoryID := range territoryIDs {
+			prices = append(prices, asc.SubscriptionOfferCodePrice{TerritoryID: territoryID})
+		}
+		return prices, nil
+	}
+
 	entries, err := shared.ParseASCTerritoryValueCSV(value)
 	if err != nil {
 		return nil, err
@@ -124,7 +139,7 @@ func OfferCodesCreateCommand() *ffcli.Command {
 	var numberOfPeriods optionalInt
 	fs.Var(&numberOfPeriods, "number-of-periods", "Number of periods (required)")
 	autoRenewEnabled := fs.String("auto-renew-enabled", "", "Auto-renew enabled (true/false)")
-	prices := fs.String("prices", "", "Offer code prices: TERRITORY:PRICE_POINT_ID entries (required)")
+	prices := fs.String("prices", "", "Offer code prices (required): TERRITORY entries for FREE_TRIAL or TERRITORY:PRICE_POINT_ID entries for paid modes; territory accepts alpha-2, alpha-3, or exact English country name")
 	priceIDs := fs.String("price-id", "", "Deprecated: use --prices")
 	output := shared.BindOutputFlags(fs)
 
@@ -135,7 +150,7 @@ func OfferCodesCreateCommand() *ffcli.Command {
 		LongHelp: `Create a subscription offer code.
 
 Examples:
-  asc offer-codes create --subscription-id "SUB_ID" --name "SPRING" --customer-eligibilities NEW --offer-eligibility STACK_WITH_INTRO_OFFERS --duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+  asc offer-codes create --subscription-id "SUB_ID" --name "SPRING" --customer-eligibilities NEW --offer-eligibility STACK_WITH_INTRO_OFFERS --duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "USA"
   asc offer-codes create --subscription-id "SUB_ID" --name "SPRING" --customer-eligibilities NEW --offer-eligibility STACK_WITH_INTRO_OFFERS --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --number-of-periods 1 --prices "USA:PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -200,16 +215,13 @@ Examples:
 			if pricesValue == "" {
 				pricesValue = strings.TrimSpace(*priceIDs)
 			}
-			priceEntries, err := parseOfferCodePrices(pricesValue)
+			priceEntries, err := parseOfferCodePrices(pricesValue, offerModeValue)
 			if err != nil {
-				return fmt.Errorf("offer-codes create: %w", err)
-			}
-			if len(priceEntries) == 0 && offerModeValue != asc.SubscriptionOfferModeFreeTrial {
-				fmt.Fprintln(os.Stderr, "Error: --prices is required")
+				fmt.Fprintln(os.Stderr, "Error:", err.Error())
 				return flag.ErrHelp
 			}
-			if len(priceEntries) > 0 && offerModeValue == asc.SubscriptionOfferModeFreeTrial {
-				fmt.Fprintln(os.Stderr, "Error: --prices must not be set for FREE_TRIAL offers")
+			if len(priceEntries) == 0 {
+				fmt.Fprintln(os.Stderr, "Error: --prices is required")
 				return flag.ErrHelp
 			}
 

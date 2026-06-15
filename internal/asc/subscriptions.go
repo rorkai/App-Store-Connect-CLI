@@ -137,14 +137,16 @@ type SubscriptionPriceInlineRelationships struct {
 
 // SubscriptionPriceAttributes describes a subscription price resource.
 type SubscriptionPriceAttributes struct {
-	StartDate string `json:"startDate,omitempty"`
-	Preserved bool   `json:"preserved,omitempty"`
+	StartDate string               `json:"startDate,omitempty"`
+	Preserved bool                 `json:"preserved,omitempty"`
+	PlanType  SubscriptionPlanType `json:"planType,omitempty"`
 }
 
 // SubscriptionPriceCreateAttributes describes attributes for creating a price.
 type SubscriptionPriceCreateAttributes struct {
-	StartDate string `json:"startDate,omitempty"`
-	Preserved *bool  `json:"preserveCurrentPrice,omitempty"`
+	StartDate string               `json:"startDate,omitempty"`
+	Preserved *bool                `json:"preserveCurrentPrice,omitempty"`
+	PlanType  SubscriptionPlanType `json:"planType,omitempty"`
 }
 
 // SubscriptionPriceRelationships describes relationships for prices.

@@ -213,6 +213,7 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --roles is required")
 				return flag.ErrHelp
 			}
+			warnDeprecatedUserRoles(roleValues)
 
 			visibleAppIDs := shared.SplitCSV(*visibleApps)
 
@@ -347,6 +348,7 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --roles is required")
 				return flag.ErrHelp
 			}
+			warnDeprecatedUserRoles(roleValues)
 
 			if *allApps && strings.TrimSpace(*visibleApps) != "" {
 				fmt.Fprintln(os.Stderr, "Error: --all-apps and --visible-app cannot be used together")

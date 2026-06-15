@@ -67,7 +67,7 @@ func TestNormalizeSubscriptionCustomerEligibilities(t *testing.T) {
 }
 
 func TestParseSubscriptionOfferCodePrices(t *testing.T) {
-	prices, err := parseSubscriptionOfferCodePrices("US:pp-1, France:pp-2")
+	prices, err := parseSubscriptionOfferCodePrices("US:pp-1, France:pp-2", asc.SubscriptionOfferModePayAsYouGo)
 	if err != nil {
 		t.Fatalf("unexpected parse error: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestParseSubscriptionOfferCodePrices(t *testing.T) {
 		t.Fatalf("unexpected second price: %+v", prices[1])
 	}
 
-	prices, err = parseSubscriptionOfferCodePrices("Moldova, Republic of:pp-1,Bolivia, Plurinational State of:pp-2")
+	prices, err = parseSubscriptionOfferCodePrices("Moldova, Republic of:pp-1,Bolivia, Plurinational State of:pp-2", asc.SubscriptionOfferModePayUpFront)
 	if err != nil {
 		t.Fatalf("unexpected parse error for comma-containing territory names: %v", err)
 	}
@@ -95,13 +95,30 @@ func TestParseSubscriptionOfferCodePrices(t *testing.T) {
 		t.Fatalf("unexpected second comma-name price: %+v", prices[1])
 	}
 
-	if _, err := parseSubscriptionOfferCodePrices("usa-pp-1"); err == nil {
+	freeTrialPrices, err := parseSubscriptionOfferCodePrices("DE, France", asc.SubscriptionOfferModeFreeTrial)
+	if err != nil {
+		t.Fatalf("unexpected FREE_TRIAL parse error: %v", err)
+	}
+	if len(freeTrialPrices) != 2 {
+		t.Fatalf("expected 2 FREE_TRIAL prices, got %d", len(freeTrialPrices))
+	}
+	if freeTrialPrices[0].TerritoryID != "DEU" || freeTrialPrices[0].PricePointID != "" {
+		t.Fatalf("unexpected first FREE_TRIAL price: %+v", freeTrialPrices[0])
+	}
+	if freeTrialPrices[1].TerritoryID != "FRA" || freeTrialPrices[1].PricePointID != "" {
+		t.Fatalf("unexpected second FREE_TRIAL price: %+v", freeTrialPrices[1])
+	}
+
+	if _, err := parseSubscriptionOfferCodePrices("usa-pp-1", asc.SubscriptionOfferModePayAsYouGo); err == nil {
 		t.Fatal("expected parse error for malformed input")
 	}
-	if _, err := parseSubscriptionOfferCodePrices("usa:"); err == nil {
+	if _, err := parseSubscriptionOfferCodePrices("usa:", asc.SubscriptionOfferModePayAsYouGo); err == nil {
 		t.Fatal("expected parse error for missing price point id")
 	}
-	if _, err := parseSubscriptionOfferCodePrices("Atlantis:pp-1"); err == nil {
+	if _, err := parseSubscriptionOfferCodePrices("Atlantis:pp-1", asc.SubscriptionOfferModePayAsYouGo); err == nil {
 		t.Fatal("expected parse error for invalid territory")
+	}
+	if _, err := parseSubscriptionOfferCodePrices("USA:pp-1", asc.SubscriptionOfferModeFreeTrial); err == nil {
+		t.Fatal("expected FREE_TRIAL price point rejection")
 	}
 }

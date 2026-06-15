@@ -66,7 +66,7 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 
 ## Subscription Offer Codes
 
-- `POST /v1/subscriptionOfferCodes`: for `FREE_TRIAL` offers the `prices` relationship **must be omitted entirely** — the API returns 409 if it is present (even as an empty list). The OpenAPI snapshot marks `prices` as required in the relationships schema, but that is incorrect for `FREE_TRIAL` mode. The CLI and client enforce this by omitting the relationship and rejecting `--prices` when `--offer-mode FREE_TRIAL` is set.
+- `POST /v1/subscriptionOfferCodes`: the `prices` relationship is required for every offer mode. For `FREE_TRIAL`, each inline price selects a territory but must omit `subscriptionPricePoint`; including one returns 409 `ENTITY_ERROR.RELATIONSHIP.INVALID`. Use `--prices "DEU,FRA"` for `FREE_TRIAL` and `--prices "DEU:PRICE_POINT_ID"` for paid modes.
 
 ## Monthly Subscriptions with a 12-Month Commitment
 

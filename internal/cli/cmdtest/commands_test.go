@@ -1785,9 +1785,14 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 			wantErr: "--prices is required",
 		},
 		{
-			name:    "subscriptions offer-codes create free-trial with prices rejected",
+			name:    "subscriptions offer-codes create free-trial missing prices",
+			args:    []string{"subscriptions", "offers", "offer-codes", "create", "--subscription-id", "SUB_ID", "--name", "Spring", "--offer-eligibility", "STACK_WITH_INTRO_OFFERS", "--customer-eligibilities", "NEW", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1"},
+			wantErr: "--prices is required",
+		},
+		{
+			name:    "subscriptions offer-codes create free-trial with price point rejected",
 			args:    []string{"subscriptions", "offers", "offer-codes", "create", "--subscription-id", "SUB_ID", "--name", "Spring", "--offer-eligibility", "STACK_WITH_INTRO_OFFERS", "--customer-eligibilities", "NEW", "--offer-duration", "ONE_MONTH", "--offer-mode", "FREE_TRIAL", "--number-of-periods", "1", "--prices", "USA:PRICE_ID"},
-			wantErr: "--prices must not be set for FREE_TRIAL offers",
+			wantErr: "--prices for FREE_TRIAL must use TERRITORY entries without price point IDs",
 		},
 		{
 			name:    "subscriptions offer-codes update missing active",

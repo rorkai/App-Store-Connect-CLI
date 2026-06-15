@@ -804,21 +804,55 @@ func TestCreateSubscriptionOfferCodeFreeTrial(t *testing.T) {
 		if req.URL.Path != "/v1/subscriptionOfferCodes" {
 			t.Fatalf("expected path /v1/subscriptionOfferCodes, got %s", req.URL.Path)
 		}
-		var payload SubscriptionOfferCodeCreateRequest
+		var payload map[string]any
 		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 			t.Fatalf("failed to decode request: %v", err)
 		}
-		if payload.Data.Type != ResourceTypeSubscriptionOfferCodes {
-			t.Fatalf("expected type subscriptionOfferCodes, got %q", payload.Data.Type)
+		data, ok := payload["data"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected data object, got %T", payload["data"])
 		}
-		if payload.Data.Attributes.OfferMode != SubscriptionOfferModeFreeTrial {
-			t.Fatalf("expected offer mode FREE_TRIAL, got %q", payload.Data.Attributes.OfferMode)
+		attributes, ok := data["attributes"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected attributes object, got %T", data["attributes"])
 		}
-		if payload.Data.Relationships.Prices != nil {
-			t.Fatalf("expected no prices relationship for FREE_TRIAL, got %+v", payload.Data.Relationships.Prices)
+		if attributes["offerMode"] != string(SubscriptionOfferModeFreeTrial) {
+			t.Fatalf("expected offer mode FREE_TRIAL, got %#v", attributes["offerMode"])
 		}
-		if len(payload.Included) != 0 {
-			t.Fatalf("expected no included entries for FREE_TRIAL, got %d", len(payload.Included))
+		relationships, ok := data["relationships"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected relationships object, got %T", data["relationships"])
+		}
+		pricesRelationship, ok := relationships["prices"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected prices relationship for FREE_TRIAL, got %#v", relationships["prices"])
+		}
+		priceRefs, ok := pricesRelationship["data"].([]any)
+		if !ok || len(priceRefs) != 1 {
+			t.Fatalf("expected one price relationship, got %#v", pricesRelationship["data"])
+		}
+		included, ok := payload["included"].([]any)
+		if !ok || len(included) != 1 {
+			t.Fatalf("expected one included price, got %#v", payload["included"])
+		}
+		includedPrice, ok := included[0].(map[string]any)
+		if !ok {
+			t.Fatalf("expected included price object, got %T", included[0])
+		}
+		priceRelationships, ok := includedPrice["relationships"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected included price relationships, got %T", includedPrice["relationships"])
+		}
+		territory, ok := priceRelationships["territory"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected territory relationship, got %#v", priceRelationships["territory"])
+		}
+		territoryData, ok := territory["data"].(map[string]any)
+		if !ok || territoryData["id"] != "DEU" {
+			t.Fatalf("expected territory DEU, got %#v", territory["data"])
+		}
+		if _, ok := priceRelationships["subscriptionPricePoint"]; ok {
+			t.Fatalf("expected subscriptionPricePoint to be omitted, got %#v", priceRelationships["subscriptionPricePoint"])
 		}
 		assertAuthorized(t, req)
 	}, response)
@@ -831,12 +865,13 @@ func TestCreateSubscriptionOfferCodeFreeTrial(t *testing.T) {
 		OfferMode:             SubscriptionOfferModeFreeTrial,
 		NumberOfPeriods:       1,
 	}
-	if _, err := client.CreateSubscriptionOfferCode(context.Background(), "sub-1", attrs, nil); err != nil {
+	prices := []SubscriptionOfferCodePrice{{TerritoryID: "DEU"}}
+	if _, err := client.CreateSubscriptionOfferCode(context.Background(), "sub-1", attrs, prices); err != nil {
 		t.Fatalf("CreateSubscriptionOfferCode() error: %v", err)
 	}
 }
 
-func TestCreateSubscriptionOfferCodeFreeTrialRejectsPrices(t *testing.T) {
+func TestCreateSubscriptionOfferCodeFreeTrialRejectsPricePoint(t *testing.T) {
 	attrs := SubscriptionOfferCodeCreateAttributes{
 		OfferMode: SubscriptionOfferModeFreeTrial,
 	}
@@ -844,9 +879,24 @@ func TestCreateSubscriptionOfferCodeFreeTrialRejectsPrices(t *testing.T) {
 	client := &Client{} // no HTTP needed — validation fires before any call
 	_, err := client.CreateSubscriptionOfferCode(context.Background(), "sub-1", attrs, prices)
 	if err == nil {
-		t.Fatal("expected error for FREE_TRIAL with prices, got nil")
+		t.Fatal("expected error for FREE_TRIAL with a price point, got nil")
 	}
-	const want = "prices must not be set for FREE_TRIAL offer mode"
+	const want = "price point must not be set for FREE_TRIAL offer mode"
+	if err.Error() != want {
+		t.Fatalf("expected %q, got %q", want, err.Error())
+	}
+}
+
+func TestCreateSubscriptionOfferCodeFreeTrialRequiresPrice(t *testing.T) {
+	attrs := SubscriptionOfferCodeCreateAttributes{
+		OfferMode: SubscriptionOfferModeFreeTrial,
+	}
+	client := &Client{} // no HTTP needed — validation fires before any call
+	_, err := client.CreateSubscriptionOfferCode(context.Background(), "sub-1", attrs, nil)
+	if err == nil {
+		t.Fatal("expected error for FREE_TRIAL without prices, got nil")
+	}
+	const want = "at least one price is required"
 	if err.Error() != want {
 		t.Fatalf("expected %q, got %q", want, err.Error())
 	}

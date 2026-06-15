@@ -27,7 +27,7 @@ func SubscriptionsOfferCodesCommand() *ffcli.Command {
 Examples:
   asc subscriptions offers offer-codes list --subscription-id "SUB_ID"
   asc subscriptions offers offer-codes list --subscription-id "SUB_ID" --output table
-  asc subscriptions offers offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+  asc subscriptions offers offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "US"
   asc subscriptions offers offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --number-of-periods 1 --prices "US:PRICE_POINT_ID"
   asc subscriptions offers offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
   asc subscriptions offers offer-codes one-time-codes list --offer-code-id "OFFER_CODE_ID"
@@ -225,7 +225,7 @@ func SubscriptionsOfferCodesCreateCommand() *ffcli.Command {
 	offerDuration := fs.String("offer-duration", "", "Offer duration: "+strings.Join(subscriptionOfferDurationValues, ", "))
 	offerMode := fs.String("offer-mode", "", "Offer mode: "+strings.Join(subscriptionOfferModeValues, ", "))
 	numberOfPeriods := fs.Int("number-of-periods", 0, "Number of periods (required)")
-	prices := fs.String("prices", "", "Offer code prices: TERRITORY:PRICE_POINT_ID entries (territory accepts alpha-2, alpha-3, or exact English country name)")
+	prices := fs.String("prices", "", "Offer code prices (required): TERRITORY entries for FREE_TRIAL or TERRITORY:PRICE_POINT_ID entries for paid modes; territory accepts alpha-2, alpha-3, or exact English country name")
 	var autoRenewEnabled shared.OptionalBool
 	fs.Var(&autoRenewEnabled, "auto-renew-enabled", "Enable auto-renew: true or false")
 	output := shared.BindOutputFlags(fs)
@@ -237,7 +237,7 @@ func SubscriptionsOfferCodesCreateCommand() *ffcli.Command {
 		LongHelp: `Create an offer code.
 
 Examples:
-  asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+  asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1 --prices "US"
   asc subscriptions offer-codes create --subscription-id "SUB_ID" --name "SPRING" --offer-eligibility STACK_WITH_INTRO_OFFERS --customer-eligibilities NEW --offer-duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --number-of-periods 1 --prices "US:PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -283,17 +283,13 @@ Examples:
 				return flag.ErrHelp
 			}
 
-			priceEntries, err := parseSubscriptionOfferCodePrices(*prices)
+			priceEntries, err := parseSubscriptionOfferCodePrices(*prices, mode)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err.Error())
 				return flag.ErrHelp
 			}
-			if len(priceEntries) == 0 && mode != asc.SubscriptionOfferModeFreeTrial {
+			if len(priceEntries) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --prices is required")
-				return flag.ErrHelp
-			}
-			if len(priceEntries) > 0 && mode == asc.SubscriptionOfferModeFreeTrial {
-				fmt.Fprintln(os.Stderr, "Error: --prices must not be set for FREE_TRIAL offers")
 				return flag.ErrHelp
 			}
 

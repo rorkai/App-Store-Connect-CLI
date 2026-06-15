@@ -203,7 +203,22 @@ func normalizeSubscriptionCustomerEligibilities(value string) ([]asc.Subscriptio
 	return eligibilities, nil
 }
 
-func parseSubscriptionOfferCodePrices(value string) ([]asc.SubscriptionOfferCodePrice, error) {
+func parseSubscriptionOfferCodePrices(value string, mode asc.SubscriptionOfferMode) ([]asc.SubscriptionOfferCodePrice, error) {
+	if mode == asc.SubscriptionOfferModeFreeTrial {
+		if strings.Contains(value, ":") {
+			return nil, fmt.Errorf("--prices for FREE_TRIAL must use TERRITORY entries without price point IDs")
+		}
+		territoryIDs, err := shared.NormalizeASCTerritoryCSV(value)
+		if err != nil {
+			return nil, err
+		}
+		prices := make([]asc.SubscriptionOfferCodePrice, 0, len(territoryIDs))
+		for _, territoryID := range territoryIDs {
+			prices = append(prices, asc.SubscriptionOfferCodePrice{TerritoryID: territoryID})
+		}
+		return prices, nil
+	}
+
 	entries, err := shared.ParseASCTerritoryValueCSV(value)
 	if err != nil {
 		return nil, err

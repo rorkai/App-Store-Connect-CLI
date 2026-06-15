@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -776,6 +777,7 @@ func SubscriptionsPricesListCommand() *ffcli.Command {
 
 	subID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
+	planType := fs.String("plan-type", "", "Filter by plan type: MONTHLY or UPFRONT")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -784,14 +786,17 @@ func SubscriptionsPricesListCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc subscriptions prices list --subscription-id \"SUB_ID\"",
+		ShortUsage: "asc subscriptions prices list --subscription-id \"SUB_ID\" [--plan-type MONTHLY|UPFRONT]",
 		ShortHelp:  "List prices for a subscription.",
 		LongHelp: `List prices for a subscription.
+
+Use --plan-type to filter by MONTHLY or UPFRONT billing plan prices.
 
 Examples:
   asc subscriptions prices list --subscription-id "SUB_ID"
   asc subscriptions prices list --subscription-id "SUB_ID" --paginate
-  asc subscriptions prices list --subscription-id "SUB_ID" --resolved`,
+  asc subscriptions prices list --subscription-id "SUB_ID" --resolved
+  asc subscriptions prices list --subscription-id "SUB_ID" --plan-type MONTHLY`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -812,6 +817,24 @@ Examples:
 				return flag.ErrHelp
 			}
 
+			var planTypeFilter asc.SubscriptionPlanType
+			planTypeProvided := false
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name == "plan-type" {
+					planTypeProvided = true
+				}
+			})
+			if planTypeProvided {
+				if strings.TrimSpace(*planType) == "" {
+					return shared.UsageError("invalid value for --plan-type: cannot be empty")
+				}
+				normalized, err := normalizeSubscriptionPlanType(*planType)
+				if err != nil {
+					return shared.UsageError(err.Error())
+				}
+				planTypeFilter = normalized
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions prices list: %w", err)
@@ -828,16 +851,26 @@ Examples:
 			defer cancel()
 
 			if *resolved {
-				resp, err := fetchResolvedSubscriptionPrices(requestCtx, client, id, *limit, *next, time.Now().UTC())
+				resp, err := fetchResolvedSubscriptionPrices(requestCtx, client, id, *limit, *next, time.Now().UTC(), planTypeFilter)
 				if err != nil {
 					return fmt.Errorf("subscriptions prices list: failed to resolve: %w", err)
 				}
 				return shared.PrintResolvedPrices(resp, *output.Output, *output.Pretty)
 			}
 
+			nextURL := strings.TrimSpace(*next)
+			if nextURL != "" && planTypeFilter != "" {
+				nextURL, err = mergeSubscriptionPricesPlanType(nextURL, planTypeFilter)
+				if err != nil {
+					return fmt.Errorf("subscriptions prices list: %w", err)
+				}
+			}
 			opts := []asc.SubscriptionPricesOption{
 				asc.WithSubscriptionPricesLimit(*limit),
-				asc.WithSubscriptionPricesNextURL(*next),
+				asc.WithSubscriptionPricesNextURL(nextURL),
+			}
+			if planTypeFilter != "" && nextURL == "" {
+				opts = append(opts, asc.WithSubscriptionPricesPlanType(planTypeFilter))
 			}
 
 			if *paginate {
@@ -848,6 +881,10 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					nextURL, err := mergeSubscriptionPricesPlanType(nextURL, planTypeFilter)
+					if err != nil {
+						return nil, err
+					}
 					return client.GetSubscriptionPrices(ctx, id, asc.WithSubscriptionPricesNextURL(nextURL))
 				})
 				if err != nil {
@@ -865,6 +902,45 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func mergeSubscriptionPricesPlanType(next string, planType asc.SubscriptionPlanType) (string, error) {
+	if planType == "" {
+		return next, nil
+	}
+
+	return mergeSubscriptionPricesNextQuery(
+		next,
+		url.Values{"filter[planType]": []string{string(planType)}},
+	)
+}
+
+func mergeSubscriptionPricesNextQuery(next string, additions url.Values) (string, error) {
+	next = strings.TrimSpace(next)
+	if next == "" {
+		return "", nil
+	}
+
+	parsed, err := url.Parse(next)
+	if err != nil {
+		return "", err
+	}
+	if parsed.IsAbs() || parsed.Host != "" {
+		return shared.MergeNextURLQuery(next, additions)
+	}
+
+	query := parsed.Query()
+	for key, values := range additions {
+		query.Del(key)
+		for _, value := range values {
+			value = strings.TrimSpace(value)
+			if value != "" {
+				query.Add(key, value)
+			}
+		}
+	}
+	parsed.RawQuery = query.Encode()
+	return parsed.String(), nil
 }
 
 // SubscriptionsPricesAddCommand returns the subscriptions prices add subcommand.
@@ -1268,6 +1344,9 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 			if normalizedBillingMode == subscriptionBillingModeMonthlyCommitment {
+				if *availableInNew {
+					return shared.UsageError("--available-in-new-territories is not supported for MONTHLY plan availability")
+				}
 				territoryIDs, excluded := filterMonthlyCommitmentTerritories(territoryIDs)
 				printMonthlyCommitmentTerritoryWarning(excluded)
 				if len(territoryIDs) == 0 {
@@ -1285,20 +1364,34 @@ Examples:
 				return err
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			if normalizedBillingMode == subscriptionBillingModeMonthlyCommitment {
-				availableInNewValue := *availableInNew
-				resp, err := client.CreateSubscriptionPlanAvailability(requestCtx, id, territoryIDs, asc.SubscriptionPlanAvailabilityAttributes{
-					AvailableInNewTerritories: &availableInNewValue,
-					PlanType:                  asc.SubscriptionPlanTypeMonthly,
-				})
+				listCtx, listCancel := shared.ContextWithTimeout(ctx)
+				existing, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(listCtx, id)
+				listCancel()
+				if err != nil {
+					return fmt.Errorf("subscriptions availability edit: failed to fetch monthly-commitment plan availability: %w", err)
+				}
+
+				var resp *asc.SubscriptionPlanAvailabilityResponse
+				if monthlyPlan, ok := findMonthlySubscriptionPlanAvailability(existing); ok {
+					updateCtx, updateCancel := shared.ContextWithTimeout(ctx)
+					resp, err = client.UpdateSubscriptionPlanAvailability(updateCtx, monthlyPlan.ID, territoryIDs, nil)
+					updateCancel()
+				} else {
+					createCtx, createCancel := shared.ContextWithTimeout(ctx)
+					resp, err = client.CreateSubscriptionPlanAvailability(createCtx, id, territoryIDs, asc.SubscriptionPlanAvailabilityAttributes{
+						PlanType: asc.SubscriptionPlanTypeMonthly,
+					})
+					createCancel()
+				}
 				if err != nil {
 					return fmt.Errorf("subscriptions availability edit: failed to set monthly-commitment plan availability: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
 
 			attrs := asc.SubscriptionAvailabilityAttributes{
 				AvailableInNewTerritories: *availableInNew,

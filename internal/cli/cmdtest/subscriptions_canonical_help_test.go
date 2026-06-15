@@ -148,6 +148,9 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	if !strings.Contains(offerCodesUsage, `--prices "US:PRICE_POINT_ID"`) {
 		t.Fatalf("expected subscriptions offers offer-codes help to show territory-qualified price examples, got %q", offerCodesUsage)
 	}
+	if !strings.Contains(offerCodesUsage, `--prices "US"`) {
+		t.Fatalf("expected subscriptions offers offer-codes help to show FREE_TRIAL territory examples, got %q", offerCodesUsage)
+	}
 	if strings.Contains(offerCodesUsage, `--prices "PRICE_ID"`) {
 		t.Fatalf("expected subscriptions offers offer-codes help to drop stale price example, got %q", offerCodesUsage)
 	}

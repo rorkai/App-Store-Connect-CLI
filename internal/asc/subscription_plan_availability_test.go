@@ -78,3 +78,79 @@ func TestUpdateSubscriptionPlanAvailability(t *testing.T) {
 		t.Fatalf("UpdateSubscriptionPlanAvailability() error: %v", err)
 	}
 }
+
+func TestGetSubscriptionPlanAvailabilitiesForSubscriptionFiltersPlanType(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[
+		{"type":"subscriptionPlanAvailabilities","id":"plan-monthly","attributes":{"planType":"MONTHLY","availableInNewTerritories":true}},
+		{"type":"subscriptionPlanAvailabilities","id":"plan-upfront","attributes":{"planType":"UPFRONT","availableInNewTerritories":false}}
+	],"links":{"next":"https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/planAvailabilities?cursor=abc"},"meta":{"paging":{"total":2,"limit":50}}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptions/sub-1/planAvailabilities" {
+			t.Fatalf("expected path /v1/subscriptions/sub-1/planAvailabilities, got %s", req.URL.Path)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	resp, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(
+		context.Background(),
+		"sub-1",
+		WithSubscriptionPlanAvailabilitiesPlanTypes(SubscriptionPlanTypeMonthly),
+	)
+	if err != nil {
+		t.Fatalf("GetSubscriptionPlanAvailabilitiesForSubscription() error: %v", err)
+	}
+	if len(resp.Data) != 1 || resp.Data[0].ID != "plan-monthly" {
+		t.Fatalf("expected only monthly plan availability, got %#v", resp.Data)
+	}
+	if resp.Links.Next != "" {
+		t.Fatalf("expected next link to be cleared after filtering, got %q", resp.Links.Next)
+	}
+	if got := ParsePagingTotal(resp.Meta); got != 1 {
+		t.Fatalf("expected paging total 1 after filtering, got %d", got)
+	}
+}
+
+func TestGetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"NOR"},{"type":"territories","id":"DEU"}],"links":{"next":""}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionPlanAvailabilities/plan-1/relationships/availableTerritories" {
+			t.Fatalf("unexpected path %s", req.URL.Path)
+		}
+		if got := req.URL.Query().Get("limit"); got != "200" {
+			t.Fatalf("expected limit 200, got %q", got)
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	resp, err := client.GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(
+		context.Background(),
+		"plan-1",
+		WithLinkagesLimit(200),
+	)
+	if err != nil {
+		t.Fatalf("GetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships() error: %v", err)
+	}
+	if len(resp.Data) != 2 || resp.Data[0].ID != "NOR" || resp.Data[1].ID != "DEU" {
+		t.Fatalf("expected NOR,DEU territory linkages, got %#v", resp.Data)
+	}
+}
+
+func TestAdjustFilteredPagingMetadata(t *testing.T) {
+	t.Parallel()
+
+	updated := adjustFilteredPagingMetadata(json.RawMessage(`{"paging":{"total":2,"limit":50}}`), 1)
+	if got := ParsePagingTotal(updated); got != 1 {
+		t.Fatalf("expected paging total 1, got %d", got)
+	}
+
+	unchanged := adjustFilteredPagingMetadata(json.RawMessage(`{"paging":{"limit":50}}`), 1)
+	if got := ParsePagingTotal(unchanged); got != 0 {
+		t.Fatalf("expected unchanged metadata without total, got %d", got)
+	}
+}

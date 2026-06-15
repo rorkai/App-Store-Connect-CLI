@@ -51,6 +51,7 @@ Manage subscription workflows that App Store Connect exposes only through web-se
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			WebSubscriptionsAvailabilityCommand(),
+			WebSubscriptionsPricingCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

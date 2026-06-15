@@ -91,6 +91,33 @@ func TestRun_UnknownCommandReturnsUsage(t *testing.T) {
 	}
 }
 
+func TestRun_AlternativeDistributionHelpIncludesEUAddendumAgentGuidance(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr, exitCode := runHelpSubprocess(
+		t,
+		t.TempDir(),
+		"alternative-distribution", "--help",
+	)
+
+	if exitCode != ExitSuccess {
+		t.Fatalf("help exit code = %d, want %d; stdout=%q stderr=%q", exitCode, ExitSuccess, stdout, stderr)
+	}
+	combined := stdout + stderr
+	for _, expected := range []string{
+		"Agent guidance:",
+		"Alternative Distribution Addendum for EU Apps",
+		"https://appstoreconnect.apple.com/agreements/#/",
+	} {
+		if !strings.Contains(combined, expected) {
+			t.Fatalf("expected help output to contain %q, got stdout=%q stderr=%q", expected, stdout, stderr)
+		}
+	}
+	if strings.Contains(combined, "\n  agreements  ") {
+		t.Fatalf("did not expect agreements subcommand in help, got stdout=%q stderr=%q", stdout, stderr)
+	}
+}
+
 func TestRun_RemovedTopLevelCommandsReturnUnknown(t *testing.T) {
 	resetReportFlags(t)
 

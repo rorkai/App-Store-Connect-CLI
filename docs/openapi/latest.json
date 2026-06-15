@@ -6246,8 +6246,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "fields[appPreviewSets]",
@@ -6268,8 +6267,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "include",
@@ -6300,8 +6298,7 @@
               "maximum": 50
             },
             "style": "form",
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "limit[appScreenshotSets]",
@@ -6312,8 +6309,7 @@
               "maximum": 50
             },
             "style": "form",
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "limit[searchKeywords]",
@@ -8570,8 +8566,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "fields[appEventVideoClips]",
@@ -8598,8 +8593,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "include",
@@ -8629,8 +8623,7 @@
               "maximum": 50
             },
             "style": "form",
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "limit[appEventVideoClips]",
@@ -8641,8 +8634,7 @@
               "maximum": 50
             },
             "style": "form",
-            "required": false,
-            "deprecated": true
+            "required": false
           }
         ],
         "responses": {
@@ -8887,7 +8879,6 @@
           "AppEventScreenshots"
         ],
         "operationId": "appEventScreenshots_createInstance",
-        "deprecated": true,
         "requestBody": {
           "description": "AppEventScreenshot representation",
           "content": {
@@ -8979,7 +8970,6 @@
           "AppEventScreenshots"
         ],
         "operationId": "appEventScreenshots_getInstance",
-        "deprecated": true,
         "parameters": [
           {
             "name": "fields[appEventScreenshots]",
@@ -9114,7 +9104,6 @@
           "AppEventScreenshots"
         ],
         "operationId": "appEventScreenshots_updateInstance",
-        "deprecated": true,
         "requestBody": {
           "description": "AppEventScreenshot representation",
           "content": {
@@ -9214,7 +9203,6 @@
           "AppEventScreenshots"
         ],
         "operationId": "appEventScreenshots_deleteInstance",
-        "deprecated": true,
         "responses": {
           "400": {
             "description": "Parameter error(s)",
@@ -9290,7 +9278,6 @@
           "AppEventVideoClips"
         ],
         "operationId": "appEventVideoClips_createInstance",
-        "deprecated": true,
         "requestBody": {
           "description": "AppEventVideoClip representation",
           "content": {
@@ -9382,7 +9369,6 @@
           "AppEventVideoClips"
         ],
         "operationId": "appEventVideoClips_getInstance",
-        "deprecated": true,
         "parameters": [
           {
             "name": "fields[appEventVideoClips]",
@@ -9520,7 +9506,6 @@
           "AppEventVideoClips"
         ],
         "operationId": "appEventVideoClips_updateInstance",
-        "deprecated": true,
         "requestBody": {
           "description": "AppEventVideoClip representation",
           "content": {
@@ -9620,7 +9605,6 @@
           "AppEventVideoClips"
         ],
         "operationId": "appEventVideoClips_deleteInstance",
-        "deprecated": true,
         "responses": {
           "400": {
             "description": "Parameter error(s)",
@@ -10927,7 +10911,6 @@
           "AppPreviewSets"
         ],
         "operationId": "appPreviewSets_createInstance",
-        "deprecated": true,
         "requestBody": {
           "description": "AppPreviewSet representation",
           "content": {
@@ -11019,7 +11002,6 @@
           "AppPreviewSets"
         ],
         "operationId": "appPreviewSets_getInstance",
-        "deprecated": true,
         "parameters": [
           {
             "name": "fields[appPreviewSets]",
@@ -11137,8 +11119,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "include",
@@ -11169,8 +11150,7 @@
               "maximum": 50
             },
             "style": "form",
-            "required": false,
-            "deprecated": true
+            "required": false
           }
         ],
         "responses": {
@@ -11241,7 +11221,6 @@
           "AppPreviewSets"
         ],
         "operationId": "appPreviewSets_deleteInstance",
-        "deprecated": true,
         "responses": {
           "400": {
             "description": "Parameter error(s)",
@@ -11317,7 +11296,6 @@
           "AppPreviews"
         ],
         "operationId": "appPreviews_createInstance",
-        "deprecated": true,
         "requestBody": {
           "description": "AppPreview representation",
           "content": {
@@ -11409,7 +11387,6 @@
           "AppPreviews"
         ],
         "operationId": "appPreviews_getInstance",
-        "deprecated": true,
         "parameters": [
           {
             "name": "fields[appPreviews]",
@@ -11458,8 +11435,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "include",
@@ -11547,7 +11523,6 @@
           "AppPreviews"
         ],
         "operationId": "appPreviews_updateInstance",
-        "deprecated": true,
         "requestBody": {
           "description": "AppPreview representation",
           "content": {
@@ -11647,7 +11622,6 @@
           "AppPreviews"
         ],
         "operationId": "appPreviews_deleteInstance",
-        "deprecated": true,
         "responses": {
           "400": {
             "description": "Parameter error(s)",
@@ -12280,7 +12254,6 @@
           "AppScreenshotSets"
         ],
         "operationId": "appScreenshotSets_createInstance",
-        "deprecated": true,
         "requestBody": {
           "description": "AppScreenshotSet representation",
           "content": {
@@ -12372,7 +12345,6 @@
           "AppScreenshotSets"
         ],
         "operationId": "appScreenshotSets_getInstance",
-        "deprecated": true,
         "parameters": [
           {
             "name": "fields[appScreenshotSets]",
@@ -12487,8 +12459,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "include",
@@ -12519,8 +12490,7 @@
               "maximum": 50
             },
             "style": "form",
-            "required": false,
-            "deprecated": true
+            "required": false
           }
         ],
         "responses": {
@@ -12591,7 +12561,6 @@
           "AppScreenshotSets"
         ],
         "operationId": "appScreenshotSets_deleteInstance",
-        "deprecated": true,
         "responses": {
           "400": {
             "description": "Parameter error(s)",
@@ -12667,7 +12636,6 @@
           "AppScreenshots"
         ],
         "operationId": "appScreenshots_createInstance",
-        "deprecated": true,
         "requestBody": {
           "description": "AppScreenshot representation",
           "content": {
@@ -12759,7 +12727,6 @@
           "AppScreenshots"
         ],
         "operationId": "appScreenshots_getInstance",
-        "deprecated": true,
         "parameters": [
           {
             "name": "fields[appScreenshots]",
@@ -12805,8 +12772,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "include",
@@ -12894,7 +12860,6 @@
           "AppScreenshots"
         ],
         "operationId": "appScreenshots_updateInstance",
-        "deprecated": true,
         "requestBody": {
           "description": "AppScreenshot representation",
           "content": {
@@ -12994,7 +12959,6 @@
           "AppScreenshots"
         ],
         "operationId": "appScreenshots_deleteInstance",
-        "deprecated": true,
         "responses": {
           "400": {
             "description": "Parameter error(s)",
@@ -14015,8 +13979,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "fields[appPreviewSets]",
@@ -14037,8 +14000,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "include",
@@ -14068,8 +14030,7 @@
               "maximum": 50
             },
             "style": "form",
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "limit[appScreenshotSets]",
@@ -14080,8 +14041,7 @@
               "maximum": 50
             },
             "style": "form",
-            "required": false,
-            "deprecated": true
+            "required": false
           }
         ],
         "responses": {
@@ -15834,8 +15794,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "fields[appPreviewSets]",
@@ -15856,8 +15815,7 @@
             },
             "style": "form",
             "explode": false,
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "include",
@@ -15888,8 +15846,7 @@
               "maximum": 50
             },
             "style": "form",
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "limit[appScreenshotSets]",
@@ -15900,8 +15857,7 @@
               "maximum": 50
             },
             "style": "form",
-            "required": false,
-            "deprecated": true
+            "required": false
           },
           {
             "name": "limit[searchKeywords]",
@@ -79162,7 +79118,6 @@
           "AppCustomProductPageLocalizations"
         ],
         "operationId": "appCustomProductPageLocalizations_appPreviewSets_getToManyRelationship",
-        "deprecated": true,
         "parameters": [
           {
             "name": "limit",
@@ -79257,7 +79212,6 @@
           "AppCustomProductPageLocalizations"
         ],
         "operationId": "appCustomProductPageLocalizations_appPreviewSets_getToManyRelated",
-        "deprecated": true,
         "parameters": [
           {
             "name": "filter[previewType]",
@@ -79466,8 +79420,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           }
         ],
         "responses": {
@@ -79552,7 +79505,6 @@
           "AppCustomProductPageLocalizations"
         ],
         "operationId": "appCustomProductPageLocalizations_appScreenshotSets_getToManyRelationship",
-        "deprecated": true,
         "parameters": [
           {
             "name": "limit",
@@ -79647,7 +79599,6 @@
           "AppCustomProductPageLocalizations"
         ],
         "operationId": "appCustomProductPageLocalizations_appScreenshotSets_getToManyRelated",
-        "deprecated": true,
         "parameters": [
           {
             "name": "filter[screenshotDisplayType]",
@@ -79870,8 +79821,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           }
         ],
         "responses": {
@@ -80608,8 +80558,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           },
           {
             "name": "limit[appPreviewSets]",
@@ -80619,8 +80568,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           },
           {
             "name": "limit[searchKeywords]",
@@ -81549,7 +81497,6 @@
           "AppEventLocalizations"
         ],
         "operationId": "appEventLocalizations_appEventScreenshots_getToManyRelationship",
-        "deprecated": true,
         "parameters": [
           {
             "name": "limit",
@@ -81644,7 +81591,6 @@
           "AppEventLocalizations"
         ],
         "operationId": "appEventLocalizations_appEventScreenshots_getToManyRelated",
-        "deprecated": true,
         "parameters": [
           {
             "name": "fields[appEventScreenshots]",
@@ -81800,7 +81746,6 @@
           "AppEventLocalizations"
         ],
         "operationId": "appEventLocalizations_appEventVideoClips_getToManyRelationship",
-        "deprecated": true,
         "parameters": [
           {
             "name": "limit",
@@ -81895,7 +81840,6 @@
           "AppEventLocalizations"
         ],
         "operationId": "appEventLocalizations_appEventVideoClips_getToManyRelated",
-        "deprecated": true,
         "parameters": [
           {
             "name": "fields[appEventVideoClips]",
@@ -82282,8 +82226,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           },
           {
             "name": "limit[appEventVideoClips]",
@@ -82293,8 +82236,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           }
         ],
         "responses": {
@@ -84369,7 +84311,6 @@
           "AppPreviewSets"
         ],
         "operationId": "appPreviewSets_appPreviews_getToManyRelationship",
-        "deprecated": true,
         "parameters": [
           {
             "name": "limit",
@@ -84450,7 +84391,6 @@
           "AppPreviewSets"
         ],
         "operationId": "appPreviewSets_appPreviews_replaceToManyRelationship",
-        "deprecated": true,
         "requestBody": {
           "description": "List of related linkages",
           "content": {
@@ -84557,7 +84497,6 @@
           "AppPreviewSets"
         ],
         "operationId": "appPreviewSets_appPreviews_getToManyRelated",
-        "deprecated": true,
         "parameters": [
           {
             "name": "fields[appPreviews]",
@@ -85827,7 +85766,6 @@
           "AppScreenshotSets"
         ],
         "operationId": "appScreenshotSets_appScreenshots_getToManyRelationship",
-        "deprecated": true,
         "parameters": [
           {
             "name": "limit",
@@ -85908,7 +85846,6 @@
           "AppScreenshotSets"
         ],
         "operationId": "appScreenshotSets_appScreenshots_replaceToManyRelationship",
-        "deprecated": true,
         "requestBody": {
           "description": "List of related linkages",
           "content": {
@@ -86015,7 +85952,6 @@
           "AppScreenshotSets"
         ],
         "operationId": "appScreenshotSets_appScreenshots_getToManyRelated",
-        "deprecated": true,
         "parameters": [
           {
             "name": "fields[appScreenshots]",
@@ -86420,7 +86356,6 @@
           "AppStoreVersionExperimentTreatmentLocalizations"
         ],
         "operationId": "appStoreVersionExperimentTreatmentLocalizations_appPreviewSets_getToManyRelationship",
-        "deprecated": true,
         "parameters": [
           {
             "name": "limit",
@@ -86515,7 +86450,6 @@
           "AppStoreVersionExperimentTreatmentLocalizations"
         ],
         "operationId": "appStoreVersionExperimentTreatmentLocalizations_appPreviewSets_getToManyRelated",
-        "deprecated": true,
         "parameters": [
           {
             "name": "filter[previewType]",
@@ -86724,8 +86658,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           }
         ],
         "responses": {
@@ -86810,7 +86743,6 @@
           "AppStoreVersionExperimentTreatmentLocalizations"
         ],
         "operationId": "appStoreVersionExperimentTreatmentLocalizations_appScreenshotSets_getToManyRelationship",
-        "deprecated": true,
         "parameters": [
           {
             "name": "limit",
@@ -86905,7 +86837,6 @@
           "AppStoreVersionExperimentTreatmentLocalizations"
         ],
         "operationId": "appStoreVersionExperimentTreatmentLocalizations_appScreenshotSets_getToManyRelated",
-        "deprecated": true,
         "parameters": [
           {
             "name": "filter[screenshotDisplayType]",
@@ -87128,8 +87059,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           }
         ],
         "responses": {
@@ -87439,8 +87369,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           },
           {
             "name": "limit[appPreviewSets]",
@@ -87450,8 +87379,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           }
         ],
         "responses": {
@@ -88106,7 +88034,6 @@
           "AppStoreVersionLocalizations"
         ],
         "operationId": "appStoreVersionLocalizations_appPreviewSets_getToManyRelationship",
-        "deprecated": true,
         "parameters": [
           {
             "name": "limit",
@@ -88201,7 +88128,6 @@
           "AppStoreVersionLocalizations"
         ],
         "operationId": "appStoreVersionLocalizations_appPreviewSets_getToManyRelated",
-        "deprecated": true,
         "parameters": [
           {
             "name": "filter[previewType]",
@@ -88410,8 +88336,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           }
         ],
         "responses": {
@@ -88496,7 +88421,6 @@
           "AppStoreVersionLocalizations"
         ],
         "operationId": "appStoreVersionLocalizations_appScreenshotSets_getToManyRelationship",
-        "deprecated": true,
         "parameters": [
           {
             "name": "limit",
@@ -88591,7 +88515,6 @@
           "AppStoreVersionLocalizations"
         ],
         "operationId": "appStoreVersionLocalizations_appScreenshotSets_getToManyRelated",
-        "deprecated": true,
         "parameters": [
           {
             "name": "filter[screenshotDisplayType]",
@@ -88814,8 +88737,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           }
         ],
         "responses": {
@@ -91223,8 +91145,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           },
           {
             "name": "limit[appPreviewSets]",
@@ -91234,8 +91155,7 @@
               "type": "integer",
               "maximum": 50
             },
-            "style": "form",
-            "deprecated": true
+            "style": "form"
           },
           {
             "name": "limit[searchKeywords]",
@@ -172140,8 +172060,7 @@
                       ]
                     }
                   }
-                },
-                "deprecated": true
+                }
               },
               "appPreviewSets": {
                 "type": "object",
@@ -172173,8 +172092,7 @@
                       ]
                     }
                   }
-                },
-                "deprecated": true
+                }
               },
               "searchKeywords": {
                 "type": "object",
@@ -173864,8 +173782,7 @@
                       ]
                     }
                   }
-                },
-                "deprecated": true
+                }
               },
               "appEventVideoClips": {
                 "type": "object",
@@ -173897,8 +173814,7 @@
                       ]
                     }
                   }
-                },
-                "deprecated": true
+                }
               }
             }
           },
@@ -174200,8 +174116,7 @@
         "required": [
           "id",
           "type"
-        ],
-        "deprecated": true
+        ]
       },
       "AppEventScreenshotsResponse": {
         "type": "object",
@@ -174229,8 +174144,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppEventScreenshotResponse": {
         "type": "object",
@@ -174252,8 +174166,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppEventScreenshotCreateRequest": {
         "type": "object",
@@ -174331,8 +174244,7 @@
         },
         "required": [
           "data"
-        ],
-        "deprecated": true
+        ]
       },
       "AppEventScreenshotUpdateRequest": {
         "type": "object",
@@ -174368,8 +174280,7 @@
         },
         "required": [
           "data"
-        ],
-        "deprecated": true
+        ]
       },
       "AppEventVideoClip": {
         "type": "object",
@@ -174459,8 +174370,7 @@
         "required": [
           "id",
           "type"
-        ],
-        "deprecated": true
+        ]
       },
       "AppEventVideoClipsResponse": {
         "type": "object",
@@ -174488,8 +174398,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppEventVideoClipResponse": {
         "type": "object",
@@ -174511,8 +174420,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppEventVideoClipCreateRequest": {
         "type": "object",
@@ -174594,8 +174502,7 @@
         },
         "required": [
           "data"
-        ],
-        "deprecated": true
+        ]
       },
       "AppEventVideoClipUpdateRequest": {
         "type": "object",
@@ -174635,8 +174542,7 @@
         },
         "required": [
           "data"
-        ],
-        "deprecated": true
+        ]
       },
       "AppEvent": {
         "type": "object",
@@ -176163,8 +176069,7 @@
         "required": [
           "id",
           "type"
-        ],
-        "deprecated": true
+        ]
       },
       "AppPreviewSetsResponse": {
         "type": "object",
@@ -176214,8 +176119,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppPreviewSetResponse": {
         "type": "object",
@@ -176259,8 +176163,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppPreviewSetCreateRequest": {
         "type": "object",
@@ -176369,8 +176272,7 @@
         },
         "required": [
           "data"
-        ],
-        "deprecated": true
+        ]
       },
       "AppPreview": {
         "type": "object",
@@ -176463,8 +176365,7 @@
         "required": [
           "id",
           "type"
-        ],
-        "deprecated": true
+        ]
       },
       "AppPreviewsResponse": {
         "type": "object",
@@ -176492,8 +176393,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppPreviewResponse": {
         "type": "object",
@@ -176515,8 +176415,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppPreviewCreateRequest": {
         "type": "object",
@@ -176598,8 +176497,7 @@
         },
         "required": [
           "data"
-        ],
-        "deprecated": true
+        ]
       },
       "AppPreviewUpdateRequest": {
         "type": "object",
@@ -176643,8 +176541,7 @@
         },
         "required": [
           "data"
-        ],
-        "deprecated": true
+        ]
       },
       "AppPricePointV3": {
         "type": "object",
@@ -177449,8 +177346,7 @@
         "required": [
           "id",
           "type"
-        ],
-        "deprecated": true
+        ]
       },
       "AppScreenshotSetsResponse": {
         "type": "object",
@@ -177500,8 +177396,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppScreenshotSetResponse": {
         "type": "object",
@@ -177545,8 +177440,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppScreenshotSetCreateRequest": {
         "type": "object",
@@ -177655,8 +177549,7 @@
         },
         "required": [
           "data"
-        ],
-        "deprecated": true
+        ]
       },
       "AppScreenshot": {
         "type": "object",
@@ -177738,8 +177631,7 @@
         "required": [
           "id",
           "type"
-        ],
-        "deprecated": true
+        ]
       },
       "AppScreenshotsResponse": {
         "type": "object",
@@ -177767,8 +177659,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppScreenshotResponse": {
         "type": "object",
@@ -177790,8 +177681,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppScreenshotCreateRequest": {
         "type": "object",
@@ -177865,8 +177755,7 @@
         },
         "required": [
           "data"
-        ],
-        "deprecated": true
+        ]
       },
       "AppScreenshotUpdateRequest": {
         "type": "object",
@@ -177906,8 +177795,7 @@
         },
         "required": [
           "data"
-        ],
-        "deprecated": true
+        ]
       },
       "AppStoreReviewAttachment": {
         "type": "object",
@@ -178529,8 +178417,7 @@
                       ]
                     }
                   }
-                },
-                "deprecated": true
+                }
               },
               "appPreviewSets": {
                 "type": "object",
@@ -178562,8 +178449,7 @@
                       ]
                     }
                   }
-                },
-                "deprecated": true
+                }
               }
             }
           },
@@ -179860,8 +179746,7 @@
                       ]
                     }
                   }
-                },
-                "deprecated": true
+                }
               },
               "appPreviewSets": {
                 "type": "object",
@@ -179893,8 +179778,7 @@
                       ]
                     }
                   }
-                },
-                "deprecated": true
+                }
               },
               "searchKeywords": {
                 "type": "object",
@@ -224693,8 +224577,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppCustomProductPageLocalizationAppScreenshotSetsLinkagesResponse": {
         "type": "object",
@@ -224730,8 +224613,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppCustomProductPageLocalizationSearchKeywordsLinkagesResponse": {
         "type": "object",
@@ -225011,8 +224893,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppEventLocalizationAppEventVideoClipsLinkagesResponse": {
         "type": "object",
@@ -225048,8 +224929,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppEventLocalizationsLinkagesResponse": {
         "type": "object",
@@ -225403,8 +225283,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppPreviewSetAppPreviewsLinkagesRequest": {
         "type": "object",
@@ -225433,8 +225312,7 @@
         },
         "required": [
           "data"
-        ],
-        "deprecated": true
+        ]
       },
       "AppPricePointV3EqualizationsLinkagesResponse": {
         "type": "object",
@@ -225608,8 +225486,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppScreenshotSetAppScreenshotsLinkagesRequest": {
         "type": "object",
@@ -225638,8 +225515,7 @@
         },
         "required": [
           "data"
-        ],
-        "deprecated": true
+        ]
       },
       "AppStoreReviewDetailAppStoreReviewAttachmentsLinkagesResponse": {
         "type": "object",
@@ -225711,8 +225587,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppStoreVersionExperimentTreatmentLocalizationAppScreenshotSetsLinkagesResponse": {
         "type": "object",
@@ -225748,8 +225623,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppStoreVersionExperimentTreatmentAppStoreVersionExperimentTreatmentLocalizationsLinkagesResponse": {
         "type": "object",
@@ -225894,8 +225768,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppStoreVersionLocalizationAppScreenshotSetsLinkagesResponse": {
         "type": "object",
@@ -225931,8 +225804,7 @@
         "required": [
           "data",
           "links"
-        ],
-        "deprecated": true
+        ]
       },
       "AppStoreVersionLocalizationSearchKeywordsLinkagesResponse": {
         "type": "object",

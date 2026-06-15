@@ -118,6 +118,47 @@ func TestRemoveSubscriptionPlanAvailabilityFromSaleBuildsExpectedRequest(t *test
 	}
 }
 
+func TestCreateSubscriptionPlanAvailabilityBuildsExpectedRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("expected POST, got %s", r.Method)
+		}
+		if r.URL.Path != "/iris/v1/subscriptionPlanAvailabilities" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		var body struct {
+			Data jsonAPIResource `json:"data"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if got := stringAttr(body.Data.Attributes, "planType"); got != "MONTHLY" {
+			t.Fatalf("expected MONTHLY, got %q", got)
+		}
+		subscription := parseRelationshipRefs(body.Data.Relationships["subscription"].Data)
+		if len(subscription) != 1 || subscription[0].ID != "sub-1" {
+			t.Fatalf("unexpected subscription relationship: %#v", subscription)
+		}
+		territories := parseRelationshipRefs(body.Data.Relationships["availableTerritories"].Data)
+		if len(territories) != 1 || territories[0].ID != "NOR" {
+			t.Fatalf("unexpected territories: %#v", territories)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"data":{"type":"subscriptionPlanAvailabilities","id":"plan-monthly","attributes":{"planType":"MONTHLY","availableInNewTerritories":false},"relationships":{"availableTerritories":{"data":[{"type":"territories","id":"NOR"}]}}}}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := &Client{httpClient: server.Client(), baseURL: server.URL + "/iris/v1"}
+	got, err := client.CreateSubscriptionPlanAvailability(context.Background(), "sub-1", "MONTHLY", []string{"nor"}, false)
+	if err != nil {
+		t.Fatalf("CreateSubscriptionPlanAvailability() error = %v", err)
+	}
+	if got.ID != "plan-monthly" || got.PlanType != "MONTHLY" {
+		t.Fatalf("unexpected result: %#v", got)
+	}
+}
+
 func TestSubscriptionPlanAvailabilityRequiresIDs(t *testing.T) {
 	client := &Client{}
 	if _, err := client.ListSubscriptionPlanAvailabilities(context.Background(), " "); err == nil || !strings.Contains(err.Error(), "subscription id is required") {

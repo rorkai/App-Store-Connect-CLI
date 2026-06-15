@@ -549,6 +549,7 @@ func TestSubscriptionsOfferCodesCreateFreeTrialStopsBeforeMutationWhenLookupFail
 		"--offer-duration", "ONE_MONTH",
 		"--offer-mode", "FREE_TRIAL",
 		"--number-of-periods", "1",
+		"--prices", "DE",
 	})
 	if runErr == nil {
 		t.Fatal("expected lookup error")
@@ -561,7 +562,7 @@ func TestSubscriptionsOfferCodesCreateFreeTrialStopsBeforeMutationWhenLookupFail
 	}
 }
 
-func TestSubscriptionsOfferCodesCreateFreeTrialResolvesAndOmitsPrices(t *testing.T) {
+func TestSubscriptionsOfferCodesCreateFreeTrialResolvesAndIncludesTerritoryOnlyPrice(t *testing.T) {
 	setupStableSelectorAuth(t)
 
 	originalTransport := http.DefaultTransport
@@ -596,11 +597,36 @@ func TestSubscriptionsOfferCodesCreateFreeTrialResolvesAndOmitsPrices(t *testing
 			if !ok {
 				t.Fatalf("expected payload.data.relationships to be an object, got %T", data["relationships"])
 			}
-			if _, ok := relationships["prices"]; ok {
-				t.Fatalf("expected no prices relationship for FREE_TRIAL, but found one: %#v", relationships["prices"])
+			pricesRelationship, ok := relationships["prices"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected prices relationship for FREE_TRIAL, got %#v", relationships["prices"])
 			}
-			if _, ok := payload["included"]; ok {
-				t.Fatalf("expected no included entries for FREE_TRIAL, but found some: %#v", payload["included"])
+			priceRefs, ok := pricesRelationship["data"].([]any)
+			if !ok || len(priceRefs) != 1 {
+				t.Fatalf("expected one price relationship, got %#v", pricesRelationship["data"])
+			}
+			included, ok := payload["included"].([]any)
+			if !ok || len(included) != 1 {
+				t.Fatalf("expected one included price, got %#v", payload["included"])
+			}
+			includedPrice, ok := included[0].(map[string]any)
+			if !ok {
+				t.Fatalf("expected included price object, got %T", included[0])
+			}
+			priceRelationships, ok := includedPrice["relationships"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected included price relationships, got %T", includedPrice["relationships"])
+			}
+			territory, ok := priceRelationships["territory"].(map[string]any)
+			if !ok {
+				t.Fatalf("expected territory relationship, got %#v", priceRelationships["territory"])
+			}
+			territoryData, ok := territory["data"].(map[string]any)
+			if !ok || territoryData["id"] != "DEU" {
+				t.Fatalf("expected normalized territory DEU, got %#v", territory["data"])
+			}
+			if _, ok := priceRelationships["subscriptionPricePoint"]; ok {
+				t.Fatalf("expected subscriptionPricePoint to be omitted, got %#v", priceRelationships["subscriptionPricePoint"])
 			}
 			body := `{"data":{"type":"subscriptionOfferCodes","id":"sub-offer-ft-2","attributes":{"name":"SPRING","active":true}}}`
 			return &http.Response{
@@ -624,6 +650,7 @@ func TestSubscriptionsOfferCodesCreateFreeTrialResolvesAndOmitsPrices(t *testing
 		"--offer-duration", "ONE_MONTH",
 		"--offer-mode", "FREE_TRIAL",
 		"--number-of-periods", "1",
+		"--prices", "DE",
 	})
 	if runErr != nil {
 		t.Fatalf("expected nil error, got %v", runErr)
@@ -644,7 +671,7 @@ func TestSubscriptionsOfferCodesCreateFreeTrialResolvesAndOmitsPrices(t *testing
 	}
 }
 
-func TestSubscriptionsOfferCodesCreateFreeTrialWithPricesIsRejected(t *testing.T) {
+func TestSubscriptionsOfferCodesCreateFreeTrialWithPricePointIsRejected(t *testing.T) {
 	_, stderr, runErr := runRootCommand(t, []string{
 		"subscriptions", "offers", "offer-codes", "create",
 		"--subscription-id", "8000000001",
@@ -657,23 +684,24 @@ func TestSubscriptionsOfferCodesCreateFreeTrialWithPricesIsRejected(t *testing.T
 		"--prices", "usa:pp-us",
 	})
 	if runErr == nil {
-		t.Fatal("expected error for FREE_TRIAL with prices, got nil")
+		t.Fatal("expected error for FREE_TRIAL with a price point, got nil")
 	}
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp (exit 2), got %v", runErr)
 	}
-	if !strings.Contains(stderr, "--prices must not be set for FREE_TRIAL") {
+	if !strings.Contains(stderr, "--prices for FREE_TRIAL must use TERRITORY entries without price point IDs") {
 		t.Fatalf("expected validation message in stderr, got %q", stderr)
 	}
 }
 
-func TestSubscriptionsOfferCodesCreateNonFreeTrialWithoutPricesIsRejected(t *testing.T) {
+func TestSubscriptionsOfferCodesCreateWithoutPricesIsRejected(t *testing.T) {
 	tests := []struct {
 		name      string
 		offerMode string
 	}{
 		{"pay_as_you_go", "PAY_AS_YOU_GO"},
 		{"pay_up_front", "PAY_UP_FRONT"},
+		{"free_trial", "FREE_TRIAL"},
 	}
 
 	for _, tc := range tests {

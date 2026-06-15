@@ -63,8 +63,8 @@ type SubscriptionOfferCodeOneTimeUseCodeUpdateRequest struct {
 
 // SubscriptionOfferCodePriceRelationships describes price relationships.
 type SubscriptionOfferCodePriceRelationships struct {
-	Territory              Relationship `json:"territory"`
-	SubscriptionPricePoint Relationship `json:"subscriptionPricePoint"`
+	Territory              Relationship  `json:"territory"`
+	SubscriptionPricePoint *Relationship `json:"subscriptionPricePoint,omitempty"`
 }
 
 // SubscriptionOfferCodePriceInlineCreate describes inline creation data for prices.
