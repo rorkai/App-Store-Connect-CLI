@@ -81,3 +81,33 @@ func TestSendHTTPEventHonorsASCTimeout(t *testing.T) {
 		t.Fatalf("sendHTTPEvent() elapsed = %s, want ASC_TIMEOUT to stop it before 200ms", elapsed)
 	}
 }
+
+func TestSendHTTPEventCapsTelemetryTimeout(t *testing.T) {
+	originalClient := http.DefaultClient
+	http.DefaultClient = &http.Client{
+		Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+			<-request.Context().Done()
+			return nil, request.Context().Err()
+		}),
+	}
+	t.Cleanup(func() { http.DefaultClient = originalClient })
+
+	t.Setenv(endpointEnvVar, "https://telemetry.example.test/events")
+	t.Setenv("ASC_TIMEOUT", "1s")
+	t.Setenv("ASC_TIMEOUT_SECONDS", "")
+	t.Setenv("HOME", t.TempDir())
+
+	start := time.Now()
+	err := sendHTTPEvent(Event{})
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected request timeout")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("sendHTTPEvent() error = %v, want context deadline exceeded", err)
+	}
+	if elapsed >= 750*time.Millisecond {
+		t.Fatalf("sendHTTPEvent() elapsed = %s, want telemetry timeout cap before 750ms", elapsed)
+	}
+}

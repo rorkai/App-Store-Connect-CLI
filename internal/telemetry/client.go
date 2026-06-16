@@ -17,6 +17,7 @@ import (
 const (
 	DefaultEndpoint = "https://telemetry.rork.com/asc/v1/events"
 	endpointEnvVar  = "ASC_TELEMETRY_ENDPOINT"
+	maxSendDuration = 250 * time.Millisecond
 )
 
 var sendHTTP = sendHTTPEvent
@@ -66,7 +67,9 @@ func sendHTTPEvent(ev Event) error {
 		return err
 	}
 
-	ctx, cancel := shared.ContextWithTimeout(context.Background())
+	configuredCtx, cancelConfigured := shared.ContextWithTimeout(context.Background())
+	defer cancelConfigured()
+	ctx, cancel := context.WithTimeout(configuredCtx, maxSendDuration)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
