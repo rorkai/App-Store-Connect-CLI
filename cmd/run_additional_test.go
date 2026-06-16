@@ -370,15 +370,25 @@ func TestRun_HelpEmitsTelemetry(t *testing.T) {
 	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
 
 	var commandName string
+	var duration time.Duration
 	var exitCode int
-	emitTelemetry = func(_ []string, command, _ string, _ time.Duration, code int) {
+	emitTelemetry = func(_ []string, command, _ string, elapsed time.Duration, code int) {
 		commandName = command
+		duration = elapsed
 		exitCode = code
 	}
 
-	emitHelpTelemetry([]string{"builds", "--help"}, RootCommand("1.0.0"), "1.0.0", time.Now(), ExitSuccess)
+	emitHelpTelemetry(
+		[]string{"builds", "--help"},
+		RootCommand("1.0.0"),
+		"1.0.0",
+		ExitSuccess,
+	)
 	if commandName != "asc builds" {
 		t.Fatalf("telemetry command = %q, want %q", commandName, "asc builds")
+	}
+	if duration != 0 {
+		t.Fatalf("telemetry duration = %s, want 0 for help", duration)
 	}
 	if exitCode != ExitSuccess {
 		t.Fatalf("telemetry exit code = %d, want %d", exitCode, ExitSuccess)

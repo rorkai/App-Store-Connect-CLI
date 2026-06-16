@@ -61,11 +61,20 @@ func TestBuildEventOmitsInstallIDForNonLocalContext(t *testing.T) {
 }
 
 func TestBuildEventSkipsControlCommands(t *testing.T) {
-	for _, commandPath := range []string{"asc", "asc completion", "asc version", "asc telemetry status"} {
+	for _, commandPath := range []string{"asc", "asc completion", "asc version", "asc telemetry", "asc telemetry status"} {
 		t.Run(commandPath, func(t *testing.T) {
 			if _, ok := BuildEvent(nil, commandPath, "1.2.3", 0, 0); ok {
 				t.Fatalf("expected %q to be skipped", commandPath)
 			}
 		})
+	}
+}
+
+func TestNegativeDurationIsClamped(t *testing.T) {
+	if got := durationMillis(-time.Second); got != 0 {
+		t.Fatalf("durationMillis() = %d, want 0", got)
+	}
+	if got := durationBucket(-time.Second); got != "lt_100ms" {
+		t.Fatalf("durationBucket() = %q, want %q", got, "lt_100ms")
 	}
 }

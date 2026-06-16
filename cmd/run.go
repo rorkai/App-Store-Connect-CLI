@@ -38,11 +38,10 @@ func Run(args []string, versionInfo string) int {
 	root := RootCommand(versionInfo)
 	runCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stopSignals()
-	start := time.Now()
 
 	if err := root.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			emitHelpTelemetry(args, root, versionInfo, start, ExitSuccess)
+			emitHelpTelemetry(args, root, versionInfo, ExitSuccess)
 			return ExitSuccess
 		}
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
@@ -75,6 +74,7 @@ func Run(args []string, versionInfo string) int {
 
 	commandName := getCommandName(root, args)
 
+	start := time.Now()
 	runErr := root.Run(runCtx)
 	elapsed := time.Since(start)
 
@@ -119,8 +119,8 @@ func Run(args []string, versionInfo string) int {
 	return ExitSuccess
 }
 
-func emitHelpTelemetry(args []string, root *ffcli.Command, versionInfo string, start time.Time, exitCode int) {
-	emitTelemetry(args, getCommandName(root, args), versionInfo, time.Since(start), exitCode)
+func emitHelpTelemetry(args []string, root *ffcli.Command, versionInfo string, exitCode int) {
+	emitTelemetry(args, getCommandName(root, args), versionInfo, 0, exitCode)
 }
 
 func shouldCancelRunContextAfterError(err error) bool {

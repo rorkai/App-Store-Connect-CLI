@@ -101,7 +101,7 @@ func sanitizeCommandName(commandName string) string {
 
 func shouldSkipCommand(commandPath string) bool {
 	switch commandPath {
-	case "", "asc", "asc completion", "asc version", "asc telemetry status", "asc telemetry enable", "asc telemetry disable", "asc telemetry reset-id":
+	case "", "asc", "asc completion", "asc version", "asc telemetry", "asc telemetry status", "asc telemetry enable", "asc telemetry disable", "asc telemetry reset-id":
 		return true
 	default:
 		return false
@@ -129,6 +129,9 @@ func durationMillis(d time.Duration) uint32 {
 
 func durationBucket(d time.Duration) string {
 	ms := d.Milliseconds()
+	if ms < 0 {
+		ms = 0
+	}
 	switch {
 	case ms < 100:
 		return "lt_100ms"

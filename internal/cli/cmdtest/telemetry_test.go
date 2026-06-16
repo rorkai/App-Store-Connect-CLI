@@ -78,3 +78,58 @@ func TestTelemetryCommands(t *testing.T) {
 		t.Fatalf("reset-id stdout = %q", stdout)
 	}
 }
+
+func TestTelemetryStatusUsesDefaultOutput(t *testing.T) {
+	tests := []struct {
+		name          string
+		defaultOutput string
+		wantJSON      bool
+	}{
+		{name: "non-interactive defaults to JSON", wantJSON: true},
+		{name: "table environment default", defaultOutput: "table"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Setenv("HOME", t.TempDir())
+			t.Setenv("ASC_DEFAULT_OUTPUT", test.defaultOutput)
+
+			stdout, stderr := captureOutput(t, func() {
+				if code := rootcmd.Run([]string{"telemetry", "status"}, "1.2.3"); code != 0 {
+					t.Fatalf("status exit code = %d", code)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("status stderr = %q", stderr)
+			}
+			if test.wantJSON {
+				var status map[string]any
+				if err := json.Unmarshal([]byte(stdout), &status); err != nil {
+					t.Fatalf("default status output is not JSON: %v\n%s", err, stdout)
+				}
+				return
+			}
+			if !strings.Contains(stdout, "Telemetry") || !strings.Contains(stdout, "Enabled") {
+				t.Fatalf("status table output = %q", stdout)
+			}
+		})
+	}
+}
+
+func TestTelemetryStatusRejectsInvalidOutput(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	var code int
+	stdout, stderr := captureOutput(t, func() {
+		code = rootcmd.Run([]string{"telemetry", "status", "--output", "yaml"}, "1.2.3")
+	})
+	if code != 2 {
+		t.Fatalf("status exit code = %d, want 2", code)
+	}
+	if stdout != "" {
+		t.Fatalf("status stdout = %q, want empty", stdout)
+	}
+	if !strings.Contains(stderr, "unsupported format: yaml") {
+		t.Fatalf("status stderr = %q, want invalid output error", stderr)
+	}
+}

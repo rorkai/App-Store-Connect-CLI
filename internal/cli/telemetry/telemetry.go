@@ -47,7 +47,7 @@ Examples:
 
 func statusCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("telemetry status", flag.ExitOnError)
-	output := shared.BindOutputFlagsWithAllowed(fs, "output", "table", "Output format: table, json", "table", "json")
+	output := shared.BindOutputFlagsWithAllowed(fs, "output", defaultStatusOutputFormat(), "Output format: table, json", "table", "json")
 	return &ffcli.Command{
 		Name:       "status",
 		ShortUsage: "asc telemetry status [flags]",
@@ -73,6 +73,13 @@ func statusCommand() *ffcli.Command {
 			return nil
 		},
 	}
+}
+
+func defaultStatusOutputFormat() string {
+	if shared.DefaultOutputFormat() == "json" {
+		return "json"
+	}
+	return "table"
 }
 
 func enableCommand() *ffcli.Command {

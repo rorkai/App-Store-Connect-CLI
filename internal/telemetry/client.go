@@ -10,12 +10,13 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 const (
 	DefaultEndpoint = "https://telemetry.rork.com/asc/v1/events"
 	endpointEnvVar  = "ASC_TELEMETRY_ENDPOINT"
-	sendTimeout     = 750 * time.Millisecond
 )
 
 var sendHTTP = sendHTTPEvent
@@ -65,7 +66,7 @@ func sendHTTPEvent(ev Event) error {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), sendTimeout)
+	ctx, cancel := shared.ContextWithTimeout(context.Background())
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
