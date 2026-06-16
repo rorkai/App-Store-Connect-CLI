@@ -94,6 +94,36 @@ func TestEnsureInstallIDDoesNotWaitForStateReader(t *testing.T) {
 	}
 }
 
+func TestStateLockIdentityHandleAllowsRename(t *testing.T) {
+	setTelemetryTestHome(t)
+
+	path, err := StatePath()
+	if err != nil {
+		t.Fatalf("StatePath() error = %v", err)
+	}
+	lockPath := path + ".lock"
+	if err := os.MkdirAll(lockPath, 0o700); err != nil {
+		t.Fatalf("create state lock directory: %v", err)
+	}
+	identityHandle, err := openStateLockForStat(lockPath)
+	if err != nil {
+		t.Fatalf("openStateLockForStat() error = %v", err)
+	}
+	defer identityHandle.Close()
+
+	renamedPath := lockPath + ".renamed"
+	if err := os.Rename(lockPath, renamedPath); err != nil {
+		t.Fatalf("rename state lock with identity handle open: %v", err)
+	}
+	info, err := identityHandle.Stat()
+	if err != nil {
+		t.Fatalf("stat renamed state lock through identity handle: %v", err)
+	}
+	if !info.IsDir() {
+		t.Fatal("identity handle no longer describes the state lock directory")
+	}
+}
+
 func openStateFileWithoutDeleteSharing(t *testing.T, path string) *os.File {
 	t.Helper()
 

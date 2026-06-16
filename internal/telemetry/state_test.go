@@ -170,7 +170,7 @@ func TestLegacyLockMigrationPreservesReplacementDirectory(t *testing.T) {
 	if err := os.MkdirAll(lockPath, 0o700); err != nil {
 		t.Fatalf("create stale legacy lock directory: %v", err)
 	}
-	staleInfo, err := os.Stat(lockPath)
+	staleInfo, err := statStateLock(lockPath)
 	if err != nil {
 		t.Fatalf("stat stale legacy lock directory: %v", err)
 	}

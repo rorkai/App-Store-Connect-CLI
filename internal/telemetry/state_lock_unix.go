@@ -29,6 +29,10 @@ func openStateFileForRead(path string) (*os.File, error) {
 	return os.Open(path)
 }
 
+func openStateLockForStat(path string) (*os.File, error) {
+	return os.Open(path)
+}
+
 func replaceStateFile(oldPath, newPath string, _ time.Duration) error {
 	return os.Rename(oldPath, newPath)
 }
