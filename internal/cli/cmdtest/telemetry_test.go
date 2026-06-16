@@ -10,8 +10,7 @@ import (
 )
 
 func TestTelemetryCommands(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
+	home := setCmdtestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
@@ -91,7 +90,7 @@ func TestTelemetryStatusUsesDefaultOutput(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Setenv("HOME", t.TempDir())
+			setCmdtestHome(t)
 			t.Setenv("ASC_DEFAULT_OUTPUT", test.defaultOutput)
 
 			stdout, stderr := captureOutput(t, func() {
@@ -117,7 +116,7 @@ func TestTelemetryStatusUsesDefaultOutput(t *testing.T) {
 }
 
 func TestTelemetryStatusRejectsInvalidOutput(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setCmdtestHome(t)
 
 	var code int
 	stdout, stderr := captureOutput(t, func() {

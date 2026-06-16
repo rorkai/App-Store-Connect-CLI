@@ -1,6 +1,8 @@
 package cmdtest
 
 import (
+	"testing"
+
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	cmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
@@ -14,6 +16,14 @@ func resetCmdtestState() {
 	auth.ResetInvalidBypassKeychainWarningsForTest()
 	shared.ResetDefaultOutputFormat()
 	shared.ResetTierCacheForTest()
+}
+
+func setCmdtestHome(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	return home
 }
 
 func RootCommand(version string) *ffcli.Command {

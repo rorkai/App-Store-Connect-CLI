@@ -23,3 +23,11 @@ func tryLockStateFile(file *os.File) (bool, error) {
 func unlockStateFile(file *os.File) error {
 	return unix.Flock(int(file.Fd()), unix.LOCK_UN)
 }
+
+func openStateFileForRead(path string) (*os.File, error) {
+	return os.Open(path)
+}
+
+func removeLegacyStateLockDirectory(path string) error {
+	return unix.Rmdir(path)
+}

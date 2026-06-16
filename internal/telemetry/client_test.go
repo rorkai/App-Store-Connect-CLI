@@ -16,7 +16,7 @@ func (fn roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error)
 
 func TestEmitSwallowsSenderErrors(t *testing.T) {
 	clearContextEnv(t)
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
@@ -39,7 +39,7 @@ func TestEmitSwallowsSenderErrors(t *testing.T) {
 
 func TestEmitHonorsDisabledEnv(t *testing.T) {
 	clearContextEnv(t)
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "1")
 
 	original := sendHTTP
@@ -65,7 +65,7 @@ func TestSendHTTPEventHonorsASCTimeout(t *testing.T) {
 	t.Setenv(endpointEnvVar, "https://telemetry.example.test/events")
 	t.Setenv("ASC_TIMEOUT", "20ms")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 
 	start := time.Now()
 	err := sendHTTPEvent(Event{})
@@ -95,7 +95,7 @@ func TestSendHTTPEventCapsTelemetryTimeout(t *testing.T) {
 	t.Setenv(endpointEnvVar, "https://telemetry.example.test/events")
 	t.Setenv("ASC_TIMEOUT", "1s")
 	t.Setenv("ASC_TIMEOUT_SECONDS", "")
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 
 	start := time.Now()
 	err := sendHTTPEvent(Event{})

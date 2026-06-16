@@ -9,7 +9,7 @@ import (
 
 func TestBuildEventSanitizesCommand(t *testing.T) {
 	clearContextEnv(t)
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
@@ -45,7 +45,7 @@ func TestBuildEventSanitizesCommand(t *testing.T) {
 
 func TestBuildEventOmitsInstallIDForNonLocalContext(t *testing.T) {
 	clearContextEnv(t)
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 	t.Setenv("CI", "true")
 
 	ev, ok := BuildEvent([]string{"builds", "list"}, "asc builds list", "1.2.3", time.Second, 1)
@@ -62,7 +62,7 @@ func TestBuildEventOmitsInstallIDForNonLocalContext(t *testing.T) {
 
 func TestBuildEventDoesNotWaitForInstallIDLock(t *testing.T) {
 	clearContextEnv(t)
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 

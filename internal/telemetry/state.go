@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,10 +14,11 @@ import (
 )
 
 const (
-	stateDirName     = ".asc"
-	stateFileName    = "telemetry.json"
-	lockTimeout      = 2 * time.Second
-	lockPollInterval = 10 * time.Millisecond
+	stateDirName       = ".asc"
+	stateFileName      = "telemetry.json"
+	lockTimeout        = 2 * time.Second
+	lockPollInterval   = 10 * time.Millisecond
+	legacyLockStaleAge = 30 * time.Second
 )
 
 type State struct {
@@ -112,10 +114,16 @@ func ResetInstallID() (string, error) {
 }
 
 func loadState(path string) (State, error) {
-	data, err := os.ReadFile(path)
+	file, err := openStateFileForRead(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return State{}, nil
 	}
+	if err != nil {
+		return State{}, fmt.Errorf("telemetry: failed to read state: %w", err)
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
 	if err != nil {
 		return State{}, fmt.Errorf("telemetry: failed to read state: %w", err)
 	}
@@ -162,12 +170,39 @@ func lockState(path string, wait time.Duration) (func(), error) {
 		return nil, fmt.Errorf("telemetry: failed to create state directory: %w", err)
 	}
 	lockPath := path + ".lock"
-	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
-	if err != nil {
-		return nil, fmt.Errorf("telemetry: failed to open state lock: %w", err)
-	}
 	deadline := time.Now().Add(wait)
 	for {
+		lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+		if err != nil {
+			info, statErr := os.Stat(lockPath)
+			if errors.Is(statErr, os.ErrNotExist) {
+				continue
+			}
+			if statErr != nil || !info.IsDir() {
+				return nil, fmt.Errorf("telemetry: failed to open state lock: %w", err)
+			}
+			if time.Since(info.ModTime()) > legacyLockStaleAge {
+				migrated, migrateErr := migrateLegacyStateLockDirectory(lockPath, info)
+				if migrateErr != nil {
+					return nil, fmt.Errorf("telemetry: failed to migrate legacy state lock: %w", migrateErr)
+				}
+				if migrated {
+					continue
+				}
+			}
+			if wait <= 0 || time.Now().After(deadline) {
+				return nil, fmt.Errorf("telemetry: timed out locking state")
+			}
+			if !waitForStateLockRetry(wait, deadline) {
+				return nil, fmt.Errorf("telemetry: timed out locking state")
+			}
+			continue
+		}
+		if wait > 0 && time.Until(deadline) <= 0 {
+			_ = lockFile.Close()
+			return nil, fmt.Errorf("telemetry: timed out locking state")
+		}
+
 		locked, lockErr := tryLockStateFile(lockFile)
 		if lockErr != nil {
 			_ = lockFile.Close()
@@ -183,8 +218,79 @@ func lockState(path string, wait time.Duration) (func(), error) {
 			_ = lockFile.Close()
 			return nil, fmt.Errorf("telemetry: timed out locking state")
 		}
-		time.Sleep(lockPollInterval)
+		if !waitForStateLockRetry(wait, deadline) {
+			_ = lockFile.Close()
+			return nil, fmt.Errorf("telemetry: timed out locking state")
+		}
+		_ = lockFile.Close()
 	}
+}
+
+func migrateLegacyStateLockDirectory(lockPath string, expected os.FileInfo) (bool, error) {
+	markerPath := filepath.Join(lockPath, ".asc-migrating")
+	marker, err := os.OpenFile(markerPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			markerInfo, statErr := os.Stat(markerPath)
+			if statErr == nil && time.Since(markerInfo.ModTime()) > legacyLockStaleAge {
+				if removeErr := os.Remove(markerPath); removeErr == nil || errors.Is(removeErr, os.ErrNotExist) {
+					_ = os.Chtimes(lockPath, expected.ModTime(), expected.ModTime())
+					return true, nil
+				}
+			}
+			return false, nil
+		}
+		current, statErr := os.Stat(lockPath)
+		if errors.Is(statErr, os.ErrNotExist) || statErr == nil && !current.IsDir() {
+			return true, nil
+		}
+		return false, err
+	}
+	if closeErr := marker.Close(); closeErr != nil {
+		_ = os.Remove(markerPath)
+		return false, closeErr
+	}
+
+	current, err := os.Stat(lockPath)
+	if err != nil {
+		_ = os.Remove(markerPath)
+		if errors.Is(err, os.ErrNotExist) {
+			return true, nil
+		}
+		return false, err
+	}
+	if !os.SameFile(expected, current) {
+		_ = os.Remove(markerPath)
+		return false, nil
+	}
+
+	quarantinePath := lockPath + ".legacy-" + uuid.NewString()
+	if err := os.Rename(lockPath, quarantinePath); err != nil {
+		_ = os.Remove(markerPath)
+		if errors.Is(err, os.ErrNotExist) {
+			return true, nil
+		}
+		return false, err
+	}
+	if err := os.Remove(filepath.Join(quarantinePath, filepath.Base(markerPath))); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return false, err
+	}
+	if err := removeLegacyStateLockDirectory(quarantinePath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return false, err
+	}
+	return true, nil
+}
+
+func waitForStateLockRetry(wait time.Duration, deadline time.Time) bool {
+	if wait <= 0 {
+		return false
+	}
+	remaining := time.Until(deadline)
+	if remaining <= 0 {
+		return false
+	}
+	time.Sleep(min(lockPollInterval, remaining))
+	return true
 }
 
 func saveState(path string, st State) error {

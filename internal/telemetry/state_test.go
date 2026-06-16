@@ -1,15 +1,17 @@
 package telemetry
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
 )
 
 func TestInstallIDCreateReuseAndReset(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
@@ -37,11 +39,13 @@ func TestInstallIDCreateReuseAndReset(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat telemetry state: %v", err)
 	}
-	if got := info.Mode().Perm(); got != 0o600 {
-		t.Fatalf("state file permissions = %o, want 0600", got)
-	}
-	if dirMode := statMode(t, filepath.Dir(path)); dirMode != 0o700 {
-		t.Fatalf("state dir permissions = %o, want 0700", dirMode)
+	if runtime.GOOS != "windows" {
+		if got := info.Mode().Perm(); got != 0o600 {
+			t.Fatalf("state file permissions = %o, want 0600", got)
+		}
+		if dirMode := statMode(t, filepath.Dir(path)); dirMode != 0o700 {
+			t.Fatalf("state dir permissions = %o, want 0700", dirMode)
+		}
 	}
 
 	reset, err := ResetInstallID()
@@ -54,7 +58,7 @@ func TestInstallIDCreateReuseAndReset(t *testing.T) {
 }
 
 func TestEnsureInstallIDDoesNotRewriteUnchangedState(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 
 	if _, err := EnsureInstallID(); err != nil {
 		t.Fatalf("EnsureInstallID() error = %v", err)
@@ -82,7 +86,7 @@ func TestEnsureInstallIDDoesNotRewriteUnchangedState(t *testing.T) {
 }
 
 func TestExistingUnlockedLockFileIsReusable(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 
 	path, err := StatePath()
 	if err != nil {
@@ -101,8 +105,107 @@ func TestExistingUnlockedLockFileIsReusable(t *testing.T) {
 	}
 }
 
+func TestStaleLegacyLockDirectoryIsMigrated(t *testing.T) {
+	setTelemetryTestHome(t)
+
+	path, err := StatePath()
+	if err != nil {
+		t.Fatalf("StatePath() error = %v", err)
+	}
+	lockPath := path + ".lock"
+	if err := os.MkdirAll(lockPath, 0o700); err != nil {
+		t.Fatalf("create legacy lock directory: %v", err)
+	}
+	staleTime := time.Now().Add(-legacyLockStaleAge - time.Second)
+	if err := os.Chtimes(lockPath, staleTime, staleTime); err != nil {
+		t.Fatalf("age legacy lock directory: %v", err)
+	}
+
+	if _, err := EnsureInstallID(); err != nil {
+		t.Fatalf("EnsureInstallID() with stale legacy lock error = %v", err)
+	}
+	info, err := os.Stat(lockPath)
+	if err != nil {
+		t.Fatalf("stat migrated lock: %v", err)
+	}
+	if info.IsDir() {
+		t.Fatal("legacy lock directory was not replaced with a lock file")
+	}
+}
+
+func TestRecentLegacyLockDirectoryIsPreserved(t *testing.T) {
+	setTelemetryTestHome(t)
+
+	path, err := StatePath()
+	if err != nil {
+		t.Fatalf("StatePath() error = %v", err)
+	}
+	lockPath := path + ".lock"
+	if err := os.MkdirAll(lockPath, 0o700); err != nil {
+		t.Fatalf("create legacy lock directory: %v", err)
+	}
+
+	unlock, err := lockState(path, 0)
+	if err == nil {
+		unlock()
+		t.Fatal("acquired a recent legacy lock directory")
+	}
+	info, statErr := os.Stat(lockPath)
+	if statErr != nil {
+		t.Fatalf("stat legacy lock directory: %v", statErr)
+	}
+	if !info.IsDir() {
+		t.Fatal("recent legacy lock directory was replaced")
+	}
+}
+
+func TestLegacyLockMigrationPreservesReplacementDirectory(t *testing.T) {
+	setTelemetryTestHome(t)
+
+	path, err := StatePath()
+	if err != nil {
+		t.Fatalf("StatePath() error = %v", err)
+	}
+	lockPath := path + ".lock"
+	if err := os.MkdirAll(lockPath, 0o700); err != nil {
+		t.Fatalf("create stale legacy lock directory: %v", err)
+	}
+	staleInfo, err := os.Stat(lockPath)
+	if err != nil {
+		t.Fatalf("stat stale legacy lock directory: %v", err)
+	}
+	replacementPath := lockPath + ".replacement"
+	if err := os.Mkdir(replacementPath, 0o700); err != nil {
+		t.Fatalf("create replacement legacy lock directory: %v", err)
+	}
+	if err := os.Remove(lockPath); err != nil {
+		t.Fatalf("remove stale legacy lock directory: %v", err)
+	}
+	if err := os.Rename(replacementPath, lockPath); err != nil {
+		t.Fatalf("install replacement legacy lock directory: %v", err)
+	}
+
+	migrated, err := migrateLegacyStateLockDirectory(lockPath, staleInfo)
+	if err != nil {
+		t.Fatalf("migrateLegacyStateLockDirectory() error = %v", err)
+	}
+	if migrated {
+		t.Fatal("replacement legacy lock directory was migrated")
+	}
+	info, err := os.Stat(lockPath)
+	if err != nil {
+		t.Fatalf("stat replacement legacy lock directory: %v", err)
+	}
+	if !info.IsDir() {
+		t.Fatal("replacement legacy lock directory was not preserved")
+	}
+	if _, err := os.Stat(filepath.Join(lockPath, ".asc-migrating")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("migration marker was not removed: %v", err)
+	}
+}
+
 func TestAgedLockStillPreservesMutualExclusion(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 
 	path, err := StatePath()
 	if err != nil {
@@ -128,7 +231,7 @@ func TestAgedLockStillPreservesMutualExclusion(t *testing.T) {
 }
 
 func TestReadStatusHonorsOptOuts(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
@@ -157,7 +260,7 @@ func TestReadStatusHonorsOptOuts(t *testing.T) {
 }
 
 func TestConcurrentStateUpdatesPreserveOptOutAndInstallID(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setTelemetryTestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
@@ -193,6 +296,13 @@ func TestConcurrentStateUpdatesPreserveOptOutAndInstallID(t *testing.T) {
 	if status.InstallID == "" {
 		t.Fatalf("expected install ID to survive concurrent updates, got %+v", status)
 	}
+}
+
+func setTelemetryTestHome(t *testing.T) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 }
 
 func statMode(t *testing.T, path string) os.FileMode {
