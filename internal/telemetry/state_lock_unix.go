@@ -5,6 +5,7 @@ package telemetry
 import (
 	"errors"
 	"os"
+	"time"
 
 	"golang.org/x/sys/unix"
 )
@@ -26,6 +27,10 @@ func unlockStateFile(file *os.File) error {
 
 func openStateFileForRead(path string) (*os.File, error) {
 	return os.Open(path)
+}
+
+func replaceStateFile(oldPath, newPath string, _ time.Duration) error {
+	return os.Rename(oldPath, newPath)
 }
 
 func removeLegacyStateLockDirectory(path string) error {

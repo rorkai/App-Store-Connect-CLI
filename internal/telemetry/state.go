@@ -144,6 +144,7 @@ func updateState(path string, mutate func(*State) error) error {
 }
 
 func updateStateWithLockTimeout(path string, wait time.Duration, mutate func(*State) error) error {
+	deadline := time.Now().Add(wait)
 	unlock, err := lockState(path, wait)
 	if err != nil {
 		return err
@@ -161,7 +162,11 @@ func updateStateWithLockTimeout(path string, wait time.Duration, mutate func(*St
 	if st == before {
 		return nil
 	}
-	return saveState(path, st)
+	replaceWait := wait
+	if wait > 0 {
+		replaceWait = max(time.Duration(0), time.Until(deadline))
+	}
+	return saveState(path, st, replaceWait)
 }
 
 func lockState(path string, wait time.Duration) (func(), error) {
@@ -176,6 +181,9 @@ func lockState(path string, wait time.Duration) (func(), error) {
 		if err != nil {
 			info, statErr := os.Stat(lockPath)
 			if errors.Is(statErr, os.ErrNotExist) {
+				if !waitForStateLockRetry(wait, deadline) {
+					return nil, fmt.Errorf("telemetry: timed out locking state")
+				}
 				continue
 			}
 			if statErr != nil || !info.IsDir() {
@@ -233,9 +241,15 @@ func migrateLegacyStateLockDirectory(lockPath string, expected os.FileInfo) (boo
 		if errors.Is(err, os.ErrExist) {
 			markerInfo, statErr := os.Stat(markerPath)
 			if statErr == nil && time.Since(markerInfo.ModTime()) > legacyLockStaleAge {
-				if removeErr := os.Remove(markerPath); removeErr == nil || errors.Is(removeErr, os.ErrNotExist) {
-					_ = os.Chtimes(lockPath, expected.ModTime(), expected.ModTime())
-					return true, nil
+				current, currentErr := os.Stat(lockPath)
+				if currentErr != nil {
+					if errors.Is(currentErr, os.ErrNotExist) {
+						return true, nil
+					}
+					return false, currentErr
+				}
+				if os.SameFile(expected, current) {
+					return quarantineLegacyStateLockDirectory(lockPath, markerPath)
 				}
 			}
 			return false, nil
@@ -264,6 +278,10 @@ func migrateLegacyStateLockDirectory(lockPath string, expected os.FileInfo) (boo
 		return false, nil
 	}
 
+	return quarantineLegacyStateLockDirectory(lockPath, markerPath)
+}
+
+func quarantineLegacyStateLockDirectory(lockPath, markerPath string) (bool, error) {
 	quarantinePath := lockPath + ".legacy-" + uuid.NewString()
 	if err := os.Rename(lockPath, quarantinePath); err != nil {
 		_ = os.Remove(markerPath)
@@ -293,7 +311,7 @@ func waitForStateLockRetry(wait time.Duration, deadline time.Time) bool {
 	return true
 }
 
-func saveState(path string, st State) error {
+func saveState(path string, st State, wait time.Duration) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("telemetry: failed to create state directory: %w", err)
@@ -322,7 +340,7 @@ func saveState(path string, st State) error {
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("telemetry: failed to close state: %w", err)
 	}
-	if err := os.Rename(tmpPath, path); err != nil {
+	if err := replaceStateFile(tmpPath, path, wait); err != nil {
 		return fmt.Errorf("telemetry: failed to replace state: %w", err)
 	}
 	return nil

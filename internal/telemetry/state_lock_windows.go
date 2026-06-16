@@ -5,6 +5,7 @@ package telemetry
 import (
 	"errors"
 	"os"
+	"time"
 
 	"golang.org/x/sys/windows"
 )
@@ -56,6 +57,28 @@ func openStateFileForRead(path string) (*os.File, error) {
 		return nil, &os.PathError{Op: "open", Path: path, Err: windows.ERROR_INVALID_HANDLE}
 	}
 	return file, nil
+}
+
+func replaceStateFile(oldPath, newPath string, wait time.Duration) error {
+	deadline := time.Now().Add(wait)
+	for {
+		err := os.Rename(oldPath, newPath)
+		if err == nil {
+			return nil
+		}
+		if !isRetryableStateReplaceError(err) || wait <= 0 {
+			return err
+		}
+		if !waitForStateLockRetry(wait, deadline) {
+			return err
+		}
+	}
+}
+
+func isRetryableStateReplaceError(err error) bool {
+	return errors.Is(err, windows.ERROR_ACCESS_DENIED) ||
+		errors.Is(err, windows.ERROR_SHARING_VIOLATION) ||
+		errors.Is(err, windows.ERROR_LOCK_VIOLATION)
 }
 
 func removeLegacyStateLockDirectory(path string) error {

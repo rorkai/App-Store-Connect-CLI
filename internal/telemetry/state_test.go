@@ -178,8 +178,9 @@ func TestLegacyLockMigrationPreservesReplacementDirectory(t *testing.T) {
 	if err := os.Mkdir(replacementPath, 0o700); err != nil {
 		t.Fatalf("create replacement legacy lock directory: %v", err)
 	}
-	if err := os.Remove(lockPath); err != nil {
-		t.Fatalf("remove stale legacy lock directory: %v", err)
+	stalePath := lockPath + ".stale"
+	if err := os.Rename(lockPath, stalePath); err != nil {
+		t.Fatalf("preserve stale legacy lock directory: %v", err)
 	}
 	if err := os.Rename(replacementPath, lockPath); err != nil {
 		t.Fatalf("install replacement legacy lock directory: %v", err)
@@ -201,6 +202,41 @@ func TestLegacyLockMigrationPreservesReplacementDirectory(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(lockPath, ".asc-migrating")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("migration marker was not removed: %v", err)
+	}
+}
+
+func TestStaleLegacyMigrationMarkerIsRecovered(t *testing.T) {
+	setTelemetryTestHome(t)
+
+	path, err := StatePath()
+	if err != nil {
+		t.Fatalf("StatePath() error = %v", err)
+	}
+	lockPath := path + ".lock"
+	if err := os.MkdirAll(lockPath, 0o700); err != nil {
+		t.Fatalf("create legacy lock directory: %v", err)
+	}
+	markerPath := filepath.Join(lockPath, ".asc-migrating")
+	if err := os.WriteFile(markerPath, nil, 0o600); err != nil {
+		t.Fatalf("create stale migration marker: %v", err)
+	}
+	staleTime := time.Now().Add(-legacyLockStaleAge - time.Second)
+	if err := os.Chtimes(markerPath, staleTime, staleTime); err != nil {
+		t.Fatalf("age migration marker: %v", err)
+	}
+	if err := os.Chtimes(lockPath, staleTime, staleTime); err != nil {
+		t.Fatalf("age legacy lock directory: %v", err)
+	}
+
+	if _, err := EnsureInstallID(); err != nil {
+		t.Fatalf("EnsureInstallID() with stale migration marker error = %v", err)
+	}
+	info, err := os.Stat(lockPath)
+	if err != nil {
+		t.Fatalf("stat migrated lock: %v", err)
+	}
+	if info.IsDir() {
+		t.Fatal("legacy lock directory with stale marker was not migrated")
 	}
 }
 
