@@ -38,7 +38,7 @@ func BuildEvent(args []string, commandName, version string, duration time.Durati
 	ctx := DetectExecutionContext(commandPath, args)
 	var installID *string
 	if isLocalContext(ctx) {
-		id, err := EnsureInstallID()
+		id, err := ensureInstallID(0)
 		if err == nil && id != "" {
 			installID = &id
 		}

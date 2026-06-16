@@ -61,13 +61,17 @@ func ReadStatus() (Status, error) {
 }
 
 func EnsureInstallID() (string, error) {
+	return ensureInstallID(lockTimeout)
+}
+
+func ensureInstallID(wait time.Duration) (string, error) {
 	path, err := StatePath()
 	if err != nil {
 		return "", err
 	}
 
 	var installID string
-	if err := updateState(path, func(st *State) error {
+	if err := updateStateWithLockTimeout(path, wait, func(st *State) error {
 		if strings.TrimSpace(st.InstallID) == "" {
 			st.InstallID = uuid.NewString()
 		}
@@ -128,7 +132,11 @@ func loadState(path string) (State, error) {
 }
 
 func updateState(path string, mutate func(*State) error) error {
-	unlock, err := lockState(path)
+	return updateStateWithLockTimeout(path, lockTimeout, mutate)
+}
+
+func updateStateWithLockTimeout(path string, wait time.Duration, mutate func(*State) error) error {
+	unlock, err := lockState(path, wait)
 	if err != nil {
 		return err
 	}
@@ -148,13 +156,13 @@ func updateState(path string, mutate func(*State) error) error {
 	return saveState(path, st)
 }
 
-func lockState(path string) (func(), error) {
+func lockState(path string, wait time.Duration) (func(), error) {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("telemetry: failed to create state directory: %w", err)
 	}
 	lockPath := path + ".lock"
-	deadline := time.Now().Add(lockTimeout)
+	deadline := time.Now().Add(wait)
 	for {
 		if err := os.Mkdir(lockPath, 0o700); err == nil {
 			return func() { _ = os.Remove(lockPath) }, nil
@@ -166,7 +174,7 @@ func lockState(path string) (func(), error) {
 				continue
 			}
 		}
-		if time.Now().After(deadline) {
+		if wait <= 0 || time.Now().After(deadline) {
 			return nil, fmt.Errorf("telemetry: timed out locking state")
 		}
 		time.Sleep(10 * time.Millisecond)

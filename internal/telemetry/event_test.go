@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -57,6 +58,35 @@ func TestBuildEventOmitsInstallIDForNonLocalContext(t *testing.T) {
 	}
 	if ev.InstallID != nil {
 		t.Fatalf("expected nil install ID for CI, got %q", *ev.InstallID)
+	}
+}
+
+func TestBuildEventDoesNotWaitForInstallIDLock(t *testing.T) {
+	clearContextEnv(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("ASC_TELEMETRY_DISABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+
+	path, err := StatePath()
+	if err != nil {
+		t.Fatalf("StatePath() error = %v", err)
+	}
+	if err := os.MkdirAll(path+".lock", 0o700); err != nil {
+		t.Fatalf("create telemetry lock: %v", err)
+	}
+
+	start := time.Now()
+	ev, ok := BuildEvent([]string{"builds", "list"}, "asc builds list", "1.2.3", time.Second, 0)
+	elapsed := time.Since(start)
+
+	if !ok {
+		t.Fatal("expected event")
+	}
+	if ev.InstallID != nil {
+		t.Fatalf("expected nil install ID while state is locked, got %q", *ev.InstallID)
+	}
+	if elapsed >= 500*time.Millisecond {
+		t.Fatalf("BuildEvent() elapsed = %s, want lock contention skipped before 500ms", elapsed)
 	}
 }
 
