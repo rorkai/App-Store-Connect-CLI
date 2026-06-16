@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -109,5 +110,33 @@ func TestSendHTTPEventCapsTelemetryTimeout(t *testing.T) {
 	}
 	if elapsed >= 750*time.Millisecond {
 		t.Fatalf("sendHTTPEvent() elapsed = %s, want telemetry timeout cap before 750ms", elapsed)
+	}
+}
+
+func TestSendHTTPEventRejectsPlaintextRedirect(t *testing.T) {
+	plaintextHit := false
+	plaintextServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		plaintextHit = true
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(plaintextServer.Close)
+
+	secureServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+		http.Redirect(w, request, plaintextServer.URL, http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(secureServer.Close)
+
+	originalClient := http.DefaultClient
+	http.DefaultClient = secureServer.Client()
+	t.Cleanup(func() { http.DefaultClient = originalClient })
+
+	t.Setenv(endpointEnvVar, secureServer.URL)
+	setTelemetryTestHome(t)
+
+	if err := sendHTTPEvent(Event{}); err == nil {
+		t.Fatal("expected plaintext redirect to be rejected")
+	}
+	if plaintextHit {
+		t.Fatal("telemetry request followed a redirect to plaintext HTTP")
 	}
 }
