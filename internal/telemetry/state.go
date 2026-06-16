@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	stateDirName  = ".asc"
-	stateFileName = "telemetry.json"
-	lockTimeout   = 2 * time.Second
-	staleLockAge  = 30 * time.Second
+	stateDirName     = ".asc"
+	stateFileName    = "telemetry.json"
+	lockTimeout      = 2 * time.Second
+	lockPollInterval = 10 * time.Millisecond
 )
 
 type State struct {
@@ -162,22 +162,28 @@ func lockState(path string, wait time.Duration) (func(), error) {
 		return nil, fmt.Errorf("telemetry: failed to create state directory: %w", err)
 	}
 	lockPath := path + ".lock"
+	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("telemetry: failed to open state lock: %w", err)
+	}
 	deadline := time.Now().Add(wait)
 	for {
-		if err := os.Mkdir(lockPath, 0o700); err == nil {
-			return func() { _ = os.Remove(lockPath) }, nil
-		} else if !errors.Is(err, os.ErrExist) {
-			return nil, fmt.Errorf("telemetry: failed to lock state: %w", err)
+		locked, lockErr := tryLockStateFile(lockFile)
+		if lockErr != nil {
+			_ = lockFile.Close()
+			return nil, fmt.Errorf("telemetry: failed to lock state: %w", lockErr)
 		}
-		if info, statErr := os.Stat(lockPath); statErr == nil && time.Since(info.ModTime()) > staleLockAge {
-			if removeErr := os.Remove(lockPath); removeErr == nil || errors.Is(removeErr, os.ErrNotExist) {
-				continue
-			}
+		if locked {
+			return func() {
+				_ = unlockStateFile(lockFile)
+				_ = lockFile.Close()
+			}, nil
 		}
 		if wait <= 0 || time.Now().After(deadline) {
+			_ = lockFile.Close()
 			return nil, fmt.Errorf("telemetry: timed out locking state")
 		}
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(lockPollInterval)
 	}
 }
 

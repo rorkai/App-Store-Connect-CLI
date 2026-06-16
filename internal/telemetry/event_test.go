@@ -2,7 +2,6 @@ package telemetry
 
 import (
 	"encoding/json"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -71,9 +70,11 @@ func TestBuildEventDoesNotWaitForInstallIDLock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StatePath() error = %v", err)
 	}
-	if err := os.MkdirAll(path+".lock", 0o700); err != nil {
-		t.Fatalf("create telemetry lock: %v", err)
+	unlock, err := lockState(path, lockTimeout)
+	if err != nil {
+		t.Fatalf("lockState() error = %v", err)
 	}
+	defer unlock()
 
 	start := time.Now()
 	ev, ok := BuildEvent([]string{"builds", "list"}, "asc builds list", "1.2.3", time.Second, 0)

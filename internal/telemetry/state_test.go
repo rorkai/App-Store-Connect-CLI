@@ -81,7 +81,7 @@ func TestEnsureInstallIDDoesNotRewriteUnchangedState(t *testing.T) {
 	}
 }
 
-func TestStaleLockIsRecovered(t *testing.T) {
+func TestExistingUnlockedLockFileIsReusable(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
 	path, err := StatePath()
@@ -89,16 +89,41 @@ func TestStaleLockIsRecovered(t *testing.T) {
 		t.Fatalf("StatePath() error = %v", err)
 	}
 	lockPath := path + ".lock"
-	if err := os.MkdirAll(lockPath, 0o700); err != nil {
-		t.Fatalf("create stale lock: %v", err)
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0o700); err != nil {
+		t.Fatalf("create state directory: %v", err)
 	}
-	staleTime := time.Now().Add(-staleLockAge - time.Second)
-	if err := os.Chtimes(lockPath, staleTime, staleTime); err != nil {
-		t.Fatalf("age stale lock: %v", err)
+	if err := os.WriteFile(lockPath, nil, 0o600); err != nil {
+		t.Fatalf("create unlocked lock file: %v", err)
 	}
 
 	if _, err := EnsureInstallID(); err != nil {
-		t.Fatalf("EnsureInstallID() with stale lock error = %v", err)
+		t.Fatalf("EnsureInstallID() with existing lock file error = %v", err)
+	}
+}
+
+func TestAgedLockStillPreservesMutualExclusion(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	path, err := StatePath()
+	if err != nil {
+		t.Fatalf("StatePath() error = %v", err)
+	}
+	unlockFirst, err := lockState(path, lockTimeout)
+	if err != nil {
+		t.Fatalf("lockState() first error = %v", err)
+	}
+	defer unlockFirst()
+
+	lockPath := path + ".lock"
+	oldTime := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(lockPath, oldTime, oldTime); err != nil {
+		t.Fatalf("age held lock: %v", err)
+	}
+
+	unlockSecond, err := lockState(path, 0)
+	if err == nil {
+		unlockSecond()
+		t.Fatal("second caller acquired an aged lock while it was still held")
 	}
 }
 
