@@ -23,6 +23,11 @@ const (
 var sendHTTP = sendHTTPEvent
 
 func Emit(args []string, commandName, version string, duration time.Duration, exitCode int) {
+	if reason := environmentOptOutReason(); reason != "" {
+		debugf("telemetry disabled by %s", reason)
+		return
+	}
+
 	st, err := loadCurrentState()
 	if err != nil {
 		debugf("telemetry disabled: %v", err)

@@ -356,14 +356,21 @@ func saveState(path string, st State, wait time.Duration) error {
 }
 
 func enabledFromState(st State) (bool, string) {
-	if envTruthy("ASC_TELEMETRY_DISABLED") {
-		return false, "ASC_TELEMETRY_DISABLED"
-	}
-	if envTruthy("DO_NOT_TRACK") {
-		return false, "DO_NOT_TRACK"
+	if reason := environmentOptOutReason(); reason != "" {
+		return false, reason
 	}
 	if st.Disabled {
 		return false, "state"
 	}
 	return true, ""
+}
+
+func environmentOptOutReason() string {
+	if envTruthy("ASC_TELEMETRY_DISABLED") {
+		return "ASC_TELEMETRY_DISABLED"
+	}
+	if envTruthy("DO_NOT_TRACK") {
+		return "DO_NOT_TRACK"
+	}
+	return ""
 }

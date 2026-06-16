@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"strings"
@@ -39,18 +41,33 @@ func Run(args []string, versionInfo string) int {
 	runCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stopSignals()
 
-	if err := root.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			emitHelpTelemetry(args, root, versionInfo, ExitSuccess)
+	parseOutput := &bytes.Buffer{}
+	restoreFlagOutputs := prepareFlagParsing(root, args, parseOutput)
+	parseErr := root.Parse(args)
+	restoreFlagOutputs()
+	if parseErr != nil {
+		if parseOutput.Len() > 0 {
+			fmt.Fprint(os.Stderr, parseOutput.String())
+		}
+		if errors.Is(parseErr, flag.ErrHelp) {
+			emitImmediateTelemetry(args, root, versionInfo, ExitSuccess)
 			return ExitSuccess
 		}
-		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-		return ExitCodeFromError(err)
+		if parseOutput.Len() == 0 {
+			fmt.Fprint(os.Stderr, errfmt.FormatStderr(parseErr))
+		}
+		exitCode := ExitCodeFromError(parseErr)
+		if parseOutput.Len() > 0 {
+			exitCode = ExitUsage
+		}
+		emitImmediateTelemetry(args, root, versionInfo, exitCode)
+		return exitCode
 	}
 
 	// Validate CI report flags after parsing
 	if err := shared.ValidateReportFlags(); err != nil {
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
+		emitImmediateTelemetry(args, root, versionInfo, ExitUsage)
 		return ExitUsage
 	}
 
@@ -119,8 +136,56 @@ func Run(args []string, versionInfo string) int {
 	return ExitSuccess
 }
 
-func emitHelpTelemetry(args []string, root *ffcli.Command, versionInfo string, exitCode int) {
+func emitImmediateTelemetry(args []string, root *ffcli.Command, versionInfo string, exitCode int) {
 	emitTelemetry(args, getCommandName(root, args), versionInfo, 0, exitCode)
+}
+
+func prepareFlagParsing(command *ffcli.Command, args []string, output *bytes.Buffer) func() {
+	type preparedFlagSet struct {
+		flagSet *flag.FlagSet
+		output  io.Writer
+	}
+	prepared := []preparedFlagSet{}
+
+	for command != nil {
+		if command.FlagSet == nil {
+			command.FlagSet = flag.NewFlagSet(command.Name, flag.ContinueOnError)
+		}
+		prepared = append(prepared, preparedFlagSet{
+			flagSet: command.FlagSet,
+			output:  command.FlagSet.Output(),
+		})
+		command.FlagSet.Init(command.FlagSet.Name(), flag.ContinueOnError)
+		command.FlagSet.SetOutput(output)
+
+		var next *ffcli.Command
+		var remaining []string
+		for i := 0; i < len(args); {
+			token := args[i]
+			if token == "" {
+				i++
+				continue
+			}
+			if sub := findDirectSubcommand(command, token); sub != nil {
+				next = sub
+				remaining = args[i+1:]
+				break
+			}
+			nextIndex, consumed := consumeFlagToken(command.FlagSet, token, args, i)
+			if consumed {
+				i = nextIndex
+				continue
+			}
+			break
+		}
+		command = next
+		args = remaining
+	}
+	return func() {
+		for _, item := range prepared {
+			item.flagSet.SetOutput(item.output)
+		}
+	}
 }
 
 func shouldCancelRunContextAfterError(err error) bool {
