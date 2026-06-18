@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import functools
+import os
 import re
 import shlex
 import subprocess
@@ -133,6 +134,7 @@ def command_help(binary_path: Path, path: tuple[str, ...]) -> str:
         check=True,
         capture_output=True,
         text=True,
+        env=telemetry_disabled_environment(),
     )
     return proc.stderr or proc.stdout
 
@@ -144,8 +146,15 @@ def path_help(binary_path: Path, path: tuple[str, ...]) -> str:
         check=False,
         capture_output=True,
         text=True,
+        env=telemetry_disabled_environment(),
     )
     return proc.stderr or proc.stdout
+
+
+def telemetry_disabled_environment() -> dict[str, str]:
+    environment = os.environ.copy()
+    environment["ASC_TELEMETRY_DISABLED"] = "1"
+    return environment
 
 
 def build_command_index(binary_path: Path) -> dict[tuple[str, ...], CommandSpec]:

@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import generate_winget_manifests
 import check_repo_docs
@@ -263,6 +264,18 @@ class WebsiteDocsChecksTest(unittest.TestCase):
 
 
 class WebsiteCommandChecksTest(unittest.TestCase):
+    def test_help_subprocesses_disable_telemetry(self) -> None:
+        run = mock.Mock(return_value=mock.Mock(stderr="", stdout=""))
+
+        check_website_commands.path_help.cache_clear()
+        with mock.patch.object(check_website_commands.subprocess, "run", run):
+            check_website_commands.command_help(Path("/tmp/asc-doc-check"), ("apps",))
+            check_website_commands.path_help(Path("/tmp/asc-doc-check"), ("builds",))
+
+        self.assertEqual(run.call_count, 2)
+        for call in run.call_args_list:
+            self.assertEqual(call.kwargs["env"]["ASC_TELEMETRY_DISABLED"], "1")
+
     def test_website_command_checks_accept_valid_examples(self) -> None:
         index = {
             (): check_website_commands.CommandSpec(
