@@ -208,6 +208,14 @@ Configure anonymous command-level CLI telemetry.
   Override the HTTPS telemetry collector endpoint.
 </ParamField>
 
+<ParamField path="ASC_TELEMETRY_EPHEMERAL" type="boolean">
+  Mark the current runtime as ephemeral without disabling telemetry.
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to omit the local install ID from
+  emitted events. Use this for disposable cloud agents or virtual machines that
+  are not already identified as CI or a Rork sandbox.
+</ParamField>
+
 ## Configuration path
 
 <ParamField path="ASC_CONFIG_PATH" type="string">

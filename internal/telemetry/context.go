@@ -2,41 +2,64 @@ package telemetry
 
 import (
 	"os"
-	"slices"
 	"strings"
 )
 
-type ExecutionContext string
+const telemetryEphemeralEnvVar = "ASC_TELEMETRY_EPHEMERAL"
+
+type RuntimeContext string
 
 const (
-	ContextLocal              ExecutionContext = "local"
-	ContextClaudeCode         ExecutionContext = "claude_code"
-	ContextCursorAgent        ExecutionContext = "cursor_agent"
-	ContextCodexDesktop       ExecutionContext = "codex_desktop"
-	ContextRorkAgentSetup     ExecutionContext = "rork_agent_setup"
-	ContextRorkSandbox        ExecutionContext = "rork_sandbox"
-	ContextRorkGitHubWorkflow ExecutionContext = "rork_github_workflow"
-	ContextCI                 ExecutionContext = "ci"
+	RuntimeLocal              RuntimeContext = "local"
+	RuntimeEphemeral          RuntimeContext = "ephemeral"
+	RuntimeRorkSandbox        RuntimeContext = "rork_sandbox"
+	RuntimeRorkGitHubWorkflow RuntimeContext = "rork_github_workflow"
+	RuntimeCI                 RuntimeContext = "ci"
 )
 
-func DetectExecutionContext(commandPath string, args []string) ExecutionContext {
+type InvocationSource string
+
+const (
+	SourceTerminal       InvocationSource = "terminal"
+	SourceClaudeCode     InvocationSource = "claude_code"
+	SourceCursorAgent    InvocationSource = "cursor_agent"
+	SourceCodexDesktop   InvocationSource = "codex_desktop"
+	SourceOpenCode       InvocationSource = "opencode"
+	SourcePi             InvocationSource = "pi"
+	SourceRorkAgentSetup InvocationSource = "rork_agent_setup"
+)
+
+func DetectRuntimeContext() RuntimeContext {
 	switch {
 	case os.Getenv("GITHUB_ACTIONS") == "true" && os.Getenv("GITHUB_REPOSITORY") == "rorkai/user-workflows":
-		return ContextRorkGitHubWorkflow
-	case commandPath == "asc auth login" && hasArgValue(args, "--name", "rork"):
-		return ContextRorkAgentSetup
+		return RuntimeRorkGitHubWorkflow
 	case os.Getenv("RORK_SANDBOX_ID") != "":
-		return ContextRorkSandbox
-	case os.Getenv("CLAUDECODE") == "1":
-		return ContextClaudeCode
-	case os.Getenv("CURSOR_AGENT") != "":
-		return ContextCursorAgent
-	case os.Getenv("CODEX_SHELL") == "1" && os.Getenv("CODEX_THREAD_ID") != "":
-		return ContextCodexDesktop
+		return RuntimeRorkSandbox
+	case envTruthy(telemetryEphemeralEnvVar):
+		return RuntimeEphemeral
 	case isKnownCIEnv():
-		return ContextCI
+		return RuntimeCI
 	default:
-		return ContextLocal
+		return RuntimeLocal
+	}
+}
+
+func DetectInvocationSource(commandPath string, args []string) InvocationSource {
+	switch {
+	case commandPath == "asc auth login" && hasArgValue(args, "--name", "rork"):
+		return SourceRorkAgentSetup
+	case envTruthy("PI_CODING_AGENT"):
+		return SourcePi
+	case envTruthy("OPENCODE"):
+		return SourceOpenCode
+	case os.Getenv("CLAUDECODE") == "1":
+		return SourceClaudeCode
+	case os.Getenv("CURSOR_AGENT") != "":
+		return SourceCursorAgent
+	case os.Getenv("CODEX_SHELL") == "1" && os.Getenv("CODEX_THREAD_ID") != "":
+		return SourceCodexDesktop
+	default:
+		return SourceTerminal
 	}
 }
 
@@ -81,6 +104,6 @@ func hasArgValue(args []string, name, value string) bool {
 	return false
 }
 
-func isLocalContext(ctx ExecutionContext) bool {
-	return slices.Contains([]ExecutionContext{ContextLocal}, ctx)
+func shouldAttachInstallID(ctx RuntimeContext) bool {
+	return ctx == RuntimeLocal
 }

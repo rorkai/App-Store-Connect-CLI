@@ -62,6 +62,11 @@ asc telemetry reset-id
   Override the telemetry collector endpoint. The endpoint must be HTTPS.
 </ParamField>
 
+<ParamField path="ASC_TELEMETRY_EPHEMERAL" type="boolean">
+  Mark the current runtime as ephemeral when set to `true`, `1`, `yes`, `y`,
+  or `on`. Events are still sent, but the local install ID is omitted.
+</ParamField>
+
 ## Event Payload
 
 The CLI sends a single best-effort JSON event after command completion:
@@ -79,15 +84,27 @@ The CLI sends a single best-effort JSON event after command completion:
   "duration_bucket": "500ms_1s",
   "exit_code": 0,
   "success": true,
-  "execution_context": "local",
+  "runtime_context": "local",
+  "invocation_source": "codex_desktop",
   "install_id": "5fd9bf39-2e0d-45c1-8e4a-b65a58159ed7",
   "session_id": "ac8062e3-e6d2-4301-8d08-bb444cd55004"
 }
 ```
 
-The `install_id` is only sent for `local` execution context. For CI, agent, and
-sandbox contexts it is `null`, so ephemeral machines do not inflate local active
-install metrics.
+`runtime_context` describes where the command runs, independently from
+`invocation_source`, which describes what launched it. A command launched by
+Terminal, Claude Code, Cursor Agent, Codex Desktop, OpenCode, or Pi on the same
+local user account reuses the same install ID from `~/.asc/telemetry.json`.
+
+Known runtime contexts are `local`, `ephemeral`, `ci`, `rork_sandbox`, and
+`rork_github_workflow`. Known invocation sources are `terminal`, `claude_code`,
+`cursor_agent`, `codex_desktop`, `opencode`, `pi`, and `rork_agent_setup` for the
+recognized managed setup flow.
+
+The install ID represents local CLI state, not an Apple account, person, or
+hardware identifier. It is omitted for CI, Rork sandboxes, Rork GitHub
+workflows, and runtimes marked with `ASC_TELEMETRY_EPHEMERAL`, so known
+disposable machines do not inflate local active-install metrics.
 
 ## Collector Contract
 
@@ -113,7 +130,8 @@ CREATE TABLE asc_cli_events
   duration_bucket LowCardinality(String),
   exit_code Int16,
   success Bool,
-  execution_context LowCardinality(String),
+  runtime_context LowCardinality(String),
+  invocation_source LowCardinality(String),
   install_id Nullable(UUID),
   session_id UUID,
   source LowCardinality(String),
@@ -121,5 +139,16 @@ CREATE TABLE asc_cli_events
 )
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(event_date)
-ORDER BY (event_date, execution_context, command_family, asc_version);
+ORDER BY (event_date, runtime_context, invocation_source, command_family, asc_version);
+```
+
+For example, local active installations can be deduplicated across manual and
+agent-assisted commands with:
+
+```sql
+SELECT uniqExact(install_id) AS local_active_installs
+FROM asc_cli_events
+WHERE event_date = today()
+  AND runtime_context = 'local'
+  AND install_id IS NOT NULL;
 ```

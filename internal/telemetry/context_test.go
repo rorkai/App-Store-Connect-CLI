@@ -2,66 +2,55 @@ package telemetry
 
 import "testing"
 
-func TestDetectExecutionContext(t *testing.T) {
+func TestDetectRuntimeContext(t *testing.T) {
 	tests := []struct {
-		name        string
-		commandPath string
-		args        []string
-		env         map[string]string
-		want        ExecutionContext
+		name string
+		env  map[string]string
+		want RuntimeContext
 	}{
 		{
-			name:        "claude code",
-			commandPath: "asc builds list",
-			env:         map[string]string{"CLAUDECODE": "1"},
-			want:        ContextClaudeCode,
+			name: "local agent stays local",
+			env:  map[string]string{"CLAUDECODE": "1"},
+			want: RuntimeLocal,
 		},
 		{
-			name:        "cursor agent",
-			commandPath: "asc builds list",
-			env:         map[string]string{"CURSOR_AGENT": "1"},
-			want:        ContextCursorAgent,
+			name: "explicit ephemeral runtime",
+			env:  map[string]string{telemetryEphemeralEnvVar: "true"},
+			want: RuntimeEphemeral,
 		},
 		{
-			name:        "codex desktop",
-			commandPath: "asc builds list",
-			env:         map[string]string{"CODEX_SHELL": "1", "CODEX_THREAD_ID": "thread-1"},
-			want:        ContextCodexDesktop,
+			name: "rork sandbox",
+			env:  map[string]string{"RORK_SANDBOX_ID": "sandbox-1"},
+			want: RuntimeRorkSandbox,
 		},
 		{
-			name:        "rork setup command shape",
-			commandPath: "asc auth login",
-			args:        []string{"auth", "login", "--name", "rork", "--key-id", "secret"},
-			want:        ContextRorkAgentSetup,
+			name: "rork github workflow",
+			env:  map[string]string{"GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": "rorkai/user-workflows"},
+			want: RuntimeRorkGitHubWorkflow,
 		},
 		{
-			name:        "rork sandbox",
-			commandPath: "asc apps list",
-			env:         map[string]string{"RORK_SANDBOX_ID": "sandbox-1"},
-			want:        ContextRorkSandbox,
+			name: "generic ci",
+			env:  map[string]string{"CI": "true"},
+			want: RuntimeCI,
 		},
 		{
-			name:        "rork github workflow",
-			commandPath: "asc publish appstore",
-			env:         map[string]string{"GITHUB_ACTIONS": "true", "GITHUB_REPOSITORY": "rorkai/user-workflows"},
-			want:        ContextRorkGitHubWorkflow,
+			name: "ci wins independently of agent source",
+			env:  map[string]string{"CI": "true", "CLAUDECODE": "1"},
+			want: RuntimeCI,
 		},
 		{
-			name:        "generic ci",
-			commandPath: "asc builds list",
-			env:         map[string]string{"CI": "true"},
-			want:        ContextCI,
+			name: "false ephemeral flag stays local",
+			env:  map[string]string{telemetryEphemeralEnvVar: "false"},
+			want: RuntimeLocal,
 		},
 		{
-			name:        "false ci flags stay local",
-			commandPath: "asc builds list",
-			env:         map[string]string{"CI": "false", "GITHUB_ACTIONS": "0"},
-			want:        ContextLocal,
+			name: "false ci flags stay local",
+			env:  map[string]string{"CI": "false", "GITHUB_ACTIONS": "0"},
+			want: RuntimeLocal,
 		},
 		{
-			name:        "local",
-			commandPath: "asc builds list",
-			want:        ContextLocal,
+			name: "local",
+			want: RuntimeLocal,
 		},
 	}
 
@@ -71,9 +60,86 @@ func TestDetectExecutionContext(t *testing.T) {
 			for key, value := range tt.env {
 				t.Setenv(key, value)
 			}
-			got := DetectExecutionContext(tt.commandPath, tt.args)
+			got := DetectRuntimeContext()
 			if got != tt.want {
-				t.Fatalf("DetectExecutionContext() = %q, want %q", got, tt.want)
+				t.Fatalf("DetectRuntimeContext() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDetectInvocationSource(t *testing.T) {
+	tests := []struct {
+		name        string
+		commandPath string
+		args        []string
+		env         map[string]string
+		want        InvocationSource
+	}{
+		{
+			name:        "rork setup command shape",
+			commandPath: "asc auth login",
+			args:        []string{"auth", "login", "--name", "rork", "--key-id", "secret"},
+			want:        SourceRorkAgentSetup,
+		},
+		{
+			name:        "pi",
+			commandPath: "asc builds list",
+			env:         map[string]string{"PI_CODING_AGENT": "true"},
+			want:        SourcePi,
+		},
+		{
+			name:        "pi config directory is not an invocation marker",
+			commandPath: "asc builds list",
+			env:         map[string]string{"PI_CODING_AGENT_DIR": "/tmp/pi"},
+			want:        SourceTerminal,
+		},
+		{
+			name:        "opencode",
+			commandPath: "asc builds list",
+			env:         map[string]string{"OPENCODE": "1", "AGENT": "1"},
+			want:        SourceOpenCode,
+		},
+		{
+			name:        "generic agent marker is not enough",
+			commandPath: "asc builds list",
+			env:         map[string]string{"AGENT": "1"},
+			want:        SourceTerminal,
+		},
+		{
+			name:        "claude code",
+			commandPath: "asc builds list",
+			env:         map[string]string{"CLAUDECODE": "1"},
+			want:        SourceClaudeCode,
+		},
+		{
+			name:        "cursor agent",
+			commandPath: "asc builds list",
+			env:         map[string]string{"CURSOR_AGENT": "1"},
+			want:        SourceCursorAgent,
+		},
+		{
+			name:        "codex desktop",
+			commandPath: "asc builds list",
+			env:         map[string]string{"CODEX_SHELL": "1", "CODEX_THREAD_ID": "thread-1"},
+			want:        SourceCodexDesktop,
+		},
+		{
+			name:        "terminal",
+			commandPath: "asc builds list",
+			want:        SourceTerminal,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clearContextEnv(t)
+			for key, value := range tt.env {
+				t.Setenv(key, value)
+			}
+			got := DetectInvocationSource(tt.commandPath, tt.args)
+			if got != tt.want {
+				t.Fatalf("DetectInvocationSource() = %q, want %q", got, tt.want)
 			}
 		})
 	}
@@ -82,9 +148,14 @@ func TestDetectExecutionContext(t *testing.T) {
 func clearContextEnv(t *testing.T) {
 	t.Helper()
 	for _, key := range []string{
+		telemetryEphemeralEnvVar,
 		"GITHUB_ACTIONS",
 		"GITHUB_REPOSITORY",
 		"RORK_SANDBOX_ID",
+		"PI_CODING_AGENT",
+		"PI_CODING_AGENT_DIR",
+		"OPENCODE",
+		"AGENT",
 		"CLAUDECODE",
 		"CURSOR_AGENT",
 		"CODEX_SHELL",

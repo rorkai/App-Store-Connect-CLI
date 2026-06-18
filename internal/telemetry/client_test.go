@@ -53,6 +53,37 @@ func TestEmitHonorsDisabledEnv(t *testing.T) {
 	Emit([]string{"builds", "list"}, "asc builds list", "1.2.3", time.Millisecond, 0)
 }
 
+func TestEmitMarksEphemeralRuntimeWithoutDisabling(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+	t.Setenv("ASC_TELEMETRY_DISABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+	t.Setenv(telemetryEphemeralEnvVar, "1")
+	t.Setenv("PI_CODING_AGENT", "true")
+
+	called := false
+	original := sendHTTP
+	sendHTTP = func(ev Event) error {
+		called = true
+		if ev.RuntimeContext != RuntimeEphemeral {
+			t.Fatalf("RuntimeContext = %q, want %q", ev.RuntimeContext, RuntimeEphemeral)
+		}
+		if ev.InvocationSource != SourcePi {
+			t.Fatalf("InvocationSource = %q, want %q", ev.InvocationSource, SourcePi)
+		}
+		if ev.InstallID != nil {
+			t.Fatalf("expected nil install ID, got %q", *ev.InstallID)
+		}
+		return nil
+	}
+	t.Cleanup(func() { sendHTTP = original })
+
+	Emit([]string{"builds", "list"}, "asc builds list", "1.2.3", time.Millisecond, 0)
+	if !called {
+		t.Fatal("expected sender to be called for ephemeral runtime")
+	}
+}
+
 func TestSendHTTPEventHonorsASCTimeout(t *testing.T) {
 	originalClient := http.DefaultClient
 	http.DefaultClient = &http.Client{

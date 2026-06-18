@@ -21,7 +21,8 @@ type Event struct {
 	DurationBucket   string           `json:"duration_bucket"`
 	ExitCode         int              `json:"exit_code"`
 	Success          bool             `json:"success"`
-	ExecutionContext ExecutionContext `json:"execution_context"`
+	RuntimeContext   RuntimeContext   `json:"runtime_context"`
+	InvocationSource InvocationSource `json:"invocation_source"`
 	InstallID        *string          `json:"install_id"`
 	SessionID        string           `json:"session_id"`
 }
@@ -35,9 +36,10 @@ func BuildEvent(args []string, commandName, version string, duration time.Durati
 		return Event{}, false
 	}
 
-	ctx := DetectExecutionContext(commandPath, args)
+	runtimeContext := DetectRuntimeContext()
+	invocationSource := DetectInvocationSource(commandPath, args)
 	var installID *string
-	if isLocalContext(ctx) {
+	if shouldAttachInstallID(runtimeContext) {
 		id, err := ensureInstallID(0)
 		if err == nil && id != "" {
 			installID = &id
@@ -56,7 +58,8 @@ func BuildEvent(args []string, commandName, version string, duration time.Durati
 		DurationBucket:   durationBucket(duration),
 		ExitCode:         exitCode,
 		Success:          exitCode == 0,
-		ExecutionContext: ctx,
+		RuntimeContext:   runtimeContext,
+		InvocationSource: invocationSource,
 		InstallID:        installID,
 		SessionID:        uuid.NewString(),
 	}, true
@@ -156,7 +159,8 @@ func RedactedSummary(ev Event) map[string]string {
 	return map[string]string{
 		"command_path":      ev.CommandPath,
 		"command_family":    ev.CommandFamily,
-		"execution_context": string(ev.ExecutionContext),
+		"runtime_context":   string(ev.RuntimeContext),
+		"invocation_source": string(ev.InvocationSource),
 		"duration_ms":       strconv.FormatUint(uint64(ev.DurationMS), 10),
 		"install_id":        installID,
 	}
