@@ -506,6 +506,9 @@ func findLatestBuildUploadNumber(ctx context.Context, client *asc.Client, appID,
 
 	processPage := func(page *asc.BuildUploadsResponse) error {
 		for _, upload := range page.Data {
+			if isNonPositiveNumericBuildNumber(upload.Attributes.CFBundleVersion) {
+				continue
+			}
 			parsed, err := parseBuildNumber(upload.Attributes.CFBundleVersion, fmt.Sprintf("build upload %s", upload.ID))
 			if err != nil {
 				return err
@@ -534,6 +537,33 @@ func findLatestBuildUploadNumber(ctx context.Context, client *asc.Client, appID,
 	}
 
 	return latestUploadValue, latestUploadNumber, hasUpload, nil
+}
+
+func isNonPositiveNumericBuildNumber(raw string) bool {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return false
+	}
+
+	segments := strings.Split(trimmed, ".")
+	if len(segments) == 0 {
+		return false
+	}
+	for i, segment := range segments {
+		segment = strings.TrimSpace(segment)
+		segments[i] = segment
+		if segment == "" {
+			return false
+		}
+		for _, ch := range segment {
+			if ch < '0' || ch > '9' {
+				return false
+			}
+		}
+	}
+
+	value, err := strconv.ParseInt(segments[0], 10, 64)
+	return err == nil && value < 1
 }
 
 type buildNumber struct {

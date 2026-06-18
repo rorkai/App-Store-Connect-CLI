@@ -252,6 +252,93 @@ func TestBuildsNextBuildNumberWithFiltersUsesCanonicalQueryShape(t *testing.T) {
 	}
 }
 
+func TestBuildsNextBuildNumberSkipsNonPositiveBuildUploadNumber(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/preReleaseVersions":
+			query := req.URL.Query()
+			if query.Get("filter[app]") != "100000001" {
+				t.Fatalf("expected filter[app]=100000001, got %q", query.Get("filter[app]"))
+			}
+			if query.Get("filter[version]") != "1.2.3" {
+				t.Fatalf("expected filter[version]=1.2.3, got %q", query.Get("filter[version]"))
+			}
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"preReleaseVersions","id":"prv-1","attributes":{"version":"1.2.3","platform":"IOS"}}]}`), nil
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds":
+			query := req.URL.Query()
+			if query.Get("filter[expired]") != "false" {
+				t.Fatalf("expected filter[expired]=false, got %q", query.Get("filter[expired]"))
+			}
+			return jsonHTTPResponse(http.StatusOK, `{"data":[]}`), nil
+
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/100000001/buildUploads":
+			query := req.URL.Query()
+			if query.Get("filter[cfBundleShortVersionString]") != "1.2.3" {
+				t.Fatalf("expected filter[cfBundleShortVersionString]=1.2.3, got %q", query.Get("filter[cfBundleShortVersionString]"))
+			}
+			return jsonHTTPResponse(http.StatusOK, `{
+				"data":[
+					{"type":"buildUploads","id":"expired-upload","attributes":{"cfBundleVersion":"0"}},
+					{"type":"buildUploads","id":"spaced-zero-upload","attributes":{"cfBundleVersion":"0 .1"}}
+				],
+				"links":{"next":""}
+			}`), nil
+
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"builds", "next-build-number",
+			"--app", "100000001",
+			"--version", "1.2.3",
+			"--exclude-expired",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var out struct {
+		LatestUploadBuildNumber *string  `json:"latestUploadBuildNumber"`
+		NextBuildNumber         string   `json:"nextBuildNumber"`
+		SourcesConsidered       []string `json:"sourcesConsidered"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("unmarshal output: %v\nstdout: %s", err, stdout)
+	}
+	if out.LatestUploadBuildNumber != nil {
+		t.Fatalf("expected invalid upload number to be ignored, got %v", *out.LatestUploadBuildNumber)
+	}
+	if out.NextBuildNumber != "1" {
+		t.Fatalf("expected nextBuildNumber=1, got %q", out.NextBuildNumber)
+	}
+	if len(out.SourcesConsidered) != 0 {
+		t.Fatalf("expected no sources considered, got %v", out.SourcesConsidered)
+	}
+}
+
 func TestBuildsNextBuildNumberVersionFilterIgnoresNearMatchPreReleaseVersions(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
