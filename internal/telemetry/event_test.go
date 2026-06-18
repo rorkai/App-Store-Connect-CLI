@@ -2,7 +2,6 @@ package telemetry
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 	"time"
 )
@@ -14,7 +13,6 @@ func TestBuildEventSanitizesCommand(t *testing.T) {
 	t.Setenv("DO_NOT_TRACK", "")
 
 	ev, ok := BuildEvent(
-		[]string{"apps", "info", "edit", "--app", "123456789", "--bundle-id", "com.secret.app", "--issuer-id", "issuer-secret"},
 		"asc apps info edit",
 		"1.2.3",
 		450*time.Millisecond,
@@ -36,11 +34,6 @@ func TestBuildEventSanitizesCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal event: %v", err)
 	}
-	for _, forbidden := range []string{"123456789", "com.secret.app", "issuer-secret", "--bundle-id", "--issuer-id"} {
-		if strings.Contains(string(data), forbidden) {
-			t.Fatalf("event leaked %q: %s", forbidden, data)
-		}
-	}
 	var payload map[string]any
 	if err := json.Unmarshal(data, &payload); err != nil {
 		t.Fatalf("unmarshal event: %v", err)
@@ -54,6 +47,31 @@ func TestBuildEventSanitizesCommand(t *testing.T) {
 	if _, exists := payload["execution_context"]; exists {
 		t.Fatal("legacy execution_context field should not be emitted")
 	}
+	for _, forbiddenField := range []string{"args", "argv", "raw_args", "raw_argv"} {
+		if _, exists := payload[forbiddenField]; exists {
+			t.Fatalf("event contains forbidden raw-argument field %q", forbiddenField)
+		}
+	}
+}
+
+func TestBuildEventReusesProcessSessionID(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+
+	first, ok := BuildEvent("asc builds list", "1.2.3", time.Second, 0)
+	if !ok {
+		t.Fatal("expected first event")
+	}
+	second, ok := BuildEvent("asc apps list", "1.2.3", time.Second, 0)
+	if !ok {
+		t.Fatal("expected second event")
+	}
+	if first.SessionID != second.SessionID {
+		t.Fatalf("session IDs differ within one process: %q != %q", first.SessionID, second.SessionID)
+	}
+	if first.EventID == second.EventID {
+		t.Fatalf("event IDs must remain unique, both were %q", first.EventID)
+	}
 }
 
 func TestBuildEventReusesInstallIDAcrossLocalInvocationSources(t *testing.T) {
@@ -62,7 +80,7 @@ func TestBuildEventReusesInstallIDAcrossLocalInvocationSources(t *testing.T) {
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
 	t.Setenv("DO_NOT_TRACK", "")
 
-	terminalEvent, ok := BuildEvent([]string{"builds", "list"}, "asc builds list", "1.2.3", time.Second, 0)
+	terminalEvent, ok := BuildEvent("asc builds list", "1.2.3", time.Second, 0)
 	if !ok {
 		t.Fatal("expected terminal event")
 	}
@@ -99,7 +117,7 @@ func TestBuildEventReusesInstallIDAcrossLocalInvocationSources(t *testing.T) {
 				t.Setenv(key, value)
 			}
 
-			agentEvent, ok := BuildEvent([]string{"builds", "list"}, "asc builds list", "1.2.3", time.Second, 0)
+			agentEvent, ok := BuildEvent("asc builds list", "1.2.3", time.Second, 0)
 			if !ok {
 				t.Fatal("expected agent event")
 			}
@@ -173,7 +191,7 @@ func TestBuildEventOmitsInstallIDForEphemeralAgentRuntime(t *testing.T) {
 				t.Setenv(key, value)
 			}
 
-			ev, ok := BuildEvent([]string{"builds", "list"}, "asc builds list", "1.2.3", time.Second, 1)
+			ev, ok := BuildEvent("asc builds list", "1.2.3", time.Second, 1)
 			if !ok {
 				t.Fatal("expected event")
 			}
@@ -195,7 +213,6 @@ func TestBuildEventTreatsLocalRorkProfileAsTerminal(t *testing.T) {
 	setTelemetryTestHome(t)
 
 	ev, ok := BuildEvent(
-		[]string{"auth", "login", "--name", "rork", "--key-id", "secret"},
 		"asc auth login",
 		"1.2.3",
 		time.Second,
@@ -232,7 +249,7 @@ func TestBuildEventDoesNotWaitForInstallIDLock(t *testing.T) {
 	defer unlock()
 
 	start := time.Now()
-	ev, ok := BuildEvent([]string{"builds", "list"}, "asc builds list", "1.2.3", time.Second, 0)
+	ev, ok := BuildEvent("asc builds list", "1.2.3", time.Second, 0)
 	elapsed := time.Since(start)
 
 	if !ok {
@@ -249,7 +266,7 @@ func TestBuildEventDoesNotWaitForInstallIDLock(t *testing.T) {
 func TestBuildEventSkipsControlCommands(t *testing.T) {
 	for _, commandPath := range []string{"asc", "asc completion", "asc version", "asc telemetry", "asc telemetry status"} {
 		t.Run(commandPath, func(t *testing.T) {
-			if _, ok := BuildEvent(nil, commandPath, "1.2.3", 0, 0); ok {
+			if _, ok := BuildEvent(commandPath, "1.2.3", 0, 0); ok {
 				t.Fatalf("expected %q to be skipped", commandPath)
 			}
 		})

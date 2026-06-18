@@ -208,7 +208,9 @@ adjust runtime handling.
 </ParamField>
 
 <ParamField path="ASC_TELEMETRY_ENDPOINT" type="string">
-  Override the HTTPS telemetry collector endpoint.
+  Override the HTTPS telemetry collector endpoint. Telemetry requests do not
+  follow redirects, do not attach ambient cookies, and reject endpoint URLs
+  containing embedded credentials.
 </ParamField>
 
 <ParamField path="ASC_TELEMETRY_EPHEMERAL" type="boolean">

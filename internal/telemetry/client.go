@@ -15,14 +15,19 @@ import (
 )
 
 const (
-	DefaultEndpoint = "https://telemetry.rork.com/asc/v1/events"
+	DefaultEndpoint = "https://rork.com/cf-api/asc/v1/events"
 	endpointEnvVar  = "ASC_TELEMETRY_ENDPOINT"
 	maxSendDuration = 250 * time.Millisecond
 )
 
 var sendHTTP = sendHTTPEvent
 
-func Emit(args []string, commandName, version string, duration time.Duration, exitCode int) {
+func Emit(commandName, version string, duration time.Duration, exitCode int) {
+	commandPath := sanitizeCommandName(commandName)
+	if shouldSkipCommand(commandPath) {
+		return
+	}
+
 	if reason := environmentOptOutReason(); reason != "" {
 		debugf("telemetry disabled by %s", reason)
 		return
@@ -39,7 +44,7 @@ func Emit(args []string, commandName, version string, duration time.Duration, ex
 		return
 	}
 
-	ev, ok := BuildEvent(args, commandName, version, duration, exitCode)
+	ev, ok := BuildEvent(commandPath, version, duration, exitCode)
 	if !ok {
 		return
 	}
@@ -63,7 +68,7 @@ func sendHTTPEvent(ev Event) error {
 		return nil
 	}
 	parsed, err := url.Parse(endpoint)
-	if err != nil || parsed.Scheme != "https" || parsed.Host == "" {
+	if err != nil || parsed.Scheme != "https" || parsed.Hostname() == "" || parsed.User != nil {
 		return fmt.Errorf("invalid telemetry endpoint")
 	}
 
@@ -83,19 +88,15 @@ func sendHTTPEvent(ev Event) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := *http.DefaultClient
-	checkRedirect := client.CheckRedirect
-	client.CheckRedirect = func(request *http.Request, via []*http.Request) error {
-		if request.URL.Scheme != "https" {
-			return fmt.Errorf("non-HTTPS telemetry redirect")
-		}
-		if checkRedirect != nil {
-			return checkRedirect(request, via)
-		}
-		if len(via) >= 10 {
-			return fmt.Errorf("stopped after 10 redirects")
-		}
-		return nil
+	transport := http.DefaultClient.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	client := &http.Client{
+		Transport: transport,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
 
 	resp, err := client.Do(req)

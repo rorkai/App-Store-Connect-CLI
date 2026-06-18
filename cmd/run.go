@@ -110,7 +110,7 @@ func Run(args []string, versionInfo string) int {
 			// Report write failure is a hard error - CI depends on it
 			fmt.Fprintf(os.Stderr, "Error: failed to write JUnit report: %v\n", reportErr)
 			if runErr == nil {
-				emitTelemetry(args, commandName, versionInfo, elapsed, ExitError)
+				emitTelemetry(commandName, versionInfo, elapsed, ExitError)
 				return ExitError
 			}
 		}
@@ -119,25 +119,25 @@ func Run(args []string, versionInfo string) int {
 	if runErr != nil {
 		if _, ok := errors.AsType[shared.ReportedError](runErr); ok {
 			exitCode := ExitCodeFromError(runErr)
-			emitTelemetry(args, commandName, versionInfo, elapsed, exitCode)
+			emitTelemetry(commandName, versionInfo, elapsed, exitCode)
 			return exitCode
 		}
 		if errors.Is(runErr, flag.ErrHelp) {
-			emitTelemetry(args, commandName, versionInfo, elapsed, ExitUsage)
+			emitTelemetry(commandName, versionInfo, elapsed, ExitUsage)
 			return ExitUsage
 		}
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(runErr))
 		exitCode := ExitCodeFromError(runErr)
-		emitTelemetry(args, commandName, versionInfo, elapsed, exitCode)
+		emitTelemetry(commandName, versionInfo, elapsed, exitCode)
 		return exitCode
 	}
 
-	emitTelemetry(args, commandName, versionInfo, elapsed, ExitSuccess)
+	emitTelemetry(commandName, versionInfo, elapsed, ExitSuccess)
 	return ExitSuccess
 }
 
 func emitImmediateTelemetry(args []string, root *ffcli.Command, versionInfo string, exitCode int) {
-	emitTelemetry(args, getCommandName(root, args), versionInfo, 0, exitCode)
+	emitTelemetry(getCommandName(root, args), versionInfo, 0, exitCode)
 }
 
 func prepareFlagParsing(command *ffcli.Command, args []string, output *bytes.Buffer) func() {

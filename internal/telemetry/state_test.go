@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -24,6 +25,25 @@ func TestReadStatusIsEnabledByDefault(t *testing.T) {
 	}
 	if status.Reason != "" {
 		t.Fatalf("default status reason = %q, want empty", status.Reason)
+	}
+}
+
+func TestReadStatusRejectsOversizedState(t *testing.T) {
+	setTelemetryTestHome(t)
+	path, err := StatePath()
+	if err != nil {
+		t.Fatalf("StatePath() error = %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("create state directory: %v", err)
+	}
+	data := []byte(`{"updated_at":"` + strings.Repeat("x", 70*1024) + `"}`)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatalf("write oversized state: %v", err)
+	}
+
+	if _, err := ReadStatus(); err == nil {
+		t.Fatal("expected oversized telemetry state to be rejected")
 	}
 }
 

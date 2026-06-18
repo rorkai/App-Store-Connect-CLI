@@ -12,9 +12,12 @@ Rork sandboxes, Rork GitHub workflows, and explicitly ephemeral environments;
 events from those disposable runtimes omit the durable local install ID. Use
 `asc telemetry disable`, `ASC_TELEMETRY_DISABLED`, or `DO_NOT_TRACK` to opt out.
 
-Telemetry does **not** collect raw arguments, Apple account identifiers, team
-IDs, issuer IDs, key IDs, app IDs, bundle IDs, usernames, hostnames, repository
-names, IP addresses, user-agent strings, or file paths.
+The CLI payload does **not** include raw arguments, Apple account identifiers,
+team IDs, issuer IDs, key IDs, app IDs, bundle IDs, usernames, hostnames,
+repository names, IP addresses, user-agent strings, or file paths. As with any
+HTTPS service, the collector's edge provider sees the connection address; the
+Rork collector may use it transiently for abuse throttling but does not persist
+it in telemetry events or analytics storage.
 
 ## Usage
 
@@ -64,7 +67,8 @@ asc telemetry reset-id
 </ParamField>
 
 <ParamField path="ASC_TELEMETRY_ENDPOINT" type="string">
-  Override the telemetry collector endpoint. The endpoint must be HTTPS.
+  Override the telemetry collector endpoint. The endpoint must be HTTPS and
+  must not contain embedded credentials.
 </ParamField>
 
 <ParamField path="ASC_TELEMETRY_EPHEMERAL" type="boolean">
@@ -96,6 +100,11 @@ The CLI sends a single best-effort JSON event after command completion:
 }
 ```
 
+Raw command arguments never enter event construction. `command_path` comes only
+from the CLI's registered command tree, so flag values and positional values
+cannot become telemetry dimensions. `session_id` is reused only within one CLI
+process and changes the next time `asc` starts.
+
 `runtime_context` describes where the command runs, independently from
 `invocation_source`, which describes what launched it. A command launched by
 Terminal, Claude Code, Cursor Agent, Codex Desktop, OpenCode, or Pi on the same
@@ -112,6 +121,15 @@ The install ID represents local CLI state, not an Apple account, person, or
 hardware identifier. It is omitted for CI, Rork sandboxes, Rork GitHub
 workflows, and runtimes marked with `ASC_TELEMETRY_EPHEMERAL`, so known
 disposable machines do not inflate local active-install metrics.
+
+The sender accepts only an HTTPS collector endpoint without embedded
+credentials, refuses every redirect (including HTTPS redirects), and never
+attaches cookies from the CLI's other HTTP clients. Telemetry state reads are
+bounded, and delivery errors never change the command's result.
+
+The default collector uses Rork's existing API Worker route at
+`https://rork.com/cf-api/asc/v1/events`; it does not require a separate
+telemetry hostname.
 
 ## Collector Contract
 

@@ -67,7 +67,7 @@ func TestRun_ReportFlagValidationErrorEmitsTelemetry(t *testing.T) {
 	var commandName string
 	var duration time.Duration
 	var exitCode int
-	emitTelemetry = func(_ []string, command, _ string, elapsed time.Duration, code int) {
+	emitTelemetry = func(command, _ string, elapsed time.Duration, code int) {
 		calls++
 		commandName = command
 		duration = elapsed
@@ -101,7 +101,7 @@ func TestRun_ParseErrorEmitsTelemetry(t *testing.T) {
 	var commandName string
 	var duration time.Duration
 	var exitCode int
-	emitTelemetry = func(_ []string, command, _ string, elapsed time.Duration, code int) {
+	emitTelemetry = func(command, _ string, elapsed time.Duration, code int) {
 		calls++
 		commandName = command
 		duration = elapsed
@@ -440,7 +440,7 @@ func TestRun_HelpEmitsTelemetry(t *testing.T) {
 	var commandName string
 	var duration time.Duration
 	var exitCode int
-	emitTelemetry = func(_ []string, command, _ string, elapsed time.Duration, code int) {
+	emitTelemetry = func(command, _ string, elapsed time.Duration, code int) {
 		commandName = command
 		duration = elapsed
 		exitCode = code

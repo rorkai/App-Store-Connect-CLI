@@ -27,10 +27,14 @@ type Event struct {
 	SessionID        string           `json:"session_id"`
 }
 
-func BuildEvent(args []string, commandName, version string, duration time.Duration, exitCode int) (Event, bool) {
+// processSessionID groups events from one CLI process without linking separate
+// invocations of the executable.
+var processSessionID = uuid.NewString()
+
+func BuildEvent(commandName, version string, duration time.Duration, exitCode int) (Event, bool) {
 	commandPath := sanitizeCommandName(commandName)
 	if commandPath == "" {
-		commandPath = SanitizeCommandPath(args)
+		return Event{}, false
 	}
 	if shouldSkipCommand(commandPath) {
 		return Event{}, false
@@ -61,34 +65,8 @@ func BuildEvent(args []string, commandName, version string, duration time.Durati
 		RuntimeContext:   runtimeContext,
 		InvocationSource: invocationSource,
 		InstallID:        installID,
-		SessionID:        uuid.NewString(),
+		SessionID:        processSessionID,
 	}, true
-}
-
-func SanitizeCommandPath(args []string) string {
-	words := []string{"asc"}
-	for _, arg := range args {
-		if arg == "" {
-			continue
-		}
-		if strings.HasPrefix(arg, "-") {
-			if arg == "--" {
-				break
-			}
-			continue
-		}
-		if len(words) == 1 && arg == "asc" {
-			continue
-		}
-		words = append(words, strings.ToLower(arg))
-		if len(words) >= 4 {
-			break
-		}
-	}
-	if len(words) == 1 {
-		return "asc"
-	}
-	return strings.Join(words, " ")
 }
 
 func sanitizeCommandName(commandName string) string {

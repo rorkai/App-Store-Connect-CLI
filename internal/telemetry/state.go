@@ -19,6 +19,7 @@ const (
 	lockTimeout        = 2 * time.Second
 	lockPollInterval   = 10 * time.Millisecond
 	legacyLockStaleAge = 30 * time.Second
+	maxStateFileBytes  = 64 * 1024
 )
 
 type State struct {
@@ -123,9 +124,12 @@ func loadState(path string) (State, error) {
 	}
 	defer file.Close()
 
-	data, err := io.ReadAll(file)
+	data, err := io.ReadAll(io.LimitReader(file, maxStateFileBytes+1))
 	if err != nil {
 		return State{}, fmt.Errorf("telemetry: failed to read state: %w", err)
+	}
+	if len(data) > maxStateFileBytes {
+		return State{}, fmt.Errorf("telemetry: state file is too large")
 	}
 	var st State
 	if err := json.Unmarshal(data, &st); err != nil {
