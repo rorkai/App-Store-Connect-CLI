@@ -15,7 +15,7 @@ func (fn roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error)
 	return fn(request)
 }
 
-func TestEmitSwallowsSenderErrors(t *testing.T) {
+func TestEmitIsEnabledByDefaultAndSwallowsSenderErrors(t *testing.T) {
 	clearContextEnv(t)
 	setTelemetryTestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")

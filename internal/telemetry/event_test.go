@@ -143,6 +143,21 @@ func TestBuildEventOmitsInstallIDForEphemeralAgentRuntime(t *testing.T) {
 			wantSource:  SourceCodexDesktop,
 		},
 		{
+			name:        "Rork agent in Rork sandbox",
+			env:         map[string]string{"RORK_SANDBOX_ID": "sandbox-1"},
+			wantRuntime: RuntimeRorkSandbox,
+			wantSource:  SourceRorkAgent,
+		},
+		{
+			name: "Rork agent in GitHub workflow",
+			env: map[string]string{
+				"GITHUB_ACTIONS":    "true",
+				"GITHUB_REPOSITORY": "rorkai/user-workflows",
+			},
+			wantRuntime: RuntimeRorkGitHubWorkflow,
+			wantSource:  SourceRorkAgent,
+		},
+		{
 			name:        "Pi in explicitly ephemeral runtime",
 			env:         map[string]string{telemetryEphemeralEnvVar: "1", "PI_CODING_AGENT": "true"},
 			wantRuntime: RuntimeEphemeral,
@@ -175,7 +190,7 @@ func TestBuildEventOmitsInstallIDForEphemeralAgentRuntime(t *testing.T) {
 	}
 }
 
-func TestBuildEventKeepsInstallIDForLocalRorkSetup(t *testing.T) {
+func TestBuildEventTreatsLocalRorkProfileAsTerminal(t *testing.T) {
 	clearContextEnv(t)
 	setTelemetryTestHome(t)
 
@@ -192,11 +207,11 @@ func TestBuildEventKeepsInstallIDForLocalRorkSetup(t *testing.T) {
 	if ev.RuntimeContext != RuntimeLocal {
 		t.Fatalf("RuntimeContext = %q, want %q", ev.RuntimeContext, RuntimeLocal)
 	}
-	if ev.InvocationSource != SourceRorkAgentSetup {
-		t.Fatalf("InvocationSource = %q, want %q", ev.InvocationSource, SourceRorkAgentSetup)
+	if ev.InvocationSource != SourceTerminal {
+		t.Fatalf("InvocationSource = %q, want %q", ev.InvocationSource, SourceTerminal)
 	}
 	if ev.InstallID == nil {
-		t.Fatal("expected install ID for local Rork setup")
+		t.Fatal("expected install ID for local profile usage")
 	}
 }
 

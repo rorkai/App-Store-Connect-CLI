@@ -19,9 +19,10 @@ func TelemetryCommand() *ffcli.Command {
 		ShortHelp:  "Manage anonymous CLI telemetry settings.",
 		LongHelp: `Manage anonymous CLI telemetry settings.
 
-Telemetry sends anonymous command-level usage events to help improve asc. It
-does not collect raw arguments, Apple account identifiers, app identifiers,
-bundle identifiers, usernames, hostnames, repo names, or paths.
+Telemetry is enabled by default and sends anonymous command-level usage events
+to help improve asc. It does not collect raw arguments, Apple account
+identifiers, app identifiers, bundle identifiers, usernames, hostnames, repo
+names, or paths. Use "asc telemetry disable" to opt out.
 
 Examples:
   asc telemetry status

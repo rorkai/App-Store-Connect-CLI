@@ -5,7 +5,10 @@ import (
 	"strings"
 )
 
-const telemetryEphemeralEnvVar = "ASC_TELEMETRY_EPHEMERAL"
+const (
+	telemetryEphemeralEnvVar    = "ASC_TELEMETRY_EPHEMERAL"
+	rorkUserWorkflowsRepository = "rorkai/user-workflows"
+)
 
 type RuntimeContext string
 
@@ -20,20 +23,20 @@ const (
 type InvocationSource string
 
 const (
-	SourceTerminal       InvocationSource = "terminal"
-	SourceClaudeCode     InvocationSource = "claude_code"
-	SourceCursorAgent    InvocationSource = "cursor_agent"
-	SourceCodexDesktop   InvocationSource = "codex_desktop"
-	SourceOpenCode       InvocationSource = "opencode"
-	SourcePi             InvocationSource = "pi"
-	SourceRorkAgentSetup InvocationSource = "rork_agent_setup"
+	SourceTerminal     InvocationSource = "terminal"
+	SourceClaudeCode   InvocationSource = "claude_code"
+	SourceCursorAgent  InvocationSource = "cursor_agent"
+	SourceCodexDesktop InvocationSource = "codex_desktop"
+	SourceOpenCode     InvocationSource = "opencode"
+	SourcePi           InvocationSource = "pi"
+	SourceRorkAgent    InvocationSource = "rork_agent"
 )
 
 func DetectRuntimeContext() RuntimeContext {
 	switch {
-	case os.Getenv("GITHUB_ACTIONS") == "true" && os.Getenv("GITHUB_REPOSITORY") == "rorkai/user-workflows":
+	case isRorkGitHubWorkflow():
 		return RuntimeRorkGitHubWorkflow
-	case os.Getenv("RORK_SANDBOX_ID") != "":
+	case isRorkSandbox():
 		return RuntimeRorkSandbox
 	case envTruthy(telemetryEphemeralEnvVar):
 		return RuntimeEphemeral
@@ -44,10 +47,8 @@ func DetectRuntimeContext() RuntimeContext {
 	}
 }
 
-func DetectInvocationSource(commandPath string, args []string) InvocationSource {
+func DetectInvocationSource() InvocationSource {
 	switch {
-	case commandPath == "asc auth login" && hasArgValue(args, "--name", "rork"):
-		return SourceRorkAgentSetup
 	case envTruthy("PI_CODING_AGENT"):
 		return SourcePi
 	case envTruthy("OPENCODE"):
@@ -58,9 +59,22 @@ func DetectInvocationSource(commandPath string, args []string) InvocationSource 
 		return SourceCursorAgent
 	case os.Getenv("CODEX_SHELL") == "1" && os.Getenv("CODEX_THREAD_ID") != "":
 		return SourceCodexDesktop
+	case isRorkSandbox() || isRorkGitHubWorkflow():
+		return SourceRorkAgent
 	default:
 		return SourceTerminal
 	}
+}
+
+func isRorkSandbox() bool {
+	return strings.TrimSpace(os.Getenv("RORK_SANDBOX_ID")) != ""
+}
+
+func isRorkGitHubWorkflow() bool {
+	return envTruthy("GITHUB_ACTIONS") && strings.EqualFold(
+		strings.TrimSpace(os.Getenv("GITHUB_REPOSITORY")),
+		rorkUserWorkflowsRepository,
+	)
 }
 
 func isKnownCIEnv() bool {
@@ -89,19 +103,6 @@ func envTruthy(key string) bool {
 	default:
 		return false
 	}
-}
-
-func hasArgValue(args []string, name, value string) bool {
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		if arg == name {
-			return i+1 < len(args) && args[i+1] == value
-		}
-		if before, after, ok := strings.Cut(arg, "="); ok && before == name && after == value {
-			return true
-		}
-	}
-	return false
 }
 
 func shouldAttachInstallID(ctx RuntimeContext) bool {

@@ -37,7 +37,7 @@ func BuildEvent(args []string, commandName, version string, duration time.Durati
 	}
 
 	runtimeContext := DetectRuntimeContext()
-	invocationSource := DetectInvocationSource(commandPath, args)
+	invocationSource := DetectInvocationSource()
 	var installID *string
 	if shouldAttachInstallID(runtimeContext) {
 		id, err := ensureInstallID(0)

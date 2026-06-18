@@ -10,6 +10,23 @@ import (
 	"time"
 )
 
+func TestReadStatusIsEnabledByDefault(t *testing.T) {
+	setTelemetryTestHome(t)
+	t.Setenv("ASC_TELEMETRY_DISABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+
+	status, err := ReadStatus()
+	if err != nil {
+		t.Fatalf("ReadStatus() error = %v", err)
+	}
+	if !status.Enabled {
+		t.Fatalf("expected telemetry enabled by default, got %+v", status)
+	}
+	if status.Reason != "" {
+		t.Fatalf("default status reason = %q, want empty", status.Reason)
+	}
+}
+
 func TestInstallIDCreateReuseAndReset(t *testing.T) {
 	setTelemetryTestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")

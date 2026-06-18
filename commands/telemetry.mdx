@@ -7,6 +7,11 @@ Telemetry records coarse command-level usage so maintainers can understand which
 commands are used, which versions are active, and where reliability work is
 needed.
 
+Telemetry is enabled by default for every runtime. It remains enabled in CI,
+Rork sandboxes, Rork GitHub workflows, and explicitly ephemeral environments;
+events from those disposable runtimes omit the durable local install ID. Use
+`asc telemetry disable`, `ASC_TELEMETRY_DISABLED`, or `DO_NOT_TRACK` to opt out.
+
 Telemetry does **not** collect raw arguments, Apple account identifiers, team
 IDs, issuer IDs, key IDs, app IDs, bundle IDs, usernames, hostnames, repository
 names, IP addresses, user-agent strings, or file paths.
@@ -98,8 +103,10 @@ local user account reuses the same install ID from `~/.asc/telemetry.json`.
 
 Known runtime contexts are `local`, `ephemeral`, `ci`, `rork_sandbox`, and
 `rork_github_workflow`. Known invocation sources are `terminal`, `claude_code`,
-`cursor_agent`, `codex_desktop`, `opencode`, `pi`, and `rork_agent_setup` for the
-recognized managed setup flow.
+`cursor_agent`, `codex_desktop`, `opencode`, `pi`, and `rork_agent`. Rork agent
+invocations are recognized from the production `RORK_SANDBOX_ID` marker or the
+`rorkai/user-workflows` GitHub Actions repository, not from a local auth profile
+name.
 
 The install ID represents local CLI state, not an Apple account, person, or
 hardware identifier. It is omitted for CI, Rork sandboxes, Rork GitHub

@@ -231,7 +231,7 @@ API keys are generated at https://appstoreconnect.apple.com/access/integrations/
 | `ASC_UPLOAD_TIMEOUT_SECONDS` | Upload timeout in seconds (alternative) |
 | `ASC_DEBUG` | Enable debug logging (set to `api` for HTTP requests/responses) |
 | `ASC_DEFAULT_OUTPUT` | Default output format: `json`, `table`, `markdown`, or `md` |
-| `ASC_TELEMETRY_DISABLED` | Disable anonymous command telemetry |
+| `ASC_TELEMETRY_DISABLED` | Disable default-on anonymous command telemetry |
 | `ASC_TELEMETRY_EPHEMERAL` | Send telemetry without a local install ID for disposable runtimes |
 | `ASC_TELEMETRY_ENDPOINT` | Override the HTTPS telemetry collector endpoint |
 

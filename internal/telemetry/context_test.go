@@ -70,64 +70,61 @@ func TestDetectRuntimeContext(t *testing.T) {
 
 func TestDetectInvocationSource(t *testing.T) {
 	tests := []struct {
-		name        string
-		commandPath string
-		args        []string
-		env         map[string]string
-		want        InvocationSource
+		name string
+		env  map[string]string
+		want InvocationSource
 	}{
 		{
-			name:        "rork setup command shape",
-			commandPath: "asc auth login",
-			args:        []string{"auth", "login", "--name", "rork", "--key-id", "secret"},
-			want:        SourceRorkAgentSetup,
+			name: "rork agent in sandbox",
+			env:  map[string]string{"RORK_SANDBOX_ID": "sandbox-1"},
+			want: SourceRorkAgent,
 		},
 		{
-			name:        "pi",
-			commandPath: "asc builds list",
-			env:         map[string]string{"PI_CODING_AGENT": "true"},
-			want:        SourcePi,
+			name: "rork agent in user workflow",
+			env: map[string]string{
+				"GITHUB_ACTIONS":    "true",
+				"GITHUB_REPOSITORY": "rorkai/user-workflows",
+			},
+			want: SourceRorkAgent,
 		},
 		{
-			name:        "pi config directory is not an invocation marker",
-			commandPath: "asc builds list",
-			env:         map[string]string{"PI_CODING_AGENT_DIR": "/tmp/pi"},
-			want:        SourceTerminal,
+			name: "pi",
+			env:  map[string]string{"PI_CODING_AGENT": "true"},
+			want: SourcePi,
 		},
 		{
-			name:        "opencode",
-			commandPath: "asc builds list",
-			env:         map[string]string{"OPENCODE": "1", "AGENT": "1"},
-			want:        SourceOpenCode,
+			name: "pi config directory is not an invocation marker",
+			env:  map[string]string{"PI_CODING_AGENT_DIR": "/tmp/pi"},
+			want: SourceTerminal,
 		},
 		{
-			name:        "generic agent marker is not enough",
-			commandPath: "asc builds list",
-			env:         map[string]string{"AGENT": "1"},
-			want:        SourceTerminal,
+			name: "opencode",
+			env:  map[string]string{"OPENCODE": "1", "AGENT": "1"},
+			want: SourceOpenCode,
 		},
 		{
-			name:        "claude code",
-			commandPath: "asc builds list",
-			env:         map[string]string{"CLAUDECODE": "1"},
-			want:        SourceClaudeCode,
+			name: "generic agent marker is not enough",
+			env:  map[string]string{"AGENT": "1"},
+			want: SourceTerminal,
 		},
 		{
-			name:        "cursor agent",
-			commandPath: "asc builds list",
-			env:         map[string]string{"CURSOR_AGENT": "1"},
-			want:        SourceCursorAgent,
+			name: "claude code",
+			env:  map[string]string{"CLAUDECODE": "1"},
+			want: SourceClaudeCode,
 		},
 		{
-			name:        "codex desktop",
-			commandPath: "asc builds list",
-			env:         map[string]string{"CODEX_SHELL": "1", "CODEX_THREAD_ID": "thread-1"},
-			want:        SourceCodexDesktop,
+			name: "cursor agent",
+			env:  map[string]string{"CURSOR_AGENT": "1"},
+			want: SourceCursorAgent,
 		},
 		{
-			name:        "terminal",
-			commandPath: "asc builds list",
-			want:        SourceTerminal,
+			name: "codex desktop",
+			env:  map[string]string{"CODEX_SHELL": "1", "CODEX_THREAD_ID": "thread-1"},
+			want: SourceCodexDesktop,
+		},
+		{
+			name: "terminal",
+			want: SourceTerminal,
 		},
 	}
 
@@ -137,7 +134,7 @@ func TestDetectInvocationSource(t *testing.T) {
 			for key, value := range tt.env {
 				t.Setenv(key, value)
 			}
-			got := DetectInvocationSource(tt.commandPath, tt.args)
+			got := DetectInvocationSource()
 			if got != tt.want {
 				t.Fatalf("DetectInvocationSource() = %q, want %q", got, tt.want)
 			}

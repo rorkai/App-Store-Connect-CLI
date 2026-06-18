@@ -9,6 +9,32 @@ import (
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
+func TestTelemetryStatusIsEnabledByDefault(t *testing.T) {
+	setCmdtestHome(t)
+	t.Setenv("ASC_TELEMETRY_DISABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+
+	stdout, stderr := captureOutput(t, func() {
+		if code := rootcmd.Run([]string{"telemetry", "status", "--output", "json"}, "1.2.3"); code != 0 {
+			t.Fatalf("status exit code = %d", code)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("status stderr = %q", stderr)
+	}
+
+	var status struct {
+		Enabled bool   `json:"enabled"`
+		Reason  string `json:"reason"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &status); err != nil {
+		t.Fatalf("status json error: %v\n%s", err, stdout)
+	}
+	if !status.Enabled || status.Reason != "" {
+		t.Fatalf("expected telemetry enabled by default, got %+v", status)
+	}
+}
+
 func TestTelemetryCommands(t *testing.T) {
 	home := setCmdtestHome(t)
 	t.Setenv("ASC_TELEMETRY_DISABLED", "")
