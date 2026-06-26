@@ -190,6 +190,42 @@ func TestRun_BareGroupPrintsHelpToStdoutAndExitsSuccessfully(t *testing.T) {
 	}
 }
 
+func TestRun_BareGroupWritesJUnitReport(t *testing.T) {
+	resetReportFlags(t)
+	reportPath := filepath.Join(t.TempDir(), "junit.xml")
+
+	captureCommandOutput(t, func() {
+		if code := Run([]string{
+			"--report", "junit",
+			"--report-file", reportPath,
+			"builds",
+		}, "1.0.0"); code != ExitSuccess {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
+		}
+	})
+
+	data, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+
+	var suite struct {
+		Failures  int `xml:"failures,attr"`
+		TestCases []struct {
+			Name string `xml:"name,attr"`
+		} `xml:"testcase"`
+	}
+	if err := xml.Unmarshal(data, &suite); err != nil {
+		t.Fatalf("xml.Unmarshal() error: %v", err)
+	}
+	if suite.Failures != 0 {
+		t.Fatalf("failures = %d, want 0", suite.Failures)
+	}
+	if len(suite.TestCases) != 1 || suite.TestCases[0].Name != "asc builds" {
+		t.Fatalf("unexpected testcase payload: %+v", suite.TestCases)
+	}
+}
+
 func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
 	resetReportFlags(t)
 	t.Setenv("ASC_APP_ID", "")

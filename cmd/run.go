@@ -105,28 +105,28 @@ func Run(args []string, versionInfo string) int {
 	if shouldCancelRunContextAfterError(runErr) {
 		stopSignals()
 	}
-	if shouldRenderGroupHelp(analysis, runErr) {
+	renderGroupHelp := shouldRenderGroupHelp(analysis, runErr)
+	if renderGroupHelp {
 		fmt.Fprint(os.Stdout, runUsageOutput.String())
-		emitTelemetry(commandName, versionInfo, elapsed, ExitSuccess, telemetry.EventContext{
-			InvocationShape: analysis.shape,
-		})
-		return ExitSuccess
-	}
-	if runUsageOutput.Len() > 0 {
+	} else if runUsageOutput.Len() > 0 {
 		fmt.Fprint(os.Stderr, runUsageOutput.String())
 	}
 
-	if shouldRunSkillsUpdateCheck(commandName, runCtx, runErr) {
+	if !renderGroupHelp && shouldRunSkillsUpdateCheck(commandName, runCtx, runErr) {
 		maybeCheckForSkillUpdates(runCtx)
 	}
 
 	// Write JUnit report if requested
 	if shared.ReportFormat() == shared.ReportFormatJUnit && shared.ReportFile() != "" {
-		reportErr := writeJUnitReport(commandName, runErr, elapsed)
+		reportRunErr := runErr
+		if renderGroupHelp {
+			reportRunErr = nil
+		}
+		reportErr := writeJUnitReport(commandName, reportRunErr, elapsed)
 		if reportErr != nil {
 			// Report write failure is a hard error - CI depends on it
 			fmt.Fprintf(os.Stderr, "Error: failed to write JUnit report: %v\n", reportErr)
-			if runErr == nil {
+			if reportRunErr == nil {
 				emitTelemetry(commandName, versionInfo, elapsed, ExitError, telemetry.EventContext{
 					InvocationShape: analysis.shape,
 					ErrorKind:       telemetry.ErrorKindOther,
@@ -135,6 +135,13 @@ func Run(args []string, versionInfo string) int {
 				return ExitError
 			}
 		}
+	}
+
+	if renderGroupHelp {
+		emitTelemetry(commandName, versionInfo, elapsed, ExitSuccess, telemetry.EventContext{
+			InvocationShape: analysis.shape,
+		})
+		return ExitSuccess
 	}
 
 	if runErr != nil {
