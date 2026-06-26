@@ -190,6 +190,42 @@ func TestRun_BareGroupPrintsHelpToStdoutAndExitsSuccessfully(t *testing.T) {
 	}
 }
 
+func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
+	resetReportFlags(t)
+	t.Setenv("ASC_APP_ID", "")
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"validate"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--version or --version-id is required") {
+		t.Fatalf("expected missing version error, got %q", stderr)
+	}
+}
+
+func TestRun_ReviewsMissingRequiredFlagsReturnsUsage(t *testing.T) {
+	resetReportFlags(t)
+	t.Setenv("ASC_APP_ID", "")
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"reviews"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--app is required") {
+		t.Fatalf("expected missing app error, got %q", stderr)
+	}
+}
+
 func TestRun_UnknownNestedSubcommandSuggestsRealSubcommand(t *testing.T) {
 	resetReportFlags(t)
 

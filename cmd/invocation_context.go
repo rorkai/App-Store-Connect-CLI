@@ -144,11 +144,20 @@ func shouldRenderGroupHelp(analysis invocationAnalysis, err error) bool {
 	if !errors.Is(err, flag.ErrHelp) || shared.ClassifyUsageError(err) != "" || analysis.command == nil {
 		return false
 	}
-	if analysis.unknownToken != "" || len(analysis.command.Subcommands) == 0 {
+	if analysis.unknownToken != "" || len(analysis.command.Subcommands) == 0 || hasDefinedFlags(analysis.command.FlagSet) {
 		return false
 	}
 	return analysis.shape == telemetry.InvocationShapeBareGroup ||
 		analysis.shape == telemetry.InvocationShapeGroupWithFlags
+}
+
+func hasDefinedFlags(flagSet *flag.FlagSet) bool {
+	if flagSet == nil {
+		return false
+	}
+	found := false
+	flagSet.VisitAll(func(*flag.Flag) { found = true })
+	return found
 }
 
 func printUnknownFlagSuggestion(analysis invocationAnalysis) {
