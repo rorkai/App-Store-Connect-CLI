@@ -68,7 +68,9 @@ func TestSomething(t *testing.T) {
 ## Running Tests
 
 ```bash
-make test       # Run all tests
-go test -v ./...  # Verbose output
-go test -run TestName ./pkg  # Run specific test
+ASC_BYPASS_KEYCHAIN=1 make test  # Run all tests
+ASC_BYPASS_KEYCHAIN=1 go test -v ./...  # Verbose output
+ASC_BYPASS_KEYCHAIN=1 go test -run TestName ./pkg  # Run specific test
 ```
+
+Always set `ASC_BYPASS_KEYCHAIN=1` for manual test commands so host keychain profiles cannot affect results. The `make test` target also sets it internally.

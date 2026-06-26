@@ -2,248 +2,110 @@
 
 Unofficial, fast, lightweight, agent-assisted, reviewer-owned CLI for the App Store Connect API. Built in Go with [ffcli](https://github.com/peterbourgon/ff).
 
-## asc skills
+## Skills
 
-Agent Skills for automating `asc` workflows including builds, TestFlight, metadata sync, submissions, and signing. https://github.com/rorkai/app-store-connect-cli-skills
+Skills for using `asc` in app workflows live at https://github.com/rorkai/app-store-connect-cli-skills.
 
-## Core Principles
+Repository-maintainer workflows live under `.agents/skills/`:
 
-- **Explicit flags**: Use long-form flags in docs/tests/examples (`--app`, `--output`) for clarity
-- **TTY-aware output defaults**: `table` in interactive terminals, `json` for pipes/CI; use `--output` for explicit formats
-- **No interactive prompts**: Use `--confirm` flags for destructive operations
-- **Pagination**: `--paginate` fetches all pages automatically
+- `$develop-asc-change`: design, implement, and verify commands, flags, endpoints, bug fixes, and behavior-changing refactors.
+- `$audit-asc-pr`: audit a complete PR and fix proven defects.
+- `$watch-asc-pr`: recheck PR comments, checks, head changes, and merge readiness.
+- `$triage-asc-issue`: reproduce, classify, label, and scope an issue.
+- `$review-wall-of-apps-prs`: validate, approve, and merge Wall of Apps submissions safely.
+- `$release-asc-cli`: publish and verify an end-to-end CLI repository release.
+- `$sync-asc-skills`: check the external ASC workflow skills for CLI-surface drift.
 
-## Discovering Commands
+Use these skills for their matching workflows instead of expanding this always-loaded file with task-specific procedures.
 
-**Before implementing or testing any command, run `--help` to confirm the exact interface.** The CLI is self-documenting:
+## Core CLI contract
 
-```bash
-asc --help                    # List all commands
-asc builds --help             # List builds subcommands
-asc builds list --help        # Show all flags for a command
-```
+- Use long-form flags in docs, tests, and examples (`--app`, `--output`).
+- Output defaults are TTY-aware: `table` in terminals and minified `json` for pipes or CI. Explicit `--output` wins.
+- Do not add interactive prompts. Require `--confirm` for destructive operations.
+- Use `--paginate` when callers request every page.
+- Write data to stdout and errors or diagnostics to stderr.
+- Never accept and silently ignore an unsupported flag or value.
 
-Do not memorize commands. Always check `--help` for the current interface.
+## Discover current behavior
 
-## Documentation
-
-When looking up App Store Connect API docs, prefer the `sosumi.ai` mirror instead of `developer.apple.com`.
-Replace `https://developer.apple.com/documentation/appstoreconnectapi/...` with `https://sosumi.ai/documentation/appstoreconnectapi/...`.
-
-## OpenAPI (offline)
-
-For endpoint existence and request/response schemas, use the offline snapshot:
-`docs/openapi/latest.json` and the quick index `docs/openapi/paths.txt`.
-Update instructions live in `docs/openapi/README.md`.
-
-Notes:
-- Validate flags against the *request* schema for the method you're implementing (create vs update often differ).
-- Validate query params against the specific endpoint (top-level vs relationship endpoints may allow different filters).
-
-## Build & Test
+Never rely on memorized command shapes. Before implementing, testing, or documenting a command, inspect its current help:
 
 ```bash
-make build      # Build binary
-ASC_BYPASS_KEYCHAIN=1 make test  # Run tests with keychain bypass (always run before committing)
-make lint       # Lint code
-make format     # Format code
-make install-hooks  # Install local pre-commit hook (.githooks/pre-commit)
+asc --help
+asc builds --help
+asc builds list --help
 ```
 
-Canonical test rule: all test runs must use `ASC_BYPASS_KEYCHAIN=1` to avoid host keychain prompts and profile bleed-through.
+For App Store Connect API documentation, prefer the `sosumi.ai` mirror over `developer.apple.com`.
 
-## PR Guardrails
+Use the offline OpenAPI snapshot for endpoint and schema truth:
 
-- Before opening or merging a PR, run `make format`, `make check-command-docs`, `make lint`, and `ASC_BYPASS_KEYCHAIN=1 make test`.
-- If command/help text changed, run `make generate-command-docs` and commit `docs/COMMANDS.md` before running checks.
-- Use `make install-hooks` once per clone to enforce local pre-commit checks.
-- CI must enforce formatting + lint + tests on both PR and `main` workflows.
-- Remove unused shared wrappers/helpers when commands are refactored.
+- `docs/openapi/latest.json`: complete snapshot.
+- `docs/openapi/paths.txt`: quick endpoint index.
+- `docs/openapi/README.md`: update procedure.
 
-## PR Audit Workflow
+Validate attributes against the exact create or update request schema. Validate filters and includes against the specific endpoint; related top-level and relationship endpoints often differ.
 
-- When the user says `audit the PR`, treat it as a standing workflow; do not wait for them to restate the same instructions.
-- Check the PR out in an isolated git worktree (preferred) with its own local branch so the user's main checkout stays untouched.
-- Audit the full PR, not just the latest commit: inspect the branch diff, review all commits on the PR, and run the relevant tests/checks.
-- PR audits are fix-forward by default in this repo: if you find concrete issues, fix them, add/update tests, create a new commit, and push to the PR branch unless the user explicitly asks for review-only.
-- After pushing audit fixes, inspect GitHub PR review comments/threads with `gh`, address actionable feedback, commit and push follow-up fixes, and resolve threads you fully handled.
-- After the first push, keep checking for new PR comments/review threads about every minute for 5-10 minutes total, fixing and pushing follow-up changes if needed unless the user tells you to stop.
-- Assume `gh` auth is already available for PR audit tasks; use `gh` directly and only stop to ask if auth actually fails.
-- For all PR-audit test runs and live CLI/API verification, use `ASC_BYPASS_KEYCHAIN=1` so auth resolves from config/env instead of the macOS keychain.
-- Prefer the throwaway App Store Connect app `ASC Test 20260216074703` (`6759231657`) for live mutating verification during PR audits.
-- The `ASC Test` app is disposable: it is acceptable to create/cancel submissions and mutate resources there for validation, but still clean up temporary artifacts when possible.
-- Avoid mutating non-throwaway apps during PR audits unless the user explicitly approves it or there is no safer way to validate the change.
-- In the PR audit handoff, include the audit findings, fixes made, commits/pushes performed, commands run, test results, and any live ASC state that could not be cleaned up.
+## Development workflow
 
-## Issue Triage & Labeling
+- Work on a branch and use an isolated worktree when the main checkout is dirty or other work is in progress.
+- Do not push directly to `main`, bypass hooks, use `--no-verify`, or skip checks to force a result.
+- Use TDD for behavior changes: reproduce or establish RED, implement the smallest coherent change, then reach GREEN.
+- Keep one logical change per commit. Do not mix unrelated refactors, fixes, and test rewrites.
+- Re-run the focused failing test after each fix before broad validation.
+- Preserve and report pre-existing failures honestly.
+- Parallel exploration is allowed, but do not concurrently edit the same command group; integrate final changes in one coherent pass.
 
-- When creating or triaging a GitHub issue, ensure it ends the task with exactly one label
-  from each of these buckets:
-  - type: `bug`, `enhancement`, or `question`
-  - priority: `p0`, `p1`, `p2`, or `p3`
-  - difficulty: `easy`, `medium`, or `hard`
-- If an issue is created without labels, add the missing labels immediately as part of the
-  same task.
-- Use priority for urgency and user impact, not implementation size.
-- Use difficulty for implementation scope/risk, not urgency.
-- Do not leave newly created issues without a type, priority, and difficulty label.
-- If the exact label is ambiguous, prefer the lower priority/difficulty and note the
-  assumption in the handoff.
+User-facing commands and flags follow `experimental` -> `stable` -> `deprecated` -> `removed`. Do not delete stable behavior directly. Deprecations require warning text, transition tests, migration guidance, and a release-note entry.
 
-## Release Announcements
+## Implementation invariants
 
-- When the user asks for a new release (e.g., "do a new release of X.Y.Z"), after the release
-  is tagged/published also create a social announcement **draft** via the Typefully MCP
-  (`TypefullyMCP`, configured in the user's Claude config). Match the user's established
-  release-post format.
-- **One post, no emojis** — never a thread.
-- **All five platforms enabled**: X, LinkedIn, Mastodon, Threads, Bluesky (the "five-platform"
-  release draft). Discover the user's social set via `typefully_list_social_sets`; send the same
-  text to every platform.
-- **Structure** (model on the most recent prior release draft via `typefully_list_drafts` ->
-  `typefully_get_draft`):
-  - Opener: `App Store Connect CLI X.Y.Z is out!`
-  - `Main improvement is <command/feature>` + one short benefit line
-  - A compact `Also: ...` line for secondary changes
-  - Plain repo link: `https://github.com/rorkai/App-Store-Connect-CLI`
-- Keep the text under Bluesky's 300-character limit.
-- **Save as a draft only** — do not schedule or publish unless the user explicitly asks. Share
-  the draft's review URL in the handoff.
+- Put command implementations in `internal/cli/<domain>` and register new top-level commands in `internal/cli/registry/registry.go`.
+- Set `UsageFunc: shared.DefaultUsageFunc` on command groups and subcommands.
+- Use `shared.ContextWithTimeout` or `shared.ContextWithUploadTimeout` for outbound HTTP.
+- Validate required flags before side effects and assert stderr messages in tests.
+- Use `internal/cli/cmdtest` for CLI-level coverage and `httptest` for HTTP payload coverage.
+- Remove shared wrappers or helpers made obsolete by a refactor.
 
-## Testing Discipline
+## Build and validation
 
-- Use TDD for behavior changes: bugs, refactors that alter behavior, and new features.
-- Start with a failing test that captures the expected behavior and edge cases.
-- For new features, begin with CLI-level tests (flags, output, errors) and add unit tests for core logic.
-- Verify the test fails for the right reason before implementing; keep tests green incrementally.
-- **Test realistic CLI invocation patterns**, not invented happy paths. For example, when testing argument parsing, always consider:
-  - Flags before subcommands: `asc --flag subcmd` vs `asc subcmd --flag`
-  - Flag values that look like subcommands: `asc --report junit completion`
-  - Multiple flags with values: `asc -a val1 -b val2 subcmd`
-- **Model tests on actual CLI usage**, not assumed patterns. Check `--help` output to understand real command structure before writing tests.
+```bash
+make build
+make format
+make check-docs
+make lint
+ASC_BYPASS_KEYCHAIN=1 make test
+make install-hooks
+```
 
-## Debugging & Bug Fixing
+Every manual test command must use `ASC_BYPASS_KEYCHAIN=1` to prevent host keychain prompts and profile bleed-through. The `make test` target enforces the same environment internally.
 
-- **Reproduce first**: Before fixing, run the failing test locally to confirm the issue. Don't assume you understand the bug.
-- **One change at a time**: Make one small fix, verify it works, then move to the next. Don't batch multiple changes.
-- **Re-run after each fix**: Re-run the specific failing test after each fix before running the full suite.
-- **One logical change per commit**: Keep commits narrowly scoped and reviewable. Avoid mixing refactor + bug fix + test rewrites in a single commit.
-- **Never bypass checks**: Don't use `--no-verify`, don't push directly to `main`, don't skip tests to "get around" failures.
-- **Be honest about pre-existing issues**: If a test was failing before your changes, say so. Don't claim credit for "fixing" something you didn't break.
-- **Verify before claiming done**: Run the specific failing test again to confirm it's fixed, not just "all tests pass".
-- **Avoid broad skip logic**: Don't skip tests with generic string matches (e.g., "Keychain Error") that can hide regressions. Match specific error codes instead.
-- **Isolate test auth/env state**: Tests that touch auth must set/clear relevant env vars (`ASC_BYPASS_KEYCHAIN`, `ASC_PROFILE`, `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY_PATH`, `ASC_PRIVATE_KEY`, `ASC_PRIVATE_KEY_B64`, `ASC_STRICT_AUTH`) locally and restore exact original state.
-- **Local test command**: When running repository tests manually, use `ASC_BYPASS_KEYCHAIN=1 make test` to prevent macOS keychain profile prompts from host environment bleed-through.
-- **Strict skip policy**: `t.Skip` is allowed only for specific, documented, reproducible conditions (exact error code/condition). Generic skip patterns are not allowed.
-- **Use proper workflow**: Branch → change → test → PR. Not: main → change → push.
+Before opening or merging a PR, run `make format`, `make check-docs`, `make lint`, and `ASC_BYPASS_KEYCHAIN=1 make test`. If command help changed, run `make generate-command-docs` and commit `docs/COMMANDS.md` before those checks. Run `make check-wall-of-apps` for Wall changes.
 
-## Definition of Done (Single-Pass)
+Do not weaken CI: formatting, documentation, lint, and tests must run on PR and `main` workflows.
 
-- Done means checks pass, key exit-code scenarios are validated, and commands run are recorded in handoff.
-- For CLI behavior changes (flags, exit codes, output/reporting), follow this sequence:
-  - Add/adjust failing tests first (RED), then implement (GREEN).
-  - Do not add placeholder tests; every new test must assert exit code, stderr/stdout, and/or parsed structured output.
-  - For every new or changed flag, add:
-    - one valid-path test
-    - one invalid-value test that asserts stderr and exit code `2`
-  - For argument/subcommand parsing, test edge cases: flags before subcommands, flag values that match subcommand names, mixed flag order.
-  - Never silently ignore accepted flags; unsupported values must return an error.
-  - For JSON/XML output tests, parse output (`json.Unmarshal`/`xml.Unmarshal`) instead of relying only on string matching.
-  - For report/artifact file outputs, test both successful write and write-failure behavior.
-  - Verify CLI exit behavior using a built binary (not only `go run`) for black-box checks:
-    - `go build -o /tmp/asc .`
-    - run `/tmp/asc ...` and assert exit code + stderr/stdout
-  - For any new/changed API-facing flag (query params or request attributes), cross-check `docs/openapi/latest.json` to ensure:
-    - the attribute exists in the correct request schema (create-only vs update-only is common)
-    - the query parameter is permitted for that endpoint (top-level vs relationship endpoints can differ)
-    - if the API doesn't support it, don't ship a flag; implement client-side behavior or document the limitation explicitly
-  - If the change depends on ASC API quirks and you have credentials available locally, run a minimal live smoke test with a built binary (`/tmp/asc`).
-    - Prefer read-only commands first; for write operations, use a throwaway app/resource and clean up (create-then-delete).
-- Before opening/updating a PR, always run:
-  - `make format`
-  - `make check-command-docs`
-  - `make lint`
-  - `ASC_BYPASS_KEYCHAIN=1 make test`
-- In the PR description or handoff, include:
-  - commands run
-  - key exit-code scenarios validated
+## GitHub and issue guardrails
 
-## Operating Mode: Architecture-First Agent Engineering
+- Inspect thread-aware GitHub review state before declaring a PR clean; flat comments do not prove every thread is resolved.
+- A PR is ready only when the latest head was reviewed, required checks pass, actionable threads are resolved, and GitHub reports it mergeable.
+- Fix-forward is the default for `$audit-asc-pr`; approval and merge still require explicit user intent.
+- Every newly created or triaged issue must end with exactly one type (`bug`, `enhancement`, `question`), one priority (`p0`-`p3`), and one difficulty (`easy`, `medium`, `hard`) label.
 
-- Default mode is architecture-first, not vibe-first.
-- Before implementing any new command/flag, produce a short design note covering:
-  1) command placement in existing taxonomy,
-  2) OpenAPI endpoint/schema validation,
-  3) UX shape (flags/output/exit codes),
-  4) backward-compatibility and deprecation impact,
-  5) RED -> GREEN test plan.
-- If command shape is ambiguous, stop and align before coding.
+## Authentication and live testing
 
-## Command Lifecycle & Compatibility
+App Store Connect API keys come from https://appstoreconnect.apple.com/access/integrations/api and must never be committed.
 
-- User-facing commands/flags must follow lifecycle states: `experimental`, `stable`, `deprecated`, `removed`.
-- Do not delete stable commands directly; deprecate first with migration guidance.
-- Deprecations must include:
-  - warning text in help/output,
-  - tests covering old and new behavior during transition,
-  - release notes entry with upgrade path.
+Tests touching auth must isolate relevant environment and config state. For live verification, prefer read-only calls. When mutation is necessary during PR audits, prefer disposable app `6759231657`, clean up temporary resources, and record anything left behind. Never mutate a non-disposable app without explicit approval.
 
-## Agent Explainability Contract
+## Handoff contract
 
-For each substantial change, include:
-- why this approach was chosen,
-- one to two alternatives considered and trade-offs,
-- expected invocation examples and outputs,
-- edge cases and failure modes tested.
-
-A change is not done if the reviewer cannot explain command behavior and trade-offs from the handoff.
-
-## Parallel Agent Policy
-
-- Parallel agents are allowed for independent exploration or test drafting.
-- Final implementation integration must be done in a single coherent pass.
-- Avoid concurrent edits to the same command group.
-
-## CLI Implementation Checklist
-
-- Register new commands in `internal/cli/registry/registry.go`.
-- Always set `UsageFunc: shared.DefaultUsageFunc` for command groups and subcommands.
-- For outbound HTTP, use `shared.ContextWithTimeout` (or `shared.ContextWithUploadTimeout`) so `ASC_TIMEOUT` applies.
-- Validate required flags and assert stderr error messages in tests (not just `flag.ErrHelp`).
-- Add `internal/cli/cmdtest` coverage for new commands; use `httptest` for network payload tests.
-
-## Authentication
-
-API keys are generated at https://appstoreconnect.apple.com/access/integrations/api and stored in the system keychain (with local config fallback). Never commit keys to version control.
-
-## Environment Variables
-
-| Variable | Purpose |
-|----------|---------|
-| `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY_PATH`, `ASC_PRIVATE_KEY`, `ASC_PRIVATE_KEY_B64` | Auth fallback |
-| `ASC_BYPASS_KEYCHAIN` | Ignore keychain and use config/env auth |
-| `ASC_STRICT_AUTH` | Fail when credentials resolve from multiple sources (`true/false`, `1/0`, `yes/no`, `y/n`, `on/off`) |
-| `ASC_APP_ID` | Default app ID |
-| `ASC_VENDOR_NUMBER` | Sales/finance reports |
-| `ASC_TIMEOUT` | Request timeout (e.g., `90s`, `2m`) |
-| `ASC_TIMEOUT_SECONDS` | Timeout in seconds (alternative) |
-| `ASC_UPLOAD_TIMEOUT` | Upload timeout (e.g., `60s`, `2m`) |
-| `ASC_UPLOAD_TIMEOUT_SECONDS` | Upload timeout in seconds (alternative) |
-| `ASC_DEBUG` | Enable debug logging (set to `api` for HTTP requests/responses) |
-| `ASC_DEFAULT_OUTPUT` | Default output format: `json`, `table`, `markdown`, or `md` |
-| `ASC_TELEMETRY_DISABLED` | Disable default-on anonymous command telemetry |
-| `ASC_TELEMETRY_EPHEMERAL` | Send telemetry without a local install ID for disposable runtimes |
-| `ASC_TELEMETRY_ENDPOINT` | Override the HTTPS telemetry collector endpoint |
-
-When `ASC_DEFAULT_OUTPUT` is unset, defaults are TTY-aware (`table` in terminals, `json` for non-interactive output).
-Explicit `--output` flags always override `ASC_DEFAULT_OUTPUT` and TTY-aware defaults.
+For substantial changes, explain the chosen approach, alternatives and trade-offs, expected invocations and outputs, compatibility impact, edge cases, failure modes, commands run, tests, live verification, commits or pushes, and unresolved risks.
 
 ## References
 
-Detailed guidance on specific topics (only read when needed):
-
-- **Go coding standards**: `docs/GO_STANDARDS.md`
-- **Testing patterns**: `docs/TESTING.md`
-- **Git workflow, CLI structure, adding features**: `docs/CONTRIBUTING.md`
-- **API quirks (analytics, finance, sandbox)**: `docs/API_NOTES.md`
-- **Development setup, PRs**: `CONTRIBUTING.md` (root)
+- Go standards: `docs/GO_STANDARDS.md`
+- Testing patterns: `docs/TESTING.md`
+- Git workflow and CLI structure: `docs/CONTRIBUTING.md`
+- API quirks: `docs/API_NOTES.md`
+- Development setup, PRs, labels, and Wall submissions: `CONTRIBUTING.md`

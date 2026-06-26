@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release ASC CLI"
+  short_description: "Publish and verify an ASC CLI repository release"
+  default_prompt: "Use $release-asc-cli to publish and verify the requested ASC CLI release."

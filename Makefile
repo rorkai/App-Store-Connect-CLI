@@ -222,8 +222,14 @@ check-website-docs:
 	python3 ./scripts/check_website_docs.py
 	python3 ./scripts/check_website_commands.py
 
+.PHONY: check-agent-skills
+check-agent-skills:
+	@echo "$(BLUE)Checking repository agent skills...$(NC)"
+	python3 ./scripts/test_check_agent_skills.py
+	python3 ./scripts/check_agent_skills.py
+
 .PHONY: check-docs
-check-docs: check-command-docs check-repo-docs check-website-docs
+check-docs: check-command-docs check-repo-docs check-website-docs check-agent-skills
 
 .PHONY: check-wall-of-apps
 check-wall-of-apps:
@@ -294,6 +300,7 @@ help:
 	@echo "  check-command-docs Validate docs command lists against live CLI help"
 	@echo "  check-repo-docs Validate local links in repository markdown docs"
 	@echo "  check-website-docs Validate Mintlify website navigation, links, and CLI examples"
+	@echo "  check-agent-skills Validate repository-scoped Codex skills"
 	@echo "  check-docs     Run all documentation checks"
 	@echo "  clean          Clean build artifacts"
 	@echo "  install        Install binary"

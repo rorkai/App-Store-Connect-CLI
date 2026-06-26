@@ -30,6 +30,18 @@ If `docs/wall-of-apps.json` is the only staged change, the local hook skips the 
 make check-wall-of-apps
 ```
 
+## Repository Agent Skills
+
+Keep always-on repository invariants in `AGENTS.md` and task-specific maintainer workflows in `.agents/skills/<skill-name>/`.
+
+Each skill must contain a `SKILL.md` with only `name` and `description` frontmatter plus matching `agents/openai.yaml` UI metadata. Keep trigger descriptions specific, link detailed references through progressive disclosure, and run:
+
+```bash
+make check-agent-skills
+```
+
+`make check-docs` includes this validation.
+
 ## CLI Structure
 
 - Command implementations live in `internal/cli/<domain>` packages

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triage ASC Issue"
+  short_description: "Reproduce, classify, and scope an ASC CLI issue"
+  default_prompt: "Use $triage-asc-issue to triage this ASC CLI issue against the code and API."
