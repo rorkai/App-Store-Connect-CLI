@@ -48,6 +48,19 @@ def yaml_string(text: str, key: str) -> str | None:
     return match.group(1) if match else None
 
 
+def yaml_mapping(text: str, key: str) -> str | None:
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line == f"{key}:":
+            nested: list[str] = []
+            for candidate in lines[index + 1 :]:
+                if candidate and not candidate.startswith((" ", "\t")):
+                    break
+                nested.append(candidate)
+            return "\n".join(nested)
+    return None
+
+
 def validate_skill(skill_dir: Path, agents_text: str) -> list[str]:
     errors: list[str] = []
     skill_path = skill_dir / "SKILL.md"
@@ -86,9 +99,13 @@ def validate_skill(skill_dir: Path, agents_text: str) -> list[str]:
             errors.append(f"{skill_path}: missing local link target: {target}")
 
     metadata = metadata_path.read_text(encoding="utf-8")
-    display_name = yaml_string(metadata, "display_name")
-    short_description = yaml_string(metadata, "short_description")
-    default_prompt = yaml_string(metadata, "default_prompt")
+    interface = yaml_mapping(metadata, "interface")
+    if interface is None:
+        errors.append(f"{metadata_path}: missing interface mapping")
+        interface = ""
+    display_name = yaml_string(interface, "display_name")
+    short_description = yaml_string(interface, "short_description")
+    default_prompt = yaml_string(interface, "default_prompt")
     if not display_name:
         errors.append(f"{metadata_path}: missing quoted display_name")
     if not short_description or not 25 <= len(short_description) <= 64:
@@ -113,7 +130,11 @@ def main() -> int:
     for missing in sorted(EXPECTED_SKILLS - actual_names):
         errors.append(f"{SKILLS_ROOT}: missing expected skill {missing}")
 
-    agents_text = AGENTS_PATH.read_text(encoding="utf-8")
+    if AGENTS_PATH.is_file():
+        agents_text = AGENTS_PATH.read_text(encoding="utf-8")
+    else:
+        errors.append(f"{AGENTS_PATH}: file is missing")
+        agents_text = ""
     for skill_dir in skill_dirs:
         errors.extend(validate_skill(skill_dir, agents_text))
 

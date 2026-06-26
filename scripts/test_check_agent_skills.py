@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 from unittest import mock
 
@@ -10,7 +12,13 @@ import check_agent_skills
 
 
 class CheckAgentSkillsTests(unittest.TestCase):
-    def make_skill(self, root: Path, *, link: str = "references/details.md") -> Path:
+    def make_skill(
+        self,
+        root: Path,
+        *,
+        link: str = "references/details.md",
+        metadata: str | None = None,
+    ) -> Path:
         skill_dir = root / ".agents" / "skills" / "sample-skill"
         (skill_dir / "agents").mkdir(parents=True)
         (skill_dir / "references").mkdir()
@@ -25,10 +33,13 @@ class CheckAgentSkillsTests(unittest.TestCase):
             encoding="utf-8",
         )
         (skill_dir / "agents" / "openai.yaml").write_text(
-            'interface:\n'
-            '  display_name: "Sample Skill"\n'
-            '  short_description: "Validate a representative skill"\n'
-            '  default_prompt: "Use $sample-skill for this workflow."\n',
+            metadata
+            or (
+                'interface:\n'
+                '  display_name: "Sample Skill"\n'
+                '  short_description: "Validate a representative skill"\n'
+                '  default_prompt: "Use $sample-skill for this workflow."\n'
+            ),
             encoding="utf-8",
         )
         return skill_dir
@@ -54,6 +65,43 @@ class CheckAgentSkillsTests(unittest.TestCase):
             ):
                 errors = check_agent_skills.validate_skill(skill_dir, "$sample-skill")
         self.assertTrue(any("missing local link target" in error for error in errors))
+
+    def test_validate_skill_rejects_interface_fields_in_another_mapping(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            skill_dir = self.make_skill(
+                root,
+                metadata=(
+                    "dependencies:\n"
+                    '  display_name: "Sample Skill"\n'
+                    '  short_description: "Validate a representative skill"\n'
+                    '  default_prompt: "Use $sample-skill for this workflow."\n'
+                    "interface:\n"
+                ),
+            )
+            with (
+                mock.patch.object(check_agent_skills, "ROOT", root),
+                mock.patch.object(check_agent_skills, "AGENTS_PATH", root / "AGENTS.md"),
+            ):
+                errors = check_agent_skills.validate_skill(skill_dir, "$sample-skill")
+        self.assertTrue(any("missing quoted display_name" in error for error in errors))
+
+    def test_main_reports_missing_agents_file_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            skills_root = root / ".agents" / "skills"
+            skills_root.mkdir(parents=True)
+            stderr = StringIO()
+            with (
+                mock.patch.object(check_agent_skills, "ROOT", root),
+                mock.patch.object(check_agent_skills, "SKILLS_ROOT", skills_root),
+                mock.patch.object(check_agent_skills, "AGENTS_PATH", root / "AGENTS.md"),
+                mock.patch.object(check_agent_skills, "EXPECTED_SKILLS", set()),
+                redirect_stderr(stderr),
+            ):
+                exit_code = check_agent_skills.main()
+        self.assertEqual(exit_code, 1)
+        self.assertIn("AGENTS.md: file is missing", stderr.getvalue())
 
     def test_parse_frontmatter_rejects_extra_nested_fields(self) -> None:
         text = "---\nname: sample\nmetadata:\n  owner: team\n---\nbody\n"
