@@ -87,7 +87,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
@@ -163,7 +163,7 @@ Examples:
 			uploadID := strings.TrimSpace(*id)
 			if uploadID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -206,11 +206,11 @@ Examples:
 			uploadID := strings.TrimSpace(*id)
 			if uploadID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -293,7 +293,7 @@ Examples:
 			uploadValue := strings.TrimSpace(*uploadID)
 			if uploadValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --upload is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -312,7 +312,7 @@ Examples:
 			if *paginate {
 				if uploadValue == "" {
 					fmt.Fprintln(os.Stderr, "Error: --upload is required")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 
 				paginateOpts := append(opts, asc.WithBuildUploadFilesLimit(200))
@@ -363,7 +363,7 @@ Examples:
 			fileID := strings.TrimSpace(*id)
 			if fileID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

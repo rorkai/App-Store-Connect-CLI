@@ -67,7 +67,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			// Validate that exactly one of --ipa or --pkg is provided
@@ -75,7 +75,7 @@ Examples:
 			hasPKG := *pkgPath != ""
 			if !hasIPA && !hasPKG {
 				fmt.Fprintf(os.Stderr, "Error: --ipa or --pkg is required\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if hasIPA && hasPKG {
 				fmt.Fprintf(os.Stderr, "Error: --ipa and --pkg are mutually exclusive\n\n")
@@ -160,11 +160,11 @@ Examples:
 			localeValue := strings.TrimSpace(*locale)
 			if testNotesValue != "" && localeValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --locale is required with --test-notes")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if testNotesValue == "" && localeValue != "" {
 				fmt.Fprintln(os.Stderr, "Error: --test-notes is required with --locale")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if testNotesValue != "" {
 				if *dryRun {
@@ -472,7 +472,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && nextValue == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -800,7 +800,7 @@ Examples:
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to expire build")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

@@ -107,7 +107,7 @@ Examples:
 			resolvedAppInput := shared.ResolveAppID(*appID)
 			if resolvedAppInput == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			setFlags := collectSetFlags(fs)
@@ -154,11 +154,11 @@ Examples:
 			parsedGroupIDs := shared.SplitCSV(*groupIDs)
 			if len(parsedGroupIDs) == 0 {
 				fmt.Fprintf(os.Stderr, "Error: --group is required\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *submit && !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required with --submit")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *confirm && !*submit {
 				fmt.Fprintln(os.Stderr, "Error: --confirm requires --submit")
@@ -169,11 +169,11 @@ Examples:
 			localeValue := strings.TrimSpace(*locale)
 			if testNotesValue != "" && localeValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --locale is required with --test-notes")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if testNotesValue == "" && localeValue != "" {
 				fmt.Fprintln(os.Stderr, "Error: --test-notes is required with --locale")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if testNotesValue != "" {
 				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
@@ -441,13 +441,13 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if *submit && !*confirm && !*dryRun {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required with --submit")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			resolvedAppInput := shared.ResolveAppID(*appID)
 			if resolvedAppInput == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			setFlags := collectSetFlags(fs)
@@ -475,7 +475,7 @@ Examples:
 				}
 			case ipaValue == "":
 				fmt.Fprintf(os.Stderr, "Error: --ipa is required\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *pollInterval <= 0 {
 				return shared.UsageError("--poll-interval must be greater than 0")

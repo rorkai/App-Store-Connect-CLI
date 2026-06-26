@@ -75,7 +75,7 @@ Examples:
 			scheduleValue := strings.TrimSpace(*scheduleID)
 			if iapValue == "" && scheduleValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --iap-id or --schedule-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if iapValue != "" && scheduleValue != "" {
 				fmt.Fprintln(os.Stderr, "Error: --iap-id and --schedule-id are mutually exclusive")
@@ -199,7 +199,7 @@ Examples:
 			id := strings.TrimSpace(*scheduleID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --schedule-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -250,12 +250,12 @@ Examples:
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			baseTerritoryValue := strings.TrimSpace(*baseTerritory)
 			if baseTerritoryValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			tierValue := *tier
@@ -287,7 +287,7 @@ Examples:
 				}
 				if len(parsedPrices) == 0 {
 					fmt.Fprintln(os.Stderr, "Error: --prices (or --tier/--price) is required")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 			}
 
@@ -397,7 +397,7 @@ Examples:
 			id := strings.TrimSpace(*scheduleID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --schedule-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -486,7 +486,7 @@ Examples:
 			id := strings.TrimSpace(*scheduleID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --schedule-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

@@ -77,7 +77,7 @@ Examples:
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -148,7 +148,7 @@ Examples:
 			imageValue := strings.TrimSpace(*imageID)
 			if imageValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --image-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -192,12 +192,12 @@ Examples:
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			file, info, err := openImageFile(pathValue)
@@ -276,12 +276,12 @@ Examples:
 			imageValue := strings.TrimSpace(*imageID)
 			if imageValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --image-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			file, info, err := openImageFile(pathValue)
@@ -379,11 +379,11 @@ Examples:
 			imageValue := strings.TrimSpace(*imageID)
 			if imageValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --image-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

@@ -80,23 +80,23 @@ Examples:
 			}
 			if strings.TrimSpace(*name) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*clientID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --client-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*teamID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --team-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*keyID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --key-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*privateKey) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --private-key is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *skipValidation && *network {
 				return shared.UsageError("--skip-validation and --network are mutually exclusive")
@@ -666,7 +666,7 @@ Examples:
 			}
 			if strings.TrimSpace(*name) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if err := appleads.SetDefaultCredentials(*name); err != nil {
 				return fmt.Errorf("ads auth switch: %w", err)

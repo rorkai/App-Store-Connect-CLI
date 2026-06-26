@@ -144,7 +144,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -189,12 +189,12 @@ Examples:
 			endpointURL := strings.TrimSpace(*url)
 			if endpointURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --url is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			secretValue := strings.TrimSpace(*secret)
 			if secretValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --secret is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -241,7 +241,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			visited := map[string]bool{}
@@ -251,7 +251,7 @@ Examples:
 
 			if !visited["url"] && !visited["secret"] {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.MarketplaceWebhookUpdateAttributes{}
@@ -306,11 +306,11 @@ Examples:
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

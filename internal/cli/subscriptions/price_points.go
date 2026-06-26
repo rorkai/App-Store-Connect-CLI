@@ -245,7 +245,7 @@ Examples:
 			id := strings.TrimSpace(*pricePointID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --price-point-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

@@ -59,7 +59,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*instanceID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --instance-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -117,7 +117,7 @@ Examples:
 			}
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --instance-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

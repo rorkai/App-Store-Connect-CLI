@@ -54,7 +54,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*segmentID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --segment-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

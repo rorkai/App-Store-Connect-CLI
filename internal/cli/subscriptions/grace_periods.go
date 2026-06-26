@@ -59,7 +59,7 @@ Examples:
 			id := strings.TrimSpace(*gracePeriodID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -107,7 +107,7 @@ Examples:
 			id := strings.TrimSpace(*gracePeriodID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			durationValue, err := normalizeSubscriptionGracePeriodDuration(*duration, false)
@@ -122,7 +122,7 @@ Examples:
 			}
 			if !optIn.IsSet() && !sandboxOptIn.IsSet() && durationValue == "" && renewalTypeValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

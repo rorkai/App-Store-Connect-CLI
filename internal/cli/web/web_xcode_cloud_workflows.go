@@ -130,12 +130,12 @@ Examples:
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			wfID := strings.TrimSpace(*workflowID)
 			if wfID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --workflow-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -212,12 +212,12 @@ Examples:
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			fileValue := strings.TrimSpace(*file)
 			if fileValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			payload, err := shared.ReadJSONFilePayload(fileValue)
@@ -317,17 +317,17 @@ Examples:
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			wfID := strings.TrimSpace(*workflowID)
 			if wfID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --workflow-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			patchFileValue := strings.TrimSpace(*patchFile)
 			if patchFileValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --patch-file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			patchPayload, err := shared.ReadJSONFilePayload(patchFileValue)
@@ -423,12 +423,12 @@ Examples:
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			wfID := strings.TrimSpace(*workflowID)
 			if wfID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --workflow-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			result, err := executeWorkflowToggle(ctx, sessionFlags, pid, wfID, false, "xcode-cloud workflows enable")
@@ -476,16 +476,16 @@ Examples:
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			wfID := strings.TrimSpace(*workflowID)
 			if wfID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --workflow-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			result, err := executeWorkflowToggle(ctx, sessionFlags, pid, wfID, true, "xcode-cloud workflows disable")

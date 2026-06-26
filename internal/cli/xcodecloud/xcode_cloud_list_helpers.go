@@ -2,7 +2,6 @@ package xcodecloud
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -79,7 +78,7 @@ func runXcodeCloudPaginatedParentList(
 	resolvedParentID := strings.TrimSpace(parentID)
 	if resolvedParentID == "" && strings.TrimSpace(next) == "" {
 		fmt.Fprintf(os.Stderr, "Error: --%s is required\n", parentFlag)
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 
 	return runXcodeCloudPaginatedList(

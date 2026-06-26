@@ -40,11 +40,11 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*accessType) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --access-type is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			normalizedAccessType, err := normalizeAnalyticsAccessType(*accessType)
 			if err != nil {
@@ -144,7 +144,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" && strings.TrimSpace(*requestID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -318,14 +318,14 @@ Examples:
 			id := strings.TrimSpace(*requestID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --request-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if err := validateUUIDFlag("--request-id", id); err != nil {
 				return fmt.Errorf("analytics requests delete: %w", err)
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -379,7 +379,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*requestID) == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --request-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*requestID) != "" {
 				if err := validateUUIDFlag("--request-id", *requestID); err != nil {
@@ -528,11 +528,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*requestID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --request-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*instanceID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --instance-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if err := validateUUIDFlag("--request-id", *requestID); err != nil {
 				return fmt.Errorf("analytics download: %w", err)

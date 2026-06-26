@@ -34,11 +34,11 @@ Examples:
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -86,11 +86,11 @@ Examples:
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

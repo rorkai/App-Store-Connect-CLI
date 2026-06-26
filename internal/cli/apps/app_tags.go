@@ -134,7 +134,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -221,13 +221,13 @@ Examples:
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if *territoryLimit != 0 && (*territoryLimit < 1 || *territoryLimit > 50) {
@@ -339,7 +339,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			visited := map[string]bool{}
@@ -348,11 +348,11 @@ Examples:
 			})
 			if !visited["visible-in-app-store"] {
 				fmt.Fprintln(os.Stderr, "Error: --visible-in-app-store is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -405,7 +405,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-tags territories: --limit must be between 1 and 200")
@@ -487,7 +487,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*tagID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("app-tags territories-links: --limit must be between 1 and 200")
@@ -571,7 +571,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

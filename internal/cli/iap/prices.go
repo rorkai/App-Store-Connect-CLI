@@ -95,7 +95,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(requestedAppID)
 			if requestedIAPID == "" && resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app or --iap-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

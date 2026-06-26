@@ -103,7 +103,7 @@ Examples:
 			appIDValue := strings.TrimSpace(*appID)
 			if appIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			bundleIDValue := strings.TrimSpace(*bundleID)
@@ -139,7 +139,7 @@ Examples:
 			}
 			if hasLocalization && localeValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --locale is required for app info localization updates")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if localeValue != "" {
 				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
@@ -421,7 +421,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*path) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			normalizedType, err := shared.NormalizeLocalizationType(*locType)
@@ -435,7 +435,7 @@ Examples:
 			case shared.LocalizationTypeVersion:
 				if strings.TrimSpace(*versionID) == "" {
 					fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 
 				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
@@ -487,7 +487,7 @@ Examples:
 				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
 				if err != nil {

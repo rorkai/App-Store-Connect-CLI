@@ -80,7 +80,7 @@ Examples:
 			nextURL := strings.TrimSpace(*next)
 			if resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -156,7 +156,7 @@ Examples:
 			id := strings.TrimSpace(*appVersionID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -198,7 +198,7 @@ Examples:
 			id := strings.TrimSpace(*appStoreVersionID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app-store-version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -242,7 +242,7 @@ Examples:
 			id := strings.TrimSpace(*appVersionID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.GameCenterAppVersionUpdateAttributes{}
@@ -261,7 +261,7 @@ Examples:
 
 			if !hasUpdate {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required (--enabled)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -339,7 +339,7 @@ Examples:
 			nextURL := strings.TrimSpace(*next)
 			if id == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -429,7 +429,7 @@ Examples:
 			id := strings.TrimSpace(*appVersionID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

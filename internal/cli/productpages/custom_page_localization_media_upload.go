@@ -71,7 +71,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to sync")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			result, err := executeCustomPageScreenshotUpload(ctx, *localizationID, *path, *deviceType, true)
@@ -138,7 +138,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to sync")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			result, err := executeCustomPagePreviewUpload(ctx, *localizationID, *path, *deviceType, true)

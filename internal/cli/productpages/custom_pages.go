@@ -79,7 +79,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -143,7 +143,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --custom-page-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -186,13 +186,13 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -238,7 +238,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --custom-page-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.AppCustomProductPageUpdateAttributes{}
@@ -251,7 +251,7 @@ Examples:
 			}
 			if attrs.Name == nil && attrs.Visible == nil {
 				fmt.Fprintln(os.Stderr, "Error: --name or --visible is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -294,11 +294,11 @@ Examples:
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --custom-page-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

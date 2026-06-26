@@ -158,18 +158,18 @@ Examples:
 			subscription := strings.TrimSpace(*subscriptionID)
 			if subscription == "" {
 				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			trimmedName := strings.TrimSpace(*name)
 			if trimmedName == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if strings.TrimSpace(*customerEligibilities) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --customer-eligibilities is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			customerEligibilityValues, err := normalizeOfferCodeCustomerEligibilities(*customerEligibilities)
 			if err != nil {
@@ -178,7 +178,7 @@ Examples:
 
 			if strings.TrimSpace(*offerEligibility) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --offer-eligibility is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			offerEligibilityValue, err := normalizeOfferCodeEligibility(*offerEligibility)
 			if err != nil {
@@ -187,7 +187,7 @@ Examples:
 
 			if strings.TrimSpace(*duration) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --duration is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			durationValue, err := normalizeOfferCodeDuration(*duration)
 			if err != nil {
@@ -196,7 +196,7 @@ Examples:
 
 			if strings.TrimSpace(*offerMode) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --offer-mode is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			offerModeValue, err := normalizeOfferCodeMode(*offerMode)
 			if err != nil {
@@ -205,7 +205,7 @@ Examples:
 
 			if !numberOfPeriods.set {
 				fmt.Fprintln(os.Stderr, "Error: --number-of-periods is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if numberOfPeriods.value <= 0 {
 				return fmt.Errorf("offer-codes create: --number-of-periods must be greater than 0")
@@ -222,7 +222,7 @@ Examples:
 			}
 			if len(priceEntries) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --prices is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			autoRenewEnabledValue, err := shared.ParseOptionalBoolFlag("--auto-renew-enabled", *autoRenewEnabled)

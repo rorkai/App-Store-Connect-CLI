@@ -55,7 +55,7 @@ func deprecatedBetaCrashLogsGetAliasCommand() *ffcli.Command {
 			}
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --crash-log-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			return runCrashLogByCrashLogID(ctx, idValue, output)
 		},

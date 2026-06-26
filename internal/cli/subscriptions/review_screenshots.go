@@ -64,7 +64,7 @@ Examples:
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -111,13 +111,13 @@ Examples:
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
 				return shared.UsageError(err.Error())
@@ -177,13 +177,13 @@ Examples:
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			checksumValue := strings.TrimSpace(*checksum)
 			if checksumValue == "" && !uploaded.IsSet() {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -235,11 +235,11 @@ Examples:
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

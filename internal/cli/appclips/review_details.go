@@ -61,7 +61,7 @@ Examples:
 			detailValue := strings.TrimSpace(*detailID)
 			if detailValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -104,13 +104,13 @@ Examples:
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --experience-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			urlValues := shared.SplitCSV(*urls)
 			if len(urlValues) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --url is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -154,7 +154,7 @@ Examples:
 			detailValue := strings.TrimSpace(*detailID)
 			if detailValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			visited := map[string]bool{}
@@ -163,7 +163,7 @@ Examples:
 			})
 			if !visited["url"] {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			urlValues := shared.SplitCSV(*urls)

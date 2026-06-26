@@ -134,7 +134,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*keyID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --key-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -179,7 +179,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			keyValue := strings.TrimSpace(*publicKey)
@@ -189,7 +189,7 @@ Examples:
 			}
 			if keyValue == "" && keyPath == "" {
 				fmt.Fprintln(os.Stderr, "Error: --public-key or --public-key-path is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if keyValue == "" && keyPath != "" {
 				var err error
@@ -239,11 +239,11 @@ Examples:
 			trimmedID := strings.TrimSpace(*keyID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --key-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -289,7 +289,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

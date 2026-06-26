@@ -107,12 +107,12 @@ Examples:
 			keyOutValue := strings.TrimSpace(*keyOut)
 			if keyOutValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --key-out is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			csrOutValue := strings.TrimSpace(*csrOut)
 			if csrOutValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --csr-out is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if filepath.Clean(keyOutValue) == filepath.Clean(csrOutValue) {
 				return shared.UsageError("--key-out and --csr-out must be different paths")

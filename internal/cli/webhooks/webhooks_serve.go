@@ -106,7 +106,7 @@ Examples:
 			bindHost := strings.TrimSpace(*host)
 			if bindHost == "" {
 				fmt.Fprintln(os.Stderr, "Error: --host is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*allowRemote && !isLoopbackWebhookBindHost(bindHost) {
 				return shared.UsageErrorf("binding to non-loopback host %q requires --allow-remote", bindHost)

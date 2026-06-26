@@ -144,7 +144,7 @@ Examples:
 			idValue := strings.TrimSpace(*profileID)
 			if pathValue == "" && idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --path or --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if pathValue != "" && idValue != "" {
 				return shared.UsageError("--path and --id are mutually exclusive")
@@ -360,7 +360,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if !*dryRun && !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*expiredOnly {
 				// At least one clean mode is required; currently only --expired exists.

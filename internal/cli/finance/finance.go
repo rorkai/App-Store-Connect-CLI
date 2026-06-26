@@ -106,19 +106,19 @@ Examples:
 			vendorNumber := shared.ResolveVendorNumber(*vendor)
 			if vendorNumber == "" {
 				fmt.Fprintln(os.Stderr, "Error: --vendor is required (or set ASC_VENDOR_NUMBER)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*reportType) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --report-type is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*region) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --region is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*date) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --date is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			normalizedReportType, err := normalizeFinanceReportType(*reportType)

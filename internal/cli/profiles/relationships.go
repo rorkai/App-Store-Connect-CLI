@@ -62,7 +62,7 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -108,7 +108,7 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("profiles links certificates: --limit must be between 1 and 200")
@@ -140,7 +140,7 @@ Examples:
 			if *paginate {
 				if idValue == "" {
 					fmt.Fprintln(os.Stderr, "Error: --id is required")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 				firstPage, err := client.GetProfileCertificatesRelationships(requestCtx, idValue, paginateOpts...)
@@ -193,7 +193,7 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("profiles links devices: --limit must be between 1 and 200")
@@ -225,7 +225,7 @@ Examples:
 			if *paginate {
 				if idValue == "" {
 					fmt.Fprintln(os.Stderr, "Error: --id is required")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 				firstPage, err := client.GetProfileDevicesRelationships(requestCtx, idValue, paginateOpts...)

@@ -29,7 +29,7 @@ func ShotsReviewOpenCommand() *ffcli.Command {
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*outputDir) == "" && strings.TrimSpace(*htmlPath) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --output-dir or --html-path is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			result, err := screenshots.OpenReview(ctx, screenshots.ReviewOpenRequest{

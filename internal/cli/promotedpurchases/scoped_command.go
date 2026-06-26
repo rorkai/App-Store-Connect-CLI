@@ -97,7 +97,7 @@ Examples:
 		}
 		if appID == "" && strings.TrimSpace(next) == "" {
 			fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-			return flag.ErrHelp
+			return shared.MissingRequiredUsageError()
 		}
 
 		client, err := shared.GetASCClient()
@@ -202,7 +202,7 @@ Examples:
 
 		if appID == "" {
 			fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-			return flag.ErrHelp
+			return shared.MissingRequiredUsageError()
 		}
 
 		var scopedIDs []string
@@ -213,13 +213,13 @@ Examples:
 			}
 			if !confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required with --clear")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 		} else {
 			scopedIDs = shared.SplitCSV(promotedIDs)
 			if len(scopedIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 		}
 

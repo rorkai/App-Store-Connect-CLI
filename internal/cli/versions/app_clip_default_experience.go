@@ -55,7 +55,7 @@ Examples:
 			versionValue := strings.TrimSpace(*versionID)
 			if versionValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

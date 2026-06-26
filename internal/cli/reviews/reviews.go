@@ -122,7 +122,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			return executeReviewsList(ctx, resolvedAppID, *output.Output, *output.Pretty, *stars, *territory, *sort, *limit, *next, *paginate, *responseState, *onlyUnresponded, *includeResponse, *responseFields)

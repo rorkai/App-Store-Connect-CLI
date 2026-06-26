@@ -59,13 +59,13 @@ Examples:
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			normalizedLocale, err := shared.CanonicalizeAppStoreLocalizationLocale(localeValue)
 			if err != nil {

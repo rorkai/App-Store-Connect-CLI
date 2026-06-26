@@ -78,7 +78,7 @@ Examples:
 			build := strings.TrimSpace(*buildID)
 			if build == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			locales := shared.SplitCSV(*locale)
@@ -153,7 +153,7 @@ Examples:
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -198,13 +198,13 @@ Examples:
 			build := strings.TrimSpace(*buildID)
 			if build == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 				return fmt.Errorf("build-localizations create: %w", err)
@@ -276,13 +276,13 @@ Examples:
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			whatsNewValue := strings.TrimSpace(*whatsNew)
 			if whatsNewValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -329,11 +329,11 @@ Examples:
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

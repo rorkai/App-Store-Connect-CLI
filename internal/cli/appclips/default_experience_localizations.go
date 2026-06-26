@@ -75,7 +75,7 @@ Examples:
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --experience-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -148,7 +148,7 @@ Examples:
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -192,13 +192,13 @@ Examples:
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --experience-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			var subtitleValue *string
@@ -252,7 +252,7 @@ Examples:
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			visited := map[string]bool{}
@@ -262,7 +262,7 @@ Examples:
 
 			if !visited["subtitle"] {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			var attrs *asc.AppClipDefaultExperienceLocalizationUpdateAttributes
@@ -313,11 +313,11 @@ Examples:
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -363,7 +363,7 @@ Examples:
 			locValue := strings.TrimSpace(*localizationID)
 			if locValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

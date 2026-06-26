@@ -122,7 +122,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*submissionID) == "" && strings.TrimSpace(*versionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*submissionID) != "" && strings.TrimSpace(*versionID) != "" {
 				return shared.UsageError("--id and --version-id are mutually exclusive")
@@ -486,11 +486,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to cancel a submission")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*submissionID) == "" && strings.TrimSpace(*versionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*submissionID) != "" && strings.TrimSpace(*versionID) != "" {
 				return shared.UsageError("--id and --version-id are mutually exclusive")

@@ -80,7 +80,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -144,7 +144,7 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -193,18 +193,18 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			productIDValue := strings.TrimSpace(*productID)
 			if productIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if strings.TrimSpace(*productType) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-type is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			productTypeValue, err := normalizePromotedPurchaseProductType(*productType)
@@ -215,7 +215,7 @@ Examples:
 
 			if !visibleForAllUsers.IsSet() {
 				fmt.Fprintln(os.Stderr, "Error: --visible-for-all-users is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -297,11 +297,11 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !visibleForAllUsers.IsSet() && !enabled.IsSet() {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -353,13 +353,13 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -410,7 +410,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			var promotedPurchaseIDs []string
@@ -421,14 +421,14 @@ Examples:
 				}
 				if !*confirm {
 					fmt.Fprintln(os.Stderr, "Error: --confirm is required with --clear")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				promotedPurchaseIDs = nil
 			} else {
 				promotedPurchaseIDs = shared.SplitCSV(*promotedIDs)
 				if len(promotedPurchaseIDs) == 0 {
 					fmt.Fprintln(os.Stderr, "Error: --promoted-purchase-id is required")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 			}
 

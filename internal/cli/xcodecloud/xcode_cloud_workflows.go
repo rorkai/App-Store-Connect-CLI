@@ -152,7 +152,7 @@ Examples:
 			fileValue := strings.TrimSpace(*file)
 			if fileValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			payload, err := shared.ReadJSONFilePayload(fileValue)
@@ -199,12 +199,12 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			fileValue := strings.TrimSpace(*file)
 			if fileValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			payload, err := shared.ReadJSONFilePayload(fileValue)
@@ -270,7 +270,7 @@ func xcodeCloudWorkflowsList(ctx context.Context, appID string, limit int, next 
 	resolvedAppID := shared.ResolveAppID(appID)
 	if resolvedAppID == "" && nextURL == "" {
 		fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 
 	client, err := shared.GetASCClient()

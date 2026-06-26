@@ -35,11 +35,11 @@ Examples:
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to release a version")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

@@ -160,7 +160,7 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			includeValues, err := normalizeProfileInclude(*include)
@@ -217,22 +217,22 @@ Examples:
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			profileTypeValue := strings.ToUpper(strings.TrimSpace(*profileType))
 			if profileTypeValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --profile-type is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --bundle is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			certificateIDs := shared.SplitCSV(*certificates)
 			if len(certificateIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --certificate is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			deviceIDs := shared.SplitCSV(*devices)
 
@@ -280,11 +280,11 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -331,12 +331,12 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			pathValue := strings.TrimSpace(*outputPath)
 			if pathValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --output is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

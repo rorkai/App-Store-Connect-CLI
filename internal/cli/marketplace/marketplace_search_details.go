@@ -64,7 +64,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			fieldsValue, err := normalizeMarketplaceSearchDetailFields(*fields)
@@ -112,13 +112,13 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			catalogURLValue := strings.TrimSpace(*catalogURL)
 			if catalogURLValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --catalog-url is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -161,7 +161,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*detailID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --search-detail-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			visited := map[string]bool{}
@@ -171,7 +171,7 @@ Examples:
 
 			if !visited["catalog-url"] {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.MarketplaceSearchDetailUpdateAttributes{}
@@ -220,11 +220,11 @@ Examples:
 			trimmedID := strings.TrimSpace(*detailID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --search-detail-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

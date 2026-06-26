@@ -98,7 +98,7 @@ Examples:
 			case shared.LocalizationTypeVersion:
 				if strings.TrimSpace(*versionID) == "" {
 					fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 
 				client, err := shared.GetASCClient()
@@ -144,7 +144,7 @@ Examples:
 				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				client, err := shared.GetASCClient()
 				if err != nil {
@@ -244,7 +244,7 @@ Examples:
 			case shared.LocalizationTypeVersion:
 				if strings.TrimSpace(*versionID) == "" {
 					fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 
 				client, err := shared.GetASCClient()
@@ -319,7 +319,7 @@ Examples:
 				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				client, err := shared.GetASCClient()
 				if err != nil {
@@ -432,7 +432,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*path) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			normalizedType, err := shared.NormalizeLocalizationType(*locType)
@@ -446,7 +446,7 @@ Examples:
 			case shared.LocalizationTypeVersion:
 				if strings.TrimSpace(*versionID) == "" {
 					fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 
 				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
@@ -507,7 +507,7 @@ Examples:
 				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				valuesByLocale, err := shared.ReadLocalizationStrings(*path, locales)
 				if err != nil {

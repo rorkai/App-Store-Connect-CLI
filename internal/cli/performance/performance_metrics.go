@@ -63,7 +63,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			platforms, err := normalizePerfPowerMetricPlatforms(shared.SplitCSVUpper(*platform), "--platform")
@@ -123,7 +123,7 @@ Examples:
 			trimmedBuildID := strings.TrimSpace(*buildID)
 			if trimmedBuildID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			platforms, err := normalizePerfPowerMetricPlatforms(shared.SplitCSVUpper(*platform), "--platform")

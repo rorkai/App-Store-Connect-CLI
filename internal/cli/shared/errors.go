@@ -75,6 +75,12 @@ func UsageErrorf(format string, args ...any) error {
 	return UsageError(fmt.Sprintf(format, args...))
 }
 
+// MissingRequiredUsageError classifies a required-input failure after the
+// command has already written its diagnostic to stderr.
+func MissingRequiredUsageError() error {
+	return classifiedUsageError{kind: UsageErrorMissingRequired}
+}
+
 func ClassifyUsageError(err error) UsageErrorKind {
 	var classified classifiedUsageError
 	if errors.As(err, &classified) {

@@ -67,11 +67,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*subscriptionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*inputPath) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --input is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			normalizedOfferDuration := ""
 			if strings.TrimSpace(*offerDuration) != "" {

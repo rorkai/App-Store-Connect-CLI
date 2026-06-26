@@ -480,11 +480,11 @@ so commands continue to work even if the original .p8 file is removed.`,
 			}
 			if *name == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *keyID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --key-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			normalizedKeyType := config.NormalizeCredentialKeyType(*keyType)
 			if !config.IsValidCredentialKeyType(normalizedKeyType) {
@@ -492,14 +492,14 @@ so commands continue to work even if the original .p8 file is removed.`,
 			}
 			if normalizedKeyType == config.CredentialKeyTypeTeam && *issuerID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --issuer-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if normalizedKeyType == config.CredentialKeyTypeIndividual && strings.TrimSpace(*issuerID) != "" {
 				return shared.UsageError("--issuer-id must be omitted when --key-type individual")
 			}
 			if *keyPath == "" {
 				fmt.Fprintln(os.Stderr, "Error: --private-key is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *skipValidation && *network {
 				return shared.UsageError("--skip-validation and --network are mutually exclusive")
@@ -703,7 +703,7 @@ Examples:
 			trimmedName := strings.TrimSpace(*name)
 			if trimmedName == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			credentials, err := listCredentialSummaries()

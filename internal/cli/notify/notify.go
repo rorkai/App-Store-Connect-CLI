@@ -116,7 +116,7 @@ Examples:
 			webhookURL := resolveWebhook(*webhook)
 			if webhookURL == "" {
 				fmt.Fprintf(os.Stderr, "Error: --webhook is required or set %s env var\n", slackWebhookEnvVar)
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if err := validateSlackWebhookURL(webhookURL); err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err.Error())
@@ -126,7 +126,7 @@ Examples:
 			msg := strings.TrimSpace(*message)
 			if msg == "" {
 				fmt.Fprintln(os.Stderr, "Error: --message is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			blocks, err := parseSlackBlocks(*blocksJSON, *blocksFile)

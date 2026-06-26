@@ -37,19 +37,19 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to submit for review")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			id := strings.TrimSpace(*eventID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --event-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)

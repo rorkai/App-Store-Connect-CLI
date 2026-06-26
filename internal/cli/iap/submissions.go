@@ -34,11 +34,11 @@ Examples:
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

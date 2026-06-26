@@ -76,7 +76,7 @@ Examples:
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedNext == "" && strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -159,7 +159,7 @@ Examples:
 			}
 			if strings.TrimSpace(*next) == "" && strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -232,7 +232,7 @@ Examples:
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -279,11 +279,11 @@ Examples:
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*localizationID) == "" && strings.TrimSpace(*eventID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --event-id or --localization-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			normalizedAssetType, err := normalizeAppEventAssetType(*assetType)
@@ -364,11 +364,11 @@ Examples:
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

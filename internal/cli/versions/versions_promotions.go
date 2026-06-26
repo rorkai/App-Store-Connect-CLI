@@ -58,12 +58,12 @@ Examples:
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			treatment := strings.TrimSpace(*treatmentID)
 			if treatment == "" {
 				fmt.Fprintln(os.Stderr, "Error: --treatment-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

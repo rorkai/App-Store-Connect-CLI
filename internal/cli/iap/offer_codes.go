@@ -84,7 +84,7 @@ Examples:
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -155,7 +155,7 @@ Examples:
 			offerCodeValue := strings.TrimSpace(*offerCodeID)
 			if offerCodeValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -202,13 +202,13 @@ Examples:
 			iapValue := strings.TrimSpace(*iapID)
 			if iapValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			parsedEligibilities, err := parseOfferCodeEligibilities(*eligibilities)
@@ -227,7 +227,7 @@ Examples:
 			}
 			if len(priceEntries) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --prices is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -280,11 +280,11 @@ Examples:
 			offerCodeValue := strings.TrimSpace(*offerCodeID)
 			if offerCodeValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !active.IsSet() {
 				fmt.Fprintln(os.Stderr, "Error: --active is required (true or false)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

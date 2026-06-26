@@ -118,19 +118,19 @@ Examples:
 			}
 			if strings.TrimSpace(*workspacePath) == "" && strings.TrimSpace(*projectPath) == "" {
 				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*workspacePath) != "" && strings.TrimSpace(*projectPath) != "" {
 				fmt.Fprintln(os.Stderr, "Error: exactly one of --workspace or --project is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*scheme) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --scheme is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*archivePath) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --archive-path is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			result, err := runArchive(ctx, localxcode.ArchiveOptions{
@@ -207,15 +207,15 @@ Examples:
 			}
 			if strings.TrimSpace(*archivePath) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --archive-path is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*exportOptions) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --export-options is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*ipaPath) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --ipa-path is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *wait && *pollInterval <= 0 {
 				return shared.UsageError("--poll-interval must be greater than 0")
@@ -363,7 +363,7 @@ Examples:
 			}
 			if trimmedIPAPath == "" {
 				fmt.Fprintln(os.Stderr, "Error: --ipa is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !strings.EqualFold(filepath.Ext(trimmedIPAPath), ".ipa") {
 				return shared.UsageError("--ipa must end with .ipa")

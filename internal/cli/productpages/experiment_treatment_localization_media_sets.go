@@ -64,7 +64,7 @@ Examples:
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return fmt.Errorf("experiments treatments localizations preview-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
@@ -165,7 +165,7 @@ Examples:
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > productPagesMaxLimit) {
 				return fmt.Errorf("experiments treatments localizations screenshot-sets list: --limit must be between 1 and %d", productPagesMaxLimit)
@@ -269,7 +269,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to sync")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			result, err := executeExperimentTreatmentLocalizationScreenshotUpload(ctx, *localizationID, *path, *deviceType, true)

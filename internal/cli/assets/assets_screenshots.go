@@ -307,7 +307,7 @@ Examples:
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-localization is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -1279,7 +1279,7 @@ Examples:
 
 			if idValue == "" && locID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --version-localization is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if idValue != "" && locID != "" {
 				return shared.UsageError("--id and --version-localization are mutually exclusive")
@@ -1290,7 +1290,7 @@ Examples:
 			if idValue != "" {
 				if outputFile == "" {
 					fmt.Fprintln(os.Stderr, "Error: --output is required with --id")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				if strings.HasSuffix(outputFile, string(filepath.Separator)) {
 					return shared.UsageError("--output must be a file path")
@@ -1299,7 +1299,7 @@ Examples:
 			if locID != "" {
 				if outputDirValue == "" {
 					fmt.Fprintln(os.Stderr, "Error: --output-dir is required with --version-localization")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 			}
 
@@ -1608,11 +1608,11 @@ Examples:
 			assetID := strings.TrimSpace(*id)
 			if assetID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

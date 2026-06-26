@@ -255,20 +255,34 @@ func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
 }
 
 func TestRun_ReviewsMissingRequiredFlagsReturnsUsage(t *testing.T) {
-	resetReportFlags(t)
-	t.Setenv("ASC_APP_ID", "")
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
 
-	stdout, stderr := captureCommandOutput(t, func() {
-		if code := Run([]string{"reviews"}, "1.0.0"); code != ExitUsage {
-			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
-		}
-	})
+	for _, args := range [][]string{{"reviews"}, {"reviews", "list"}} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			resetReportFlags(t)
+			t.Setenv("ASC_APP_ID", "")
+			var gotContext telemetry.EventContext
+			emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+				gotContext = eventContext
+			}
 
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "--app is required") {
-		t.Fatalf("expected missing app error, got %q", stderr)
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "--app is required") {
+				t.Fatalf("expected missing app error, got %q", stderr)
+			}
+			if gotContext.ErrorKind != telemetry.ErrorKindMissingRequired || gotContext.FailureStage != telemetry.FailureStageValidation {
+				t.Fatalf("unexpected telemetry context: %+v", gotContext)
+			}
+		})
 	}
 }
 

@@ -93,7 +93,7 @@ func buildSubscriptionsPricingSummaryCommand(
 			resolvedAppID := shared.ResolveAppID(requestedAppID)
 			if requestedSubID == "" && resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app or --subscription-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			territoryInput := strings.TrimSpace(*territory)
