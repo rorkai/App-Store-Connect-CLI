@@ -26,6 +26,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/telemetry"
 )
 
 func TestRun_VersionFlag(t *testing.T) {
@@ -67,7 +68,7 @@ func TestRun_ReportFlagValidationErrorEmitsTelemetry(t *testing.T) {
 	var commandName string
 	var duration time.Duration
 	var exitCode int
-	emitTelemetry = func(command, _ string, elapsed time.Duration, code int) {
+	emitTelemetry = func(command, _ string, elapsed time.Duration, code int, _ telemetry.EventContext) {
 		calls++
 		commandName = command
 		duration = elapsed
@@ -101,7 +102,7 @@ func TestRun_ParseErrorEmitsTelemetry(t *testing.T) {
 	var commandName string
 	var duration time.Duration
 	var exitCode int
-	emitTelemetry = func(command, _ string, elapsed time.Duration, code int) {
+	emitTelemetry = func(command, _ string, elapsed time.Duration, code int, _ telemetry.EventContext) {
 		calls++
 		commandName = command
 		duration = elapsed
@@ -156,6 +157,105 @@ func TestRun_UnknownCommandReturnsUsage(t *testing.T) {
 	code := Run([]string{"unknown-command"}, "1.0.0")
 	if code != ExitUsage {
 		t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+	}
+}
+
+func TestRun_BareGroupPrintsHelpToStdoutAndExitsSuccessfully(t *testing.T) {
+	resetReportFlags(t)
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+		gotContext = eventContext
+	}
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"builds"}, "1.0.0"); code != ExitSuccess {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
+		}
+	})
+
+	if !strings.Contains(stdout, "asc builds list") {
+		t.Fatalf("expected builds help on stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if gotContext.InvocationShape != telemetry.InvocationShapeBareGroup {
+		t.Fatalf("InvocationShape = %q, want %q", gotContext.InvocationShape, telemetry.InvocationShapeBareGroup)
+	}
+	if gotContext.ErrorKind != "" || gotContext.FailureStage != "" {
+		t.Fatalf("successful help should not carry failure context: %+v", gotContext)
+	}
+}
+
+func TestRun_UnknownNestedSubcommandSuggestsRealSubcommand(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"builds", "lsit"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Did you mean: list") {
+		t.Fatalf("expected list suggestion, got %q", stderr)
+	}
+}
+
+func TestRun_UnknownFlagSuggestsRealFlagAndEmitsContext(t *testing.T) {
+	resetReportFlags(t)
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+		gotContext = eventContext
+	}
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"versions", "attach-build", "--version-id", "VERSION_ID", "--build-id", "BUILD_ID"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Did you mean: --build") {
+		t.Fatalf("expected --build suggestion, got %q", stderr)
+	}
+	if gotContext.InvocationShape != telemetry.InvocationShapeLeaf ||
+		gotContext.ErrorKind != telemetry.ErrorKindUnknownFlag ||
+		gotContext.FailureStage != telemetry.FailureStageParse {
+		t.Fatalf("unexpected telemetry context: %+v", gotContext)
+	}
+}
+
+func TestRun_UnknownGroupFlagIsNotClassifiedAsBareGroup(t *testing.T) {
+	resetReportFlags(t)
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+		gotContext = eventContext
+	}
+
+	captureCommandOutput(t, func() {
+		if code := Run([]string{"builds", "--definitely-invalid"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if gotContext.InvocationShape != telemetry.InvocationShapeGroupWithFlags ||
+		gotContext.ErrorKind != telemetry.ErrorKindUnknownFlag ||
+		gotContext.FailureStage != telemetry.FailureStageParse {
+		t.Fatalf("unexpected telemetry context: %+v", gotContext)
 	}
 }
 
@@ -440,7 +540,7 @@ func TestRun_HelpEmitsTelemetry(t *testing.T) {
 	var commandName string
 	var duration time.Duration
 	var exitCode int
-	emitTelemetry = func(command, _ string, elapsed time.Duration, code int) {
+	emitTelemetry = func(command, _ string, elapsed time.Duration, code int, _ telemetry.EventContext) {
 		commandName = command
 		duration = elapsed
 		exitCode = code
@@ -451,6 +551,7 @@ func TestRun_HelpEmitsTelemetry(t *testing.T) {
 		RootCommand("1.0.0"),
 		"1.0.0",
 		ExitSuccess,
+		telemetry.EventContext{InvocationShape: telemetry.InvocationShapeGroupWithFlags},
 	)
 	if commandName != "asc builds" {
 		t.Fatalf("telemetry command = %q, want %q", commandName, "asc builds")

@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -51,6 +52,66 @@ func TestBuildEventSanitizesCommand(t *testing.T) {
 		if _, exists := payload[forbiddenField]; exists {
 			t.Fatalf("event contains forbidden raw-argument field %q", forbiddenField)
 		}
+	}
+}
+
+func TestBuildEventWithContextEmitsOnlyLowCardinalityClassifications(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+
+	ev, ok := BuildEventWithContext(
+		"asc versions attach-build",
+		"1.2.3",
+		0,
+		2,
+		EventContext{
+			InvocationShape: InvocationShapeLeaf,
+			ErrorKind:       ErrorKindUnknownFlag,
+			FailureStage:    FailureStageParse,
+		},
+	)
+	if !ok {
+		t.Fatal("expected event")
+	}
+	if ev.SchemaVersion != 2 {
+		t.Fatalf("SchemaVersion = %d, want 2", ev.SchemaVersion)
+	}
+	if ev.InvocationShape != InvocationShapeLeaf || ev.ErrorKind == nil || *ev.ErrorKind != ErrorKindUnknownFlag ||
+		ev.FailureStage == nil || *ev.FailureStage != FailureStageParse {
+		t.Fatalf("unexpected classifications: %+v", ev)
+	}
+
+	data, err := json.Marshal(ev)
+	if err != nil {
+		t.Fatalf("marshal event: %v", err)
+	}
+	for _, forbidden := range []string{"stderr", "error_message", "args", "argv"} {
+		if strings.Contains(string(data), forbidden) {
+			t.Fatalf("payload contains forbidden field %q: %s", forbidden, data)
+		}
+	}
+}
+
+func TestBuildEventWithContextCanonicalizesFailureStage(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+
+	ev, ok := BuildEventWithContext(
+		"asc versions attach-build",
+		"1.2.3",
+		0,
+		2,
+		EventContext{
+			InvocationShape: InvocationShapeLeaf,
+			ErrorKind:       ErrorKindUnknownFlag,
+			FailureStage:    FailureStageRequest,
+		},
+	)
+	if !ok || ev.FailureStage == nil {
+		t.Fatal("expected classified event")
+	}
+	if *ev.FailureStage != FailureStageParse {
+		t.Fatalf("FailureStage = %q, want %q", *ev.FailureStage, FailureStageParse)
 	}
 }
 

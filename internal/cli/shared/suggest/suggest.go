@@ -33,7 +33,7 @@ func Commands(input string, candidates []string) []string {
 		}
 
 		d := levenshtein(in, name)
-		if !withinThreshold(in, d) {
+		if !withinThreshold(in, d) && !isAdjacentTransposition(in, name) {
 			continue
 		}
 		collected = append(collected, candidate{name: name, score: 1, dist: d})
@@ -67,6 +67,24 @@ func Commands(input string, candidates []string) []string {
 		}
 	}
 	return out
+}
+
+func isAdjacentTransposition(a, b string) bool {
+	if len(a) != len(b) || len(a) < 2 {
+		return false
+	}
+	first := -1
+	for i := range len(a) {
+		if a[i] == b[i] {
+			continue
+		}
+		if first == -1 {
+			first = i
+			continue
+		}
+		return i == first+1 && a[first] == b[i] && a[i] == b[first] && a[i+1:] == b[i+1:]
+	}
+	return false
 }
 
 func withinThreshold(input string, dist int) bool {

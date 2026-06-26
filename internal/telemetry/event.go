@@ -25,6 +25,45 @@ type Event struct {
 	InvocationSource InvocationSource `json:"invocation_source"`
 	InstallID        *string          `json:"install_id"`
 	SessionID        string           `json:"session_id"`
+	InvocationShape  InvocationShape  `json:"invocation_shape"`
+	ErrorKind        *ErrorKind       `json:"error_kind"`
+	FailureStage     *FailureStage    `json:"failure_stage"`
+}
+
+type InvocationShape string
+
+const (
+	InvocationShapeLeaf           InvocationShape = "leaf"
+	InvocationShapeBareGroup      InvocationShape = "bare_group"
+	InvocationShapeGroupWithFlags InvocationShape = "group_with_flags"
+	InvocationShapeUnknownChild   InvocationShape = "unknown_child"
+)
+
+type ErrorKind string
+
+const (
+	ErrorKindUnknownFlag     ErrorKind = "unknown_flag"
+	ErrorKindMissingRequired ErrorKind = "missing_required"
+	ErrorKindInvalidValue    ErrorKind = "invalid_value"
+	ErrorKindBareGroup       ErrorKind = "bare_group"
+	ErrorKindAPIConflict     ErrorKind = "api_conflict"
+	ErrorKindAPI5xx          ErrorKind = "api_5xx"
+	ErrorKindOther           ErrorKind = "other"
+)
+
+type FailureStage string
+
+const (
+	FailureStageParse      FailureStage = "parse"
+	FailureStageValidation FailureStage = "validation"
+	FailureStageRequest    FailureStage = "request"
+	FailureStageExecution  FailureStage = "execution"
+)
+
+type EventContext struct {
+	InvocationShape InvocationShape
+	ErrorKind       ErrorKind
+	FailureStage    FailureStage
 }
 
 // processSessionID groups events from one CLI process without linking separate
@@ -32,6 +71,17 @@ type Event struct {
 var processSessionID = uuid.NewString()
 
 func BuildEvent(commandName, version string, duration time.Duration, exitCode int) (Event, bool) {
+	return BuildEventWithContext(commandName, version, duration, exitCode, EventContext{
+		InvocationShape: InvocationShapeLeaf,
+	})
+}
+
+func BuildEventWithContext(
+	commandName, version string,
+	duration time.Duration,
+	exitCode int,
+	eventContext EventContext,
+) (Event, bool) {
 	commandPath := sanitizeCommandName(commandName)
 	if commandPath == "" {
 		return Event{}, false
@@ -50,9 +100,11 @@ func BuildEvent(commandName, version string, duration time.Duration, exitCode in
 		}
 	}
 
+	eventContext = normalizeEventContext(eventContext, exitCode)
+
 	return Event{
 		EventID:          uuid.NewString(),
-		SchemaVersion:    1,
+		SchemaVersion:    2,
 		ASCVersion:       strings.TrimSpace(version),
 		OS:               runtime.GOOS,
 		Arch:             runtime.GOARCH,
@@ -66,7 +118,59 @@ func BuildEvent(commandName, version string, duration time.Duration, exitCode in
 		InvocationSource: invocationSource,
 		InstallID:        installID,
 		SessionID:        processSessionID,
+		InvocationShape:  eventContext.InvocationShape,
+		ErrorKind:        optionalErrorKind(eventContext.ErrorKind),
+		FailureStage:     optionalFailureStage(eventContext.FailureStage),
 	}, true
+}
+
+func normalizeEventContext(eventContext EventContext, exitCode int) EventContext {
+	switch eventContext.InvocationShape {
+	case InvocationShapeLeaf, InvocationShapeBareGroup, InvocationShapeGroupWithFlags, InvocationShapeUnknownChild:
+	default:
+		eventContext.InvocationShape = InvocationShapeLeaf
+	}
+
+	if exitCode == 0 {
+		eventContext.ErrorKind = ""
+		eventContext.FailureStage = ""
+		return eventContext
+	}
+	if eventContext.ErrorKind == "" {
+		eventContext.ErrorKind = ErrorKindOther
+	}
+	switch eventContext.ErrorKind {
+	case ErrorKindUnknownFlag:
+		eventContext.FailureStage = FailureStageParse
+	case ErrorKindMissingRequired, ErrorKindInvalidValue, ErrorKindBareGroup:
+		eventContext.FailureStage = FailureStageValidation
+	case ErrorKindAPIConflict, ErrorKindAPI5xx:
+		eventContext.FailureStage = FailureStageRequest
+	case ErrorKindOther:
+		switch eventContext.FailureStage {
+		case FailureStageParse, FailureStageValidation, FailureStageRequest, FailureStageExecution:
+		default:
+			eventContext.FailureStage = FailureStageExecution
+		}
+	default:
+		eventContext.ErrorKind = ErrorKindOther
+		eventContext.FailureStage = FailureStageExecution
+	}
+	return eventContext
+}
+
+func optionalErrorKind(kind ErrorKind) *ErrorKind {
+	if kind == "" {
+		return nil
+	}
+	return &kind
+}
+
+func optionalFailureStage(stage FailureStage) *FailureStage {
+	if stage == "" {
+		return nil
+	}
+	return &stage
 }
 
 func sanitizeCommandName(commandName string) string {
