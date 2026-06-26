@@ -34,7 +34,8 @@ class CheckAgentSkillsTests(unittest.TestCase):
         )
         (skill_dir / "agents" / "openai.yaml").write_text(
             metadata
-            or (
+            if metadata is not None
+            else (
                 'interface:\n'
                 '  display_name: "Sample Skill"\n'
                 '  short_description: "Validate a representative skill"\n'
@@ -85,6 +86,17 @@ class CheckAgentSkillsTests(unittest.TestCase):
             ):
                 errors = check_agent_skills.validate_skill(skill_dir, "$sample-skill")
         self.assertTrue(any("missing quoted display_name" in error for error in errors))
+
+    def test_validate_skill_rejects_empty_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            skill_dir = self.make_skill(root, metadata="")
+            with (
+                mock.patch.object(check_agent_skills, "ROOT", root),
+                mock.patch.object(check_agent_skills, "AGENTS_PATH", root / "AGENTS.md"),
+            ):
+                errors = check_agent_skills.validate_skill(skill_dir, "$sample-skill")
+        self.assertTrue(any("missing interface mapping" in error for error in errors))
 
     def test_main_reports_missing_agents_file_without_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
