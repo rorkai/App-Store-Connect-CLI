@@ -94,6 +94,13 @@ func Run(args []string, versionInfo string) int {
 	}
 
 	commandName := getCommandName(root, args)
+	if shouldRejectUnknownChild(root, analysis, commandName) {
+		runErr := shared.UsageErrorf("unexpected argument(s): %s", shared.SanitizeTerminal(analysis.unknownToken))
+		fmt.Fprint(os.Stderr, analysis.command.UsageFunc(analysis.command))
+		printUnknownSubcommandSuggestion(analysis)
+		emitImmediateTelemetry(args, root, versionInfo, ExitUsage, validationFailureContext(analysis, runErr))
+		return ExitUsage
+	}
 
 	runUsageOutput := &bytes.Buffer{}
 	restoreRunUsageOutput := redirectCommandFlagOutput(analysis.command, runUsageOutput)

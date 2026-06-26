@@ -303,20 +303,31 @@ func TestRun_UnknownHybridSubcommandReturnsUsageBeforeAuth(t *testing.T) {
 	t.Setenv("ASC_PRIVATE_KEY_B64", "")
 	t.Setenv("ASC_STRICT_AUTH", "")
 
-	stdout, stderr := captureCommandOutput(t, func() {
-		if code := Run([]string{"reviews", "lsti", "--app", "APP_ID"}, "1.0.0"); code != ExitUsage {
-			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
-		}
-	})
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "reviews", args: []string{"reviews", "lsti", "--app", "APP_ID"}},
+		{name: "xcode cloud workflows", args: []string{"xcode-cloud", "workflows", "lsti", "--app", "APP_ID"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(test.args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
 
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "SUBCOMMANDS") {
-		t.Fatalf("expected reviews help, got %q", stderr)
-	}
-	if strings.Contains(stderr, "missing authentication") {
-		t.Fatalf("expected unknown child validation before auth resolution, got %q", stderr)
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "SUBCOMMANDS") {
+				t.Fatalf("expected command help, got %q", stderr)
+			}
+			if strings.Contains(stderr, "missing authentication") {
+				t.Fatalf("expected unknown child validation before auth resolution, got %q", stderr)
+			}
+		})
 	}
 }
 

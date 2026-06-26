@@ -79,6 +79,17 @@ func shapeForCommand(command *ffcli.Command, sawFlag bool) telemetry.InvocationS
 	return telemetry.InvocationShapeBareGroup
 }
 
+func shouldRejectUnknownChild(root *ffcli.Command, analysis invocationAnalysis, commandName string) bool {
+	if analysis.shape != telemetry.InvocationShapeUnknownChild || analysis.command == nil || analysis.command == root {
+		return false
+	}
+
+	// Snitch intentionally accepts a positional report description before its
+	// optional flush subcommand. Other command groups treat unmatched children
+	// as usage errors before their default action can run.
+	return commandName != "asc snitch"
+}
+
 func isHelpToken(token string) bool {
 	return token == "-h" || token == "--help" || strings.HasPrefix(token, "--help=")
 }
