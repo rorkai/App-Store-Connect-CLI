@@ -254,12 +254,20 @@ func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
 	}
 }
 
-func TestRun_ReviewsMissingRequiredFlagsReturnsUsage(t *testing.T) {
+func TestRun_MissingRequiredFlagsEmitContext(t *testing.T) {
 	originalEmitTelemetry := emitTelemetry
 	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
 
-	for _, args := range [][]string{{"reviews"}, {"reviews", "list"}} {
-		t.Run(strings.Join(args, " "), func(t *testing.T) {
+	tests := []struct {
+		args       []string
+		wantStderr string
+	}{
+		{args: []string{"reviews"}, wantStderr: "--app is required"},
+		{args: []string{"reviews", "list"}, wantStderr: "--app is required"},
+		{args: []string{"screenshots", "plan", "--version", "1.0"}, wantStderr: "--app is required"},
+	}
+	for _, test := range tests {
+		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
 			resetReportFlags(t)
 			t.Setenv("ASC_APP_ID", "")
 			var gotContext telemetry.EventContext
@@ -268,7 +276,7 @@ func TestRun_ReviewsMissingRequiredFlagsReturnsUsage(t *testing.T) {
 			}
 
 			stdout, stderr := captureCommandOutput(t, func() {
-				if code := Run(args, "1.0.0"); code != ExitUsage {
+				if code := Run(test.args, "1.0.0"); code != ExitUsage {
 					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
 				}
 			})
@@ -276,8 +284,8 @@ func TestRun_ReviewsMissingRequiredFlagsReturnsUsage(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if !strings.Contains(stderr, "--app is required") {
-				t.Fatalf("expected missing app error, got %q", stderr)
+			if !strings.Contains(stderr, test.wantStderr) {
+				t.Fatalf("expected %q, got %q", test.wantStderr, stderr)
 			}
 			if gotContext.ErrorKind != telemetry.ErrorKindMissingRequired || gotContext.FailureStage != telemetry.FailureStageValidation {
 				t.Fatalf("unexpected telemetry context: %+v", gotContext)

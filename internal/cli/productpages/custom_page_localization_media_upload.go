@@ -190,17 +190,17 @@ func executeCustomPagePreviewUpload(
 	trimmedLocalizationID := strings.TrimSpace(localizationID)
 	if trimmedLocalizationID == "" {
 		fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-		return nil, flag.ErrHelp
+		return nil, shared.MissingRequiredUsageError()
 	}
 	trimmedPath := strings.TrimSpace(path)
 	if trimmedPath == "" {
 		fmt.Fprintln(os.Stderr, "Error: --path is required")
-		return nil, flag.ErrHelp
+		return nil, shared.MissingRequiredUsageError()
 	}
 	trimmedDeviceType := strings.TrimSpace(deviceType)
 	if trimmedDeviceType == "" {
 		fmt.Fprintln(os.Stderr, "Error: --device-type is required")
-		return nil, flag.ErrHelp
+		return nil, shared.MissingRequiredUsageError()
 	}
 
 	previewType, err := assets.NormalizePreviewType(trimmedDeviceType)

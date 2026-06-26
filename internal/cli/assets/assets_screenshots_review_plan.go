@@ -216,7 +216,7 @@ func executeScreenshotReviewPlan(ctx context.Context, opts screenshotReviewPlanO
 	resolvedAppID := shared.ResolveAppID(opts.AppID)
 	if strings.TrimSpace(resolvedAppID) == "" {
 		fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-		return nil, flag.ErrHelp
+		return nil, shared.MissingRequiredUsageError()
 	}
 
 	versionValue := strings.TrimSpace(opts.Version)
