@@ -331,6 +331,39 @@ func TestRun_UnknownHybridSubcommandReturnsUsageBeforeAuth(t *testing.T) {
 	}
 }
 
+func TestRun_RemovedSubcommandsPreserveMigrationGuidance(t *testing.T) {
+	resetReportFlags(t)
+
+	tests := []struct {
+		name       string
+		args       []string
+		wantStderr string
+	}{
+		{name: "normalized get", args: []string{"builds", "app", "get"}, wantStderr: "Use `asc builds app view` instead."},
+		{name: "normalized set", args: []string{"age-rating", "set"}, wantStderr: "Use `asc age-rating edit` instead."},
+		{name: "apps create", args: []string{"apps", "create"}, wantStderr: "Use `asc web apps create` instead."},
+		{name: "submit create", args: []string{"submit", "create"}, wantStderr: "Use `asc review submit`"},
+		{name: "submit preflight", args: []string{"submit", "preflight"}, wantStderr: "Use `asc validate` instead."},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(test.args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantStderr) {
+				t.Fatalf("expected migration guidance %q, got %q", test.wantStderr, stderr)
+			}
+		})
+	}
+}
+
 func TestRun_SnitchPreservesPositionalDescription(t *testing.T) {
 	resetReportFlags(t)
 	t.Setenv("GITHUB_TOKEN", "")

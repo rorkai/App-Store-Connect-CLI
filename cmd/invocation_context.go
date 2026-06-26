@@ -85,9 +85,28 @@ func shouldRejectUnknownChild(root *ffcli.Command, analysis invocationAnalysis, 
 	}
 
 	// Snitch intentionally accepts a positional report description before its
-	// optional flush subcommand. Other command groups treat unmatched children
-	// as usage errors before their default action can run.
-	return commandName != "asc snitch"
+	// optional flush subcommand. Normalized view/edit commands and a few removed
+	// commands also handle legacy children to print precise migration guidance.
+	return commandName != "asc snitch" && !preservesLegacyChild(analysis, commandName)
+}
+
+func preservesLegacyChild(analysis invocationAnalysis, commandName string) bool {
+	token := strings.TrimSpace(analysis.unknownToken)
+	if token == "get" && findDirectSubcommand(analysis.command, "view") != nil {
+		return true
+	}
+	if token == "set" && findDirectSubcommand(analysis.command, "edit") != nil {
+		return true
+	}
+
+	switch commandName {
+	case "asc apps":
+		return token == "create"
+	case "asc submit":
+		return token == "create" || token == "preflight"
+	default:
+		return false
+	}
 }
 
 func isHelpToken(token string) bool {
