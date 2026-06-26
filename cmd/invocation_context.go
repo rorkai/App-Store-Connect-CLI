@@ -171,14 +171,7 @@ func printUnknownFlagSuggestion(analysis invocationAnalysis) {
 	analysis.command.FlagSet.VisitAll(func(f *flag.Flag) {
 		candidates = append(candidates, f.Name)
 	})
-	suggestions := suggest.Commands(input, candidates)
-	if len(suggestions) == 0 {
-		return
-	}
-	for i, item := range suggestions {
-		suggestions[i] = "--" + shared.SanitizeTerminal(item)
-	}
-	fmt.Fprintf(os.Stderr, "Did you mean: %s?\n", strings.Join(suggestions, ", "))
+	printSuggestions(input, candidates, "--")
 }
 
 func printUnknownSubcommandSuggestion(analysis invocationAnalysis) {
@@ -189,12 +182,16 @@ func printUnknownSubcommandSuggestion(analysis invocationAnalysis) {
 	for _, sub := range analysis.command.Subcommands {
 		candidates = append(candidates, sub.Name)
 	}
-	suggestions := suggest.Commands(analysis.unknownToken, candidates)
+	printSuggestions(analysis.unknownToken, candidates, "")
+}
+
+func printSuggestions(input string, candidates []string, prefix string) {
+	suggestions := suggest.Commands(input, candidates)
 	if len(suggestions) == 0 {
 		return
 	}
 	for i, item := range suggestions {
-		suggestions[i] = shared.SanitizeTerminal(item)
+		suggestions[i] = prefix + shared.SanitizeTerminal(item)
 	}
 	fmt.Fprintf(os.Stderr, "Did you mean: %s?\n", strings.Join(suggestions, ", "))
 }
