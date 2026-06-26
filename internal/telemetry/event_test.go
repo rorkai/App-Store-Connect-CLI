@@ -115,6 +115,39 @@ func TestBuildEventWithContextCanonicalizesFailureStage(t *testing.T) {
 	}
 }
 
+func TestBuildEventWithContextRejectsUnboundedContextValues(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+
+	ev, ok := BuildEventWithContext(
+		"asc builds",
+		"1.2.3",
+		0,
+		2,
+		EventContext{
+			InvocationShape: InvocationShape("unknown_child:private-app-name"),
+			ErrorKind:       ErrorKind("unknown_flag:--private-value"),
+			FailureStage:    FailureStage("stderr:private-error"),
+		},
+	)
+	if !ok || ev.ErrorKind == nil || ev.FailureStage == nil {
+		t.Fatal("expected canonicalized event")
+	}
+	if ev.InvocationShape != InvocationShapeLeaf || *ev.ErrorKind != ErrorKindOther || *ev.FailureStage != FailureStageExecution {
+		t.Fatalf("unexpected canonicalized context: %+v", ev)
+	}
+
+	data, err := json.Marshal(ev)
+	if err != nil {
+		t.Fatalf("marshal event: %v", err)
+	}
+	for _, privateValue := range []string{"private-app-name", "private-value", "private-error"} {
+		if strings.Contains(string(data), privateValue) {
+			t.Fatalf("payload leaked unbounded context %q: %s", privateValue, data)
+		}
+	}
+}
+
 func TestBuildEventReusesProcessSessionID(t *testing.T) {
 	clearContextEnv(t)
 	setTelemetryTestHome(t)
