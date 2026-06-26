@@ -229,6 +229,13 @@ func TestRun_BareGroupWritesJUnitReport(t *testing.T) {
 func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
 	resetReportFlags(t)
 	t.Setenv("ASC_APP_ID", "")
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+		gotContext = eventContext
+	}
 
 	stdout, stderr := captureCommandOutput(t, func() {
 		if code := Run([]string{"validate"}, "1.0.0"); code != ExitUsage {
@@ -241,6 +248,9 @@ func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
 	}
 	if !strings.Contains(stderr, "--version or --version-id is required") {
 		t.Fatalf("expected missing version error, got %q", stderr)
+	}
+	if gotContext.ErrorKind != telemetry.ErrorKindMissingRequired || gotContext.FailureStage != telemetry.FailureStageValidation {
+		t.Fatalf("unexpected telemetry context: %+v", gotContext)
 	}
 }
 
@@ -307,6 +317,22 @@ func TestRun_UnknownHybridSubcommandReturnsUsageBeforeAuth(t *testing.T) {
 	}
 	if strings.Contains(stderr, "missing authentication") {
 		t.Fatalf("expected unknown child validation before auth resolution, got %q", stderr)
+	}
+}
+
+func TestRun_SnitchPreservesPositionalDescription(t *testing.T) {
+	resetReportFlags(t)
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_TOKEN", "")
+
+	_, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"snitch", "--dry-run", "status command needs bundle ID support"}, "1.0.0"); code != ExitSuccess {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
+		}
+	})
+
+	if !strings.Contains(stderr, "status command needs bundle ID support") {
+		t.Fatalf("expected snitch preview to preserve description, got %q", stderr)
 	}
 }
 

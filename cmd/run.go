@@ -38,7 +38,6 @@ func Run(args []string, versionInfo string) int {
 	}
 
 	root := RootCommand(versionInfo)
-	rejectUnexpectedHybridArgs(root)
 	analysis := analyzeInvocation(root, args)
 	runCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stopSignals()

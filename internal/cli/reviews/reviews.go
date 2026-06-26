@@ -70,11 +70,13 @@ Examples:
 			ReviewsResponseCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
-			// If no flags are set and no args, show help
+			if len(args) > 0 {
+				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
+			}
+
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return flag.ErrHelp
+				return shared.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 
 			// Execute the list functionality directly

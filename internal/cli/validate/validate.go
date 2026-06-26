@@ -97,8 +97,7 @@ Subscriptions:
 			trimmedVersion := strings.TrimSpace(*version)
 			trimmedVersionID := strings.TrimSpace(*versionID)
 			if trimmedVersion == "" && trimmedVersionID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --version or --version-id is required")
-				return flag.ErrHelp
+				return shared.UsageError("--version or --version-id is required")
 			}
 			if trimmedVersion != "" && trimmedVersionID != "" {
 				return shared.UsageError("--version and --version-id are mutually exclusive")
@@ -106,8 +105,7 @@ Subscriptions:
 
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.UsageError("--app is required (or set ASC_APP_ID)")
 			}
 
 			var normalizedPlatform string
