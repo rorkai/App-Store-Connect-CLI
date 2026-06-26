@@ -38,6 +38,7 @@ func Run(args []string, versionInfo string) int {
 	}
 
 	root := RootCommand(versionInfo)
+	rejectUnexpectedHybridArgs(root)
 	analysis := analyzeInvocation(root, args)
 	runCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stopSignals()
@@ -155,6 +156,7 @@ func Run(args []string, versionInfo string) int {
 			emitTelemetry(commandName, versionInfo, elapsed, ExitUsage, validationFailureContext(analysis, runErr))
 			return ExitUsage
 		}
+		printUnknownSubcommandSuggestion(analysis)
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(runErr))
 		exitCode := ExitCodeFromError(runErr)
 		emitTelemetry(commandName, versionInfo, elapsed, exitCode, runtimeFailureContext(analysis, runErr, exitCode))

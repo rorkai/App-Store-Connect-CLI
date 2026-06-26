@@ -279,6 +279,37 @@ func TestRun_UnknownNestedSubcommandSuggestsRealSubcommand(t *testing.T) {
 	}
 }
 
+func TestRun_UnknownHybridSubcommandReturnsUsageBeforeAuth(t *testing.T) {
+	resetReportFlags(t)
+
+	tempDir := t.TempDir()
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_STRICT_AUTH", "")
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"reviews", "lsti", "--app", "APP_ID"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "SUBCOMMANDS") {
+		t.Fatalf("expected reviews help, got %q", stderr)
+	}
+	if strings.Contains(stderr, "missing authentication") {
+		t.Fatalf("expected unknown child validation before auth resolution, got %q", stderr)
+	}
+}
+
 func TestRun_UnknownFlagSuggestsRealFlagAndEmitsContext(t *testing.T) {
 	resetReportFlags(t)
 	originalEmitTelemetry := emitTelemetry

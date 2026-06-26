@@ -38,6 +38,13 @@ func TestRuntimeFailureContextClassifiesLowCardinalityFailures(t *testing.T) {
 			wantKind:  telemetry.ErrorKindAPI5xx,
 			wantStage: telemetry.FailureStageRequest,
 		},
+		{
+			name:      "API server failure at upper exit code boundary",
+			err:       errors.New("server failure"),
+			exitCode:  HTTPStatusToExitCode(599),
+			wantKind:  telemetry.ErrorKindAPI5xx,
+			wantStage: telemetry.FailureStageRequest,
+		},
 	}
 
 	for _, test := range tests {
@@ -47,6 +54,16 @@ func TestRuntimeFailureContextClassifiesLowCardinalityFailures(t *testing.T) {
 				t.Fatalf("runtimeFailureContext() = %+v, want kind=%q stage=%q", got, test.wantKind, test.wantStage)
 			}
 		})
+	}
+}
+
+func TestAnalyzeInvocationPreservesRawTokens(t *testing.T) {
+	root := RootCommand("1.0.0")
+
+	got := analyzeInvocation(root, []string{" builds "})
+
+	if got.command != root || got.shape != telemetry.InvocationShapeUnknownChild || got.unknownToken != " builds " {
+		t.Fatalf("analyzeInvocation() = %+v, want root unknown child with raw token", got)
 	}
 }
 

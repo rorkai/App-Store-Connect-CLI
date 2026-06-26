@@ -27,7 +27,7 @@ func analyzeInvocation(root *ffcli.Command, args []string) invocationAnalysis {
 	sawFlag := false
 
 	for i := 0; i < len(args); {
-		token := strings.TrimSpace(args[i])
+		token := args[i]
 		if token == "" {
 			i++
 			continue
@@ -67,6 +67,23 @@ func analyzeInvocation(root *ffcli.Command, args []string) invocationAnalysis {
 	}
 
 	return invocationAnalysis{command: current, shape: shapeForCommand(current, sawFlag)}
+}
+
+func rejectUnexpectedHybridArgs(command *ffcli.Command) {
+	for _, subcommand := range command.Subcommands {
+		rejectUnexpectedHybridArgs(subcommand)
+		if subcommand.Exec == nil || len(subcommand.Subcommands) == 0 {
+			continue
+		}
+
+		exec := subcommand.Exec
+		subcommand.Exec = func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
+			}
+			return exec(ctx, args)
+		}
+	}
 }
 
 func shapeForCommand(command *ffcli.Command, sawFlag bool) telemetry.InvocationShape {
@@ -116,7 +133,7 @@ func validationFailureContext(analysis invocationAnalysis, err error) telemetry.
 }
 
 func runtimeFailureContext(analysis invocationAnalysis, err error, exitCode int) telemetry.EventContext {
-	if errors.Is(err, flag.ErrHelp) {
+	if errors.Is(err, flag.ErrHelp) || analysis.shape == telemetry.InvocationShapeUnknownChild {
 		return validationFailureContext(analysis, err)
 	}
 
@@ -133,7 +150,7 @@ func runtimeFailureContext(analysis invocationAnalysis, err error, exitCode int)
 	case exitCode == ExitConflict:
 		eventContext.ErrorKind = telemetry.ErrorKindAPIConflict
 		eventContext.FailureStage = telemetry.FailureStageRequest
-	case exitCode >= 60 && exitCode <= 69:
+	case exitCode >= 60 && exitCode <= 99:
 		eventContext.ErrorKind = telemetry.ErrorKindAPI5xx
 		eventContext.FailureStage = telemetry.FailureStageRequest
 	case exitCode == ExitAuth || exitCode == ExitNotFound || (exitCode >= 10 && exitCode <= 59):
