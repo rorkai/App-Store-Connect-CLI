@@ -87,6 +87,8 @@ func parseFailureContext(analysis invocationAnalysis) telemetry.EventContext {
 	kind := telemetry.ErrorKindInvalidValue
 	if analysis.unknownFlag {
 		kind = telemetry.ErrorKindUnknownFlag
+	} else if analysis.shape == telemetry.InvocationShapeUnknownChild {
+		kind = telemetry.ErrorKindOther
 	}
 	return telemetry.EventContext{
 		InvocationShape: analysis.shape,

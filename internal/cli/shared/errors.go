@@ -28,10 +28,16 @@ const (
 )
 
 type classifiedUsageError struct {
-	kind UsageErrorKind
+	kind    UsageErrorKind
+	message string
 }
 
-func (e classifiedUsageError) Error() string { return flag.ErrHelp.Error() }
+func (e classifiedUsageError) Error() string {
+	if e.message == "" {
+		return flag.ErrHelp.Error()
+	}
+	return e.message
+}
 func (e classifiedUsageError) Unwrap() error { return flag.ErrHelp }
 
 func (e reportedError) Error() string {
@@ -61,7 +67,7 @@ func UsageError(message string) error {
 	if trimmed != "" {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", trimmed)
 	}
-	return classifiedUsageError{kind: classifyUsageMessage(trimmed)}
+	return classifiedUsageError{kind: classifyUsageMessage(trimmed), message: trimmed}
 }
 
 // UsageErrorf formats and returns a usage-class validation error.

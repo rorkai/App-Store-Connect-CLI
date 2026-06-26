@@ -49,3 +49,11 @@ func TestRuntimeFailureContextClassifiesLowCardinalityFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestParseFailureContextClassifiesUnknownChildAsOther(t *testing.T) {
+	got := parseFailureContext(invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild})
+
+	if got.ErrorKind != telemetry.ErrorKindOther || got.FailureStage != telemetry.FailureStageParse {
+		t.Fatalf("parseFailureContext() = %+v, want kind=%q stage=%q", got, telemetry.ErrorKindOther, telemetry.FailureStageParse)
+	}
+}
