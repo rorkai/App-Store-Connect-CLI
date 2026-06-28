@@ -839,7 +839,16 @@ Examples:
 			}
 
 			territoryFilter := strings.TrimSpace(*territory)
-			if territoryFilter != "" {
+			territoryProvided := false
+			fs.Visit(func(f *flag.Flag) {
+				if f.Name == "territory" {
+					territoryProvided = true
+				}
+			})
+			if territoryProvided {
+				if territoryFilter == "" {
+					return shared.UsageError("invalid value for --territory: cannot be empty")
+				}
 				normalizedTerritory, normalizeErr := ascterritory.Normalize(territoryFilter)
 				if normalizeErr != nil {
 					return shared.UsageError(normalizeErr.Error())

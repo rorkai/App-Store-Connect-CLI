@@ -120,8 +120,8 @@ func TestConsumeResolvedSubscriptionPricePage_AcceptsUndatedMonthlyPrice(t *test
 	}
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
-	if err := consumeResolvedSubscriptionPricePageForPlanType(candidates, page, now, asc.SubscriptionPlanTypeMonthly); err != nil {
-		t.Fatalf("consumeResolvedSubscriptionPricePageForPlanType() error = %v", err)
+	if err := consumeResolvedSubscriptionPricePage(candidates, page, now); err != nil {
+		t.Fatalf("consumeResolvedSubscriptionPricePage() error = %v", err)
 	}
 
 	row, ok := candidates["NOR"]
@@ -147,8 +147,8 @@ func TestConsumeResolvedSubscriptionPricePage_AcceptsUndatedUpfrontPrice(t *test
 	}
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
-	if err := consumeResolvedSubscriptionPricePageForPlanType(candidates, page, now, asc.SubscriptionPlanTypeUpfront); err != nil {
-		t.Fatalf("consumeResolvedSubscriptionPricePageForPlanType() error = %v", err)
+	if err := consumeResolvedSubscriptionPricePage(candidates, page, now); err != nil {
+		t.Fatalf("consumeResolvedSubscriptionPricePage() error = %v", err)
 	}
 
 	row, ok := candidates["NOR"]
@@ -176,8 +176,8 @@ func TestConsumeResolvedSubscriptionPricePage_PrefersDatedCurrentOverUndatedFall
 	}
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
-	if err := consumeResolvedSubscriptionPricePageForPlanType(candidates, page, now, asc.SubscriptionPlanTypeUpfront); err != nil {
-		t.Fatalf("consumeResolvedSubscriptionPricePageForPlanType() error = %v", err)
+	if err := consumeResolvedSubscriptionPricePage(candidates, page, now); err != nil {
+		t.Fatalf("consumeResolvedSubscriptionPricePage() error = %v", err)
 	}
 
 	row, ok := candidates["NOR"]

@@ -231,6 +231,15 @@ func TestSubscriptionsPricingPricesListPlanTypeValidationErrors(t *testing.T) {
 			},
 			wantErr: "invalid value for --plan-type: cannot be empty",
 		},
+		{
+			name: "empty territory",
+			args: []string{
+				"subscriptions", "pricing", "prices", "list",
+				"--subscription-id", "8000000001",
+				"--territory", "",
+			},
+			wantErr: "invalid value for --territory: cannot be empty",
+		},
 	}
 
 	for _, test := range tests {
@@ -285,4 +294,12 @@ func TestSubscriptionsPricingPricesListPlanTypeUsageExitCodes(t *testing.T) {
 			}, test.wantErr)
 		})
 	}
+}
+
+func TestSubscriptionsPricingPricesListTerritoryUsageExitCodes(t *testing.T) {
+	assertUsageExit(t, []string{
+		"subscriptions", "pricing", "prices", "list",
+		"--subscription-id", "8000000001",
+		"--territory", "",
+	}, "invalid value for --territory: cannot be empty")
 }
