@@ -30,7 +30,7 @@ func TestConsumeResolvedSubscriptionPricePage_SelectsLatestActivePerTerritory(t 
 	}
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
-	if err := consumeResolvedSubscriptionPricePage(candidates, page, now); err != nil {
+	if err := consumeResolvedSubscriptionPricePage(candidates, page, now, ""); err != nil {
 		t.Fatalf("consumeResolvedSubscriptionPricePage() error = %v", err)
 	}
 
@@ -64,7 +64,7 @@ func TestConsumeResolvedSubscriptionPricePage_PrefersNonPreservedSameDay(t *test
 	}
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
-	if err := consumeResolvedSubscriptionPricePage(candidates, page, now); err != nil {
+	if err := consumeResolvedSubscriptionPricePage(candidates, page, now, ""); err != nil {
 		t.Fatalf("consumeResolvedSubscriptionPricePage() error = %v", err)
 	}
 
@@ -77,7 +77,7 @@ func TestConsumeResolvedSubscriptionPricePage_PrefersNonPreservedSameDay(t *test
 	}
 }
 
-func TestConsumeResolvedSubscriptionPricePage_UsesUndatedCurrentPriceAndSkipsFuture(t *testing.T) {
+func TestConsumeResolvedSubscriptionPricePage_SkipsUndatedCurrentPriceWithoutPlanType(t *testing.T) {
 	now := time.Date(2026, time.March, 29, 12, 0, 0, 0, time.UTC)
 
 	page := &asc.SubscriptionPricesResponse{
@@ -93,16 +93,12 @@ func TestConsumeResolvedSubscriptionPricePage_UsesUndatedCurrentPriceAndSkipsFut
 	}
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
-	if err := consumeResolvedSubscriptionPricePage(candidates, page, now); err != nil {
+	if err := consumeResolvedSubscriptionPricePage(candidates, page, now, ""); err != nil {
 		t.Fatalf("consumeResolvedSubscriptionPricePage() error = %v", err)
 	}
 
-	row, ok := candidates["USA"]
-	if !ok {
-		t.Fatalf("expected undated current row, got %+v", candidates)
-	}
-	if row.row.PriceID != "price-undated" || row.row.CustomerPrice != "8.99" {
-		t.Fatalf("expected undated current price to resolve, got %+v", row.row)
+	if len(candidates) != 0 {
+		t.Fatalf("expected no resolved rows, got %+v", candidates)
 	}
 }
 
@@ -120,7 +116,7 @@ func TestConsumeResolvedSubscriptionPricePage_AcceptsUndatedMonthlyPrice(t *test
 	}
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
-	if err := consumeResolvedSubscriptionPricePage(candidates, page, now); err != nil {
+	if err := consumeResolvedSubscriptionPricePage(candidates, page, now, asc.SubscriptionPlanTypeMonthly); err != nil {
 		t.Fatalf("consumeResolvedSubscriptionPricePage() error = %v", err)
 	}
 
@@ -147,7 +143,7 @@ func TestConsumeResolvedSubscriptionPricePage_AcceptsUndatedUpfrontPrice(t *test
 	}
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
-	if err := consumeResolvedSubscriptionPricePage(candidates, page, now); err != nil {
+	if err := consumeResolvedSubscriptionPricePage(candidates, page, now, asc.SubscriptionPlanTypeUpfront); err != nil {
 		t.Fatalf("consumeResolvedSubscriptionPricePage() error = %v", err)
 	}
 
@@ -176,7 +172,7 @@ func TestConsumeResolvedSubscriptionPricePage_PrefersDatedCurrentOverUndatedFall
 	}
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
-	if err := consumeResolvedSubscriptionPricePage(candidates, page, now); err != nil {
+	if err := consumeResolvedSubscriptionPricePage(candidates, page, now, asc.SubscriptionPlanTypeUpfront); err != nil {
 		t.Fatalf("consumeResolvedSubscriptionPricePage() error = %v", err)
 	}
 

@@ -195,21 +195,18 @@ func TestSubscriptionsPricingPricesListResolvedJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("json.Unmarshal() error = %v, stdout = %q", err, stdout)
 	}
-	if len(result.Prices) != 3 {
-		t.Fatalf("expected 3 resolved prices, got %+v", result.Prices)
+	if len(result.Prices) != 2 {
+		t.Fatalf("expected 2 resolved prices, got %+v", result.Prices)
 	}
-	if result.Prices[0].Territory != "FRA" || result.Prices[0].CustomerPrice != "6.99" {
+	if result.Prices[0].Territory != "GBR" || result.Prices[0].CustomerPrice != "7.99" {
 		t.Fatalf("unexpected first resolved row: %+v", result.Prices[0])
 	}
-	if result.Prices[1].Territory != "GBR" || result.Prices[1].CustomerPrice != "7.99" {
+	if result.Prices[1].Territory != "USA" || result.Prices[1].CustomerPrice != "9.99" {
 		t.Fatalf("unexpected second resolved row: %+v", result.Prices[1])
-	}
-	if result.Prices[2].Territory != "USA" || result.Prices[2].CustomerPrice != "9.99" {
-		t.Fatalf("unexpected third resolved row: %+v", result.Prices[2])
 	}
 }
 
-func TestSubscriptionsPricingPricesListResolvedIncludesUndatedCurrentPrices(t *testing.T) {
+func TestSubscriptionsPricingPricesListResolvedPlanTypeIncludesUndatedCurrentPrices(t *testing.T) {
 	setupAuth(t)
 
 	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
@@ -219,6 +216,9 @@ func TestSubscriptionsPricingPricesListResolvedIncludesUndatedCurrentPrices(t *t
 		query := req.URL.Query()
 		if query.Get("include") != "subscriptionPricePoint,territory" {
 			t.Fatalf("expected include query, got %q", query.Get("include"))
+		}
+		if got := query.Get("filter[planType]"); got != "MONTHLY" {
+			t.Fatalf("expected filter[planType]=MONTHLY, got %q", got)
 		}
 
 		return jsonResponse(http.StatusOK, `{
@@ -260,6 +260,7 @@ func TestSubscriptionsPricingPricesListResolvedIncludesUndatedCurrentPrices(t *t
 			"subscriptions", "pricing", "prices", "list",
 			"--subscription-id", "8000000001",
 			"--resolved",
+			"--plan-type", "MONTHLY",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
@@ -306,6 +307,7 @@ func TestSubscriptionsPricingPricesListResolvedTerritoryFilter(t *testing.T) {
 			"data":[{
 				"type":"subscriptionPrices",
 				"id":"price-usa",
+				"attributes":{"startDate":"2026-01-01"},
 				"relationships":{
 					"territory":{"data":{"type":"territories","id":"USA"}},
 					"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-usa"}}
