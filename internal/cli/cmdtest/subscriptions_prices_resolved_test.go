@@ -73,6 +73,9 @@ func TestSubscriptionsPricingPricesListResolvedJSON(t *testing.T) {
 			if query.Get("fields[subscriptionPricePoints]") != "customerPrice,proceeds,proceedsYear2" {
 				t.Fatalf("unexpected price point fields: %q", query.Get("fields[subscriptionPricePoints]"))
 			}
+			if query.Get("fields[subscriptionPrices]") != "startDate,preserved,planType,territory,subscriptionPricePoint" {
+				t.Fatalf("unexpected subscription price fields: %q", query.Get("fields[subscriptionPrices]"))
+			}
 			if query.Get("fields[territories]") != "currency" {
 				t.Fatalf("unexpected territory fields: %q", query.Get("fields[territories]"))
 			}
@@ -85,7 +88,7 @@ func TestSubscriptionsPricingPricesListResolvedJSON(t *testing.T) {
 					{
 						"type":"subscriptionPrices",
 						"id":"price-current-usa",
-						"attributes":{"startDate":"2025-01-01","preserved":false},
+						"attributes":{"startDate":"2025-01-01","preserved":false,"planType":"UPFRONT"},
 						"relationships":{
 							"territory":{"data":{"type":"territories","id":"USA"}},
 							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-current-usa"}}
@@ -94,7 +97,7 @@ func TestSubscriptionsPricingPricesListResolvedJSON(t *testing.T) {
 					{
 						"type":"subscriptionPrices",
 						"id":"price-future-usa",
-						"attributes":{"startDate":"2030-01-01","preserved":false},
+						"attributes":{"startDate":"2030-01-01","preserved":false,"planType":"UPFRONT"},
 						"relationships":{
 							"territory":{"data":{"type":"territories","id":"USA"}},
 							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-future-usa"}}
@@ -127,6 +130,9 @@ func TestSubscriptionsPricingPricesListResolvedJSON(t *testing.T) {
 			if query.Get("fields[subscriptionPricePoints]") != "customerPrice,proceeds,proceedsYear2" {
 				t.Fatalf("unexpected paginated price point fields: %q", query.Get("fields[subscriptionPricePoints]"))
 			}
+			if query.Get("fields[subscriptionPrices]") != "startDate,preserved,planType,territory,subscriptionPricePoint" {
+				t.Fatalf("unexpected paginated subscription price fields: %q", query.Get("fields[subscriptionPrices]"))
+			}
 			if query.Get("fields[territories]") != "currency" {
 				t.Fatalf("unexpected paginated territory fields: %q", query.Get("fields[territories]"))
 			}
@@ -136,7 +142,7 @@ func TestSubscriptionsPricingPricesListResolvedJSON(t *testing.T) {
 					{
 						"type":"subscriptionPrices",
 						"id":"price-current-gbr",
-						"attributes":{"startDate":"2024-06-01","preserved":false},
+						"attributes":{"startDate":"2024-06-01","preserved":false,"planType":"UPFRONT"},
 						"relationships":{
 							"territory":{"data":{"type":"territories","id":"GBR"}},
 							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-current-gbr"}}
@@ -145,7 +151,7 @@ func TestSubscriptionsPricingPricesListResolvedJSON(t *testing.T) {
 					{
 						"type":"subscriptionPrices",
 						"id":"price-undated-fra",
-						"attributes":{"preserved":false},
+						"attributes":{"preserved":false,"planType":"UPFRONT"},
 						"relationships":{
 							"territory":{"data":{"type":"territories","id":"FRA"}},
 							"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-undated-fra"}}
@@ -195,14 +201,17 @@ func TestSubscriptionsPricingPricesListResolvedJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("json.Unmarshal() error = %v, stdout = %q", err, stdout)
 	}
-	if len(result.Prices) != 2 {
-		t.Fatalf("expected 2 resolved prices, got %+v", result.Prices)
+	if len(result.Prices) != 3 {
+		t.Fatalf("expected 3 resolved prices, got %+v", result.Prices)
 	}
-	if result.Prices[0].Territory != "GBR" || result.Prices[0].CustomerPrice != "7.99" {
+	if result.Prices[0].Territory != "FRA" || result.Prices[0].CustomerPrice != "6.99" || result.Prices[0].PlanType != "UPFRONT" {
 		t.Fatalf("unexpected first resolved row: %+v", result.Prices[0])
 	}
-	if result.Prices[1].Territory != "USA" || result.Prices[1].CustomerPrice != "9.99" {
+	if result.Prices[1].Territory != "GBR" || result.Prices[1].CustomerPrice != "7.99" || result.Prices[1].PlanType != "UPFRONT" {
 		t.Fatalf("unexpected second resolved row: %+v", result.Prices[1])
+	}
+	if result.Prices[2].Territory != "USA" || result.Prices[2].CustomerPrice != "9.99" || result.Prices[2].PlanType != "UPFRONT" {
+		t.Fatalf("unexpected third resolved row: %+v", result.Prices[2])
 	}
 }
 

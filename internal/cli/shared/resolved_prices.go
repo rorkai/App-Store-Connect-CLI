@@ -11,6 +11,7 @@ import (
 // ResolvedPriceRow represents the currently effective price for a territory.
 type ResolvedPriceRow struct {
 	Territory     string `json:"territory"`
+	PlanType      string `json:"planType,omitempty"`
 	PriceID       string `json:"priceId"`
 	PricePointID  string `json:"pricePointId"`
 	CustomerPrice string `json:"customerPrice,omitempty"`
@@ -35,6 +36,9 @@ func SortResolvedPrices(rows []ResolvedPriceRow) {
 		right := rows[j]
 		if left.Territory != right.Territory {
 			return left.Territory < right.Territory
+		}
+		if left.PlanType != right.PlanType {
+			return left.PlanType < right.PlanType
 		}
 		if left.StartDate != right.StartDate {
 			return left.StartDate < right.StartDate
@@ -68,6 +72,7 @@ func printResolvedPricesTable(result *ResolvedPricesResult, markdown bool) error
 
 	headers := []string{
 		"Territory",
+		"Plan Type",
 		"Price ID",
 		"Price Point ID",
 		"Customer Price",
@@ -84,6 +89,7 @@ func printResolvedPricesTable(result *ResolvedPricesResult, markdown bool) error
 	for _, row := range rows {
 		values = append(values, []string{
 			row.Territory,
+			row.PlanType,
 			row.PriceID,
 			row.PricePointID,
 			row.CustomerPrice,

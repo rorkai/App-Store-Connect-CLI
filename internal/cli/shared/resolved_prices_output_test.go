@@ -39,10 +39,10 @@ func TestPrintResolvedPrices_TableAndMarkdown(t *testing.T) {
 			t.Fatalf("PrintResolvedPrices(markdown) error = %v", err)
 		}
 	})
-	if !strings.Contains(markdownOut, "| Territory | Price ID |") {
+	if !strings.Contains(markdownOut, "| Territory | Plan Type | Price ID |") {
 		t.Fatalf("expected markdown header row, got %q", markdownOut)
 	}
-	if !strings.Contains(markdownOut, "| USA       | price-1  | pp-1           | 9.99") || !strings.Contains(markdownOut, "true") {
+	if !strings.Contains(markdownOut, "| USA       |           | price-1  | pp-1") || !strings.Contains(markdownOut, "true") {
 		t.Fatalf("expected markdown value row, got %q", markdownOut)
 	}
 }

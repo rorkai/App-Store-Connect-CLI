@@ -35,6 +35,7 @@ func fetchResolvedSubscriptionPrices(
 	opts := []asc.SubscriptionPricesOption{
 		asc.WithSubscriptionPricesLimit(limit),
 		asc.WithSubscriptionPricesNextURL(nextURL),
+		asc.WithSubscriptionPricesFields([]string{"startDate", "preserved", "planType", "territory", "subscriptionPricePoint"}),
 		asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory"}),
 		asc.WithSubscriptionPricesPricePointFields([]string{"customerPrice", "proceeds", "proceedsYear2"}),
 		asc.WithSubscriptionPricesTerritoryFields([]string{"currency"}),
@@ -64,6 +65,7 @@ func fetchResolvedSubscriptionPrices(
 				requestCtx,
 				subscriptionID,
 				asc.WithSubscriptionPricesNextURL(nextURL),
+				asc.WithSubscriptionPricesFields([]string{"startDate", "preserved", "planType", "territory", "subscriptionPricePoint"}),
 				asc.WithSubscriptionPricesInclude([]string{"subscriptionPricePoint", "territory"}),
 				asc.WithSubscriptionPricesPricePointFields([]string{"customerPrice", "proceeds", "proceedsYear2"}),
 				asc.WithSubscriptionPricesTerritoryFields([]string{"currency"}),
@@ -92,6 +94,7 @@ func fetchResolvedSubscriptionPrices(
 func resolvedSubscriptionPricesQuery(limit int, planType asc.SubscriptionPlanType, territory string) url.Values {
 	values := url.Values{}
 	values.Set("include", "subscriptionPricePoint,territory")
+	values.Set("fields[subscriptionPrices]", "startDate,preserved,planType,territory,subscriptionPricePoint")
 	values.Set("fields[subscriptionPricePoints]", "customerPrice,proceeds,proceedsYear2")
 	values.Set("fields[territories]", "currency")
 	if limit > 0 {
@@ -136,14 +139,15 @@ func consumeResolvedSubscriptionPricePage(
 		}
 
 		startAt := parseSubscriptionPricingDate(price.Attributes.StartDate)
-		if startAt == nil && planType == "" {
-			continue
-		}
 		if startAt != nil && startAt.After(asOf) {
 			continue
 		}
 
 		territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
+		rowPlanType := strings.TrimSpace(string(price.Attributes.PlanType))
+		if rowPlanType == "" {
+			rowPlanType = strings.TrimSpace(string(planType))
+		}
 		currency := currencies[territoryID]
 		if currency == "" {
 			currency = territoryToCurrency(territoryID)
@@ -152,6 +156,7 @@ func consumeResolvedSubscriptionPricePage(
 		candidate := resolvedSubscriptionPriceCandidate{
 			row: shared.ResolvedPriceRow{
 				Territory:     territoryID,
+				PlanType:      rowPlanType,
 				PriceID:       strings.TrimSpace(price.ID),
 				PricePointID:  strings.TrimSpace(pricePointID),
 				CustomerPrice: value.CustomerPrice,
@@ -165,13 +170,22 @@ func consumeResolvedSubscriptionPricePage(
 			preserved: price.Attributes.Preserved,
 		}
 
-		existing, ok := candidates[territoryID]
+		candidateKey := resolvedSubscriptionPriceCandidateKey(territoryID, rowPlanType)
+		existing, ok := candidates[candidateKey]
 		if !ok || subscriptionResolvedCandidateIsNewer(candidate, existing) {
-			candidates[territoryID] = candidate
+			candidates[candidateKey] = candidate
 		}
 	}
 
 	return nil
+}
+
+func resolvedSubscriptionPriceCandidateKey(territoryID, planType string) string {
+	normalizedPlanType := strings.ToUpper(strings.TrimSpace(planType))
+	if normalizedPlanType == "" {
+		return territoryID
+	}
+	return territoryID + "\x00" + normalizedPlanType
 }
 
 func subscriptionResolvedCandidateIsNewer(candidate, existing resolvedSubscriptionPriceCandidate) bool {
