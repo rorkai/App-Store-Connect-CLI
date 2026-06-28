@@ -40,7 +40,7 @@ func TestFetchResolvedSubscriptionPricesUsesFreshDeadlinePerPage(t *testing.T) {
 		t.Fatalf("NewClientFromPEM() error: %v", err)
 	}
 
-	result, err := fetchResolvedSubscriptionPrices(context.Background(), client, "sub-1", 200, "", time.Now().UTC(), "")
+	result, err := fetchResolvedSubscriptionPrices(context.Background(), client, "sub-1", 200, "", time.Now().UTC(), "", "")
 	if err != nil {
 		t.Fatalf("fetchResolvedSubscriptionPrices() error: %v", err)
 	}

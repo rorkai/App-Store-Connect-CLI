@@ -195,14 +195,156 @@ func TestSubscriptionsPricingPricesListResolvedJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("json.Unmarshal() error = %v, stdout = %q", err, stdout)
 	}
-	if len(result.Prices) != 2 {
-		t.Fatalf("expected 2 resolved prices, got %+v", result.Prices)
+	if len(result.Prices) != 3 {
+		t.Fatalf("expected 3 resolved prices, got %+v", result.Prices)
 	}
-	if result.Prices[0].Territory != "GBR" || result.Prices[0].CustomerPrice != "7.99" {
+	if result.Prices[0].Territory != "FRA" || result.Prices[0].CustomerPrice != "6.99" {
 		t.Fatalf("unexpected first resolved row: %+v", result.Prices[0])
 	}
-	if result.Prices[1].Territory != "USA" || result.Prices[1].CustomerPrice != "9.99" {
+	if result.Prices[1].Territory != "GBR" || result.Prices[1].CustomerPrice != "7.99" {
 		t.Fatalf("unexpected second resolved row: %+v", result.Prices[1])
+	}
+	if result.Prices[2].Territory != "USA" || result.Prices[2].CustomerPrice != "9.99" {
+		t.Fatalf("unexpected third resolved row: %+v", result.Prices[2])
+	}
+}
+
+func TestSubscriptionsPricingPricesListResolvedIncludesUndatedCurrentPrices(t *testing.T) {
+	setupAuth(t)
+
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/prices" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+		query := req.URL.Query()
+		if query.Get("include") != "subscriptionPricePoint,territory" {
+			t.Fatalf("expected include query, got %q", query.Get("include"))
+		}
+
+		return jsonResponse(http.StatusOK, `{
+			"data":[
+				{
+					"type":"subscriptionPrices",
+					"id":"price-usa",
+					"attributes":{"preserved":false},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"USA"}},
+						"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-usa"}}
+					}
+				},
+				{
+					"type":"subscriptionPrices",
+					"id":"price-nor",
+					"attributes":{"preserved":false},
+					"relationships":{
+						"territory":{"data":{"type":"territories","id":"NOR"}},
+						"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-nor"}}
+					}
+				}
+			],
+			"included":[
+				{"type":"subscriptionPricePoints","id":"pp-usa","attributes":{"customerPrice":"4.99","proceeds":"3.49"}},
+				{"type":"subscriptionPricePoints","id":"pp-nor","attributes":{"customerPrice":"59.00","proceeds":"41.00"}},
+				{"type":"territories","id":"USA","attributes":{"currency":"USD"}},
+				{"type":"territories","id":"NOR","attributes":{"currency":"NOK"}}
+			],
+			"links":{"next":""}
+		}`)
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "prices", "list",
+			"--subscription-id", "8000000001",
+			"--resolved",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+
+	var result shared.ResolvedPricesResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v, stdout = %q", err, stdout)
+	}
+	if len(result.Prices) != 2 {
+		t.Fatalf("expected undated resolved prices, got %+v", result.Prices)
+	}
+	if result.Prices[0].Territory != "NOR" || result.Prices[0].CustomerPrice != "59.00" || result.Prices[0].Currency != "NOK" {
+		t.Fatalf("unexpected first resolved row: %+v", result.Prices[0])
+	}
+	if result.Prices[1].Territory != "USA" || result.Prices[1].CustomerPrice != "4.99" || result.Prices[1].Currency != "USD" {
+		t.Fatalf("unexpected second resolved row: %+v", result.Prices[1])
+	}
+}
+
+func TestSubscriptionsPricingPricesListResolvedTerritoryFilter(t *testing.T) {
+	setupAuth(t)
+
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/prices" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+		query := req.URL.Query()
+		if got := query.Get("filter[territory]"); got != "USA" {
+			t.Fatalf("expected filter[territory]=USA, got %q", got)
+		}
+		if got := query.Get("include"); got != "subscriptionPricePoint,territory" {
+			t.Fatalf("expected resolved includes, got %q", got)
+		}
+
+		return jsonResponse(http.StatusOK, `{
+			"data":[{
+				"type":"subscriptionPrices",
+				"id":"price-usa",
+				"relationships":{
+					"territory":{"data":{"type":"territories","id":"USA"}},
+					"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"pp-usa"}}
+				}
+			}],
+			"included":[
+				{"type":"subscriptionPricePoints","id":"pp-usa","attributes":{"customerPrice":"4.99"}},
+				{"type":"territories","id":"USA","attributes":{"currency":"USD"}}
+			],
+			"links":{"next":""}
+		}`)
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "prices", "list",
+			"--subscription-id", "8000000001",
+			"--resolved",
+			"--territory", "US",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	var result shared.ResolvedPricesResult
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v, stdout = %q", err, stdout)
+	}
+	if len(result.Prices) != 1 || result.Prices[0].Territory != "USA" {
+		t.Fatalf("expected one USA resolved price, got %+v", result.Prices)
 	}
 }
 

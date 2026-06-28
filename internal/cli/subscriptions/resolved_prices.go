@@ -26,6 +26,7 @@ func fetchResolvedSubscriptionPrices(
 	nextURL string,
 	now time.Time,
 	planType asc.SubscriptionPlanType,
+	territory string,
 ) (*shared.ResolvedPricesResult, error) {
 	if limit <= 0 {
 		limit = 200
@@ -41,6 +42,9 @@ func fetchResolvedSubscriptionPrices(
 	if planType != "" {
 		opts = append(opts, asc.WithSubscriptionPricesPlanType(planType))
 	}
+	if strings.TrimSpace(territory) != "" {
+		opts = append(opts, asc.WithSubscriptionPricesTerritory(territory))
+	}
 
 	firstPage, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionPricesResponse, error) {
 		return client.GetSubscriptionPrices(requestCtx, subscriptionID, opts...)
@@ -51,7 +55,7 @@ func fetchResolvedSubscriptionPrices(
 
 	candidates := make(map[string]resolvedSubscriptionPriceCandidate)
 	if err := asc.PaginateEach(ctx, firstPage, func(_ context.Context, next string) (asc.PaginatedResponse, error) {
-		nextURL, err := mergeSubscriptionPricesNextQuery(next, resolvedSubscriptionPricesQuery(limit, planType))
+		nextURL, err := mergeSubscriptionPricesNextQuery(next, resolvedSubscriptionPricesQuery(limit, planType, territory))
 		if err != nil {
 			return nil, err
 		}
@@ -64,6 +68,7 @@ func fetchResolvedSubscriptionPrices(
 				asc.WithSubscriptionPricesPricePointFields([]string{"customerPrice", "proceeds", "proceedsYear2"}),
 				asc.WithSubscriptionPricesTerritoryFields([]string{"currency"}),
 				asc.WithSubscriptionPricesPlanType(planType),
+				asc.WithSubscriptionPricesTerritory(territory),
 			)
 		})
 	}, func(page asc.PaginatedResponse) error {
@@ -84,7 +89,7 @@ func fetchResolvedSubscriptionPrices(
 	return &shared.ResolvedPricesResult{Prices: rows}, nil
 }
 
-func resolvedSubscriptionPricesQuery(limit int, planType asc.SubscriptionPlanType) url.Values {
+func resolvedSubscriptionPricesQuery(limit int, planType asc.SubscriptionPlanType, territory string) url.Values {
 	values := url.Values{}
 	values.Set("include", "subscriptionPricePoint,territory")
 	values.Set("fields[subscriptionPricePoints]", "customerPrice,proceeds,proceedsYear2")
@@ -94,6 +99,9 @@ func resolvedSubscriptionPricesQuery(limit int, planType asc.SubscriptionPlanTyp
 	}
 	if planType != "" {
 		values.Set("filter[planType]", string(planType))
+	}
+	if strings.TrimSpace(territory) != "" {
+		values.Set("filter[territory]", strings.ToUpper(strings.TrimSpace(territory)))
 	}
 	return values
 }
@@ -136,12 +144,6 @@ func consumeResolvedSubscriptionPricePageForPlanType(
 		}
 
 		startAt := parseSubscriptionPricingDate(price.Attributes.StartDate)
-		// Preserve the legacy undated-price skip unless a plan-specific view was requested.
-		if startAt == nil {
-			if planType == "" {
-				continue
-			}
-		}
 		if startAt != nil && startAt.After(asOf) {
 			continue
 		}

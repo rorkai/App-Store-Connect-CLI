@@ -77,7 +77,7 @@ func TestConsumeResolvedSubscriptionPricePage_PrefersNonPreservedSameDay(t *test
 	}
 }
 
-func TestConsumeResolvedSubscriptionPricePage_DoesNotFallbackToFutureOrUndated(t *testing.T) {
+func TestConsumeResolvedSubscriptionPricePage_UsesUndatedCurrentPriceAndSkipsFuture(t *testing.T) {
 	now := time.Date(2026, time.March, 29, 12, 0, 0, 0, time.UTC)
 
 	page := &asc.SubscriptionPricesResponse{
@@ -97,8 +97,12 @@ func TestConsumeResolvedSubscriptionPricePage_DoesNotFallbackToFutureOrUndated(t
 		t.Fatalf("consumeResolvedSubscriptionPricePage() error = %v", err)
 	}
 
-	if len(candidates) != 0 {
-		t.Fatalf("expected no resolved rows, got %+v", candidates)
+	row, ok := candidates["USA"]
+	if !ok {
+		t.Fatalf("expected undated current row, got %+v", candidates)
+	}
+	if row.row.PriceID != "price-undated" || row.row.CustomerPrice != "8.99" {
+		t.Fatalf("expected undated current price to resolve, got %+v", row.row)
 	}
 }
 

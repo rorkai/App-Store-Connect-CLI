@@ -539,7 +539,7 @@ func reconcileEqualizeFailures(ctx context.Context, client *asc.Client, subID st
 
 	fmt.Fprintf(os.Stderr, "Verifying %d territory update(s) against current prices...\n", len(failures))
 
-	resolved, err := fetchResolvedSubscriptionPrices(ctx, client, subID, 200, "", effectiveAt, "")
+	resolved, err := fetchResolvedSubscriptionPrices(ctx, client, subID, 200, "", effectiveAt, "", "")
 	if err != nil {
 		return 0, failures, err
 	}

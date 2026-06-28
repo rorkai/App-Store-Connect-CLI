@@ -510,6 +510,7 @@ func validateMonthlyCommitmentUpfrontPrices(
 		"",
 		time.Now().UTC(),
 		asc.SubscriptionPlanTypeUpfront,
+		"",
 	)
 	if err != nil {
 		return fmt.Errorf("failed to fetch UPFRONT subscription prices: %w", err)
@@ -566,6 +567,7 @@ func prepareMonthlySubscriptionPrices(
 		"",
 		now,
 		asc.SubscriptionPlanTypeMonthly,
+		"",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch MONTHLY subscription prices: %w", err)
