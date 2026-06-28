@@ -1,13 +1,10 @@
 package cmdtest
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -74,27 +71,9 @@ func TestSubscriptionsUpdateSendsReviewNote(t *testing.T) {
 }
 
 func TestSubscriptionsUpdateRejectsEmptyReviewNoteExitCode(t *testing.T) {
-	binaryPath := buildASCBlackBoxBinary(t)
-
-	cmd := exec.Command(binaryPath, "subscriptions", "update", "--id", "sub-1", "--review-note", "")
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) {
-		t.Fatalf("expected process exit error, got %v", err)
-	}
-	if exitErr.ExitCode() != 2 {
-		t.Fatalf("expected exit code 2, got %d", exitErr.ExitCode())
-	}
-	if stdout.String() != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout.String())
-	}
-	if !strings.Contains(stderr.String(), "--review-note cannot be empty") {
-		t.Fatalf("expected empty review note error, got %q", stderr.String())
-	}
+	assertUsageExit(
+		t,
+		[]string{"subscriptions", "update", "--id", "sub-1", "--review-note", ""},
+		"--review-note cannot be empty",
+	)
 }

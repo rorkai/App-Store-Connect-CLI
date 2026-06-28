@@ -25,6 +25,13 @@ func TestCommandsConservativeBehavior(t *testing.T) {
 	}
 }
 
+func TestCommandsAdjacentTransposition(t *testing.T) {
+	got := Commands("lsit", []string{"list", "view", "update"})
+	if len(got) == 0 || got[0] != "list" {
+		t.Fatalf("expected adjacent transposition suggestion, got %v", got)
+	}
+}
+
 func TestLevenshteinAndThresholdHelpers(t *testing.T) {
 	if d := levenshtein("apps", "apps"); d != 0 {
 		t.Fatalf("expected equal strings distance 0, got %d", d)

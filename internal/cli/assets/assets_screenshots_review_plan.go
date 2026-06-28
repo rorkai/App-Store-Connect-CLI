@@ -177,7 +177,7 @@ Examples:
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to apply screenshot uploads")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			result, err := executeScreenshotReviewPlan(ctx, screenshotReviewPlanOptions{
@@ -216,7 +216,7 @@ func executeScreenshotReviewPlan(ctx context.Context, opts screenshotReviewPlanO
 	resolvedAppID := shared.ResolveAppID(opts.AppID)
 	if strings.TrimSpace(resolvedAppID) == "" {
 		fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-		return nil, flag.ErrHelp
+		return nil, shared.MissingRequiredUsageError()
 	}
 
 	versionValue := strings.TrimSpace(opts.Version)

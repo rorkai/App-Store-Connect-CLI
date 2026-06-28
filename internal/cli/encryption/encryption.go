@@ -129,7 +129,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			buildIDs := shared.SplitCSV(*builds)
@@ -205,7 +205,7 @@ Examples:
 			declarationValue := strings.TrimSpace(*declarationID)
 			if declarationValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *buildLimit != 0 && (*buildLimit < 1 || *buildLimit > 50) {
 				return fmt.Errorf("encryption declarations get: --build-limit must be between 1 and 50")
@@ -273,7 +273,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			visited := map[string]bool{}
@@ -284,19 +284,19 @@ Examples:
 			descriptionValue := strings.TrimSpace(*appDescription)
 			if descriptionValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app-description is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !visited["contains-proprietary-cryptography"] {
 				fmt.Fprintln(os.Stderr, "Error: --contains-proprietary-cryptography is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !visited["contains-third-party-cryptography"] {
 				fmt.Fprintln(os.Stderr, "Error: --contains-third-party-cryptography is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !visited["available-on-french-store"] {
 				fmt.Fprintln(os.Stderr, "Error: --available-on-french-store is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -559,13 +559,13 @@ Examples:
 			declarationValue := strings.TrimSpace(*declarationID)
 			if declarationValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			buildIDs := shared.SplitCSV(*builds)
 			if len(buildIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --build is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -636,7 +636,7 @@ Examples:
 			documentValue := strings.TrimSpace(*documentID)
 			if documentValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			fieldsValue, err := normalizeEncryptionDocumentFields(*fields, "--fields")
@@ -684,13 +684,13 @@ Examples:
 			declarationValue := strings.TrimSpace(*declarationID)
 			if declarationValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --declaration is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			info, err := os.Lstat(pathValue)

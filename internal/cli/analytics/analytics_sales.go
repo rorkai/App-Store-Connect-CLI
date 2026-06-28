@@ -45,23 +45,23 @@ Examples:
 			vendorNumber := shared.ResolveVendorNumber(*vendor)
 			if vendorNumber == "" {
 				fmt.Fprintln(os.Stderr, "Error: --vendor is required (or set ASC_VENDOR_NUMBER/ASC_ANALYTICS_VENDOR_NUMBER)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*reportType) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --type is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*reportSubType) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --subtype is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*frequency) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --frequency is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*date) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --date is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			salesType, err := normalizeSalesReportType(*reportType)

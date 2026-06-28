@@ -59,7 +59,7 @@ Examples:
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build-bundle-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -106,7 +106,7 @@ Examples:
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build-bundle-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

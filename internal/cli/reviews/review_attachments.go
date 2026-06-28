@@ -63,7 +63,7 @@ Examples:
 			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
 			if reviewDetailValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --review-detail is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -135,7 +135,7 @@ Examples:
 			attachmentValue := strings.TrimSpace(*attachmentID)
 			if attachmentValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			fieldsValue, err := normalizeReviewAttachmentFields(*fields)
@@ -196,13 +196,13 @@ Examples:
 			reviewDetailValue := strings.TrimSpace(*reviewDetailID)
 			if reviewDetailValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --review-detail is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			info, err := os.Lstat(pathValue)
@@ -287,11 +287,11 @@ Examples:
 			attachmentValue := strings.TrimSpace(*attachmentID)
 			if attachmentValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

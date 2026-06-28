@@ -1,18 +1,14 @@
 package cmdtest
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestXcodeCommandExists(t *testing.T) {
@@ -137,7 +133,6 @@ func TestXcodeExportHelpMentionsDirectUploadMode(t *testing.T) {
 }
 
 func TestXcodeInjectInvalidFlagValuesExitUsage(t *testing.T) {
-	bin := buildCLIBinary(t)
 	dir := t.TempDir()
 	manifestPath := filepath.Join(dir, "deployment.json")
 	if err := os.WriteFile(manifestPath, []byte(`{
@@ -172,25 +167,7 @@ func TestXcodeInjectInvalidFlagValuesExitUsage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := exec.Command(bin, test.args...)
-			var stdout, stderr bytes.Buffer
-			cmd.Stdout = &stdout
-			cmd.Stderr = &stderr
-
-			err := cmd.Run()
-			var exitErr *exec.ExitError
-			if !errors.As(err, &exitErr) {
-				t.Fatalf("expected exit error, got %v", err)
-			}
-			if code := exitErr.ExitCode(); code != rootcmd.ExitUsage {
-				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-			}
-			if stdout.String() != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout.String())
-			}
-			if !strings.Contains(stderr.String(), test.wantStderr) {
-				t.Fatalf("expected stderr to contain %q, got %q", test.wantStderr, stderr.String())
-			}
+			assertUsageExit(t, test.args, test.wantStderr)
 		})
 	}
 }

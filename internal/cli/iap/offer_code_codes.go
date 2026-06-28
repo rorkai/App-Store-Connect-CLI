@@ -72,7 +72,7 @@ Examples:
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -136,7 +136,7 @@ Examples:
 			id := strings.TrimSpace(*customCodeID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --custom-code-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -182,13 +182,13 @@ Examples:
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			code := strings.TrimSpace(*customCode)
 			if code == "" {
 				fmt.Fprintln(os.Stderr, "Error: --custom-code is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if *quantity <= 0 {
@@ -304,7 +304,7 @@ Examples:
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -368,7 +368,7 @@ Examples:
 			id := strings.TrimSpace(*oneTimeCodeID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --one-time-code-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -415,7 +415,7 @@ Examples:
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if *quantity <= 0 {
@@ -506,7 +506,7 @@ Examples:
 			id := strings.TrimSpace(*oneTimeCodeID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --one-time-code-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

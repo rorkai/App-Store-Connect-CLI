@@ -1,32 +1,8 @@
 package cmdtest
 
-import (
-	"bytes"
-	"errors"
-	"os/exec"
-	"path/filepath"
-	"strings"
-	"testing"
-)
-
-func buildASCBlackBoxBinary(t *testing.T) string {
-	t.Helper()
-
-	repoRoot := filepath.Clean(filepath.Join("..", "..", ".."))
-	binaryPath := filepath.Join(t.TempDir(), "asc")
-
-	build := exec.Command("go", "build", "-o", binaryPath, ".")
-	build.Dir = repoRoot
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("failed to build asc binary: %v\n%s", err, string(output))
-	}
-
-	return binaryPath
-}
+import "testing"
 
 func TestValidateRemovedRemediationFlagsReturnUsageExitCode(t *testing.T) {
-	binaryPath := buildASCBlackBoxBinary(t)
-
 	tests := []struct {
 		name    string
 		args    []string
@@ -46,34 +22,12 @@ func TestValidateRemovedRemediationFlagsReturnUsageExitCode(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := exec.Command(binaryPath, test.args...)
-
-			var stdout bytes.Buffer
-			var stderr bytes.Buffer
-			cmd.Stdout = &stdout
-			cmd.Stderr = &stderr
-
-			err := cmd.Run()
-			var exitErr *exec.ExitError
-			if !errors.As(err, &exitErr) {
-				t.Fatalf("expected process exit error, got %v", err)
-			}
-			if exitErr.ExitCode() != 2 {
-				t.Fatalf("expected exit code 2, got %d", exitErr.ExitCode())
-			}
-			if stdout.String() != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout.String())
-			}
-			if !strings.Contains(stderr.String(), test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr.String())
-			}
+			assertUsageExit(t, test.args, test.wantErr)
 		})
 	}
 }
 
 func TestValidateSubcommandsRejectParentValidateFlagsExitCode(t *testing.T) {
-	binaryPath := buildASCBlackBoxBinary(t)
-
 	tests := []struct {
 		name    string
 		args    []string
@@ -93,27 +47,7 @@ func TestValidateSubcommandsRejectParentValidateFlagsExitCode(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := exec.Command(binaryPath, test.args...)
-
-			var stdout bytes.Buffer
-			var stderr bytes.Buffer
-			cmd.Stdout = &stdout
-			cmd.Stderr = &stderr
-
-			err := cmd.Run()
-			var exitErr *exec.ExitError
-			if !errors.As(err, &exitErr) {
-				t.Fatalf("expected process exit error, got %v", err)
-			}
-			if exitErr.ExitCode() != 2 {
-				t.Fatalf("expected exit code 2, got %d", exitErr.ExitCode())
-			}
-			if stdout.String() != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout.String())
-			}
-			if !strings.Contains(stderr.String(), test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr.String())
-			}
+			assertUsageExit(t, test.args, test.wantErr)
 		})
 	}
 }

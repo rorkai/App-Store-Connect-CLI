@@ -52,7 +52,7 @@ Examples:
 
 			if strings.TrimSpace(*appID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if *workers < 1 {

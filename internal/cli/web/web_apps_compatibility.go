@@ -71,7 +71,7 @@ func WebAppsCompatibilityViewCommand() *ffcli.Command {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			session, err := resolveWebSessionForCommand(ctx, authFlags)
@@ -123,11 +123,11 @@ func WebAppsCompatibilityEditCommand() *ffcli.Command {
 			resolvedAppID := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !iosAppOnMac.IsSet() && !iosAppOnVisionPro.IsSet() {
 				fmt.Fprintln(os.Stderr, "Error: at least one of --ios-app-on-mac or --ios-app-on-vision-pro is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			var macValue *bool

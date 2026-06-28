@@ -34,7 +34,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*categoryID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --category-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -76,7 +76,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*categoryID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --category-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -131,7 +131,7 @@ Examples:
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
 				fmt.Fprintln(os.Stderr, "Error: --category-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

@@ -72,7 +72,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --custom-page-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -136,7 +136,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --custom-page-version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -180,7 +180,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*customPageID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --custom-page-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -223,13 +223,13 @@ Examples:
 			trimmedID := strings.TrimSpace(*versionID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --custom-page-version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			deepLinkValue := strings.TrimSpace(*deepLink)
 			if deepLinkValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --deep-link is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.AppCustomProductPageVersionUpdateAttributes{

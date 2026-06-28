@@ -1,0 +1,4 @@
+interface:
+  display_name: "Develop ASC Change"
+  short_description: "Design, implement, and verify ASC CLI changes"
+  default_prompt: "Use $develop-asc-change to implement this ASC CLI behavior change completely."

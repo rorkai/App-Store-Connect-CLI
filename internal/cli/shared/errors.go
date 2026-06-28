@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -17,6 +18,27 @@ type ReportedError interface {
 type reportedError struct {
 	err error
 }
+
+type UsageErrorKind string
+
+const (
+	UsageErrorMissingRequired UsageErrorKind = "missing_required"
+	UsageErrorInvalidValue    UsageErrorKind = "invalid_value"
+	UsageErrorOther           UsageErrorKind = "other"
+)
+
+type classifiedUsageError struct {
+	kind    UsageErrorKind
+	message string
+}
+
+func (e classifiedUsageError) Error() string {
+	if e.message == "" {
+		return flag.ErrHelp.Error()
+	}
+	return e.message
+}
+func (e classifiedUsageError) Unwrap() error { return flag.ErrHelp }
 
 func (e reportedError) Error() string {
 	return e.err.Error()
@@ -45,10 +67,35 @@ func UsageError(message string) error {
 	if trimmed != "" {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", trimmed)
 	}
-	return flag.ErrHelp
+	return classifiedUsageError{kind: classifyUsageMessage(trimmed), message: trimmed}
 }
 
 // UsageErrorf formats and returns a usage-class validation error.
 func UsageErrorf(format string, args ...any) error {
 	return UsageError(fmt.Sprintf(format, args...))
+}
+
+// MissingRequiredUsageError classifies a required-input failure after the
+// command has already written its diagnostic to stderr.
+func MissingRequiredUsageError() error {
+	return classifiedUsageError{kind: UsageErrorMissingRequired}
+}
+
+func ClassifyUsageError(err error) UsageErrorKind {
+	var classified classifiedUsageError
+	if errors.As(err, &classified) {
+		return classified.kind
+	}
+	return ""
+}
+
+func classifyUsageMessage(message string) UsageErrorKind {
+	lower := strings.ToLower(message)
+	if strings.Contains(lower, "required") {
+		return UsageErrorMissingRequired
+	}
+	if strings.Contains(lower, "invalid") || strings.Contains(lower, "unsupported") || strings.Contains(lower, "must be") {
+		return UsageErrorInvalidValue
+	}
+	return UsageErrorOther
 }

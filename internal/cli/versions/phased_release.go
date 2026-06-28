@@ -78,7 +78,7 @@ Examples:
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -125,7 +125,7 @@ Examples:
 			version := strings.TrimSpace(*versionID)
 			if version == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			var phasedState asc.PhasedReleaseState
@@ -186,13 +186,13 @@ Examples:
 			id := strings.TrimSpace(*phasedID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			stateValue := strings.TrimSpace(strings.ToUpper(*state))
 			if stateValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --state is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			phasedState, ok := validPhasedReleaseStates[stateValue]
@@ -244,12 +244,12 @@ Examples:
 			id := strings.TrimSpace(*phasedID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

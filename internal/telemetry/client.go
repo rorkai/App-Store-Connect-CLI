@@ -23,6 +23,15 @@ const (
 var sendHTTP = sendHTTPEvent
 
 func Emit(commandName, version string, duration time.Duration, exitCode int) {
+	EmitWithContext(commandName, version, duration, exitCode, EventContext{InvocationShape: InvocationShapeLeaf})
+}
+
+func EmitWithContext(
+	commandName, version string,
+	duration time.Duration,
+	exitCode int,
+	eventContext EventContext,
+) {
 	commandPath := sanitizeCommandName(commandName)
 	if shouldSkipCommand(commandPath) {
 		return
@@ -44,7 +53,7 @@ func Emit(commandName, version string, duration time.Duration, exitCode int) {
 		return
 	}
 
-	ev, ok := BuildEvent(commandPath, version, duration, exitCode)
+	ev, ok := BuildEventWithContext(commandPath, version, duration, exitCode, eventContext)
 	if !ok {
 		return
 	}

@@ -73,7 +73,7 @@ Examples:
 			}
 			if idValue == "" && appValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if idValue != "" && strings.TrimSpace(*appID) != "" {
 				fmt.Fprintln(os.Stderr, "Error: --id and --app are mutually exclusive")
@@ -124,7 +124,7 @@ Examples:
 			appValue := shared.ResolveAppID(*appID)
 			if appValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -168,12 +168,12 @@ Examples:
 			appValue := shared.ResolveAppID(*appID)
 			if appValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			agreementValue := strings.TrimSpace(*agreementText)
 			if agreementValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --agreement-text is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			territoryIDs, err := shared.NormalizeASCTerritoryCSV(*territories)
@@ -182,7 +182,7 @@ Examples:
 			}
 			if len(territoryIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --territory is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -227,7 +227,7 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			var agreementValue *string
@@ -242,7 +242,7 @@ Examples:
 			}
 			if agreementValue == nil && len(territoryIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --agreement-text or --territory is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -285,11 +285,11 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

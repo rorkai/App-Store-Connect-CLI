@@ -55,34 +55,33 @@ jobs:
           p12-file-base64: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
           p12-password: ${{ secrets.APPLE_DEVELOPER_ID_PASSWORD }}
 
-      - name: Build for macOS
-        run: |
-          COMMIT=$(git rev-parse --short HEAD)
-          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_macOS_amd64 .
-          GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_macOS_arm64 .
+      - parallel:
+          - name: Build and sign macOS binaries
+            env:
+              APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+            run: |
+              COMMIT=$(git rev-parse --short HEAD)
+              DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_macOS_amd64 .
+              GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_macOS_arm64 .
+              if [ -n "${APPLE_DEVELOPER_ID}" ]; then
+                for binary in release/asc_*_macOS_*; do
+                  codesign --force --sign "${APPLE_DEVELOPER_ID}" --timestamp --options=runtime "$binary"
+                done
+              fi
 
-      - name: Code sign macOS binaries
-        if: env.APPLE_DEVELOPER_ID != ''
-        run: |
-          for binary in release/asc_*_macOS_*; do
-            codesign --force --sign "${{ secrets.APPLE_DEVELOPER_ID }}" --timestamp --options=runtime "$binary"
-          done
-        env:
-          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          - name: Build for Linux
+            run: |
+              COMMIT=$(git rev-parse --short HEAD)
+              DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_linux_amd64 .
+              GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_linux_arm64 .
 
-      - name: Build for Linux
-        run: |
-          COMMIT=$(git rev-parse --short HEAD)
-          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_linux_amd64 .
-          GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_linux_arm64 .
-
-      - name: Build for Windows
-        run: |
-          COMMIT=$(git rev-parse --short HEAD)
-          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_windows_amd64.exe .
+          - name: Build for Windows
+            run: |
+              COMMIT=$(git rev-parse --short HEAD)
+              DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_windows_amd64.exe .
 
       - name: Create checksums
         run: |

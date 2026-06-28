@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sync ASC Skills"
+  short_description: "Audit ASC workflow skills for CLI surface drift"
+  default_prompt: "Use $sync-asc-skills to compare ASC workflow skills with the current CLI and fix proven drift."

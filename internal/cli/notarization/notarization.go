@@ -78,7 +78,7 @@ Examples:
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			interval, err := time.ParseDuration(strings.TrimSpace(*pollInterval))
@@ -254,7 +254,7 @@ Examples:
 			idValue := strings.TrimSpace(*submissionID)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -300,7 +300,7 @@ Examples:
 			idValue := strings.TrimSpace(*submissionID)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

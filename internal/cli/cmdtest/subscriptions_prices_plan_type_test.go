@@ -1,14 +1,12 @@
 package cmdtest
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"io"
 	"net/http"
-	"os/exec"
 	"strings"
 	"testing"
 )
@@ -261,8 +259,6 @@ func TestSubscriptionsPricingPricesListPlanTypeValidationErrors(t *testing.T) {
 }
 
 func TestSubscriptionsPricingPricesListPlanTypeUsageExitCodes(t *testing.T) {
-	binaryPath := buildASCBlackBoxBinary(t)
-
 	tests := []struct {
 		name    string
 		value   string
@@ -282,32 +278,11 @@ func TestSubscriptionsPricingPricesListPlanTypeUsageExitCodes(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := exec.Command(
-				binaryPath,
+			assertUsageExit(t, []string{
 				"subscriptions", "pricing", "prices", "list",
 				"--subscription-id", "8000000001",
 				"--plan-type", test.value,
-			)
-
-			var stdout bytes.Buffer
-			var stderr bytes.Buffer
-			cmd.Stdout = &stdout
-			cmd.Stderr = &stderr
-
-			err := cmd.Run()
-			var exitErr *exec.ExitError
-			if !errors.As(err, &exitErr) {
-				t.Fatalf("expected process exit error, got %v", err)
-			}
-			if exitErr.ExitCode() != 2 {
-				t.Fatalf("expected exit code 2, got %d", exitErr.ExitCode())
-			}
-			if stdout.String() != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout.String())
-			}
-			if !strings.Contains(stderr.String(), test.wantErr) {
-				t.Fatalf("expected error %q, got %q", test.wantErr, stderr.String())
-			}
+			}, test.wantErr)
 		})
 	}
 }

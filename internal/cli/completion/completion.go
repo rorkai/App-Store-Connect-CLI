@@ -34,7 +34,7 @@ func CompletionCommand(rootSubcommands []*ffcli.Command) *ffcli.Command {
 		s := strings.ToLower(strings.TrimSpace(*shell))
 		if s == "" {
 			fmt.Fprintln(os.Stderr, "Error: --shell is required")
-			return flag.ErrHelp
+			return shared.MissingRequiredUsageError()
 		}
 
 		names := rootCommandNames(rootSubcommands)

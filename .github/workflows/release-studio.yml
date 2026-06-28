@@ -99,23 +99,22 @@ jobs:
         working-directory: apps/studio/frontend
         run: npm ci
 
-      - name: Run Studio frontend tests
-        working-directory: apps/studio/frontend
-        run: npm run test -- --run
+      - parallel:
+          - name: Test and build frontend assets
+            working-directory: apps/studio/frontend
+            run: |
+              npm run test -- --run
+              npm run build
 
-      - name: Build frontend assets
-        working-directory: apps/studio/frontend
-        run: npm run build
-
-      - name: Build bundled asc helper
-        run: |
-          COMMIT=$(git rev-parse --short HEAD)
-          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          mkdir -p apps/studio/bin
-          GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o apps/studio/bin/asc-arm64 .
-          GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o apps/studio/bin/asc-amd64 .
-          lipo -create -output apps/studio/bin/asc apps/studio/bin/asc-arm64 apps/studio/bin/asc-amd64
-          chmod +x apps/studio/bin/asc
+          - name: Build bundled asc helper
+            run: |
+              COMMIT=$(git rev-parse --short HEAD)
+              DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              mkdir -p apps/studio/bin
+              GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o apps/studio/bin/asc-arm64 .
+              GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o apps/studio/bin/asc-amd64 .
+              lipo -create -output apps/studio/bin/asc apps/studio/bin/asc-arm64 apps/studio/bin/asc-amd64
+              chmod +x apps/studio/bin/asc
 
       - name: Build ASC Studio app
         working-directory: apps/studio

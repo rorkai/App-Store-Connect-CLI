@@ -186,7 +186,7 @@ Examples:
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
 				return fmt.Errorf("merchant-ids get: --certificates-limit must be between 1 and 50")
@@ -260,12 +260,12 @@ Examples:
 			identifierValue := strings.TrimSpace(*identifier)
 			if identifierValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --identifier is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -313,12 +313,12 @@ Examples:
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" && !*clearName {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if nameValue != "" && *clearName {
 				fmt.Fprintln(os.Stderr, "Error: --name cannot be used with --clear-name")
@@ -370,11 +370,11 @@ Examples:
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

@@ -90,7 +90,7 @@ Examples:
 			}
 			if len(args) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: search query is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit <= 0 {
 				fmt.Fprintln(os.Stderr, "Error: --limit must be greater than 0")
@@ -100,7 +100,7 @@ Examples:
 			query := strings.Join(args, " ")
 			if strings.TrimSpace(query) == "" {
 				fmt.Fprintln(os.Stderr, "Error: search query is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			selectedOutput := *output.Output
 			selectedPretty := *output.Pretty

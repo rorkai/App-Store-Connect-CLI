@@ -1,7 +1,6 @@
 package cmdtest
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -361,20 +359,15 @@ func TestStoreKitInvalidValuesAreUsageErrors(t *testing.T) {
 }
 
 func TestStoreKitBuiltBinaryUsageExitCode(t *testing.T) {
-	binaryPath := buildASCBlackBoxBinary(t)
-	cmd := exec.Command(binaryPath, "storekit", "retention-messaging", "messages", "list")
-	cmd.Env = append(os.Environ(), "ASC_STOREKIT_ENVIRONMENT=", "ASC_STOREKIT_KEY_ID=", "ASC_STOREKIT_ISSUER_ID=")
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 2 {
-		t.Fatalf("error = %v, want exit code 2", err)
-	}
-	if stdout.String() != "" || !strings.Contains(stderr.String(), "--environment is required") {
-		t.Fatalf("stdout=%q stderr=%q", stdout.String(), stderr.String())
-	}
+	t.Setenv("ASC_STOREKIT_ENVIRONMENT", "")
+	t.Setenv("ASC_STOREKIT_KEY_ID", "")
+	t.Setenv("ASC_STOREKIT_ISSUER_ID", "")
+
+	assertUsageExit(
+		t,
+		[]string{"storekit", "retention-messaging", "messages", "list"},
+		"--environment is required",
+	)
 }
 
 func setupStoreKitAuth(t *testing.T) {

@@ -71,7 +71,7 @@ Examples:
 			id := strings.TrimSpace(*setID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --set-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -140,7 +140,7 @@ Examples:
 			id := strings.TrimSpace(*setID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --set-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			ids := shared.SplitUniqueCSV(*leaderboardIDs)

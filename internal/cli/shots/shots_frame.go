@@ -62,7 +62,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			inputVal := strings.TrimSpace(*inputPath)
 			if configVal == "" && inputVal == "" {
 				fmt.Fprintln(os.Stderr, "Error: --input is required when --config is not set")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if configVal != "" && inputVal != "" {
 				fmt.Fprintln(os.Stderr, "Error: use either --input or --config, not both")

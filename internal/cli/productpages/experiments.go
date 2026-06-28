@@ -89,7 +89,7 @@ Examples:
 				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 
 				client, err := shared.GetASCClient()
@@ -134,7 +134,7 @@ Examples:
 			trimmedVersionID := strings.TrimSpace(*versionID)
 			if trimmedVersionID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -201,7 +201,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --experiment-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -257,7 +257,7 @@ Examples:
 			nameValue := strings.TrimSpace(*name)
 			if nameValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			trafficValue, err := parseTrafficProportion(*trafficProportion)
@@ -270,7 +270,7 @@ Examples:
 				resolvedAppID := shared.ResolveAppID(*appID)
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 
 				platformValue, err := shared.NormalizePlatform(*platform)
@@ -298,7 +298,7 @@ Examples:
 			trimmedVersionID := strings.TrimSpace(*versionID)
 			if trimmedVersionID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -348,7 +348,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --experiment-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrsName := strings.TrimSpace(*name)
@@ -364,7 +364,7 @@ Examples:
 
 			if attrsName == "" && trafficPtr == nil && !started.IsSet() {
 				fmt.Fprintln(os.Stderr, "Error: --name, --traffic-proportion, or --started is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -442,11 +442,11 @@ Examples:
 			trimmedID := strings.TrimSpace(*experimentID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --experiment-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

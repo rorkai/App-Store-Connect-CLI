@@ -71,7 +71,7 @@ Examples:
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("merchant-ids certificates list: --limit must be between 1 and 200")
@@ -173,7 +173,7 @@ Examples:
 			merchantIDValue := strings.TrimSpace(*merchantID)
 			if merchantIDValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("merchant-ids certificates get: --limit must be between 1 and 200")

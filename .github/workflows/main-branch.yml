@@ -90,29 +90,45 @@ jobs:
         if: steps.go-tools-cache.outputs.cache-hit != 'true'
         run: make tools
 
-      - name: Check formatting
-        run: |
-          export PATH="$(go env GOPATH)/bin:$PATH"
-          make format-check
+      - parallel:
+          - name: Check formatting
+            run: |
+              export PATH="$(go env GOPATH)/bin:$PATH"
+              make format-check
 
-      - name: Check Wall of Apps source
-        run: make check-wall-of-apps
+          - name: Check Wall of Apps source
+            run: make check-wall-of-apps
 
-      - name: Self-test docs validators
-        run: python3 scripts/test_check_docs.py
+          - name: Self-test docs validators
+            run: python3 scripts/test_check_docs.py
 
-      - name: Check documentation
-        run: make check-docs
+          - name: Check documentation
+            run: make check-docs
 
-      - name: Run lint
-        run: |
-          export PATH="$(go env GOPATH)/bin:$PATH"
-          make lint
+          - name: Run lint
+            run: |
+              export PATH="$(go env GOPATH)/bin:$PATH"
+              make lint
 
-  test:
+  test-shards:
     needs: changes
     if: needs.changes.outputs.wall_only != 'true'
+    name: test shard (${{ matrix.name }})
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: packages
+            command: go test -v ./cmd && python3 scripts/go_test_shard.py packages --packages ./... --exclude ./cmd --exclude ./internal/cli/cmdtest --exclude ./internal/cli/web --shard-index 0 --shard-total 1 -- -v
+          - name: web 1/2
+            command: python3 scripts/go_test_shard.py tests --package ./internal/cli/web --shard-index 0 --shard-total 2 -- -v
+          - name: web 2/2
+            command: python3 scripts/go_test_shard.py tests --package ./internal/cli/web --shard-index 1 --shard-total 2 -- -v
+          - name: cmdtest 1/2
+            command: python3 scripts/go_test_shard.py tests --package ./internal/cli/cmdtest --shard-index 0 --shard-total 2 -- -v
+          - name: cmdtest 2/2
+            command: python3 scripts/go_test_shard.py tests --package ./internal/cli/cmdtest --shard-index 1 --shard-total 2 -- -v
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -123,8 +139,20 @@ jobs:
           go-version: '1.26.4'
           cache: true
 
-      - name: Run all tests
-        run: ASC_BYPASS_KEYCHAIN=1 make test
+      - name: Run Go test shard
+        run: ASC_BYPASS_KEYCHAIN=1 ${{ matrix.command }}
+
+  test:
+    needs: [changes, test-shards]
+    if: always() && needs.changes.outputs.wall_only != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify test shards
+        run: |
+          if [ "${{ needs.test-shards.result }}" != "success" ]; then
+            echo "test-shards result: ${{ needs.test-shards.result }}"
+            exit 1
+          fi
 
   build:
     needs: changes
@@ -143,20 +171,23 @@ jobs:
           go-version: '1.26.4'
           cache: true
 
-      - name: Build for macOS
-        run: |
-          mkdir -p build
-          GOOS=darwin GOARCH=amd64 go build -o build/asc_dev_macOS_amd64 .
-          GOOS=darwin GOARCH=arm64 go build -o build/asc_dev_macOS_arm64 .
+      - name: Create build directory
+        run: mkdir -p build
 
-      - name: Build for Linux
-        run: |
-          GOOS=linux GOARCH=amd64 go build -o build/asc_dev_linux_amd64 .
-          GOOS=linux GOARCH=arm64 go build -o build/asc_dev_linux_arm64 .
+      - parallel:
+          - name: Build for macOS
+            run: |
+              GOOS=darwin GOARCH=amd64 go build -o build/asc_dev_macOS_amd64 .
+              GOOS=darwin GOARCH=arm64 go build -o build/asc_dev_macOS_arm64 .
 
-      - name: Build for Windows
-        run: |
-          GOOS=windows GOARCH=amd64 go build -o build/asc_dev_windows_amd64.exe .
+          - name: Build for Linux
+            run: |
+              GOOS=linux GOARCH=amd64 go build -o build/asc_dev_linux_amd64 .
+              GOOS=linux GOARCH=arm64 go build -o build/asc_dev_linux_arm64 .
+
+          - name: Build for Windows
+            run: |
+              GOOS=windows GOARCH=amd64 go build -o build/asc_dev_windows_amd64.exe .
 
       - name: Create checksums
         run: |

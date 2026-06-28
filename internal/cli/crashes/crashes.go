@@ -102,7 +102,7 @@ func runListCommand(ctx context.Context, config shared.ListCommandConfig, flags 
 	resolvedAppID := shared.ResolveAppID(*flags.appID)
 	if resolvedAppID == "" && strings.TrimSpace(*flags.next) == "" {
 		fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 
 	client, err := shared.GetASCClient()

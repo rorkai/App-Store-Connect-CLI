@@ -65,7 +65,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -169,15 +169,15 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*territory) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --territory is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*releaseDate) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --release-date is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if availableInNewTerritories.IsSet() {
@@ -300,7 +300,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*territoryAvailabilityID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --territory-availability is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.TerritoryAvailabilityUpdateAttributes{}
@@ -332,7 +332,7 @@ Examples:
 			}
 			if !hasAttr {
 				fmt.Fprintln(os.Stderr, "Error: at least one of --release-date, --pre-order-enabled, or --available is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -374,7 +374,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*territoryAvailabilityID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --territory-availability is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			preOrderEnabled := false
@@ -420,7 +420,7 @@ Examples:
 			ids := shared.SplitCSV(*territoryAvailabilityIDs)
 			if len(ids) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --territory-availability is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

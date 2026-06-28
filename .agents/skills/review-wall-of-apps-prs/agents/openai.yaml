@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Wall of Apps PRs"
+  short_description: "Validate and safely review Wall of Apps PRs"
+  default_prompt: "Use $review-wall-of-apps-prs to audit the open Wall of Apps pull requests."

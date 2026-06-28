@@ -67,7 +67,7 @@ Examples:
 			relationshipType := strings.TrimSpace(*relType)
 			if relationshipType == "" {
 				fmt.Fprintln(os.Stderr, "Error: --type is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			kind, ok := appStoreVersionRelationshipKinds[relationshipType]
@@ -80,7 +80,7 @@ Examples:
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if kind == relationshipSingle && (trimmedNext != "" || *paginate || *limit != 0) {

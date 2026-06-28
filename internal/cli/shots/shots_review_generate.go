@@ -41,7 +41,7 @@ func ShotsReviewGenerateCommand() *ffcli.Command {
 			framed := strings.TrimSpace(*framedDir)
 			if framed == "" {
 				fmt.Fprintln(os.Stderr, "Error: --framed-dir is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			result, err := screenshots.GenerateReview(ctx, screenshots.ReviewRequest{

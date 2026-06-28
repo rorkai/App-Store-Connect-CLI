@@ -78,7 +78,7 @@ Examples:
 			submissionIDValue := strings.TrimSpace(*submissionID)
 			if submissionIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			return runFeedbackSubmissionView(ctx, submissionIDValue, output)
 		},
@@ -106,11 +106,11 @@ Examples:
 			submissionIDValue := strings.TrimSpace(*submissionID)
 			if submissionIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			return runFeedbackSubmissionDelete(ctx, submissionIDValue, output)
 		},
@@ -182,7 +182,7 @@ Examples:
 			submissionIDValue := strings.TrimSpace(*submissionID)
 			if submissionIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			return runCrashSubmissionView(ctx, submissionIDValue, output)
 		},
@@ -210,11 +210,11 @@ Examples:
 			submissionIDValue := strings.TrimSpace(*submissionID)
 			if submissionIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			return runCrashSubmissionDelete(ctx, submissionIDValue, output)
 		},
@@ -244,7 +244,7 @@ Examples:
 			crashLogIDValue := strings.TrimSpace(*crashLogID)
 			if (submissionIDValue == "" && crashLogIDValue == "") || (submissionIDValue != "" && crashLogIDValue != "") {
 				fmt.Fprintln(os.Stderr, "Error: exactly one of --submission-id or --crash-log-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if submissionIDValue != "" {
 				return runCrashLogBySubmissionID(ctx, submissionIDValue, output)
@@ -323,7 +323,7 @@ func deprecatedBetaFeedbackCrashSubmissionsGetAliasCommand() *ffcli.Command {
 			}
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			return runCrashSubmissionView(ctx, idValue, output)
 		},
@@ -353,11 +353,11 @@ func deprecatedBetaFeedbackCrashSubmissionsDeleteAliasCommand() *ffcli.Command {
 			}
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			return runCrashSubmissionDelete(ctx, idValue, output)
 		},
@@ -406,7 +406,7 @@ func deprecatedBetaFeedbackScreenshotSubmissionsGetAliasCommand() *ffcli.Command
 			}
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			return runFeedbackSubmissionView(ctx, idValue, output)
 		},
@@ -436,11 +436,11 @@ func deprecatedBetaFeedbackScreenshotSubmissionsDeleteAliasCommand() *ffcli.Comm
 			}
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			return runFeedbackSubmissionDelete(ctx, idValue, output)
 		},
@@ -488,7 +488,7 @@ func deprecatedBetaFeedbackCrashLogGetAliasCommand() *ffcli.Command {
 			}
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			return runCrashLogBySubmissionID(ctx, idValue, output)
 		},

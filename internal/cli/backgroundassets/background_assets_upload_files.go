@@ -68,7 +68,7 @@ Examples:
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
 				return fmt.Errorf("background-assets upload-files list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
@@ -138,7 +138,7 @@ Examples:
 			uploadFileIDValue := strings.TrimSpace(*uploadFileID)
 			if uploadFileIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --upload-file-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -184,18 +184,18 @@ Examples:
 			versionIDValue := strings.TrimSpace(*versionID)
 			if versionIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			pathValue := strings.TrimSpace(*filePath)
 			if pathValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if strings.TrimSpace(*assetType) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --asset-type is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			typeValue, err := normalizeBackgroundAssetUploadFileAssetType(*assetType)
@@ -299,13 +299,13 @@ Examples:
 			uploadFileIDValue := strings.TrimSpace(*uploadFileID)
 			if uploadFileIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --upload-file-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			uploadedValue := strings.TrimSpace(*uploaded)
 			if uploadedValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --uploaded is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			uploadedBool, err := shared.ParseBoolFlag(uploadedValue, "--uploaded")
 			if err != nil {

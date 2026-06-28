@@ -92,7 +92,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -157,7 +157,7 @@ Examples:
 			id := strings.TrimSpace(*detailID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -200,7 +200,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			ceVal := strings.TrimSpace(*challengeEnabled)
@@ -252,7 +252,7 @@ Examples:
 			id := strings.TrimSpace(*detailID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			var rels *asc.GameCenterDetailUpdateRelationships
@@ -294,7 +294,7 @@ Examples:
 
 			if !hasUpdate {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required (--game-center-group-id, --default-leaderboard-id)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -372,7 +372,7 @@ Examples:
 			nextURL := strings.TrimSpace(*next)
 			if id == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -462,7 +462,7 @@ Examples:
 			id := strings.TrimSpace(*detailID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -539,7 +539,7 @@ Examples:
 			id := strings.TrimSpace(*detailID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -638,7 +638,7 @@ Examples:
 			id := strings.TrimSpace(*detailID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -737,7 +737,7 @@ Examples:
 			id := strings.TrimSpace(*detailID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -836,7 +836,7 @@ Examples:
 			id := strings.TrimSpace(*detailID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -935,7 +935,7 @@ Examples:
 			id := strings.TrimSpace(*detailID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -1034,7 +1034,7 @@ Examples:
 			id := strings.TrimSpace(*detailID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -1168,12 +1168,12 @@ func runDetailsMetrics(ctx context.Context, name string, detailID *string, granu
 	id := strings.TrimSpace(*detailID)
 	if id == "" && strings.TrimSpace(*next) == "" {
 		fmt.Fprintln(os.Stderr, "Error: --id is required")
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 	gran := strings.TrimSpace(*granularity)
 	if gran == "" && strings.TrimSpace(*next) == "" {
 		fmt.Fprintln(os.Stderr, "Error: --granularity is required")
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)

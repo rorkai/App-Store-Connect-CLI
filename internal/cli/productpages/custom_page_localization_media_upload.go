@@ -71,7 +71,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to sync")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			result, err := executeCustomPageScreenshotUpload(ctx, *localizationID, *path, *deviceType, true)
@@ -138,7 +138,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to sync")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			result, err := executeCustomPagePreviewUpload(ctx, *localizationID, *path, *deviceType, true)
@@ -190,17 +190,17 @@ func executeCustomPagePreviewUpload(
 	trimmedLocalizationID := strings.TrimSpace(localizationID)
 	if trimmedLocalizationID == "" {
 		fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-		return nil, flag.ErrHelp
+		return nil, shared.MissingRequiredUsageError()
 	}
 	trimmedPath := strings.TrimSpace(path)
 	if trimmedPath == "" {
 		fmt.Fprintln(os.Stderr, "Error: --path is required")
-		return nil, flag.ErrHelp
+		return nil, shared.MissingRequiredUsageError()
 	}
 	trimmedDeviceType := strings.TrimSpace(deviceType)
 	if trimmedDeviceType == "" {
 		fmt.Fprintln(os.Stderr, "Error: --device-type is required")
-		return nil, flag.ErrHelp
+		return nil, shared.MissingRequiredUsageError()
 	}
 
 	previewType, err := assets.NormalizePreviewType(trimmedDeviceType)

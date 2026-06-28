@@ -61,7 +61,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
@@ -93,7 +93,7 @@ Examples:
 			}
 			if !*confirm && !*dryRun {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required unless --dry-run is set")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *noSubmit && *dryRun {
 				return shared.UsageError("--no-submit and --dry-run are mutually exclusive")

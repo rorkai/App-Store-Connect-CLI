@@ -26,6 +26,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/telemetry"
 )
 
 func TestRun_VersionFlag(t *testing.T) {
@@ -67,7 +68,7 @@ func TestRun_ReportFlagValidationErrorEmitsTelemetry(t *testing.T) {
 	var commandName string
 	var duration time.Duration
 	var exitCode int
-	emitTelemetry = func(command, _ string, elapsed time.Duration, code int) {
+	emitTelemetry = func(command, _ string, elapsed time.Duration, code int, _ telemetry.EventContext) {
 		calls++
 		commandName = command
 		duration = elapsed
@@ -101,7 +102,7 @@ func TestRun_ParseErrorEmitsTelemetry(t *testing.T) {
 	var commandName string
 	var duration time.Duration
 	var exitCode int
-	emitTelemetry = func(command, _ string, elapsed time.Duration, code int) {
+	emitTelemetry = func(command, _ string, elapsed time.Duration, code int, _ telemetry.EventContext) {
 		calls++
 		commandName = command
 		duration = elapsed
@@ -156,6 +157,300 @@ func TestRun_UnknownCommandReturnsUsage(t *testing.T) {
 	code := Run([]string{"unknown-command"}, "1.0.0")
 	if code != ExitUsage {
 		t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+	}
+}
+
+func TestRun_BareGroupPrintsHelpToStdoutAndExitsSuccessfully(t *testing.T) {
+	resetReportFlags(t)
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+		gotContext = eventContext
+	}
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"builds"}, "1.0.0"); code != ExitSuccess {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
+		}
+	})
+
+	if !strings.Contains(stdout, "asc builds list") {
+		t.Fatalf("expected builds help on stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if gotContext.InvocationShape != telemetry.InvocationShapeBareGroup {
+		t.Fatalf("InvocationShape = %q, want %q", gotContext.InvocationShape, telemetry.InvocationShapeBareGroup)
+	}
+	if gotContext.ErrorKind != "" || gotContext.FailureStage != "" {
+		t.Fatalf("successful help should not carry failure context: %+v", gotContext)
+	}
+}
+
+func TestRun_BareGroupWritesJUnitReport(t *testing.T) {
+	resetReportFlags(t)
+	reportPath := filepath.Join(t.TempDir(), "junit.xml")
+
+	captureCommandOutput(t, func() {
+		if code := Run([]string{
+			"--report", "junit",
+			"--report-file", reportPath,
+			"builds",
+		}, "1.0.0"); code != ExitSuccess {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
+		}
+	})
+
+	data, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+
+	var suite struct {
+		Failures  int `xml:"failures,attr"`
+		TestCases []struct {
+			Name string `xml:"name,attr"`
+		} `xml:"testcase"`
+	}
+	if err := xml.Unmarshal(data, &suite); err != nil {
+		t.Fatalf("xml.Unmarshal() error: %v", err)
+	}
+	if suite.Failures != 0 {
+		t.Fatalf("failures = %d, want 0", suite.Failures)
+	}
+	if len(suite.TestCases) != 1 || suite.TestCases[0].Name != "asc builds" {
+		t.Fatalf("unexpected testcase payload: %+v", suite.TestCases)
+	}
+}
+
+func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
+	resetReportFlags(t)
+	t.Setenv("ASC_APP_ID", "")
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+		gotContext = eventContext
+	}
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"validate"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--version or --version-id is required") {
+		t.Fatalf("expected missing version error, got %q", stderr)
+	}
+	if gotContext.ErrorKind != telemetry.ErrorKindMissingRequired || gotContext.FailureStage != telemetry.FailureStageValidation {
+		t.Fatalf("unexpected telemetry context: %+v", gotContext)
+	}
+}
+
+func TestRun_MissingRequiredFlagsEmitContext(t *testing.T) {
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	tests := []struct {
+		args       []string
+		wantStderr string
+	}{
+		{args: []string{"reviews"}, wantStderr: "--app is required"},
+		{args: []string{"reviews", "list"}, wantStderr: "--app is required"},
+		{args: []string{"screenshots", "plan", "--version", "1.0"}, wantStderr: "--app is required"},
+	}
+	for _, test := range tests {
+		t.Run(strings.Join(test.args, " "), func(t *testing.T) {
+			resetReportFlags(t)
+			t.Setenv("ASC_APP_ID", "")
+			var gotContext telemetry.EventContext
+			emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+				gotContext = eventContext
+			}
+
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(test.args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantStderr) {
+				t.Fatalf("expected %q, got %q", test.wantStderr, stderr)
+			}
+			if gotContext.ErrorKind != telemetry.ErrorKindMissingRequired || gotContext.FailureStage != telemetry.FailureStageValidation {
+				t.Fatalf("unexpected telemetry context: %+v", gotContext)
+			}
+		})
+	}
+}
+
+func TestRun_UnknownNestedSubcommandSuggestsRealSubcommand(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"builds", "lsit"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Did you mean: list") {
+		t.Fatalf("expected list suggestion, got %q", stderr)
+	}
+}
+
+func TestRun_UnknownHybridSubcommandReturnsUsageBeforeAuth(t *testing.T) {
+	resetReportFlags(t)
+
+	tempDir := t.TempDir()
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_STRICT_AUTH", "")
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "reviews", args: []string{"reviews", "lsti", "--app", "APP_ID"}},
+		{name: "xcode cloud workflows", args: []string{"xcode-cloud", "workflows", "lsti", "--app", "APP_ID"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(test.args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, "SUBCOMMANDS") {
+				t.Fatalf("expected command help, got %q", stderr)
+			}
+			if strings.Contains(stderr, "missing authentication") {
+				t.Fatalf("expected unknown child validation before auth resolution, got %q", stderr)
+			}
+		})
+	}
+}
+
+func TestRun_RemovedSubcommandsPreserveMigrationGuidance(t *testing.T) {
+	resetReportFlags(t)
+
+	tests := []struct {
+		name       string
+		args       []string
+		wantStderr string
+	}{
+		{name: "normalized get", args: []string{"builds", "app", "get"}, wantStderr: "Use `asc builds app view` instead."},
+		{name: "normalized set", args: []string{"age-rating", "set"}, wantStderr: "Use `asc age-rating edit` instead."},
+		{name: "apps create", args: []string{"apps", "create"}, wantStderr: "Use `asc web apps create` instead."},
+		{name: "submit create", args: []string{"submit", "create"}, wantStderr: "Use `asc review submit`"},
+		{name: "submit preflight", args: []string{"submit", "preflight"}, wantStderr: "Use `asc validate` instead."},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(test.args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantStderr) {
+				t.Fatalf("expected migration guidance %q, got %q", test.wantStderr, stderr)
+			}
+		})
+	}
+}
+
+func TestRun_SnitchPreservesPositionalDescription(t *testing.T) {
+	resetReportFlags(t)
+	t.Setenv("GITHUB_TOKEN", "")
+	t.Setenv("GH_TOKEN", "")
+
+	_, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"snitch", "--dry-run", "status command needs bundle ID support"}, "1.0.0"); code != ExitSuccess {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitSuccess)
+		}
+	})
+
+	if !strings.Contains(stderr, "status command needs bundle ID support") {
+		t.Fatalf("expected snitch preview to preserve description, got %q", stderr)
+	}
+}
+
+func TestRun_UnknownFlagSuggestsRealFlagAndEmitsContext(t *testing.T) {
+	resetReportFlags(t)
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+		gotContext = eventContext
+	}
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"versions", "attach-build", "--version-id", "VERSION_ID", "--build-id", "BUILD_ID"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Did you mean: --build") {
+		t.Fatalf("expected --build suggestion, got %q", stderr)
+	}
+	if gotContext.InvocationShape != telemetry.InvocationShapeLeaf ||
+		gotContext.ErrorKind != telemetry.ErrorKindUnknownFlag ||
+		gotContext.FailureStage != telemetry.FailureStageParse {
+		t.Fatalf("unexpected telemetry context: %+v", gotContext)
+	}
+}
+
+func TestRun_UnknownGroupFlagIsNotClassifiedAsBareGroup(t *testing.T) {
+	resetReportFlags(t)
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+		gotContext = eventContext
+	}
+
+	captureCommandOutput(t, func() {
+		if code := Run([]string{"builds", "--definitely-invalid"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if gotContext.InvocationShape != telemetry.InvocationShapeGroupWithFlags ||
+		gotContext.ErrorKind != telemetry.ErrorKindUnknownFlag ||
+		gotContext.FailureStage != telemetry.FailureStageParse {
+		t.Fatalf("unexpected telemetry context: %+v", gotContext)
 	}
 }
 
@@ -440,7 +735,7 @@ func TestRun_HelpEmitsTelemetry(t *testing.T) {
 	var commandName string
 	var duration time.Duration
 	var exitCode int
-	emitTelemetry = func(command, _ string, elapsed time.Duration, code int) {
+	emitTelemetry = func(command, _ string, elapsed time.Duration, code int, _ telemetry.EventContext) {
 		commandName = command
 		duration = elapsed
 		exitCode = code
@@ -451,6 +746,7 @@ func TestRun_HelpEmitsTelemetry(t *testing.T) {
 		RootCommand("1.0.0"),
 		"1.0.0",
 		ExitSuccess,
+		telemetry.EventContext{InvocationShape: telemetry.InvocationShapeGroupWithFlags},
 	)
 	if commandName != "asc builds" {
 		t.Fatalf("telemetry command = %q, want %q", commandName, "asc builds")

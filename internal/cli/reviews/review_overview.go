@@ -212,7 +212,7 @@ func resolveReviewOverviewFlags(appID, version, versionID, platform string) (str
 	resolvedAppID := shared.ResolveAppID(appID)
 	if strings.TrimSpace(resolvedAppID) == "" {
 		fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-		return "", "", "", "", flag.ErrHelp
+		return "", "", "", "", shared.MissingRequiredUsageError()
 	}
 
 	versionValue := strings.TrimSpace(version)

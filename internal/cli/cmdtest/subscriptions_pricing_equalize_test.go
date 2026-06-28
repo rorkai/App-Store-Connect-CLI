@@ -8,12 +8,9 @@ import (
 	"flag"
 	"io"
 	"net/http"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
-
-	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestSubscriptionsPricingEqualizeValidationErrors(t *testing.T) {
@@ -70,8 +67,6 @@ func TestSubscriptionsPricingEqualizeValidationErrors(t *testing.T) {
 }
 
 func TestSubscriptionsPricingEqualizeBooleanFlagExitCodes(t *testing.T) {
-	bin := buildCLIBinary(t)
-
 	tests := []struct {
 		name       string
 		args       []string
@@ -103,39 +98,9 @@ func TestSubscriptionsPricingEqualizeBooleanFlagExitCodes(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			cmd := exec.Command(bin, test.args...)
-			var stdout, stderr strings.Builder
-			cmd.Stdout = &stdout
-			cmd.Stderr = &stderr
-			err := cmd.Run()
-
-			var exitErr *exec.ExitError
-			if !errors.As(err, &exitErr) {
-				t.Fatalf("expected exit error, got %v", err)
-			}
-			if code := exitErr.ExitCode(); code != rootcmd.ExitUsage {
-				t.Fatalf("exit code = %d, want %d", code, rootcmd.ExitUsage)
-			}
-			if stdout.String() != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout.String())
-			}
-			if !strings.Contains(stderr.String(), test.wantStderr) {
-				t.Fatalf("expected stderr to contain %q, got %q", test.wantStderr, stderr.String())
-			}
+			assertUsageExit(t, test.args, test.wantStderr)
 		})
 	}
-}
-
-func buildCLIBinary(t *testing.T) string {
-	t.Helper()
-
-	bin := t.TempDir() + "/asc"
-	cmd := exec.Command("go", "build", "-o", bin, "../../..")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("go build failed: %v\n%s", err, output)
-	}
-	return bin
 }
 
 func TestSubscriptionsPricingEqualize_RequiresConfirmUnlessDryRun(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 )
 
 func TestAdsUsageErrorsExitTwoWithBuiltBinary(t *testing.T) {
-	binaryPath := buildAdsBlackboxBinary(t)
+	binaryPath := buildASCBlackboxBinary(t)
 
 	tests := []struct {
 		name       string
@@ -65,19 +65,6 @@ func TestAdsUsageErrorsExitTwoWithBuiltBinary(t *testing.T) {
 			}
 		})
 	}
-}
-
-func buildAdsBlackboxBinary(t *testing.T) string {
-	t.Helper()
-
-	tmpDir := t.TempDir()
-	binaryPath := filepath.Join(tmpDir, "asc")
-	buildCmd := exec.Command("go", "build", "-o", binaryPath, ".")
-	buildCmd.Dir = ".."
-	if output, err := buildCmd.CombinedOutput(); err != nil {
-		t.Fatalf("go build failed: %v\n%s", err, output)
-	}
-	return binaryPath
 }
 
 func isolatedAdsBlackboxEnv(configPath string) []string {

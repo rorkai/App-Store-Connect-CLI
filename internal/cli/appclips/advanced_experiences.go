@@ -82,7 +82,7 @@ Examples:
 			appClipValue := strings.TrimSpace(*appClipID)
 			if appClipValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app-clip-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -157,7 +157,7 @@ Examples:
 			idValue := strings.TrimSpace(*experienceID)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --experience-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -209,12 +209,12 @@ Examples:
 			linkValue := strings.TrimSpace(*link)
 			if linkValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --link is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if strings.TrimSpace(*defaultLanguage) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --default-language is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			langValue, err := normalizeAppClipLanguage(*defaultLanguage)
@@ -228,7 +228,7 @@ Examples:
 			})
 			if !visited["is-powered-by"] {
 				fmt.Fprintln(os.Stderr, "Error: --is-powered-by is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			var actionValue *asc.AppClipAction
@@ -262,11 +262,11 @@ Examples:
 			appValue := strings.TrimSpace(shared.ResolveAppID(*appID))
 			if appClipValue == "" && bundleValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app-clip-id or --bundle-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if appClipValue == "" && appValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required with --bundle-id")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			appClipValue, err = resolveAppClipID(requestCtx, client, appValue, appClipValue, bundleValue)
@@ -322,7 +322,7 @@ Examples:
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --experience-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			visited := map[string]bool{}
@@ -333,7 +333,7 @@ Examples:
 			hasUpdate := visited["action"] || visited["category"] || visited["default-language"] || visited["is-powered-by"] || visited["removed"] || visited["header-image-id"] || visited["localization-id"] || visited["app-clip-id"]
 			if !hasUpdate {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			var attrs *asc.AppClipAdvancedExperienceUpdateAttributes
@@ -411,11 +411,11 @@ Examples:
 			experienceValue := strings.TrimSpace(*experienceID)
 			if experienceValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --experience-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

@@ -3971,37 +3971,10 @@ func TestPublishValidationErrors(t *testing.T) {
 		},
 	}
 
-	parentT := t
-	var binaryPath string
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if test.wantExit != 0 {
-				if binaryPath == "" {
-					binaryPath = buildASCBlackBoxBinary(parentT)
-				}
-				command := exec.Command(binaryPath, test.args...)
-
-				var stdout strings.Builder
-				var stderr strings.Builder
-				command.Stdout = &stdout
-				command.Stderr = &stderr
-
-				err := command.Run()
-				var exitErr *exec.ExitError
-				if !errors.As(err, &exitErr) {
-					t.Fatalf("expected process exit error, got %v", err)
-				}
-				if exitErr.ExitCode() != test.wantExit {
-					t.Fatalf("expected exit code %d, got %d", test.wantExit, exitErr.ExitCode())
-				}
-
-				if stdout.String() != "" {
-					t.Fatalf("expected empty stdout, got %q", stdout.String())
-				}
-				if !strings.Contains(stderr.String(), test.wantErr) {
-					t.Fatalf("expected error %q, got %q", test.wantErr, stderr.String())
-				}
+				assertUsageExit(t, test.args, test.wantErr)
 				return
 			}
 

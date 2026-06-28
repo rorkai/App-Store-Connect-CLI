@@ -57,7 +57,7 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -133,7 +133,7 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -152,7 +152,7 @@ Examples:
 			if *paginate {
 				if idValue == "" {
 					fmt.Fprintln(os.Stderr, "Error: --id is required")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				paginateOpts := append(opts, asc.WithPreReleaseVersionBuildsLimit(200))
 				firstPage, err := client.GetPreReleaseVersionBuilds(requestCtx, idValue, paginateOpts...)

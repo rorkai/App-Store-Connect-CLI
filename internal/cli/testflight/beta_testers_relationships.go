@@ -77,7 +77,7 @@ Examples:
 			relationshipType := strings.TrimSpace(*relType)
 			if relationshipType == "" {
 				fmt.Fprintln(os.Stderr, "Error: --type is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			kind, ok := betaTesterRelationshipKinds[relationshipType]
@@ -97,7 +97,7 @@ Examples:
 			nextValue := strings.TrimSpace(*next)
 			if testerValue == "" && nextValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --tester-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if kind == relationshipSingle && (nextValue != "" || *paginate || *limit != 0) {

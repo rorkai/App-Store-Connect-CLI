@@ -43,11 +43,11 @@ Examples:
 			trimmedOfferCodeID := strings.TrimSpace(*offerCodeID)
 			if trimmedOfferCodeID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --offer-code-id is required\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *quantity <= 0 {
 				fmt.Fprintln(os.Stderr, "Error: --quantity is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			normalizedExpirationDate, err := normalizeOfferCodeExpirationDate(*expirationDate)
 			if err != nil {
@@ -138,7 +138,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --batch-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			format, err := normalizeOfferCodeValuesFormat(*outputFormat)
 			if err != nil {

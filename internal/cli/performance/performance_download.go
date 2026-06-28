@@ -62,7 +62,7 @@ Examples:
 				appFlag = shared.ResolveAppID(*appID)
 				if appFlag == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app, --build, or --diagnostic-id is required")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				selectionCount = 1
 			}

@@ -69,7 +69,7 @@ Examples:
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --pass-type-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("pass-type-ids certificates list: --limit must be between 1 and 200")
@@ -173,7 +173,7 @@ Examples:
 			passTypeIDValue := strings.TrimSpace(*passTypeID)
 			if passTypeIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --pass-type-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("pass-type-ids certificates get: --limit must be between 1 and 200")

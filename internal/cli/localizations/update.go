@@ -80,7 +80,7 @@ At least one field flag must be provided.`,
 			localeValue := strings.TrimSpace(*locale)
 			if localeValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			localeValue, err = shared.CanonicalizeAppStoreLocalizationLocale(localeValue)
 			if err != nil {
@@ -128,13 +128,13 @@ type updateAppInfoParams struct {
 func updateAppInfoLocalization(ctx context.Context, p updateAppInfoParams) error {
 	if !hasAnyAppInfoField(p) {
 		fmt.Fprintln(os.Stderr, "Error: at least one app-info field is required (--name, --subtitle, --privacy-policy-url, --privacy-choices-url, --privacy-policy-text)")
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 
 	resolvedAppID := shared.ResolveAppID(p.appID)
 	if resolvedAppID == "" {
 		fmt.Fprintln(os.Stderr, "Error: --app is required for app-info localizations (or set ASC_APP_ID)")
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 
 	client, err := shared.GetASCClient()
@@ -202,13 +202,13 @@ type updateVersionParams struct {
 func updateVersionLocalization(ctx context.Context, p updateVersionParams) error {
 	if !hasAnyVersionField(p) {
 		fmt.Fprintln(os.Stderr, "Error: at least one version field is required (--description, --keywords, --whats-new, --promotional-text, --support-url, --marketing-url)")
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 
 	vid := strings.TrimSpace(p.versionID)
 	if vid == "" {
 		fmt.Fprintln(os.Stderr, "Error: --version is required for version localizations")
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 	if err := shared.ValidateVersionLocalizationAttributes(asc.AppStoreVersionLocalizationAttributes{Keywords: p.keywords}); err != nil {
 		return shared.UsageError(err.Error())

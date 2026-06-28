@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -549,29 +548,13 @@ func TestRunSubscriptionsLocalizationsSyncExitCodes(t *testing.T) {
 }
 
 func TestSubscriptionsLocalizationsSyncBuiltBinaryInvalidOutputExitUsage(t *testing.T) {
-	bin := buildCLIBinary(t)
 	input := writeLocalizationSyncInput(t, `{"en-US":{"name":"English"}}`)
-	cmd := exec.Command(
-		bin,
+	assertUsageExit(t, []string{
 		"subscriptions", "localizations", "sync",
 		"--subscription-id", "8000000001",
 		"--input", input,
 		"--output", "yaml",
-	)
-	var stdout, stderr strings.Builder
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) || exitErr.ExitCode() != rootcmd.ExitUsage {
-		t.Fatalf("expected exit %d, got %v", rootcmd.ExitUsage, err)
-	}
-	if stdout.String() != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout.String())
-	}
-	if !strings.Contains(stderr.String(), "unsupported format: yaml") {
-		t.Fatalf("unexpected stderr: %q", stderr.String())
-	}
+	}, "unsupported format: yaml")
 }
 
 func TestSubscriptionsLocalizationSyncPreflightsEveryCreateBeforeMutating(t *testing.T) {

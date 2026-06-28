@@ -3,7 +3,6 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -11,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -645,28 +643,11 @@ func TestMigrateImportDryRunSkipScreenshotsFlag(t *testing.T) {
 }
 
 func TestMigrateImportSkipScreenshotsRejectsInvalidBooleanExitCode(t *testing.T) {
-	binaryPath := buildASCBlackBoxBinary(t)
-	cmd := exec.Command(binaryPath, "migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--skip-screenshots=maybe")
-
-	var stdout strings.Builder
-	var stderr strings.Builder
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) {
-		t.Fatalf("expected process exit error, got %v", err)
-	}
-	if exitErr.ExitCode() != 2 {
-		t.Fatalf("expected exit code 2, got %d", exitErr.ExitCode())
-	}
-	if stdout.String() != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout.String())
-	}
-	if !strings.Contains(stderr.String(), "invalid boolean value") {
-		t.Fatalf("expected invalid boolean error, got %q", stderr.String())
-	}
+	assertUsageExit(
+		t,
+		[]string{"migrate", "import", "--app", "APP_ID", "--version-id", "VERSION_ID", "--skip-screenshots=maybe"},
+		"invalid boolean value",
+	)
 }
 
 func TestMigrateImportDryRunSkipScreenshotsAllowsMissingFastlaneScreenshotsDir(t *testing.T) {

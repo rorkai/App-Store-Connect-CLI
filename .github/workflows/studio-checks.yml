@@ -65,10 +65,11 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
-      - name: Run Studio Go tests
-        working-directory: ${{ github.workspace }}
-        run: go test ./apps/studio/...
+      - parallel:
+          - name: Run Studio Go tests
+            working-directory: ${{ github.workspace }}
+            run: go test ./apps/studio/...
 
-      - name: Build Studio bootstrap binary
-        working-directory: ${{ github.workspace }}
-        run: go build ./apps/studio
+          - name: Build Studio bootstrap binary
+            working-directory: ${{ github.workspace }}
+            run: go build ./apps/studio

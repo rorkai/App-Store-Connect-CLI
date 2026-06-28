@@ -103,7 +103,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if strings.TrimSpace(*versionID) == "" && resolvedAppID == "" && infoIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app or --info-id is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			includeValues, err := normalizeAppInfoInclude(*include)
@@ -128,7 +128,7 @@ Examples:
 			}
 			if strings.TrimSpace(*version) != "" && len(platforms) != 1 {
 				fmt.Fprintln(os.Stderr, "Error: --platform is required with --version")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if len(includeValues) > 0 {
@@ -260,7 +260,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if strings.TrimSpace(*versionID) == "" && resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
@@ -276,7 +276,7 @@ Examples:
 			}
 			if strings.TrimSpace(*version) != "" && len(platforms) != 1 {
 				fmt.Fprintln(os.Stderr, "Error: --platform is required with --version")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			localeValue := strings.TrimSpace(*locale)
@@ -292,7 +292,7 @@ Examples:
 			}
 			if fromDirValue == "" && localeValue == "" && len(localesValue) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --locale is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if localeValue != "" {
 				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
@@ -331,7 +331,7 @@ Examples:
 			}
 			if fromDirValue == "" && !hasInlineUpdates && copyFromLocaleValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if err := shared.ValidateVersionLocalizationAttributes(inlineAttrs); err != nil {
 				return shared.UsageError(err.Error())

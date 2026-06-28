@@ -72,7 +72,7 @@ Examples:
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if methodValue == http.MethodDelete && !*confirm {
 				return shared.UsageError("--confirm is required")

@@ -80,7 +80,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > webhooksMaxLimit) {
 				return fmt.Errorf("webhooks list: --limit must be between 1 and %d", webhooksMaxLimit)
@@ -105,7 +105,7 @@ Examples:
 			if *paginate {
 				if resolvedAppID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				paginateOpts := append(opts, asc.WithWebhooksLimit(webhooksMaxLimit))
 				firstPage, err := client.GetAppWebhooks(requestCtx, resolvedAppID, paginateOpts...)
@@ -152,7 +152,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -200,27 +200,27 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*name) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*url) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --url is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*secret) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --secret is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*events) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --events is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !enabled.IsSet() {
 				fmt.Fprintln(os.Stderr, "Error: --enabled is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			eventTypes, err := normalizeWebhookEvents(*events)
@@ -282,7 +282,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.WebhookUpdateAttributes{}
@@ -319,7 +319,7 @@ Examples:
 
 			if !hasUpdate {
 				fmt.Fprintln(os.Stderr, "Error: --name, --url, --secret, --events, or --enabled is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -361,12 +361,12 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -420,7 +420,7 @@ Examples:
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			filterCount := 0
 			if strings.TrimSpace(*createdAfter) != "" {
@@ -432,7 +432,7 @@ Examples:
 			if trimmedNext == "" {
 				if filterCount == 0 {
 					fmt.Fprintln(os.Stderr, "Error: --created-after or --created-before is required")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				if filterCount > 1 {
 					fmt.Fprintln(os.Stderr, "Error: only one of --created-after or --created-before can be used")
@@ -478,7 +478,7 @@ Examples:
 			if *paginate {
 				if trimmedID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				paginateOpts := append(opts, asc.WithWebhookDeliveriesLimit(webhooksMaxLimit))
 				firstPage, err := client.GetWebhookDeliveries(requestCtx, trimmedID, paginateOpts...)
@@ -530,7 +530,7 @@ Examples:
 			trimmedNext := strings.TrimSpace(*next)
 			if trimmedID == "" && trimmedNext == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > webhooksMaxLimit) {
 				return fmt.Errorf("webhooks deliveries links: --limit must be between 1 and %d", webhooksMaxLimit)
@@ -562,7 +562,7 @@ Examples:
 			if *paginate {
 				if trimmedID == "" {
 					fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				paginateOpts := append(opts, asc.WithLinkagesLimit(webhooksMaxLimit))
 				firstPage, err := client.GetWebhookDeliveriesRelationships(requestCtx, trimmedID, paginateOpts...)
@@ -609,7 +609,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*deliveryID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --delivery-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -651,7 +651,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*webhookID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --webhook-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

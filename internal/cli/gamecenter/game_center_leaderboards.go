@@ -108,13 +108,13 @@ Examples:
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			file := strings.TrimSpace(*filePath)
 			if file == "" {
 				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -157,11 +157,11 @@ Examples:
 			id := strings.TrimSpace(*imageID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -220,7 +220,7 @@ Examples:
 			nextURL := strings.TrimSpace(*next)
 			if resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -305,7 +305,7 @@ Examples:
 			id := strings.TrimSpace(*leaderboardID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -369,19 +369,19 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if group == "" && resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
 				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			vendor := strings.TrimSpace(*vendorID)
 			if vendor == "" {
 				fmt.Fprintln(os.Stderr, "Error: --vendor-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if group != "" && !strings.HasPrefix(vendor, "grp.") {
 				fmt.Fprintln(os.Stderr, "Error: --vendor-id must start with \"grp.\" when using --group-id")
@@ -391,7 +391,7 @@ Examples:
 			formatterVal := strings.TrimSpace(strings.ToUpper(*formatter))
 			if formatterVal == "" {
 				fmt.Fprintln(os.Stderr, "Error: --formatter is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !isValidLeaderboardFormatter(formatterVal) {
 				fmt.Fprintf(os.Stderr, "Error: --formatter must be one of: %s\n", strings.Join(asc.ValidLeaderboardFormatters, ", "))
@@ -401,7 +401,7 @@ Examples:
 			sortVal := strings.TrimSpace(strings.ToUpper(*sortType))
 			if sortVal == "" {
 				fmt.Fprintln(os.Stderr, "Error: --sort is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !isValidScoreSortType(sortVal) {
 				fmt.Fprintf(os.Stderr, "Error: --sort must be one of: %s\n", strings.Join(asc.ValidScoreSortTypes, ", "))
@@ -411,7 +411,7 @@ Examples:
 			submissionVal := strings.TrimSpace(strings.ToUpper(*submissionType))
 			if submissionVal == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission-type is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !isValidSubmissionType(submissionVal) {
 				fmt.Fprintf(os.Stderr, "Error: --submission-type must be one of: %s\n", strings.Join(asc.ValidSubmissionTypes, ", "))
@@ -488,7 +488,7 @@ Examples:
 			id := strings.TrimSpace(*leaderboardID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.GameCenterLeaderboardUpdateAttributes{}
@@ -512,7 +512,7 @@ Examples:
 
 			if !hasUpdate {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -562,11 +562,11 @@ Examples:
 			id := strings.TrimSpace(*leaderboardID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -628,22 +628,22 @@ Examples:
 			vendorValue := strings.TrimSpace(*vendorID)
 			if vendorValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --vendor-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			scoreValue := strings.TrimSpace(*score)
 			if scoreValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --score is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			bundleValue := strings.TrimSpace(*bundleID)
 			if bundleValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --bundle-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			playerValue := strings.TrimSpace(*scopedPlayerID)
 			if playerValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --scoped-player-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			var preReleasedValue *bool
@@ -733,7 +733,7 @@ Examples:
 			id := strings.TrimSpace(*leaderboardID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -814,7 +814,7 @@ Examples:
 			lbID := strings.TrimSpace(*leaderboardID)
 			if lbID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --leaderboard-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -881,13 +881,13 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			lbID := strings.TrimSpace(*leaderboardID)
 			if lbID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --leaderboard-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -936,11 +936,11 @@ Examples:
 			id := strings.TrimSpace(*releaseID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

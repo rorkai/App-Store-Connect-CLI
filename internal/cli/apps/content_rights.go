@@ -71,7 +71,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -140,12 +140,12 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if strings.TrimSpace(*usesThirdParty) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --uses-third-party-content is required (true or false)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			declaration, err := parseContentRightsValue(*usesThirdParty)

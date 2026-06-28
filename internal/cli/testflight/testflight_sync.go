@@ -147,13 +147,13 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			outputValue := strings.TrimSpace(*output)
 			if outputValue == "" {
 				fmt.Fprintf(os.Stderr, "Error: --output is required\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			buildFilters := shared.SplitCSV(*buildFilter)

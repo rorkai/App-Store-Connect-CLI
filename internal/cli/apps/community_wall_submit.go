@@ -192,7 +192,7 @@ Examples:
 			}
 			if !*dryRun && !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required unless --dry-run is set")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			input, err := collectCommunityWallSubmitInput(*appID, *name, *link, *country)

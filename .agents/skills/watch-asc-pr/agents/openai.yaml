@@ -1,0 +1,4 @@
+interface:
+  display_name: "Watch ASC Pull Request"
+  short_description: "Recheck ASC PR feedback, checks, and readiness"
+  default_prompt: "Use $watch-asc-pr to check this ASC CLI pull request for new actionable feedback."

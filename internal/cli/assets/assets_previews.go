@@ -42,7 +42,7 @@ Examples:
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-localization is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -114,17 +114,17 @@ Examples:
 			locID := strings.TrimSpace(*localizationID)
 			if locID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-localization is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			pathValue := strings.TrimSpace(*path)
 			if pathValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --path is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			deviceValue := strings.TrimSpace(*deviceType)
 			if deviceValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --device-type is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *skipExisting && *replace {
 				fmt.Fprintln(os.Stderr, "Error: --skip-existing and --replace are mutually exclusive")
@@ -222,7 +222,7 @@ Examples:
 
 			if idValue == "" && locID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --version-localization is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if idValue != "" && locID != "" {
 				return shared.UsageError("--id and --version-localization are mutually exclusive")
@@ -233,7 +233,7 @@ Examples:
 			if idValue != "" {
 				if outputFile == "" {
 					fmt.Fprintln(os.Stderr, "Error: --output is required with --id")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 				if strings.HasSuffix(outputFile, string(filepath.Separator)) {
 					return shared.UsageError("--output must be a file path")
@@ -242,7 +242,7 @@ Examples:
 			if locID != "" {
 				if outputDirValue == "" {
 					fmt.Fprintln(os.Stderr, "Error: --output-dir is required with --version-localization")
-					return flag.ErrHelp
+					return shared.MissingRequiredUsageError()
 				}
 			}
 
@@ -516,11 +516,11 @@ Examples:
 			assetID := strings.TrimSpace(*id)
 			if assetID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -576,12 +576,12 @@ Examples:
 			previewID := strings.TrimSpace(*id)
 			if previewID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			tc := strings.TrimSpace(*timeCode)
 			if tc == "" {
 				fmt.Fprintln(os.Stderr, "Error: --time-code is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !isValidPreviewFrameTimeCode(tc) {
 				fmt.Fprintln(os.Stderr, "Error: --time-code must be in HH:MM:SS:FF or HH:MM:SS.mmm format (e.g., 00:00:05:00 or 00:00:05.000)")

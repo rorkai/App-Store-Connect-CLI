@@ -91,13 +91,13 @@ Examples:
 			}
 			if sinceTagValue == "" && sinceRefValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: one of --since-tag or --since-ref is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			until := strings.TrimSpace(*untilRef)
 			if until == "" {
 				fmt.Fprintln(os.Stderr, "Error: --until-ref is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			formatValue := strings.ToLower(strings.TrimSpace(*format))

@@ -171,7 +171,7 @@ Examples:
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -292,24 +292,24 @@ Examples:
 			subscription := strings.TrimSpace(*subscriptionID)
 			if subscription == "" {
 				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
 				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			offer := strings.TrimSpace(*offerID)
 			if offer == "" {
 				fmt.Fprintln(os.Stderr, "Error: --offer-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if strings.TrimSpace(*duration) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --duration is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			durationValue, err := normalizeWinBackOfferDuration(*duration)
 			if err != nil {
@@ -318,7 +318,7 @@ Examples:
 
 			if strings.TrimSpace(*offerMode) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --offer-mode is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			offerModeValue, err := normalizeWinBackOfferMode(*offerMode)
 			if err != nil {
@@ -327,7 +327,7 @@ Examples:
 
 			if !periodCount.set {
 				fmt.Fprintln(os.Stderr, "Error: --period-count is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if periodCount.value <= 0 {
 				return fmt.Errorf("win-back-offers create: --period-count must be greater than 0")
@@ -335,7 +335,7 @@ Examples:
 
 			if !eligibilityPaidMonths.set {
 				fmt.Fprintln(os.Stderr, "Error: --eligibility-paid-months is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if eligibilityPaidMonths.value < 0 {
 				return fmt.Errorf("win-back-offers create: --eligibility-paid-months must be 0 or greater")
@@ -343,7 +343,7 @@ Examples:
 
 			if !eligibilityLastSubscribedMin.set && !eligibilityLastSubscribedMax.set {
 				fmt.Fprintln(os.Stderr, "Error: --eligibility-last-subscribed-min or --eligibility-last-subscribed-max is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if eligibilityLastSubscribedMin.set && eligibilityLastSubscribedMin.value < 0 {
 				return fmt.Errorf("win-back-offers create: eligibility last subscribed min must be 0 or greater")
@@ -365,7 +365,7 @@ Examples:
 
 			if strings.TrimSpace(*startDate) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --start-date is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			normalizedStartDate, err := shared.NormalizeDate(*startDate, "--start-date")
 			if err != nil {
@@ -374,7 +374,7 @@ Examples:
 
 			if strings.TrimSpace(*priority) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --priority is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			priorityValue, err := normalizeWinBackOfferPriority(*priority)
 			if err != nil {
@@ -384,7 +384,7 @@ Examples:
 			prices := shared.SplitCSV(*priceIDs)
 			if len(prices) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --price is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if eligibilityWaitMonths.set && eligibilityWaitMonths.value < 0 {
@@ -548,7 +548,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			hasUpdates := false
@@ -629,7 +629,7 @@ Examples:
 
 			if !hasUpdates {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -672,11 +672,11 @@ Examples:
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -738,7 +738,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*id)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			fieldsValue, err := normalizeWinBackOfferPriceFields(*fields, "--fields")

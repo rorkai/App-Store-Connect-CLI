@@ -83,7 +83,7 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > backgroundAssetsMaxLimit) {
 				return fmt.Errorf("background-assets list: --limit must be between 1 and %d", backgroundAssetsMaxLimit)
@@ -174,7 +174,7 @@ Examples:
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -217,13 +217,13 @@ Examples:
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			assetPackIdentifierValue := strings.TrimSpace(*assetPackIdentifier)
 			if assetPackIdentifierValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --asset-pack-identifier is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -266,12 +266,12 @@ Examples:
 			assetIDValue := strings.TrimSpace(*assetID)
 			if assetIDValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			if strings.TrimSpace(*archived) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --archived is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			archivedValue, err := shared.ParseBoolFlag(*archived, "--archived")
 			if err != nil {

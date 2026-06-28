@@ -35,7 +35,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --email is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {
@@ -93,7 +93,7 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --email is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {
@@ -112,7 +112,7 @@ Examples:
 
 			if !interruptPurchases.IsSet() && normalizedTerritory == "" && normalizedRate == "" {
 				fmt.Fprintln(os.Stderr, "Error: --territory, --interrupt-purchases, or --subscription-renewal-rate is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -181,11 +181,11 @@ Examples:
 		Exec: func(ctx context.Context, args []string) error {
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*testerID) == "" && strings.TrimSpace(*email) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id or --email is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {

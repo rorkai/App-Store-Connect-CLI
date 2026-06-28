@@ -167,7 +167,7 @@ Examples:
 			id := strings.TrimSpace(*queueID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -213,12 +213,12 @@ Examples:
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
 				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			ruleSet := strings.TrimSpace(*ruleSetID)
 			if ruleSet == "" {
 				fmt.Fprintln(os.Stderr, "Error: --rule-set-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.GameCenterMatchmakingQueueCreateAttributes{
@@ -269,7 +269,7 @@ Examples:
 			id := strings.TrimSpace(*queueID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			hasUpdate := false
@@ -281,7 +281,7 @@ Examples:
 
 			if !hasUpdate && strings.TrimSpace(*ruleSetID) == "" && strings.TrimSpace(*experimentRuleSetID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -324,11 +324,11 @@ Examples:
 			id := strings.TrimSpace(*queueID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -476,7 +476,7 @@ Examples:
 			id := strings.TrimSpace(*ruleSetID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -521,15 +521,15 @@ Examples:
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
 				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *ruleLanguageVersion == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --rule-language-version is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *minPlayers == 0 || *maxPlayers == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --min-players and --max-players are required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.GameCenterMatchmakingRuleSetCreateAttributes{
@@ -581,7 +581,7 @@ Examples:
 			id := strings.TrimSpace(*ruleSetID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.GameCenterMatchmakingRuleSetUpdateAttributes{}
@@ -600,7 +600,7 @@ Examples:
 
 			if !hasUpdate {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -643,11 +643,11 @@ Examples:
 			id := strings.TrimSpace(*ruleSetID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -728,7 +728,7 @@ Examples:
 			id := strings.TrimSpace(*ruleSetID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --rule-set-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -833,7 +833,7 @@ Examples:
 			id := strings.TrimSpace(*ruleSetID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --rule-set-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -902,27 +902,27 @@ Examples:
 			ruleSet := strings.TrimSpace(*ruleSetID)
 			if ruleSet == "" {
 				fmt.Fprintln(os.Stderr, "Error: --rule-set-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
 				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			desc := strings.TrimSpace(*description)
 			if desc == "" {
 				fmt.Fprintln(os.Stderr, "Error: --description is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			rtype := strings.TrimSpace(*ruleType)
 			if rtype == "" {
 				fmt.Fprintln(os.Stderr, "Error: --type is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			expr := strings.TrimSpace(*expression)
 			if expr == "" {
 				fmt.Fprintln(os.Stderr, "Error: --expression is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.GameCenterMatchmakingRuleCreateAttributes{
@@ -984,7 +984,7 @@ Examples:
 			id := strings.TrimSpace(*ruleID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.GameCenterMatchmakingRuleUpdateAttributes{}
@@ -1012,7 +1012,7 @@ Examples:
 
 			if !hasUpdate {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -1055,11 +1055,11 @@ Examples:
 			id := strings.TrimSpace(*ruleID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -1146,7 +1146,7 @@ Examples:
 			id := strings.TrimSpace(*ruleSetID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --rule-set-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -1213,16 +1213,16 @@ Examples:
 			ruleSet := strings.TrimSpace(*ruleSetID)
 			if ruleSet == "" {
 				fmt.Fprintln(os.Stderr, "Error: --rule-set-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			name := strings.TrimSpace(*referenceName)
 			if name == "" {
 				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if *minPlayers == 0 || *maxPlayers == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --min-players and --max-players are required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.GameCenterMatchmakingTeamCreateAttributes{
@@ -1273,7 +1273,7 @@ Examples:
 			id := strings.TrimSpace(*teamID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			attrs := asc.GameCenterMatchmakingTeamUpdateAttributes{}
@@ -1290,7 +1290,7 @@ Examples:
 			}
 			if !hasUpdate {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -1333,11 +1333,11 @@ Examples:
 			id := strings.TrimSpace(*teamID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -1607,12 +1607,12 @@ func runMetricsQueue(ctx context.Context, name string, queueID *string, granular
 	id := strings.TrimSpace(*queueID)
 	if id == "" && strings.TrimSpace(*next) == "" {
 		fmt.Fprintln(os.Stderr, "Error: --queue-id is required")
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 	gran := strings.TrimSpace(*granularity)
 	if gran == "" && strings.TrimSpace(*next) == "" {
 		fmt.Fprintln(os.Stderr, "Error: --granularity is required")
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 
 	var err error
@@ -1685,12 +1685,12 @@ func runMetricsRule(ctx context.Context, name string, ruleID *string, granularit
 	id := strings.TrimSpace(*ruleID)
 	if id == "" && strings.TrimSpace(*next) == "" {
 		fmt.Fprintln(os.Stderr, "Error: --rule-id is required")
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 	gran := strings.TrimSpace(*granularity)
 	if gran == "" && strings.TrimSpace(*next) == "" {
 		fmt.Fprintln(os.Stderr, "Error: --granularity is required")
-		return flag.ErrHelp
+		return shared.MissingRequiredUsageError()
 	}
 
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -1775,7 +1775,7 @@ Examples:
 			path := strings.TrimSpace(*filePath)
 			if path == "" {
 				fmt.Fprintln(os.Stderr, "Error: --file is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			payload, err := shared.ReadJSONFilePayload(path)

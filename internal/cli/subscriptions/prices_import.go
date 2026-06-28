@@ -169,13 +169,13 @@ Examples:
 			id := strings.TrimSpace(*subID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			inputValue := strings.TrimSpace(*inputPath)
 			if inputValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --input is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			defaultStartDate := ""

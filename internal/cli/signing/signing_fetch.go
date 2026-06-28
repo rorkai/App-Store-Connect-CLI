@@ -52,18 +52,18 @@ Examples:
 			bundle := strings.TrimSpace(*bundleID)
 			if bundle == "" {
 				fmt.Fprintln(os.Stderr, "Error: --bundle-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			profType := strings.TrimSpace(*profileType)
 			if profType == "" {
 				fmt.Fprintln(os.Stderr, "Error: --profile-type is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			profType = strings.ToUpper(profType)
 			if *createMissing && isDevelopmentProfile(profType) && strings.TrimSpace(*deviceIDs) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --device is required for development profiles")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			outputDir := strings.TrimSpace(*outputPath)

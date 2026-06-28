@@ -40,12 +40,12 @@ macOS: app must be running. Captures the frontmost visible window by bundle ID.
 			bundleIDVal := strings.TrimSpace(*bundleID)
 			if bundleIDVal == "" {
 				fmt.Fprintln(os.Stderr, "Error: --bundle-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			nameVal := strings.TrimSpace(*name)
 			if nameVal == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if nameVal == "." || nameVal == ".." || strings.ContainsAny(nameVal, `/\`) {
 				fmt.Fprintln(os.Stderr, "Error: --name must be a file name without path separators")

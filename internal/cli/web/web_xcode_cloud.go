@@ -277,7 +277,7 @@ Examples:
 			}
 			if len(requestedProductIDs) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --product-ids is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			primaryProductID := requestedProductIDs[0]
 			if err := validateDateFlag("--start", *start); err != nil {
@@ -401,7 +401,7 @@ Examples:
 			pid := strings.TrimSpace(*productID)
 			if pid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --product-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if err := validateDateFlag("--start", *start); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %s\n", err)

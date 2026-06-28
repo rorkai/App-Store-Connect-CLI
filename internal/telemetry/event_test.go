@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -50,6 +51,99 @@ func TestBuildEventSanitizesCommand(t *testing.T) {
 	for _, forbiddenField := range []string{"args", "argv", "raw_args", "raw_argv"} {
 		if _, exists := payload[forbiddenField]; exists {
 			t.Fatalf("event contains forbidden raw-argument field %q", forbiddenField)
+		}
+	}
+}
+
+func TestBuildEventWithContextEmitsOnlyLowCardinalityClassifications(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+
+	ev, ok := BuildEventWithContext(
+		"asc versions attach-build",
+		"1.2.3",
+		0,
+		2,
+		EventContext{
+			InvocationShape: InvocationShapeLeaf,
+			ErrorKind:       ErrorKindUnknownFlag,
+			FailureStage:    FailureStageParse,
+		},
+	)
+	if !ok {
+		t.Fatal("expected event")
+	}
+	if ev.SchemaVersion != 2 {
+		t.Fatalf("SchemaVersion = %d, want 2", ev.SchemaVersion)
+	}
+	if ev.InvocationShape != InvocationShapeLeaf || ev.ErrorKind == nil || *ev.ErrorKind != ErrorKindUnknownFlag ||
+		ev.FailureStage == nil || *ev.FailureStage != FailureStageParse {
+		t.Fatalf("unexpected classifications: %+v", ev)
+	}
+
+	data, err := json.Marshal(ev)
+	if err != nil {
+		t.Fatalf("marshal event: %v", err)
+	}
+	for _, forbidden := range []string{"stderr", "error_message", "args", "argv"} {
+		if strings.Contains(string(data), forbidden) {
+			t.Fatalf("payload contains forbidden field %q: %s", forbidden, data)
+		}
+	}
+}
+
+func TestBuildEventWithContextCanonicalizesFailureStage(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+
+	ev, ok := BuildEventWithContext(
+		"asc versions attach-build",
+		"1.2.3",
+		0,
+		2,
+		EventContext{
+			InvocationShape: InvocationShapeLeaf,
+			ErrorKind:       ErrorKindUnknownFlag,
+			FailureStage:    FailureStageRequest,
+		},
+	)
+	if !ok || ev.FailureStage == nil {
+		t.Fatal("expected classified event")
+	}
+	if *ev.FailureStage != FailureStageParse {
+		t.Fatalf("FailureStage = %q, want %q", *ev.FailureStage, FailureStageParse)
+	}
+}
+
+func TestBuildEventWithContextRejectsUnboundedContextValues(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+
+	ev, ok := BuildEventWithContext(
+		"asc builds",
+		"1.2.3",
+		0,
+		2,
+		EventContext{
+			InvocationShape: InvocationShape("unknown_child:private-app-name"),
+			ErrorKind:       ErrorKind("unknown_flag:--private-value"),
+			FailureStage:    FailureStage("stderr:private-error"),
+		},
+	)
+	if !ok || ev.ErrorKind == nil || ev.FailureStage == nil {
+		t.Fatal("expected canonicalized event")
+	}
+	if ev.InvocationShape != InvocationShapeLeaf || *ev.ErrorKind != ErrorKindOther || *ev.FailureStage != FailureStageExecution {
+		t.Fatalf("unexpected canonicalized context: %+v", ev)
+	}
+
+	data, err := json.Marshal(ev)
+	if err != nil {
+		t.Fatalf("marshal event: %v", err)
+	}
+	for _, privateValue := range []string{"private-app-name", "private-value", "private-error"} {
+		if strings.Contains(string(data), privateValue) {
+			t.Fatalf("payload leaked unbounded context %q: %s", privateValue, data)
 		}
 	}
 }

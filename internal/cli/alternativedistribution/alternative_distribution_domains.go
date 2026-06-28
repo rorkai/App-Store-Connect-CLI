@@ -132,7 +132,7 @@ Examples:
 			trimmedID := strings.TrimSpace(*domainID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --domain-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -175,13 +175,13 @@ Examples:
 			domainValue := strings.TrimSpace(*domain)
 			if domainValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --domain is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			referenceValue := strings.TrimSpace(*referenceName)
 			if referenceValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --reference-name is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()
@@ -224,11 +224,11 @@ Examples:
 			trimmedID := strings.TrimSpace(*domainID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --domain-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

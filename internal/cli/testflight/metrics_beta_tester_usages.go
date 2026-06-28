@@ -146,7 +146,7 @@ Examples:
 			nextValue := strings.TrimSpace(*next)
 			if nextValue == "" && resolvedAppID == "" {
 				fmt.Fprintf(os.Stderr, "Error: --app is required (or set ASC_APP_ID)\n\n")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := shared.GetASCClient()

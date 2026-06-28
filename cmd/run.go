@@ -22,7 +22,7 @@ import (
 
 var (
 	maybeCheckForSkillUpdates = install.MaybeCheckForSkillUpdates
-	emitTelemetry             = telemetry.Emit
+	emitTelemetry             = telemetry.EmitWithContext
 )
 
 // Run executes the CLI using the provided args (not including argv[0]) and version string.
@@ -38,6 +38,7 @@ func Run(args []string, versionInfo string) int {
 	}
 
 	root := RootCommand(versionInfo)
+	analysis := analyzeInvocation(root, args)
 	runCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stopSignals()
 
@@ -50,7 +51,9 @@ func Run(args []string, versionInfo string) int {
 			fmt.Fprint(os.Stderr, parseOutput.String())
 		}
 		if errors.Is(parseErr, flag.ErrHelp) {
-			emitImmediateTelemetry(args, root, versionInfo, ExitSuccess)
+			emitImmediateTelemetry(args, root, versionInfo, ExitSuccess, telemetry.EventContext{
+				InvocationShape: analysis.shape,
+			})
 			return ExitSuccess
 		}
 		if parseOutput.Len() == 0 {
@@ -60,14 +63,15 @@ func Run(args []string, versionInfo string) int {
 		if parseOutput.Len() > 0 {
 			exitCode = ExitUsage
 		}
-		emitImmediateTelemetry(args, root, versionInfo, exitCode)
+		printUnknownFlagSuggestion(analysis)
+		emitImmediateTelemetry(args, root, versionInfo, exitCode, parseFailureContext(analysis))
 		return exitCode
 	}
 
 	// Validate CI report flags after parsing
 	if err := shared.ValidateReportFlags(); err != nil {
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-		emitImmediateTelemetry(args, root, versionInfo, ExitUsage)
+		emitImmediateTelemetry(args, root, versionInfo, ExitUsage, validationFailureContext(analysis, err))
 		return ExitUsage
 	}
 
@@ -90,54 +94,104 @@ func Run(args []string, versionInfo string) int {
 	}
 
 	commandName := getCommandName(root, args)
+	if shouldRejectUnknownChild(root, analysis, commandName) {
+		runErr := shared.UsageErrorf("unexpected argument(s): %s", shared.SanitizeTerminal(analysis.unknownToken))
+		fmt.Fprint(os.Stderr, analysis.command.UsageFunc(analysis.command))
+		printUnknownSubcommandSuggestion(analysis)
+		emitImmediateTelemetry(args, root, versionInfo, ExitUsage, validationFailureContext(analysis, runErr))
+		return ExitUsage
+	}
 
+	runUsageOutput := &bytes.Buffer{}
+	restoreRunUsageOutput := redirectCommandFlagOutput(analysis.command, runUsageOutput)
 	start := time.Now()
 	runErr := root.Run(runCtx)
 	elapsed := time.Since(start)
+	restoreRunUsageOutput()
 
 	if shouldCancelRunContextAfterError(runErr) {
 		stopSignals()
 	}
+	renderGroupHelp := shouldRenderGroupHelp(analysis, runErr)
+	if renderGroupHelp {
+		fmt.Fprint(os.Stdout, runUsageOutput.String())
+	} else if runUsageOutput.Len() > 0 {
+		fmt.Fprint(os.Stderr, runUsageOutput.String())
+	}
 
-	if shouldRunSkillsUpdateCheck(commandName, runCtx, runErr) {
+	if !renderGroupHelp && shouldRunSkillsUpdateCheck(commandName, runCtx, runErr) {
 		maybeCheckForSkillUpdates(runCtx)
 	}
 
 	// Write JUnit report if requested
 	if shared.ReportFormat() == shared.ReportFormatJUnit && shared.ReportFile() != "" {
-		reportErr := writeJUnitReport(commandName, runErr, elapsed)
+		reportRunErr := runErr
+		if renderGroupHelp {
+			reportRunErr = nil
+		}
+		reportErr := writeJUnitReport(commandName, reportRunErr, elapsed)
 		if reportErr != nil {
 			// Report write failure is a hard error - CI depends on it
 			fmt.Fprintf(os.Stderr, "Error: failed to write JUnit report: %v\n", reportErr)
-			if runErr == nil {
-				emitTelemetry(commandName, versionInfo, elapsed, ExitError)
+			if reportRunErr == nil {
+				emitTelemetry(commandName, versionInfo, elapsed, ExitError, telemetry.EventContext{
+					InvocationShape: analysis.shape,
+					ErrorKind:       telemetry.ErrorKindOther,
+					FailureStage:    telemetry.FailureStageExecution,
+				})
 				return ExitError
 			}
 		}
 	}
 
+	if renderGroupHelp {
+		emitTelemetry(commandName, versionInfo, elapsed, ExitSuccess, telemetry.EventContext{
+			InvocationShape: analysis.shape,
+		})
+		return ExitSuccess
+	}
+
 	if runErr != nil {
 		if _, ok := errors.AsType[shared.ReportedError](runErr); ok {
 			exitCode := ExitCodeFromError(runErr)
-			emitTelemetry(commandName, versionInfo, elapsed, exitCode)
+			emitTelemetry(commandName, versionInfo, elapsed, exitCode, runtimeFailureContext(analysis, runErr, exitCode))
 			return exitCode
 		}
 		if errors.Is(runErr, flag.ErrHelp) {
-			emitTelemetry(commandName, versionInfo, elapsed, ExitUsage)
+			printUnknownSubcommandSuggestion(analysis)
+			emitTelemetry(commandName, versionInfo, elapsed, ExitUsage, validationFailureContext(analysis, runErr))
 			return ExitUsage
 		}
+		printUnknownSubcommandSuggestion(analysis)
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(runErr))
 		exitCode := ExitCodeFromError(runErr)
-		emitTelemetry(commandName, versionInfo, elapsed, exitCode)
+		emitTelemetry(commandName, versionInfo, elapsed, exitCode, runtimeFailureContext(analysis, runErr, exitCode))
 		return exitCode
 	}
 
-	emitTelemetry(commandName, versionInfo, elapsed, ExitSuccess)
+	emitTelemetry(commandName, versionInfo, elapsed, ExitSuccess, telemetry.EventContext{
+		InvocationShape: analysis.shape,
+	})
 	return ExitSuccess
 }
 
-func emitImmediateTelemetry(args []string, root *ffcli.Command, versionInfo string, exitCode int) {
-	emitTelemetry(getCommandName(root, args), versionInfo, 0, exitCode)
+func redirectCommandFlagOutput(command *ffcli.Command, output io.Writer) func() {
+	if command == nil || command.FlagSet == nil {
+		return func() {}
+	}
+	original := command.FlagSet.Output()
+	command.FlagSet.SetOutput(output)
+	return func() { command.FlagSet.SetOutput(original) }
+}
+
+func emitImmediateTelemetry(
+	args []string,
+	root *ffcli.Command,
+	versionInfo string,
+	exitCode int,
+	eventContext telemetry.EventContext,
+) {
+	emitTelemetry(getCommandName(root, args), versionInfo, 0, exitCode, eventContext)
 }
 
 func prepareFlagParsing(command *ffcli.Command, args []string, output *bytes.Buffer) func() {

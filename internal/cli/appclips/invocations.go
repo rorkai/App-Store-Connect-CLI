@@ -76,7 +76,7 @@ Examples:
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build-bundle-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := appClipsClientFactory()
@@ -150,7 +150,7 @@ Examples:
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --invocation-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := appClipsClientFactory()
@@ -199,13 +199,13 @@ Examples:
 			buildBundleValue := strings.TrimSpace(*buildBundleID)
 			if buildBundleValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --build-bundle-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			urlValue := strings.TrimSpace(*url)
 			if urlValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --url is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			localizationValues := shared.SplitCSV(*localizationIDs)
@@ -213,11 +213,11 @@ Examples:
 			titleValue := strings.TrimSpace(*title)
 			if titleValue != "" && localeValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --locale is required when --title is set")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if localeValue != "" && titleValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --title is required when --locale is set")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			inlineLocalizations := make([]asc.BetaAppClipInvocationLocalizationCreateAttributes, 0, 1)
@@ -273,7 +273,7 @@ Examples:
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --invocation-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			visited := map[string]bool{}
@@ -282,7 +282,7 @@ Examples:
 			})
 			if !visited["url"] {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			urlValue := strings.TrimSpace(*url)
@@ -328,11 +328,11 @@ Examples:
 			invocationValue := strings.TrimSpace(*invocationID)
 			if invocationValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --invocation-id is required")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to delete")
-				return flag.ErrHelp
+				return shared.MissingRequiredUsageError()
 			}
 
 			client, err := appClipsClientFactory()
