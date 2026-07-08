@@ -198,6 +198,9 @@ func sanitizeFailureParameter(parameter string) string {
 	if name == "" || len(name) > 64 {
 		return ""
 	}
+	if name[0] < 'a' || name[0] > 'z' || isUUIDLike(name) {
+		return ""
+	}
 	for i, r := range name {
 		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
 			continue
@@ -208,6 +211,25 @@ func sanitizeFailureParameter(parameter string) string {
 		return ""
 	}
 	return "--" + name
+}
+
+func isUUIDLike(name string) bool {
+	if len(name) != 36 {
+		return false
+	}
+	for i, r := range name {
+		if i == 8 || i == 13 || i == 18 || i == 23 {
+			if r != '-' {
+				return false
+			}
+			continue
+		}
+		if r >= '0' && r <= '9' || r >= 'a' && r <= 'f' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func sanitizeCommandName(commandName string) string {
