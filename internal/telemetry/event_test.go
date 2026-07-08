@@ -161,33 +161,36 @@ func TestBuildEventWithContextRejectsIdentifierShapedFailureParameters(t *testin
 	for _, parameter := range []string{
 		"--6759231657",
 		"--123e4567-e89b-12d3-a456-426614174000",
+		"--a1b2c3d4-e5f6-47a8-9012-3456789abcde",
 	} {
-		ev, ok := BuildEventWithContext(
-			"asc builds",
-			"1.2.3",
-			0,
-			2,
-			EventContext{
-				InvocationShape:  InvocationShapeLeaf,
-				ErrorKind:        ErrorKindUnknownFlag,
-				FailureStage:     FailureStageParse,
-				FailureParameter: parameter,
-			},
-		)
-		if !ok {
-			t.Fatal("expected event")
-		}
-		if ev.FailureParameter != nil {
-			t.Fatalf("FailureParameter for %q = %q, want nil", parameter, *ev.FailureParameter)
-		}
+		t.Run(parameter, func(t *testing.T) {
+			ev, ok := BuildEventWithContext(
+				"asc builds",
+				"1.2.3",
+				0,
+				2,
+				EventContext{
+					InvocationShape:  InvocationShapeLeaf,
+					ErrorKind:        ErrorKindUnknownFlag,
+					FailureStage:     FailureStageParse,
+					FailureParameter: parameter,
+				},
+			)
+			if !ok {
+				t.Fatal("expected event")
+			}
+			if ev.FailureParameter != nil {
+				t.Fatalf("FailureParameter for %q = %q, want nil", parameter, *ev.FailureParameter)
+			}
 
-		data, err := json.Marshal(ev)
-		if err != nil {
-			t.Fatalf("marshal event: %v", err)
-		}
-		if strings.Contains(string(data), strings.TrimPrefix(parameter, "--")) {
-			t.Fatalf("payload leaked identifier-shaped parameter %q: %s", parameter, data)
-		}
+			data, err := json.Marshal(ev)
+			if err != nil {
+				t.Fatalf("marshal event: %v", err)
+			}
+			if strings.Contains(string(data), strings.TrimPrefix(parameter, "--")) {
+				t.Fatalf("payload leaked identifier-shaped parameter %q: %s", parameter, data)
+			}
+		})
 	}
 }
 
