@@ -96,6 +96,34 @@ func TestBuildEventWithContextEmitsOnlyLowCardinalityClassifications(t *testing.
 	}
 }
 
+func TestBuildEventWithContextAllowsKnownFailureParameters(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+
+	for _, parameter := range []string{"--id", "--app", "--app-id"} {
+		t.Run(parameter, func(t *testing.T) {
+			ev, ok := BuildEventWithContext(
+				"asc apps view",
+				"1.2.3",
+				0,
+				2,
+				EventContext{
+					InvocationShape:  InvocationShapeLeaf,
+					ErrorKind:        ErrorKindUnknownFlag,
+					FailureStage:     FailureStageParse,
+					FailureParameter: parameter,
+				},
+			)
+			if !ok {
+				t.Fatal("expected event")
+			}
+			if ev.FailureParameter == nil || *ev.FailureParameter != parameter {
+				t.Fatalf("FailureParameter = %v, want %q", ev.FailureParameter, parameter)
+			}
+		})
+	}
+}
+
 func TestBuildEventWithContextCanonicalizesFailureStage(t *testing.T) {
 	clearContextEnv(t)
 	setTelemetryTestHome(t)
@@ -191,6 +219,30 @@ func TestBuildEventWithContextRejectsIdentifierShapedFailureParameters(t *testin
 				t.Fatalf("payload leaked identifier-shaped parameter %q: %s", parameter, data)
 			}
 		})
+	}
+}
+
+func TestBuildEventWithContextRejectsUnknownFailureParameterNames(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+
+	ev, ok := BuildEventWithContext(
+		"asc builds",
+		"1.2.3",
+		0,
+		2,
+		EventContext{
+			InvocationShape:  InvocationShapeLeaf,
+			ErrorKind:        ErrorKindUnknownFlag,
+			FailureStage:     FailureStageParse,
+			FailureParameter: "--my-secret-project",
+		},
+	)
+	if !ok {
+		t.Fatal("expected event")
+	}
+	if ev.FailureParameter != nil {
+		t.Fatalf("FailureParameter = %q, want nil", *ev.FailureParameter)
 	}
 }
 

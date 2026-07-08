@@ -201,6 +201,9 @@ func sanitizeFailureParameter(parameter string) string {
 	if name[0] < 'a' || name[0] > 'z' || isUUIDLike(name) {
 		return ""
 	}
+	if !isKnownFailureParameter(name) {
+		return ""
+	}
 	for i, r := range name {
 		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
 			continue
@@ -211,6 +214,51 @@ func sanitizeFailureParameter(parameter string) string {
 		return ""
 	}
 	return "--" + name
+}
+
+func isKnownFailureParameter(name string) bool {
+	_, ok := knownFailureParameters[name]
+	return ok
+}
+
+// Keep this list deliberately small: failure_parameter is a telemetry
+// dimension, so only public flags and compatibility aliases that help diagnose
+// common agent failures belong here.
+var knownFailureParameters = map[string]struct{}{
+	"all":             {},
+	"app":             {},
+	"app-id":          {},
+	"build":           {},
+	"build-id":        {},
+	"bundle-id":       {},
+	"confirm":         {},
+	"cursor":          {},
+	"dry-run":         {},
+	"email":           {},
+	"file":            {},
+	"group-id":        {},
+	"id":              {},
+	"ipa":             {},
+	"issuer-id":       {},
+	"key-id":          {},
+	"limit":           {},
+	"locale":          {},
+	"localization-id": {},
+	"next":            {},
+	"org":             {},
+	"output":          {},
+	"output-dir":      {},
+	"paginate":        {},
+	"platform":        {},
+	"profile":         {},
+	"review-id":       {},
+	"subscription-id": {},
+	"team-id":         {},
+	"tester-id":       {},
+	"version":         {},
+	"version-id":      {},
+	"workflow-id":     {},
+	"xcodebuild-flag": {},
 }
 
 func isUUIDLike(name string) bool {
