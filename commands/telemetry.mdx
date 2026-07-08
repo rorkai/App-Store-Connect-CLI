@@ -17,12 +17,14 @@ Rork sandboxes, Rork GitHub workflows, and explicitly ephemeral environments;
 events from those disposable runtimes omit the durable local install ID. Use
 `asc telemetry disable`, `ASC_TELEMETRY_DISABLED`, or `DO_NOT_TRACK` to opt out.
 
-The CLI payload does **not** include raw arguments, stderr, error messages, Apple account identifiers,
-team IDs, issuer IDs, key IDs, app IDs, bundle IDs, usernames, hostnames,
-repository names, IP addresses, user-agent strings, or file paths. As with any
-HTTPS service, the collector's edge provider sees the connection address; the
-Rork collector may use it transiently for abuse throttling but does not persist
-it in telemetry events or analytics storage.
+The CLI payload does **not** include raw arguments, stderr, error messages, flag
+values, Apple account identifiers, team IDs, issuer IDs, key IDs, app IDs,
+bundle IDs, usernames, hostnames, repository names, IP addresses, user-agent
+strings, or file paths. Failed usage events may include the public flag name
+that caused the failure, such as `--app`, but never the value passed to that
+flag. As with any HTTPS service, the collector's edge provider sees the
+connection address; the Rork collector may use it transiently for abuse
+throttling but does not persist it in telemetry events or analytics storage.
 
 ## Usage
 
@@ -88,7 +90,7 @@ The CLI sends a single best-effort JSON event after command completion:
 ```json
 {
   "event_id": "2d2f86dd-6d75-4a6f-b97f-a6ce15d4bc79",
-  "schema_version": 2,
+  "schema_version": 3,
   "asc_version": "1.13.0",
   "os": "darwin",
   "arch": "arm64",
@@ -104,7 +106,8 @@ The CLI sends a single best-effort JSON event after command completion:
   "session_id": "ac8062e3-e6d2-4301-8d08-bb444cd55004",
   "invocation_shape": "leaf",
   "error_kind": null,
-  "failure_stage": null
+  "failure_stage": null,
+  "failure_parameter": null
 }
 ```
 
@@ -114,10 +117,12 @@ cannot become telemetry dimensions. `session_id` is reused only within one CLI
 process and changes the next time `asc` starts.
 
 `invocation_shape` is one of `leaf`, `bare_group`, `group_with_flags`, or
-`unknown_child`. Failed schema-v2 events also include an allowlisted
-`error_kind` and `failure_stage`; successful events set both fields to `null`.
-These fields are derived inside the CLI and never contain stderr, error text,
-flag values, or positional values.
+`unknown_child`. Failed schema-v3 events also include an allowlisted
+`error_kind`, `failure_stage`, and nullable `failure_parameter`; successful
+events set these fields to `null`. These fields are derived inside the CLI and
+never contain stderr, error text, flag values, or positional values.
+`failure_parameter` is limited to a sanitized public long flag name such as
+`--app`.
 
 `runtime_context` describes where the command runs, independently from
 `invocation_source`, which describes what launched it. A command launched by
@@ -176,6 +181,7 @@ CREATE TABLE asc_cli_events
   invocation_shape Nullable(LowCardinality(String)),
   error_kind Nullable(LowCardinality(String)),
   failure_stage Nullable(LowCardinality(String)),
+  failure_parameter Nullable(LowCardinality(String)),
   source LowCardinality(String),
   collector_version LowCardinality(String)
 )

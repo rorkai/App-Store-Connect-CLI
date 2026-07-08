@@ -429,6 +429,9 @@ func TestRun_UnknownFlagSuggestsRealFlagAndEmitsContext(t *testing.T) {
 		gotContext.FailureStage != telemetry.FailureStageParse {
 		t.Fatalf("unexpected telemetry context: %+v", gotContext)
 	}
+	if gotContext.FailureParameter != "--build-id" {
+		t.Fatalf("FailureParameter = %q, want --build-id", gotContext.FailureParameter)
+	}
 }
 
 func TestRun_UnknownGroupFlagIsNotClassifiedAsBareGroup(t *testing.T) {

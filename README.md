@@ -189,11 +189,12 @@ or machine identifier.
 
 Telemetry includes the CLI version, operating system and architecture,
 registered command path, duration and exit outcome, runtime context, invocation
-source, low-cardinality invocation shape and failure classifications, and random
-event and session IDs. It does **not** include raw arguments, stderr, error messages,
-or flag values, credentials, private keys, Apple account, team, or issuer IDs,
-app or bundle IDs, API responses, usernames, hostnames, repository names, or
-file paths.
+source, low-cardinality invocation shape and failure classifications, the public
+flag name involved in a failed usage parse when it can be safely identified, and
+random event and session IDs. It does **not** include raw arguments, stderr,
+error messages, or flag values, credentials, private keys, Apple account, team,
+or issuer IDs, app or bundle IDs, API responses, usernames, hostnames,
+repository names, or file paths.
 
 Review or change telemetry at any time:
 

@@ -28,6 +28,7 @@ type Event struct {
 	InvocationShape  InvocationShape  `json:"invocation_shape"`
 	ErrorKind        *ErrorKind       `json:"error_kind"`
 	FailureStage     *FailureStage    `json:"failure_stage"`
+	FailureParameter *string          `json:"failure_parameter"`
 }
 
 type InvocationShape string
@@ -61,9 +62,10 @@ const (
 )
 
 type EventContext struct {
-	InvocationShape InvocationShape
-	ErrorKind       ErrorKind
-	FailureStage    FailureStage
+	InvocationShape  InvocationShape
+	ErrorKind        ErrorKind
+	FailureStage     FailureStage
+	FailureParameter string
 }
 
 // processSessionID groups events from one CLI process without linking separate
@@ -104,7 +106,7 @@ func BuildEventWithContext(
 
 	return Event{
 		EventID:          uuid.NewString(),
-		SchemaVersion:    2,
+		SchemaVersion:    3,
 		ASCVersion:       strings.TrimSpace(version),
 		OS:               runtime.GOOS,
 		Arch:             runtime.GOARCH,
@@ -121,6 +123,7 @@ func BuildEventWithContext(
 		InvocationShape:  eventContext.InvocationShape,
 		ErrorKind:        optionalErrorKind(eventContext.ErrorKind),
 		FailureStage:     optionalFailureStage(eventContext.FailureStage),
+		FailureParameter: optionalFailureParameter(eventContext.FailureParameter, exitCode),
 	}, true
 }
 
@@ -134,6 +137,7 @@ func normalizeEventContext(eventContext EventContext, exitCode int) EventContext
 	if exitCode == 0 {
 		eventContext.ErrorKind = ""
 		eventContext.FailureStage = ""
+		eventContext.FailureParameter = ""
 		return eventContext
 	}
 	if eventContext.ErrorKind == "" {
@@ -171,6 +175,39 @@ func optionalFailureStage(stage FailureStage) *FailureStage {
 		return nil
 	}
 	return &stage
+}
+
+func optionalFailureParameter(parameter string, exitCode int) *string {
+	if exitCode == 0 {
+		return nil
+	}
+	parameter = sanitizeFailureParameter(parameter)
+	if parameter == "" {
+		return nil
+	}
+	return &parameter
+}
+
+func sanitizeFailureParameter(parameter string) string {
+	parameter = strings.TrimSpace(parameter)
+	if parameter == "" {
+		return ""
+	}
+	name := strings.SplitN(parameter, "=", 2)[0]
+	name = strings.TrimLeft(name, "-")
+	if name == "" || len(name) > 64 {
+		return ""
+	}
+	for i, r := range name {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+			continue
+		}
+		if r == '-' && i > 0 {
+			continue
+		}
+		return ""
+	}
+	return "--" + name
 }
 
 func sanitizeCommandName(commandName string) string {

@@ -65,20 +65,24 @@ func TestBuildEventWithContextEmitsOnlyLowCardinalityClassifications(t *testing.
 		0,
 		2,
 		EventContext{
-			InvocationShape: InvocationShapeLeaf,
-			ErrorKind:       ErrorKindUnknownFlag,
-			FailureStage:    FailureStageParse,
+			InvocationShape:  InvocationShapeLeaf,
+			ErrorKind:        ErrorKindUnknownFlag,
+			FailureStage:     FailureStageParse,
+			FailureParameter: "--build-id=BUILD_ID",
 		},
 	)
 	if !ok {
 		t.Fatal("expected event")
 	}
-	if ev.SchemaVersion != 2 {
-		t.Fatalf("SchemaVersion = %d, want 2", ev.SchemaVersion)
+	if ev.SchemaVersion != 3 {
+		t.Fatalf("SchemaVersion = %d, want 3", ev.SchemaVersion)
 	}
 	if ev.InvocationShape != InvocationShapeLeaf || ev.ErrorKind == nil || *ev.ErrorKind != ErrorKindUnknownFlag ||
 		ev.FailureStage == nil || *ev.FailureStage != FailureStageParse {
 		t.Fatalf("unexpected classifications: %+v", ev)
+	}
+	if ev.FailureParameter == nil || *ev.FailureParameter != "--build-id" {
+		t.Fatalf("FailureParameter = %v, want --build-id", ev.FailureParameter)
 	}
 
 	data, err := json.Marshal(ev)
@@ -125,15 +129,17 @@ func TestBuildEventWithContextRejectsUnboundedContextValues(t *testing.T) {
 		0,
 		2,
 		EventContext{
-			InvocationShape: InvocationShape("unknown_child:private-app-name"),
-			ErrorKind:       ErrorKind("unknown_flag:--private-value"),
-			FailureStage:    FailureStage("stderr:private-error"),
+			InvocationShape:  InvocationShape("unknown_child:private-app-name"),
+			ErrorKind:        ErrorKind("unknown_flag:--private-value"),
+			FailureStage:     FailureStage("stderr:private-error"),
+			FailureParameter: "--private_value=SECRET",
 		},
 	)
 	if !ok || ev.ErrorKind == nil || ev.FailureStage == nil {
 		t.Fatal("expected canonicalized event")
 	}
-	if ev.InvocationShape != InvocationShapeLeaf || *ev.ErrorKind != ErrorKindOther || *ev.FailureStage != FailureStageExecution {
+	if ev.InvocationShape != InvocationShapeLeaf || *ev.ErrorKind != ErrorKindOther || *ev.FailureStage != FailureStageExecution ||
+		ev.FailureParameter != nil {
 		t.Fatalf("unexpected canonicalized context: %+v", ev)
 	}
 
@@ -141,7 +147,7 @@ func TestBuildEventWithContextRejectsUnboundedContextValues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal event: %v", err)
 	}
-	for _, privateValue := range []string{"private-app-name", "private-value", "private-error"} {
+	for _, privateValue := range []string{"private-app-name", "private-value", "private-error", "SECRET"} {
 		if strings.Contains(string(data), privateValue) {
 			t.Fatalf("payload leaked unbounded context %q: %s", privateValue, data)
 		}

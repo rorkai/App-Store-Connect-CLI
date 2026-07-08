@@ -115,15 +115,18 @@ func isHelpToken(token string) bool {
 
 func parseFailureContext(analysis invocationAnalysis) telemetry.EventContext {
 	kind := telemetry.ErrorKindInvalidValue
+	parameter := ""
 	if analysis.unknownFlag {
 		kind = telemetry.ErrorKindUnknownFlag
+		parameter = analysis.unknownToken
 	} else if analysis.shape == telemetry.InvocationShapeUnknownChild {
 		kind = telemetry.ErrorKindOther
 	}
 	return telemetry.EventContext{
-		InvocationShape: analysis.shape,
-		ErrorKind:       kind,
-		FailureStage:    telemetry.FailureStageParse,
+		InvocationShape:  analysis.shape,
+		ErrorKind:        kind,
+		FailureStage:     telemetry.FailureStageParse,
+		FailureParameter: parameter,
 	}
 }
 
