@@ -5399,7 +5399,37 @@ func TestDeleteCiProduct(t *testing.T) {
 }
 
 func TestGetCiWorkflow(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"ciWorkflows","id":"wf-1"}}`)
+	response := jsonResponse(http.StatusOK, `{
+		"data": {
+			"type": "ciWorkflows",
+			"id": "wf-1",
+			"attributes": {
+				"actions": [{
+					"name": "Archive - iOS",
+					"actionType": "ARCHIVE",
+					"destination": "ANY_IOS_DEVICE",
+					"buildDistributionAudience": "APP_STORE_ELIGIBLE",
+					"scheme": "Example",
+					"platform": "IOS",
+					"isRequiredToPass": true
+				}]
+			},
+			"relationships": {
+				"repository": {
+					"links": {
+						"self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/wf-1/relationships/repository",
+						"related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/wf-1/repository"
+					}
+				},
+				"buildRuns": {
+					"links": {
+						"self": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/wf-1/relationships/buildRuns",
+						"related": "https://api.appstoreconnect.apple.com/v1/ciWorkflows/wf-1/buildRuns"
+					}
+				}
+			}
+		}
+	}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
@@ -5410,8 +5440,29 @@ func TestGetCiWorkflow(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetCiWorkflow(context.Background(), "wf-1"); err != nil {
+	got, err := client.GetCiWorkflow(context.Background(), "wf-1")
+	if err != nil {
 		t.Fatalf("GetCiWorkflow() error: %v", err)
+	}
+	if len(got.Data.Attributes.Actions) != 1 || got.Data.Attributes.Actions[0].Scheme != "Example" {
+		t.Fatalf("unexpected actions: %#v", got.Data.Attributes.Actions)
+	}
+	if got.Data.Relationships == nil || got.Data.Relationships.Repository == nil {
+		t.Fatal("expected repository relationship")
+	}
+	if got.Data.Relationships.Repository.Links.Related != "https://api.appstoreconnect.apple.com/v1/ciWorkflows/wf-1/repository" {
+		t.Fatalf("unexpected repository links: %#v", got.Data.Relationships.Repository.Links)
+	}
+	if got.Data.Relationships.BuildRuns == nil || got.Data.Relationships.BuildRuns.Links.Related == "" {
+		t.Fatalf("unexpected build runs relationship: %#v", got.Data.Relationships.BuildRuns)
+	}
+
+	encoded, err := json.Marshal(got)
+	if err != nil {
+		t.Fatalf("json.Marshal() error: %v", err)
+	}
+	if strings.Contains(string(encoded), `"data":{"type":"","id":""}`) {
+		t.Fatalf("workflow response invented empty relationship data: %s", encoded)
 	}
 }
 

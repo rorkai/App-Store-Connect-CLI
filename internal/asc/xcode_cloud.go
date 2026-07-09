@@ -101,11 +101,24 @@ type CiWorkflowAttributes struct {
 	ManualBranchStartCondition      *CiManualStartCondition      `json:"manualBranchStartCondition,omitempty"`
 	ManualTagStartCondition         *CiManualStartCondition      `json:"manualTagStartCondition,omitempty"`
 	ManualPullRequestStartCondition *CiManualStartCondition      `json:"manualPullRequestStartCondition,omitempty"`
+	Actions                         []CiAction                   `json:"actions,omitempty"`
 	IsEnabled                       bool                         `json:"isEnabled,omitempty"`
 	IsLockedForEditing              bool                         `json:"isLockedForEditing,omitempty"`
 	Clean                           bool                         `json:"clean,omitempty"`
 	ContainerFilePath               string                       `json:"containerFilePath,omitempty"`
 	LastModifiedDate                string                       `json:"lastModifiedDate,omitempty"`
+}
+
+// CiAction describes a build, analyze, test, or archive action in a CI workflow.
+type CiAction struct {
+	Name                      string          `json:"name,omitempty"`
+	ActionType                string          `json:"actionType,omitempty"`
+	Destination               string          `json:"destination,omitempty"`
+	BuildDistributionAudience string          `json:"buildDistributionAudience,omitempty"`
+	TestConfiguration         json.RawMessage `json:"testConfiguration,omitempty"`
+	Scheme                    string          `json:"scheme,omitempty"`
+	Platform                  string          `json:"platform,omitempty"`
+	IsRequiredToPass          bool            `json:"isRequiredToPass"`
 }
 
 // CiBranchStartCondition describes branch start conditions.
@@ -176,10 +189,29 @@ type CiSchedule struct {
 
 // CiWorkflowRelationships describes relationships for a CI workflow.
 type CiWorkflowRelationships struct {
-	Product      *Relationship `json:"product,omitempty"`
-	Repository   *Relationship `json:"repository,omitempty"`
-	XcodeVersion *Relationship `json:"xcodeVersion,omitempty"`
-	MacOsVersion *Relationship `json:"macOsVersion,omitempty"`
+	Product      *Relationship                     `json:"product,omitempty"`
+	Repository   *CiWorkflowRepositoryRelationship `json:"repository,omitempty"`
+	XcodeVersion *Relationship                     `json:"xcodeVersion,omitempty"`
+	MacOsVersion *Relationship                     `json:"macOsVersion,omitempty"`
+	BuildRuns    *CiWorkflowBuildRunsRelationship  `json:"buildRuns,omitempty"`
+}
+
+// CiRelationshipLinks contains JSON:API links for an Xcode Cloud relationship.
+type CiRelationshipLinks struct {
+	Self    string `json:"self,omitempty"`
+	Related string `json:"related,omitempty"`
+}
+
+// CiWorkflowRepositoryRelationship describes a workflow's repository relationship.
+// Apple may return only links when the repository isn't included in the response.
+type CiWorkflowRepositoryRelationship struct {
+	Links CiRelationshipLinks `json:"links"`
+	Data  *ResourceData       `json:"data,omitempty"`
+}
+
+// CiWorkflowBuildRunsRelationship describes a workflow's build-runs relationship.
+type CiWorkflowBuildRunsRelationship struct {
+	Links CiRelationshipLinks `json:"links"`
 }
 
 // CiWorkflowResource represents a CI workflow resource.
