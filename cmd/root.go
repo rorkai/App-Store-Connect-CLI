@@ -19,8 +19,31 @@ var versionRequested bool
 
 // RootCommand returns the root command
 func RootCommand(version string) *ffcli.Command {
+	catalog := registry.NewCatalog(version)
+	return newRootCommand(version, catalog.All())
+}
+
+func rootCommandForArgs(version string, args []string) *ffcli.Command {
+	catalog := registry.NewCatalog(version)
+	root := newRootCommand(version, catalog.MetadataCommands())
+	commandName := getCommandName(root, args)
+	parts := strings.Fields(commandName)
+	if len(parts) < 2 {
+		return root
+	}
+
+	root.Subcommands = catalog.CommandsFor(parts[1])
+	for _, subcommand := range root.Subcommands {
+		if strings.EqualFold(subcommand.Name, parts[1]) {
+			shared.WrapCommandOutputValidation(subcommand)
+			break
+		}
+	}
+	return root
+}
+
+func newRootCommand(version string, subcommands []*ffcli.Command) *ffcli.Command {
 	versionRequested = false
-	subcommands := registry.Subcommands(version)
 	root := &ffcli.Command{
 		Name:        "asc",
 		ShortUsage:  "asc <subcommand> [flags]",

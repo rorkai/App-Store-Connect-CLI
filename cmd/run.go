@@ -40,7 +40,7 @@ func Run(args []string, versionInfo string) int {
 		return ExitSuccess
 	}
 
-	root := RootCommand(versionInfo)
+	root := rootCommandForArgs(versionInfo, args)
 	analysis := analyzeInvocation(root, args)
 	runCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stopSignals()
