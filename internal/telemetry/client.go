@@ -17,7 +17,7 @@ import (
 const (
 	DefaultEndpoint = "https://rork.com/cf-api/asc/v1/events"
 	endpointEnvVar  = "ASC_TELEMETRY_ENDPOINT"
-	maxSendDuration = 250 * time.Millisecond
+	maxSendDuration = 3 * time.Second
 )
 
 func Emit(commandName, version string, duration time.Duration, exitCode int) {
