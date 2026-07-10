@@ -138,19 +138,19 @@ Examples:
 
 // AppClipAdvancedExperiencesGetCommand gets an advanced experience by ID.
 func AppClipAdvancedExperiencesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	experienceID := fs.String("experience-id", "", "Advanced experience ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc app-clips advanced-experiences get --experience-id \"EXP_ID\"",
-		ShortHelp:  "Get an advanced experience by ID.",
-		LongHelp: `Get an advanced experience by ID.
+		Name:       "view",
+		ShortUsage: "asc app-clips advanced-experiences view --experience-id \"EXP_ID\"",
+		ShortHelp:  "View an advanced experience by ID.",
+		LongHelp: `View an advanced experience by ID.
 
 Examples:
-  asc app-clips advanced-experiences get --experience-id "EXP_ID"`,
+  asc app-clips advanced-experiences view --experience-id "EXP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -162,7 +162,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences get: %w", err)
+				return fmt.Errorf("app-clips advanced-experiences view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -170,7 +170,7 @@ Examples:
 
 			resp, err := client.GetAppClipAdvancedExperience(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences get: failed to fetch: %w", err)
+				return fmt.Errorf("app-clips advanced-experiences view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

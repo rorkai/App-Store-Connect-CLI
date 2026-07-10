@@ -25,7 +25,7 @@ func GameCenterActivitiesCommand() *ffcli.Command {
 
 Examples:
   asc game-center activities list --app "APP_ID"
-  asc game-center activities get --id "ACTIVITY_ID"
+  asc game-center activities view --id "ACTIVITY_ID"
   asc game-center activities create --app "APP_ID" --reference-name "Weekly" --vendor-id "com.example.weekly"
   asc game-center activities update --id "ACTIVITY_ID" --archived true
   asc game-center activities delete --id "ACTIVITY_ID" --confirm
@@ -33,8 +33,8 @@ Examples:
   asc game-center activities leaderboards set --activity-id "ACTIVITY_ID" --ids "LB_1,LB_2"
   asc game-center activities versions list --activity-id "ACTIVITY_ID"
   asc game-center activities localizations list --version-id "VERSION_ID"
-  asc game-center activities localizations image get --id "LOC_ID"
-  asc game-center activities versions default-image get --id "VERSION_ID"
+  asc game-center activities localizations image view --id "LOC_ID"
+  asc game-center activities versions default-image view --id "VERSION_ID"
   asc game-center activities images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
   asc game-center activities releases list --app "APP_ID"`,
 		FlagSet:   fs,
@@ -146,19 +146,19 @@ Examples:
 
 // GameCenterActivitiesGetCommand returns the activities get subcommand.
 func GameCenterActivitiesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	activityID := fs.String("id", "", "Game Center activity ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center activities get --id \"ACTIVITY_ID\"",
-		ShortHelp:  "Get a Game Center activity by ID.",
-		LongHelp: `Get a Game Center activity by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center activities view --id \"ACTIVITY_ID\"",
+		ShortHelp:  "View a Game Center activity by ID.",
+		LongHelp: `View a Game Center activity by ID.
 
 Examples:
-  asc game-center activities get --id "ACTIVITY_ID"`,
+  asc game-center activities view --id "ACTIVITY_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -170,7 +170,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center activities get: %w", err)
+				return fmt.Errorf("game-center activities view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -178,7 +178,7 @@ Examples:
 
 			resp, err := client.GetGameCenterActivity(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center activities get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center activities view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -642,10 +642,10 @@ func GameCenterActivityVersionsCommand() *ffcli.Command {
 
 Examples:
   asc game-center activities versions list --activity-id "ACTIVITY_ID"
-  asc game-center activities versions get --id "VERSION_ID"
+  asc game-center activities versions view --id "VERSION_ID"
   asc game-center activities versions create --activity-id "ACTIVITY_ID" --fallback-url "https://example.com"
   asc game-center activities versions update --id "VERSION_ID" --fallback-url "https://example.com"
-  asc game-center activities versions default-image get --id "VERSION_ID"`,
+  asc game-center activities versions default-image view --id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -739,19 +739,19 @@ Examples:
 
 // GameCenterActivityVersionsGetCommand returns the activity versions get subcommand.
 func GameCenterActivityVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	versionID := fs.String("id", "", "Game Center activity version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center activities versions get --id \"VERSION_ID\"",
-		ShortHelp:  "Get a Game Center activity version by ID.",
-		LongHelp: `Get a Game Center activity version by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center activities versions view --id \"VERSION_ID\"",
+		ShortHelp:  "View a Game Center activity version by ID.",
+		LongHelp: `View a Game Center activity version by ID.
 
 Examples:
-  asc game-center activities versions get --id "VERSION_ID"`,
+  asc game-center activities versions view --id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -763,7 +763,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center activities versions get: %w", err)
+				return fmt.Errorf("game-center activities versions view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -771,7 +771,7 @@ Examples:
 
 			resp, err := client.GetGameCenterActivityVersion(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center activities versions get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center activities versions view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -888,7 +888,7 @@ Examples:
   asc game-center activities localizations create --version-id "VERSION_ID" --locale en-US --name "Weekly" --description "Win weekly"
   asc game-center activities localizations update --id "LOC_ID" --name "New Name"
   asc game-center activities localizations delete --id "LOC_ID" --confirm
-  asc game-center activities localizations image get --id "LOC_ID"`,
+  asc game-center activities localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -983,19 +983,19 @@ Examples:
 
 // GameCenterActivityLocalizationsGetCommand returns the activity localizations get subcommand.
 func GameCenterActivityLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center activity localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center activities localizations get --id \"LOCALIZATION_ID\"",
-		ShortHelp:  "Get an activity localization by ID.",
-		LongHelp: `Get an activity localization by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center activities localizations view --id \"LOCALIZATION_ID\"",
+		ShortHelp:  "View an activity localization by ID.",
+		LongHelp: `View an activity localization by ID.
 
 Examples:
-  asc game-center activities localizations get --id "LOCALIZATION_ID"`,
+  asc game-center activities localizations view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1007,7 +1007,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center activities localizations get: %w", err)
+				return fmt.Errorf("game-center activities localizations view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -1015,7 +1015,7 @@ Examples:
 
 			resp, err := client.GetGameCenterActivityLocalization(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center activities localizations get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center activities localizations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -1215,7 +1215,7 @@ func GameCenterActivityImagesCommand() *ffcli.Command {
 
 Examples:
   asc game-center activities images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
-  asc game-center activities images get --id "IMAGE_ID"
+  asc game-center activities images view --id "IMAGE_ID"
   asc game-center activities images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -1283,19 +1283,19 @@ Examples:
 
 // GameCenterActivityImagesGetCommand returns the activity images get subcommand.
 func GameCenterActivityImagesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	imageID := fs.String("id", "", "Activity image ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center activities images get --id \"IMAGE_ID\"",
-		ShortHelp:  "Get an activity image by ID.",
-		LongHelp: `Get an activity image by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center activities images view --id \"IMAGE_ID\"",
+		ShortHelp:  "View an activity image by ID.",
+		LongHelp: `View an activity image by ID.
 
 Examples:
-  asc game-center activities images get --id "IMAGE_ID"`,
+  asc game-center activities images view --id "IMAGE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1307,7 +1307,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center activities images get: %w", err)
+				return fmt.Errorf("game-center activities images view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -1315,7 +1315,7 @@ Examples:
 
 			resp, err := client.GetGameCenterActivityImage(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center activities images get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center activities images view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -1586,12 +1586,12 @@ func GameCenterActivityLocalizationImageCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "image",
-		ShortUsage: "asc game-center activities localizations image get --id \"LOC_ID\"",
+		ShortUsage: "asc game-center activities localizations image view --id \"LOC_ID\"",
 		ShortHelp:  "Get the image for an activity localization.",
 		LongHelp: `Get the image for an activity localization.
 
 Examples:
-  asc game-center activities localizations image get --id "LOC_ID"`,
+  asc game-center activities localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -1605,19 +1605,19 @@ Examples:
 
 // GameCenterActivityLocalizationImageGetCommand returns the activity localization image get subcommand.
 func GameCenterActivityLocalizationImageGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center activity localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center activities localizations image get --id \"LOC_ID\"",
-		ShortHelp:  "Get an activity localization image.",
-		LongHelp: `Get an activity localization image.
+		Name:       "view",
+		ShortUsage: "asc game-center activities localizations image view --id \"LOC_ID\"",
+		ShortHelp:  "View an activity localization image.",
+		LongHelp: `View an activity localization image.
 
 Examples:
-  asc game-center activities localizations image get --id "LOC_ID"`,
+  asc game-center activities localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1629,7 +1629,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center activities localizations image get: %w", err)
+				return fmt.Errorf("game-center activities localizations image view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -1637,7 +1637,7 @@ Examples:
 
 			resp, err := client.GetGameCenterActivityLocalizationImage(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center activities localizations image get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center activities localizations image view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -1651,12 +1651,12 @@ func GameCenterActivityVersionDefaultImageCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "default-image",
-		ShortUsage: "asc game-center activities versions default-image get --id \"VERSION_ID\"",
+		ShortUsage: "asc game-center activities versions default-image view --id \"VERSION_ID\"",
 		ShortHelp:  "Get the default image for an activity version.",
 		LongHelp: `Get the default image for an activity version.
 
 Examples:
-  asc game-center activities versions default-image get --id "VERSION_ID"`,
+  asc game-center activities versions default-image view --id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -1670,19 +1670,19 @@ Examples:
 
 // GameCenterActivityVersionDefaultImageGetCommand returns the activity version default image get subcommand.
 func GameCenterActivityVersionDefaultImageGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	versionID := fs.String("id", "", "Game Center activity version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center activities versions default-image get --id \"VERSION_ID\"",
-		ShortHelp:  "Get a default image for an activity version.",
-		LongHelp: `Get a default image for an activity version.
+		Name:       "view",
+		ShortUsage: "asc game-center activities versions default-image view --id \"VERSION_ID\"",
+		ShortHelp:  "View a default image for an activity version.",
+		LongHelp: `View a default image for an activity version.
 
 Examples:
-  asc game-center activities versions default-image get --id "VERSION_ID"`,
+  asc game-center activities versions default-image view --id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1694,7 +1694,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center activities versions default-image get: %w", err)
+				return fmt.Errorf("game-center activities versions default-image view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -1702,7 +1702,7 @@ Examples:
 
 			resp, err := client.GetGameCenterActivityVersionDefaultImage(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center activities versions default-image get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center activities versions default-image view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

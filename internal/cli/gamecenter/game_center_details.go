@@ -25,11 +25,11 @@ func GameCenterDetailsCommand() *ffcli.Command {
 
 Examples:
   asc game-center details list --app "APP_ID"
-  asc game-center details get --id "DETAIL_ID"
+  asc game-center details view --id "DETAIL_ID"
   asc game-center details create --app "APP_ID"
   asc game-center details update --id "DETAIL_ID" --game-center-group-id "GROUP_ID"
   asc game-center details app-versions list --id "DETAIL_ID"
-  asc game-center details group get --id "DETAIL_ID"
+  asc game-center details group view --id "DETAIL_ID"
   asc game-center details achievements-v2 list --id "DETAIL_ID"
   asc game-center details leaderboard-releases list --id "DETAIL_ID"
   asc game-center details metrics classic-matchmaking --id "DETAIL_ID" --granularity P1D`,
@@ -138,19 +138,19 @@ Examples:
 
 // GameCenterDetailsGetCommand returns the details get subcommand.
 func GameCenterDetailsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	detailID := fs.String("id", "", "Game Center detail ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center details get --id \"DETAIL_ID\"",
-		ShortHelp:  "Get a Game Center detail by ID.",
-		LongHelp: `Get a Game Center detail by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center details view --id \"DETAIL_ID\"",
+		ShortHelp:  "View a Game Center detail by ID.",
+		LongHelp: `View a Game Center detail by ID.
 
 Examples:
-  asc game-center details get --id "DETAIL_ID"`,
+  asc game-center details view --id "DETAIL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -162,7 +162,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center details get: %w", err)
+				return fmt.Errorf("game-center details view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -170,7 +170,7 @@ Examples:
 
 			resp, err := client.GetGameCenterDetail(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center details get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center details view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -424,12 +424,12 @@ func GameCenterDetailsGroupCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "group",
-		ShortUsage: "asc game-center details group get --id \"DETAIL_ID\"",
+		ShortUsage: "asc game-center details group view --id \"DETAIL_ID\"",
 		ShortHelp:  "Get the Game Center group for a detail.",
 		LongHelp: `Get the Game Center group for a detail.
 
 Examples:
-  asc game-center details group get --id "DETAIL_ID"`,
+  asc game-center details group view --id "DETAIL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -443,19 +443,19 @@ Examples:
 
 // GameCenterDetailsGroupGetCommand returns the details group get subcommand.
 func GameCenterDetailsGroupGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	detailID := fs.String("id", "", "Game Center detail ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center details group get --id \"DETAIL_ID\"",
-		ShortHelp:  "Get the Game Center group for a detail.",
-		LongHelp: `Get the Game Center group for a detail.
+		Name:       "view",
+		ShortUsage: "asc game-center details group view --id \"DETAIL_ID\"",
+		ShortHelp:  "View the Game Center group for a detail.",
+		LongHelp: `View the Game Center group for a detail.
 
 Examples:
-  asc game-center details group get --id "DETAIL_ID"`,
+  asc game-center details group view --id "DETAIL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -467,7 +467,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center details group get: %w", err)
+				return fmt.Errorf("game-center details group view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -475,7 +475,7 @@ Examples:
 
 			resp, err := client.GetGameCenterDetailGameCenterGroup(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center details group get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center details group view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

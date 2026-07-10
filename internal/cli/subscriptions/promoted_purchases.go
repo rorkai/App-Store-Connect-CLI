@@ -29,7 +29,7 @@ attached to the app.
 
 Examples:
   asc subscriptions promoted-purchases list --app "APP_ID"
-  asc subscriptions promoted-purchases get --promoted-purchase-id "PROMO_ID"
+  asc subscriptions promoted-purchases view --promoted-purchase-id "PROMO_ID"
   asc subscriptions promoted-purchases create --app "APP_ID" --product-id "SUB_ID" --visible-for-all-users true
   asc subscriptions promoted-purchases update --promoted-purchase-id "PROMO_ID" --enabled false
   asc subscriptions promoted-purchases delete --promoted-purchase-id "PROMO_ID" --confirm

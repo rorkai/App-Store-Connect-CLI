@@ -29,7 +29,7 @@ to the app.
 
 Examples:
   asc iap promoted-purchases list --app "APP_ID"
-  asc iap promoted-purchases get --promoted-purchase-id "PROMO_ID"
+  asc iap promoted-purchases view --promoted-purchase-id "PROMO_ID"
   asc iap promoted-purchases create --app "APP_ID" --product-id "IAP_ID" --visible-for-all-users true
   asc iap promoted-purchases update --promoted-purchase-id "PROMO_ID" --enabled false
   asc iap promoted-purchases delete --promoted-purchase-id "PROMO_ID" --confirm

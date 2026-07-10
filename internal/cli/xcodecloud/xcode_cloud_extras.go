@@ -31,7 +31,7 @@ func XcodeCloudProductsCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud products --app "APP_ID"
   asc xcode-cloud products list --app "APP_ID"
-  asc xcode-cloud products get --id "PRODUCT_ID"
+  asc xcode-cloud products view --id "PRODUCT_ID"
   asc xcode-cloud products delete --id "PRODUCT_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -77,18 +77,18 @@ Examples:
 
 func XcodeCloudProductsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "get",
-		Name:        "get",
-		ShortUsage:  "asc xcode-cloud products get --id \"PRODUCT_ID\"",
-		ShortHelp:   "Get details for a product.",
-		LongHelp: `Get details for a product.
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc xcode-cloud products view --id \"PRODUCT_ID\"",
+		ShortHelp:   "View details for a product.",
+		LongHelp: `View details for a product.
 
 Examples:
-  asc xcode-cloud products get --id "PRODUCT_ID"
-  asc xcode-cloud products get --id "PRODUCT_ID" --output table`,
+  asc xcode-cloud products view --id "PRODUCT_ID"
+  asc xcode-cloud products view --id "PRODUCT_ID" --output table`,
 		IDFlag:      "id",
 		IDUsage:     "Product ID",
-		ErrorPrefix: "xcode-cloud products get",
+		ErrorPrefix: "xcode-cloud products view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -403,7 +403,7 @@ func XcodeCloudMacOSVersionsCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud macos-versions
   asc xcode-cloud macos-versions list
-  asc xcode-cloud macos-versions get --id "MACOS_VERSION_ID"
+  asc xcode-cloud macos-versions view --id "MACOS_VERSION_ID"
   asc xcode-cloud macos-versions xcode-versions --id "MACOS_VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -443,18 +443,18 @@ Examples:
 
 func XcodeCloudMacOSVersionsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "get",
-		Name:        "get",
-		ShortUsage:  "asc xcode-cloud macos-versions get --id \"MACOS_VERSION_ID\"",
-		ShortHelp:   "Get details for a macOS version.",
-		LongHelp: `Get details for a macOS version.
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc xcode-cloud macos-versions view --id \"MACOS_VERSION_ID\"",
+		ShortHelp:   "View details for a macOS version.",
+		LongHelp: `View details for a macOS version.
 
 Examples:
-  asc xcode-cloud macos-versions get --id "MACOS_VERSION_ID"
-  asc xcode-cloud macos-versions get --id "MACOS_VERSION_ID" --output table`,
+  asc xcode-cloud macos-versions view --id "MACOS_VERSION_ID"
+  asc xcode-cloud macos-versions view --id "MACOS_VERSION_ID" --output table`,
 		IDFlag:      "id",
 		IDUsage:     "macOS version ID",
-		ErrorPrefix: "xcode-cloud macos-versions get",
+		ErrorPrefix: "xcode-cloud macos-versions view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},
@@ -530,7 +530,7 @@ func XcodeCloudXcodeVersionsCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud xcode-versions
   asc xcode-cloud xcode-versions list
-  asc xcode-cloud xcode-versions get --id \"XCODE_VERSION_ID\"
+  asc xcode-cloud xcode-versions view --id \"XCODE_VERSION_ID\"
   asc xcode-cloud xcode-versions macos-versions --id \"XCODE_VERSION_ID\"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -570,18 +570,18 @@ Examples:
 
 func XcodeCloudXcodeVersionsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "get",
-		Name:        "get",
-		ShortUsage:  "asc xcode-cloud xcode-versions get --id \"XCODE_VERSION_ID\"",
-		ShortHelp:   "Get details for an Xcode version.",
-		LongHelp: `Get details for an Xcode version.
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc xcode-cloud xcode-versions view --id \"XCODE_VERSION_ID\"",
+		ShortHelp:   "View details for an Xcode version.",
+		LongHelp: `View details for an Xcode version.
 
 Examples:
-  asc xcode-cloud xcode-versions get --id "XCODE_VERSION_ID"
-  asc xcode-cloud xcode-versions get --id "XCODE_VERSION_ID" --output table`,
+  asc xcode-cloud xcode-versions view --id "XCODE_VERSION_ID"
+  asc xcode-cloud xcode-versions view --id "XCODE_VERSION_ID" --output table`,
 		IDFlag:      "id",
 		IDUsage:     "Xcode version ID",
-		ErrorPrefix: "xcode-cloud xcode-versions get",
+		ErrorPrefix: "xcode-cloud xcode-versions view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},

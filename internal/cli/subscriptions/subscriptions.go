@@ -78,7 +78,7 @@ func SubscriptionsGroupsCommand() *ffcli.Command {
 Examples:
   asc subscriptions groups list --app "APP_ID"
   asc subscriptions groups create --app "APP_ID" --reference-name "Premium"
-  asc subscriptions groups get --id "GROUP_ID"
+  asc subscriptions groups view --id "GROUP_ID"
   asc subscriptions groups delete --id "GROUP_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -226,19 +226,19 @@ Examples:
 
 // SubscriptionsGroupsGetCommand returns the groups get subcommand.
 func SubscriptionsGroupsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups get", flag.ExitOnError)
+	fs := flag.NewFlagSet("groups view", flag.ExitOnError)
 
 	groupID := fs.String("id", "", "Subscription group ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc subscriptions groups get --id \"GROUP_ID\"",
-		ShortHelp:  "Get a subscription group by ID.",
-		LongHelp: `Get a subscription group by ID.
+		Name:       "view",
+		ShortUsage: "asc subscriptions groups view --id \"GROUP_ID\"",
+		ShortHelp:  "View a subscription group by ID.",
+		LongHelp: `View a subscription group by ID.
 
 Examples:
-  asc subscriptions groups get --id "GROUP_ID"`,
+  asc subscriptions groups view --id "GROUP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -250,7 +250,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions groups get: %w", err)
+				return fmt.Errorf("subscriptions groups view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -258,7 +258,7 @@ Examples:
 
 			resp, err := client.GetSubscriptionGroup(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("subscriptions groups get: failed to fetch: %w", err)
+				return fmt.Errorf("subscriptions groups view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -595,21 +595,21 @@ Examples:
 	}
 }
 
-// SubscriptionsGetCommand returns the subscriptions get subcommand.
+// SubscriptionsGetCommand returns the subscriptions view subcommand.
 func SubscriptionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	subID := fs.String("id", "", "Subscription ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc subscriptions get --id \"SUB_ID\"",
-		ShortHelp:  "Get a subscription by ID.",
-		LongHelp: `Get a subscription by ID.
+		Name:       "view",
+		ShortUsage: "asc subscriptions view --id \"SUB_ID\"",
+		ShortHelp:  "View a subscription by ID.",
+		LongHelp: `View a subscription by ID.
 
 Examples:
-  asc subscriptions get --id "SUB_ID"`,
+  asc subscriptions view --id "SUB_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -621,7 +621,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions get: %w", err)
+				return fmt.Errorf("subscriptions view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -629,7 +629,7 @@ Examples:
 
 			resp, err := client.GetSubscription(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("subscriptions get: failed to fetch: %w", err)
+				return fmt.Errorf("subscriptions view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

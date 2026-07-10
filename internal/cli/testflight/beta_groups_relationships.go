@@ -29,8 +29,8 @@ func BetaGroupsRelationshipsCommand() *ffcli.Command {
 		LongHelp: `View beta group relationship linkages.
 
 Examples:
-  asc testflight beta-groups relationships get --group-id "GROUP_ID" --type "betaTesters"
-  asc testflight beta-groups relationships get --group-id "GROUP_ID" --type "builds" --paginate`,
+  asc testflight beta-groups relationships view --group-id "GROUP_ID" --type "betaTesters"
+  asc testflight beta-groups relationships view --group-id "GROUP_ID" --type "builds" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -44,7 +44,7 @@ Examples:
 
 // BetaGroupsRelationshipsGetCommand returns the beta-groups relationships get subcommand.
 func BetaGroupsRelationshipsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships get", flag.ExitOnError)
+	fs := flag.NewFlagSet("relationships view", flag.ExitOnError)
 
 	groupID := fs.String("group-id", "", "Beta group ID")
 	aliasID := fs.String("id", "", "Beta group ID (alias of --group-id)")
@@ -55,22 +55,22 @@ func BetaGroupsRelationshipsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc testflight beta-groups relationships get --group-id \"GROUP_ID\" --type \"RELATIONSHIP\" [flags]",
-		ShortHelp:  "Get beta group relationship linkages.",
-		LongHelp: `Get beta group relationship linkages.
+		Name:       "view",
+		ShortUsage: "asc testflight beta-groups relationships view --group-id \"GROUP_ID\" --type \"RELATIONSHIP\" [flags]",
+		ShortHelp:  "View beta group relationship linkages.",
+		LongHelp: `View beta group relationship linkages.
 
 Examples:
-  asc testflight beta-groups relationships get --group-id "GROUP_ID" --type "betaTesters"
-  asc testflight beta-groups relationships get --group-id "GROUP_ID" --type "builds" --paginate`,
+  asc testflight beta-groups relationships view --group-id "GROUP_ID" --type "betaTesters"
+  asc testflight beta-groups relationships view --group-id "GROUP_ID" --type "builds" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("testflight beta-groups relationships get: --limit must be between 1 and 200")
+				return fmt.Errorf("testflight beta-groups relationships view: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("testflight beta-groups relationships get: %w", err)
+				return fmt.Errorf("testflight beta-groups relationships view: %w", err)
 			}
 
 			relationshipType := strings.TrimSpace(*relType)
@@ -90,7 +90,7 @@ Examples:
 			if groupValue == "" {
 				groupValue = aliasValue
 			} else if aliasValue != "" && aliasValue != groupValue {
-				return fmt.Errorf("testflight beta-groups relationships get: --group-id and --id must match")
+				return fmt.Errorf("testflight beta-groups relationships view: --group-id and --id must match")
 			}
 
 			nextValue := strings.TrimSpace(*next)
@@ -106,7 +106,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("testflight beta-groups relationships get: %w", err)
+				return fmt.Errorf("testflight beta-groups relationships view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -129,7 +129,7 @@ Examples:
 					},
 				)
 				if err != nil {
-					return fmt.Errorf("testflight beta-groups relationships get: %w", err)
+					return fmt.Errorf("testflight beta-groups relationships view: %w", err)
 				}
 
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -137,7 +137,7 @@ Examples:
 
 			resp, err := getBetaGroupRelationshipList(requestCtx, client, relationshipType, groupValue, opts...)
 			if err != nil {
-				return fmt.Errorf("testflight beta-groups relationships get: %w", err)
+				return fmt.Errorf("testflight beta-groups relationships view: %w", err)
 			}
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},

@@ -120,19 +120,19 @@ Examples:
 
 // ExperimentTreatmentLocalizationsGetCommand returns the treatment localizations get subcommand.
 func ExperimentTreatmentLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("treatment-localizations get", flag.ExitOnError)
+	fs := flag.NewFlagSet("treatment-localizations view", flag.ExitOnError)
 
 	localizationID := fs.String("localization-id", "", "Treatment localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc product-pages experiments treatments localizations get --localization-id \"LOCALIZATION_ID\"",
-		ShortHelp:  "Get a treatment localization by ID.",
-		LongHelp: `Get a treatment localization by ID.
+		Name:       "view",
+		ShortUsage: "asc product-pages experiments treatments localizations view --localization-id \"LOCALIZATION_ID\"",
+		ShortHelp:  "View a treatment localization by ID.",
+		LongHelp: `View a treatment localization by ID.
 
 Examples:
-  asc product-pages experiments treatments localizations get --localization-id "LOCALIZATION_ID"`,
+  asc product-pages experiments treatments localizations view --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

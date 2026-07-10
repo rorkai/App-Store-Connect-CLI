@@ -29,8 +29,8 @@ Examples:
   asc localizations supported-locales --version "VERSION_ID"
   asc localizations search-keywords list --localization-id "LOCALIZATION_ID"
   asc localizations preview-sets list --localization-id "LOCALIZATION_ID"
-  asc localizations preview-sets get --id "PREVIEW_SET_ID"
-  asc localizations screenshot-sets get --id "SCREENSHOT_SET_ID"
+  asc localizations preview-sets view --id "PREVIEW_SET_ID"
+  asc localizations screenshot-sets view --id "SCREENSHOT_SET_ID"
   asc localizations download --version "VERSION_ID" --path "./localizations"
   asc localizations upload --version "VERSION_ID" --path "./localizations"`,
 		FlagSet:   fs,

@@ -25,12 +25,12 @@ func GameCenterLeaderboardsCommand() *ffcli.Command {
 
 Examples:
   asc game-center leaderboards list --app "APP_ID"
-  asc game-center leaderboards get --id "LEADERBOARD_ID"
+  asc game-center leaderboards view --id "LEADERBOARD_ID"
   asc game-center leaderboards create --app "APP_ID" --reference-name "High Score" --vendor-id "com.example.highscore" --formatter INTEGER --sort DESC --submission-type BEST_SCORE
   asc game-center leaderboards update --id "LEADERBOARD_ID" --reference-name "New Name"
   asc game-center leaderboards delete --id "LEADERBOARD_ID" --confirm
   asc game-center leaderboards submit --vendor-id "com.example.leaderboard" --score "100" --bundle-id "com.example.app" --scoped-player-id "PLAYER_ID"
-  asc game-center leaderboards group-leaderboard get --id "LEADERBOARD_ID"
+  asc game-center leaderboards group-leaderboard view --id "LEADERBOARD_ID"
   asc game-center leaderboards localizations list --leaderboard-id "LEADERBOARD_ID"
   asc game-center leaderboards localizations create --leaderboard-id "LEADERBOARD_ID" --locale en-US --name "High Score"
   asc game-center leaderboards releases list --leaderboard-id "LEADERBOARD_ID"
@@ -284,21 +284,21 @@ Examples:
 
 // GameCenterLeaderboardsGetCommand returns the leaderboards get subcommand.
 func GameCenterLeaderboardsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	leaderboardID := fs.String("id", "", "Game Center leaderboard ID")
 	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center leaderboards get --id \"LEADERBOARD_ID\" [--v2]",
-		ShortHelp:  "Get a Game Center leaderboard by ID.",
-		LongHelp: `Get a Game Center leaderboard by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboards view --id \"LEADERBOARD_ID\" [--v2]",
+		ShortHelp:  "View a Game Center leaderboard by ID.",
+		LongHelp: `View a Game Center leaderboard by ID.
 
 Examples:
-  asc game-center leaderboards get --id "LEADERBOARD_ID"
-  asc game-center leaderboards get --id "LEADERBOARD_ID" --v2`,
+  asc game-center leaderboards view --id "LEADERBOARD_ID"
+  asc game-center leaderboards view --id "LEADERBOARD_ID" --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -310,7 +310,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center leaderboards get: %w", err)
+				return fmt.Errorf("game-center leaderboards view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -323,7 +323,7 @@ Examples:
 				resp, err = client.GetGameCenterLeaderboard(requestCtx, id)
 			}
 			if err != nil {
-				return fmt.Errorf("game-center leaderboards get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center leaderboards view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -695,12 +695,12 @@ func GameCenterLeaderboardGroupLeaderboardCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "group-leaderboard",
-		ShortUsage: "asc game-center leaderboards group-leaderboard get --id \"LEADERBOARD_ID\"",
+		ShortUsage: "asc game-center leaderboards group-leaderboard view --id \"LEADERBOARD_ID\"",
 		ShortHelp:  "Get the group leaderboard for a leaderboard.",
 		LongHelp: `Get the group leaderboard for a Game Center leaderboard.
 
 Examples:
-  asc game-center leaderboards group-leaderboard get --id "LEADERBOARD_ID"`,
+  asc game-center leaderboards group-leaderboard view --id "LEADERBOARD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -714,19 +714,19 @@ Examples:
 
 // GameCenterLeaderboardGroupLeaderboardGetCommand returns the group leaderboard get subcommand.
 func GameCenterLeaderboardGroupLeaderboardGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	leaderboardID := fs.String("id", "", "Game Center leaderboard ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center leaderboards group-leaderboard get --id \"LEADERBOARD_ID\"",
-		ShortHelp:  "Get a group leaderboard by leaderboard ID.",
-		LongHelp: `Get a group leaderboard by leaderboard ID.
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboards group-leaderboard view --id \"LEADERBOARD_ID\"",
+		ShortHelp:  "View a group leaderboard by leaderboard ID.",
+		LongHelp: `View a group leaderboard by leaderboard ID.
 
 Examples:
-  asc game-center leaderboards group-leaderboard get --id "LEADERBOARD_ID"`,
+  asc game-center leaderboards group-leaderboard view --id "LEADERBOARD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -738,7 +738,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center leaderboards group-leaderboard get: %w", err)
+				return fmt.Errorf("game-center leaderboards group-leaderboard view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -746,7 +746,7 @@ Examples:
 
 			resp, err := client.GetGameCenterLeaderboardGroupLeaderboard(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center leaderboards group-leaderboard get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center leaderboards group-leaderboard view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

@@ -131,19 +131,19 @@ Examples:
 
 // BetaAppLocalizationsGetCommand returns the get subcommand.
 func BetaAppLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta app localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc beta-app-localizations get --id \"LOCALIZATION_ID\"",
-		ShortHelp:  "Get a beta app localization by ID.",
-		LongHelp: `Get a beta app localization by ID.
+		Name:       "view",
+		ShortUsage: "asc beta-app-localizations view --id \"LOCALIZATION_ID\"",
+		ShortHelp:  "View a beta app localization by ID.",
+		LongHelp: `View a beta app localization by ID.
 
 Examples:
-  asc beta-app-localizations get --id "LOCALIZATION_ID"`,
+  asc beta-app-localizations view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -155,7 +155,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("beta-app-localizations get: %w", err)
+				return fmt.Errorf("beta-app-localizations view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -163,7 +163,7 @@ Examples:
 
 			resp, err := client.GetBetaAppLocalization(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("beta-app-localizations get: failed to fetch: %w", err)
+				return fmt.Errorf("beta-app-localizations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

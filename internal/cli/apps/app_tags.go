@@ -195,7 +195,7 @@ Examples:
 
 // AppTagsGetCommand returns the get subcommand.
 func AppTagsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-tags get", flag.ExitOnError)
+	fs := flag.NewFlagSet("app-tags view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	tagID := fs.String("id", "", "App tag ID")
@@ -206,8 +206,8 @@ func AppTagsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc app-tags get [flags]",
+		Name:       "view",
+		ShortUsage: "asc app-tags view [flags]",
 		ShortHelp:  "View an app tag by ID.",
 		LongHelp: `View an app tag by ID.
 
@@ -231,22 +231,22 @@ Examples:
 			}
 
 			if *territoryLimit != 0 && (*territoryLimit < 1 || *territoryLimit > 50) {
-				return fmt.Errorf("app-tags get: --territory-limit must be between 1 and 50")
+				return fmt.Errorf("app-tags view: --territory-limit must be between 1 and 50")
 			}
 
 			fieldsValue, err := normalizeAppTagFields(*fields)
 			if err != nil {
-				return fmt.Errorf("app-tags get: %w", err)
+				return fmt.Errorf("app-tags view: %w", err)
 			}
 
 			includeValues, err := normalizeAppTagInclude(*include)
 			if err != nil {
-				return fmt.Errorf("app-tags get: %w", err)
+				return fmt.Errorf("app-tags view: %w", err)
 			}
 
 			territoryFieldsValue, err := normalizeTerritoryFields(*territoryFields)
 			if err != nil {
-				return fmt.Errorf("app-tags get: %w", err)
+				return fmt.Errorf("app-tags view: %w", err)
 			}
 
 			includeTerritories := shared.HasInclude(includeValues, "territories")
@@ -261,7 +261,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-tags get: %w", err)
+				return fmt.Errorf("app-tags view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -285,7 +285,7 @@ Examples:
 
 			resp, err := findAppTagByID(requestCtx, client, resolvedAppID, trimmedID, opts...)
 			if err != nil {
-				return fmt.Errorf("app-tags get: %w", err)
+				return fmt.Errorf("app-tags view: %w", err)
 			}
 
 			if includeTerritories {
@@ -299,12 +299,12 @@ Examples:
 
 				territories, err := client.GetAppTagTerritories(requestCtx, trimmedID, territoryOpts...)
 				if err != nil {
-					return fmt.Errorf("app-tags get: failed to fetch territories: %w", err)
+					return fmt.Errorf("app-tags view: failed to fetch territories: %w", err)
 				}
 				if len(territories.Data) > 0 {
 					included, err := json.Marshal(territories.Data)
 					if err != nil {
-						return fmt.Errorf("app-tags get: %w", err)
+						return fmt.Errorf("app-tags view: %w", err)
 					}
 					resp.Included = included
 				}

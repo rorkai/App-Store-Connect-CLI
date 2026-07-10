@@ -23,7 +23,7 @@ func PreOrdersCommand() *ffcli.Command {
 		LongHelp: `Manage app pre-orders.
 
 Examples:
-  asc pre-orders get --app "123456789"
+  asc pre-orders view --app "123456789"
   asc pre-orders list --availability "AVAILABILITY_ID"
   asc pre-orders enable --app "123456789" --territory "US,France" --release-date "2026-06-01"
   asc pre-orders update --territory-availability "TERRITORY_AVAILABILITY_ID" --pre-order-enabled true --release-date "2026-03-01"
@@ -46,19 +46,19 @@ Examples:
 
 // PreOrdersGetCommand returns the get subcommand.
 func PreOrdersGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pre-orders get", flag.ExitOnError)
+	fs := flag.NewFlagSet("pre-orders view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc pre-orders get [flags]",
-		ShortHelp:  "Get app pre-order availability.",
-		LongHelp: `Get app pre-order availability.
+		Name:       "view",
+		ShortUsage: "asc pre-orders view [flags]",
+		ShortHelp:  "View app pre-order availability.",
+		LongHelp: `View app pre-order availability.
 
 Examples:
-  asc pre-orders get --app "123456789"`,
+  asc pre-orders view --app "123456789"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -70,7 +70,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("pre-orders get: %w", err)
+				return fmt.Errorf("pre-orders view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -79,9 +79,9 @@ Examples:
 			resp, err := client.GetAppAvailabilityV2(requestCtx, resolvedAppID)
 			if err != nil {
 				if shared.IsAppAvailabilityMissing(err) {
-					return fmt.Errorf("pre-orders get: app availability not found for app %q", resolvedAppID)
+					return fmt.Errorf("pre-orders view: app availability not found for app %q", resolvedAppID)
 				}
-				return fmt.Errorf("pre-orders get: %w", err)
+				return fmt.Errorf("pre-orders view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

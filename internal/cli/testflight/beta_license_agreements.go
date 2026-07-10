@@ -25,8 +25,8 @@ func BetaLicenseAgreementsCommand() *ffcli.Command {
 
 Examples:
   asc testflight beta-license-agreements list --app "APP_ID"
-  asc testflight beta-license-agreements get --id "AGREEMENT_ID"
-  asc testflight beta-license-agreements get --app "APP_ID"
+  asc testflight beta-license-agreements view --id "AGREEMENT_ID"
+  asc testflight beta-license-agreements view --app "APP_ID"
   asc testflight beta-license-agreements update --id "AGREEMENT_ID" --agreement-text "Updated terms"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -119,7 +119,7 @@ Examples:
 
 // BetaLicenseAgreementsGetCommand returns the beta license agreements get subcommand.
 func BetaLicenseAgreementsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta license agreement ID")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
@@ -129,14 +129,14 @@ func BetaLicenseAgreementsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc testflight beta-license-agreements get --id \"AGREEMENT_ID\" | --app \"APP_ID\"",
-		ShortHelp:  "Get a beta license agreement by ID or app.",
-		LongHelp: `Get a beta license agreement by ID or app.
+		Name:       "view",
+		ShortUsage: "asc testflight beta-license-agreements view --id \"AGREEMENT_ID\" | --app \"APP_ID\"",
+		ShortHelp:  "View a beta license agreement by ID or app.",
+		LongHelp: `View a beta license agreement by ID or app.
 
 Examples:
-  asc testflight beta-license-agreements get --id "AGREEMENT_ID"
-  asc testflight beta-license-agreements get --app "APP_ID"`,
+  asc testflight beta-license-agreements view --id "AGREEMENT_ID"
+  asc testflight beta-license-agreements view --app "APP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

@@ -52,8 +52,8 @@ func ConfigureScopedPromotedPurchasesCommand(cmd *ffcli.Command, cfg ScopedPromo
 	if listCmd := findDirectSubcommand(cmd, "list"); listCmd != nil {
 		configureScopedPromotedPurchasesListCommand(listCmd, cfg)
 	}
-	if getCmd := findDirectSubcommand(cmd, "get"); getCmd != nil {
-		wrapScopedPromotedPurchaseDetailCommand(getCmd, cfg)
+	if viewCmd := findDirectSubcommand(cmd, "view"); viewCmd != nil {
+		wrapScopedPromotedPurchaseDetailCommand(viewCmd, cfg)
 	}
 	if updateCmd := findDirectSubcommand(cmd, "update"); updateCmd != nil {
 		wrapScopedPromotedPurchaseDetailCommand(updateCmd, cfg)

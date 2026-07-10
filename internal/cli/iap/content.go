@@ -22,7 +22,7 @@ func IAPContentCommand() *ffcli.Command {
 		LongHelp: `Fetch in-app purchase content metadata.
 
 Examples:
-  asc iap content get --iap-id "IAP_ID"`,
+  asc iap content view --iap-id "IAP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -36,7 +36,7 @@ Examples:
 
 // IAPContentGetCommand returns the content get subcommand.
 func IAPContentGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("content get", flag.ExitOnError)
+	fs := flag.NewFlagSet("content view", flag.ExitOnError)
 
 	appID := addIAPLookupAppFlag(fs)
 	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
@@ -44,13 +44,13 @@ func IAPContentGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc iap content get --iap-id \"IAP_ID\"",
-		ShortHelp:  "Get in-app purchase content metadata.",
-		LongHelp: `Get in-app purchase content metadata.
+		Name:       "view",
+		ShortUsage: "asc iap content view --iap-id \"IAP_ID\"",
+		ShortHelp:  "View in-app purchase content metadata.",
+		LongHelp: `View in-app purchase content metadata.
 
 Examples:
-  asc iap content get --iap-id "IAP_ID"`,
+  asc iap content view --iap-id "IAP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -67,7 +67,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("iap content get: %w", err)
+				return fmt.Errorf("iap content view: %w", err)
 			}
 
 			if contentValue != "" {
@@ -76,7 +76,7 @@ Examples:
 
 				resp, err := client.GetInAppPurchaseContentByID(requestCtx, contentValue)
 				if err != nil {
-					return fmt.Errorf("iap content get: failed to fetch: %w", err)
+					return fmt.Errorf("iap content view: failed to fetch: %w", err)
 				}
 
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -92,7 +92,7 @@ Examples:
 
 			resp, err := client.GetInAppPurchaseContent(requestCtx, iapValue)
 			if err != nil {
-				return fmt.Errorf("iap content get: failed to fetch: %w", err)
+				return fmt.Errorf("iap content view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

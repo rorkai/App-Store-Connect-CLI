@@ -35,13 +35,13 @@ Examples:
 
 // AppsSubscriptionGracePeriodGetCommand returns the subscription grace period get subcommand.
 func AppsSubscriptionGracePeriodGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("subscription-grace-period get", flag.ExitOnError)
+	fs := flag.NewFlagSet("subscription-grace-period view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
+		Name:       "view",
 		ShortUsage: "asc apps subscription-grace-period view --app \"APP_ID\"",
 		ShortHelp:  "View an app's subscription grace period.",
 		LongHelp: `View an app's subscription grace period.
@@ -59,7 +59,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("apps subscription-grace-period get: %w", err)
+				return fmt.Errorf("apps subscription-grace-period view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -67,7 +67,7 @@ Examples:
 
 			resp, err := client.GetAppSubscriptionGracePeriod(requestCtx, resolvedAppID)
 			if err != nil {
-				return fmt.Errorf("apps subscription-grace-period get: failed to fetch: %w", err)
+				return fmt.Errorf("apps subscription-grace-period view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

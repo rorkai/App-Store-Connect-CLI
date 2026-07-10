@@ -121,15 +121,15 @@ Examples:
 	}
 }
 
-// AppsGetCommand returns the apps get subcommand.
+// AppsGetCommand returns the apps view subcommand.
 func AppsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("apps get", flag.ExitOnError)
+	fs := flag.NewFlagSet("apps view", flag.ExitOnError)
 
 	id := fs.String("id", "", "App Store Connect app ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
+		Name:       "view",
 		ShortUsage: "asc apps view --id APP_ID",
 		ShortHelp:  "View app details by ID.",
 		LongHelp: `View app details by ID.
@@ -148,7 +148,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("apps get: %w", err)
+				return fmt.Errorf("apps view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -156,7 +156,7 @@ Examples:
 
 			app, err := client.GetApp(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("apps get: failed to fetch: %w", err)
+				return fmt.Errorf("apps view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(app, *output.Output, *output.Pretty)

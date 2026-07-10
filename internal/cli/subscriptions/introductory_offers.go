@@ -134,19 +134,19 @@ Examples:
 
 // SubscriptionsIntroductoryOffersGetCommand returns the introductory offers get subcommand.
 func SubscriptionsIntroductoryOffersGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("introductory-offers get", flag.ExitOnError)
+	fs := flag.NewFlagSet("introductory-offers view", flag.ExitOnError)
 
 	offerID := fs.String("id", "", "Introductory offer ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc subscriptions introductory-offers get --id \"OFFER_ID\"",
-		ShortHelp:  "Get an introductory offer by ID.",
-		LongHelp: `Get an introductory offer by ID.
+		Name:       "view",
+		ShortUsage: "asc subscriptions introductory-offers view --id \"OFFER_ID\"",
+		ShortHelp:  "View an introductory offer by ID.",
+		LongHelp: `View an introductory offer by ID.
 
 Examples:
-  asc subscriptions introductory-offers get --id "OFFER_ID"`,
+  asc subscriptions introductory-offers view --id "OFFER_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -158,7 +158,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions introductory-offers get: %w", err)
+				return fmt.Errorf("subscriptions introductory-offers view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -166,7 +166,7 @@ Examples:
 
 			resp, err := client.GetSubscriptionIntroductoryOffer(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("subscriptions introductory-offers get: failed to fetch: %w", err)
+				return fmt.Errorf("subscriptions introductory-offers view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

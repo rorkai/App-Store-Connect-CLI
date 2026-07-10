@@ -25,7 +25,7 @@ func PassTypeIDsCommand() *ffcli.Command {
 
 Examples:
   asc pass-type-ids list
-  asc pass-type-ids get --pass-type-id "PASS_ID"
+  asc pass-type-ids view --pass-type-id "PASS_ID"
   asc pass-type-ids create --identifier "pass.com.example" --name "Example"
   asc pass-type-ids update --pass-type-id "PASS_ID" --name "New Name"
   asc pass-type-ids delete --pass-type-id "PASS_ID" --confirm
@@ -171,7 +171,7 @@ Examples:
 
 // PassTypeIDsGetCommand returns the pass type IDs get subcommand.
 func PassTypeIDsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	passTypeID := fs.String("pass-type-id", "", "Pass type ID")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(passTypeIDFieldsList(), ", "))
@@ -181,13 +181,13 @@ func PassTypeIDsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc pass-type-ids get --pass-type-id \"PASS_ID\"",
-		ShortHelp:  "Get a pass type ID by ID.",
-		LongHelp: `Get a pass type ID by ID.
+		Name:       "view",
+		ShortUsage: "asc pass-type-ids view --pass-type-id \"PASS_ID\"",
+		ShortHelp:  "View a pass type ID by ID.",
+		LongHelp: `View a pass type ID by ID.
 
 Examples:
-  asc pass-type-ids get --pass-type-id "PASS_ID"`,
+  asc pass-type-ids view --pass-type-id "PASS_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -197,25 +197,25 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
-				return fmt.Errorf("pass-type-ids get: --limit-certificates must be between 1 and 50")
+				return fmt.Errorf("pass-type-ids view: --limit-certificates must be between 1 and 50")
 			}
 
 			fieldsValue, err := normalizePassTypeIDFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("pass-type-ids get: %w", err)
+				return fmt.Errorf("pass-type-ids view: %w", err)
 			}
 			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
 			if err != nil {
-				return fmt.Errorf("pass-type-ids get: %w", err)
+				return fmt.Errorf("pass-type-ids view: %w", err)
 			}
 			includeValue, err := normalizePassTypeIDInclude(*include)
 			if err != nil {
-				return fmt.Errorf("pass-type-ids get: %w", err)
+				return fmt.Errorf("pass-type-ids view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("pass-type-ids get: %w", err)
+				return fmt.Errorf("pass-type-ids view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -237,7 +237,7 @@ Examples:
 
 			resp, err := client.GetPassTypeID(requestCtx, passTypeIDValue, opts...)
 			if err != nil {
-				return fmt.Errorf("pass-type-ids get: failed to fetch: %w", err)
+				return fmt.Errorf("pass-type-ids view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

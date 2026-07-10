@@ -25,11 +25,11 @@ func GameCenterAppVersionsCommand() *ffcli.Command {
 
 Examples:
   asc game-center app-versions list --app "APP_ID"
-  asc game-center app-versions get --id "GC_APP_VERSION_ID"
+  asc game-center app-versions view --id "GC_APP_VERSION_ID"
   asc game-center app-versions create --app-store-version-id "APP_STORE_VERSION_ID"
   asc game-center app-versions update --id "GC_APP_VERSION_ID" --enabled true
   asc game-center app-versions compatibility list --id "GC_APP_VERSION_ID"
-  asc game-center app-versions app-store-version get --id "GC_APP_VERSION_ID"`,
+  asc game-center app-versions app-store-version view --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -137,19 +137,19 @@ Examples:
 
 // GameCenterAppVersionsGetCommand returns the app versions get subcommand.
 func GameCenterAppVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	appVersionID := fs.String("id", "", "Game Center app version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center app-versions get --id \"GC_APP_VERSION_ID\"",
-		ShortHelp:  "Get a Game Center app version by ID.",
-		LongHelp: `Get a Game Center app version by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center app-versions view --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:  "View a Game Center app version by ID.",
+		LongHelp: `View a Game Center app version by ID.
 
 Examples:
-  asc game-center app-versions get --id "GC_APP_VERSION_ID"`,
+  asc game-center app-versions view --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -161,7 +161,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center app-versions get: %w", err)
+				return fmt.Errorf("game-center app-versions view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -169,7 +169,7 @@ Examples:
 
 			resp, err := client.GetGameCenterAppVersion(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center app-versions get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center app-versions view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -391,12 +391,12 @@ func GameCenterAppVersionAppStoreVersionCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "app-store-version",
-		ShortUsage: "asc game-center app-versions app-store-version get --id \"GC_APP_VERSION_ID\"",
+		ShortUsage: "asc game-center app-versions app-store-version view --id \"GC_APP_VERSION_ID\"",
 		ShortHelp:  "Get the App Store version for a Game Center app version.",
 		LongHelp: `Get the App Store version for a Game Center app version.
 
 Examples:
-  asc game-center app-versions app-store-version get --id "GC_APP_VERSION_ID"`,
+  asc game-center app-versions app-store-version view --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -410,19 +410,19 @@ Examples:
 
 // GameCenterAppVersionAppStoreVersionGetCommand returns the app store version get subcommand.
 func GameCenterAppVersionAppStoreVersionGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	appVersionID := fs.String("id", "", "Game Center app version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center app-versions app-store-version get --id \"GC_APP_VERSION_ID\"",
-		ShortHelp:  "Get the App Store version for a Game Center app version.",
-		LongHelp: `Get the App Store version for a Game Center app version.
+		Name:       "view",
+		ShortUsage: "asc game-center app-versions app-store-version view --id \"GC_APP_VERSION_ID\"",
+		ShortHelp:  "View the App Store version for a Game Center app version.",
+		LongHelp: `View the App Store version for a Game Center app version.
 
 Examples:
-  asc game-center app-versions app-store-version get --id "GC_APP_VERSION_ID"`,
+  asc game-center app-versions app-store-version view --id "GC_APP_VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -434,7 +434,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center app-versions app-store-version get: %w", err)
+				return fmt.Errorf("game-center app-versions app-store-version view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -442,7 +442,7 @@ Examples:
 
 			resp, err := client.GetGameCenterAppVersionAppStoreVersion(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center app-versions app-store-version get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center app-versions app-store-version view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

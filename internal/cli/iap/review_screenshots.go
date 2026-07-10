@@ -27,7 +27,7 @@ func IAPReviewScreenshotsCommand() *ffcli.Command {
 		LongHelp: `Manage in-app purchase review screenshots.
 
 Examples:
-  asc iap review-screenshots get --iap-id "IAP_ID"
+  asc iap review-screenshots view --iap-id "IAP_ID"
   asc iap review-screenshots create --iap-id "IAP_ID" --file "./review.png"
   asc iap review-screenshots update --screenshot-id "SHOT_ID" --file "./review.png"
   asc iap review-screenshots delete --screenshot-id "SHOT_ID" --confirm`,
@@ -47,7 +47,7 @@ Examples:
 
 // IAPReviewScreenshotsGetCommand returns the review screenshots get subcommand.
 func IAPReviewScreenshotsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-screenshots get", flag.ExitOnError)
+	fs := flag.NewFlagSet("review-screenshots view", flag.ExitOnError)
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
 	appID := addIAPLookupAppFlag(fs)
@@ -55,14 +55,14 @@ func IAPReviewScreenshotsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc iap review-screenshots get --iap-id \"IAP_ID\"",
-		ShortHelp:  "Get an in-app purchase review screenshot.",
-		LongHelp: `Get an in-app purchase review screenshot.
+		Name:       "view",
+		ShortUsage: "asc iap review-screenshots view --iap-id \"IAP_ID\"",
+		ShortHelp:  "View an in-app purchase review screenshot.",
+		LongHelp: `View an in-app purchase review screenshot.
 
 Examples:
-  asc iap review-screenshots get --iap-id "IAP_ID"
-  asc iap review-screenshots get --screenshot-id "SHOT_ID"`,
+  asc iap review-screenshots view --iap-id "IAP_ID"
+  asc iap review-screenshots view --screenshot-id "SHOT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -75,7 +75,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("iap review-screenshots get: %w", err)
+				return fmt.Errorf("iap review-screenshots view: %w", err)
 			}
 
 			if screenshotValue != "" {
@@ -84,7 +84,7 @@ Examples:
 
 				resp, err := client.GetInAppPurchaseAppStoreReviewScreenshot(requestCtx, screenshotValue)
 				if err != nil {
-					return fmt.Errorf("iap review-screenshots get: failed to fetch: %w", err)
+					return fmt.Errorf("iap review-screenshots view: failed to fetch: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
@@ -99,7 +99,7 @@ Examples:
 
 			resp, err := client.GetInAppPurchaseAppStoreReviewScreenshotForIAP(requestCtx, iapValue)
 			if err != nil {
-				return fmt.Errorf("iap review-screenshots get: failed to fetch: %w", err)
+				return fmt.Errorf("iap review-screenshots view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

@@ -13,23 +13,23 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-// SandboxGetCommand returns the sandbox get subcommand.
+// SandboxGetCommand returns the sandbox view subcommand.
 func SandboxGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	testerID := fs.String("id", "", "Sandbox tester ID")
 	email := fs.String("email", "", "Tester email address")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc sandbox get [flags]",
-		ShortHelp:  "Get sandbox tester details.",
-		LongHelp: `Get sandbox tester details by ID or email.
+		Name:       "view",
+		ShortUsage: "asc sandbox view [flags]",
+		ShortHelp:  "View sandbox tester details.",
+		LongHelp: `View sandbox tester details by ID or email.
 
 Examples:
-  asc sandbox get --id "SANDBOX_TESTER_ID"
-  asc sandbox get --email "tester@example.com"`,
+  asc sandbox view --id "SANDBOX_TESTER_ID"
+  asc sandbox view --email "tester@example.com"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -39,13 +39,13 @@ Examples:
 			}
 			if strings.TrimSpace(*email) != "" {
 				if err := validateSandboxEmail(*email); err != nil {
-					return fmt.Errorf("sandbox get: %w", err)
+					return fmt.Errorf("sandbox view: %w", err)
 				}
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("sandbox get: %w", err)
+				return fmt.Errorf("sandbox view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -58,7 +58,7 @@ Examples:
 				response, err = findSandboxTesterByEmail(requestCtx, client, strings.TrimSpace(*email))
 			}
 			if err != nil {
-				return fmt.Errorf("sandbox get: %w", err)
+				return fmt.Errorf("sandbox view: %w", err)
 			}
 
 			return shared.PrintOutput(response, *output.Output, *output.Pretty)

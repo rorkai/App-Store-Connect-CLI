@@ -99,11 +99,21 @@ func VersionCommand(version string) *ffcli.Command {
 // Subcommands returns all root subcommands in display order.
 func Subcommands(version string) []*ffcli.Command {
 	editPaths := map[string]struct{}{
-		"asc age-rating set":             {},
-		"asc app-setup availability set": {},
-		"asc pricing availability set":   {},
+		"asc age-rating set":              {},
+		"asc app-setup availability edit": {},
+		"asc pricing availability edit":   {},
 	}
 
+	subs := rawSubcommands(version)
+	for i, sub := range subs {
+		subs[i] = shared.PrepareCanonicalCommandTree(sub, editPaths)
+	}
+
+	return subs
+}
+
+// rawSubcommands constructs the command catalog before public-surface normalization.
+func rawSubcommands(version string) []*ffcli.Command {
 	var subs []*ffcli.Command
 	subs = []*ffcli.Command{
 		auth.AuthCommand(),
@@ -184,11 +194,6 @@ func Subcommands(version string) []*ffcli.Command {
 		snitch.SnitchCommand(version),
 		VersionCommand(version),
 	}
-
-	for i, sub := range subs {
-		subs[i] = shared.NormalizeViewEditCommandTree(sub, editPaths)
-	}
-
 	subs = append(subs, completion.CompletionCommand(subs))
 	return subs
 }

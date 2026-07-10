@@ -26,7 +26,7 @@ func BetaTestersCommand() *ffcli.Command {
 
 Examples:
   asc testflight beta-testers list --app "APP_ID"
-  asc testflight beta-testers get --id "TESTER_ID"
+  asc testflight beta-testers view --id "TESTER_ID"
   asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
   asc testflight beta-testers export --app "APP_ID" --output "./testflight-testers.csv"
   asc testflight beta-testers import --app "APP_ID" --input "./testflight-testers.csv" --dry-run
@@ -171,19 +171,19 @@ Examples:
 
 // BetaTestersGetCommand returns the beta testers get subcommand.
 func BetaTestersGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta tester ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc testflight beta-testers get [flags]",
-		ShortHelp:  "Get a TestFlight beta tester by ID.",
-		LongHelp: `Get a TestFlight beta tester by ID.
+		Name:       "view",
+		ShortUsage: "asc testflight beta-testers view [flags]",
+		ShortHelp:  "View a TestFlight beta tester by ID.",
+		LongHelp: `View a TestFlight beta tester by ID.
 
 Examples:
-  asc testflight beta-testers get --id "TESTER_ID"`,
+  asc testflight beta-testers view --id "TESTER_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

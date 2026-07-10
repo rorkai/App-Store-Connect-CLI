@@ -27,7 +27,7 @@ func AppEventsCommand() *ffcli.Command {
 
 Examples:
   asc app-events list --app "APP_ID"
-  asc app-events get --event-id "EVENT_ID"
+  asc app-events view --event-id "EVENT_ID"
   asc app-events create --app "APP_ID" --name "Summer Challenge" --event-type CHALLENGE --start "2026-06-01T00:00:00Z" --end "2026-06-30T23:59:59Z"
   asc app-events update --event-id "EVENT_ID" --priority HIGH
   asc app-events delete --event-id "EVENT_ID" --confirm
@@ -128,19 +128,19 @@ Examples:
 
 // AppEventsGetCommand returns the app events get subcommand.
 func AppEventsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	eventID := fs.String("event-id", "", "App event ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc app-events get --event-id \"EVENT_ID\"",
-		ShortHelp:  "Get an in-app event by ID.",
-		LongHelp: `Get an in-app event by ID.
+		Name:       "view",
+		ShortUsage: "asc app-events view --event-id \"EVENT_ID\"",
+		ShortHelp:  "View an in-app event by ID.",
+		LongHelp: `View an in-app event by ID.
 
 Examples:
-  asc app-events get --event-id "EVENT_ID"`,
+  asc app-events view --event-id "EVENT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -152,7 +152,7 @@ Examples:
 
 			client, err := appEventsClientFactory()
 			if err != nil {
-				return fmt.Errorf("app-events get: %w", err)
+				return fmt.Errorf("app-events view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -160,7 +160,7 @@ Examples:
 
 			resp, err := client.GetAppEvent(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("app-events get: failed to fetch: %w", err)
+				return fmt.Errorf("app-events view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

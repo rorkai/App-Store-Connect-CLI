@@ -25,7 +25,7 @@ func MerchantIDsCommand() *ffcli.Command {
 
 Examples:
   asc merchant-ids list
-  asc merchant-ids get --merchant-id "MERCHANT_ID"
+  asc merchant-ids view --merchant-id "MERCHANT_ID"
   asc merchant-ids create --identifier "merchant.com.example" --name "Example"
   asc merchant-ids update --merchant-id "MERCHANT_ID" --name "New Name"
   asc merchant-ids delete --merchant-id "MERCHANT_ID" --confirm
@@ -163,7 +163,7 @@ Examples:
 
 // MerchantIDsGetCommand returns the merchant IDs get subcommand.
 func MerchantIDsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	merchantID := fs.String("merchant-id", "", "Merchant ID")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(merchantIDFieldsList(), ", "))
@@ -173,13 +173,13 @@ func MerchantIDsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc merchant-ids get --merchant-id \"MERCHANT_ID\"",
-		ShortHelp:  "Get a merchant ID by ID.",
-		LongHelp: `Get a merchant ID by ID.
+		Name:       "view",
+		ShortUsage: "asc merchant-ids view --merchant-id \"MERCHANT_ID\"",
+		ShortHelp:  "View a merchant ID by ID.",
+		LongHelp: `View a merchant ID by ID.
 
 Examples:
-  asc merchant-ids get --merchant-id "MERCHANT_ID"`,
+  asc merchant-ids view --merchant-id "MERCHANT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -189,20 +189,20 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 			if *certificatesLimit != 0 && (*certificatesLimit < 1 || *certificatesLimit > 50) {
-				return fmt.Errorf("merchant-ids get: --certificates-limit must be between 1 and 50")
+				return fmt.Errorf("merchant-ids view: --certificates-limit must be between 1 and 50")
 			}
 
 			fieldsValue, err := normalizeMerchantIDFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("merchant-ids get: %w", err)
+				return fmt.Errorf("merchant-ids view: %w", err)
 			}
 			certificateFieldsValue, err := normalizeCertificateFields(*certificateFields, "--certificate-fields")
 			if err != nil {
-				return fmt.Errorf("merchant-ids get: %w", err)
+				return fmt.Errorf("merchant-ids view: %w", err)
 			}
 			includeValue, err := normalizeMerchantIDInclude(*include, "--include")
 			if err != nil {
-				return fmt.Errorf("merchant-ids get: %w", err)
+				return fmt.Errorf("merchant-ids view: %w", err)
 			}
 			if len(certificateFieldsValue) > 0 && !shared.HasInclude(includeValue, "certificates") {
 				fmt.Fprintln(os.Stderr, "Error: --certificate-fields requires --include certificates")
@@ -215,7 +215,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("merchant-ids get: %w", err)
+				return fmt.Errorf("merchant-ids view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -230,7 +230,7 @@ Examples:
 				asc.WithMerchantIDsCertificatesLimit(*certificatesLimit),
 			)
 			if err != nil {
-				return fmt.Errorf("merchant-ids get: failed to fetch: %w", err)
+				return fmt.Errorf("merchant-ids view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

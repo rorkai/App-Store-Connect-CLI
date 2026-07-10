@@ -25,7 +25,7 @@ func GameCenterGroupsCommand() *ffcli.Command {
 
 Examples:
   asc game-center groups list --app "APP_ID"
-  asc game-center groups get --id "GROUP_ID"
+  asc game-center groups view --id "GROUP_ID"
   asc game-center groups create --reference-name "Group 1"
   asc game-center groups update --id "GROUP_ID" --reference-name "New Name"
   asc game-center groups delete --id "GROUP_ID" --confirm
@@ -149,19 +149,19 @@ Examples:
 
 // GameCenterGroupsGetCommand returns the groups get subcommand.
 func GameCenterGroupsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	groupID := fs.String("id", "", "Game Center group ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center groups get --id \"GROUP_ID\"",
-		ShortHelp:  "Get a Game Center group by ID.",
-		LongHelp: `Get a Game Center group by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center groups view --id \"GROUP_ID\"",
+		ShortHelp:  "View a Game Center group by ID.",
+		LongHelp: `View a Game Center group by ID.
 
 Examples:
-  asc game-center groups get --id "GROUP_ID"`,
+  asc game-center groups view --id "GROUP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -173,7 +173,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center groups get: %w", err)
+				return fmt.Errorf("game-center groups view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -181,7 +181,7 @@ Examples:
 
 			resp, err := client.GetGameCenterGroup(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center groups get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center groups view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

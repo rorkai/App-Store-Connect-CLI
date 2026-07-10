@@ -25,7 +25,7 @@ func CustomPagesCommand() *ffcli.Command {
 
 Examples:
   asc product-pages custom-pages list --app "APP_ID"
-  asc product-pages custom-pages get --custom-page-id "PAGE_ID"
+  asc product-pages custom-pages view --custom-page-id "PAGE_ID"
   asc product-pages custom-pages create --app "APP_ID" --name "Summer Campaign"
   asc product-pages custom-pages update --custom-page-id "PAGE_ID" --name "Updated"
   asc product-pages custom-pages delete --custom-page-id "PAGE_ID" --confirm`,
@@ -124,19 +124,19 @@ Examples:
 
 // CustomPagesGetCommand returns the custom pages get subcommand.
 func CustomPagesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-pages get", flag.ExitOnError)
+	fs := flag.NewFlagSet("custom-pages view", flag.ExitOnError)
 
 	customPageID := fs.String("custom-page-id", "", "Custom product page ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc product-pages custom-pages get --custom-page-id \"PAGE_ID\"",
-		ShortHelp:  "Get a custom product page by ID.",
-		LongHelp: `Get a custom product page by ID.
+		Name:       "view",
+		ShortUsage: "asc product-pages custom-pages view --custom-page-id \"PAGE_ID\"",
+		ShortHelp:  "View a custom product page by ID.",
+		LongHelp: `View a custom product page by ID.
 
 Examples:
-  asc product-pages custom-pages get --custom-page-id "PAGE_ID"`,
+  asc product-pages custom-pages view --custom-page-id "PAGE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

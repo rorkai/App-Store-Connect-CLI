@@ -25,7 +25,7 @@ func AlternativeDistributionKeysCommand() *ffcli.Command {
 
 Examples:
   asc alternative-distribution keys list
-  asc alternative-distribution keys get --key-id "KEY_ID"
+  asc alternative-distribution keys view --key-id "KEY_ID"
   asc alternative-distribution keys create --app "APP_ID" --public-key-path "./key.pem"
   asc alternative-distribution keys delete --key-id "KEY_ID" --confirm
   asc alternative-distribution keys app --app "APP_ID"`,
@@ -115,19 +115,19 @@ Examples:
 
 // AlternativeDistributionKeysGetCommand returns the keys get subcommand.
 func AlternativeDistributionKeysGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	keyID := fs.String("key-id", "", "Alternative distribution key ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc alternative-distribution keys get --key-id \"KEY_ID\"",
-		ShortHelp:  "Get an alternative distribution key.",
-		LongHelp: `Get an alternative distribution key.
+		Name:       "view",
+		ShortUsage: "asc alternative-distribution keys view --key-id \"KEY_ID\"",
+		ShortHelp:  "View an alternative distribution key.",
+		LongHelp: `View an alternative distribution key.
 
 Examples:
-  asc alternative-distribution keys get --key-id "KEY_ID"`,
+  asc alternative-distribution keys view --key-id "KEY_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -139,7 +139,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("alternative-distribution keys get: %w", err)
+				return fmt.Errorf("alternative-distribution keys view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -147,7 +147,7 @@ Examples:
 
 			resp, err := client.GetAlternativeDistributionKey(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("alternative-distribution keys get: failed to fetch: %w", err)
+				return fmt.Errorf("alternative-distribution keys view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

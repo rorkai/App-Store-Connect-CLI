@@ -26,7 +26,7 @@ func AccessibilityCommand() *ffcli.Command {
 
 Examples:
   asc accessibility list --app "APP_ID"
-  asc accessibility get --id "DECLARATION_ID"
+  asc accessibility view --id "DECLARATION_ID"
   asc accessibility create --app "APP_ID" --device-family IPHONE --supports-voiceover true
   asc accessibility update --id "DECLARATION_ID" --publish true
   asc accessibility delete --id "DECLARATION_ID" --confirm`,
@@ -143,23 +143,23 @@ Examples:
 	}
 }
 
-// AccessibilityGetCommand returns the accessibility get subcommand.
+// AccessibilityGetCommand returns the accessibility view subcommand.
 func AccessibilityGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Accessibility declaration ID (required)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(accessibilityDeclarationFieldList(), ", "))
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc accessibility get --id DECLARATION_ID",
-		ShortHelp:  "Get an accessibility declaration by ID.",
-		LongHelp: `Get an accessibility declaration by ID.
+		Name:       "view",
+		ShortUsage: "asc accessibility view --id DECLARATION_ID",
+		ShortHelp:  "View an accessibility declaration by ID.",
+		LongHelp: `View an accessibility declaration by ID.
 
 Examples:
-  asc accessibility get --id "DECLARATION_ID"
-  asc accessibility get --id "DECLARATION_ID" --fields "deviceFamily,state"`,
+  asc accessibility view --id "DECLARATION_ID"
+  asc accessibility view --id "DECLARATION_ID" --fields "deviceFamily,state"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -171,12 +171,12 @@ Examples:
 
 			fieldsValue, err := normalizeAccessibilityDeclarationFields(*fields)
 			if err != nil {
-				return fmt.Errorf("accessibility get: %w", err)
+				return fmt.Errorf("accessibility view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("accessibility get: %w", err)
+				return fmt.Errorf("accessibility view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -184,7 +184,7 @@ Examples:
 
 			resp, err := client.GetAccessibilityDeclaration(requestCtx, idValue, fieldsValue)
 			if err != nil {
-				return fmt.Errorf("accessibility get: failed to fetch: %w", err)
+				return fmt.Errorf("accessibility view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

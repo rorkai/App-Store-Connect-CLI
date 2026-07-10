@@ -25,7 +25,7 @@ func LocalizationsPreviewSetsCommand() *ffcli.Command {
 
 Examples:
   asc localizations preview-sets list --localization-id "LOCALIZATION_ID"
-  asc localizations preview-sets get --id "PREVIEW_SET_ID"
+  asc localizations preview-sets view --id "PREVIEW_SET_ID"
   asc localizations preview-sets links --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
@@ -72,17 +72,17 @@ Examples:
 // LocalizationsPreviewSetsGetCommand returns the preview sets get subcommand.
 func LocalizationsPreviewSetsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "localizations preview-sets get",
-		Name:        "get",
-		ShortUsage:  "asc localizations preview-sets get --id \"PREVIEW_SET_ID\"",
-		ShortHelp:   "Get an app preview set by ID.",
-		LongHelp: `Get an app preview set by ID.
+		FlagSetName: "localizations preview-sets view",
+		Name:        "view",
+		ShortUsage:  "asc localizations preview-sets view --id \"PREVIEW_SET_ID\"",
+		ShortHelp:   "View an app preview set by ID.",
+		LongHelp: `View an app preview set by ID.
 
 Examples:
-  asc localizations preview-sets get --id "PREVIEW_SET_ID"`,
+  asc localizations preview-sets view --id "PREVIEW_SET_ID"`,
 		IDFlag:      "id",
 		IDUsage:     "App preview set ID",
-		ErrorPrefix: "localizations preview-sets get",
+		ErrorPrefix: "localizations preview-sets view",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppPreviewSet(ctx, id)
 		},
@@ -130,7 +130,7 @@ func LocalizationsScreenshotSetsCommand() *ffcli.Command {
 
 Examples:
   asc localizations screenshot-sets list --localization-id "LOCALIZATION_ID"
-  asc localizations screenshot-sets get --id "SCREENSHOT_SET_ID"
+  asc localizations screenshot-sets view --id "SCREENSHOT_SET_ID"
   asc localizations screenshot-sets delete --id "SCREENSHOT_SET_ID" --confirm
   asc localizations screenshot-sets links --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
@@ -150,17 +150,17 @@ Examples:
 // LocalizationsScreenshotSetsGetCommand returns the screenshot sets get subcommand.
 func LocalizationsScreenshotSetsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "localizations screenshot-sets get",
-		Name:        "get",
-		ShortUsage:  "asc localizations screenshot-sets get --id \"SCREENSHOT_SET_ID\"",
-		ShortHelp:   "Get an app screenshot set by ID.",
-		LongHelp: `Get an app screenshot set by ID.
+		FlagSetName: "localizations screenshot-sets view",
+		Name:        "view",
+		ShortUsage:  "asc localizations screenshot-sets view --id \"SCREENSHOT_SET_ID\"",
+		ShortHelp:   "View an app screenshot set by ID.",
+		LongHelp: `View an app screenshot set by ID.
 
 Examples:
-  asc localizations screenshot-sets get --id "SCREENSHOT_SET_ID"`,
+  asc localizations screenshot-sets view --id "SCREENSHOT_SET_ID"`,
 		IDFlag:      "id",
 		IDUsage:     "App screenshot set ID",
-		ErrorPrefix: "localizations screenshot-sets get",
+		ErrorPrefix: "localizations screenshot-sets view",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetAppScreenshotSet(ctx, id)
 		},

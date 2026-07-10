@@ -25,14 +25,14 @@ func GameCenterChallengesCommand() *ffcli.Command {
 
 Examples:
   asc game-center challenges list --app "APP_ID"
-  asc game-center challenges get --id "CHALLENGE_ID"
+  asc game-center challenges view --id "CHALLENGE_ID"
   asc game-center challenges create --app "APP_ID" --reference-name "Weekly Challenge" --vendor-id "com.example.weekly" --leaderboard-id "LEADERBOARD_ID"
   asc game-center challenges update --id "CHALLENGE_ID" --archived true
   asc game-center challenges delete --id "CHALLENGE_ID" --confirm
   asc game-center challenges versions list --challenge-id "CHALLENGE_ID"
   asc game-center challenges localizations list --version-id "VERSION_ID"
-  asc game-center challenges localizations image get --id "LOC_ID"
-  asc game-center challenges versions default-image get --id "VERSION_ID"
+  asc game-center challenges localizations image view --id "LOC_ID"
+  asc game-center challenges versions default-image view --id "VERSION_ID"
   asc game-center challenges images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
   asc game-center challenges releases list --app "APP_ID"`,
 		FlagSet:   fs,
@@ -142,19 +142,19 @@ Examples:
 
 // GameCenterChallengesGetCommand returns the challenges get subcommand.
 func GameCenterChallengesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	challengeID := fs.String("id", "", "Game Center challenge ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center challenges get --id \"CHALLENGE_ID\"",
-		ShortHelp:  "Get a Game Center challenge by ID.",
-		LongHelp: `Get a Game Center challenge by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center challenges view --id \"CHALLENGE_ID\"",
+		ShortHelp:  "View a Game Center challenge by ID.",
+		LongHelp: `View a Game Center challenge by ID.
 
 Examples:
-  asc game-center challenges get --id "CHALLENGE_ID"`,
+  asc game-center challenges view --id "CHALLENGE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -166,7 +166,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center challenges get: %w", err)
+				return fmt.Errorf("game-center challenges view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -174,7 +174,7 @@ Examples:
 
 			resp, err := client.GetGameCenterChallenge(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center challenges get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center challenges view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -432,9 +432,9 @@ func GameCenterChallengeVersionsCommand() *ffcli.Command {
 
 Examples:
   asc game-center challenges versions list --challenge-id "CHALLENGE_ID"
-  asc game-center challenges versions get --id "VERSION_ID"
+  asc game-center challenges versions view --id "VERSION_ID"
   asc game-center challenges versions create --challenge-id "CHALLENGE_ID"
-  asc game-center challenges versions default-image get --id "VERSION_ID"`,
+  asc game-center challenges versions default-image view --id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -527,19 +527,19 @@ Examples:
 
 // GameCenterChallengeVersionsGetCommand returns the challenge versions get subcommand.
 func GameCenterChallengeVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	versionID := fs.String("id", "", "Game Center challenge version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center challenges versions get --id \"VERSION_ID\"",
-		ShortHelp:  "Get a Game Center challenge version by ID.",
-		LongHelp: `Get a Game Center challenge version by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center challenges versions view --id \"VERSION_ID\"",
+		ShortHelp:  "View a Game Center challenge version by ID.",
+		LongHelp: `View a Game Center challenge version by ID.
 
 Examples:
-  asc game-center challenges versions get --id "VERSION_ID"`,
+  asc game-center challenges versions view --id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -551,7 +551,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center challenges versions get: %w", err)
+				return fmt.Errorf("game-center challenges versions view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -559,7 +559,7 @@ Examples:
 
 			resp, err := client.GetGameCenterChallengeVersion(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center challenges versions get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center challenges versions view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -624,7 +624,7 @@ Examples:
   asc game-center challenges localizations create --version-id "VERSION_ID" --locale en-US --name "Weekly" --description "Win weekly"
   asc game-center challenges localizations update --id "LOC_ID" --name "New Name"
   asc game-center challenges localizations delete --id "LOC_ID" --confirm
-  asc game-center challenges localizations image get --id "LOC_ID"`,
+  asc game-center challenges localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -719,19 +719,19 @@ Examples:
 
 // GameCenterChallengeLocalizationsGetCommand returns the challenge localizations get subcommand.
 func GameCenterChallengeLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center challenge localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center challenges localizations get --id \"LOCALIZATION_ID\"",
-		ShortHelp:  "Get a challenge localization by ID.",
-		LongHelp: `Get a challenge localization by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center challenges localizations view --id \"LOCALIZATION_ID\"",
+		ShortHelp:  "View a challenge localization by ID.",
+		LongHelp: `View a challenge localization by ID.
 
 Examples:
-  asc game-center challenges localizations get --id "LOCALIZATION_ID"`,
+  asc game-center challenges localizations view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -743,7 +743,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center challenges localizations get: %w", err)
+				return fmt.Errorf("game-center challenges localizations view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -751,7 +751,7 @@ Examples:
 
 			resp, err := client.GetGameCenterChallengeLocalization(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center challenges localizations get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center challenges localizations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -951,7 +951,7 @@ func GameCenterChallengeImagesCommand() *ffcli.Command {
 
 Examples:
   asc game-center challenges images upload --localization-id "LOCALIZATION_ID" --file path/to/image.png
-  asc game-center challenges images get --id "IMAGE_ID"
+  asc game-center challenges images view --id "IMAGE_ID"
   asc game-center challenges images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -1019,19 +1019,19 @@ Examples:
 
 // GameCenterChallengeImagesGetCommand returns the challenge images get subcommand.
 func GameCenterChallengeImagesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	imageID := fs.String("id", "", "Challenge image ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center challenges images get --id \"IMAGE_ID\"",
-		ShortHelp:  "Get a challenge image by ID.",
-		LongHelp: `Get a challenge image by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center challenges images view --id \"IMAGE_ID\"",
+		ShortHelp:  "View a challenge image by ID.",
+		LongHelp: `View a challenge image by ID.
 
 Examples:
-  asc game-center challenges images get --id "IMAGE_ID"`,
+  asc game-center challenges images view --id "IMAGE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1043,7 +1043,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center challenges images get: %w", err)
+				return fmt.Errorf("game-center challenges images view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -1051,7 +1051,7 @@ Examples:
 
 			resp, err := client.GetGameCenterChallengeImage(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center challenges images get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center challenges images view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -1322,12 +1322,12 @@ func GameCenterChallengeLocalizationImageCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "image",
-		ShortUsage: "asc game-center challenges localizations image get --id \"LOC_ID\"",
+		ShortUsage: "asc game-center challenges localizations image view --id \"LOC_ID\"",
 		ShortHelp:  "Get the image for a challenge localization.",
 		LongHelp: `Get the image for a challenge localization.
 
 Examples:
-  asc game-center challenges localizations image get --id "LOC_ID"`,
+  asc game-center challenges localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -1341,19 +1341,19 @@ Examples:
 
 // GameCenterChallengeLocalizationImageGetCommand returns the challenge localization image get subcommand.
 func GameCenterChallengeLocalizationImageGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center challenge localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center challenges localizations image get --id \"LOC_ID\"",
-		ShortHelp:  "Get a challenge localization image.",
-		LongHelp: `Get a challenge localization image.
+		Name:       "view",
+		ShortUsage: "asc game-center challenges localizations image view --id \"LOC_ID\"",
+		ShortHelp:  "View a challenge localization image.",
+		LongHelp: `View a challenge localization image.
 
 Examples:
-  asc game-center challenges localizations image get --id "LOC_ID"`,
+  asc game-center challenges localizations image view --id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1365,7 +1365,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center challenges localizations image get: %w", err)
+				return fmt.Errorf("game-center challenges localizations image view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -1373,7 +1373,7 @@ Examples:
 
 			resp, err := client.GetGameCenterChallengeLocalizationImage(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center challenges localizations image get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center challenges localizations image view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -1387,12 +1387,12 @@ func GameCenterChallengeVersionDefaultImageCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "default-image",
-		ShortUsage: "asc game-center challenges versions default-image get --id \"VERSION_ID\"",
+		ShortUsage: "asc game-center challenges versions default-image view --id \"VERSION_ID\"",
 		ShortHelp:  "Get the default image for a challenge version.",
 		LongHelp: `Get the default image for a challenge version.
 
 Examples:
-  asc game-center challenges versions default-image get --id "VERSION_ID"`,
+  asc game-center challenges versions default-image view --id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -1406,19 +1406,19 @@ Examples:
 
 // GameCenterChallengeVersionDefaultImageGetCommand returns the challenge version default image get subcommand.
 func GameCenterChallengeVersionDefaultImageGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	versionID := fs.String("id", "", "Game Center challenge version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center challenges versions default-image get --id \"VERSION_ID\"",
-		ShortHelp:  "Get a default image for a challenge version.",
-		LongHelp: `Get a default image for a challenge version.
+		Name:       "view",
+		ShortUsage: "asc game-center challenges versions default-image view --id \"VERSION_ID\"",
+		ShortHelp:  "View a default image for a challenge version.",
+		LongHelp: `View a default image for a challenge version.
 
 Examples:
-  asc game-center challenges versions default-image get --id "VERSION_ID"`,
+  asc game-center challenges versions default-image view --id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1430,7 +1430,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center challenges versions default-image get: %w", err)
+				return fmt.Errorf("game-center challenges versions default-image view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -1438,7 +1438,7 @@ Examples:
 
 			resp, err := client.GetGameCenterChallengeVersionDefaultImage(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center challenges versions default-image get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center challenges versions default-image view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

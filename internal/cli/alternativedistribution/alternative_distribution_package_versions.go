@@ -25,7 +25,7 @@ func AlternativeDistributionPackageVersionsCommand() *ffcli.Command {
 
 Examples:
   asc alternative-distribution packages versions list --package-id "PACKAGE_ID"
-  asc alternative-distribution packages versions get --version-id "VERSION_ID"
+  asc alternative-distribution packages versions view --version-id "VERSION_ID"
   asc alternative-distribution packages versions deltas --version-id "VERSION_ID"
   asc alternative-distribution packages versions variants --version-id "VERSION_ID"`,
 		FlagSet:   fs,
@@ -118,19 +118,19 @@ Examples:
 
 // AlternativeDistributionPackageVersionsGetCommand returns the package versions get subcommand.
 func AlternativeDistributionPackageVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "Alternative distribution package version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc alternative-distribution packages versions get --version-id \"VERSION_ID\"",
-		ShortHelp:  "Get an alternative distribution package version.",
-		LongHelp: `Get an alternative distribution package version.
+		Name:       "view",
+		ShortUsage: "asc alternative-distribution packages versions view --version-id \"VERSION_ID\"",
+		ShortHelp:  "View an alternative distribution package version.",
+		LongHelp: `View an alternative distribution package version.
 
 Examples:
-  asc alternative-distribution packages versions get --version-id "VERSION_ID"`,
+  asc alternative-distribution packages versions view --version-id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -142,7 +142,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("alternative-distribution packages versions get: %w", err)
+				return fmt.Errorf("alternative-distribution packages versions view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -150,7 +150,7 @@ Examples:
 
 			resp, err := client.GetAlternativeDistributionPackageVersion(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("alternative-distribution packages versions get: failed to fetch: %w", err)
+				return fmt.Errorf("alternative-distribution packages versions view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

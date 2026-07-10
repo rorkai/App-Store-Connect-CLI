@@ -25,7 +25,7 @@ func AppEventLocalizationsCommand() *ffcli.Command {
 
 Examples:
   asc app-events localizations list --event-id "EVENT_ID"
-  asc app-events localizations get --localization-id "LOC_ID"
+  asc app-events localizations view --localization-id "LOC_ID"
   asc app-events localizations screenshots list --localization-id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
@@ -122,19 +122,19 @@ Examples:
 
 // AppEventLocalizationsGetCommand returns the app event localizations get subcommand.
 func AppEventLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("localizations get", flag.ExitOnError)
+	fs := flag.NewFlagSet("localizations view", flag.ExitOnError)
 
 	localizationID := fs.String("localization-id", "", "App event localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc app-events localizations get --localization-id \"LOC_ID\"",
-		ShortHelp:  "Get an in-app event localization by ID.",
-		LongHelp: `Get an in-app event localization by ID.
+		Name:       "view",
+		ShortUsage: "asc app-events localizations view --localization-id \"LOC_ID\"",
+		ShortHelp:  "View an in-app event localization by ID.",
+		LongHelp: `View an in-app event localization by ID.
 
 Examples:
-  asc app-events localizations get --localization-id "LOC_ID"`,
+  asc app-events localizations view --localization-id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -146,7 +146,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-events localizations get: %w", err)
+				return fmt.Errorf("app-events localizations view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -154,7 +154,7 @@ Examples:
 
 			resp, err := client.GetAppEventLocalization(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("app-events localizations get: failed to fetch: %w", err)
+				return fmt.Errorf("app-events localizations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

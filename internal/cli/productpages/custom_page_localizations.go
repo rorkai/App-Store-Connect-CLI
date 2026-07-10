@@ -124,19 +124,19 @@ Examples:
 
 // CustomPageLocalizationsGetCommand returns the custom page localizations get subcommand.
 func CustomPageLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-localizations get", flag.ExitOnError)
+	fs := flag.NewFlagSet("custom-page-localizations view", flag.ExitOnError)
 
 	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc product-pages custom-pages localizations get --localization-id \"LOCALIZATION_ID\"",
-		ShortHelp:  "Get a custom product page localization by ID.",
-		LongHelp: `Get a custom product page localization by ID.
+		Name:       "view",
+		ShortUsage: "asc product-pages custom-pages localizations view --localization-id \"LOCALIZATION_ID\"",
+		ShortHelp:  "View a custom product page localization by ID.",
+		LongHelp: `View a custom product page localization by ID.
 
 Examples:
-  asc product-pages custom-pages localizations get --localization-id "LOCALIZATION_ID"`,
+  asc product-pages custom-pages localizations view --localization-id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

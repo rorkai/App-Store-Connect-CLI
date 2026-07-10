@@ -27,7 +27,7 @@ func WebhooksCommand() *ffcli.Command {
 
 Examples:
   asc webhooks list --app "APP_ID"
-  asc webhooks get --webhook-id "WEBHOOK_ID"
+  asc webhooks view --webhook-id "WEBHOOK_ID"
   asc webhooks create --app "APP_ID" --name "Build Updates" --url "https://example.com/webhook" --secret "secret123" --events "SUBSCRIPTION.CREATED,SUBSCRIPTION.UPDATED" --enabled true
   asc webhooks update --webhook-id "WEBHOOK_ID" --url "https://new-url.com/webhook" --enabled false
   asc webhooks delete --webhook-id "WEBHOOK_ID" --confirm
@@ -131,21 +131,21 @@ Examples:
 	}
 }
 
-// WebhooksGetCommand returns the webhooks get subcommand.
+// WebhooksGetCommand returns the webhooks view subcommand.
 func WebhooksGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	webhookID := fs.String("webhook-id", "", "Webhook ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc webhooks get --webhook-id \"WEBHOOK_ID\" [flags]",
-		ShortHelp:  "Get a webhook by ID.",
-		LongHelp: `Get a webhook by ID.
+		Name:       "view",
+		ShortUsage: "asc webhooks view --webhook-id \"WEBHOOK_ID\" [flags]",
+		ShortHelp:  "View a webhook by ID.",
+		LongHelp: `View a webhook by ID.
 
 Examples:
-  asc webhooks get --webhook-id "WEBHOOK_ID"`,
+  asc webhooks view --webhook-id "WEBHOOK_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -157,7 +157,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("webhooks get: %w", err)
+				return fmt.Errorf("webhooks view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -165,7 +165,7 @@ Examples:
 
 			webhook, err := client.GetWebhook(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("webhooks get: failed to fetch: %w", err)
+				return fmt.Errorf("webhooks view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(webhook, *output.Output, *output.Pretty)

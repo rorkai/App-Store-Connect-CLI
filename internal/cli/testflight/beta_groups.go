@@ -29,9 +29,9 @@ Examples:
   asc testflight beta-groups list --global --internal
   asc testflight beta-groups create --app "APP_ID" --name "Beta Testers"
   asc testflight beta-groups create --app "APP_ID" --name "Internal Testers" --internal
-  asc testflight beta-groups app get --group-id "GROUP_ID"
-  asc testflight beta-groups beta-recruitment-criteria get --group-id "GROUP_ID"
-  asc testflight beta-groups beta-recruitment-criterion-compatible-build-check get --group-id "GROUP_ID"`,
+  asc testflight beta-groups app view --group-id "GROUP_ID"
+  asc testflight beta-groups beta-recruitment-criteria view --group-id "GROUP_ID"
+  asc testflight beta-groups beta-recruitment-criterion-compatible-build-check view --group-id "GROUP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -307,19 +307,19 @@ Examples:
 
 // BetaGroupsGetCommand returns the beta groups get subcommand.
 func BetaGroupsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta group ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc testflight beta-groups get [flags]",
-		ShortHelp:  "Get a TestFlight beta group by ID.",
-		LongHelp: `Get a TestFlight beta group by ID.
+		Name:       "view",
+		ShortUsage: "asc testflight beta-groups view [flags]",
+		ShortHelp:  "View a TestFlight beta group by ID.",
+		LongHelp: `View a TestFlight beta group by ID.
 
 Examples:
-  asc testflight beta-groups get --id "GROUP_ID"`,
+  asc testflight beta-groups view --id "GROUP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

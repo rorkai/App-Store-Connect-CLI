@@ -26,7 +26,7 @@ func NominationsCommand() *ffcli.Command {
 
 Examples:
   asc nominations list --status DRAFT
-  asc nominations get --id "NOMINATION_ID"
+  asc nominations view --id "NOMINATION_ID"
   asc nominations create --app "APP_ID" --name "Launch" --type APP_LAUNCH --description "New launch" --submitted=false --publish-start-date "2026-02-01T08:00:00Z"
   asc nominations update --id "NOMINATION_ID" --notes "Updated notes"
   asc nominations delete --id "NOMINATION_ID" --confirm`,
@@ -194,9 +194,9 @@ Examples:
 	}
 }
 
-// NominationsGetCommand returns the nominations get subcommand.
+// NominationsGetCommand returns the nominations view subcommand.
 func NominationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("nominations get", flag.ExitOnError)
+	fs := flag.NewFlagSet("nominations view", flag.ExitOnError)
 
 	nominationID := fs.String("id", "", "Nomination ID (required)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(nominationFieldsList(), ", "))
@@ -207,14 +207,14 @@ func NominationsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc nominations get --id NOMINATION_ID [flags]",
-		ShortHelp:  "Get a featuring nomination by ID.",
-		LongHelp: `Get a featuring nomination by ID.
+		Name:       "view",
+		ShortUsage: "asc nominations view --id NOMINATION_ID [flags]",
+		ShortHelp:  "View a featuring nomination by ID.",
+		LongHelp: `View a featuring nomination by ID.
 
 Examples:
-  asc nominations get --id "NOMINATION_ID"
-  asc nominations get --id "NOMINATION_ID" --include relatedApps`,
+  asc nominations view --id "NOMINATION_ID"
+  asc nominations view --id "NOMINATION_ID" --include relatedApps`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -224,23 +224,23 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 			if *inAppEventsLimit != 0 && (*inAppEventsLimit < 1 || *inAppEventsLimit > 50) {
-				return fmt.Errorf("nominations get: --in-app-events-limit must be between 1 and 50")
+				return fmt.Errorf("nominations view: --in-app-events-limit must be between 1 and 50")
 			}
 			if *relatedAppsLimit != 0 && (*relatedAppsLimit < 1 || *relatedAppsLimit > 50) {
-				return fmt.Errorf("nominations get: --related-apps-limit must be between 1 and 50")
+				return fmt.Errorf("nominations view: --related-apps-limit must be between 1 and 50")
 			}
 			if *supportedTerritoriesLimit != 0 && (*supportedTerritoriesLimit < 1 || *supportedTerritoriesLimit > 200) {
-				return fmt.Errorf("nominations get: --supported-territories-limit must be between 1 and 200")
+				return fmt.Errorf("nominations view: --supported-territories-limit must be between 1 and 200")
 			}
 
 			fieldsValue, err := normalizeNominationFields(*fields)
 			if err != nil {
-				return fmt.Errorf("nominations get: %w", err)
+				return fmt.Errorf("nominations view: %w", err)
 			}
 
 			includeValues, err := normalizeNominationInclude(*include)
 			if err != nil {
-				return fmt.Errorf("nominations get: %w", err)
+				return fmt.Errorf("nominations view: %w", err)
 			}
 
 			if *inAppEventsLimit != 0 && !shared.HasInclude(includeValues, "inAppEvents") {
@@ -258,7 +258,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("nominations get: %w", err)
+				return fmt.Errorf("nominations view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -283,7 +283,7 @@ Examples:
 
 			resp, err := client.GetNomination(requestCtx, trimmedID, opts...)
 			if err != nil {
-				return fmt.Errorf("nominations get: failed to fetch: %w", err)
+				return fmt.Errorf("nominations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

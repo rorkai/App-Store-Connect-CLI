@@ -117,19 +117,19 @@ Examples:
 
 // CustomPageVersionsGetCommand returns the custom page versions get subcommand.
 func CustomPageVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-versions get", flag.ExitOnError)
+	fs := flag.NewFlagSet("custom-page-versions view", flag.ExitOnError)
 
 	versionID := fs.String("custom-page-version-id", "", "Custom product page version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc product-pages custom-pages versions get --custom-page-version-id \"VERSION_ID\"",
-		ShortHelp:  "Get a custom product page version by ID.",
-		LongHelp: `Get a custom product page version by ID.
+		Name:       "view",
+		ShortUsage: "asc product-pages custom-pages versions view --custom-page-version-id \"VERSION_ID\"",
+		ShortHelp:  "View a custom product page version by ID.",
+		LongHelp: `View a custom product page version by ID.
 
 Examples:
-  asc product-pages custom-pages versions get --custom-page-version-id "VERSION_ID"`,
+  asc product-pages custom-pages versions view --custom-page-version-id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

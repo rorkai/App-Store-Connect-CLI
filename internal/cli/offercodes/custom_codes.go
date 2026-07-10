@@ -25,7 +25,7 @@ func OfferCodeCustomCodesCommand() *ffcli.Command {
 
 Examples:
   asc offer-codes custom-codes list --offer-code-id "OFFER_CODE_ID"
-  asc offer-codes custom-codes get --custom-code-id "CUSTOM_CODE_ID"
+  asc offer-codes custom-codes view --custom-code-id "CUSTOM_CODE_ID"
   asc offer-codes custom-codes create --offer-code-id "OFFER_CODE_ID" --code "SPRING2026" --quantity 10
   asc offer-codes custom-codes update --custom-code-id "CUSTOM_CODE_ID" --active false`,
 		FlagSet:   fs,
@@ -76,17 +76,17 @@ Examples:
 // OfferCodeCustomCodesGetCommand returns the custom codes get subcommand.
 func OfferCodeCustomCodesGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "get",
-		Name:        "get",
-		ShortUsage:  "asc offer-codes custom-codes get --custom-code-id ID",
-		ShortHelp:   "Get a custom code by ID.",
-		LongHelp: `Get a custom code by ID.
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc offer-codes custom-codes view --custom-code-id ID",
+		ShortHelp:   "View a custom code by ID.",
+		LongHelp: `View a custom code by ID.
 
 Examples:
-  asc offer-codes custom-codes get --custom-code-id "CUSTOM_CODE_ID"`,
+  asc offer-codes custom-codes view --custom-code-id "CUSTOM_CODE_ID"`,
 		IDFlag:      "custom-code-id",
 		IDUsage:     "Custom code ID (required)",
-		ErrorPrefix: "offer-codes custom-codes get",
+		ErrorPrefix: "offer-codes custom-codes view",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetSubscriptionOfferCodeCustomCode(ctx, id)
 		},

@@ -24,7 +24,7 @@ func SubscriptionsGracePeriodsCommand() *ffcli.Command {
 		LongHelp: `Inspect subscription grace periods.
 
 Examples:
-  asc subscriptions grace-periods get --id "GRACE_PERIOD_ID"
+  asc subscriptions grace-periods view --id "GRACE_PERIOD_ID"
   asc subscriptions grace-periods update --id "GRACE_PERIOD_ID" --duration SIXTEEN_DAYS --opt-in true`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -40,19 +40,19 @@ Examples:
 
 // SubscriptionsGracePeriodsGetCommand returns the grace period get subcommand.
 func SubscriptionsGracePeriodsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("grace-periods get", flag.ExitOnError)
+	fs := flag.NewFlagSet("grace-periods view", flag.ExitOnError)
 
 	gracePeriodID := fs.String("id", "", "Subscription grace period ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc subscriptions grace-periods get --id \"GRACE_PERIOD_ID\"",
-		ShortHelp:  "Get a subscription grace period by ID.",
-		LongHelp: `Get a subscription grace period by ID.
+		Name:       "view",
+		ShortUsage: "asc subscriptions grace-periods view --id \"GRACE_PERIOD_ID\"",
+		ShortHelp:  "View a subscription grace period by ID.",
+		LongHelp: `View a subscription grace period by ID.
 
 Examples:
-  asc subscriptions grace-periods get --id "GRACE_PERIOD_ID"`,
+  asc subscriptions grace-periods view --id "GRACE_PERIOD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -64,7 +64,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions grace-periods get: %w", err)
+				return fmt.Errorf("subscriptions grace-periods view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -72,7 +72,7 @@ Examples:
 
 			resp, err := client.GetSubscriptionGracePeriod(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("subscriptions grace-periods get: failed to fetch: %w", err)
+				return fmt.Errorf("subscriptions grace-periods view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

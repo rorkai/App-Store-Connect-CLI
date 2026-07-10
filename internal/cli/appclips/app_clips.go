@@ -25,7 +25,7 @@ func AppClipsCommand() *ffcli.Command {
 
 Examples:
   asc app-clips list --app "APP_ID"
-  asc app-clips get --id "CLIP_ID"
+  asc app-clips view --id "CLIP_ID"
   asc app-clips default-experiences list --app-clip-id "CLIP_ID"
   asc app-clips advanced-experiences create --app "APP_ID" --bundle-id "com.example.clip" --link "https://example.com" --default-language EN --is-powered-by
   asc app-clips invocations list --build-bundle-id "BUILD_BUNDLE_ID"`,
@@ -138,19 +138,19 @@ Examples:
 
 // AppClipsGetCommand returns the app clips get subcommand.
 func AppClipsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	appClipID := fs.String("id", "", "App Clip ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc app-clips get --id \"CLIP_ID\"",
-		ShortHelp:  "Get App Clip details by ID.",
-		LongHelp: `Get App Clip details by ID.
+		Name:       "view",
+		ShortUsage: "asc app-clips view --id \"CLIP_ID\"",
+		ShortHelp:  "View App Clip details by ID.",
+		LongHelp: `View App Clip details by ID.
 
 Examples:
-  asc app-clips get --id "CLIP_ID"`,
+  asc app-clips view --id "CLIP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -162,7 +162,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-clips get: %w", err)
+				return fmt.Errorf("app-clips view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -170,7 +170,7 @@ Examples:
 
 			resp, err := client.GetAppClip(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("app-clips get: failed to fetch: %w", err)
+				return fmt.Errorf("app-clips view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

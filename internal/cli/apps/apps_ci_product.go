@@ -36,13 +36,13 @@ Examples:
 
 // AppsCIProductGetCommand returns the ci-product get subcommand.
 func AppsCIProductGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "App Store Connect app ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
+		Name:       "view",
 		ShortUsage: "asc apps ci-product view --id \"APP_ID\"",
 		ShortHelp:  "View the CI product for an app.",
 		LongHelp: `View the CI product for an app.
@@ -60,7 +60,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("apps ci-product get: %w", err)
+				return fmt.Errorf("apps ci-product view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -68,7 +68,7 @@ Examples:
 
 			resp, err := client.GetAppCiProduct(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("apps ci-product get: failed to fetch: %w", err)
+				return fmt.Errorf("apps ci-product view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

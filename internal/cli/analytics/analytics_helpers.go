@@ -199,7 +199,7 @@ func fetchAnalyticsReports(ctx context.Context, client *asc.Client, requestID st
 		var err error
 		if nextURL != "" {
 			if seen[nextURL] {
-				return nil, asc.Links{}, fmt.Errorf("analytics get: detected repeated pagination URL")
+				return nil, asc.Links{}, fmt.Errorf("analytics view: detected repeated pagination URL")
 			}
 			seen[nextURL] = true
 			resp, err = client.GetAnalyticsReports(ctx, requestID, asc.WithAnalyticsReportsNextURL(nextURL))
@@ -233,7 +233,7 @@ func fetchAnalyticsReportInstances(ctx context.Context, client *asc.Client, repo
 		var err error
 		if next != "" {
 			if seen[next] {
-				return nil, fmt.Errorf("analytics get: detected repeated instance pagination URL")
+				return nil, fmt.Errorf("analytics view: detected repeated instance pagination URL")
 			}
 			seen[next] = true
 			resp, err = client.GetAnalyticsReportInstances(ctx, reportID, asc.WithAnalyticsReportInstancesNextURL(next))
@@ -397,7 +397,7 @@ func fetchAnalyticsReportSegments(ctx context.Context, client *asc.Client, insta
 		var err error
 		if next != "" {
 			if seen[next] {
-				return nil, fmt.Errorf("analytics get: detected repeated segment pagination URL")
+				return nil, fmt.Errorf("analytics view: detected repeated segment pagination URL")
 			}
 			seen[next] = true
 			resp, err = client.GetAnalyticsReportSegments(ctx, instanceID, asc.WithAnalyticsReportSegmentsNextURL(next))

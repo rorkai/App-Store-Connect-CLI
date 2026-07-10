@@ -25,7 +25,7 @@ func MarketplaceWebhooksCommand() *ffcli.Command {
 
 Examples:
   asc marketplace webhooks list
-  asc marketplace webhooks get --webhook-id "WEBHOOK_ID"`,
+  asc marketplace webhooks view --webhook-id "WEBHOOK_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -121,21 +121,21 @@ Examples:
 	}
 }
 
-// MarketplaceWebhooksGetCommand returns the webhooks get subcommand.
+// MarketplaceWebhooksGetCommand returns the webhooks view subcommand.
 func MarketplaceWebhooksGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	webhookID := fs.String("webhook-id", "", "Marketplace webhook ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc marketplace webhooks get --webhook-id \"WEBHOOK_ID\" [flags]",
-		ShortHelp:  "Get a marketplace webhook by ID.",
-		LongHelp: `Get a marketplace webhook by ID.
+		Name:       "view",
+		ShortUsage: "asc marketplace webhooks view --webhook-id \"WEBHOOK_ID\" [flags]",
+		ShortHelp:  "View a marketplace webhook by ID.",
+		LongHelp: `View a marketplace webhook by ID.
 
 Examples:
-  asc marketplace webhooks get --webhook-id "WEBHOOK_ID"`,
+  asc marketplace webhooks view --webhook-id "WEBHOOK_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -149,7 +149,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("marketplace webhooks get: %w", err)
+				return fmt.Errorf("marketplace webhooks view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -157,7 +157,7 @@ Examples:
 
 			webhook, err := client.GetMarketplaceWebhook(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("marketplace webhooks get: failed to fetch: %w", err)
+				return fmt.Errorf("marketplace webhooks view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(webhook, *output.Output, *output.Pretty)

@@ -180,21 +180,21 @@ Examples:
 
 // ExperimentsGetCommand returns the experiments get subcommand.
 func ExperimentsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("experiments get", flag.ExitOnError)
+	fs := flag.NewFlagSet("experiments view", flag.ExitOnError)
 
 	experimentID := fs.String("experiment-id", "", "Experiment ID")
 	output := shared.BindOutputFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc product-pages experiments get --experiment-id \"EXPERIMENT_ID\" [--v2]",
-		ShortHelp:  "Get an experiment by ID.",
-		LongHelp: `Get an experiment by ID.
+		Name:       "view",
+		ShortUsage: "asc product-pages experiments view --experiment-id \"EXPERIMENT_ID\" [--v2]",
+		ShortHelp:  "View an experiment by ID.",
+		LongHelp: `View an experiment by ID.
 
 Examples:
-  asc product-pages experiments get --experiment-id "EXPERIMENT_ID"
-  asc product-pages experiments get --experiment-id "EXPERIMENT_ID" --v2`,
+  asc product-pages experiments view --experiment-id "EXPERIMENT_ID"
+  asc product-pages experiments view --experiment-id "EXPERIMENT_ID" --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {

@@ -25,15 +25,15 @@ func UsersCommand() *ffcli.Command {
 
 Examples:
   asc users list
-  asc users get --id "USER_ID"
-  asc users get --id "USER_ID" --include visibleApps
+  asc users view --id "USER_ID"
+  asc users view --id "USER_ID" --include visibleApps
   asc users update --id "USER_ID" --roles "ADMIN"
   asc users delete --id "USER_ID" --confirm
   asc users invite --email "user@example.com" --roles "ADMIN" --all-apps
   asc users invites list
   asc users invites visible-apps list --id "INVITE_ID"
   asc users visible-apps list --id "USER_ID"
-  asc users visible-apps get --id "USER_ID"`,
+  asc users visible-apps view --id "USER_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -127,23 +127,23 @@ Examples:
 	}
 }
 
-// UsersGetCommand returns the users get subcommand.
+// UsersGetCommand returns the users view subcommand.
 func UsersGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "User ID")
 	include := fs.String("include", "", "Include related resources: visibleApps")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc users get --id USER_ID",
-		ShortHelp:  "Get a user by ID.",
-		LongHelp: `Get a user by ID.
+		Name:       "view",
+		ShortUsage: "asc users view --id USER_ID",
+		ShortHelp:  "View a user by ID.",
+		LongHelp: `View a user by ID.
 
 Examples:
-  asc users get --id "USER_ID"
-  asc users get --id "USER_ID" --include visibleApps`,
+  asc users view --id "USER_ID"
+  asc users view --id "USER_ID" --include visibleApps`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -155,12 +155,12 @@ Examples:
 
 			includeValues, err := normalizeUsersInclude(*include)
 			if err != nil {
-				return fmt.Errorf("users get: %w", err)
+				return fmt.Errorf("users view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("users get: %w", err)
+				return fmt.Errorf("users view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -173,7 +173,7 @@ Examples:
 
 			user, err := client.GetUser(requestCtx, idValue, opts...)
 			if err != nil {
-				return fmt.Errorf("users get: failed to fetch: %w", err)
+				return fmt.Errorf("users view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(user, *output.Output, *output.Pretty)
@@ -406,7 +406,7 @@ func UsersInvitesCommand() *ffcli.Command {
 
 Examples:
   asc users invites list
-  asc users invites get --id "INVITE_ID"
+  asc users invites view --id "INVITE_ID"
   asc users invites revoke --id "INVITE_ID" --confirm
   asc users invites visible-apps list --id "INVITE_ID"`,
 		FlagSet:   fs,
@@ -492,21 +492,21 @@ Examples:
 	}
 }
 
-// UsersInvitesGetCommand returns the users invites get subcommand.
+// UsersInvitesGetCommand returns the users invites view subcommand.
 func UsersInvitesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Invitation ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc users invites get --id INVITE_ID",
-		ShortHelp:  "Get a user invitation by ID.",
-		LongHelp: `Get a user invitation by ID.
+		Name:       "view",
+		ShortUsage: "asc users invites view --id INVITE_ID",
+		ShortHelp:  "View a user invitation by ID.",
+		LongHelp: `View a user invitation by ID.
 
 Examples:
-  asc users invites get --id "INVITE_ID"`,
+  asc users invites view --id "INVITE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -518,7 +518,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("users invites get: %w", err)
+				return fmt.Errorf("users invites view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -526,7 +526,7 @@ Examples:
 
 			invite, err := client.GetUserInvitation(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("users invites get: failed to fetch: %w", err)
+				return fmt.Errorf("users invites view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(invite, *output.Output, *output.Pretty)

@@ -40,16 +40,16 @@ Examples:
 
 // IAPAvailabilitiesGetCommand returns the availability get subcommand.
 func IAPAvailabilitiesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing availabilities get", flag.ExitOnError)
+	fs := flag.NewFlagSet("pricing availabilities view", flag.ExitOnError)
 
 	availabilityID := fs.String("id", "", "Availability ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
+		Name:       "view",
 		ShortUsage: "asc iap pricing availabilities view --id \"AVAILABILITY_ID\"",
-		ShortHelp:  "Get an in-app purchase availability by ID.",
-		LongHelp: `Get an in-app purchase availability by ID.
+		ShortHelp:  "View an in-app purchase availability by ID.",
+		LongHelp: `View an in-app purchase availability by ID.
 
 Examples:
   asc iap pricing availabilities view --id "AVAILABILITY_ID"`,
