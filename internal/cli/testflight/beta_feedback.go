@@ -29,7 +29,7 @@ Examples:
   asc testflight feedback view --submission-id "SUBMISSION_ID"
   asc testflight feedback delete --submission-id "SUBMISSION_ID" --confirm`,
 		FlagSet:   fs,
-		UsageFunc: testflightVisibleUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightFeedbackListCommand(),
 			TestFlightFeedbackViewCommand(),
@@ -133,7 +133,7 @@ Examples:
   asc testflight crashes log --submission-id "SUBMISSION_ID"
   asc testflight crashes log --crash-log-id "CRASH_LOG_ID"`,
 		FlagSet:   fs,
-		UsageFunc: testflightVisibleUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			TestFlightCrashesListCommand(),
 			TestFlightCrashesViewCommand(),
