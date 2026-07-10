@@ -15,6 +15,14 @@ type readerThatFailsAfterFirstRead struct {
 	readOnce bool
 }
 
+func TestDownloadHTTPStatusErrorExposesHTTPStatus(t *testing.T) {
+	err := &downloadHTTPStatusError{StatusCode: 503}
+
+	if got := err.HTTPStatusCode(); got != 503 {
+		t.Fatalf("HTTPStatusCode() = %d, want 503", got)
+	}
+}
+
 func (r *readerThatFailsAfterFirstRead) Read(p []byte) (int, error) {
 	if !r.readOnce {
 		r.readOnce = true

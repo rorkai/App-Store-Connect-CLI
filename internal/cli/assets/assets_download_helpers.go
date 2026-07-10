@@ -33,6 +33,13 @@ func (e *downloadHTTPStatusError) Error() string {
 	return fmt.Sprintf("unexpected status %d (%s)", e.StatusCode, e.Message)
 }
 
+func (e *downloadHTTPStatusError) HTTPStatusCode() int {
+	if e == nil {
+		return 0
+	}
+	return e.StatusCode
+}
+
 func sanitizeBaseFileName(value string) string {
 	base := strings.TrimSpace(value)
 	if base == "" {

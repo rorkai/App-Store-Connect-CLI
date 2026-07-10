@@ -59,10 +59,9 @@ func Run(args []string, versionInfo string) int {
 		if parseOutput.Len() == 0 {
 			fmt.Fprint(os.Stderr, errfmt.FormatStderr(parseErr))
 		}
-		exitCode := ExitCodeFromError(parseErr)
-		if parseOutput.Len() > 0 {
-			exitCode = ExitUsage
-		}
+		// Every non-help error returned by command-tree parsing is invalid usage,
+		// including NoExecError cases that do not write flag output.
+		exitCode := ExitUsage
 		printUnknownFlagSuggestion(analysis)
 		emitImmediateTelemetry(args, root, versionInfo, exitCode, parseFailureContext(analysis))
 		return exitCode

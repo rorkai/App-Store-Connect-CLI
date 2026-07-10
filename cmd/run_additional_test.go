@@ -137,6 +137,36 @@ func TestRun_ParseErrorEmitsTelemetry(t *testing.T) {
 	}
 }
 
+func TestRun_ParseErrorWithoutFlagOutputReturnsUsage(t *testing.T) {
+	resetReportFlags(t)
+
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+	var gotExitCode int
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, exitCode int, eventContext telemetry.EventContext) {
+		gotExitCode = exitCode
+		gotContext = eventContext
+	}
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"ads", "geo"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "doesn't define an Exec function") {
+		t.Fatalf("expected parse failure, got %q", stderr)
+	}
+	if gotExitCode != ExitUsage || gotContext.FailureStage != telemetry.FailureStageParse ||
+		gotContext.OutcomeKind != telemetry.OutcomeUsageError {
+		t.Fatalf("unexpected telemetry: exit=%d context=%+v", gotExitCode, gotContext)
+	}
+}
+
 func TestRun_ReportWriteFailureReturnsExitError(t *testing.T) {
 	resetReportFlags(t)
 
@@ -259,6 +289,9 @@ func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
 	if gotContext.ErrorKind != telemetry.ErrorKindMissingRequired || gotContext.FailureStage != telemetry.FailureStageValidation {
 		t.Fatalf("unexpected telemetry context: %+v", gotContext)
 	}
+	if gotContext.FailureParameter != "--version" || gotContext.OutcomeKind != telemetry.OutcomeUsageError {
+		t.Fatalf("unexpected missing-parameter telemetry context: %+v", gotContext)
+	}
 }
 
 func TestRun_MissingRequiredFlagsEmitContext(t *testing.T) {
@@ -296,6 +329,9 @@ func TestRun_MissingRequiredFlagsEmitContext(t *testing.T) {
 			}
 			if gotContext.ErrorKind != telemetry.ErrorKindMissingRequired || gotContext.FailureStage != telemetry.FailureStageValidation {
 				t.Fatalf("unexpected telemetry context: %+v", gotContext)
+			}
+			if gotContext.FailureParameter != "--app" || gotContext.OutcomeKind != telemetry.OutcomeUsageError {
+				t.Fatalf("unexpected missing-parameter telemetry context: %+v", gotContext)
 			}
 		})
 	}
@@ -433,7 +469,8 @@ func TestRun_UnknownFlagSuggestsRealFlagAndEmitsContext(t *testing.T) {
 	}
 	if gotContext.InvocationShape != telemetry.InvocationShapeLeaf ||
 		gotContext.ErrorKind != telemetry.ErrorKindUnknownFlag ||
-		gotContext.FailureStage != telemetry.FailureStageParse {
+		gotContext.FailureStage != telemetry.FailureStageParse ||
+		gotContext.OutcomeKind != telemetry.OutcomeUsageError {
 		t.Fatalf("unexpected telemetry context: %+v", gotContext)
 	}
 	if gotContext.FailureParameter != "--build-id" {

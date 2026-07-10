@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"net"
 	"os"
@@ -8,7 +9,57 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/telemetry"
 )
+
+func TestRun_BuiltBinaryEmitsSchemaV4Payload(t *testing.T) {
+	binaryPath := buildASCBlackboxBinary(t)
+	home := t.TempDir()
+	command := exec.Command(
+		binaryPath,
+		"versions",
+		"attach-build",
+		"--version-id",
+		"VERSION_ID",
+		"--build-id",
+		"BUILD_ID",
+	)
+	command.Env = telemetryBlackboxEnv(home, false, "https://127.0.0.1:1/events")
+	output, err := command.CombinedOutput()
+	var exitError *exec.ExitError
+	if !errors.As(err, &exitError) || exitError.ExitCode() != ExitUsage {
+		t.Fatalf("built command error = %v, want exit %d; output=%s", err, ExitUsage, output)
+	}
+
+	spoolData, err := os.ReadFile(filepath.Join(home, ".asc", "telemetry-spool.jsonl"))
+	if err != nil {
+		t.Fatalf("read built CLI telemetry spool: %v", err)
+	}
+	var record struct {
+		Event json.RawMessage `json:"event"`
+	}
+	if err := json.Unmarshal(spoolData, &record); err != nil {
+		t.Fatalf("decode built CLI telemetry spool: %v", err)
+	}
+	var event telemetry.Event
+	if err := json.Unmarshal(record.Event, &event); err != nil {
+		t.Fatalf("decode built CLI telemetry event: %v", err)
+	}
+	if event.SchemaVersion != 4 || event.OutcomeKind != telemetry.OutcomeUsageError {
+		t.Fatalf("unexpected schema-v4 payload: %+v", event)
+	}
+	if event.FailureParameter == nil || *event.FailureParameter != "--build-id" {
+		t.Fatalf("FailureParameter = %v, want --build-id", event.FailureParameter)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(record.Event, &payload); err != nil {
+		t.Fatalf("decode built CLI telemetry JSON: %v", err)
+	}
+	if value, exists := payload["http_status"]; !exists || value != nil {
+		t.Fatalf("http_status = %v (exists=%t), want explicit null", value, exists)
+	}
+}
 
 func TestRun_BuiltBinaryDoesNotWaitForBlockedTelemetryEndpoint(t *testing.T) {
 	binaryPath := buildASCBlackboxBinary(t)
@@ -72,6 +123,7 @@ func telemetryBlackboxEnv(home string, disabled bool, endpoint string) []string 
 		"ASC_TIMEOUT_SECONDS",
 		"DO_NOT_TRACK",
 		"HOME",
+		"SSL_CERT_FILE",
 	)
 	disabledValue := ""
 	if disabled {

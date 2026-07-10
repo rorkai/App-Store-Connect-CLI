@@ -180,6 +180,13 @@ func (e *sessionInfoStatusError) Error() string {
 	return fmt.Sprintf("failed to get session info with status %d", e.Status)
 }
 
+func (e *sessionInfoStatusError) HTTPStatusCode() int {
+	if e == nil {
+		return 0
+	}
+	return e.Status
+}
+
 func (e *APIError) Error() string {
 	parts := []string{fmt.Sprintf("web api error (status %d)", e.Status)}
 	if e.AppleRequestID != "" {
@@ -192,6 +199,13 @@ func (e *APIError) Error() string {
 		parts = append(parts, fmt.Sprintf("codes=%v", codes))
 	}
 	return strings.Join(parts, ", ")
+}
+
+func (e *APIError) HTTPStatusCode() int {
+	if e == nil {
+		return 0
+	}
+	return e.Status
 }
 
 // rawResponseBody exposes the body to package-internal helpers only.
@@ -283,6 +297,13 @@ func (e *twoFAVerificationFailedError) Error() string {
 		return fmt.Sprintf("%s 2fa failed (status %d, codes=%v)", e.Kind, e.Status, codes)
 	}
 	return fmt.Sprintf("%s 2fa failed (status %d)", e.Kind, e.Status)
+}
+
+func (e *twoFAVerificationFailedError) HTTPStatusCode() int {
+	if e == nil {
+		return 0
+	}
+	return e.Status
 }
 
 func newWebHTTPClient(jar http.CookieJar) *http.Client {

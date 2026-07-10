@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"encoding/json"
 	"runtime"
 	"strconv"
 	"strings"
@@ -29,7 +30,25 @@ type Event struct {
 	ErrorKind        *ErrorKind       `json:"error_kind"`
 	FailureStage     *FailureStage    `json:"failure_stage"`
 	FailureParameter *string          `json:"failure_parameter"`
+	OutcomeKind      OutcomeKind      `json:"outcome_kind,omitempty"`
+	HTTPStatus       *int             `json:"http_status,omitempty"`
 }
+
+type OutcomeKind string
+
+const (
+	OutcomeSuccess          OutcomeKind = "success"
+	OutcomeExpectedNegative OutcomeKind = "expected_negative"
+	OutcomeUsageError       OutcomeKind = "usage_error"
+	OutcomeAuthError        OutcomeKind = "auth_error"
+	OutcomeNotFound         OutcomeKind = "not_found"
+	OutcomeConflict         OutcomeKind = "conflict"
+	OutcomeAPIClientError   OutcomeKind = "api_client_error"
+	OutcomeAPIServerError   OutcomeKind = "api_server_error"
+	OutcomeTransportError   OutcomeKind = "transport_error"
+	OutcomeCancelled        OutcomeKind = "cancelled"
+	OutcomeInternalError    OutcomeKind = "internal_error"
+)
 
 type InvocationShape string
 
@@ -66,6 +85,8 @@ type EventContext struct {
 	ErrorKind        ErrorKind
 	FailureStage     FailureStage
 	FailureParameter string
+	OutcomeKind      OutcomeKind
+	HTTPStatus       int
 }
 
 // processSessionID groups events from one CLI process without linking separate
@@ -106,7 +127,7 @@ func BuildEventWithContext(
 
 	return Event{
 		EventID:          uuid.NewString(),
-		SchemaVersion:    3,
+		SchemaVersion:    4,
 		ASCVersion:       strings.TrimSpace(version),
 		OS:               runtime.GOOS,
 		Arch:             runtime.GOARCH,
@@ -124,6 +145,8 @@ func BuildEventWithContext(
 		ErrorKind:        optionalErrorKind(eventContext.ErrorKind),
 		FailureStage:     optionalFailureStage(eventContext.FailureStage),
 		FailureParameter: optionalFailureParameter(eventContext.FailureParameter, exitCode),
+		OutcomeKind:      eventContext.OutcomeKind,
+		HTTPStatus:       optionalHTTPStatus(eventContext.HTTPStatus),
 	}, true
 }
 
@@ -134,10 +157,14 @@ func normalizeEventContext(eventContext EventContext, exitCode int) EventContext
 		eventContext.InvocationShape = InvocationShapeLeaf
 	}
 
+	eventContext.HTTPStatus = sanitizeHTTPStatus(eventContext.HTTPStatus)
+
 	if exitCode == 0 {
 		eventContext.ErrorKind = ""
 		eventContext.FailureStage = ""
 		eventContext.FailureParameter = ""
+		eventContext.OutcomeKind = OutcomeSuccess
+		eventContext.HTTPStatus = 0
 		return eventContext
 	}
 	if eventContext.ErrorKind == "" {
@@ -160,7 +187,55 @@ func normalizeEventContext(eventContext EventContext, exitCode int) EventContext
 		eventContext.ErrorKind = ErrorKindOther
 		eventContext.FailureStage = FailureStageExecution
 	}
+	eventContext.OutcomeKind = normalizeOutcomeKind(eventContext, exitCode)
 	return eventContext
+}
+
+func normalizeOutcomeKind(eventContext EventContext, exitCode int) OutcomeKind {
+	status := eventContext.HTTPStatus
+	switch {
+	case status == 401 || status == 403:
+		return OutcomeAuthError
+	case status == 404:
+		return OutcomeNotFound
+	case status == 409:
+		return OutcomeConflict
+	case status >= 400 && status < 500:
+		return OutcomeAPIClientError
+	case status >= 500:
+		return OutcomeAPIServerError
+	}
+	switch eventContext.ErrorKind {
+	case ErrorKindAPIConflict:
+		return OutcomeConflict
+	case ErrorKindAPI5xx:
+		return OutcomeAPIServerError
+	}
+
+	switch eventContext.OutcomeKind {
+	case OutcomeExpectedNegative:
+		if eventContext.FailureStage == FailureStageValidation {
+			return OutcomeExpectedNegative
+		}
+	case OutcomeUsageError:
+		if exitCode == 2 && (eventContext.FailureStage == FailureStageParse || eventContext.FailureStage == FailureStageValidation) {
+			return OutcomeUsageError
+		}
+	case OutcomeAuthError, OutcomeNotFound, OutcomeConflict, OutcomeAPIClientError, OutcomeAPIServerError, OutcomeCancelled, OutcomeInternalError:
+		return eventContext.OutcomeKind
+	case OutcomeTransportError:
+		if eventContext.FailureStage == FailureStageRequest {
+			return OutcomeTransportError
+		}
+	}
+
+	if exitCode == 2 && (eventContext.FailureStage == FailureStageParse || eventContext.FailureStage == FailureStageValidation) {
+		return OutcomeUsageError
+	}
+	if eventContext.FailureStage == FailureStageRequest {
+		return OutcomeTransportError
+	}
+	return OutcomeInternalError
 }
 
 func optionalErrorKind(kind ErrorKind) *ErrorKind {
@@ -186,6 +261,37 @@ func optionalFailureParameter(parameter string, exitCode int) *string {
 		return nil
 	}
 	return &parameter
+}
+
+func optionalHTTPStatus(status int) *int {
+	status = sanitizeHTTPStatus(status)
+	if status == 0 {
+		return nil
+	}
+	return &status
+}
+
+func sanitizeHTTPStatus(status int) int {
+	if status < 400 || status > 599 {
+		return 0
+	}
+	return status
+}
+
+// MarshalJSON keeps queued schema-v3 records wire-compatible while ensuring
+// nullable schema-v4 fields are present even when their value is null.
+func (event Event) MarshalJSON() ([]byte, error) {
+	type eventAlias Event
+	if event.SchemaVersion != 4 {
+		return json.Marshal(eventAlias(event))
+	}
+	return json.Marshal(struct {
+		eventAlias
+		HTTPStatus *int `json:"http_status"`
+	}{
+		eventAlias: eventAlias(event),
+		HTTPStatus: event.HTTPStatus,
+	})
 }
 
 func sanitizeFailureParameter(parameter string) string {

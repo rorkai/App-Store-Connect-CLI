@@ -45,6 +45,12 @@ func TestBuildEventSanitizesCommand(t *testing.T) {
 	if payload["invocation_source"] != string(SourceTerminal) {
 		t.Fatalf("invocation_source = %v, want %q", payload["invocation_source"], SourceTerminal)
 	}
+	if payload["outcome_kind"] != string(OutcomeSuccess) {
+		t.Fatalf("unexpected v4 event context: %v", payload)
+	}
+	if value, exists := payload["http_status"]; !exists || value != nil {
+		t.Fatalf("http_status = %v (exists=%t), want explicit null", value, exists)
+	}
 	if _, exists := payload["execution_context"]; exists {
 		t.Fatal("legacy execution_context field should not be emitted")
 	}
@@ -74,8 +80,8 @@ func TestBuildEventWithContextEmitsOnlyLowCardinalityClassifications(t *testing.
 	if !ok {
 		t.Fatal("expected event")
 	}
-	if ev.SchemaVersion != 3 {
-		t.Fatalf("SchemaVersion = %d, want 3", ev.SchemaVersion)
+	if ev.SchemaVersion != 4 {
+		t.Fatalf("SchemaVersion = %d, want 4", ev.SchemaVersion)
 	}
 	if ev.InvocationShape != InvocationShapeLeaf || ev.ErrorKind == nil || *ev.ErrorKind != ErrorKindUnknownFlag ||
 		ev.FailureStage == nil || *ev.FailureStage != FailureStageParse {
@@ -83,6 +89,9 @@ func TestBuildEventWithContextEmitsOnlyLowCardinalityClassifications(t *testing.
 	}
 	if ev.FailureParameter == nil || *ev.FailureParameter != "--build-id" {
 		t.Fatalf("FailureParameter = %v, want --build-id", ev.FailureParameter)
+	}
+	if ev.OutcomeKind != OutcomeUsageError || ev.HTTPStatus != nil {
+		t.Fatalf("unexpected v4 outcome context: %+v", ev)
 	}
 
 	data, err := json.Marshal(ev)
@@ -92,6 +101,108 @@ func TestBuildEventWithContextEmitsOnlyLowCardinalityClassifications(t *testing.
 	for _, forbidden := range []string{"stderr", "error_message", "args", "argv"} {
 		if strings.Contains(string(data), forbidden) {
 			t.Fatalf("payload contains forbidden field %q: %s", forbidden, data)
+		}
+	}
+}
+
+func TestBuildEventWithContextCapturesBoundedHTTPContext(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+
+	ev, ok := BuildEventWithContext(
+		"asc analytics sales",
+		"2.7.0",
+		time.Second,
+		12,
+		EventContext{
+			InvocationShape: InvocationShapeLeaf,
+			ErrorKind:       ErrorKindOther,
+			FailureStage:    FailureStageRequest,
+			OutcomeKind:     OutcomeAuthError,
+			HTTPStatus:      403,
+		},
+	)
+	if !ok {
+		t.Fatal("expected event")
+	}
+	if ev.HTTPStatus == nil || *ev.HTTPStatus != 403 {
+		t.Fatalf("HTTPStatus = %v, want 403", ev.HTTPStatus)
+	}
+	if ev.OutcomeKind != OutcomeAuthError {
+		t.Fatalf("OutcomeKind = %q, want %q", ev.OutcomeKind, OutcomeAuthError)
+	}
+}
+
+func TestBuildEventWithContextPreservesAPIOutcomesWithoutHTTPStatus(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+
+	tests := []struct {
+		name    string
+		context EventContext
+		want    OutcomeKind
+	}{
+		{
+			name: "explicit client error",
+			context: EventContext{
+				ErrorKind:    ErrorKindOther,
+				FailureStage: FailureStageRequest,
+				OutcomeKind:  OutcomeAPIClientError,
+			},
+			want: OutcomeAPIClientError,
+		},
+		{
+			name: "explicit server error",
+			context: EventContext{
+				ErrorKind:    ErrorKindOther,
+				FailureStage: FailureStageRequest,
+				OutcomeKind:  OutcomeAPIServerError,
+			},
+			want: OutcomeAPIServerError,
+		},
+		{
+			name: "conflict error kind",
+			context: EventContext{
+				ErrorKind: ErrorKindAPIConflict,
+			},
+			want: OutcomeConflict,
+		},
+		{
+			name: "server error kind",
+			context: EventContext{
+				ErrorKind: ErrorKindAPI5xx,
+			},
+			want: OutcomeAPIServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ev, ok := BuildEventWithContext("asc builds list", "2.7.0", time.Second, 1, tt.context)
+			if !ok {
+				t.Fatal("expected event")
+			}
+			if ev.OutcomeKind != tt.want {
+				t.Fatalf("OutcomeKind = %q, want %q", ev.OutcomeKind, tt.want)
+			}
+			if ev.HTTPStatus != nil {
+				t.Fatalf("HTTPStatus = %v, want nil", ev.HTTPStatus)
+			}
+		})
+	}
+}
+
+func TestSchemaV3SpoolRecordOmitsSchemaV4Fields(t *testing.T) {
+	data, err := json.Marshal(Event{
+		SchemaVersion:   3,
+		InvocationShape: InvocationShapeLeaf,
+	})
+	if err != nil {
+		t.Fatalf("marshal event: %v", err)
+	}
+	for _, field := range []string{"outcome_kind", "http_status"} {
+		if strings.Contains(string(data), `"`+field+`"`) {
+			t.Fatalf("schema-v3 payload contains schema-v4 field %q: %s", field, data)
 		}
 	}
 }
