@@ -7,7 +7,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 )
 
-func TestRawSubcommandsDefineCanonicalViewEditLeaves(t *testing.T) {
+func TestSubcommandsDefineCanonicalViewEditLeaves(t *testing.T) {
 	t.Parallel()
 
 	editPaths := map[string]struct{}{
@@ -19,7 +19,7 @@ func TestRawSubcommandsDefineCanonicalViewEditLeaves(t *testing.T) {
 	var legacyPaths []string
 	var walk func(*ffcli.Command, string)
 	walk = func(cmd *ffcli.Command, path string) {
-		if cmd == nil || isCompatibilityAlias(cmd) {
+		if cmd == nil {
 			return
 		}
 
@@ -48,19 +48,10 @@ func TestRawSubcommandsDefineCanonicalViewEditLeaves(t *testing.T) {
 		}
 	}
 
-	for _, cmd := range rawSubcommands("test") {
+	for _, cmd := range Subcommands("test") {
 		walk(cmd, "asc")
 	}
 	if len(legacyPaths) != 0 {
-		t.Fatalf("raw command constructors still define legacy leaf verbs:\n%s", strings.Join(legacyPaths, "\n"))
+		t.Fatalf("command constructors still define legacy leaf verbs:\n%s", strings.Join(legacyPaths, "\n"))
 	}
-}
-
-func isCompatibilityAlias(cmd *ffcli.Command) bool {
-	shortHelp := strings.ToLower(strings.TrimSpace(cmd.ShortHelp))
-	longHelp := strings.ToLower(strings.TrimSpace(cmd.LongHelp))
-	return strings.HasPrefix(shortHelp, "deprecated:") ||
-		strings.HasPrefix(shortHelp, "compatibility alias") ||
-		strings.HasPrefix(longHelp, "deprecated compatibility alias") ||
-		strings.HasPrefix(longHelp, "compatibility alias")
 }

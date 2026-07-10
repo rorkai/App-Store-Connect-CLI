@@ -3,8 +3,6 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"flag"
 	"io"
 	"net/http"
 	"strings"
@@ -12,33 +10,6 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
-
-func TestRemovedAgeRatingGetCommandPointsToView(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	t.Setenv("ASC_PROFILE", "")
-
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"age-rating", "get", "--app-info-id", "info-1", "--output", "json"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected removed command to avoid stdout, got %q", stdout)
-	}
-	if !strings.Contains(stderr, "Error: `asc age-rating get` was removed. Use `asc age-rating view` instead.") {
-		t.Fatalf("expected removed-command migration error, got %q", stderr)
-	}
-}
 
 func TestAgeRatingSetAllNoneUsesSafeDefaultsAndPreservesOverrides(t *testing.T) {
 	setupAuth(t)
