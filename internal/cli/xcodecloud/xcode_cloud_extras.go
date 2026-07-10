@@ -530,8 +530,8 @@ func XcodeCloudXcodeVersionsCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud xcode-versions
   asc xcode-cloud xcode-versions list
-  asc xcode-cloud xcode-versions view --id \"XCODE_VERSION_ID\"
-  asc xcode-cloud xcode-versions macos-versions --id \"XCODE_VERSION_ID\"`,
+  asc xcode-cloud xcode-versions view --id "XCODE_VERSION_ID"
+  asc xcode-cloud xcode-versions macos-versions --id "XCODE_VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -600,9 +600,9 @@ func XcodeCloudXcodeVersionsMacOSVersionsCommand() *ffcli.Command {
 		LongHelp: `List macOS versions for an Xcode version.
 
 Examples:
-  asc xcode-cloud xcode-versions macos-versions --id \"XCODE_VERSION_ID\"
-  asc xcode-cloud xcode-versions macos-versions --id \"XCODE_VERSION_ID\" --limit 50
-  asc xcode-cloud xcode-versions macos-versions --id \"XCODE_VERSION_ID\" --paginate`,
+  asc xcode-cloud xcode-versions macos-versions --id "XCODE_VERSION_ID"
+  asc xcode-cloud xcode-versions macos-versions --id "XCODE_VERSION_ID" --limit 50
+  asc xcode-cloud xcode-versions macos-versions --id "XCODE_VERSION_ID" --paginate`,
 		ParentFlag:  "id",
 		ParentUsage: "Xcode version ID",
 		LimitMax:    200,

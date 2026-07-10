@@ -20,8 +20,8 @@ func AnalyticsInstancesCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "instances",
 		ShortUsage: "asc analytics instances <subcommand> [flags]",
-		ShortHelp:  "Get analytics report instances or relationships.",
-		LongHelp: `Get analytics report instances or relationships.
+		ShortHelp:  "View analytics report instances or relationships.",
+		LongHelp: `View analytics report instances or relationships.
 
 Examples:
   asc analytics instances view --instance-id "INSTANCE_ID"

@@ -4,17 +4,13 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/promotedpurchases"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // SubscriptionsPromotedPurchasesCommand returns the canonical nested promoted purchases tree.
 func SubscriptionsPromotedPurchasesCommand() *ffcli.Command {
-	cmd := shared.RewriteCommandTreePath(
-		promotedpurchases.PromotedPurchasesCommand(),
-		"asc promoted-purchases",
-		"asc subscriptions promoted-purchases",
-	)
+	cmd := promotedpurchases.PromotedPurchasesCommand()
 	if cmd != nil {
+		cmd.ShortUsage = "asc subscriptions promoted-purchases <subcommand> [flags]"
 		promotedpurchases.ConfigureScopedPromotedPurchasesCommand(cmd, promotedpurchases.ScopedPromotedPurchasesCommandConfig{
 			PathPrefix:      "asc subscriptions promoted-purchases",
 			ProductType:     "SUBSCRIPTION",

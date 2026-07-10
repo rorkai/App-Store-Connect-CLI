@@ -159,7 +159,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("experiments treatments get: %w", err)
+				return fmt.Errorf("experiments treatments view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -167,7 +167,7 @@ Examples:
 
 			resp, err := client.GetAppStoreVersionExperimentTreatment(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("experiments treatments get: failed to fetch: %w", err)
+				return fmt.Errorf("experiments treatments view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

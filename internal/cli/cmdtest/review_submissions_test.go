@@ -113,8 +113,8 @@ func TestReviewCommandItemsValidationErrors(t *testing.T) {
 			wantErr: "--item-id is required",
 		},
 		{
-			name:    "review items-get missing id",
-			args:    []string{"review", "items-get"},
+			name:    "review items view missing id",
+			args:    []string{"review", "items", "view"},
 			wantErr: "--id is required",
 		},
 		{

@@ -178,7 +178,7 @@ Examples:
 	}
 }
 
-// ExperimentsGetCommand returns the experiments get subcommand.
+// ExperimentsGetCommand returns the experiments view subcommand.
 func ExperimentsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("experiments view", flag.ExitOnError)
 
@@ -206,7 +206,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("experiments get: %w", err)
+				return fmt.Errorf("experiments view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -215,14 +215,14 @@ Examples:
 			if *v2 {
 				resp, err := client.GetAppStoreVersionExperimentV2(requestCtx, trimmedID)
 				if err != nil {
-					return fmt.Errorf("experiments get: failed to fetch: %w", err)
+					return fmt.Errorf("experiments view: failed to fetch: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionExperiment(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("experiments get: failed to fetch: %w", err)
+				return fmt.Errorf("experiments view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

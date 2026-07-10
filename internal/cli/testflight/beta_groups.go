@@ -330,7 +330,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("beta-groups get: %w", err)
+				return fmt.Errorf("beta-groups view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -338,7 +338,7 @@ Examples:
 
 			group, err := client.GetBetaGroup(requestCtx, strings.TrimSpace(*id))
 			if err != nil {
-				return fmt.Errorf("beta-groups get: failed to fetch: %w", err)
+				return fmt.Errorf("beta-groups view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(group, *output.Output, *output.Pretty)

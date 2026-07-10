@@ -83,7 +83,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("phased-release get: %w", err)
+				return fmt.Errorf("phased-release view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -91,7 +91,7 @@ Examples:
 
 			resp, err := client.GetAppStoreVersionPhasedRelease(requestCtx, version)
 			if err != nil {
-				return fmt.Errorf("phased-release get: %w", err)
+				return fmt.Errorf("phased-release view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

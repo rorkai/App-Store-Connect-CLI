@@ -148,7 +148,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("custom-pages get: %w", err)
+				return fmt.Errorf("custom-pages view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -156,7 +156,7 @@ Examples:
 
 			resp, err := client.GetAppCustomProductPage(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("custom-pages get: failed to fetch: %w", err)
+				return fmt.Errorf("custom-pages view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

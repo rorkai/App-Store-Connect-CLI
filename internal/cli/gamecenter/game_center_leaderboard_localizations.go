@@ -398,8 +398,8 @@ func GameCenterLeaderboardLocalizationImageCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "image",
 		ShortUsage: "asc game-center leaderboards localizations image view --id \"LOCALIZATION_ID\"",
-		ShortHelp:  "Get the image for a leaderboard localization.",
-		LongHelp: `Get the image for a leaderboard localization.
+		ShortHelp:  "View the image for a leaderboard localization.",
+		LongHelp: `View the image for a leaderboard localization.
 
 Examples:
   asc game-center leaderboards localizations image view --id "LOCALIZATION_ID"`,

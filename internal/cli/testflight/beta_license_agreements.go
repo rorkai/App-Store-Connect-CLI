@@ -160,7 +160,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("beta-license-agreements get: %w", err)
+				return fmt.Errorf("beta-license-agreements view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -169,7 +169,7 @@ Examples:
 			if appValue != "" {
 				resp, err := client.GetBetaLicenseAgreementForApp(requestCtx, appValue, shared.SplitCSV(*fields))
 				if err != nil {
-					return fmt.Errorf("beta-license-agreements get: failed to fetch: %w", err)
+					return fmt.Errorf("beta-license-agreements view: failed to fetch: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
@@ -181,7 +181,7 @@ Examples:
 			}
 			resp, err := client.GetBetaLicenseAgreement(requestCtx, idValue, opts...)
 			if err != nil {
-				return fmt.Errorf("beta-license-agreements get: failed to fetch: %w", err)
+				return fmt.Errorf("beta-license-agreements view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

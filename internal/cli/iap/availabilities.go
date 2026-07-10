@@ -64,7 +64,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("iap availabilities get: %w", err)
+				return fmt.Errorf("iap availabilities view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -72,7 +72,7 @@ Examples:
 
 			resp, err := client.GetInAppPurchaseAvailabilityByID(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("iap availabilities get: failed to fetch: %w", err)
+				return fmt.Errorf("iap availabilities view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

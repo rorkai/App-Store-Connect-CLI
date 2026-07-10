@@ -294,8 +294,8 @@ func AppSetupAvailabilityCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "availability",
 		ShortUsage: "asc app-setup availability <subcommand> [flags]",
-		ShortHelp:  "Set app availability.",
-		LongHelp: `Set app availability for territories.
+		ShortHelp:  "Edit app availability.",
+		LongHelp: `Edit app availability for territories.
 
 Examples:
   asc app-setup availability edit --app "APP_ID" --territory "USA,GBR" --available true --available-in-new-territories true

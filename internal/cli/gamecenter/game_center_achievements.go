@@ -1303,8 +1303,8 @@ func GameCenterAchievementGroupAchievementCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "group-achievement",
 		ShortUsage: "asc game-center achievements group-achievement view --id \"ACHIEVEMENT_ID\"",
-		ShortHelp:  "Get the group achievement for an achievement.",
-		LongHelp: `Get the group achievement for a Game Center achievement.
+		ShortHelp:  "View the group achievement for an achievement.",
+		LongHelp: `View the group achievement for a Game Center achievement.
 
 Examples:
   asc game-center achievements group-achievement view --id "ACHIEVEMENT_ID"`,
@@ -1368,8 +1368,8 @@ func GameCenterAchievementLocalizationImageCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "image",
 		ShortUsage: "asc game-center achievements localizations image view --id \"LOC_ID\"",
-		ShortHelp:  "Get the image for an achievement localization.",
-		LongHelp: `Get the image for an achievement localization.
+		ShortHelp:  "View the image for an achievement localization.",
+		LongHelp: `View the image for an achievement localization.
 
 Examples:
   asc game-center achievements localizations image view --id "LOC_ID"`,
@@ -1433,8 +1433,8 @@ func GameCenterAchievementLocalizationAchievementCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "achievement",
 		ShortUsage: "asc game-center achievements localizations achievement view --id \"LOC_ID\"",
-		ShortHelp:  "Get the achievement for a localization.",
-		LongHelp: `Get the achievement for a Game Center achievement localization.
+		ShortHelp:  "View the achievement for a localization.",
+		LongHelp: `View the achievement for a Game Center achievement localization.
 
 Examples:
   asc game-center achievements localizations achievement view --id "LOC_ID"`,

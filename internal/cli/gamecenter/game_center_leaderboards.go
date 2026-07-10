@@ -696,8 +696,8 @@ func GameCenterLeaderboardGroupLeaderboardCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "group-leaderboard",
 		ShortUsage: "asc game-center leaderboards group-leaderboard view --id \"LEADERBOARD_ID\"",
-		ShortHelp:  "Get the group leaderboard for a leaderboard.",
-		LongHelp: `Get the group leaderboard for a Game Center leaderboard.
+		ShortHelp:  "View the group leaderboard for a leaderboard.",
+		LongHelp: `View the group leaderboard for a Game Center leaderboard.
 
 Examples:
   asc game-center leaderboards group-leaderboard view --id "LEADERBOARD_ID"`,

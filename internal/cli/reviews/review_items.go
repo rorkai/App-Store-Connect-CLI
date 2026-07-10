@@ -46,17 +46,8 @@ Examples:
 	}
 }
 
-// ReviewItemsGetCommand returns the review items view subcommand.
-func ReviewItemsGetCommand() *ffcli.Command {
-	return reviewItemsGetCommand("items-get", "review items-get", `asc review items-get --id "ITEM_ID"`)
-}
-
 func reviewItemsGetCommand(name, errorPrefix, example string) *ffcli.Command {
 	fs := flag.NewFlagSet(name, flag.ExitOnError)
-	helpVerb := "Get"
-	if name == "view" {
-		helpVerb = "View"
-	}
 
 	itemID := fs.String("id", "", "Review submission item ID (required)")
 	output := shared.BindOutputFlags(fs)
@@ -64,8 +55,8 @@ func reviewItemsGetCommand(name, errorPrefix, example string) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       name,
 		ShortUsage: example + " [flags]",
-		ShortHelp:  helpVerb + " a review submission item by ID.",
-		LongHelp: helpVerb + ` a review submission item by ID.
+		ShortHelp:  "View a review submission item by ID.",
+		LongHelp: `View a review submission item by ID.
 
 Examples:
   ` + example,

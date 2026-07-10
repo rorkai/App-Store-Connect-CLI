@@ -63,7 +63,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("iap availability get: %w", err)
+				return fmt.Errorf("iap pricing availability view: %w", err)
 			}
 
 			iapValue, err = resolveIAPLookupIDWithTimeout(ctx, client, *appID, iapValue)
@@ -76,7 +76,7 @@ Examples:
 
 			resp, err := client.GetInAppPurchaseAvailability(requestCtx, iapValue)
 			if err != nil {
-				return fmt.Errorf("iap availability get: failed to fetch: %w", err)
+				return fmt.Errorf("iap pricing availability view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

@@ -425,8 +425,8 @@ func GameCenterDetailsGroupCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "group",
 		ShortUsage: "asc game-center details group view --id \"DETAIL_ID\"",
-		ShortHelp:  "Get the Game Center group for a detail.",
-		LongHelp: `Get the Game Center group for a detail.
+		ShortHelp:  "View the Game Center group for a detail.",
+		LongHelp: `View the Game Center group for a detail.
 
 Examples:
   asc game-center details group view --id "DETAIL_ID"`,

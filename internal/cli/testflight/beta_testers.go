@@ -178,7 +178,7 @@ func BetaTestersGetCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "view",
-		ShortUsage: "asc testflight beta-testers view [flags]",
+		ShortUsage: "asc testflight beta-testers view --id \"TESTER_ID\" [flags]",
 		ShortHelp:  "View a TestFlight beta tester by ID.",
 		LongHelp: `View a TestFlight beta tester by ID.
 
@@ -195,7 +195,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("beta-testers get: %w", err)
+				return fmt.Errorf("beta-testers view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -203,7 +203,7 @@ Examples:
 
 			tester, err := client.GetBetaTester(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("beta-testers get: failed to fetch: %w", err)
+				return fmt.Errorf("beta-testers view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(tester, *output.Output, *output.Pretty)

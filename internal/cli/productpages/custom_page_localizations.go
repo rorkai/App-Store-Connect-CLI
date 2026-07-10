@@ -148,7 +148,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("custom-pages localizations get: %w", err)
+				return fmt.Errorf("custom-pages localizations view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -156,7 +156,7 @@ Examples:
 
 			resp, err := client.GetAppCustomProductPageLocalization(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("custom-pages localizations get: failed to fetch: %w", err)
+				return fmt.Errorf("custom-pages localizations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

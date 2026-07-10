@@ -392,8 +392,8 @@ func GameCenterAppVersionAppStoreVersionCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "app-store-version",
 		ShortUsage: "asc game-center app-versions app-store-version view --id \"GC_APP_VERSION_ID\"",
-		ShortHelp:  "Get the App Store version for a Game Center app version.",
-		LongHelp: `Get the App Store version for a Game Center app version.
+		ShortHelp:  "View the App Store version for a Game Center app version.",
+		LongHelp: `View the App Store version for a Game Center app version.
 
 Examples:
   asc game-center app-versions app-store-version view --id "GC_APP_VERSION_ID"`,

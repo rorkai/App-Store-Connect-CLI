@@ -4,17 +4,13 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/promotedpurchases"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // IAPPromotedPurchasesCommand returns the canonical nested promoted purchases tree.
 func IAPPromotedPurchasesCommand() *ffcli.Command {
-	cmd := shared.RewriteCommandTreePath(
-		promotedpurchases.PromotedPurchasesCommand(),
-		"asc promoted-purchases",
-		"asc iap promoted-purchases",
-	)
+	cmd := promotedpurchases.PromotedPurchasesCommand()
 	if cmd != nil {
+		cmd.ShortUsage = "asc iap promoted-purchases <subcommand> [flags]"
 		promotedpurchases.ConfigureScopedPromotedPurchasesCommand(cmd, promotedpurchases.ScopedPromotedPurchasesCommandConfig{
 			PathPrefix:      "asc iap promoted-purchases",
 			ProductType:     "IN_APP_PURCHASE",
