@@ -26,6 +26,14 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 
 type sessionInfoContextKey struct{}
 
+func TestTwoFactorVerificationErrorExposesHTTPStatus(t *testing.T) {
+	err := &twoFAVerificationFailedError{Status: http.StatusForbidden}
+
+	if got := err.HTTPStatusCode(); got != http.StatusForbidden {
+		t.Fatalf("HTTPStatusCode() = %d, want %d", got, http.StatusForbidden)
+	}
+}
+
 func TestEnsureTwoFactorCodeRequestedRequestsPhoneCodeWhenNoTrustedDevicesHasMultipleNumbers(t *testing.T) {
 	session := &AuthSession{
 		Client: &http.Client{

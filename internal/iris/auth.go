@@ -160,6 +160,13 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("API error (status %d): %s", e.Status, string(e.Body))
 }
 
+func (e *APIError) HTTPStatusCode() int {
+	if e == nil {
+		return 0
+	}
+	return e.Status
+}
+
 // NewClient creates a new IRIS client with an authenticated session
 func NewClient(session *AuthSession) *Client {
 	return &Client{
@@ -749,6 +756,13 @@ func (e *twoFAVerificationFailedError) Error() string {
 		return fmt.Sprintf("%s 2FA failed (status %d, codes=%v)", e.Kind, e.Status, codes)
 	}
 	return fmt.Sprintf("%s 2FA failed (status %d)", e.Kind, e.Status)
+}
+
+func (e *twoFAVerificationFailedError) HTTPStatusCode() int {
+	if e == nil {
+		return 0
+	}
+	return e.Status
 }
 
 func appleSessionHeaders(session *AuthSession) http.Header {

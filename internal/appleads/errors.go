@@ -46,6 +46,13 @@ func (e *APIError) Error() string {
 	return strings.Join(parts, ": ")
 }
 
+func (e *APIError) HTTPStatusCode() int {
+	if e == nil {
+		return 0
+	}
+	return e.StatusCode
+}
+
 func parseError(body []byte, statusCode int) error {
 	var errResp struct {
 		Error struct {

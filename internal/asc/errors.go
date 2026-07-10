@@ -57,6 +57,13 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("%s\n\n%s", baseMessage, associated)
 }
 
+func (e *APIError) HTTPStatusCode() int {
+	if e == nil {
+		return 0
+	}
+	return e.StatusCode
+}
+
 func formatAssociatedErrors(values map[string][]APIAssociatedError) string {
 	if len(values) == 0 {
 		return ""

@@ -30,6 +30,24 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
+func TestAuthStatusErrorsExposeHTTPStatus(t *testing.T) {
+	tests := []struct {
+		name string
+		err  interface{ HTTPStatusCode() int }
+	}{
+		{name: "session info", err: &sessionInfoStatusError{Status: http.StatusUnauthorized}},
+		{name: "two-factor verification", err: &twoFAVerificationFailedError{Status: http.StatusForbidden}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.err.HTTPStatusCode(); got < 400 || got > 599 {
+				t.Fatalf("HTTPStatusCode() = %d, want an HTTP error status", got)
+			}
+		})
+	}
+}
+
 func TestLogWebAuthHTTPRedactsSensitiveQueryValues(t *testing.T) {
 	origLogger := webDebugLogger
 	origDebugEnabled := webDebugEnabledFn

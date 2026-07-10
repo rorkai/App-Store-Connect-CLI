@@ -22,7 +22,8 @@ values, Apple account identifiers, team IDs, issuer IDs, key IDs, app IDs,
 bundle IDs, usernames, hostnames, repository names, IP addresses, user-agent
 strings, or file paths. Failed usage events may include the public flag name
 that caused the failure, such as `--app`, but never the value passed to that
-flag. As with any HTTPS service, the collector's edge provider sees the
+flag. Failed API requests may include the numeric HTTP status, but never the
+response body. As with any HTTPS service, the collector's edge provider sees the
 connection address; the Rork collector may use it transiently for abuse
 throttling but does not persist it in telemetry events or analytics storage.
 
@@ -90,7 +91,7 @@ The CLI sends a single best-effort JSON event after command completion:
 ```json
 {
   "event_id": "2d2f86dd-6d75-4a6f-b97f-a6ce15d4bc79",
-  "schema_version": 3,
+  "schema_version": 4,
   "asc_version": "1.13.0",
   "os": "darwin",
   "arch": "arm64",
@@ -107,7 +108,9 @@ The CLI sends a single best-effort JSON event after command completion:
   "invocation_shape": "leaf",
   "error_kind": null,
   "failure_stage": null,
-  "failure_parameter": null
+  "failure_parameter": null,
+  "outcome_kind": "success",
+  "http_status": null
 }
 ```
 
@@ -117,12 +120,17 @@ cannot become telemetry dimensions. `session_id` is reused only within one CLI
 process and changes the next time `asc` starts.
 
 `invocation_shape` is one of `leaf`, `bare_group`, `group_with_flags`, or
-`unknown_child`. Failed schema-v3 events also include an allowlisted
+`unknown_child`. Failed schema-v4 events also include an allowlisted
 `error_kind`, `failure_stage`, and nullable `failure_parameter`; successful
 events set these fields to `null`. These fields are derived inside the CLI and
 never contain stderr, error text, flag values, or positional values.
 `failure_parameter` is limited to a sanitized public long flag name such as
 `--app`.
+
+`outcome_kind` separates success, expected negative validation results, usage errors,
+authentication and API failures, transport failures, cancellations, and
+internal errors. `http_status` contains a number from 400 through 599 only when
+an API client exposes the exact response status.
 
 `runtime_context` describes where the command runs, independently from
 `invocation_source`, which describes what launched it. A command launched by
@@ -154,7 +162,10 @@ telemetry hostname.
 
 Collectors should accept `POST /asc/v1/events`, validate the event schema, add
 server-side receive metadata, and insert accepted events into analytics storage.
-Collector credentials must never be shipped in the CLI.
+They should return a 2xx response only after that insert commits; temporary
+storage failures should return a retryable non-2xx response so the CLI keeps the
+event in its bounded local spool. Collector credentials must never be shipped
+in the CLI.
 
 Recommended ClickHouse table:
 
@@ -182,6 +193,8 @@ CREATE TABLE asc_cli_events
   error_kind Nullable(LowCardinality(String)),
   failure_stage Nullable(LowCardinality(String)),
   failure_parameter Nullable(LowCardinality(String)),
+  outcome_kind Nullable(LowCardinality(String)),
+  http_status Nullable(Int16),
   source LowCardinality(String),
   collector_version LowCardinality(String)
 )

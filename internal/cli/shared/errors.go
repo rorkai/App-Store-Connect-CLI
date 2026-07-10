@@ -122,8 +122,12 @@ func UsageErrorf(format string, args ...any) error {
 
 // MissingRequiredUsageError classifies a required-input failure after the
 // command has already written its diagnostic to stderr.
-func MissingRequiredUsageError() error {
-	return classifiedUsageError{kind: UsageErrorMissingRequired}
+func MissingRequiredUsageError(parameters ...string) error {
+	parameter := ""
+	if len(parameters) > 0 {
+		parameter = strings.TrimSpace(parameters[0])
+	}
+	return classifiedUsageError{kind: UsageErrorMissingRequired, message: parameter}
 }
 
 func ClassifyUsageError(err error) UsageErrorKind {
