@@ -46,6 +46,11 @@ Examples:
 	}
 }
 
+// ReviewItemsGetCommand returns the stable review items-get subcommand.
+func ReviewItemsGetCommand() *ffcli.Command {
+	return reviewItemsGetCommand("items-get", "review items-get", `asc review items-get --id "ITEM_ID"`)
+}
+
 func reviewItemsGetCommand(name, errorPrefix, example string) *ffcli.Command {
 	fs := flag.NewFlagSet(name, flag.ExitOnError)
 
