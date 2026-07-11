@@ -87,6 +87,9 @@ func TestSetMedicalDeviceDeclarationPostsExpectedRequest(t *testing.T) {
 				}
 			}`))
 		case r.Method == http.MethodPost && r.URL.Path == "/ppm/complianceform/v1/accounts/account-123/contents/app-123/requirements/req-123/forms":
+			if got := r.Header.Get("X-Csrf-Itc"); got != "itc" {
+				t.Fatalf("expected X-Csrf-Itc itc, got %q", got)
+			}
 			var body struct {
 				AccountID          string   `json:"accountId"`
 				ContentID          string   `json:"contentId"`
