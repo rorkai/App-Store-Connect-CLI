@@ -7,11 +7,15 @@ import (
 	"flag"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	subscriptionscli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
 )
 
 type subscriptionsSetupOutput struct {
@@ -1106,31 +1110,33 @@ func TestSubscriptionsSetupRepairReplacesMismatchedPrice(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
 	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
+		respond := func(status int, body string) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(status)
+			_, _ = w.Write([]byte(body))
+		}
 		switch requestCount {
 		case 1:
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Pro Monthly","productId":"com.example.pro.monthly","subscriptionPeriod":"ONE_MONTH"}}],"links":{"next":""}}`), nil
+			respond(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Pro Monthly","productId":"com.example.pro.monthly","subscriptionPeriod":"ONE_MONTH"}}],"links":{"next":""}}`)
 		case 2:
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"old-price-point"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{"next":""}}`), nil
+			respond(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"old-price-point"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{"next":""}}`)
 		case 3:
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":false}}}`), nil
+			respond(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":false}}}`)
 		case 4:
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}],"links":{"next":""}}`), nil
+			respond(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}],"links":{"next":""}}`)
 		case 5:
 			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptionPricePoints/price-point-1/equalizations" {
 				t.Fatalf("expected repair equalizations GET, got %s %s", req.Method, req.URL.String())
 			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
+			respond(http.StatusOK, `{"data":[],"links":{}}`)
 		case 6:
 			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/sub-1/prices" {
 				t.Fatalf("expected repair state GET, got %s %s", req.Method, req.URL.String())
 			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"old-price-point"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{"next":""}}`), nil
+			respond(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"old-price-point"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{"next":""}}`)
 		case 7:
 			if req.Method != http.MethodPatch || req.URL.Path != "/v1/subscriptions/sub-1" {
 				t.Fatalf("expected repair matrix PATCH, got %s %s", req.Method, req.URL.String())
@@ -1142,12 +1148,42 @@ func TestSubscriptionsSetupRepairReplacesMismatchedPrice(t *testing.T) {
 			if len(payload.Included) != 1 || payload.Included[0].Attributes == nil || payload.Included[0].Attributes.PlanType != asc.SubscriptionPlanTypeUpfront {
 				t.Fatalf("expected one UPFRONT repair matrix row, got %+v", payload.Included)
 			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"sub-1"}}`), nil
+			if payload.Included[0].Relationships.SubscriptionPricePoint.Data.ID != "price-point-1" {
+				t.Fatalf("expected repair price point price-point-1, got %+v", payload.Included[0].Relationships.SubscriptionPricePoint.Data)
+			}
+			if payload.Included[0].Relationships.Territory == nil || payload.Included[0].Relationships.Territory.Data.ID != "USA" {
+				t.Fatalf("expected repair territory USA, got %+v", payload.Included[0].Relationships.Territory)
+			}
+			respond(http.StatusOK, `{"data":{"type":"subscriptions","id":"sub-1"}}`)
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
 		}
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse test server URL: %v", err)
+	}
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		cloned := req.Clone(req.Context())
+		cloned.URL.Scheme = serverURL.Scheme
+		cloned.URL.Host = serverURL.Host
+		return server.Client().Transport.RoundTrip(cloned)
 	})
+	client, err := asc.NewClientWithHTTPClient(
+		os.Getenv("ASC_KEY_ID"),
+		os.Getenv("ASC_ISSUER_ID"),
+		os.Getenv("ASC_PRIVATE_KEY_PATH"),
+		&http.Client{Transport: transport},
+	)
+	if err != nil {
+		t.Fatalf("create setup test client: %v", err)
+	}
+	restoreClient := subscriptionscli.SetSetupClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	t.Cleanup(restoreClient)
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

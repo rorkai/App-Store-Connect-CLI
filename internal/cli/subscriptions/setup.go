@@ -18,6 +18,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
+var subscriptionsSetupClientFactory = shared.GetASCClient
+
 var errSubscriptionsSetupExistingResourceFound = errors.New("existing subscription setup resource found")
 
 const (
@@ -384,7 +386,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		Steps:              make([]subscriptionsSetupStepResult, 0, 7),
 	}
 
-	client, err := shared.GetASCClient()
+	client, err := subscriptionsSetupClientFactory()
 	if err != nil {
 		result.Status = "error"
 		result.Error = err.Error()
