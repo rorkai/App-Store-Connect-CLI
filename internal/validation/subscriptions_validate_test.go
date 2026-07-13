@@ -661,6 +661,12 @@ func TestValidateSubscriptionsTreatsIncompletePricingMatrixAsBlocker(t *testing.
 	if !ok || matrixRow.Status != DiagnosticStatusNo || !matrixRow.Blocking {
 		t.Fatalf("expected blocking full pricing matrix diagnostic, got %+v", matrixRow)
 	}
+	if strings.Contains(matrixRow.Remediation, "--subscription-id") {
+		t.Fatalf("expected remediation to avoid unsupported setup flag, got %+v", matrixRow)
+	}
+	if !strings.Contains(matrixRow.Remediation, "Re-run `asc subscriptions setup`") || !strings.Contains(matrixRow.Remediation, "--repair") {
+		t.Fatalf("expected valid setup repair guidance, got %+v", matrixRow)
+	}
 
 	appCoverageRow, ok := findSubscriptionDiagnosticRow(diag.Rows, "price_coverage_app_availability")
 	if !ok {

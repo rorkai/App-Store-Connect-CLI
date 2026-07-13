@@ -615,7 +615,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			return result, fmt.Errorf("subscriptions setup: failed to find existing price: %w", err)
 		}
 		pricePreflightDone = true
-		if preflightHasExistingPrices && !preflightFoundPrice {
+		if preflightHasExistingPrices && !preflightFoundPrice && !opts.Repair {
 			err := mismatchedExistingSubscriptionSetupPriceError(result.SubscriptionID)
 			result.Status = "error"
 			result.Error = err.Error()
@@ -1164,7 +1164,9 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 	}
 
 	if opts.hasPricing(opts.StartDate) {
-		equalizations, err := fetchEqualizations(ctx, client, result.ResolvedPricePointID, opts.PriceTerritory)
+		equalizationsCtx, equalizationsCancel := shared.ContextWithTimeout(ctx)
+		equalizations, err := fetchEqualizations(equalizationsCtx, client, result.ResolvedPricePointID, opts.PriceTerritory)
+		equalizationsCancel()
 		if err != nil {
 			verification.Status = "failed"
 			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, fmt.Errorf("fetch expected price matrix: %w", err)
@@ -1344,7 +1346,9 @@ func validateExistingSubscriptionSetupGroupLocalization(localization asc.Resourc
 
 func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, client *asc.Client, subscriptionID, basePricePointID, baseTerritory string, attrs asc.SubscriptionPriceCreateAttributes, repair bool) ([]string, bool, error) {
 	baseTerritory = strings.ToUpper(strings.TrimSpace(baseTerritory))
-	equalizations, err := fetchEqualizations(ctx, client, basePricePointID, baseTerritory)
+	equalizationsCtx, equalizationsCancel := shared.ContextWithTimeout(ctx)
+	equalizations, err := fetchEqualizations(equalizationsCtx, client, basePricePointID, baseTerritory)
+	equalizationsCancel()
 	if err != nil {
 		return nil, false, err
 	}
@@ -1357,7 +1361,9 @@ func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, client *asc.Client
 		territories = append(territories, target.TerritoryID)
 	}
 
-	state, err := fetchSubscriptionPriceImportState(ctx, client, subscriptionID)
+	stateCtx, stateCancel := shared.ContextWithTimeout(ctx)
+	state, err := fetchSubscriptionPriceImportState(stateCtx, client, subscriptionID)
+	stateCancel()
 	if err != nil {
 		return nil, false, err
 	}

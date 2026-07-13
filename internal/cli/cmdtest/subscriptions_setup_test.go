@@ -1102,7 +1102,7 @@ func TestSubscriptionsSetupReusesExistingPriceAndAvailability(t *testing.T) {
 	}
 }
 
-func TestSubscriptionsSetupRepairResavesMatchingPrice(t *testing.T) {
+func TestSubscriptionsSetupRepairReplacesMismatchedPrice(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -1116,7 +1116,7 @@ func TestSubscriptionsSetupRepairResavesMatchingPrice(t *testing.T) {
 		case 1:
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Pro Monthly","productId":"com.example.pro.monthly","subscriptionPeriod":"ONE_MONTH"}}],"links":{"next":""}}`), nil
 		case 2:
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"price-point-1"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{"next":""}}`), nil
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"old-price-point"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{"next":""}}`), nil
 		case 3:
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":false}}}`), nil
 		case 4:
@@ -1130,7 +1130,7 @@ func TestSubscriptionsSetupRepairResavesMatchingPrice(t *testing.T) {
 			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/sub-1/prices" {
 				t.Fatalf("expected repair state GET, got %s %s", req.Method, req.URL.String())
 			}
-			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"price-point-1"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{"next":""}}`), nil
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"old-price-point"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{"next":""}}`), nil
 		case 7:
 			if req.Method != http.MethodPatch || req.URL.Path != "/v1/subscriptions/sub-1" {
 				t.Fatalf("expected repair matrix PATCH, got %s %s", req.Method, req.URL.String())

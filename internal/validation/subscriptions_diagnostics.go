@@ -144,7 +144,7 @@ func buildPricingMatrixDiagnosticRow(sub Subscription, pricingTerritories []stri
 		}
 		row.Status = DiagnosticStatusNo
 		row.Evidence = fmt.Sprintf("priced=%d required=%d missing=%s", len(sortedUniqueNonEmpty(sub.PriceTerritories)), len(pricingTerritories), formatList(missing))
-		row.Remediation = fmt.Sprintf("Materialize the full price matrix with `asc subscriptions setup --subscription-id %q --repair ...`; sale availability does not narrow Apple's pricing requirement.", fallbackString(strings.TrimSpace(sub.ID), "SUB_ID"))
+		row.Remediation = "Re-run `asc subscriptions setup` with the original group, subscription, and pricing flags plus `--repair`; sale availability does not narrow Apple's pricing requirement."
 		return row
 	}
 	if pricingTerritoryCount <= 0 {
@@ -157,7 +157,7 @@ func buildPricingMatrixDiagnosticRow(sub Subscription, pricingTerritories []stri
 		row.Status = DiagnosticStatusYes
 	} else {
 		row.Status = DiagnosticStatusNo
-		row.Remediation = fmt.Sprintf("Materialize the full price matrix with `asc subscriptions setup --subscription-id %q --repair ...`.", fallbackString(strings.TrimSpace(sub.ID), "SUB_ID"))
+		row.Remediation = "Re-run `asc subscriptions setup` with the original group, subscription, and pricing flags plus `--repair`."
 	}
 	row.Evidence = fmt.Sprintf("priced=%d required=%d", pricedCount, pricingTerritoryCount)
 	return row
