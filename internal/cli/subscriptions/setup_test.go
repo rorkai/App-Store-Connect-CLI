@@ -98,6 +98,29 @@ func TestBuildSubscriptionSetupPriceMatrixRejectsMissingOrConflictingEqualizatio
 	}
 }
 
+func TestSubscriptionSetupPriceStateMatchesAllowsOmittedStartDate(t *testing.T) {
+	state := &subscriptionPriceImportStateIndex{states: []subscriptionPriceImportState{{
+		territoryID:  "CAN",
+		pricePointID: "pp-can",
+		planType:     asc.SubscriptionPlanTypeUpfront,
+	}}}
+	target := subscriptionPriceImportResolvedRow{
+		territoryID:  "CAN",
+		pricePointID: "pp-can",
+		startDate:    "2026-08-01",
+		planType:     asc.SubscriptionPlanTypeUpfront,
+	}
+
+	if !subscriptionSetupPriceStateMatches(state, target) {
+		t.Fatal("expected setup verification to accept Apple's omitted equalized start date")
+	}
+
+	state.states[0].startDate = "2026-09-01"
+	if subscriptionSetupPriceStateMatches(state, target) {
+		t.Fatal("expected setup verification to reject a different explicit start date")
+	}
+}
+
 func TestSubscriptionSetupStateIsComplete(t *testing.T) {
 	for _, state := range []string{"READY_TO_SUBMIT", "WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_BINARY_APPROVAL", "APPROVED"} {
 		if !subscriptionSetupStateIsComplete(state) {

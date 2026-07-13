@@ -437,6 +437,7 @@ func fetchSubscriptionPriceTerritories(ctx context.Context, client *asc.Client, 
 			requestCtx,
 			strings.TrimSpace(subscriptionID),
 			asc.WithSubscriptionPricesInclude([]string{"territory"}),
+			asc.WithSubscriptionPricesPlanType(asc.SubscriptionPlanTypeUpfront),
 			asc.WithSubscriptionPricesLimit(200),
 		)
 	})

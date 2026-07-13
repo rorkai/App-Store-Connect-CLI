@@ -1194,7 +1194,7 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 		covered := len(verification.MissingPriceTerritories) == 0
 		if covered {
 			for _, target := range expectedMatrix {
-				if !priceState.matches(subscriptionPriceImportResolvedRow{
+				if !subscriptionSetupPriceStateMatches(priceState, subscriptionPriceImportResolvedRow{
 					territoryID:  target.TerritoryID,
 					pricePointID: target.PricePointID,
 					startDate:    strings.TrimSpace(target.Attributes.StartDate),
@@ -1377,7 +1377,7 @@ func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, client *asc.Client
 			startDate:    strings.TrimSpace(attrs.StartDate),
 			planType:     attrs.PlanType,
 		}
-		if !state.matches(resolved) {
+		if !subscriptionSetupPriceStateMatches(state, resolved) {
 			complete = false
 			break
 		}
@@ -1392,6 +1392,33 @@ func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, client *asc.Client
 		return nil, false, err
 	}
 	return territories, true, nil
+}
+
+// subscriptionSetupPriceStateMatches accepts an omitted start date only when
+// Apple otherwise echoes the exact setup matrix row. App Store Connect can omit
+// startDate on equalized UPFRONT rows even when the compound PATCH included it;
+// a different explicit date remains a mismatch.
+func subscriptionSetupPriceStateMatches(index *subscriptionPriceImportStateIndex, target subscriptionPriceImportResolvedRow) bool {
+	if index == nil {
+		return false
+	}
+	if index.matches(target) {
+		return true
+	}
+	if strings.TrimSpace(target.startDate) == "" {
+		return false
+	}
+	targetTerritory := strings.ToUpper(strings.TrimSpace(target.territoryID))
+	targetPricePoint := strings.TrimSpace(target.pricePointID)
+	for _, state := range index.states {
+		if state.territoryID == targetTerritory &&
+			state.planType == target.planType &&
+			state.pricePointID == targetPricePoint &&
+			strings.TrimSpace(state.startDate) == "" {
+			return true
+		}
+	}
+	return false
 }
 
 func buildSubscriptionSetupPriceMatrix(basePricePointID, baseTerritory string, attrs asc.SubscriptionPriceCreateAttributes, equalizations []equalization) ([]asc.SubscriptionInlinePrice, error) {

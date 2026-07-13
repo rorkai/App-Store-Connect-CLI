@@ -81,6 +81,9 @@ func TestFetchSubscriptionPriceTerritories_DeduplicatesAndSortsTerritories(t *te
 		if got := req.URL.Query().Get("limit"); got != "200" {
 			t.Fatalf("expected limit=200 query, got %q", got)
 		}
+		if got := req.URL.Query().Get("filter[planType]"); got != "UPFRONT" {
+			t.Fatalf("expected filter[planType]=UPFRONT query, got %q", got)
+		}
 		return buildsJSONResponse(http.StatusOK, `{
 			"data": [
 				{
