@@ -419,6 +419,7 @@ func TestValidateSubscriptionsIncludesDetailedDiagnosticsForOpaqueMissingMetadat
 		"price_records",
 		"price_coverage_subscription_availability",
 		"price_coverage_app_availability",
+		"complete_pricing_matrix",
 		"promotional_image",
 		"app_has_build",
 	} {

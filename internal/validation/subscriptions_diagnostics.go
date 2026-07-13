@@ -46,13 +46,13 @@ func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagno
 	if len(appTerritories) > 0 {
 		appTerritoryCount = len(appTerritories)
 	}
-	pricingMatrixContextAvailable := len(input.PricingTerritories) > 0 || input.PricingTerritoryCount > 0 || strings.TrimSpace(input.PricingCoverageSkipReason) != ""
 	pricingTerritories := sortedUniqueNonEmpty(input.PricingTerritories)
 	pricingTerritoryCount := input.PricingTerritoryCount
 	if len(pricingTerritories) == 0 && pricingTerritoryCount == 0 {
 		pricingTerritories = appTerritories
 		pricingTerritoryCount = appTerritoryCount
 	}
+	pricingMatrixContextAvailable := len(pricingTerritories) > 0 || pricingTerritoryCount > 0 || strings.TrimSpace(input.PricingCoverageSkipReason) != ""
 
 	for _, sub := range input.Subscriptions {
 		if isRemovedMonetizationState(sub.State) {
