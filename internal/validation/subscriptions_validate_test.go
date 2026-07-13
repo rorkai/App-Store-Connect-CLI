@@ -492,6 +492,19 @@ func TestSubscriptionPlanAvailabilityDiagnosticsTruthTable(t *testing.T) {
 			sub.SubscriptionPeriod = "ONE_MONTH"
 			sub.PlanAvailabilities = []SubscriptionPlanAvailabilityInfo{{ID: "upfront", PlanType: "UPFRONT", Territories: []string{"CAN"}}, {ID: "monthly", PlanType: "MONTHLY", Territories: []string{"CAN"}}}
 		}, rowKey: "monthly_plan_availability", wantStatus: DiagnosticStatusNo, wantBlock: true, wantCheck: "subscriptions.diagnostics.monthly_plan_invalid"},
+		{name: "duplicate upfront does not report surface consistency", mutate: func(sub *Subscription) {
+			sub.PlanAvailabilities = []SubscriptionPlanAvailabilityInfo{
+				{ID: "upfront-1", PlanType: "UPFRONT", Territories: []string{"CAN", "FRA"}},
+				{ID: "upfront-2", PlanType: "UPFRONT", Territories: []string{"GBR"}},
+			}
+		}, rowKey: "availability_surface_consistency", wantStatus: DiagnosticStatusNo, wantBlock: true, wantCheck: "subscriptions.diagnostics.plan_availability_duplicate"},
+		{name: "duplicate monthly does not report monthly validity", mutate: func(sub *Subscription) {
+			sub.PlanAvailabilities = []SubscriptionPlanAvailabilityInfo{
+				{ID: "upfront", PlanType: "UPFRONT", Territories: []string{"CAN", "FRA"}},
+				{ID: "monthly-1", PlanType: "MONTHLY", Territories: []string{"CAN"}},
+				{ID: "monthly-2", PlanType: "MONTHLY", Territories: []string{"USA"}},
+			}
+		}, rowKey: "monthly_plan_availability", wantStatus: DiagnosticStatusNo, wantBlock: true, wantCheck: "subscriptions.diagnostics.plan_availability_duplicate"},
 	}
 
 	for _, tt := range tests {

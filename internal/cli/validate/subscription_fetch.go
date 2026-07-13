@@ -585,7 +585,7 @@ func fetchSubscriptionAvailabilityTerritories(ctx context.Context, client *asc.C
 		}
 
 		for _, territory := range territoryResp.Data {
-			allTerritories = append(allTerritories, strings.TrimSpace(territory.ID))
+			allTerritories = append(allTerritories, strings.ToUpper(strings.TrimSpace(territory.ID)))
 		}
 
 		nextURL = strings.TrimSpace(territoryResp.Links.Next)

@@ -145,7 +145,7 @@ func analyzeSubscriptionPlanAvailability(sub Subscription) subscriptionPlanAvail
 	}
 	analysis.duplicateTypes = counts["UPFRONT"] > 1 || counts["MONTHLY"] > 1
 
-	if !sub.AvailabilityCheckSkipped && strings.TrimSpace(sub.AvailabilityID) != "" && analysis.upfront != nil {
+	if !analysis.duplicateTypes && !sub.AvailabilityCheckSkipped && strings.TrimSpace(sub.AvailabilityID) != "" && analysis.upfront != nil {
 		legacy := sortedUniqueNonEmpty(sub.AvailabilityTerritories)
 		analysis.legacyOnly = missingValues(legacy, analysis.upfrontTerritories)
 		analysis.planOnly = missingValues(analysis.upfrontTerritories, legacy)
@@ -154,7 +154,7 @@ func analyzeSubscriptionPlanAvailability(sub Subscription) subscriptionPlanAvail
 		analysis.surfaceMismatch = len(analysis.legacyOnly) > 0 || len(analysis.planOnly) > 0 || analysis.newTerritoriesMismatch
 	}
 
-	if analysis.monthly != nil && len(analysis.monthlyTerritories) > 0 {
+	if !analysis.duplicateTypes && analysis.monthly != nil && len(analysis.monthlyTerritories) > 0 {
 		if strings.ToUpper(strings.TrimSpace(sub.SubscriptionPeriod)) != "ONE_YEAR" {
 			analysis.monthlyIssues = append(analysis.monthlyIssues, "subscription period is not ONE_YEAR")
 		}
@@ -213,6 +213,12 @@ func buildAvailabilitySurfaceConsistencyDiagnosticRow(sub Subscription) Subscrip
 		row.Remediation = firstNonEmpty(sub.PlanAvailabilityCheckReason, sub.AvailabilityCheckSkipReason, "Validation could not compare availability surfaces")
 		return row
 	}
+	if analysis.duplicateTypes {
+		row.Status = DiagnosticStatusNo
+		row.Evidence = "duplicate UPFRONT or MONTHLY records prevent a reliable comparison"
+		row.Remediation = "Review and repair duplicate plan availability records in App Store Connect."
+		return row
+	}
 	if strings.TrimSpace(sub.AvailabilityID) == "" || analysis.upfront == nil {
 		row.Status = DiagnosticStatusUnknown
 		row.Blocking = false
@@ -239,6 +245,13 @@ func buildMonthlyPlanAvailabilityDiagnosticRow(sub Subscription) SubscriptionDia
 	if analysis.unverified {
 		row.Status = DiagnosticStatusUnverified
 		row.Remediation = fallbackString(sub.PlanAvailabilityCheckReason, "Validation could not verify MONTHLY plan availability")
+		return row
+	}
+	if analysis.duplicateTypes {
+		row.Status = DiagnosticStatusNo
+		row.Blocking = true
+		row.Evidence = "duplicate UPFRONT or MONTHLY records prevent reliable MONTHLY validation"
+		row.Remediation = "Review and repair duplicate plan availability records in App Store Connect."
 		return row
 	}
 	if analysis.monthly == nil || len(analysis.monthlyTerritories) == 0 {

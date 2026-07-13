@@ -124,6 +124,31 @@ func TestFetchSubscriptionPlanAvailabilitiesPreservesUnverifiedFallback(t *testi
 	}
 }
 
+func TestFetchSubscriptionAvailabilityTerritoriesNormalizesTerritoryIDs(t *testing.T) {
+	client := newBuildsTestClient(t, buildsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch req.URL.Path {
+		case "/v1/subscriptions/sub-1/subscriptionAvailability":
+			return buildsJSONResponse(http.StatusOK, `{"data":{"type":"subscriptionAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":true}}}`)
+		case "/v1/subscriptionAvailabilities/availability-1/availableTerritories":
+			return buildsJSONResponse(http.StatusOK, `{"data":[{"type":"territories","id":" can "},{"type":"territories","id":"fra"}]}`)
+		default:
+			t.Fatalf("unexpected request: %s", req.URL.String())
+			return nil, nil
+		}
+	}))
+
+	id, territories, availableInNew, status, err := fetchSubscriptionAvailabilityTerritories(context.Background(), client, "sub-1")
+	if err != nil {
+		t.Fatalf("fetchSubscriptionAvailabilityTerritories() error = %v", err)
+	}
+	if id != "availability-1" || strings.Join(territories, ",") != "CAN,FRA" {
+		t.Fatalf("unexpected normalized availability: id=%q territories=%v", id, territories)
+	}
+	if availableInNew == nil || !*availableInNew || !status.Verified {
+		t.Fatalf("unexpected availability metadata: availableInNew=%v status=%+v", availableInNew, status)
+	}
+}
+
 func TestFetchSubscriptionPriceTerritories_DeduplicatesAndSortsTerritories(t *testing.T) {
 	client := newBuildsTestClient(t, buildsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		if req.Method != http.MethodGet {
