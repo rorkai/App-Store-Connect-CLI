@@ -33,6 +33,7 @@ func TestFetchSubscriptions_BoundsGroupAndMetadataFanOutAndSortsDeterministicall
 			return buildsJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND"}]}`)
 		case strings.HasSuffix(req.URL.Path, "/images"),
 			strings.HasSuffix(req.URL.Path, "/prices"),
+			strings.HasSuffix(req.URL.Path, "/planAvailabilities"),
 			strings.HasSuffix(req.URL.Path, "/subscriptionLocalizations"),
 			strings.HasSuffix(req.URL.Path, "/introductoryOffers"),
 			strings.HasSuffix(req.URL.Path, "/promotionalOffers"),
@@ -63,6 +64,63 @@ func TestFetchSubscriptions_BoundsGroupAndMetadataFanOutAndSortsDeterministicall
 	}
 	if subscriptions[1].ID != "sub-z" || subscriptions[1].GroupID != "group-z" {
 		t.Fatalf("second subscription is not stably sorted: %+v", subscriptions[1])
+	}
+}
+
+func TestFetchSubscriptionPlanAvailabilitiesPaginatesPlansAndTerritories(t *testing.T) {
+	client := newBuildsTestClient(t, buildsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.URL.Path == "/v1/subscriptions/sub-1/planAvailabilities" && req.URL.Query().Get("cursor") == "next":
+			return buildsJSONResponse(http.StatusOK, `{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-monthly","attributes":{"planType":"MONTHLY","availableInNewTerritories":false}}]}`)
+		case req.URL.Path == "/v1/subscriptions/sub-1/planAvailabilities":
+			if got := req.URL.Query().Get("limit"); got != "200" {
+				t.Fatalf("expected plan limit=200, got %q", got)
+			}
+			return buildsJSONResponse(http.StatusOK, `{"data":[{"type":"subscriptionPlanAvailabilities","id":"plan-upfront","attributes":{"planType":"UPFRONT","availableInNewTerritories":true}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/planAvailabilities?cursor=next"}}`)
+		case req.URL.Path == "/v1/subscriptionPlanAvailabilities/plan-upfront/relationships/availableTerritories" && req.URL.Query().Get("cursor") == "next":
+			return buildsJSONResponse(http.StatusOK, `{"data":[{"type":"territories","id":"CAN"}]}`)
+		case req.URL.Path == "/v1/subscriptionPlanAvailabilities/plan-upfront/relationships/availableTerritories":
+			if got := req.URL.Query().Get("limit"); got != "200" {
+				t.Fatalf("expected territory limit=200, got %q", got)
+			}
+			return buildsJSONResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/subscriptionPlanAvailabilities/plan-upfront/relationships/availableTerritories?cursor=next"}}`)
+		case req.URL.Path == "/v1/subscriptionPlanAvailabilities/plan-monthly/relationships/availableTerritories":
+			return buildsJSONResponse(http.StatusOK, `{"data":[]}`)
+		default:
+			t.Fatalf("unexpected request: %s", req.URL.String())
+			return nil, nil
+		}
+	}))
+
+	plans, status, err := fetchSubscriptionPlanAvailabilities(context.Background(), client, "sub-1")
+	if err != nil {
+		t.Fatalf("fetchSubscriptionPlanAvailabilities() error = %v", err)
+	}
+	if !status.Verified || status.SkipReason != "" {
+		t.Fatalf("expected verified status, got %+v", status)
+	}
+	if len(plans) != 2 {
+		t.Fatalf("expected two plans, got %+v", plans)
+	}
+	if plans[0].PlanType != "MONTHLY" || len(plans[0].Territories) != 0 {
+		t.Fatalf("unexpected monthly plan: %+v", plans[0])
+	}
+	if plans[1].PlanType != "UPFRONT" || strings.Join(plans[1].Territories, ",") != "CAN,USA" {
+		t.Fatalf("unexpected upfront plan: %+v", plans[1])
+	}
+}
+
+func TestFetchSubscriptionPlanAvailabilitiesPreservesUnverifiedFallback(t *testing.T) {
+	client := newBuildsTestClient(t, buildsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return buildsJSONResponse(http.StatusForbidden, `{"errors":[{"status":"403","code":"FORBIDDEN","title":"Forbidden","detail":"not allowed"}]}`)
+	}))
+
+	plans, status, err := fetchSubscriptionPlanAvailabilities(context.Background(), client, "sub-1")
+	if err != nil {
+		t.Fatalf("fetchSubscriptionPlanAvailabilities() error = %v", err)
+	}
+	if plans != nil || status.Verified || !strings.Contains(status.SkipReason, "subscription plan availabilities") {
+		t.Fatalf("expected unverified fallback with endpoint context, got plans=%+v status=%+v", plans, status)
 	}
 }
 

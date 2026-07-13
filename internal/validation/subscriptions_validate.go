@@ -23,6 +23,11 @@ type Subscription struct {
 	AvailabilityTerritories      []string
 	AvailabilityCheckSkipped     bool
 	AvailabilityCheckSkipReason  string
+	AvailabilityInNewTerritories *bool
+	SubscriptionPeriod           string
+	PlanAvailabilities           []SubscriptionPlanAvailabilityInfo
+	PlanAvailabilityCheckSkipped bool
+	PlanAvailabilityCheckReason  string
 
 	// Deep diagnostics (populated when State is MISSING_METADATA).
 	Localizations                 []SubscriptionLocalizationInfo
@@ -44,6 +49,14 @@ type Subscription struct {
 	WinBackOfferCount             int
 	WinBackOfferCheckSkipped      bool
 	WinBackOfferCheckReason       string
+}
+
+// SubscriptionPlanAvailabilityInfo holds one billing plan's territory availability.
+type SubscriptionPlanAvailabilityInfo struct {
+	ID                        string
+	PlanType                  string
+	AvailableInNewTerritories *bool
+	Territories               []string
 }
 
 // SubscriptionLocalizationInfo holds per-locale metadata for a subscription.
@@ -563,6 +576,54 @@ func subscriptionMetadataDiagnostics(subs []Subscription) []CheckResult {
 				ResourceID:   strings.TrimSpace(sub.ID),
 				Message:      fmt.Sprintf("%s has subscription availability configured but no available territories", label),
 				Remediation:  "Enable at least one subscription availability territory via `asc subscriptions availability edit`",
+			})
+		}
+
+		planAnalysis := analyzeSubscriptionPlanAvailability(sub)
+		switch {
+		case planAnalysis.unverified:
+			checks = append(checks, CheckResult{
+				ID: "subscriptions.diagnostics.plan_availability_unverified", Severity: SeverityInfo,
+				Field: "planAvailabilities", ResourceType: "subscription", ResourceID: strings.TrimSpace(sub.ID),
+				Message:     fmt.Sprintf("Could not verify %s billing-plan availability", label),
+				Remediation: fallbackString(sub.PlanAvailabilityCheckReason, "Review billing-plan availability in App Store Connect"),
+			})
+		case planAnalysis.duplicateTypes:
+			checks = append(checks, CheckResult{
+				ID: "subscriptions.diagnostics.plan_availability_duplicate", Severity: SeverityWarning,
+				Field: "planAvailabilities", ResourceType: "subscription", ResourceID: strings.TrimSpace(sub.ID),
+				Message:     fmt.Sprintf("%s has duplicate billing-plan availability records", label),
+				Remediation: "Review and repair duplicate plan availability records in App Store Connect",
+			})
+		case planAnalysis.upfront == nil:
+			checks = append(checks, CheckResult{
+				ID: "subscriptions.diagnostics.upfront_plan_availability_missing", Severity: SeverityWarning,
+				Field: "planAvailabilities", ResourceType: "subscription", ResourceID: strings.TrimSpace(sub.ID),
+				Message:     fmt.Sprintf("%s has no UPFRONT billing-plan availability", label),
+				Remediation: "Configure UPFRONT plan availability for at least one territory",
+			})
+		case len(planAnalysis.upfrontTerritories) == 0:
+			checks = append(checks, CheckResult{
+				ID: "subscriptions.diagnostics.upfront_plan_availability_empty", Severity: SeverityWarning,
+				Field: "planAvailabilities", ResourceType: "subscription", ResourceID: strings.TrimSpace(sub.ID),
+				Message:     fmt.Sprintf("%s has UPFRONT billing-plan availability with no territories", label),
+				Remediation: "Enable at least one territory for the UPFRONT plan",
+			})
+		}
+		if !planAnalysis.unverified && planAnalysis.surfaceMismatch {
+			checks = append(checks, CheckResult{
+				ID: "subscriptions.diagnostics.availability_surfaces_mismatch", Severity: SeverityWarning,
+				Field: "planAvailabilities", ResourceType: "subscription", ResourceID: strings.TrimSpace(sub.ID),
+				Message:     fmt.Sprintf("%s has different territories on legacy and UPFRONT availability surfaces", label),
+				Remediation: "Make legacy subscription availability and UPFRONT plan availability agree, then re-validate",
+			})
+		}
+		if !planAnalysis.unverified && len(planAnalysis.monthlyIssues) > 0 {
+			checks = append(checks, CheckResult{
+				ID: "subscriptions.diagnostics.monthly_plan_invalid", Severity: SeverityWarning,
+				Field: "planAvailabilities", ResourceType: "subscription", ResourceID: strings.TrimSpace(sub.ID),
+				Message:     fmt.Sprintf("%s has invalid MONTHLY commitment availability: %s", label, strings.Join(planAnalysis.monthlyIssues, "; ")),
+				Remediation: "Use MONTHLY only for ONE_YEAR subscriptions, only in UPFRONT territories, and exclude USA and SGP",
 			})
 		}
 

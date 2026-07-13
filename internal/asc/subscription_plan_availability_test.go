@@ -170,6 +170,41 @@ func TestGetSubscriptionPlanAvailabilitiesForSubscriptionFiltersPlanType(t *test
 	}
 }
 
+func TestGetSubscriptionPlanAvailabilitiesForSubscriptionSupportsPaginationOptions(t *testing.T) {
+	t.Run("limit", func(t *testing.T) {
+		client := newTestClient(t, func(req *http.Request) {
+			if got := req.URL.Query().Get("limit"); got != "200" {
+				t.Fatalf("expected limit 200, got %q", got)
+			}
+		}, jsonResponse(http.StatusOK, `{"data":[]}`))
+
+		if _, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(
+			context.Background(),
+			"sub-1",
+			WithSubscriptionPlanAvailabilitiesLimit(200),
+		); err != nil {
+			t.Fatalf("GetSubscriptionPlanAvailabilitiesForSubscription() error: %v", err)
+		}
+	})
+
+	t.Run("next URL", func(t *testing.T) {
+		next := "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/planAvailabilities?cursor=next"
+		client := newTestClient(t, func(req *http.Request) {
+			if req.URL.String() != next {
+				t.Fatalf("expected next URL %q, got %q", next, req.URL.String())
+			}
+		}, jsonResponse(http.StatusOK, `{"data":[]}`))
+
+		if _, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(
+			context.Background(),
+			"sub-1",
+			WithSubscriptionPlanAvailabilitiesNextURL(next),
+		); err != nil {
+			t.Fatalf("GetSubscriptionPlanAvailabilitiesForSubscription() error: %v", err)
+		}
+	})
+}
+
 func TestGetSubscriptionPlanAvailabilityAvailableTerritoriesRelationships(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"NOR"},{"type":"territories","id":"DEU"}],"links":{"next":""}}`)
 	client := newTestClient(t, func(req *http.Request) {

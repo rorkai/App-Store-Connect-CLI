@@ -388,9 +388,13 @@ func TestValidateSubscriptionsIncludesDetailedDiagnosticsForOpaqueMissingMetadat
 				ReviewScreenshotID:      "shot-1",
 				AvailabilityID:          "avail-1",
 				AvailabilityTerritories: []string{"USA", "CAN"},
-				HasImage:                true,
-				PriceCount:              2,
-				PriceTerritories:        []string{"USA", "CAN"},
+				SubscriptionPeriod:      "ONE_MONTH",
+				PlanAvailabilities: []SubscriptionPlanAvailabilityInfo{{
+					ID: "plan-upfront", PlanType: "UPFRONT", Territories: []string{"USA", "CAN"},
+				}},
+				HasImage:         true,
+				PriceCount:       2,
+				PriceTerritories: []string{"USA", "CAN"},
 			},
 		},
 	}, false)
@@ -412,6 +416,8 @@ func TestValidateSubscriptionsIncludesDetailedDiagnosticsForOpaqueMissingMetadat
 		"subscription_localizations",
 		"review_screenshot",
 		"subscription_availability",
+		"upfront_plan_availability",
+		"availability_surface_consistency",
 		"price_records",
 		"price_coverage_subscription_availability",
 		"price_coverage_app_availability",
@@ -426,6 +432,10 @@ func TestValidateSubscriptionsIncludesDetailedDiagnosticsForOpaqueMissingMetadat
 			t.Fatalf("expected %s row to be yes, got %+v", key, row)
 		}
 	}
+	monthlyRow, ok := findSubscriptionDiagnosticRow(diag.Rows, "monthly_plan_availability")
+	if !ok || monthlyRow.Status != DiagnosticStatusOptional || monthlyRow.Blocking {
+		t.Fatalf("expected absent MONTHLY plan to be optional, got %+v", monthlyRow)
+	}
 
 	buildRow, ok := findSubscriptionDiagnosticRow(diag.Rows, "app_has_build")
 	if !ok {
@@ -433,6 +443,72 @@ func TestValidateSubscriptionsIncludesDetailedDiagnosticsForOpaqueMissingMetadat
 	}
 	if buildRow.Status != DiagnosticStatusYes {
 		t.Fatalf("expected app_has_build=yes when app build count is non-zero, got %+v", buildRow)
+	}
+}
+
+func TestSubscriptionPlanAvailabilityDiagnosticsTruthTable(t *testing.T) {
+	base := Subscription{
+		ID: "sub-1", Name: "Annual", ProductID: "com.example.annual", State: "MISSING_METADATA",
+		SubscriptionPeriod: "ONE_YEAR", AvailabilityID: "legacy", AvailabilityTerritories: []string{"CAN", "FRA"},
+	}
+
+	tests := []struct {
+		name       string
+		mutate     func(*Subscription)
+		rowKey     string
+		wantStatus DiagnosticStatus
+		wantBlock  bool
+		wantCheck  string
+	}{
+		{name: "missing upfront", rowKey: "upfront_plan_availability", wantStatus: DiagnosticStatusNo, wantBlock: true, wantCheck: "subscriptions.diagnostics.upfront_plan_availability_missing"},
+		{name: "unverified fetch", mutate: func(sub *Subscription) {
+			sub.PlanAvailabilityCheckSkipped = true
+			sub.PlanAvailabilityCheckReason = "forbidden"
+		}, rowKey: "upfront_plan_availability", wantStatus: DiagnosticStatusUnverified, wantBlock: true, wantCheck: "subscriptions.diagnostics.plan_availability_unverified"},
+		{name: "matching surfaces", mutate: func(sub *Subscription) {
+			sub.PlanAvailabilities = []SubscriptionPlanAvailabilityInfo{{ID: "upfront", PlanType: "UPFRONT", Territories: []string{"FRA", "CAN"}}}
+		}, rowKey: "availability_surface_consistency", wantStatus: DiagnosticStatusYes, wantBlock: true},
+		{name: "mismatched surfaces", mutate: func(sub *Subscription) {
+			sub.PlanAvailabilities = []SubscriptionPlanAvailabilityInfo{{ID: "upfront", PlanType: "UPFRONT", Territories: []string{"CAN", "GBR"}}}
+		}, rowKey: "availability_surface_consistency", wantStatus: DiagnosticStatusNo, wantBlock: true, wantCheck: "subscriptions.diagnostics.availability_surfaces_mismatch"},
+		{name: "mismatched new territory policy", mutate: func(sub *Subscription) {
+			legacy, plan := true, false
+			sub.AvailabilityInNewTerritories = &legacy
+			sub.PlanAvailabilities = []SubscriptionPlanAvailabilityInfo{{ID: "upfront", PlanType: "UPFRONT", AvailableInNewTerritories: &plan, Territories: []string{"CAN", "FRA"}}}
+		}, rowKey: "availability_surface_consistency", wantStatus: DiagnosticStatusNo, wantBlock: true, wantCheck: "subscriptions.diagnostics.availability_surfaces_mismatch"},
+		{name: "monthly absent is optional", mutate: func(sub *Subscription) {
+			sub.PlanAvailabilities = []SubscriptionPlanAvailabilityInfo{{ID: "upfront", PlanType: "UPFRONT", Territories: []string{"CAN", "FRA"}}}
+		}, rowKey: "monthly_plan_availability", wantStatus: DiagnosticStatusOptional, wantBlock: false},
+		{name: "monthly valid", mutate: func(sub *Subscription) {
+			sub.PlanAvailabilities = []SubscriptionPlanAvailabilityInfo{{ID: "upfront", PlanType: "UPFRONT", Territories: []string{"CAN", "FRA"}}, {ID: "monthly", PlanType: "MONTHLY", Territories: []string{"CAN"}}}
+		}, rowKey: "monthly_plan_availability", wantStatus: DiagnosticStatusYes, wantBlock: true},
+		{name: "monthly outside upfront", mutate: func(sub *Subscription) {
+			sub.PlanAvailabilities = []SubscriptionPlanAvailabilityInfo{{ID: "upfront", PlanType: "UPFRONT", Territories: []string{"CAN", "FRA"}}, {ID: "monthly", PlanType: "MONTHLY", Territories: []string{"GBR"}}}
+		}, rowKey: "monthly_plan_availability", wantStatus: DiagnosticStatusNo, wantBlock: true, wantCheck: "subscriptions.diagnostics.monthly_plan_invalid"},
+		{name: "monthly forbidden territory", mutate: func(sub *Subscription) {
+			sub.PlanAvailabilities = []SubscriptionPlanAvailabilityInfo{{ID: "upfront", PlanType: "UPFRONT", Territories: []string{"CAN", "USA"}}, {ID: "monthly", PlanType: "MONTHLY", Territories: []string{"USA"}}}
+		}, rowKey: "monthly_plan_availability", wantStatus: DiagnosticStatusNo, wantBlock: true, wantCheck: "subscriptions.diagnostics.monthly_plan_invalid"},
+		{name: "monthly wrong period", mutate: func(sub *Subscription) {
+			sub.SubscriptionPeriod = "ONE_MONTH"
+			sub.PlanAvailabilities = []SubscriptionPlanAvailabilityInfo{{ID: "upfront", PlanType: "UPFRONT", Territories: []string{"CAN"}}, {ID: "monthly", PlanType: "MONTHLY", Territories: []string{"CAN"}}}
+		}, rowKey: "monthly_plan_availability", wantStatus: DiagnosticStatusNo, wantBlock: true, wantCheck: "subscriptions.diagnostics.monthly_plan_invalid"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sub := base
+			if tt.mutate != nil {
+				tt.mutate(&sub)
+			}
+			report := ValidateSubscriptions(SubscriptionsInput{Subscriptions: []Subscription{sub}}, false)
+			row, ok := findSubscriptionDiagnosticRow(report.Diagnostics[0].Rows, tt.rowKey)
+			if !ok || row.Status != tt.wantStatus || row.Blocking != tt.wantBlock {
+				t.Fatalf("row %q = %+v, want status=%s blocking=%v", tt.rowKey, row, tt.wantStatus, tt.wantBlock)
+			}
+			if tt.wantCheck != "" && !hasCheckID(report.Checks, tt.wantCheck) {
+				t.Fatalf("missing check %q in %+v", tt.wantCheck, report.Checks)
+			}
+		})
 	}
 }
 
@@ -454,6 +530,7 @@ func TestValidateSubscriptionsPrefersAdvisoryConclusionOverOpaqueAppleState(t *t
 				ReviewScreenshotID:      "shot-1",
 				AvailabilityID:          "avail-1",
 				AvailabilityTerritories: []string{"USA", "CAN"},
+				PlanAvailabilities:      upfrontPlan("USA", "CAN"),
 				PriceCount:              2,
 				PriceTerritories:        []string{"USA", "CAN"},
 			},
@@ -498,6 +575,7 @@ func TestValidateSubscriptionsDiagnosticsShowExactMissingTerritories(t *testing.
 				ReviewScreenshotID:      "shot-1",
 				AvailabilityID:          "avail-1",
 				AvailabilityTerritories: []string{"USA", "CAN"},
+				PlanAvailabilities:      upfrontPlan("USA", "CAN"),
 				PriceCount:              1,
 				PriceTerritories:        []string{"USA"},
 			},
@@ -549,6 +627,7 @@ func TestValidateSubscriptionsMarksSkippedBuildDiagnosticAsUnverified(t *testing
 				ReviewScreenshotID:      "shot-1",
 				AvailabilityID:          "avail-1",
 				AvailabilityTerritories: []string{"USA", "CAN"},
+				PlanAvailabilities:      upfrontPlan("USA", "CAN"),
 				PriceCount:              2,
 				PriceTerritories:        []string{"USA", "CAN"},
 			},
@@ -588,6 +667,7 @@ func TestValidateSubscriptionsFallsBackToAppTerritoryCountInDiagnostics(t *testi
 				ReviewScreenshotID:      "shot-1",
 				AvailabilityID:          "avail-1",
 				AvailabilityTerritories: []string{"USA", "CAN"},
+				PlanAvailabilities:      upfrontPlan("USA", "CAN"),
 				PriceCount:              2,
 				PriceTerritories:        []string{"USA", "CAN"},
 			},
@@ -628,6 +708,7 @@ func TestValidateSubscriptionsTreatsAppOnlyTerritoriesAsAdvisoryInDiagnostics(t 
 				ReviewScreenshotID:      "shot-1",
 				AvailabilityID:          "avail-1",
 				AvailabilityTerritories: []string{"USA"},
+				PlanAvailabilities:      upfrontPlan("USA"),
 				HasImage:                true,
 				PriceCount:              1,
 				PriceTerritories:        []string{"USA"},
@@ -673,6 +754,7 @@ func TestValidateSubscriptionsDoesNotBlockDiagnosticsWhenAppAvailabilityIsMissin
 				ReviewScreenshotID:      "shot-1",
 				AvailabilityID:          "avail-1",
 				AvailabilityTerritories: []string{"USA"},
+				PlanAvailabilities:      upfrontPlan("USA"),
 				HasImage:                true,
 				PriceCount:              1,
 				PriceTerritories:        []string{"USA"},
@@ -752,4 +834,8 @@ func findSubscriptionDiagnosticRow(rows []SubscriptionDiagnosticRow, key string)
 		}
 	}
 	return SubscriptionDiagnosticRow{}, false
+}
+
+func upfrontPlan(territories ...string) []SubscriptionPlanAvailabilityInfo {
+	return []SubscriptionPlanAvailabilityInfo{{ID: "plan-upfront", PlanType: "UPFRONT", Territories: territories}}
 }

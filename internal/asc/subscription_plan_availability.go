@@ -70,7 +70,26 @@ type SubscriptionPlanAvailabilitiesResponse = Response[SubscriptionPlanAvailabil
 type SubscriptionPlanAvailabilitiesOption func(*subscriptionPlanAvailabilitiesQuery)
 
 type subscriptionPlanAvailabilitiesQuery struct {
+	listQuery
 	planTypes []SubscriptionPlanType
+}
+
+// WithSubscriptionPlanAvailabilitiesLimit sets the maximum number of plan availabilities to return.
+func WithSubscriptionPlanAvailabilitiesLimit(limit int) SubscriptionPlanAvailabilitiesOption {
+	return func(q *subscriptionPlanAvailabilitiesQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
+	}
+}
+
+// WithSubscriptionPlanAvailabilitiesNextURL uses a next page URL directly.
+func WithSubscriptionPlanAvailabilitiesNextURL(next string) SubscriptionPlanAvailabilitiesOption {
+	return func(q *subscriptionPlanAvailabilitiesQuery) {
+		if strings.TrimSpace(next) != "" {
+			q.nextURL = strings.TrimSpace(next)
+		}
+	}
 }
 
 // WithSubscriptionPlanAvailabilitiesPlanTypes filters returned plan availabilities by plan type.
@@ -192,6 +211,14 @@ func (c *Client) GetSubscriptionPlanAvailabilitiesForSubscription(ctx context.Co
 	}
 
 	path := fmt.Sprintf("/v1/subscriptions/%s/planAvailabilities", subID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionPlanAvailabilities: %w", err)
+		}
+		path = query.nextURL
+	} else if queryString := buildListQuery(&query.listQuery); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err

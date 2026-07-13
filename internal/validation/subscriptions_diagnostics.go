@@ -60,6 +60,9 @@ func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagno
 			buildSubscriptionLocalizationsDiagnosticRow(sub),
 			buildReviewScreenshotDiagnosticRow(sub),
 			buildSubscriptionAvailabilityDiagnosticRow(sub),
+			buildUpfrontPlanAvailabilityDiagnosticRow(sub),
+			buildAvailabilitySurfaceConsistencyDiagnosticRow(sub),
+			buildMonthlyPlanAvailabilityDiagnosticRow(sub),
 			buildPriceRecordsDiagnosticRow(sub),
 			buildSubscriptionAvailabilityCoverageDiagnosticRow(sub),
 			buildAppAvailabilityCoverageDiagnosticRow(sub, appTerritories, appTerritoryCount, input.PricingCoverageSkipReason),
@@ -104,6 +107,155 @@ func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagno
 	}
 
 	return diagnostics
+}
+
+type subscriptionPlanAvailabilityAnalysis struct {
+	unverified             bool
+	duplicateTypes         bool
+	upfront                *SubscriptionPlanAvailabilityInfo
+	monthly                *SubscriptionPlanAvailabilityInfo
+	upfrontTerritories     []string
+	monthlyTerritories     []string
+	surfaceMismatch        bool
+	legacyOnly             []string
+	planOnly               []string
+	newTerritoriesMismatch bool
+	monthlyIssues          []string
+}
+
+func analyzeSubscriptionPlanAvailability(sub Subscription) subscriptionPlanAvailabilityAnalysis {
+	analysis := subscriptionPlanAvailabilityAnalysis{unverified: sub.PlanAvailabilityCheckSkipped}
+	counts := map[string]int{}
+	for i := range sub.PlanAvailabilities {
+		plan := sub.PlanAvailabilities[i]
+		plan.PlanType = strings.ToUpper(strings.TrimSpace(plan.PlanType))
+		counts[plan.PlanType]++
+		switch plan.PlanType {
+		case "UPFRONT":
+			if analysis.upfront == nil {
+				analysis.upfront = &plan
+				analysis.upfrontTerritories = sortedUniqueNonEmpty(plan.Territories)
+			}
+		case "MONTHLY":
+			if analysis.monthly == nil {
+				analysis.monthly = &plan
+				analysis.monthlyTerritories = sortedUniqueNonEmpty(plan.Territories)
+			}
+		}
+	}
+	analysis.duplicateTypes = counts["UPFRONT"] > 1 || counts["MONTHLY"] > 1
+
+	if !sub.AvailabilityCheckSkipped && strings.TrimSpace(sub.AvailabilityID) != "" && analysis.upfront != nil {
+		legacy := sortedUniqueNonEmpty(sub.AvailabilityTerritories)
+		analysis.legacyOnly = missingValues(legacy, analysis.upfrontTerritories)
+		analysis.planOnly = missingValues(analysis.upfrontTerritories, legacy)
+		legacyNew, planNew := sub.AvailabilityInNewTerritories, analysis.upfront.AvailableInNewTerritories
+		analysis.newTerritoriesMismatch = legacyNew != nil && planNew != nil && *legacyNew != *planNew
+		analysis.surfaceMismatch = len(analysis.legacyOnly) > 0 || len(analysis.planOnly) > 0 || analysis.newTerritoriesMismatch
+	}
+
+	if analysis.monthly != nil && len(analysis.monthlyTerritories) > 0 {
+		if strings.ToUpper(strings.TrimSpace(sub.SubscriptionPeriod)) != "ONE_YEAR" {
+			analysis.monthlyIssues = append(analysis.monthlyIssues, "subscription period is not ONE_YEAR")
+		}
+		if outside := missingValues(analysis.monthlyTerritories, analysis.upfrontTerritories); len(outside) > 0 {
+			analysis.monthlyIssues = append(analysis.monthlyIssues, "not in UPFRONT: "+formatList(outside))
+		}
+		forbidden := make([]string, 0, 2)
+		for _, territory := range analysis.monthlyTerritories {
+			if territory == "USA" || territory == "SGP" {
+				forbidden = append(forbidden, territory)
+			}
+		}
+		if len(forbidden) > 0 {
+			analysis.monthlyIssues = append(analysis.monthlyIssues, "unsupported: "+formatList(forbidden))
+		}
+	}
+	return analysis
+}
+
+func buildUpfrontPlanAvailabilityDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
+	row := SubscriptionDiagnosticRow{Key: "upfront_plan_availability", Label: "UPFRONT plan availability", Source: "public-api", Blocking: true}
+	analysis := analyzeSubscriptionPlanAvailability(sub)
+	if analysis.unverified {
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = fallbackString(sub.PlanAvailabilityCheckReason, "Validation could not verify billing-plan availability")
+		return row
+	}
+	if analysis.duplicateTypes {
+		row.Status = DiagnosticStatusNo
+		row.Evidence = "duplicate UPFRONT or MONTHLY records"
+		row.Remediation = "Review and repair duplicate plan availability records in App Store Connect."
+		return row
+	}
+	if analysis.upfront == nil {
+		row.Status = DiagnosticStatusNo
+		row.Evidence = "none"
+		row.Remediation = "Configure UPFRONT plan availability for at least one territory."
+		return row
+	}
+	if len(analysis.upfrontTerritories) == 0 {
+		row.Status = DiagnosticStatusNo
+		row.Evidence = fmt.Sprintf("id=%s territories=none", strings.TrimSpace(analysis.upfront.ID))
+		row.Remediation = "Enable at least one territory for the UPFRONT plan."
+		return row
+	}
+	row.Status = DiagnosticStatusYes
+	row.Evidence = fmt.Sprintf("id=%s territories=%s", strings.TrimSpace(analysis.upfront.ID), formatList(analysis.upfrontTerritories))
+	return row
+}
+
+func buildAvailabilitySurfaceConsistencyDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
+	row := SubscriptionDiagnosticRow{Key: "availability_surface_consistency", Label: "Legacy and UPFRONT availability agree", Source: "derived", Blocking: true}
+	analysis := analyzeSubscriptionPlanAvailability(sub)
+	if analysis.unverified || sub.AvailabilityCheckSkipped {
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = firstNonEmpty(sub.PlanAvailabilityCheckReason, sub.AvailabilityCheckSkipReason, "Validation could not compare availability surfaces")
+		return row
+	}
+	if strings.TrimSpace(sub.AvailabilityID) == "" || analysis.upfront == nil {
+		row.Status = DiagnosticStatusUnknown
+		row.Blocking = false
+		row.Evidence = "one or both availability surfaces are missing"
+		return row
+	}
+	if analysis.surfaceMismatch {
+		row.Status = DiagnosticStatusNo
+		row.Evidence = fmt.Sprintf("legacy_only=%s plan_only=%s", formatList(analysis.legacyOnly), formatList(analysis.planOnly))
+		if analysis.newTerritoriesMismatch {
+			row.Evidence += fmt.Sprintf(" available_in_new_territories legacy=%t plan=%t", *sub.AvailabilityInNewTerritories, *analysis.upfront.AvailableInNewTerritories)
+		}
+		row.Remediation = "Make legacy subscription availability and UPFRONT plan availability agree, then re-validate."
+		return row
+	}
+	row.Status = DiagnosticStatusYes
+	row.Evidence = fmt.Sprintf("territories=%s", formatList(analysis.upfrontTerritories))
+	return row
+}
+
+func buildMonthlyPlanAvailabilityDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
+	row := SubscriptionDiagnosticRow{Key: "monthly_plan_availability", Label: "MONTHLY commitment availability", Source: "public-api", Blocking: false}
+	analysis := analyzeSubscriptionPlanAvailability(sub)
+	if analysis.unverified {
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = fallbackString(sub.PlanAvailabilityCheckReason, "Validation could not verify MONTHLY plan availability")
+		return row
+	}
+	if analysis.monthly == nil || len(analysis.monthlyTerritories) == 0 {
+		row.Status = DiagnosticStatusOptional
+		row.Evidence = "not configured"
+		return row
+	}
+	row.Blocking = true
+	if len(analysis.monthlyIssues) > 0 {
+		row.Status = DiagnosticStatusNo
+		row.Evidence = strings.Join(analysis.monthlyIssues, "; ")
+		row.Remediation = "Use MONTHLY only for ONE_YEAR subscriptions, only in UPFRONT territories, and exclude USA and SGP."
+		return row
+	}
+	row.Status = DiagnosticStatusYes
+	row.Evidence = fmt.Sprintf("id=%s territories=%s", strings.TrimSpace(analysis.monthly.ID), formatList(analysis.monthlyTerritories))
+	return row
 }
 
 func buildGroupLocalizationsDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
