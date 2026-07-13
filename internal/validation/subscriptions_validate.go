@@ -63,16 +63,17 @@ type SubscriptionGroupLocalizationInfo struct {
 
 // SubscriptionsInput collects subscription validation inputs.
 type SubscriptionsInput struct {
-	AppID                     string
-	Subscriptions             []Subscription
-	AvailableTerritories      int
-	AppAvailableTerritories   []string
-	PricingTerritories        []string
-	PricingTerritoryCount     int
-	PricingCoverageSkipReason string
-	AppBuildCount             int
-	BuildCheckSkipped         bool
-	BuildCheckSkipReason      string
+	AppID                             string
+	Subscriptions                     []Subscription
+	AvailableTerritories              int
+	AppAvailableTerritories           []string
+	AppAvailabilityCoverageSkipReason string
+	PricingTerritories                []string
+	PricingTerritoryCount             int
+	PricingCoverageSkipReason         string
+	AppBuildCount                     int
+	BuildCheckSkipped                 bool
+	BuildCheckSkipReason              string
 }
 
 // SubscriptionsReport is the top-level validate subscriptions output.
@@ -289,7 +290,7 @@ func subscriptionPricingCoverageSkipChecks(appID, reason string) []CheckResult {
 		Field:        "pricing",
 		ResourceType: "app",
 		ResourceID:   strings.TrimSpace(appID),
-		Message:      "Could not verify subscription pricing coverage against app availability territories",
+		Message:      "Could not verify the complete subscription price matrix against App Store pricing territories",
 		Remediation:  reason,
 	}}
 }

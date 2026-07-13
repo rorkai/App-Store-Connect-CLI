@@ -717,6 +717,62 @@ func TestValidateSubscriptionsDoesNotBlockDiagnosticsWhenAppAvailabilityIsMissin
 	}
 }
 
+func TestValidateSubscriptionsKeepsAppAvailabilityDiagnosticVerifiedWhenPricingTerritoriesAreUnavailable(t *testing.T) {
+	report := ValidateSubscriptions(SubscriptionsInput{
+		AppID:                     "app-1",
+		AppBuildCount:             1,
+		AppAvailableTerritories:   []string{"USA"},
+		PricingCoverageSkipReason: "App Store pricing territories could not be fetched",
+		Subscriptions: []Subscription{
+			{
+				ID:                                 "sub-1",
+				Name:                               "Monthly",
+				ProductID:                          "com.example.monthly",
+				State:                              "MISSING_METADATA",
+				GroupID:                            "group-1",
+				GroupName:                          "Premium",
+				GroupLocalizations:                 []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:                      []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:                 "shot-1",
+				ReviewScreenshotAssetDeliveryState: "COMPLETE",
+				AvailabilityID:                     "avail-1",
+				AvailabilityTerritories:            []string{"USA"},
+				HasImage:                           true,
+				PriceCount:                         1,
+				PriceTerritories:                   []string{"USA"},
+			},
+		},
+	}, false)
+
+	if len(report.Diagnostics) != 1 {
+		t.Fatalf("expected one subscription diagnostics entry, got %+v", report.Diagnostics)
+	}
+	appCoverageRow, ok := findSubscriptionDiagnosticRow(report.Diagnostics[0].Rows, "price_coverage_app_availability")
+	if !ok {
+		t.Fatalf("expected app coverage diagnostic row, got %+v", report.Diagnostics[0].Rows)
+	}
+	if appCoverageRow.Status != DiagnosticStatusYes {
+		t.Fatalf("expected fetched app availability to remain verified, got %+v", appCoverageRow)
+	}
+	matrixRow, ok := findSubscriptionDiagnosticRow(report.Diagnostics[0].Rows, "complete_pricing_matrix")
+	if !ok || matrixRow.Status != DiagnosticStatusUnverified {
+		t.Fatalf("expected only the pricing matrix to be unverified, got %+v", matrixRow)
+	}
+}
+
+func TestSubscriptionPricingCoverageSkipCheckNamesPricingTerritories(t *testing.T) {
+	checks := subscriptionPricingCoverageSkipChecks("app-1", "pricing endpoint unavailable")
+	if len(checks) != 1 {
+		t.Fatalf("expected one pricing coverage skip check, got %+v", checks)
+	}
+	if strings.Contains(strings.ToLower(checks[0].Message), "app availability") {
+		t.Fatalf("expected pricing-territory-specific message, got %+v", checks[0])
+	}
+	if !strings.Contains(strings.ToLower(checks[0].Message), "app store pricing territories") {
+		t.Fatalf("expected pricing-territory-specific message, got %+v", checks[0])
+	}
+}
+
 func TestValidateSubscriptionsSkipsAppCoverageUntilSubscriptionAvailabilityExists(t *testing.T) {
 	report := ValidateSubscriptions(SubscriptionsInput{
 		AppID:                   "app-1",

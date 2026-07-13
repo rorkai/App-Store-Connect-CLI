@@ -111,6 +111,7 @@ func BuildSubscriptionsReport(ctx context.Context, opts SubscriptionsOptions) (v
 func buildSubscriptionsReport(ctx context.Context, client *asc.Client, opts SubscriptionsOptions) (validation.SubscriptionsReport, error) {
 	ctx = withReadinessRequestGate(ctx)
 	pricingCoverageSkipReason := ""
+	appAvailabilityCoverageSkipReason := ""
 	var appAvailableTerritories []string
 	availableTerritories := 0
 	var pricingTerritories []string
@@ -120,7 +121,8 @@ func buildSubscriptionsReport(ctx context.Context, client *asc.Client, opts Subs
 		func(taskCtx context.Context) error {
 			_, territories, count, fetchErr := fetchAvailableTerritoryDetailsFn(taskCtx, client, opts.AppID)
 			if fetchErr != nil {
-				if _, ok := availabilityCheckSkipReason(fetchErr); ok {
+				if reason, ok := availabilityCheckSkipReason(fetchErr); ok {
+					appAvailabilityCoverageSkipReason = reason
 					return nil
 				}
 				return fmt.Errorf("validate subscriptions: %w", fetchErr)
@@ -171,16 +173,17 @@ func buildSubscriptionsReport(ctx context.Context, client *asc.Client, opts Subs
 	}
 
 	report := validation.ValidateSubscriptions(validation.SubscriptionsInput{
-		AppID:                     opts.AppID,
-		Subscriptions:             subs,
-		AvailableTerritories:      availableTerritories,
-		AppAvailableTerritories:   appAvailableTerritories,
-		PricingTerritories:        pricingTerritories,
-		PricingTerritoryCount:     len(pricingTerritories),
-		PricingCoverageSkipReason: pricingCoverageSkipReason,
-		AppBuildCount:             buildCount,
-		BuildCheckSkipped:         buildCheckSkipped,
-		BuildCheckSkipReason:      buildCheckSkipReason,
+		AppID:                             opts.AppID,
+		Subscriptions:                     subs,
+		AvailableTerritories:              availableTerritories,
+		AppAvailableTerritories:           appAvailableTerritories,
+		AppAvailabilityCoverageSkipReason: appAvailabilityCoverageSkipReason,
+		PricingTerritories:                pricingTerritories,
+		PricingTerritoryCount:             len(pricingTerritories),
+		PricingCoverageSkipReason:         pricingCoverageSkipReason,
+		AppBuildCount:                     buildCount,
+		BuildCheckSkipped:                 buildCheckSkipped,
+		BuildCheckSkipReason:              buildCheckSkipReason,
 	}, opts.Strict)
 
 	return report, nil

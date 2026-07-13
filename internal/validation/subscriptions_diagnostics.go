@@ -69,7 +69,7 @@ func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagno
 			buildSubscriptionAvailabilityDiagnosticRow(sub),
 			buildPriceRecordsDiagnosticRow(sub),
 			buildSubscriptionAvailabilityCoverageDiagnosticRow(sub),
-			buildAppAvailabilityCoverageDiagnosticRow(sub, appTerritories, appTerritoryCount, input.PricingCoverageSkipReason),
+			buildAppAvailabilityCoverageDiagnosticRow(sub, appTerritories, appTerritoryCount, input.AppAvailabilityCoverageSkipReason),
 			buildPromotionalImageDiagnosticRow(sub),
 			buildAppBuildDiagnosticRow(input.AppBuildCount, input.BuildCheckSkipped, input.BuildCheckSkipReason),
 			buildOptionalOfferDiagnosticRow(
