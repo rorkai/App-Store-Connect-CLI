@@ -559,6 +559,81 @@ func TestSubscriptionsPricesAdd_ExistingMatchingPriceSkipsCreate(t *testing.T) {
 	}
 }
 
+func TestSubscriptionsPricesAdd_ForceRepostsExistingMatchingPrice(t *testing.T) {
+	setupAuth(t)
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	var posted bool
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/relationships/prices"):
+			body := `{"data":[{"type":"subscriptionPrices","id":"existing-price-1"}],"links":{}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/prices"):
+			body := subscriptionPriceListFixture("PP_ID", "USA", `{"planType":"UPFRONT"}`)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
+			posted = true
+			body := `{"data":{"type":"subscriptionPrices","id":"forced-price-1","attributes":{"planType":"UPFRONT"}}}`
+			return &http.Response{
+				StatusCode: http.StatusCreated,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	t.Setenv("HOME", t.TempDir())
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "prices", "set",
+			"--subscription-id", "8000000003",
+			"--price-point", "PP_ID",
+			"--territory", "USA",
+			"--force",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !posted {
+		t.Fatal("expected forced create request")
+	}
+	if !strings.Contains(stdout, `"id":"forced-price-1"`) {
+		t.Fatalf("expected forced subscription price response in stdout, got %q", stdout)
+	}
+}
+
+func TestSubscriptionsPricesAdd_ForceRejectsInvalidBoolean(t *testing.T) {
+	assertUsageExit(t, []string{
+		"subscriptions", "pricing", "prices", "set",
+		"--subscription-id", "8000000003",
+		"--price-point", "PP_ID",
+		"--force=maybe",
+	}, `invalid boolean value "maybe" for -force`)
+}
+
 func TestSubscriptionsPricesAdd_TierRequiresTerritory(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

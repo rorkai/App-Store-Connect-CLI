@@ -1150,6 +1150,7 @@ func SubscriptionsPricesAddCommand() *ffcli.Command {
 	territory := fs.String("territory", "", "Territory input (accepts alpha-2, alpha-3, or exact English country name; e.g., US, USA, United States)")
 	startDate := fs.String("start-date", "", "Start date (YYYY-MM-DD)")
 	preserved := fs.Bool("preserved", false, "Preserve existing prices")
+	force := fs.Bool("force", false, "Send the price write even when an identical price exists")
 	refresh := fs.Bool("refresh", false, "Force refresh of tier cache")
 	output := shared.BindOutputFlags(fs)
 
@@ -1163,7 +1164,12 @@ Examples:
   asc subscriptions prices add --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID"
   asc subscriptions prices add --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID" --territory "United States"
   asc subscriptions prices add --subscription-id "SUB_ID" --tier 5 --territory "US"
-  asc subscriptions prices add --subscription-id "SUB_ID" --price "4.99" --territory "France"`,
+  asc subscriptions prices add --subscription-id "SUB_ID" --price "4.99" --territory "France"
+  asc subscriptions prices add --subscription-id "SUB_ID" --price "4.99" --territory "France" --force
+
+By default, an identical existing price is returned without sending another
+write. Use --force when you intentionally need App Store Connect to process
+the same price assignment again.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1262,7 +1268,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("subscriptions prices add: failed to check matching price: %w", err)
 			}
-			if matchingPrice != nil {
+			if matchingPrice != nil && !*force {
 				return shared.PrintOutput(matchingPrice, *output.Output, *output.Pretty)
 			}
 
