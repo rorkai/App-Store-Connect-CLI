@@ -24,6 +24,7 @@ type validateSubscriptionsFixture struct {
 	availabilityV2                            string
 	availabilityV2Status                      int
 	territories                               string
+	pricingTerritories                        string
 	territoriesByQuery                        map[string]string
 	territoryStatusByQuery                    map[string]int
 	builds                                    string
@@ -84,6 +85,11 @@ func newValidateSubscriptionsClient(t *testing.T, fixture validateSubscriptionsF
 				return jsonResponse(http.StatusOK, fixture.availabilityV2)
 			}
 			return jsonResponse(http.StatusNotFound, notFound)
+		case path == "/v1/territories":
+			if fixture.pricingTerritories != "" {
+				return jsonResponse(http.StatusOK, fixture.pricingTerritories)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}],"links":{}}`)
 		case path == "/v1/apps/app-1/builds":
 			if fixture.buildsStatus != 0 {
 				return jsonResponse(fixture.buildsStatus, apiErrorJSONForStatus(fixture.buildsStatus))
@@ -304,6 +310,7 @@ func TestValidateSubscriptionsOutputsJSONAndTable(t *testing.T) {
 
 func TestValidateSubscriptionsWarnsPartialSubscriptionPricingCoverage(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
+	fixture.pricingTerritories = `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`
 	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`
 	fixture.territories = `{"data":[` +
 		`{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}},` +
@@ -347,6 +354,7 @@ func TestValidateSubscriptionsWarnsPartialSubscriptionPricingCoverage(t *testing
 
 func TestValidateSubscriptionsCountsAvailableTerritoriesAcrossPages(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
+	fixture.pricingTerritories = `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`
 	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`
 	fixture.territories = `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}}],"links":{"next":"https://api.appstoreconnect.apple.com/v2/appAvailabilities/avail-1/territoryAvailabilities?cursor=page-2"}}`
 	fixture.territoriesByQuery = map[string]string{
@@ -387,6 +395,7 @@ func TestValidateSubscriptionsCountsAvailableTerritoriesAcrossPages(t *testing.T
 
 func TestValidateSubscriptionsFallsBackToCountWhenAppTerritoryIDsAreIncomplete(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
+	fixture.pricingTerritories = `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`
 	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`
 	fixture.territories = `{"data":[
 		{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},
@@ -432,18 +441,20 @@ func TestValidateSubscriptionsFallsBackToCountWhenAppTerritoryIDsAreIncomplete(t
 		t.Fatalf("expected pricing coverage warning when app territory IDs are incomplete, got %+v", report.Checks)
 		return
 	}
-	if !strings.Contains(coverageCheck.Message, "1 of 2 available territories") {
-		t.Fatalf("expected count-based fallback coverage warning, got %+v", *coverageCheck)
-	}
-	if strings.Contains(coverageCheck.Message, "missing:") {
-		t.Fatalf("did not expect exact territory diff when app territory IDs are incomplete, got %+v", *coverageCheck)
+	if !strings.Contains(coverageCheck.Message, "1 of 2 App Store pricing territories") || !strings.Contains(coverageCheck.Message, "missing: CAN") {
+		t.Fatalf("expected canonical pricing-territory coverage warning, got %+v", *coverageCheck)
 	}
 }
 
-func TestValidateSubscriptionsSkipsPricingCoverageWhenAvailabilityForbidden(t *testing.T) {
+func TestValidateSubscriptionsChecksPricingMatrixWhenAvailabilityForbidden(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
 	fixture.availabilityV2Status = http.StatusForbidden
 	fixture.availabilityV2 = apiErrorJSONForStatus(http.StatusForbidden)
+	fixture.pricingTerritories = `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`
+	fixture.expectedPriceInclude = "territory"
+	fixture.pricesBySubscription = map[string]string{
+		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}]}`,
+	}
 
 	client := newValidateSubscriptionsClient(t, fixture)
 	restore := validate.SetClientFactory(func() (*asc.Client, error) {
@@ -468,18 +479,23 @@ func TestValidateSubscriptionsSkipsPricingCoverageWhenAvailabilityForbidden(t *t
 	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
 		t.Fatalf("failed to parse JSON output: %v", err)
 	}
-	if !hasCheckWithID(report.Checks, "subscriptions.pricing_coverage.unverified") {
-		t.Fatalf("expected pricing coverage skip info check, got %+v", report.Checks)
+	if hasCheckWithID(report.Checks, "subscriptions.pricing_coverage.unverified") {
+		t.Fatalf("did not expect app availability failure to suppress pricing-matrix validation, got %+v", report.Checks)
 	}
-	if hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
-		t.Fatalf("did not expect pricing coverage warning when availability could not be read, got %+v", report.Checks)
+	if !hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
+		t.Fatalf("expected missing canonical pricing territory to be reported, got %+v", report.Checks)
 	}
 }
 
-func TestValidateSubscriptionsSkipsPricingCoverageWhenAvailabilityRateLimited(t *testing.T) {
+func TestValidateSubscriptionsChecksPricingMatrixWhenAvailabilityRateLimited(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
 	fixture.availabilityV2Status = http.StatusTooManyRequests
 	fixture.availabilityV2 = apiErrorJSONForStatus(http.StatusTooManyRequests)
+	fixture.pricingTerritories = `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`
+	fixture.expectedPriceInclude = "territory"
+	fixture.pricesBySubscription = map[string]string{
+		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}]}`,
+	}
 
 	client := newValidateSubscriptionsClient(t, fixture)
 	restore := validate.SetClientFactory(func() (*asc.Client, error) {
@@ -505,26 +521,15 @@ func TestValidateSubscriptionsSkipsPricingCoverageWhenAvailabilityRateLimited(t 
 		t.Fatalf("failed to parse JSON output: %v", err)
 	}
 
-	var skipCheck *validation.CheckResult
-	for i := range report.Checks {
-		if report.Checks[i].ID == "subscriptions.pricing_coverage.unverified" {
-			skipCheck = &report.Checks[i]
-			break
-		}
+	if hasCheckWithID(report.Checks, "subscriptions.pricing_coverage.unverified") {
+		t.Fatalf("did not expect app availability rate limit to suppress pricing-matrix validation, got %+v", report.Checks)
 	}
-	if skipCheck == nil {
-		t.Fatalf("expected pricing coverage skip info check, got %+v", report.Checks)
-		return
-	}
-	if !strings.Contains(skipCheck.Remediation, "temporarily unavailable or rate limited") {
-		t.Fatalf("expected retryable remediation, got %+v", *skipCheck)
-	}
-	if hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
-		t.Fatalf("did not expect pricing coverage warning when availability is retryable, got %+v", report.Checks)
+	if !hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
+		t.Fatalf("expected missing canonical pricing territory to be reported, got %+v", report.Checks)
 	}
 }
 
-func TestValidateSubscriptionsSkipsPricingCoverageWhenPaginatedAvailabilityRateLimited(t *testing.T) {
+func TestValidateSubscriptionsChecksPricingMatrixWhenPaginatedAvailabilityRateLimited(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
 	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`
 	fixture.territories = `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}}],"links":{"next":"https://api.appstoreconnect.apple.com/v2/appAvailabilities/avail-1/territoryAvailabilities?cursor=page-2"}}`
@@ -535,6 +540,7 @@ func TestValidateSubscriptionsSkipsPricingCoverageWhenPaginatedAvailabilityRateL
 	fixture.pricesBySubscription = map[string]string{
 		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}]}`,
 	}
+	fixture.pricingTerritories = `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`
 
 	client := newValidateSubscriptionsClient(t, fixture)
 	restore := validate.SetClientFactory(func() (*asc.Client, error) {
@@ -560,26 +566,15 @@ func TestValidateSubscriptionsSkipsPricingCoverageWhenPaginatedAvailabilityRateL
 		t.Fatalf("failed to parse JSON output: %v", err)
 	}
 
-	var skipCheck *validation.CheckResult
-	for i := range report.Checks {
-		if report.Checks[i].ID == "subscriptions.pricing_coverage.unverified" {
-			skipCheck = &report.Checks[i]
-			break
-		}
+	if hasCheckWithID(report.Checks, "subscriptions.pricing_coverage.unverified") {
+		t.Fatalf("did not expect paginated app availability failure to suppress pricing-matrix validation, got %+v", report.Checks)
 	}
-	if skipCheck == nil {
-		t.Fatalf("expected pricing coverage skip info check, got %+v", report.Checks)
-		return
-	}
-	if !strings.Contains(skipCheck.Remediation, "temporarily unavailable or rate limited") {
-		t.Fatalf("expected retryable remediation, got %+v", *skipCheck)
-	}
-	if hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
-		t.Fatalf("did not expect pricing coverage warning when paginated availability is retryable, got %+v", report.Checks)
+	if !hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
+		t.Fatalf("expected missing canonical pricing territory to be reported, got %+v", report.Checks)
 	}
 }
 
-func TestValidateSubscriptionsSkipsPricingCoverageWhenPaginatedAvailabilityTimeoutHasPartialCount(t *testing.T) {
+func TestValidateSubscriptionsChecksPricingMatrixWhenPaginatedAvailabilityHasPartialCount(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
 	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`
 	fixture.territories = `{"data":[
@@ -593,6 +588,7 @@ func TestValidateSubscriptionsSkipsPricingCoverageWhenPaginatedAvailabilityTimeo
 	fixture.pricesBySubscription = map[string]string{
 		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}]}`,
 	}
+	fixture.pricingTerritories = `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}],"links":{}}`
 
 	client := newValidateSubscriptionsClient(t, fixture)
 	restore := validate.SetClientFactory(func() (*asc.Client, error) {
@@ -617,11 +613,11 @@ func TestValidateSubscriptionsSkipsPricingCoverageWhenPaginatedAvailabilityTimeo
 	if err := json.Unmarshal([]byte(stdout), &report); err != nil {
 		t.Fatalf("failed to parse JSON output: %v", err)
 	}
-	if !hasCheckWithID(report.Checks, "subscriptions.pricing_coverage.unverified") {
-		t.Fatalf("expected pricing coverage skip info check, got %+v", report.Checks)
+	if hasCheckWithID(report.Checks, "subscriptions.pricing_coverage.unverified") {
+		t.Fatalf("did not expect partial app availability to suppress pricing-matrix validation, got %+v", report.Checks)
 	}
-	if hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
-		t.Fatalf("did not expect pricing coverage warning when only a partial availability count was fetched, got %+v", report.Checks)
+	if !hasCheckWithID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
+		t.Fatalf("expected missing canonical pricing territory to be reported, got %+v", report.Checks)
 	}
 }
 

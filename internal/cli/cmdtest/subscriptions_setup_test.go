@@ -1030,6 +1030,16 @@ func TestSubscriptionsSetupReusesExistingPriceAndAvailability(t *testing.T) {
 				t.Fatalf("expected second availability territories page, got cursor %q", got)
 			}
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}],"links":{"next":""}}`), nil
+		case 6:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptionPricePoints/price-point-1/equalizations" {
+				t.Fatalf("unexpected equalizations request: %s %s", req.Method, req.URL.String())
+			}
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
+		case 7:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/sub-1/prices" {
+				t.Fatalf("unexpected price matrix read: %s %s", req.Method, req.URL.String())
+			}
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"price-point-1"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{"next":""}}`), nil
 		default:
 			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL.String())
 			return nil, nil
@@ -1070,7 +1080,7 @@ func TestSubscriptionsSetupReusesExistingPriceAndAvailability(t *testing.T) {
 		t.Fatalf("unexpected setup result: %+v", result)
 	}
 	wantMessages := map[string]string{
-		"set_price":        "used existing price",
+		"set_price":        "verified complete price matrix across 1 territories",
 		"set_availability": "used existing availability",
 	}
 	for name, want := range wantMessages {
@@ -1087,7 +1097,7 @@ func TestSubscriptionsSetupReusesExistingPriceAndAvailability(t *testing.T) {
 			t.Fatalf("expected step %q in %+v", name, result.Steps)
 		}
 	}
-	if requestCount != 5 {
+	if requestCount != 7 {
 		t.Fatalf("expected lookup requests only, got %d", requestCount)
 	}
 }
@@ -1112,17 +1122,27 @@ func TestSubscriptionsSetupRepairResavesMatchingPrice(t *testing.T) {
 		case 4:
 			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"territories","id":"USA"}],"links":{"next":""}}`), nil
 		case 5:
-			if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionPrices" {
-				t.Fatalf("expected repair price POST, got %s %s", req.Method, req.URL.String())
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptionPricePoints/price-point-1/equalizations" {
+				t.Fatalf("expected repair equalizations GET, got %s %s", req.Method, req.URL.String())
 			}
-			var payload asc.SubscriptionPriceCreateRequest
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
+		case 6:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/sub-1/prices" {
+				t.Fatalf("expected repair state GET, got %s %s", req.Method, req.URL.String())
+			}
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"planType":"UPFRONT"},"relationships":{"subscriptionPricePoint":{"data":{"type":"subscriptionPricePoints","id":"price-point-1"}},"territory":{"data":{"type":"territories","id":"USA"}}}}],"links":{"next":""}}`), nil
+		case 7:
+			if req.Method != http.MethodPatch || req.URL.Path != "/v1/subscriptions/sub-1" {
+				t.Fatalf("expected repair matrix PATCH, got %s %s", req.Method, req.URL.String())
+			}
+			var payload asc.SubscriptionUpdateRequest
 			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-				t.Fatalf("decode repair price payload: %v", err)
+				t.Fatalf("decode repair matrix payload: %v", err)
 			}
-			if payload.Data.Attributes != nil && payload.Data.Attributes.PlanType != "" {
-				t.Fatalf("expected repair price POST to omit planType, got %+v", payload.Data.Attributes)
+			if len(payload.Included) != 1 || payload.Included[0].Attributes == nil || payload.Included[0].Attributes.PlanType != asc.SubscriptionPlanTypeUpfront {
+				t.Fatalf("expected one UPFRONT repair matrix row, got %+v", payload.Included)
 			}
-			return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionPrices","id":"price-repair","attributes":{"planType":"UPFRONT"}}}`), nil
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"sub-1"}}`), nil
 		default:
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			return nil, nil
@@ -1156,7 +1176,7 @@ func TestSubscriptionsSetupRepairResavesMatchingPrice(t *testing.T) {
 	}
 	foundRepair := false
 	for _, step := range result.Steps {
-		if step.Name == "set_price" && step.Message == "re-saved existing price for repair" {
+		if step.Name == "set_price" && step.Message == "materialized complete price matrix across 1 territories" {
 			foundRepair = true
 		}
 	}
@@ -1295,6 +1315,12 @@ func TestSubscriptionsSetupPricingAutoEnablesPriceTerritoryAvailability(t *testi
 
 	requestCount := 0
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/pp-nok-19/equalizations" {
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
+		}
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/sub-1/prices" {
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
+		}
 		requestCount++
 		switch requestCount {
 		case 1:
@@ -1439,12 +1465,15 @@ func TestSubscriptionsSetupCreateLocalizationPricingAndAvailabilitySuccess(t *te
 			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 				t.Fatalf("decode CAN starting price payload: %v", err)
 			}
-			if len(payload.Included) != 1 || payload.Included[0].Relationships.Territory == nil || payload.Included[0].Relationships.Territory.Data.ID != "CAN" || payload.Included[0].Relationships.SubscriptionPricePoint.Data.ID != "pp-can-399" {
-				t.Fatalf("unexpected CAN starting price payload: %+v", payload.Included)
+			if len(payload.Included) != 2 {
+				t.Fatalf("expected complete USA/CAN matrix, got %+v", payload.Included)
 			}
-			if payload.Included[0].Attributes == nil || payload.Included[0].Attributes.PlanType != asc.SubscriptionPlanTypeUpfront {
-				t.Fatalf("expected CAN inline starting price to include UPFRONT planType, got %+v", payload.Included[0].Attributes)
+			for _, included := range payload.Included {
+				if included.Attributes == nil || included.Attributes.PlanType != asc.SubscriptionPlanTypeUpfront {
+					t.Fatalf("expected each matrix row to include UPFRONT planType, got %+v", included.Attributes)
+				}
 			}
+			requestCount++ // replace the historical single-price PATCH slot
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"sub-1","attributes":{"state":"MISSING_METADATA"}}}`), nil
 		}
 		if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/sub-1/prices" && req.URL.Query().Get("filter[planType]") == "UPFRONT" && req.URL.Query().Get("filter[territory]") == "" {
@@ -1679,6 +1708,12 @@ func TestSubscriptionsSetupNormalizesTerritories(t *testing.T) {
 
 	requestCount := 0
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/pp-399/equalizations" {
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"pp-fra-399","attributes":{"customerPrice":"3.99"},"relationships":{"territory":{"data":{"type":"territories","id":"FRA"}}}}],"links":{}}`), nil
+		}
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptions/sub-1/prices" {
+			return jsonHTTPResponse(http.StatusOK, `{"data":[],"links":{}}`), nil
+		}
 		requestCount++
 		switch requestCount {
 		case 1:
@@ -1708,6 +1743,14 @@ func TestSubscriptionsSetupNormalizesTerritories(t *testing.T) {
 			if req.Method != http.MethodPatch || req.URL.Path != "/v1/subscriptions/sub-1" {
 				t.Fatalf("unexpected initial price request: %s %s", req.Method, req.URL.Path)
 			}
+			var payload asc.SubscriptionUpdateRequest
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode full price matrix: %v", err)
+			}
+			if len(payload.Included) != 2 {
+				t.Fatalf("expected USA/FRA price matrix, got %+v", payload.Included)
+			}
+			requestCount = 8
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"sub-1","attributes":{"name":"Pro Monthly","productId":"com.example.pro.monthly","subscriptionPeriod":"ONE_MONTH","state":"MISSING_METADATA"}}}`), nil
 		case 6:
 			if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptionPricePoints/pp-399/equalizations" {

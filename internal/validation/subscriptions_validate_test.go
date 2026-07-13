@@ -168,7 +168,7 @@ func TestSubscriptionPricingCoverage_SkipsWhenPriceCheckSkipped(t *testing.T) {
 	}
 }
 
-func TestSubscriptionPricingCoverage_PrefersSubscriptionAvailabilityTerritories(t *testing.T) {
+func TestSubscriptionPricingCoverage_RequiresFullPricingMatrixWhenAvailabilityIsNarrower(t *testing.T) {
 	checks := subscriptionPricingCoverageChecks([]Subscription{
 		{
 			ID:                      "sub-1",
@@ -180,8 +180,11 @@ func TestSubscriptionPricingCoverage_PrefersSubscriptionAvailabilityTerritories(
 			PriceTerritories:        []string{"USA"},
 		},
 	}, 2, []string{"USA", "CAN"})
-	if len(checks) != 0 {
-		t.Fatalf("expected no app-territory warning when subscription availability is narrower, got %v", checks)
+	if !hasCheckID(checks, "subscriptions.pricing.partial_territory_coverage") {
+		t.Fatalf("expected full pricing matrix warning even when sale availability is narrower, got %v", checks)
+	}
+	if !strings.Contains(checks[0].Message, "CAN") {
+		t.Fatalf("expected missing pricing territory in warning, got %q", checks[0].Message)
 	}
 }
 
@@ -618,11 +621,13 @@ func TestValidateSubscriptionsFallsBackToAppTerritoryCountInDiagnostics(t *testi
 	}
 }
 
-func TestValidateSubscriptionsTreatsAppOnlyTerritoriesAsAdvisoryInDiagnostics(t *testing.T) {
+func TestValidateSubscriptionsTreatsIncompletePricingMatrixAsBlocker(t *testing.T) {
 	report := ValidateSubscriptions(SubscriptionsInput{
 		AppID:                   "app-1",
 		AppBuildCount:           1,
 		AppAvailableTerritories: []string{"USA", "CAN"},
+		PricingTerritories:      []string{"USA", "CAN"},
+		PricingTerritoryCount:   2,
 		Subscriptions: []Subscription{
 			{
 				ID:                                 "sub-1",
@@ -649,8 +654,12 @@ func TestValidateSubscriptionsTreatsAppOnlyTerritoriesAsAdvisoryInDiagnostics(t 
 	}
 
 	diag := report.Diagnostics[0]
-	if diag.Conclusion != "opaque_apple_state" {
-		t.Fatalf("expected opaque_apple_state when only app-only territories remain, got %+v", diag)
+	if diag.Conclusion != "known_blocker" {
+		t.Fatalf("expected incomplete full pricing matrix to be a known blocker, got %+v", diag)
+	}
+	matrixRow, ok := findSubscriptionDiagnosticRow(diag.Rows, "complete_pricing_matrix")
+	if !ok || matrixRow.Status != DiagnosticStatusNo || !matrixRow.Blocking {
+		t.Fatalf("expected blocking full pricing matrix diagnostic, got %+v", matrixRow)
 	}
 
 	appCoverageRow, ok := findSubscriptionDiagnosticRow(diag.Rows, "price_coverage_app_availability")
@@ -732,8 +741,8 @@ func TestValidateSubscriptionsSkipsAppCoverageUntilSubscriptionAvailabilityExist
 		},
 	}, false)
 
-	if hasCheckID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
-		t.Fatalf("did not expect app-territory pricing warning before subscription availability exists, got %+v", report.Checks)
+	if !hasCheckID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
+		t.Fatalf("expected pricing matrix warning independent of subscription availability, got %+v", report.Checks)
 	}
 	if len(report.Diagnostics) != 1 {
 		t.Fatalf("expected one subscription diagnostics entry, got %+v", report.Diagnostics)

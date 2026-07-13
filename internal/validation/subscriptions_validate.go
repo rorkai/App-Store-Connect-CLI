@@ -67,6 +67,8 @@ type SubscriptionsInput struct {
 	Subscriptions             []Subscription
 	AvailableTerritories      int
 	AppAvailableTerritories   []string
+	PricingTerritories        []string
+	PricingTerritoryCount     int
 	PricingCoverageSkipReason string
 	AppBuildCount             int
 	BuildCheckSkipped         bool
@@ -85,11 +87,17 @@ type SubscriptionsReport struct {
 
 // ValidateSubscriptions validates subscription review readiness and returns a report.
 func ValidateSubscriptions(input SubscriptionsInput, strict bool) SubscriptionsReport {
-	availableTerritories := input.AvailableTerritories
-	appAvailableTerritories := input.AppAvailableTerritories
+	pricingTerritoryCount := input.PricingTerritoryCount
+	pricingTerritories := input.PricingTerritories
+	// Preserve programmatic callers compiled before pricing-territory discovery
+	// was added; the CLI always supplies the canonical pricing universe.
+	if pricingTerritoryCount == 0 && len(pricingTerritories) == 0 {
+		pricingTerritoryCount = input.AvailableTerritories
+		pricingTerritories = input.AppAvailableTerritories
+	}
 	if input.PricingCoverageSkipReason != "" {
-		availableTerritories = 0
-		appAvailableTerritories = nil
+		pricingTerritoryCount = 0
+		pricingTerritories = nil
 	}
 
 	checks := make([]CheckResult, 0)
@@ -98,7 +106,7 @@ func ValidateSubscriptions(input SubscriptionsInput, strict bool) SubscriptionsR
 	checks = append(checks, subscriptionPricingVerificationChecks(input.Subscriptions)...)
 	checks = append(checks, subscriptionPricingCoverageSkipChecks(input.AppID, input.PricingCoverageSkipReason)...)
 	checks = append(checks, subscriptionMetadataDiagnostics(input.Subscriptions)...)
-	checks = append(checks, subscriptionPricingCoverageChecks(input.Subscriptions, availableTerritories, appAvailableTerritories)...)
+	checks = append(checks, subscriptionPricingCoverageChecks(input.Subscriptions, pricingTerritoryCount, pricingTerritories)...)
 	diagnostics := buildSubscriptionDiagnostics(input)
 	summary := summarize(checks, strict)
 
@@ -286,16 +294,16 @@ func subscriptionPricingCoverageSkipChecks(appID, reason string) []CheckResult {
 	}}
 }
 
-// subscriptionPricingCoverageChecks warns when a subscription has prices configured
-// but doesn't cover all territories the app is available in. This catches the common
-// submission failure where only a single territory (e.g., US) has pricing set.
-func subscriptionPricingCoverageChecks(subs []Subscription, availableTerritories int, appAvailableTerritories []string) []CheckResult {
-	appAvailableTerritories = sortedUniqueNonEmpty(appAvailableTerritories)
-	if len(appAvailableTerritories) == 0 && availableTerritories <= 0 {
+// subscriptionPricingCoverageChecks warns when a subscription does not have the
+// complete pricing matrix returned by App Store Connect. Sale availability is an
+// independent subset and must not narrow this check.
+func subscriptionPricingCoverageChecks(subs []Subscription, availableTerritories int, pricingTerritories []string) []CheckResult {
+	pricingTerritories = sortedUniqueNonEmpty(pricingTerritories)
+	if len(pricingTerritories) == 0 && availableTerritories <= 0 {
 		return nil
 	}
-	if len(appAvailableTerritories) > 0 {
-		availableTerritories = len(appAvailableTerritories)
+	if len(pricingTerritories) > 0 {
+		availableTerritories = len(pricingTerritories)
 	}
 
 	var checks []CheckResult
@@ -310,47 +318,8 @@ func subscriptionPricingCoverageChecks(subs []Subscription, availableTerritories
 
 		label := formatSubscriptionLabel(sub)
 		priceTerritories := sortedUniqueNonEmpty(sub.PriceTerritories)
-		subscriptionAvailabilityTerritories := sortedUniqueNonEmpty(sub.AvailabilityTerritories)
-		if state == "MISSING_METADATA" {
-			availabilityUnknown := sub.AvailabilityCheckSkipped || strings.TrimSpace(sub.AvailabilityID) == ""
-			availabilityEmpty := strings.TrimSpace(sub.AvailabilityID) != "" && len(subscriptionAvailabilityTerritories) == 0
-			if availabilityUnknown || availabilityEmpty {
-				continue
-			}
-		}
-		if len(subscriptionAvailabilityTerritories) > 0 {
-			if len(priceTerritories) > 0 {
-				missing := missingValues(subscriptionAvailabilityTerritories, priceTerritories)
-				if len(missing) == 0 {
-					continue
-				}
-				checks = append(checks, CheckResult{
-					ID:           "subscriptions.pricing.partial_territory_coverage",
-					Severity:     SeverityWarning,
-					Field:        "pricing",
-					ResourceType: "subscription",
-					ResourceID:   strings.TrimSpace(sub.ID),
-					Message:      fmt.Sprintf("%s has pricing for %d of %d subscription availability territories; missing: %s", label, len(priceTerritories), len(subscriptionAvailabilityTerritories), strings.Join(missing, ",")),
-					Remediation:  "Set prices for all subscription availability territories using `asc subscriptions pricing equalize` or `asc subscriptions pricing prices set`; missing territory pricing blocks App Store submission",
-				})
-				continue
-			}
-			if sub.PriceCount >= len(subscriptionAvailabilityTerritories) {
-				continue
-			}
-			checks = append(checks, CheckResult{
-				ID:           "subscriptions.pricing.partial_territory_coverage",
-				Severity:     SeverityWarning,
-				Field:        "pricing",
-				ResourceType: "subscription",
-				ResourceID:   strings.TrimSpace(sub.ID),
-				Message:      fmt.Sprintf("%s has pricing for %d of %d subscription availability territories", label, sub.PriceCount, len(subscriptionAvailabilityTerritories)),
-				Remediation:  "Set prices for all subscription availability territories using `asc subscriptions pricing equalize` or `asc subscriptions pricing prices set`; missing territory pricing blocks App Store submission",
-			})
-			continue
-		}
-		if len(appAvailableTerritories) > 0 && len(priceTerritories) > 0 {
-			missing := missingValues(appAvailableTerritories, priceTerritories)
+		if len(pricingTerritories) > 0 && len(priceTerritories) > 0 {
+			missing := missingValues(pricingTerritories, priceTerritories)
 			if len(missing) == 0 {
 				continue
 			}
@@ -360,8 +329,8 @@ func subscriptionPricingCoverageChecks(subs []Subscription, availableTerritories
 				Field:        "pricing",
 				ResourceType: "subscription",
 				ResourceID:   strings.TrimSpace(sub.ID),
-				Message:      fmt.Sprintf("%s has pricing for %d of %d app availability territories; missing: %s", label, len(priceTerritories), len(appAvailableTerritories), strings.Join(missing, ",")),
-				Remediation:  "Set prices for all app availability territories using `asc subscriptions pricing equalize` or `asc subscriptions pricing prices set`; missing territory pricing blocks App Store submission",
+				Message:      fmt.Sprintf("%s has pricing for %d of %d App Store pricing territories; missing: %s", label, len(priceTerritories), len(pricingTerritories), strings.Join(missing, ",")),
+				Remediation:  "Materialize the complete App Store pricing matrix using `asc subscriptions setup --repair` or `asc subscriptions pricing equalize`; missing pricing territories can leave Apple reporting MISSING_METADATA",
 			})
 			continue
 		}
@@ -374,8 +343,8 @@ func subscriptionPricingCoverageChecks(subs []Subscription, availableTerritories
 			Field:        "pricing",
 			ResourceType: "subscription",
 			ResourceID:   strings.TrimSpace(sub.ID),
-			Message:      fmt.Sprintf("%s has pricing for %d of %d available territories", label, sub.PriceCount, availableTerritories),
-			Remediation:  "Set prices for all available territories using `asc subscriptions pricing equalize` or `asc subscriptions pricing prices set`; missing territory pricing blocks App Store submission",
+			Message:      fmt.Sprintf("%s has pricing for %d of %d App Store pricing territories", label, sub.PriceCount, availableTerritories),
+			Remediation:  "Materialize the complete App Store pricing matrix using `asc subscriptions setup --repair` or `asc subscriptions pricing equalize`; missing pricing territories can leave Apple reporting MISSING_METADATA",
 		})
 	}
 

@@ -109,3 +109,19 @@ func availabilityCheckSkipReason(err error) (string, bool) {
 
 	return "", false
 }
+
+func pricingTerritoryCheckSkipReason(err error) (string, bool) {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "Subscription pricing matrix verification was skipped because the App Store pricing territories endpoint timed out", true
+	case errors.Is(err, asc.ErrForbidden) || asc.IsUnauthorized(err):
+		return "Subscription pricing matrix verification was skipped because this App Store Connect account cannot read pricing territories", true
+	case asc.IsRetryable(err):
+		return "Subscription pricing matrix verification was skipped because the App Store pricing territories endpoint was temporarily unavailable or rate limited", true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return "Subscription pricing matrix verification was skipped because the App Store pricing territories endpoint could not be reached", true
+	}
+	return "", false
+}

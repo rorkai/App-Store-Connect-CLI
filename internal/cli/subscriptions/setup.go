@@ -167,7 +167,7 @@ func SubscriptionsSetupCommand() *ffcli.Command {
 	availableInNewTerritories := fs.Bool("available-in-new-territories", false, "Include new territories automatically when creating availability")
 	enableMonthlyCommitment := fs.Bool("enable-monthly-commitment", false, "Also configure Monthly with 12-Month Commitment availability for ONE_YEAR subscriptions")
 	noVerify := fs.Bool("no-verify", false, "Skip post-create readback verification for faster execution")
-	repair := fs.Bool("repair", false, "Re-send matching price writes to trigger App Store Connect metadata recalculation")
+	repair := fs.Bool("repair", false, "Atomically rebuild and re-save the complete equalized price matrix")
 	output := shared.BindOutputFlags(fs)
 
 	shared.HideFlagFromHelp(fs.Lookup("group-ref-name"))
@@ -186,15 +186,15 @@ The setup command is create-oriented: use it when you want a one-shot happy
 path for a new subscription. Existing low-level commands remain available
 for partial updates, repair flows, and advanced cases.
 
-When pricing and availability cover multiple territories, setup uses Apple's
-price-point equalizations to create a price in every enabled territory.
+Setup uses Apple's price-point equalizations to materialize the complete App
+Store price matrix. Sale availability remains the independently selected subset.
 
 By default, setup reads Apple's final subscription state back and verifies the
 resulting metadata, screenshot delivery, pricing, and availability. A final
 MISSING_METADATA state fails the command and includes deep diagnostics when
---app is available. Use --repair to replay same-value price writes when Apple
-needs a metadata recalculation. Use --no-verify only when intentionally
-skipping these postcondition checks.
+--app is available. Use --repair to atomically rebuild and re-save that complete
+matrix even when the selected base price is unchanged. Use --no-verify only
+when intentionally skipping these postcondition checks.
 
 Examples:
   asc subscriptions setup --app "APP_ID" --group-reference-name "Pro" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH
@@ -577,7 +577,6 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 	}
 
 	var preflightPricePointID string
-	var preflightExistingPrice asc.Resource[asc.SubscriptionPriceAttributes]
 	var preflightFoundPrice bool
 	var preflightHasExistingPrices bool
 	pricePreflightDone := false
@@ -602,7 +601,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			PlanType:  asc.SubscriptionPlanTypeUpfront,
 		}
 		priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
-		preflightExistingPrice, preflightFoundPrice, preflightHasExistingPrices, err = findExistingSubscriptionSetupPrice(priceCtx, client, result.SubscriptionID, resolvedPricePointID, opts.PriceTerritory, priceAttrs)
+		preflightFoundPrice, preflightHasExistingPrices, err = findExistingSubscriptionSetupPrice(priceCtx, client, result.SubscriptionID, resolvedPricePointID, opts.PriceTerritory, priceAttrs)
 		priceCancel()
 		if err != nil {
 			result.Status = "error"
@@ -812,17 +811,15 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 			StartDate: opts.StartDate,
 			PlanType:  asc.SubscriptionPlanTypeUpfront,
 		}
-		var existingPrice asc.Resource[asc.SubscriptionPriceAttributes]
 		found := false
 		hasExistingPrices := false
 		if reusedSubscription {
 			if pricePreflightDone {
-				existingPrice = preflightExistingPrice
 				found = preflightFoundPrice
 				hasExistingPrices = preflightHasExistingPrices
 			} else {
 				priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
-				existingPrice, found, hasExistingPrices, err = findExistingSubscriptionSetupPrice(priceCtx, client, result.SubscriptionID, result.ResolvedPricePointID, opts.PriceTerritory, priceAttrs)
+				found, hasExistingPrices, err = findExistingSubscriptionSetupPrice(priceCtx, client, result.SubscriptionID, result.ResolvedPricePointID, opts.PriceTerritory, priceAttrs)
 				priceCancel()
 				if err != nil {
 					result.Status = "error"
@@ -837,29 +834,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 				}
 			}
 		}
-		if found && opts.Repair {
-			repairAttrs := priceAttrs
-			repairAttrs.PlanType = ""
-			priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
-			priceResp, writeErr := client.CreateSubscriptionPrice(priceCtx, result.SubscriptionID, result.ResolvedPricePointID, opts.PriceTerritory, repairAttrs)
-			priceCancel()
-			if writeErr != nil {
-				return failSubscriptionsSetupStep(result, subscriptionsSetupStepSetPrice, writeErr, "failed to re-save existing price for repair")
-			}
-			result.Steps = append(result.Steps, subscriptionsSetupStepResult{
-				Name:    subscriptionsSetupStepSetPrice,
-				Status:  "completed",
-				ID:      strings.TrimSpace(priceResp.Data.ID),
-				Message: "re-saved existing price for repair",
-			})
-		} else if found {
-			result.Steps = append(result.Steps, subscriptionsSetupStepResult{
-				Name:    subscriptionsSetupStepSetPrice,
-				Status:  "completed",
-				ID:      strings.TrimSpace(existingPrice.ID),
-				Message: "used existing price",
-			})
-		} else if hasExistingPrices {
+		if hasExistingPrices && !found && !opts.Repair {
 			err := mismatchedExistingSubscriptionSetupPriceError(result.SubscriptionID)
 			result.Status = "error"
 			result.Error = err.Error()
@@ -870,31 +845,21 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 				Message: err.Error(),
 			})
 			return result, err
-		} else {
-			priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
-			_, err = client.SetSubscriptionInitialPrice(priceCtx, result.SubscriptionID, result.ResolvedPricePointID, opts.PriceTerritory, priceAttrs)
-			priceCancel()
-			if err != nil {
-				result.Status = "error"
-				result.Error = err.Error()
-				result.FailedStep = subscriptionsSetupStepSetPrice
-				result.Steps = append(result.Steps, subscriptionsSetupStepResult{
-					Name:    subscriptionsSetupStepSetPrice,
-					Status:  "failed",
-					Message: err.Error(),
-				})
-				return result, fmt.Errorf("subscriptions setup: failed to set initial price: %w", err)
-			}
-			result.Steps = append(result.Steps, subscriptionsSetupStepResult{
-				Name:   subscriptionsSetupStepSetPrice,
-				Status: "completed",
-				ID:     result.SubscriptionID,
-			})
 		}
-
-		if err := ensureSubscriptionsSetupPriceCoverage(ctx, client, result.SubscriptionID, result.ResolvedPricePointID, opts.PriceTerritory, availabilityTerritories, priceAttrs, opts.Repair); err != nil {
-			return failSubscriptionsSetupStep(result, subscriptionsSetupStepSetPrice, err, "failed to set price coverage")
+		matrixTerritories, mutated, err := ensureSubscriptionsSetupPriceMatrix(ctx, client, result.SubscriptionID, result.ResolvedPricePointID, opts.PriceTerritory, priceAttrs, opts.Repair)
+		if err != nil {
+			return failSubscriptionsSetupStep(result, subscriptionsSetupStepSetPrice, err, "failed to materialize complete price matrix")
 		}
+		message := fmt.Sprintf("verified complete price matrix across %d territories", len(matrixTerritories))
+		if mutated {
+			message = fmt.Sprintf("materialized complete price matrix across %d territories", len(matrixTerritories))
+		}
+		result.Steps = append(result.Steps, subscriptionsSetupStepResult{
+			Name:    subscriptionsSetupStepSetPrice,
+			Status:  "completed",
+			ID:      result.SubscriptionID,
+			Message: message,
+		})
 	}
 
 	if len(availabilityTerritories) == 0 {
@@ -1198,7 +1163,52 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 		}
 	}
 
-	if len(verification.Territories) > 0 {
+	if opts.hasPricing(opts.StartDate) {
+		equalizations, err := fetchEqualizations(ctx, client, result.ResolvedPricePointID, opts.PriceTerritory)
+		if err != nil {
+			verification.Status = "failed"
+			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, fmt.Errorf("fetch expected price matrix: %w", err)
+		}
+		priceAttrs := asc.SubscriptionPriceCreateAttributes{StartDate: opts.StartDate, PlanType: asc.SubscriptionPlanTypeUpfront}
+		expectedMatrix, err := buildSubscriptionSetupPriceMatrix(result.ResolvedPricePointID, opts.PriceTerritory, priceAttrs, equalizations)
+		if err != nil {
+			verification.Status = "failed"
+			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, err
+		}
+		expectedTerritories := make([]string, 0, len(expectedMatrix))
+		for _, target := range expectedMatrix {
+			expectedTerritories = append(expectedTerritories, target.TerritoryID)
+		}
+		priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
+		priceState, err := fetchSubscriptionPriceImportState(priceCtx, client, result.SubscriptionID)
+		priceCancel()
+		if err != nil {
+			verification.Status = "failed"
+			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: err.Error()}, fmt.Errorf("fetch subscription price coverage: %w", err)
+		}
+		verification.PricedTerritories, verification.MissingPriceTerritories = subscriptionSetupPriceCoverage(priceState.states, expectedTerritories)
+		covered := len(verification.MissingPriceTerritories) == 0
+		if covered {
+			for _, target := range expectedMatrix {
+				if !priceState.matches(subscriptionPriceImportResolvedRow{
+					territoryID:  target.TerritoryID,
+					pricePointID: target.PricePointID,
+					startDate:    strings.TrimSpace(target.Attributes.StartDate),
+					planType:     target.Attributes.PlanType,
+				}) {
+					covered = false
+					verification.MissingPriceTerritories = append(verification.MissingPriceTerritories, target.TerritoryID)
+				}
+			}
+		}
+		verification.PriceCoverageVerified = &covered
+		if !covered {
+			verification.Status = "failed"
+			sort.Strings(verification.MissingPriceTerritories)
+			message := fmt.Sprintf("incomplete or mismatched App Store price matrix for territories: %s", strings.Join(verification.MissingPriceTerritories, ","))
+			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: message}, fmt.Errorf("%s", message)
+		}
+	} else if len(verification.Territories) > 0 {
 		priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
 		priceState, err := fetchSubscriptionPriceImportState(priceCtx, client, result.SubscriptionID)
 		priceCancel()
@@ -1211,7 +1221,7 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 		verification.PriceCoverageVerified = &covered
 		if !covered {
 			verification.Status = "failed"
-			message := fmt.Sprintf("missing price coverage for availability territories: %s", strings.Join(verification.MissingPriceTerritories, ","))
+			message := fmt.Sprintf("missing price coverage for enabled availability territories: %s", strings.Join(verification.MissingPriceTerritories, ","))
 			return verification, subscriptionsSetupStepResult{Name: subscriptionsSetupStepVerifyState, Status: "failed", Message: message}, fmt.Errorf("%s", message)
 		}
 	}
@@ -1332,83 +1342,82 @@ func validateExistingSubscriptionSetupGroupLocalization(localization asc.Resourc
 	return nil
 }
 
-func ensureSubscriptionsSetupPriceCoverage(ctx context.Context, client *asc.Client, subscriptionID, basePricePointID, baseTerritory string, territories []string, attrs asc.SubscriptionPriceCreateAttributes, repair bool) error {
-	if len(territories) == 0 {
-		return nil
-	}
+func ensureSubscriptionsSetupPriceMatrix(ctx context.Context, client *asc.Client, subscriptionID, basePricePointID, baseTerritory string, attrs asc.SubscriptionPriceCreateAttributes, repair bool) ([]string, bool, error) {
 	baseTerritory = strings.ToUpper(strings.TrimSpace(baseTerritory))
-	needsEqualization := false
-	for _, territory := range territories {
-		if strings.ToUpper(strings.TrimSpace(territory)) != baseTerritory {
-			needsEqualization = true
-			break
-		}
-	}
-	if !needsEqualization {
-		return nil
-	}
 	equalizations, err := fetchEqualizations(ctx, client, basePricePointID, baseTerritory)
 	if err != nil {
-		return err
+		return nil, false, err
 	}
-	targetsByTerritory := map[string]equalization{
-		baseTerritory: {
-			Territory:    baseTerritory,
-			PricePointID: strings.TrimSpace(basePricePointID),
-		},
+	matrix, err := buildSubscriptionSetupPriceMatrix(basePricePointID, baseTerritory, attrs, equalizations)
+	if err != nil {
+		return nil, false, err
 	}
-	for _, target := range equalizations {
-		targetsByTerritory[strings.ToUpper(strings.TrimSpace(target.Territory))] = target
+	territories := make([]string, 0, len(matrix))
+	for _, target := range matrix {
+		territories = append(territories, target.TerritoryID)
 	}
 
 	state, err := fetchSubscriptionPriceImportState(ctx, client, subscriptionID)
 	if err != nil {
-		return err
+		return nil, false, err
 	}
-	for _, rawTerritory := range territories {
-		territory := strings.ToUpper(strings.TrimSpace(rawTerritory))
-		if territory == baseTerritory {
-			continue
-		}
-		target, ok := targetsByTerritory[territory]
-		if !ok || strings.TrimSpace(target.PricePointID) == "" {
-			return fmt.Errorf("no equalized price point found for availability territory %s", territory)
-		}
+	complete := true
+	for _, target := range matrix {
 		resolved := subscriptionPriceImportResolvedRow{
-			territoryID:  territory,
-			pricePointID: strings.TrimSpace(target.PricePointID),
+			territoryID:  target.TerritoryID,
+			pricePointID: target.PricePointID,
 			startDate:    strings.TrimSpace(attrs.StartDate),
 			planType:     attrs.PlanType,
 		}
-		matches := state.matches(resolved)
-		if matches && !repair {
-			continue
+		if !state.matches(resolved) {
+			complete = false
+			break
 		}
-		if !subscriptionSetupHasPricedTerritory(state.states, territory) {
-			priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
-			_, err := client.SetSubscriptionInitialPrice(priceCtx, subscriptionID, resolved.pricePointID, territory, attrs)
-			priceCancel()
-			if err != nil {
-				return fmt.Errorf("set starting %s price: %w", territory, err)
-			}
-			state.add(resolved)
-			continue
-		}
-		// planType is required on the inline initial-price resource, but sending
-		// UPFRONT on ordinary territory price POSTs causes Apple to reject the
-		// request as invalid pricing information. Apple assigns the plan type to
-		// the created record from the subscription context.
-		createAttrs := attrs
-		createAttrs.PlanType = ""
-		priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
-		_, err := client.CreateSubscriptionPrice(priceCtx, subscriptionID, resolved.pricePointID, territory, createAttrs)
-		priceCancel()
-		if err != nil {
-			return fmt.Errorf("set %s price: %w", territory, err)
-		}
-		state.add(resolved)
 	}
-	return nil
+	if complete && !repair {
+		return territories, false, nil
+	}
+	priceCtx, priceCancel := shared.ContextWithTimeout(ctx)
+	_, err = client.SetSubscriptionPriceMatrix(priceCtx, subscriptionID, matrix)
+	priceCancel()
+	if err != nil {
+		return nil, false, err
+	}
+	return territories, true, nil
+}
+
+func buildSubscriptionSetupPriceMatrix(basePricePointID, baseTerritory string, attrs asc.SubscriptionPriceCreateAttributes, equalizations []equalization) ([]asc.SubscriptionInlinePrice, error) {
+	basePricePointID = strings.TrimSpace(basePricePointID)
+	baseTerritory = strings.ToUpper(strings.TrimSpace(baseTerritory))
+	if basePricePointID == "" || baseTerritory == "" {
+		return nil, fmt.Errorf("base price point and territory are required")
+	}
+	byTerritory := map[string]string{baseTerritory: basePricePointID}
+	for _, target := range equalizations {
+		territory := strings.ToUpper(strings.TrimSpace(target.Territory))
+		pricePointID := strings.TrimSpace(target.PricePointID)
+		if territory == "" || pricePointID == "" {
+			return nil, fmt.Errorf("equalized territory and price point are required")
+		}
+		if existing, ok := byTerritory[territory]; ok && existing != pricePointID {
+			return nil, fmt.Errorf("conflicting equalized price points for territory %s", territory)
+		}
+		byTerritory[territory] = pricePointID
+	}
+	territories := make([]string, 0, len(byTerritory))
+	for territory := range byTerritory {
+		territories = append(territories, territory)
+	}
+	sort.Strings(territories)
+	matrix := make([]asc.SubscriptionInlinePrice, 0, len(territories))
+	for _, territory := range territories {
+		matrix = append(matrix, asc.SubscriptionInlinePrice{
+			TerritoryID:  territory,
+			PricePointID: byTerritory[territory],
+			Attributes:   attrs,
+		})
+	}
+	return matrix, nil
 }
 
 func subscriptionSetupHasPricedTerritory(states []subscriptionPriceImportState, territory string) bool {
@@ -1550,11 +1559,11 @@ func findExistingSubscriptionSetupLocalization(ctx context.Context, client *asc.
 	return foundLocalization, strings.TrimSpace(foundLocalization.ID) != "", nil
 }
 
-func findExistingSubscriptionSetupPrice(ctx context.Context, client *asc.Client, subID, pricePointID, territoryID string, attrs asc.SubscriptionPriceCreateAttributes) (asc.Resource[asc.SubscriptionPriceAttributes], bool, bool, error) {
+func findExistingSubscriptionSetupPrice(ctx context.Context, client *asc.Client, subID, pricePointID, territoryID string, attrs asc.SubscriptionPriceCreateAttributes) (bool, bool, error) {
 	pricePointID = strings.TrimSpace(pricePointID)
 	territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
 	if pricePointID == "" {
-		return asc.Resource[asc.SubscriptionPriceAttributes]{}, false, false, nil
+		return false, false, nil
 	}
 
 	opts := []asc.SubscriptionPricesOption{
@@ -1563,10 +1572,10 @@ func findExistingSubscriptionSetupPrice(ctx context.Context, client *asc.Client,
 	}
 	firstPage, err := client.GetSubscriptionPrices(ctx, subID, opts...)
 	if err != nil {
-		return asc.Resource[asc.SubscriptionPriceAttributes]{}, false, false, err
+		return false, false, err
 	}
 	if firstPage == nil {
-		return asc.Resource[asc.SubscriptionPriceAttributes]{}, false, false, nil
+		return false, false, nil
 	}
 
 	var foundPrice asc.Resource[asc.SubscriptionPriceAttributes]
@@ -1592,9 +1601,9 @@ func findExistingSubscriptionSetupPrice(ctx context.Context, client *asc.Client,
 			return nil
 		},
 	); err != nil && !errors.Is(err, errSubscriptionsSetupExistingResourceFound) {
-		return asc.Resource[asc.SubscriptionPriceAttributes]{}, false, false, err
+		return false, false, err
 	}
-	return foundPrice, strings.TrimSpace(foundPrice.ID) != "", hasExistingPrices, nil
+	return strings.TrimSpace(foundPrice.ID) != "", hasExistingPrices, nil
 }
 
 func mismatchedExistingSubscriptionSetupPriceError(subscriptionID string) error {

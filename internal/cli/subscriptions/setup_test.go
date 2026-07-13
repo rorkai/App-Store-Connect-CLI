@@ -62,6 +62,42 @@ func TestSubscriptionSetupHasPricedTerritory(t *testing.T) {
 	}
 }
 
+func TestBuildSubscriptionSetupPriceMatrixIncludesAllEqualizations(t *testing.T) {
+	attrs := asc.SubscriptionPriceCreateAttributes{PlanType: asc.SubscriptionPlanTypeUpfront}
+	matrix, err := buildSubscriptionSetupPriceMatrix("pp-usa", "USA", attrs, []equalization{
+		{Territory: "FRA", PricePointID: "pp-fra"},
+		{Territory: "CAN", PricePointID: "pp-can"},
+	})
+	if err != nil {
+		t.Fatalf("build matrix: %v", err)
+	}
+	want := []asc.SubscriptionInlinePrice{
+		{TerritoryID: "CAN", PricePointID: "pp-can", Attributes: attrs},
+		{TerritoryID: "FRA", PricePointID: "pp-fra", Attributes: attrs},
+		{TerritoryID: "USA", PricePointID: "pp-usa", Attributes: attrs},
+	}
+	if !reflect.DeepEqual(matrix, want) {
+		t.Fatalf("unexpected matrix:\n got: %#v\nwant: %#v", matrix, want)
+	}
+}
+
+func TestBuildSubscriptionSetupPriceMatrixRejectsMissingOrConflictingEqualization(t *testing.T) {
+	attrs := asc.SubscriptionPriceCreateAttributes{PlanType: asc.SubscriptionPlanTypeUpfront}
+	for name, equalizations := range map[string][]equalization{
+		"missing point": {{Territory: "CAN"}},
+		"conflicting duplicate": {
+			{Territory: "CAN", PricePointID: "pp-can-1"},
+			{Territory: "CAN", PricePointID: "pp-can-2"},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := buildSubscriptionSetupPriceMatrix("pp-usa", "USA", attrs, equalizations); err == nil {
+				t.Fatal("expected matrix validation error")
+			}
+		})
+	}
+}
+
 func TestSubscriptionSetupStateIsComplete(t *testing.T) {
 	for _, state := range []string{"READY_TO_SUBMIT", "WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_BINARY_APPROVAL", "APPROVED"} {
 		if !subscriptionSetupStateIsComplete(state) {

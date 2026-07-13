@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,6 +14,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
+
+var fetchPricingTerritoriesFn = fetchPricingTerritories
 
 type validateSubscriptionsOptions struct {
 	AppID  string
@@ -43,7 +46,7 @@ func ValidateSubscriptionsCommand() *ffcli.Command {
 
 For subscriptions in MISSING_METADATA, this command inspects group and
 subscription localizations, App Review screenshot delivery, availability, and
-price coverage. It also emits advisory guidance for promotional images Apple
+the complete App Store pricing matrix. It also emits advisory guidance for promotional images Apple
 uses for App Store promotion, offer-code redemption pages, and win-back offers.
 Use --strict to gate on warnings in CI.
 
@@ -110,20 +113,32 @@ func buildSubscriptionsReport(ctx context.Context, client *asc.Client, opts Subs
 	pricingCoverageSkipReason := ""
 	var appAvailableTerritories []string
 	availableTerritories := 0
+	var pricingTerritories []string
 	var subs []validation.Subscription
 	if err := runReadinessTasks(
 		ctx,
 		func(taskCtx context.Context) error {
 			_, territories, count, fetchErr := fetchAvailableTerritoryDetailsFn(taskCtx, client, opts.AppID)
 			if fetchErr != nil {
-				if reason, ok := availabilityCheckSkipReason(fetchErr); ok {
-					pricingCoverageSkipReason = reason
+				if _, ok := availabilityCheckSkipReason(fetchErr); ok {
 					return nil
 				}
 				return fmt.Errorf("validate subscriptions: %w", fetchErr)
 			}
 			appAvailableTerritories = territories
 			availableTerritories = count
+			return nil
+		},
+		func(taskCtx context.Context) error {
+			territories, fetchErr := fetchPricingTerritoriesFn(taskCtx, client)
+			if fetchErr != nil {
+				if reason, ok := pricingTerritoryCheckSkipReason(fetchErr); ok {
+					pricingCoverageSkipReason = reason
+					return nil
+				}
+				return fmt.Errorf("validate subscriptions: %w", fetchErr)
+			}
+			pricingTerritories = territories
 			return nil
 		},
 		func(taskCtx context.Context) error {
@@ -160,6 +175,8 @@ func buildSubscriptionsReport(ctx context.Context, client *asc.Client, opts Subs
 		Subscriptions:             subs,
 		AvailableTerritories:      availableTerritories,
 		AppAvailableTerritories:   appAvailableTerritories,
+		PricingTerritories:        pricingTerritories,
+		PricingTerritoryCount:     len(pricingTerritories),
 		PricingCoverageSkipReason: pricingCoverageSkipReason,
 		AppBuildCount:             buildCount,
 		BuildCheckSkipped:         buildCheckSkipped,
@@ -167,4 +184,40 @@ func buildSubscriptionsReport(ctx context.Context, client *asc.Client, opts Subs
 	}, opts.Strict)
 
 	return report, nil
+}
+
+func fetchPricingTerritories(ctx context.Context, client *asc.Client) ([]string, error) {
+	firstPage, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.TerritoriesResponse, error) {
+		return client.GetTerritories(requestCtx, asc.WithTerritoriesLimit(200))
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch App Store pricing territories: %w", err)
+	}
+	allPages, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
+			return client.GetTerritories(requestCtx, asc.WithTerritoriesNextURL(nextURL))
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("paginate App Store pricing territories: %w", err)
+	}
+	typed, ok := allPages.(*asc.TerritoriesResponse)
+	if !ok {
+		return nil, fmt.Errorf("unexpected pricing territories response type %T", allPages)
+	}
+	seen := make(map[string]struct{}, len(typed.Data))
+	territories := make([]string, 0, len(typed.Data))
+	for _, territory := range typed.Data {
+		id := strings.ToUpper(strings.TrimSpace(territory.ID))
+		if id == "" {
+			continue
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		territories = append(territories, id)
+	}
+	sort.Strings(territories)
+	return territories, nil
 }

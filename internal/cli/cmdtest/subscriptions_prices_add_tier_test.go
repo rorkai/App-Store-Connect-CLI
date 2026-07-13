@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func subscriptionPriceListFixture(pricePointID, territoryID, attrs string) string {
@@ -559,12 +561,12 @@ func TestSubscriptionsPricesAdd_ExistingMatchingPriceSkipsCreate(t *testing.T) {
 	}
 }
 
-func TestSubscriptionsPricesAdd_ForceRepostsExistingMatchingPrice(t *testing.T) {
+func TestSubscriptionsPricesAdd_ForceResavesCompletePriceMatrix(t *testing.T) {
 	setupAuth(t)
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
-	var posted bool
+	var patched bool
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/relationships/prices"):
@@ -581,11 +583,25 @@ func TestSubscriptionsPricesAdd_ForceRepostsExistingMatchingPrice(t *testing.T) 
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
-		case req.Method == http.MethodPost && req.URL.Path == "/v1/subscriptionPrices":
-			posted = true
-			body := `{"data":{"type":"subscriptionPrices","id":"forced-price-1","attributes":{"planType":"UPFRONT"}}}`
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/PP_ID/equalizations":
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"PP_CAN","attributes":{"customerPrice":"1.49"},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}],"links":{}}`
 			return &http.Response{
-				StatusCode: http.StatusCreated,
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/subscriptions/8000000003":
+			patched = true
+			var payload asc.SubscriptionUpdateRequest
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode price matrix payload: %v", err)
+			}
+			if len(payload.Included) != 2 {
+				t.Fatalf("expected complete two-territory matrix, got %+v", payload.Included)
+			}
+			body := `{"data":{"type":"subscriptions","id":"8000000003","attributes":{"state":"READY_TO_SUBMIT"}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
 				Body:       io.NopCloser(strings.NewReader(body)),
 				Header:     http.Header{"Content-Type": []string{"application/json"}},
 			}, nil
@@ -617,11 +633,11 @@ func TestSubscriptionsPricesAdd_ForceRepostsExistingMatchingPrice(t *testing.T) 
 	if stderr != "" {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
-	if !posted {
-		t.Fatal("expected forced create request")
+	if !patched {
+		t.Fatal("expected forced atomic price matrix PATCH")
 	}
-	if !strings.Contains(stdout, `"id":"forced-price-1"`) {
-		t.Fatalf("expected forced subscription price response in stdout, got %q", stdout)
+	if !strings.Contains(stdout, `"id":"8000000003"`) {
+		t.Fatalf("expected updated subscription response in stdout, got %q", stdout)
 	}
 }
 

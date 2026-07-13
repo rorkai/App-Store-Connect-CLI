@@ -46,6 +46,13 @@ func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagno
 	if len(appTerritories) > 0 {
 		appTerritoryCount = len(appTerritories)
 	}
+	pricingMatrixContextAvailable := len(input.PricingTerritories) > 0 || input.PricingTerritoryCount > 0 || strings.TrimSpace(input.PricingCoverageSkipReason) != ""
+	pricingTerritories := sortedUniqueNonEmpty(input.PricingTerritories)
+	pricingTerritoryCount := input.PricingTerritoryCount
+	if len(pricingTerritories) == 0 && pricingTerritoryCount == 0 {
+		pricingTerritories = appTerritories
+		pricingTerritoryCount = appTerritoryCount
+	}
 
 	for _, sub := range input.Subscriptions {
 		if isRemovedMonetizationState(sub.State) {
@@ -90,6 +97,9 @@ func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagno
 				"Optional: configure win-back offers with `asc subscriptions offers win-back create` if you plan to use them.",
 			),
 		}
+		if pricingMatrixContextAvailable {
+			rows = append(rows, buildPricingMatrixDiagnosticRow(sub, pricingTerritories, pricingTerritoryCount, input.PricingCoverageSkipReason))
+		}
 
 		conclusion, summary := summarizeSubscriptionDiagnostics(sub, rows)
 		diagnostics = append(diagnostics, SubscriptionDiagnostics{
@@ -104,6 +114,53 @@ func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagno
 	}
 
 	return diagnostics
+}
+
+func buildPricingMatrixDiagnosticRow(sub Subscription, pricingTerritories []string, pricingTerritoryCount int, skipReason string) SubscriptionDiagnosticRow {
+	row := SubscriptionDiagnosticRow{
+		Key:      "complete_pricing_matrix",
+		Label:    "Complete App Store pricing matrix",
+		Status:   DiagnosticStatusUnknown,
+		Source:   "derived",
+		Blocking: true,
+	}
+	if strings.TrimSpace(skipReason) != "" {
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = strings.TrimSpace(skipReason)
+		return row
+	}
+	if sub.PriceCheckSkipped {
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = fallbackString(sub.PriceCheckSkipReason, "Validation could not verify subscription pricing automatically")
+		return row
+	}
+	pricingTerritories = sortedUniqueNonEmpty(pricingTerritories)
+	if len(pricingTerritories) > 0 {
+		missing := missingValues(pricingTerritories, sortedUniqueNonEmpty(sub.PriceTerritories))
+		if len(missing) == 0 {
+			row.Status = DiagnosticStatusYes
+			row.Evidence = fmt.Sprintf("priced=%d required=%d", len(pricingTerritories), len(pricingTerritories))
+			return row
+		}
+		row.Status = DiagnosticStatusNo
+		row.Evidence = fmt.Sprintf("priced=%d required=%d missing=%s", len(sortedUniqueNonEmpty(sub.PriceTerritories)), len(pricingTerritories), formatList(missing))
+		row.Remediation = fmt.Sprintf("Materialize the full price matrix with `asc subscriptions setup --subscription-id %q --repair ...`; sale availability does not narrow Apple's pricing requirement.", fallbackString(strings.TrimSpace(sub.ID), "SUB_ID"))
+		return row
+	}
+	if pricingTerritoryCount <= 0 {
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = "App Store pricing territories were unavailable."
+		return row
+	}
+	pricedCount := max(sub.PriceCount, len(sortedUniqueNonEmpty(sub.PriceTerritories)))
+	if pricedCount >= pricingTerritoryCount {
+		row.Status = DiagnosticStatusYes
+	} else {
+		row.Status = DiagnosticStatusNo
+		row.Remediation = fmt.Sprintf("Materialize the full price matrix with `asc subscriptions setup --subscription-id %q --repair ...`.", fallbackString(strings.TrimSpace(sub.ID), "SUB_ID"))
+	}
+	row.Evidence = fmt.Sprintf("priced=%d required=%d", pricedCount, pricingTerritoryCount)
+	return row
 }
 
 func buildGroupLocalizationsDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
