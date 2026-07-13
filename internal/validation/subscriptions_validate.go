@@ -7,22 +7,24 @@ import (
 
 // Subscription represents an auto-renewable subscription for review-readiness validation.
 type Subscription struct {
-	ID                           string
-	Name                         string
-	ProductID                    string
-	State                        string
-	GroupID                      string
-	GroupName                    string
-	HasImage                     bool
-	ImageCheckSkipped            bool
-	ImageCheckSkipReason         string
-	ReviewScreenshotID           string
-	ReviewScreenshotCheckSkipped bool
-	ReviewScreenshotCheckReason  string
-	AvailabilityID               string
-	AvailabilityTerritories      []string
-	AvailabilityCheckSkipped     bool
-	AvailabilityCheckSkipReason  string
+	ID                                  string
+	Name                                string
+	ProductID                           string
+	State                               string
+	GroupID                             string
+	GroupName                           string
+	HasImage                            bool
+	ImageCheckSkipped                   bool
+	ImageCheckSkipReason                string
+	ReviewScreenshotID                  string
+	ReviewScreenshotAssetDeliveryState  string
+	ReviewScreenshotAssetDeliveryErrors []string
+	ReviewScreenshotCheckSkipped        bool
+	ReviewScreenshotCheckReason         string
+	AvailabilityID                      string
+	AvailabilityTerritories             []string
+	AvailabilityCheckSkipped            bool
+	AvailabilityCheckSkipReason         string
 
 	// Deep diagnostics (populated when State is MISSING_METADATA).
 	Localizations                 []SubscriptionLocalizationInfo
@@ -503,7 +505,8 @@ func subscriptionMetadataDiagnostics(subs []Subscription) []CheckResult {
 			}
 		}
 
-		// Check pricing.
+		// Check the App Review screenshot and its asset delivery state.
+		reviewScreenshotState := strings.ToUpper(strings.TrimSpace(sub.ReviewScreenshotAssetDeliveryState))
 		if sub.ReviewScreenshotCheckSkipped {
 			remediation := strings.TrimSpace(sub.ReviewScreenshotCheckReason)
 			if remediation == "" {
@@ -527,6 +530,26 @@ func subscriptionMetadataDiagnostics(subs []Subscription) []CheckResult {
 				ResourceID:   strings.TrimSpace(sub.ID),
 				Message:      fmt.Sprintf("%s has no App Review screenshot", label),
 				Remediation:  "Upload a subscription App Review screenshot via `asc subscriptions review screenshots create`",
+			})
+		} else if reviewScreenshotState == "FAILED" {
+			checks = append(checks, CheckResult{
+				ID:           "subscriptions.diagnostics.review_screenshot_failed",
+				Severity:     SeverityWarning,
+				Field:        "reviewScreenshot",
+				ResourceType: "subscription",
+				ResourceID:   strings.TrimSpace(sub.ID),
+				Message:      fmt.Sprintf("%s App Review screenshot failed asset delivery", label),
+				Remediation:  reviewScreenshotFailedRemediation(sub),
+			})
+		} else if reviewScreenshotState != "COMPLETE" {
+			checks = append(checks, CheckResult{
+				ID:           "subscriptions.diagnostics.review_screenshot_unverified",
+				Severity:     SeverityInfo,
+				Field:        "reviewScreenshot",
+				ResourceType: "subscription",
+				ResourceID:   strings.TrimSpace(sub.ID),
+				Message:      fmt.Sprintf("Could not verify whether %s has a completed App Review screenshot", label),
+				Remediation:  reviewScreenshotDeliveryRemediation(reviewScreenshotState),
 			})
 		}
 

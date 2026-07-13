@@ -377,20 +377,21 @@ func TestValidateSubscriptionsIncludesDetailedDiagnosticsForOpaqueMissingMetadat
 		AppAvailableTerritories: []string{"USA", "CAN"},
 		Subscriptions: []Subscription{
 			{
-				ID:                      "sub-1",
-				Name:                    "Monthly",
-				ProductID:               "com.example.monthly",
-				State:                   "MISSING_METADATA",
-				GroupID:                 "group-1",
-				GroupName:               "Premium",
-				GroupLocalizations:      []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
-				Localizations:           []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
-				ReviewScreenshotID:      "shot-1",
-				AvailabilityID:          "avail-1",
-				AvailabilityTerritories: []string{"USA", "CAN"},
-				HasImage:                true,
-				PriceCount:              2,
-				PriceTerritories:        []string{"USA", "CAN"},
+				ID:                                 "sub-1",
+				Name:                               "Monthly",
+				ProductID:                          "com.example.monthly",
+				State:                              "MISSING_METADATA",
+				GroupID:                            "group-1",
+				GroupName:                          "Premium",
+				GroupLocalizations:                 []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:                      []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:                 "shot-1",
+				ReviewScreenshotAssetDeliveryState: "COMPLETE",
+				AvailabilityID:                     "avail-1",
+				AvailabilityTerritories:            []string{"USA", "CAN"},
+				HasImage:                           true,
+				PriceCount:                         2,
+				PriceTerritories:                   []string{"USA", "CAN"},
 			},
 		},
 	}, false)
@@ -443,19 +444,20 @@ func TestValidateSubscriptionsPrefersAdvisoryConclusionOverOpaqueAppleState(t *t
 		AppAvailableTerritories: []string{"USA", "CAN"},
 		Subscriptions: []Subscription{
 			{
-				ID:                      "sub-1",
-				Name:                    "Monthly",
-				ProductID:               "com.example.monthly",
-				State:                   "MISSING_METADATA",
-				GroupID:                 "group-1",
-				GroupName:               "Premium",
-				GroupLocalizations:      []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
-				Localizations:           []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
-				ReviewScreenshotID:      "shot-1",
-				AvailabilityID:          "avail-1",
-				AvailabilityTerritories: []string{"USA", "CAN"},
-				PriceCount:              2,
-				PriceTerritories:        []string{"USA", "CAN"},
+				ID:                                 "sub-1",
+				Name:                               "Monthly",
+				ProductID:                          "com.example.monthly",
+				State:                              "MISSING_METADATA",
+				GroupID:                            "group-1",
+				GroupName:                          "Premium",
+				GroupLocalizations:                 []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:                      []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:                 "shot-1",
+				ReviewScreenshotAssetDeliveryState: "COMPLETE",
+				AvailabilityID:                     "avail-1",
+				AvailabilityTerritories:            []string{"USA", "CAN"},
+				PriceCount:                         2,
+				PriceTerritories:                   []string{"USA", "CAN"},
 			},
 		},
 	}, false)
@@ -465,11 +467,11 @@ func TestValidateSubscriptionsPrefersAdvisoryConclusionOverOpaqueAppleState(t *t
 	}
 
 	diag := report.Diagnostics[0]
-	if diag.Conclusion != "advisory_only" {
-		t.Fatalf("expected advisory_only conclusion when only advisory rows fail, got %+v", diag)
+	if diag.Conclusion != "opaque_apple_state" {
+		t.Fatalf("expected opaque_apple_state conclusion when only advisory rows fail but Apple remains stuck, got %+v", diag)
 	}
-	if !strings.Contains(diag.Summary, "only advisory subscription findings remain") {
-		t.Fatalf("expected advisory summary, got %+v", diag)
+	if !strings.Contains(diag.Summary, "do not explain why Apple still reports MISSING_METADATA") {
+		t.Fatalf("expected opaque Apple state summary, got %+v", diag)
 	}
 
 	imageRow, ok := findSubscriptionDiagnosticRow(diag.Rows, "promotional_image")
@@ -479,6 +481,9 @@ func TestValidateSubscriptionsPrefersAdvisoryConclusionOverOpaqueAppleState(t *t
 	if imageRow.Status != DiagnosticStatusNo || imageRow.Blocking {
 		t.Fatalf("expected promotional image finding to stay advisory, got %+v", imageRow)
 	}
+	if !strings.Contains(imageRow.Remediation, "undocumented recalculation attempt") || !strings.Contains(imageRow.Remediation, "1024x1024") {
+		t.Fatalf("expected stuck-state promotional image guidance, got %+v", imageRow)
+	}
 }
 
 func TestValidateSubscriptionsDiagnosticsShowExactMissingTerritories(t *testing.T) {
@@ -487,19 +492,20 @@ func TestValidateSubscriptionsDiagnosticsShowExactMissingTerritories(t *testing.
 		AppAvailableTerritories: []string{"USA", "CAN"},
 		Subscriptions: []Subscription{
 			{
-				ID:                      "sub-1",
-				Name:                    "Monthly",
-				ProductID:               "com.example.monthly",
-				State:                   "MISSING_METADATA",
-				GroupID:                 "group-1",
-				GroupName:               "Premium",
-				GroupLocalizations:      []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
-				Localizations:           []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
-				ReviewScreenshotID:      "shot-1",
-				AvailabilityID:          "avail-1",
-				AvailabilityTerritories: []string{"USA", "CAN"},
-				PriceCount:              1,
-				PriceTerritories:        []string{"USA"},
+				ID:                                 "sub-1",
+				Name:                               "Monthly",
+				ProductID:                          "com.example.monthly",
+				State:                              "MISSING_METADATA",
+				GroupID:                            "group-1",
+				GroupName:                          "Premium",
+				GroupLocalizations:                 []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:                      []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:                 "shot-1",
+				ReviewScreenshotAssetDeliveryState: "COMPLETE",
+				AvailabilityID:                     "avail-1",
+				AvailabilityTerritories:            []string{"USA", "CAN"},
+				PriceCount:                         1,
+				PriceTerritories:                   []string{"USA"},
 			},
 		},
 	}, false)
@@ -538,19 +544,20 @@ func TestValidateSubscriptionsMarksSkippedBuildDiagnosticAsUnverified(t *testing
 		BuildCheckSkipReason:    "build endpoint forbidden",
 		Subscriptions: []Subscription{
 			{
-				ID:                      "sub-1",
-				Name:                    "Monthly",
-				ProductID:               "com.example.monthly",
-				State:                   "MISSING_METADATA",
-				GroupID:                 "group-1",
-				GroupName:               "Premium",
-				GroupLocalizations:      []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
-				Localizations:           []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
-				ReviewScreenshotID:      "shot-1",
-				AvailabilityID:          "avail-1",
-				AvailabilityTerritories: []string{"USA", "CAN"},
-				PriceCount:              2,
-				PriceTerritories:        []string{"USA", "CAN"},
+				ID:                                 "sub-1",
+				Name:                               "Monthly",
+				ProductID:                          "com.example.monthly",
+				State:                              "MISSING_METADATA",
+				GroupID:                            "group-1",
+				GroupName:                          "Premium",
+				GroupLocalizations:                 []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:                      []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:                 "shot-1",
+				ReviewScreenshotAssetDeliveryState: "COMPLETE",
+				AvailabilityID:                     "avail-1",
+				AvailabilityTerritories:            []string{"USA", "CAN"},
+				PriceCount:                         2,
+				PriceTerritories:                   []string{"USA", "CAN"},
 			},
 		},
 	}, false)
@@ -577,19 +584,20 @@ func TestValidateSubscriptionsFallsBackToAppTerritoryCountInDiagnostics(t *testi
 		AvailableTerritories: 2,
 		Subscriptions: []Subscription{
 			{
-				ID:                      "sub-1",
-				Name:                    "Monthly",
-				ProductID:               "com.example.monthly",
-				State:                   "MISSING_METADATA",
-				GroupID:                 "group-1",
-				GroupName:               "Premium",
-				GroupLocalizations:      []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
-				Localizations:           []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
-				ReviewScreenshotID:      "shot-1",
-				AvailabilityID:          "avail-1",
-				AvailabilityTerritories: []string{"USA", "CAN"},
-				PriceCount:              2,
-				PriceTerritories:        []string{"USA", "CAN"},
+				ID:                                 "sub-1",
+				Name:                               "Monthly",
+				ProductID:                          "com.example.monthly",
+				State:                              "MISSING_METADATA",
+				GroupID:                            "group-1",
+				GroupName:                          "Premium",
+				GroupLocalizations:                 []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:                      []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:                 "shot-1",
+				ReviewScreenshotAssetDeliveryState: "COMPLETE",
+				AvailabilityID:                     "avail-1",
+				AvailabilityTerritories:            []string{"USA", "CAN"},
+				PriceCount:                         2,
+				PriceTerritories:                   []string{"USA", "CAN"},
 			},
 		},
 	}, false)
@@ -617,20 +625,21 @@ func TestValidateSubscriptionsTreatsAppOnlyTerritoriesAsAdvisoryInDiagnostics(t 
 		AppAvailableTerritories: []string{"USA", "CAN"},
 		Subscriptions: []Subscription{
 			{
-				ID:                      "sub-1",
-				Name:                    "Monthly",
-				ProductID:               "com.example.monthly",
-				State:                   "MISSING_METADATA",
-				GroupID:                 "group-1",
-				GroupName:               "Premium",
-				GroupLocalizations:      []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
-				Localizations:           []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
-				ReviewScreenshotID:      "shot-1",
-				AvailabilityID:          "avail-1",
-				AvailabilityTerritories: []string{"USA"},
-				HasImage:                true,
-				PriceCount:              1,
-				PriceTerritories:        []string{"USA"},
+				ID:                                 "sub-1",
+				Name:                               "Monthly",
+				ProductID:                          "com.example.monthly",
+				State:                              "MISSING_METADATA",
+				GroupID:                            "group-1",
+				GroupName:                          "Premium",
+				GroupLocalizations:                 []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:                      []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:                 "shot-1",
+				ReviewScreenshotAssetDeliveryState: "COMPLETE",
+				AvailabilityID:                     "avail-1",
+				AvailabilityTerritories:            []string{"USA"},
+				HasImage:                           true,
+				PriceCount:                         1,
+				PriceTerritories:                   []string{"USA"},
 			},
 		},
 	}, false)
@@ -662,20 +671,21 @@ func TestValidateSubscriptionsDoesNotBlockDiagnosticsWhenAppAvailabilityIsMissin
 		AppBuildCount: 1,
 		Subscriptions: []Subscription{
 			{
-				ID:                      "sub-1",
-				Name:                    "Monthly",
-				ProductID:               "com.example.monthly",
-				State:                   "MISSING_METADATA",
-				GroupID:                 "group-1",
-				GroupName:               "Premium",
-				GroupLocalizations:      []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
-				Localizations:           []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
-				ReviewScreenshotID:      "shot-1",
-				AvailabilityID:          "avail-1",
-				AvailabilityTerritories: []string{"USA"},
-				HasImage:                true,
-				PriceCount:              1,
-				PriceTerritories:        []string{"USA"},
+				ID:                                 "sub-1",
+				Name:                               "Monthly",
+				ProductID:                          "com.example.monthly",
+				State:                              "MISSING_METADATA",
+				GroupID:                            "group-1",
+				GroupName:                          "Premium",
+				GroupLocalizations:                 []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:                      []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:                 "shot-1",
+				ReviewScreenshotAssetDeliveryState: "COMPLETE",
+				AvailabilityID:                     "avail-1",
+				AvailabilityTerritories:            []string{"USA"},
+				HasImage:                           true,
+				PriceCount:                         1,
+				PriceTerritories:                   []string{"USA"},
 			},
 		},
 	}, false)
@@ -705,18 +715,19 @@ func TestValidateSubscriptionsSkipsAppCoverageUntilSubscriptionAvailabilityExist
 		AppAvailableTerritories: []string{"USA", "CAN"},
 		Subscriptions: []Subscription{
 			{
-				ID:                 "sub-1",
-				Name:               "Monthly",
-				ProductID:          "com.example.monthly",
-				State:              "MISSING_METADATA",
-				GroupID:            "group-1",
-				GroupName:          "Premium",
-				GroupLocalizations: []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
-				Localizations:      []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
-				ReviewScreenshotID: "shot-1",
-				HasImage:           true,
-				PriceCount:         1,
-				PriceTerritories:   []string{"USA"},
+				ID:                                 "sub-1",
+				Name:                               "Monthly",
+				ProductID:                          "com.example.monthly",
+				State:                              "MISSING_METADATA",
+				GroupID:                            "group-1",
+				GroupName:                          "Premium",
+				GroupLocalizations:                 []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+				Localizations:                      []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Unlimited access"}},
+				ReviewScreenshotID:                 "shot-1",
+				ReviewScreenshotAssetDeliveryState: "COMPLETE",
+				HasImage:                           true,
+				PriceCount:                         1,
+				PriceTerritories:                   []string{"USA"},
 			},
 		},
 	}, false)
@@ -752,4 +763,66 @@ func findSubscriptionDiagnosticRow(rows []SubscriptionDiagnosticRow, key string)
 		}
 	}
 	return SubscriptionDiagnosticRow{}, false
+}
+
+func TestReviewScreenshotDiagnosticsRespectAssetDeliveryState(t *testing.T) {
+	tests := []struct {
+		name           string
+		state          string
+		wantStatus     DiagnosticStatus
+		wantConclusion string
+		wantCheckID    string
+		wantText       string
+	}{
+		{name: "complete", state: "COMPLETE", wantStatus: DiagnosticStatusYes, wantConclusion: "opaque_apple_state"},
+		{name: "failed", state: "FAILED", wantStatus: DiagnosticStatusNo, wantConclusion: "known_blocker", wantCheckID: "subscriptions.diagnostics.review_screenshot_failed", wantText: "delete"},
+		{name: "processing", state: "PROCESSING", wantStatus: DiagnosticStatusUnverified, wantConclusion: "unknown", wantCheckID: "subscriptions.diagnostics.review_screenshot_unverified", wantText: "COMPLETE"},
+		{name: "unknown", state: "", wantStatus: DiagnosticStatusUnverified, wantConclusion: "unknown", wantCheckID: "subscriptions.diagnostics.review_screenshot_unverified", wantText: "delivery state"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			report := ValidateSubscriptions(SubscriptionsInput{
+				AppID:         "app-1",
+				AppBuildCount: 1,
+				Subscriptions: []Subscription{{
+					ID:                                 "sub-1",
+					State:                              "MISSING_METADATA",
+					GroupLocalizations:                 []SubscriptionGroupLocalizationInfo{{Locale: "en-US", Name: "Premium"}},
+					Localizations:                      []SubscriptionLocalizationInfo{{Locale: "en-US", Name: "Monthly", Description: "Access"}},
+					ReviewScreenshotID:                 "shot-1",
+					ReviewScreenshotAssetDeliveryState: test.state,
+					AvailabilityID:                     "avail-1",
+					AvailabilityTerritories:            []string{"USA"},
+					PriceCount:                         1,
+					PriceTerritories:                   []string{"USA"},
+					HasImage:                           true,
+				}},
+			}, false)
+
+			if len(report.Diagnostics) != 1 {
+				t.Fatalf("expected one diagnostics result, got %+v", report.Diagnostics)
+			}
+			diagnostic := report.Diagnostics[0]
+			row, ok := findSubscriptionDiagnosticRow(diagnostic.Rows, "review_screenshot")
+			if !ok {
+				t.Fatalf("review screenshot row missing: %+v", diagnostic.Rows)
+			}
+			if row.Status != test.wantStatus || diagnostic.Conclusion != test.wantConclusion {
+				t.Fatalf("row=%+v conclusion=%q, want status=%q conclusion=%q", row, diagnostic.Conclusion, test.wantStatus, test.wantConclusion)
+			}
+			if !strings.Contains(row.Evidence, "asset_delivery_state=") {
+				t.Fatalf("expected delivery-state evidence, got %+v", row)
+			}
+			if test.wantText != "" && !strings.Contains(strings.ToLower(row.Remediation), strings.ToLower(test.wantText)) {
+				t.Fatalf("remediation %q does not contain %q", row.Remediation, test.wantText)
+			}
+			if test.state == "FAILED" && !strings.Contains(strings.ToLower(row.Remediation), "re-upload") {
+				t.Fatalf("failed screenshot remediation must instruct re-upload, got %q", row.Remediation)
+			}
+			if test.wantCheckID != "" && !hasCheckID(report.Checks, test.wantCheckID) {
+				t.Fatalf("expected check %q, got %+v", test.wantCheckID, report.Checks)
+			}
+		})
+	}
 }

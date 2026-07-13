@@ -206,7 +206,7 @@ func buildSubscriptionLocalizationsDiagnosticRow(sub Subscription) SubscriptionD
 func buildReviewScreenshotDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
 	row := SubscriptionDiagnosticRow{
 		Key:      "review_screenshot",
-		Label:    "Review screenshot attached",
+		Label:    "Review screenshot delivery",
 		Status:   DiagnosticStatusUnknown,
 		Source:   "public-api",
 		Blocking: true,
@@ -214,6 +214,10 @@ func buildReviewScreenshotDiagnosticRow(sub Subscription) SubscriptionDiagnostic
 
 	if sub.ReviewScreenshotCheckSkipped {
 		row.Status = DiagnosticStatusUnverified
+		if screenshotID := strings.TrimSpace(sub.ReviewScreenshotID); screenshotID != "" {
+			state := fallbackString(strings.ToUpper(strings.TrimSpace(sub.ReviewScreenshotAssetDeliveryState)), "unknown")
+			row.Evidence = fmt.Sprintf("id=%s asset_delivery_state=%s", screenshotID, state)
+		}
 		row.Remediation = fallbackString(sub.ReviewScreenshotCheckReason, "Validation could not verify the subscription App Review screenshot automatically")
 		return row
 	}
@@ -225,9 +229,36 @@ func buildReviewScreenshotDiagnosticRow(sub Subscription) SubscriptionDiagnostic
 		return row
 	}
 
-	row.Status = DiagnosticStatusYes
-	row.Evidence = fmt.Sprintf("id=%s", strings.TrimSpace(sub.ReviewScreenshotID))
+	state := strings.ToUpper(strings.TrimSpace(sub.ReviewScreenshotAssetDeliveryState))
+	row.Evidence = fmt.Sprintf("id=%s asset_delivery_state=%s", strings.TrimSpace(sub.ReviewScreenshotID), fallbackString(state, "unknown"))
+	if len(sub.ReviewScreenshotAssetDeliveryErrors) > 0 {
+		row.Evidence += " errors=" + strings.Join(sub.ReviewScreenshotAssetDeliveryErrors, "; ")
+	}
+	switch state {
+	case "COMPLETE":
+		row.Status = DiagnosticStatusYes
+	case "FAILED":
+		row.Status = DiagnosticStatusNo
+		row.Remediation = reviewScreenshotFailedRemediation(sub)
+	default:
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = reviewScreenshotDeliveryRemediation(state)
+	}
 	return row
+}
+
+func reviewScreenshotFailedRemediation(sub Subscription) string {
+	screenshotID := fallbackString(strings.TrimSpace(sub.ReviewScreenshotID), "SHOT_ID")
+	subscriptionID := fallbackString(strings.TrimSpace(sub.ID), "SUB_ID")
+	return fmt.Sprintf("Delete the failed screenshot with `asc subscriptions review screenshots delete --screenshot-id %q --confirm`, then re-upload it with `asc subscriptions review screenshots create --subscription-id %q --file \"./review.png\"`.", screenshotID, subscriptionID)
+}
+
+func reviewScreenshotDeliveryRemediation(state string) string {
+	state = strings.ToUpper(strings.TrimSpace(state))
+	if state == "" {
+		return "Apple did not return the screenshot asset delivery state; retry validation and confirm it reaches COMPLETE before submission."
+	}
+	return fmt.Sprintf("The screenshot asset delivery state is %s; wait for it to reach COMPLETE, then re-run validation.", state)
 }
 
 func buildPromotionalImageDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
@@ -248,7 +279,7 @@ func buildPromotionalImageDiagnosticRow(sub Subscription) SubscriptionDiagnostic
 	if !sub.HasImage {
 		row.Status = DiagnosticStatusNo
 		row.Evidence = "missing"
-		row.Remediation = fmt.Sprintf("Upload a promotional image with `asc subscriptions images create --subscription-id %q --file \"./image.png\"` if you plan to use offer codes, win-back offers, or App Store promotion.", fallbackString(strings.TrimSpace(sub.ID), "SUB_ID"))
+		row.Remediation = fmt.Sprintf("Apple documents this image as optional unless you use offers or App Store promotion. For an otherwise-complete subscription stuck in MISSING_METADATA, uploading a 1024x1024 image with `asc subscriptions images create --subscription-id %q --file \"./image.png\"` can also serve as an undocumented recalculation attempt; re-run validation afterward.", fallbackString(strings.TrimSpace(sub.ID), "SUB_ID"))
 		return row
 	}
 
@@ -537,6 +568,8 @@ func summarizeSubscriptionDiagnostics(sub Subscription, rows []SubscriptionDiagn
 		return "known_blocker", fmt.Sprintf("%d known blocking subscription issue(s) found", blockingFailures)
 	case blockingUnknown > 0:
 		return "unknown", fmt.Sprintf("%d blocking subscription check(s) could not be verified automatically", blockingUnknown)
+	case state == "MISSING_METADATA" && advisoryFailures > 0:
+		return "opaque_apple_state", fmt.Sprintf("All blocking public checks passed; %d advisory finding(s) remain, but they do not explain why Apple still reports MISSING_METADATA.", advisoryFailures)
 	case advisoryFailures > 0:
 		return "advisory_only", "No blocking issues found; only advisory subscription findings remain."
 	case state == "MISSING_METADATA":

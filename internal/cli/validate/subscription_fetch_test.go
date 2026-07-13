@@ -3,6 +3,7 @@ package validate
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -181,5 +182,54 @@ func TestFetchSubscriptionPriceTerritories_SkipsWhenTerritoryRelationshipMissing
 	}
 	if !strings.Contains(status.SkipReason, "omitted territory relationships") {
 		t.Fatalf("expected missing-territory skip reason, got %q", status.SkipReason)
+	}
+}
+
+func TestFetchSubscriptionReviewScreenshot_ReportsAssetDeliveryState(t *testing.T) {
+	tests := []struct {
+		name         string
+		state        string
+		errors       string
+		wantDetails  []string
+		wantVerified bool
+		wantReason   string
+	}{
+		{name: "complete", state: "COMPLETE", wantVerified: true},
+		{name: "failed", state: "FAILED", errors: `,"errors":[{"code":"IMAGE_INCORRECT_DIMENSIONS","message":"The image dimensions are invalid."}]`, wantDetails: []string{"IMAGE_INCORRECT_DIMENSIONS: The image dimensions are invalid."}, wantVerified: true},
+		{name: "processing", state: "PROCESSING", wantReason: "PROCESSING"},
+		{name: "upload complete", state: "UPLOAD_COMPLETE", wantReason: "UPLOAD_COMPLETE"},
+		{name: "unknown", state: "", wantReason: "did not return"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newBuildsTestClient(t, buildsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if got := req.URL.Query().Get("fields[subscriptionAppStoreReviewScreenshots]"); got != "assetDeliveryState" {
+					t.Fatalf("expected assetDeliveryState field request, got %q", got)
+				}
+				attributes := `{}`
+				if test.state != "" {
+					attributes = `{"assetDeliveryState":{"state":"` + test.state + `"` + test.errors + `}}`
+				}
+				return buildsJSONResponse(http.StatusOK, `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":`+attributes+`}}`)
+			}))
+
+			id, state, details, status, err := fetchSubscriptionReviewScreenshot(context.Background(), client, "sub-1")
+			if err != nil {
+				t.Fatalf("fetchSubscriptionReviewScreenshot() error = %v", err)
+			}
+			if id != "shot-1" || state != test.state {
+				t.Fatalf("got id=%q state=%q, want id=shot-1 state=%q", id, state, test.state)
+			}
+			if !slices.Equal(details, test.wantDetails) {
+				t.Fatalf("details=%v, want %v", details, test.wantDetails)
+			}
+			if status.Verified != test.wantVerified {
+				t.Fatalf("verified=%t, want %t; status=%+v", status.Verified, test.wantVerified, status)
+			}
+			if test.wantReason != "" && !strings.Contains(status.SkipReason, test.wantReason) {
+				t.Fatalf("skip reason %q does not contain %q", status.SkipReason, test.wantReason)
+			}
+		})
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
@@ -18,6 +19,12 @@ type validateSubscriptionsOptions struct {
 	Strict bool
 	Output string
 	Pretty bool
+}
+
+// SubscriptionsOptions configures a non-printing subscription readiness report.
+type SubscriptionsOptions struct {
+	AppID  string
+	Strict bool
 }
 
 // ValidateSubscriptionsCommand returns the asc validate subscriptions subcommand.
@@ -31,13 +38,14 @@ func ValidateSubscriptionsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "subscriptions",
 		ShortUsage: "asc validate subscriptions --app \"APP_ID\" [flags]",
-		ShortHelp:  "Validate subscription review readiness and promotional image guidance.",
+		ShortHelp:  "Validate subscription metadata, screenshot delivery, pricing, and availability.",
 		LongHelp: `Validate review readiness for auto-renewable subscriptions.
 
-This command is conservative: it emits warnings for subscriptions that need
-review attention or are missing promotional images Apple uses for App Store
-promotion, offer-code redemption pages, and win-back offers. Use --strict to
-gate on warnings in CI.
+For subscriptions in MISSING_METADATA, this command inspects group and
+subscription localizations, App Review screenshot delivery, availability, and
+price coverage. It also emits advisory guidance for promotional images Apple
+uses for App Store promotion, offer-code redemption pages, and win-back offers.
+Use --strict to gate on warnings in CI.
 
 Examples:
   asc validate subscriptions --app "APP_ID"
@@ -68,6 +76,36 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 		return fmt.Errorf("validate subscriptions: %w", err)
 	}
 
+	report, err := buildSubscriptionsReport(ctx, client, SubscriptionsOptions{
+		AppID:  opts.AppID,
+		Strict: opts.Strict,
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := shared.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {
+		return err
+	}
+
+	if report.Summary.Blocking > 0 {
+		return shared.NewValidationReportedError(fmt.Errorf("validate subscriptions: found %d blocking issue(s)", report.Summary.Blocking))
+	}
+
+	return nil
+}
+
+// BuildSubscriptionsReport fetches live subscription state and returns the same
+// structured report emitted by `asc validate subscriptions` without printing it.
+func BuildSubscriptionsReport(ctx context.Context, opts SubscriptionsOptions) (validation.SubscriptionsReport, error) {
+	client, err := clientFactory()
+	if err != nil {
+		return validation.SubscriptionsReport{}, fmt.Errorf("validate subscriptions: %w", err)
+	}
+	return buildSubscriptionsReport(ctx, client, opts)
+}
+
+func buildSubscriptionsReport(ctx context.Context, client *asc.Client, opts SubscriptionsOptions) (validation.SubscriptionsReport, error) {
 	ctx = withReadinessRequestGate(ctx)
 	pricingCoverageSkipReason := ""
 	var appAvailableTerritories []string
@@ -97,7 +135,7 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 			return nil
 		},
 	); err != nil {
-		return err
+		return validation.SubscriptionsReport{}, err
 	}
 
 	buildCount := 0
@@ -106,9 +144,10 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 	var buildStatus metadataCheckStatus
 	for _, sub := range subs {
 		if strings.EqualFold(strings.TrimSpace(sub.State), "MISSING_METADATA") {
+			var err error
 			buildCount, buildStatus, err = fetchAppBuildCountFn(ctx, client, opts.AppID)
 			if err != nil {
-				return fmt.Errorf("validate subscriptions: %w", err)
+				return validation.SubscriptionsReport{}, fmt.Errorf("validate subscriptions: %w", err)
 			}
 			buildCheckSkipped = !buildStatus.Verified
 			buildCheckSkipReason = buildStatus.SkipReason
@@ -127,13 +166,5 @@ func runValidateSubscriptions(ctx context.Context, opts validateSubscriptionsOpt
 		BuildCheckSkipReason:      buildCheckSkipReason,
 	}, opts.Strict)
 
-	if err := shared.PrintOutput(&report, opts.Output, opts.Pretty); err != nil {
-		return err
-	}
-
-	if report.Summary.Blocking > 0 {
-		return shared.NewValidationReportedError(fmt.Errorf("validate subscriptions: found %d blocking issue(s)", report.Summary.Blocking))
-	}
-
-	return nil
+	return report, nil
 }

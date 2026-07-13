@@ -1053,7 +1053,7 @@ func TestValidateSubscriptionsIncludesDiagnosticsMatrixForOpaqueMissingMetadata(
 		"sub-avail-1": `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}]}`,
 	}
 	fixture.reviewScreenshotBySub = map[string]string{
-		"sub-1": `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png"}}}`,
+		"sub-1": `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png","assetDeliveryState":{"state":"COMPLETE"}}}}`,
 	}
 
 	client := newValidateSubscriptionsClient(t, fixture)
@@ -1133,7 +1133,7 @@ func TestValidateSubscriptionsIncludesDiagnosticsMatrixForOpaqueMissingMetadata(
 	}
 }
 
-func TestValidateSubscriptionsPrefersAdvisoryConclusionOverOpaqueAppleState(t *testing.T) {
+func TestValidateSubscriptionsReportsOpaqueAppleStateWhenOnlyAdvisoriesRemain(t *testing.T) {
 	fixture := validValidateSubscriptionsFixture()
 	fixture.availabilityV2 = `{"data":{"type":"appAvailabilities","id":"app-avail-1","attributes":{"availableInNewTerritories":true}}}`
 	fixture.territories = `{"data":[
@@ -1162,7 +1162,7 @@ func TestValidateSubscriptionsPrefersAdvisoryConclusionOverOpaqueAppleState(t *t
 		"sub-avail-1": `{"data":[{"type":"territories","id":"USA"},{"type":"territories","id":"CAN"}]}`,
 	}
 	fixture.reviewScreenshotBySub = map[string]string{
-		"sub-1": `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png"}}}`,
+		"sub-1": `{"data":{"type":"subscriptionAppStoreReviewScreenshots","id":"shot-1","attributes":{"fileName":"review.png","assetDeliveryState":{"state":"COMPLETE"}}}}`,
 	}
 	fixture.imagesBySubscription["sub-1"] = `{"data":[]}`
 
@@ -1194,11 +1194,11 @@ func TestValidateSubscriptionsPrefersAdvisoryConclusionOverOpaqueAppleState(t *t
 	}
 
 	diag := report.Diagnostics[0]
-	if diag.Conclusion != "advisory_only" {
-		t.Fatalf("expected advisory_only conclusion when only advisory findings remain, got %+v", diag)
+	if diag.Conclusion != "opaque_apple_state" {
+		t.Fatalf("expected opaque_apple_state when blocking public checks pass but Apple still reports missing metadata, got %+v", diag)
 	}
-	if !strings.Contains(diag.Summary, "only advisory subscription findings remain") {
-		t.Fatalf("expected advisory-only summary, got %+v", diag)
+	if !strings.Contains(diag.Summary, "do not explain why Apple still reports MISSING_METADATA") {
+		t.Fatalf("expected opaque Apple state summary, got %+v", diag)
 	}
 
 	imageRow, ok := findSubscriptionDiagnosticRow(t, diag.Rows, "promotional_image")
