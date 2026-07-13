@@ -155,11 +155,13 @@ func fetchSubscriptions(ctx context.Context, client *asc.Client, appID string) (
 				return nil
 			},
 			func(taskCtx context.Context) error {
-				id, status, fetchErr := fetchSubscriptionReviewScreenshot(taskCtx, client, subscriptionID)
+				id, assetDeliveryState, assetDeliveryErrors, status, fetchErr := fetchSubscriptionReviewScreenshot(taskCtx, client, subscriptionID)
 				if fetchErr != nil {
 					return fmt.Errorf("fetch subscription review screenshot for %s: %w", subscriptionID, fetchErr)
 				}
 				enrichments[index].reviewScreenshotID = id
+				enrichments[index].reviewScreenshotAssetDeliveryState = assetDeliveryState
+				enrichments[index].reviewScreenshotAssetDeliveryErrors = assetDeliveryErrors
 				enrichments[index].reviewScreenshotStatus = status
 				return nil
 			},
@@ -249,6 +251,8 @@ func fetchSubscriptions(ctx context.Context, client *asc.Client, appID string) (
 				valSub.LocalizationCheckSkipped = !enrichment.localizationStatus.Verified
 				valSub.LocalizationCheckSkipReason = enrichment.localizationStatus.SkipReason
 				valSub.ReviewScreenshotID = enrichment.reviewScreenshotID
+				valSub.ReviewScreenshotAssetDeliveryState = enrichment.reviewScreenshotAssetDeliveryState
+				valSub.ReviewScreenshotAssetDeliveryErrors = enrichment.reviewScreenshotAssetDeliveryErrors
 				valSub.ReviewScreenshotCheckSkipped = !enrichment.reviewScreenshotStatus.Verified
 				valSub.ReviewScreenshotCheckReason = enrichment.reviewScreenshotStatus.SkipReason
 				valSub.AvailabilityID = enrichment.availabilityID
@@ -291,25 +295,27 @@ type subscriptionGroupMetadata struct {
 }
 
 type subscriptionEnrichment struct {
-	image                        subscriptionImageStatus
-	priceTerritories             []string
-	priceStatus                  metadataCheckStatus
-	localizations                []validation.SubscriptionLocalizationInfo
-	localizationStatus           metadataCheckStatus
-	reviewScreenshotID           string
-	reviewScreenshotStatus       metadataCheckStatus
-	availabilityID               string
-	availabilityTerritories      []string
-	availabilityInNewTerritories *bool
-	availabilityStatus           metadataCheckStatus
-	planAvailabilities           []validation.SubscriptionPlanAvailabilityInfo
-	planAvailabilityStatus       metadataCheckStatus
-	introductoryOfferCount       int
-	introductoryOfferStatus      metadataCheckStatus
-	promotionalOfferCount        int
-	promotionalOfferStatus       metadataCheckStatus
-	winBackOfferCount            int
-	winBackOfferStatus           metadataCheckStatus
+	image                               subscriptionImageStatus
+	priceTerritories                    []string
+	priceStatus                         metadataCheckStatus
+	localizations                       []validation.SubscriptionLocalizationInfo
+	localizationStatus                  metadataCheckStatus
+	reviewScreenshotID                  string
+	reviewScreenshotAssetDeliveryState  string
+	reviewScreenshotAssetDeliveryErrors []string
+	reviewScreenshotStatus              metadataCheckStatus
+	availabilityID                      string
+	availabilityTerritories             []string
+	availabilityInNewTerritories        *bool
+	availabilityStatus                  metadataCheckStatus
+	planAvailabilities                  []validation.SubscriptionPlanAvailabilityInfo
+	planAvailabilityStatus              metadataCheckStatus
+	introductoryOfferCount              int
+	introductoryOfferStatus             metadataCheckStatus
+	promotionalOfferCount               int
+	promotionalOfferStatus              metadataCheckStatus
+	winBackOfferCount                   int
+	winBackOfferStatus                  metadataCheckStatus
 }
 
 func fetchSubscriptionsForGroup(ctx context.Context, client *asc.Client, groupID string) ([]asc.Resource[asc.SubscriptionAttributes], error) {
@@ -449,6 +455,7 @@ func fetchSubscriptionPriceTerritories(ctx context.Context, client *asc.Client, 
 			requestCtx,
 			strings.TrimSpace(subscriptionID),
 			asc.WithSubscriptionPricesInclude([]string{"territory"}),
+			asc.WithSubscriptionPricesPlanType(asc.SubscriptionPlanTypeUpfront),
 			asc.WithSubscriptionPricesLimit(200),
 		)
 	})
@@ -519,26 +526,56 @@ func subscriptionPriceTerritoryID(raw json.RawMessage) (string, error) {
 	return strings.TrimSpace(relationships.Territory.Data.ID), nil
 }
 
-func fetchSubscriptionReviewScreenshot(ctx context.Context, client *asc.Client, subscriptionID string) (string, metadataCheckStatus, error) {
+func fetchSubscriptionReviewScreenshot(ctx context.Context, client *asc.Client, subscriptionID string) (string, string, []string, metadataCheckStatus, error) {
 	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.SubscriptionAppStoreReviewScreenshotResponse, error) {
-		return client.GetSubscriptionAppStoreReviewScreenshotForSubscription(requestCtx, strings.TrimSpace(subscriptionID))
+		return client.GetSubscriptionAppStoreReviewScreenshotForSubscription(
+			requestCtx,
+			strings.TrimSpace(subscriptionID),
+			asc.WithSubscriptionAppStoreReviewScreenshotFields([]string{"assetDeliveryState"}),
+		)
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			return "", metadataCheckStatus{}, err
+			return "", "", nil, metadataCheckStatus{}, err
 		}
 		if asc.IsNotFound(err) {
-			return "", metadataCheckStatus{Verified: true}, nil
+			return "", "", nil, metadataCheckStatus{Verified: true}, nil
 		}
 		if reason, ok := metadataCheckSkipReason(err, "subscription App Review screenshot"); ok {
-			return "", metadataCheckStatus{SkipReason: reason}, nil
+			return "", "", nil, metadataCheckStatus{SkipReason: reason}, nil
 		}
-		return "", metadataCheckStatus{}, err
+		return "", "", nil, metadataCheckStatus{}, err
 	}
 	if resp == nil {
-		return "", metadataCheckStatus{Verified: true}, nil
+		return "", "", nil, metadataCheckStatus{Verified: true}, nil
 	}
-	return strings.TrimSpace(resp.Data.ID), metadataCheckStatus{Verified: true}, nil
+
+	id := strings.TrimSpace(resp.Data.ID)
+	state := ""
+	details := make([]string, 0)
+	if resp.Data.Attributes.AssetDeliveryState != nil && resp.Data.Attributes.AssetDeliveryState.State != nil {
+		state = strings.ToUpper(strings.TrimSpace(*resp.Data.Attributes.AssetDeliveryState.State))
+		for _, detail := range resp.Data.Attributes.AssetDeliveryState.Errors {
+			code := strings.TrimSpace(detail.Code)
+			message := strings.TrimSpace(detail.Message)
+			switch {
+			case code != "" && message != "":
+				details = append(details, code+": "+message)
+			case code != "":
+				details = append(details, code)
+			case message != "":
+				details = append(details, message)
+			}
+		}
+	}
+	switch state {
+	case "COMPLETE", "FAILED":
+		return id, state, details, metadataCheckStatus{Verified: true}, nil
+	case "":
+		return id, state, details, metadataCheckStatus{SkipReason: "Validation could not verify the subscription App Review screenshot because Apple did not return its asset delivery state"}, nil
+	default:
+		return id, state, details, metadataCheckStatus{SkipReason: fmt.Sprintf("Validation could not verify the subscription App Review screenshot because its asset delivery state is %s, not COMPLETE", state)}, nil
+	}
 }
 
 func fetchSubscriptionAvailabilityTerritories(ctx context.Context, client *asc.Client, subscriptionID string) (string, []string, *bool, metadataCheckStatus, error) {

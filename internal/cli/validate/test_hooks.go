@@ -75,6 +75,20 @@ func SetFetchAvailableTerritoriesFunc(fn func(context.Context, *asc.Client, stri
 	}
 }
 
+// SetFetchPricingTerritoriesFunc replaces the pricing-territory fetcher for tests.
+// It returns a restore function to reset the previous handler.
+func SetFetchPricingTerritoriesFunc(fn func(context.Context, *asc.Client) ([]string, error)) func() {
+	previous := fetchPricingTerritoriesFn
+	if fn == nil {
+		fetchPricingTerritoriesFn = fetchPricingTerritories
+	} else {
+		fetchPricingTerritoriesFn = fn
+	}
+	return func() {
+		fetchPricingTerritoriesFn = previous
+	}
+}
+
 // SetFetchAppBuildCountFunc replaces the app build-count fetcher for tests.
 // The hook models one outbound probe and receives a fresh request context.
 // It returns a restore function to reset the previous handler.

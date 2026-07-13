@@ -103,3 +103,26 @@ func TestValidateAvailabilitySkipSuppressesPartialCoverageAndAddsCoverageSkipChe
 		t.Fatalf("expected pricing coverage skip check in unified validate, got %+v", report.Checks)
 	}
 }
+
+func TestValidateUsesPricingUniverseInsteadOfAppSaleAvailabilityForSubscriptionMatrix(t *testing.T) {
+	report := Validate(Input{
+		AppID:                   "app-1",
+		VersionID:               "ver-1",
+		AvailableTerritories:    1,
+		AppAvailableTerritories: []string{"USA"},
+		PricingTerritories:      []string{"USA", "CAN"},
+		PricingTerritoryCount:   2,
+		Subscriptions: []Subscription{
+			{
+				ID:               "sub-1",
+				State:            "APPROVED",
+				PriceCount:       1,
+				PriceTerritories: []string{"USA"},
+			},
+		},
+	}, false)
+
+	if !hasCheckID(report.Checks, "subscriptions.pricing.partial_territory_coverage") {
+		t.Fatalf("expected unified validate to require the full pricing universe, got %+v", report.Checks)
+	}
+}

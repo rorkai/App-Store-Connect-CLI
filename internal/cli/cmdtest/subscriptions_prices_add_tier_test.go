@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func subscriptionPriceListFixture(pricePointID, territoryID, attrs string) string {
@@ -557,6 +559,95 @@ func TestSubscriptionsPricesAdd_ExistingMatchingPriceSkipsCreate(t *testing.T) {
 	if !strings.Contains(stdout, `"id":"existing-price-1"`) {
 		t.Fatalf("expected existing subscription price response in stdout, got %q", stdout)
 	}
+}
+
+func TestSubscriptionsPricesAdd_ForceResavesCompletePriceMatrix(t *testing.T) {
+	setupAuth(t)
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	var patched bool
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/relationships/prices"):
+			body := `{"data":[{"type":"subscriptionPrices","id":"existing-price-1"}],"links":{}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case req.Method == http.MethodGet && strings.HasSuffix(req.URL.Path, "/prices"):
+			body := subscriptionPriceListFixture("PP_ID", "USA", `{"planType":"UPFRONT"}`)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/subscriptionPricePoints/PP_ID/equalizations":
+			body := `{"data":[{"type":"subscriptionPricePoints","id":"PP_CAN","attributes":{"customerPrice":"1.49"},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}],"links":{}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/subscriptions/8000000003":
+			patched = true
+			var payload asc.SubscriptionUpdateRequest
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode price matrix payload: %v", err)
+			}
+			if len(payload.Included) != 2 {
+				t.Fatalf("expected complete two-territory matrix, got %+v", payload.Included)
+			}
+			body := `{"data":{"type":"subscriptions","id":"8000000003","attributes":{"state":"READY_TO_SUBMIT"}}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+			}, nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return nil, nil
+		}
+	})
+
+	t.Setenv("HOME", t.TempDir())
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "prices", "set",
+			"--subscription-id", "8000000003",
+			"--price-point", "PP_ID",
+			"--territory", "USA",
+			"--force",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if !patched {
+		t.Fatal("expected forced atomic price matrix PATCH")
+	}
+	if !strings.Contains(stdout, `"id":"8000000003"`) {
+		t.Fatalf("expected updated subscription response in stdout, got %q", stdout)
+	}
+}
+
+func TestSubscriptionsPricesAdd_ForceRejectsInvalidBoolean(t *testing.T) {
+	assertUsageExit(t, []string{
+		"subscriptions", "pricing", "prices", "set",
+		"--subscription-id", "8000000003",
+		"--price-point", "PP_ID",
+		"--force=maybe",
+	}, `invalid boolean value "maybe" for -force`)
 }
 
 func TestSubscriptionsPricesAdd_TierRequiresTerritory(t *testing.T) {

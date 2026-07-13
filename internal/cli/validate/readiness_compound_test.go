@@ -89,6 +89,12 @@ func TestBuildReadinessReport_UsesCompoundReadsWithoutFallbacks(t *testing.T) {
 		return "availability-1", 1, nil
 	})
 	t.Cleanup(restoreAvailability)
+	pricingTerritoryFetches := 0
+	restorePricingTerritories := SetFetchPricingTerritoriesFunc(func(context.Context, *asc.Client) ([]string, error) {
+		pricingTerritoryFetches++
+		return []string{"USA", "CAN"}, nil
+	})
+	t.Cleanup(restorePricingTerritories)
 	restoreScreenshots := SetFetchScreenshotSetsFunc(func(context.Context, *asc.Client, []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) ([]validation.ScreenshotSet, error) {
 		return nil, nil
 	})
@@ -118,6 +124,9 @@ func TestBuildReadinessReport_UsesCompoundReadsWithoutFallbacks(t *testing.T) {
 	}
 	if totalRequests != 3 {
 		t.Fatalf("compound readiness request count = %d, want 3 (version, app infos, price schedule)", totalRequests)
+	}
+	if pricingTerritoryFetches != 1 {
+		t.Fatalf("pricing territory fetches = %d, want 1", pricingTerritoryFetches)
 	}
 
 	for _, path := range []string{

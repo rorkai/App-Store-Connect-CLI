@@ -149,6 +149,14 @@ type SubscriptionPriceCreateAttributes struct {
 	PlanType  SubscriptionPlanType `json:"planType,omitempty"`
 }
 
+// SubscriptionInlinePrice describes one price in an atomic subscription price
+// matrix update.
+type SubscriptionInlinePrice struct {
+	PricePointID string
+	TerritoryID  string
+	Attributes   SubscriptionPriceCreateAttributes
+}
+
 // SubscriptionPriceRelationships describes relationships for prices.
 type SubscriptionPriceRelationships struct {
 	Subscription           *Relationship `json:"subscription"`
