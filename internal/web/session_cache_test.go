@@ -999,7 +999,7 @@ func TestTryResumeSessionPersistsRefreshedCookies(t *testing.T) {
 		t.Fatal("expected refreshed session in cache")
 	}
 
-	if got := persistedCookieValue(stored, "https://appstoreconnect.apple.com/", "myacinfo"); got != "refreshed-token" {
+	if got := persistedMyacinfoValue(stored); got != "refreshed-token" {
 		t.Fatalf("expected refreshed cookie value, got %q", got)
 	}
 }
@@ -1057,7 +1057,7 @@ func TestTryResumeLastSessionPersistsRefreshedCookies(t *testing.T) {
 	if !ok {
 		t.Fatal("expected refreshed session in cache")
 	}
-	if got := persistedCookieValue(stored, "https://appstoreconnect.apple.com/", "myacinfo"); got != "new-token" {
+	if got := persistedMyacinfoValue(stored); got != "new-token" {
 		t.Fatalf("expected refreshed cookie value, got %q", got)
 	}
 }
@@ -1341,7 +1341,7 @@ func TestTryResumeSessionMigratesLegacyIrisFileCache(t *testing.T) {
 	if !ok {
 		t.Fatal("expected migrated session in web cache")
 	}
-	if got := persistedCookieValue(stored, "https://appstoreconnect.apple.com/", "myacinfo"); got != "legacy-iris-token" {
+	if got := persistedMyacinfoValue(stored); got != "legacy-iris-token" {
 		t.Fatalf("expected migrated legacy cookie value, got %q", got)
 	}
 	if _, err := os.Stat(filepath.Join(legacyDir, "session-"+key+".json")); !os.IsNotExist(err) {
@@ -2017,10 +2017,10 @@ func TestClearLastSessionMarkerDefaultBackendIgnoresUnavailableKeychainFallback(
 	}
 }
 
-func persistedCookieValue(sess persistedSession, baseURL, cookieName string) string {
-	list := sess.Cookies[baseURL]
+func persistedMyacinfoValue(sess persistedSession) string {
+	list := sess.Cookies["https://appstoreconnect.apple.com/"]
 	for _, cookie := range list {
-		if cookie.Name == cookieName {
+		if cookie.Name == "myacinfo" {
 			return cookie.Value
 		}
 	}
@@ -2113,7 +2113,7 @@ func TestWriteSessionToFileEncryptsAtRestByDefault(t *testing.T) {
 	if !ok {
 		t.Fatal("expected encrypted session round-trip")
 	}
-	if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "secret-token" {
+	if got := persistedMyacinfoValue(sess); got != "secret-token" {
 		t.Fatalf("expected round-tripped cookie value, got %q", got)
 	}
 }
@@ -2157,7 +2157,7 @@ func TestWriteSessionToFileReusesEncryptionKey(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected persisted session for %s", email)
 		}
-		if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "token-"+email {
+		if got := persistedMyacinfoValue(sess); got != "token-"+email {
 			t.Fatalf("expected cookie for %s, got %q", email, got)
 		}
 	}
@@ -2195,7 +2195,7 @@ func TestReadSessionFromFileMigratesLegacyCleartext(t *testing.T) {
 	if !ok {
 		t.Fatal("expected legacy cleartext session to load")
 	}
-	if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "legacy-token" {
+	if got := persistedMyacinfoValue(sess); got != "legacy-token" {
 		t.Fatalf("expected legacy cookie value, got %q", got)
 	}
 
@@ -2218,7 +2218,7 @@ func TestReadSessionFromFileMigratesLegacyCleartext(t *testing.T) {
 	if !ok {
 		t.Fatal("expected migrated session to load")
 	}
-	if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "legacy-token" {
+	if got := persistedMyacinfoValue(sess); got != "legacy-token" {
 		t.Fatalf("expected migrated cookie value, got %q", got)
 	}
 }
@@ -2251,7 +2251,7 @@ func TestWriteSessionToFileFallsBackToCleartextWithoutKeychain(t *testing.T) {
 	if !ok {
 		t.Fatal("expected fallback session to load")
 	}
-	if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "headless-token" {
+	if got := persistedMyacinfoValue(sess); got != "headless-token" {
 		t.Fatalf("expected fallback cookie value, got %q", got)
 	}
 }
