@@ -642,8 +642,9 @@ func applyPrivacyPlan(ctx context.Context, client privacyMutationClient, appID s
 	actions := make([]privacyApplyAction, 0, len(plan.Updates)+len(plan.Adds)+len(plan.Deletes))
 
 	// Phases stay sequential (delete, then update, then create) so creates
-	// never race deletes of duplicate tuples; items within a phase are
-	// independent and run in parallel with index-keyed results.
+	// never race deletes of duplicate tuples. Deletes and updates are safe to
+	// retry, while non-idempotent creates remain serial to avoid an unknown set
+	// of committed additions when one request fails.
 	deleteActions := make([]privacyApplyAction, len(plan.Deletes))
 	if err := shared.RunIndexedTasks(ctx, len(plan.Deletes), privacyApplyWorkerLimit, func(taskCtx context.Context, index int) error {
 		deletion := plan.Deletes[index]
@@ -689,30 +690,24 @@ func applyPrivacyPlan(ctx context.Context, client privacyMutationClient, appID s
 	}
 	actions = append(actions, updateActions...)
 
-	createActions := make([]privacyApplyAction, len(plan.Adds))
-	if err := shared.RunIndexedTasks(ctx, len(plan.Adds), privacyApplyWorkerLimit, func(taskCtx context.Context, index int) error {
-		add := plan.Adds[index]
-		created, err := client.CreateAppDataUsage(taskCtx, appID, webcore.DataUsageTuple{
+	for _, add := range plan.Adds {
+		created, err := client.CreateAppDataUsage(ctx, appID, webcore.DataUsageTuple{
 			Category:       add.Category,
 			Purpose:        add.Purpose,
 			DataProtection: add.DataProtection,
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
-		createActions[index] = privacyApplyAction{
+		actions = append(actions, privacyApplyAction{
 			Action:         "create",
 			Key:            add.Key,
 			UsageID:        strings.TrimSpace(created.ID),
 			Category:       add.Category,
 			Purpose:        add.Purpose,
 			DataProtection: add.DataProtection,
-		}
-		return nil
-	}); err != nil {
-		return nil, err
+		})
 	}
-	actions = append(actions, createActions...)
 
 	return actions, nil
 }

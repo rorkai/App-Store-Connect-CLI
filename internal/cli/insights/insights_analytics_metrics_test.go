@@ -17,6 +17,8 @@ type analyticsMetricsStub struct {
 	reportsByRequest  map[string]*asc.AnalyticsReportsResponse
 	instancesByReport map[string]*asc.AnalyticsReportInstancesResponse
 	instanceErrs      map[string]error
+	waitByReport      map[string]<-chan struct{}
+	releaseByReport   map[string]chan struct{}
 
 	mu            sync.Mutex
 	instanceCalls []string
@@ -37,6 +39,12 @@ func (s *analyticsMetricsStub) GetAnalyticsReportInstances(_ context.Context, re
 	s.mu.Lock()
 	s.instanceCalls = append(s.instanceCalls, reportID)
 	s.mu.Unlock()
+	if release := s.releaseByReport[reportID]; release != nil {
+		close(release)
+	}
+	if wait := s.waitByReport[reportID]; wait != nil {
+		<-wait
+	}
 
 	if err, ok := s.instanceErrs[reportID]; ok && err != nil {
 		return nil, err
@@ -186,5 +194,25 @@ func TestCollectAnalyticsMetricsForbiddenInstanceErrorMapsToUnavailable(t *testi
 		if !strings.Contains(metric.Reason, "not permitted") {
 			t.Fatalf("metric %s reason = %q, want forbidden reason", metric.Name, metric.Reason)
 		}
+	}
+}
+
+func TestCollectAnalyticsMetricsChoosesErrorByReportOrder(t *testing.T) {
+	stub := analyticsMetricsStubWithReports(2)
+	releaseFirst := make(chan struct{})
+	stub.instanceErrs = map[string]error{
+		"report-0": asc.ErrNotFound,
+		"report-1": asc.ErrForbidden,
+	}
+	stub.waitByReport = map[string]<-chan struct{}{"report-0": releaseFirst}
+	stub.releaseByReport = map[string]chan struct{}{"report-1": releaseFirst}
+	thisWeek, previousWeek := analyticsMetricsTestWindows()
+
+	metrics, _, err := collectAnalyticsMetrics(context.Background(), stub, "app-1", thisWeek, previousWeek)
+	if err != nil {
+		t.Fatalf("collectAnalyticsMetrics() error = %v", err)
+	}
+	if len(metrics) == 0 || !strings.Contains(metrics[0].Reason, "unavailable for this app") {
+		t.Fatalf("expected lower-index not-found result to win, got %#v", metrics)
 	}
 }

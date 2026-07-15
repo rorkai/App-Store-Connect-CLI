@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestRunIndexedTasksPreservesIndexKeyedResults(t *testing.T) {
@@ -24,29 +25,41 @@ func TestRunIndexedTasksPreservesIndexKeyedResults(t *testing.T) {
 	}
 }
 
-func TestRunIndexedTasksReturnsFirstErrorAndCancels(t *testing.T) {
-	wantErr := errors.New("boom")
-	var canceled atomic.Int32
-	release := make(chan struct{})
+func TestRunIndexedTasksReturnsLowestIndexedError(t *testing.T) {
+	lowIndexErr := errors.New("lower index failed")
+	highIndexErr := errors.New("higher index failed first")
+	highFinished := make(chan struct{})
 
-	err := RunIndexedTasks(context.Background(), 6, 2, func(ctx context.Context, index int) error {
-		if index == 0 {
-			return wantErr
-		}
-		select {
-		case <-ctx.Done():
-			canceled.Add(1)
-			return ctx.Err()
-		case <-release:
+	err := RunIndexedTasks(context.Background(), 4, 2, func(_ context.Context, index int) error {
+		switch index {
+		case 0:
+			<-highFinished
+			return lowIndexErr
+		case 1:
+			close(highFinished)
+			return highIndexErr
+		default:
 			return nil
 		}
 	})
-	close(release)
-	if !errors.Is(err, wantErr) {
-		t.Fatalf("RunIndexedTasks() error = %v, want %v", err, wantErr)
+	if !errors.Is(err, lowIndexErr) {
+		t.Fatalf("RunIndexedTasks() error = %v, want %v", err, lowIndexErr)
 	}
-	if canceled.Load() == 0 {
-		t.Fatal("expected remaining tasks to observe cancellation")
+}
+
+func TestRunIndexedTasksReturnsParentCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var calls atomic.Int32
+	err := RunIndexedTasks(ctx, 6, 2, func(context.Context, int) error {
+		calls.Add(1)
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("RunIndexedTasks() error = %v, want context.Canceled", err)
+	}
+	if calls.Load() != 0 {
+		t.Fatalf("expected canceled context to skip all tasks, got %d calls", calls.Load())
 	}
 }
 
@@ -58,7 +71,9 @@ func TestRunIndexedTasksHonorsWorkerLimit(t *testing.T) {
 	running := 0
 	peak := 0
 
-	err := RunIndexedTasks(context.Background(), 10, limit, func(_ context.Context, _ int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := RunIndexedTasks(ctx, 10, limit, func(ctx context.Context, _ int) error {
 		mu.Lock()
 		running++
 		if running > peak {
@@ -70,7 +85,11 @@ func TestRunIndexedTasksHonorsWorkerLimit(t *testing.T) {
 		if reachedLimit {
 			once.Do(func() { close(block) })
 		}
-		<-block
+		select {
+		case <-block:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 
 		mu.Lock()
 		running--
