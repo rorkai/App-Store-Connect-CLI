@@ -25,6 +25,7 @@ asc <subcommand> [flags]
 
 - `--api-debug` - Enable HTTP debug logging to stderr (redacts sensitive values)
 - `--debug` - Enable debug logging to stderr
+- `--no-cache` - Disable the local app lookup cache (default: false)
 - `--profile` - Use named authentication profile
 - `--report` - Report format for CI output (e.g., junit)
 - `--report-file` - Path to write CI report file

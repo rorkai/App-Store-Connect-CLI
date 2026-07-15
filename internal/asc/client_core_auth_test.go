@@ -26,6 +26,21 @@ func TestNewClientFromPEM(t *testing.T) {
 	}
 }
 
+func TestClientCredentialIdentifierAccessors(t *testing.T) {
+	privateKeyPEM := mustGenerateECDSAPEM(t)
+
+	client, err := NewClientFromPEM("KEY123", "ISS456", privateKeyPEM)
+	if err != nil {
+		t.Fatalf("NewClientFromPEM() error: %v", err)
+	}
+	if got := client.KeyID(); got != "KEY123" {
+		t.Fatalf("KeyID() = %q, want %q", got, "KEY123")
+	}
+	if got := client.IssuerID(); got != "ISS456" {
+		t.Fatalf("IssuerID() = %q, want %q", got, "ISS456")
+	}
+}
+
 func TestNewClientFromPEM_InvalidKey(t *testing.T) {
 	_, err := NewClientFromPEM("KEY123", "ISS456", "not-a-valid-key")
 	if err == nil {

@@ -570,6 +570,17 @@ func newClientWithPrivateKey(keyID, issuerID string, privateKey *ecdsa.PrivateKe
 	}
 }
 
+// IssuerID returns the issuer ID the client authenticates with.
+// It is empty for individual API keys.
+func (c *Client) IssuerID() string {
+	return c.issuerID
+}
+
+// KeyID returns the API key ID the client authenticates with.
+func (c *Client) KeyID() string {
+	return c.keyID
+}
+
 func (c *Client) getMutatingRequestLimiter() chan struct{} {
 	c.mutatingRequestLimiterOnce.Do(func() {
 		if c.mutatingRequestLimiter == nil {

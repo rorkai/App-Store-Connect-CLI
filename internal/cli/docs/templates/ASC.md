@@ -205,6 +205,7 @@ Use `asc <command> --help` for subcommands and flags.
 
 - `--api-debug` - HTTP request/response logging (redacted)
 - `--debug` - Debug logging
+- `--no-cache` - Disable the local app lookup cache
 - `--profile` - Use a named authentication profile
 - `--report` - Report format for CI output
 - `--report-file` - Path to write CI report file
@@ -219,6 +220,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `ASC_TIMEOUT`, `ASC_TIMEOUT_SECONDS` - Request timeout
 - `ASC_UPLOAD_TIMEOUT`, `ASC_UPLOAD_TIMEOUT_SECONDS` - Upload timeout
 - `ASC_DEBUG` - Debug output (`api` enables HTTP logs)
+- `ASC_NO_CACHE` - Disable the local app lookup cache
 - `ASC_STOREKIT_KEY_ID`, `ASC_STOREKIT_ISSUER_ID`, `ASC_STOREKIT_PRIVATE_KEY_PATH` - StoreKit In-App Purchase API authentication
 - `ASC_STOREKIT_PRIVATE_KEY`, `ASC_STOREKIT_PRIVATE_KEY_B64` - Inline StoreKit private key alternatives
 - `ASC_STOREKIT_BUNDLE_ID`, `ASC_STOREKIT_ENVIRONMENT`, `ASC_STOREKIT_PROFILE`, `ASC_STOREKIT_STRICT_AUTH` - StoreKit app, environment, profile, and mixed-source auth behavior

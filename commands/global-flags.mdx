@@ -93,6 +93,22 @@ Outputs information about:
 
 **Note**: This flag overrides `ASC_RETRY_LOG` and config file settings when explicitly set.
 
+## Caching Flags
+
+### `--no-cache`
+
+Disable the local app lookup cache for this invocation.
+
+```bash  theme={null}
+asc --no-cache builds list --app "com.example.app"
+```
+
+**Default**: `false`
+
+**Environment variable**: `ASC_NO_CACHE` (accepts `true/false`, `1/0`, `yes/no`, `y/n`, `on/off`)
+
+When you pass `--app` with a bundle ID, the CLI caches the resolved App Store Connect app ID under `~/.asc/cache` for 24 hours so repeated invocations skip an extra API round trip. Use `--no-cache` to force a live lookup, e.g. right after an app was deleted and recreated with the same bundle ID.
+
 ## CI and Reporting Flags
 
 ### `--report`
@@ -160,7 +176,7 @@ When the same setting is configured in multiple places, the CLI uses this priori
 
 ### Boolean Flags
 
-Boolean global flags (`--debug`, `--api-debug`, `--retry-log`, `--strict-auth`, `--version`) can be used without values:
+Boolean global flags (`--debug`, `--api-debug`, `--retry-log`, `--strict-auth`, `--no-cache`, `--version`) can be used without values:
 
 ```bash  theme={null}
 # All of these work
@@ -180,6 +196,7 @@ All global flags have corresponding environment variables for easier configurati
 | `--debug`       | `ASC_DEBUG`          | `true/false`                                   |
 | `--api-debug`   | `ASC_DEBUG`          | `api`                                          |
 | `--retry-log`   | `ASC_RETRY_LOG`      | `true/false`                                   |
+| `--no-cache`    | `ASC_NO_CACHE`       | `true/false`, `1/0`, `yes/no`, `y/n`, `on/off` |
 
 ### Additional Environment Variables
 

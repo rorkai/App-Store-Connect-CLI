@@ -29,15 +29,12 @@ func ResolveAppIDWithExactLookup(ctx context.Context, client appLookupClient, ap
 		return "", fmt.Errorf("app lookup client is required for non-numeric --app values")
 	}
 
-	byBundle, err := client.GetApps(ctx, asc.WithAppsBundleIDs([]string{resolved}), asc.WithAppsLimit(2))
+	appID, found, err := resolveAppIDByBundleID(ctx, client, resolved)
 	if err != nil {
-		return "", fmt.Errorf("resolve app by bundle ID: %w", err)
+		return "", err
 	}
-	if len(byBundle.Data) == 1 {
-		return strings.TrimSpace(byBundle.Data[0].ID), nil
-	}
-	if len(byBundle.Data) > 1 {
-		return "", fmt.Errorf("multiple apps found for bundle ID %q; use --app with App Store Connect app ID", resolved)
+	if found {
+		return appID, nil
 	}
 
 	nameMatchIDs, err := findExactAppNameMatches(ctx, client, resolved, true)
@@ -81,15 +78,12 @@ func ResolveAppIDWithLookup(ctx context.Context, client appLookupClient, appID s
 		return "", fmt.Errorf("app lookup client is required for non-numeric --app values")
 	}
 
-	byBundle, err := client.GetApps(ctx, asc.WithAppsBundleIDs([]string{resolved}), asc.WithAppsLimit(2))
+	appID, found, err := resolveAppIDByBundleID(ctx, client, resolved)
 	if err != nil {
-		return "", fmt.Errorf("resolve app by bundle ID: %w", err)
+		return "", err
 	}
-	if len(byBundle.Data) == 1 {
-		return strings.TrimSpace(byBundle.Data[0].ID), nil
-	}
-	if len(byBundle.Data) > 1 {
-		return "", fmt.Errorf("multiple apps found for bundle ID %q; use --app with App Store Connect app ID", resolved)
+	if found {
+		return appID, nil
 	}
 
 	nameMatchIDs, err := findExactAppNameMatches(ctx, client, resolved, true)
@@ -128,6 +122,33 @@ func ResolveAppIDWithLookup(ctx context.Context, client appLookupClient, appID s
 		return "", fmt.Errorf("multiple apps found for name %q (%s); use --app with App Store Connect app ID", resolved, strings.Join(fuzzyMatches, ", "))
 	}
 	return "", fmt.Errorf("app %q not found (expected app ID, exact bundle ID, or exact app name)", resolved)
+}
+
+// resolveAppIDByBundleID resolves a value as an exact bundle ID, consulting
+// the cross-invocation disk cache before issuing a live lookup. Successful
+// live resolutions refresh the cache; a live lookup that no longer sees the
+// bundle ID drops any stale entry so later invocations re-resolve live.
+func resolveAppIDByBundleID(ctx context.Context, client appLookupClient, bundleID string) (string, bool, error) {
+	scope := appLookupCacheScope(client)
+	if appID, ok := cachedAppIDForBundleID(scope, bundleID); ok {
+		return appID, true, nil
+	}
+
+	byBundle, err := client.GetApps(ctx, asc.WithAppsBundleIDs([]string{bundleID}), asc.WithAppsLimit(2))
+	if err != nil {
+		return "", false, fmt.Errorf("resolve app by bundle ID: %w", err)
+	}
+	if byBundle != nil && len(byBundle.Data) == 1 {
+		appID := strings.TrimSpace(byBundle.Data[0].ID)
+		storeCachedAppIDForBundleID(scope, bundleID, appID)
+		return appID, true, nil
+	}
+	if byBundle != nil && len(byBundle.Data) > 1 {
+		return "", false, fmt.Errorf("multiple apps found for bundle ID %q; use --app with App Store Connect app ID", bundleID)
+	}
+
+	invalidateCachedAppIDForBundleID(scope, bundleID)
+	return "", false, nil
 }
 
 func findExactAppNameMatches(ctx context.Context, client appLookupClient, name string, useNameFilter bool) ([]string, error) {
