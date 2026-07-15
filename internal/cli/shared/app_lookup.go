@@ -130,6 +130,12 @@ func ResolveAppIDWithLookup(ctx context.Context, client appLookupClient, appID s
 // bundle ID drops any stale entry so later invocations re-resolve live.
 func resolveAppIDByBundleID(ctx context.Context, client appLookupClient, bundleID string) (string, bool, error) {
 	scope := appLookupCacheScope(client)
+	if scope != "" && appLookupCacheEnabled.Load() && noCacheRequested() {
+		// A bypassed live lookup must not leave an older disk answer available
+		// for the next invocation, even though --no-cache also forbids writing
+		// the newly resolved answer.
+		invalidateCachedAppIDForBundleID(scope, bundleID)
+	}
 	if appID, ok := cachedAppIDForBundleID(scope, bundleID); ok {
 		return appID, true, nil
 	}

@@ -319,13 +319,14 @@ func TestResolveAppIDWithLookup_NoCacheFlagBypassesCache(t *testing.T) {
 		t.Fatalf("expected live lookup with --no-cache, got %d calls", stub.calls)
 	}
 
-	// The bypassed run must not rewrite the cache.
+	// The bypassed run must not leave the older answer available to a later
+	// cache-enabled invocation.
 	noCache = false
-	if cached, ok := cachedAppIDForBundleID(scope, "com.example.app"); !ok || cached != "app-cached" {
-		t.Fatalf("expected untouched cache entry app-cached, got %q (ok=%t)", cached, ok)
+	if cached, ok := cachedAppIDForBundleID(scope, "com.example.app"); ok {
+		t.Fatalf("expected bypassed live lookup to invalidate stale entry, got %q", cached)
 	}
-	if files := cacheFiles(t, dir); len(files) != 1 {
-		t.Fatalf("expected one untouched cache file, got %v", files)
+	if files := cacheFiles(t, dir); len(files) != 0 {
+		t.Fatalf("expected empty cache after bypassed live lookup, got %v", files)
 	}
 }
 
@@ -359,6 +360,38 @@ func TestResolveAppIDWithLookup_NoCacheEnvBypassesCache(t *testing.T) {
 	}
 	if stub.calls != 1 {
 		t.Fatalf("expected live lookup with ASC_NO_CACHE=1, got %d calls", stub.calls)
+	}
+	t.Setenv(noCacheEnvVar, "0")
+	if cached, ok := cachedAppIDForBundleID(scope, "com.example.app"); ok {
+		t.Fatalf("expected env-bypassed lookup to invalidate stale entry, got %q", cached)
+	}
+}
+
+func TestNoCacheRequestedWarnsOnceForInvalidEnvValue(t *testing.T) {
+	enableAppLookupCacheForTest(t)
+	t.Setenv(noCacheEnvVar, "invalid\x1b[31m")
+
+	noCacheWarnMu.Lock()
+	previousWarnings := noCacheWarned
+	noCacheWarned = map[string]struct{}{}
+	noCacheWarnMu.Unlock()
+	t.Cleanup(func() {
+		noCacheWarnMu.Lock()
+		noCacheWarned = previousWarnings
+		noCacheWarnMu.Unlock()
+	})
+
+	_, stderr := captureOutput(t, func() {
+		if noCacheRequested() {
+			t.Fatal("invalid ASC_NO_CACHE value must keep cache enabled")
+		}
+		_ = noCacheRequested()
+	})
+	if count := strings.Count(stderr, "invalid ASC_NO_CACHE value"); count != 1 {
+		t.Fatalf("expected one invalid-value warning, got %d in %q", count, stderr)
+	}
+	if strings.Contains(stderr, "\x1b") {
+		t.Fatalf("expected warning to sanitize terminal control characters, got %q", stderr)
 	}
 }
 
