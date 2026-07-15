@@ -2567,7 +2567,7 @@ func TestReadEncryptedSessionWithoutKeychainIsCacheMiss(t *testing.T) {
 	}
 }
 
-func TestReadEncryptedSessionSurfacesOperationalKeychainErrors(t *testing.T) {
+func TestReadEncryptedSessionTreatsOperationalKeychainErrorsAsCacheMiss(t *testing.T) {
 	withArraySessionKeyring(t)
 	t.Setenv(sessionBypassKeychainEnv, "0")
 	t.Setenv(webSessionCacheEnabledEnv, "1")
@@ -2593,8 +2593,11 @@ func TestReadEncryptedSessionSurfacesOperationalKeychainErrors(t *testing.T) {
 
 	key := webSessionCacheKey("user@example.com")
 	sess, ok, err := readSessionFromFile(key)
-	if err == nil {
-		t.Fatalf("expected operational keychain error to surface, got ok=%v session=%#v", ok, sess)
+	if err != nil {
+		t.Fatalf("expected operational keychain error to behave like a cache miss, got %v", err)
+	}
+	if ok {
+		t.Fatalf("expected cache miss while the encryption key is unreachable, got %#v", sess)
 	}
 }
 

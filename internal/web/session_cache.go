@@ -675,10 +675,7 @@ func decryptSessionEnvelope(envelope encryptedSessionEnvelope) (persistedSession
 		return persistedSession{}, false, nil
 	}
 	fileKey, ok, err := loadSessionFileKey(false)
-	if err != nil {
-		return persistedSession{}, false, err
-	}
-	if !ok {
+	if err != nil || !ok {
 		// Encrypted cache without a reachable keychain key behaves like a
 		// cache miss so callers fall through to a fresh login.
 		return persistedSession{}, false, nil
