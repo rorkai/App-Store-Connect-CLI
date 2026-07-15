@@ -2567,6 +2567,37 @@ func TestReadEncryptedSessionWithoutKeychainIsCacheMiss(t *testing.T) {
 	}
 }
 
+func TestReadEncryptedSessionSurfacesOperationalKeychainErrors(t *testing.T) {
+	withArraySessionKeyring(t)
+	t.Setenv(sessionBypassKeychainEnv, "0")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	jar := newTestSessionJar(t, "guarded-token")
+	if err := PersistSession(&AuthSession{
+		Client:    &http.Client{Jar: jar},
+		UserEmail: "user@example.com",
+	}); err != nil {
+		t.Fatalf("PersistSession error: %v", err)
+	}
+
+	previous := sessionKeyringOpen
+	sessionKeyringOpen = func() (keyring.Keyring, error) {
+		return &failingSessionKeyring{
+			Keyring: keyring.NewArrayKeyring(nil),
+			getErr:  errors.New("keychain locked"),
+		}, nil
+	}
+	t.Cleanup(func() { sessionKeyringOpen = previous })
+
+	key := webSessionCacheKey("user@example.com")
+	sess, ok, err := readSessionFromFile(key)
+	if err == nil {
+		t.Fatalf("expected operational keychain error to surface, got ok=%v session=%#v", ok, sess)
+	}
+}
+
 func TestReadLegacySessionStoreFromKeyringSkipsFileKeyItem(t *testing.T) {
 	kr := withArraySessionKeyring(t)
 	t.Setenv(sessionBypassKeychainEnv, "0")
