@@ -357,39 +357,39 @@ func uploadScreenshotAsset(ctx context.Context, client *asc.Client, setID, fileP
 	if err != nil {
 		return asc.AssetUploadResultItem{}, err
 	}
+	item := asc.AssetUploadResultItem{
+		FileName: info.Name(),
+		FilePath: filePath,
+	}
 
 	checksum, err := asc.ComputeChecksumFromReader(file, asc.ChecksumAlgorithmMD5)
 	if err != nil {
-		return asc.AssetUploadResultItem{}, err
+		return item, err
 	}
 
 	created, err := client.CreateAppScreenshot(ctx, setID, info.Name(), info.Size())
 	if err != nil {
-		return asc.AssetUploadResultItem{}, err
+		return item, err
 	}
+	item.AssetID = created.Data.ID
 	if len(created.Data.Attributes.UploadOperations) == 0 {
-		return asc.AssetUploadResultItem{}, fmt.Errorf("no upload operations returned for %q", info.Name())
+		return item, fmt.Errorf("no upload operations returned for %q", info.Name())
 	}
 
 	if err := asc.UploadAssetFromFile(ctx, file, info.Size(), created.Data.Attributes.UploadOperations); err != nil {
-		return asc.AssetUploadResultItem{}, err
+		return item, err
 	}
 
 	if _, err := client.UpdateAppScreenshot(ctx, created.Data.ID, true, checksum.Hash); err != nil {
-		return asc.AssetUploadResultItem{}, err
+		return item, err
 	}
 
 	state, err := waitForScreenshotDelivery(ctx, client, created.Data.ID)
 	if err != nil {
-		return asc.AssetUploadResultItem{}, err
+		return item, err
 	}
-
-	return asc.AssetUploadResultItem{
-		FileName: info.Name(),
-		FilePath: filePath,
-		AssetID:  created.Data.ID,
-		State:    state,
-	}, nil
+	item.State = state
+	return item, nil
 }
 
 // UploadScreenshotAsset uploads a screenshot file to a set.

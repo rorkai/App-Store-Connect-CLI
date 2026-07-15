@@ -202,6 +202,55 @@ func TestUploadScreenshotsWithOrderStateFailureReportsPendingFilesInFileOrder(t 
 	}
 }
 
+func TestUploadScreenshotsRollsBackCreatedItemCanceledBySiblingFailure(t *testing.T) {
+	dir := t.TempDir()
+	fileA := writeAssetsTestPNG(t, dir, "01-created.png")
+	fileB := writeAssetsTestPNG(t, dir, "02-fails.png")
+	sizeBytes := fileSize(t, fileA)
+	createdA := make(chan struct{})
+	deletedIDs := make([]string, 0, 1)
+
+	installAssetsTestTransport(t, func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				return nil, err
+			}
+			if strings.Contains(string(body), filepath.Base(fileA)) {
+				close(createdA)
+				return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-a","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-a","length":%d,"offset":0}]}}}`, sizeBytes))
+			}
+			select {
+			case <-createdA:
+			case <-req.Context().Done():
+				return nil, req.Context().Err()
+			}
+			return assetsJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","detail":"sibling create failed"}]}`)
+		case req.Method == http.MethodPut && req.URL.Path == "/new-a":
+			<-req.Context().Done()
+			return nil, req.Context().Err()
+		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appScreenshots/new-a":
+			deletedIDs = append(deletedIDs, "new-a")
+			return assetsJSONResponse(http.StatusNoContent, "")
+		default:
+			return assetsJSONResponse(http.StatusNotFound, fmt.Sprintf(`{"errors":[{"status":"404","code":"UNEXPECTED","detail":"unexpected request %s %s"}]}`, req.Method, req.URL.String()))
+		}
+	})
+
+	client := newAssetsUploadTestClient(t)
+	progress, err := uploadScreenshotsWithOrderState(context.Background(), client, "set-1", nil, []string{fileA, fileB}, false, true)
+	if err == nil || !strings.Contains(err.Error(), "sibling create failed") {
+		t.Fatalf("expected sibling create failure, got %v", err)
+	}
+	if !reflect.DeepEqual(progress.PendingFiles, []string{fileA, fileB}) {
+		t.Fatalf("pending files = %v, want both files in input order", progress.PendingFiles)
+	}
+	if !reflect.DeepEqual(deletedIDs, []string{"new-a"}) {
+		t.Fatalf("rolled back screenshot IDs = %v, want [new-a]", deletedIDs)
+	}
+}
+
 func TestUploadPreviewsParallelCompletionPreservesFileOrder(t *testing.T) {
 	if err := mime.AddExtensionType(".mov", "video/quicktime"); err != nil {
 		t.Fatalf("register .mov mime type: %v", err)

@@ -2,6 +2,7 @@ package assets
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -43,10 +44,10 @@ func uploadScreenshotsWithOrderState(ctx context.Context, client *asc.Client, se
 	items := make([]asc.AssetUploadResultItem, len(files))
 	taskErrs := forEachAssetTask(ctx, len(files), true, func(taskCtx context.Context, idx int) error {
 		item, err := uploadScreenshotAsset(taskCtx, client, setID, files[idx])
+		items[idx] = item
 		if err != nil {
 			return err
 		}
-		items[idx] = item
 		return nil
 	})
 
@@ -59,13 +60,23 @@ func uploadScreenshotsWithOrderState(ctx context.Context, client *asc.Client, se
 	}
 
 	if failedIdx, failedErr := firstAssetTaskError(taskErrs); failedErr != nil {
+		var rollbackErrs []error
 		for idx, taskErr := range taskErrs {
 			if taskErr != nil {
 				progress.PendingFiles = append(progress.PendingFiles, files[idx])
+				if strings.TrimSpace(items[idx].AssetID) != "" {
+					if err := client.DeleteAppScreenshot(ctx, items[idx].AssetID); err != nil {
+						rollbackErrs = append(rollbackErrs, fmt.Errorf("delete partial screenshot %q: %w", items[idx].AssetID, err))
+					}
+				}
 			}
 		}
 		progress.FailedFile = files[failedIdx]
-		return progress, aggregateAssetTaskErrors(taskErrs)
+		uploadErr := aggregateAssetTaskErrors(taskErrs)
+		if len(rollbackErrs) > 0 {
+			uploadErr = fmt.Errorf("screenshot upload failed and rollback was incomplete: %w", errors.Join(append([]error{uploadErr}, rollbackErrs...)...))
+		}
+		return progress, uploadErr
 	}
 
 	if len(progress.OrderedIDs) == 0 {
