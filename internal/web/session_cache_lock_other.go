@@ -2,10 +2,10 @@
 
 package web
 
-// lockSessionFileKeyCreation has no cross-process file lock on platforms
-// without flock or LockFileEx support. Key creation is still serialized
-// within the process by sessionFileKeyMu, and the keychain re-check after
-// acquiring the lock keeps the remaining cross-process window narrow.
+import "errors"
+
+// lockSessionFileKeyCreation disables encrypted persistence on platforms where
+// the first key write cannot be made safe across processes.
 func lockSessionFileKeyCreation() (func() error, error) {
-	return func() error { return nil }, nil
+	return nil, errors.New("cross-process session file key locking is unavailable on this platform")
 }
