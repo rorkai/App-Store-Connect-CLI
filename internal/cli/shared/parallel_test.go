@@ -63,6 +63,22 @@ func TestRunIndexedTasksReturnsParentCancellation(t *testing.T) {
 	}
 }
 
+func TestRunIndexedTasksIgnoresCancellationAfterEveryTaskCompletes(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	completed := false
+	err := RunIndexedTasks(ctx, 1, 1, func(context.Context, int) error {
+		completed = true
+		cancel()
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("RunIndexedTasks() error = %v, want nil after completed work", err)
+	}
+	if !completed {
+		t.Fatal("expected indexed task to complete")
+	}
+}
+
 func TestRunIndexedTasksHonorsWorkerLimit(t *testing.T) {
 	const limit = 2
 	var mu sync.Mutex

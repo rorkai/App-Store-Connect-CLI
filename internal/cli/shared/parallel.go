@@ -52,5 +52,11 @@ func RunIndexedTasks(ctx context.Context, count, limit int, fn func(ctx context.
 			return err
 		}
 	}
+	nextMu.Lock()
+	allTasksRan := nextIndex == count
+	nextMu.Unlock()
+	if allTasksRan {
+		return nil
+	}
 	return ctx.Err()
 }
