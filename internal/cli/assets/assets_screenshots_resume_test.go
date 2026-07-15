@@ -118,7 +118,11 @@ func TestResumeAppScreenshotUploadReplacesResolvedFailures(t *testing.T) {
 			// Fail 03-profile.png only after 02-settings.png fully
 			// completed so the concurrent resume outcome is
 			// deterministic: one resolved file, one failed file.
-			<-fileBComplete
+			select {
+			case <-fileBComplete:
+			case <-req.Context().Done():
+				return nil, req.Context().Err()
+			}
 			return assetsJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","detail":"upload create failed"}]}`)
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
 			return assetsJSONResponse(http.StatusOK, `{}`)

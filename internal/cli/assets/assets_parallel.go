@@ -21,7 +21,8 @@ var errAssetTaskNotAttempted = errors.New("not attempted after earlier failure")
 // worker pool. Tasks must write their outputs into index-keyed slots owned by
 // the caller so input ordering is preserved. When cancelOnFirstError is true,
 // the first failure cancels the shared context so in-flight work stops early,
-// and tasks that never started are recorded as errAssetTaskNotAttempted.
+// and tasks skipped because of that sibling failure are recorded as
+// errAssetTaskNotAttempted. Caller cancellation is preserved separately.
 // The returned slice holds one error slot per index (nil on success).
 func forEachAssetTask(ctx context.Context, count int, cancelOnFirstError bool, task func(ctx context.Context, idx int) error) []error {
 	taskErrs := make([]error, count)
@@ -47,11 +48,16 @@ func forEachAssetTask(ctx context.Context, count int, cancelOnFirstError bool, t
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			sem <- struct{}{}
+			select {
+			case sem <- struct{}{}:
+			case <-taskCtx.Done():
+				taskErrs[idx] = assetTaskCancellationError(ctx)
+				return
+			}
 			defer func() { <-sem }()
 
-			if cancelOnFirstError && taskCtx.Err() != nil {
-				taskErrs[idx] = errAssetTaskNotAttempted
+			if taskCtx.Err() != nil {
+				taskErrs[idx] = assetTaskCancellationError(ctx)
 				return
 			}
 			if err := task(taskCtx, idx); err != nil {
@@ -62,6 +68,13 @@ func forEachAssetTask(ctx context.Context, count int, cancelOnFirstError bool, t
 	}
 	wg.Wait()
 	return taskErrs
+}
+
+func assetTaskCancellationError(parent context.Context) error {
+	if err := parent.Err(); err != nil {
+		return err
+	}
+	return errAssetTaskNotAttempted
 }
 
 // firstAssetTaskError returns the lowest-index error that represents a real

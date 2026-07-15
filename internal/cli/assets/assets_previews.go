@@ -907,6 +907,11 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 		if err := aggregateAssetTaskErrors(taskErrs); err != nil {
 			return asc.AppPreviewUploadResult{}, err
 		}
+		if len(items) > 1 {
+			if err := reorderUploadedPreviews(uploadCtx, client, set.ID, items); err != nil {
+				return asc.AppPreviewUploadResult{}, err
+			}
+		}
 		results = append(results, items...)
 	}
 	results = append(skippedResults, results...)
@@ -920,10 +925,55 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 }
 
 func deleteExistingPreviews(ctx context.Context, client *asc.Client, previews []asc.Resource[asc.AppPreviewAttributes]) error {
-	taskErrs := forEachAssetTask(ctx, len(previews), true, func(taskCtx context.Context, idx int) error {
-		return client.DeleteAppPreview(taskCtx, previews[idx].ID)
+	// Keep destructive replacement serial so one failure stops before later
+	// previews are removed.
+	for _, preview := range previews {
+		if err := client.DeleteAppPreview(ctx, preview.ID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func reorderUploadedPreviews(ctx context.Context, client *asc.Client, setID string, uploaded []asc.AssetUploadResultItem) error {
+	// ASC can attach concurrent completions in network order. Preserve every
+	// pre-existing relationship and force only this batch back to file order.
+	firstPage, err := client.GetAppPreviewSetAppPreviewsRelationships(ctx, setID, asc.WithLinkagesLimit(200))
+	if err != nil {
+		return err
+	}
+
+	currentIDs := make([]string, 0, len(firstPage.Data))
+	err = asc.PaginateEach(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetAppPreviewSetAppPreviewsRelationships(ctx, "", asc.WithLinkagesNextURL(nextURL))
+	}, func(page asc.PaginatedResponse) error {
+		linkages, ok := page.(*asc.LinkagesResponse)
+		if !ok {
+			return fmt.Errorf("unexpected preview relationship response type %T", page)
+		}
+		for _, item := range linkages.Data {
+			currentIDs = append(currentIDs, item.ID)
+		}
+		return nil
 	})
-	return aggregateAssetTaskErrors(taskErrs)
+	if err != nil {
+		return err
+	}
+
+	uploadedIDs := make(map[string]struct{}, len(uploaded))
+	for _, item := range uploaded {
+		uploadedIDs[item.AssetID] = struct{}{}
+	}
+	orderedIDs := make([]string, 0, len(currentIDs)+len(uploaded))
+	for _, id := range currentIDs {
+		if _, justUploaded := uploadedIDs[id]; !justUploaded {
+			orderedIDs = append(orderedIDs, id)
+		}
+	}
+	for _, item := range uploaded {
+		orderedIDs = append(orderedIDs, item.AssetID)
+	}
+	return client.UpdateAppPreviewSetAppPreviewsRelationship(ctx, setID, orderedIDs)
 }
 
 func filterExistingPreviewFiles(files []string, previews []asc.Resource[asc.AppPreviewAttributes]) ([]string, []asc.AssetUploadResultItem, error) {

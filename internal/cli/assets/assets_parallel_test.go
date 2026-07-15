@@ -87,7 +87,7 @@ func TestForEachAssetTaskFirstFailureCancelsInFlightWork(t *testing.T) {
 	}
 }
 
-func TestForEachAssetTaskSkipsTasksWhenContextAlreadyCancelled(t *testing.T) {
+func TestForEachAssetTaskReportsCallerCancellationWithoutRunningTasks(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -101,12 +101,12 @@ func TestForEachAssetTaskSkipsTasksWhenContextAlreadyCancelled(t *testing.T) {
 		t.Fatalf("expected no task to run on a cancelled context, got %d", got)
 	}
 	for idx, err := range taskErrs {
-		if !errors.Is(err, errAssetTaskNotAttempted) {
-			t.Fatalf("expected skipped task at index %d, got %v", idx, err)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("expected caller cancellation at index %d, got %v", idx, err)
 		}
 	}
-	if _, err := firstAssetTaskError(taskErrs); !errors.Is(err, errAssetTaskNotAttempted) {
-		t.Fatalf("expected skip marker as fallback error, got %v", err)
+	if _, err := firstAssetTaskError(taskErrs); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected caller cancellation as fallback error, got %v", err)
 	}
 }
 

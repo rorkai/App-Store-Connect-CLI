@@ -220,6 +220,7 @@ func TestUploadPreviewsParallelCompletionPreservesFileOrder(t *testing.T) {
 
 	firstFileGate := make(chan struct{})
 	var firstFileGateOnce sync.Once
+	var patchedIDs atomic.Pointer[[]string]
 
 	installAssetsTestTransport(t, func(req *http.Request) (*http.Response, error) {
 		switch {
@@ -254,6 +255,27 @@ func TestUploadPreviewsParallelCompletionPreservesFileOrder(t *testing.T) {
 				firstFileGateOnce.Do(func() { close(firstFileGate) })
 			}
 			return assetsJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"appPreviews","id":"%s","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`, id))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appPreviewSets/set-1/relationships/appPreviews":
+			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appPreviews","id":"existing-1"},{"type":"appPreviews","id":"preview-3"},{"type":"appPreviews","id":"preview-2"},{"type":"appPreviews","id":"preview-1"}],"links":{}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appPreviewSets/set-1/relationships/appPreviews":
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				return nil, err
+			}
+			var payload struct {
+				Data []struct {
+					ID string `json:"id"`
+				} `json:"data"`
+			}
+			if err := json.Unmarshal(body, &payload); err != nil {
+				return nil, err
+			}
+			ids := make([]string, 0, len(payload.Data))
+			for _, item := range payload.Data {
+				ids = append(ids, item.ID)
+			}
+			patchedIDs.Store(&ids)
+			return assetsJSONResponse(http.StatusNoContent, "")
 		default:
 			return assetsJSONResponse(http.StatusNotFound, fmt.Sprintf(`{"errors":[{"status":"404","code":"UNEXPECTED","detail":"unexpected request %s %s"}]}`, req.Method, req.URL.String()))
 		}
@@ -273,6 +295,15 @@ func TestUploadPreviewsParallelCompletionPreservesFileOrder(t *testing.T) {
 		if item.AssetID != wantID || item.FilePath != files[idx] {
 			t.Fatalf("result %d = %#v, want asset %s for %s", idx, item, wantID, files[idx])
 		}
+	}
+
+	got := patchedIDs.Load()
+	if got == nil {
+		t.Fatal("expected preview relationship reorder PATCH to be called")
+	}
+	want := []string{"existing-1", "preview-1", "preview-2", "preview-3"}
+	if !reflect.DeepEqual(*got, want) {
+		t.Fatalf("relationship order = %v, want %v", *got, want)
 	}
 }
 
