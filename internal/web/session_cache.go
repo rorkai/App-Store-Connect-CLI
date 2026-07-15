@@ -142,21 +142,25 @@ func resolveBackendSelection() backendSelection {
 	if !webSessionCacheEnabled() {
 		return backendSelection{backend: sessionBackendOff}
 	}
+	keychainBypassed := sessionKeychainBypassed()
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(webSessionBackendEnv))) {
 	case "off", "none", "disabled":
 		return backendSelection{backend: sessionBackendOff}
 	case "file":
 		return backendSelection{backend: sessionBackendFile}
 	case "keychain":
+		if keychainBypassed {
+			return backendSelection{backend: sessionBackendFile}
+		}
 		// Allow explicit keychain mode to import sessions from the file cache
 		// so users can switch back after running on the default file-backed mode.
 		return backendSelection{backend: sessionBackendKeychain, fallbackFile: true}
 	case "", "auto":
 		// Default to file-backed web sessions so successful logins can be reused
 		// without recurring per-binary keychain approval prompts.
-		return backendSelection{backend: sessionBackendFile, fallbackKeychain: true}
+		return backendSelection{backend: sessionBackendFile, fallbackKeychain: !keychainBypassed}
 	default:
-		return backendSelection{backend: sessionBackendFile, fallbackKeychain: true}
+		return backendSelection{backend: sessionBackendFile, fallbackKeychain: !keychainBypassed}
 	}
 }
 

@@ -17,6 +17,13 @@ import (
 	"github.com/99designs/keyring"
 )
 
+func TestMain(m *testing.M) {
+	// Keychain-specific tests must not inherit a developer or CI bypass; the
+	// individual bypass tests opt in explicitly.
+	_ = os.Unsetenv(sessionBypassKeychainEnv)
+	os.Exit(m.Run())
+}
+
 type countingKeyring struct {
 	keyring.Keyring
 	getCounts map[string]int
@@ -154,6 +161,48 @@ func TestResolveBackendSelectionKeychainFallsBackToFile(t *testing.T) {
 	}
 	if selection.fallbackKeychain {
 		t.Fatal("did not expect keychain backend to fall back to keychain")
+	}
+}
+
+func TestResolveBackendSelectionBypassSuppressesKeychainAccess(t *testing.T) {
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(sessionBypassKeychainEnv, "1")
+
+	for _, backend := range []string{"", "auto", "keychain", "unexpected"} {
+		t.Run(backend, func(t *testing.T) {
+			t.Setenv(webSessionBackendEnv, backend)
+			selection := resolveBackendSelection()
+			if selection.backend != sessionBackendFile {
+				t.Fatalf("expected file backend with keychain bypass, got %v", selection.backend)
+			}
+			if selection.fallbackKeychain || selection.fallbackFile {
+				t.Fatalf("expected no keychain-related fallbacks with bypass, got %#v", selection)
+			}
+		})
+	}
+}
+
+func TestLoadCachedSessionBypassDoesNotOpenKeychainFallback(t *testing.T) {
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "auto")
+	t.Setenv(sessionBypassKeychainEnv, "1")
+	t.Setenv(webSessionCacheDirEnv, t.TempDir())
+
+	previousOpen := sessionKeyringOpen
+	keychainOpened := false
+	sessionKeyringOpen = func() (keyring.Keyring, error) {
+		keychainOpened = true
+		return keyring.NewArrayKeyring(nil), nil
+	}
+	t.Cleanup(func() { sessionKeyringOpen = previousOpen })
+
+	if _, ok, err := LoadCachedSession("user@example.com"); err != nil {
+		t.Fatalf("LoadCachedSession error: %v", err)
+	} else if ok {
+		t.Fatal("expected cache miss without a file-backed session")
+	}
+	if keychainOpened {
+		t.Fatal("expected ASC_BYPASS_KEYCHAIN to suppress keychain fallback")
 	}
 }
 
