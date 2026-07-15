@@ -208,12 +208,10 @@ func uploadScreenshotsWithConfig[T any](ctx context.Context, cfg screenshotUploa
 }
 
 func deleteExistingScreenshots(ctx context.Context, client *asc.Client, screenshots []asc.Resource[asc.AppScreenshotAttributes]) error {
-	for _, screenshot := range screenshots {
-		if err := client.DeleteAppScreenshot(ctx, screenshot.ID); err != nil {
-			return err
-		}
-	}
-	return nil
+	taskErrs := forEachAssetTask(ctx, len(screenshots), true, func(taskCtx context.Context, idx int) error {
+		return client.DeleteAppScreenshot(taskCtx, screenshots[idx].ID)
+	})
+	return aggregateAssetTaskErrors(taskErrs)
 }
 
 func filterExistingScreenshotFiles(files []string, screenshots []asc.Resource[asc.AppScreenshotAttributes]) ([]string, []asc.AssetUploadResultItem, error) {

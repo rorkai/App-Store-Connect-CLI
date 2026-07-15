@@ -306,7 +306,11 @@ func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifact
 	uploadCtx, cancel := contextWithAssetUploadTimeout(ctx)
 	defer cancel()
 
-	syncAfterUpload := !artifact.SkipExisting || len(artifact.Files) == 0
+	// When the artifact recorded the original file list, ordering is
+	// reconciled below from that list instead of appending resumed uploads
+	// at the end, so previously uploaded and resumed screenshots end up in
+	// the original local file order.
+	syncAfterUpload := len(artifact.Files) == 0
 	progress, uploadErr := uploadScreenshotsWithOrderState(uploadCtx, client, artifact.SetID, artifact.OrderedIDs, artifact.PendingFiles, true, syncAfterUpload)
 
 	result := asc.AppScreenshotUploadResult{
@@ -317,17 +321,24 @@ func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifact
 		Results:               append(append([]asc.AssetUploadResultItem(nil), artifact.Results...), progress.Results...),
 	}
 
-	if uploadErr == nil && artifact.SkipExisting && len(artifact.Files) > 0 {
-		skippedResults, uploadedResults := splitSkippedScreenshotResults(result.Results)
-		currentOrder, err := GetOrderedAppScreenshotIDs(uploadCtx, client, artifact.SetID)
-		if err != nil {
-			uploadErr = err
-		} else if desiredIDs := orderScreenshotIDsForLocalFiles(currentOrder, artifact.Files, skippedResults, uploadedResults); len(desiredIDs) > 0 && !sameScreenshotIDOrder(currentOrder, desiredIDs) {
-			if err := SetOrderedAppScreenshots(uploadCtx, client, artifact.SetID, desiredIDs); err != nil {
-				progress.OrderedIDs = desiredIDs
+	if uploadErr == nil && len(artifact.Files) > 0 {
+		if artifact.SkipExisting {
+			skippedResults, uploadedResults := splitSkippedScreenshotResults(result.Results)
+			currentOrder, err := GetOrderedAppScreenshotIDs(uploadCtx, client, artifact.SetID)
+			if err != nil {
 				uploadErr = err
-			} else {
-				progress.OrderedIDs = desiredIDs
+			} else if desiredIDs := orderScreenshotIDsForLocalFiles(currentOrder, artifact.Files, skippedResults, uploadedResults); len(desiredIDs) > 0 && !sameScreenshotIDOrder(currentOrder, desiredIDs) {
+				if err := SetOrderedAppScreenshots(uploadCtx, client, artifact.SetID, desiredIDs); err != nil {
+					progress.OrderedIDs = desiredIDs
+					uploadErr = err
+				} else {
+					progress.OrderedIDs = desiredIDs
+				}
+			}
+		} else if desiredIDs := mergeResumedScreenshotOrder(progress.OrderedIDs, artifact.Files, result.Results); len(desiredIDs) > 0 {
+			progress.OrderedIDs = desiredIDs
+			if err := SetOrderedAppScreenshots(uploadCtx, client, artifact.SetID, desiredIDs); err != nil {
+				uploadErr = err
 			}
 		}
 	}
@@ -368,6 +379,47 @@ func resumeAppScreenshotUpload(ctx context.Context, client *asc.Client, artifact
 	}
 	result.FailureArtifactPath = writtenPath
 	return result, screenshotUploadRetryError(progress)
+}
+
+// mergeResumedScreenshotOrder returns orderedIDs with every ID that maps to a
+// local file moved into the original file order. IDs that do not correspond to
+// a local file (pre-existing screenshots) keep their relative position ahead
+// of the file-backed IDs, matching the non-resume upload ordering.
+func mergeResumedScreenshotOrder(orderedIDs, files []string, results []asc.AssetUploadResultItem) []string {
+	idByPath := make(map[string]string, len(results))
+	for _, item := range results {
+		id := strings.TrimSpace(item.AssetID)
+		path := strings.TrimSpace(item.FilePath)
+		if id == "" || path == "" {
+			continue
+		}
+		if _, exists := idByPath[path]; !exists {
+			idByPath[path] = id
+		}
+	}
+
+	fileIDs := make([]string, 0, len(files))
+	fileIDSet := make(map[string]struct{}, len(files))
+	for _, filePath := range files {
+		id := idByPath[strings.TrimSpace(filePath)]
+		if id == "" {
+			continue
+		}
+		if _, exists := fileIDSet[id]; exists {
+			continue
+		}
+		fileIDSet[id] = struct{}{}
+		fileIDs = append(fileIDs, id)
+	}
+
+	merged := make([]string, 0, len(orderedIDs)+len(fileIDs))
+	for _, id := range normalizeScreenshotIDs(orderedIDs) {
+		if _, exists := fileIDSet[id]; exists {
+			continue
+		}
+		merged = append(merged, id)
+	}
+	return append(merged, fileIDs...)
 }
 
 func splitSkippedScreenshotResults(results []asc.AssetUploadResultItem) ([]asc.AssetUploadResultItem, []asc.AssetUploadResultItem) {

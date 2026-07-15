@@ -15,8 +15,8 @@ type screenshotUploadProgress struct {
 	FailedFile   string
 }
 
-// UploadScreenshotsToSet uploads screenshots in the provided file order and then
-// applies that order to the remote screenshot set.
+// UploadScreenshotsToSet uploads screenshots concurrently while preserving the
+// provided file order, and then applies that order to the remote screenshot set.
 func UploadScreenshotsToSet(ctx context.Context, client *asc.Client, setID string, files []string, preserveExistingOrder bool) ([]asc.AssetUploadResultItem, error) {
 	orderedIDs := make([]string, 0, len(files))
 	if preserveExistingOrder {
@@ -40,15 +40,32 @@ func uploadScreenshotsWithOrderState(ctx context.Context, client *asc.Client, se
 		OrderedIDs: append([]string(nil), orderedIDs...),
 	}
 
-	for idx, filePath := range files {
-		item, err := uploadScreenshotAsset(ctx, client, setID, filePath)
+	items := make([]asc.AssetUploadResultItem, len(files))
+	taskErrs := forEachAssetTask(ctx, len(files), true, func(taskCtx context.Context, idx int) error {
+		item, err := uploadScreenshotAsset(taskCtx, client, setID, files[idx])
 		if err != nil {
-			progress.PendingFiles = append([]string{filePath}, files[idx+1:]...)
-			progress.FailedFile = filePath
-			return progress, err
+			return err
 		}
-		progress.Results = append(progress.Results, item)
-		progress.OrderedIDs = appendUniqueScreenshotID(progress.OrderedIDs, item.AssetID)
+		items[idx] = item
+		return nil
+	})
+
+	for idx := range files {
+		if taskErrs[idx] != nil {
+			continue
+		}
+		progress.Results = append(progress.Results, items[idx])
+		progress.OrderedIDs = appendUniqueScreenshotID(progress.OrderedIDs, items[idx].AssetID)
+	}
+
+	if failedIdx, failedErr := firstAssetTaskError(taskErrs); failedErr != nil {
+		for idx, taskErr := range taskErrs {
+			if taskErr != nil {
+				progress.PendingFiles = append(progress.PendingFiles, files[idx])
+			}
+		}
+		progress.FailedFile = files[failedIdx]
+		return progress, aggregateAssetTaskErrors(taskErrs)
 	}
 
 	if len(progress.OrderedIDs) == 0 {

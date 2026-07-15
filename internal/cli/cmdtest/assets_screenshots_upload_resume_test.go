@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
@@ -110,9 +111,12 @@ func TestRunScreenshotsUploadWritesFailureArtifactAndResumeCompletes(t *testing.
 	})
 
 	phase := "first"
-	firstRunCreates := 0
-	resumeCreates := 0
 	relationshipPatchCount := 0
+
+	// Uploads run concurrently: the failing creates block until 01-home.png
+	// fully completes so the partial-failure outcome stays deterministic.
+	firstUploadComplete := make(chan struct{})
+	var firstUploadCompleteOnce sync.Once
 
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
@@ -129,23 +133,29 @@ func TestRunScreenshotsUploadWritesFailureArtifactAndResumeCompletes(t *testing.
 			}
 			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
+			body, readErr := io.ReadAll(req.Body)
+			if readErr != nil {
+				return nil, readErr
+			}
 			if phase == "first" {
-				firstRunCreates++
-				if firstRunCreates == 1 {
+				if strings.Contains(string(body), "01-home.png") {
 					return screenshotsUploadJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-1","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-1","length":%d,"offset":0}]}}}`, firstSize))
+				}
+				select {
+				case <-firstUploadComplete:
+				case <-req.Context().Done():
+					return nil, req.Context().Err()
 				}
 				return screenshotsUploadJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","detail":"upload create failed"}]}`)
 			}
 
-			resumeCreates++
-			switch resumeCreates {
-			case 1:
+			switch {
+			case strings.Contains(string(body), "02-settings.png"):
 				return screenshotsUploadJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-2","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-2","length":%d,"offset":0}]}}}`, secondSize))
-			case 2:
+			case strings.Contains(string(body), "03-profile.png"):
 				return screenshotsUploadJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-3","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-3","length":%d,"offset":0}]}}}`, thirdSize))
 			default:
-				t.Fatalf("unexpected extra create during resume: %d", resumeCreates)
-				return nil, nil
+				return screenshotsUploadJSONResponse(http.StatusBadRequest, fmt.Sprintf(`{"errors":[{"status":"400","code":"UNEXPECTED","detail":"unexpected create during resume: %s"}]}`, string(body)))
 			}
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
 			return screenshotsUploadJSONResponse(http.StatusOK, `{}`)
@@ -154,6 +164,9 @@ func TestRunScreenshotsUploadWritesFailureArtifactAndResumeCompletes(t *testing.
 			return screenshotsUploadJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"%s","attributes":{"uploaded":true}}}`, id))
 		case req.Method == http.MethodGet && strings.HasPrefix(req.URL.Path, "/v1/appScreenshots/"):
 			id := strings.TrimPrefix(req.URL.Path, "/v1/appScreenshots/")
+			if id == "new-1" {
+				firstUploadCompleteOnce.Do(func() { close(firstUploadComplete) })
+			}
 			return screenshotsUploadJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"%s","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`, id))
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
 			relationshipPatchCount++
@@ -319,7 +332,10 @@ func TestRunScreenshotsUploadFanoutPrintsPartialResultsOnLocaleFailure(t *testin
 		http.DefaultTransport = originalTransport
 	})
 
-	createCount := 0
+	// fr-FR uploads run concurrently: the failing create blocks until the
+	// fr-FR success fully completes so the outcome stays deterministic.
+	frSuccessComplete := make(chan struct{})
+	var frSuccessCompleteOnce sync.Once
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
@@ -339,17 +355,22 @@ func TestRunScreenshotsUploadFanoutPrintsPartialResultsOnLocaleFailure(t *testin
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-fr/appScreenshots":
 			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
-			createCount++
-			switch createCount {
-			case 1:
+			body, readErr := io.ReadAll(req.Body)
+			if readErr != nil {
+				return nil, readErr
+			}
+			switch {
+			case strings.Contains(string(body), `"set-en"`):
 				return screenshotsUploadJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-en-1","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-en-1","length":%d,"offset":0}]}}}`, enSize))
-			case 2:
+			case strings.Contains(string(body), "01-home.png"):
 				return screenshotsUploadJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-fr-1","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-fr-1","length":%d,"offset":0}]}}}`, frFirstSize))
-			case 3:
-				return screenshotsUploadJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","detail":"upload create failed"}]}`)
 			default:
-				t.Fatalf("unexpected extra screenshot create: %d", createCount)
-				return nil, nil
+				select {
+				case <-frSuccessComplete:
+				case <-req.Context().Done():
+					return nil, req.Context().Err()
+				}
+				return screenshotsUploadJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","detail":"upload create failed"}]}`)
 			}
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
 			return screenshotsUploadJSONResponse(http.StatusOK, `{}`)
@@ -360,6 +381,7 @@ func TestRunScreenshotsUploadFanoutPrintsPartialResultsOnLocaleFailure(t *testin
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/new-en-1":
 			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-en-1","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/new-fr-1":
+			frSuccessCompleteOnce.Do(func() { close(frSuccessComplete) })
 			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-fr-1","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-en/relationships/appScreenshots":
 			body, readErr := io.ReadAll(req.Body)

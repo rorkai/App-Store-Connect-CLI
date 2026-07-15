@@ -358,67 +358,33 @@ Examples:
 						destName := fmt.Sprintf("%02d_%s_%s", idx+1, strings.TrimSpace(preview.ID), base)
 						destPath := filepath.Join(destDir, destName)
 
-						videoURL := strings.TrimSpace(preview.Attributes.VideoURL)
-						if videoURL == "" {
-							requestCtx, cancel := shared.ContextWithTimeout(ctx)
-							full, err := client.GetAppPreview(requestCtx, preview.ID)
-							cancel()
-							if err == nil {
-								videoURL = strings.TrimSpace(full.Data.Attributes.VideoURL)
-							}
-						}
-
-						if videoURL == "" {
-							items = append(items, previewDownloadItem{
-								ID:          strings.TrimSpace(preview.ID),
-								PreviewType: previewType,
-								FileName:    strings.TrimSpace(preview.Attributes.FileName),
-								OutputPath:  destPath,
-							})
-							result.Failures = append(result.Failures, previewDownloadFailure{
-								ID:          strings.TrimSpace(preview.ID),
-								PreviewType: previewType,
-								OutputPath:  destPath,
-								Error:       "preview has no videoUrl",
-							})
-							continue
-						}
-
 						items = append(items, previewDownloadItem{
 							ID:          strings.TrimSpace(preview.ID),
 							PreviewType: previewType,
 							FileName:    strings.TrimSpace(preview.Attributes.FileName),
-							URL:         videoURL,
+							URL:         strings.TrimSpace(preview.Attributes.VideoURL),
 							OutputPath:  destPath,
 						})
 					}
 				}
-			}
 
-			for i := range items {
-				item := &items[i]
-				if strings.TrimSpace(item.URL) == "" {
-					continue
-				}
-
-				downloadCtx, cancel := shared.ContextWithTimeout(ctx)
-				written, contentType, err := downloadURLToFile(downloadCtx, item.URL, item.OutputPath, *overwrite)
-				cancel()
-				if err != nil {
+				resolvePreviewDownloadURLs(ctx, client, items)
+				for i := range items {
+					if strings.TrimSpace(items[i].URL) != "" {
+						continue
+					}
 					result.Failures = append(result.Failures, previewDownloadFailure{
-						ID:          item.ID,
-						PreviewType: item.PreviewType,
-						URL:         item.URL,
-						OutputPath:  item.OutputPath,
-						Error:       err.Error(),
+						ID:          items[i].ID,
+						PreviewType: items[i].PreviewType,
+						OutputPath:  items[i].OutputPath,
+						Error:       "preview has no videoUrl",
 					})
-					continue
 				}
-
-				item.BytesWritten = written
-				item.ContentType = contentType
-				result.Downloaded++
 			}
+
+			downloaded, downloadFailures := downloadPreviewItems(ctx, items, *overwrite)
+			result.Downloaded = downloaded
+			result.Failures = append(result.Failures, downloadFailures...)
 
 			result.Items = items
 			result.Total = len(items)
@@ -492,6 +458,78 @@ func renderPreviewDownloadResult(result *previewDownloadResult, markdown bool) e
 	}
 
 	return nil
+}
+
+// resolvePreviewDownloadURLs fills in missing download URLs by fetching each
+// preview's details concurrently. Fetch errors leave the URL empty so the
+// caller reports the item as a missing-videoUrl failure, matching the serial
+// behavior this replaces.
+func resolvePreviewDownloadURLs(ctx context.Context, client *asc.Client, items []previewDownloadItem) {
+	missing := make([]int, 0, len(items))
+	for idx := range items {
+		if strings.TrimSpace(items[idx].URL) == "" {
+			missing = append(missing, idx)
+		}
+	}
+	if len(missing) == 0 {
+		return
+	}
+
+	_ = forEachAssetTask(ctx, len(missing), false, func(taskCtx context.Context, i int) error {
+		item := &items[missing[i]]
+		requestCtx, cancel := shared.ContextWithTimeout(taskCtx)
+		defer cancel()
+		full, err := client.GetAppPreview(requestCtx, item.ID)
+		if err == nil {
+			item.URL = strings.TrimSpace(full.Data.Attributes.VideoURL)
+		}
+		return nil
+	})
+}
+
+// downloadPreviewItems downloads every item with a resolved URL concurrently.
+// Items without a URL are skipped. Byte counts are written back into the
+// index-keyed items, and the returned failures preserve item order.
+func downloadPreviewItems(ctx context.Context, items []previewDownloadItem, overwrite bool) (int, []previewDownloadFailure) {
+	type downloadOutcome struct {
+		bytesWritten int64
+		contentType  string
+		err          error
+	}
+
+	outcomes := make([]downloadOutcome, len(items))
+	_ = forEachAssetTask(ctx, len(items), false, func(taskCtx context.Context, idx int) error {
+		if strings.TrimSpace(items[idx].URL) == "" {
+			return nil
+		}
+		downloadCtx, cancel := shared.ContextWithTimeout(taskCtx)
+		defer cancel()
+		written, contentType, err := downloadURLToFile(downloadCtx, items[idx].URL, items[idx].OutputPath, overwrite)
+		outcomes[idx] = downloadOutcome{bytesWritten: written, contentType: contentType, err: err}
+		return nil
+	})
+
+	downloaded := 0
+	failures := make([]previewDownloadFailure, 0)
+	for idx := range items {
+		if strings.TrimSpace(items[idx].URL) == "" {
+			continue
+		}
+		if outcomes[idx].err != nil {
+			failures = append(failures, previewDownloadFailure{
+				ID:          items[idx].ID,
+				PreviewType: items[idx].PreviewType,
+				URL:         items[idx].URL,
+				OutputPath:  items[idx].OutputPath,
+				Error:       outcomes[idx].err.Error(),
+			})
+			continue
+		}
+		items[idx].BytesWritten = outcomes[idx].bytesWritten
+		items[idx].ContentType = outcomes[idx].contentType
+		downloaded++
+	}
+	return downloaded, failures
 }
 
 // AssetsPreviewsDeleteCommand returns the preview delete subcommand.
@@ -857,13 +895,19 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 
 	results := make([]asc.AssetUploadResultItem, 0, len(skippedResults)+len(files))
 	if len(files) > 0 {
-		for _, filePath := range files {
-			item, err := uploadPreviewAsset(uploadCtx, client, set.ID, filePath)
+		items := make([]asc.AssetUploadResultItem, len(files))
+		taskErrs := forEachAssetTask(uploadCtx, len(files), true, func(taskCtx context.Context, idx int) error {
+			item, err := uploadPreviewAsset(taskCtx, client, set.ID, files[idx])
 			if err != nil {
-				return asc.AppPreviewUploadResult{}, err
+				return err
 			}
-			results = append(results, item)
+			items[idx] = item
+			return nil
+		})
+		if err := aggregateAssetTaskErrors(taskErrs); err != nil {
+			return asc.AppPreviewUploadResult{}, err
 		}
+		results = append(results, items...)
 	}
 	results = append(skippedResults, results...)
 
@@ -876,12 +920,10 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 }
 
 func deleteExistingPreviews(ctx context.Context, client *asc.Client, previews []asc.Resource[asc.AppPreviewAttributes]) error {
-	for _, preview := range previews {
-		if err := client.DeleteAppPreview(ctx, preview.ID); err != nil {
-			return err
-		}
-	}
-	return nil
+	taskErrs := forEachAssetTask(ctx, len(previews), true, func(taskCtx context.Context, idx int) error {
+		return client.DeleteAppPreview(taskCtx, previews[idx].ID)
+	})
+	return aggregateAssetTaskErrors(taskErrs)
 }
 
 func filterExistingPreviewFiles(files []string, previews []asc.Resource[asc.AppPreviewAttributes]) ([]string, []asc.AssetUploadResultItem, error) {

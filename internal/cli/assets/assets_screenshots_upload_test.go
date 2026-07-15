@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -474,7 +475,7 @@ func TestExecuteAppScreenshotUploadMaxScreenshotsAccountsForExistingRemoteScreen
 		sizes[filepath.Base(filePath)] = fileSize(t, filePath)
 	}
 
-	createCount := 0
+	var createCount atomic.Int64
 	origTransport := http.DefaultTransport
 	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
@@ -485,12 +486,12 @@ func TestExecuteAppScreenshotUploadMaxScreenshotsAccountsForExistingRemoteScreen
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
 			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appScreenshots","id":"old-1"}],"links":{}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
-			createCount++
-			if createCount > appScreenshotSetMaxScreenshots-1 {
-				t.Fatalf("max-screenshots with one existing remote screenshot must upload at most 9 new files; got create %d", createCount)
+			count := createCount.Add(1)
+			if count > appScreenshotSetMaxScreenshots-1 {
+				return assetsJSONResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"TOO_MANY","detail":"max-screenshots with one existing remote screenshot must upload at most 9 new files"}]}`)
 			}
-			name := fmt.Sprintf("%02d-home.png", createCount)
-			return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-%d","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-%d","length":%d,"offset":0}]}}}`, createCount, createCount, sizes[name]))
+			name := fmt.Sprintf("%02d-home.png", count)
+			return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-%d","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-%d","length":%d,"offset":0}]}}}`, count, count, sizes[name]))
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
 			return assetsJSONResponse(http.StatusOK, `{}`)
 		case req.Method == http.MethodPatch && strings.HasPrefix(req.URL.Path, "/v1/appScreenshots/"):
@@ -525,8 +526,8 @@ func TestExecuteAppScreenshotUploadMaxScreenshotsAccountsForExistingRemoteScreen
 	if err != nil {
 		t.Fatalf("executeAppScreenshotUpload() error: %v", err)
 	}
-	if createCount != appScreenshotSetMaxScreenshots-1 {
-		t.Fatalf("expected 9 uploaded screenshots, got %d", createCount)
+	if got := createCount.Load(); got != appScreenshotSetMaxScreenshots-1 {
+		t.Fatalf("expected 9 uploaded screenshots, got %d", got)
 	}
 	if result.Uploaded != appScreenshotSetMaxScreenshots-1 {
 		t.Fatalf("expected uploaded count 9, got %d", result.Uploaded)

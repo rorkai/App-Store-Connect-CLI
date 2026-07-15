@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -102,20 +103,29 @@ func TestResumeAppScreenshotUploadReplacesResolvedFailures(t *testing.T) {
 	fileBSize := fileSize(t, fileB)
 
 	origTransport := http.DefaultTransport
-	createCount := 0
+	fileBComplete := make(chan struct{})
+	var fileBCompleteOnce sync.Once
 	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
-			createCount++
-			if createCount == 1 {
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				return nil, err
+			}
+			if strings.Contains(string(body), "02-settings.png") {
 				return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-2","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-2","length":%d,"offset":0}]}}}`, fileBSize))
 			}
+			// Fail 03-profile.png only after 02-settings.png fully
+			// completed so the concurrent resume outcome is
+			// deterministic: one resolved file, one failed file.
+			<-fileBComplete
 			return assetsJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","detail":"upload create failed"}]}`)
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
 			return assetsJSONResponse(http.StatusOK, `{}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshots/new-2":
 			return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-2","attributes":{"uploaded":true}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/new-2":
+			fileBCompleteOnce.Do(func() { close(fileBComplete) })
 			return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-2","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`)
 		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
 			t.Fatalf("unexpected relationship patch after mid-resume upload failure")
@@ -545,6 +555,105 @@ func TestResumeAppScreenshotUploadSkipExistingRetriesOrderingWithoutIDs(t *testi
 	}
 	if !relationshipPatchCalled {
 		t.Fatal("expected relationship patch during resume")
+	}
+}
+
+func TestResumeAppScreenshotUploadReordersResumedFilesIntoFileOrder(t *testing.T) {
+	workDir := t.TempDir()
+	fileA := writeAssetsTestPNG(t, workDir, "01-home.png")
+	fileB := writeAssetsTestPNG(t, workDir, "02-settings.png")
+	fileC := writeAssetsTestPNG(t, workDir, "03-profile.png")
+	fileBSize := fileSize(t, fileB)
+
+	// A concurrent upload can fail a middle file while later files
+	// succeeded: the artifact then records completed uploads out of local
+	// file order. Resume must slot the retried file back into place.
+	artifactPath := filepath.Join(workDir, "resume-artifact.json")
+	_, err := persistScreenshotUploadFailureArtifact(artifactPath, screenshotUploadFailureArtifact{
+		VersionLocalizationID: "LOC_123",
+		DisplayType:           "APP_IPHONE_65",
+		SetID:                 "set-1",
+		Files:                 []string{fileA, fileB, fileC},
+		OrderedIDs:            []string{"pre-1", "new-1", "new-3"},
+		PendingFiles:          []string{fileB},
+		Results: []asc.AssetUploadResultItem{
+			{FileName: filepath.Base(fileA), FilePath: fileA, AssetID: "new-1", State: "COMPLETE"},
+			{FileName: filepath.Base(fileC), FilePath: fileC, AssetID: "new-3", State: "COMPLETE"},
+		},
+		Failures: []asc.AssetUploadFailureItem{
+			{FileName: filepath.Base(fileB), FilePath: fileB, Error: "previous create failed"},
+		},
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		t.Fatalf("persistScreenshotUploadFailureArtifact() error: %v", err)
+	}
+
+	relationshipPatches := make([][]string, 0, 1)
+	origTransport := http.DefaultTransport
+	http.DefaultTransport = assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
+			return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-2","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-2","length":%d,"offset":0}]}}}`, fileBSize))
+		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
+			return assetsJSONResponse(http.StatusOK, `{}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshots/new-2":
+			return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-2","attributes":{"uploaded":true}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshots/new-2":
+			return assetsJSONResponse(http.StatusOK, `{"data":{"type":"appScreenshots","id":"new-2","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appScreenshotSets/set-1/relationships/appScreenshots":
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("read relationship patch body: %v", err)
+			}
+			var payload asc.RelationshipRequest
+			if err := json.Unmarshal(body, &payload); err != nil {
+				t.Fatalf("decode relationship patch body: %v", err)
+			}
+			gotIDs := make([]string, 0, len(payload.Data))
+			for _, item := range payload.Data {
+				gotIDs = append(gotIDs, item.ID)
+			}
+			relationshipPatches = append(relationshipPatches, gotIDs)
+			return assetsJSONResponse(http.StatusNoContent, "")
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+	t.Cleanup(func() {
+		http.DefaultTransport = origTransport
+	})
+
+	client := newAssetsUploadTestClient(t)
+	result, err := resumeAppScreenshotUpload(context.Background(), client, artifactPath)
+	if err != nil {
+		t.Fatalf("resumeAppScreenshotUpload() error: %v", err)
+	}
+	if len(result.Results) != 3 {
+		t.Fatalf("expected previous and resumed results, got %#v", result.Results)
+	}
+	if len(relationshipPatches) != 1 {
+		t.Fatalf("expected exactly one relationship patch during resume, got %#v", relationshipPatches)
+	}
+	wantOrder := []string{"pre-1", "new-1", "new-2", "new-3"}
+	if !reflect.DeepEqual(relationshipPatches[0], wantOrder) {
+		t.Fatalf("relationship order = %v, want %v", relationshipPatches[0], wantOrder)
+	}
+}
+
+func TestMergeResumedScreenshotOrderKeepsUnmappedIDsFirst(t *testing.T) {
+	files := []string{"/tmp/01.png", "/tmp/02.png", "/tmp/03.png"}
+	results := []asc.AssetUploadResultItem{
+		{FilePath: "/tmp/01.png", AssetID: "new-1"},
+		{FilePath: "/tmp/03.png", AssetID: "new-3"},
+		{FilePath: "/tmp/02.png", AssetID: "new-2"},
+	}
+
+	got := mergeResumedScreenshotOrder([]string{"pre-1", "new-1", "new-3", "new-2"}, files, results)
+	want := []string{"pre-1", "new-1", "new-2", "new-3"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("mergeResumedScreenshotOrder() = %v, want %v", got, want)
 	}
 }
 
