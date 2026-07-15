@@ -1066,7 +1066,7 @@ func parallelPrivacyPlanFixture(deleteCount, updateCount, addCount int) privacyP
 	return plan
 }
 
-func TestApplyPrivacyPlanParallelPhasesPreservePlanOrder(t *testing.T) {
+func TestApplyPrivacyPlanPreservesPlanAndPhaseOrder(t *testing.T) {
 	client := &fakePrivacyMutationClient{}
 	plan := parallelPrivacyPlanFixture(6, 5, 6)
 
@@ -1080,7 +1080,7 @@ func TestApplyPrivacyPlanParallelPhasesPreservePlanOrder(t *testing.T) {
 		t.Fatalf("expected %d actions, got %d", wantTotal, len(actions))
 	}
 
-	// Actions must follow plan order regardless of concurrent execution order.
+	// Actions must follow plan order.
 	for i, deletion := range plan.Deletes {
 		action := actions[i]
 		if action.Action != "delete" || action.Key != deletion.Key || action.UsageID != deletion.UsageID {
@@ -1140,7 +1140,16 @@ func TestApplyPrivacyPlanDeleteErrorAbortsApply(t *testing.T) {
 	if actions != nil {
 		t.Fatalf("expected nil actions on error, got %#v", actions)
 	}
-	for _, call := range client.callOrderSnapshot() {
+	callOrder := client.callOrderSnapshot()
+	wantCalls := []string{
+		"delete:usage-delete-00",
+		"delete:usage-delete-01",
+		"delete:usage-delete-02",
+	}
+	if !reflect.DeepEqual(callOrder, wantCalls) {
+		t.Fatalf("delete failure should stop later mutations, got %#v", callOrder)
+	}
+	for _, call := range callOrder {
 		if strings.HasPrefix(call, "update:") || strings.HasPrefix(call, "create:") {
 			t.Fatalf("later phases must not run after delete failure, got %#v", client.callOrderSnapshot())
 		}
@@ -1161,7 +1170,16 @@ func TestApplyPrivacyPlanUpdateErrorAbortsApply(t *testing.T) {
 	if actions != nil {
 		t.Fatalf("expected nil actions on error, got %#v", actions)
 	}
-	for _, call := range client.callOrderSnapshot() {
+	callOrder := client.callOrderSnapshot()
+	wantCalls := []string{
+		"delete:usage-delete-00",
+		"update:usage-update-00:DATA_NOT_LINKED_TO_YOU",
+		"update:usage-update-01:DATA_NOT_LINKED_TO_YOU",
+	}
+	if !reflect.DeepEqual(callOrder, wantCalls) {
+		t.Fatalf("update failure should stop later mutations, got %#v", callOrder)
+	}
+	for _, call := range callOrder {
 		if strings.HasPrefix(call, "create:") {
 			t.Fatalf("create phase must not run after update failure, got %#v", client.callOrderSnapshot())
 		}

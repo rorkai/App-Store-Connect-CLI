@@ -631,64 +631,46 @@ func planFromDesiredAndRemote(appID, file string, desired map[string]privacyTupl
 	}
 }
 
-// privacyApplyWorkerLimit bounds concurrent privacy mutation fan-out per
-// phase; the API client's global mutating-request limiter throttles further.
-const privacyApplyWorkerLimit = 4
-
 func applyPrivacyPlan(ctx context.Context, client privacyMutationClient, appID string, plan privacyPlanOutput) ([]privacyApplyAction, error) {
 	if err := validateApplyPlanUsageIDs(plan); err != nil {
 		return nil, err
 	}
 	actions := make([]privacyApplyAction, 0, len(plan.Updates)+len(plan.Adds)+len(plan.Deletes))
 
-	// Phases stay sequential (delete, then update, then create) so creates
-	// never race deletes of duplicate tuples. Deletes and updates are safe to
-	// retry, while non-idempotent creates remain serial to avoid an unknown set
-	// of committed additions when one request fails.
-	deleteActions := make([]privacyApplyAction, len(plan.Deletes))
-	if err := shared.RunIndexedTasks(ctx, len(plan.Deletes), privacyApplyWorkerLimit, func(taskCtx context.Context, index int) error {
-		deletion := plan.Deletes[index]
-		if err := client.DeleteAppDataUsage(taskCtx, deletion.UsageID); err != nil {
-			return err
+	// Keep confirmed mutations serial and phase-ordered. Returning nil actions
+	// on failure must also mean no later, unreported mutation was scheduled.
+	for _, deletion := range plan.Deletes {
+		if err := client.DeleteAppDataUsage(ctx, deletion.UsageID); err != nil {
+			return nil, err
 		}
-		deleteActions[index] = privacyApplyAction{
+		actions = append(actions, privacyApplyAction{
 			Action:         "delete",
 			Key:            deletion.Key,
 			UsageID:        deletion.UsageID,
 			Category:       deletion.Category,
 			Purpose:        deletion.Purpose,
 			DataProtection: deletion.DataProtection,
-		}
-		return nil
-	}); err != nil {
-		return nil, err
+		})
 	}
-	actions = append(actions, deleteActions...)
 
-	updateActions := make([]privacyApplyAction, len(plan.Updates))
-	if err := shared.RunIndexedTasks(ctx, len(plan.Updates), privacyApplyWorkerLimit, func(taskCtx context.Context, index int) error {
-		update := plan.Updates[index]
-		updated, err := client.UpdateAppDataUsage(taskCtx, update.UsageID, webcore.DataUsageTuple{
+	for _, update := range plan.Updates {
+		updated, err := client.UpdateAppDataUsage(ctx, update.UsageID, webcore.DataUsageTuple{
 			Category:       update.Category,
 			Purpose:        update.Purpose,
 			DataProtection: update.DataProtection,
 		})
 		if err != nil {
-			return err
+			return nil, err
 		}
-		updateActions[index] = privacyApplyAction{
+		actions = append(actions, privacyApplyAction{
 			Action:         "update",
 			Key:            update.Key,
 			UsageID:        strings.TrimSpace(updated.ID),
 			Category:       update.Category,
 			Purpose:        update.Purpose,
 			DataProtection: update.DataProtection,
-		}
-		return nil
-	}); err != nil {
-		return nil, err
+		})
 	}
-	actions = append(actions, updateActions...)
 
 	for _, add := range plan.Adds {
 		created, err := client.CreateAppDataUsage(ctx, appID, webcore.DataUsageTuple{
