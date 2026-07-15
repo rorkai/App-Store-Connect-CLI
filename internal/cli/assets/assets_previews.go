@@ -498,7 +498,7 @@ func downloadPreviewItems(ctx context.Context, items []previewDownloadItem, over
 	}
 
 	outcomes := make([]downloadOutcome, len(items))
-	_ = forEachAssetTask(ctx, len(items), false, func(taskCtx context.Context, idx int) error {
+	taskErrs := forEachAssetTask(ctx, len(items), false, func(taskCtx context.Context, idx int) error {
 		if strings.TrimSpace(items[idx].URL) == "" {
 			return nil
 		}
@@ -506,7 +506,7 @@ func downloadPreviewItems(ctx context.Context, items []previewDownloadItem, over
 		defer cancel()
 		written, contentType, err := downloadURLToFile(downloadCtx, items[idx].URL, items[idx].OutputPath, overwrite)
 		outcomes[idx] = downloadOutcome{bytesWritten: written, contentType: contentType, err: err}
-		return nil
+		return err
 	})
 
 	downloaded := 0
@@ -515,13 +515,17 @@ func downloadPreviewItems(ctx context.Context, items []previewDownloadItem, over
 		if strings.TrimSpace(items[idx].URL) == "" {
 			continue
 		}
-		if outcomes[idx].err != nil {
+		outcomeErr := outcomes[idx].err
+		if outcomeErr == nil {
+			outcomeErr = taskErrs[idx]
+		}
+		if outcomeErr != nil {
 			failures = append(failures, previewDownloadFailure{
 				ID:          items[idx].ID,
 				PreviewType: items[idx].PreviewType,
 				URL:         items[idx].URL,
 				OutputPath:  items[idx].OutputPath,
-				Error:       outcomes[idx].err.Error(),
+				Error:       outcomeErr.Error(),
 			})
 			continue
 		}

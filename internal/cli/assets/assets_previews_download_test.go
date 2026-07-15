@@ -92,3 +92,31 @@ func TestDownloadPreviewItemsPreservesItemOrderAndRecordsFailuresInOrder(t *test
 		t.Fatalf("expected no file for failed download, got err=%v", err)
 	}
 }
+
+func TestDownloadPreviewItemsReportsCallerCancellationForQueuedItems(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	items := make([]previewDownloadItem, assetTransferWorkerLimit+1)
+	for idx := range items {
+		items[idx] = previewDownloadItem{
+			ID:          fmt.Sprintf("preview-%d", idx),
+			PreviewType: "IPHONE_65",
+			URL:         fmt.Sprintf("https://download.example/%d.mov", idx),
+			OutputPath:  filepath.Join(t.TempDir(), fmt.Sprintf("%d.mov", idx)),
+		}
+	}
+
+	downloaded, failures := downloadPreviewItems(ctx, items, false)
+	if downloaded != 0 {
+		t.Fatalf("expected no downloads after caller cancellation, got %d", downloaded)
+	}
+	if len(failures) != len(items) {
+		t.Fatalf("expected one cancellation failure per item, got %#v", failures)
+	}
+	for idx, failure := range failures {
+		if failure.ID != items[idx].ID || failure.Error != context.Canceled.Error() {
+			t.Fatalf("failures[%d] = %#v, want cancellation for %s", idx, failure, items[idx].ID)
+		}
+	}
+}
