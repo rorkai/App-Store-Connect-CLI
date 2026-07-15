@@ -372,9 +372,10 @@ on every invocation.
 `~/.asc/web/` as files encrypted with AES-256-GCM. The encryption key is a
 random secret stored once in your system keychain (macOS Keychain, Windows
 Credential Manager, or Linux Secret Service), so the cookies are never stored
-as cleartext on disk. Existing cleartext session files from older CLI versions
-are migrated to the encrypted format automatically the first time they are
-read.
+as cleartext on disk when that keychain is available. Keychain access errors
+fail persistence instead of silently downgrading protection. Existing cleartext
+session files from older CLI versions are migrated to the encrypted format
+automatically the first time they are read.
 
 **Headless and CI fallback.** When no system keychain is available (or
 `ASC_BYPASS_KEYCHAIN=1` is set), the CLI falls back to the legacy cleartext

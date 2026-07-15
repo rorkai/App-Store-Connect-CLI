@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/99designs/keyring"
@@ -101,6 +102,9 @@ type encryptedSessionEnvelope struct {
 }
 
 var (
+	sessionFileKeyMu      sync.Mutex
+	sessionFileKeyLockDir = defaultSessionFileKeyLockDir
+
 	sessionKeyringOpen = func() (keyring.Keyring, error) {
 		return keyring.Open(keyring.Config{
 			ServiceName:                    webSessionKeyringService,
@@ -165,6 +169,16 @@ func webSessionCacheDir() (string, error) {
 		return "", fmt.Errorf("failed to get home directory: %w", err)
 	}
 	return filepath.Join(home, ".asc", "web"), nil
+}
+
+func defaultSessionFileKeyLockDir() (string, error) {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user cache directory: %w", err)
+	}
+	// The encryption key is shared across custom session-cache directories,
+	// so its creation lock must also live at one user-global path.
+	return filepath.Join(cacheDir, "asc"), nil
 }
 
 func legacyIrisSessionCacheEnabled() bool {
@@ -565,28 +579,58 @@ func sessionFileEncryptionDesired() bool {
 }
 
 // loadSessionFileKey returns the keychain-held secret used to encrypt
-// file-backed session caches. When create is true and no secret exists yet, a
-// new random secret is generated and stored. The boolean result is false when
-// the keychain is bypassed or unavailable, in which case callers fall back to
-// the legacy cleartext behavior.
-func loadSessionFileKey(create bool) (string, bool) {
+// file-backed session caches. Only an explicitly bypassed or unavailable
+// keychain permits the documented cleartext fallback; operational keychain
+// failures must not silently downgrade cookie storage.
+func loadSessionFileKey(create bool) (string, bool, error) {
 	if sessionKeychainBypassed() {
-		return "", false
+		return "", false, nil
 	}
 	kr, err := sessionKeyringOpen()
 	if err != nil {
-		return "", false
+		if isKeyringUnavailable(err) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("failed to open session file keychain: %w", err)
 	}
 	item, err := kr.Get(webSessionFileKeyItem)
-	if err == nil && len(item.Data) > 0 {
-		return string(item.Data), true
+	if err == nil {
+		if len(item.Data) == 0 {
+			return "", false, errors.New("session file encryption key is empty")
+		}
+		return string(item.Data), true, nil
 	}
-	if !errors.Is(err, keyring.ErrKeyNotFound) || !create {
-		return "", false
+	if !errors.Is(err, keyring.ErrKeyNotFound) {
+		return "", false, fmt.Errorf("failed to read session file encryption key: %w", err)
+	}
+	if !create {
+		return "", false, nil
+	}
+
+	// Keyring Set overwrites existing items, so serialize the first write across
+	// goroutines and processes and re-check after acquiring the lock. Otherwise
+	// concurrent first sessions can be encrypted with different keys.
+	sessionFileKeyMu.Lock()
+	defer sessionFileKeyMu.Unlock()
+	unlock, err := lockSessionFileKeyCreation()
+	if err != nil {
+		return "", false, fmt.Errorf("failed to lock session file encryption key: %w", err)
+	}
+	defer func() { _ = unlock() }()
+
+	item, err = kr.Get(webSessionFileKeyItem)
+	if err == nil {
+		if len(item.Data) == 0 {
+			return "", false, errors.New("session file encryption key is empty")
+		}
+		return string(item.Data), true, nil
+	}
+	if !errors.Is(err, keyring.ErrKeyNotFound) {
+		return "", false, fmt.Errorf("failed to re-read session file encryption key: %w", err)
 	}
 	secret := make([]byte, webSessionFileKeySize)
 	if _, err := io.ReadFull(rand.Reader, secret); err != nil {
-		return "", false
+		return "", false, fmt.Errorf("failed to generate session file encryption key: %w", err)
 	}
 	encoded := base64.StdEncoding.EncodeToString(secret)
 	if err := kr.Set(keyring.Item{
@@ -594,22 +638,22 @@ func loadSessionFileKey(create bool) (string, bool) {
 		Data:  []byte(encoded),
 		Label: "ASC Web Session File Key",
 	}); err != nil {
-		return "", false
+		return "", false, fmt.Errorf("failed to store session file encryption key: %w", err)
 	}
-	return encoded, true
+	return encoded, true, nil
 }
 
 // encryptSessionPayload encrypts a marshaled persistedSession with a
-// keychain-held secret. It returns ok=false when encryption is not possible
-// (keychain bypassed or unavailable) so callers can fall back to cleartext.
-func encryptSessionPayload(raw []byte) ([]byte, bool) {
-	fileKey, ok := loadSessionFileKey(true)
-	if !ok {
-		return nil, false
+// keychain-held secret. It returns ok=false only for the documented bypassed
+// or unavailable-keychain cases where callers may fall back to cleartext.
+func encryptSessionPayload(raw []byte) ([]byte, bool, error) {
+	fileKey, ok, err := loadSessionFileKey(true)
+	if err != nil || !ok {
+		return nil, false, err
 	}
 	encrypted, err := signing.Encrypt(raw, fileKey)
 	if err != nil {
-		return nil, false
+		return nil, false, fmt.Errorf("failed to encrypt session cache: %w", err)
 	}
 	envelope, err := json.Marshal(encryptedSessionEnvelope{
 		Version: webSessionCacheVersion,
@@ -617,16 +661,19 @@ func encryptSessionPayload(raw []byte) ([]byte, bool) {
 		Data:    base64.StdEncoding.EncodeToString(encrypted),
 	})
 	if err != nil {
-		return nil, false
+		return nil, false, fmt.Errorf("failed to marshal encrypted session cache: %w", err)
 	}
-	return envelope, true
+	return envelope, true, nil
 }
 
 func decryptSessionEnvelope(envelope encryptedSessionEnvelope) (persistedSession, bool, error) {
 	if envelope.Version != webSessionCacheVersion {
 		return persistedSession{}, false, nil
 	}
-	fileKey, ok := loadSessionFileKey(false)
+	fileKey, ok, err := loadSessionFileKey(false)
+	if err != nil {
+		return persistedSession{}, false, err
+	}
 	if !ok {
 		// Encrypted cache without a reachable keychain key behaves like a
 		// cache miss so callers fall through to a fresh login.
@@ -661,8 +708,8 @@ func maybeRewriteSessionFileEncrypted(key string, sess persistedSession) {
 	if err != nil {
 		return
 	}
-	envelope, ok := encryptSessionPayload(raw)
-	if !ok {
+	envelope, ok, err := encryptSessionPayload(raw)
+	if err != nil || !ok {
 		return
 	}
 	_ = writeSessionFileBytes(key, envelope)
@@ -696,7 +743,11 @@ func writeSessionToFile(key string, sess persistedSession) error {
 		return fmt.Errorf("failed to marshal session: %w", err)
 	}
 	if sessionFileEncryptionDesired() {
-		if envelope, ok := encryptSessionPayload(raw); ok {
+		envelope, ok, err := encryptSessionPayload(raw)
+		if err != nil {
+			return err
+		}
+		if ok {
 			raw = envelope
 		}
 	}
@@ -735,7 +786,10 @@ func readSessionFromFile(key string) (persistedSession, bool, error) {
 	if err := json.Unmarshal(raw, &envelope); err != nil {
 		return persistedSession{}, false, fmt.Errorf("failed to decode session cache: %w", err)
 	}
-	if envelope.Cipher == webSessionFileCipher && envelope.Data != "" {
+	if envelope.Cipher != "" || envelope.Data != "" {
+		if envelope.Cipher != webSessionFileCipher || envelope.Data == "" {
+			return persistedSession{}, false, fmt.Errorf("unsupported encrypted session cache envelope")
+		}
 		return decryptSessionEnvelope(envelope)
 	}
 	var sess persistedSession

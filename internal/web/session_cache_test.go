@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,9 +20,32 @@ import (
 type countingKeyring struct {
 	keyring.Keyring
 	getCounts map[string]int
+	mu        sync.Mutex
+}
+
+type failingSessionKeyring struct {
+	keyring.Keyring
+	getErr error
+	setErr error
+}
+
+func (kr *failingSessionKeyring) Get(key string) (keyring.Item, error) {
+	if kr.getErr != nil {
+		return keyring.Item{}, kr.getErr
+	}
+	return kr.Keyring.Get(key)
+}
+
+func (kr *failingSessionKeyring) Set(item keyring.Item) error {
+	if kr.setErr != nil {
+		return kr.setErr
+	}
+	return kr.Keyring.Set(item)
 }
 
 func (kr *countingKeyring) Get(key string) (keyring.Item, error) {
+	kr.mu.Lock()
+	defer kr.mu.Unlock()
 	kr.getCounts[key]++
 	return kr.Keyring.Get(key)
 }
@@ -31,6 +55,8 @@ func (kr *countingKeyring) GetMetadata(key string) (keyring.Metadata, error) {
 }
 
 func (kr *countingKeyring) Set(item keyring.Item) error {
+	kr.mu.Lock()
+	defer kr.mu.Unlock()
 	return kr.Keyring.Set(item)
 }
 
@@ -43,16 +69,23 @@ func (kr *countingKeyring) Keys() ([]string, error) {
 }
 
 func (kr *countingKeyring) ResetCounts() {
+	kr.mu.Lock()
+	defer kr.mu.Unlock()
 	kr.getCounts = map[string]int{}
 }
 
 func (kr *countingKeyring) GetCount(key string) int {
+	kr.mu.Lock()
+	defer kr.mu.Unlock()
 	return kr.getCounts[key]
 }
 
 func withArraySessionKeyring(t *testing.T) *countingKeyring {
 	t.Helper()
 	prev := sessionKeyringOpen
+	previousLockDir := sessionFileKeyLockDir
+	lockDir := t.TempDir()
+	sessionFileKeyLockDir = func() (string, error) { return lockDir, nil }
 	kr := &countingKeyring{
 		Keyring:   keyring.NewArrayKeyring([]keyring.Item{}),
 		getCounts: map[string]int{},
@@ -62,6 +95,7 @@ func withArraySessionKeyring(t *testing.T) *countingKeyring {
 	}
 	t.Cleanup(func() {
 		sessionKeyringOpen = prev
+		sessionFileKeyLockDir = previousLockDir
 	})
 	return kr
 }
@@ -999,7 +1033,7 @@ func TestTryResumeSessionPersistsRefreshedCookies(t *testing.T) {
 		t.Fatal("expected refreshed session in cache")
 	}
 
-	if got := persistedCookieValue(stored, "https://appstoreconnect.apple.com/", "myacinfo"); got != "refreshed-token" {
+	if got := persistedMyACInfoCookieValue(stored); got != "refreshed-token" {
 		t.Fatalf("expected refreshed cookie value, got %q", got)
 	}
 }
@@ -1057,7 +1091,7 @@ func TestTryResumeLastSessionPersistsRefreshedCookies(t *testing.T) {
 	if !ok {
 		t.Fatal("expected refreshed session in cache")
 	}
-	if got := persistedCookieValue(stored, "https://appstoreconnect.apple.com/", "myacinfo"); got != "new-token" {
+	if got := persistedMyACInfoCookieValue(stored); got != "new-token" {
 		t.Fatalf("expected refreshed cookie value, got %q", got)
 	}
 }
@@ -1341,7 +1375,7 @@ func TestTryResumeSessionMigratesLegacyIrisFileCache(t *testing.T) {
 	if !ok {
 		t.Fatal("expected migrated session in web cache")
 	}
-	if got := persistedCookieValue(stored, "https://appstoreconnect.apple.com/", "myacinfo"); got != "legacy-iris-token" {
+	if got := persistedMyACInfoCookieValue(stored); got != "legacy-iris-token" {
 		t.Fatalf("expected migrated legacy cookie value, got %q", got)
 	}
 	if _, err := os.Stat(filepath.Join(legacyDir, "session-"+key+".json")); !os.IsNotExist(err) {
@@ -2017,10 +2051,10 @@ func TestClearLastSessionMarkerDefaultBackendIgnoresUnavailableKeychainFallback(
 	}
 }
 
-func persistedCookieValue(sess persistedSession, baseURL, cookieName string) string {
-	list := sess.Cookies[baseURL]
+func persistedMyACInfoCookieValue(sess persistedSession) string {
+	list := sess.Cookies["https://appstoreconnect.apple.com/"]
 	for _, cookie := range list {
-		if cookie.Name == cookieName {
+		if cookie.Name == "myacinfo" {
 			return cookie.Value
 		}
 	}
@@ -2113,7 +2147,7 @@ func TestWriteSessionToFileEncryptsAtRestByDefault(t *testing.T) {
 	if !ok {
 		t.Fatal("expected encrypted session round-trip")
 	}
-	if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "secret-token" {
+	if got := persistedMyACInfoCookieValue(sess); got != "secret-token" {
 		t.Fatalf("expected round-tripped cookie value, got %q", got)
 	}
 }
@@ -2157,9 +2191,100 @@ func TestWriteSessionToFileReusesEncryptionKey(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected persisted session for %s", email)
 		}
-		if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "token-"+email {
+		if got := persistedMyACInfoCookieValue(sess); got != "token-"+email {
 			t.Fatalf("expected cookie for %s, got %q", email, got)
 		}
+	}
+}
+
+func TestLoadSessionFileKeySerializesConcurrentCreation(t *testing.T) {
+	withArraySessionKeyring(t)
+	t.Setenv(sessionBypassKeychainEnv, "0")
+
+	const callers = 24
+	keys := make(chan string, callers)
+	errs := make(chan error, callers)
+	var wg sync.WaitGroup
+	for range callers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			key, ok, err := loadSessionFileKey(true)
+			if err == nil && !ok {
+				err = errors.New("keychain unexpectedly unavailable")
+			}
+			if err != nil {
+				errs <- err
+				return
+			}
+			keys <- key
+		}()
+	}
+	wg.Wait()
+	close(keys)
+	close(errs)
+
+	for err := range errs {
+		t.Fatalf("loadSessionFileKey error: %v", err)
+	}
+	var expected string
+	for key := range keys {
+		if expected == "" {
+			expected = key
+			continue
+		}
+		if key != expected {
+			t.Fatalf("expected all callers to share one key, got %q and %q", expected, key)
+		}
+	}
+	if expected == "" {
+		t.Fatal("expected a generated encryption key")
+	}
+}
+
+func TestWriteSessionToFileDoesNotDowngradeOnKeychainErrors(t *testing.T) {
+	t.Setenv(sessionBypassKeychainEnv, "0")
+	t.Setenv(webSessionBackendEnv, "")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+	previousLockDir := sessionFileKeyLockDir
+	lockDir := t.TempDir()
+	sessionFileKeyLockDir = func() (string, error) { return lockDir, nil }
+	t.Cleanup(func() { sessionFileKeyLockDir = previousLockDir })
+
+	tests := []struct {
+		name string
+		open func() (keyring.Keyring, error)
+	}{
+		{name: "open denied", open: func() (keyring.Keyring, error) {
+			return nil, errors.New("keychain denied")
+		}},
+		{name: "read denied", open: func() (keyring.Keyring, error) {
+			return &failingSessionKeyring{Keyring: keyring.NewArrayKeyring(nil), getErr: errors.New("keychain locked")}, nil
+		}},
+		{name: "write denied", open: func() (keyring.Keyring, error) {
+			return &failingSessionKeyring{Keyring: keyring.NewArrayKeyring(nil), setErr: errors.New("keychain write denied")}, nil
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			previous := sessionKeyringOpen
+			sessionKeyringOpen = tt.open
+			t.Cleanup(func() { sessionKeyringOpen = previous })
+
+			key := webSessionCacheKey(tt.name + "@example.com")
+			err := writeSessionToFile(key, serializeCookieJar(newTestSessionJar(t, "secret-token"), tt.name+"@example.com"))
+			if err == nil {
+				t.Fatal("expected keychain error")
+			}
+			path, pathErr := webSessionFilePath(key)
+			if pathErr != nil {
+				t.Fatalf("webSessionFilePath error: %v", pathErr)
+			}
+			if _, statErr := os.Stat(path); !os.IsNotExist(statErr) {
+				t.Fatalf("expected no cleartext fallback file, stat error: %v", statErr)
+			}
+		})
 	}
 }
 
@@ -2195,7 +2320,7 @@ func TestReadSessionFromFileMigratesLegacyCleartext(t *testing.T) {
 	if !ok {
 		t.Fatal("expected legacy cleartext session to load")
 	}
-	if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "legacy-token" {
+	if got := persistedMyACInfoCookieValue(sess); got != "legacy-token" {
 		t.Fatalf("expected legacy cookie value, got %q", got)
 	}
 
@@ -2218,8 +2343,69 @@ func TestReadSessionFromFileMigratesLegacyCleartext(t *testing.T) {
 	if !ok {
 		t.Fatal("expected migrated session to load")
 	}
-	if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "legacy-token" {
+	if got := persistedMyACInfoCookieValue(sess); got != "legacy-token" {
 		t.Fatalf("expected migrated cookie value, got %q", got)
+	}
+}
+
+func TestReadSessionFromFileKeepsRorkLegacyCacheReadableWithoutKeychain(t *testing.T) {
+	withUnavailableSessionKeyring(t)
+	t.Setenv(sessionBypassKeychainEnv, "0")
+	t.Setenv(webSessionBackendEnv, "")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	key := webSessionCacheKey("user@example.com")
+	// This literal mirrors the cache emitted by rorkai #4211 rather than using
+	// the Go serializer, so field-name or timestamp compatibility cannot pass
+	// accidentally through shared implementation assumptions.
+	raw := []byte(`{"version":1,"updated_at":"2026-07-15T00:00:00.000Z","user_email":"user@example.com","cookies":{"https://appstoreconnect.apple.com/":[{"name":"myacinfo","value":"external-2.8-token","path":"/","domain":".apple.com","expires":"2030-07-15T00:00:00.000Z","secure":true,"http_only":true,"same_site":2}]}}`)
+	path, err := webSessionFilePath(key)
+	if err != nil {
+		t.Fatalf("webSessionFilePath error: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("mkdir cache dir: %v", err)
+	}
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatalf("write Rork legacy cache: %v", err)
+	}
+
+	sess, ok, err := readSessionFromFile(key)
+	if err != nil {
+		t.Fatalf("readSessionFromFile error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected Rork-written ASC 2.8 cache to remain readable")
+	}
+	if got := persistedMyACInfoCookieValue(sess); got != "external-2.8-token" {
+		t.Fatalf("expected Rork legacy cookie, got %q", got)
+	}
+	if rewritten := readRawSessionFile(t, key); !strings.Contains(string(rewritten), "external-2.8-token") {
+		t.Fatal("expected unavailable keychain to leave the compatible legacy cache unchanged")
+	}
+}
+
+func TestReadSessionFromFileRejectsMalformedEncryptedEnvelope(t *testing.T) {
+	withArraySessionKeyring(t)
+	t.Setenv(sessionBypassKeychainEnv, "0")
+	t.Setenv(webSessionBackendEnv, "")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	key := webSessionCacheKey("user@example.com")
+	path, err := webSessionFilePath(key)
+	if err != nil {
+		t.Fatalf("webSessionFilePath error: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("mkdir cache dir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte(`{"version":1,"cipher":"future-cipher","data":"ciphertext"}`), 0o600); err != nil {
+		t.Fatalf("write malformed encrypted envelope: %v", err)
+	}
+
+	sess, ok, err := readSessionFromFile(key)
+	if err == nil {
+		t.Fatalf("expected malformed encrypted envelope error, got ok=%v session=%#v", ok, sess)
 	}
 }
 
@@ -2251,7 +2437,7 @@ func TestWriteSessionToFileFallsBackToCleartextWithoutKeychain(t *testing.T) {
 	if !ok {
 		t.Fatal("expected fallback session to load")
 	}
-	if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "headless-token" {
+	if got := persistedMyACInfoCookieValue(sess); got != "headless-token" {
 		t.Fatalf("expected fallback cookie value, got %q", got)
 	}
 }
