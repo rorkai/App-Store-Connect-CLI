@@ -416,3 +416,65 @@ func TestUploadPreviewsRollsBackCreatedItemsAfterPartialFailure(t *testing.T) {
 		t.Fatal("expected rollback instead of relationship reorder after partial failure")
 	}
 }
+
+func TestUploadPreviewsRollsBackCreatedItemsAfterReorderFailure(t *testing.T) {
+	if err := mime.AddExtensionType(".mov", "video/quicktime"); err != nil {
+		t.Fatalf("register .mov mime type: %v", err)
+	}
+	dir := t.TempDir()
+	names := []string{"01-intro.mov", "02-outro.mov"}
+	files := make([]string, 0, len(names))
+	for _, name := range names {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte("preview-video-bytes"), 0o600); err != nil {
+			t.Fatalf("write preview file: %v", err)
+		}
+		files = append(files, path)
+	}
+	sizeBytes := fileSize(t, files[0])
+	deletedIDs := make([]string, 0, len(files))
+
+	installAssetsTestTransport(t, func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appPreviewSets":
+			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appPreviewSets","id":"set-1","attributes":{"previewType":"IPHONE_65"}}],"links":{}}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appPreviews":
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				return nil, err
+			}
+			for idx, name := range names {
+				if strings.Contains(string(body), name) {
+					return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appPreviews","id":"preview-%d","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/preview-%d","length":%d,"offset":0}]}}}`, idx+1, idx+1, sizeBytes))
+				}
+			}
+			return assetsJSONResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"UNKNOWN_FILE","detail":"unknown file"}]}`)
+		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
+			return assetsJSONResponse(http.StatusOK, `{}`)
+		case req.Method == http.MethodPatch && strings.HasPrefix(req.URL.Path, "/v1/appPreviews/preview-"):
+			id := strings.TrimPrefix(req.URL.Path, "/v1/appPreviews/")
+			return assetsJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"appPreviews","id":"%s","attributes":{"uploaded":true}}}`, id))
+		case req.Method == http.MethodGet && strings.HasPrefix(req.URL.Path, "/v1/appPreviews/preview-"):
+			id := strings.TrimPrefix(req.URL.Path, "/v1/appPreviews/")
+			return assetsJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"appPreviews","id":"%s","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`, id))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appPreviewSets/set-1/relationships/appPreviews":
+			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appPreviews","id":"preview-2"},{"type":"appPreviews","id":"preview-1"}],"links":{}}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appPreviewSets/set-1/relationships/appPreviews":
+			return assetsJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"REORDER_FAILED","detail":"preview reorder failed"}]}`)
+		case req.Method == http.MethodDelete && strings.HasPrefix(req.URL.Path, "/v1/appPreviews/preview-"):
+			deletedIDs = append(deletedIDs, strings.TrimPrefix(req.URL.Path, "/v1/appPreviews/"))
+			return assetsJSONResponse(http.StatusNoContent, "")
+		default:
+			return assetsJSONResponse(http.StatusNotFound, fmt.Sprintf(`{"errors":[{"status":"404","code":"UNEXPECTED","detail":"unexpected request %s %s"}]}`, req.Method, req.URL.String()))
+		}
+	})
+
+	client := newAssetsUploadTestClient(t)
+	_, err := uploadPreviews(context.Background(), client, "LOC_123", "IPHONE_65", files, false, false, false)
+	if err == nil || !strings.Contains(err.Error(), "preview reorder failed") {
+		t.Fatalf("expected preview reorder failure, got %v", err)
+	}
+	if !reflect.DeepEqual(deletedIDs, []string{"preview-1", "preview-2"}) {
+		t.Fatalf("rolled back preview IDs = %v, want [preview-1 preview-2]", deletedIDs)
+	}
+}

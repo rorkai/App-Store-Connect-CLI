@@ -910,14 +910,11 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 			return nil
 		})
 		if uploadErr := aggregateAssetTaskErrors(taskErrs); uploadErr != nil {
-			if rollbackErr := deleteCreatedPreviews(uploadCtx, client, items); rollbackErr != nil {
-				return asc.AppPreviewUploadResult{}, fmt.Errorf("preview upload failed and rollback was incomplete: %w", errors.Join(uploadErr, rollbackErr))
-			}
-			return asc.AppPreviewUploadResult{}, uploadErr
+			return asc.AppPreviewUploadResult{}, rollbackCreatedPreviewsAfterError(uploadCtx, client, items, uploadErr)
 		}
 		if len(items) > 1 {
 			if err := reorderUploadedPreviews(uploadCtx, client, set.ID, items); err != nil {
-				return asc.AppPreviewUploadResult{}, err
+				return asc.AppPreviewUploadResult{}, rollbackCreatedPreviewsAfterError(uploadCtx, client, items, err)
 			}
 		}
 		results = append(results, items...)
@@ -930,6 +927,13 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 		PreviewType:           set.Attributes.PreviewType,
 		Results:               results,
 	}, nil
+}
+
+func rollbackCreatedPreviewsAfterError(ctx context.Context, client *asc.Client, items []asc.AssetUploadResultItem, operationErr error) error {
+	if rollbackErr := deleteCreatedPreviews(ctx, client, items); rollbackErr != nil {
+		return fmt.Errorf("preview batch failed and rollback was incomplete: %w", errors.Join(operationErr, rollbackErr))
+	}
+	return operationErr
 }
 
 func deleteCreatedPreviews(ctx context.Context, client *asc.Client, items []asc.AssetUploadResultItem) error {
