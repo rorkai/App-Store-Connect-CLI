@@ -483,7 +483,7 @@ func TestUploadPreviewsRollsBackCreatedItemsAfterReorderFailure(t *testing.T) {
 	sizeBytes := fileSize(t, files[0])
 	deletedIDs := make([]string, 0, len(files))
 
-	installAssetsTestTransport(t, func(req *http.Request) (*http.Response, error) {
+	handler := assetsUploadRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appPreviewSets":
 			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appPreviewSets","id":"set-1","attributes":{"previewType":"IPHONE_65"}}],"links":{}}`)
@@ -494,11 +494,11 @@ func TestUploadPreviewsRollsBackCreatedItemsAfterReorderFailure(t *testing.T) {
 			}
 			for idx, name := range names {
 				if strings.Contains(string(body), name) {
-					return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appPreviews","id":"preview-%d","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/preview-%d","length":%d,"offset":0}]}}}`, idx+1, idx+1, sizeBytes))
+					return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appPreviews","id":"preview-%d","attributes":{"uploadOperations":[{"method":"PUT","url":"http://%s/preview-%d","length":%d,"offset":0}]}}}`, idx+1, req.Host, idx+1, sizeBytes))
 				}
 			}
 			return assetsJSONResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"UNKNOWN_FILE","detail":"unknown file"}]}`)
-		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
+		case req.Method == http.MethodPut && strings.HasPrefix(req.URL.Path, "/preview-"):
 			return assetsJSONResponse(http.StatusOK, `{}`)
 		case req.Method == http.MethodPatch && strings.HasPrefix(req.URL.Path, "/v1/appPreviews/preview-"):
 			id := strings.TrimPrefix(req.URL.Path, "/v1/appPreviews/")
@@ -518,7 +518,22 @@ func TestUploadPreviewsRollsBackCreatedItemsAfterReorderFailure(t *testing.T) {
 		}
 	})
 
-	client := newAssetsUploadTestClient(t)
+	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		response, err := handler(req)
+		if err != nil {
+			t.Fatalf("handle request %s %s: %v", req.Method, req.URL.Path, err)
+		}
+		defer response.Body.Close()
+		for key, values := range response.Header {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
+		}
+		w.WriteHeader(response.StatusCode)
+		if _, err := io.Copy(w, response.Body); err != nil {
+			t.Fatalf("write response %s %s: %v", req.Method, req.URL.Path, err)
+		}
+	}))
 	_, err := uploadPreviews(context.Background(), client, "LOC_123", "IPHONE_65", files, false, false, false)
 	if err == nil || !strings.Contains(err.Error(), "preview reorder failed") {
 		t.Fatalf("expected preview reorder failure, got %v", err)

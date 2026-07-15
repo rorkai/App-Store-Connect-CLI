@@ -120,3 +120,26 @@ func TestDownloadPreviewItemsReportsCallerCancellationForQueuedItems(t *testing.
 		}
 	}
 }
+
+func TestOrderPreviewDownloadFailuresPreservesItemOrderAcrossFailureTypes(t *testing.T) {
+	items := []previewDownloadItem{
+		{ID: "missing-1", OutputPath: "/tmp/missing-1.mov"},
+		{ID: "download-1", URL: "https://download.example/1.mov", OutputPath: "/tmp/download-1.mov"},
+		{ID: "missing-2", OutputPath: "/tmp/missing-2.mov"},
+		{ID: "download-2", URL: "https://download.example/2.mov", OutputPath: "/tmp/download-2.mov"},
+	}
+	downloadFailures := []previewDownloadFailure{
+		{ID: "download-1", OutputPath: "/tmp/download-1.mov", Error: "download one failed"},
+		{ID: "download-2", OutputPath: "/tmp/download-2.mov", Error: "download two failed"},
+	}
+
+	ordered := orderPreviewDownloadFailures(items, downloadFailures)
+	if len(ordered) != len(items) {
+		t.Fatalf("ordered failures = %#v, want one per item", ordered)
+	}
+	for idx, item := range items {
+		if ordered[idx].ID != item.ID {
+			t.Fatalf("ordered[%d].ID = %q, want %q", idx, ordered[idx].ID, item.ID)
+		}
+	}
+}

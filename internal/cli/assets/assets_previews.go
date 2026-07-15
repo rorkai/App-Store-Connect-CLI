@@ -370,22 +370,11 @@ Examples:
 				}
 
 				resolvePreviewDownloadURLs(ctx, client, items)
-				for i := range items {
-					if strings.TrimSpace(items[i].URL) != "" {
-						continue
-					}
-					result.Failures = append(result.Failures, previewDownloadFailure{
-						ID:          items[i].ID,
-						PreviewType: items[i].PreviewType,
-						OutputPath:  items[i].OutputPath,
-						Error:       "preview has no videoUrl",
-					})
-				}
 			}
 
 			downloaded, downloadFailures := downloadPreviewItems(ctx, items, *overwrite)
 			result.Downloaded = downloaded
-			result.Failures = append(result.Failures, downloadFailures...)
+			result.Failures = orderPreviewDownloadFailures(items, downloadFailures)
 
 			result.Items = items
 			result.Total = len(items)
@@ -407,6 +396,30 @@ Examples:
 			return nil
 		},
 	}
+}
+
+func orderPreviewDownloadFailures(items []previewDownloadItem, downloadFailures []previewDownloadFailure) []previewDownloadFailure {
+	failuresByPath := make(map[string]previewDownloadFailure, len(downloadFailures))
+	for _, failure := range downloadFailures {
+		failuresByPath[failure.OutputPath] = failure
+	}
+
+	ordered := make([]previewDownloadFailure, 0, len(downloadFailures))
+	for _, item := range items {
+		if strings.TrimSpace(item.URL) == "" {
+			ordered = append(ordered, previewDownloadFailure{
+				ID:          item.ID,
+				PreviewType: item.PreviewType,
+				OutputPath:  item.OutputPath,
+				Error:       "preview has no videoUrl",
+			})
+			continue
+		}
+		if failure, ok := failuresByPath[item.OutputPath]; ok {
+			ordered = append(ordered, failure)
+		}
+	}
+	return ordered
 }
 
 func renderPreviewDownloadResult(result *previewDownloadResult, markdown bool) error {
