@@ -2,6 +2,7 @@ package shared
 
 import (
 	"context"
+	"errors"
 	"sync"
 )
 
@@ -20,9 +21,13 @@ func RunIndexedTasks(ctx context.Context, count, limit int, fn func(ctx context.
 		limit = count
 	}
 
+	taskCtx, cancelTasks := context.WithCancel(ctx)
+	defer cancelTasks()
+
 	var wg sync.WaitGroup
 	var nextMu sync.Mutex
 	nextIndex := 0
+	stopScheduling := false
 	errs := make([]error, count)
 
 	for range limit {
@@ -30,18 +35,32 @@ func RunIndexedTasks(ctx context.Context, count, limit int, fn func(ctx context.
 		go func() {
 			defer wg.Done()
 			for {
-				if ctx.Err() != nil {
-					return
-				}
 				nextMu.Lock()
-				if nextIndex >= count {
+				if stopScheduling || taskCtx.Err() != nil || nextIndex >= count {
 					nextMu.Unlock()
 					return
 				}
 				index := nextIndex
 				nextIndex++
 				nextMu.Unlock()
-				errs[index] = fn(ctx, index)
+
+				err := fn(taskCtx, index)
+				if err == nil {
+					continue
+				}
+
+				nextMu.Lock()
+				// A sibling canceled this task only to stop the fan-out. Keeping that
+				// derived cancellation would hide a lower-priority task's real error.
+				if !stopScheduling || ctx.Err() != nil || !errors.Is(err, context.Canceled) {
+					errs[index] = err
+				}
+				if !stopScheduling {
+					stopScheduling = true
+					cancelTasks()
+				}
+				nextMu.Unlock()
+				return
 			}
 		}()
 	}

@@ -47,6 +47,37 @@ func TestRunIndexedTasksReturnsLowestIndexedError(t *testing.T) {
 	}
 }
 
+func TestRunIndexedTasksStopsSchedulingAndCancelsStartedTasksAfterError(t *testing.T) {
+	wantErr := errors.New("boom")
+	var started atomic.Int32
+	var canceled atomic.Int32
+	twoStarted := make(chan struct{})
+
+	err := RunIndexedTasks(context.Background(), 6, 2, func(ctx context.Context, _ int) error {
+		position := started.Add(1)
+		if position == 2 {
+			close(twoStarted)
+		}
+		if position == 1 {
+			<-twoStarted
+			return wantErr
+		}
+
+		<-ctx.Done()
+		canceled.Add(1)
+		return ctx.Err()
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("RunIndexedTasks() error = %v, want %v", err, wantErr)
+	}
+	if started.Load() != 2 {
+		t.Fatalf("started tasks = %d, want only the initial workers", started.Load())
+	}
+	if canceled.Load() != 1 {
+		t.Fatalf("canceled tasks = %d, want one started sibling", canceled.Load())
+	}
+}
+
 func TestRunIndexedTasksReturnsParentCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
