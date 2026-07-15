@@ -60,8 +60,9 @@ func cacheFiles(t *testing.T, dir string) []string {
 	return names
 }
 
-func writeCacheEntry(t *testing.T, scope, bundleID string, entry appLookupCacheEntry) string {
+func writeCacheEntry(t *testing.T, bundleID string, entry appLookupCacheEntry) string {
 	t.Helper()
+	scope := "issuer:issuer-a"
 	path, err := appLookupCachePath(scope, bundleID)
 	if err != nil {
 		t.Fatalf("cache path: %v", err)
@@ -185,9 +186,9 @@ func TestResolveAppIDWithLookup_CacheMissForDifferentCredentials(t *testing.T) {
 func TestResolveAppIDWithLookup_ExpiredCacheEntryReResolvesLive(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	enableAppLookupCacheForTest(t)
-
 	scope := "issuer:issuer-a"
-	writeCacheEntry(t, scope, "com.example.app", appLookupCacheEntry{
+
+	writeCacheEntry(t, "com.example.app", appLookupCacheEntry{
 		AsOf:     time.Now().Add(-appLookupCacheTTL - time.Minute).UTC(),
 		Scope:    scope,
 		BundleID: "com.example.app",
@@ -259,8 +260,7 @@ func TestResolveAppIDWithLookup_ScopeMismatchedEntryIsIgnored(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	enableAppLookupCacheForTest(t)
 
-	scope := "issuer:issuer-a"
-	writeCacheEntry(t, scope, "com.example.app", appLookupCacheEntry{
+	writeCacheEntry(t, "com.example.app", appLookupCacheEntry{
 		AsOf:     time.Now().UTC(),
 		Scope:    "issuer:issuer-other",
 		BundleID: "com.example.app",
@@ -292,7 +292,7 @@ func TestResolveAppIDWithLookup_NoCacheFlagBypassesCache(t *testing.T) {
 	dir := enableAppLookupCacheForTest(t)
 
 	scope := "issuer:issuer-a"
-	writeCacheEntry(t, scope, "com.example.app", appLookupCacheEntry{
+	writeCacheEntry(t, "com.example.app", appLookupCacheEntry{
 		AsOf:     time.Now().UTC(),
 		Scope:    scope,
 		BundleID: "com.example.app",
@@ -336,7 +336,7 @@ func TestResolveAppIDWithLookup_NoCacheEnvBypassesCache(t *testing.T) {
 	t.Setenv(noCacheEnvVar, "1")
 
 	scope := "issuer:issuer-a"
-	writeCacheEntry(t, scope, "com.example.app", appLookupCacheEntry{
+	writeCacheEntry(t, "com.example.app", appLookupCacheEntry{
 		AsOf:     time.Now().UTC(),
 		Scope:    scope,
 		BundleID: "com.example.app",
@@ -400,7 +400,7 @@ func TestResolveAppIDWithLookup_DropsEntryWhenAppNoLongerVisible(t *testing.T) {
 	dir := enableAppLookupCacheForTest(t)
 
 	scope := "issuer:issuer-a"
-	path := writeCacheEntry(t, scope, "com.example.gone", appLookupCacheEntry{
+	path := writeCacheEntry(t, "com.example.gone", appLookupCacheEntry{
 		AsOf:     time.Now().UTC(),
 		Scope:    scope,
 		BundleID: "com.example.gone",
@@ -530,7 +530,7 @@ func TestCachedAppIDForBundleIDRejectsBundleMismatch(t *testing.T) {
 	enableAppLookupCacheForTest(t)
 
 	scope := "issuer:issuer-a"
-	writeCacheEntry(t, scope, "com.example.app", appLookupCacheEntry{
+	writeCacheEntry(t, "com.example.app", appLookupCacheEntry{
 		AsOf:     time.Now().UTC(),
 		Scope:    scope,
 		BundleID: "com.example.other",
