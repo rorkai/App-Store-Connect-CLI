@@ -2,11 +2,14 @@ package web
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -17,6 +20,8 @@ import (
 	"time"
 
 	"github.com/99designs/keyring"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/signing"
 )
 
 const (
@@ -33,6 +38,11 @@ const (
 	webSessionStoreItem      = "asc:web-session:store"
 	webSessionKeyPrefix      = "asc:web-session:"
 	webSessionLastKeyItem    = "asc:web-session:last"
+	webSessionFileKeyItem    = "asc:web-session:file-key"
+
+	webSessionFileCipher     = "aes-256-gcm"
+	webSessionFileKeySize    = 32
+	sessionBypassKeychainEnv = "ASC_BYPASS_KEYCHAIN"
 )
 
 var ErrCachedSessionExpired = errors.New("cached web session expired")
@@ -79,6 +89,15 @@ type pCookie struct {
 type persistedLastSession struct {
 	Version int    `json:"version"`
 	Key     string `json:"key"`
+}
+
+// encryptedSessionEnvelope wraps an AES-256-GCM encrypted persistedSession so
+// web-session cookies are not stored as cleartext on disk. The encryption key
+// is a random secret stored once in the OS keychain (webSessionFileKeyItem).
+type encryptedSessionEnvelope struct {
+	Version int    `json:"version"`
+	Cipher  string `json:"cipher"`
+	Data    string `json:"data"`
 }
 
 var (
@@ -404,7 +423,7 @@ func readLegacySessionStoreFromKeyring(kr keyring.Keyring) (persistedSessionStor
 	}
 	store := newPersistedSessionStore()
 	for _, itemKey := range keys {
-		if !strings.HasPrefix(itemKey, webSessionKeyPrefix) || itemKey == webSessionLastKeyItem || itemKey == webSessionStoreItem {
+		if !strings.HasPrefix(itemKey, webSessionKeyPrefix) || itemKey == webSessionLastKeyItem || itemKey == webSessionStoreItem || itemKey == webSessionFileKeyItem {
 			continue
 		}
 		key := strings.TrimPrefix(itemKey, webSessionKeyPrefix)
@@ -523,18 +542,139 @@ func readSessionFromKeychain(key string) (persistedSession, bool, error) {
 	return sess, true, nil
 }
 
-func writeSessionToFile(key string, sess persistedSession) error {
+func sessionKeychainBypassed() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(sessionBypassKeychainEnv))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+// sessionFileEncryptionDesired reports whether file-backed sessions should be
+// encrypted at rest. Users who explicitly select the legacy file backend keep
+// the historical cleartext behavior (documented escape hatch for headless/CI
+// environments without a keychain).
+func sessionFileEncryptionDesired() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(webSessionBackendEnv))) {
+	case "file":
+		return false
+	default:
+		return true
+	}
+}
+
+// loadSessionFileKey returns the keychain-held secret used to encrypt
+// file-backed session caches. When create is true and no secret exists yet, a
+// new random secret is generated and stored. The boolean result is false when
+// the keychain is bypassed or unavailable, in which case callers fall back to
+// the legacy cleartext behavior.
+func loadSessionFileKey(create bool) (string, bool) {
+	if sessionKeychainBypassed() {
+		return "", false
+	}
+	kr, err := sessionKeyringOpen()
+	if err != nil {
+		return "", false
+	}
+	item, err := kr.Get(webSessionFileKeyItem)
+	if err == nil && len(item.Data) > 0 {
+		return string(item.Data), true
+	}
+	if !errors.Is(err, keyring.ErrKeyNotFound) || !create {
+		return "", false
+	}
+	secret := make([]byte, webSessionFileKeySize)
+	if _, err := io.ReadFull(rand.Reader, secret); err != nil {
+		return "", false
+	}
+	encoded := base64.StdEncoding.EncodeToString(secret)
+	if err := kr.Set(keyring.Item{
+		Key:   webSessionFileKeyItem,
+		Data:  []byte(encoded),
+		Label: "ASC Web Session File Key",
+	}); err != nil {
+		return "", false
+	}
+	return encoded, true
+}
+
+// encryptSessionPayload encrypts a marshaled persistedSession with a
+// keychain-held secret. It returns ok=false when encryption is not possible
+// (keychain bypassed or unavailable) so callers can fall back to cleartext.
+func encryptSessionPayload(raw []byte) ([]byte, bool) {
+	fileKey, ok := loadSessionFileKey(true)
+	if !ok {
+		return nil, false
+	}
+	encrypted, err := signing.Encrypt(raw, fileKey)
+	if err != nil {
+		return nil, false
+	}
+	envelope, err := json.Marshal(encryptedSessionEnvelope{
+		Version: webSessionCacheVersion,
+		Cipher:  webSessionFileCipher,
+		Data:    base64.StdEncoding.EncodeToString(encrypted),
+	})
+	if err != nil {
+		return nil, false
+	}
+	return envelope, true
+}
+
+func decryptSessionEnvelope(envelope encryptedSessionEnvelope) (persistedSession, bool, error) {
+	if envelope.Version != webSessionCacheVersion {
+		return persistedSession{}, false, nil
+	}
+	fileKey, ok := loadSessionFileKey(false)
+	if !ok {
+		// Encrypted cache without a reachable keychain key behaves like a
+		// cache miss so callers fall through to a fresh login.
+		return persistedSession{}, false, nil
+	}
+	encrypted, err := base64.StdEncoding.DecodeString(envelope.Data)
+	if err != nil {
+		return persistedSession{}, false, fmt.Errorf("failed to decode session cache: %w", err)
+	}
+	raw, err := signing.Decrypt(encrypted, fileKey)
+	if err != nil {
+		return persistedSession{}, false, fmt.Errorf("failed to decrypt session cache: %w", err)
+	}
+	var sess persistedSession
+	if err := json.Unmarshal(raw, &sess); err != nil {
+		return persistedSession{}, false, fmt.Errorf("failed to decode session cache: %w", err)
+	}
+	if sess.Version != webSessionCacheVersion {
+		return persistedSession{}, false, nil
+	}
+	return sess, true, nil
+}
+
+// maybeRewriteSessionFileEncrypted migrates a legacy cleartext session file to
+// the encrypted format. Best effort: failures leave the readable cleartext
+// file in place.
+func maybeRewriteSessionFileEncrypted(key string, sess persistedSession) {
+	if !sessionFileEncryptionDesired() {
+		return
+	}
+	raw, err := json.Marshal(sess)
+	if err != nil {
+		return
+	}
+	envelope, ok := encryptSessionPayload(raw)
+	if !ok {
+		return
+	}
+	_ = writeSessionFileBytes(key, envelope)
+}
+
+func writeSessionFileBytes(key string, raw []byte) error {
 	dir, err := webSessionCacheDir()
 	if err != nil {
 		return err
 	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return fmt.Errorf("failed to create session cache dir: %w", err)
-	}
-
-	raw, err := json.Marshal(sess)
-	if err != nil {
-		return fmt.Errorf("failed to marshal session: %w", err)
 	}
 	sessionPath, err := webSessionFilePath(key)
 	if err != nil {
@@ -546,6 +686,22 @@ func writeSessionToFile(key string, sess persistedSession) error {
 	}
 	if err := os.Rename(tmpSessionPath, sessionPath); err != nil {
 		return fmt.Errorf("failed to finalize session cache: %w", err)
+	}
+	return nil
+}
+
+func writeSessionToFile(key string, sess persistedSession) error {
+	raw, err := json.Marshal(sess)
+	if err != nil {
+		return fmt.Errorf("failed to marshal session: %w", err)
+	}
+	if sessionFileEncryptionDesired() {
+		if envelope, ok := encryptSessionPayload(raw); ok {
+			raw = envelope
+		}
+	}
+	if err := writeSessionFileBytes(key, raw); err != nil {
+		return err
 	}
 
 	lastPath, err := webSessionLastFilePath()
@@ -575,6 +731,13 @@ func readSessionFromFile(key string) (persistedSession, bool, error) {
 		}
 		return persistedSession{}, false, err
 	}
+	var envelope encryptedSessionEnvelope
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		return persistedSession{}, false, fmt.Errorf("failed to decode session cache: %w", err)
+	}
+	if envelope.Cipher == webSessionFileCipher && envelope.Data != "" {
+		return decryptSessionEnvelope(envelope)
+	}
 	var sess persistedSession
 	if err := json.Unmarshal(raw, &sess); err != nil {
 		return persistedSession{}, false, fmt.Errorf("failed to decode session cache: %w", err)
@@ -582,6 +745,8 @@ func readSessionFromFile(key string) (persistedSession, bool, error) {
 	if sess.Version != webSessionCacheVersion {
 		return persistedSession{}, false, nil
 	}
+	// Legacy cleartext cache: migrate to the encrypted format once.
+	maybeRewriteSessionFileEncrypted(key, sess)
 	return sess, true, nil
 }
 

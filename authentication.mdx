@@ -362,6 +362,40 @@ This removes credentials from both keychain and config files.
   </Accordion>
 </AccordionGroup>
 
+## Web session storage
+
+Commands under `asc web` authenticate with your Apple ID and cache the resulting
+web-session cookies so you do not have to repeat password and two-factor prompts
+on every invocation.
+
+**At-rest protection.** By default the session cache is written to
+`~/.asc/web/` as files encrypted with AES-256-GCM. The encryption key is a
+random secret stored once in your system keychain (macOS Keychain, Windows
+Credential Manager, or Linux Secret Service), so the cookies are never stored
+as cleartext on disk. Existing cleartext session files from older CLI versions
+are migrated to the encrypted format automatically the first time they are
+read.
+
+**Headless and CI fallback.** When no system keychain is available (or
+`ASC_BYPASS_KEYCHAIN=1` is set), the CLI falls back to the legacy cleartext
+format with owner-only file permissions (`0600`) so headless environments keep
+working. You can also opt out of encryption explicitly by pinning the legacy
+backend:
+
+```bash  theme={null}
+# Keep the legacy cleartext file cache (headless/CI escape hatch)
+export ASC_WEB_SESSION_CACHE_BACKEND=file
+```
+
+Other controls:
+
+| Variable                        | Purpose                                                    |
+| ------------------------------- | ---------------------------------------------------------- |
+| `ASC_WEB_SESSION_CACHE`         | Disable the session cache entirely (`0`, `false`, `off`)   |
+| `ASC_WEB_SESSION_CACHE_DIR`     | Override the cache directory (default `~/.asc/web`)        |
+| `ASC_WEB_SESSION_CACHE_BACKEND` | `auto` (encrypted file, default), `file` (legacy cleartext), `keychain`, or `off` |
+| `ASC_BYPASS_KEYCHAIN`           | Skip the keychain; session files fall back to cleartext    |
+
 ## Environment variables reference
 
 | Variable               | Purpose                       | Example                                |

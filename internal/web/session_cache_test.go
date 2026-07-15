@@ -149,8 +149,13 @@ func TestPersistSessionDefaultBackendWritesFileWithoutKeychain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("keyring keys error: %v", err)
 	}
-	if len(keys) != 0 {
-		t.Fatalf("expected default backend not to write keychain entries, got %#v", keys)
+	for _, key := range keys {
+		// The at-rest encryption key is the only allowed keychain item; the
+		// session cookies themselves must stay out of the keychain in the
+		// default file-backed mode.
+		if key != webSessionFileKeyItem {
+			t.Fatalf("expected default backend not to write keychain session entries, got %#v", keys)
+		}
 	}
 
 	if _, ok, err := readSessionFromFile(webSessionCacheKey("user@example.com")); err != nil {
@@ -2038,4 +2043,327 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func newTestSessionJar(t *testing.T, cookieValue string) *cookiejar.Jar {
+	t.Helper()
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New error: %v", err)
+	}
+	targetURL, _ := url.Parse("https://appstoreconnect.apple.com/")
+	jar.SetCookies(targetURL, []*http.Cookie{
+		{Name: "myacinfo", Value: cookieValue, Path: "/", Expires: time.Now().Add(24 * time.Hour)},
+	})
+	return jar
+}
+
+func readRawSessionFile(t *testing.T, key string) []byte {
+	t.Helper()
+	sessionPath, err := webSessionFilePath(key)
+	if err != nil {
+		t.Fatalf("webSessionFilePath error: %v", err)
+	}
+	raw, err := os.ReadFile(sessionPath)
+	if err != nil {
+		t.Fatalf("read session file: %v", err)
+	}
+	return raw
+}
+
+func TestWriteSessionToFileEncryptsAtRestByDefault(t *testing.T) {
+	kr := withArraySessionKeyring(t)
+	t.Setenv(sessionBypassKeychainEnv, "0")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	jar := newTestSessionJar(t, "secret-token")
+	if err := PersistSession(&AuthSession{
+		Client:    &http.Client{Jar: jar},
+		UserEmail: "user@example.com",
+	}); err != nil {
+		t.Fatalf("PersistSession error: %v", err)
+	}
+
+	key := webSessionCacheKey("user@example.com")
+	raw := readRawSessionFile(t, key)
+	if strings.Contains(string(raw), "secret-token") {
+		t.Fatal("expected session file not to contain cleartext cookie values")
+	}
+	var envelope encryptedSessionEnvelope
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		t.Fatalf("decode envelope: %v", err)
+	}
+	if envelope.Cipher != webSessionFileCipher {
+		t.Fatalf("expected cipher %q, got %q", webSessionFileCipher, envelope.Cipher)
+	}
+	if envelope.Data == "" {
+		t.Fatal("expected non-empty encrypted payload")
+	}
+
+	if _, err := kr.Get(webSessionFileKeyItem); err != nil {
+		t.Fatalf("expected encryption key in keychain, got error: %v", err)
+	}
+
+	sess, ok, err := readSessionFromFile(key)
+	if err != nil {
+		t.Fatalf("readSessionFromFile error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected encrypted session round-trip")
+	}
+	if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "secret-token" {
+		t.Fatalf("expected round-tripped cookie value, got %q", got)
+	}
+}
+
+func TestWriteSessionToFileReusesEncryptionKey(t *testing.T) {
+	kr := withArraySessionKeyring(t)
+	t.Setenv(sessionBypassKeychainEnv, "0")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	for _, email := range []string{"first@example.com", "second@example.com"} {
+		jar := newTestSessionJar(t, "token-"+email)
+		if err := PersistSession(&AuthSession{
+			Client:    &http.Client{Jar: jar},
+			UserEmail: email,
+		}); err != nil {
+			t.Fatalf("PersistSession(%s) error: %v", email, err)
+		}
+	}
+
+	keys, err := kr.Keys()
+	if err != nil {
+		t.Fatalf("keyring keys error: %v", err)
+	}
+	keyItems := 0
+	for _, key := range keys {
+		if key == webSessionFileKeyItem {
+			keyItems++
+		}
+	}
+	if keyItems != 1 {
+		t.Fatalf("expected exactly one encryption key item, got %d (keys: %#v)", keyItems, keys)
+	}
+
+	for _, email := range []string{"first@example.com", "second@example.com"} {
+		sess, ok, err := readSessionFromFile(webSessionCacheKey(email))
+		if err != nil {
+			t.Fatalf("readSessionFromFile(%s) error: %v", email, err)
+		}
+		if !ok {
+			t.Fatalf("expected persisted session for %s", email)
+		}
+		if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "token-"+email {
+			t.Fatalf("expected cookie for %s, got %q", email, got)
+		}
+	}
+}
+
+func TestReadSessionFromFileMigratesLegacyCleartext(t *testing.T) {
+	withArraySessionKeyring(t)
+	t.Setenv(sessionBypassKeychainEnv, "0")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	key := webSessionCacheKey("user@example.com")
+	jar := newTestSessionJar(t, "legacy-token")
+	legacy := serializeCookieJar(jar, "user@example.com")
+	raw, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatalf("marshal legacy session: %v", err)
+	}
+	sessionPath, err := webSessionFilePath(key)
+	if err != nil {
+		t.Fatalf("webSessionFilePath error: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(sessionPath), 0o700); err != nil {
+		t.Fatalf("mkdir cache dir: %v", err)
+	}
+	if err := os.WriteFile(sessionPath, raw, 0o600); err != nil {
+		t.Fatalf("write legacy session file: %v", err)
+	}
+
+	sess, ok, err := readSessionFromFile(key)
+	if err != nil {
+		t.Fatalf("readSessionFromFile error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected legacy cleartext session to load")
+	}
+	if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "legacy-token" {
+		t.Fatalf("expected legacy cookie value, got %q", got)
+	}
+
+	rewritten := readRawSessionFile(t, key)
+	if strings.Contains(string(rewritten), "legacy-token") {
+		t.Fatal("expected legacy cleartext file to be rewritten encrypted")
+	}
+	var envelope encryptedSessionEnvelope
+	if err := json.Unmarshal(rewritten, &envelope); err != nil {
+		t.Fatalf("decode rewritten envelope: %v", err)
+	}
+	if envelope.Cipher != webSessionFileCipher {
+		t.Fatalf("expected rewritten cipher %q, got %q", webSessionFileCipher, envelope.Cipher)
+	}
+
+	sess, ok, err = readSessionFromFile(key)
+	if err != nil {
+		t.Fatalf("readSessionFromFile after migration error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected migrated session to load")
+	}
+	if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "legacy-token" {
+		t.Fatalf("expected migrated cookie value, got %q", got)
+	}
+}
+
+func TestWriteSessionToFileFallsBackToCleartextWithoutKeychain(t *testing.T) {
+	withUnavailableSessionKeyring(t)
+	t.Setenv(sessionBypassKeychainEnv, "0")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	jar := newTestSessionJar(t, "headless-token")
+	if err := PersistSession(&AuthSession{
+		Client:    &http.Client{Jar: jar},
+		UserEmail: "user@example.com",
+	}); err != nil {
+		t.Fatalf("PersistSession error: %v", err)
+	}
+
+	key := webSessionCacheKey("user@example.com")
+	raw := readRawSessionFile(t, key)
+	if !strings.Contains(string(raw), "headless-token") {
+		t.Fatal("expected cleartext fallback when no keychain is available")
+	}
+
+	sess, ok, err := readSessionFromFile(key)
+	if err != nil {
+		t.Fatalf("readSessionFromFile error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected fallback session to load")
+	}
+	if got := persistedCookieValue(sess, "https://appstoreconnect.apple.com/", "myacinfo"); got != "headless-token" {
+		t.Fatalf("expected fallback cookie value, got %q", got)
+	}
+}
+
+func TestWriteSessionToFileHonorsBypassKeychainEnv(t *testing.T) {
+	kr := withArraySessionKeyring(t)
+	t.Setenv(sessionBypassKeychainEnv, "1")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	jar := newTestSessionJar(t, "bypass-token")
+	if err := PersistSession(&AuthSession{
+		Client:    &http.Client{Jar: jar},
+		UserEmail: "user@example.com",
+	}); err != nil {
+		t.Fatalf("PersistSession error: %v", err)
+	}
+
+	key := webSessionCacheKey("user@example.com")
+	raw := readRawSessionFile(t, key)
+	if !strings.Contains(string(raw), "bypass-token") {
+		t.Fatal("expected cleartext session when keychain is bypassed")
+	}
+	if _, err := kr.Get(webSessionFileKeyItem); err == nil {
+		t.Fatal("expected no encryption key item when keychain is bypassed")
+	}
+}
+
+func TestExplicitFileBackendKeepsCleartextBehavior(t *testing.T) {
+	kr := withArraySessionKeyring(t)
+	t.Setenv(sessionBypassKeychainEnv, "0")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "file")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	jar := newTestSessionJar(t, "explicit-file-token")
+	if err := PersistSession(&AuthSession{
+		Client:    &http.Client{Jar: jar},
+		UserEmail: "user@example.com",
+	}); err != nil {
+		t.Fatalf("PersistSession error: %v", err)
+	}
+
+	key := webSessionCacheKey("user@example.com")
+	raw := readRawSessionFile(t, key)
+	if !strings.Contains(string(raw), "explicit-file-token") {
+		t.Fatal("expected explicit file backend to keep legacy cleartext format")
+	}
+	if _, err := kr.Get(webSessionFileKeyItem); err == nil {
+		t.Fatal("expected no encryption key item for the explicit file backend")
+	}
+}
+
+func TestReadEncryptedSessionWithoutKeychainIsCacheMiss(t *testing.T) {
+	withArraySessionKeyring(t)
+	t.Setenv(sessionBypassKeychainEnv, "0")
+	t.Setenv(webSessionCacheEnabledEnv, "1")
+	t.Setenv(webSessionBackendEnv, "")
+	t.Setenv(webSessionCacheDirEnv, filepath.Join(t.TempDir(), "web-cache"))
+
+	jar := newTestSessionJar(t, "portable-token")
+	if err := PersistSession(&AuthSession{
+		Client:    &http.Client{Jar: jar},
+		UserEmail: "user@example.com",
+	}); err != nil {
+		t.Fatalf("PersistSession error: %v", err)
+	}
+
+	withUnavailableSessionKeyring(t)
+	key := webSessionCacheKey("user@example.com")
+	sess, ok, err := readSessionFromFile(key)
+	if err != nil {
+		t.Fatalf("expected cache miss without keychain, got error: %v", err)
+	}
+	if ok {
+		t.Fatalf("expected cache miss without keychain, got session %#v", sess)
+	}
+}
+
+func TestReadLegacySessionStoreFromKeyringSkipsFileKeyItem(t *testing.T) {
+	kr := withArraySessionKeyring(t)
+	t.Setenv(sessionBypassKeychainEnv, "0")
+
+	if err := kr.Set(keyring.Item{
+		Key:  webSessionFileKeyItem,
+		Data: []byte("not-a-session-payload"),
+	}); err != nil {
+		t.Fatalf("seed file key item: %v", err)
+	}
+
+	jar := newTestSessionJar(t, "legacy-keychain-token")
+	key := webSessionCacheKey("user@example.com")
+	raw, err := json.Marshal(serializeCookieJar(jar, "user@example.com"))
+	if err != nil {
+		t.Fatalf("marshal legacy keychain session: %v", err)
+	}
+	if err := kr.Set(keyring.Item{Key: keyringSessionItem(key), Data: raw}); err != nil {
+		t.Fatalf("seed legacy keychain session: %v", err)
+	}
+
+	store, ok, err := readLegacySessionStoreFromKeyring(kr)
+	if err != nil {
+		t.Fatalf("readLegacySessionStoreFromKeyring error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected legacy keychain store to load")
+	}
+	if _, found := store.Sessions[key]; !found {
+		t.Fatal("expected legacy keychain session to survive alongside the file key item")
+	}
+	if _, found := store.Sessions["file-key"]; found {
+		t.Fatal("expected the encryption key item to be excluded from legacy sessions")
+	}
 }
