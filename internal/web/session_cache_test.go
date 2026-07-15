@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -2634,5 +2635,30 @@ func TestReadLegacySessionStoreFromKeyringSkipsFileKeyItem(t *testing.T) {
 	}
 	if _, found := store.Sessions["file-key"]; found {
 		t.Fatal("expected the encryption key item to be excluded from legacy sessions")
+	}
+}
+
+func TestDeleteAllFromKeychainPreservesSharedFileEncryptionKey(t *testing.T) {
+	kr := withArraySessionKeyring(t)
+	fileKey := []byte("shared-file-encryption-key")
+	if err := kr.Set(keyring.Item{Key: webSessionFileKeyItem, Data: fileKey}); err != nil {
+		t.Fatalf("seed file key item: %v", err)
+	}
+	if err := kr.Set(keyring.Item{Key: keyringSessionItem("session"), Data: []byte("session")}); err != nil {
+		t.Fatalf("seed session item: %v", err)
+	}
+
+	if err := deleteAllFromKeychain(); err != nil {
+		t.Fatalf("deleteAllFromKeychain error: %v", err)
+	}
+	item, err := kr.Get(webSessionFileKeyItem)
+	if err != nil {
+		t.Fatalf("expected shared file encryption key to survive session deletion: %v", err)
+	}
+	if !bytes.Equal(item.Data, fileKey) {
+		t.Fatalf("file key data = %q, want %q", item.Data, fileKey)
+	}
+	if _, err := kr.Get(keyringSessionItem("session")); !errors.Is(err, keyring.ErrKeyNotFound) {
+		t.Fatalf("expected session item deletion, got %v", err)
 	}
 }

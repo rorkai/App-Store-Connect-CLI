@@ -1239,7 +1239,7 @@ func deleteAllFromKeychain() error {
 		return err
 	}
 	for _, key := range keys {
-		if key == webSessionStoreItem || key == webSessionLastKeyItem || strings.HasPrefix(key, webSessionKeyPrefix) {
+		if key != webSessionFileKeyItem && (key == webSessionStoreItem || key == webSessionLastKeyItem || strings.HasPrefix(key, webSessionKeyPrefix)) {
 			if err := kr.Remove(key); err != nil && !errors.Is(err, keyring.ErrKeyNotFound) {
 				return err
 			}
