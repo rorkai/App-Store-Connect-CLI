@@ -71,13 +71,12 @@ func EmitWithContext(
 		debugf("telemetry spool unavailable: %v", err)
 		return
 	}
-	if err := store.append(spoolRecord{Event: ev, Endpoint: endpointURL}); err != nil {
+	spooledRecords, err := store.appendAndCount(spoolRecord{Event: ev, Endpoint: endpointURL})
+	if err != nil {
 		debugf("telemetry spool append failed: %v", err)
 		return
 	}
-	if err := startMaintenanceWorker(); err != nil {
-		debugf("telemetry worker start failed: %v", err)
-	}
+	maybeStartMaintenanceWorker(store, spooledRecords)
 }
 
 func loadCurrentState() (State, error) {

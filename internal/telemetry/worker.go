@@ -11,12 +11,15 @@ import (
 )
 
 const (
-	internalWorkerArg      = "--asc-internal-telemetry-worker"
-	internalWorkerEnvVar   = "ASC_INTERNAL_TELEMETRY_WORKER"
-	workerResourceName     = "telemetry-worker"
-	workerDiagnosticName   = "telemetry-worker.log"
-	maintenanceWorkerBatch = 16
-	workerLockHandoff      = 100 * time.Millisecond
+	internalWorkerArg         = "--asc-internal-telemetry-worker"
+	internalWorkerEnvVar      = "ASC_INTERNAL_TELEMETRY_WORKER"
+	workerResourceName        = "telemetry-worker"
+	workerDiagnosticName      = "telemetry-worker.log"
+	workerSpawnMarkerName     = "telemetry-worker.last-spawn"
+	workerSpawnCooldown       = 15 * time.Minute
+	workerSpawnSpoolThreshold = 8
+	maintenanceWorkerBatch    = 16
+	workerLockHandoff         = 100 * time.Millisecond
 )
 
 type eventSender func(Event, string) error
@@ -128,6 +131,69 @@ func purgeSpoolAfterOptOut(store spoolStore, reason string) {
 		return
 	}
 	debugf("telemetry spool purged after %s", reason)
+}
+
+func maybeStartMaintenanceWorker(store spoolStore, spooledRecords int) {
+	markerPath := workerSpawnMarkerPath(store)
+	now := time.Now()
+	if !shouldStartMaintenanceWorker(markerPath, spooledRecords, now) {
+		debugf("telemetry worker spawn skipped: cooldown active")
+		return
+	}
+	// Mark before spawning so concurrent invocations observe the fresh
+	// timestamp as early as possible. The marker is best effort: the worst
+	// case for a lost race or a failed spawn is one extra worker or a spool
+	// that waits for the next eligible spawn, never lost telemetry.
+	markMaintenanceWorkerSpawn(markerPath, now)
+	if err := startMaintenanceWorker(); err != nil {
+		debugf("telemetry worker start failed: %v", err)
+	}
+}
+
+func workerSpawnMarkerPath(store spoolStore) string {
+	return filepath.Join(filepath.Dir(store.path), workerSpawnMarkerName)
+}
+
+// shouldStartMaintenanceWorker reports whether spawning a detached worker is
+// warranted. The check costs a single stat so the command exit path stays
+// cheap: spawn when the spool backlog reaches the threshold, when no spawn
+// marker exists yet, or when the last spawn happened outside the cooldown
+// window. A marker timestamp in the future (for example after a clock change)
+// also allows a spawn so delivery can never be deferred indefinitely.
+func shouldStartMaintenanceWorker(markerPath string, spooledRecords int, now time.Time) bool {
+	if spooledRecords >= workerSpawnSpoolThreshold {
+		return true
+	}
+	info, err := os.Stat(markerPath)
+	if err != nil {
+		return true
+	}
+	sinceLastSpawn := now.Sub(info.ModTime())
+	return sinceLastSpawn < 0 || sinceLastSpawn >= workerSpawnCooldown
+}
+
+func markMaintenanceWorkerSpawn(markerPath string, now time.Time) {
+	if err := ensureSecureTelemetryDirectory(filepath.Dir(markerPath)); err != nil {
+		debugf("telemetry worker spawn marker unavailable: %v", err)
+		return
+	}
+	marker, err := os.OpenFile(markerPath, os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		debugf("telemetry worker spawn marker unavailable: %v", err)
+		return
+	}
+	if err := marker.Chmod(0o600); err != nil {
+		_ = marker.Close()
+		debugf("telemetry worker spawn marker unavailable: %v", err)
+		return
+	}
+	if err := marker.Close(); err != nil {
+		debugf("telemetry worker spawn marker unavailable: %v", err)
+		return
+	}
+	if err := os.Chtimes(markerPath, now, now); err != nil {
+		debugf("telemetry worker spawn marker unavailable: %v", err)
+	}
 }
 
 func startDetachedMaintenanceWorker() error {

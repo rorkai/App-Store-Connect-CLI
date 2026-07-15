@@ -185,6 +185,63 @@ func TestSetEnabledFalsePurgesQueuedEvents(t *testing.T) {
 	}
 }
 
+func TestShouldStartMaintenanceWorker(t *testing.T) {
+	now := time.Now()
+	tests := []struct {
+		name           string
+		spooledRecords int
+		hasMarker      bool
+		markerAge      time.Duration
+		want           bool
+	}{
+		{name: "missing marker spawns", spooledRecords: 1, hasMarker: false, want: true},
+		{name: "fresh marker skips", spooledRecords: 1, hasMarker: true, markerAge: time.Minute, want: false},
+		{name: "cooldown boundary spawns", spooledRecords: 1, hasMarker: true, markerAge: workerSpawnCooldown, want: true},
+		{name: "expired cooldown spawns", spooledRecords: 1, hasMarker: true, markerAge: workerSpawnCooldown + time.Hour, want: true},
+		{name: "future marker spawns", spooledRecords: 1, hasMarker: true, markerAge: -time.Minute, want: true},
+		{name: "backlog at threshold overrides cooldown", spooledRecords: workerSpawnSpoolThreshold, hasMarker: true, markerAge: time.Minute, want: true},
+		{name: "backlog below threshold respects cooldown", spooledRecords: workerSpawnSpoolThreshold - 1, hasMarker: true, markerAge: time.Minute, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			markerPath := filepath.Join(t.TempDir(), workerSpawnMarkerName)
+			if tt.hasMarker {
+				markMaintenanceWorkerSpawn(markerPath, now.Add(-tt.markerAge))
+				if _, err := os.Stat(markerPath); err != nil {
+					t.Fatalf("stat spawn marker: %v", err)
+				}
+			}
+			if got := shouldStartMaintenanceWorker(markerPath, tt.spooledRecords, now); got != tt.want {
+				t.Fatalf("shouldStartMaintenanceWorker(records=%d, age=%s) = %t, want %t",
+					tt.spooledRecords, tt.markerAge, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMarkMaintenanceWorkerSpawnRecordsInjectedTimestamp(t *testing.T) {
+	markerPath := filepath.Join(t.TempDir(), workerSpawnMarkerName)
+	first := time.Now().Add(-time.Hour).Truncate(time.Second)
+	markMaintenanceWorkerSpawn(markerPath, first)
+	info, err := os.Stat(markerPath)
+	if err != nil {
+		t.Fatalf("stat spawn marker: %v", err)
+	}
+	if !info.ModTime().Equal(first) {
+		t.Fatalf("marker mtime = %s, want %s", info.ModTime(), first)
+	}
+
+	second := first.Add(30 * time.Minute)
+	markMaintenanceWorkerSpawn(markerPath, second)
+	info, err = os.Stat(markerPath)
+	if err != nil {
+		t.Fatalf("stat refreshed spawn marker: %v", err)
+	}
+	if !info.ModTime().Equal(second) {
+		t.Fatalf("refreshed marker mtime = %s, want %s", info.ModTime(), second)
+	}
+}
+
 func TestInternalWorkerInvocationRequiresMarker(t *testing.T) {
 	t.Setenv(internalWorkerEnvVar, "")
 	if isMaintenanceWorkerInvocation([]string{internalWorkerArg}) {

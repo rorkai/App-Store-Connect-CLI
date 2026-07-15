@@ -3,10 +3,12 @@ package telemetry
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 )
@@ -47,6 +49,74 @@ func TestEmitQueuesEventAndSwallowsWorkerStartErrors(t *testing.T) {
 	}
 	if records[0].Event.CommandPath != "asc builds list" {
 		t.Fatalf("CommandPath = %q, want %q", records[0].Event.CommandPath, "asc builds list")
+	}
+}
+
+func TestEmitSpawnsWorkerAtMostOncePerCooldownWindow(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+	t.Setenv("ASC_TELEMETRY_DISABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+
+	workerStarts := 0
+	stubMaintenanceWorkerStart(t, func() error {
+		workerStarts++
+		return nil
+	})
+
+	Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+	if workerStarts != 1 {
+		t.Fatalf("worker starts after first emit = %d, want 1", workerStarts)
+	}
+	Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+	if workerStarts != 1 {
+		t.Fatalf("worker starts within cooldown = %d, want 1", workerStarts)
+	}
+	if records := readDefaultSpool(t); len(records) != 2 {
+		t.Fatalf("spool records = %d, want 2 queued for the next eligible spawn", len(records))
+	}
+
+	store, err := defaultSpoolStore()
+	if err != nil {
+		t.Fatalf("defaultSpoolStore() error = %v", err)
+	}
+	expired := time.Now().Add(-workerSpawnCooldown - time.Minute)
+	if err := os.Chtimes(workerSpawnMarkerPath(store), expired, expired); err != nil {
+		t.Fatalf("age spawn marker: %v", err)
+	}
+
+	Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+	if workerStarts != 2 {
+		t.Fatalf("worker starts after cooldown expired = %d, want 2", workerStarts)
+	}
+}
+
+func TestEmitSpawnsWorkerDuringCooldownOnceBacklogReachesThreshold(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+	t.Setenv("ASC_TELEMETRY_DISABLED", "")
+	t.Setenv("DO_NOT_TRACK", "")
+
+	workerStarts := 0
+	stubMaintenanceWorkerStart(t, func() error {
+		workerStarts++
+		return nil
+	})
+
+	store, err := defaultSpoolStore()
+	if err != nil {
+		t.Fatalf("defaultSpoolStore() error = %v", err)
+	}
+	for index := 0; index < workerSpawnSpoolThreshold-1; index++ {
+		if err := store.append(testSpoolRecord(fmt.Sprintf("event-%02d", index))); err != nil {
+			t.Fatalf("append backlog record %d: %v", index, err)
+		}
+	}
+	markMaintenanceWorkerSpawn(workerSpawnMarkerPath(store), time.Now())
+
+	Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+	if workerStarts != 1 {
+		t.Fatalf("worker starts with backlog at threshold = %d, want 1 despite active cooldown", workerStarts)
 	}
 }
 

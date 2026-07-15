@@ -51,33 +51,44 @@ func defaultSpoolStore() (spoolStore, error) {
 }
 
 func (store spoolStore) append(record spoolRecord) error {
+	_, err := store.appendAndCount(record)
+	return err
+}
+
+// appendAndCount appends the record and returns how many records the spool
+// holds afterwards, so callers can gate follow-up work on the backlog size
+// without re-reading the spool.
+func (store spoolStore) appendAndCount(record spoolRecord) (int, error) {
 	encoded, err := encodeSpoolRecord(record)
 	if err != nil {
-		return fmt.Errorf("telemetry: failed to encode spool record: %w", err)
+		return 0, fmt.Errorf("telemetry: failed to encode spool record: %w", err)
 	}
 	if len(encoded) > store.maxRecordBytes || len(encoded) > store.maxBytes {
-		return errSpoolRecordTooLarge
+		return 0, errSpoolRecordTooLarge
 	}
 
 	unlock, err := lockTelemetryFile(store.path, store.lockWait, "spool")
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer unlock()
 	if err := store.removeOrphanedTempFilesUnlocked(); err != nil {
-		return err
+		return 0, err
 	}
 
 	records, _, err := store.readUnlocked()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	records = append(records, record)
 	records, err = store.trimToLimits(records)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return store.writeUnlocked(records)
+	if err := store.writeUnlocked(records); err != nil {
+		return 0, err
+	}
+	return len(records), nil
 }
 
 func (store spoolStore) snapshot(limit int) ([]spoolRecord, error) {
