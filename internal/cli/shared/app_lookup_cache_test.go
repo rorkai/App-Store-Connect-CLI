@@ -459,6 +459,32 @@ func TestAppLookupCacheScope(t *testing.T) {
 	}
 }
 
+func TestResolveAppIDWithLookup_KeyScopedCacheHitSkipsLiveLookup(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+	enableAppLookupCacheForTest(t)
+
+	// Individual API keys have no issuer; they cache under the key scope.
+	scope := "key:KEY1"
+	writeCacheEntry(t, scope, "com.example.app", appLookupCacheEntry{
+		AsOf:     time.Now().UTC(),
+		Scope:    scope,
+		BundleID: "com.example.app",
+		AppID:    "app-key-scoped",
+	})
+
+	stub := &scopedAppLookupStub{keyID: "KEY1"}
+	got, err := ResolveAppIDWithLookup(context.Background(), stub, "com.example.app")
+	if err != nil {
+		t.Fatalf("ResolveAppIDWithLookup() cached error: %v", err)
+	}
+	if got != "app-key-scoped" {
+		t.Fatalf("expected cached app-key-scoped, got %q", got)
+	}
+	if stub.calls != 0 {
+		t.Fatalf("expected cache hit without live calls, got %d", stub.calls)
+	}
+}
+
 func TestResolveAppIDWithLookup_RealClientCachesAcrossInvocations(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 	enableAppLookupCacheForTest(t)
