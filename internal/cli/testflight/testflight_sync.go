@@ -85,6 +85,10 @@ type testFlightPullOptions struct {
 	testerFilters  []string
 }
 
+// testFlightSyncWorkerLimit bounds concurrent per-group read fan-out when
+// pulling TestFlight configuration; pagination within a group stays serial.
+const testFlightSyncWorkerLimit = 4
+
 type testFlightSyncClient interface {
 	GetApp(ctx context.Context, appID string) (*asc.AppResponse, error)
 	GetBetaGroups(ctx context.Context, appID string, opts ...asc.BetaGroupsOption) (*asc.BetaGroupsResponse, error)
@@ -246,16 +250,25 @@ func pullTestFlightConfig(ctx context.Context, client testFlightSyncClient, appI
 	buildConfigs := make(map[string]*TestFlightBuildConfig)
 	groupBuilds := make(map[string][]string)
 	if opts.includeBuilds {
-		for _, group := range filteredGroups {
-			buildFirstPage, err := client.GetBetaGroupBuilds(ctx, group.ID, asc.WithBetaGroupBuildsLimit(200))
+		buildResponses := make([]*asc.BuildsResponse, len(filteredGroups))
+		err := shared.RunIndexedTasks(ctx, len(filteredGroups), testFlightSyncWorkerLimit, func(taskCtx context.Context, index int) error {
+			groupID := filteredGroups[index].ID
+			buildFirstPage, err := client.GetBetaGroupBuilds(taskCtx, groupID, asc.WithBetaGroupBuildsLimit(200))
 			if err != nil {
-				return nil, fmt.Errorf("fetch beta group builds: %w", err)
+				return fmt.Errorf("fetch beta group builds: %w", err)
 			}
-			buildResp, err := paginateBetaGroupBuilds(ctx, client, group.ID, buildFirstPage)
+			buildResp, err := paginateBetaGroupBuilds(taskCtx, client, groupID, buildFirstPage)
 			if err != nil {
-				return nil, fmt.Errorf("fetch beta group builds: %w", err)
+				return fmt.Errorf("fetch beta group builds: %w", err)
 			}
-			for _, build := range buildResp.Data {
+			buildResponses[index] = buildResp
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		for index, group := range filteredGroups {
+			for _, build := range buildResponses[index].Data {
 				groupBuilds[group.ID] = append(groupBuilds[group.ID], build.ID)
 				cfg := buildConfigs[build.ID]
 				if cfg == nil {
@@ -278,16 +291,25 @@ func pullTestFlightConfig(ctx context.Context, client testFlightSyncClient, appI
 
 	testerConfigs := make(map[string]*TestFlightTesterConfig)
 	if opts.includeTesters {
-		for _, group := range filteredGroups {
-			testerFirstPage, err := client.GetBetaGroupTesters(ctx, group.ID, asc.WithBetaGroupTestersLimit(200))
+		testerResponses := make([]*asc.BetaTestersResponse, len(filteredGroups))
+		err := shared.RunIndexedTasks(ctx, len(filteredGroups), testFlightSyncWorkerLimit, func(taskCtx context.Context, index int) error {
+			groupID := filteredGroups[index].ID
+			testerFirstPage, err := client.GetBetaGroupTesters(taskCtx, groupID, asc.WithBetaGroupTestersLimit(200))
 			if err != nil {
-				return nil, fmt.Errorf("fetch beta group testers: %w", err)
+				return fmt.Errorf("fetch beta group testers: %w", err)
 			}
-			testerResp, err := paginateBetaGroupTesters(ctx, client, group.ID, testerFirstPage)
+			testerResp, err := paginateBetaGroupTesters(taskCtx, client, groupID, testerFirstPage)
 			if err != nil {
-				return nil, fmt.Errorf("fetch beta group testers: %w", err)
+				return fmt.Errorf("fetch beta group testers: %w", err)
 			}
-			for _, tester := range testerResp.Data {
+			testerResponses[index] = testerResp
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		for index, group := range filteredGroups {
+			for _, tester := range testerResponses[index].Data {
 				cfg := testerConfigs[tester.ID]
 				if cfg == nil {
 					cfg = &TestFlightTesterConfig{

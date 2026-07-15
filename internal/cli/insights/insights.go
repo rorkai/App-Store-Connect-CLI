@@ -742,7 +742,18 @@ func isRenewalSubscriptionState(value string) bool {
 	return strings.Contains(normalized, "renew")
 }
 
-func collectAnalyticsMetrics(ctx context.Context, client *asc.Client, appID string, thisWeek, previousWeek reportWeekWindow) ([]weeklyMetric, int, error) {
+// analyticsInstanceWorkerLimit bounds concurrent analytics report instance
+// fetches; these are read-only requests throttled locally rather than by the
+// client's global mutating-request limiter.
+const analyticsInstanceWorkerLimit = 5
+
+type analyticsMetricsClient interface {
+	GetAnalyticsReportRequests(ctx context.Context, appID string, opts ...asc.AnalyticsReportRequestsOption) (*asc.AnalyticsReportRequestsResponse, error)
+	GetAnalyticsReports(ctx context.Context, requestID string, opts ...asc.AnalyticsReportsOption) (*asc.AnalyticsReportsResponse, error)
+	GetAnalyticsReportInstances(ctx context.Context, reportID string, opts ...asc.AnalyticsReportInstancesOption) (*asc.AnalyticsReportInstancesResponse, error)
+}
+
+func collectAnalyticsMetrics(ctx context.Context, client analyticsMetricsClient, appID string, thisWeek, previousWeek reportWeekWindow) ([]weeklyMetric, int, error) {
 	requestsResp, err := client.GetAnalyticsReportRequests(
 		ctx,
 		appID,
@@ -804,23 +815,31 @@ func collectAnalyticsMetrics(ctx context.Context, client *asc.Client, appID stri
 			return nil, requestCount, reportsErr
 		}
 
-		for _, report := range reportsResp.Data {
-			instancesResp, instancesErr := client.GetAnalyticsReportInstances(
-				ctx,
-				report.ID,
+		instanceResponses := make([]*asc.AnalyticsReportInstancesResponse, len(reportsResp.Data))
+		instancesErr := shared.RunIndexedTasks(ctx, len(reportsResp.Data), analyticsInstanceWorkerLimit, func(taskCtx context.Context, index int) error {
+			instancesResp, err := client.GetAnalyticsReportInstances(
+				taskCtx,
+				reportsResp.Data[index].ID,
 				asc.WithAnalyticsReportInstancesLimit(200),
 			)
-			if instancesErr != nil {
-				if isLikelyForbidden(instancesErr) {
-					return analyticsUnavailableMetrics("analytics report instance endpoints are not permitted for the current API key"), requestCount, nil
-				}
-				if isLikelyNotFound(instancesErr) {
-					return analyticsUnavailableMetrics("analytics report instances are unavailable for this app"), requestCount, nil
-				}
-				return nil, requestCount, instancesErr
+			if err != nil {
+				return err
 			}
+			instanceResponses[index] = instancesResp
+			return nil
+		})
+		if instancesErr != nil {
+			if isLikelyForbidden(instancesErr) {
+				return analyticsUnavailableMetrics("analytics report instance endpoints are not permitted for the current API key"), requestCount, nil
+			}
+			if isLikelyNotFound(instancesErr) {
+				return analyticsUnavailableMetrics("analytics report instances are unavailable for this app"), requestCount, nil
+			}
+			return nil, requestCount, instancesErr
+		}
 
-			for _, instance := range instancesResp.Data {
+		for index, report := range reportsResp.Data {
+			for _, instance := range instanceResponses[index].Data {
 				reportDate, ok := parseDateValue(instance.Attributes.ReportDate)
 				if !ok {
 					continue

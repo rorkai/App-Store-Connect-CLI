@@ -2,11 +2,13 @@ package web
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
@@ -753,15 +755,26 @@ func TestPlanFromDesiredAndRemotePermutationMatrixProducesDesiredState(t *testin
 }
 
 type fakePrivacyMutationClient struct {
+	mu            sync.Mutex
 	callOrder     []string
 	createCounter int
+	deleteErrs    map[string]error
+	updateErrs    map[string]error
+	createErrs    map[string]error
 }
 
 func (f *fakePrivacyMutationClient) CreateAppDataUsage(_ context.Context, _ string, tuple webcore.DataUsageTuple) (*webcore.AppDataUsage, error) {
+	f.mu.Lock()
 	f.createCounter++
+	counter := f.createCounter
 	f.callOrder = append(f.callOrder, fmt.Sprintf("create:%s:%s:%s", tuple.Category, tuple.Purpose, tuple.DataProtection))
+	f.mu.Unlock()
+
+	if err := f.createErrs[tuple.Purpose]; err != nil {
+		return nil, err
+	}
 	return &webcore.AppDataUsage{
-		ID:             fmt.Sprintf("created-%d", f.createCounter),
+		ID:             fmt.Sprintf("created-%d", counter),
 		Category:       tuple.Category,
 		Purpose:        tuple.Purpose,
 		DataProtection: tuple.DataProtection,
@@ -769,7 +782,13 @@ func (f *fakePrivacyMutationClient) CreateAppDataUsage(_ context.Context, _ stri
 }
 
 func (f *fakePrivacyMutationClient) UpdateAppDataUsage(_ context.Context, appDataUsageID string, tuple webcore.DataUsageTuple) (*webcore.AppDataUsage, error) {
+	f.mu.Lock()
 	f.callOrder = append(f.callOrder, fmt.Sprintf("update:%s:%s", appDataUsageID, tuple.DataProtection))
+	f.mu.Unlock()
+
+	if err := f.updateErrs[appDataUsageID]; err != nil {
+		return nil, err
+	}
 	return &webcore.AppDataUsage{
 		ID:             appDataUsageID,
 		Category:       tuple.Category,
@@ -779,8 +798,20 @@ func (f *fakePrivacyMutationClient) UpdateAppDataUsage(_ context.Context, appDat
 }
 
 func (f *fakePrivacyMutationClient) DeleteAppDataUsage(_ context.Context, appDataUsageID string) error {
+	f.mu.Lock()
 	f.callOrder = append(f.callOrder, "delete:"+appDataUsageID)
+	f.mu.Unlock()
+
+	if err := f.deleteErrs[appDataUsageID]; err != nil {
+		return err
+	}
 	return nil
+}
+
+func (f *fakePrivacyMutationClient) callOrderSnapshot() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.callOrder...)
 }
 
 func TestApplyPrivacyPlanExecutesDeleteUpdateCreateOrder(t *testing.T) {
@@ -1001,5 +1032,154 @@ func TestParsePrivacyDeclarationFileCanonicalizesTrackingPurposeAway(t *testing.
 	}
 	if !trackingFound {
 		t.Fatalf("expected canonicalized tracking usage in declaration: %#v", declaration.DataUsages)
+	}
+}
+
+func parallelPrivacyPlanFixture(deleteCount, updateCount, addCount int) privacyPlanOutput {
+	plan := privacyPlanOutput{}
+	for i := 0; i < deleteCount; i++ {
+		plan.Deletes = append(plan.Deletes, privacyPlanChange{
+			Key:            fmt.Sprintf("DELETE_%02d|APP_FUNCTIONALITY|DATA_LINKED_TO_YOU", i),
+			Category:       fmt.Sprintf("DELETE_%02d", i),
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionLinked,
+			UsageID:        fmt.Sprintf("usage-delete-%02d", i),
+		})
+	}
+	for i := 0; i < updateCount; i++ {
+		plan.Updates = append(plan.Updates, privacyPlanChange{
+			Key:            fmt.Sprintf("UPDATE_%02d|APP_FUNCTIONALITY|DATA_NOT_LINKED_TO_YOU", i),
+			Category:       fmt.Sprintf("UPDATE_%02d", i),
+			Purpose:        "APP_FUNCTIONALITY",
+			DataProtection: dataProtectionNotLinked,
+			UsageID:        fmt.Sprintf("usage-update-%02d", i),
+		})
+	}
+	for i := 0; i < addCount; i++ {
+		plan.Adds = append(plan.Adds, privacyPlanChange{
+			Key:            fmt.Sprintf("ADD_%02d|ANALYTICS|DATA_NOT_LINKED_TO_YOU", i),
+			Category:       fmt.Sprintf("ADD_%02d", i),
+			Purpose:        "ANALYTICS",
+			DataProtection: dataProtectionNotLinked,
+		})
+	}
+	return plan
+}
+
+func TestApplyPrivacyPlanParallelPhasesPreservePlanOrder(t *testing.T) {
+	client := &fakePrivacyMutationClient{}
+	plan := parallelPrivacyPlanFixture(6, 5, 6)
+
+	actions, err := applyPrivacyPlan(context.Background(), client, "app-123", plan)
+	if err != nil {
+		t.Fatalf("applyPrivacyPlan() error = %v", err)
+	}
+
+	wantTotal := len(plan.Deletes) + len(plan.Updates) + len(plan.Adds)
+	if len(actions) != wantTotal {
+		t.Fatalf("expected %d actions, got %d", wantTotal, len(actions))
+	}
+
+	// Actions must follow plan order regardless of concurrent execution order.
+	for i, deletion := range plan.Deletes {
+		action := actions[i]
+		if action.Action != "delete" || action.Key != deletion.Key || action.UsageID != deletion.UsageID {
+			t.Fatalf("actions[%d] = %#v, want delete of %#v", i, action, deletion)
+		}
+	}
+	for i, update := range plan.Updates {
+		action := actions[len(plan.Deletes)+i]
+		if action.Action != "update" || action.Key != update.Key || action.UsageID != update.UsageID {
+			t.Fatalf("actions[%d] = %#v, want update of %#v", len(plan.Deletes)+i, action, update)
+		}
+	}
+	for i, add := range plan.Adds {
+		action := actions[len(plan.Deletes)+len(plan.Updates)+i]
+		if action.Action != "create" || action.Key != add.Key {
+			t.Fatalf("actions[%d] = %#v, want create of %#v", len(plan.Deletes)+len(plan.Updates)+i, action, add)
+		}
+		if action.UsageID == "" {
+			t.Fatalf("create action missing usage id: %#v", action)
+		}
+	}
+
+	// Phases must never interleave: deletes complete before updates start,
+	// and updates complete before creates start.
+	callOrder := client.callOrderSnapshot()
+	if len(callOrder) != wantTotal {
+		t.Fatalf("expected %d calls, got %#v", wantTotal, callOrder)
+	}
+	phaseFor := func(call string) int {
+		switch {
+		case strings.HasPrefix(call, "delete:"):
+			return 0
+		case strings.HasPrefix(call, "update:"):
+			return 1
+		default:
+			return 2
+		}
+	}
+	for i := 1; i < len(callOrder); i++ {
+		if phaseFor(callOrder[i]) < phaseFor(callOrder[i-1]) {
+			t.Fatalf("phases interleaved in call order: %#v", callOrder)
+		}
+	}
+}
+
+func TestApplyPrivacyPlanDeleteErrorAbortsApply(t *testing.T) {
+	wantErr := errors.New("delete failed")
+	client := &fakePrivacyMutationClient{
+		deleteErrs: map[string]error{"usage-delete-02": wantErr},
+	}
+	plan := parallelPrivacyPlanFixture(5, 2, 2)
+
+	actions, err := applyPrivacyPlan(context.Background(), client, "app-123", plan)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("applyPrivacyPlan() error = %v, want %v", err, wantErr)
+	}
+	if actions != nil {
+		t.Fatalf("expected nil actions on error, got %#v", actions)
+	}
+	for _, call := range client.callOrderSnapshot() {
+		if strings.HasPrefix(call, "update:") || strings.HasPrefix(call, "create:") {
+			t.Fatalf("later phases must not run after delete failure, got %#v", client.callOrderSnapshot())
+		}
+	}
+}
+
+func TestApplyPrivacyPlanUpdateErrorAbortsApply(t *testing.T) {
+	wantErr := errors.New("update failed")
+	client := &fakePrivacyMutationClient{
+		updateErrs: map[string]error{"usage-update-01": wantErr},
+	}
+	plan := parallelPrivacyPlanFixture(1, 4, 2)
+
+	actions, err := applyPrivacyPlan(context.Background(), client, "app-123", plan)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("applyPrivacyPlan() error = %v, want %v", err, wantErr)
+	}
+	if actions != nil {
+		t.Fatalf("expected nil actions on error, got %#v", actions)
+	}
+	for _, call := range client.callOrderSnapshot() {
+		if strings.HasPrefix(call, "create:") {
+			t.Fatalf("create phase must not run after update failure, got %#v", client.callOrderSnapshot())
+		}
+	}
+}
+
+func TestApplyPrivacyPlanCreateErrorAbortsApply(t *testing.T) {
+	wantErr := errors.New("create failed")
+	client := &fakePrivacyMutationClient{
+		createErrs: map[string]error{"ANALYTICS": wantErr},
+	}
+	plan := parallelPrivacyPlanFixture(0, 0, 3)
+
+	actions, err := applyPrivacyPlan(context.Background(), client, "app-123", plan)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("applyPrivacyPlan() error = %v, want %v", err, wantErr)
+	}
+	if actions != nil {
+		t.Fatalf("expected nil actions on error, got %#v", actions)
 	}
 }

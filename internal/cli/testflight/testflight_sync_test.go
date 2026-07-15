@@ -2,8 +2,12 @@ package testflight
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -13,10 +17,12 @@ import (
 )
 
 type testFlightSyncStub struct {
-	app            *asc.AppResponse
-	groups         *asc.BetaGroupsResponse
-	buildsByGroup  map[string]*asc.BuildsResponse
-	testersByGroup map[string]*asc.BetaTestersResponse
+	app              *asc.AppResponse
+	groups           *asc.BetaGroupsResponse
+	buildsByGroup    map[string]*asc.BuildsResponse
+	testersByGroup   map[string]*asc.BetaTestersResponse
+	buildsErrByGroup map[string]error
+	testerErrByGroup map[string]error
 }
 
 func (s *testFlightSyncStub) GetApp(ctx context.Context, appID string) (*asc.AppResponse, error) {
@@ -28,6 +34,9 @@ func (s *testFlightSyncStub) GetBetaGroups(ctx context.Context, appID string, op
 }
 
 func (s *testFlightSyncStub) GetBetaGroupBuilds(ctx context.Context, groupID string, opts ...asc.BetaGroupBuildsOption) (*asc.BuildsResponse, error) {
+	if err, ok := s.buildsErrByGroup[groupID]; ok && err != nil {
+		return nil, err
+	}
 	if resp, ok := s.buildsByGroup[groupID]; ok && resp != nil {
 		return resp, nil
 	}
@@ -35,6 +44,9 @@ func (s *testFlightSyncStub) GetBetaGroupBuilds(ctx context.Context, groupID str
 }
 
 func (s *testFlightSyncStub) GetBetaGroupTesters(ctx context.Context, groupID string, opts ...asc.BetaGroupTestersOption) (*asc.BetaTestersResponse, error) {
+	if err, ok := s.testerErrByGroup[groupID]; ok && err != nil {
+		return nil, err
+	}
 	if resp, ok := s.testersByGroup[groupID]; ok && resp != nil {
 		return resp, nil
 	}
@@ -444,5 +456,157 @@ func TestMarshalTestFlightConfigYAML(t *testing.T) {
 	}
 	if decoded.App.BundleID != "com.example.demo" {
 		t.Fatalf("expected bundleId to round-trip, got %q", decoded.App.BundleID)
+	}
+}
+
+func manyGroupsSyncStub(groupCount int) *testFlightSyncStub {
+	stub := &testFlightSyncStub{
+		app: &asc.AppResponse{
+			Data: asc.Resource[asc.AppAttributes]{
+				ID: "app-1",
+				Attributes: asc.AppAttributes{
+					Name:     "Demo",
+					BundleID: "com.example.demo",
+				},
+			},
+		},
+		groups:         &asc.BetaGroupsResponse{},
+		buildsByGroup:  map[string]*asc.BuildsResponse{},
+		testersByGroup: map[string]*asc.BetaTestersResponse{},
+	}
+
+	for i := 0; i < groupCount; i++ {
+		groupID := fmt.Sprintf("group-%02d", i)
+		stub.groups.Data = append(stub.groups.Data, asc.Resource[asc.BetaGroupAttributes]{
+			ID: groupID,
+			Attributes: asc.BetaGroupAttributes{
+				Name:            fmt.Sprintf("Group %02d", i),
+				FeedbackEnabled: true,
+			},
+		})
+		stub.buildsByGroup[groupID] = &asc.BuildsResponse{
+			Data: []asc.Resource[asc.BuildAttributes]{
+				// Shared build exercises cross-group aggregation.
+				{
+					ID: "build-shared",
+					Attributes: asc.BuildAttributes{
+						Version:         "1.0.0",
+						UploadedDate:    "2026-01-20T00:00:00Z",
+						ProcessingState: "VALID",
+					},
+				},
+				{
+					ID: fmt.Sprintf("build-%02d", i),
+					Attributes: asc.BuildAttributes{
+						Version:         fmt.Sprintf("1.0.%d", i),
+						UploadedDate:    "2026-01-21T00:00:00Z",
+						ProcessingState: "VALID",
+					},
+				},
+			},
+		}
+		stub.testersByGroup[groupID] = &asc.BetaTestersResponse{
+			Data: []asc.Resource[asc.BetaTesterAttributes]{
+				{
+					ID: "tester-shared",
+					Attributes: asc.BetaTesterAttributes{
+						Email: "shared@example.com",
+						State: asc.BetaTesterStateAccepted,
+					},
+				},
+				{
+					ID: fmt.Sprintf("tester-%02d", i),
+					Attributes: asc.BetaTesterAttributes{
+						Email: fmt.Sprintf("tester%02d@example.com", i),
+						State: asc.BetaTesterStateInvited,
+					},
+				},
+			},
+		}
+	}
+	return stub
+}
+
+func TestPullTestFlightConfig_ParallelFetchPreservesDeterministicOutput(t *testing.T) {
+	const groupCount = 9
+	stub := manyGroupsSyncStub(groupCount)
+	opts := testFlightPullOptions{
+		includeBuilds:  true,
+		includeTesters: true,
+	}
+
+	first, err := pullTestFlightConfig(context.Background(), stub, "app-1", opts)
+	if err != nil {
+		t.Fatalf("pullTestFlightConfig() error: %v", err)
+	}
+
+	if len(first.Groups) != groupCount {
+		t.Fatalf("expected %d groups, got %d", groupCount, len(first.Groups))
+	}
+	// One shared build plus one distinct build per group.
+	if len(first.Builds) != groupCount+1 {
+		t.Fatalf("expected %d builds, got %d", groupCount+1, len(first.Builds))
+	}
+	if len(first.Testers) != groupCount+1 {
+		t.Fatalf("expected %d testers, got %d", groupCount+1, len(first.Testers))
+	}
+
+	var sharedBuild *TestFlightBuildConfig
+	for i := range first.Builds {
+		if first.Builds[i].ID == "build-shared" {
+			sharedBuild = &first.Builds[i]
+			break
+		}
+	}
+	if sharedBuild == nil {
+		t.Fatalf("expected shared build in %#v", first.Builds)
+	}
+	if len(sharedBuild.Groups) != groupCount {
+		t.Fatalf("expected shared build in %d groups, got %#v", groupCount, sharedBuild.Groups)
+	}
+	if !sort.StringsAreSorted(sharedBuild.Groups) {
+		t.Fatalf("expected sorted shared build groups, got %#v", sharedBuild.Groups)
+	}
+
+	for run := 0; run < 4; run++ {
+		again, err := pullTestFlightConfig(context.Background(), stub, "app-1", opts)
+		if err != nil {
+			t.Fatalf("pullTestFlightConfig() error on run %d: %v", run, err)
+		}
+		if !reflect.DeepEqual(first, again) {
+			t.Fatalf("non-deterministic output on run %d:\nfirst = %#v\nagain = %#v", run, first, again)
+		}
+	}
+}
+
+func TestPullTestFlightConfig_BuildFetchErrorPropagates(t *testing.T) {
+	stub := manyGroupsSyncStub(6)
+	wantErr := errors.New("builds unavailable")
+	stub.buildsErrByGroup = map[string]error{"group-03": wantErr}
+
+	_, err := pullTestFlightConfig(context.Background(), stub, "app-1", testFlightPullOptions{
+		includeBuilds: true,
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("pullTestFlightConfig() error = %v, want %v", err, wantErr)
+	}
+	if !strings.Contains(err.Error(), "fetch beta group builds") {
+		t.Fatalf("expected wrapped build fetch error, got %v", err)
+	}
+}
+
+func TestPullTestFlightConfig_TesterFetchErrorPropagates(t *testing.T) {
+	stub := manyGroupsSyncStub(6)
+	wantErr := errors.New("testers unavailable")
+	stub.testerErrByGroup = map[string]error{"group-05": wantErr}
+
+	_, err := pullTestFlightConfig(context.Background(), stub, "app-1", testFlightPullOptions{
+		includeTesters: true,
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("pullTestFlightConfig() error = %v, want %v", err, wantErr)
+	}
+	if !strings.Contains(err.Error(), "fetch beta group testers") {
+		t.Fatalf("expected wrapped tester fetch error, got %v", err)
 	}
 }
