@@ -337,3 +337,82 @@ func TestUploadPreviewsPropagatesFirstUploadFailure(t *testing.T) {
 		t.Fatalf("expected create failure to propagate, got %v", err)
 	}
 }
+
+func TestUploadPreviewsRollsBackCreatedItemsAfterPartialFailure(t *testing.T) {
+	if err := mime.AddExtensionType(".mov", "video/quicktime"); err != nil {
+		t.Fatalf("register .mov mime type: %v", err)
+	}
+	dir := t.TempDir()
+	names := []string{"01-intro.mov", "02-fails.mov", "03-outro.mov"}
+	files := make([]string, 0, len(names))
+	for _, name := range names {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte("preview-video-bytes"), 0o600); err != nil {
+			t.Fatalf("write preview file: %v", err)
+		}
+		files = append(files, path)
+	}
+	sizeBytes := fileSize(t, files[0])
+
+	// The failing create waits for both siblings to finish, proving rollback
+	// covers previews that committed before another parallel worker failed.
+	siblingComplete := make(chan struct{}, 2)
+	deletedIDs := make([]string, 0, 2)
+	var relationshipPatchCalled atomic.Bool
+
+	installAssetsTestTransport(t, func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersionLocalizations/LOC_123/appPreviewSets":
+			return assetsJSONResponse(http.StatusOK, `{"data":[{"type":"appPreviewSets","id":"set-1","attributes":{"previewType":"IPHONE_65"}}],"links":{}}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appPreviews":
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				return nil, err
+			}
+			switch {
+			case strings.Contains(string(body), names[0]):
+				return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appPreviews","id":"preview-1","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/preview-1","length":%d,"offset":0}]}}}`, sizeBytes))
+			case strings.Contains(string(body), names[2]):
+				return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appPreviews","id":"preview-3","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/preview-3","length":%d,"offset":0}]}}}`, sizeBytes))
+			default:
+				for range 2 {
+					select {
+					case <-siblingComplete:
+					case <-req.Context().Done():
+						return nil, req.Context().Err()
+					}
+				}
+				return assetsJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","detail":"preview create failed"}]}`)
+			}
+		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
+			return assetsJSONResponse(http.StatusOK, `{}`)
+		case req.Method == http.MethodPatch && strings.HasPrefix(req.URL.Path, "/v1/appPreviews/preview-"):
+			id := strings.TrimPrefix(req.URL.Path, "/v1/appPreviews/")
+			return assetsJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"appPreviews","id":"%s","attributes":{"uploaded":true}}}`, id))
+		case req.Method == http.MethodGet && strings.HasPrefix(req.URL.Path, "/v1/appPreviews/preview-"):
+			id := strings.TrimPrefix(req.URL.Path, "/v1/appPreviews/")
+			siblingComplete <- struct{}{}
+			return assetsJSONResponse(http.StatusOK, fmt.Sprintf(`{"data":{"type":"appPreviews","id":"%s","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`, id))
+		case req.Method == http.MethodDelete && strings.HasPrefix(req.URL.Path, "/v1/appPreviews/preview-"):
+			deletedIDs = append(deletedIDs, strings.TrimPrefix(req.URL.Path, "/v1/appPreviews/"))
+			return assetsJSONResponse(http.StatusNoContent, "")
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/appPreviewSets/set-1/relationships/appPreviews":
+			relationshipPatchCalled.Store(true)
+			return assetsJSONResponse(http.StatusNoContent, "")
+		default:
+			return assetsJSONResponse(http.StatusNotFound, fmt.Sprintf(`{"errors":[{"status":"404","code":"UNEXPECTED","detail":"unexpected request %s %s"}]}`, req.Method, req.URL.String()))
+		}
+	})
+
+	client := newAssetsUploadTestClient(t)
+	_, err := uploadPreviews(context.Background(), client, "LOC_123", "IPHONE_65", files, false, false, false)
+	if err == nil || !strings.Contains(err.Error(), "preview create failed") {
+		t.Fatalf("expected preview create failure, got %v", err)
+	}
+	if !reflect.DeepEqual(deletedIDs, []string{"preview-1", "preview-3"}) {
+		t.Fatalf("rolled back preview IDs = %v, want [preview-1 preview-3]", deletedIDs)
+	}
+	if relationshipPatchCalled.Load() {
+		t.Fatal("expected rollback instead of relationship reorder after partial failure")
+	}
+}

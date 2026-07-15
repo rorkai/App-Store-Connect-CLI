@@ -2,6 +2,7 @@ package assets
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"mime"
@@ -767,39 +768,39 @@ func uploadPreviewAsset(ctx context.Context, client *asc.Client, setID, filePath
 	if err != nil {
 		return asc.AssetUploadResultItem{}, err
 	}
+	item := asc.AssetUploadResultItem{
+		FileName: info.Name(),
+		FilePath: filePath,
+	}
 
 	checksum, err := asc.ComputeChecksumFromReader(file, asc.ChecksumAlgorithmMD5)
 	if err != nil {
-		return asc.AssetUploadResultItem{}, err
+		return item, err
 	}
 
 	created, err := client.CreateAppPreview(ctx, setID, info.Name(), info.Size(), mimeType)
 	if err != nil {
-		return asc.AssetUploadResultItem{}, err
+		return item, err
 	}
+	item.AssetID = created.Data.ID
 	if len(created.Data.Attributes.UploadOperations) == 0 {
-		return asc.AssetUploadResultItem{}, fmt.Errorf("no upload operations returned for %q", info.Name())
+		return item, fmt.Errorf("no upload operations returned for %q", info.Name())
 	}
 
 	if err := asc.UploadAssetFromFile(ctx, file, info.Size(), created.Data.Attributes.UploadOperations); err != nil {
-		return asc.AssetUploadResultItem{}, err
+		return item, err
 	}
 
 	if _, err := client.UpdateAppPreview(ctx, created.Data.ID, true, checksum.Hash); err != nil {
-		return asc.AssetUploadResultItem{}, err
+		return item, err
 	}
 
 	state, err := waitForPreviewDelivery(ctx, client, created.Data.ID)
 	if err != nil {
-		return asc.AssetUploadResultItem{}, err
+		return item, err
 	}
-
-	return asc.AssetUploadResultItem{
-		FileName: info.Name(),
-		FilePath: filePath,
-		AssetID:  created.Data.ID,
-		State:    state,
-	}, nil
+	item.State = state
+	return item, nil
 }
 
 // UploadPreviewAsset uploads a preview file to a set.
@@ -902,14 +903,17 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 		items := make([]asc.AssetUploadResultItem, len(files))
 		taskErrs := forEachAssetTask(uploadCtx, len(files), true, func(taskCtx context.Context, idx int) error {
 			item, err := uploadPreviewAsset(taskCtx, client, set.ID, files[idx])
+			items[idx] = item
 			if err != nil {
 				return err
 			}
-			items[idx] = item
 			return nil
 		})
-		if err := aggregateAssetTaskErrors(taskErrs); err != nil {
-			return asc.AppPreviewUploadResult{}, err
+		if uploadErr := aggregateAssetTaskErrors(taskErrs); uploadErr != nil {
+			if rollbackErr := deleteCreatedPreviews(uploadCtx, client, items); rollbackErr != nil {
+				return asc.AppPreviewUploadResult{}, fmt.Errorf("preview upload failed and rollback was incomplete: %w", errors.Join(uploadErr, rollbackErr))
+			}
+			return asc.AppPreviewUploadResult{}, uploadErr
 		}
 		if len(items) > 1 {
 			if err := reorderUploadedPreviews(uploadCtx, client, set.ID, items); err != nil {
@@ -926,6 +930,21 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 		PreviewType:           set.Attributes.PreviewType,
 		Results:               results,
 	}, nil
+}
+
+func deleteCreatedPreviews(ctx context.Context, client *asc.Client, items []asc.AssetUploadResultItem) error {
+	var rollbackErrs []error
+	for _, item := range items {
+		if strings.TrimSpace(item.AssetID) == "" {
+			continue
+		}
+		// Rollback attempts every created preview so one failed cleanup does not
+		// leave the rest of a parallel batch attached in completion order.
+		if err := client.DeleteAppPreview(ctx, item.AssetID); err != nil {
+			rollbackErrs = append(rollbackErrs, fmt.Errorf("delete preview %q: %w", item.AssetID, err))
+		}
+	}
+	return errors.Join(rollbackErrs...)
 }
 
 func deleteExistingPreviews(ctx context.Context, client *asc.Client, previews []asc.Resource[asc.AppPreviewAttributes]) error {
