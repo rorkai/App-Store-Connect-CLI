@@ -78,6 +78,8 @@ Use --price to find a specific customer price, or --min-price/--max-price for
 a range. These filters are applied client-side after fetching. Combine with
 --territory and --paginate for best results. When --fields is also set, the CLI
 automatically requests customerPrice so the client-side filter remains correct.
+When --territory-fields is set, the CLI automatically includes the territory
+relationship so the requested fields are present in the response.
 
 Use --stream with --paginate to emit each page as a separate JSON line (NDJSON)
 instead of buffering all pages in memory. This gives immediate feedback and
@@ -150,6 +152,9 @@ Examples:
 			selectedIncludes, err := normalizeOptionalSelection(fs, "include", *include, []string{"territory"})
 			if err != nil {
 				return shared.UsageError(err.Error())
+			}
+			if len(selectedTerritoryFields) != 0 && !containsString(selectedIncludes, "territory") {
+				selectedIncludes = append(selectedIncludes, "territory")
 			}
 			if strings.TrimSpace(*next) != "" && (*limit != 0 || territoryFilter != "" || len(upfrontIDs) != 0 || len(plans) != 0 ||
 				len(selectedFields) != 0 || len(selectedTerritoryFields) != 0 || len(selectedIncludes) != 0) {
@@ -376,8 +381,8 @@ func buildSubscriptionPricePointEqualizationsCommand(name string, adjusted bool)
 		LongHelp: fmt.Sprintf(`List %sequalized price points for a subscription price point.
 
 Filters accept comma-separated values and map directly to the App Store Connect
-API. Use --include territory with --territory-fields currency to include currency
-metadata for returned price points.
+API. Setting --territory-fields automatically includes the territory relationship
+so the requested metadata is present in returned price points.
 
 Examples:
   %s
@@ -444,6 +449,9 @@ Examples:
 		selectedIncludes, err := normalizeOptionalSelection(fs, "include", *include, []string{"territory"})
 		if err != nil {
 			return shared.UsageError(err.Error())
+		}
+		if len(selectedTerritoryFields) != 0 && !containsString(selectedIncludes, "territory") {
+			selectedIncludes = append(selectedIncludes, "territory")
 		}
 		if strings.TrimSpace(*next) != "" && (*limit != 0 || len(territories) != 0 || len(subscriptions) != 0 || len(upfrontIDs) != 0 ||
 			len(plans) != 0 || len(selectedFields) != 0 || len(selectedTerritoryFields) != 0 || len(selectedIncludes) != 0) {

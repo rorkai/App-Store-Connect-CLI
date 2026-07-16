@@ -65,7 +65,6 @@ func TestSubscriptionsAdjustedEqualizationsSendsExactFilters(t *testing.T) {
 			"--plan-type", "monthly",
 			"--fields", "customerPrice,adjustedEqualizations",
 			"--territory-fields", "currency",
-			"--include", "territory",
 			"--limit", "50",
 			"--output", "json",
 		}); err != nil {
@@ -132,7 +131,6 @@ func TestSubscriptionsPricePointsListSends441Filters(t *testing.T) {
 			"--plan-type", "monthly,upfront",
 			"--fields", "customerPrice,adjustedEqualizations",
 			"--territory-fields", "currency",
-			"--include", "territory",
 			"--output", "json",
 		}); err != nil {
 			t.Fatalf("parse: %v", err)
