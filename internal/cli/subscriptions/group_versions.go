@@ -190,6 +190,9 @@ func SubscriptionsGroupsVersionsListCommand() *ffcli.Command {
 				return err
 			}
 			id := strings.TrimSpace(*groupID)
+			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "group-id") {
+				return shared.UsageError("subscriptions groups versions list: --next cannot be combined with --group-id")
+			}
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
 				return shared.MissingRequiredUsageError()
@@ -302,6 +305,9 @@ func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ff
 				return err
 			}
 			id := strings.TrimSpace(*ownerID)
+			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, strings.TrimPrefix(requiredFlag, "--")) {
+				return shared.UsageError("subscriptions groups versions links " + name + ": --next cannot be combined with " + requiredFlag)
+			}
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: %s is required\n", requiredFlag)
 				return shared.MissingRequiredUsageError()

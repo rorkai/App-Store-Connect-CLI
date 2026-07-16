@@ -81,6 +81,9 @@ func SubscriptionsGroupsVersionLocalizationsListCommand() *ffcli.Command {
 				return err
 			}
 			id := strings.TrimSpace(*versionID)
+			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "version-id") {
+				return shared.UsageError("subscriptions groups versions localizations list: --next cannot be combined with --version-id")
+			}
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return shared.MissingRequiredUsageError()
