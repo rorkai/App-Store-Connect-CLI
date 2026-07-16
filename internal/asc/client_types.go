@@ -142,6 +142,7 @@ const (
 	ResourceTypeInAppPurchaseOfferPrices                        = types.ResourceTypeInAppPurchaseOfferPrices
 	ResourceTypeInAppPurchaseSubmissions                        = types.ResourceTypeInAppPurchaseSubmissions
 	ResourceTypeSubscriptionGroups                              = types.ResourceTypeSubscriptionGroups
+	ResourceTypeSubscriptionGroupVersions                       = types.ResourceTypeSubscriptionGroupVersions
 	ResourceTypeSubscriptionGroupLocalizations                  = types.ResourceTypeSubscriptionGroupLocalizations
 	ResourceTypeSubscriptionGroupVersions                       = types.ResourceTypeSubscriptionGroupVersions
 	ResourceTypeSubscriptionGroupSubmissions                    = types.ResourceTypeSubscriptionGroupSubmissions

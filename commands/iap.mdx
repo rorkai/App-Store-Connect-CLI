@@ -60,6 +60,27 @@ asc iap view --id "IAP_ID"
 
 * `--legacy` - Use v1 endpoint
 
+## Versioned IAP Resources (API 4.4.1)
+
+IAP metadata and promotional images can now be managed through a discrete
+version resource. Existing product-scoped commands remain available for
+compatibility.
+
+```bash  theme={null}
+asc iap versions list --iap-id "IAP_ID"
+asc iap versions create --iap-id "IAP_ID"
+asc iap versions view --version-id "IAP_VERSION_ID"
+asc iap versions localizations list --version-id "IAP_VERSION_ID"
+asc iap versions localizations create --version-id "IAP_VERSION_ID" --locale "en-US" --name "Premium" --description "Unlock premium features"
+asc iap versions images create --version-id "IAP_VERSION_ID" --file ./promotional.png
+asc iap versions submit --version-id "IAP_VERSION_ID" --submission "REVIEW_SUBMISSION_ID" --confirm
+```
+
+Use the version ID—not the product ID—for v2 localization, image, and review
+submission operations. Update commands distinguish omitted fields, explicit
+values, and explicit clears; use the documented `--clear-*` flags to send JSON
+`null` rather than an empty string.
+
 ## Create In-App Purchase
 
 Create a new in-app purchase product.

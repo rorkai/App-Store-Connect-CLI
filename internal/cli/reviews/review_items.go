@@ -13,6 +13,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+var reviewItemsClientFactory = shared.GetASCClient
+
 // ReviewItemsCommand returns the nested review items command group.
 func ReviewItemsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("items", flag.ExitOnError)
@@ -28,6 +30,8 @@ Examples:
   asc review items list --submission "SUBMISSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
+  asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
+  asc review items add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
   asc review items update --id "ITEM_ID" --state READY_FOR_REVIEW
   asc review items remove --id "ITEM_ID" --confirm`,
 		FlagSet:   fs,
@@ -38,6 +42,8 @@ Examples:
   asc review items list --submission "SUBMISSION_ID" --paginate`),
 			reviewItemsAddCommand("add", "review items add", `asc review items add [flags]`, `asc review items add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
+  asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
+  asc review items add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type gameCenterChallengeVersions --item-id "VERSION_ID"`),
 			reviewItemsUpdateCommand("update", "review items update", `asc review items update --id "ITEM_ID" --state READY_FOR_REVIEW [flags]`, `asc review items update --id "ITEM_ID" --state READY_FOR_REVIEW`),
 			reviewItemsRemoveCommand("remove", "review items remove", `asc review items remove [flags]`, `asc review items remove --id "ITEM_ID" --confirm`),
@@ -70,13 +76,16 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError("unexpected positional arguments"))
+			}
 			trimmedID := strings.TrimSpace(*itemID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError()
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := reviewItemsClientFactory()
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
@@ -106,6 +115,11 @@ func reviewItemsListCommand(name, errorPrefix, shortUsage, examples string) *ffc
 	submissionID := fs.String("submission", "", "Review submission ID (required)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
+	fields := fs.String("fields", "", "Review item fields: "+strings.Join(reviewSubmissionItemFields, ", "))
+	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewSubmissionItemIncludes, ", "))
+	iapVersionFields := fs.String("iap-version-fields", "", "In-app purchase version fields: "+strings.Join(reviewSubmissionItemIAPVersionFields, ", "))
+	subscriptionVersionFields := fs.String("subscription-version-fields", "", "Subscription version fields: "+strings.Join(reviewSubmissionItemSubscriptionVersionFields, ", "))
+	subscriptionGroupVersionFields := fs.String("subscription-group-version-fields", "", "Subscription group version fields: "+strings.Join(reviewSubmissionItemSubscriptionGroupVersionFields, ", "))
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
@@ -120,29 +134,28 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("%s: --limit must be between 1 and 200", errorPrefix)
+			if len(args) != 0 {
+				return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError("unexpected positional arguments"))
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
+			}
+			opts, err := reviewItemsListOptions(*limit, *next, *fields, *include, *iapVersionFields, *subscriptionVersionFields, *subscriptionGroupVersionFields)
+			if err != nil {
+				return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError(err.Error()))
 			}
 			if strings.TrimSpace(*submissionID) == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission is required")
 				return shared.MissingRequiredUsageError()
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := reviewItemsClientFactory()
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
-
-			opts := []asc.ReviewSubmissionItemsOption{
-				asc.WithReviewSubmissionItemsLimit(*limit),
-				asc.WithReviewSubmissionItemsNextURL(*next),
-			}
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithReviewSubmissionItemsLimit(200))
@@ -172,10 +185,71 @@ Examples:
 	}
 }
 
+var reviewSubmissionItemFields = []string{
+	"state", "appStoreVersion", "appCustomProductPageVersion", "appStoreVersionExperiment",
+	"appStoreVersionExperimentV2", "appEvent", "backgroundAssetVersion", "gameCenterAchievementVersion",
+	"gameCenterActivityVersion", "gameCenterChallengeVersion", "gameCenterLeaderboardSetVersion",
+	"gameCenterLeaderboardVersion", "inAppPurchaseVersion", "subscriptionVersion", "subscriptionGroupVersion",
+}
+
+var reviewSubmissionItemIncludes = reviewSubmissionItemFields[1:]
+
+var (
+	reviewSubmissionItemIAPVersionFields               = []string{"version", "state", "inAppPurchase", "image", "images", "localizations"}
+	reviewSubmissionItemSubscriptionVersionFields      = []string{"version", "state", "subscription", "image", "images", "localizations"}
+	reviewSubmissionItemSubscriptionGroupVersionFields = []string{"version", "state", "subscriptionGroup", "localizations"}
+)
+
+func reviewItemsListOptions(limit int, next, fields, include, iapVersionFields, subscriptionVersionFields, subscriptionGroupVersionFields string) ([]asc.ReviewSubmissionItemsOption, error) {
+	if limit != 0 && (limit < 1 || limit > 200) {
+		return nil, fmt.Errorf("--limit must be between 1 and 200")
+	}
+	if err := shared.ValidateNextURL(next); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(next) != "" && (limit != 0 || strings.TrimSpace(fields) != "" || strings.TrimSpace(include) != "" ||
+		strings.TrimSpace(iapVersionFields) != "" || strings.TrimSpace(subscriptionVersionFields) != "" || strings.TrimSpace(subscriptionGroupVersionFields) != "") {
+		return nil, fmt.Errorf("--next cannot be combined with --limit, --fields, --include, or version sparse-field flags")
+	}
+
+	itemFields, err := shared.NormalizeSelection(fields, reviewSubmissionItemFields, "--fields")
+	if err != nil {
+		return nil, err
+	}
+	includes, err := shared.NormalizeSelection(include, reviewSubmissionItemIncludes, "--include")
+	if err != nil {
+		return nil, err
+	}
+	iapFields, err := shared.NormalizeSelection(iapVersionFields, reviewSubmissionItemIAPVersionFields, "--iap-version-fields")
+	if err != nil {
+		return nil, err
+	}
+	subscriptionFields, err := shared.NormalizeSelection(subscriptionVersionFields, reviewSubmissionItemSubscriptionVersionFields, "--subscription-version-fields")
+	if err != nil {
+		return nil, err
+	}
+	groupFields, err := shared.NormalizeSelection(subscriptionGroupVersionFields, reviewSubmissionItemSubscriptionGroupVersionFields, "--subscription-group-version-fields")
+	if err != nil {
+		return nil, err
+	}
+
+	return []asc.ReviewSubmissionItemsOption{
+		asc.WithReviewSubmissionItemsLimit(limit),
+		asc.WithReviewSubmissionItemsNextURL(next),
+		asc.WithReviewSubmissionItemsFields(itemFields),
+		asc.WithReviewSubmissionItemsInclude(includes),
+		asc.WithReviewSubmissionItemsInAppPurchaseVersionFields(iapFields),
+		asc.WithReviewSubmissionItemsSubscriptionVersionFields(subscriptionFields),
+		asc.WithReviewSubmissionItemsSubscriptionGroupVersionFields(groupFields),
+	}, nil
+}
+
 // ReviewItemsAddCommand returns the review items add subcommand.
 func ReviewItemsAddCommand() *ffcli.Command {
 	return reviewItemsAddCommand("items-add", "review items-add", `asc review items-add [flags]`, `asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
   asc review items-add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
+  asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
+  asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
   asc review items-add --submission "SUBMISSION_ID" --item-type gameCenterChallengeVersions --item-id "VERSION_ID"`)
 }
 
@@ -199,6 +273,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError("unexpected positional arguments"))
+			}
 			if strings.TrimSpace(*submissionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --submission is required")
 				return shared.MissingRequiredUsageError()
@@ -217,7 +294,7 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := reviewItemsClientFactory()
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
@@ -258,6 +335,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError("unexpected positional arguments"))
+			}
 			trimmedID := strings.TrimSpace(*itemID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -273,7 +353,7 @@ Examples:
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := reviewItemsClientFactory()
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
@@ -317,6 +397,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError("unexpected positional arguments"))
+			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to remove")
 				return shared.MissingRequiredUsageError()
@@ -326,7 +409,7 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := reviewItemsClientFactory()
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}

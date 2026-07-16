@@ -646,8 +646,18 @@ func TestEnrichSubmissions_RequestsAndPopulatesItemRelationships(t *testing.T) {
 		if got := req.URL.Query().Get("include"); strings.Contains(got, "appStoreVersionExperimentV2") {
 			t.Fatalf("expected include to avoid appStoreVersionExperimentV2 conflict, got %q", got)
 		}
+		for _, relationship := range []string{"inAppPurchaseVersion", "subscriptionVersion", "subscriptionGroupVersion"} {
+			if got := req.URL.Query().Get("include"); !strings.Contains(got, relationship) {
+				t.Fatalf("expected include to contain %q, got %q", relationship, got)
+			}
+		}
 		if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); !strings.Contains(got, "appCustomProductPageVersion") || !strings.Contains(got, "backgroundAssetVersion") {
 			t.Fatalf("expected fields[reviewSubmissionItems] to request relationship fields, got %q", got)
+		}
+		for _, relationship := range []string{"inAppPurchaseVersion", "subscriptionVersion", "subscriptionGroupVersion"} {
+			if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); !strings.Contains(got, relationship) {
+				t.Fatalf("expected fields[reviewSubmissionItems] to contain %q, got %q", relationship, got)
+			}
 		}
 		return testJSONResponse(200, `{
 			"data": [
@@ -760,6 +770,30 @@ func TestPopulateSubmissionHistoryItem_SupportsAdditionalRelationshipTypes(t *te
 			},
 			wantType: "gameCenterLeaderboardVersion",
 			wantID:   "gclv-1",
+		},
+		{
+			name: "in-app purchase version",
+			item: asc.ReviewSubmissionItemResource{Relationships: &asc.ReviewSubmissionItemRelationships{
+				InAppPurchaseVersion: &asc.Relationship{Data: asc.ResourceData{ID: "iapv-1"}},
+			}},
+			wantType: "inAppPurchaseVersion",
+			wantID:   "iapv-1",
+		},
+		{
+			name: "subscription version",
+			item: asc.ReviewSubmissionItemResource{Relationships: &asc.ReviewSubmissionItemRelationships{
+				SubscriptionVersion: &asc.Relationship{Data: asc.ResourceData{ID: "subv-1"}},
+			}},
+			wantType: "subscriptionVersion",
+			wantID:   "subv-1",
+		},
+		{
+			name: "subscription group version",
+			item: asc.ReviewSubmissionItemResource{Relationships: &asc.ReviewSubmissionItemRelationships{
+				SubscriptionGroupVersion: &asc.Relationship{Data: asc.ResourceData{ID: "sgv-1"}},
+			}},
+			wantType: "subscriptionGroupVersion",
+			wantID:   "sgv-1",
 		},
 	}
 

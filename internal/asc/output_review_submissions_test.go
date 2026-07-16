@@ -20,6 +20,26 @@ func TestReviewSubmissionItemsRows_UsesExpandedRelationships(t *testing.T) {
 			wantID:   "iapv-1",
 		},
 		{
+			name: "subscription version",
+			rel: &ReviewSubmissionItemRelationships{
+				SubscriptionVersion: &Relationship{
+					Data: ResourceData{Type: ResourceTypeSubscriptionVersions, ID: "subv-1"},
+				},
+			},
+			wantType: string(ResourceTypeSubscriptionVersions),
+			wantID:   "subv-1",
+		},
+		{
+			name: "subscription group version",
+			rel: &ReviewSubmissionItemRelationships{
+				SubscriptionGroupVersion: &Relationship{
+					Data: ResourceData{Type: ResourceTypeSubscriptionGroupVersions, ID: "sgv-1"},
+				},
+			},
+			wantType: string(ResourceTypeSubscriptionGroupVersions),
+			wantID:   "sgv-1",
+		},
+		{
 			name: "app custom product page version",
 			rel: &ReviewSubmissionItemRelationships{
 				AppCustomProductPageVersion: &Relationship{

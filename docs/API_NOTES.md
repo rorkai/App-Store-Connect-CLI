@@ -82,3 +82,16 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 
 - Live API rejects `include=passTypeId` and `fields[passTypeIds]` on `/v1/passTypeIds/{id}/certificates` despite the OpenAPI spec allowing them.
 - The CLI does not expose those parameters for `pass-type-ids certificates list` to avoid API errors.
+
+## App Store Connect API 4.4.1
+
+- Apple added discrete versions for in-app purchases, subscriptions, and subscription groups. Their v2 localizations and images are version-scoped; pass a version ID rather than the legacy product, subscription, or group ID.
+- Review submissions accept `inAppPurchaseVersions`, `subscriptionVersions`, and `subscriptionGroupVersions` through `reviewSubmissionItems`. The CLI preserves both relationship data and `included` resources in JSON output.
+- Existing v1 localization/image commands and submission shortcuts remain available. The new version-aware commands are additive; removal requires a separate deprecation cycle.
+- Migration mapping:
+  - IAP localizations/images → `asc iap versions localizations ...` / `asc iap versions images ...`
+  - IAP submissions → `asc review items add --item-type inAppPurchaseVersions`
+  - Subscription localizations/images → `asc subscriptions versions localizations ...` / `asc subscriptions versions images ...`
+  - Subscription-group localizations → `asc subscriptions groups versions localizations ...`
+  - Subscription/group submissions → `asc review items add --item-type subscriptionVersions|subscriptionGroupVersions`
+- Nullable v2 localization updates distinguish omitted, value, and JSON `null`; use the corresponding `--clear-*` flag for explicit clears.

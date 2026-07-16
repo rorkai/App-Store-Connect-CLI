@@ -24,6 +24,8 @@ const (
 	ReviewSubmissionItemTypeGameCenterLeaderboardSetVersion    ReviewSubmissionItemType = "gameCenterLeaderboardSetVersions"
 	ReviewSubmissionItemTypeGameCenterLeaderboardVersion       ReviewSubmissionItemType = "gameCenterLeaderboardVersions"
 	ReviewSubmissionItemTypeInAppPurchaseVersion               ReviewSubmissionItemType = "inAppPurchaseVersions"
+	ReviewSubmissionItemTypeSubscriptionVersion                ReviewSubmissionItemType = "subscriptionVersions"
+	ReviewSubmissionItemTypeSubscriptionGroupVersion           ReviewSubmissionItemType = "subscriptionGroupVersions"
 )
 
 // ReviewSubmissionItemAttributes describes review submission item attributes.
@@ -48,6 +50,8 @@ type ReviewSubmissionItemRelationships struct {
 	GameCenterLeaderboardSetVersion    *Relationship `json:"gameCenterLeaderboardSetVersion,omitempty"`
 	GameCenterLeaderboardVersion       *Relationship `json:"gameCenterLeaderboardVersion,omitempty"`
 	InAppPurchaseVersion               *Relationship `json:"inAppPurchaseVersion,omitempty"`
+	SubscriptionVersion                *Relationship `json:"subscriptionVersion,omitempty"`
+	SubscriptionGroupVersion           *Relationship `json:"subscriptionGroupVersion,omitempty"`
 }
 
 // ReviewSubmissionItemResource represents a review submission item resource.
@@ -56,12 +60,15 @@ type ReviewSubmissionItemResource struct {
 	ID            string                             `json:"id"`
 	Attributes    ReviewSubmissionItemAttributes     `json:"attributes"`
 	Relationships *ReviewSubmissionItemRelationships `json:"relationships,omitempty"`
+	Links         json.RawMessage                    `json:"links,omitempty"`
 }
 
 // ReviewSubmissionItemsResponse is the response from review submission items list endpoints.
 type ReviewSubmissionItemsResponse struct {
-	Data  []ReviewSubmissionItemResource `json:"data"`
-	Links Links                          `json:"links"`
+	Data     []ReviewSubmissionItemResource `json:"data"`
+	Links    Links                          `json:"links"`
+	Included json.RawMessage                `json:"included,omitempty"`
+	Meta     json.RawMessage                `json:"meta,omitempty"`
 }
 
 // GetLinks returns the links field for pagination.
@@ -76,8 +83,9 @@ func (r *ReviewSubmissionItemsResponse) GetData() any {
 
 // ReviewSubmissionItemResponse is the response from review submission item detail endpoints.
 type ReviewSubmissionItemResponse struct {
-	Data  ReviewSubmissionItemResource `json:"data"`
-	Links Links                        `json:"links"`
+	Data     ReviewSubmissionItemResource `json:"data"`
+	Links    Links                        `json:"links"`
+	Included json.RawMessage              `json:"included,omitempty"`
 }
 
 // ReviewSubmissionItemCreateRelationships describes relationships for create requests.
@@ -95,6 +103,8 @@ type ReviewSubmissionItemCreateRelationships struct {
 	GameCenterLeaderboardSetVersion    *Relationship `json:"gameCenterLeaderboardSetVersion,omitempty"`
 	GameCenterLeaderboardVersion       *Relationship `json:"gameCenterLeaderboardVersion,omitempty"`
 	InAppPurchaseVersion               *Relationship `json:"inAppPurchaseVersion,omitempty"`
+	SubscriptionVersion                *Relationship `json:"subscriptionVersion,omitempty"`
+	SubscriptionGroupVersion           *Relationship `json:"subscriptionGroupVersion,omitempty"`
 }
 
 // ReviewSubmissionItemCreateData is the data portion of a review submission item create request.
@@ -119,6 +129,18 @@ var reviewSubmissionItemTypeSpecs = []reviewSubmissionItemTypeSpec{
 		canonical: ReviewSubmissionItemTypeInAppPurchaseVersion,
 		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
 			relationships.InAppPurchaseVersion = reviewSubmissionItemRelationship(ResourceTypeInAppPurchaseVersions, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeSubscriptionVersion,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.SubscriptionVersion = reviewSubmissionItemRelationship(ResourceTypeSubscriptionVersions, itemID)
+		},
+	},
+	{
+		canonical: ReviewSubmissionItemTypeSubscriptionGroupVersion,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.SubscriptionGroupVersion = reviewSubmissionItemRelationship(ResourceTypeSubscriptionGroupVersions, itemID)
 		},
 	},
 	{

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -262,6 +264,24 @@ func TestCreateReviewSubmissionItem_SupportedItemTypes(t *testing.T) {
 			},
 		},
 		{
+			name:     "subscription version",
+			itemType: ReviewSubmissionItemTypeSubscriptionVersion,
+			itemID:   "subscription-version-123",
+			wantType: ResourceTypeSubscriptionVersions,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.SubscriptionVersion
+			},
+		},
+		{
+			name:     "subscription group version",
+			itemType: ReviewSubmissionItemTypeSubscriptionGroupVersion,
+			itemID:   "subscription-group-version-123",
+			wantType: ResourceTypeSubscriptionGroupVersions,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.SubscriptionGroupVersion
+			},
+		},
+		{
 			name:     "app store version",
 			itemType: ReviewSubmissionItemTypeAppStoreVersion,
 			itemID:   "version-123",
@@ -490,6 +510,69 @@ func TestUpdateReviewSubmissionItem(t *testing.T) {
 	}
 }
 
+func TestReviewSubmissionItemMutationsDecode441VersionRelationships(t *testing.T) {
+	body := `{
+		"data":{
+			"type":"reviewSubmissionItems",
+			"id":"item-441",
+			"relationships":{
+				"inAppPurchaseVersion":{"data":{"type":"inAppPurchaseVersions","id":"iapv-1"}},
+				"subscriptionVersion":{"data":{"type":"subscriptionVersions","id":"subv-1"}},
+				"subscriptionGroupVersion":{"data":{"type":"subscriptionGroupVersions","id":"sgv-1"}}
+			}
+		},
+		"included":[
+			{"type":"inAppPurchaseVersions","id":"iapv-1"},
+			{"type":"subscriptionVersions","id":"subv-1"},
+			{"type":"subscriptionGroupVersions","id":"sgv-1"}
+		]
+	}`
+	tests := []struct {
+		name   string
+		method string
+		call   func(*Client) (*ReviewSubmissionItemResponse, error)
+	}{
+		{
+			name:   "create",
+			method: http.MethodPost,
+			call: func(client *Client) (*ReviewSubmissionItemResponse, error) {
+				return client.CreateReviewSubmissionItem(context.Background(), "submission-1", ReviewSubmissionItemTypeSubscriptionVersion, "subv-1")
+			},
+		},
+		{
+			name:   "update",
+			method: http.MethodPatch,
+			call: func(client *Client) (*ReviewSubmissionItemResponse, error) {
+				state := "READY_FOR_REVIEW"
+				return client.UpdateReviewSubmissionItem(context.Background(), "item-441", ReviewSubmissionItemUpdateAttributes{State: &state})
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t, func(req *http.Request) {
+				if req.Method != test.method {
+					t.Fatalf("method = %q, want %q", req.Method, test.method)
+				}
+			}, reviewSubmissionsJSONResponse(http.StatusOK, body))
+
+			response, err := test.call(client)
+			if err != nil {
+				t.Fatalf("call error: %v", err)
+			}
+			relationships := response.Data.Relationships
+			if relationships == nil || relationships.InAppPurchaseVersion == nil || relationships.SubscriptionVersion == nil || relationships.SubscriptionGroupVersion == nil {
+				t.Fatalf("relationships = %#v, want all 4.4.1 version targets", relationships)
+			}
+			var included []ResourceData
+			if err := json.Unmarshal(response.Included, &included); err != nil || len(included) != 3 {
+				t.Fatalf("included = %s, err = %v; want three 4.4.1 version resources", response.Included, err)
+			}
+		})
+	}
+}
+
 func TestDeleteReviewSubmissionItem(t *testing.T) {
 	response := &http.Response{
 		StatusCode: http.StatusNoContent,
@@ -611,6 +694,71 @@ func TestGetReviewSubmissionItems_WithIncludeAndFields(t *testing.T) {
 	}
 }
 
+func TestGetReviewSubmissionItems_With441VersionSparseFields(t *testing.T) {
+	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
+		"data":[{
+			"type":"reviewSubmissionItems",
+			"id":"item-441",
+			"relationships":{
+				"inAppPurchaseVersion":{"data":{"type":"inAppPurchaseVersions","id":"iapv-1"}},
+				"subscriptionVersion":{"data":{"type":"subscriptionVersions","id":"subv-1"}},
+				"subscriptionGroupVersion":{"data":{"type":"subscriptionGroupVersions","id":"sgv-1"}}
+			},
+			"links":{"self":"https://api.appstoreconnect.apple.com/v1/reviewSubmissionItems/item-441"}
+		}],
+		"included":[
+			{"type":"inAppPurchaseVersions","id":"iapv-1"},
+			{"type":"subscriptionVersions","id":"subv-1"},
+			{"type":"subscriptionGroupVersions","id":"sgv-1"}
+		],
+		"meta":{"paging":{"total":1,"limit":200}}
+	}`)
+
+	client := newTestClient(t, func(req *http.Request) {
+		want := url.Values{
+			"fields[inAppPurchaseVersions]":     {"version,state,inAppPurchase,image,images,localizations"},
+			"fields[subscriptionVersions]":      {"version,state,subscription,image,images,localizations"},
+			"fields[subscriptionGroupVersions]": {"version,state,subscriptionGroup,localizations"},
+		}
+		if got := req.URL.Query(); !reflect.DeepEqual(got, want) {
+			t.Fatalf("query = %#v, want %#v", got, want)
+		}
+	}, response)
+
+	result, err := client.GetReviewSubmissionItems(
+		context.Background(),
+		"submission-456",
+		WithReviewSubmissionItemsInAppPurchaseVersionFields([]string{" version ", "state", "inAppPurchase", "image", "images", "localizations"}),
+		WithReviewSubmissionItemsSubscriptionVersionFields([]string{"version", "state", "subscription", "image", "images", "localizations"}),
+		WithReviewSubmissionItemsSubscriptionGroupVersionFields([]string{"version", "state", "subscriptionGroup", "localizations"}),
+	)
+	if err != nil {
+		t.Fatalf("GetReviewSubmissionItems() error: %v", err)
+	}
+	if len(result.Data) != 1 || result.Data[0].Relationships == nil {
+		t.Fatalf("response = %#v, want one item with relationships", result)
+	}
+	relationships := result.Data[0].Relationships
+	if relationships.InAppPurchaseVersion == nil || relationships.InAppPurchaseVersion.Data.ID != "iapv-1" ||
+		relationships.SubscriptionVersion == nil || relationships.SubscriptionVersion.Data.ID != "subv-1" ||
+		relationships.SubscriptionGroupVersion == nil || relationships.SubscriptionGroupVersion.Data.ID != "sgv-1" {
+		t.Fatalf("relationships = %#v, want all 4.4.1 version targets", relationships)
+	}
+	var included []ResourceData
+	if err := json.Unmarshal(result.Included, &included); err != nil {
+		t.Fatalf("decode included: %v", err)
+	}
+	if len(included) != 3 || included[0].Type != ResourceTypeInAppPurchaseVersions || included[1].Type != ResourceTypeSubscriptionVersions || included[2].Type != ResourceTypeSubscriptionGroupVersions {
+		t.Fatalf("included = %#v, want all 4.4.1 version resources", included)
+	}
+	if !strings.Contains(string(result.Meta), `"total":1`) {
+		t.Fatalf("meta = %s, want paging metadata", result.Meta)
+	}
+	if !strings.Contains(string(result.Data[0].Links), `"self"`) {
+		t.Fatalf("resource links = %s, want self link", result.Data[0].Links)
+	}
+}
+
 func TestGetReviewSubmissions_WithInclude(t *testing.T) {
 	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
 		"data": [
@@ -670,6 +818,61 @@ func TestGetReviewSubmissions_WithInclude(t *testing.T) {
 	}
 }
 
+func TestReviewSubmissionGetOperationsSend441ItemFields(t *testing.T) {
+	wantFields := "state,inAppPurchaseVersion,subscriptionVersion,subscriptionGroupVersion"
+	tests := []struct {
+		name string
+		path string
+		body string
+		call func(*Client) error
+	}{
+		{
+			name: "app related list",
+			path: "/v1/apps/app-1/reviewSubmissions",
+			body: `{"data":[]}`,
+			call: func(client *Client) error {
+				_, err := client.GetReviewSubmissions(context.Background(), "app-1", WithReviewSubmissionsItemFields(strings.Split(wantFields, ",")))
+				return err
+			},
+		},
+		{
+			name: "top-level list",
+			path: "/v1/reviewSubmissions",
+			body: `{"data":[]}`,
+			call: func(client *Client) error {
+				_, err := client.ListReviewSubmissions(context.Background(), WithReviewSubmissionsItemFields(strings.Split(wantFields, ",")))
+				return err
+			},
+		},
+		{
+			name: "detail",
+			path: "/v1/reviewSubmissions/submission-1",
+			body: `{"data":{"type":"reviewSubmissions","id":"submission-1"}}`,
+			call: func(client *Client) error {
+				_, err := client.GetReviewSubmission(context.Background(), "submission-1", WithReviewSubmissionItemFields(strings.Split(wantFields, ",")))
+				return err
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t, func(req *http.Request) {
+				if req.URL.Path != test.path {
+					t.Fatalf("path = %q, want %q", req.URL.Path, test.path)
+				}
+				if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); got != wantFields {
+					t.Fatalf("fields[reviewSubmissionItems] = %q, want %q", got, wantFields)
+				}
+			}, reviewSubmissionsJSONResponse(http.StatusOK, test.body))
+
+			if err := test.call(client); err != nil {
+				t.Fatalf("call error: %v", err)
+			}
+		})
+	}
+}
+
 func TestReviewSubmissionValidationErrors(t *testing.T) {
 	client := newTestClient(t, nil, nil)
 
@@ -726,6 +929,8 @@ func countReviewSubmissionItemCreateRelationships(relationships ReviewSubmission
 	count := 0
 	for _, relationship := range []*Relationship{
 		relationships.InAppPurchaseVersion,
+		relationships.SubscriptionVersion,
+		relationships.SubscriptionGroupVersion,
 		relationships.AppStoreVersion,
 		relationships.AppCustomProductPageVersion,
 		relationships.AppEvent,

@@ -30,6 +30,9 @@ asc review submissions-items-ids --id "SUBMISSION_ID"
 asc review items view --id "ITEM_ID"
 asc review items-list --submission "SUBMISSION_ID"
 asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
 asc review items-update --id "ITEM_ID" --state READY_FOR_REVIEW
 asc review items-remove --id "ITEM_ID" --confirm
 asc review history --app "123456789"
@@ -108,6 +111,25 @@ Get a review submission by ID.
 ```bash  theme={null}
 asc review submissions-get --id "SUBMISSION_ID"
 ```
+
+***
+
+### `asc review items-list` and `asc review items-add`
+
+List items with version relationships and add any of the three API 4.4.1
+version resources to a review submission.
+
+```bash  theme={null}
+asc review items-list --submission "SUBMISSION_ID" --include subscriptionVersion --subscription-version-fields version,state
+asc review items-add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
+```
+
+`--fields` controls review-item fields. The related sparse-field flags are
+`--iap-version-fields`, `--subscription-version-fields`, and
+`--subscription-group-version-fields`. `--item-fields` exposes the expanded
+review-item relationship fields on submission list and detail commands.
 
 ***
 

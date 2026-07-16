@@ -23,6 +23,7 @@ func ReviewSubmissionsListCommand() *ffcli.Command {
 	state := fs.String("state", "", "Filter by state (comma-separated)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
+	itemFields := fs.String("item-fields", "", "Review submission item fields: "+strings.Join(reviewSubmissionItemFields, ", "))
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
@@ -41,6 +42,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				return shared.UsageError("unexpected positional arguments")
+			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("--limit must be between 1 and 200")
 			}
@@ -55,6 +59,13 @@ Examples:
 			states, err := shared.NormalizeReviewSubmissionStates(shared.SplitCSVUpper(*state))
 			if err != nil {
 				return shared.UsageError(err.Error())
+			}
+			normalizedItemFields, err := shared.NormalizeSelection(*itemFields, reviewSubmissionItemFields, "--item-fields")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+			if strings.TrimSpace(*next) != "" && strings.TrimSpace(*itemFields) != "" {
+				return shared.UsageError("--next cannot be combined with --item-fields")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -84,6 +95,7 @@ Examples:
 				asc.WithReviewSubmissionsNextURL(*next),
 				asc.WithReviewSubmissionsPlatforms(platforms),
 				asc.WithReviewSubmissionsStates(states),
+				asc.WithReviewSubmissionsItemFields(normalizedItemFields),
 			}
 			if *global && resolvedAppID != "" {
 				opts = append(opts, asc.WithReviewSubmissionsApps([]string{resolvedAppID}))
@@ -149,6 +161,7 @@ func ReviewSubmissionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submissions-get", flag.ExitOnError)
 
 	submissionID := fs.String("id", "", "Review submission ID (required)")
+	itemFields := fs.String("item-fields", "", "Review submission item fields: "+strings.Join(reviewSubmissionItemFields, ", "))
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -162,6 +175,13 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				return shared.UsageError("unexpected positional arguments")
+			}
+			normalizedItemFields, err := shared.NormalizeSelection(*itemFields, reviewSubmissionItemFields, "--item-fields")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 			if strings.TrimSpace(*submissionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError()
@@ -175,7 +195,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetReviewSubmission(requestCtx, strings.TrimSpace(*submissionID))
+			resp, err := client.GetReviewSubmission(requestCtx, strings.TrimSpace(*submissionID), asc.WithReviewSubmissionItemFields(normalizedItemFields))
 			if err != nil {
 				return fmt.Errorf("review submissions-get: %w", err)
 			}

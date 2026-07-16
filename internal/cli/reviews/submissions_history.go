@@ -348,6 +348,9 @@ func reviewSubmissionItemHistoryFields() []string {
 		"gameCenterChallengeVersion",
 		"gameCenterLeaderboardSetVersion",
 		"gameCenterLeaderboardVersion",
+		"inAppPurchaseVersion",
+		"subscriptionVersion",
+		"subscriptionGroupVersion",
 	}
 }
 
@@ -363,6 +366,9 @@ func reviewSubmissionItemHistoryIncludes() []string {
 		"gameCenterChallengeVersion",
 		"gameCenterLeaderboardSetVersion",
 		"gameCenterLeaderboardVersion",
+		"inAppPurchaseVersion",
+		"subscriptionVersion",
+		"subscriptionGroupVersion",
 	}
 }
 
@@ -372,6 +378,15 @@ func populateSubmissionHistoryItem(histItem *SubmissionHistoryItem, item asc.Rev
 	}
 
 	switch {
+	case item.Relationships.InAppPurchaseVersion != nil:
+		histItem.Type = "inAppPurchaseVersion"
+		histItem.ResourceID = item.Relationships.InAppPurchaseVersion.Data.ID
+	case item.Relationships.SubscriptionVersion != nil:
+		histItem.Type = "subscriptionVersion"
+		histItem.ResourceID = item.Relationships.SubscriptionVersion.Data.ID
+	case item.Relationships.SubscriptionGroupVersion != nil:
+		histItem.Type = "subscriptionGroupVersion"
+		histItem.ResourceID = item.Relationships.SubscriptionGroupVersion.Data.ID
 	case item.Relationships.AppStoreVersion != nil:
 		histItem.Type = "appStoreVersion"
 		histItem.ResourceID = item.Relationships.AppStoreVersion.Data.ID

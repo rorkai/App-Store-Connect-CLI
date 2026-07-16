@@ -33,16 +33,24 @@ type appStoreVersionQuery struct {
 
 type reviewSubmissionsQuery struct {
 	listQuery
-	platforms []string
-	states    []string
-	appIDs    []string
-	include   []string
+	platforms                  []string
+	states                     []string
+	appIDs                     []string
+	reviewSubmissionItemFields []string
+	include                    []string
+}
+
+type reviewSubmissionQuery struct {
+	reviewSubmissionItemFields []string
 }
 
 type reviewSubmissionItemsQuery struct {
 	listQuery
-	fields  []string
-	include []string
+	fields                         []string
+	inAppPurchaseVersionFields     []string
+	subscriptionVersionFields      []string
+	subscriptionGroupVersionFields []string
+	include                        []string
 }
 
 type appStoreVersionLocalizationsQuery struct {
@@ -199,14 +207,24 @@ func buildReviewSubmissionsQuery(query *reviewSubmissionsQuery) string {
 	addCSV(values, "filter[platform]", query.platforms)
 	addCSV(values, "filter[state]", query.states)
 	addCSV(values, "filter[app]", query.appIDs)
+	addCSV(values, "fields[reviewSubmissionItems]", query.reviewSubmissionItemFields)
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
+	return values.Encode()
+}
+
+func buildReviewSubmissionQuery(query *reviewSubmissionQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[reviewSubmissionItems]", query.reviewSubmissionItemFields)
 	return values.Encode()
 }
 
 func buildReviewSubmissionItemsQuery(query *reviewSubmissionItemsQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[reviewSubmissionItems]", query.fields)
+	addCSV(values, "fields[inAppPurchaseVersions]", query.inAppPurchaseVersionFields)
+	addCSV(values, "fields[subscriptionVersions]", query.subscriptionVersionFields)
+	addCSV(values, "fields[subscriptionGroupVersions]", query.subscriptionGroupVersionFields)
 	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
@@ -351,6 +369,9 @@ type ReviewSubmissionsOption func(*reviewSubmissionsQuery)
 
 // ReviewSubmissionItemsOption is a functional option for GetReviewSubmissionItems.
 type ReviewSubmissionItemsOption func(*reviewSubmissionItemsQuery)
+
+// ReviewSubmissionOption is a functional option for GetReviewSubmission.
+type ReviewSubmissionOption func(*reviewSubmissionQuery)
 
 // AppStoreVersionLocalizationsOption is a functional option for version localizations.
 type AppStoreVersionLocalizationsOption func(*appStoreVersionLocalizationsQuery)
@@ -647,6 +668,20 @@ func WithReviewSubmissionsInclude(include []string) ReviewSubmissionsOption {
 	}
 }
 
+// WithReviewSubmissionsItemFields sets fields[reviewSubmissionItems] on list responses.
+func WithReviewSubmissionsItemFields(fields []string) ReviewSubmissionsOption {
+	return func(q *reviewSubmissionsQuery) {
+		q.reviewSubmissionItemFields = normalizeList(fields)
+	}
+}
+
+// WithReviewSubmissionItemFields sets fields[reviewSubmissionItems] on a detail response.
+func WithReviewSubmissionItemFields(fields []string) ReviewSubmissionOption {
+	return func(q *reviewSubmissionQuery) {
+		q.reviewSubmissionItemFields = normalizeList(fields)
+	}
+}
+
 // WithReviewSubmissionItemsLimit sets the max number of review submission items to return.
 func WithReviewSubmissionItemsLimit(limit int) ReviewSubmissionItemsOption {
 	return func(q *reviewSubmissionItemsQuery) {
@@ -660,6 +695,27 @@ func WithReviewSubmissionItemsLimit(limit int) ReviewSubmissionItemsOption {
 func WithReviewSubmissionItemsFields(fields []string) ReviewSubmissionItemsOption {
 	return func(q *reviewSubmissionItemsQuery) {
 		q.fields = normalizeList(fields)
+	}
+}
+
+// WithReviewSubmissionItemsInAppPurchaseVersionFields sets fields[inAppPurchaseVersions].
+func WithReviewSubmissionItemsInAppPurchaseVersionFields(fields []string) ReviewSubmissionItemsOption {
+	return func(q *reviewSubmissionItemsQuery) {
+		q.inAppPurchaseVersionFields = normalizeList(fields)
+	}
+}
+
+// WithReviewSubmissionItemsSubscriptionVersionFields sets fields[subscriptionVersions].
+func WithReviewSubmissionItemsSubscriptionVersionFields(fields []string) ReviewSubmissionItemsOption {
+	return func(q *reviewSubmissionItemsQuery) {
+		q.subscriptionVersionFields = normalizeList(fields)
+	}
+}
+
+// WithReviewSubmissionItemsSubscriptionGroupVersionFields sets fields[subscriptionGroupVersions].
+func WithReviewSubmissionItemsSubscriptionGroupVersionFields(fields []string) ReviewSubmissionItemsOption {
+	return func(q *reviewSubmissionItemsQuery) {
+		q.subscriptionGroupVersionFields = normalizeList(fields)
 	}
 }
 

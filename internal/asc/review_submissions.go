@@ -180,13 +180,20 @@ func (c *Client) ListReviewSubmissions(ctx context.Context, opts ...ReviewSubmis
 }
 
 // GetReviewSubmission retrieves a review submission by ID.
-func (c *Client) GetReviewSubmission(ctx context.Context, submissionID string) (*ReviewSubmissionResponse, error) {
+func (c *Client) GetReviewSubmission(ctx context.Context, submissionID string, opts ...ReviewSubmissionOption) (*ReviewSubmissionResponse, error) {
 	submissionID = strings.TrimSpace(submissionID)
 	if submissionID == "" {
 		return nil, fmt.Errorf("submissionID is required")
 	}
 
+	query := &reviewSubmissionQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
 	path := fmt.Sprintf("/v1/reviewSubmissions/%s", submissionID)
+	if queryString := buildReviewSubmissionQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
