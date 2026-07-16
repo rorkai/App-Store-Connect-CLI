@@ -47,6 +47,9 @@ Verified snapshot facts:
 | Removed schemas | - | - | 0 |
 | Modified existing operations from original 4.4 | - | - | 102 |
 | Modified existing schemas from original 4.4 | - | - | 61 |
+| Unchanged operations transitively affected by modified schemas | - | - | 71 |
+| Schema-mediated operations with behavior work remaining at the immediate pre-PR base | - | - | 40 |
+| Schema-mediated operations already reconciled after the 4.4 import | - | - | 31 |
 | Still-different operations at the immediate pre-PR base | - | - | 50 |
 | Still-different schemas at the immediate pre-PR base | - | - | 17 |
 | Operation changes already reconciled after the 4.4 import | - | - | 52 |
@@ -63,8 +66,9 @@ top-level contract changes.
 - Every one of the 102 modified existing operations is classified as a new
   query/response behavior, a deprecation reversal, or a change already covered
   before the schema PR.
-- Both schema-mediated operation-contract changes that are not direct path-item
-  diffs are classified separately: review-item creation and age-rating update.
+- All 71 schema-mediated operation-contract changes that are not direct
+  path-item diffs are classified separately. Two change request contracts; all
+  71 change response contracts through referenced schemas.
 - All 47 added and 61 modified schemas decode and encode through typed models
   where user-facing behavior depends on them, or have an explicit schema-only
   disposition.
@@ -482,17 +486,90 @@ Operation deprecation reversals:
 
 ### Schema-mediated operation-contract checklist
 
-These two operations do not appear in the 102-operation path-item diff because
-their operation objects are byte-for-byte unchanged. Their referenced request
-schemas changed in 4.4.1, so both still require behavior coverage. Together
-with the 102 directly modified operations, they produce 104 operation-contract
-audit items.
+These 71 operations do not appear in the 102-operation path-item diff because
+their operation objects are byte-for-byte unchanged. They reference one or
+more of the 61 modified schemas, so their effective request or response
+contracts still change. Two have modified request contracts and all 71 have
+modified response contracts. Together with the 102 directly modified
+operations, they produce 173 unique operation-contract audit items.
 
-- [ ] `POST /v1/reviewSubmissionItems` - `ReviewSubmissionItemCreateRequest`
-  gains the three version relationships
-- [ ] `PATCH /v1/ageRatingDeclarations/{id}` -
-  `AgeRatingDeclarationUpdateRequest` gains `socialMedia` and
-  `socialMediaAgeRestricted`
+Behavior work remaining at the immediate pre-PR base (40):
+
+- [ ] `PATCH /v1/ageRatingDeclarations/{id}` - request and response
+- [ ] `PATCH /v1/appInfoLocalizations/{id}`
+- [ ] `PATCH /v1/appInfos/{id}`
+- [ ] `PATCH /v1/apps/{id}`
+- [ ] `PATCH /v1/inAppPurchaseAppStoreReviewScreenshots/{id}`
+- [ ] `PATCH /v1/inAppPurchaseImages/{id}`
+- [ ] `PATCH /v1/inAppPurchaseLocalizations/{id}`
+- [ ] `PATCH /v1/promotedPurchases/{id}`
+- [ ] `PATCH /v1/reviewSubmissionItems/{id}`
+- [ ] `PATCH /v1/reviewSubmissions/{id}`
+- [ ] `PATCH /v1/subscriptionAppStoreReviewScreenshots/{id}`
+- [ ] `PATCH /v1/subscriptionGroupLocalizations/{id}`
+- [ ] `PATCH /v1/subscriptionGroups/{id}`
+- [ ] `PATCH /v1/subscriptionImages/{id}`
+- [ ] `PATCH /v1/subscriptionIntroductoryOffers/{id}`
+- [ ] `PATCH /v1/subscriptionLocalizations/{id}`
+- [ ] `PATCH /v1/subscriptionOfferCodes/{id}`
+- [ ] `PATCH /v1/subscriptionPromotionalOffers/{id}`
+- [ ] `PATCH /v1/subscriptions/{id}`
+- [ ] `PATCH /v2/inAppPurchases/{id}`
+- [ ] `POST /v1/appInfoLocalizations`
+- [ ] `POST /v1/inAppPurchaseAppStoreReviewScreenshots`
+- [ ] `POST /v1/inAppPurchaseImages`
+- [ ] `POST /v1/inAppPurchaseLocalizations`
+- [ ] `POST /v1/inAppPurchaseSubmissions`
+- [ ] `POST /v1/promotedPurchases`
+- [ ] `POST /v1/reviewSubmissionItems` - request and response
+- [ ] `POST /v1/reviewSubmissions`
+- [ ] `POST /v1/subscriptionAppStoreReviewScreenshots`
+- [ ] `POST /v1/subscriptionGroupLocalizations`
+- [ ] `POST /v1/subscriptionGroups`
+- [ ] `POST /v1/subscriptionImages`
+- [ ] `POST /v1/subscriptionIntroductoryOffers`
+- [ ] `POST /v1/subscriptionLocalizations`
+- [ ] `POST /v1/subscriptionOfferCodes`
+- [ ] `POST /v1/subscriptionPrices`
+- [ ] `POST /v1/subscriptionPromotionalOffers`
+- [ ] `POST /v1/subscriptionSubmissions`
+- [ ] `POST /v1/subscriptions`
+- [ ] `POST /v2/inAppPurchases`
+
+Already reconciled through schema deprecation reversals or media model changes
+after the original 4.4 import (31):
+
+- [x] `GET /v1/appClipDefaultExperiences/{id}/releaseWithAppStoreVersion`
+- [x] `GET /v1/appCustomProductPageVersions/{id}`
+- [x] `GET /v1/appCustomProductPages/{id}`
+- [x] `GET /v1/appCustomProductPages/{id}/appCustomProductPageVersions`
+- [x] `GET /v1/appEvents/{id}`
+- [x] `GET /v1/appStoreVersionExperimentTreatments/{id}`
+- [x] `GET /v1/appStoreVersionExperiments/{id}/appStoreVersionExperimentTreatments`
+- [x] `GET /v1/appStoreVersions/{id}`
+- [x] `GET /v1/apps/{id}/appCustomProductPages`
+- [x] `GET /v1/apps/{id}/appEvents`
+- [x] `GET /v1/apps/{id}/appStoreVersions`
+- [x] `GET /v1/builds/{id}/appStoreVersion`
+- [x] `GET /v1/gameCenterAppVersions/{id}/appStoreVersion`
+- [x] `GET /v2/appStoreVersionExperiments/{id}/appStoreVersionExperimentTreatments`
+- [x] `PATCH /v1/appCustomProductPageLocalizations/{id}`
+- [x] `PATCH /v1/appCustomProductPageVersions/{id}`
+- [x] `PATCH /v1/appCustomProductPages/{id}`
+- [x] `PATCH /v1/appEventLocalizations/{id}`
+- [x] `PATCH /v1/appEvents/{id}`
+- [x] `PATCH /v1/appStoreVersionExperimentTreatments/{id}`
+- [x] `PATCH /v1/appStoreVersionLocalizations/{id}`
+- [x] `PATCH /v1/appStoreVersions/{id}`
+- [x] `POST /v1/appCustomProductPageLocalizations`
+- [x] `POST /v1/appCustomProductPageVersions`
+- [x] `POST /v1/appCustomProductPages`
+- [x] `POST /v1/appEventLocalizations`
+- [x] `POST /v1/appEvents`
+- [x] `POST /v1/appStoreVersionExperimentTreatmentLocalizations`
+- [x] `POST /v1/appStoreVersionExperimentTreatments`
+- [x] `POST /v1/appStoreVersionLocalizations`
+- [x] `POST /v1/appStoreVersions`
 
 ## Release-note capability ledger
 
@@ -581,10 +658,10 @@ than trusting the per-PR reports:
 2. Recompute added, removed, and modified operations and schemas from 4.4.
 3. Map all 47 added operations to code, tests, docs, or an explicit schema-only
    decision.
-4. Map all 102 directly modified operations plus both schema-mediated contract
-   changes (`POST /v1/reviewSubmissionItems` and
-   `PATCH /v1/ageRatingDeclarations/{id}`) to query, payload, deprecation, or
-   compatibility coverage: 104 operation-contract items in total.
+4. Map all 102 directly modified operations plus all 71 unchanged operations
+   that transitively reference modified schemas to query, payload, response,
+   deprecation, or compatibility coverage: 173 unique operation-contract items
+   in total.
 5. Map all 47 added and 61 modified schemas to typed models, documented generic
    decoding, or an already-reconciled schema-only disposition.
 6. Map all nine release-note additions and seven deprecations to commands and
