@@ -9,10 +9,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	iapcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/iap"
 )
 
 func TestIAPVersionsValidationErrors(t *testing.T) {
@@ -25,6 +31,15 @@ func TestIAPVersionsValidationErrors(t *testing.T) {
 		{"create requires iap", []string{"iap", "versions", "create"}, "--iap-id is required"},
 		{"list requires iap", []string{"iap", "versions", "list"}, "--iap-id is required"},
 		{"list validates state", []string{"iap", "versions", "list", "--iap-id", "iap-1", "--state", "NOPE"}, "--state must be one of"},
+		{"list validates version fields before auth", []string{"iap", "versions", "list", "--iap-id", "iap-1", "--version-fields", "nope"}, "--version-fields must be one of"},
+		{"view validates iap fields before auth", []string{"iap", "versions", "view", "--version-id", "version-1", "--iap-fields", "nope"}, "--iap-fields must be one of"},
+		{"primary image validates fields before auth", []string{"iap", "versions", "image", "--version-id", "version-1", "--image-fields", "nope"}, "--image-fields must be one of"},
+		{"image list validates fields before auth", []string{"iap", "versions", "images", "list", "--version-id", "version-1", "--image-fields", "nope"}, "--image-fields must be one of"},
+		{"image detail validates fields before auth", []string{"iap", "versions", "images", "view", "--image-id", "image-1", "--image-fields", "nope"}, "--image-fields must be one of"},
+		{"localization list validates fields before auth", []string{"iap", "versions", "localizations", "list", "--version-id", "version-1", "--localization-fields", "nope"}, "--localization-fields must be one of"},
+		{"localization detail validates version fields before auth", []string{"iap", "versions", "localizations", "view", "--localization-id", "loc-1", "--version-fields", "nope"}, "--version-fields must be one of"},
+		{"iap list validates propagated version fields before auth", []string{"iap", "list", "--app", "app-1", "--version-fields", "nope"}, "--version-fields must be one of"},
+		{"iap view validates propagated version fields before auth", []string{"iap", "view", "--id", "iap-1", "--version-fields", "nope"}, "--version-fields must be one of"},
 		{"view requires version", []string{"iap", "versions", "view"}, "--version-id is required"},
 		{"image requires version", []string{"iap", "versions", "image"}, "--version-id is required"},
 		{"localization create requires version", []string{"iap", "versions", "localizations", "create", "--name", "Name", "--locale", "en-US"}, "--version-id is required"},
@@ -61,6 +76,142 @@ func TestIAPVersionsValidationErrors(t *testing.T) {
 	}
 }
 
+func TestIAPVersionPrincipalCLIFlowsUseExactHTTPContracts(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	tests := []struct {
+		name       string
+		args       []string
+		method     string
+		path       string
+		query      map[string]string
+		wantBody   string
+		statusCode int
+		response   string
+	}{
+		{
+			name: "create version", args: []string{"iap", "versions", "create", "--iap-id", "iap-1", "--output", "json"},
+			method: http.MethodPost, path: "/v1/inAppPurchaseVersions", statusCode: http.StatusCreated,
+			wantBody: `{"data":{"type":"inAppPurchaseVersions","relationships":{"inAppPurchase":{"data":{"type":"inAppPurchases","id":"iap-1"}}}}}`,
+			response: `{"data":{"type":"inAppPurchaseVersions","id":"version-1","attributes":{"version":1}}}`,
+		},
+		{
+			name: "list versions with sparse fields", args: []string{"iap", "versions", "list", "--iap-id", "iap-1", "--state", "READY_FOR_REVIEW", "--include", "images", "--version-fields", "version,state", "--iap-fields", "name", "--image-fields", "fileName", "--localization-fields", "locale", "--limit", "3", "--images-limit", "2", "--localizations-limit", "4", "--output", "json"},
+			method: http.MethodGet, path: "/v2/inAppPurchases/iap-1/versions",
+			query:    map[string]string{"filter[state]": "READY_FOR_REVIEW", "fields[inAppPurchaseVersions]": "version,state", "fields[inAppPurchases]": "name", "fields[inAppPurchaseImages]": "fileName", "fields[inAppPurchaseLocalizations]": "locale", "include": "images", "limit": "3", "limit[images]": "2", "limit[localizations]": "4"},
+			response: `{"data":[{"type":"inAppPurchaseVersions","id":"version-1","attributes":{"version":1}}]}`,
+		},
+		{
+			name: "view version with sparse fields", args: []string{"iap", "versions", "view", "--version-id", "version-1", "--include", "localizations", "--version-fields", "version,state", "--iap-fields", "name", "--image-fields", "fileName", "--localization-fields", "name,locale", "--localizations-limit", "4", "--output", "json"},
+			method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1",
+			query:    map[string]string{"fields[inAppPurchaseVersions]": "version,state", "fields[inAppPurchases]": "name", "fields[inAppPurchaseImages]": "fileName", "fields[inAppPurchaseLocalizations]": "name,locale", "include": "localizations", "limit[localizations]": "4"},
+			response: `{"data":{"type":"inAppPurchaseVersions","id":"version-1","attributes":{"version":1}}}`,
+		},
+		{
+			name: "existing IAP list propagates version fields", args: []string{"iap", "list", "--app", "app-1", "--include-versions", "--version-fields", "version,state", "--versions-limit", "5", "--output", "json"},
+			method: http.MethodGet, path: "/v1/apps/app-1/inAppPurchasesV2",
+			query:    map[string]string{"fields[inAppPurchaseVersions]": "version,state", "include": "versions", "limit[versions]": "5"},
+			response: `{"data":[{"type":"inAppPurchases","id":"iap-1"}]}`,
+		},
+		{
+			name: "existing IAP view propagates version fields", args: []string{"iap", "view", "--id", "iap-1", "--include-versions", "--version-fields", "version,state", "--versions-limit", "5", "--output", "json"},
+			method: http.MethodGet, path: "/v2/inAppPurchases/iap-1",
+			query:    map[string]string{"fields[inAppPurchaseVersions]": "version,state", "include": "versions", "limit[versions]": "5"},
+			response: `{"data":{"type":"inAppPurchases","id":"iap-1"}}`,
+		},
+		{
+			name: "view primary image fields", args: []string{"iap", "versions", "image", "--version-id", "version-1", "--image-fields", "fileName", "--output", "json"},
+			method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1/image",
+			query:    map[string]string{"fields[inAppPurchaseImages]": "fileName"},
+			response: `{"data":{"type":"inAppPurchaseImages","id":"image-1"}}`,
+		},
+		{
+			name: "list version images fields", args: []string{"iap", "versions", "images", "list", "--version-id", "version-1", "--image-fields", "fileName,assetDeliveryState", "--limit", "7", "--output", "json"},
+			method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1/images",
+			query:    map[string]string{"fields[inAppPurchaseImages]": "fileName,assetDeliveryState", "limit": "7"},
+			response: `{"data":[{"type":"inAppPurchaseImages","id":"image-1"}]}`,
+		},
+		{
+			name: "view v2 image fields", args: []string{"iap", "versions", "images", "view", "--image-id", "image-1", "--image-fields", "fileName,assetDeliveryState", "--output", "json"},
+			method: http.MethodGet, path: "/v2/inAppPurchaseImages/image-1",
+			query:    map[string]string{"fields[inAppPurchaseImages]": "fileName,assetDeliveryState"},
+			response: `{"data":{"type":"inAppPurchaseImages","id":"image-1"}}`,
+		},
+		{
+			name: "create localization", args: []string{"iap", "versions", "localizations", "create", "--version-id", "version-1", "--name", "Name", "--locale", "en-US", "--description", "Description", "--output", "json"},
+			method: http.MethodPost, path: "/v2/inAppPurchaseLocalizations", statusCode: http.StatusCreated,
+			wantBody: `{"data":{"type":"inAppPurchaseLocalizations","attributes":{"name":"Name","locale":"en-US","description":"Description"},"relationships":{"version":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}}}}`,
+			response: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`,
+		},
+		{
+			name: "list localizations fields", args: []string{"iap", "versions", "localizations", "list", "--version-id", "version-1", "--include", "version", "--localization-fields", "name,locale", "--version-fields", "version,state", "--limit", "9", "--output", "json"},
+			method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1/localizations",
+			query:    map[string]string{"fields[inAppPurchaseLocalizations]": "name,locale", "fields[inAppPurchaseVersions]": "version,state", "include": "version", "limit": "9"},
+			response: `{"data":[{"type":"inAppPurchaseLocalizations","id":"loc-1"}]}`,
+		},
+		{
+			name: "view localization fields", args: []string{"iap", "versions", "localizations", "view", "--localization-id", "loc-1", "--include", "version", "--localization-fields", "name,description", "--version-fields", "version,state", "--output", "json"},
+			method: http.MethodGet, path: "/v2/inAppPurchaseLocalizations/loc-1",
+			query:    map[string]string{"fields[inAppPurchaseLocalizations]": "name,description", "fields[inAppPurchaseVersions]": "version,state", "include": "version"},
+			response: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			requestCount := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				requestCount++
+				if req.Method != test.method || req.URL.Path != test.path {
+					t.Fatalf("request = %s %s, want %s %s", req.Method, req.URL.Path, test.method, test.path)
+				}
+				if got, want := len(req.URL.Query()), len(test.query); got != want {
+					t.Fatalf("query parameter count = %d, want %d: %v", got, want, req.URL.Query())
+				}
+				for key, want := range test.query {
+					if got := req.URL.Query().Get(key); got != want {
+						t.Fatalf("query %s = %q, want %q", key, got, want)
+					}
+				}
+				if test.wantBody != "" {
+					assertJSONDocument(t, req.Body, test.wantBody)
+				}
+				status := test.statusCode
+				if status == 0 {
+					status = http.StatusOK
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(status)
+				_, _ = io.WriteString(w, test.response)
+			}))
+			t.Cleanup(server.Close)
+			setIAPVersionTestServerClient(t, server)
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatal(err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatal(err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("unexpected stderr: %s", stderr)
+			}
+			var output any
+			if err := json.Unmarshal([]byte(stdout), &output); err != nil {
+				t.Fatalf("invalid JSON output %q: %v", stdout, err)
+			}
+			if requestCount != 1 {
+				t.Fatalf("request count = %d, want 1", requestCount)
+			}
+		})
+	}
+}
+
 func TestIAPVersionImagesCreateRunsV2UploadLifecycle(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
@@ -74,10 +225,9 @@ func TestIAPVersionImagesCreateRunsV2UploadLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
 		body := ""
 		status := http.StatusOK
@@ -86,17 +236,11 @@ func TestIAPVersionImagesCreateRunsV2UploadLifecycle(t *testing.T) {
 			if req.Method != http.MethodPost || req.URL.Path != "/v2/inAppPurchaseImages" {
 				t.Fatalf("unexpected reservation request: %s %s", req.Method, req.URL)
 			}
-			requestBody, readErr := io.ReadAll(req.Body)
-			if readErr != nil {
-				t.Fatal(readErr)
-			}
-			if !strings.Contains(string(requestBody), `"version":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}`) {
-				t.Fatalf("missing version relationship: %s", requestBody)
-			}
+			assertJSONDocument(t, req.Body, fmt.Sprintf(`{"data":{"type":"inAppPurchaseImages","attributes":{"fileSize":%d,"fileName":"review.png"},"relationships":{"version":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}}}}`, len(pngBytes)))
 			status = http.StatusCreated
-			body = `{"data":{"type":"inAppPurchaseImages","id":"image-1","attributes":{"fileName":"review.png","fileSize":` + stringValue(len(pngBytes)) + `,"uploadOperations":[{"method":"PUT","url":"https://upload.example/image-1","offset":0,"length":` + stringValue(len(pngBytes)) + `}]}}}`
+			body = `{"data":{"type":"inAppPurchaseImages","id":"image-1","attributes":{"fileName":"review.png","fileSize":` + stringValue(len(pngBytes)) + `,"uploadOperations":[{"method":"PUT","url":"` + server.URL + `/upload/image-1","offset":0,"length":` + stringValue(len(pngBytes)) + `}]}}}`
 		case 2:
-			if req.Method != http.MethodPut || req.URL.String() != "https://upload.example/image-1" {
+			if req.Method != http.MethodPut || req.URL.Path != "/upload/image-1" {
 				t.Fatalf("unexpected upload request: %s %s", req.Method, req.URL)
 			}
 			uploadedBody, readErr := io.ReadAll(req.Body)
@@ -111,16 +255,7 @@ func TestIAPVersionImagesCreateRunsV2UploadLifecycle(t *testing.T) {
 			if req.Method != http.MethodPatch || req.URL.Path != "/v2/inAppPurchaseImages/image-1" {
 				t.Fatalf("unexpected commit request: %s %s", req.Method, req.URL)
 			}
-			commitBody, readErr := io.ReadAll(req.Body)
-			if readErr != nil {
-				t.Fatal(readErr)
-			}
-			if !strings.Contains(string(commitBody), `"uploaded":true`) {
-				t.Fatalf("missing uploaded commit: %s", commitBody)
-			}
-			if strings.Contains(string(commitBody), "sourceFileChecksum") {
-				t.Fatalf("v2 commit must not send the removed checksum field: %s", commitBody)
-			}
+			assertJSONDocument(t, req.Body, `{"data":{"type":"inAppPurchaseImages","id":"image-1","attributes":{"uploaded":true}}}`)
 			body = `{"data":{"type":"inAppPurchaseImages","id":"image-1","attributes":{"assetDeliveryState":{"state":"PROCESSING"}}}}`
 		case 4:
 			if req.Method != http.MethodGet || req.URL.Path != "/v2/inAppPurchaseImages/image-1" {
@@ -130,8 +265,12 @@ func TestIAPVersionImagesCreateRunsV2UploadLifecycle(t *testing.T) {
 		default:
 			t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL)
 		}
-		return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(body)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
-	})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(status)
+		_, _ = io.WriteString(w, body)
+	}))
+	t.Cleanup(server.Close)
+	setIAPVersionTestServerClient(t, server)
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -162,28 +301,17 @@ func TestIAPVersionImagesCreateRunsV2UploadLifecycle(t *testing.T) {
 func TestIAPVersionsSubmitUsesExplicitReviewSubmissionRelationship(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost || req.URL.Path != "/v1/reviewSubmissionItems" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
 		}
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		bodyString := string(body)
-		if !strings.Contains(bodyString, `"reviewSubmission":{"data":{"type":"reviewSubmissions","id":"submission-1"}}`) {
-			t.Fatalf("missing review submission relationship: %s", body)
-		}
-		if !strings.Contains(bodyString, `"inAppPurchaseVersion":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}`) {
-			t.Fatalf("missing IAP version relationship: %s", body)
-		}
-		if strings.Contains(bodyString, "inAppPurchaseSubmission") {
-			t.Fatalf("version submission must not use legacy IAP submission semantics: %s", body)
-		}
-		return &http.Response{StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader(`{"data":{"type":"reviewSubmissionItems","id":"item-1","attributes":{"state":"READY_FOR_REVIEW"}}}`)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
-	})
+		assertJSONDocument(t, req.Body, `{"data":{"type":"reviewSubmissionItems","relationships":{"reviewSubmission":{"data":{"type":"reviewSubmissions","id":"submission-1"}},"inAppPurchaseVersion":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}}}}`)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(w, `{"data":{"type":"reviewSubmissionItems","id":"item-1","attributes":{"state":"READY_FOR_REVIEW"}}}`)
+	}))
+	t.Cleanup(server.Close)
+	setIAPVersionTestServerClient(t, server)
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
@@ -205,4 +333,46 @@ func TestIAPVersionsSubmitUsesExplicitReviewSubmissionRelationship(t *testing.T)
 
 func stringValue(value int) string {
 	return fmt.Sprintf("%d", value)
+}
+
+func assertJSONDocument(t *testing.T, reader io.Reader, want string) {
+	t.Helper()
+	var gotJSON, wantJSON any
+	if err := json.NewDecoder(reader).Decode(&gotJSON); err != nil {
+		t.Fatalf("invalid request JSON: %v", err)
+	}
+	if err := json.Unmarshal([]byte(want), &wantJSON); err != nil {
+		t.Fatalf("invalid expected JSON %q: %v", want, err)
+	}
+	if !reflect.DeepEqual(gotJSON, wantJSON) {
+		got, _ := json.Marshal(gotJSON)
+		t.Fatalf("request body = %s, want %s", got, want)
+	}
+}
+
+func setIAPVersionTestServerClient(t *testing.T, server *httptest.Server) {
+	t.Helper()
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse server URL: %v", err)
+	}
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		cloned := req.Clone(req.Context())
+		cloned.URL.Scheme = serverURL.Scheme
+		cloned.URL.Host = serverURL.Host
+		return server.Client().Transport.RoundTrip(cloned)
+	})
+	client, err := asc.NewClientWithHTTPClient(
+		"TEST_KEY",
+		"TEST_ISSUER",
+		os.Getenv("ASC_PRIVATE_KEY_PATH"),
+		&http.Client{Transport: transport},
+	)
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	restore := iapcli.SetVersionClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	t.Cleanup(restore)
 }

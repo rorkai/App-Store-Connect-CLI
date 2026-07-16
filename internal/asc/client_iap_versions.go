@@ -11,8 +11,13 @@ import (
 )
 
 type (
-	IAPVersionsOption       func(*iapVersionsQuery)
-	IAPVersionRelatedOption func(*iapVersionRelatedQuery)
+	IAPVersionsOption             func(*iapVersionsQuery)
+	IAPVersionGetOption           func(*iapVersionGetQuery)
+	IAPVersionImageOption         func(*iapImageFieldsQuery)
+	IAPVersionImagesOption        func(*iapVersionImagesQuery)
+	IAPVersionLocalizationsOption func(*iapVersionLocalizationsQuery)
+	IAPLocalizationV2Option       func(*iapLocalizationV2Query)
+	IAPImageV2Option              func(*iapImageFieldsQuery)
 )
 
 type iapVersionsQuery struct {
@@ -27,11 +32,36 @@ type iapVersionsQuery struct {
 	localizationsLimit int
 }
 
-type iapVersionRelatedQuery struct {
+type iapVersionGetQuery struct {
+	versionFields      []string
+	iapFields          []string
+	imageFields        []string
+	localizationFields []string
+	include            []string
+	imagesLimit        int
+	localizationsLimit int
+}
+
+type iapImageFieldsQuery struct {
+	fields []string
+}
+
+type iapVersionImagesQuery struct {
 	listQuery
-	include       []string
-	fields        []string
-	versionFields []string
+	fields []string
+}
+
+type iapVersionLocalizationsQuery struct {
+	listQuery
+	localizationFields []string
+	versionFields      []string
+	include            []string
+}
+
+type iapLocalizationV2Query struct {
+	localizationFields []string
+	versionFields      []string
+	include            []string
 }
 
 func WithIAPVersionsLimit(limit int) IAPVersionsOption {
@@ -86,36 +116,106 @@ func WithIAPVersionsLocalizationsLimit(limit int) IAPVersionsOption {
 	}
 }
 
-func WithIAPVersionRelatedLimit(limit int) IAPVersionRelatedOption {
-	return func(q *iapVersionRelatedQuery) {
+func WithIAPVersionGetFields(fields []string) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) { q.versionFields = normalizeUniqueList(fields) }
+}
+
+func WithIAPVersionGetIAPFields(fields []string) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) { q.iapFields = normalizeUniqueList(fields) }
+}
+
+func WithIAPVersionGetImageFields(fields []string) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) { q.imageFields = normalizeUniqueList(fields) }
+}
+
+func WithIAPVersionGetLocalizationFields(fields []string) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) { q.localizationFields = normalizeUniqueList(fields) }
+}
+
+func WithIAPVersionGetInclude(include []string) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) { q.include = normalizeUniqueList(include) }
+}
+
+func WithIAPVersionGetImagesLimit(limit int) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) {
+		if limit > 0 {
+			q.imagesLimit = limit
+		}
+	}
+}
+
+func WithIAPVersionGetLocalizationsLimit(limit int) IAPVersionGetOption {
+	return func(q *iapVersionGetQuery) {
+		if limit > 0 {
+			q.localizationsLimit = limit
+		}
+	}
+}
+
+func WithIAPVersionImageFields(fields []string) IAPVersionImageOption {
+	return func(q *iapImageFieldsQuery) { q.fields = normalizeUniqueList(fields) }
+}
+
+func WithIAPVersionImagesLimit(limit int) IAPVersionImagesOption {
+	return func(q *iapVersionImagesQuery) {
 		if limit > 0 {
 			q.limit = limit
 		}
 	}
 }
 
-func WithIAPVersionRelatedNextURL(next string) IAPVersionRelatedOption {
-	return func(q *iapVersionRelatedQuery) { q.nextURL = strings.TrimSpace(next) }
+func WithIAPVersionImagesNextURL(next string) IAPVersionImagesOption {
+	return func(q *iapVersionImagesQuery) { q.nextURL = strings.TrimSpace(next) }
 }
 
-func WithIAPVersionRelatedInclude(include []string) IAPVersionRelatedOption {
-	return func(q *iapVersionRelatedQuery) { q.include = normalizeUniqueList(include) }
+func WithIAPVersionImagesFields(fields []string) IAPVersionImagesOption {
+	return func(q *iapVersionImagesQuery) { q.fields = normalizeUniqueList(fields) }
 }
 
-func WithIAPVersionRelatedFields(fields []string) IAPVersionRelatedOption {
-	return func(q *iapVersionRelatedQuery) { q.fields = normalizeUniqueList(fields) }
-}
-
-func WithIAPVersionRelatedVersionFields(fields []string) IAPVersionRelatedOption {
-	return func(q *iapVersionRelatedQuery) { q.versionFields = normalizeUniqueList(fields) }
-}
-
-func buildIAPVersionsQuery(q *iapVersionsQuery, includeListControls bool) string {
-	values := url.Values{}
-	if includeListControls {
-		addLimit(values, q.limit)
-		addCSV(values, "filter[state]", q.states)
+func WithIAPVersionLocalizationsLimit(limit int) IAPVersionLocalizationsOption {
+	return func(q *iapVersionLocalizationsQuery) {
+		if limit > 0 {
+			q.limit = limit
+		}
 	}
+}
+
+func WithIAPVersionLocalizationsNextURL(next string) IAPVersionLocalizationsOption {
+	return func(q *iapVersionLocalizationsQuery) { q.nextURL = strings.TrimSpace(next) }
+}
+
+func WithIAPVersionLocalizationsFields(fields []string) IAPVersionLocalizationsOption {
+	return func(q *iapVersionLocalizationsQuery) { q.localizationFields = normalizeUniqueList(fields) }
+}
+
+func WithIAPVersionLocalizationsVersionFields(fields []string) IAPVersionLocalizationsOption {
+	return func(q *iapVersionLocalizationsQuery) { q.versionFields = normalizeUniqueList(fields) }
+}
+
+func WithIAPVersionLocalizationsInclude(include []string) IAPVersionLocalizationsOption {
+	return func(q *iapVersionLocalizationsQuery) { q.include = normalizeUniqueList(include) }
+}
+
+func WithIAPLocalizationV2Fields(fields []string) IAPLocalizationV2Option {
+	return func(q *iapLocalizationV2Query) { q.localizationFields = normalizeUniqueList(fields) }
+}
+
+func WithIAPLocalizationV2VersionFields(fields []string) IAPLocalizationV2Option {
+	return func(q *iapLocalizationV2Query) { q.versionFields = normalizeUniqueList(fields) }
+}
+
+func WithIAPLocalizationV2Include(include []string) IAPLocalizationV2Option {
+	return func(q *iapLocalizationV2Query) { q.include = normalizeUniqueList(include) }
+}
+
+func WithIAPImageV2Fields(fields []string) IAPImageV2Option {
+	return func(q *iapImageFieldsQuery) { q.fields = normalizeUniqueList(fields) }
+}
+
+func buildIAPVersionsQuery(q *iapVersionsQuery) string {
+	values := url.Values{}
+	addLimit(values, q.limit)
+	addCSV(values, "filter[state]", q.states)
 	addCSV(values, "fields[inAppPurchaseVersions]", q.versionFields)
 	addCSV(values, "fields[inAppPurchases]", q.iapFields)
 	addCSV(values, "fields[inAppPurchaseImages]", q.imageFields)
@@ -130,10 +230,47 @@ func buildIAPVersionsQuery(q *iapVersionsQuery, includeListControls bool) string
 	return values.Encode()
 }
 
-func buildIAPVersionRelatedQuery(q *iapVersionRelatedQuery, fieldKey string) string {
+func buildIAPVersionGetQuery(q *iapVersionGetQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[inAppPurchaseVersions]", q.versionFields)
+	addCSV(values, "fields[inAppPurchases]", q.iapFields)
+	addCSV(values, "fields[inAppPurchaseImages]", q.imageFields)
+	addCSV(values, "fields[inAppPurchaseLocalizations]", q.localizationFields)
+	addCSV(values, "include", q.include)
+	if q.imagesLimit > 0 {
+		values.Set("limit[images]", strconv.Itoa(q.imagesLimit))
+	}
+	if q.localizationsLimit > 0 {
+		values.Set("limit[localizations]", strconv.Itoa(q.localizationsLimit))
+	}
+	return values.Encode()
+}
+
+func buildIAPImageFieldsQuery(q *iapImageFieldsQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[inAppPurchaseImages]", q.fields)
+	return values.Encode()
+}
+
+func buildIAPVersionImagesQuery(q *iapVersionImagesQuery) string {
 	values := url.Values{}
 	addLimit(values, q.limit)
-	addCSV(values, fieldKey, q.fields)
+	addCSV(values, "fields[inAppPurchaseImages]", q.fields)
+	return values.Encode()
+}
+
+func buildIAPVersionLocalizationsQuery(q *iapVersionLocalizationsQuery) string {
+	values := url.Values{}
+	addLimit(values, q.limit)
+	addCSV(values, "fields[inAppPurchaseLocalizations]", q.localizationFields)
+	addCSV(values, "fields[inAppPurchaseVersions]", q.versionFields)
+	addCSV(values, "include", q.include)
+	return values.Encode()
+}
+
+func buildIAPLocalizationV2Query(q *iapLocalizationV2Query) string {
+	values := url.Values{}
+	addCSV(values, "fields[inAppPurchaseLocalizations]", q.localizationFields)
 	addCSV(values, "fields[inAppPurchaseVersions]", q.versionFields)
 	addCSV(values, "include", q.include)
 	return values.Encode()
@@ -163,17 +300,17 @@ func (c *Client) CreateInAppPurchaseVersion(ctx context.Context, iapID string) (
 	return &response, nil
 }
 
-func (c *Client) GetInAppPurchaseVersion(ctx context.Context, versionID string, opts ...IAPVersionsOption) (*InAppPurchaseVersionResponse, error) {
+func (c *Client) GetInAppPurchaseVersion(ctx context.Context, versionID string, opts ...IAPVersionGetOption) (*InAppPurchaseVersionResponse, error) {
 	versionID = strings.TrimSpace(versionID)
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	q := &iapVersionsQuery{}
+	q := &iapVersionGetQuery{}
 	for _, opt := range opts {
 		opt(q)
 	}
 	path := fmt.Sprintf("/v1/inAppPurchaseVersions/%s", versionID)
-	if query := buildIAPVersionsQuery(q, false); query != "" {
+	if query := buildIAPVersionGetQuery(q); query != "" {
 		path += "?" + query
 	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
@@ -202,7 +339,7 @@ func (c *Client) GetInAppPurchaseVersions(ctx context.Context, iapID string, opt
 			return nil, fmt.Errorf("in-app-purchase-versions: %w", err)
 		}
 		path = q.nextURL
-	} else if query := buildIAPVersionsQuery(q, true); query != "" {
+	} else if query := buildIAPVersionsQuery(q); query != "" {
 		path += "?" + query
 	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
@@ -220,17 +357,17 @@ func (c *Client) GetInAppPurchaseVersionsRelationships(ctx context.Context, iapI
 	return c.getResourceLinkages(ctx, iapID, "versions", "iapID", "/v2/inAppPurchases/%s/relationships/%s", "inAppPurchaseVersionsRelationships", opts...)
 }
 
-func (c *Client) GetInAppPurchaseVersionImage(ctx context.Context, versionID string, opts ...IAPVersionRelatedOption) (*InAppPurchaseImageV2Response, error) {
+func (c *Client) GetInAppPurchaseVersionImage(ctx context.Context, versionID string, opts ...IAPVersionImageOption) (*InAppPurchaseImageV2Response, error) {
 	versionID = strings.TrimSpace(versionID)
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")
 	}
-	q := &iapVersionRelatedQuery{}
+	q := &iapImageFieldsQuery{}
 	for _, opt := range opts {
 		opt(q)
 	}
 	path := fmt.Sprintf("/v1/inAppPurchaseVersions/%s/image", versionID)
-	if query := buildIAPVersionRelatedQuery(q, "fields[inAppPurchaseImages]"); query != "" {
+	if query := buildIAPImageFieldsQuery(q); query != "" {
 		path += "?" + query
 	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
@@ -260,38 +397,31 @@ func (c *Client) GetInAppPurchaseVersionImageRelationship(ctx context.Context, v
 	return &response, nil
 }
 
-func (c *Client) getIAPVersionRelated(ctx context.Context, versionID, relationship, fieldKey string, target any, opts ...IAPVersionRelatedOption) error {
-	q := &iapVersionRelatedQuery{}
+func (c *Client) GetInAppPurchaseVersionImages(ctx context.Context, versionID string, opts ...IAPVersionImagesOption) (*InAppPurchaseImagesV2Response, error) {
+	q := &iapVersionImagesQuery{}
 	for _, opt := range opts {
 		opt(q)
 	}
 	versionID = strings.TrimSpace(versionID)
 	if q.nextURL == "" && versionID == "" {
-		return fmt.Errorf("versionID is required")
+		return nil, fmt.Errorf("versionID is required")
 	}
-	path := fmt.Sprintf("/v1/inAppPurchaseVersions/%s/%s", versionID, relationship)
+	path := fmt.Sprintf("/v1/inAppPurchaseVersions/%s/images", versionID)
 	if q.nextURL != "" {
 		if err := validateNextURL(q.nextURL); err != nil {
-			return fmt.Errorf("in-app-purchase-version-%s: %w", relationship, err)
+			return nil, fmt.Errorf("in-app-purchase-version-images: %w", err)
 		}
 		path = q.nextURL
-	} else if query := buildIAPVersionRelatedQuery(q, fieldKey); query != "" {
+	} else if query := buildIAPVersionImagesQuery(q); query != "" {
 		path += "?" + query
 	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(data, target); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
-	}
-	return nil
-}
-
-func (c *Client) GetInAppPurchaseVersionImages(ctx context.Context, versionID string, opts ...IAPVersionRelatedOption) (*InAppPurchaseImagesV2Response, error) {
-	var response InAppPurchaseImagesV2Response
-	if err := c.getIAPVersionRelated(ctx, versionID, "images", "fields[inAppPurchaseImages]", &response, opts...); err != nil {
 		return nil, err
+	}
+	var response InAppPurchaseImagesV2Response
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 	return &response, nil
 }
@@ -300,10 +430,31 @@ func (c *Client) GetInAppPurchaseVersionImagesRelationships(ctx context.Context,
 	return c.getResourceLinkages(ctx, versionID, "images", "versionID", "/v1/inAppPurchaseVersions/%s/relationships/%s", "inAppPurchaseVersionImagesRelationships", opts...)
 }
 
-func (c *Client) GetInAppPurchaseVersionLocalizations(ctx context.Context, versionID string, opts ...IAPVersionRelatedOption) (*InAppPurchaseLocalizationsResponse, error) {
-	var response InAppPurchaseLocalizationsResponse
-	if err := c.getIAPVersionRelated(ctx, versionID, "localizations", "fields[inAppPurchaseLocalizations]", &response, opts...); err != nil {
+func (c *Client) GetInAppPurchaseVersionLocalizations(ctx context.Context, versionID string, opts ...IAPVersionLocalizationsOption) (*InAppPurchaseLocalizationsResponse, error) {
+	q := &iapVersionLocalizationsQuery{}
+	for _, opt := range opts {
+		opt(q)
+	}
+	versionID = strings.TrimSpace(versionID)
+	if q.nextURL == "" && versionID == "" {
+		return nil, fmt.Errorf("versionID is required")
+	}
+	path := fmt.Sprintf("/v1/inAppPurchaseVersions/%s/localizations", versionID)
+	if q.nextURL != "" {
+		if err := validateNextURL(q.nextURL); err != nil {
+			return nil, fmt.Errorf("in-app-purchase-version-localizations: %w", err)
+		}
+		path = q.nextURL
+	} else if query := buildIAPVersionLocalizationsQuery(q); query != "" {
+		path += "?" + query
+	}
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
 		return nil, err
+	}
+	var response InAppPurchaseLocalizationsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 	return &response, nil
 }
@@ -341,17 +492,17 @@ func (c *Client) CreateInAppPurchaseLocalizationV2(ctx context.Context, versionI
 	return &response, nil
 }
 
-func (c *Client) GetInAppPurchaseLocalizationV2(ctx context.Context, localizationID string, opts ...IAPVersionRelatedOption) (*InAppPurchaseLocalizationResponse, error) {
+func (c *Client) GetInAppPurchaseLocalizationV2(ctx context.Context, localizationID string, opts ...IAPLocalizationV2Option) (*InAppPurchaseLocalizationResponse, error) {
 	localizationID = strings.TrimSpace(localizationID)
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
-	q := &iapVersionRelatedQuery{}
+	q := &iapLocalizationV2Query{}
 	for _, opt := range opts {
 		opt(q)
 	}
 	path := fmt.Sprintf("/v2/inAppPurchaseLocalizations/%s", localizationID)
-	if query := buildIAPVersionRelatedQuery(q, "fields[inAppPurchaseLocalizations]"); query != "" {
+	if query := buildIAPLocalizationV2Query(q); query != "" {
 		path += "?" + query
 	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
@@ -426,17 +577,17 @@ func (c *Client) CreateInAppPurchaseImageV2(ctx context.Context, versionID, file
 	return &response, nil
 }
 
-func (c *Client) GetInAppPurchaseImageV2(ctx context.Context, imageID string, opts ...IAPVersionRelatedOption) (*InAppPurchaseImageV2Response, error) {
+func (c *Client) GetInAppPurchaseImageV2(ctx context.Context, imageID string, opts ...IAPImageV2Option) (*InAppPurchaseImageV2Response, error) {
 	imageID = strings.TrimSpace(imageID)
 	if imageID == "" {
 		return nil, fmt.Errorf("imageID is required")
 	}
-	q := &iapVersionRelatedQuery{}
+	q := &iapImageFieldsQuery{}
 	for _, opt := range opts {
 		opt(q)
 	}
 	path := fmt.Sprintf("/v2/inAppPurchaseImages/%s", imageID)
-	if query := buildIAPVersionRelatedQuery(q, "fields[inAppPurchaseImages]"); query != "" {
+	if query := buildIAPImageFieldsQuery(q); query != "" {
 		path += "?" + query
 	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)

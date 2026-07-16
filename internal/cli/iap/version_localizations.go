@@ -25,6 +25,8 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions localizations list", flag.ExitOnError)
 	versionID := fs.String("version-id", "", "In-app purchase version ID")
 	include := fs.String("include", "", "Include relationship: version")
+	localizationFields := fs.String("localization-fields", "", "fields[inAppPurchaseLocalizations] (comma-separated)")
+	versionFields := fs.String("version-fields", "", "fields[inAppPurchaseVersions] (comma-separated)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages")
@@ -47,20 +49,34 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 			if err != nil {
 				return shared.UsageError("iap versions localizations list: " + err.Error())
 			}
-			client, err := shared.GetASCClient()
+			localizationFieldValues, err := shared.NormalizeSelection(*localizationFields, iapVersionLocalizationFields, "--localization-fields")
+			if err != nil {
+				return shared.UsageError("iap versions localizations list: " + err.Error())
+			}
+			versionFieldValues, err := shared.NormalizeSelection(*versionFields, iapVersionFields, "--version-fields")
+			if err != nil {
+				return shared.UsageError("iap versions localizations list: " + err.Error())
+			}
+			client, err := iapVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap versions localizations list: %w", err)
 			}
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
-			opts := []asc.IAPVersionRelatedOption{asc.WithIAPVersionRelatedLimit(*limit), asc.WithIAPVersionRelatedNextURL(*next), asc.WithIAPVersionRelatedInclude(includes)}
+			opts := []asc.IAPVersionLocalizationsOption{
+				asc.WithIAPVersionLocalizationsLimit(*limit),
+				asc.WithIAPVersionLocalizationsNextURL(*next),
+				asc.WithIAPVersionLocalizationsInclude(includes),
+				asc.WithIAPVersionLocalizationsFields(localizationFieldValues),
+				asc.WithIAPVersionLocalizationsVersionFields(versionFieldValues),
+			}
 			resp, err := client.GetInAppPurchaseVersionLocalizations(requestCtx, id, opts...)
 			if err != nil {
 				return fmt.Errorf("iap versions localizations list: failed to fetch: %w", err)
 			}
 			if *paginate {
 				aggregated, err := asc.PaginateAll(requestCtx, resp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchaseVersionLocalizations(ctx, id, asc.WithIAPVersionRelatedNextURL(nextURL))
+					return client.GetInAppPurchaseVersionLocalizations(ctx, id, asc.WithIAPVersionLocalizationsNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("iap versions localizations list: %w", err)
@@ -97,7 +113,7 @@ func IAPVersionLocalizationsCreateCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --locale is required")
 				return shared.MissingRequiredUsageError()
 			}
-			client, err := shared.GetASCClient()
+			client, err := iapVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap versions localizations create: %w", err)
 			}
@@ -116,6 +132,8 @@ func IAPVersionLocalizationsViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions localizations view", flag.ExitOnError)
 	id := fs.String("localization-id", "", "Localization ID")
 	include := fs.String("include", "", "Include relationship: version")
+	localizationFields := fs.String("localization-fields", "", "fields[inAppPurchaseLocalizations] (comma-separated)")
+	versionFields := fs.String("version-fields", "", "fields[inAppPurchaseVersions] (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "view", ShortUsage: `asc iap versions localizations view --localization-id "LOCALIZATION_ID"`, ShortHelp: "View a version-scoped IAP localization.", LongHelp: "View a version-scoped IAP localization.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
@@ -129,13 +147,26 @@ func IAPVersionLocalizationsViewCommand() *ffcli.Command {
 			if err != nil {
 				return shared.UsageError("iap versions localizations view: " + err.Error())
 			}
-			client, err := shared.GetASCClient()
+			localizationFieldValues, err := shared.NormalizeSelection(*localizationFields, iapVersionLocalizationFields, "--localization-fields")
+			if err != nil {
+				return shared.UsageError("iap versions localizations view: " + err.Error())
+			}
+			versionFieldValues, err := shared.NormalizeSelection(*versionFields, iapVersionFields, "--version-fields")
+			if err != nil {
+				return shared.UsageError("iap versions localizations view: " + err.Error())
+			}
+			client, err := iapVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap versions localizations view: %w", err)
 			}
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
-			resp, err := client.GetInAppPurchaseLocalizationV2(requestCtx, value, asc.WithIAPVersionRelatedInclude(includes))
+			resp, err := client.GetInAppPurchaseLocalizationV2(
+				requestCtx, value,
+				asc.WithIAPLocalizationV2Include(includes),
+				asc.WithIAPLocalizationV2Fields(localizationFieldValues),
+				asc.WithIAPLocalizationV2VersionFields(versionFieldValues),
+			)
 			if err != nil {
 				return fmt.Errorf("iap versions localizations view: failed to fetch: %w", err)
 			}
@@ -180,7 +211,7 @@ func IAPVersionLocalizationsUpdateCommand() *ffcli.Command {
 			if descriptionSet {
 				attrs.Description = description
 			}
-			client, err := shared.GetASCClient()
+			client, err := iapVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap versions localizations update: %w", err)
 			}
@@ -212,7 +243,7 @@ func IAPVersionLocalizationsDeleteCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
 				return shared.MissingRequiredUsageError()
 			}
-			client, err := shared.GetASCClient()
+			client, err := iapVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap versions localizations delete: %w", err)
 			}

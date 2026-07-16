@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -43,25 +44,59 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 		path         string
 		responseCode int
 		responseBody string
-		bodyContains []string
+		wantBody     string
 		query        map[string]string
 		call         func(*Client) error
 	}{
 		{
 			name: "get version", method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1", responseCode: http.StatusOK,
 			responseBody: `{"data":{"type":"inAppPurchaseVersions","id":"version-1","attributes":{"version":2}}}`,
-			query:        map[string]string{"include": "localizations", "limit[localizations]": "5"},
+			query: map[string]string{
+				"fields[inAppPurchaseVersions]":      "version,state",
+				"fields[inAppPurchases]":             "name,versions",
+				"fields[inAppPurchaseImages]":        "fileName",
+				"fields[inAppPurchaseLocalizations]": "name,version",
+				"include":                            "localizations",
+				"limit[localizations]":               "5",
+			},
 			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseVersion(context.Background(), "version-1", WithIAPVersionsInclude([]string{"localizations"}), WithIAPVersionsLocalizationsLimit(5))
+				_, err := c.GetInAppPurchaseVersion(
+					context.Background(), "version-1",
+					WithIAPVersionGetFields([]string{"version", "state"}),
+					WithIAPVersionGetIAPFields([]string{"name", "versions"}),
+					WithIAPVersionGetImageFields([]string{"fileName"}),
+					WithIAPVersionGetLocalizationFields([]string{"name", "version"}),
+					WithIAPVersionGetInclude([]string{"localizations"}),
+					WithIAPVersionGetLocalizationsLimit(5),
+				)
 				return err
 			},
 		},
 		{
 			name: "list versions", method: http.MethodGet, path: "/v2/inAppPurchases/iap-1/versions", responseCode: http.StatusOK,
 			responseBody: `{"data":[{"type":"inAppPurchaseVersions","id":"version-1","attributes":{"state":"READY_FOR_REVIEW"}}]}`,
-			query:        map[string]string{"filter[state]": "READY_FOR_REVIEW", "include": "images", "limit": "3", "limit[images]": "2"},
+			query: map[string]string{
+				"filter[state]":                      "READY_FOR_REVIEW",
+				"fields[inAppPurchaseVersions]":      "version,state",
+				"fields[inAppPurchases]":             "name",
+				"fields[inAppPurchaseImages]":        "fileName",
+				"fields[inAppPurchaseLocalizations]": "locale",
+				"include":                            "images",
+				"limit":                              "3",
+				"limit[images]":                      "2",
+			},
 			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseVersions(context.Background(), "iap-1", WithIAPVersionsStates([]string{"READY_FOR_REVIEW"}), WithIAPVersionsInclude([]string{"images"}), WithIAPVersionsLimit(3), WithIAPVersionsImagesLimit(2))
+				_, err := c.GetInAppPurchaseVersions(
+					context.Background(), "iap-1",
+					WithIAPVersionsStates([]string{"READY_FOR_REVIEW"}),
+					WithIAPVersionsFields([]string{"version", "state"}),
+					WithIAPVersionsIAPFields([]string{"name"}),
+					WithIAPVersionsImageFields([]string{"fileName"}),
+					WithIAPVersionsLocalizationFields([]string{"locale"}),
+					WithIAPVersionsInclude([]string{"images"}),
+					WithIAPVersionsLimit(3),
+					WithIAPVersionsImagesLimit(2),
+				)
 				return err
 			},
 		},
@@ -78,7 +113,7 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 			responseBody: `{"data":{"type":"inAppPurchaseImages","id":"image-1"}}`,
 			query:        map[string]string{"fields[inAppPurchaseImages]": "fileName"},
 			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseVersionImage(context.Background(), "version-1", WithIAPVersionRelatedFields([]string{"fileName"}))
+				_, err := c.GetInAppPurchaseVersionImage(context.Background(), "version-1", WithIAPVersionImageFields([]string{"fileName"}))
 				return err
 			},
 		},
@@ -92,9 +127,9 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 		},
 		{
 			name: "related images", method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1/images", responseCode: http.StatusOK,
-			responseBody: `{"data":[{"type":"inAppPurchaseImages","id":"image-1"}]}`, query: map[string]string{"limit": "7"},
+			responseBody: `{"data":[{"type":"inAppPurchaseImages","id":"image-1"}]}`, query: map[string]string{"fields[inAppPurchaseImages]": "fileName,assetDeliveryState", "limit": "7"},
 			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseVersionImages(context.Background(), "version-1", WithIAPVersionRelatedLimit(7))
+				_, err := c.GetInAppPurchaseVersionImages(context.Background(), "version-1", WithIAPVersionImagesFields([]string{"fileName", "assetDeliveryState"}), WithIAPVersionImagesLimit(7))
 				return err
 			},
 		},
@@ -108,9 +143,9 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 		},
 		{
 			name: "related localizations", method: http.MethodGet, path: "/v1/inAppPurchaseVersions/version-1/localizations", responseCode: http.StatusOK,
-			responseBody: `{"data":[{"type":"inAppPurchaseLocalizations","id":"loc-1"}]}`, query: map[string]string{"include": "version", "limit": "9"},
+			responseBody: `{"data":[{"type":"inAppPurchaseLocalizations","id":"loc-1"}]}`, query: map[string]string{"fields[inAppPurchaseLocalizations]": "name,locale", "fields[inAppPurchaseVersions]": "version,state", "include": "version", "limit": "9"},
 			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseVersionLocalizations(context.Background(), "version-1", WithIAPVersionRelatedInclude([]string{"version"}), WithIAPVersionRelatedLimit(9))
+				_, err := c.GetInAppPurchaseVersionLocalizations(context.Background(), "version-1", WithIAPVersionLocalizationsFields([]string{"name", "locale"}), WithIAPVersionLocalizationsVersionFields([]string{"version", "state"}), WithIAPVersionLocalizationsInclude([]string{"version"}), WithIAPVersionLocalizationsLimit(9))
 				return err
 			},
 		},
@@ -124,7 +159,8 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 		},
 		{
 			name: "create localization v2", method: http.MethodPost, path: "/v2/inAppPurchaseLocalizations", responseCode: http.StatusCreated,
-			responseBody: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`, bodyContains: []string{`"version":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}`, `"locale":"en-US"`},
+			responseBody: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`,
+			wantBody:     `{"data":{"type":"inAppPurchaseLocalizations","attributes":{"name":"Name","locale":"en-US"},"relationships":{"version":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}}}}`,
 			call: func(c *Client) error {
 				_, err := c.CreateInAppPurchaseLocalizationV2(context.Background(), "version-1", InAppPurchaseLocalizationCreateAttributes{Name: "Name", Locale: "en-US"})
 				return err
@@ -133,15 +169,16 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 		{
 			name: "get localization v2", method: http.MethodGet, path: "/v2/inAppPurchaseLocalizations/loc-1", responseCode: http.StatusOK,
 			responseBody: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`,
-			query:        map[string]string{"include": "version"},
+			query:        map[string]string{"fields[inAppPurchaseLocalizations]": "name,description", "fields[inAppPurchaseVersions]": "version,state", "include": "version"},
 			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseLocalizationV2(context.Background(), "loc-1", WithIAPVersionRelatedInclude([]string{"version"}))
+				_, err := c.GetInAppPurchaseLocalizationV2(context.Background(), "loc-1", WithIAPLocalizationV2Fields([]string{"name", "description"}), WithIAPLocalizationV2VersionFields([]string{"version", "state"}), WithIAPLocalizationV2Include([]string{"version"}))
 				return err
 			},
 		},
 		{
 			name: "update localization v2", method: http.MethodPatch, path: "/v2/inAppPurchaseLocalizations/loc-1", responseCode: http.StatusOK,
-			responseBody: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`, bodyContains: []string{`"name":"Updated"`},
+			responseBody: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`,
+			wantBody:     `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1","attributes":{"name":"Updated"}}}`,
 			call: func(c *Client) error {
 				_, err := c.UpdateInAppPurchaseLocalizationV2(context.Background(), "loc-1", InAppPurchaseLocalizationUpdateAttributes{Name: &name})
 				return err
@@ -153,7 +190,8 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 		},
 		{
 			name: "create image v2", method: http.MethodPost, path: "/v2/inAppPurchaseImages", responseCode: http.StatusCreated,
-			responseBody: `{"data":{"type":"inAppPurchaseImages","id":"image-1"}}`, bodyContains: []string{`"version":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}`, `"fileName":"image.png"`, `"fileSize":123`},
+			responseBody: `{"data":{"type":"inAppPurchaseImages","id":"image-1"}}`,
+			wantBody:     `{"data":{"type":"inAppPurchaseImages","attributes":{"fileSize":123,"fileName":"image.png"},"relationships":{"version":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}}}}`,
 			call: func(c *Client) error {
 				_, err := c.CreateInAppPurchaseImageV2(context.Background(), "version-1", "image.png", 123)
 				return err
@@ -162,14 +200,16 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 		{
 			name: "get image v2", method: http.MethodGet, path: "/v2/inAppPurchaseImages/image-1", responseCode: http.StatusOK,
 			responseBody: `{"data":{"type":"inAppPurchaseImages","id":"image-1"}}`,
+			query:        map[string]string{"fields[inAppPurchaseImages]": "fileName,assetDeliveryState"},
 			call: func(c *Client) error {
-				_, err := c.GetInAppPurchaseImageV2(context.Background(), "image-1")
+				_, err := c.GetInAppPurchaseImageV2(context.Background(), "image-1", WithIAPImageV2Fields([]string{"fileName", "assetDeliveryState"}))
 				return err
 			},
 		},
 		{
 			name: "update image v2", method: http.MethodPatch, path: "/v2/inAppPurchaseImages/image-1", responseCode: http.StatusOK,
-			responseBody: `{"data":{"type":"inAppPurchaseImages","id":"image-1"}}`, bodyContains: []string{`"uploaded":true`},
+			responseBody: `{"data":{"type":"inAppPurchaseImages","id":"image-1"}}`,
+			wantBody:     `{"data":{"type":"inAppPurchaseImages","id":"image-1","attributes":{"uploaded":true}}}`,
 			call: func(c *Client) error {
 				_, err := c.UpdateInAppPurchaseImageV2(context.Background(), "image-1", InAppPurchaseImageV2UpdateAttributes{Uploaded: &uploaded})
 				return err
@@ -188,20 +228,28 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 				if req.Method != test.method || req.URL.Path != test.path {
 					t.Fatalf("expected %s %s, got %s %s", test.method, test.path, req.Method, req.URL.Path)
 				}
+				if got, want := len(req.URL.Query()), len(test.query); got != want {
+					t.Fatalf("query parameter count = %d, want %d: %v", got, want, req.URL.Query())
+				}
 				for key, value := range test.query {
 					if got := req.URL.Query().Get(key); got != value {
 						t.Fatalf("query %s = %q, want %q", key, got, value)
 					}
 				}
-				if len(test.bodyContains) > 0 {
+				if test.wantBody != "" {
 					body, err := io.ReadAll(req.Body)
 					if err != nil {
 						t.Fatal(err)
 					}
-					for _, want := range test.bodyContains {
-						if !strings.Contains(string(body), want) {
-							t.Fatalf("body %s missing %s", body, want)
-						}
+					var gotJSON, wantJSON any
+					if err := json.Unmarshal(body, &gotJSON); err != nil {
+						t.Fatalf("invalid request JSON %q: %v", body, err)
+					}
+					if err := json.Unmarshal([]byte(test.wantBody), &wantJSON); err != nil {
+						t.Fatalf("invalid expected JSON %q: %v", test.wantBody, err)
+					}
+					if !reflect.DeepEqual(gotJSON, wantJSON) {
+						t.Fatalf("request body = %s, want %s", body, test.wantBody)
 					}
 				}
 				assertAuthorized(t, req)

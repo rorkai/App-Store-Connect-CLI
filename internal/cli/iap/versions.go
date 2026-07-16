@@ -20,6 +20,61 @@ var iapVersionStates = []string{
 
 var iapVersionIncludes = []string{"inAppPurchase", "image", "images", "localizations"}
 
+var iapVersionClientFactory = shared.GetASCClient
+
+var (
+	iapVersionFields             = []string{"version", "state", "inAppPurchase", "image", "images", "localizations"}
+	iapVersionIAPFields          = []string{"name", "productId", "inAppPurchaseType", "state", "reviewNote", "familySharable", "contentHosting", "inAppPurchaseLocalizations", "pricePoints", "content", "appStoreReviewScreenshot", "promotedPurchase", "iapPriceSchedule", "inAppPurchaseAvailability", "images", "offerCodes", "versions"}
+	iapVersionImageFields        = []string{"fileSize", "fileName", "assetToken", "imageAsset", "uploadOperations", "assetDeliveryState"}
+	iapVersionLocalizationFields = []string{"name", "locale", "description", "version"}
+)
+
+type iapVersionFieldFlagValues struct {
+	version      *string
+	iap          *string
+	image        *string
+	localization *string
+}
+
+type iapVersionFieldSelections struct {
+	version      []string
+	iap          []string
+	image        []string
+	localization []string
+}
+
+func bindIAPVersionFieldFlags(fs *flag.FlagSet) iapVersionFieldFlagValues {
+	return iapVersionFieldFlagValues{
+		version:      fs.String("version-fields", "", "fields[inAppPurchaseVersions] (comma-separated)"),
+		iap:          fs.String("iap-fields", "", "fields[inAppPurchases] (comma-separated)"),
+		image:        fs.String("image-fields", "", "fields[inAppPurchaseImages] (comma-separated)"),
+		localization: fs.String("localization-fields", "", "fields[inAppPurchaseLocalizations] (comma-separated)"),
+	}
+}
+
+func normalizeIAPVersionFieldFlags(flags iapVersionFieldFlagValues) (iapVersionFieldSelections, error) {
+	var selections iapVersionFieldSelections
+	checks := []struct {
+		value   string
+		allowed []string
+		name    string
+		target  *[]string
+	}{
+		{*flags.version, iapVersionFields, "--version-fields", &selections.version},
+		{*flags.iap, iapVersionIAPFields, "--iap-fields", &selections.iap},
+		{*flags.image, iapVersionImageFields, "--image-fields", &selections.image},
+		{*flags.localization, iapVersionLocalizationFields, "--localization-fields", &selections.localization},
+	}
+	for _, check := range checks {
+		values, err := shared.NormalizeSelection(check.value, check.allowed, check.name)
+		if err != nil {
+			return iapVersionFieldSelections{}, err
+		}
+		*check.target = values
+	}
+	return selections, nil
+}
+
 // IAPVersionsCommand returns the IAP versions command group.
 func IAPVersionsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions", flag.ExitOnError)
@@ -57,7 +112,7 @@ func IAPVersionsCreateCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
 				return shared.MissingRequiredUsageError()
 			}
-			client, err := shared.GetASCClient()
+			client, err := iapVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap versions create: %w", err)
 			}
@@ -100,7 +155,7 @@ func bindIAPVersionQueryFlags(fs *flag.FlagSet) (state, include *string, limit, 
 	return
 }
 
-func iapVersionQueryOptions(stateValue, includeValue string, limit, imagesLimit, localizationsLimit int, next string) ([]asc.IAPVersionsOption, error) {
+func iapVersionQueryOptions(stateValue, includeValue string, limit, imagesLimit, localizationsLimit int, next string, fieldFlags iapVersionFieldFlagValues) ([]asc.IAPVersionsOption, error) {
 	if limit != 0 && (limit < 1 || limit > 200) {
 		return nil, fmt.Errorf("--limit must be between 1 and 200")
 	}
@@ -121,13 +176,29 @@ func iapVersionQueryOptions(stateValue, includeValue string, limit, imagesLimit,
 	if err != nil {
 		return nil, err
 	}
-	return []asc.IAPVersionsOption{asc.WithIAPVersionsStates(states), asc.WithIAPVersionsInclude(include), asc.WithIAPVersionsLimit(limit), asc.WithIAPVersionsImagesLimit(imagesLimit), asc.WithIAPVersionsLocalizationsLimit(localizationsLimit), asc.WithIAPVersionsNextURL(next)}, nil
+	fields, err := normalizeIAPVersionFieldFlags(fieldFlags)
+	if err != nil {
+		return nil, err
+	}
+	return []asc.IAPVersionsOption{
+		asc.WithIAPVersionsStates(states),
+		asc.WithIAPVersionsInclude(include),
+		asc.WithIAPVersionsLimit(limit),
+		asc.WithIAPVersionsImagesLimit(imagesLimit),
+		asc.WithIAPVersionsLocalizationsLimit(localizationsLimit),
+		asc.WithIAPVersionsNextURL(next),
+		asc.WithIAPVersionsFields(fields.version),
+		asc.WithIAPVersionsIAPFields(fields.iap),
+		asc.WithIAPVersionsImageFields(fields.image),
+		asc.WithIAPVersionsLocalizationFields(fields.localization),
+	}, nil
 }
 
 func IAPVersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions list", flag.ExitOnError)
 	iapID := fs.String("iap-id", "", "In-app purchase ID")
 	state, include, limit, imagesLimit, localizationsLimit, next, paginate := bindIAPVersionQueryFlags(fs)
+	fieldFlags := bindIAPVersionFieldFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc iap versions list --iap-id "IAP_ID" [flags]`, ShortHelp: "List versions for an in-app purchase.",
@@ -138,11 +209,11 @@ func IAPVersionsListCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
 				return shared.MissingRequiredUsageError()
 			}
-			opts, err := iapVersionQueryOptions(*state, *include, *limit, *imagesLimit, *localizationsLimit, *next)
+			opts, err := iapVersionQueryOptions(*state, *include, *limit, *imagesLimit, *localizationsLimit, *next, fieldFlags)
 			if err != nil {
 				return shared.UsageError("iap versions list: " + err.Error())
 			}
-			client, err := shared.GetASCClient()
+			client, err := iapVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap versions list: %w", err)
 			}
@@ -172,6 +243,7 @@ func IAPVersionsViewCommand() *ffcli.Command {
 	include := fs.String("include", "", "Include relationships: inAppPurchase,image,images,localizations")
 	imagesLimit := fs.Int("images-limit", 0, "Maximum included images (1-50)")
 	localizationsLimit := fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
+	fieldFlags := bindIAPVersionFieldFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "view", ShortUsage: `asc iap versions view --version-id "VERSION_ID" [flags]`, ShortHelp: "View an in-app purchase version.",
@@ -182,11 +254,30 @@ func IAPVersionsViewCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return shared.MissingRequiredUsageError()
 			}
-			opts, err := iapVersionQueryOptions("", *include, 0, *imagesLimit, *localizationsLimit, "")
+			if *imagesLimit != 0 && (*imagesLimit < 1 || *imagesLimit > 50) {
+				return shared.UsageError("iap versions view: --images-limit must be between 1 and 50")
+			}
+			if *localizationsLimit != 0 && (*localizationsLimit < 1 || *localizationsLimit > 50) {
+				return shared.UsageError("iap versions view: --localizations-limit must be between 1 and 50")
+			}
+			includes, err := shared.NormalizeSelection(*include, iapVersionIncludes, "--include")
 			if err != nil {
 				return shared.UsageError("iap versions view: " + err.Error())
 			}
-			client, err := shared.GetASCClient()
+			fields, err := normalizeIAPVersionFieldFlags(fieldFlags)
+			if err != nil {
+				return shared.UsageError("iap versions view: " + err.Error())
+			}
+			opts := []asc.IAPVersionGetOption{
+				asc.WithIAPVersionGetInclude(includes),
+				asc.WithIAPVersionGetFields(fields.version),
+				asc.WithIAPVersionGetIAPFields(fields.iap),
+				asc.WithIAPVersionGetImageFields(fields.image),
+				asc.WithIAPVersionGetLocalizationFields(fields.localization),
+				asc.WithIAPVersionGetImagesLimit(*imagesLimit),
+				asc.WithIAPVersionGetLocalizationsLimit(*localizationsLimit),
+			}
+			client, err := iapVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap versions view: %w", err)
 			}
@@ -204,6 +295,7 @@ func IAPVersionsViewCommand() *ffcli.Command {
 func IAPVersionImageCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions image", flag.ExitOnError)
 	versionID := fs.String("version-id", "", "In-app purchase version ID")
+	imageFields := fs.String("image-fields", "", "fields[inAppPurchaseImages] (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "image", ShortUsage: `asc iap versions image --version-id "VERSION_ID"`, ShortHelp: "View the primary image for an IAP version.", LongHelp: "View the primary image for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
@@ -213,13 +305,17 @@ func IAPVersionImageCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return shared.MissingRequiredUsageError()
 			}
-			client, err := shared.GetASCClient()
+			fields, err := shared.NormalizeSelection(*imageFields, iapVersionImageFields, "--image-fields")
+			if err != nil {
+				return shared.UsageError("iap versions image: " + err.Error())
+			}
+			client, err := iapVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap versions image: %w", err)
 			}
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
-			resp, err := client.GetInAppPurchaseVersionImage(requestCtx, id)
+			resp, err := client.GetInAppPurchaseVersionImage(requestCtx, id, asc.WithIAPVersionImageFields(fields))
 			if err != nil {
 				return fmt.Errorf("iap versions image: failed to fetch: %w", err)
 			}
@@ -252,7 +348,7 @@ func IAPVersionSubmitCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
 				return shared.MissingRequiredUsageError()
 			}
-			client, err := shared.GetASCClient()
+			client, err := iapVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap versions submit: %w", err)
 			}
@@ -287,7 +383,7 @@ func iapVersionImageLinkageCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return shared.MissingRequiredUsageError()
 			}
-			client, err := shared.GetASCClient()
+			client, err := iapVersionClientFactory()
 			if err != nil {
 				return err
 			}
@@ -328,7 +424,7 @@ func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageError(fmt.Sprintf("iap versions links %s: %v", name, err))
 			}
-			client, err := shared.GetASCClient()
+			client, err := iapVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap versions links %s: %w", name, err)
 			}
