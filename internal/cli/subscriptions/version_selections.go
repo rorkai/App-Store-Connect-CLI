@@ -19,16 +19,6 @@ func normalizeSelectionFlag(fs *flag.FlagSet, value, flagName string, allowed []
 	return values, nil
 }
 
-func flagWasProvided(fs *flag.FlagSet, name string) bool {
-	provided := false
-	fs.Visit(func(item *flag.Flag) {
-		if item.Name == name {
-			provided = true
-		}
-	})
-	return provided
-}
-
 func subscriptionVersionFieldsList() []string {
 	return []string{"version", "state", "subscription", "image", "images", "localizations"}
 }
