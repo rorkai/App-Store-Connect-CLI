@@ -172,6 +172,7 @@ func TestSubscriptionsAdjustedEqualizationsUsageErrors(t *testing.T) {
 		{name: "empty element in territory fields", args: []string{"subscriptions", "pricing", "price-points", "adjusted-equalizations", "--price-point-id", "base-1", "--territory-fields", "currency,"}, want: "invalid value for --territory-fields: cannot contain empty values"},
 		{name: "empty element in include", args: []string{"subscriptions", "pricing", "price-points", "adjusted-equalizations", "--price-point-id", "base-1", "--include", ",territory"}, want: "invalid value for --include: cannot contain empty values"},
 		{name: "unsupported adjusted plan type", args: []string{"subscriptions", "pricing", "price-points", "adjusted-equalizations", "--price-point-id", "base-1", "--plan-type", "UPFRONT"}, want: "--plan-type must be MONTHLY for adjusted equalizations"},
+		{name: "unknown equalizations plan type", args: []string{"subscriptions", "pricing", "price-points", "equalizations", "--price-point-id", "base-1", "--plan-type", "annual"}, want: "--plan-type must be one of: MONTHLY, UPFRONT"},
 		{name: "invalid territory fields", args: []string{"subscriptions", "pricing", "price-points", "adjusted-equalizations", "--price-point-id", "base-1", "--territory-fields", "name"}, want: "--territory-fields must be one of: currency"},
 		{name: "next with filter", args: []string{"subscriptions", "pricing", "price-points", "adjusted-equalizations", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionPricePoints/base-1/adjustedEqualizations?cursor=next", "--territory", "USA"}, want: "--next cannot be combined"},
 	}
@@ -194,6 +195,11 @@ func TestSubscriptionsPricePointsListValidates441FlagsBeforeLookup(t *testing.T)
 		"--subscription-id", "human-readable-product-id",
 		"--fields", "bogus",
 	}, "--fields must be one of")
+	assertUsageExit(t, []string{
+		"subscriptions", "pricing", "price-points", "list",
+		"--subscription-id", "human-readable-product-id",
+		"--plan-type", "annual",
+	}, "--plan-type must be one of: MONTHLY, UPFRONT")
 }
 
 func TestSubscriptionsPricePointsListRejectsNextQueryConflictsBeforeLookup(t *testing.T) {

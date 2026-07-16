@@ -134,7 +134,7 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			plans, err := normalizeOptionalCSVFilter(fs, "plan-type", *planTypes, true)
+			plans, err := normalizeOptionalSubscriptionPlanTypes(fs, "plan-type", *planTypes)
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
@@ -425,7 +425,7 @@ Examples:
 		if err != nil {
 			return shared.UsageError(err.Error())
 		}
-		plans, err := normalizeOptionalCSVFilter(fs, "plan-type", *planTypes, true)
+		plans, err := normalizeOptionalSubscriptionPlanTypes(fs, "plan-type", *planTypes)
 		if err != nil {
 			return shared.UsageError(err.Error())
 		}
@@ -547,6 +547,19 @@ func normalizeOptionalTerritoryFilter(fs *flag.FlagSet, name, raw string) ([]str
 		return values, err
 	}
 	return shared.NormalizeASCTerritoryCSV(raw)
+}
+
+func normalizeOptionalSubscriptionPlanTypes(fs *flag.FlagSet, name, raw string) ([]string, error) {
+	values, err := normalizeOptionalCSVFilter(fs, name, raw, true)
+	if err != nil || values == nil {
+		return values, err
+	}
+	for _, value := range values {
+		if _, err := normalizeSubscriptionPlanType(value); err != nil {
+			return nil, err
+		}
+	}
+	return values, nil
 }
 
 func normalizeOptionalSelection(fs *flag.FlagSet, name, raw string, allowed []string) ([]string, error) {
