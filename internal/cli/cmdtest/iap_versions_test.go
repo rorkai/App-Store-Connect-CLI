@@ -23,6 +23,7 @@ import (
 
 func TestIAPVersionsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
+	next := "https://api.appstoreconnect.apple.com/v2/inAppPurchases/iap-1/versions?cursor=next"
 	tests := []struct {
 		name    string
 		args    []string
@@ -40,6 +41,16 @@ func TestIAPVersionsValidationErrors(t *testing.T) {
 		{"localization detail validates version fields before auth", []string{"iap", "versions", "localizations", "view", "--localization-id", "loc-1", "--version-fields", "nope"}, "--version-fields must be one of"},
 		{"iap list validates propagated version fields before auth", []string{"iap", "list", "--app", "app-1", "--version-fields", "nope"}, "--version-fields must be one of"},
 		{"iap view validates propagated version fields before auth", []string{"iap", "view", "--id", "iap-1", "--version-fields", "nope"}, "--version-fields must be one of"},
+		{"version list rejects next with selectors", []string{"iap", "versions", "list", "--next", next, "--state", "READY_FOR_REVIEW"}, "--next cannot be combined"},
+		{"image list rejects next with fields", []string{"iap", "versions", "images", "list", "--next", next, "--image-fields", "fileName"}, "--next cannot be combined"},
+		{"localization list rejects next with include", []string{"iap", "versions", "localizations", "list", "--next", next, "--include", "version"}, "--next cannot be combined"},
+		{"iap list rejects next with version selectors", []string{"iap", "list", "--next", next, "--include-versions"}, "--next cannot be combined"},
+		{"version create rejects positional args", []string{"iap", "versions", "create", "--iap-id", "iap-1", "junk"}, "unexpected argument(s): junk"},
+		{"version image rejects positional args", []string{"iap", "versions", "image", "--version-id", "version-1", "junk"}, "unexpected argument(s): junk"},
+		{"version image detail rejects positional args", []string{"iap", "versions", "images", "view", "--image-id", "image-1", "junk"}, "unexpected argument(s): junk"},
+		{"version localization detail rejects positional args", []string{"iap", "versions", "localizations", "view", "--localization-id", "loc-1", "junk"}, "unexpected argument(s): junk"},
+		{"version submit rejects positional args", []string{"iap", "versions", "submit", "--version-id", "version-1", "--submission", "submission-1", "--confirm", "junk"}, "unexpected argument(s): junk"},
+		{"version links reject positional args", []string{"iap", "versions", "links", "image", "--version-id", "version-1", "junk"}, "unexpected argument(s): junk"},
 		{"view requires version", []string{"iap", "versions", "view"}, "--version-id is required"},
 		{"image requires version", []string{"iap", "versions", "image"}, "--version-id is required"},
 		{"localization create requires version", []string{"iap", "versions", "localizations", "create", "--name", "Name", "--locale", "en-US"}, "--version-id is required"},
@@ -156,6 +167,12 @@ func TestIAPVersionPrincipalCLIFlowsUseExactHTTPContracts(t *testing.T) {
 			query:    map[string]string{"fields[inAppPurchaseLocalizations]": "name,description", "fields[inAppPurchaseVersions]": "version,state", "include": "version"},
 			response: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`,
 		},
+		{
+			name: "update localization trims values", args: []string{"iap", "versions", "localizations", "update", "--localization-id", "loc-1", "--name", " Updated ", "--description", " Description ", "--output", "json"},
+			method: http.MethodPatch, path: "/v2/inAppPurchaseLocalizations/loc-1",
+			wantBody: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1","attributes":{"name":"Updated","description":"Description"}}}`,
+			response: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`,
+		},
 	}
 
 	for _, test := range tests {
@@ -166,13 +183,12 @@ func TestIAPVersionPrincipalCLIFlowsUseExactHTTPContracts(t *testing.T) {
 				if req.Method != test.method || req.URL.Path != test.path {
 					t.Fatalf("request = %s %s, want %s %s", req.Method, req.URL.Path, test.method, test.path)
 				}
-				if got, want := len(req.URL.Query()), len(test.query); got != want {
-					t.Fatalf("query parameter count = %d, want %d: %v", got, want, req.URL.Query())
+				wantQuery := url.Values{}
+				for key, value := range test.query {
+					wantQuery.Set(key, value)
 				}
-				for key, want := range test.query {
-					if got := req.URL.Query().Get(key); got != want {
-						t.Fatalf("query %s = %q, want %q", key, got, want)
-					}
+				if got := req.URL.Query(); !reflect.DeepEqual(got, wantQuery) {
+					t.Fatalf("query = %v, want %v", got, wantQuery)
 				}
 				if test.wantBody != "" {
 					assertJSONDocument(t, req.Body, test.wantBody)
@@ -295,6 +311,89 @@ func TestIAPVersionImagesCreateRunsV2UploadLifecycle(t *testing.T) {
 	}
 	if requestCount != 4 {
 		t.Fatalf("request count = %d, want 4", requestCount)
+	}
+}
+
+func TestIAPVersionImagesCreateReportsReservedIDOnPostReservationFailures(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	pngBytes, err := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")
+	if err != nil {
+		t.Fatal(err)
+	}
+	imagePath := filepath.Join(t.TempDir(), "review.png")
+	if err := os.WriteFile(imagePath, pngBytes, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, stage := range []string{"no operations", "upload", "commit", "final fetch"} {
+		t.Run(stage, func(t *testing.T) {
+			requestCount := 0
+			var server *httptest.Server
+			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				requestCount++
+				w.Header().Set("Content-Type", "application/json")
+				switch requestCount {
+				case 1:
+					if req.Method != http.MethodPost || req.URL.Path != "/v2/inAppPurchaseImages" {
+						t.Fatalf("unexpected reservation request: %s %s", req.Method, req.URL)
+					}
+					operations := ""
+					if stage != "no operations" {
+						operations = `,"uploadOperations":[{"method":"PUT","url":"` + server.URL + `/upload/image-reserved","offset":0,"length":` + stringValue(len(pngBytes)) + `}]`
+					}
+					w.WriteHeader(http.StatusCreated)
+					_, _ = io.WriteString(w, `{"data":{"type":"inAppPurchaseImages","id":"image-reserved","attributes":{"fileName":"review.png","fileSize":`+stringValue(len(pngBytes))+operations+`}}}`)
+				case 2:
+					if req.Method != http.MethodPut || req.URL.Path != "/upload/image-reserved" {
+						t.Fatalf("unexpected upload request: %s %s", req.Method, req.URL)
+					}
+					if stage == "upload" {
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+					w.WriteHeader(http.StatusOK)
+				case 3:
+					if req.Method != http.MethodPatch || req.URL.Path != "/v2/inAppPurchaseImages/image-reserved" {
+						t.Fatalf("unexpected commit request: %s %s", req.Method, req.URL)
+					}
+					if stage == "commit" {
+						w.WriteHeader(http.StatusInternalServerError)
+						_, _ = io.WriteString(w, `{"errors":[{"status":"500","detail":"commit failed"}]}`)
+						return
+					}
+					w.WriteHeader(http.StatusOK)
+					_, _ = io.WriteString(w, `{"data":{"type":"inAppPurchaseImages","id":"image-reserved"}}`)
+				case 4:
+					if req.Method != http.MethodGet || req.URL.Path != "/v2/inAppPurchaseImages/image-reserved" {
+						t.Fatalf("unexpected final request: %s %s", req.Method, req.URL)
+					}
+					w.WriteHeader(http.StatusInternalServerError)
+					_, _ = io.WriteString(w, `{"errors":[{"status":"500","detail":"fetch failed"}]}`)
+				default:
+					t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL)
+				}
+			}))
+			t.Cleanup(server.Close)
+			setIAPVersionTestServerClient(t, server)
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			_, _ = captureOutput(t, func() {
+				if err := root.Parse([]string{"iap", "versions", "images", "create", "--version-id", "version-1", "--file", imagePath, "--output", "json"}); err != nil {
+					t.Fatal(err)
+				}
+				runErr = root.Run(context.Background())
+			})
+			if runErr == nil {
+				t.Fatal("expected post-reservation failure")
+			}
+			if !strings.Contains(runErr.Error(), "image-reserved") {
+				t.Fatalf("error must include reserved image ID: %v", runErr)
+			}
+		})
 	}
 }
 

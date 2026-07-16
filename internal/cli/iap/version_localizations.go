@@ -33,7 +33,10 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc iap versions localizations list --version-id "VERSION_ID" [flags]`, ShortHelp: "List localizations for an IAP version.", LongHelp: "List localizations for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, _ []string) error {
+		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectIAPVersionArgs(args); err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -44,6 +47,9 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageError("iap versions localizations list: " + err.Error())
+			}
+			if strings.TrimSpace(*next) != "" && (*limit != 0 || strings.TrimSpace(*include) != "" || strings.TrimSpace(*localizationFields) != "" || strings.TrimSpace(*versionFields) != "") {
+				return shared.UsageError("iap versions localizations list: --next cannot be combined with --limit, --include, --localization-fields, or --version-fields")
 			}
 			includes, err := shared.NormalizeSelection(*include, []string{"version"}, "--include")
 			if err != nil {
@@ -97,7 +103,10 @@ func IAPVersionLocalizationsCreateCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "create", ShortUsage: `asc iap versions localizations create --version-id "VERSION_ID" --name "Name" --locale "en-US"`, ShortHelp: "Create a localization for an IAP version.", LongHelp: "Create a localization for an IAP version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, _ []string) error {
+		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectIAPVersionArgs(args); err != nil {
+				return err
+			}
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -137,7 +146,10 @@ func IAPVersionLocalizationsViewCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "view", ShortUsage: `asc iap versions localizations view --localization-id "LOCALIZATION_ID"`, ShortHelp: "View a version-scoped IAP localization.", LongHelp: "View a version-scoped IAP localization.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, _ []string) error {
+		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectIAPVersionArgs(args); err != nil {
+				return err
+			}
 			value := strings.TrimSpace(*id)
 			if value == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
@@ -193,7 +205,10 @@ func IAPVersionLocalizationsUpdateCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "update", ShortUsage: `asc iap versions localizations update --localization-id "LOCALIZATION_ID" [flags]`, ShortHelp: "Update a version-scoped IAP localization.", LongHelp: "Update a version-scoped IAP localization.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, _ []string) error {
+		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectIAPVersionArgs(args); err != nil {
+				return err
+			}
 			value := strings.TrimSpace(*id)
 			if value == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
@@ -206,10 +221,12 @@ func IAPVersionLocalizationsUpdateCommand() *ffcli.Command {
 			}
 			attrs := asc.InAppPurchaseLocalizationUpdateAttributes{}
 			if nameSet {
-				attrs.Name = name
+				nameValue := strings.TrimSpace(*name)
+				attrs.Name = &nameValue
 			}
 			if descriptionSet {
-				attrs.Description = description
+				descriptionValue := strings.TrimSpace(*description)
+				attrs.Description = &descriptionValue
 			}
 			client, err := iapVersionClientFactory()
 			if err != nil {
@@ -233,7 +250,10 @@ func IAPVersionLocalizationsDeleteCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "delete", ShortUsage: `asc iap versions localizations delete --localization-id "LOCALIZATION_ID" --confirm`, ShortHelp: "Delete a version-scoped IAP localization.", LongHelp: "Delete a version-scoped IAP localization.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, _ []string) error {
+		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectIAPVersionArgs(args); err != nil {
+				return err
+			}
 			value := strings.TrimSpace(*id)
 			if value == "" {
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")

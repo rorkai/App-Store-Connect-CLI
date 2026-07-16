@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -228,13 +229,12 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 				if req.Method != test.method || req.URL.Path != test.path {
 					t.Fatalf("expected %s %s, got %s %s", test.method, test.path, req.Method, req.URL.Path)
 				}
-				if got, want := len(req.URL.Query()), len(test.query); got != want {
-					t.Fatalf("query parameter count = %d, want %d: %v", got, want, req.URL.Query())
-				}
+				wantQuery := url.Values{}
 				for key, value := range test.query {
-					if got := req.URL.Query().Get(key); got != value {
-						t.Fatalf("query %s = %q, want %q", key, got, value)
-					}
+					wantQuery.Set(key, value)
+				}
+				if got := req.URL.Query(); !reflect.DeepEqual(got, wantQuery) {
+					t.Fatalf("query = %v, want %v", got, wantQuery)
 				}
 				if test.wantBody != "" {
 					body, err := io.ReadAll(req.Body)

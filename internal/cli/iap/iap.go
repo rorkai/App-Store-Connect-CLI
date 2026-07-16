@@ -106,6 +106,9 @@ Examples:
 			if *legacy && (*includeVersions || *versionsLimit != 0 || strings.TrimSpace(*versionFields) != "") {
 				return shared.UsageError("iap list: --include-versions, --versions-limit, and --version-fields require the v2 endpoint")
 			}
+			if strings.TrimSpace(*next) != "" && (*includeVersions || *versionsLimit != 0 || strings.TrimSpace(*versionFields) != "") {
+				return shared.UsageError("iap list: --next cannot be combined with --include-versions, --versions-limit, or --version-fields")
+			}
 			versionFieldValues, err := shared.NormalizeSelection(*versionFields, iapVersionFields, "--version-fields")
 			if err != nil {
 				return shared.UsageError("iap list: " + err.Error())
