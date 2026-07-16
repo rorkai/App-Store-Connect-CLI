@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,6 +66,80 @@ func TestOrderScreenshotsForDownloadUsesRelationshipOrder(t *testing.T) {
 	wantIDs := []string{"shot-a", "shot-b", "shot-c"}
 	if strings.Join(gotIDs, ",") != strings.Join(wantIDs, ",") {
 		t.Fatalf("ordered IDs = %v, want %v", gotIDs, wantIDs)
+	}
+}
+
+func TestAssetsScreenshotsDownloadCommandRequiredFlags(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		stderr string
+	}{
+		{
+			name:   "missing source",
+			stderr: "Error: --id or --version-localization is required\n",
+		},
+		{
+			name:   "missing output file",
+			args:   []string{"--id", "shot-1"},
+			stderr: "Error: --output is required with --id\n",
+		},
+		{
+			name:   "missing output directory",
+			args:   []string{"--version-localization", "loc-1"},
+			stderr: "Error: --output-dir is required with --version-localization\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := AssetsScreenshotsDownloadCommand()
+			cmd.FlagSet.SetOutput(io.Discard)
+			if err := cmd.FlagSet.Parse(tt.args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
+			})
+
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if stderr != tt.stderr {
+				t.Fatalf("stderr = %q, want %q", stderr, tt.stderr)
+			}
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("error = %v, want flag.ErrHelp", runErr)
+			}
+		})
+	}
+}
+
+func TestResolveScreenshotDownloadURLPreservesMetadataFetchError(t *testing.T) {
+	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodGet || req.URL.Path != "/v1/appScreenshots/shot-1" {
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			http.Error(w, "unexpected request", http.StatusNotFound)
+			return
+		}
+		writeAssetsTestJSON(w, http.StatusServiceUnavailable, `{"errors":[{"status":"503","detail":"metadata unavailable"}]}`)
+	}))
+
+	_, err := resolveScreenshotDownloadURL(
+		context.Background(),
+		client,
+		asc.Resource[asc.AppScreenshotAttributes]{
+			ID:         "shot-1",
+			Attributes: asc.AppScreenshotAttributes{FileName: "home.png"},
+		},
+	)
+	if err == nil {
+		t.Fatal("expected screenshot metadata error")
+	}
+	if !strings.Contains(err.Error(), "metadata unavailable") {
+		t.Fatalf("error = %v, want original metadata failure", err)
 	}
 }
 
@@ -333,6 +408,31 @@ func TestExecuteScreenshotUploadCommandRejectsMaxScreenshotsAboveAppleLimit(t *t
 	}
 }
 
+func TestLimitScreenshotUploadFilesRejectsLimitAboveAppleMaximum(t *testing.T) {
+	_, err := limitScreenshotUploadFiles([]string{"one.png"}, appScreenshotSetMaxScreenshots+1, "screenshots")
+	if err == nil {
+		t.Fatal("expected max-screenshots validation error")
+	}
+	if !strings.Contains(err.Error(), "--max-screenshots") || !strings.Contains(err.Error(), "10") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestLimitScreenshotUploadFilesForExistingSetValidatesReplaceBeforeDelete(t *testing.T) {
+	files := make([]string, appScreenshotSetMaxScreenshots+1)
+	for i := range files {
+		files[i] = fmt.Sprintf("%02d.png", i+1)
+	}
+
+	_, err := limitScreenshotUploadFilesForExistingSet(files, 0, nil, true, "set-1")
+	if err == nil {
+		t.Fatal("expected replacement upload above Apple maximum to fail")
+	}
+	if !strings.Contains(err.Error(), "allow at most 10") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestExecuteScreenshotUploadCommandMaxScreenshotsCapsSortedFiles(t *testing.T) {
 	dir := t.TempDir()
 	for i := 1; i <= 11; i++ {
@@ -373,6 +473,32 @@ func TestExecuteScreenshotUploadCommandMaxScreenshotsCapsSortedFiles(t *testing.
 	}
 	if !strings.HasSuffix(gotFiles[0], "01-home.png") || !strings.HasSuffix(gotFiles[9], "10-home.png") {
 		t.Fatalf("expected first 10 sorted screenshots, got %#v", gotFiles)
+	}
+}
+
+func TestExecuteScreenshotUploadCommandCanonicalizesDisplayTypeBeforeASCRequests(t *testing.T) {
+	dir := t.TempDir()
+	writeAssetsTestPNGWithSize(t, dir, "01-home.png", 1260, 2736)
+
+	var gotDisplayType string
+	_, err := executeScreenshotUploadCommand(context.Background(), screenshotUploadCommandOptions{
+		VersionLocalizationID: "LOC_ID",
+		Path:                  dir,
+		DeviceType:            "IPHONE_69",
+	}, screenshotUploadDependencies{
+		GetClient: func() (*asc.Client, error) {
+			return &asc.Client{}, nil
+		},
+		ExecuteUpload: func(_ context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult], _ string) (asc.AppScreenshotUploadResult, error) {
+			gotDisplayType = cfg.DisplayType
+			return asc.AppScreenshotUploadResult{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("executeScreenshotUploadCommand() error: %v", err)
+	}
+	if gotDisplayType != "APP_IPHONE_67" {
+		t.Fatalf("display type sent to ASC = %q, want APP_IPHONE_67", gotDisplayType)
 	}
 }
 

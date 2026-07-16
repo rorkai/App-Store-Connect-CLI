@@ -5674,7 +5674,7 @@ func TestGetScmRepository(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetScmRepository(context.Background(), "repo-1"); err != nil {
+	if _, err := client.GetScmRepository(context.Background(), "  repo-1  "); err != nil {
 		t.Fatalf("GetScmRepository() error: %v", err)
 	}
 }
@@ -5789,7 +5789,7 @@ func TestGetScmGitReferences_WithLimit(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetScmGitReferences(context.Background(), "repo-1", WithScmGitReferencesLimit(100)); err != nil {
+	if _, err := client.GetScmGitReferences(context.Background(), "  repo-1  ", WithScmGitReferencesLimit(100)); err != nil {
 		t.Fatalf("GetScmGitReferences() error: %v", err)
 	}
 }

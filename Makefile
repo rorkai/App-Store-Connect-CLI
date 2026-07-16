@@ -4,7 +4,9 @@
 BINARY_NAME := asc
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+# Keep local build metadata stable so unchanged builds can reuse Go's link cache.
+# Release builds set their actual build timestamp in the release workflow.
+DATE := $(shell git show -s --format=%cI HEAD 2>/dev/null || echo "unknown")
 LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
 # Go variables
@@ -155,31 +157,6 @@ deps:
 	$(GO) mod download
 	$(GO) mod tidy
 
-.PHONY: studio-frontend-install
-studio-frontend-install:
-	@echo "$(BLUE)Installing ASC Studio frontend dependencies...$(NC)"
-	cd apps/studio/frontend && npm install
-
-.PHONY: studio-frontend-test
-studio-frontend-test:
-	@echo "$(BLUE)Running ASC Studio frontend tests...$(NC)"
-	cd apps/studio/frontend && npm run test -- --run
-
-.PHONY: studio-frontend-build
-studio-frontend-build:
-	@echo "$(BLUE)Building ASC Studio frontend assets...$(NC)"
-	cd apps/studio/frontend && npm run build
-
-.PHONY: studio-test
-studio-test:
-	@echo "$(BLUE)Running ASC Studio Go tests...$(NC)"
-	$(GO) test ./apps/studio/...
-
-.PHONY: studio-build
-studio-build:
-	@echo "$(BLUE)Building ASC Studio bootstrap binary...$(NC)"
-	$(GO) build ./apps/studio
-
 # Update dependencies
 .PHONY: update-deps
 update-deps:
@@ -289,11 +266,6 @@ help:
 	@echo "  tools          Install dev tools"
 	@echo "  install-hooks  Install local git hooks"
 	@echo "  deps           Install dependencies"
-	@echo "  studio-frontend-install  Install ASC Studio frontend dependencies"
-	@echo "  studio-frontend-test  Run ASC Studio frontend tests"
-	@echo "  studio-frontend-build  Build ASC Studio frontend assets"
-	@echo "  studio-test    Run ASC Studio Go tests"
-	@echo "  studio-build   Build ASC Studio bootstrap binary"
 	@echo "  update-deps    Update dependencies"
 	@echo "  update-openapi Update OpenAPI paths index"
 	@echo "  generate-command-docs Generate docs/COMMANDS.md from live CLI help"

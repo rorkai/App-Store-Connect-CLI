@@ -46,6 +46,13 @@ func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagno
 	if len(appTerritories) > 0 {
 		appTerritoryCount = len(appTerritories)
 	}
+	pricingTerritories := sortedUniqueNonEmpty(input.PricingTerritories)
+	pricingTerritoryCount := input.PricingTerritoryCount
+	if len(pricingTerritories) == 0 && pricingTerritoryCount == 0 {
+		pricingTerritories = appTerritories
+		pricingTerritoryCount = appTerritoryCount
+	}
+	pricingMatrixContextAvailable := len(pricingTerritories) > 0 || pricingTerritoryCount > 0 || strings.TrimSpace(input.PricingCoverageSkipReason) != ""
 
 	for _, sub := range input.Subscriptions {
 		if isRemovedMonetizationState(sub.State) {
@@ -60,9 +67,12 @@ func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagno
 			buildSubscriptionLocalizationsDiagnosticRow(sub),
 			buildReviewScreenshotDiagnosticRow(sub),
 			buildSubscriptionAvailabilityDiagnosticRow(sub),
+			buildUpfrontPlanAvailabilityDiagnosticRow(sub),
+			buildAvailabilitySurfaceConsistencyDiagnosticRow(sub),
+			buildMonthlyPlanAvailabilityDiagnosticRow(sub),
 			buildPriceRecordsDiagnosticRow(sub),
 			buildSubscriptionAvailabilityCoverageDiagnosticRow(sub),
-			buildAppAvailabilityCoverageDiagnosticRow(sub, appTerritories, appTerritoryCount, input.PricingCoverageSkipReason),
+			buildAppAvailabilityCoverageDiagnosticRow(sub, appTerritories, appTerritoryCount, input.AppAvailabilityCoverageSkipReason),
 			buildPromotionalImageDiagnosticRow(sub),
 			buildAppBuildDiagnosticRow(input.AppBuildCount, input.BuildCheckSkipped, input.BuildCheckSkipReason),
 			buildOptionalOfferDiagnosticRow(
@@ -90,6 +100,9 @@ func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagno
 				"Optional: configure win-back offers with `asc subscriptions offers win-back create` if you plan to use them.",
 			),
 		}
+		if pricingMatrixContextAvailable {
+			rows = append(rows, buildPricingMatrixDiagnosticRow(sub, pricingTerritories, pricingTerritoryCount, input.PricingCoverageSkipReason))
+		}
 
 		conclusion, summary := summarizeSubscriptionDiagnostics(sub, rows)
 		diagnostics = append(diagnostics, SubscriptionDiagnostics{
@@ -104,6 +117,215 @@ func buildSubscriptionDiagnostics(input SubscriptionsInput) []SubscriptionDiagno
 	}
 
 	return diagnostics
+}
+
+type subscriptionPlanAvailabilityAnalysis struct {
+	unverified             bool
+	duplicateTypes         bool
+	upfront                *SubscriptionPlanAvailabilityInfo
+	monthly                *SubscriptionPlanAvailabilityInfo
+	upfrontTerritories     []string
+	monthlyTerritories     []string
+	surfaceMismatch        bool
+	legacyOnly             []string
+	planOnly               []string
+	newTerritoriesMismatch bool
+	monthlyIssues          []string
+}
+
+func analyzeSubscriptionPlanAvailability(sub Subscription) subscriptionPlanAvailabilityAnalysis {
+	analysis := subscriptionPlanAvailabilityAnalysis{unverified: sub.PlanAvailabilityCheckSkipped}
+	counts := map[string]int{}
+	for i := range sub.PlanAvailabilities {
+		plan := sub.PlanAvailabilities[i]
+		plan.PlanType = strings.ToUpper(strings.TrimSpace(plan.PlanType))
+		counts[plan.PlanType]++
+		switch plan.PlanType {
+		case "UPFRONT":
+			if analysis.upfront == nil {
+				analysis.upfront = &plan
+				analysis.upfrontTerritories = sortedUniqueNonEmpty(plan.Territories)
+			}
+		case "MONTHLY":
+			if analysis.monthly == nil {
+				analysis.monthly = &plan
+				analysis.monthlyTerritories = sortedUniqueNonEmpty(plan.Territories)
+			}
+		}
+	}
+	analysis.duplicateTypes = counts["UPFRONT"] > 1 || counts["MONTHLY"] > 1
+
+	if !analysis.duplicateTypes && !sub.AvailabilityCheckSkipped && strings.TrimSpace(sub.AvailabilityID) != "" && analysis.upfront != nil {
+		legacy := sortedUniqueNonEmpty(sub.AvailabilityTerritories)
+		analysis.legacyOnly = missingValues(legacy, analysis.upfrontTerritories)
+		analysis.planOnly = missingValues(analysis.upfrontTerritories, legacy)
+		legacyNew, planNew := sub.AvailabilityInNewTerritories, analysis.upfront.AvailableInNewTerritories
+		analysis.newTerritoriesMismatch = legacyNew != nil && planNew != nil && *legacyNew != *planNew
+		analysis.surfaceMismatch = len(analysis.legacyOnly) > 0 || len(analysis.planOnly) > 0 || analysis.newTerritoriesMismatch
+	}
+
+	if !analysis.duplicateTypes && analysis.monthly != nil && len(analysis.monthlyTerritories) > 0 {
+		if strings.ToUpper(strings.TrimSpace(sub.SubscriptionPeriod)) != "ONE_YEAR" {
+			analysis.monthlyIssues = append(analysis.monthlyIssues, "subscription period is not ONE_YEAR")
+		}
+		if outside := missingValues(analysis.monthlyTerritories, analysis.upfrontTerritories); len(outside) > 0 {
+			analysis.monthlyIssues = append(analysis.monthlyIssues, "not in UPFRONT: "+formatList(outside))
+		}
+		forbidden := make([]string, 0, 2)
+		for _, territory := range analysis.monthlyTerritories {
+			if territory == "USA" || territory == "SGP" {
+				forbidden = append(forbidden, territory)
+			}
+		}
+		if len(forbidden) > 0 {
+			analysis.monthlyIssues = append(analysis.monthlyIssues, "unsupported: "+formatList(forbidden))
+		}
+	}
+	return analysis
+}
+
+func buildUpfrontPlanAvailabilityDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
+	row := SubscriptionDiagnosticRow{Key: "upfront_plan_availability", Label: "UPFRONT plan availability", Source: "public-api", Blocking: true}
+	analysis := analyzeSubscriptionPlanAvailability(sub)
+	if analysis.unverified {
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = fallbackString(sub.PlanAvailabilityCheckReason, "Validation could not verify billing-plan availability")
+		return row
+	}
+	if analysis.duplicateTypes {
+		row.Status = DiagnosticStatusNo
+		row.Evidence = "duplicate UPFRONT or MONTHLY records"
+		row.Remediation = "Review and repair duplicate plan availability records in App Store Connect."
+		return row
+	}
+	if analysis.upfront == nil {
+		row.Status = DiagnosticStatusNo
+		row.Evidence = "none"
+		row.Remediation = "Configure UPFRONT plan availability for at least one territory."
+		return row
+	}
+	if len(analysis.upfrontTerritories) == 0 {
+		row.Status = DiagnosticStatusNo
+		row.Evidence = fmt.Sprintf("id=%s territories=none", strings.TrimSpace(analysis.upfront.ID))
+		row.Remediation = "Enable at least one territory for the UPFRONT plan."
+		return row
+	}
+	row.Status = DiagnosticStatusYes
+	row.Evidence = fmt.Sprintf("id=%s territories=%s", strings.TrimSpace(analysis.upfront.ID), formatList(analysis.upfrontTerritories))
+	return row
+}
+
+func buildAvailabilitySurfaceConsistencyDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
+	row := SubscriptionDiagnosticRow{Key: "availability_surface_consistency", Label: "Legacy and UPFRONT availability agree", Source: "derived", Blocking: true}
+	analysis := analyzeSubscriptionPlanAvailability(sub)
+	if analysis.unverified || sub.AvailabilityCheckSkipped {
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = firstNonEmpty(sub.PlanAvailabilityCheckReason, sub.AvailabilityCheckSkipReason, "Validation could not compare availability surfaces")
+		return row
+	}
+	if analysis.duplicateTypes {
+		row.Status = DiagnosticStatusNo
+		row.Evidence = "duplicate UPFRONT or MONTHLY records prevent a reliable comparison"
+		row.Remediation = "Review and repair duplicate plan availability records in App Store Connect."
+		return row
+	}
+	if strings.TrimSpace(sub.AvailabilityID) == "" || analysis.upfront == nil {
+		row.Status = DiagnosticStatusUnknown
+		row.Blocking = false
+		row.Evidence = "one or both availability surfaces are missing"
+		return row
+	}
+	if analysis.surfaceMismatch {
+		row.Status = DiagnosticStatusNo
+		row.Evidence = fmt.Sprintf("legacy_only=%s plan_only=%s", formatList(analysis.legacyOnly), formatList(analysis.planOnly))
+		if analysis.newTerritoriesMismatch {
+			row.Evidence += fmt.Sprintf(" available_in_new_territories legacy=%t plan=%t", *sub.AvailabilityInNewTerritories, *analysis.upfront.AvailableInNewTerritories)
+		}
+		row.Remediation = "Make legacy subscription availability and UPFRONT plan availability agree, then re-validate."
+		return row
+	}
+	row.Status = DiagnosticStatusYes
+	row.Evidence = fmt.Sprintf("territories=%s", formatList(analysis.upfrontTerritories))
+	return row
+}
+
+func buildMonthlyPlanAvailabilityDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
+	row := SubscriptionDiagnosticRow{Key: "monthly_plan_availability", Label: "MONTHLY commitment availability", Source: "public-api", Blocking: false}
+	analysis := analyzeSubscriptionPlanAvailability(sub)
+	if analysis.unverified {
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = fallbackString(sub.PlanAvailabilityCheckReason, "Validation could not verify MONTHLY plan availability")
+		return row
+	}
+	if analysis.duplicateTypes {
+		row.Status = DiagnosticStatusNo
+		row.Blocking = true
+		row.Evidence = "duplicate UPFRONT or MONTHLY records prevent reliable MONTHLY validation"
+		row.Remediation = "Review and repair duplicate plan availability records in App Store Connect."
+		return row
+	}
+	if analysis.monthly == nil || len(analysis.monthlyTerritories) == 0 {
+		row.Status = DiagnosticStatusOptional
+		row.Evidence = "not configured"
+		return row
+	}
+	row.Blocking = true
+	if len(analysis.monthlyIssues) > 0 {
+		row.Status = DiagnosticStatusNo
+		row.Evidence = strings.Join(analysis.monthlyIssues, "; ")
+		row.Remediation = "Use MONTHLY only for ONE_YEAR subscriptions, only in UPFRONT territories, and exclude USA and SGP."
+		return row
+	}
+	row.Status = DiagnosticStatusYes
+	row.Evidence = fmt.Sprintf("id=%s territories=%s", strings.TrimSpace(analysis.monthly.ID), formatList(analysis.monthlyTerritories))
+	return row
+}
+
+func buildPricingMatrixDiagnosticRow(sub Subscription, pricingTerritories []string, pricingTerritoryCount int, skipReason string) SubscriptionDiagnosticRow {
+	row := SubscriptionDiagnosticRow{
+		Key:      "complete_pricing_matrix",
+		Label:    "Complete App Store pricing matrix",
+		Status:   DiagnosticStatusUnknown,
+		Source:   "derived",
+		Blocking: true,
+	}
+	if strings.TrimSpace(skipReason) != "" {
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = strings.TrimSpace(skipReason)
+		return row
+	}
+	if sub.PriceCheckSkipped {
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = fallbackString(sub.PriceCheckSkipReason, "Validation could not verify subscription pricing automatically")
+		return row
+	}
+	pricingTerritories = sortedUniqueNonEmpty(pricingTerritories)
+	if len(pricingTerritories) > 0 {
+		missing := missingValues(pricingTerritories, sortedUniqueNonEmpty(sub.PriceTerritories))
+		if len(missing) == 0 {
+			row.Status = DiagnosticStatusYes
+			row.Evidence = fmt.Sprintf("priced=%d required=%d", len(pricingTerritories), len(pricingTerritories))
+			return row
+		}
+		row.Status = DiagnosticStatusNo
+		row.Evidence = fmt.Sprintf("priced=%d required=%d missing=%s", len(sortedUniqueNonEmpty(sub.PriceTerritories)), len(pricingTerritories), formatList(missing))
+		row.Remediation = "Re-run `asc subscriptions setup` with the original group, subscription, and pricing flags plus `--repair`; sale availability does not narrow Apple's pricing requirement."
+		return row
+	}
+	if pricingTerritoryCount <= 0 {
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = "App Store pricing territories were unavailable."
+		return row
+	}
+	pricedCount := max(sub.PriceCount, len(sortedUniqueNonEmpty(sub.PriceTerritories)))
+	if pricedCount >= pricingTerritoryCount {
+		row.Status = DiagnosticStatusYes
+	} else {
+		row.Status = DiagnosticStatusNo
+		row.Remediation = "Re-run `asc subscriptions setup` with the original group, subscription, and pricing flags plus `--repair`."
+	}
+	row.Evidence = fmt.Sprintf("priced=%d required=%d", pricedCount, pricingTerritoryCount)
+	return row
 }
 
 func buildGroupLocalizationsDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
@@ -206,7 +428,7 @@ func buildSubscriptionLocalizationsDiagnosticRow(sub Subscription) SubscriptionD
 func buildReviewScreenshotDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
 	row := SubscriptionDiagnosticRow{
 		Key:      "review_screenshot",
-		Label:    "Review screenshot attached",
+		Label:    "Review screenshot delivery",
 		Status:   DiagnosticStatusUnknown,
 		Source:   "public-api",
 		Blocking: true,
@@ -214,6 +436,10 @@ func buildReviewScreenshotDiagnosticRow(sub Subscription) SubscriptionDiagnostic
 
 	if sub.ReviewScreenshotCheckSkipped {
 		row.Status = DiagnosticStatusUnverified
+		if screenshotID := strings.TrimSpace(sub.ReviewScreenshotID); screenshotID != "" {
+			state := fallbackString(strings.ToUpper(strings.TrimSpace(sub.ReviewScreenshotAssetDeliveryState)), "unknown")
+			row.Evidence = fmt.Sprintf("id=%s asset_delivery_state=%s", screenshotID, state)
+		}
 		row.Remediation = fallbackString(sub.ReviewScreenshotCheckReason, "Validation could not verify the subscription App Review screenshot automatically")
 		return row
 	}
@@ -225,9 +451,36 @@ func buildReviewScreenshotDiagnosticRow(sub Subscription) SubscriptionDiagnostic
 		return row
 	}
 
-	row.Status = DiagnosticStatusYes
-	row.Evidence = fmt.Sprintf("id=%s", strings.TrimSpace(sub.ReviewScreenshotID))
+	state := strings.ToUpper(strings.TrimSpace(sub.ReviewScreenshotAssetDeliveryState))
+	row.Evidence = fmt.Sprintf("id=%s asset_delivery_state=%s", strings.TrimSpace(sub.ReviewScreenshotID), fallbackString(state, "unknown"))
+	if len(sub.ReviewScreenshotAssetDeliveryErrors) > 0 {
+		row.Evidence += " errors=" + strings.Join(sub.ReviewScreenshotAssetDeliveryErrors, "; ")
+	}
+	switch state {
+	case "COMPLETE":
+		row.Status = DiagnosticStatusYes
+	case "FAILED":
+		row.Status = DiagnosticStatusNo
+		row.Remediation = reviewScreenshotFailedRemediation(sub)
+	default:
+		row.Status = DiagnosticStatusUnverified
+		row.Remediation = reviewScreenshotDeliveryRemediation(state)
+	}
 	return row
+}
+
+func reviewScreenshotFailedRemediation(sub Subscription) string {
+	screenshotID := fallbackString(strings.TrimSpace(sub.ReviewScreenshotID), "SHOT_ID")
+	subscriptionID := fallbackString(strings.TrimSpace(sub.ID), "SUB_ID")
+	return fmt.Sprintf("Delete the failed screenshot with `asc subscriptions review screenshots delete --screenshot-id %q --confirm`, then re-upload it with `asc subscriptions review screenshots create --subscription-id %q --file \"./review.png\"`.", screenshotID, subscriptionID)
+}
+
+func reviewScreenshotDeliveryRemediation(state string) string {
+	state = strings.ToUpper(strings.TrimSpace(state))
+	if state == "" {
+		return "Apple did not return the screenshot asset delivery state; retry validation and confirm it reaches COMPLETE before submission."
+	}
+	return fmt.Sprintf("The screenshot asset delivery state is %s; wait for it to reach COMPLETE, then re-run validation.", state)
 }
 
 func buildPromotionalImageDiagnosticRow(sub Subscription) SubscriptionDiagnosticRow {
@@ -248,7 +501,7 @@ func buildPromotionalImageDiagnosticRow(sub Subscription) SubscriptionDiagnostic
 	if !sub.HasImage {
 		row.Status = DiagnosticStatusNo
 		row.Evidence = "missing"
-		row.Remediation = fmt.Sprintf("Upload a promotional image with `asc subscriptions images create --subscription-id %q --file \"./image.png\"` if you plan to use offer codes, win-back offers, or App Store promotion.", fallbackString(strings.TrimSpace(sub.ID), "SUB_ID"))
+		row.Remediation = fmt.Sprintf("Apple documents this image as optional unless you use offers or App Store promotion. For an otherwise-complete subscription stuck in MISSING_METADATA, uploading a 1024x1024 image with `asc subscriptions images create --subscription-id %q --file \"./image.png\"` can also serve as an undocumented recalculation attempt; re-run validation afterward.", fallbackString(strings.TrimSpace(sub.ID), "SUB_ID"))
 		return row
 	}
 
@@ -537,6 +790,8 @@ func summarizeSubscriptionDiagnostics(sub Subscription, rows []SubscriptionDiagn
 		return "known_blocker", fmt.Sprintf("%d known blocking subscription issue(s) found", blockingFailures)
 	case blockingUnknown > 0:
 		return "unknown", fmt.Sprintf("%d blocking subscription check(s) could not be verified automatically", blockingUnknown)
+	case state == "MISSING_METADATA" && advisoryFailures > 0:
+		return "opaque_apple_state", fmt.Sprintf("All blocking public checks passed; %d advisory finding(s) remain, but they do not explain why Apple still reports MISSING_METADATA.", advisoryFailures)
 	case advisoryFailures > 0:
 		return "advisory_only", "No blocking issues found; only advisory subscription findings remain."
 	case state == "MISSING_METADATA":

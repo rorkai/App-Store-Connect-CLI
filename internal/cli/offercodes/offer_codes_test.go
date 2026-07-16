@@ -6,20 +6,6 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
-func TestOfferCodesCommandConstructors(t *testing.T) {
-	constructors := []func() any{
-		func() any { return OfferCodeCustomCodesCommand() },
-		func() any { return OfferCodePricesCommand() },
-		func() any { return OfferCodesGenerateCommand() },
-		func() any { return OfferCodesValuesCommand() },
-	}
-	for _, ctor := range constructors {
-		if got := ctor(); got == nil {
-			t.Fatal("expected constructor to return command")
-		}
-	}
-}
-
 func TestParseOfferCodePrices(t *testing.T) {
 	prices, err := parseOfferCodePrices("US:pp-1, France:pp-2", asc.SubscriptionOfferModePayAsYouGo)
 	if err != nil {

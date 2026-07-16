@@ -74,3 +74,23 @@ func TestReleaseWorkflowKeepsDocsGuardrails(t *testing.T) {
 		}
 	}
 }
+
+func TestReleaseWorkflowDoesNotInterpolateDispatchInputIntoShell(t *testing.T) {
+	data, err := os.ReadFile(".github/workflows/release.yml")
+	if err != nil {
+		t.Fatalf("read release workflow: %v", err)
+	}
+
+	workflow := string(data)
+	if strings.Contains(workflow, `TAG="${{ github.event_name == 'workflow_dispatch'`) {
+		t.Fatal("release workflow interpolates dispatch input directly into shell")
+	}
+	for _, want := range []string{
+		`RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}`,
+		`TAG="${RELEASE_TAG}"`,
+	} {
+		if !strings.Contains(workflow, want) {
+			t.Fatalf("release workflow missing safe dispatch handling %q", want)
+		}
+	}
+}

@@ -6,9 +6,15 @@ func Validate(input Input, strict bool) Report {
 	reviewRelevantSubscriptions := hasReviewRelevantSubscriptions(input.Subscriptions)
 	availableTerritories := input.AvailableTerritories
 	appAvailableTerritories := input.AppAvailableTerritories
+	pricingTerritoryCount := input.PricingTerritoryCount
+	pricingTerritories := input.PricingTerritories
+	if pricingTerritoryCount == 0 && len(pricingTerritories) == 0 {
+		pricingTerritoryCount = availableTerritories
+		pricingTerritories = appAvailableTerritories
+	}
 	if input.PricingCoverageSkipReason != "" {
-		availableTerritories = 0
-		appAvailableTerritories = nil
+		pricingTerritoryCount = 0
+		pricingTerritories = nil
 	}
 
 	checks := make([]CheckResult, 0)
@@ -29,7 +35,7 @@ func Validate(input Input, strict bool) Report {
 	checks = append(checks, subscriptionPricingVerificationChecks(input.Subscriptions)...)
 	checks = append(checks, subscriptionMetadataDiagnostics(input.Subscriptions)...)
 	checks = append(checks, subscriptionPricingCoverageSkipChecks(input.AppID, input.PricingCoverageSkipReason)...)
-	checks = append(checks, subscriptionPricingCoverageChecks(input.Subscriptions, availableTerritories, appAvailableTerritories)...)
+	checks = append(checks, subscriptionPricingCoverageChecks(input.Subscriptions, pricingTerritoryCount, pricingTerritories)...)
 	checks = append(checks, iapFetchChecks(input.IAPFetchSkipReason)...)
 	checks = append(checks, iapReviewReadinessChecks(input.IAPs)...)
 	checks = append(checks, ageRatingChecks(input.AgeRatingDeclaration)...)

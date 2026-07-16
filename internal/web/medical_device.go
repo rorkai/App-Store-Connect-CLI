@@ -93,6 +93,10 @@ func (c *Client) doAppComplianceRequest(ctx context.Context, appID, method, path
 	headers.Set("Content-Type", "application/json")
 	headers.Set("Accept", "application/json")
 	headers.Set("X-Requested-With", "XMLHttpRequest")
+	// The ppm/complianceform service rejects mutating requests with an empty
+	// 403 unless this App Store Connect UI CSRF header is present; GETs work
+	// without it, so send it unconditionally to match the web client.
+	headers.Set("X-Csrf-Itc", "itc")
 	headers.Set("Origin", baseURL)
 	headers.Set("Referer", strings.TrimRight(baseURL, "/")+"/apps/"+url.PathEscape(strings.TrimSpace(appID))+"/distribution/info")
 	return c.doRequestBase(ctx, baseURL, method, path, body, headers)
