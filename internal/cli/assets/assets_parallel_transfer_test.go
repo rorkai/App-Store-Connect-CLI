@@ -3,6 +3,7 @@ package assets
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -14,6 +15,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 // installAssetsTestTransport swaps http.DefaultTransport for the test and
@@ -463,6 +466,32 @@ func TestUploadPreviewsRollsBackCreatedItemsAfterPartialFailure(t *testing.T) {
 	}
 	if relationshipPatchCalled.Load() {
 		t.Fatal("expected rollback instead of relationship reorder after partial failure")
+	}
+}
+
+func TestRollbackCreatedPreviewsUsesFreshContextAfterCancellation(t *testing.T) {
+	var deleted atomic.Bool
+	installAssetsTestTransport(t, func(req *http.Request) (*http.Response, error) {
+		if req.Method == http.MethodDelete && req.URL.Path == "/v1/appPreviews/preview-1" {
+			if err := req.Context().Err(); err != nil {
+				return nil, err
+			}
+			deleted.Store(true)
+			return assetsJSONResponse(http.StatusNoContent, "")
+		}
+		return assetsJSONResponse(http.StatusNotFound, `{}`)
+	})
+
+	client := newAssetsUploadTestClient(t)
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := rollbackCreatedPreviewsAfterError(canceledCtx, client, []asc.AssetUploadResultItem{{AssetID: "preview-1"}}, context.Canceled)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("rollback error = %v, want context cancellation cause", err)
+	}
+	if !deleted.Load() {
+		t.Fatal("expected rollback DELETE to use a live context")
 	}
 }
 

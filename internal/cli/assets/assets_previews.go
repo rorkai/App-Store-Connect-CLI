@@ -977,7 +977,14 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 }
 
 func rollbackCreatedPreviewsAfterError(ctx context.Context, client *asc.Client, items []asc.AssetUploadResultItem, operationErr error) error {
-	if rollbackErr := deleteCreatedPreviews(ctx, client, items); rollbackErr != nil {
+	cleanupBase := context.Background()
+	if ctx != nil {
+		cleanupBase = context.WithoutCancel(ctx)
+	}
+	cleanupCtx, cleanupCancel := shared.ContextWithTimeout(cleanupBase)
+	defer cleanupCancel()
+
+	if rollbackErr := deleteCreatedPreviews(cleanupCtx, client, items); rollbackErr != nil {
 		return fmt.Errorf("preview batch failed and rollback was incomplete: %w", errors.Join(operationErr, rollbackErr))
 	}
 	return operationErr
