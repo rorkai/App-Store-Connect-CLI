@@ -72,7 +72,7 @@ asc subscriptions groups delete \
 
 ### Group Localizations
 
-Manage group display names for different locales.
+Manage legacy v1 group-scoped display names for different locales.
 
 ```bash  theme={null}
 # Create localization
@@ -96,6 +96,139 @@ asc subscriptions groups localizations delete \
   --id "LOCALIZATION_ID" \
   --confirm
 ```
+
+### Subscription Group Versions (API 4.4.1)
+
+App Store Connect API 4.4.1 adds discrete review versions for subscription
+groups and version-scoped v2 localizations. The commands live under
+`asc subscriptions groups versions`.
+
+#### Include Versions with Groups
+
+The existing group list and view commands can include version resources and
+select their fields.
+
+```bash  theme={null}
+asc subscriptions groups list \
+  --app "APP_ID" \
+  --include versions \
+  --fields referenceName,versions \
+  --version-fields version,state \
+  --versions-limit 50
+
+asc subscriptions groups view \
+  --id "GROUP_ID" \
+  --include versions \
+  --fields referenceName,versions \
+  --version-fields version,state \
+  --versions-limit 50
+```
+
+The version-related flags are `--include`, `--fields`, `--version-fields`, and
+`--versions-limit`. Group list also retains `--limit`, `--next`, and
+`--paginate`; do not combine `--next` with query flags.
+
+#### Create, List, and View Versions
+
+```bash  theme={null}
+# Create a version owned by a subscription group
+asc subscriptions groups versions create \
+  --group-id "GROUP_ID"
+
+# List versions for a group
+asc subscriptions groups versions list \
+  --group-id "GROUP_ID" \
+  --state PREPARE_FOR_SUBMISSION \
+  --include subscriptionGroup,localizations \
+  --fields version,state,subscriptionGroup,localizations \
+  --group-fields referenceName \
+  --localization-fields name,customAppName,locale,version \
+  --localizations-limit 50 \
+  --paginate
+
+# View one version
+asc subscriptions groups versions view \
+  --version-id "VERSION_ID" \
+  --include localizations \
+  --fields version,state,localizations \
+  --localization-fields name,customAppName,locale,version \
+  --localizations-limit 50
+```
+
+Version list supports `--group-id`, `--state`, `--include`, `--fields`,
+`--group-fields`, `--localization-fields`, `--limit`,
+`--localizations-limit`, `--next`, and `--paginate`. Version view uses
+`--version-id` and the include, sparse-field, and localization-limit flags.
+
+#### Version-Scoped Localizations (v2)
+
+```bash  theme={null}
+# List localizations owned by a version
+asc subscriptions groups versions localizations list \
+  --version-id "VERSION_ID" \
+  --include version \
+  --fields name,customAppName,locale,version \
+  --version-fields version,state \
+  --paginate
+
+# Create a localization
+asc subscriptions groups versions localizations create \
+  --version-id "VERSION_ID" \
+  --locale "en-US" \
+  --name "Premium Subscription" \
+  --custom-app-name "Premium App"
+
+# View a localization
+asc subscriptions groups versions localizations view \
+  --id "LOCALIZATION_ID" \
+  --include version \
+  --fields name,customAppName,locale,version \
+  --version-fields version,state
+
+# Update values or explicitly clear nullable values
+asc subscriptions groups versions localizations update \
+  --id "LOCALIZATION_ID" \
+  --name "Premium Plus Subscription"
+
+asc subscriptions groups versions localizations update \
+  --id "LOCALIZATION_ID" \
+  --clear-custom-app-name
+
+# Delete a localization
+asc subscriptions groups versions localizations delete \
+  --id "LOCALIZATION_ID" \
+  --confirm
+```
+
+Localization list supports `--version-id`, `--include`, `--fields`,
+`--version-fields`, `--limit`, `--next`, and `--paginate`. Update accepts
+`--name`, `--custom-app-name`, `--clear-name`, and
+`--clear-custom-app-name`; set and clear flags for the same field cannot be
+combined. Delete requires `--confirm` and never prompts interactively.
+
+#### Raw Relationship Links
+
+```bash  theme={null}
+asc subscriptions groups versions links versions \
+  --group-id "GROUP_ID" \
+  --paginate
+
+asc subscriptions groups versions links localizations \
+  --version-id "VERSION_ID" \
+  --paginate
+```
+
+Both linkage commands support `--limit`, `--next`, and `--paginate`. The
+versions linkage accepts only `--group-id`; the localizations linkage accepts
+only `--version-id`.
+
+<Note>
+  `asc subscriptions groups localizations ...` remains the stable v1,
+  group-scoped workflow. API 4.4.1 version-scoped localizations use
+  `asc subscriptions groups versions localizations ...` and the v2 API. The
+  existing commands are not redirected or removed, so choose the subtree that
+  matches whether the localization belongs to a group or a group version.
+</Note>
 
 ## Subscriptions
 
