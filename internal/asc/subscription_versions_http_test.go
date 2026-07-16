@@ -200,6 +200,8 @@ func TestSubscriptionLocalizationV2Mutations(t *testing.T) {
 				if req.URL.Path != "/v2/subscriptionLocalizations/loc-1" {
 					t.Fatalf("DELETE path = %s", req.URL.Path)
 				}
+			default:
+				t.Fatalf("unexpected localization mutation method: %s", req.Method)
 			}
 		},
 		jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionLocalizations","id":"loc-1","attributes":{"name":"Pro","locale":"en-US"}}}`),
@@ -249,6 +251,8 @@ func TestSubscriptionImageV2Mutations(t *testing.T) {
 				if req.URL.Path != "/v2/subscriptionImages/img-1" {
 					t.Fatalf("DELETE path = %s", req.URL.Path)
 				}
+			default:
+				t.Fatalf("unexpected image mutation method: %s", req.Method)
 			}
 		},
 		jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":123,"uploadOperations":[{"method":"PUT","url":"https://example.com"}]}}}`),
