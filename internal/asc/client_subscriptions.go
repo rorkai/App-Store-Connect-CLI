@@ -75,8 +75,16 @@ func (c *Client) CreateSubscriptionGroup(ctx context.Context, appID string, attr
 }
 
 // GetSubscriptionGroup retrieves a subscription group by ID.
-func (c *Client) GetSubscriptionGroup(ctx context.Context, groupID string) (*SubscriptionGroupResponse, error) {
+func (c *Client) GetSubscriptionGroup(ctx context.Context, groupID string, opts ...SubscriptionGroupsOption) (*SubscriptionGroupResponse, error) {
+	query := &subscriptionGroupsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
 	path := fmt.Sprintf("/v1/subscriptionGroups/%s", strings.TrimSpace(groupID))
+	if queryString := buildSubscriptionGroupsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err

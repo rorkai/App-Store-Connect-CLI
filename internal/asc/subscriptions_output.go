@@ -35,6 +35,34 @@ func subscriptionGroupsRows(resp *SubscriptionGroupsResponse) ([]string, [][]str
 	return headers, rows
 }
 
+func subscriptionGroupVersionsRows(resp *SubscriptionGroupVersionsResponse) ([]string, [][]string) {
+	headers := []string{"ID", "Version", "State"}
+	rows := make([][]string, 0, len(resp.Data))
+	for _, item := range resp.Data {
+		rows = append(rows, []string{
+			item.ID,
+			fmt.Sprintf("%d", item.Attributes.Version),
+			item.Attributes.State,
+		})
+	}
+	return headers, rows
+}
+
+func subscriptionGroupLocalizationsRows(resp *SubscriptionGroupLocalizationsResponse) ([]string, [][]string) {
+	headers := []string{"ID", "Locale", "Name", "Custom App Name", "State"}
+	rows := make([][]string, 0, len(resp.Data))
+	for _, item := range resp.Data {
+		rows = append(rows, []string{
+			item.ID,
+			item.Attributes.Locale,
+			compactWhitespace(item.Attributes.Name),
+			compactWhitespace(item.Attributes.CustomAppName),
+			item.Attributes.State,
+		})
+	}
+	return headers, rows
+}
+
 func subscriptionsRows(resp *SubscriptionsResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Name", "Product ID", "Period", "State"}
 	rows := make([][]string, 0, len(resp.Data))

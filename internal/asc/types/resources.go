@@ -112,6 +112,7 @@ const (
 	ResourceTypeInAppPurchaseSubmissions                        ResourceType = "inAppPurchaseSubmissions"
 	ResourceTypeSubscriptionGroups                              ResourceType = "subscriptionGroups"
 	ResourceTypeSubscriptionGroupLocalizations                  ResourceType = "subscriptionGroupLocalizations"
+	ResourceTypeSubscriptionGroupVersions                       ResourceType = "subscriptionGroupVersions"
 	ResourceTypeSubscriptionGroupSubmissions                    ResourceType = "subscriptionGroupSubmissions"
 	ResourceTypeSubscriptions                                   ResourceType = "subscriptions"
 	ResourceTypeSubscriptionVersions                            ResourceType = "subscriptionVersions"

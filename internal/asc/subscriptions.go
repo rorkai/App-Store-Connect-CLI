@@ -3,6 +3,7 @@ package asc
 import (
 	"encoding/json"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -270,6 +271,10 @@ type SubscriptionAvailabilityTerritoriesOption func(*subscriptionAvailabilityTer
 
 type subscriptionGroupsQuery struct {
 	listQuery
+	include       []string
+	groupFields   []string
+	versionFields []string
+	versionsLimit int
 }
 
 type subscriptionsQuery struct {
@@ -307,6 +312,36 @@ func WithSubscriptionGroupsNextURL(next string) SubscriptionGroupsOption {
 	return func(q *subscriptionGroupsQuery) {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
+		}
+	}
+}
+
+// WithSubscriptionGroupsInclude includes related resources in group responses.
+func WithSubscriptionGroupsInclude(include []string) SubscriptionGroupsOption {
+	return func(q *subscriptionGroupsQuery) {
+		q.include = normalizeUniqueList(include)
+	}
+}
+
+// WithSubscriptionGroupsFields sets sparse fields for subscription groups.
+func WithSubscriptionGroupsFields(fields []string) SubscriptionGroupsOption {
+	return func(q *subscriptionGroupsQuery) {
+		q.groupFields = normalizeUniqueList(fields)
+	}
+}
+
+// WithSubscriptionGroupsVersionFields sets sparse fields for included versions.
+func WithSubscriptionGroupsVersionFields(fields []string) SubscriptionGroupsOption {
+	return func(q *subscriptionGroupsQuery) {
+		q.versionFields = normalizeUniqueList(fields)
+	}
+}
+
+// WithSubscriptionGroupsVersionsLimit sets the included versions relationship limit.
+func WithSubscriptionGroupsVersionsLimit(limit int) SubscriptionGroupsOption {
+	return func(q *subscriptionGroupsQuery) {
+		if limit > 0 {
+			q.versionsLimit = limit
 		}
 	}
 }
@@ -412,6 +447,12 @@ func WithSubscriptionAvailabilityTerritoriesNextURL(next string) SubscriptionAva
 func buildSubscriptionGroupsQuery(query *subscriptionGroupsQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
+	addCSV(values, "include", query.include)
+	addCSV(values, "fields[subscriptionGroups]", query.groupFields)
+	addCSV(values, "fields[subscriptionGroupVersions]", query.versionFields)
+	if query.versionsLimit > 0 {
+		values.Set("limit[versions]", strconv.Itoa(query.versionsLimit))
+	}
 	return values.Encode()
 }
 
