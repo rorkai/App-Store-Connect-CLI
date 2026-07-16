@@ -15,6 +15,80 @@ import (
 	reviewcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/reviews"
 )
 
+func TestReviewListsOwnerlessNextPaginateAllPages(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         func(string) []string
+		path         string
+		resourceType string
+		firstID      string
+		secondID     string
+		setClient    func(*testing.T, *httptest.Server)
+	}{
+		{
+			name: "review items",
+			args: func(next string) []string {
+				return []string{"review", "items-list", "--next", next, "--paginate", "--output", "json", "--pretty=false"}
+			},
+			path: "/v1/reviewSubmissions/sub-1/items", resourceType: "reviewSubmissionItems", firstID: "item-1", secondID: "item-2", setClient: setReviewItemsTestServerClient,
+		},
+		{
+			name: "review submissions with ambient app id",
+			args: func(next string) []string {
+				return []string{"review", "submissions-list", "--next", next, "--paginate", "--output", "json", "--pretty=false"}
+			},
+			path: "/v1/reviewSubmissions", resourceType: "reviewSubmissions", firstID: "submission-1", secondID: "submission-2", setClient: setReviewSubmissionsTestServerClient,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupSubmitCreateAuth(t)
+			t.Setenv("ASC_APP_ID", "ambient-app-must-not-conflict")
+
+			requestCount := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				requestCount++
+				if req.Method != http.MethodGet || req.URL.Path != test.path {
+					t.Fatalf("request = %s %s, want GET %s", req.Method, req.URL.Path, test.path)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				switch requestCount {
+				case 1:
+					if got := req.URL.RawQuery; got != "cursor=start" {
+						t.Fatalf("first query = %q, want opaque cursor=start", got)
+					}
+					next := "https://api.appstoreconnect.apple.com" + test.path + "?cursor=next"
+					_, _ = fmt.Fprintf(w, `{"data":[{"type":%q,"id":%q}],"links":{"next":%q}}`, test.resourceType, test.firstID, next)
+				case 2:
+					if got := req.URL.RawQuery; got != "cursor=next" {
+						t.Fatalf("second query = %q, want opaque cursor=next", got)
+					}
+					_, _ = fmt.Fprintf(w, `{"data":[{"type":%q,"id":%q}],"links":{"next":""}}`, test.resourceType, test.secondID)
+				default:
+					t.Fatalf("unexpected extra request: %s", req.URL)
+				}
+			}))
+			t.Cleanup(server.Close)
+			test.setClient(t, server)
+
+			next := "https://api.appstoreconnect.apple.com" + test.path + "?cursor=start"
+			stdout, stderr := captureOutput(t, func() {
+				code := cmd.Run(test.args(next), "1.2.3")
+				if code != cmd.ExitSuccess {
+					t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+				}
+			})
+			if got := stripDeprecatedCommandWarnings(stderr); strings.TrimSpace(got) != "" {
+				t.Fatalf("stderr = %q, want empty", stderr)
+			}
+			if requestCount != 2 || !strings.Contains(stdout, test.firstID) || !strings.Contains(stdout, test.secondID) {
+				t.Fatalf("requests = %d, stdout = %q, want two aggregated pages", requestCount, stdout)
+			}
+		})
+	}
+}
+
 func TestRunReviewItemsAddSupports441SubscriptionVersionTypes(t *testing.T) {
 	tests := []struct {
 		name             string
@@ -98,6 +172,24 @@ func TestRunReviewItemsAddRejectsPositionalArgsBeforeAuth(t *testing.T) {
 
 func setReviewItemsTestServerClient(t *testing.T, server *httptest.Server) {
 	t.Helper()
+	client := newReviewTestServerClient(t, server)
+	restore := reviewcli.SetReviewItemsClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	t.Cleanup(restore)
+}
+
+func setReviewSubmissionsTestServerClient(t *testing.T, server *httptest.Server) {
+	t.Helper()
+	client := newReviewTestServerClient(t, server)
+	restore := reviewcli.SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	t.Cleanup(restore)
+}
+
+func newReviewTestServerClient(t *testing.T, server *httptest.Server) *asc.Client {
+	t.Helper()
 	serverURL, err := url.Parse(server.URL)
 	if err != nil {
 		t.Fatalf("parse server URL: %v", err)
@@ -117,8 +209,5 @@ func setReviewItemsTestServerClient(t *testing.T, server *httptest.Server) {
 	if err != nil {
 		t.Fatalf("new client: %v", err)
 	}
-	restore := reviewcli.SetReviewItemsClientFactory(func() (*asc.Client, error) {
-		return client, nil
-	})
-	t.Cleanup(restore)
+	return client
 }

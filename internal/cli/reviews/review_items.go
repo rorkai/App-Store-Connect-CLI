@@ -140,6 +140,13 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
 			}
+			if err := rejectReviewNextFlagConflicts(
+				fs, *next, errorPrefix,
+				"submission", "limit", "fields", "include", "iap-version-fields",
+				"subscription-version-fields", "subscription-group-version-fields",
+			); err != nil {
+				return err
+			}
 			opts, err := reviewItemsListOptions(*limit, *next, *fields, *include, *iapVersionFields, *subscriptionVersionFields, *subscriptionGroupVersionFields)
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError(err.Error()))
@@ -183,6 +190,22 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func rejectReviewNextFlagConflicts(fs *flag.FlagSet, next, command string, names ...string) error {
+	if strings.TrimSpace(next) == "" {
+		return nil
+	}
+	provided := make(map[string]struct{}, len(names))
+	fs.Visit(func(f *flag.Flag) {
+		provided[f.Name] = struct{}{}
+	})
+	for _, name := range names {
+		if _, ok := provided[name]; ok {
+			return shared.UsageErrorf("%s: --next cannot be combined with --%s", command, name)
+		}
+	}
+	return nil
 }
 
 var reviewSubmissionItemFields = []string{

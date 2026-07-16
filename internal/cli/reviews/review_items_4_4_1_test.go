@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestReviewItemsListOptionsValidate441Selections(t *testing.T) {
@@ -36,6 +38,60 @@ func TestReviewItemsListOptionsRejectNextConflicts(t *testing.T) {
 	_, err := reviewItemsListOptions(0, "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-1/items?cursor=next", "subscriptionVersion", "", "", "", "")
 	if err == nil || !strings.Contains(err.Error(), "--next cannot be combined") {
 		t.Fatalf("error = %v, want next conflict", err)
+	}
+}
+
+func TestReviewListNextConflictsUseFlagPresenceBeforeClientFactory(t *testing.T) {
+	const itemsNext = "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-1/items?cursor=next"
+	const submissionsNext = "https://api.appstoreconnect.apple.com/v1/reviewSubmissions?cursor=next"
+
+	tests := []struct {
+		name    string
+		command func() *ffcli.Command
+		args    []string
+		want    string
+	}{
+		{name: "items owner", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--submission", "sub-1"}, want: "--submission"},
+		{name: "items empty owner", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--submission", ""}, want: "--submission"},
+		{name: "items whitespace owner", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--submission", "   "}, want: "--submission"},
+		{name: "items zero limit", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--limit", "0"}, want: "--limit"},
+		{name: "items empty fields", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--fields", ""}, want: "--fields"},
+		{name: "items whitespace include", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--include", "   "}, want: "--include"},
+		{name: "items empty iap fields", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--iap-version-fields", ""}, want: "--iap-version-fields"},
+		{name: "items whitespace subscription fields", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--subscription-version-fields", "   "}, want: "--subscription-version-fields"},
+		{name: "items empty group fields", command: ReviewItemsListCommand, args: []string{"--next", itemsNext, "--subscription-group-version-fields", ""}, want: "--subscription-group-version-fields"},
+		{name: "submissions app", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--app", "app-1"}, want: "--app"},
+		{name: "submissions empty app", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--app", ""}, want: "--app"},
+		{name: "submissions whitespace app", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--app", "   "}, want: "--app"},
+		{name: "submissions true global", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--global"}, want: "--global"},
+		{name: "submissions false global", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--global=false"}, want: "--global"},
+		{name: "submissions empty platform", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--platform", ""}, want: "--platform"},
+		{name: "submissions whitespace state", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--state", "   "}, want: "--state"},
+		{name: "submissions zero limit", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--limit", "0"}, want: "--limit"},
+		{name: "submissions empty item fields", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--item-fields", ""}, want: "--item-fields"},
+		{name: "submissions whitespace include", command: ReviewSubmissionsListCommand, args: []string{"--next", submissionsNext, "--include", "   "}, want: "--include"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			factoryCalled := false
+			poisonFactory := func() (*asc.Client, error) {
+				factoryCalled = true
+				return nil, errors.New("poison client factory called")
+			}
+			restoreItems := SetReviewItemsClientFactory(poisonFactory)
+			restoreSubmissions := SetReviewSubmissionsClientFactory(poisonFactory)
+			defer restoreItems()
+			defer restoreSubmissions()
+
+			err := test.command().ParseAndRun(context.Background(), test.args)
+			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error = %v, want usage error containing %q", err, test.want)
+			}
+			if factoryCalled {
+				t.Fatal("client factory called before opaque-next conflict validation")
+			}
+		})
 	}
 }
 

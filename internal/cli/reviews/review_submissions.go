@@ -14,6 +14,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+var reviewSubmissionsClientFactory = shared.GetASCClient
+
 // ReviewSubmissionsListCommand returns the review submissions list subcommand.
 func ReviewSubmissionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submissions-list", flag.ExitOnError)
@@ -47,11 +49,17 @@ Examples:
 			if len(args) != 0 {
 				return shared.UsageError("unexpected positional arguments")
 			}
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return shared.UsageError("--limit must be between 1 and 200")
-			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("review submissions-list: %w", err)
+			}
+			if err := rejectReviewNextFlagConflicts(
+				fs, *next, "review submissions-list",
+				"app", "global", "platform", "state", "limit", "item-fields", "include",
+			); err != nil {
+				return err
+			}
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return shared.UsageError("--limit must be between 1 and 200")
 			}
 
 			platforms, err := shared.NormalizeAppStoreVersionPlatforms(shared.SplitCSVUpper(*platform))
@@ -73,10 +81,6 @@ Examples:
 			if len(normalizedItemFields) != 0 && !slices.Contains(normalizedIncludes, "items") {
 				normalizedIncludes = append(normalizedIncludes, "items")
 			}
-			if strings.TrimSpace(*next) != "" && (strings.TrimSpace(*itemFields) != "" || strings.TrimSpace(*include) != "") {
-				return shared.UsageError("--next cannot be combined with --item-fields or --include")
-			}
-
 			resolvedAppID := shared.ResolveAppID(*appID)
 			nextURL := strings.TrimSpace(*next)
 
@@ -91,7 +95,7 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := reviewSubmissionsClientFactory()
 			if err != nil {
 				return fmt.Errorf("review submissions-list: %w", err)
 			}
