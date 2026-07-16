@@ -77,13 +77,15 @@ expose a misleading empty state column.
 
 ## Behavior and failures
 
-All successful commands write the selected table, JSON, Markdown, or XML data
-to stdout. Validation and API diagnostics use stderr. Missing required flags,
-invalid state/include selections, invalid limits, conflicting set/clear flags,
-and update requests without changes exit with usage status 2 before auth or
-network access. Each relationship command exposes only the ID flag for its
-actual owner, so irrelevant ID flags fail parsing instead of being ignored.
-Delete requires `--confirm` and never prompts interactively.
+All successful commands write the selected JSON, table, or Markdown data to
+stdout. Validation and API diagnostics use stderr. Command-specific invalid
+selections, conflicting set/clear flags, and update requests without changes
+are usage errors (status 2) and fail before auth or network access. Missing
+required flags likewise fail before auth or network access. Existing command
+paths retain their established exit-code behavior. Each relationship command
+exposes only the ID flag for its actual owner, so irrelevant ID flags fail
+parsing instead of being ignored. Delete requires `--confirm` and never prompts
+interactively.
 
 Every outbound App Store Connect call uses `shared.ContextWithTimeout`.
 Pagination validates `links.next` URLs with the shared ASC URL policy.
