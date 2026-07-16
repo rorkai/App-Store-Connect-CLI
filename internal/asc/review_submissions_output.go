@@ -66,6 +66,7 @@ func reviewSubmissionItemTarget(rel *ReviewSubmissionItemRelationships) (string,
 	}
 
 	for _, relationship := range []*Relationship{
+		rel.InAppPurchaseVersion,
 		rel.AppStoreVersion,
 		rel.AppCustomProductPageVersion,
 		rel.AppCustomProductPage,
