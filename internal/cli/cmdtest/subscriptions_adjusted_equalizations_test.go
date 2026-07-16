@@ -228,6 +228,45 @@ func TestSubscriptionsPricePointsListKeepsCustomerPriceForClientSideFiltering(t 
 	}
 }
 
+func TestSubscriptionsPricePointsListKeepsFullPayloadWhenFieldsAreOmitted(t *testing.T) {
+	setupAuth(t)
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/v1/subscriptions/8000000001/pricePoints" {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
+		}
+		if _, ok := req.URL.Query()["fields[subscriptionPricePoints]"]; ok {
+			t.Fatalf("unexpected sparse fields query: %s", req.URL.RawQuery)
+		}
+		return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"point-1","attributes":{"customerPrice":"4.99","proceeds":"3.50","proceedsYear2":"3.75"}}],"links":{}}`)
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "pricing", "price-points", "list",
+			"--subscription-id", "8000000001",
+			"--price", "4.99",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("unexpected stderr: %q", stderr)
+	}
+	var response asc.SubscriptionPricePointsResponse
+	if err := json.Unmarshal([]byte(stdout), &response); err != nil {
+		t.Fatalf("parse stdout: %v", err)
+	}
+	if len(response.Data) != 1 || response.Data[0].Attributes.ProceedsYear2 != "3.75" {
+		t.Fatalf("expected full matching price-point payload, got %#v", response.Data)
+	}
+}
+
 func TestSubscriptionsPricePointsPaginationPreservesAppleNextLimit(t *testing.T) {
 	setupAuth(t)
 	requestCount := 0

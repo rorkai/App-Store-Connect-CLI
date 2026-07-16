@@ -140,7 +140,7 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if priceFilter.HasFilter() && !containsString(selectedFields, "customerPrice") {
+			if priceFilter.HasFilter() && selectedFields != nil && !containsString(selectedFields, "customerPrice") {
 				selectedFields = append(selectedFields, "customerPrice")
 			}
 			selectedTerritoryFields, err := normalizeOptionalSelection(fs, "territory-fields", *territoryFields, []string{"currency"})
