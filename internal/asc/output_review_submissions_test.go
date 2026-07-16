@@ -23,20 +23,20 @@ func TestReviewSubmissionItemsRows_UsesExpandedRelationships(t *testing.T) {
 			name: "subscription version",
 			rel: &ReviewSubmissionItemRelationships{
 				SubscriptionVersion: &Relationship{
-					Data: ResourceData{Type: ResourceTypeSubscriptionVersions, ID: "subv-1"},
+					Data: ResourceData{Type: reviewSubmissionItemResourceTypeSubscriptionVersions, ID: "subv-1"},
 				},
 			},
-			wantType: string(ResourceTypeSubscriptionVersions),
+			wantType: string(reviewSubmissionItemResourceTypeSubscriptionVersions),
 			wantID:   "subv-1",
 		},
 		{
 			name: "subscription group version",
 			rel: &ReviewSubmissionItemRelationships{
 				SubscriptionGroupVersion: &Relationship{
-					Data: ResourceData{Type: ResourceTypeSubscriptionGroupVersions, ID: "sgv-1"},
+					Data: ResourceData{Type: reviewSubmissionItemResourceTypeSubscriptionGroupVersions, ID: "sgv-1"},
 				},
 			},
-			wantType: string(ResourceTypeSubscriptionGroupVersions),
+			wantType: string(reviewSubmissionItemResourceTypeSubscriptionGroupVersions),
 			wantID:   "sgv-1",
 		},
 		{

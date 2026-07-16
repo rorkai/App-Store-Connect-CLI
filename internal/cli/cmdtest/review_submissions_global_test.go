@@ -59,6 +59,65 @@ func TestReviewSubmissionsListGlobalSuccess(t *testing.T) {
 	}
 }
 
+func TestReviewSubmissionsItemFieldsAutomaticallyIncludeItems(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		path string
+	}{
+		{
+			name: "global list",
+			args: []string{"review", "submissions-list", "--global", "--app", "app-1", "--item-fields", "subscriptionVersion"},
+			path: "/v1/reviewSubmissions",
+		},
+		{
+			name: "detail",
+			args: []string{"review", "submissions-get", "--id", "submission-1", "--item-fields", "subscriptionGroupVersion"},
+			path: "/v1/reviewSubmissions/submission-1",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_APP_ID", "")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet || req.URL.Path != test.path {
+					t.Fatalf("request = %s %s, want GET %s", req.Method, req.URL.Path, test.path)
+				}
+				if got := req.URL.Query().Get("include"); got != "items" {
+					t.Fatalf("include = %q, want items", got)
+				}
+				if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); got == "" {
+					t.Fatal("fields[reviewSubmissionItems] is empty")
+				}
+				body := `{"data":{"type":"reviewSubmissions","id":"submission-1"}}`
+				if strings.Contains(test.name, "list") {
+					body = `{"data":[]}`
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			})
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			if err := root.Parse(test.args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := root.Run(context.Background()); err != nil {
+				t.Fatalf("run error: %v", err)
+			}
+		})
+	}
+}
+
 func TestReviewSubmissionsListGlobalWithASCAppIDSet(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_APP_ID", "app-from-env")

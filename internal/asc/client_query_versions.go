@@ -42,6 +42,7 @@ type reviewSubmissionsQuery struct {
 
 type reviewSubmissionQuery struct {
 	reviewSubmissionItemFields []string
+	include                    []string
 }
 
 type reviewSubmissionItemsQuery struct {
@@ -216,6 +217,7 @@ func buildReviewSubmissionsQuery(query *reviewSubmissionsQuery) string {
 func buildReviewSubmissionQuery(query *reviewSubmissionQuery) string {
 	values := url.Values{}
 	addCSV(values, "fields[reviewSubmissionItems]", query.reviewSubmissionItemFields)
+	addCSV(values, "include", query.include)
 	return values.Encode()
 }
 
@@ -679,6 +681,13 @@ func WithReviewSubmissionsItemFields(fields []string) ReviewSubmissionsOption {
 func WithReviewSubmissionItemFields(fields []string) ReviewSubmissionOption {
 	return func(q *reviewSubmissionQuery) {
 		q.reviewSubmissionItemFields = normalizeList(fields)
+	}
+}
+
+// WithReviewSubmissionInclude includes related resources for a review submission response.
+func WithReviewSubmissionInclude(include []string) ReviewSubmissionOption {
+	return func(q *reviewSubmissionQuery) {
+		q.include = normalizeList(include)
 	}
 }
 

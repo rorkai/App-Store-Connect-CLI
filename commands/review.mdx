@@ -88,12 +88,23 @@ List review submissions for an app or globally.
   Automatically fetch all pages
 </ParamField>
 
+<ParamField path="--item-fields" type="string">
+  Sparse fields for included review-submission items. Supplying this flag
+  automatically adds `items` to `--include`.
+</ParamField>
+
+<ParamField path="--include" type="string">
+  Related resources to include: `app`, `items`, `appStoreVersionForReview`,
+  `submittedByActor`, or `lastUpdatedByActor` (comma-separated)
+</ParamField>
+
 **Examples:**
 
 ```bash  theme={null}
 asc review submissions-list --app "123456789"
 asc review submissions-list --app "123456789" --platform IOS --state READY_FOR_REVIEW
 asc review submissions-list --app "123456789" --paginate
+asc review submissions-list --app "123456789" --item-fields subscriptionVersion
 ```
 
 ***
@@ -106,10 +117,20 @@ Get a review submission by ID.
   Review submission ID
 </ParamField>
 
+<ParamField path="--item-fields" type="string">
+  Sparse fields for included review-submission items. Supplying this flag
+  automatically includes `items`.
+</ParamField>
+
+<ParamField path="--include" type="string">
+  Related resources to include (comma-separated)
+</ParamField>
+
 **Examples:**
 
 ```bash  theme={null}
 asc review submissions-get --id "SUBMISSION_ID"
+asc review submissions-get --id "SUBMISSION_ID" --item-fields subscriptionGroupVersion
 ```
 
 ***
@@ -129,7 +150,8 @@ asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionGroupV
 `--fields` controls review-item fields. The related sparse-field flags are
 `--iap-version-fields`, `--subscription-version-fields`, and
 `--subscription-group-version-fields`. `--item-fields` exposes the expanded
-review-item relationship fields on submission list and detail commands.
+review-item relationship fields on submission list and detail commands and
+automatically includes the related `items` resources.
 
 ***
 

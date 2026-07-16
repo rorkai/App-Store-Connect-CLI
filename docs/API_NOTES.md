@@ -91,7 +91,5 @@ Finance reports use Apple fiscal months (`YYYY-MM`), not calendar months.
 - Migration mapping:
   - IAP localizations/images → `asc iap versions localizations ...` / `asc iap versions images ...`
   - IAP submissions → `asc review items add --item-type inAppPurchaseVersions`
-  - Subscription localizations/images → `asc subscriptions versions localizations ...` / `asc subscriptions versions images ...`
-  - Subscription-group localizations → `asc subscriptions groups versions localizations ...`
   - Subscription/group submissions → `asc review items add --item-type subscriptionVersions|subscriptionGroupVersions`
 - Nullable v2 localization updates distinguish omitted, value, and JSON `null`; use the corresponding `--clear-*` flag for explicit clears.

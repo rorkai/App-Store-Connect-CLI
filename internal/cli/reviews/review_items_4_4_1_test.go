@@ -6,6 +6,8 @@ import (
 	"flag"
 	"strings"
 	"testing"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
 )
 
 func TestReviewItemsListOptionsValidate441Selections(t *testing.T) {
@@ -42,6 +44,34 @@ func TestReviewItemsListRejectsPositionalArgsBeforeAuth(t *testing.T) {
 	err := cmd.ParseAndRun(context.Background(), []string{"unexpected"})
 	if err == nil || !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want usage error", err)
+	}
+}
+
+func TestReviewSubmissionsValidateIncludeBeforeAuth(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  *ffcli.Command
+		args []string
+	}{
+		{
+			name: "list invalid include",
+			cmd:  ReviewSubmissionsListCommand(),
+			args: []string{"--global", "--app", "app-1", "--include", "invalid"},
+		},
+		{
+			name: "detail invalid include",
+			cmd:  ReviewSubmissionsGetCommand(),
+			args: []string{"--id", "submission-1", "--include", "invalid"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.cmd.ParseAndRun(context.Background(), test.args)
+			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "--include must be one of") {
+				t.Fatalf("error = %v, want include usage error", err)
+			}
+		})
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -24,6 +25,7 @@ func ReviewSubmissionsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Next page URL from a previous response")
 	itemFields := fs.String("item-fields", "", "Review submission item fields: "+strings.Join(reviewSubmissionItemFields, ", "))
+	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewSubmissionIncludes, ", "))
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
@@ -64,8 +66,15 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			if strings.TrimSpace(*next) != "" && strings.TrimSpace(*itemFields) != "" {
-				return shared.UsageError("--next cannot be combined with --item-fields")
+			normalizedIncludes, err := shared.NormalizeSelection(*include, reviewSubmissionIncludes, "--include")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+			if len(normalizedItemFields) != 0 && !slices.Contains(normalizedIncludes, "items") {
+				normalizedIncludes = append(normalizedIncludes, "items")
+			}
+			if strings.TrimSpace(*next) != "" && (strings.TrimSpace(*itemFields) != "" || strings.TrimSpace(*include) != "") {
+				return shared.UsageError("--next cannot be combined with --item-fields or --include")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -96,6 +105,7 @@ Examples:
 				asc.WithReviewSubmissionsPlatforms(platforms),
 				asc.WithReviewSubmissionsStates(states),
 				asc.WithReviewSubmissionsItemFields(normalizedItemFields),
+				asc.WithReviewSubmissionsInclude(normalizedIncludes),
 			}
 			if *global && resolvedAppID != "" {
 				opts = append(opts, asc.WithReviewSubmissionsApps([]string{resolvedAppID}))
@@ -162,6 +172,7 @@ func ReviewSubmissionsGetCommand() *ffcli.Command {
 
 	submissionID := fs.String("id", "", "Review submission ID (required)")
 	itemFields := fs.String("item-fields", "", "Review submission item fields: "+strings.Join(reviewSubmissionItemFields, ", "))
+	include := fs.String("include", "", "Include relationships: "+strings.Join(reviewSubmissionIncludes, ", "))
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -182,6 +193,13 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+			normalizedIncludes, err := shared.NormalizeSelection(*include, reviewSubmissionIncludes, "--include")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+			if len(normalizedItemFields) != 0 && !slices.Contains(normalizedIncludes, "items") {
+				normalizedIncludes = append(normalizedIncludes, "items")
+			}
 			if strings.TrimSpace(*submissionID) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError()
@@ -195,7 +213,12 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetReviewSubmission(requestCtx, strings.TrimSpace(*submissionID), asc.WithReviewSubmissionItemFields(normalizedItemFields))
+			resp, err := client.GetReviewSubmission(
+				requestCtx,
+				strings.TrimSpace(*submissionID),
+				asc.WithReviewSubmissionItemFields(normalizedItemFields),
+				asc.WithReviewSubmissionInclude(normalizedIncludes),
+			)
 			if err != nil {
 				return fmt.Errorf("review submissions-get: %w", err)
 			}
@@ -203,6 +226,14 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+var reviewSubmissionIncludes = []string{
+	"app",
+	"items",
+	"appStoreVersionForReview",
+	"submittedByActor",
+	"lastUpdatedByActor",
 }
 
 // ReviewSubmissionsCreateCommand returns the review submissions create subcommand.

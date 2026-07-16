@@ -28,6 +28,11 @@ const (
 	ReviewSubmissionItemTypeSubscriptionGroupVersion           ReviewSubmissionItemType = "subscriptionGroupVersions"
 )
 
+const (
+	reviewSubmissionItemResourceTypeSubscriptionVersions      ResourceType = "subscriptionVersions"
+	reviewSubmissionItemResourceTypeSubscriptionGroupVersions ResourceType = "subscriptionGroupVersions"
+)
+
 // ReviewSubmissionItemAttributes describes review submission item attributes.
 type ReviewSubmissionItemAttributes struct {
 	State string `json:"state,omitempty"`
@@ -134,13 +139,13 @@ var reviewSubmissionItemTypeSpecs = []reviewSubmissionItemTypeSpec{
 	{
 		canonical: ReviewSubmissionItemTypeSubscriptionVersion,
 		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
-			relationships.SubscriptionVersion = reviewSubmissionItemRelationship(ResourceTypeSubscriptionVersions, itemID)
+			relationships.SubscriptionVersion = reviewSubmissionItemRelationship(reviewSubmissionItemResourceTypeSubscriptionVersions, itemID)
 		},
 	},
 	{
 		canonical: ReviewSubmissionItemTypeSubscriptionGroupVersion,
 		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
-			relationships.SubscriptionGroupVersion = reviewSubmissionItemRelationship(ResourceTypeSubscriptionGroupVersions, itemID)
+			relationships.SubscriptionGroupVersion = reviewSubmissionItemRelationship(reviewSubmissionItemResourceTypeSubscriptionGroupVersions, itemID)
 		},
 	},
 	{

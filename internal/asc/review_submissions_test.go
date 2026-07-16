@@ -267,7 +267,7 @@ func TestCreateReviewSubmissionItem_SupportedItemTypes(t *testing.T) {
 			name:     "subscription version",
 			itemType: ReviewSubmissionItemTypeSubscriptionVersion,
 			itemID:   "subscription-version-123",
-			wantType: ResourceTypeSubscriptionVersions,
+			wantType: reviewSubmissionItemResourceTypeSubscriptionVersions,
 			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
 				return relationships.SubscriptionVersion
 			},
@@ -276,7 +276,7 @@ func TestCreateReviewSubmissionItem_SupportedItemTypes(t *testing.T) {
 			name:     "subscription group version",
 			itemType: ReviewSubmissionItemTypeSubscriptionGroupVersion,
 			itemID:   "subscription-group-version-123",
-			wantType: ResourceTypeSubscriptionGroupVersions,
+			wantType: reviewSubmissionItemResourceTypeSubscriptionGroupVersions,
 			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
 				return relationships.SubscriptionGroupVersion
 			},
@@ -748,7 +748,7 @@ func TestGetReviewSubmissionItems_With441VersionSparseFields(t *testing.T) {
 	if err := json.Unmarshal(result.Included, &included); err != nil {
 		t.Fatalf("decode included: %v", err)
 	}
-	if len(included) != 3 || included[0].Type != ResourceTypeInAppPurchaseVersions || included[1].Type != ResourceTypeSubscriptionVersions || included[2].Type != ResourceTypeSubscriptionGroupVersions {
+	if len(included) != 3 || included[0].Type != ResourceTypeInAppPurchaseVersions || included[1].Type != reviewSubmissionItemResourceTypeSubscriptionVersions || included[2].Type != reviewSubmissionItemResourceTypeSubscriptionGroupVersions {
 		t.Fatalf("included = %#v, want all 4.4.1 version resources", included)
 	}
 	if !strings.Contains(string(result.Meta), `"total":1`) {
@@ -818,7 +818,7 @@ func TestGetReviewSubmissions_WithInclude(t *testing.T) {
 	}
 }
 
-func TestReviewSubmissionGetOperationsSend441ItemFields(t *testing.T) {
+func TestReviewSubmissionGetOperationsSend441ItemFieldsAndIncludeItems(t *testing.T) {
 	wantFields := "state,inAppPurchaseVersion,subscriptionVersion,subscriptionGroupVersion"
 	tests := []struct {
 		name string
@@ -831,7 +831,7 @@ func TestReviewSubmissionGetOperationsSend441ItemFields(t *testing.T) {
 			path: "/v1/apps/app-1/reviewSubmissions",
 			body: `{"data":[]}`,
 			call: func(client *Client) error {
-				_, err := client.GetReviewSubmissions(context.Background(), "app-1", WithReviewSubmissionsItemFields(strings.Split(wantFields, ",")))
+				_, err := client.GetReviewSubmissions(context.Background(), "app-1", WithReviewSubmissionsItemFields(strings.Split(wantFields, ",")), WithReviewSubmissionsInclude([]string{"items"}))
 				return err
 			},
 		},
@@ -840,7 +840,7 @@ func TestReviewSubmissionGetOperationsSend441ItemFields(t *testing.T) {
 			path: "/v1/reviewSubmissions",
 			body: `{"data":[]}`,
 			call: func(client *Client) error {
-				_, err := client.ListReviewSubmissions(context.Background(), WithReviewSubmissionsItemFields(strings.Split(wantFields, ",")))
+				_, err := client.ListReviewSubmissions(context.Background(), WithReviewSubmissionsItemFields(strings.Split(wantFields, ",")), WithReviewSubmissionsInclude([]string{"items"}))
 				return err
 			},
 		},
@@ -849,7 +849,7 @@ func TestReviewSubmissionGetOperationsSend441ItemFields(t *testing.T) {
 			path: "/v1/reviewSubmissions/submission-1",
 			body: `{"data":{"type":"reviewSubmissions","id":"submission-1"}}`,
 			call: func(client *Client) error {
-				_, err := client.GetReviewSubmission(context.Background(), "submission-1", WithReviewSubmissionItemFields(strings.Split(wantFields, ",")))
+				_, err := client.GetReviewSubmission(context.Background(), "submission-1", WithReviewSubmissionItemFields(strings.Split(wantFields, ",")), WithReviewSubmissionInclude([]string{"items"}))
 				return err
 			},
 		},
@@ -863,6 +863,9 @@ func TestReviewSubmissionGetOperationsSend441ItemFields(t *testing.T) {
 				}
 				if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); got != wantFields {
 					t.Fatalf("fields[reviewSubmissionItems] = %q, want %q", got, wantFields)
+				}
+				if got := req.URL.Query().Get("include"); got != "items" {
+					t.Fatalf("include = %q, want items", got)
 				}
 			}, reviewSubmissionsJSONResponse(http.StatusOK, test.body))
 
