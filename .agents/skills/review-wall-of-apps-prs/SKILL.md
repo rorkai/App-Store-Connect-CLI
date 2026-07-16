@@ -28,7 +28,9 @@ Use a worktree only when a fix is required. Push the smallest correction to the 
 
 ## Approve and merge
 
-Approval and merge require explicit user intent. Immediately before acting, confirm:
+Approval and merge require explicit user intent. That intent may come from the
+current request or from a persisted automation prompt that clearly grants
+approve-and-merge authority. Immediately before acting, confirm:
 
 - The latest head contains only the legitimate Wall change.
 - `make check-wall-of-apps` and required GitHub checks pass.
@@ -39,7 +41,17 @@ When the user requests a no-comment approval, submit one app-relevant emoji as t
 
 ## Automation contract
 
-A standalone automation may scan Wall PRs and report `safe`, `needs-fix`, `suspicious`, or `blocked` with evidence. It must remain read-only: never approve or merge unattended.
+A standalone automation may approve and merge unattended only when its
+persisted prompt explicitly grants that authority and every approval-and-merge
+gate above passes on the latest head. Run `make check-wall-of-apps` locally on
+that exact head, verify required GitHub checks and review threads again
+immediately before acting, then approve and merge one PR at a time using the
+repository's normal strategy.
+
+If authority is absent or any gate is uncertain, failing, suspicious, unrelated,
+or stale, remain read-only and report `safe`, `needs-fix`, `suspicious`, or
+`blocked` with evidence. Never infer approval from a prior run or from a
+different head SHA.
 
 ## Hand off
 

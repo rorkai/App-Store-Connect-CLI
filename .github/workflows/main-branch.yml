@@ -11,7 +11,8 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      wall_only: ${{ steps.scope.outputs.wall_only }}
+      scope: ${{ steps.scope.outputs.scope }}
+      website_affected: ${{ steps.scope.outputs.website_affected }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -27,31 +28,36 @@ jobs:
           before="${{ github.event.before }}"
           after="${{ github.sha }}"
           if [ -n "$before" ] && [ "$before" != "0000000000000000000000000000000000000000" ]; then
-            files="$(git diff --name-only "$before" "$after")"
+            files="$(git diff --name-only --no-renames "$before" "$after")"
           else
-            files="$(git diff-tree --no-commit-id --name-only -r "$after")"
+            files="$(git diff-tree --no-commit-id --name-only --no-renames -r "$after")"
           fi
 
-          wall_only=true
-          has_files=false
+          force_full=false
           while IFS= read -r path; do
-            [ -z "$path" ] && continue
-            has_files=true
-            if [ "$path" != "docs/wall-of-apps.json" ]; then
-              wall_only=false
-            fi
+            case "$path" in
+              .github/workflows/*|scripts/ci_change_scope.py|scripts/test_ci_change_scope.py|scripts/test_ci_workflows.py)
+                force_full=true
+                ;;
+            esac
           done <<< "$files"
 
-          if [ "$has_files" = false ]; then
-            wall_only=false
+          if [ "$force_full" = true ]; then
+            selection="$(printf '%s\n' 'scope=full' 'website_affected=true')"
+          else
+            selection="$(printf '%s\n' "$files" | python3 scripts/ci_change_scope.py --github-output)"
           fi
-
-          echo "wall_only=$wall_only" >> "$GITHUB_OUTPUT"
+          scope="$(printf '%s\n' "$selection" | sed -n 's/^scope=//p')"
+          case "$scope" in
+            wall|docs|website|telemetry|full) ;;
+            *) echo "invalid CI scope: $scope" >&2; exit 1 ;;
+          esac
+          printf '%s\n' "$selection" >> "$GITHUB_OUTPUT"
 
   wall-only-check:
     needs: changes
-    if: needs.changes.outputs.wall_only == 'true'
-    runs-on: macos-latest
+    if: needs.changes.outputs.scope == 'wall'
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -65,10 +71,15 @@ jobs:
       - name: Check Wall of Apps source
         run: make check-wall-of-apps
 
-  format-and-lint:
+  website-checks:
     needs: changes
-    if: needs.changes.outputs.wall_only != 'true'
-    runs-on: macos-latest
+    if: needs.changes.outputs.website_affected == 'true'
+    uses: ./.github/workflows/website-checks.yml
+
+  quality-checks:
+    needs: changes
+    if: contains(fromJSON('["docs", "telemetry", "full"]'), needs.changes.outputs.scope)
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -97,24 +108,64 @@ jobs:
               make format-check
 
           - name: Check Wall of Apps source
+            if: contains(fromJSON('["docs", "full"]'), needs.changes.outputs.scope)
             run: make check-wall-of-apps
 
           - name: Self-test docs validators
+            if: contains(fromJSON('["docs", "full"]'), needs.changes.outputs.scope)
             run: python3 scripts/test_check_docs.py
 
+          - name: Check CI workflow contracts
+            if: needs.changes.outputs.scope == 'full'
+            run: python3 scripts/test_ci_workflows.py
+
+          - name: Test CI change selection
+            if: needs.changes.outputs.scope == 'full'
+            run: python3 scripts/test_ci_change_scope.py
+
           - name: Check documentation
+            if: contains(fromJSON('["docs", "full"]'), needs.changes.outputs.scope)
             run: make check-docs
 
           - name: Run lint
+            if: contains(fromJSON('["telemetry", "full"]'), needs.changes.outputs.scope)
             run: |
               export PATH="$(go env GOPATH)/bin:$PATH"
               make lint
 
+  format-and-lint:
+    needs: [changes, wall-only-check, quality-checks, website-checks]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify selected quality checks
+        run: |
+          if [ "${{ needs.changes.result }}" != "success" ]; then
+            echo "change detection result: ${{ needs.changes.result }}"
+            exit 1
+          fi
+
+          case "${{ needs.changes.outputs.scope }}" in
+            wall) required="${{ needs.wall-only-check.result }}" ;;
+            docs|telemetry|full) required="${{ needs.quality-checks.result }}" ;;
+            website) required="${{ needs.website-checks.result }}" ;;
+            *) echo "unknown CI scope"; exit 1 ;;
+          esac
+
+          if [ "$required" != "success" ]; then
+            echo "required quality result: $required"
+            exit 1
+          fi
+          if [ "${{ needs.changes.outputs.website_affected }}" = "true" ] && [ "${{ needs.website-checks.result }}" != "success" ]; then
+            echo "website checks result: ${{ needs.website-checks.result }}"
+            exit 1
+          fi
+
   test-shards:
     needs: changes
-    if: needs.changes.outputs.wall_only != 'true'
+    if: needs.changes.outputs.scope == 'full'
     name: test shard (${{ matrix.name }})
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -142,25 +193,93 @@ jobs:
       - name: Run Go test shard
         run: ASC_BYPASS_KEYCHAIN=1 ${{ matrix.command }}
 
-  test:
-    needs: [changes, test-shards]
-    if: always() && needs.changes.outputs.wall_only != 'true'
+  telemetry-linux-tests:
+    needs: changes
+    if: needs.changes.outputs.scope == 'telemetry'
     runs-on: ubuntu-latest
     steps:
-      - name: Verify test shards
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.5'
+          cache: true
+
+      - name: Run telemetry tests
+        run: ASC_BYPASS_KEYCHAIN=1 go test -short ./internal/telemetry ./internal/cli/telemetry ./cmd
+
+  telemetry-windows-tests:
+    needs: changes
+    if: contains(fromJSON('["telemetry", "full"]'), needs.changes.outputs.scope)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.5'
+          cache: true
+
+      - name: Run telemetry tests
+        run: go test -short ./internal/telemetry
+
+  test:
+    needs: [changes, test-shards, telemetry-linux-tests, telemetry-windows-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify selected tests
         run: |
-          if [ "${{ needs.test-shards.result }}" != "success" ]; then
-            echo "test-shards result: ${{ needs.test-shards.result }}"
+          if [ "${{ needs.changes.result }}" != "success" ]; then
+            echo "change detection result: ${{ needs.changes.result }}"
             exit 1
           fi
 
-  build:
+          case "${{ needs.changes.outputs.scope }}" in
+            full)
+              results="${{ needs.test-shards.result }} ${{ needs.telemetry-windows-tests.result }}"
+              ;;
+            telemetry)
+              results="${{ needs.telemetry-linux-tests.result }} ${{ needs.telemetry-windows-tests.result }}"
+              ;;
+            *)
+              echo "No general Go tests required for ${{ needs.changes.outputs.scope }} changes"
+              exit 0
+              ;;
+          esac
+
+          if [ "$results" != "success success" ]; then
+            echo "selected test results: $results"
+            exit 1
+          fi
+
+  build-platforms:
     needs: changes
-    if: needs.changes.outputs.wall_only != 'true'
-    runs-on: macos-latest
-    permissions:
-      contents: read
-      actions: write
+    if: needs.changes.outputs.scope == 'full'
+    name: build (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS
+            runner: macos-latest
+            command: |
+              ASC_BYPASS_KEYCHAIN=1 go test -short ./internal/screenshots
+              GOOS=darwin GOARCH=amd64 go build -o build/asc_dev_macos_amd64 .
+              GOOS=darwin GOARCH=arm64 go build -o build/asc_dev_macos_arm64 .
+          - name: Linux
+            runner: ubuntu-latest
+            command: |
+              GOOS=linux GOARCH=amd64 go build -o build/asc_dev_linux_amd64 .
+              GOOS=linux GOARCH=arm64 go build -o build/asc_dev_linux_arm64 .
+          - name: Windows
+            runner: windows-latest
+            command: GOOS=windows GOARCH=amd64 go build -o build/asc_dev_windows_amd64.exe .
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -173,30 +292,60 @@ jobs:
 
       - name: Create build directory
         run: mkdir -p build
+        shell: bash
 
-      - parallel:
-          - name: Build for macOS
-            run: |
-              GOOS=darwin GOARCH=amd64 go build -o build/asc_dev_macOS_amd64 .
-              GOOS=darwin GOARCH=arm64 go build -o build/asc_dev_macOS_arm64 .
+      - name: Build for ${{ matrix.name }}
+        run: ${{ matrix.command }}
+        shell: bash
 
-          - name: Build for Linux
-            run: |
-              GOOS=linux GOARCH=amd64 go build -o build/asc_dev_linux_amd64 .
-              GOOS=linux GOARCH=arm64 go build -o build/asc_dev_linux_arm64 .
+  ordinary-build:
+    needs: changes
+    if: needs.changes.outputs.scope == 'telemetry'
+    name: ordinary build (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runner: ubuntu-latest
+          - name: macOS
+            runner: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-          - name: Build for Windows
-            run: |
-              GOOS=windows GOARCH=amd64 go build -o build/asc_dev_windows_amd64.exe .
-
-      - name: Create checksums
-        run: |
-          cd build
-          shasum -a 256 * > asc_dev_checksums.txt
-          cat asc_dev_checksums.txt
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+      - name: Set up Go
+        uses: actions/setup-go@v6
         with:
-          name: main-builds
-          path: build/
+          go-version: '1.26.5'
+          cache: true
+
+      - name: Compile CLI
+        run: go build .
+
+  build:
+    needs: [changes, build-platforms, ordinary-build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify selected builds
+        run: |
+          if [ "${{ needs.changes.result }}" != "success" ]; then
+            echo "change detection result: ${{ needs.changes.result }}"
+            exit 1
+          fi
+
+          case "${{ needs.changes.outputs.scope }}" in
+            full) result="${{ needs.build-platforms.result }}" ;;
+            telemetry) result="${{ needs.ordinary-build.result }}" ;;
+            *)
+              echo "No CLI build required for ${{ needs.changes.outputs.scope }} changes"
+              exit 0
+              ;;
+          esac
+
+          if [ "$result" != "success" ]; then
+            echo "selected build result: $result"
+            exit 1
+          fi

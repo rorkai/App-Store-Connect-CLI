@@ -103,7 +103,7 @@ func TestFetchScreenshotSets_OverlapsRequestsWithinCapAndSortsDeterministically(
 	}
 }
 
-func TestBuildReadinessReport_OverlapsFiveIndependentReadGroups(t *testing.T) {
+func TestBuildReadinessReport_OverlapsSixIndependentReadGroups(t *testing.T) {
 	const (
 		slowDelay  = 300 * time.Millisecond
 		shortDelay = 100 * time.Millisecond
@@ -111,11 +111,12 @@ func TestBuildReadinessReport_OverlapsFiveIndependentReadGroups(t *testing.T) {
 	delays := map[string]time.Duration{
 		"/v1/apps/app-1/appPriceSchedule":                              slowDelay,
 		"/v1/apps/app-1/appAvailabilityV2":                             shortDelay,
+		"/v1/territories":                                              shortDelay,
 		"/v1/appStoreVersionLocalizations/ver-loc-1/appScreenshotSets": shortDelay,
 		"/v1/apps/app-1/subscriptionGroups":                            shortDelay,
 		"/v1/apps/app-1/inAppPurchasesV2":                              shortDelay,
 	}
-	serialDelay := slowDelay + 4*shortDelay
+	serialDelay := slowDelay + 5*shortDelay
 
 	tracker := &requestConcurrencyTracker{}
 	var mu sync.Mutex
@@ -156,6 +157,8 @@ func TestBuildReadinessReport_OverlapsFiveIndependentReadGroups(t *testing.T) {
 		case "/v1/apps/app-1/appAvailabilityV2":
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprint(w, `{"errors":[{"status":"404","code":"NOT_FOUND"}]}`)
+		case "/v1/territories":
+			fmt.Fprint(w, `{"data":[{"type":"territories","id":"USA"}],"links":{"next":""}}`)
 		case "/v1/appStoreVersionLocalizations/ver-loc-1/appScreenshotSets",
 			"/v1/apps/app-1/subscriptionGroups",
 			"/v1/apps/app-1/inAppPurchasesV2":
@@ -199,9 +202,9 @@ func TestBuildReadinessReport_OverlapsFiveIndependentReadGroups(t *testing.T) {
 		t.Fatalf("maximum in-flight top-level reads = %d, want %d", got, readinessConcurrencyLimit)
 	}
 	if elapsed >= 550*time.Millisecond {
-		t.Fatalf("five independent read groups took %s; slowest group is %s and serial fixture time is %s", elapsed, slowDelay, serialDelay)
+		t.Fatalf("six independent read groups took %s; slowest group is %s and serial fixture time is %s", elapsed, slowDelay, serialDelay)
 	}
-	t.Logf("five independent read groups completed in %s (slowest=%s, serial=%s, max-in-flight=%d)", elapsed, slowDelay, serialDelay, tracker.max.Load())
+	t.Logf("six independent read groups completed in %s (slowest=%s, serial=%s, max-in-flight=%d)", elapsed, slowDelay, serialDelay, tracker.max.Load())
 }
 
 func TestBuildReadinessReport_CancelsSiblingCompoundReadOnHardError(t *testing.T) {

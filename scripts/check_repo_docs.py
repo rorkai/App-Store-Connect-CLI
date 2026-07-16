@@ -12,7 +12,6 @@ DEFAULT_DOC_GLOBS = (
     "README.md",
     "CONTRIBUTING.md",
     "SUPPORT.md",
-    ".github/PULL_REQUEST_TEMPLATE.md",
     "docs/**/*.md",
 )
 

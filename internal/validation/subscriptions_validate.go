@@ -7,22 +7,29 @@ import (
 
 // Subscription represents an auto-renewable subscription for review-readiness validation.
 type Subscription struct {
-	ID                           string
-	Name                         string
-	ProductID                    string
-	State                        string
-	GroupID                      string
-	GroupName                    string
-	HasImage                     bool
-	ImageCheckSkipped            bool
-	ImageCheckSkipReason         string
-	ReviewScreenshotID           string
-	ReviewScreenshotCheckSkipped bool
-	ReviewScreenshotCheckReason  string
-	AvailabilityID               string
-	AvailabilityTerritories      []string
-	AvailabilityCheckSkipped     bool
-	AvailabilityCheckSkipReason  string
+	ID                                  string
+	Name                                string
+	ProductID                           string
+	State                               string
+	GroupID                             string
+	GroupName                           string
+	HasImage                            bool
+	ImageCheckSkipped                   bool
+	ImageCheckSkipReason                string
+	ReviewScreenshotID                  string
+	ReviewScreenshotAssetDeliveryState  string
+	ReviewScreenshotAssetDeliveryErrors []string
+	ReviewScreenshotCheckSkipped        bool
+	ReviewScreenshotCheckReason         string
+	AvailabilityID                      string
+	AvailabilityTerritories             []string
+	AvailabilityCheckSkipped            bool
+	AvailabilityCheckSkipReason         string
+	AvailabilityInNewTerritories        *bool
+	SubscriptionPeriod                  string
+	PlanAvailabilities                  []SubscriptionPlanAvailabilityInfo
+	PlanAvailabilityCheckSkipped        bool
+	PlanAvailabilityCheckReason         string
 
 	// Deep diagnostics (populated when State is MISSING_METADATA).
 	Localizations                 []SubscriptionLocalizationInfo
@@ -46,6 +53,14 @@ type Subscription struct {
 	WinBackOfferCheckReason       string
 }
 
+// SubscriptionPlanAvailabilityInfo holds one billing plan's territory availability.
+type SubscriptionPlanAvailabilityInfo struct {
+	ID                        string
+	PlanType                  string
+	AvailableInNewTerritories *bool
+	Territories               []string
+}
+
 // SubscriptionLocalizationInfo holds per-locale metadata for a subscription.
 type SubscriptionLocalizationInfo struct {
 	Locale      string
@@ -61,14 +76,17 @@ type SubscriptionGroupLocalizationInfo struct {
 
 // SubscriptionsInput collects subscription validation inputs.
 type SubscriptionsInput struct {
-	AppID                     string
-	Subscriptions             []Subscription
-	AvailableTerritories      int
-	AppAvailableTerritories   []string
-	PricingCoverageSkipReason string
-	AppBuildCount             int
-	BuildCheckSkipped         bool
-	BuildCheckSkipReason      string
+	AppID                             string
+	Subscriptions                     []Subscription
+	AvailableTerritories              int
+	AppAvailableTerritories           []string
+	AppAvailabilityCoverageSkipReason string
+	PricingTerritories                []string
+	PricingTerritoryCount             int
+	PricingCoverageSkipReason         string
+	AppBuildCount                     int
+	BuildCheckSkipped                 bool
+	BuildCheckSkipReason              string
 }
 
 // SubscriptionsReport is the top-level validate subscriptions output.
@@ -83,11 +101,17 @@ type SubscriptionsReport struct {
 
 // ValidateSubscriptions validates subscription review readiness and returns a report.
 func ValidateSubscriptions(input SubscriptionsInput, strict bool) SubscriptionsReport {
-	availableTerritories := input.AvailableTerritories
-	appAvailableTerritories := input.AppAvailableTerritories
+	pricingTerritoryCount := input.PricingTerritoryCount
+	pricingTerritories := input.PricingTerritories
+	// Preserve programmatic callers compiled before pricing-territory discovery
+	// was added; the CLI always supplies the canonical pricing universe.
+	if pricingTerritoryCount == 0 && len(pricingTerritories) == 0 {
+		pricingTerritoryCount = input.AvailableTerritories
+		pricingTerritories = input.AppAvailableTerritories
+	}
 	if input.PricingCoverageSkipReason != "" {
-		availableTerritories = 0
-		appAvailableTerritories = nil
+		pricingTerritoryCount = 0
+		pricingTerritories = nil
 	}
 
 	checks := make([]CheckResult, 0)
@@ -96,7 +120,7 @@ func ValidateSubscriptions(input SubscriptionsInput, strict bool) SubscriptionsR
 	checks = append(checks, subscriptionPricingVerificationChecks(input.Subscriptions)...)
 	checks = append(checks, subscriptionPricingCoverageSkipChecks(input.AppID, input.PricingCoverageSkipReason)...)
 	checks = append(checks, subscriptionMetadataDiagnostics(input.Subscriptions)...)
-	checks = append(checks, subscriptionPricingCoverageChecks(input.Subscriptions, availableTerritories, appAvailableTerritories)...)
+	checks = append(checks, subscriptionPricingCoverageChecks(input.Subscriptions, pricingTerritoryCount, pricingTerritories)...)
 	diagnostics := buildSubscriptionDiagnostics(input)
 	summary := summarize(checks, strict)
 
@@ -279,21 +303,21 @@ func subscriptionPricingCoverageSkipChecks(appID, reason string) []CheckResult {
 		Field:        "pricing",
 		ResourceType: "app",
 		ResourceID:   strings.TrimSpace(appID),
-		Message:      "Could not verify subscription pricing coverage against app availability territories",
+		Message:      "Could not verify the complete subscription price matrix against App Store pricing territories",
 		Remediation:  reason,
 	}}
 }
 
-// subscriptionPricingCoverageChecks warns when a subscription has prices configured
-// but doesn't cover all territories the app is available in. This catches the common
-// submission failure where only a single territory (e.g., US) has pricing set.
-func subscriptionPricingCoverageChecks(subs []Subscription, availableTerritories int, appAvailableTerritories []string) []CheckResult {
-	appAvailableTerritories = sortedUniqueNonEmpty(appAvailableTerritories)
-	if len(appAvailableTerritories) == 0 && availableTerritories <= 0 {
+// subscriptionPricingCoverageChecks warns when a subscription does not have the
+// complete pricing matrix returned by App Store Connect. Sale availability is an
+// independent subset and must not narrow this check.
+func subscriptionPricingCoverageChecks(subs []Subscription, availableTerritories int, pricingTerritories []string) []CheckResult {
+	pricingTerritories = sortedUniqueNonEmpty(pricingTerritories)
+	if len(pricingTerritories) == 0 && availableTerritories <= 0 {
 		return nil
 	}
-	if len(appAvailableTerritories) > 0 {
-		availableTerritories = len(appAvailableTerritories)
+	if len(pricingTerritories) > 0 {
+		availableTerritories = len(pricingTerritories)
 	}
 
 	var checks []CheckResult
@@ -308,47 +332,8 @@ func subscriptionPricingCoverageChecks(subs []Subscription, availableTerritories
 
 		label := formatSubscriptionLabel(sub)
 		priceTerritories := sortedUniqueNonEmpty(sub.PriceTerritories)
-		subscriptionAvailabilityTerritories := sortedUniqueNonEmpty(sub.AvailabilityTerritories)
-		if state == "MISSING_METADATA" {
-			availabilityUnknown := sub.AvailabilityCheckSkipped || strings.TrimSpace(sub.AvailabilityID) == ""
-			availabilityEmpty := strings.TrimSpace(sub.AvailabilityID) != "" && len(subscriptionAvailabilityTerritories) == 0
-			if availabilityUnknown || availabilityEmpty {
-				continue
-			}
-		}
-		if len(subscriptionAvailabilityTerritories) > 0 {
-			if len(priceTerritories) > 0 {
-				missing := missingValues(subscriptionAvailabilityTerritories, priceTerritories)
-				if len(missing) == 0 {
-					continue
-				}
-				checks = append(checks, CheckResult{
-					ID:           "subscriptions.pricing.partial_territory_coverage",
-					Severity:     SeverityWarning,
-					Field:        "pricing",
-					ResourceType: "subscription",
-					ResourceID:   strings.TrimSpace(sub.ID),
-					Message:      fmt.Sprintf("%s has pricing for %d of %d subscription availability territories; missing: %s", label, len(priceTerritories), len(subscriptionAvailabilityTerritories), strings.Join(missing, ",")),
-					Remediation:  "Set prices for all subscription availability territories using `asc subscriptions pricing equalize` or `asc subscriptions pricing prices set`; missing territory pricing blocks App Store submission",
-				})
-				continue
-			}
-			if sub.PriceCount >= len(subscriptionAvailabilityTerritories) {
-				continue
-			}
-			checks = append(checks, CheckResult{
-				ID:           "subscriptions.pricing.partial_territory_coverage",
-				Severity:     SeverityWarning,
-				Field:        "pricing",
-				ResourceType: "subscription",
-				ResourceID:   strings.TrimSpace(sub.ID),
-				Message:      fmt.Sprintf("%s has pricing for %d of %d subscription availability territories", label, sub.PriceCount, len(subscriptionAvailabilityTerritories)),
-				Remediation:  "Set prices for all subscription availability territories using `asc subscriptions pricing equalize` or `asc subscriptions pricing prices set`; missing territory pricing blocks App Store submission",
-			})
-			continue
-		}
-		if len(appAvailableTerritories) > 0 && len(priceTerritories) > 0 {
-			missing := missingValues(appAvailableTerritories, priceTerritories)
+		if len(pricingTerritories) > 0 && len(priceTerritories) > 0 {
+			missing := missingValues(pricingTerritories, priceTerritories)
 			if len(missing) == 0 {
 				continue
 			}
@@ -358,8 +343,8 @@ func subscriptionPricingCoverageChecks(subs []Subscription, availableTerritories
 				Field:        "pricing",
 				ResourceType: "subscription",
 				ResourceID:   strings.TrimSpace(sub.ID),
-				Message:      fmt.Sprintf("%s has pricing for %d of %d app availability territories; missing: %s", label, len(priceTerritories), len(appAvailableTerritories), strings.Join(missing, ",")),
-				Remediation:  "Set prices for all app availability territories using `asc subscriptions pricing equalize` or `asc subscriptions pricing prices set`; missing territory pricing blocks App Store submission",
+				Message:      fmt.Sprintf("%s has pricing for %d of %d App Store pricing territories; missing: %s", label, len(priceTerritories), len(pricingTerritories), strings.Join(missing, ",")),
+				Remediation:  "Materialize the complete App Store pricing matrix using `asc subscriptions setup --repair` or `asc subscriptions pricing equalize`; missing pricing territories can leave Apple reporting MISSING_METADATA",
 			})
 			continue
 		}
@@ -372,8 +357,8 @@ func subscriptionPricingCoverageChecks(subs []Subscription, availableTerritories
 			Field:        "pricing",
 			ResourceType: "subscription",
 			ResourceID:   strings.TrimSpace(sub.ID),
-			Message:      fmt.Sprintf("%s has pricing for %d of %d available territories", label, sub.PriceCount, availableTerritories),
-			Remediation:  "Set prices for all available territories using `asc subscriptions pricing equalize` or `asc subscriptions pricing prices set`; missing territory pricing blocks App Store submission",
+			Message:      fmt.Sprintf("%s has pricing for %d of %d App Store pricing territories", label, sub.PriceCount, availableTerritories),
+			Remediation:  "Materialize the complete App Store pricing matrix using `asc subscriptions setup --repair` or `asc subscriptions pricing equalize`; missing pricing territories can leave Apple reporting MISSING_METADATA",
 		})
 	}
 
@@ -503,7 +488,8 @@ func subscriptionMetadataDiagnostics(subs []Subscription) []CheckResult {
 			}
 		}
 
-		// Check pricing.
+		// Check the App Review screenshot and its asset delivery state.
+		reviewScreenshotState := strings.ToUpper(strings.TrimSpace(sub.ReviewScreenshotAssetDeliveryState))
 		if sub.ReviewScreenshotCheckSkipped {
 			remediation := strings.TrimSpace(sub.ReviewScreenshotCheckReason)
 			if remediation == "" {
@@ -527,6 +513,26 @@ func subscriptionMetadataDiagnostics(subs []Subscription) []CheckResult {
 				ResourceID:   strings.TrimSpace(sub.ID),
 				Message:      fmt.Sprintf("%s has no App Review screenshot", label),
 				Remediation:  "Upload a subscription App Review screenshot via `asc subscriptions review screenshots create`",
+			})
+		} else if reviewScreenshotState == "FAILED" {
+			checks = append(checks, CheckResult{
+				ID:           "subscriptions.diagnostics.review_screenshot_failed",
+				Severity:     SeverityWarning,
+				Field:        "reviewScreenshot",
+				ResourceType: "subscription",
+				ResourceID:   strings.TrimSpace(sub.ID),
+				Message:      fmt.Sprintf("%s App Review screenshot failed asset delivery", label),
+				Remediation:  reviewScreenshotFailedRemediation(sub),
+			})
+		} else if reviewScreenshotState != "COMPLETE" {
+			checks = append(checks, CheckResult{
+				ID:           "subscriptions.diagnostics.review_screenshot_unverified",
+				Severity:     SeverityInfo,
+				Field:        "reviewScreenshot",
+				ResourceType: "subscription",
+				ResourceID:   strings.TrimSpace(sub.ID),
+				Message:      fmt.Sprintf("Could not verify whether %s has a completed App Review screenshot", label),
+				Remediation:  reviewScreenshotDeliveryRemediation(reviewScreenshotState),
 			})
 		}
 
@@ -563,6 +569,54 @@ func subscriptionMetadataDiagnostics(subs []Subscription) []CheckResult {
 				ResourceID:   strings.TrimSpace(sub.ID),
 				Message:      fmt.Sprintf("%s has subscription availability configured but no available territories", label),
 				Remediation:  "Enable at least one subscription availability territory via `asc subscriptions availability edit`",
+			})
+		}
+
+		planAnalysis := analyzeSubscriptionPlanAvailability(sub)
+		switch {
+		case planAnalysis.unverified:
+			checks = append(checks, CheckResult{
+				ID: "subscriptions.diagnostics.plan_availability_unverified", Severity: SeverityInfo,
+				Field: "planAvailabilities", ResourceType: "subscription", ResourceID: strings.TrimSpace(sub.ID),
+				Message:     fmt.Sprintf("Could not verify %s billing-plan availability", label),
+				Remediation: fallbackString(sub.PlanAvailabilityCheckReason, "Review billing-plan availability in App Store Connect"),
+			})
+		case planAnalysis.duplicateTypes:
+			checks = append(checks, CheckResult{
+				ID: "subscriptions.diagnostics.plan_availability_duplicate", Severity: SeverityWarning,
+				Field: "planAvailabilities", ResourceType: "subscription", ResourceID: strings.TrimSpace(sub.ID),
+				Message:     fmt.Sprintf("%s has duplicate billing-plan availability records", label),
+				Remediation: "Review and repair duplicate plan availability records in App Store Connect",
+			})
+		case planAnalysis.upfront == nil:
+			checks = append(checks, CheckResult{
+				ID: "subscriptions.diagnostics.upfront_plan_availability_missing", Severity: SeverityWarning,
+				Field: "planAvailabilities", ResourceType: "subscription", ResourceID: strings.TrimSpace(sub.ID),
+				Message:     fmt.Sprintf("%s has no UPFRONT billing-plan availability", label),
+				Remediation: "Configure UPFRONT plan availability for at least one territory",
+			})
+		case len(planAnalysis.upfrontTerritories) == 0:
+			checks = append(checks, CheckResult{
+				ID: "subscriptions.diagnostics.upfront_plan_availability_empty", Severity: SeverityWarning,
+				Field: "planAvailabilities", ResourceType: "subscription", ResourceID: strings.TrimSpace(sub.ID),
+				Message:     fmt.Sprintf("%s has UPFRONT billing-plan availability with no territories", label),
+				Remediation: "Enable at least one territory for the UPFRONT plan",
+			})
+		}
+		if !planAnalysis.unverified && planAnalysis.surfaceMismatch {
+			checks = append(checks, CheckResult{
+				ID: "subscriptions.diagnostics.availability_surfaces_mismatch", Severity: SeverityWarning,
+				Field: "planAvailabilities", ResourceType: "subscription", ResourceID: strings.TrimSpace(sub.ID),
+				Message:     fmt.Sprintf("%s has different territories on legacy and UPFRONT availability surfaces", label),
+				Remediation: "Make legacy subscription availability and UPFRONT plan availability agree, then re-validate",
+			})
+		}
+		if !planAnalysis.unverified && len(planAnalysis.monthlyIssues) > 0 {
+			checks = append(checks, CheckResult{
+				ID: "subscriptions.diagnostics.monthly_plan_invalid", Severity: SeverityWarning,
+				Field: "planAvailabilities", ResourceType: "subscription", ResourceID: strings.TrimSpace(sub.ID),
+				Message:     fmt.Sprintf("%s has invalid MONTHLY commitment availability: %s", label, strings.Join(planAnalysis.monthlyIssues, "; ")),
+				Remediation: "Use MONTHLY only for ONE_YEAR subscriptions, only in UPFRONT territories, and exclude USA and SGP",
 			})
 		}
 

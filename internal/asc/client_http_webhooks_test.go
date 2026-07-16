@@ -202,6 +202,15 @@ func TestGetWebhookDeliveries_SendsRequest(t *testing.T) {
 		if values.Get("filter[deliveryState]") != "FAILED" {
 			t.Fatalf("expected filter[deliveryState]=FAILED, got %q", values.Get("filter[deliveryState]"))
 		}
+		if values.Get("fields[webhookDeliveries]") != "deliveryState,createdDate" {
+			t.Fatalf("unexpected webhook delivery fields: %q", values.Get("fields[webhookDeliveries]"))
+		}
+		if values.Get("fields[webhookEvents]") != "eventType" {
+			t.Fatalf("unexpected webhook event fields: %q", values.Get("fields[webhookEvents]"))
+		}
+		if values.Get("include") != "webhookEvent" {
+			t.Fatalf("unexpected include: %q", values.Get("include"))
+		}
 		assertAuthorized(t, req)
 	}, response)
 
@@ -209,6 +218,9 @@ func TestGetWebhookDeliveries_SendsRequest(t *testing.T) {
 		context.Background(), "wh-1",
 		WithWebhookDeliveriesLimit(3),
 		WithWebhookDeliveriesDeliveryStates([]string{"failed"}),
+		WithWebhookDeliveriesFields([]string{"deliveryState", "createdDate"}),
+		WithWebhookDeliveriesEventFields([]string{"eventType"}),
+		WithWebhookDeliveriesInclude([]string{"webhookEvent"}),
 	)
 	if err != nil {
 		t.Fatalf("GetWebhookDeliveries() error: %v", err)

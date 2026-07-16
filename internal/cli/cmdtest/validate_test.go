@@ -35,6 +35,8 @@ type validateFixture struct {
 	availabilityV2Status       int
 	territories                string
 	territoriesByQuery         map[string]string
+	pricingTerritories         string
+	pricingTerritoriesByQuery  map[string]string
 	screenshotSets             map[string]string
 	screenshotsBySet           map[string]string
 	subscriptionGroups         string
@@ -118,6 +120,14 @@ func newValidateTestClient(t *testing.T, fixture validateFixture) *asc.Client {
 				return jsonResponse(http.StatusOK, fixture.availabilityV2)
 			}
 			return jsonResponse(http.StatusNotFound, `{"errors":[{"code":"NOT_FOUND","title":"Not Found","detail":"resource not found"}]}`)
+		case path == "/v1/territories":
+			if body, ok := fixture.pricingTerritoriesByQuery[req.URL.RawQuery]; ok {
+				return jsonResponse(http.StatusOK, body)
+			}
+			if fixture.pricingTerritories != "" {
+				return jsonResponse(http.StatusOK, fixture.pricingTerritories)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[],"links":{"next":""}}`)
 		case strings.HasPrefix(path, "/v2/appAvailabilities/") && strings.HasSuffix(path, "/territoryAvailabilities"):
 			if body, ok := fixture.territoriesByQuery[req.URL.RawQuery]; ok {
 				return jsonResponse(http.StatusOK, body)
@@ -251,18 +261,19 @@ func hasCheckWithID(checks []validation.CheckResult, id string) bool {
 
 func validValidateFixture() validateFixture {
 	return validateFixture{
-		app:             `{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US","contentRightsDeclaration":"DOES_NOT_USE_THIRD_PARTY_CONTENT"}}}`,
-		versions:        `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0","copyright":"2026 Test Company"}}]}`,
-		version:         `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"PREPARE_FOR_SUBMISSION","copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`,
-		appInfos:        `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`,
-		appInfoLocs:     `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle","privacyPolicyUrl":"https://example.com/privacy"}}]}`,
-		versionLocs:     fmt.Sprintf(`{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1","attributes":{"locale":"en-US","description":"Description. Terms of Use: %s","keywords":"keyword","whatsNew":"Notes","promotionalText":"Promo","supportUrl":"https://support.example.com","marketingUrl":"https://marketing.example.com"}}]}`, validation.AppleStandardEULAURL),
-		reviewDetails:   `{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"a@example.com","contactPhone":"123","demoAccountName":"","demoAccountPassword":"","demoAccountRequired":false,"notes":"Review notes"}}}`,
-		primaryCategory: `{"data":{"type":"appCategories","id":"cat-1"}}`,
-		build:           `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false,"usesNonExemptEncryption":false}}}`,
-		priceSchedule:   `{"data":{"type":"appPriceSchedules","id":"sched-1","attributes":{}}}`,
-		availabilityV2:  `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`,
-		territories:     `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}}]}`,
+		app:                `{"data":{"type":"apps","id":"app-1","attributes":{"primaryLocale":"en-US","contentRightsDeclaration":"DOES_NOT_USE_THIRD_PARTY_CONTENT"}}}`,
+		versions:           `{"data":[{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0","copyright":"2026 Test Company"}}]}`,
+		version:            `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0","appVersionState":"PREPARE_FOR_SUBMISSION","copyright":"2026 Test Company"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`,
+		appInfos:           `{"data":[{"type":"appInfos","id":"info-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`,
+		appInfoLocs:        `{"data":[{"type":"appInfoLocalizations","id":"info-loc-1","attributes":{"locale":"en-US","name":"My App","subtitle":"Subtitle","privacyPolicyUrl":"https://example.com/privacy"}}]}`,
+		versionLocs:        fmt.Sprintf(`{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1","attributes":{"locale":"en-US","description":"Description. Terms of Use: %s","keywords":"keyword","whatsNew":"Notes","promotionalText":"Promo","supportUrl":"https://support.example.com","marketingUrl":"https://marketing.example.com"}}]}`, validation.AppleStandardEULAURL),
+		reviewDetails:      `{"data":{"type":"appStoreReviewDetails","id":"review-detail-1","attributes":{"contactFirstName":"A","contactLastName":"B","contactEmail":"a@example.com","contactPhone":"123","demoAccountName":"","demoAccountPassword":"","demoAccountRequired":false,"notes":"Review notes"}}}`,
+		primaryCategory:    `{"data":{"type":"appCategories","id":"cat-1"}}`,
+		build:              `{"data":{"type":"builds","id":"build-1","attributes":{"version":"1.0","processingState":"VALID","expired":false,"usesNonExemptEncryption":false}}}`,
+		priceSchedule:      `{"data":{"type":"appPriceSchedules","id":"sched-1","attributes":{}}}`,
+		availabilityV2:     `{"data":{"type":"appAvailabilities","id":"avail-1","attributes":{"availableInNewTerritories":true}}}`,
+		territories:        `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}}]}`,
+		pricingTerritories: `{"data":[{"type":"territories","id":"USA"}],"links":{"next":""}}`,
 		ageRating: `{"data":{"type":"ageRatingDeclarations","id":"age-1","attributes":{
 			"advertising":false,
 			"gambling":false,
@@ -1961,20 +1972,19 @@ func TestValidateFailsWhenNoTerritoriesAvailable(t *testing.T) {
 
 func TestValidateWarnsPartialSubscriptionPricingCoverage(t *testing.T) {
 	fixture := validValidateFixture()
-	// Subscription with pricing for 1 territory but app available in many.
+	// Subscription with pricing for 1 territory but a larger App Store pricing universe.
 	fixture.subscriptionsByGroup["group-1"] = `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"APPROVED"}}]}`
 	fixture.expectedPriceInclude = "territory"
 	fixture.pricesBySubscription = map[string]string{
 		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}]}`,
 	}
-	// Make the app available in 5 territories so the coverage gap is clear.
-	fixture.territories = `{"data":[` +
-		`{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}},` +
-		`{"type":"territoryAvailabilities","id":"ta-2","attributes":{"available":true}},` +
-		`{"type":"territoryAvailabilities","id":"ta-3","attributes":{"available":true}},` +
-		`{"type":"territoryAvailabilities","id":"ta-4","attributes":{"available":true}},` +
-		`{"type":"territoryAvailabilities","id":"ta-5","attributes":{"available":true}}` +
-		`]}`
+	fixture.pricingTerritories = `{"data":[` +
+		`{"type":"territories","id":"USA"},` +
+		`{"type":"territories","id":"CAN"},` +
+		`{"type":"territories","id":"GBR"},` +
+		`{"type":"territories","id":"FRA"},` +
+		`{"type":"territories","id":"DEU"}` +
+		`],"links":{"next":""}}`
 
 	client := newValidateTestClient(t, fixture)
 	restore := validate.SetClientFactory(func() (*asc.Client, error) {
@@ -2011,13 +2021,13 @@ func TestValidateWarnsPartialSubscriptionPricingCoverageAcrossTerritoryPages(t *
 	fixture.pricesBySubscription = map[string]string{
 		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}]}`,
 	}
-	fixture.territories = `{"data":[{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true}}],"links":{"next":"https://api.appstoreconnect.apple.com/v2/appAvailabilities/avail-1/territoryAvailabilities?cursor=page-2"}}`
-	fixture.territoriesByQuery = map[string]string{
+	fixture.pricingTerritories = `{"data":[{"type":"territories","id":"USA"}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/territories?cursor=page-2"}}`
+	fixture.pricingTerritoriesByQuery = map[string]string{
 		"cursor=page-2": `{"data":[
-			{"type":"territoryAvailabilities","id":"ta-2","attributes":{"available":true}},
-			{"type":"territoryAvailabilities","id":"ta-3","attributes":{"available":true}},
-			{"type":"territoryAvailabilities","id":"ta-4","attributes":{"available":true}},
-			{"type":"territoryAvailabilities","id":"ta-5","attributes":{"available":true}}
+			{"type":"territories","id":"CAN"},
+			{"type":"territories","id":"GBR"},
+			{"type":"territories","id":"FRA"},
+			{"type":"territories","id":"DEU"}
 		],"links":{"next":""}}`,
 	}
 
@@ -2049,17 +2059,17 @@ func TestValidateWarnsPartialSubscriptionPricingCoverageAcrossTerritoryPages(t *
 	}
 }
 
-func TestValidateNamesMissingSubscriptionPricingTerritoriesWhenAppTerritoryIDsAreAvailable(t *testing.T) {
+func TestValidateNamesMissingSubscriptionPricingTerritoriesWhenPricingTerritoryIDsAreAvailable(t *testing.T) {
 	fixture := validValidateFixture()
 	fixture.subscriptionsByGroup["group-1"] = `{"data":[{"type":"subscriptions","id":"sub-1","attributes":{"name":"Monthly","productId":"com.example.monthly","state":"APPROVED"}}]}`
 	fixture.expectedPriceInclude = "territory"
 	fixture.pricesBySubscription = map[string]string{
 		"sub-1": `{"data":[{"type":"subscriptionPrices","id":"price-1","attributes":{"startDate":"2026-01-01"},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}}]}`,
 	}
-	fixture.territories = `{"data":[
-		{"type":"territoryAvailabilities","id":"ta-1","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"USA"}}}},
-		{"type":"territoryAvailabilities","id":"ta-2","attributes":{"available":true},"relationships":{"territory":{"data":{"type":"territories","id":"CAN"}}}}
-	]}`
+	fixture.pricingTerritories = `{"data":[
+		{"type":"territories","id":"USA"},
+		{"type":"territories","id":"CAN"}
+	],"links":{"next":""}}`
 
 	client := newValidateTestClient(t, fixture)
 	restore := validate.SetClientFactory(func() (*asc.Client, error) {

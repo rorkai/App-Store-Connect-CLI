@@ -235,6 +235,48 @@ func TestUploadScreenshotsFanoutFiltersMixedDeviceTreesBySelectedDisplayType(t *
 	}
 }
 
+func TestUploadScreenshotsFanoutAppliesMaxDuringFallbackDiscovery(t *testing.T) {
+	rootDir := t.TempDir()
+	enDir := filepath.Join(rootDir, "en-US", "iphone")
+	if err := os.MkdirAll(enDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() error: %v", err)
+	}
+	for i := 1; i <= appScreenshotSetMaxScreenshots; i++ {
+		writeAssetsTestPNGWithSize(t, enDir, fmt.Sprintf("%02d-home.png", i), 1242, 2688)
+	}
+	if err := os.WriteFile(filepath.Join(enDir, "11-corrupt.png"), []byte("not an image"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+
+	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1/appStoreVersionLocalizations" {
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}}],"links":{}}`)
+			return
+		}
+		t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+		http.Error(w, "unexpected request", http.StatusNotFound)
+	}))
+
+	var gotFiles []string
+	_, err := uploadScreenshotsFanout(context.Background(), screenshotUploadFanoutConfig{
+		Client:         client,
+		VersionID:      "version-1",
+		RootPath:       rootDir,
+		DisplayType:    asc.CanonicalScreenshotDisplayTypeForAPI("APP_IPHONE_65"),
+		MaxScreenshots: appScreenshotSetMaxScreenshots,
+		ExecuteUpload: func(_ context.Context, cfg screenshotUploadConfig[asc.AppScreenshotUploadResult], _ string) (asc.AppScreenshotUploadResult, error) {
+			gotFiles = append([]string(nil), cfg.Files...)
+			return asc.AppScreenshotUploadResult{}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("uploadScreenshotsFanout() error: %v", err)
+	}
+	if len(gotFiles) != appScreenshotSetMaxScreenshots {
+		t.Fatalf("files passed to upload = %d, want %d", len(gotFiles), appScreenshotSetMaxScreenshots)
+	}
+}
+
 func TestUploadScreenshotsFanoutPreservesPartialResultsAndArtifactsOnLocaleFailure(t *testing.T) {
 	rootDir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(rootDir, "en-US"), 0o755); err != nil {

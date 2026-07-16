@@ -2792,6 +2792,30 @@ func TestSubmitPreflightRequestContextPreservesCallerDeadlineWithoutOverride(t *
 	}
 }
 
+func TestSubmitPreflightRequestContextUsesConfiguredPhaseTimeout(t *testing.T) {
+	const requestTimeout = 75 * time.Millisecond
+	const deadlineTolerance = 10 * time.Millisecond
+
+	parentDeadline := time.Now().Add(2 * time.Minute)
+	parentCtx, parentCancel := context.WithDeadline(context.Background(), parentDeadline)
+	defer parentCancel()
+
+	startedAt := time.Now()
+	ctx, cancel := submitPreflightRequestContext(parentCtx, requestTimeout)
+	finishedAt := time.Now()
+	defer cancel()
+
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		t.Fatal("expected configured preflight context to have a deadline")
+	}
+	earliestDeadline := startedAt.Add(requestTimeout - deadlineTolerance)
+	latestDeadline := finishedAt.Add(requestTimeout + deadlineTolerance)
+	if deadline.Before(earliestDeadline) || deadline.After(latestDeadline) {
+		t.Fatalf("configured preflight deadline = %v, want between %v and %v", deadline, earliestDeadline, latestDeadline)
+	}
+}
+
 func TestPrintSubmissionErrorHintsUsesExistingRunnableCommands(t *testing.T) {
 	stderr := captureSubmitStderr(t, func() {
 		printSubmissionErrorHints(errors.New("ageRatingDeclaration contentRightsDeclaration usesNonExemptEncryption appDataUsage primaryCategory"), submissionErrorHintContext{

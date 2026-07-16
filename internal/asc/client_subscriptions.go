@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 )
 
@@ -235,58 +236,85 @@ func (c *Client) UpdateSubscription(ctx context.Context, subID string, attrs Sub
 	return &response, nil
 }
 
-// SetSubscriptionInitialPrice sets the initial base price on a subscription that
-// has no existing prices. This uses PATCH /v1/subscriptions/{id} with inline
-// SubscriptionPriceInlineCreate resources, which is the only supported method
-// for setting the first price on a new subscription. POST /v1/subscriptionPrices
-// only works for price *changes* on subscriptions that already have a price.
-func (c *Client) SetSubscriptionInitialPrice(ctx context.Context, subID, pricePointID, territoryID string, attrs SubscriptionPriceCreateAttributes) (*SubscriptionResponse, error) {
+// SetSubscriptionPriceMatrix atomically sets an initial subscription price
+// matrix using inline SubscriptionPriceInlineCreate resources.
+func (c *Client) SetSubscriptionPriceMatrix(ctx context.Context, subID string, entries []SubscriptionInlinePrice) (*SubscriptionResponse, error) {
 	subID = strings.TrimSpace(subID)
-	pricePointID = strings.TrimSpace(pricePointID)
-	territoryID = strings.ToUpper(strings.TrimSpace(territoryID))
-	if subID == "" || pricePointID == "" {
-		return nil, fmt.Errorf("subscription ID and price point ID are required")
+	if subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("at least one subscription price is required")
 	}
 
-	var attributes *SubscriptionPriceCreateAttributes
-	if attrs.StartDate != "" || attrs.Preserved != nil || attrs.PlanType != "" {
-		attributes = &attrs
-	}
-
-	relationships := SubscriptionPriceInlineRelationships{
-		Subscription:           Relationship{Data: ResourceData{Type: ResourceTypeSubscriptions, ID: subID}},
-		SubscriptionPricePoint: Relationship{Data: ResourceData{Type: ResourceTypeSubscriptionPricePoints, ID: pricePointID}},
-	}
-	if territoryID != "" {
-		relationships.Territory = &Relationship{
-			Data: ResourceData{
-				Type: ResourceTypeTerritories,
-				ID:   territoryID,
-			},
+	normalized := make([]SubscriptionInlinePrice, 0, len(entries))
+	byTerritory := make(map[string]SubscriptionInlinePrice, len(entries))
+	for i, entry := range entries {
+		entry.PricePointID = strings.TrimSpace(entry.PricePointID)
+		entry.TerritoryID = strings.ToUpper(strings.TrimSpace(entry.TerritoryID))
+		entry.Attributes.StartDate = strings.TrimSpace(entry.Attributes.StartDate)
+		entry.Attributes.PlanType = SubscriptionPlanType(strings.TrimSpace(string(entry.Attributes.PlanType)))
+		if entry.PricePointID == "" {
+			return nil, fmt.Errorf("subscription price row %d: price point ID is required", i+1)
 		}
+		if previous, ok := byTerritory[entry.TerritoryID]; ok {
+			if subscriptionPriceMatrixEntriesEqual(previous, entry) {
+				continue
+			}
+			return nil, fmt.Errorf("subscription price matrix has duplicate territory %q with conflicting values", entry.TerritoryID)
+		}
+		byTerritory[entry.TerritoryID] = entry
+		normalized = append(normalized, entry)
+	}
+	sort.Slice(normalized, func(i, j int) bool {
+		return normalized[i].TerritoryID < normalized[j].TerritoryID
+	})
+
+	relationshipData := make([]ResourceData, 0, len(normalized))
+	included := make([]SubscriptionPriceInlineCreate, 0, len(normalized))
+	for i, entry := range normalized {
+		inlinePriceID := fmt.Sprintf("${price-%d}", i+1)
+		relationshipData = append(relationshipData, ResourceData{
+			Type: ResourceTypeSubscriptionPrices,
+			ID:   inlinePriceID,
+		})
+
+		var attributes *SubscriptionPriceCreateAttributes
+		if entry.Attributes.StartDate != "" || entry.Attributes.Preserved != nil || entry.Attributes.PlanType != "" {
+			attrs := entry.Attributes
+			attributes = &attrs
+		}
+		relationships := SubscriptionPriceInlineRelationships{
+			Subscription:           Relationship{Data: ResourceData{Type: ResourceTypeSubscriptions, ID: subID}},
+			SubscriptionPricePoint: Relationship{Data: ResourceData{Type: ResourceTypeSubscriptionPricePoints, ID: entry.PricePointID}},
+		}
+		if entry.TerritoryID != "" {
+			relationships.Territory = &Relationship{
+				Data: ResourceData{
+					Type: ResourceTypeTerritories,
+					ID:   entry.TerritoryID,
+				},
+			}
+		}
+		included = append(included, SubscriptionPriceInlineCreate{
+			Type:          ResourceTypeSubscriptionPrices,
+			ID:            inlinePriceID,
+			Attributes:    attributes,
+			Relationships: relationships,
+		})
 	}
 
-	inlinePriceID := "${price-1}"
 	payload := SubscriptionUpdateRequest{
 		Data: SubscriptionUpdateData{
 			Type: ResourceTypeSubscriptions,
 			ID:   subID,
 			Relationships: &SubscriptionUpdateRelationships{
 				Prices: &RelationshipList{
-					Data: []ResourceData{
-						{Type: ResourceTypeSubscriptionPrices, ID: inlinePriceID},
-					},
+					Data: relationshipData,
 				},
 			},
 		},
-		Included: []SubscriptionPriceInlineCreate{
-			{
-				Type:          ResourceTypeSubscriptionPrices,
-				ID:            inlinePriceID,
-				Attributes:    attributes,
-				Relationships: relationships,
-			},
-		},
+		Included: included,
 	}
 
 	path := fmt.Sprintf("/v1/subscriptions/%s", subID)
@@ -305,6 +333,29 @@ func (c *Client) SetSubscriptionInitialPrice(ctx context.Context, subID, pricePo
 	}
 
 	return &response, nil
+}
+
+func subscriptionPriceMatrixEntriesEqual(a, b SubscriptionInlinePrice) bool {
+	if a.PricePointID != b.PricePointID || a.TerritoryID != b.TerritoryID || a.Attributes.StartDate != b.Attributes.StartDate || a.Attributes.PlanType != b.Attributes.PlanType {
+		return false
+	}
+	if a.Attributes.Preserved == nil || b.Attributes.Preserved == nil {
+		return a.Attributes.Preserved == nil && b.Attributes.Preserved == nil
+	}
+	return *a.Attributes.Preserved == *b.Attributes.Preserved
+}
+
+// SetSubscriptionInitialPrice sets the initial base price on a subscription that
+// has no existing prices. This uses PATCH /v1/subscriptions/{id} with inline
+// SubscriptionPriceInlineCreate resources, which is the only supported method
+// for setting the first price on a new subscription. POST /v1/subscriptionPrices
+// only works for price *changes* on subscriptions that already have a price.
+func (c *Client) SetSubscriptionInitialPrice(ctx context.Context, subID, pricePointID, territoryID string, attrs SubscriptionPriceCreateAttributes) (*SubscriptionResponse, error) {
+	return c.SetSubscriptionPriceMatrix(ctx, subID, []SubscriptionInlinePrice{{
+		PricePointID: pricePointID,
+		TerritoryID:  territoryID,
+		Attributes:   attrs,
+	}})
 }
 
 // DeleteSubscription deletes a subscription.
