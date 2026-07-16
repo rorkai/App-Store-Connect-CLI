@@ -977,11 +977,7 @@ func uploadPreviews(ctx context.Context, client *asc.Client, localizationID, pre
 }
 
 func rollbackCreatedPreviewsAfterError(ctx context.Context, client *asc.Client, items []asc.AssetUploadResultItem, operationErr error) error {
-	cleanupBase := context.Background()
-	if ctx != nil {
-		cleanupBase = context.WithoutCancel(ctx)
-	}
-	cleanupCtx, cleanupCancel := shared.ContextWithTimeout(cleanupBase)
+	cleanupCtx, cleanupCancel := contextWithAssetCleanupTimeout(ctx)
 	defer cleanupCancel()
 
 	if rollbackErr := deleteCreatedPreviews(cleanupCtx, client, items); rollbackErr != nil {

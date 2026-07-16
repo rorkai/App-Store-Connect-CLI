@@ -254,6 +254,45 @@ func TestUploadScreenshotsRollsBackCreatedItemCanceledBySiblingFailure(t *testin
 	}
 }
 
+func TestUploadScreenshotsUsesFreshContextForRollbackAfterCallerCancellation(t *testing.T) {
+	dir := t.TempDir()
+	file := writeAssetsTestPNG(t, dir, "01-created.png")
+	sizeBytes := fileSize(t, file)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	var deleted atomic.Bool
+
+	installAssetsTestTransport(t, func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
+			cancel()
+			return assetsJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-a","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-a","length":%d,"offset":0}]}}}`, sizeBytes))
+		case req.Method == http.MethodPut && req.URL.Path == "/new-a":
+			return nil, context.Canceled
+		case req.Method == http.MethodDelete && req.URL.Path == "/v1/appScreenshots/new-a":
+			if err := req.Context().Err(); err != nil {
+				return nil, err
+			}
+			deleted.Store(true)
+			return assetsJSONResponse(http.StatusNoContent, "")
+		default:
+			return assetsJSONResponse(http.StatusNotFound, fmt.Sprintf(`{"errors":[{"status":"404","code":"UNEXPECTED","detail":"unexpected request %s %s"}]}`, req.Method, req.URL.String()))
+		}
+	})
+
+	client := newAssetsUploadTestClient(t)
+	progress, err := uploadScreenshotsWithOrderState(ctx, client, "set-1", nil, []string{file}, false, true)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("upload error = %v, want context cancellation cause", err)
+	}
+	if !reflect.DeepEqual(progress.PendingFiles, []string{file}) {
+		t.Fatalf("pending files = %v, want [%s]", progress.PendingFiles, file)
+	}
+	if !deleted.Load() {
+		t.Fatal("expected screenshot rollback DELETE to use a live context")
+	}
+}
+
 func TestUploadPreviewsParallelCompletionPreservesFileOrder(t *testing.T) {
 	if err := mime.AddExtensionType(".mov", "video/quicktime"); err != nil {
 		t.Fatalf("register .mov mime type: %v", err)

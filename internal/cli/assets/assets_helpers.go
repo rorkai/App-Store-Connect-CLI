@@ -25,6 +25,15 @@ func contextWithAssetUploadTimeout(ctx context.Context) (context.Context, contex
 	return context.WithTimeout(ctx, asc.ResolveUploadTimeoutWithDefault(assetUploadDefaultTimeout))
 }
 
+func contextWithAssetCleanupTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	} else {
+		ctx = context.WithoutCancel(ctx)
+	}
+	return context.WithTimeout(ctx, asc.ResolveTimeout())
+}
+
 // ContextWithAssetUploadTimeout returns a context with the asset upload timeout.
 func ContextWithAssetUploadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
 	return contextWithAssetUploadTimeout(ctx)

@@ -60,12 +60,15 @@ func uploadScreenshotsWithOrderState(ctx context.Context, client *asc.Client, se
 	}
 
 	if failedIdx, failedErr := firstAssetTaskError(taskErrs); failedErr != nil {
+		cleanupCtx, cleanupCancel := contextWithAssetCleanupTimeout(ctx)
+		defer cleanupCancel()
+
 		var rollbackErrs []error
 		for idx, taskErr := range taskErrs {
 			if taskErr != nil {
 				progress.PendingFiles = append(progress.PendingFiles, files[idx])
 				if strings.TrimSpace(items[idx].AssetID) != "" {
-					if err := client.DeleteAppScreenshot(ctx, items[idx].AssetID); err != nil {
+					if err := client.DeleteAppScreenshot(cleanupCtx, items[idx].AssetID); err != nil {
 						rollbackErrs = append(rollbackErrs, fmt.Errorf("delete partial screenshot %q: %w", items[idx].AssetID, err))
 					}
 				}
