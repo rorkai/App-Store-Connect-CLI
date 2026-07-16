@@ -30,6 +30,9 @@ func TestPrintTable_AppInfos(t *testing.T) {
 	if !strings.Contains(output, "READY_FOR_REVIEW") {
 		t.Fatalf("expected app store state in output, got: %s", output)
 	}
+	if !strings.Contains(output, "NINE_TO_ELEVEN") {
+		t.Fatalf("expected deprecated kids age band in output, got: %s", output)
+	}
 }
 
 func TestPrintMarkdown_AppInfos(t *testing.T) {

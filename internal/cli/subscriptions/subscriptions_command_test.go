@@ -6,8 +6,53 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
+
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
+
+func TestSubscriptionPricePointEqualizationCommandsExpose441Filters(t *testing.T) {
+	for _, cmd := range []*ffcli.Command{
+		SubscriptionsPricePointsEqualizationsCommand(),
+		SubscriptionsPricePointsAdjustedEqualizationsCommand(),
+	} {
+		for _, name := range []string{
+			"territory",
+			"subscription-id",
+			"upfront-price-point-id",
+			"plan-type",
+			"fields",
+			"territory-fields",
+			"include",
+			"limit",
+			"next",
+			"paginate",
+		} {
+			if cmd.FlagSet.Lookup(name) == nil {
+				t.Fatalf("%s: expected --%s flag", cmd.Name, name)
+			}
+		}
+	}
+
+	parent := SubscriptionsPricePointsCommand()
+	found := false
+	for _, subcommand := range parent.Subcommands {
+		if subcommand.Name == "adjusted-equalizations" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected adjusted-equalizations under price-points")
+	}
+
+	list := SubscriptionsPricePointsListCommand()
+	for _, name := range []string{"upfront-price-point-id", "plan-type", "fields", "territory-fields", "include"} {
+		if list.FlagSet.Lookup(name) == nil {
+			t.Fatalf("list: expected --%s flag", name)
+		}
+	}
+}
 
 func TestSubscriptionsPricesListCommand_HasResolvedFlag(t *testing.T) {
 	cmd := SubscriptionsPricesListCommand()

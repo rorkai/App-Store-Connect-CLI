@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 )
@@ -78,9 +79,13 @@ type subscriptionOfferCodePricesQuery struct {
 
 type subscriptionPricePointsQuery struct {
 	listQuery
-	territory        string
-	include          []string
-	pricePointFields []string
+	territories          []string
+	subscriptionIDs      []string
+	upfrontPricePointIDs []string
+	planTypes            []string
+	include              []string
+	pricePointFields     []string
+	territoryFields      []string
 }
 
 type subscriptionPricesQuery struct {
@@ -289,8 +294,36 @@ func WithSubscriptionPricePointsNextURL(next string) SubscriptionPricePointsOpti
 func WithSubscriptionPricePointsTerritory(territory string) SubscriptionPricePointsOption {
 	return func(q *subscriptionPricePointsQuery) {
 		if strings.TrimSpace(territory) != "" {
-			q.territory = strings.ToUpper(strings.TrimSpace(territory))
+			q.territories = []string{strings.ToUpper(strings.TrimSpace(territory))}
 		}
+	}
+}
+
+// WithSubscriptionPricePointsTerritories filters price points by territory IDs.
+func WithSubscriptionPricePointsTerritories(territories []string) SubscriptionPricePointsOption {
+	return func(q *subscriptionPricePointsQuery) {
+		q.territories = normalizeList(territories)
+	}
+}
+
+// WithSubscriptionPricePointsSubscriptions filters equalizations by subscription IDs.
+func WithSubscriptionPricePointsSubscriptions(subscriptionIDs []string) SubscriptionPricePointsOption {
+	return func(q *subscriptionPricePointsQuery) {
+		q.subscriptionIDs = normalizeList(subscriptionIDs)
+	}
+}
+
+// WithSubscriptionPricePointsUpfrontPricePointIDs filters by upfront price point IDs.
+func WithSubscriptionPricePointsUpfrontPricePointIDs(pricePointIDs []string) SubscriptionPricePointsOption {
+	return func(q *subscriptionPricePointsQuery) {
+		q.upfrontPricePointIDs = normalizeList(pricePointIDs)
+	}
+}
+
+// WithSubscriptionPricePointsPlanTypes filters by billing plan types.
+func WithSubscriptionPricePointsPlanTypes(planTypes []string) SubscriptionPricePointsOption {
+	return func(q *subscriptionPricePointsQuery) {
+		q.planTypes = normalizeList(planTypes)
 	}
 }
 
@@ -305,6 +338,13 @@ func WithSubscriptionPricePointsInclude(include []string) SubscriptionPricePoint
 func WithSubscriptionPricePointsFields(fields []string) SubscriptionPricePointsOption {
 	return func(q *subscriptionPricePointsQuery) {
 		q.pricePointFields = normalizeList(fields)
+	}
+}
+
+// WithSubscriptionPricePointsTerritoryFields sets fields for included territories.
+func WithSubscriptionPricePointsTerritoryFields(fields []string) SubscriptionPricePointsOption {
+	return func(q *subscriptionPricePointsQuery) {
+		q.territoryFields = normalizeList(fields)
 	}
 }
 
@@ -457,13 +497,35 @@ func buildSubscriptionOfferCodePricesQuery(query *subscriptionOfferCodePricesQue
 
 func buildSubscriptionPricePointsQuery(query *subscriptionPricePointsQuery) string {
 	values := url.Values{}
-	if strings.TrimSpace(query.territory) != "" {
-		values.Set("filter[territory]", strings.TrimSpace(query.territory))
-	}
+	addCSV(values, "filter[territory]", query.territories)
+	addCSV(values, "filter[subscription]", query.subscriptionIDs)
+	addCSV(values, "filter[upfrontPricePointId]", query.upfrontPricePointIDs)
+	addCSV(values, "filter[planType]", query.planTypes)
 	addCSV(values, "include", query.include)
 	addCSV(values, "fields[subscriptionPricePoints]", query.pricePointFields)
+	addCSV(values, "fields[territories]", query.territoryFields)
 	addLimit(values, query.limit)
 	return values.Encode()
+}
+
+func mergeSubscriptionPricePointsQuery(rawURL string, query *subscriptionPricePointsQuery) (string, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid pagination URL: %w", err)
+	}
+	values := parsed.Query()
+	extra, err := url.ParseQuery(buildSubscriptionPricePointsQuery(query))
+	if err != nil {
+		return "", fmt.Errorf("build subscription price points query: %w", err)
+	}
+	for key, items := range extra {
+		values.Del(key)
+		for _, item := range items {
+			values.Add(key, item)
+		}
+	}
+	parsed.RawQuery = values.Encode()
+	return parsed.String(), nil
 }
 
 func buildSubscriptionPricesQuery(query *subscriptionPricesQuery) string {

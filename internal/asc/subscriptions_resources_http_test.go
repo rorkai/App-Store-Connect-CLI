@@ -989,6 +989,63 @@ func TestGetSubscriptionPricePointEqualizations(t *testing.T) {
 	}
 }
 
+func TestGetSubscriptionPricePointAdjustedEqualizations(t *testing.T) {
+	response := jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"adjusted-1","attributes":{"customerPrice":"4.99"}}],"links":{}}`)
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodGet {
+			t.Fatalf("expected GET, got %s", req.Method)
+		}
+		if req.URL.Path != "/v1/subscriptionPricePoints/price-1/adjustedEqualizations" {
+			t.Fatalf("unexpected path %s", req.URL.Path)
+		}
+		query := req.URL.Query()
+		for key, want := range map[string]string{
+			"filter[territory]":               "USA,FRA",
+			"filter[subscription]":            "sub-1,sub-2",
+			"filter[upfrontPricePointId]":     "upfront-1,upfront-2",
+			"filter[planType]":                "MONTHLY,UPFRONT",
+			"fields[subscriptionPricePoints]": "customerPrice,adjustedEqualizations",
+			"fields[territories]":             "currency",
+			"include":                         "territory",
+			"limit":                           "50",
+		} {
+			if got := query.Get(key); got != want {
+				t.Fatalf("%s=%q, want %q", key, got, want)
+			}
+		}
+		assertAuthorized(t, req)
+	}, response)
+
+	resp, err := client.GetSubscriptionPricePointAdjustedEqualizations(
+		context.Background(),
+		"price-1",
+		WithSubscriptionPricePointsTerritories([]string{"USA", "FRA"}),
+		WithSubscriptionPricePointsSubscriptions([]string{"sub-1", "sub-2"}),
+		WithSubscriptionPricePointsUpfrontPricePointIDs([]string{"upfront-1", "upfront-2"}),
+		WithSubscriptionPricePointsPlanTypes([]string{"MONTHLY", "UPFRONT"}),
+		WithSubscriptionPricePointsFields([]string{"customerPrice", "adjustedEqualizations"}),
+		WithSubscriptionPricePointsTerritoryFields([]string{"currency"}),
+		WithSubscriptionPricePointsInclude([]string{"territory"}),
+		WithSubscriptionPricePointsLimit(50),
+	)
+	if err != nil {
+		t.Fatalf("GetSubscriptionPricePointAdjustedEqualizations() error: %v", err)
+	}
+	if len(resp.Data) != 1 || resp.Data[0].ID != "adjusted-1" || resp.Data[0].Attributes.CustomerPrice != "4.99" {
+		t.Fatalf("unexpected response: %#v", resp.Data)
+	}
+}
+
+func TestGetSubscriptionPricePointAdjustedEqualizationsRequiresIDWithoutNext(t *testing.T) {
+	client := newTestClient(t, func(req *http.Request) {
+		t.Fatalf("unexpected request: %s", req.URL.String())
+	}, jsonResponse(http.StatusOK, `{"data":[],"links":{}}`))
+
+	if _, err := client.GetSubscriptionPricePointAdjustedEqualizations(context.Background(), ""); err == nil {
+		t.Fatal("expected missing price point ID error")
+	}
+}
+
 func TestCreateSubscriptionSubmission(t *testing.T) {
 	response := jsonResponse(http.StatusCreated, `{"data":{"type":"subscriptionSubmissions","id":"submit-1"}}`)
 	client := newTestClient(t, func(req *http.Request) {

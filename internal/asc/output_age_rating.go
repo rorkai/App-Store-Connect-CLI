@@ -36,6 +36,8 @@ func ageRatingFields(resp *AgeRatingDeclarationResponse) []ageRatingField {
 		{Name: "Messaging and Chat", Value: formatOptionalBool(attrs.MessagingAndChat)},
 		{Name: "Parental Controls", Value: formatOptionalBool(attrs.ParentalControls)},
 		{Name: "Age Assurance", Value: formatOptionalBool(attrs.AgeAssurance)},
+		{Name: "Social Media", Value: formatOptionalBool(attrs.SocialMedia)},
+		{Name: "Social Media Age Restricted", Value: formatOptionalBool(attrs.SocialMediaAgeRestricted)},
 		{Name: "Unrestricted Web Access", Value: formatOptionalBool(attrs.UnrestrictedWebAccess)},
 		{Name: "User-Generated Content", Value: formatOptionalBool(attrs.UserGeneratedContent)},
 		// Enum content descriptors

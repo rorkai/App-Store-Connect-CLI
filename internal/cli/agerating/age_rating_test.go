@@ -79,8 +79,10 @@ func TestAgeRatingValidationErrors(t *testing.T) {
 func TestAgeRatingHelpers(t *testing.T) {
 	// Bool fields parse correctly
 	attrs, err := buildAgeRatingAttributes(map[string]string{
-		"advertising": "false",
-		"gambling":    "true",
+		"advertising":                 "false",
+		"gambling":                    "true",
+		"social-media":                "true",
+		"social-media-age-restricted": "false",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -90,6 +92,12 @@ func TestAgeRatingHelpers(t *testing.T) {
 	}
 	if attrs.Gambling == nil || *attrs.Gambling != true {
 		t.Fatal("expected gambling=true")
+	}
+	if attrs.SocialMedia == nil || !*attrs.SocialMedia {
+		t.Fatal("expected social-media=true")
+	}
+	if attrs.SocialMediaAgeRestricted == nil || *attrs.SocialMediaAgeRestricted {
+		t.Fatal("expected social-media-age-restricted=false")
 	}
 
 	// Invalid bool value returns error
@@ -173,15 +181,17 @@ func TestApplyAllNoneDefaultsSetsAllContentDescriptors(t *testing.T) {
 	}
 
 	boolChecks := map[string]*bool{
-		"advertising":               attrs.Advertising,
-		"gambling":                  attrs.Gambling,
-		"health-or-wellness-topics": attrs.HealthOrWellnessTopics,
-		"loot-box":                  attrs.LootBox,
-		"messaging-and-chat":        attrs.MessagingAndChat,
-		"parental-controls":         attrs.ParentalControls,
-		"age-assurance":             attrs.AgeAssurance,
-		"unrestricted-web-access":   attrs.UnrestrictedWebAccess,
-		"user-generated-content":    attrs.UserGeneratedContent,
+		"advertising":                 attrs.Advertising,
+		"gambling":                    attrs.Gambling,
+		"health-or-wellness-topics":   attrs.HealthOrWellnessTopics,
+		"loot-box":                    attrs.LootBox,
+		"messaging-and-chat":          attrs.MessagingAndChat,
+		"parental-controls":           attrs.ParentalControls,
+		"age-assurance":               attrs.AgeAssurance,
+		"social-media":                attrs.SocialMedia,
+		"social-media-age-restricted": attrs.SocialMediaAgeRestricted,
+		"unrestricted-web-access":     attrs.UnrestrictedWebAccess,
+		"user-generated-content":      attrs.UserGeneratedContent,
 	}
 	for name, value := range boolChecks {
 		if value == nil || *value {

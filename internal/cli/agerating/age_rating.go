@@ -149,6 +149,8 @@ func AgeRatingEditCommand() *ffcli.Command {
 	messagingAndChat := fs.String("messaging-and-chat", "", "Messaging and chat (true/false)")
 	parentalControls := fs.String("parental-controls", "", "Parental controls (true/false)")
 	ageAssurance := fs.String("age-assurance", "", "Age assurance (true/false)")
+	socialMedia := fs.String("social-media", "", "Social media features (true/false)")
+	socialMediaAgeRestricted := fs.String("social-media-age-restricted", "", "Social media is age-restricted (true/false)")
 	unrestrictedWebAccess := fs.String("unrestricted-web-access", "", "Unrestricted web access (true/false)")
 	userGeneratedContent := fs.String("user-generated-content", "", "User-generated content (true/false)")
 
@@ -214,15 +216,17 @@ Examples:
 
 			values := map[string]string{
 				// Boolean content descriptors
-				"advertising":               *advertising,
-				"gambling":                  *gambling,
-				"health-or-wellness-topics": *healthOrWellnessTopics,
-				"loot-box":                  *lootBox,
-				"messaging-and-chat":        *messagingAndChat,
-				"parental-controls":         *parentalControls,
-				"age-assurance":             *ageAssurance,
-				"unrestricted-web-access":   *unrestrictedWebAccess,
-				"user-generated-content":    *userGeneratedContent,
+				"advertising":                 *advertising,
+				"gambling":                    *gambling,
+				"health-or-wellness-topics":   *healthOrWellnessTopics,
+				"loot-box":                    *lootBox,
+				"messaging-and-chat":          *messagingAndChat,
+				"parental-controls":           *parentalControls,
+				"age-assurance":               *ageAssurance,
+				"social-media":                *socialMedia,
+				"social-media-age-restricted": *socialMediaAgeRestricted,
+				"unrestricted-web-access":     *unrestrictedWebAccess,
+				"user-generated-content":      *userGeneratedContent,
 				// Enum content descriptors
 				"alcohol-tobacco-drug-use":      *alcoholTobaccoDrug,
 				"contests":                      *contests,
@@ -247,6 +251,18 @@ Examples:
 
 			if *allNone {
 				applyAllNoneDefaults(values)
+			}
+
+			// Keep the existing validation/error contract for established fields,
+			// while treating invalid values for the new 4.4.1 boolean flags as
+			// command-line usage errors.
+			for _, flag := range []string{"social-media", "social-media-age-restricted"} {
+				if strings.TrimSpace(values[flag]) == "" {
+					continue
+				}
+				if _, err := shared.ParseOptionalBoolFlag("--"+flag, values[flag]); err != nil {
+					return shared.UsageError(err.Error())
+				}
 			}
 
 			attributes, err := buildAgeRatingAttributes(values)
@@ -332,6 +348,8 @@ func buildAgeRatingAttributes(values map[string]string) (asc.AgeRatingDeclaratio
 		{"messaging-and-chat", &attrs.MessagingAndChat},
 		{"parental-controls", &attrs.ParentalControls},
 		{"age-assurance", &attrs.AgeAssurance},
+		{"social-media", &attrs.SocialMedia},
+		{"social-media-age-restricted", &attrs.SocialMediaAgeRestricted},
 		{"unrestricted-web-access", &attrs.UnrestrictedWebAccess},
 		{"user-generated-content", &attrs.UserGeneratedContent},
 	}
@@ -393,6 +411,8 @@ func hasAgeRatingUpdates(attrs asc.AgeRatingDeclarationAttributes) bool {
 		attrs.MessagingAndChat != nil ||
 		attrs.ParentalControls != nil ||
 		attrs.AgeAssurance != nil ||
+		attrs.SocialMedia != nil ||
+		attrs.SocialMediaAgeRestricted != nil ||
 		attrs.UnrestrictedWebAccess != nil ||
 		attrs.UserGeneratedContent != nil ||
 		attrs.AlcoholTobaccoOrDrugUseOrReferences != nil ||
@@ -425,6 +445,8 @@ var allNoneBoolFlags = []string{
 	"messaging-and-chat",
 	"parental-controls",
 	"age-assurance",
+	"social-media",
+	"social-media-age-restricted",
 	"unrestricted-web-access",
 	"user-generated-content",
 }

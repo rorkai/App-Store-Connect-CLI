@@ -27,13 +27,15 @@ func SubscriptionsPricePointsCommand() *ffcli.Command {
 Examples:
   asc subscriptions price-points list --subscription-id "SUB_ID"
   asc subscriptions price-points view --price-point-id "PRICE_POINT_ID"
-  asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID"`,
+  asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID"
+  asc subscriptions price-points adjusted-equalizations --price-point-id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsPricePointsListCommand(),
 			SubscriptionsPricePointsGetCommand(),
 			SubscriptionsPricePointsEqualizationsCommand(),
+			SubscriptionsPricePointsAdjustedEqualizationsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -51,6 +53,11 @@ func SubscriptionsPricePointsListCommand() *ffcli.Command {
 	price := fs.String("price", "", "Filter by exact customer price (e.g., 4.99)")
 	minPrice := fs.String("min-price", "", "Filter by minimum customer price")
 	maxPrice := fs.String("max-price", "", "Filter by maximum customer price")
+	upfrontPricePointIDs := fs.String("upfront-price-point-id", "", "Filter by upfront price point IDs (comma-separated)")
+	planTypes := fs.String("plan-type", "", "Filter by plan types (comma-separated)")
+	fields := fs.String("fields", "", "Subscription price point fields (comma-separated)")
+	territoryFields := fs.String("territory-fields", "", "Territory fields (comma-separated): currency")
+	include := fs.String("include", "", "Relationships to include (comma-separated): territory")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -134,9 +141,34 @@ Examples:
 					return shared.UsageError(err.Error())
 				}
 			}
+			upfrontIDs, err := normalizeOptionalCSVFilter(fs, "upfront-price-point-id", *upfrontPricePointIDs, false)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+			plans, err := normalizeOptionalCSVFilter(fs, "plan-type", *planTypes, true)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+			selectedFields, err := normalizeOptionalSelection(fs, "fields", *fields, subscriptionPricePointFields)
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+			selectedTerritoryFields, err := normalizeOptionalSelection(fs, "territory-fields", *territoryFields, []string{"currency"})
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+			selectedIncludes, err := normalizeOptionalSelection(fs, "include", *include, []string{"territory"})
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 
 			opts := []asc.SubscriptionPricePointsOption{
 				asc.WithSubscriptionPricePointsTerritory(territoryFilter),
+				asc.WithSubscriptionPricePointsUpfrontPricePointIDs(upfrontIDs),
+				asc.WithSubscriptionPricePointsPlanTypes(plans),
+				asc.WithSubscriptionPricePointsFields(selectedFields),
+				asc.WithSubscriptionPricePointsTerritoryFields(selectedTerritoryFields),
+				asc.WithSubscriptionPricePointsInclude(selectedIncludes),
 				asc.WithSubscriptionPricePointsLimit(*limit),
 				asc.WithSubscriptionPricePointsNextURL(*next),
 			}
@@ -156,7 +188,8 @@ Examples:
 					func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 						pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 						defer pageCancel()
-						return client.GetSubscriptionPricePoints(pageCtx, id, asc.WithSubscriptionPricePointsNextURL(nextURL))
+						pageOpts := append(opts, asc.WithSubscriptionPricePointsNextURL(nextURL))
+						return client.GetSubscriptionPricePoints(pageCtx, id, pageOpts...)
 					},
 					func(page asc.PaginatedResponse) error {
 						typed, ok := page.(*asc.SubscriptionPricePointsResponse)
@@ -183,7 +216,8 @@ Examples:
 				resp, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 					defer pageCancel()
-					return client.GetSubscriptionPricePoints(pageCtx, id, asc.WithSubscriptionPricePointsNextURL(nextURL))
+					pageOpts := append(opts, asc.WithSubscriptionPricePointsNextURL(nextURL))
+					return client.GetSubscriptionPricePoints(pageCtx, id, pageOpts...)
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions price-points list: %w", err)
@@ -268,22 +302,213 @@ Examples:
 
 // SubscriptionsPricePointsEqualizationsCommand returns the price point equalizations subcommand.
 func SubscriptionsPricePointsEqualizationsCommand() *ffcli.Command {
-	return shared.BuildPricePointEqualizationsCommand(shared.PricePointEqualizationsCommandConfig{
-		FlagSetName: "price-points equalizations",
-		Name:        "equalizations",
-		ShortUsage:  `asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID"`,
-		BaseExample: `asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID"`,
-		Subject:     "a subscription price point",
-		ParentFlag:  "price-point-id",
-		ParentUsage: "Subscription price point ID",
-		LimitMax:    8000,
-		ErrorPrefix: "subscriptions price-points equalizations",
-		FetchPage: func(ctx context.Context, client *asc.Client, pricePointID string, limit int, next string) (asc.PaginatedResponse, error) {
-			opts := []asc.SubscriptionPricePointsOption{
-				asc.WithSubscriptionPricePointsLimit(limit),
-				asc.WithSubscriptionPricePointsNextURL(next),
+	return buildSubscriptionPricePointEqualizationsCommand("equalizations", false)
+}
+
+// SubscriptionsPricePointsAdjustedEqualizationsCommand returns the adjusted equalizations subcommand.
+func SubscriptionsPricePointsAdjustedEqualizationsCommand() *ffcli.Command {
+	return buildSubscriptionPricePointEqualizationsCommand("adjusted-equalizations", true)
+}
+
+var subscriptionPricePointFields = []string{
+	"customerPrice",
+	"proceeds",
+	"proceedsYear2",
+	"territory",
+	"equalizations",
+	"adjustedEqualizations",
+}
+
+func buildSubscriptionPricePointEqualizationsCommand(name string, adjusted bool) *ffcli.Command {
+	flagSetName := "price-points " + name
+	fs := flag.NewFlagSet(flagSetName, flag.ExitOnError)
+	pricePointID := fs.String("price-point-id", "", "Subscription price point ID")
+	territory := fs.String("territory", "", "Filter by territory IDs or names (comma-separated)")
+	subscriptionIDs := fs.String("subscription-id", "", "Filter by subscription IDs (comma-separated)")
+	upfrontPricePointIDs := fs.String("upfront-price-point-id", "", "Filter by upfront price point IDs (comma-separated)")
+	planTypeUsage := "Filter by plan types (comma-separated)"
+	if adjusted {
+		planTypeUsage = "Filter by plan type: MONTHLY"
+	}
+	planTypes := fs.String("plan-type", "", planTypeUsage)
+	fields := fs.String("fields", "", "Subscription price point fields (comma-separated)")
+	territoryFields := fs.String("territory-fields", "", "Territory fields (comma-separated): currency")
+	include := fs.String("include", "", "Relationships to include (comma-separated): territory")
+	limit := fs.Int("limit", 0, "Maximum results per page (1-8000)")
+	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	output := shared.BindOutputFlags(fs)
+
+	adjective := ""
+	if adjusted {
+		adjective = "adjusted "
+	}
+	errorPrefix := "subscriptions price-points " + name
+	baseUsage := fmt.Sprintf(`asc subscriptions price-points %s --price-point-id "PRICE_POINT_ID"`, name)
+
+	cmd := &ffcli.Command{
+		Name:       name,
+		ShortUsage: baseUsage + " [flags]",
+		ShortHelp:  fmt.Sprintf("List %sequalized price points for a subscription price point.", adjective),
+		LongHelp: fmt.Sprintf(`List %sequalized price points for a subscription price point.
+
+Filters accept comma-separated values and map directly to the App Store Connect
+API. Use --include territory with --territory-fields currency to include currency
+metadata for returned price points.
+
+Examples:
+  %s
+  %s --territory "US,France" --include territory
+  %s --subscription-id "SUB_ID" --plan-type MONTHLY
+  %s --paginate`, adjective, baseUsage, baseUsage, baseUsage, baseUsage),
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+	}
+	usageErrorPrefix := func() string {
+		prefix := strings.TrimSpace(strings.SplitN(cmd.ShortUsage, " --", 2)[0])
+		return strings.TrimSpace(strings.TrimPrefix(prefix, "asc "))
+	}
+
+	cmd.Exec = func(ctx context.Context, args []string) error {
+		if len(args) > 0 {
+			return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
+		}
+		if *limit != 0 && (*limit < 1 || *limit > 8000) {
+			return shared.UsageErrorf("%s: --limit must be between 1 and 8000", usageErrorPrefix())
+		}
+		if err := shared.ValidateNextURL(*next); err != nil {
+			return shared.UsageErrorf("%s: %v", usageErrorPrefix(), err)
+		}
+
+		id := strings.TrimSpace(*pricePointID)
+		if id == "" && strings.TrimSpace(*next) == "" {
+			return shared.UsageError("--price-point-id is required")
+		}
+
+		territories, err := normalizeOptionalTerritoryFilter(fs, "territory", *territory)
+		if err != nil {
+			return shared.UsageError(err.Error())
+		}
+		subscriptions, err := normalizeOptionalCSVFilter(fs, "subscription-id", *subscriptionIDs, false)
+		if err != nil {
+			return shared.UsageError(err.Error())
+		}
+		upfrontIDs, err := normalizeOptionalCSVFilter(fs, "upfront-price-point-id", *upfrontPricePointIDs, false)
+		if err != nil {
+			return shared.UsageError(err.Error())
+		}
+		plans, err := normalizeOptionalCSVFilter(fs, "plan-type", *planTypes, true)
+		if err != nil {
+			return shared.UsageError(err.Error())
+		}
+		if adjusted {
+			// OpenAPI leaves planType unconstrained, but the live adjusted
+			// equalizations endpoint reports MONTHLY as its only supported value.
+			for _, plan := range plans {
+				if plan != string(asc.SubscriptionPlanTypeMonthly) {
+					return shared.UsageError("--plan-type must be MONTHLY for adjusted equalizations")
+				}
 			}
-			return client.GetSubscriptionPricePointEqualizations(ctx, pricePointID, opts...)
-		},
+		}
+		selectedFields, err := normalizeOptionalSelection(fs, "fields", *fields, subscriptionPricePointFields)
+		if err != nil {
+			return shared.UsageError(err.Error())
+		}
+		selectedTerritoryFields, err := normalizeOptionalSelection(fs, "territory-fields", *territoryFields, []string{"currency"})
+		if err != nil {
+			return shared.UsageError(err.Error())
+		}
+		selectedIncludes, err := normalizeOptionalSelection(fs, "include", *include, []string{"territory"})
+		if err != nil {
+			return shared.UsageError(err.Error())
+		}
+
+		client, err := shared.GetASCClient()
+		if err != nil {
+			return fmt.Errorf("%s: %w", errorPrefix, err)
+		}
+
+		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		defer cancel()
+
+		fetchPage := func(pageCtx context.Context, nextURL string, pageLimit int) (asc.PaginatedResponse, error) {
+			opts := []asc.SubscriptionPricePointsOption{
+				asc.WithSubscriptionPricePointsTerritories(territories),
+				asc.WithSubscriptionPricePointsSubscriptions(subscriptions),
+				asc.WithSubscriptionPricePointsUpfrontPricePointIDs(upfrontIDs),
+				asc.WithSubscriptionPricePointsPlanTypes(plans),
+				asc.WithSubscriptionPricePointsFields(selectedFields),
+				asc.WithSubscriptionPricePointsTerritoryFields(selectedTerritoryFields),
+				asc.WithSubscriptionPricePointsInclude(selectedIncludes),
+				asc.WithSubscriptionPricePointsLimit(pageLimit),
+				asc.WithSubscriptionPricePointsNextURL(nextURL),
+			}
+			if adjusted {
+				return client.GetSubscriptionPricePointAdjustedEqualizations(pageCtx, id, opts...)
+			}
+			return client.GetSubscriptionPricePointEqualizations(pageCtx, id, opts...)
+		}
+
+		if *paginate {
+			firstLimit := *limit
+			if firstLimit == 0 {
+				firstLimit = 8000
+			}
+			resp, err := shared.PaginateWithSpinner(
+				requestCtx,
+				func(pageCtx context.Context) (asc.PaginatedResponse, error) {
+					return fetchPage(pageCtx, *next, firstLimit)
+				},
+				func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return fetchPage(pageCtx, nextURL, 0)
+				},
+			)
+			if err != nil {
+				return fmt.Errorf("%s: %w", errorPrefix, err)
+			}
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+		}
+
+		resp, err := fetchPage(requestCtx, *next, *limit)
+		if err != nil {
+			return fmt.Errorf("%s: %w", errorPrefix, err)
+		}
+		return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+	}
+	return cmd
+}
+
+func normalizeOptionalCSVFilter(fs *flag.FlagSet, name, raw string, upper bool) ([]string, error) {
+	provided := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			provided = true
+		}
 	})
+	if !provided {
+		return nil, nil
+	}
+	if strings.TrimSpace(raw) == "" {
+		return nil, fmt.Errorf("invalid value for --%s: cannot be empty", name)
+	}
+	if upper {
+		return shared.SplitCSVUpper(raw), nil
+	}
+	return shared.SplitCSV(raw), nil
+}
+
+func normalizeOptionalTerritoryFilter(fs *flag.FlagSet, name, raw string) ([]string, error) {
+	values, err := normalizeOptionalCSVFilter(fs, name, raw, false)
+	if err != nil || values == nil {
+		return values, err
+	}
+	return shared.NormalizeASCTerritoryCSV(raw)
+}
+
+func normalizeOptionalSelection(fs *flag.FlagSet, name, raw string, allowed []string) ([]string, error) {
+	values, err := normalizeOptionalCSVFilter(fs, name, raw, false)
+	if err != nil || values == nil {
+		return values, err
+	}
+	return shared.NormalizeSelection(raw, allowed, "--"+name)
 }

@@ -928,7 +928,11 @@ func (c *Client) GetSubscriptionPricePoints(ctx context.Context, subscriptionID 
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionPricePoints: %w", err)
 		}
-		path = query.nextURL
+		mergedPath, err := mergeSubscriptionPricePointsQuery(query.nextURL, query)
+		if err != nil {
+			return nil, fmt.Errorf("subscriptionPricePoints: %w", err)
+		}
+		path = mergedPath
 	} else if queryString := buildSubscriptionPricePointsQuery(query); queryString != "" {
 		path += "?" + queryString
 	}
@@ -972,7 +976,49 @@ func (c *Client) GetSubscriptionPricePointEqualizations(ctx context.Context, pri
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionPricePointEqualizations: %w", err)
 		}
-		path = query.nextURL
+		mergedPath, err := mergeSubscriptionPricePointsQuery(query.nextURL, query)
+		if err != nil {
+			return nil, fmt.Errorf("subscriptionPricePointEqualizations: %w", err)
+		}
+		path = mergedPath
+	} else if queryString := buildSubscriptionPricePointsQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
+
+	data, err := c.do(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response SubscriptionPricePointsResponse
+	if err := json.Unmarshal(data, &response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	return &response, nil
+}
+
+// GetSubscriptionPricePointAdjustedEqualizations retrieves adjusted equalizations for a price point.
+func (c *Client) GetSubscriptionPricePointAdjustedEqualizations(ctx context.Context, pricePointID string, opts ...SubscriptionPricePointsOption) (*SubscriptionPricePointsResponse, error) {
+	query := &subscriptionPricePointsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
+	pricePointID = strings.TrimSpace(pricePointID)
+	if query.nextURL == "" && pricePointID == "" {
+		return nil, fmt.Errorf("pricePointID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionPricePoints/%s/adjustedEqualizations", pricePointID)
+	if query.nextURL != "" {
+		if err := validateNextURL(query.nextURL); err != nil {
+			return nil, fmt.Errorf("subscriptionPricePointAdjustedEqualizations: %w", err)
+		}
+		mergedPath, err := mergeSubscriptionPricePointsQuery(query.nextURL, query)
+		if err != nil {
+			return nil, fmt.Errorf("subscriptionPricePointAdjustedEqualizations: %w", err)
+		}
+		path = mergedPath
 	} else if queryString := buildSubscriptionPricePointsQuery(query); queryString != "" {
 		path += "?" + queryString
 	}
