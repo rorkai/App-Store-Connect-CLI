@@ -42,17 +42,17 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return shared.MissingRequiredUsageError()
 			}
-			if flagSet(fs, "version-id") && strings.TrimSpace(*next) != "" {
-				return shared.UsageError("iap versions localizations list: --next cannot be combined with --version-id")
+			if err := rejectIAPVersionNextFlagConflicts(
+				fs, *next, "iap versions localizations list",
+				"version-id", "limit", "include", "localization-fields", "version-fields",
+			); err != nil {
+				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("iap versions localizations list: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageError("iap versions localizations list: " + err.Error())
-			}
-			if strings.TrimSpace(*next) != "" && (*limit != 0 || strings.TrimSpace(*include) != "" || strings.TrimSpace(*localizationFields) != "" || strings.TrimSpace(*versionFields) != "") {
-				return shared.UsageError("iap versions localizations list: --next cannot be combined with --limit, --include, --localization-fields, or --version-fields")
 			}
 			includes, err := shared.NormalizeSelection(*include, []string{"version"}, "--include")
 			if err != nil {

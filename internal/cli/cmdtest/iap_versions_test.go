@@ -132,6 +132,56 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			wantErr: "--next cannot be combined with --iap-id",
 		},
 		{
+			name:    "versions list rejects limit with next",
+			args:    []string{"iap", "versions", "list", "--limit", "5", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "versions list rejects explicit zero limit with next",
+			args:    []string{"iap", "versions", "list", "--limit", "0", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "versions list rejects explicit zero images limit with next",
+			args:    []string{"iap", "versions", "list", "--images-limit", "0", "--next", next},
+			wantErr: "--next cannot be combined with --images-limit",
+		},
+		{
+			name:    "versions list rejects explicit zero localizations limit with next",
+			args:    []string{"iap", "versions", "list", "--localizations-limit", "0", "--next", next},
+			wantErr: "--next cannot be combined with --localizations-limit",
+		},
+		{
+			name:    "versions list rejects explicit empty state with next",
+			args:    []string{"iap", "versions", "list", "--state", "", "--next", next},
+			wantErr: "--next cannot be combined with --state",
+		},
+		{
+			name:    "versions list rejects explicit empty include with next",
+			args:    []string{"iap", "versions", "list", "--include", "", "--next", next},
+			wantErr: "--next cannot be combined with --include",
+		},
+		{
+			name:    "versions list rejects explicit empty sparse fields with next",
+			args:    []string{"iap", "versions", "list", "--version-fields", "", "--next", next},
+			wantErr: "--next cannot be combined with --version-fields",
+		},
+		{
+			name:    "versions list rejects explicit empty iap fields with next",
+			args:    []string{"iap", "versions", "list", "--iap-fields", "", "--next", next},
+			wantErr: "--next cannot be combined with --iap-fields",
+		},
+		{
+			name:    "versions list rejects explicit empty image fields with next",
+			args:    []string{"iap", "versions", "list", "--image-fields", "", "--next", next},
+			wantErr: "--next cannot be combined with --image-fields",
+		},
+		{
+			name:    "versions list rejects explicit empty localization fields with next",
+			args:    []string{"iap", "versions", "list", "--localization-fields", "", "--next", next},
+			wantErr: "--next cannot be combined with --localization-fields",
+		},
+		{
 			name:    "images list rejects owner with next",
 			args:    []string{"iap", "versions", "images", "list", "--version-id", "version-1", "--next", next},
 			wantErr: "--next cannot be combined with --version-id",
@@ -142,6 +192,21 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			wantErr: "--next cannot be combined with --version-id",
 		},
 		{
+			name:    "images list rejects limit with next",
+			args:    []string{"iap", "versions", "images", "list", "--limit", "5", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "images list rejects explicit zero limit with next",
+			args:    []string{"iap", "versions", "images", "list", "--limit", "0", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "images list rejects explicit empty fields with next",
+			args:    []string{"iap", "versions", "images", "list", "--image-fields", "", "--next", next},
+			wantErr: "--next cannot be combined with --image-fields",
+		},
+		{
 			name:    "localizations list rejects owner with next",
 			args:    []string{"iap", "versions", "localizations", "list", "--version-id", "version-1", "--next", next},
 			wantErr: "--next cannot be combined with --version-id",
@@ -150,6 +215,31 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			name:    "localizations list rejects explicit empty owner with next",
 			args:    []string{"iap", "versions", "localizations", "list", "--version-id", "", "--next", next},
 			wantErr: "--next cannot be combined with --version-id",
+		},
+		{
+			name:    "localizations list rejects limit with next",
+			args:    []string{"iap", "versions", "localizations", "list", "--limit", "5", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "localizations list rejects explicit zero limit with next",
+			args:    []string{"iap", "versions", "localizations", "list", "--limit", "0", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "localizations list rejects explicit empty include with next",
+			args:    []string{"iap", "versions", "localizations", "list", "--include", "", "--next", next},
+			wantErr: "--next cannot be combined with --include",
+		},
+		{
+			name:    "localizations list rejects explicit empty localization fields with next",
+			args:    []string{"iap", "versions", "localizations", "list", "--localization-fields", "", "--next", next},
+			wantErr: "--next cannot be combined with --localization-fields",
+		},
+		{
+			name:    "localizations list rejects explicit empty version fields with next",
+			args:    []string{"iap", "versions", "localizations", "list", "--version-fields", "", "--next", next},
+			wantErr: "--next cannot be combined with --version-fields",
 		},
 		{
 			name:    "version linkages reject owner with next",

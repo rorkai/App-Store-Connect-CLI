@@ -41,17 +41,16 @@ func IAPVersionImagesListCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return shared.MissingRequiredUsageError()
 			}
-			if flagSet(fs, "version-id") && strings.TrimSpace(*next) != "" {
-				return shared.UsageError("iap versions images list: --next cannot be combined with --version-id")
+			if err := rejectIAPVersionNextFlagConflicts(
+				fs, *next, "iap versions images list", "version-id", "limit", "image-fields",
+			); err != nil {
+				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("iap versions images list: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageError("iap versions images list: " + err.Error())
-			}
-			if strings.TrimSpace(*next) != "" && (*limit != 0 || strings.TrimSpace(*imageFields) != "") {
-				return shared.UsageError("iap versions images list: --next cannot be combined with --limit or --image-fields")
 			}
 			fields, err := shared.NormalizeSelection(*imageFields, iapVersionImageFields, "--image-fields")
 			if err != nil {

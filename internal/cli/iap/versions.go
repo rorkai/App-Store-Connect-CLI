@@ -165,6 +165,18 @@ func bindIAPVersionQueryFlags(fs *flag.FlagSet) (state, include *string, limit, 
 	return
 }
 
+func rejectIAPVersionNextFlagConflicts(fs *flag.FlagSet, next, command string, names ...string) error {
+	if strings.TrimSpace(next) == "" {
+		return nil
+	}
+	for _, name := range names {
+		if flagSet(fs, name) {
+			return shared.UsageErrorf("%s: --next cannot be combined with --%s", command, name)
+		}
+	}
+	return nil
+}
+
 func iapVersionQueryOptions(stateValue, includeValue string, limit, imagesLimit, localizationsLimit int, next string, fieldFlags iapVersionFieldFlagValues) ([]asc.IAPVersionsOption, error) {
 	if strings.TrimSpace(next) != "" && (strings.TrimSpace(stateValue) != "" ||
 		strings.TrimSpace(includeValue) != "" || limit != 0 || imagesLimit != 0 || localizationsLimit != 0 ||
@@ -228,8 +240,12 @@ func IAPVersionsListCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
 				return shared.MissingRequiredUsageError()
 			}
-			if flagSet(fs, "iap-id") && strings.TrimSpace(*next) != "" {
-				return shared.UsageError("iap versions list: --next cannot be combined with --iap-id")
+			if err := rejectIAPVersionNextFlagConflicts(
+				fs, *next, "iap versions list",
+				"iap-id", "state", "include", "limit", "images-limit", "localizations-limit",
+				"version-fields", "iap-fields", "image-fields", "localization-fields",
+			); err != nil {
+				return err
 			}
 			opts, err := iapVersionQueryOptions(*state, *include, *limit, *imagesLimit, *localizationsLimit, *next, fieldFlags)
 			if err != nil {
