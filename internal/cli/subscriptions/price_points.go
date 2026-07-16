@@ -165,6 +165,7 @@ Examples:
 			if len(selectedTerritoryFields) != 0 && !containsString(selectedIncludes, "territory") {
 				selectedIncludes = append(selectedIncludes, "territory")
 			}
+			selectedFields = ensureTerritoryInSparsePricePointFields(selectedFields, selectedIncludes)
 			client, err := subscriptionPricePointsClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions price-points list: %w", err)
@@ -277,6 +278,13 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func ensureTerritoryInSparsePricePointFields(fields, includes []string) []string {
+	if fields == nil || !containsString(includes, "territory") || containsString(fields, "territory") {
+		return fields
+	}
+	return append(fields, "territory")
 }
 
 func flagWasProvided(fs *flag.FlagSet, names ...string) bool {
@@ -479,6 +487,7 @@ Examples:
 		if len(selectedTerritoryFields) != 0 && !containsString(selectedIncludes, "territory") {
 			selectedIncludes = append(selectedIncludes, "territory")
 		}
+		selectedFields = ensureTerritoryInSparsePricePointFields(selectedFields, selectedIncludes)
 		client, err := subscriptionPricePointsClientFactory()
 		if err != nil {
 			return fmt.Errorf("%s: %w", errorPrefix, err)

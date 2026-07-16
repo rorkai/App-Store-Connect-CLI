@@ -28,7 +28,7 @@ func TestSubscriptionsAdjustedEqualizationsSendsExactFilters(t *testing.T) {
 			"filter[subscription]":            "sub-1,sub-2",
 			"filter[upfrontPricePointId]":     "upfront-1,upfront-2",
 			"filter[planType]":                "MONTHLY",
-			"fields[subscriptionPricePoints]": "customerPrice,adjustedEqualizations",
+			"fields[subscriptionPricePoints]": "customerPrice,adjustedEqualizations,territory",
 			"fields[territories]":             "currency",
 			"include":                         "territory",
 			"limit":                           "50",
@@ -99,7 +99,7 @@ func TestSubscriptionsPricePointsListSends441Filters(t *testing.T) {
 		for key, want := range map[string]string{
 			"filter[upfrontPricePointId]":     "upfront-1,upfront-2",
 			"filter[planType]":                "MONTHLY,UPFRONT",
-			"fields[subscriptionPricePoints]": "customerPrice,adjustedEqualizations",
+			"fields[subscriptionPricePoints]": "customerPrice,adjustedEqualizations,territory",
 			"fields[territories]":             "currency",
 			"include":                         "territory",
 		} {
@@ -150,6 +150,149 @@ func TestSubscriptionsPricePointsListSends441Filters(t *testing.T) {
 	}
 	if len(response.Data) != 1 || response.Data[0].ID != "point-1" {
 		t.Fatalf("unexpected output: %#v", response.Data)
+	}
+}
+
+func TestSubscriptionsPricePointsListKeepsTerritoryInSparseFields(t *testing.T) {
+	tests := []struct {
+		name      string
+		fields    string
+		args      []string
+		wantQuery url.Values
+	}{
+		{
+			name:   "explicit include",
+			fields: "customerPrice",
+			args:   []string{"--include", "territory"},
+			wantQuery: url.Values{
+				"fields[subscriptionPricePoints]": {"customerPrice,territory"},
+				"include":                         {"territory"},
+			},
+		},
+		{
+			name:   "territory fields imply include",
+			fields: "customerPrice",
+			args:   []string{"--territory-fields", "currency"},
+			wantQuery: url.Values{
+				"fields[subscriptionPricePoints]": {"customerPrice,territory"},
+				"fields[territories]":             {"currency"},
+				"include":                         {"territory"},
+			},
+		},
+		{
+			name:   "territory already selected",
+			fields: "customerPrice,territory",
+			args:   []string{"--include", "territory"},
+			wantQuery: url.Values{
+				"fields[subscriptionPricePoints]": {"customerPrice,territory"},
+				"include":                         {"territory"},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/8000000001/pricePoints" {
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
+				}
+				if got, want := req.URL.RawQuery, test.wantQuery.Encode(); got != want {
+					t.Fatalf("query=%q, want %q", got, want)
+				}
+				return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"point-1"}],"links":{}}`)
+			}))
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			args := []string{
+				"subscriptions", "pricing", "price-points", "list",
+				"--subscription-id", "8000000001",
+				"--fields", test.fields,
+				"--output", "json",
+			}
+			args = append(args, test.args...)
+			_, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
+	}
+}
+
+func TestSubscriptionsPricePointEqualizationsKeepTerritoryInSparseFields(t *testing.T) {
+	tests := []struct {
+		name      string
+		command   string
+		path      string
+		args      []string
+		wantQuery url.Values
+	}{
+		{
+			name:    "equalizations explicit include",
+			command: "equalizations",
+			path:    "equalizations",
+			args:    []string{"--include", "territory"},
+			wantQuery: url.Values{
+				"fields[subscriptionPricePoints]": {"customerPrice,territory"},
+				"include":                         {"territory"},
+			},
+		},
+		{
+			name:    "adjusted equalizations territory fields imply include",
+			command: "adjusted-equalizations",
+			path:    "adjustedEqualizations",
+			args:    []string{"--territory-fields", "currency"},
+			wantQuery: url.Values{
+				"fields[subscriptionPricePoints]": {"customerPrice,territory"},
+				"fields[territories]":             {"currency"},
+				"include":                         {"territory"},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				wantPath := "/v1/subscriptionPricePoints/base-1/" + test.path
+				if req.Method != http.MethodGet || req.URL.Path != wantPath {
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
+				}
+				if got, want := req.URL.RawQuery, test.wantQuery.Encode(); got != want {
+					t.Fatalf("query=%q, want %q", got, want)
+				}
+				return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"point-1"}],"links":{}}`)
+			}))
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			args := []string{
+				"subscriptions", "pricing", "price-points", test.command,
+				"--price-point-id", "base-1",
+				"--fields", "customerPrice",
+				"--output", "json",
+			}
+			args = append(args, test.args...)
+			_, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+		})
 	}
 }
 
@@ -471,6 +614,9 @@ func TestSubscriptionsPricePointsListKeepsFullPayloadWhenFieldsAreOmitted(t *tes
 		if req.URL.Path != "/v1/subscriptions/8000000001/pricePoints" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
 		}
+		if got := req.URL.Query().Get("include"); got != "territory" {
+			t.Fatalf("include=%q, want territory", got)
+		}
 		if _, ok := req.URL.Query()["fields[subscriptionPricePoints]"]; ok {
 			t.Fatalf("unexpected sparse fields query: %s", req.URL.RawQuery)
 		}
@@ -484,6 +630,7 @@ func TestSubscriptionsPricePointsListKeepsFullPayloadWhenFieldsAreOmitted(t *tes
 			"subscriptions", "pricing", "price-points", "list",
 			"--subscription-id", "8000000001",
 			"--price", "4.99",
+			"--include", "territory",
 			"--output", "json",
 		}); err != nil {
 			t.Fatalf("parse: %v", err)
