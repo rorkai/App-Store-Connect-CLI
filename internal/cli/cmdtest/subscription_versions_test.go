@@ -24,7 +24,8 @@ func TestSubscriptionVersionsListJSON(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 	useSubscriptionVersionServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptions/123456789/versions" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+			reportSubscriptionVersionHandlerError(t, w, "unexpected request: %s %s", req.Method, req.URL.Path)
+			return
 		}
 		wantQuery := url.Values{
 			"fields[subscriptionImages]":        {"fileName,fileSize"},
@@ -38,7 +39,8 @@ func TestSubscriptionVersionsListJSON(t *testing.T) {
 			"limit[localizations]":              {"6"},
 		}.Encode()
 		if got := req.URL.Query().Encode(); got != wantQuery {
-			t.Fatalf("query = %q, want %q", got, wantQuery)
+			reportSubscriptionVersionHandlerError(t, w, "query = %q, want %q", got, wantQuery)
+			return
 		}
 		writeSubscriptionVersionJSON(w, http.StatusOK, `{"data":[{"type":"subscriptionVersions","id":"ver-1","attributes":{"version":1,"state":"PREPARE_FOR_SUBMISSION"}}],"links":{}}`)
 	}))
@@ -250,28 +252,33 @@ func TestSubscriptionVersionImageUploadLifecycle(t *testing.T) {
 		switch step {
 		case 1:
 			if req.Method != http.MethodPost || req.URL.Path != "/v2/subscriptionImages" {
-				t.Fatalf("reservation request = %s %s", req.Method, req.URL.Path)
+				reportSubscriptionVersionHandlerError(t, w, "reservation request = %s %s", req.Method, req.URL.Path)
+				return
 			}
 			writeSubscriptionVersionJSON(w, http.StatusCreated, `{"data":{"type":"subscriptionImages","id":"img-1","attributes":{"fileName":"image.png","fileSize":10,"uploadOperations":[{"method":"PUT","url":"https://upload.example.com/part","offset":0,"length":10}]}}}`)
 		case 2:
 			if req.Method != http.MethodPut || req.Header.Get("X-Test-Original-Host") != "upload.example.com" || req.ContentLength != 10 {
-				t.Fatalf("upload request = %s %s length=%d", req.Method, req.URL.String(), req.ContentLength)
+				reportSubscriptionVersionHandlerError(t, w, "upload request = %s %s length=%d", req.Method, req.URL.String(), req.ContentLength)
+				return
 			}
 			w.WriteHeader(http.StatusOK)
 		case 3:
 			if req.Method != http.MethodPatch || req.URL.Path != "/v2/subscriptionImages/img-1" {
-				t.Fatalf("commit request = %s %s", req.Method, req.URL.Path)
+				reportSubscriptionVersionHandlerError(t, w, "commit request = %s %s", req.Method, req.URL.Path)
+				return
 			}
 			var payload asc.SubscriptionImageV2UpdateRequest
 			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-				t.Fatalf("decode commit body: %v", err)
+				reportSubscriptionVersionHandlerError(t, w, "decode commit body: %v", err)
+				return
 			}
 			if payload.Data.ID != "img-1" || payload.Data.Attributes.Uploaded == nil || !*payload.Data.Attributes.Uploaded {
-				t.Fatalf("commit payload = %+v", payload)
+				reportSubscriptionVersionHandlerError(t, w, "commit payload = %+v", payload)
+				return
 			}
 			writeSubscriptionVersionJSON(w, http.StatusOK, `{"data":{"type":"subscriptionImages","id":"img-1","attributes":{"fileName":"image.png","assetDeliveryState":{"state":"AWAITING_UPLOAD"}}}}`)
 		default:
-			t.Fatalf("unexpected request %d: %s %s", step, req.Method, req.URL.String())
+			reportSubscriptionVersionHandlerError(t, w, "unexpected request %d: %s %s", step, req.Method, req.URL.String())
 		}
 	}))
 	restoreUploader := subscriptionscli.SetSubscriptionVersionImageUploaderForTesting(func(ctx context.Context, file *os.File, _ int64, operations []asc.UploadOperation) error {
@@ -341,7 +348,7 @@ func TestSubscriptionVersionImageUploadErrorsIncludeReservedID(t *testing.T) {
 				case 3:
 					writeSubscriptionVersionJSON(w, http.StatusInternalServerError, `{"errors":[{"status":"500","title":"Commit failed"}]}`)
 				default:
-					t.Fatalf("unexpected request %d: %s %s", step, req.Method, req.URL.Path)
+					reportSubscriptionVersionHandlerError(t, w, "unexpected request %d: %s %s", step, req.Method, req.URL.Path)
 				}
 			}))
 			restoreUploader := subscriptionscli.SetSubscriptionVersionImageUploaderForTesting(func(ctx context.Context, file *os.File, _ int64, operations []asc.UploadOperation) error {
@@ -400,6 +407,12 @@ func useSubscriptionVersionServer(t *testing.T, handler http.Handler) *http.Clie
 	restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil })
 	t.Cleanup(restore)
 	return httpClient
+}
+
+func reportSubscriptionVersionHandlerError(t *testing.T, w http.ResponseWriter, format string, args ...any) {
+	t.Helper()
+	t.Errorf(format, args...)
+	http.Error(w, "test handler assertion failed", http.StatusInternalServerError)
 }
 
 func writeSubscriptionVersionJSON(w http.ResponseWriter, status int, body string) {
