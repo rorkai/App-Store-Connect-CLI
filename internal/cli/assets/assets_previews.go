@@ -174,6 +174,8 @@ type previewDownloadFailure struct {
 	URL         string `json:"url,omitempty"`
 	OutputPath  string `json:"outputPath,omitempty"`
 	Error       string `json:"error"`
+
+	cause error
 }
 
 type previewDownloadResult struct {
@@ -263,6 +265,7 @@ Examples:
 			}
 
 			items := make([]previewDownloadItem, 0, 8)
+			var lookupErrs []error
 
 			if idValue != "" {
 				requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -369,12 +372,12 @@ Examples:
 					}
 				}
 
-				resolvePreviewDownloadURLs(ctx, client, items)
+				lookupErrs = resolvePreviewDownloadURLs(ctx, client, items)
 			}
 
 			downloaded, downloadFailures := downloadPreviewItems(ctx, items, *overwrite)
 			result.Downloaded = downloaded
-			result.Failures = orderPreviewDownloadFailures(items, downloadFailures)
+			result.Failures = orderPreviewDownloadFailures(items, lookupErrs, downloadFailures)
 
 			result.Items = items
 			result.Total = len(items)
@@ -391,21 +394,32 @@ Examples:
 			}
 
 			if result.Failed > 0 {
-				return shared.NewReportedError(fmt.Errorf("video-previews download: %d file(s) failed", result.Failed))
+				return shared.NewReportedError(previewDownloadReportedError(result.Failed, result.Failures))
 			}
 			return nil
 		},
 	}
 }
 
-func orderPreviewDownloadFailures(items []previewDownloadItem, downloadFailures []previewDownloadFailure) []previewDownloadFailure {
+func orderPreviewDownloadFailures(items []previewDownloadItem, lookupErrs []error, downloadFailures []previewDownloadFailure) []previewDownloadFailure {
 	failuresByPath := make(map[string]previewDownloadFailure, len(downloadFailures))
 	for _, failure := range downloadFailures {
 		failuresByPath[failure.OutputPath] = failure
 	}
 
 	ordered := make([]previewDownloadFailure, 0, len(downloadFailures))
-	for _, item := range items {
+	for idx, item := range items {
+		if idx < len(lookupErrs) && lookupErrs[idx] != nil {
+			lookupErr := fmt.Errorf("failed to fetch preview: %w", lookupErrs[idx])
+			ordered = append(ordered, previewDownloadFailure{
+				ID:          item.ID,
+				PreviewType: item.PreviewType,
+				OutputPath:  item.OutputPath,
+				Error:       lookupErr.Error(),
+				cause:       lookupErr,
+			})
+			continue
+		}
 		if strings.TrimSpace(item.URL) == "" {
 			ordered = append(ordered, previewDownloadFailure{
 				ID:          item.ID,
@@ -420,6 +434,20 @@ func orderPreviewDownloadFailures(items []previewDownloadItem, downloadFailures 
 		}
 	}
 	return ordered
+}
+
+func previewDownloadReportedError(failed int, failures []previewDownloadFailure) error {
+	message := fmt.Sprintf("video-previews download: %d file(s) failed", failed)
+	causes := make([]error, 0, len(failures))
+	for _, failure := range failures {
+		if failure.cause != nil {
+			causes = append(causes, failure.cause)
+		}
+	}
+	if len(causes) == 0 {
+		return errors.New(message)
+	}
+	return fmt.Errorf("%s: %w", message, errors.Join(causes...))
 }
 
 func renderPreviewDownloadResult(result *previewDownloadResult, markdown bool) error {
@@ -475,10 +503,10 @@ func renderPreviewDownloadResult(result *previewDownloadResult, markdown bool) e
 }
 
 // resolvePreviewDownloadURLs fills in missing download URLs by fetching each
-// preview's details concurrently. Fetch errors leave the URL empty so the
-// caller reports the item as a missing-videoUrl failure, matching the serial
-// behavior this replaces.
-func resolvePreviewDownloadURLs(ctx context.Context, client *asc.Client, items []previewDownloadItem) {
+// preview's details concurrently. It returns one error slot per item so lookup
+// failures remain distinct from successful responses with an empty videoUrl.
+func resolvePreviewDownloadURLs(ctx context.Context, client *asc.Client, items []previewDownloadItem) []error {
+	lookupErrs := make([]error, len(items))
 	missing := make([]int, 0, len(items))
 	for idx := range items {
 		if strings.TrimSpace(items[idx].URL) == "" {
@@ -486,19 +514,24 @@ func resolvePreviewDownloadURLs(ctx context.Context, client *asc.Client, items [
 		}
 	}
 	if len(missing) == 0 {
-		return
+		return lookupErrs
 	}
 
-	_ = forEachAssetTask(ctx, len(missing), false, func(taskCtx context.Context, i int) error {
+	taskErrs := forEachAssetTask(ctx, len(missing), false, func(taskCtx context.Context, i int) error {
 		item := &items[missing[i]]
 		requestCtx, cancel := shared.ContextWithTimeout(taskCtx)
 		defer cancel()
 		full, err := client.GetAppPreview(requestCtx, item.ID)
-		if err == nil {
-			item.URL = strings.TrimSpace(full.Data.Attributes.VideoURL)
+		if err != nil {
+			return err
 		}
+		item.URL = strings.TrimSpace(full.Data.Attributes.VideoURL)
 		return nil
 	})
+	for idx, itemIdx := range missing {
+		lookupErrs[itemIdx] = taskErrs[idx]
+	}
+	return lookupErrs
 }
 
 // downloadPreviewItems downloads every item with a resolved URL concurrently.
@@ -540,6 +573,7 @@ func downloadPreviewItems(ctx context.Context, items []previewDownloadItem, over
 				URL:         items[idx].URL,
 				OutputPath:  items[idx].OutputPath,
 				Error:       outcomeErr.Error(),
+				cause:       outcomeErr,
 			})
 			continue
 		}
