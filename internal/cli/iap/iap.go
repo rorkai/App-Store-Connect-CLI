@@ -128,6 +128,12 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError()
 			}
+			if flagSet(fs, "app") && strings.TrimSpace(*next) != "" {
+				return shared.UsageError("iap list: --next cannot be combined with --app")
+			}
+			if flagSet(fs, "limit") && strings.TrimSpace(*next) != "" {
+				return shared.UsageError("iap list: --next cannot be combined with --limit")
+			}
 
 			client, err := iapQueryClientFactory()
 			if err != nil {

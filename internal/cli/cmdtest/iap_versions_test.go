@@ -94,6 +94,243 @@ func TestIAPVersionsValidationErrors(t *testing.T) {
 	}
 }
 
+func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
+	next := "https://api.appstoreconnect.apple.com/v2/inAppPurchases/iap-next/versions?cursor=next"
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "iap list rejects owner with next",
+			args:    []string{"iap", "list", "--app", "app-1", "--next", next},
+			wantErr: "--next cannot be combined with --app",
+		},
+		{
+			name:    "iap list rejects explicit empty owner with next",
+			args:    []string{"iap", "list", "--app", "", "--next", next},
+			wantErr: "--next cannot be combined with --app",
+		},
+		{
+			name:    "iap list rejects limit with next",
+			args:    []string{"iap", "list", "--limit", "5", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "iap list rejects explicit zero limit with next",
+			args:    []string{"iap", "list", "--limit", "0", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "versions list rejects owner with next",
+			args:    []string{"iap", "versions", "list", "--iap-id", "iap-1", "--next", next},
+			wantErr: "--next cannot be combined with --iap-id",
+		},
+		{
+			name:    "versions list rejects explicit empty owner with next",
+			args:    []string{"iap", "versions", "list", "--iap-id", "", "--next", next},
+			wantErr: "--next cannot be combined with --iap-id",
+		},
+		{
+			name:    "images list rejects owner with next",
+			args:    []string{"iap", "versions", "images", "list", "--version-id", "version-1", "--next", next},
+			wantErr: "--next cannot be combined with --version-id",
+		},
+		{
+			name:    "images list rejects explicit empty owner with next",
+			args:    []string{"iap", "versions", "images", "list", "--version-id", "", "--next", next},
+			wantErr: "--next cannot be combined with --version-id",
+		},
+		{
+			name:    "localizations list rejects owner with next",
+			args:    []string{"iap", "versions", "localizations", "list", "--version-id", "version-1", "--next", next},
+			wantErr: "--next cannot be combined with --version-id",
+		},
+		{
+			name:    "localizations list rejects explicit empty owner with next",
+			args:    []string{"iap", "versions", "localizations", "list", "--version-id", "", "--next", next},
+			wantErr: "--next cannot be combined with --version-id",
+		},
+		{
+			name:    "version linkages reject owner with next",
+			args:    []string{"iap", "versions", "links", "versions", "--iap-id", "iap-1", "--next", next},
+			wantErr: "--next cannot be combined with --iap-id",
+		},
+		{
+			name:    "version linkages reject explicit empty owner with next",
+			args:    []string{"iap", "versions", "links", "versions", "--iap-id", "", "--next", next},
+			wantErr: "--next cannot be combined with --iap-id",
+		},
+		{
+			name:    "image linkages reject owner with next",
+			args:    []string{"iap", "versions", "links", "images", "--version-id", "version-1", "--next", next},
+			wantErr: "--next cannot be combined with --version-id",
+		},
+		{
+			name:    "image linkages reject explicit empty owner with next",
+			args:    []string{"iap", "versions", "links", "images", "--version-id", "", "--next", next},
+			wantErr: "--next cannot be combined with --version-id",
+		},
+		{
+			name:    "localization linkages reject owner with next",
+			args:    []string{"iap", "versions", "links", "localizations", "--version-id", "version-1", "--next", next},
+			wantErr: "--next cannot be combined with --version-id",
+		},
+		{
+			name:    "localization linkages reject explicit empty owner with next",
+			args:    []string{"iap", "versions", "links", "localizations", "--version-id", "", "--next", next},
+			wantErr: "--next cannot be combined with --version-id",
+		},
+		{
+			name:    "version linkages reject limit with next",
+			args:    []string{"iap", "versions", "links", "versions", "--limit", "5", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "image linkages reject limit with next",
+			args:    []string{"iap", "versions", "links", "images", "--limit", "5", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "localization linkages reject limit with next",
+			args:    []string{"iap", "versions", "links", "localizations", "--limit", "5", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "version linkages reject explicit zero limit with next",
+			args:    []string{"iap", "versions", "links", "versions", "--limit", "0", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "image linkages reject explicit zero limit with next",
+			args:    []string{"iap", "versions", "links", "images", "--limit", "0", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+		{
+			name:    "localization linkages reject explicit zero limit with next",
+			args:    []string{"iap", "versions", "links", "localizations", "--limit", "0", "--next", next},
+			wantErr: "--next cannot be combined with --limit",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			factoryCalled := false
+			restore := iapcli.SetVersionClientFactory(func() (*asc.Client, error) {
+				factoryCalled = true
+				return nil, errors.New("poison client factory called")
+			})
+			t.Cleanup(restore)
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected ErrHelp, got %v", err)
+				}
+			})
+			if factoryCalled {
+				t.Fatal("client factory called before validation")
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.wantErr) {
+				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestIAPVersionLinkagesPaginateAllPages(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	tests := []struct {
+		name         string
+		args         []string
+		firstPath    string
+		resourceType string
+	}{
+		{
+			name:         "versions",
+			args:         []string{"iap", "versions", "links", "versions", "--iap-id", "iap-1", "--limit", "2", "--paginate", "--output", "json"},
+			firstPath:    "/v2/inAppPurchases/iap-1/relationships/versions",
+			resourceType: "inAppPurchaseVersions",
+		},
+		{
+			name:         "images",
+			args:         []string{"iap", "versions", "links", "images", "--version-id", "version-1", "--limit", "2", "--paginate", "--output", "json"},
+			firstPath:    "/v1/inAppPurchaseVersions/version-1/relationships/images",
+			resourceType: "inAppPurchaseImages",
+		},
+		{
+			name:         "localizations",
+			args:         []string{"iap", "versions", "links", "localizations", "--version-id", "version-1", "--limit", "2", "--paginate", "--output", "json"},
+			firstPath:    "/v1/inAppPurchaseVersions/version-1/relationships/localizations",
+			resourceType: "inAppPurchaseLocalizations",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			requestCount := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				requestCount++
+				w.Header().Set("Content-Type", "application/json")
+				switch requestCount {
+				case 1:
+					if req.Method != http.MethodGet || req.URL.Path != test.firstPath {
+						t.Fatalf("first request = %s %s, want GET %s", req.Method, req.URL.Path, test.firstPath)
+					}
+					if got := req.URL.Query().Get("limit"); got != "2" {
+						t.Fatalf("first request limit = %q, want 2", got)
+					}
+					nextURL := "https://api.appstoreconnect.apple.com" + test.firstPath + "?cursor=next"
+					_, _ = fmt.Fprintf(w, `{"data":[{"type":%q,"id":"%s-1"}],"links":{"next":%q}}`, test.resourceType, test.name, nextURL)
+				case 2:
+					if req.Method != http.MethodGet || req.URL.Path != test.firstPath || req.URL.Query().Get("cursor") != "next" {
+						t.Fatalf("second request = %s %s?%s, want opaque next URL", req.Method, req.URL.Path, req.URL.RawQuery)
+					}
+					_, _ = fmt.Fprintf(w, `{"data":[{"type":%q,"id":"%s-2"}],"links":{"next":""}}`, test.resourceType, test.name)
+				default:
+					t.Fatalf("unexpected extra request: %s %s", req.Method, req.URL)
+				}
+			}))
+			t.Cleanup(server.Close)
+			setIAPVersionTestServerClient(t, server)
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("unexpected stderr: %s", stderr)
+			}
+			var response asc.LinkagesResponse
+			if err := json.Unmarshal([]byte(stdout), &response); err != nil {
+				t.Fatalf("invalid JSON output %q: %v", stdout, err)
+			}
+			if requestCount != 2 {
+				t.Fatalf("request count = %d, want 2", requestCount)
+			}
+			if len(response.Data) != 2 || response.Data[0].ID != test.name+"-1" || response.Data[1].ID != test.name+"-2" {
+				t.Fatalf("unexpected aggregated data: %#v", response.Data)
+			}
+		})
+	}
+}
+
 func TestIAPVersionPrincipalCLIFlowsUseExactHTTPContracts(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))

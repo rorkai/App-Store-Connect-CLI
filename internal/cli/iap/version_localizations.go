@@ -42,6 +42,9 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return shared.MissingRequiredUsageError()
 			}
+			if flagSet(fs, "version-id") && strings.TrimSpace(*next) != "" {
+				return shared.UsageError("iap versions localizations list: --next cannot be combined with --version-id")
+			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("iap versions localizations list: --limit must be between 1 and 200")
 			}

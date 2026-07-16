@@ -228,6 +228,9 @@ func IAPVersionsListCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --iap-id is required")
 				return shared.MissingRequiredUsageError()
 			}
+			if flagSet(fs, "iap-id") && strings.TrimSpace(*next) != "" {
+				return shared.UsageError("iap versions list: --next cannot be combined with --iap-id")
+			}
 			opts, err := iapVersionQueryOptions(*state, *include, *limit, *imagesLimit, *localizationsLimit, *next, fieldFlags)
 			if err != nil {
 				return shared.UsageError("iap versions list: " + err.Error())
@@ -440,6 +443,7 @@ func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 	id := fs.String(idFlag, "", idHelp)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
+	paginate := fs.Bool("paginate", false, "Automatically fetch all pages")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: name, ShortUsage: fmt.Sprintf("asc iap versions links %s --%s \"ID\"", name, idFlag), ShortHelp: "View relationship linkages.", LongHelp: "View relationship linkages.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
@@ -451,6 +455,12 @@ func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 			if value == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: --%s is required\n", idFlag)
 				return shared.MissingRequiredUsageError()
+			}
+			if flagSet(fs, idFlag) && strings.TrimSpace(*next) != "" {
+				return shared.UsageError(fmt.Sprintf("iap versions links %s: --next cannot be combined with --%s", name, idFlag))
+			}
+			if flagSet(fs, "limit") && strings.TrimSpace(*next) != "" {
+				return shared.UsageError(fmt.Sprintf("iap versions links %s: --next cannot be combined with --limit", name))
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError(fmt.Sprintf("iap versions links %s: --limit must be between 1 and 200", name))
@@ -464,17 +474,27 @@ func iapVersionLinkagesCommand(name string, parentIAP bool) *ffcli.Command {
 			}
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
-			opts := []asc.LinkagesOption{asc.WithLinkagesLimit(*limit), asc.WithLinkagesNextURL(*next)}
-			var resp *asc.LinkagesResponse
-			if parentIAP {
-				resp, err = client.GetInAppPurchaseVersionsRelationships(requestCtx, value, opts...)
-			} else if name == "images" {
-				resp, err = client.GetInAppPurchaseVersionImagesRelationships(requestCtx, value, opts...)
-			} else {
-				resp, err = client.GetInAppPurchaseVersionLocalizationsRelationships(requestCtx, value, opts...)
+			fetchPage := func(pageCtx context.Context, opts ...asc.LinkagesOption) (*asc.LinkagesResponse, error) {
+				if parentIAP {
+					return client.GetInAppPurchaseVersionsRelationships(pageCtx, value, opts...)
+				}
+				if name == "images" {
+					return client.GetInAppPurchaseVersionImagesRelationships(pageCtx, value, opts...)
+				}
+				return client.GetInAppPurchaseVersionLocalizationsRelationships(pageCtx, value, opts...)
 			}
+			resp, err := fetchPage(requestCtx, asc.WithLinkagesLimit(*limit), asc.WithLinkagesNextURL(*next))
 			if err != nil {
 				return fmt.Errorf("iap versions links %s: failed to fetch: %w", name, err)
+			}
+			if *paginate {
+				aggregated, err := asc.PaginateAll(requestCtx, resp, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					return fetchPage(ctx, asc.WithLinkagesNextURL(nextURL))
+				})
+				if err != nil {
+					return fmt.Errorf("iap versions links %s: %w", name, err)
+				}
+				return shared.PrintOutput(aggregated, *output.Output, *output.Pretty)
 			}
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
