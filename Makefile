@@ -210,8 +210,16 @@ check-agent-skills:
 	python3 ./scripts/test_check_agent_skills.py
 	python3 ./scripts/check_agent_skills.py
 
+.PHONY: check-openapi
+check-openapi:
+	@echo "$(BLUE)Checking OpenAPI generated artifacts...$(NC)"
+	python3 ./scripts/test_update_openapi_index.py
+	python3 ./scripts/test_generate_schema_index.py
+	python3 ./scripts/update-openapi-index.py --check
+	python3 ./scripts/generate-schema-index.py --check
+
 .PHONY: check-docs
-check-docs: check-command-docs check-repo-docs check-website-docs check-agent-skills
+check-docs: check-command-docs check-repo-docs check-website-docs check-agent-skills check-openapi
 
 .PHONY: check-wall-of-apps
 check-wall-of-apps:
@@ -273,11 +281,13 @@ help:
 	@echo "  deps           Install dependencies"
 	@echo "  update-deps    Update dependencies"
 	@echo "  update-openapi Update OpenAPI paths index"
+	@echo "  update-schema-index Update runtime schema index"
 	@echo "  generate-command-docs Generate docs/COMMANDS.md from live CLI help"
 	@echo "  check-command-docs Validate docs command lists against live CLI help"
 	@echo "  check-repo-docs Validate local links in repository markdown docs"
 	@echo "  check-website-docs Validate Mintlify website navigation, links, and CLI examples"
 	@echo "  check-agent-skills Validate repository-scoped Codex skills"
+	@echo "  check-openapi  Validate generated OpenAPI indexes"
 	@echo "  check-docs     Run all documentation checks"
 	@echo "  clean          Clean build artifacts"
 	@echo "  install        Install binary"

@@ -135,6 +135,90 @@ func TestLoadIndex_HasResponseSchema(t *testing.T) {
 	t.Error("GET /v1/apps not found")
 }
 
+func TestLoadIndex_HasVersionCreateRequestRelationships(t *testing.T) {
+	endpoints, err := loadIndex()
+	if err != nil {
+		t.Fatalf("loadIndex() error: %v", err)
+	}
+
+	expected := map[string]struct {
+		name         string
+		resourceType string
+	}{
+		"/v1/inAppPurchaseVersions": {
+			name:         "inAppPurchase",
+			resourceType: "inAppPurchases",
+		},
+		"/v1/subscriptionVersions": {
+			name:         "subscription",
+			resourceType: "subscriptions",
+		},
+		"/v1/subscriptionGroupVersions": {
+			name:         "subscriptionGroup",
+			resourceType: "subscriptionGroups",
+		},
+	}
+
+	found := make(map[string]bool, len(expected))
+	for _, endpoint := range endpoints {
+		want, ok := expected[endpoint.Path]
+		if endpoint.Method != "POST" || !ok {
+			continue
+		}
+
+		relationship, ok := endpoint.RequestRelationships[want.name]
+		if !ok {
+			t.Errorf("POST %s missing request relationship %q", endpoint.Path, want.name)
+			continue
+		}
+		if relationship.ResourceType != want.resourceType {
+			t.Errorf("POST %s relationship resourceType = %q, want %q", endpoint.Path, relationship.ResourceType, want.resourceType)
+		}
+		if relationship.Cardinality != "one" {
+			t.Errorf("POST %s relationship cardinality = %q, want one", endpoint.Path, relationship.Cardinality)
+		}
+		if !relationship.Required {
+			t.Errorf("POST %s relationship should be required", endpoint.Path)
+		}
+		found[endpoint.Path] = true
+	}
+
+	for path := range expected {
+		if !found[path] {
+			t.Errorf("POST %s not found", path)
+		}
+	}
+}
+
+func TestLoadIndex_HasToManyRequestRelationship(t *testing.T) {
+	endpoints, err := loadIndex()
+	if err != nil {
+		t.Fatalf("loadIndex() error: %v", err)
+	}
+
+	for _, endpoint := range endpoints {
+		if endpoint.Method != "POST" || endpoint.Path != "/v1/profiles" {
+			continue
+		}
+		relationship, ok := endpoint.RequestRelationships["certificates"]
+		if !ok {
+			t.Fatal("POST /v1/profiles missing certificates request relationship")
+		}
+		if relationship.ResourceType != "certificates" {
+			t.Errorf("resourceType = %q, want certificates", relationship.ResourceType)
+		}
+		if relationship.Cardinality != "many" {
+			t.Errorf("cardinality = %q, want many", relationship.Cardinality)
+		}
+		if !relationship.Required {
+			t.Error("certificates relationship should be required")
+		}
+		return
+	}
+
+	t.Error("POST /v1/profiles not found")
+}
+
 func TestLoadIndex_IncludesPathLevelIDParameter(t *testing.T) {
 	endpoints, err := loadIndex()
 	if err != nil {

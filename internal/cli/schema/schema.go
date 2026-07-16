@@ -20,12 +20,20 @@ var schemaIndexData []byte
 
 // Endpoint is a compact representation of an API endpoint.
 type Endpoint struct {
-	Method            string         `json:"method"`
-	Path              string         `json:"path"`
-	Parameters        []Parameter    `json:"parameters,omitempty"`
-	RequestSchema     string         `json:"requestSchema,omitempty"`
-	RequestAttributes map[string]any `json:"requestAttributes,omitempty"`
-	ResponseSchema    string         `json:"responseSchema,omitempty"`
+	Method               string                         `json:"method"`
+	Path                 string                         `json:"path"`
+	Parameters           []Parameter                    `json:"parameters,omitempty"`
+	RequestSchema        string                         `json:"requestSchema,omitempty"`
+	RequestAttributes    map[string]any                 `json:"requestAttributes,omitempty"`
+	RequestRelationships map[string]RequestRelationship `json:"requestRelationships,omitempty"`
+	ResponseSchema       string                         `json:"responseSchema,omitempty"`
+}
+
+// RequestRelationship describes a JSON:API relationship accepted by a request.
+type RequestRelationship struct {
+	ResourceType string `json:"resourceType"`
+	Cardinality  string `json:"cardinality"`
+	Required     bool   `json:"required"`
 }
 
 // Parameter describes a query/path parameter.
@@ -116,7 +124,7 @@ func SchemaCommand() *ffcli.Command {
 		LongHelp: `Inspect App Store Connect API endpoint schemas at runtime.
 
 Query by path substring, dot-notation, or method+path. Returns endpoint
-details including parameters, request attributes, and response schema
+details including parameters, request attributes and relationships, and response schema
 names as machine-readable JSON.
 
 This lets agents self-serve API field names, parameter types, and allowed
