@@ -24,7 +24,10 @@ type SubscriptionGroupUpdateAttributes struct {
 
 // SubscriptionGroupRelationships describes relationships for groups.
 type SubscriptionGroupRelationships struct {
-	App *Relationship `json:"app"`
+	App                            *Relationship     `json:"app,omitempty"`
+	Subscriptions                  *RelationshipList `json:"subscriptions,omitempty"`
+	SubscriptionGroupLocalizations *RelationshipList `json:"subscriptionGroupLocalizations,omitempty"`
+	Versions                       *RelationshipList `json:"versions,omitempty"`
 }
 
 // SubscriptionGroupCreateData is the data portion of a group create request.

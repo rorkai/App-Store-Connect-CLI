@@ -7,10 +7,48 @@ import (
 	"flag"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	subscriptionscli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
 )
+
+func useSubscriptionGroupVersionTestServer(t *testing.T, handler http.HandlerFunc) {
+	t.Helper()
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse test server URL: %v", err)
+	}
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		cloned := req.Clone(req.Context())
+		cloned.URL.Scheme = serverURL.Scheme
+		cloned.URL.Host = serverURL.Host
+		return server.Client().Transport.RoundTrip(cloned)
+	})
+	client, err := asc.NewClientWithHTTPClient(
+		"TEST_KEY",
+		"TEST_ISSUER",
+		os.Getenv("ASC_PRIVATE_KEY_PATH"),
+		&http.Client{Transport: transport},
+	)
+	if err != nil {
+		t.Fatalf("new test client: %v", err)
+	}
+	restore := subscriptionscli.SetGroupVersionClientFactory(func() (*asc.Client, error) {
+		return client, nil
+	})
+	t.Cleanup(restore)
+}
 
 func TestSubscriptionGroupVersionsValidationErrors(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
@@ -88,11 +126,7 @@ func TestSubscriptionGroupsListRejectsVersionQueryFlagsWithNext(t *testing.T) {
 }
 
 func TestSubscriptionGroupVersionsCreateUsesRequiredRelationship(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	useSubscriptionGroupVersionTestServer(t, func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionGroupVersions" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
 		}
@@ -103,7 +137,9 @@ func TestSubscriptionGroupVersionsCreateUsesRequiredRelationship(t *testing.T) {
 		if !strings.Contains(string(body), `"subscriptionGroup":{"data":{"type":"subscriptionGroups","id":"group-1"}}`) {
 			t.Fatalf("missing group relationship: %s", body)
 		}
-		return &http.Response{StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader(`{"data":{"type":"subscriptionGroupVersions","id":"version-1","attributes":{"version":1,"state":"PREPARE_FOR_SUBMISSION"}}}`)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(w, `{"data":{"type":"subscriptionGroupVersions","id":"version-1","attributes":{"version":1,"state":"PREPARE_FOR_SUBMISSION"}}}`)
 	})
 
 	root := RootCommand("1.2.3")
@@ -130,11 +166,7 @@ func TestSubscriptionGroupVersionsCreateUsesRequiredRelationship(t *testing.T) {
 }
 
 func TestSubscriptionGroupVersionLocalizationUpdateSendsExplicitNull(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	useSubscriptionGroupVersionTestServer(t, func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPatch || req.URL.Path != "/v2/subscriptionGroupLocalizations/loc-1" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
 		}
@@ -145,7 +177,8 @@ func TestSubscriptionGroupVersionLocalizationUpdateSendsExplicitNull(t *testing.
 		if !strings.Contains(string(body), `"customAppName":null`) {
 			t.Fatalf("missing explicit null: %s", body)
 		}
-		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"data":{"type":"subscriptionGroupLocalizations","id":"loc-1","attributes":{"name":"Premium","locale":"en-US"}}}`)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"data":{"type":"subscriptionGroupLocalizations","id":"loc-1","attributes":{"name":"Premium","locale":"en-US"}}}`)
 	})
 
 	root := RootCommand("1.2.3")
@@ -164,11 +197,7 @@ func TestSubscriptionGroupVersionLocalizationUpdateSendsExplicitNull(t *testing.
 }
 
 func TestSubscriptionGroupLegacyLocalizationCreateRemainsV1(t *testing.T) {
-	setupAuth(t)
-	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	useSubscriptionGroupVersionTestServer(t, func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionGroupLocalizations" {
 			t.Fatalf("legacy command changed endpoint: %s %s", req.Method, req.URL)
 		}
@@ -179,7 +208,9 @@ func TestSubscriptionGroupLegacyLocalizationCreateRemainsV1(t *testing.T) {
 		if !strings.Contains(string(body), `"subscriptionGroup":{"data":{"type":"subscriptionGroups","id":"group-1"}}`) || strings.Contains(string(body), `"version"`) {
 			t.Fatalf("legacy command changed relationship: %s", body)
 		}
-		return &http.Response{StatusCode: http.StatusCreated, Body: io.NopCloser(strings.NewReader(`{"data":{"type":"subscriptionGroupLocalizations","id":"loc-1","attributes":{"name":"Premium","locale":"en-US"}}}`)), Header: http.Header{"Content-Type": []string{"application/json"}}}, nil
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(w, `{"data":{"type":"subscriptionGroupLocalizations","id":"loc-1","attributes":{"name":"Premium","locale":"en-US"}}}`)
 	})
 
 	root := RootCommand("1.2.3")

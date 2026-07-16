@@ -194,6 +194,110 @@ func TestSubscriptionGroupGetEndpointsExposeVersionsQuerySurface(t *testing.T) {
 	}
 }
 
+func TestSubscriptionGroupVersionsDecodeAcrossSharedResponseShapes(t *testing.T) {
+	groupResource := `{"type":"subscriptionGroups","id":"group-1","attributes":{"referenceName":"Premium"},"relationships":{"versions":{"data":[{"type":"subscriptionGroupVersions","id":"version-1"}]}}}`
+	groupResponse := `{"data":` + groupResource + `}`
+	includedGroupResponse := `{"data":{"type":"subscriptionGroupLocalizations","id":"loc-1"},"included":[` + groupResource + `]}`
+	appResponse := `{"data":{"type":"apps","id":"app-1"},"included":[` + groupResource + `]}`
+	updatedName := "Updated"
+
+	decodeIncludedGroup := func(t *testing.T, included json.RawMessage) json.RawMessage {
+		t.Helper()
+		var groups []Resource[SubscriptionGroupAttributes]
+		if err := json.Unmarshal(included, &groups); err != nil {
+			t.Fatalf("decode included subscription groups: %v", err)
+		}
+		for _, group := range groups {
+			if group.Type == ResourceTypeSubscriptionGroups {
+				return group.Relationships
+			}
+		}
+		t.Fatal("included response did not contain a subscription group")
+		return nil
+	}
+
+	tests := []struct {
+		name         string
+		method       string
+		path         string
+		responseBody string
+		call         func(*testing.T, *Client) json.RawMessage
+	}{
+		{
+			name: "direct group", method: http.MethodGet, path: "/v1/subscriptionGroups/group-1", responseBody: groupResponse,
+			call: func(t *testing.T, c *Client) json.RawMessage {
+				resp, err := c.GetSubscriptionGroup(context.Background(), "group-1")
+				if err != nil {
+					t.Fatal(err)
+				}
+				return resp.Data.Relationships
+			},
+		},
+		{
+			name: "group create", method: http.MethodPost, path: "/v1/subscriptionGroups", responseBody: groupResponse,
+			call: func(t *testing.T, c *Client) json.RawMessage {
+				resp, err := c.CreateSubscriptionGroup(context.Background(), "app-1", SubscriptionGroupCreateAttributes{ReferenceName: "Premium"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				return resp.Data.Relationships
+			},
+		},
+		{
+			name: "group update", method: http.MethodPatch, path: "/v1/subscriptionGroups/group-1", responseBody: groupResponse,
+			call: func(t *testing.T, c *Client) json.RawMessage {
+				resp, err := c.UpdateSubscriptionGroup(context.Background(), "group-1", SubscriptionGroupUpdateAttributes{ReferenceName: &updatedName})
+				if err != nil {
+					t.Fatal(err)
+				}
+				return resp.Data.Relationships
+			},
+		},
+		{
+			name: "legacy localization included group", method: http.MethodGet, path: "/v1/subscriptionGroupLocalizations/loc-1", responseBody: includedGroupResponse,
+			call: func(t *testing.T, c *Client) json.RawMessage {
+				resp, err := c.GetSubscriptionGroupLocalization(context.Background(), "loc-1")
+				if err != nil {
+					t.Fatal(err)
+				}
+				return decodeIncludedGroup(t, resp.Included)
+			},
+		},
+		{
+			name: "app included group", method: http.MethodGet, path: "/v1/apps/app-1", responseBody: appResponse,
+			call: func(t *testing.T, c *Client) json.RawMessage {
+				resp, err := c.GetApp(context.Background(), "app-1")
+				if err != nil {
+					t.Fatal(err)
+				}
+				return decodeIncludedGroup(t, resp.Included)
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t, func(req *http.Request) {
+				if req.Method != test.method || req.URL.Path != test.path {
+					t.Fatalf("expected %s %s, got %s %s", test.method, test.path, req.Method, req.URL.Path)
+				}
+			}, jsonResponse(http.StatusOK, test.responseBody))
+
+			var relationships SubscriptionGroupRelationships
+			if err := json.Unmarshal(test.call(t, client), &relationships); err != nil {
+				t.Fatalf("decode subscription group relationships: %v", err)
+			}
+			if relationships.Versions == nil || len(relationships.Versions.Data) != 1 {
+				t.Fatalf("versions relationship was not preserved: %#v", relationships.Versions)
+			}
+			version := relationships.Versions.Data[0]
+			if version.Type != ResourceTypeSubscriptionGroupVersions || version.ID != "version-1" {
+				t.Fatalf("unexpected version linkage: %#v", version)
+			}
+		})
+	}
+}
+
 func TestSubscriptionGroupVersionsUsesValidatedNextURL(t *testing.T) {
 	next := "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/versions?cursor=next"
 	client := newTestClient(t, func(req *http.Request) {

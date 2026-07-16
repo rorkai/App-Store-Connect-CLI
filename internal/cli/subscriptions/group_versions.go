@@ -23,6 +23,7 @@ var (
 	subscriptionGroupVersionFields             = []string{"version", "state", "subscriptionGroup", "localizations"}
 	subscriptionGroupVersionGroupFields        = []string{"referenceName", "subscriptions", "subscriptionGroupLocalizations", "versions"}
 	subscriptionGroupVersionLocalizationFields = []string{"name", "customAppName", "locale", "version"}
+	subscriptionGroupVersionClientFactory      = shared.GetASCClient
 )
 
 func rejectSubscriptionGroupVersionArgs(args []string) error {
@@ -88,7 +89,7 @@ func SubscriptionsGroupsVersionsCreateCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --group-id is required")
 				return shared.MissingRequiredUsageError()
 			}
-			client, err := shared.GetASCClient()
+			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions create: %w", err)
 			}
@@ -200,7 +201,7 @@ func SubscriptionsGroupsVersionsListCommand() *ffcli.Command {
 			if err != nil {
 				return shared.UsageError("subscriptions groups versions list: " + err.Error())
 			}
-			client, err := shared.GetASCClient()
+			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions list: %w", err)
 			}
@@ -250,7 +251,7 @@ func SubscriptionsGroupsVersionsViewCommand() *ffcli.Command {
 			if err != nil {
 				return shared.UsageError("subscriptions groups versions view: " + err.Error())
 			}
-			client, err := shared.GetASCClient()
+			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions view: %w", err)
 			}
@@ -313,7 +314,7 @@ func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ff
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageError("subscriptions groups versions links " + name + ": " + err.Error())
 			}
-			client, err := shared.GetASCClient()
+			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions links %s: %w", name, err)
 			}

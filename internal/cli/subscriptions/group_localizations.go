@@ -198,7 +198,7 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups localizations create: %w", err)
 			}

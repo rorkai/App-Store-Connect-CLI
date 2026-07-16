@@ -92,7 +92,7 @@ func SubscriptionsGroupsVersionLocalizationsListCommand() *ffcli.Command {
 			if err != nil {
 				return shared.UsageError("subscriptions groups versions localizations list: " + err.Error())
 			}
-			client, err := shared.GetASCClient()
+			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions localizations list: %w", err)
 			}
@@ -146,7 +146,7 @@ func SubscriptionsGroupsVersionLocalizationsCreateCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --locale is required")
 				return shared.MissingRequiredUsageError()
 			}
-			client, err := shared.GetASCClient()
+			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions localizations create: %w", err)
 			}
@@ -187,7 +187,7 @@ func SubscriptionsGroupsVersionLocalizationsViewCommand() *ffcli.Command {
 			if err != nil {
 				return shared.UsageError("subscriptions groups versions localizations view: " + err.Error())
 			}
-			client, err := shared.GetASCClient()
+			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions localizations view: %w", err)
 			}
@@ -260,7 +260,7 @@ func SubscriptionsGroupsVersionLocalizationsUpdateCommand() *ffcli.Command {
 			} else if *clearCustomAppName {
 				attrs.CustomAppName = &asc.NullableString{Value: nil}
 			}
-			client, err := shared.GetASCClient()
+			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions localizations update: %w", err)
 			}
@@ -297,7 +297,7 @@ func SubscriptionsGroupsVersionLocalizationsDeleteCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
 				return shared.MissingRequiredUsageError()
 			}
-			client, err := shared.GetASCClient()
+			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions localizations delete: %w", err)
 			}
