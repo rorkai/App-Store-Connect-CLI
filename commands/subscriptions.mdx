@@ -186,6 +186,157 @@ asc subscriptions update \
 asc subscriptions delete --id "SUB_ID" --confirm
 ```
 
+## Subscription Versions (App Store Connect API 4.4.1)
+
+App Store Connect API 4.4.1 adds version-scoped metadata for subscriptions.
+A subscription version ID is distinct from a subscription product ID. The
+existing `asc subscriptions localizations` and `asc subscriptions images`
+commands remain product-scoped v1 workflows; use the commands below for the
+new version-scoped resources.
+
+The command group covers all 18 new operations: four version operations, six
+localization operations, and eight image operations.
+
+### Version Resources
+
+Create, list, inspect, and read raw relationship linkages for subscription
+versions.
+
+```bash  theme={null}
+# Create a version for a subscription
+asc subscriptions versions create \
+  --subscription-id "SUBSCRIPTION_ID"
+
+# List versions, optionally filtering and including related metadata
+asc subscriptions versions list \
+  --subscription-id "SUBSCRIPTION_ID" \
+  --state PREPARE_FOR_SUBMISSION \
+  --include localizations
+
+# View one version
+asc subscriptions versions view \
+  --id "VERSION_ID"
+
+# List raw version relationship linkages
+asc subscriptions versions links \
+  --subscription-id "SUBSCRIPTION_ID"
+```
+
+`--subscription-id` also accepts a product ID or exact current subscription
+name. When using a product ID or name, provide `--app "APP_ID"` or set
+`ASC_APP_ID` so the CLI can resolve the subscription.
+
+The version read commands expose only the query parameters accepted by their
+exact endpoints:
+
+* `list`: `--state`, `--fields`, `--include`, `--subscription-fields`,
+  `--image-fields`, `--localization-fields`, `--image-limit`,
+  `--localization-limit`, `--limit`, `--next`, and `--paginate`
+* `view`: `--fields`, `--include`, `--subscription-fields`, `--image-fields`,
+  `--localization-fields`, `--image-limit`, and `--localization-limit`
+* `links`: `--limit`, `--next`, and `--paginate`
+
+Valid `--include` values for version resources are `subscription`, `image`,
+`images`, and `localizations`. Do not combine `--next` with other query
+selectors; the pagination URL is opaque and already contains its query state.
+
+### Version Localizations
+
+Version localizations use the API 4.4.1 v2 localization resource. Creation
+requires `--version-id`, `--locale`, and `--name`; `--description` is optional.
+Locale cannot be changed after creation.
+
+```bash  theme={null}
+# List resources or raw relationship linkages
+asc subscriptions versions localizations list \
+  --version-id "VERSION_ID"
+asc subscriptions versions localizations links \
+  --version-id "VERSION_ID"
+
+# View one localization
+asc subscriptions versions localizations view \
+  --id "LOCALIZATION_ID"
+
+# Create a localization
+asc subscriptions versions localizations create \
+  --version-id "VERSION_ID" \
+  --locale "en-US" \
+  --name "Premium" \
+  --description "Premium subscription access"
+
+# Set a string value, including an explicitly empty string
+asc subscriptions versions localizations update \
+  --id "LOCALIZATION_ID" \
+  --name "Premium Plus" \
+  --description ""
+
+# Encode JSON null to clear a nullable value
+asc subscriptions versions localizations update \
+  --id "LOCALIZATION_ID" \
+  --clear-description
+
+# Delete a localization
+asc subscriptions versions localizations delete \
+  --id "LOCALIZATION_ID" \
+  --confirm
+```
+
+Localization updates preserve all three OpenAPI states:
+
+* Omit a flag to leave that attribute unchanged.
+* Use `--name` or `--description` to send a string, including `""`.
+* Use `--clear-name` or `--clear-description` to send JSON `null`.
+
+`--name` and `--clear-name` are mutually exclusive, as are `--description` and
+`--clear-description`. The list command supports `--fields`,
+`--include version`, `--version-fields`, `--limit`, `--next`, and `--paginate`;
+`view` supports the corresponding sparse fields and `--include version`
+without pagination.
+
+### Version Images
+
+Use `upload` for the complete reserve-upload-commit workflow. It creates the
+version-scoped image resource, performs Apple's returned upload operations,
+then marks the resource as uploaded.
+
+```bash  theme={null}
+# List plural images and inspect the singular primary image
+asc subscriptions versions images list \
+  --version-id "VERSION_ID"
+asc subscriptions versions images primary \
+  --version-id "VERSION_ID"
+
+# Read raw plural and singular relationship linkages
+asc subscriptions versions images links \
+  --version-id "VERSION_ID"
+asc subscriptions versions images primary-link \
+  --version-id "VERSION_ID"
+
+# View one image resource
+asc subscriptions versions images view \
+  --id "IMAGE_ID"
+
+# Reserve, upload, and commit an image
+asc subscriptions versions images upload \
+  --version-id "VERSION_ID" \
+  --file "./image.png"
+
+# Explicitly update upload state
+asc subscriptions versions images update \
+  --id "IMAGE_ID" \
+  --uploaded true
+
+# Delete an image resource
+asc subscriptions versions images delete \
+  --id "IMAGE_ID" \
+  --confirm
+```
+
+`images list` and `images view` accept `--fields`; `images primary` also
+accepts `--fields`. The plural `list` and `links` commands support `--limit`,
+`--next`, and `--paginate`. Mutating commands require the identifiers shown
+above, and deletion always requires `--confirm`; the CLI never prompts.
+
 ## Pricing
 
 ### View Pricing Overview
