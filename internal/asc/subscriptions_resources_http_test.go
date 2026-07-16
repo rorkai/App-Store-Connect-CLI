@@ -956,7 +956,7 @@ func TestGetSubscriptionPricePoints_WithTerritoryFilter(t *testing.T) {
 }
 
 func TestGetSubscriptionPricePoint(t *testing.T) {
-	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionPricePoints","id":"price-1"}}`)
+	response := jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionPricePoints","id":"price-1","relationships":{"adjustedEqualizations":{"links":{"related":"https://api.appstoreconnect.apple.com/v1/subscriptionPricePoints/price-1/adjustedEqualizations"}}}}}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
 			t.Fatalf("expected GET, got %s", req.Method)
@@ -967,8 +967,16 @@ func TestGetSubscriptionPricePoint(t *testing.T) {
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetSubscriptionPricePoint(context.Background(), "price-1"); err != nil {
+	resp, err := client.GetSubscriptionPricePoint(context.Background(), "price-1")
+	if err != nil {
 		t.Fatalf("GetSubscriptionPricePoint() error: %v", err)
+	}
+	var relationships map[string]json.RawMessage
+	if err := json.Unmarshal(resp.Data.Relationships, &relationships); err != nil {
+		t.Fatalf("decode relationships: %v", err)
+	}
+	if _, ok := relationships["adjustedEqualizations"]; !ok {
+		t.Fatalf("expected adjustedEqualizations relationship, got %s", resp.Data.Relationships)
 	}
 }
 
