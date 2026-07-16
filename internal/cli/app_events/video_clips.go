@@ -213,19 +213,19 @@ Examples:
 
 // AppEventVideoClipsGetCommand returns the app event video clips get subcommand.
 func AppEventVideoClipsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("video-clips get", flag.ExitOnError)
+	fs := flag.NewFlagSet("video-clips view", flag.ExitOnError)
 
 	clipID := fs.String("clip-id", "", "App event video clip ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc app-events video-clips get --clip-id \"CLIP_ID\"",
-		ShortHelp:  "Get an in-app event video clip by ID.",
-		LongHelp: `Get an in-app event video clip by ID.
+		Name:       "view",
+		ShortUsage: "asc app-events video-clips view --clip-id \"CLIP_ID\"",
+		ShortHelp:  "View an in-app event video clip by ID.",
+		LongHelp: `View an in-app event video clip by ID.
 
 Examples:
-  asc app-events video-clips get --clip-id "CLIP_ID"`,
+  asc app-events video-clips view --clip-id "CLIP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -237,7 +237,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-events video-clips get: %w", err)
+				return fmt.Errorf("app-events video-clips view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -245,7 +245,7 @@ Examples:
 
 			resp, err := client.GetAppEventVideoClip(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("app-events video-clips get: failed to fetch: %w", err)
+				return fmt.Errorf("app-events video-clips view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

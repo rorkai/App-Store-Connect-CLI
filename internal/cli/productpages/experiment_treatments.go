@@ -135,19 +135,19 @@ Examples:
 
 // ExperimentTreatmentsGetCommand returns the treatments get subcommand.
 func ExperimentTreatmentsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("experiment-treatments get", flag.ExitOnError)
+	fs := flag.NewFlagSet("experiment-treatments view", flag.ExitOnError)
 
 	treatmentID := fs.String("treatment-id", "", "Treatment ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc product-pages experiments treatments get --treatment-id \"TREATMENT_ID\"",
-		ShortHelp:  "Get a treatment by ID.",
-		LongHelp: `Get a treatment by ID.
+		Name:       "view",
+		ShortUsage: "asc product-pages experiments treatments view --treatment-id \"TREATMENT_ID\"",
+		ShortHelp:  "View a treatment by ID.",
+		LongHelp: `View a treatment by ID.
 
 Examples:
-  asc product-pages experiments treatments get --treatment-id "TREATMENT_ID"`,
+  asc product-pages experiments treatments view --treatment-id "TREATMENT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -159,7 +159,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("experiments treatments get: %w", err)
+				return fmt.Errorf("experiments treatments view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -167,7 +167,7 @@ Examples:
 
 			resp, err := client.GetAppStoreVersionExperimentTreatment(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("experiments treatments get: failed to fetch: %w", err)
+				return fmt.Errorf("experiments treatments view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

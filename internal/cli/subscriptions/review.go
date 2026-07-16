@@ -21,7 +21,7 @@ func SubscriptionsReviewCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions review screenshots create --subscription-id "SUB_ID" --file "./screenshot.png"
-  asc subscriptions review app-store-screenshot get --subscription-id "SUB_ID"
+  asc subscriptions review app-store-screenshot view --subscription-id "SUB_ID"
   asc subscriptions review submit --subscription-id "SUB_ID" --confirm
   asc subscriptions review submit-group --group-id "GROUP_ID" --confirm`,
 		FlagSet:   fs,

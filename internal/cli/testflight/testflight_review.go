@@ -25,12 +25,12 @@ func TestFlightReviewCommand() *ffcli.Command {
 		LongHelp: `Manage TestFlight beta app review details and submissions.
 
 Examples:
-  asc testflight review get --app "APP_ID"
+  asc testflight review view --app "APP_ID"
   asc testflight review update --id "DETAIL_ID" --contact-email "dev@example.com"
   asc testflight review submit --build-id "BUILD_ID" --confirm
-  asc testflight review app get --id "DETAIL_ID"
+  asc testflight review app view --id "DETAIL_ID"
   asc testflight review submissions list --build-id "BUILD_ID"
-  asc testflight review submissions get --id "SUBMISSION_ID"`,
+  asc testflight review submissions view --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -48,7 +48,7 @@ Examples:
 
 // TestFlightReviewGetCommand retrieves beta app review details for an app.
 func TestFlightReviewGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	output := shared.BindOutputFlags(fs)
@@ -56,21 +56,21 @@ func TestFlightReviewGetCommand() *ffcli.Command {
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc testflight review get [flags]",
-		ShortHelp:  "Fetch beta app review details for an app.",
-		LongHelp: `Fetch beta app review details for an app.
+		Name:       "view",
+		ShortUsage: "asc testflight review view [flags]",
+		ShortHelp:  "View beta app review details for an app.",
+		LongHelp: `View beta app review details for an app.
 
 Examples:
-  asc testflight review get --app "APP_ID"`,
+  asc testflight review view --app "APP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("testflight review get: --limit must be between 1 and 200")
+				return fmt.Errorf("testflight review view: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("testflight review get: %w", err)
+				return fmt.Errorf("testflight review view: %w", err)
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -81,7 +81,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("testflight review get: %w", err)
+				return fmt.Errorf("testflight review view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -94,7 +94,7 @@ Examples:
 
 			details, err := client.GetBetaAppReviewDetails(requestCtx, resolvedAppID, opts...)
 			if err != nil {
-				return fmt.Errorf("testflight review get: failed to fetch: %w", err)
+				return fmt.Errorf("testflight review view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(details, *output.Output, *output.Pretty)
@@ -265,7 +265,7 @@ func TestFlightReviewAppCommand() *ffcli.Command {
 		LongHelp: `View the app for a beta app review detail.
 
 Examples:
-  asc testflight review app get --id "DETAIL_ID"`,
+  asc testflight review app view --id "DETAIL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -279,19 +279,19 @@ Examples:
 
 // TestFlightReviewAppGetCommand retrieves the app for a beta app review detail.
 func TestFlightReviewAppGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app get", flag.ExitOnError)
+	fs := flag.NewFlagSet("app view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta app review detail ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc testflight review app get --id \"DETAIL_ID\"",
-		ShortHelp:  "Get the app for a beta app review detail.",
-		LongHelp: `Get the app for a beta app review detail.
+		Name:       "view",
+		ShortUsage: "asc testflight review app view --id \"DETAIL_ID\"",
+		ShortHelp:  "View the app for a beta app review detail.",
+		LongHelp: `View the app for a beta app review detail.
 
 Examples:
-  asc testflight review app get --id "DETAIL_ID"`,
+  asc testflight review app view --id "DETAIL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -303,7 +303,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("testflight review app get: %w", err)
+				return fmt.Errorf("testflight review app view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -311,7 +311,7 @@ Examples:
 
 			resp, err := client.GetBetaAppReviewDetailApp(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("testflight review app get: failed to fetch: %w", err)
+				return fmt.Errorf("testflight review app view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -330,7 +330,7 @@ func TestFlightReviewSubmissionsCommand() *ffcli.Command {
 		LongHelp: `View beta app review submissions.
 
 Examples:
-  asc testflight review submissions get --id "SUBMISSION_ID"
+  asc testflight review submissions view --id "SUBMISSION_ID"
   asc testflight review submissions build --id "SUBMISSION_ID"
   asc testflight review submissions list --build-id "BUILD_ID"`,
 		FlagSet:   fs,
@@ -428,19 +428,19 @@ Examples:
 
 // TestFlightReviewSubmissionsGetCommand retrieves a beta app review submission by ID.
 func TestFlightReviewSubmissionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("submissions get", flag.ExitOnError)
+	fs := flag.NewFlagSet("submissions view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta app review submission ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc testflight review submissions get --id \"SUBMISSION_ID\"",
-		ShortHelp:  "Get a beta app review submission by ID.",
-		LongHelp: `Get a beta app review submission by ID.
+		Name:       "view",
+		ShortUsage: "asc testflight review submissions view --id \"SUBMISSION_ID\"",
+		ShortHelp:  "View a beta app review submission by ID.",
+		LongHelp: `View a beta app review submission by ID.
 
 Examples:
-  asc testflight review submissions get --id "SUBMISSION_ID"`,
+  asc testflight review submissions view --id "SUBMISSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -452,7 +452,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("testflight review submissions get: %w", err)
+				return fmt.Errorf("testflight review submissions view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -460,7 +460,7 @@ Examples:
 
 			resp, err := client.GetBetaAppReviewSubmission(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("testflight review submissions get: failed to fetch: %w", err)
+				return fmt.Errorf("testflight review submissions view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -521,7 +521,7 @@ func TestFlightBetaDetailsCommand() *ffcli.Command {
 		LongHelp: `Manage TestFlight build beta details.
 
 Examples:
-  asc testflight beta-details get --build-id "BUILD_ID"
+  asc testflight beta-details view --build-id "BUILD_ID"
   asc testflight beta-details update --id "DETAIL_ID" --auto-notify`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -538,7 +538,7 @@ Examples:
 
 // TestFlightBetaDetailsGetCommand retrieves build beta details for a build.
 func TestFlightBetaDetailsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	buildID, legacyBuildID := bindBuildIDFlag(fs, "Build ID")
 	output := shared.BindOutputFlags(fs)
@@ -546,13 +546,13 @@ func TestFlightBetaDetailsGetCommand() *ffcli.Command {
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc testflight beta-details get [flags]",
-		ShortHelp:  "Fetch build beta details for a build.",
-		LongHelp: `Fetch build beta details for a build.
+		Name:       "view",
+		ShortUsage: "asc testflight beta-details view [flags]",
+		ShortHelp:  "View build beta details for a build.",
+		LongHelp: `View build beta details for a build.
 
 Examples:
-  asc testflight beta-details get --build-id "BUILD_ID"`,
+  asc testflight beta-details view --build-id "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -560,10 +560,10 @@ Examples:
 				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("testflight beta-details get: --limit must be between 1 and 200")
+				return fmt.Errorf("testflight beta-details view: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("testflight beta-details get: %w", err)
+				return fmt.Errorf("testflight beta-details view: %w", err)
 			}
 
 			trimmedBuildID := strings.TrimSpace(*buildID)
@@ -574,7 +574,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("testflight beta-details get: %w", err)
+				return fmt.Errorf("testflight beta-details view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -588,7 +588,7 @@ Examples:
 
 			details, err := client.GetBuildBetaDetails(requestCtx, opts...)
 			if err != nil {
-				return fmt.Errorf("testflight beta-details get: failed to fetch: %w", err)
+				return fmt.Errorf("testflight beta-details view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(details, *output.Output, *output.Pretty)
@@ -607,7 +607,7 @@ func TestFlightBetaDetailsBuildCommand() *ffcli.Command {
 		LongHelp: `View the build for a build beta detail.
 
 Examples:
-  asc testflight beta-details build get --id "DETAIL_ID"`,
+  asc testflight beta-details build view --id "DETAIL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -621,19 +621,19 @@ Examples:
 
 // TestFlightBetaDetailsBuildGetCommand retrieves the build for a build beta detail.
 func TestFlightBetaDetailsBuildGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("build get", flag.ExitOnError)
+	fs := flag.NewFlagSet("build view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Build beta detail ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc testflight beta-details build get --id \"DETAIL_ID\"",
-		ShortHelp:  "Get the build for a build beta detail.",
-		LongHelp: `Get the build for a build beta detail.
+		Name:       "view",
+		ShortUsage: "asc testflight beta-details build view --id \"DETAIL_ID\"",
+		ShortHelp:  "View the build for a build beta detail.",
+		LongHelp: `View the build for a build beta detail.
 
 Examples:
-  asc testflight beta-details build get --id "DETAIL_ID"`,
+  asc testflight beta-details build view --id "DETAIL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -645,7 +645,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("testflight beta-details build get: %w", err)
+				return fmt.Errorf("testflight beta-details build view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -653,7 +653,7 @@ Examples:
 
 			resp, err := client.GetBuildBetaDetailBuild(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("testflight beta-details build get: failed to fetch: %w", err)
+				return fmt.Errorf("testflight beta-details build view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

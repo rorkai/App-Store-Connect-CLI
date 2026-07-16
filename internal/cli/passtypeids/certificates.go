@@ -25,7 +25,7 @@ func PassTypeIDCertificatesCommand() *ffcli.Command {
 
 Examples:
   asc pass-type-ids certificates list --pass-type-id "PASS_ID"
-  asc pass-type-ids certificates get --pass-type-id "PASS_ID"`,
+  asc pass-type-ids certificates view --pass-type-id "PASS_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -148,9 +148,9 @@ Examples:
 	}
 }
 
-// PassTypeIDCertificatesGetCommand returns the certificates get subcommand.
+// PassTypeIDCertificatesGetCommand returns the certificates view subcommand.
 func PassTypeIDCertificatesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	passTypeID := fs.String("pass-type-id", "", "Pass type ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -159,14 +159,14 @@ func PassTypeIDCertificatesGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc pass-type-ids certificates get --pass-type-id \"PASS_ID\" [flags]",
-		ShortHelp:  "Get certificate relationships for a pass type ID.",
-		LongHelp: `Get certificate relationships for a pass type ID.
+		Name:       "view",
+		ShortUsage: "asc pass-type-ids certificates view --pass-type-id \"PASS_ID\" [flags]",
+		ShortHelp:  "View certificate relationships for a pass type ID.",
+		LongHelp: `View certificate relationships for a pass type ID.
 
 Examples:
-  asc pass-type-ids certificates get --pass-type-id "PASS_ID"
-  asc pass-type-ids certificates get --pass-type-id "PASS_ID" --paginate`,
+  asc pass-type-ids certificates view --pass-type-id "PASS_ID"
+  asc pass-type-ids certificates view --pass-type-id "PASS_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -176,15 +176,15 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("pass-type-ids certificates get: --limit must be between 1 and 200")
+				return fmt.Errorf("pass-type-ids certificates view: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("pass-type-ids certificates get: %w", err)
+				return fmt.Errorf("pass-type-ids certificates view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("pass-type-ids certificates get: %w", err)
+				return fmt.Errorf("pass-type-ids certificates view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -199,14 +199,14 @@ Examples:
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 				firstPage, err := client.GetPassTypeIDCertificatesRelationships(requestCtx, passTypeIDValue, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("pass-type-ids certificates get: failed to fetch: %w", err)
+					return fmt.Errorf("pass-type-ids certificates view: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					return client.GetPassTypeIDCertificatesRelationships(ctx, passTypeIDValue, asc.WithLinkagesNextURL(nextURL))
 				})
 				if err != nil {
-					return fmt.Errorf("pass-type-ids certificates get: %w", err)
+					return fmt.Errorf("pass-type-ids certificates view: %w", err)
 				}
 
 				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
@@ -214,7 +214,7 @@ Examples:
 
 			resp, err := client.GetPassTypeIDCertificatesRelationships(requestCtx, passTypeIDValue, opts...)
 			if err != nil {
-				return fmt.Errorf("pass-type-ids certificates get: failed to fetch: %w", err)
+				return fmt.Errorf("pass-type-ids certificates view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

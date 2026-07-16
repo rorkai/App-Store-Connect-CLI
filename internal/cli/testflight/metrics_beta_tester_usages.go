@@ -68,38 +68,6 @@ func TestFlightMetricsGroupTestersCommand() *ffcli.Command {
 	return cmd
 }
 
-func DeprecatedMetricsTestersAliasCommand() *ffcli.Command {
-	return deprecatedAliasCommand(
-		rewriteCommandPresentation(
-			TestFlightMetricsTestersCommand(),
-			"asc testflight metrics testers",
-			"asc testflight metrics group-testers",
-			map[string]string{
-				"testers": "group-testers",
-			},
-		),
-		"asc testflight metrics group-testers --group \"GROUP_ID\"",
-		"Compatibility alias: use `asc testflight metrics group-testers`.",
-		"Compatibility alias: use `asc testflight metrics group-testers --group GROUP_ID`.",
-	)
-}
-
-func DeprecatedMetricsBetaTesterUsagesAliasCommand() *ffcli.Command {
-	return deprecatedAliasCommand(
-		rewriteCommandPresentation(
-			TestFlightMetricsBetaTesterUsagesCommand(),
-			"asc testflight metrics beta-tester-usages",
-			"asc testflight metrics app-testers",
-			map[string]string{
-				"beta-tester-usages": "app-testers",
-			},
-		),
-		"asc testflight metrics app-testers --app \"APP_ID\" [flags]",
-		"Compatibility alias: use `asc testflight metrics app-testers`.",
-		"Compatibility alias: use `asc testflight metrics app-testers --app APP_ID`.",
-	)
-}
-
 // TestFlightMetricsBetaTesterUsagesCommand fetches app-level beta tester usage metrics.
 func TestFlightMetricsBetaTesterUsagesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("metrics beta-tester-usages", flag.ExitOnError)

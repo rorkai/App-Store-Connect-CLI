@@ -26,8 +26,8 @@ func AppSetupCommand() *ffcli.Command {
 Examples:
   asc app-setup info set --app "APP_ID" --primary-locale "en-US" --bundle-id "com.example.app"
   asc app-setup categories set --app "APP_ID" --primary GAMES
-  asc app-setup availability set --app "APP_ID" --territory "USA,GBR" --available true --available-in-new-territories true
-  asc app-setup availability set --app "APP_ID" --all-territories --available true --available-in-new-territories true
+  asc app-setup availability edit --app "APP_ID" --territory "USA,GBR" --available true --available-in-new-territories true
+  asc app-setup availability edit --app "APP_ID" --all-territories --available true --available-in-new-territories true
   asc app-setup pricing set --app "APP_ID" --price-point "PRICE_POINT_ID" --base-territory "USA"
   asc app-setup pricing set --app "APP_ID" --free --start-date "2024-03-01"
   asc app-setup localizations upload --version "VERSION_ID" --path "./localizations"`,
@@ -294,12 +294,12 @@ func AppSetupAvailabilityCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "availability",
 		ShortUsage: "asc app-setup availability <subcommand> [flags]",
-		ShortHelp:  "Set app availability.",
-		LongHelp: `Set app availability for territories.
+		ShortHelp:  "Edit app availability.",
+		LongHelp: `Edit app availability for territories.
 
 Examples:
-  asc app-setup availability set --app "APP_ID" --territory "USA,GBR" --available true --available-in-new-territories true
-  asc app-setup availability set --app "APP_ID" --all-territories --available true --available-in-new-territories true`,
+  asc app-setup availability edit --app "APP_ID" --territory "USA,GBR" --available true --available-in-new-territories true
+  asc app-setup availability edit --app "APP_ID" --all-territories --available true --available-in-new-territories true`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			AppSetupAvailabilitySetCommand(),
@@ -310,22 +310,22 @@ Examples:
 	}
 }
 
-// AppSetupAvailabilitySetCommand returns the availability set subcommand.
+// AppSetupAvailabilitySetCommand returns the availability edit subcommand.
 func AppSetupAvailabilitySetCommand() *ffcli.Command {
 	return shared.NewAvailabilitySetCommand(shared.AvailabilitySetCommandConfig{
-		FlagSetName: "app-setup availability set",
-		CommandName: "set",
-		ShortUsage:  "asc app-setup availability set [flags]",
-		ShortHelp:   "Set app availability for territories.",
-		LongHelp: `Set app availability for territories.
+		FlagSetName: "app-setup availability edit",
+		CommandName: "edit",
+		ShortUsage:  "asc app-setup availability edit [flags]",
+		ShortHelp:   "Edit app availability for territories.",
+		LongHelp: `Edit app availability for territories.
 
 Examples:
-  asc app-setup availability set --app "123456789" --territory "USA,GBR" --available true --available-in-new-territories true
-  asc app-setup availability set --app "123456789" --all-territories --available true --available-in-new-territories true
+  asc app-setup availability edit --app "123456789" --territory "USA,GBR" --available true --available-in-new-territories true
+  asc app-setup availability edit --app "123456789" --all-territories --available true --available-in-new-territories true
 
 Note:
   This command only updates an existing app availability. If the app has no availability record yet, initialize availability in App Store Connect first.`,
-		ErrorPrefix:                      "app-setup availability set",
+		ErrorPrefix:                      "app-setup availability edit",
 		IncludeAvailableInNewTerritories: true,
 	})
 }

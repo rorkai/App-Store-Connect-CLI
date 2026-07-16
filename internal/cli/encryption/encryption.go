@@ -28,11 +28,11 @@ func EncryptionCommand() *ffcli.Command {
 
 Examples:
   asc encryption declarations list --app "APP_ID"
-  asc encryption declarations get --id "DECL_ID"
+  asc encryption declarations view --id "DECL_ID"
   asc encryption declarations create --app "APP_ID" --app-description "Uses TLS" --contains-proprietary-cryptography=false --contains-third-party-cryptography=true --available-on-french-store=true
   asc encryption declarations exempt-declare --plist ./Info.plist
   asc encryption declarations assign-builds --id "DECL_ID" --build "BUILD_ID"
-  asc encryption documents get --id "DOC_ID"
+  asc encryption documents view --id "DOC_ID"
   asc encryption documents upload --declaration "DECL_ID" --file ./export.pdf`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -55,7 +55,7 @@ func EncryptionDeclarationsCommand() *ffcli.Command {
 
 Examples:
   asc encryption declarations list --app "APP_ID"
-  asc encryption declarations get --id "DECL_ID"
+  asc encryption declarations view --id "DECL_ID"
   asc encryption declarations create --app "APP_ID" --app-description "Uses TLS" --contains-proprietary-cryptography=false --contains-third-party-cryptography=true --available-on-french-store=true
   asc encryption declarations exempt-declare --plist ./Info.plist
   asc encryption declarations assign-builds --id "DECL_ID" --build "BUILD_ID"`,
@@ -181,7 +181,7 @@ Examples:
 
 // EncryptionDeclarationsGetCommand returns the declarations get subcommand.
 func EncryptionDeclarationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("encryption declarations get", flag.ExitOnError)
+	fs := flag.NewFlagSet("encryption declarations view", flag.ExitOnError)
 
 	declarationID := fs.String("id", "", "Encryption declaration ID (required)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(encryptionDeclarationFieldList(), ", "))
@@ -191,14 +191,14 @@ func EncryptionDeclarationsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc encryption declarations get --id \"DECL_ID\"",
-		ShortHelp:  "Get an encryption declaration by ID.",
-		LongHelp: `Get an encryption declaration by ID.
+		Name:       "view",
+		ShortUsage: "asc encryption declarations view --id \"DECL_ID\"",
+		ShortHelp:  "View an encryption declaration by ID.",
+		LongHelp: `View an encryption declaration by ID.
 
 Examples:
-  asc encryption declarations get --id "DECL_ID"
-  asc encryption declarations get --id "DECL_ID" --include appEncryptionDeclarationDocument --document-fields "fileName,fileSize"`,
+  asc encryption declarations view --id "DECL_ID"
+  asc encryption declarations view --id "DECL_ID" --include appEncryptionDeclarationDocument --document-fields "fileName,fileSize"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -208,25 +208,25 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 			if *buildLimit != 0 && (*buildLimit < 1 || *buildLimit > 50) {
-				return fmt.Errorf("encryption declarations get: --build-limit must be between 1 and 50")
+				return fmt.Errorf("encryption declarations view: --build-limit must be between 1 and 50")
 			}
 
 			fieldsValue, err := normalizeEncryptionDeclarationFields(*fields)
 			if err != nil {
-				return fmt.Errorf("encryption declarations get: %w", err)
+				return fmt.Errorf("encryption declarations view: %w", err)
 			}
 			documentFieldsValue, err := normalizeEncryptionDocumentFields(*documentFields, "--document-fields")
 			if err != nil {
-				return fmt.Errorf("encryption declarations get: %w", err)
+				return fmt.Errorf("encryption declarations view: %w", err)
 			}
 			includeValue, err := normalizeEncryptionDeclarationInclude(*include)
 			if err != nil {
-				return fmt.Errorf("encryption declarations get: %w", err)
+				return fmt.Errorf("encryption declarations view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("encryption declarations get: %w", err)
+				return fmt.Errorf("encryption declarations view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -240,7 +240,7 @@ Examples:
 				asc.WithAppEncryptionDeclarationsBuildLimit(*buildLimit),
 			)
 			if err != nil {
-				return fmt.Errorf("encryption declarations get: failed to fetch: %w", err)
+				return fmt.Errorf("encryption declarations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -601,7 +601,7 @@ func EncryptionDocumentsCommand() *ffcli.Command {
 		LongHelp: `Manage encryption declaration documents.
 
 Examples:
-  asc encryption documents get --id "DOC_ID"
+  asc encryption documents view --id "DOC_ID"
   asc encryption documents upload --declaration "DECL_ID" --file ./export.pdf`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -616,20 +616,20 @@ Examples:
 
 // EncryptionDocumentsGetCommand returns the documents get subcommand.
 func EncryptionDocumentsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("encryption documents get", flag.ExitOnError)
+	fs := flag.NewFlagSet("encryption documents view", flag.ExitOnError)
 
 	documentID := fs.String("id", "", "Document ID (required)")
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(encryptionDocumentFieldList(), ", "))
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc encryption documents get --id \"DOC_ID\"",
-		ShortHelp:  "Get an encryption declaration document by ID.",
-		LongHelp: `Get an encryption declaration document by ID.
+		Name:       "view",
+		ShortUsage: "asc encryption documents view --id \"DOC_ID\"",
+		ShortHelp:  "View an encryption declaration document by ID.",
+		LongHelp: `View an encryption declaration document by ID.
 
 Examples:
-  asc encryption documents get --id "DOC_ID"`,
+  asc encryption documents view --id "DOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -641,12 +641,12 @@ Examples:
 
 			fieldsValue, err := normalizeEncryptionDocumentFields(*fields, "--fields")
 			if err != nil {
-				return fmt.Errorf("encryption documents get: %w", err)
+				return fmt.Errorf("encryption documents view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("encryption documents get: %w", err)
+				return fmt.Errorf("encryption documents view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -654,7 +654,7 @@ Examples:
 
 			resp, err := client.GetAppEncryptionDeclarationDocument(requestCtx, documentValue, fieldsValue)
 			if err != nil {
-				return fmt.Errorf("encryption documents get: failed to fetch: %w", err)
+				return fmt.Errorf("encryption documents view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

@@ -25,7 +25,7 @@ func AndroidIosMappingCommand() *ffcli.Command {
 
 Examples:
   asc android-ios-mapping list --app "APP_ID"
-  asc android-ios-mapping get --mapping-id "MAPPING_ID"
+  asc android-ios-mapping view --mapping-id "MAPPING_ID"
   asc android-ios-mapping create --app "APP_ID" --android-package-name "com.example.android" --fingerprints "SHA1,SHA2"
   asc android-ios-mapping update --mapping-id "MAPPING_ID" --android-package-name "com.example.android.new"
   asc android-ios-mapping delete --mapping-id "MAPPING_ID" --confirm`,
@@ -126,20 +126,20 @@ Examples:
 
 // AndroidIosMappingGetCommand returns the mapping get subcommand.
 func AndroidIosMappingGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("mapping-id", "", "Mapping ID")
 	fields := fs.String("fields", "", "Fields to return (comma-separated: "+strings.Join(androidIosMappingFieldsList(), ", ")+")")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc android-ios-mapping get --mapping-id \"MAPPING_ID\"",
-		ShortHelp:  "Get an Android-to-iOS app mapping by ID.",
-		LongHelp: `Get an Android-to-iOS app mapping by ID.
+		Name:       "view",
+		ShortUsage: "asc android-ios-mapping view --mapping-id \"MAPPING_ID\"",
+		ShortHelp:  "View an Android-to-iOS app mapping by ID.",
+		LongHelp: `View an Android-to-iOS app mapping by ID.
 
 Examples:
-  asc android-ios-mapping get --mapping-id "MAPPING_ID"`,
+  asc android-ios-mapping view --mapping-id "MAPPING_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -149,12 +149,12 @@ Examples:
 			}
 			fieldValues, err := normalizeAndroidIosMappingFields(*fields)
 			if err != nil {
-				return fmt.Errorf("android-ios-mapping get: %w", err)
+				return fmt.Errorf("android-ios-mapping view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("android-ios-mapping get: %w", err)
+				return fmt.Errorf("android-ios-mapping view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -165,7 +165,7 @@ Examples:
 				asc.WithAndroidToIosAppMappingDetailsFields(fieldValues),
 			)
 			if err != nil {
-				return fmt.Errorf("android-ios-mapping get: failed to fetch: %w", err)
+				return fmt.Errorf("android-ios-mapping view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

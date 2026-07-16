@@ -25,7 +25,7 @@ func PromotedPurchasesCommand() *ffcli.Command {
 
 Examples:
   asc promoted-purchases list --app "APP_ID"
-  asc promoted-purchases get --promoted-purchase-id "PROMO_ID"
+  asc promoted-purchases view --promoted-purchase-id "PROMO_ID"
   asc promoted-purchases create --app "APP_ID" --product-id "PRODUCT_ID" --product-type SUBSCRIPTION --visible-for-all-users
   asc promoted-purchases update --promoted-purchase-id "PROMO_ID" --enabled false
   asc promoted-purchases delete --promoted-purchase-id "PROMO_ID" --confirm
@@ -125,19 +125,19 @@ Examples:
 
 // PromotedPurchasesGetCommand returns the promoted purchases get subcommand.
 func PromotedPurchasesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("promoted-purchase-id", "", "Promoted purchase ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc promoted-purchases get --promoted-purchase-id PROMO_ID",
-		ShortHelp:  "Get a promoted purchase by ID.",
-		LongHelp: `Get a promoted purchase by ID.
+		Name:       "view",
+		ShortUsage: "asc promoted-purchases view --promoted-purchase-id PROMO_ID",
+		ShortHelp:  "View a promoted purchase by ID.",
+		LongHelp: `View a promoted purchase by ID.
 
 Examples:
-  asc promoted-purchases get --promoted-purchase-id "PROMO_ID"`,
+  asc promoted-purchases view --promoted-purchase-id "PROMO_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -149,7 +149,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("promoted-purchases get: %w", err)
+				return fmt.Errorf("promoted-purchases view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -157,7 +157,7 @@ Examples:
 
 			resp, err := client.GetPromotedPurchase(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("promoted-purchases get: failed to fetch: %w", err)
+				return fmt.Errorf("promoted-purchases view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

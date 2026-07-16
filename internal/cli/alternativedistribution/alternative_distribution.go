@@ -29,7 +29,7 @@ Examples:
   asc alternative-distribution domains create --domain "example.com" --reference-name "Example"
   asc alternative-distribution keys list
   asc alternative-distribution keys create --app "APP_ID" --public-key-path "./key.pem"
-  asc alternative-distribution packages get --package-id "PACKAGE_ID"`,
+  asc alternative-distribution packages view --package-id "PACKAGE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{

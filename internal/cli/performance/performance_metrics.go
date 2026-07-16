@@ -25,7 +25,7 @@ func PerformanceMetricsCommand() *ffcli.Command {
 
 Examples:
   asc performance metrics list --app "APP_ID"
-  asc performance metrics get --build "BUILD_ID"`,
+  asc performance metrics view --build "BUILD_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -100,7 +100,7 @@ Examples:
 
 // PerformanceMetricsGetCommand returns the metrics get subcommand.
 func PerformanceMetricsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("metrics get", flag.ExitOnError)
+	fs := flag.NewFlagSet("metrics view", flag.ExitOnError)
 
 	buildID := fs.String("build", "", "Build ID to fetch metrics for")
 	platform := fs.String("platform", "", "Platform filter (IOS)")
@@ -109,14 +109,14 @@ func PerformanceMetricsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc performance metrics get --build \"BUILD_ID\"",
-		ShortHelp:  "Get performance/power metrics for a build.",
-		LongHelp: `Get performance/power metrics for a build.
+		Name:       "view",
+		ShortUsage: "asc performance metrics view --build \"BUILD_ID\"",
+		ShortHelp:  "View performance/power metrics for a build.",
+		LongHelp: `View performance/power metrics for a build.
 
 Examples:
-  asc performance metrics get --build "BUILD_ID"
-  asc performance metrics get --build "BUILD_ID" --metric-type "MEMORY" --device-type "iPhone15,2"`,
+  asc performance metrics view --build "BUILD_ID"
+  asc performance metrics view --build "BUILD_ID" --metric-type "MEMORY" --device-type "iPhone15,2"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -128,16 +128,16 @@ Examples:
 
 			platforms, err := normalizePerfPowerMetricPlatforms(shared.SplitCSVUpper(*platform), "--platform")
 			if err != nil {
-				return fmt.Errorf("performance metrics get: %w", err)
+				return fmt.Errorf("performance metrics view: %w", err)
 			}
 			metricTypes, err := normalizePerfPowerMetricTypes(shared.SplitCSVUpper(*metricType))
 			if err != nil {
-				return fmt.Errorf("performance metrics get: %w", err)
+				return fmt.Errorf("performance metrics view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("performance metrics get: %w", err)
+				return fmt.Errorf("performance metrics view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -150,7 +150,7 @@ Examples:
 				asc.WithPerfPowerMetricsDeviceTypes(shared.SplitCSV(*deviceType)),
 			)
 			if err != nil {
-				return fmt.Errorf("performance metrics get: %w", err)
+				return fmt.Errorf("performance metrics view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

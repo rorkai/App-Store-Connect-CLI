@@ -15,19 +15,19 @@ import (
 
 // CategoriesGetCommand returns the category get subcommand.
 func CategoriesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("categories get", flag.ExitOnError)
+	fs := flag.NewFlagSet("categories view", flag.ExitOnError)
 
 	categoryID := fs.String("category-id", "", "App category ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc categories get --category-id \"CATEGORY_ID\"",
-		ShortHelp:  "Get an App Store category by ID.",
-		LongHelp: `Get an App Store category by ID.
+		Name:       "view",
+		ShortUsage: "asc categories view --category-id \"CATEGORY_ID\"",
+		ShortHelp:  "View an App Store category by ID.",
+		LongHelp: `View an App Store category by ID.
 
 Examples:
-  asc categories get --category-id "GAMES"`,
+  asc categories view --category-id "GAMES"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -39,7 +39,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("categories get: %w", err)
+				return fmt.Errorf("categories view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -47,7 +47,7 @@ Examples:
 
 			resp, err := client.GetAppCategory(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("categories get: %w", err)
+				return fmt.Errorf("categories view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

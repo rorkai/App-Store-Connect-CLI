@@ -19,7 +19,7 @@ func MarketplaceCommand() *ffcli.Command {
 		LongHelp: `Manage marketplace resources.
 
 Examples:
-  asc marketplace search-details get --app "APP_ID"
+  asc marketplace search-details view --app "APP_ID"
   asc marketplace webhooks list`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,

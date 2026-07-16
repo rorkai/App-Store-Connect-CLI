@@ -23,7 +23,7 @@ func RoutingCoverageCommand() *ffcli.Command {
 		LongHelp: `Manage routing app coverage files required for routing apps.
 
 Examples:
-  asc routing-coverage get --version-id "VERSION_ID"
+  asc routing-coverage view --version-id "VERSION_ID"
   asc routing-coverage info --id "COVERAGE_ID"
   asc routing-coverage create --version-id "VERSION_ID" --file ./coverage.geojson
   asc routing-coverage delete --id "COVERAGE_ID" --confirm`,
@@ -42,19 +42,19 @@ Examples:
 
 // RoutingCoverageGetCommand returns the routing coverage get subcommand.
 func RoutingCoverageGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("routing-coverage get", flag.ExitOnError)
+	fs := flag.NewFlagSet("routing-coverage view", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc routing-coverage get --version-id \"VERSION_ID\"",
-		ShortHelp:  "Get routing app coverage for a version.",
-		LongHelp: `Get routing app coverage for an App Store version.
+		Name:       "view",
+		ShortUsage: "asc routing-coverage view --version-id \"VERSION_ID\"",
+		ShortHelp:  "View routing app coverage for a version.",
+		LongHelp: `View routing app coverage for an App Store version.
 
 Examples:
-  asc routing-coverage get --version-id "VERSION_ID"`,
+  asc routing-coverage view --version-id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -66,7 +66,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("routing-coverage get: %w", err)
+				return fmt.Errorf("routing-coverage view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -74,7 +74,7 @@ Examples:
 
 			resp, err := client.GetRoutingAppCoverageForVersion(requestCtx, versionValue)
 			if err != nil {
-				return fmt.Errorf("routing-coverage get: failed to fetch: %w", err)
+				return fmt.Errorf("routing-coverage view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

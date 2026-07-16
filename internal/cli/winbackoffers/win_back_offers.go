@@ -87,7 +87,7 @@ func WinBackOffersCommand() *ffcli.Command {
 
 Examples:
   asc win-back-offers list --subscription-id "SUB_ID"
-  asc win-back-offers get --id "OFFER_ID"
+  asc win-back-offers view --id "OFFER_ID"
   asc win-back-offers create --subscription-id "SUB_ID" --reference-name "spring-2026" --offer-id "OFFER-1" --duration ONE_MONTH --offer-mode PAY_AS_YOU_GO --period-count 1 --eligibility-paid-months 6 --eligibility-last-subscribed-min 3 --eligibility-last-subscribed-max 12 --start-date "2026-02-01" --priority HIGH --price "SUBSCRIPTION_PRICE_POINT_ID"
   asc win-back-offers update --id "OFFER_ID" --priority NORMAL
   asc win-back-offers prices --id "OFFER_ID"`,
@@ -234,17 +234,17 @@ Examples:
 // WinBackOffersGetCommand returns the win-back offers get subcommand.
 func WinBackOffersGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "get",
-		Name:        "get",
-		ShortUsage:  "asc win-back-offers get --id OFFER_ID",
-		ShortHelp:   "Get a win-back offer by ID.",
-		LongHelp: `Get a win-back offer by ID.
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc win-back-offers view --id OFFER_ID",
+		ShortHelp:   "View a win-back offer by ID.",
+		LongHelp: `View a win-back offer by ID.
 
 Examples:
-  asc win-back-offers get --id "OFFER_ID"`,
+  asc win-back-offers view --id "OFFER_ID"`,
 		IDFlag:      "id",
 		IDUsage:     "Win-back offer ID",
-		ErrorPrefix: "win-back-offers get",
+		ErrorPrefix: "win-back-offers view",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetWinBackOffer(ctx, id)
 		},

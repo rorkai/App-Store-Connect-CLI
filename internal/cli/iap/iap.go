@@ -27,7 +27,7 @@ func IAPCommand() *ffcli.Command {
 Examples:
   asc iap list --app "APP_ID"
   asc iap pricing summary --app "APP_ID"
-  asc iap get --id "IAP_ID"
+  asc iap view --id "IAP_ID"
   asc iap create --app "APP_ID" --type CONSUMABLE --ref-name "Pro" --product-id "com.example.pro"
   asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --locale "en-US" --display-name "Pro Lifetime" --price "3.99" --base-territory "United States"
   asc iap update --id "IAP_ID" --ref-name "New Name"
@@ -164,23 +164,23 @@ Examples:
 	}
 }
 
-// IAPGetCommand returns the iap get subcommand.
+// IAPGetCommand returns the iap view subcommand.
 func IAPGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	iapID := fs.String("id", "", "In-app purchase ID")
 	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchase endpoint")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc iap get --id \"IAP_ID\"",
-		ShortHelp:  "Get an in-app purchase by ID.",
-		LongHelp: `Get an in-app purchase by ID.
+		Name:       "view",
+		ShortUsage: "asc iap view --id \"IAP_ID\"",
+		ShortHelp:  "View an in-app purchase by ID.",
+		LongHelp: `View an in-app purchase by ID.
 
 Examples:
-  asc iap get --id "IAP_ID"
-  asc iap get --id "IAP_ID" --legacy`,
+  asc iap view --id "IAP_ID"
+  asc iap view --id "IAP_ID" --legacy`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -192,7 +192,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("iap get: %w", err)
+				return fmt.Errorf("iap view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -201,7 +201,7 @@ Examples:
 			if *legacy {
 				resp, err := client.GetInAppPurchase(requestCtx, id)
 				if err != nil {
-					return fmt.Errorf("iap get: failed to fetch: %w", err)
+					return fmt.Errorf("iap view: failed to fetch: %w", err)
 				}
 
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -209,7 +209,7 @@ Examples:
 
 			resp, err := client.GetInAppPurchaseV2(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("iap get: failed to fetch: %w", err)
+				return fmt.Errorf("iap view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

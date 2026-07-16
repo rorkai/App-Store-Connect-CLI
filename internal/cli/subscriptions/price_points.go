@@ -26,7 +26,7 @@ func SubscriptionsPricePointsCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions price-points list --subscription-id "SUB_ID"
-  asc subscriptions price-points get --price-point-id "PRICE_POINT_ID"
+  asc subscriptions price-points view --price-point-id "PRICE_POINT_ID"
   asc subscriptions price-points equalizations --price-point-id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -226,19 +226,19 @@ func filterSubscriptionPricePoints(resp *asc.SubscriptionPricePointsResponse, pf
 
 // SubscriptionsPricePointsGetCommand returns the price points get subcommand.
 func SubscriptionsPricePointsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("price-points get", flag.ExitOnError)
+	fs := flag.NewFlagSet("price-points view", flag.ExitOnError)
 
 	pricePointID := fs.String("price-point-id", "", "Subscription price point ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc subscriptions price-points get --price-point-id \"PRICE_POINT_ID\"",
-		ShortHelp:  "Get a subscription price point by ID.",
-		LongHelp: `Get a subscription price point by ID.
+		Name:       "view",
+		ShortUsage: "asc subscriptions price-points view --price-point-id \"PRICE_POINT_ID\"",
+		ShortHelp:  "View a subscription price point by ID.",
+		LongHelp: `View a subscription price point by ID.
 
 Examples:
-  asc subscriptions price-points get --price-point-id "PRICE_POINT_ID"`,
+  asc subscriptions price-points view --price-point-id "PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -250,7 +250,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions price-points get: %w", err)
+				return fmt.Errorf("subscriptions price-points view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -258,7 +258,7 @@ Examples:
 
 			resp, err := client.GetSubscriptionPricePoint(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("subscriptions price-points get: failed to fetch: %w", err)
+				return fmt.Errorf("subscriptions price-points view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

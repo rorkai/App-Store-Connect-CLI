@@ -29,19 +29,19 @@ Examples:
   asc pricing territories list
   asc pricing price-points --app "123456789"
   asc pricing price-points --app "123456789" --territory "France"
-  asc pricing price-points get --price-point "PRICE_POINT_ID"
+  asc pricing price-points view --price-point "PRICE_POINT_ID"
   asc pricing price-points equalizations --price-point "PRICE_POINT_ID"
   asc pricing tiers --app "123456789" --territory "US"
-  asc pricing schedule get --app "123456789"
-  asc pricing schedule get --id "SCHEDULE_ID"
+  asc pricing schedule view --app "123456789"
+  asc pricing schedule view --id "SCHEDULE_ID"
   asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "United States" --start-date "2024-03-01"
   asc pricing schedule create --app "123456789" --free --base-territory "US" --start-date "2024-03-01"
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID"
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID"
-  asc pricing availability get --app "123456789"
-  asc pricing availability get --id "AVAILABILITY_ID"
-  asc pricing availability set --app "123456789" --territory "US,France,DEU" --available true --available-in-new-territories true
-  asc pricing availability set --app "123456789" --all-territories --available true --available-in-new-territories true
+  asc pricing availability view --app "123456789"
+  asc pricing availability view --id "AVAILABILITY_ID"
+  asc pricing availability edit --app "123456789" --territory "US,France,DEU" --available true --available-in-new-territories true
+  asc pricing availability edit --app "123456789" --all-territories --available true --available-in-new-territories true
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"`,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -167,7 +167,7 @@ Examples:
   asc pricing price-points --app "123456789"
   asc pricing price-points --app "123456789" --territory "United States"
   asc pricing price-points --app "123456789" --paginate
-  asc pricing price-points get --price-point "PRICE_POINT_ID"
+  asc pricing price-points view --price-point "PRICE_POINT_ID"
   asc pricing price-points equalizations --price-point "PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -240,19 +240,19 @@ Examples:
 
 // PricingPricePointsGetCommand returns the price point get subcommand.
 func PricingPricePointsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing price-points get", flag.ExitOnError)
+	fs := flag.NewFlagSet("pricing price-points view", flag.ExitOnError)
 
 	pricePointID := fs.String("price-point", "", "App price point ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc pricing price-points get --price-point PRICE_POINT_ID",
-		ShortHelp:  "Get a single app price point.",
-		LongHelp: `Get a single app price point.
+		Name:       "view",
+		ShortUsage: "asc pricing price-points view --price-point PRICE_POINT_ID",
+		ShortHelp:  "View a single app price point.",
+		LongHelp: `View a single app price point.
 
 Examples:
-  asc pricing price-points get --price-point "PRICE_POINT_ID"`,
+  asc pricing price-points view --price-point "PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -264,7 +264,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("pricing price-points get: %w", err)
+				return fmt.Errorf("pricing price-points view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -272,7 +272,7 @@ Examples:
 
 			resp, err := client.GetAppPricePoint(requestCtx, trimmedPricePointID)
 			if err != nil {
-				return fmt.Errorf("pricing price-points get: %w", err)
+				return fmt.Errorf("pricing price-points view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -311,8 +311,8 @@ func PricingScheduleCommand() *ffcli.Command {
 		LongHelp: `Manage app price schedules.
 
 Examples:
-  asc pricing schedule get --app "123456789"
-  asc pricing schedule get --id "SCHEDULE_ID"
+  asc pricing schedule view --app "123456789"
+  asc pricing schedule view --id "SCHEDULE_ID"
   asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --start-date "2024-03-01"
   asc pricing schedule create --app "123456789" --free --base-territory "US" --start-date "2024-03-01"
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID"
@@ -332,21 +332,21 @@ Examples:
 
 // PricingScheduleGetCommand returns the schedule get subcommand.
 func PricingScheduleGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing schedule get", flag.ExitOnError)
+	fs := flag.NewFlagSet("pricing schedule view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	id := fs.String("id", "", "App price schedule ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc pricing schedule get --app \"APP_ID\" | asc pricing schedule get --id \"SCHEDULE_ID\"",
-		ShortHelp:  "Get the current app price schedule.",
-		LongHelp: `Get the current app price schedule.
+		Name:       "view",
+		ShortUsage: "asc pricing schedule view --app \"APP_ID\" | asc pricing schedule view --id \"SCHEDULE_ID\"",
+		ShortHelp:  "View the current app price schedule.",
+		LongHelp: `View the current app price schedule.
 
 Examples:
-  asc pricing schedule get --app "123456789"
-  asc pricing schedule get --id "SCHEDULE_ID"`,
+  asc pricing schedule view --app "123456789"
+  asc pricing schedule view --id "SCHEDULE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -366,7 +366,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("pricing schedule get: %w", err)
+				return fmt.Errorf("pricing schedule view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -379,7 +379,7 @@ Examples:
 				resp, err = client.GetAppPriceSchedule(requestCtx, appValue)
 			}
 			if err != nil {
-				return fmt.Errorf("pricing schedule get: %w", err)
+				return fmt.Errorf("pricing schedule view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -594,10 +594,10 @@ func PricingAvailabilityCommand() *ffcli.Command {
 		LongHelp: `Manage app availability.
 
 Examples:
-  asc pricing availability get --app "123456789"
-  asc pricing availability get --id "AVAILABILITY_ID"
-  asc pricing availability set --app "123456789" --territory "US,France,DEU" --available true --available-in-new-territories true
-  asc pricing availability set --app "123456789" --all-territories --available true --available-in-new-territories true
+  asc pricing availability view --app "123456789"
+  asc pricing availability view --id "AVAILABILITY_ID"
+  asc pricing availability edit --app "123456789" --territory "US,France,DEU" --available true --available-in-new-territories true
+  asc pricing availability edit --app "123456789" --all-territories --available true --available-in-new-territories true
   asc pricing availability territory-availabilities --availability "AVAILABILITY_ID"
 
 Note:
@@ -618,21 +618,21 @@ Note:
 
 // PricingAvailabilityGetCommand returns the availability get subcommand.
 func PricingAvailabilityGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("pricing availability get", flag.ExitOnError)
+	fs := flag.NewFlagSet("pricing availability view", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	id := fs.String("id", "", "App availability ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc pricing availability get --app \"APP_ID\" | asc pricing availability get --id \"AVAILABILITY_ID\"",
-		ShortHelp:  "Get app availability.",
-		LongHelp: `Get app availability.
+		Name:       "view",
+		ShortUsage: "asc pricing availability view --app \"APP_ID\" | asc pricing availability view --id \"AVAILABILITY_ID\"",
+		ShortHelp:  "View app availability.",
+		LongHelp: `View app availability.
 
 Examples:
-  asc pricing availability get --app "123456789"
-  asc pricing availability get --id "AVAILABILITY_ID"`,
+  asc pricing availability view --app "123456789"
+  asc pricing availability view --id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -652,7 +652,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("pricing availability get: %w", err)
+				return fmt.Errorf("pricing availability view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -666,9 +666,9 @@ Examples:
 			}
 			if err != nil {
 				if idValue == "" && shared.IsAppAvailabilityMissing(err) {
-					return fmt.Errorf("pricing availability get: app availability not found for app %q", appValue)
+					return fmt.Errorf("pricing availability view: app availability not found for app %q", appValue)
 				}
-				return fmt.Errorf("pricing availability get: %w", err)
+				return fmt.Errorf("pricing availability view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -727,24 +727,24 @@ func isPricingAvailabilityTerritoryAvailabilitiesUsageError(err error) bool {
 		strings.HasPrefix(message, "pricing availability territory-availabilities: --next ")
 }
 
-// PricingAvailabilitySetCommand returns the availability set subcommand.
+// PricingAvailabilitySetCommand returns the availability edit subcommand.
 func PricingAvailabilitySetCommand() *ffcli.Command {
 	return shared.NewAvailabilitySetCommand(shared.AvailabilitySetCommandConfig{
-		FlagSetName: "pricing availability set",
-		CommandName: "set",
-		ShortUsage:  "asc pricing availability set [flags]",
-		ShortHelp:   "Set app availability for territories.",
-		LongHelp: `Set app availability for territories.
+		FlagSetName: "pricing availability edit",
+		CommandName: "edit",
+		ShortUsage:  "asc pricing availability edit [flags]",
+		ShortHelp:   "Edit app availability for territories.",
+		LongHelp: `Edit app availability for territories.
 
 Examples:
-  asc pricing availability set --app "123456789" --territory "US,France,DEU" --available true --available-in-new-territories true
-  asc pricing availability set --app "123456789" --all-territories --available true --available-in-new-territories true
+  asc pricing availability edit --app "123456789" --territory "US,France,DEU" --available true --available-in-new-territories true
+  asc pricing availability edit --app "123456789" --all-territories --available true --available-in-new-territories true
 
 Note:
   This command only updates an existing app availability. If the app has no
   availability record yet, initialize availability in App Store Connect first,
   or use the "asc web apps availability create" flow.`,
-		ErrorPrefix:                      "pricing availability set",
+		ErrorPrefix:                      "pricing availability edit",
 		IncludeAvailableInNewTerritories: true,
 	})
 }

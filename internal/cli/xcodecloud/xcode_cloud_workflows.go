@@ -39,7 +39,7 @@ func XcodeCloudWorkflowsCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud workflows --app "APP_ID"
   asc xcode-cloud workflows list --app "APP_ID"
-  asc xcode-cloud workflows get --id "WORKFLOW_ID"
+  asc xcode-cloud workflows view --id "WORKFLOW_ID"
   asc xcode-cloud workflows repository --id "WORKFLOW_ID"
   asc xcode-cloud workflows --app "APP_ID" --limit 50
   asc xcode-cloud workflows --app "APP_ID" --paginate`,
@@ -84,18 +84,18 @@ Examples:
 
 func XcodeCloudWorkflowsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "get",
-		Name:        "get",
-		ShortUsage:  "asc xcode-cloud workflows get --id \"WORKFLOW_ID\"",
-		ShortHelp:   "Get details for a workflow.",
-		LongHelp: `Get details for a workflow.
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc xcode-cloud workflows view --id \"WORKFLOW_ID\"",
+		ShortHelp:   "View details for a workflow.",
+		LongHelp: `View details for a workflow.
 
 Examples:
-  asc xcode-cloud workflows get --id "WORKFLOW_ID"
-  asc xcode-cloud workflows get --id "WORKFLOW_ID" --output table`,
+  asc xcode-cloud workflows view --id "WORKFLOW_ID"
+  asc xcode-cloud workflows view --id "WORKFLOW_ID" --output table`,
 		IDFlag:      "id",
 		IDUsage:     "Workflow ID",
-		ErrorPrefix: "xcode-cloud workflows get",
+		ErrorPrefix: "xcode-cloud workflows view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},

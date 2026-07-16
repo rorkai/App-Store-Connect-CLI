@@ -24,7 +24,7 @@ func ReviewItemsCommand() *ffcli.Command {
 		LongHelp: `Manage review submission items.
 
 Examples:
-  asc review items get --id "ITEM_ID"
+  asc review items view --id "ITEM_ID"
   asc review items list --submission "SUBMISSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
   asc review items update --id "ITEM_ID" --state READY_FOR_REVIEW
@@ -32,7 +32,7 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
-			reviewItemsGetCommand("get", "review items get", `asc review items get --id "ITEM_ID"`),
+			reviewItemsGetCommand("view", "review items view", `asc review items view --id "ITEM_ID"`),
 			reviewItemsListCommand("list", "review items list", `asc review items list [flags]`, `asc review items list --submission "SUBMISSION_ID"
   asc review items list --submission "SUBMISSION_ID" --paginate`),
 			reviewItemsAddCommand("add", "review items add", `asc review items add [flags]`, `asc review items add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
@@ -46,7 +46,7 @@ Examples:
 	}
 }
 
-// ReviewItemsGetCommand returns the review items get subcommand.
+// ReviewItemsGetCommand returns the stable review items-get subcommand.
 func ReviewItemsGetCommand() *ffcli.Command {
 	return reviewItemsGetCommand("items-get", "review items-get", `asc review items-get --id "ITEM_ID"`)
 }
@@ -60,8 +60,8 @@ func reviewItemsGetCommand(name, errorPrefix, example string) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       name,
 		ShortUsage: example + " [flags]",
-		ShortHelp:  "Get a review submission item by ID.",
-		LongHelp: `Get a review submission item by ID.
+		ShortHelp:  "View a review submission item by ID.",
+		LongHelp: `View a review submission item by ID.
 
 Examples:
   ` + example,

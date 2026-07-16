@@ -29,7 +29,7 @@ func XcodeCloudArtifactsCommand() *ffcli.Command {
 Examples:
   asc xcode-cloud artifacts list --action-id "ACTION_ID"
   asc xcode-cloud artifacts list --run-id "BUILD_RUN_ID"
-  asc xcode-cloud artifacts get --id "ARTIFACT_ID"
+  asc xcode-cloud artifacts view --id "ARTIFACT_ID"
   asc xcode-cloud artifacts download --id "ARTIFACT_ID" --path ./artifact.zip`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -93,21 +93,21 @@ Examples:
 	}
 }
 
-// XcodeCloudArtifactsGetCommand returns the xcode-cloud artifacts get subcommand.
+// XcodeCloudArtifactsGetCommand returns the xcode-cloud artifacts view subcommand.
 func XcodeCloudArtifactsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "get",
-		Name:        "get",
-		ShortUsage:  "asc xcode-cloud artifacts get --id \"ARTIFACT_ID\"",
-		ShortHelp:   "Get details for a build artifact.",
-		LongHelp: `Get details for a build artifact.
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc xcode-cloud artifacts view --id \"ARTIFACT_ID\"",
+		ShortHelp:   "View details for a build artifact.",
+		LongHelp: `View details for a build artifact.
 
 Examples:
-  asc xcode-cloud artifacts get --id "ARTIFACT_ID"
-  asc xcode-cloud artifacts get --id "ARTIFACT_ID" --output table`,
+  asc xcode-cloud artifacts view --id "ARTIFACT_ID"
+  asc xcode-cloud artifacts view --id "ARTIFACT_ID" --output table`,
 		IDFlag:      "id",
 		IDUsage:     "Artifact ID",
-		ErrorPrefix: "xcode-cloud artifacts get",
+		ErrorPrefix: "xcode-cloud artifacts view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},

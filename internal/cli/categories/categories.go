@@ -23,7 +23,7 @@ func CategoriesCommand() *ffcli.Command {
 
 Examples:
   asc categories list
-  asc categories get --category-id "GAMES"
+  asc categories view --category-id "GAMES"
   asc categories parent --category-id "GAMES"
   asc categories subcategories --category-id "GAMES"
   asc categories set --app APP_ID --primary GAMES`,

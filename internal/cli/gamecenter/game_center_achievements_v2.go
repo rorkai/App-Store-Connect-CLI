@@ -147,7 +147,7 @@ func GameCenterAchievementVersionsV2Command() *ffcli.Command {
 
 Examples:
   asc game-center achievements v2 versions list --achievement-id "ACH_ID"
-  asc game-center achievements v2 versions get --id "VERSION_ID"
+  asc game-center achievements v2 versions view --id "VERSION_ID"
   asc game-center achievements v2 versions create --achievement-id "ACH_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -239,19 +239,19 @@ Examples:
 
 // GameCenterAchievementVersionsV2GetCommand returns the achievement versions v2 get subcommand.
 func GameCenterAchievementVersionsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	versionID := fs.String("id", "", "Game Center achievement version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center achievements v2 versions get --id \"VERSION_ID\"",
-		ShortHelp:  "Get a Game Center achievement version (v2) by ID.",
-		LongHelp: `Get a Game Center achievement version (v2) by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center achievements v2 versions view --id \"VERSION_ID\"",
+		ShortHelp:  "View a Game Center achievement version (v2) by ID.",
+		LongHelp: `View a Game Center achievement version (v2) by ID.
 
 Examples:
-  asc game-center achievements v2 versions get --id "VERSION_ID"`,
+  asc game-center achievements v2 versions view --id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -263,7 +263,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center achievements v2 versions get: %w", err)
+				return fmt.Errorf("game-center achievements v2 versions view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -271,7 +271,7 @@ Examples:
 
 			resp, err := client.GetGameCenterAchievementVersion(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center achievements v2 versions get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center achievements v2 versions view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -426,19 +426,19 @@ Examples:
 
 // GameCenterAchievementLocalizationsV2GetCommand returns the achievement localizations v2 get subcommand.
 func GameCenterAchievementLocalizationsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center achievement localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center achievements v2 localizations get --id \"LOC_ID\"",
-		ShortHelp:  "Get a Game Center achievement localization (v2) by ID.",
-		LongHelp: `Get a Game Center achievement localization (v2) by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center achievements v2 localizations view --id \"LOC_ID\"",
+		ShortHelp:  "View a Game Center achievement localization (v2) by ID.",
+		LongHelp: `View a Game Center achievement localization (v2) by ID.
 
 Examples:
-  asc game-center achievements v2 localizations get --id "LOC_ID"`,
+  asc game-center achievements v2 localizations view --id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -450,7 +450,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center achievements v2 localizations get: %w", err)
+				return fmt.Errorf("game-center achievements v2 localizations view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -458,7 +458,7 @@ Examples:
 
 			resp, err := client.GetGameCenterAchievementLocalizationV2(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center achievements v2 localizations get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center achievements v2 localizations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -675,8 +675,8 @@ func GameCenterAchievementImagesV2Command() *ffcli.Command {
 
 Examples:
   asc game-center achievements v2 images upload --localization-id "LOC_ID" --file "path/to/image.png"
-  asc game-center achievements v2 images get --id "IMAGE_ID"
-  asc game-center achievements v2 images get --localization-id "LOC_ID"
+  asc game-center achievements v2 images view --id "IMAGE_ID"
+  asc game-center achievements v2 images view --localization-id "LOC_ID"
   asc game-center achievements v2 images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -744,21 +744,21 @@ Examples:
 
 // GameCenterAchievementImagesV2GetCommand returns the achievement images v2 get subcommand.
 func GameCenterAchievementImagesV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	imageID := fs.String("id", "", "Game Center achievement image ID")
 	localizationID := fs.String("localization-id", "", "Game Center achievement localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center achievements v2 images get --id \"IMAGE_ID\" | --localization-id \"LOC_ID\"",
-		ShortHelp:  "Get a Game Center achievement image (v2).",
-		LongHelp: `Get a Game Center achievement image (v2).
+		Name:       "view",
+		ShortUsage: "asc game-center achievements v2 images view --id \"IMAGE_ID\" | --localization-id \"LOC_ID\"",
+		ShortHelp:  "View a Game Center achievement image (v2).",
+		LongHelp: `View a Game Center achievement image (v2).
 
 Examples:
-  asc game-center achievements v2 images get --id "IMAGE_ID"
-  asc game-center achievements v2 images get --localization-id "LOC_ID"`,
+  asc game-center achievements v2 images view --id "IMAGE_ID"
+  asc game-center achievements v2 images view --localization-id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -775,7 +775,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center achievements v2 images get: %w", err)
+				return fmt.Errorf("game-center achievements v2 images view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -784,14 +784,14 @@ Examples:
 			if locID != "" {
 				resp, err := client.GetGameCenterAchievementLocalizationImageV2(requestCtx, locID)
 				if err != nil {
-					return fmt.Errorf("game-center achievements v2 images get: %w", err)
+					return fmt.Errorf("game-center achievements v2 images view: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetGameCenterAchievementImageV2(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center achievements v2 images get: %w", err)
+				return fmt.Errorf("game-center achievements v2 images view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

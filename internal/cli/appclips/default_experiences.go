@@ -133,20 +133,20 @@ Examples:
 
 // AppClipDefaultExperiencesGetCommand gets a default experience by ID.
 func AppClipDefaultExperiencesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	experienceID := fs.String("experience-id", "", "Default experience ID")
 	include := fs.String("include", "", "Include relationships: "+strings.Join(appClipDefaultExperienceIncludeList(), ", "))
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc app-clips default-experiences get --experience-id \"EXP_ID\"",
-		ShortHelp:  "Get a default experience by ID.",
-		LongHelp: `Get a default experience by ID.
+		Name:       "view",
+		ShortUsage: "asc app-clips default-experiences view --experience-id \"EXP_ID\"",
+		ShortHelp:  "View a default experience by ID.",
+		LongHelp: `View a default experience by ID.
 
 Examples:
-  asc app-clips default-experiences get --experience-id "EXP_ID"`,
+  asc app-clips default-experiences view --experience-id "EXP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -158,12 +158,12 @@ Examples:
 
 			includeValue, err := normalizeAppClipDefaultExperienceInclude(*include)
 			if err != nil {
-				return fmt.Errorf("app-clips default-experiences get: %w", err)
+				return fmt.Errorf("app-clips default-experiences view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-clips default-experiences get: %w", err)
+				return fmt.Errorf("app-clips default-experiences view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -171,7 +171,7 @@ Examples:
 
 			resp, err := client.GetAppClipDefaultExperience(requestCtx, idValue, asc.WithAppClipDefaultExperienceInclude(includeValue))
 			if err != nil {
-				return fmt.Errorf("app-clips default-experiences get: failed to fetch: %w", err)
+				return fmt.Errorf("app-clips default-experiences view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

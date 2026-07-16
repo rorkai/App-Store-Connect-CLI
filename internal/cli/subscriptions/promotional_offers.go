@@ -127,19 +127,19 @@ Examples:
 
 // SubscriptionsPromotionalOffersGetCommand returns the promotional offers get subcommand.
 func SubscriptionsPromotionalOffersGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("promotional-offers get", flag.ExitOnError)
+	fs := flag.NewFlagSet("promotional-offers view", flag.ExitOnError)
 
 	offerID := fs.String("id", "", "Promotional offer ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc subscriptions promotional-offers get --id \"OFFER_ID\"",
-		ShortHelp:  "Get a promotional offer by ID.",
-		LongHelp: `Get a promotional offer by ID.
+		Name:       "view",
+		ShortUsage: "asc subscriptions promotional-offers view --id \"OFFER_ID\"",
+		ShortHelp:  "View a promotional offer by ID.",
+		LongHelp: `View a promotional offer by ID.
 
 Examples:
-  asc subscriptions promotional-offers get --id "OFFER_ID"`,
+  asc subscriptions promotional-offers view --id "OFFER_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -151,7 +151,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions promotional-offers get: %w", err)
+				return fmt.Errorf("subscriptions promotional-offers view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -159,7 +159,7 @@ Examples:
 
 			resp, err := client.GetSubscriptionPromotionalOffer(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("subscriptions promotional-offers get: failed to fetch: %w", err)
+				return fmt.Errorf("subscriptions promotional-offers view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

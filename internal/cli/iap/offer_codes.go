@@ -31,7 +31,7 @@ func IAPOfferCodesCommand() *ffcli.Command {
 
 Examples:
   asc iap offer-codes list --iap-id "IAP_ID"
-  asc iap offer-codes get --offer-code-id "CODE_ID"
+  asc iap offer-codes view --offer-code-id "CODE_ID"
   asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --prices "USA:PRICE_POINT_ID"
   asc iap offer-codes update --offer-code-id "CODE_ID" --active true`,
 		FlagSet:   fs,
@@ -136,19 +136,19 @@ Examples:
 
 // IAPOfferCodesGetCommand returns the offer codes get subcommand.
 func IAPOfferCodesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("offer-codes get", flag.ExitOnError)
+	fs := flag.NewFlagSet("offer-codes view", flag.ExitOnError)
 
 	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc iap offer-codes get --offer-code-id \"CODE_ID\"",
-		ShortHelp:  "Get an offer code by ID.",
-		LongHelp: `Get an offer code by ID.
+		Name:       "view",
+		ShortUsage: "asc iap offer-codes view --offer-code-id \"CODE_ID\"",
+		ShortHelp:  "View an offer code by ID.",
+		LongHelp: `View an offer code by ID.
 
 Examples:
-  asc iap offer-codes get --offer-code-id "CODE_ID"`,
+  asc iap offer-codes view --offer-code-id "CODE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -160,7 +160,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("iap offer-codes get: %w", err)
+				return fmt.Errorf("iap offer-codes view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -168,7 +168,7 @@ Examples:
 
 			resp, err := client.GetInAppPurchaseOfferCode(requestCtx, offerCodeValue)
 			if err != nil {
-				return fmt.Errorf("iap offer-codes get: failed to fetch: %w", err)
+				return fmt.Errorf("iap offer-codes view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

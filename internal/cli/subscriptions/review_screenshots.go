@@ -27,7 +27,7 @@ func SubscriptionsReviewScreenshotsCommand() *ffcli.Command {
 		LongHelp: `Manage subscription App Store review screenshots.
 
 Examples:
-  asc subscriptions review-screenshots get --screenshot-id "SHOT_ID"
+  asc subscriptions review-screenshots view --screenshot-id "SHOT_ID"
   asc subscriptions review-screenshots create --subscription-id "SUB_ID" --file "./screenshot.png"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -45,19 +45,19 @@ Examples:
 
 // SubscriptionsReviewScreenshotsGetCommand returns the review screenshots get subcommand.
 func SubscriptionsReviewScreenshotsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("review-screenshots get", flag.ExitOnError)
+	fs := flag.NewFlagSet("review-screenshots view", flag.ExitOnError)
 
 	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc subscriptions review-screenshots get --screenshot-id \"SHOT_ID\"",
-		ShortHelp:  "Get a review screenshot by ID.",
-		LongHelp: `Get a review screenshot by ID.
+		Name:       "view",
+		ShortUsage: "asc subscriptions review-screenshots view --screenshot-id \"SHOT_ID\"",
+		ShortHelp:  "View a review screenshot by ID.",
+		LongHelp: `View a review screenshot by ID.
 
 Examples:
-  asc subscriptions review-screenshots get --screenshot-id "SHOT_ID"`,
+  asc subscriptions review-screenshots view --screenshot-id "SHOT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -69,7 +69,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions review-screenshots get: %w", err)
+				return fmt.Errorf("subscriptions review-screenshots view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -77,7 +77,7 @@ Examples:
 
 			resp, err := client.GetSubscriptionAppStoreReviewScreenshot(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("subscriptions review-screenshots get: failed to fetch: %w", err)
+				return fmt.Errorf("subscriptions review-screenshots view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

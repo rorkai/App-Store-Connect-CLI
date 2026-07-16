@@ -39,7 +39,7 @@ Build actions show the individual steps of a build run (e.g., "Resolve Dependenc
 Examples:
   asc xcode-cloud actions --run-id "BUILD_RUN_ID"
   asc xcode-cloud actions list --run-id "BUILD_RUN_ID"
-  asc xcode-cloud actions get --id "ACTION_ID"
+  asc xcode-cloud actions view --id "ACTION_ID"
   asc xcode-cloud actions build-run --id "ACTION_ID"
   asc xcode-cloud actions --run-id "BUILD_RUN_ID" --output table
   asc xcode-cloud actions --run-id "BUILD_RUN_ID" --limit 50
@@ -83,18 +83,18 @@ Examples:
 
 func XcodeCloudActionsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "get",
-		Name:        "get",
-		ShortUsage:  "asc xcode-cloud actions get --id \"ACTION_ID\"",
-		ShortHelp:   "Get details for a build action.",
-		LongHelp: `Get details for a build action.
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc xcode-cloud actions view --id \"ACTION_ID\"",
+		ShortHelp:   "View details for a build action.",
+		LongHelp: `View details for a build action.
 
 Examples:
-  asc xcode-cloud actions get --id "ACTION_ID"
-  asc xcode-cloud actions get --id "ACTION_ID" --output table`,
+  asc xcode-cloud actions view --id "ACTION_ID"
+  asc xcode-cloud actions view --id "ACTION_ID" --output table`,
 		IDFlag:      "id",
 		IDUsage:     "Build action ID",
-		ErrorPrefix: "xcode-cloud actions get",
+		ErrorPrefix: "xcode-cloud actions view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},

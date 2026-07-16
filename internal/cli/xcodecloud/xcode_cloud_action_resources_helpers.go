@@ -108,8 +108,8 @@ type xcodeCloudActionResourceGetConfig struct {
 
 func newXcodeCloudActionResourceGetCommand(config xcodeCloudActionResourceGetConfig) *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "get",
-		Name:        "get",
+		FlagSetName: "view",
+		Name:        "view",
 		ShortUsage:  config.ShortUsage,
 		ShortHelp:   config.ShortHelp,
 		LongHelp:    config.LongHelp,
@@ -182,7 +182,7 @@ var xcodeCloudIssuesCommandConfig = xcodeCloudActionResourceCommandConfig{
 Examples:
   asc xcode-cloud issues list --action-id "ACTION_ID"
   asc xcode-cloud issues list --run-id "BUILD_RUN_ID"
-  asc xcode-cloud issues get --id "ISSUE_ID"`,
+  asc xcode-cloud issues view --id "ISSUE_ID"`,
 	ListShortUsage: "asc xcode-cloud issues list [flags]",
 	ListShortHelp:  "List issues for a build action.",
 	ListLongHelp: `List issues for a build action.
@@ -204,15 +204,15 @@ Examples:
 		)
 	},
 	ListAggregateFromRun: aggregateXcodeCloudIssuesFromRun,
-	GetShortUsage:        "asc xcode-cloud issues get --id \"ISSUE_ID\"",
-	GetShortHelp:         "Get details for a build issue.",
-	GetLongHelp: `Get details for a build issue.
+	GetShortUsage:        "asc xcode-cloud issues view --id \"ISSUE_ID\"",
+	GetShortHelp:         "View details for a build issue.",
+	GetLongHelp: `View details for a build issue.
 
 Examples:
-  asc xcode-cloud issues get --id "ISSUE_ID"
-  asc xcode-cloud issues get --id "ISSUE_ID" --output table`,
+  asc xcode-cloud issues view --id "ISSUE_ID"
+  asc xcode-cloud issues view --id "ISSUE_ID" --output table`,
 	GetIDUsage:     "Issue ID",
-	GetErrorPrefix: "xcode-cloud issues get",
+	GetErrorPrefix: "xcode-cloud issues view",
 	GetFetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 		return client.GetCiIssue(ctx, id)
 	},
@@ -227,7 +227,7 @@ var xcodeCloudTestResultsCommandConfig = xcodeCloudActionResourceCommandConfig{
 Examples:
   asc xcode-cloud test-results list --action-id "ACTION_ID"
   asc xcode-cloud test-results list --run-id "BUILD_RUN_ID"
-  asc xcode-cloud test-results get --id "TEST_RESULT_ID"`,
+  asc xcode-cloud test-results view --id "TEST_RESULT_ID"`,
 	ListShortUsage: "asc xcode-cloud test-results list [flags]",
 	ListShortHelp:  "List test results for a build action.",
 	ListLongHelp: `List test results for a build action.
@@ -249,15 +249,15 @@ Examples:
 		)
 	},
 	ListAggregateFromRun: aggregateXcodeCloudTestResultsFromRun,
-	GetShortUsage:        "asc xcode-cloud test-results get --id \"TEST_RESULT_ID\"",
-	GetShortHelp:         "Get details for a test result.",
-	GetLongHelp: `Get details for a test result.
+	GetShortUsage:        "asc xcode-cloud test-results view --id \"TEST_RESULT_ID\"",
+	GetShortHelp:         "View details for a test result.",
+	GetLongHelp: `View details for a test result.
 
 Examples:
-  asc xcode-cloud test-results get --id "TEST_RESULT_ID"
-  asc xcode-cloud test-results get --id "TEST_RESULT_ID" --output table`,
+  asc xcode-cloud test-results view --id "TEST_RESULT_ID"
+  asc xcode-cloud test-results view --id "TEST_RESULT_ID" --output table`,
 	GetIDUsage:     "Test result ID",
-	GetErrorPrefix: "xcode-cloud test-results get",
+	GetErrorPrefix: "xcode-cloud test-results view",
 	GetFetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 		return client.GetCiTestResult(ctx, id)
 	},

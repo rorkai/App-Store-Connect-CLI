@@ -4,17 +4,13 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/promotedpurchases"
-	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 // SubscriptionsPromotedPurchasesCommand returns the canonical nested promoted purchases tree.
 func SubscriptionsPromotedPurchasesCommand() *ffcli.Command {
-	cmd := shared.RewriteCommandTreePath(
-		promotedpurchases.PromotedPurchasesCommand(),
-		"asc promoted-purchases",
-		"asc subscriptions promoted-purchases",
-	)
+	cmd := promotedpurchases.PromotedPurchasesCommand()
 	if cmd != nil {
+		cmd.ShortUsage = "asc subscriptions promoted-purchases <subcommand> [flags]"
 		promotedpurchases.ConfigureScopedPromotedPurchasesCommand(cmd, promotedpurchases.ScopedPromotedPurchasesCommandConfig{
 			PathPrefix:      "asc subscriptions promoted-purchases",
 			ProductType:     "SUBSCRIPTION",
@@ -29,7 +25,7 @@ attached to the app.
 
 Examples:
   asc subscriptions promoted-purchases list --app "APP_ID"
-  asc subscriptions promoted-purchases get --promoted-purchase-id "PROMO_ID"
+  asc subscriptions promoted-purchases view --promoted-purchase-id "PROMO_ID"
   asc subscriptions promoted-purchases create --app "APP_ID" --product-id "SUB_ID" --visible-for-all-users true
   asc subscriptions promoted-purchases update --promoted-purchase-id "PROMO_ID" --enabled false
   asc subscriptions promoted-purchases delete --promoted-purchase-id "PROMO_ID" --confirm

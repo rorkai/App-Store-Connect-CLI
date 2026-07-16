@@ -25,7 +25,7 @@ func BundleIDsAppCommand() *ffcli.Command {
 		LongHelp: `View the app linked to a bundle ID.
 
 Examples:
-  asc bundle-ids app get --id "BUNDLE_ID"`,
+  asc bundle-ids app view --id "BUNDLE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -39,19 +39,19 @@ Examples:
 
 // BundleIDsAppGetCommand returns the bundle ID app get subcommand.
 func BundleIDsAppGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Bundle ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc bundle-ids app get --id \"BUNDLE_ID\"",
-		ShortHelp:  "Get the app linked to a bundle ID.",
-		LongHelp: `Get the app linked to a bundle ID.
+		Name:       "view",
+		ShortUsage: "asc bundle-ids app view --id \"BUNDLE_ID\"",
+		ShortHelp:  "View the app linked to a bundle ID.",
+		LongHelp: `View the app linked to a bundle ID.
 
 Examples:
-  asc bundle-ids app get --id "BUNDLE_ID"`,
+  asc bundle-ids app view --id "BUNDLE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -63,7 +63,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("bundle-ids app get: %w", err)
+				return fmt.Errorf("bundle-ids app view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -71,7 +71,7 @@ Examples:
 
 			resp, err := client.GetBundleIDApp(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("bundle-ids app get: failed to fetch: %w", err)
+				return fmt.Errorf("bundle-ids app view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

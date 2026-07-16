@@ -26,7 +26,7 @@ func UsersVisibleAppsCommand() *ffcli.Command {
 
 Examples:
   asc users visible-apps list --id "USER_ID"
-  asc users visible-apps get --id "USER_ID"`,
+  asc users visible-apps view --id "USER_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -126,7 +126,7 @@ Examples:
 
 // UsersVisibleAppsGetCommand returns the visible apps relationship get subcommand.
 func UsersVisibleAppsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("visible-apps get", flag.ExitOnError)
+	fs := flag.NewFlagSet("visible-apps view", flag.ExitOnError)
 
 	id := fs.String("id", "", "User ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
@@ -135,14 +135,14 @@ func UsersVisibleAppsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc users visible-apps get --id \"USER_ID\" [flags]",
-		ShortHelp:  "Get visible app relationships for a user.",
-		LongHelp: `Get visible app relationships for a user.
+		Name:       "view",
+		ShortUsage: "asc users visible-apps view --id \"USER_ID\" [flags]",
+		ShortHelp:  "View visible app relationships for a user.",
+		LongHelp: `View visible app relationships for a user.
 
 Examples:
-  asc users visible-apps get --id "USER_ID"
-  asc users visible-apps get --id "USER_ID" --paginate`,
+  asc users visible-apps view --id "USER_ID"
+  asc users visible-apps view --id "USER_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -152,22 +152,22 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("users visible-apps get: --limit must be between 1 and 200")
+				return fmt.Errorf("users visible-apps view: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("users visible-apps get: %w", err)
+				return fmt.Errorf("users visible-apps view: %w", err)
 			}
 			if idValue == "" && strings.TrimSpace(*next) != "" {
 				derivedID, err := extractUserIDFromNextURL(*next)
 				if err != nil {
-					return fmt.Errorf("users visible-apps get: %w", err)
+					return fmt.Errorf("users visible-apps view: %w", err)
 				}
 				idValue = derivedID
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("users visible-apps get: %w", err)
+				return fmt.Errorf("users visible-apps view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -186,14 +186,14 @@ Examples:
 				paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 				firstPage, err := client.GetUserVisibleAppsRelationships(requestCtx, idValue, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("users visible-apps get: failed to fetch: %w", err)
+					return fmt.Errorf("users visible-apps view: failed to fetch: %w", err)
 				}
 
 				paginated, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					return client.GetUserVisibleAppsRelationships(ctx, idValue, asc.WithLinkagesNextURL(nextURL))
 				})
 				if err != nil {
-					return fmt.Errorf("users visible-apps get: %w", err)
+					return fmt.Errorf("users visible-apps view: %w", err)
 				}
 
 				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
@@ -201,7 +201,7 @@ Examples:
 
 			resp, err := client.GetUserVisibleAppsRelationships(requestCtx, idValue, opts...)
 			if err != nil {
-				return fmt.Errorf("users visible-apps get: failed to fetch: %w", err)
+				return fmt.Errorf("users visible-apps view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
