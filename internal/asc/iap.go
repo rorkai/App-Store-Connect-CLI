@@ -2,6 +2,7 @@ package asc
 
 import (
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -121,8 +122,11 @@ type IAPLocalizationsOption func(*iapLocalizationsQuery)
 
 type inAppPurchasesQuery struct {
 	listQuery
-	productIDs []string
-	names      []string
+	productIDs          []string
+	names               []string
+	include             []string
+	versionFields       []string
+	nestedVersionsLimit int
 }
 
 type iapLocalizationsQuery struct {
@@ -161,6 +165,25 @@ func WithIAPNames(names []string) IAPOption {
 	}
 }
 
+// WithIAPInclude sets related resources to include for IAP list/detail requests.
+func WithIAPInclude(include []string) IAPOption {
+	return func(q *inAppPurchasesQuery) { q.include = normalizeUniqueList(include) }
+}
+
+// WithIAPVersionFields sets fields for included in-app purchase versions.
+func WithIAPVersionFields(fields []string) IAPOption {
+	return func(q *inAppPurchasesQuery) { q.versionFields = normalizeUniqueList(fields) }
+}
+
+// WithIAPNestedVersionsLimit limits included versions.
+func WithIAPNestedVersionsLimit(limit int) IAPOption {
+	return func(q *inAppPurchasesQuery) {
+		if limit > 0 {
+			q.nestedVersionsLimit = limit
+		}
+	}
+}
+
 // WithIAPLocalizationsLimit sets the max number of localizations to return.
 func WithIAPLocalizationsLimit(limit int) IAPLocalizationsOption {
 	return func(q *iapLocalizationsQuery) {
@@ -184,6 +207,11 @@ func buildInAppPurchasesQuery(query *inAppPurchasesQuery) string {
 	addLimit(values, query.limit)
 	addCSV(values, "filter[productId]", query.productIDs)
 	addCSV(values, "filter[name]", query.names)
+	addCSV(values, "include", query.include)
+	addCSV(values, "fields[inAppPurchaseVersions]", query.versionFields)
+	if query.nestedVersionsLimit > 0 {
+		values.Set("limit[versions]", strconv.Itoa(query.nestedVersionsLimit))
+	}
 	return values.Encode()
 }
 

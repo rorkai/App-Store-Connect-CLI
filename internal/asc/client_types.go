@@ -127,6 +127,7 @@ const (
 	ResourceTypeAnalyticsReportInstances                        = types.ResourceTypeAnalyticsReportInstances
 	ResourceTypeAnalyticsReportSegments                         = types.ResourceTypeAnalyticsReportSegments
 	ResourceTypeInAppPurchases                                  = types.ResourceTypeInAppPurchases
+	ResourceTypeInAppPurchaseVersions                           = types.ResourceTypeInAppPurchaseVersions
 	ResourceTypeInAppPurchaseLocalizations                      = types.ResourceTypeInAppPurchaseLocalizations
 	ResourceTypeInAppPurchaseImages                             = types.ResourceTypeInAppPurchaseImages
 	ResourceTypeInAppPurchaseAppStoreReviewScreenshots          = types.ResourceTypeInAppPurchaseAppStoreReviewScreenshots

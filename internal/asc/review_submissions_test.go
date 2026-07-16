@@ -253,6 +253,15 @@ func TestCreateReviewSubmissionItem_SupportedItemTypes(t *testing.T) {
 		getRelationship func(ReviewSubmissionItemCreateRelationships) *Relationship
 	}{
 		{
+			name:     "in-app purchase version",
+			itemType: ReviewSubmissionItemTypeInAppPurchaseVersion,
+			itemID:   "iap-version-123",
+			wantType: ResourceTypeInAppPurchaseVersions,
+			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
+				return relationships.InAppPurchaseVersion
+			},
+		},
+		{
 			name:     "app store version",
 			itemType: ReviewSubmissionItemTypeAppStoreVersion,
 			itemID:   "version-123",
@@ -716,6 +725,7 @@ func TestReviewSubmissionValidationErrors(t *testing.T) {
 func countReviewSubmissionItemCreateRelationships(relationships ReviewSubmissionItemCreateRelationships) int {
 	count := 0
 	for _, relationship := range []*Relationship{
+		relationships.InAppPurchaseVersion,
 		relationships.AppStoreVersion,
 		relationships.AppCustomProductPageVersion,
 		relationships.AppEvent,

@@ -96,6 +96,7 @@ const (
 	ResourceTypeAnalyticsReportInstances                        ResourceType = "analyticsReportInstances"
 	ResourceTypeAnalyticsReportSegments                         ResourceType = "analyticsReportSegments"
 	ResourceTypeInAppPurchases                                  ResourceType = "inAppPurchases"
+	ResourceTypeInAppPurchaseVersions                           ResourceType = "inAppPurchaseVersions"
 	ResourceTypeInAppPurchaseLocalizations                      ResourceType = "inAppPurchaseLocalizations"
 	ResourceTypeInAppPurchaseImages                             ResourceType = "inAppPurchaseImages"
 	ResourceTypeInAppPurchaseAppStoreReviewScreenshots          ResourceType = "inAppPurchaseAppStoreReviewScreenshots"

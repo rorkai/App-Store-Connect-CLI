@@ -23,6 +23,7 @@ const (
 	ReviewSubmissionItemTypeGameCenterChallengeVersion         ReviewSubmissionItemType = "gameCenterChallengeVersions"
 	ReviewSubmissionItemTypeGameCenterLeaderboardSetVersion    ReviewSubmissionItemType = "gameCenterLeaderboardSetVersions"
 	ReviewSubmissionItemTypeGameCenterLeaderboardVersion       ReviewSubmissionItemType = "gameCenterLeaderboardVersions"
+	ReviewSubmissionItemTypeInAppPurchaseVersion               ReviewSubmissionItemType = "inAppPurchaseVersions"
 )
 
 // ReviewSubmissionItemAttributes describes review submission item attributes.
@@ -46,6 +47,7 @@ type ReviewSubmissionItemRelationships struct {
 	GameCenterChallengeVersion         *Relationship `json:"gameCenterChallengeVersion,omitempty"`
 	GameCenterLeaderboardSetVersion    *Relationship `json:"gameCenterLeaderboardSetVersion,omitempty"`
 	GameCenterLeaderboardVersion       *Relationship `json:"gameCenterLeaderboardVersion,omitempty"`
+	InAppPurchaseVersion               *Relationship `json:"inAppPurchaseVersion,omitempty"`
 }
 
 // ReviewSubmissionItemResource represents a review submission item resource.
@@ -92,6 +94,7 @@ type ReviewSubmissionItemCreateRelationships struct {
 	GameCenterChallengeVersion         *Relationship `json:"gameCenterChallengeVersion,omitempty"`
 	GameCenterLeaderboardSetVersion    *Relationship `json:"gameCenterLeaderboardSetVersion,omitempty"`
 	GameCenterLeaderboardVersion       *Relationship `json:"gameCenterLeaderboardVersion,omitempty"`
+	InAppPurchaseVersion               *Relationship `json:"inAppPurchaseVersion,omitempty"`
 }
 
 // ReviewSubmissionItemCreateData is the data portion of a review submission item create request.
@@ -112,6 +115,12 @@ type reviewSubmissionItemTypeSpec struct {
 }
 
 var reviewSubmissionItemTypeSpecs = []reviewSubmissionItemTypeSpec{
+	{
+		canonical: ReviewSubmissionItemTypeInAppPurchaseVersion,
+		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {
+			relationships.InAppPurchaseVersion = reviewSubmissionItemRelationship(ResourceTypeInAppPurchaseVersions, itemID)
+		},
+	},
 	{
 		canonical: ReviewSubmissionItemTypeAppStoreVersion,
 		applyRelationship: func(relationships *ReviewSubmissionItemCreateRelationships, itemID string) {

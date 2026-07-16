@@ -26,6 +26,15 @@ func inAppPurchasesRows(resp *InAppPurchasesV2Response) ([]string, [][]string) {
 	return headers, rows
 }
 
+func inAppPurchaseVersionsRows(resp *InAppPurchaseVersionsResponse) ([]string, [][]string) {
+	headers := []string{"ID", "Version", "State"}
+	rows := make([][]string, 0, len(resp.Data))
+	for _, item := range resp.Data {
+		rows = append(rows, []string{item.ID, fmt.Sprintf("%d", item.Attributes.Version), item.Attributes.State})
+	}
+	return headers, rows
+}
+
 func legacyInAppPurchasesRows(resp *InAppPurchasesResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Reference Name", "Product ID", "Type", "State"}
 	rows := make([][]string, 0, len(resp.Data))
@@ -71,6 +80,19 @@ func inAppPurchaseImagesRows(resp *InAppPurchaseImagesResponse) ([]string, [][]s
 			fmt.Sprintf("%d", item.Attributes.FileSize),
 			item.Attributes.State,
 		})
+	}
+	return headers, rows
+}
+
+func inAppPurchaseImagesV2Rows(resp *InAppPurchaseImagesV2Response) ([]string, [][]string) {
+	headers := []string{"ID", "File Name", "File Size", "State"}
+	rows := make([][]string, 0, len(resp.Data))
+	for _, item := range resp.Data {
+		state := ""
+		if item.Attributes.AssetDeliveryState != nil && item.Attributes.AssetDeliveryState.State != nil {
+			state = *item.Attributes.AssetDeliveryState.State
+		}
+		rows = append(rows, []string{item.ID, item.Attributes.FileName, fmt.Sprintf("%d", item.Attributes.FileSize), state})
 	}
 	return headers, rows
 }

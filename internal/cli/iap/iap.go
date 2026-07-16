@@ -32,6 +32,7 @@ Examples:
   asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --locale "en-US" --display-name "Pro Lifetime" --price "3.99" --base-territory "United States"
   asc iap update --id "IAP_ID" --ref-name "New Name"
   asc iap delete --id "IAP_ID" --confirm
+  asc iap versions list --iap-id "IAP_ID"
   asc iap localizations list --iap-id "IAP_ID"
   asc iap images create --iap-id "IAP_ID" --file "./image.png"
   asc iap pricing availability set --iap-id "IAP_ID" --territories "US,Canada"
@@ -41,6 +42,7 @@ Examples:
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPListCommand(),
+			IAPVersionsCommand(),
 			IAPPricingCommand(),
 			IAPGetCommand(),
 			IAPCreateCommand(),
@@ -70,6 +72,8 @@ func IAPListCommand() *ffcli.Command {
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchases endpoint")
+	includeVersions := fs.Bool("include-versions", false, "Include related in-app purchase versions (v2 only)")
+	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50, v2 only)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -82,6 +86,7 @@ Examples:
   asc iap list --app "APP_ID"
   asc iap list --app "APP_ID" --limit 50
   asc iap list --app "APP_ID" --paginate
+  asc iap list --app "APP_ID" --include-versions --versions-limit 10
   asc iap list --app "APP_ID" --legacy`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -91,6 +96,12 @@ Examples:
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap list: %w", err)
+			}
+			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
+				return fmt.Errorf("iap list: --versions-limit must be between 1 and 50")
+			}
+			if *legacy && (*includeVersions || *versionsLimit != 0) {
+				return shared.UsageError("iap list: --include-versions and --versions-limit require the v2 endpoint")
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -110,6 +121,10 @@ Examples:
 			opts := []asc.IAPOption{
 				asc.WithIAPLimit(*limit),
 				asc.WithIAPNextURL(*next),
+				asc.WithIAPNestedVersionsLimit(*versionsLimit),
+			}
+			if *includeVersions {
+				opts = append(opts, asc.WithIAPInclude([]string{"versions"}))
 			}
 
 			if *paginate {
@@ -170,6 +185,8 @@ func IAPGetCommand() *ffcli.Command {
 
 	iapID := fs.String("id", "", "In-app purchase ID")
 	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchase endpoint")
+	includeVersions := fs.Bool("include-versions", false, "Include related in-app purchase versions (v2 only)")
+	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50, v2 only)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -180,6 +197,7 @@ func IAPGetCommand() *ffcli.Command {
 
 Examples:
   asc iap view --id "IAP_ID"
+  asc iap view --id "IAP_ID" --include-versions --versions-limit 10
   asc iap view --id "IAP_ID" --legacy`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -188,6 +206,12 @@ Examples:
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError()
+			}
+			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
+				return fmt.Errorf("iap view: --versions-limit must be between 1 and 50")
+			}
+			if *legacy && (*includeVersions || *versionsLimit != 0) {
+				return shared.UsageError("iap view: --include-versions and --versions-limit require the v2 endpoint")
 			}
 
 			client, err := shared.GetASCClient()
@@ -207,7 +231,11 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			resp, err := client.GetInAppPurchaseV2(requestCtx, id)
+			opts := []asc.IAPOption{asc.WithIAPNestedVersionsLimit(*versionsLimit)}
+			if *includeVersions {
+				opts = append(opts, asc.WithIAPInclude([]string{"versions"}))
+			}
+			resp, err := client.GetInAppPurchaseV2(requestCtx, id, opts...)
 			if err != nil {
 				return fmt.Errorf("iap view: failed to fetch: %w", err)
 			}

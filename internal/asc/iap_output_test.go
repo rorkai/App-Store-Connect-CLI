@@ -6,6 +6,23 @@ import (
 	"testing"
 )
 
+func TestPrintTable_InAppPurchaseVersions(t *testing.T) {
+	resp := &InAppPurchaseVersionsResponse{Data: []Resource[InAppPurchaseVersionAttributes]{{ID: "version-1", Attributes: InAppPurchaseVersionAttributes{Version: 2, State: "READY_FOR_REVIEW"}}}}
+	output := captureStdout(t, func() error { return PrintTable(resp) })
+	if !strings.Contains(output, "Version") || !strings.Contains(output, "READY_FOR_REVIEW") {
+		t.Fatalf("unexpected output: %s", output)
+	}
+}
+
+func TestPrintTable_InAppPurchaseImagesV2(t *testing.T) {
+	state := "COMPLETE"
+	resp := &InAppPurchaseImagesV2Response{Data: []Resource[InAppPurchaseImageV2Attributes]{{ID: "image-1", Attributes: InAppPurchaseImageV2Attributes{FileName: "review.png", FileSize: 123, AssetDeliveryState: &AppMediaAssetState{State: &state}}}}}
+	output := captureStdout(t, func() error { return PrintTable(resp) })
+	if !strings.Contains(output, "review.png") || !strings.Contains(output, "COMPLETE") {
+		t.Fatalf("unexpected output: %s", output)
+	}
+}
+
 func TestPrintTable_InAppPurchaseImages(t *testing.T) {
 	resp := &InAppPurchaseImagesResponse{
 		Data: []Resource[InAppPurchaseImageAttributes]{

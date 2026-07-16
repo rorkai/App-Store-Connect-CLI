@@ -212,6 +212,7 @@ func TestReviewCommandItemsInvalidItemType(t *testing.T) {
 	}
 	wantSupportedTypes := []string{
 		"backgroundAssetVersions",
+		"inAppPurchaseVersions",
 		"gameCenterAchievementVersions",
 		"gameCenterActivityVersions",
 		"gameCenterChallengeVersions",
