@@ -118,6 +118,10 @@ func TestEmitSpawnsWorkerDuringCooldownOnceBacklogReachesThreshold(t *testing.T)
 	if workerStarts != 1 {
 		t.Fatalf("worker starts with backlog at threshold = %d, want 1 despite active cooldown", workerStarts)
 	}
+	Emit("asc builds list", "1.2.3", time.Millisecond, 0)
+	if workerStarts != 1 {
+		t.Fatalf("worker starts with backlog above threshold = %d, want threshold spawn latched by cooldown", workerStarts)
+	}
 }
 
 func TestEmitDoesNotWaitForBlockedSender(t *testing.T) {

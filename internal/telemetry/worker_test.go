@@ -200,6 +200,7 @@ func TestShouldStartMaintenanceWorker(t *testing.T) {
 		{name: "expired cooldown spawns", spooledRecords: 1, hasMarker: true, markerAge: workerSpawnCooldown + time.Hour, want: true},
 		{name: "future marker spawns", spooledRecords: 1, hasMarker: true, markerAge: -time.Minute, want: true},
 		{name: "backlog at threshold overrides cooldown", spooledRecords: workerSpawnSpoolThreshold, hasMarker: true, markerAge: time.Minute, want: true},
+		{name: "backlog above threshold respects cooldown", spooledRecords: workerSpawnSpoolThreshold + 1, hasMarker: true, markerAge: time.Minute, want: false},
 		{name: "backlog below threshold respects cooldown", spooledRecords: workerSpawnSpoolThreshold - 1, hasMarker: true, markerAge: time.Minute, want: false},
 	}
 	for _, tt := range tests {

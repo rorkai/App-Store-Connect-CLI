@@ -156,12 +156,14 @@ func workerSpawnMarkerPath(store spoolStore) string {
 
 // shouldStartMaintenanceWorker reports whether spawning a detached worker is
 // warranted. The check costs a single stat so the command exit path stays
-// cheap: spawn when the spool backlog reaches the threshold, when no spawn
-// marker exists yet, or when the last spawn happened outside the cooldown
-// window. A marker timestamp in the future (for example after a clock change)
-// also allows a spawn so delivery can never be deferred indefinitely.
+// cheap: spawn when the spool backlog first reaches the threshold, when no
+// spawn marker exists yet, or when the last spawn happened outside the
+// cooldown window. Backlogs above the threshold consult the marker so a burst
+// cannot spawn one worker per invocation. A marker timestamp in the future
+// (for example after a clock change) also allows a spawn so delivery can never
+// be deferred indefinitely.
 func shouldStartMaintenanceWorker(markerPath string, spooledRecords int, now time.Time) bool {
-	if spooledRecords >= workerSpawnSpoolThreshold {
+	if spooledRecords == workerSpawnSpoolThreshold {
 		return true
 	}
 	info, err := os.Stat(markerPath)
