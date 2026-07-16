@@ -96,11 +96,14 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("iap list: --limit must be between 1 and 200")
-			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap list: %w", err)
+			}
+			if err := rejectIAPVersionNextFlagConflicts(fs, *next, "iap list", "app", "limit", "include-versions", "versions-limit", "fields", "version-fields"); err != nil {
+				return err
+			}
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("iap list: --limit must be between 1 and 200")
 			}
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
 				return fmt.Errorf("iap list: --versions-limit must be between 1 and 50")
@@ -110,9 +113,6 @@ Examples:
 			}
 			if *legacy && (*includeVersions || *versionsLimit != 0 || strings.TrimSpace(*versionFields) != "") {
 				return shared.UsageError("iap list: --include-versions, --versions-limit, and --version-fields require the v2 endpoint")
-			}
-			if strings.TrimSpace(*next) != "" && (*includeVersions || *versionsLimit != 0 || strings.TrimSpace(*fields) != "" || strings.TrimSpace(*versionFields) != "") {
-				return shared.UsageError("iap list: --next cannot be combined with --include-versions, --versions-limit, --fields, or --version-fields")
 			}
 			fieldValues, err := shared.NormalizeSelection(*fields, iapVersionIAPFields, "--fields")
 			if err != nil {
@@ -128,13 +128,6 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError()
 			}
-			if flagSet(fs, "app") && strings.TrimSpace(*next) != "" {
-				return shared.UsageError("iap list: --next cannot be combined with --app")
-			}
-			if flagSet(fs, "limit") && strings.TrimSpace(*next) != "" {
-				return shared.UsageError("iap list: --next cannot be combined with --limit")
-			}
-
 			client, err := iapQueryClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap list: %w", err)

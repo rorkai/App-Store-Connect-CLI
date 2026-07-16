@@ -122,6 +122,56 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			wantErr: "--next cannot be combined with --limit",
 		},
 		{
+			name:    "iap list rejects include versions with next",
+			args:    []string{"iap", "list", "--include-versions", "--next", next},
+			wantErr: "--next cannot be combined with --include-versions",
+		},
+		{
+			name:    "iap list rejects explicit false include versions with next",
+			args:    []string{"iap", "list", "--include-versions=false", "--next", next},
+			wantErr: "--next cannot be combined with --include-versions",
+		},
+		{
+			name:    "iap list rejects versions limit with next",
+			args:    []string{"iap", "list", "--versions-limit", "5", "--next", next},
+			wantErr: "--next cannot be combined with --versions-limit",
+		},
+		{
+			name:    "iap list rejects explicit zero versions limit with next",
+			args:    []string{"iap", "list", "--versions-limit", "0", "--next", next},
+			wantErr: "--next cannot be combined with --versions-limit",
+		},
+		{
+			name:    "iap list rejects fields with next",
+			args:    []string{"iap", "list", "--fields", "name", "--next", next},
+			wantErr: "--next cannot be combined with --fields",
+		},
+		{
+			name:    "iap list rejects explicit empty fields with next",
+			args:    []string{"iap", "list", "--fields", "", "--next", next},
+			wantErr: "--next cannot be combined with --fields",
+		},
+		{
+			name:    "iap list rejects explicit whitespace fields with next",
+			args:    []string{"iap", "list", "--fields", "   ", "--next", next},
+			wantErr: "--next cannot be combined with --fields",
+		},
+		{
+			name:    "iap list rejects version fields with next",
+			args:    []string{"iap", "list", "--version-fields", "version", "--next", next},
+			wantErr: "--next cannot be combined with --version-fields",
+		},
+		{
+			name:    "iap list rejects explicit empty version fields with next",
+			args:    []string{"iap", "list", "--version-fields", "", "--next", next},
+			wantErr: "--next cannot be combined with --version-fields",
+		},
+		{
+			name:    "iap list rejects explicit whitespace version fields with next",
+			args:    []string{"iap", "list", "--version-fields", "   ", "--next", next},
+			wantErr: "--next cannot be combined with --version-fields",
+		},
+		{
 			name:    "versions list rejects owner with next",
 			args:    []string{"iap", "versions", "list", "--iap-id", "iap-1", "--next", next},
 			wantErr: "--next cannot be combined with --iap-id",
@@ -331,6 +381,77 @@ func TestIAPNextConflictsFailBeforeClientFactory(t *testing.T) {
 			}
 			if !strings.Contains(stderr, test.wantErr) {
 				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
+			}
+		})
+	}
+}
+
+func TestIAPListOwnerlessNextCanPaginate(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	tests := []struct {
+		name  string
+		path  string
+		flags []string
+	}{
+		{name: "v2", path: "/v1/apps/app-1/inAppPurchasesV2", flags: []string{"--legacy=false"}},
+		{name: "legacy", path: "/v1/apps/app-1/inAppPurchases", flags: []string{"--legacy"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			requestCount := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				requestCount++
+				w.Header().Set("Content-Type", "application/json")
+				if req.Method != http.MethodGet || req.URL.Path != test.path {
+					t.Fatalf("request = %s %s, want GET %s", req.Method, req.URL.Path, test.path)
+				}
+				switch requestCount {
+				case 1:
+					if got := req.URL.RawQuery; got != "cursor=start" {
+						t.Fatalf("first query = %q, want opaque cursor=start", got)
+					}
+					nextURL := "https://api.appstoreconnect.apple.com" + test.path + "?cursor=next"
+					_, _ = fmt.Fprintf(w, `{"data":[{"type":"inAppPurchases","id":"iap-1"}],"links":{"next":%q}}`, nextURL)
+				case 2:
+					if got := req.URL.RawQuery; got != "cursor=next" {
+						t.Fatalf("second query = %q, want opaque cursor=next", got)
+					}
+					_, _ = io.WriteString(w, `{"data":[{"type":"inAppPurchases","id":"iap-2"}],"links":{"next":""}}`)
+				default:
+					t.Fatalf("unexpected extra request: %s", req.URL)
+				}
+			}))
+			t.Cleanup(server.Close)
+			setIAPVersionTestServerClient(t, server)
+
+			next := "https://api.appstoreconnect.apple.com" + test.path + "?cursor=start"
+			args := append([]string{"iap", "list", "--next", next, "--paginate", "--output", "json", "--pretty"}, test.flags...)
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("unexpected stderr: %s", stderr)
+			}
+			var response struct {
+				Data []struct {
+					ID string `json:"id"`
+				} `json:"data"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &response); err != nil {
+				t.Fatalf("invalid JSON output %q: %v", stdout, err)
+			}
+			if requestCount != 2 || len(response.Data) != 2 || response.Data[0].ID != "iap-1" || response.Data[1].ID != "iap-2" {
+				t.Fatalf("requests = %d, data = %#v, want two aggregated pages", requestCount, response.Data)
 			}
 		})
 	}
