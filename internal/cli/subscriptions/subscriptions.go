@@ -418,6 +418,27 @@ Examples:
 			if appFlag != "" && nextURL != "" {
 				return shared.UsageError("--next cannot be combined with --app; use --group-id with the group-scoped next URL")
 			}
+			if err := validateNextFlagConflicts(
+				nextURL,
+				flagConflict{"--fields", flagWasProvided(fs, "fields")},
+				flagConflict{"--version-fields", flagWasProvided(fs, "version-fields")},
+				flagConflict{"--include", flagWasProvided(fs, "include")},
+				flagConflict{"--version-limit", flagWasProvided(fs, "version-limit")},
+			); err != nil {
+				return err
+			}
+			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionFieldsList())
+			if err != nil {
+				return err
+			}
+			versionFieldValues, err := normalizeSelectionFlag(fs, *versionFields, "--version-fields", subscriptionVersionFieldsList())
+			if err != nil {
+				return err
+			}
+			includeValues, err := normalizeSelectionFlag(fs, *include, "--include", subscriptionIncludeList())
+			if err != nil {
+				return err
+			}
 			resolvedAppID := ""
 			if appFlag != "" || (id == "" && nextURL == "") {
 				resolvedAppID = shared.ResolveAppID(*appID)
@@ -449,9 +470,9 @@ Examples:
 			opts := []asc.SubscriptionsOption{
 				asc.WithSubscriptionsLimit(*limit),
 				asc.WithSubscriptionsNextURL(nextURL),
-				asc.WithSubscriptionsFields(csvValues(*fields)),
-				asc.WithSubscriptionsVersionFields(csvValues(*versionFields)),
-				asc.WithSubscriptionsInclude(csvValues(*include)),
+				asc.WithSubscriptionsFields(fieldValues),
+				asc.WithSubscriptionsVersionFields(versionFieldValues),
+				asc.WithSubscriptionsInclude(includeValues),
 				asc.WithSubscriptionsVersionLimit(*versionLimit),
 			}
 
@@ -644,6 +665,18 @@ Examples:
 			if err := validateRelationshipLimit("--version-limit", *versionLimit); err != nil {
 				return err
 			}
+			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionFieldsList())
+			if err != nil {
+				return err
+			}
+			versionFieldValues, err := normalizeSelectionFlag(fs, *versionFields, "--version-fields", subscriptionVersionFieldsList())
+			if err != nil {
+				return err
+			}
+			includeValues, err := normalizeSelectionFlag(fs, *include, "--include", subscriptionIncludeList())
+			if err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -655,9 +688,9 @@ Examples:
 
 			resp, err := client.GetSubscription(
 				requestCtx, id,
-				asc.WithSubscriptionFields(csvValues(*fields)),
-				asc.WithSubscriptionIncludedVersionFields(csvValues(*versionFields)),
-				asc.WithSubscriptionInclude(csvValues(*include)),
+				asc.WithSubscriptionFields(fieldValues),
+				asc.WithSubscriptionIncludedVersionFields(versionFieldValues),
+				asc.WithSubscriptionInclude(includeValues),
 				asc.WithSubscriptionVersionLimit(*versionLimit),
 			)
 			if err != nil {

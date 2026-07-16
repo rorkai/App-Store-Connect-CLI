@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -134,10 +135,12 @@ func TestSubscriptionVersionReadOperations(t *testing.T) {
 				if req.Method != http.MethodGet || req.URL.Path != test.path {
 					t.Fatalf("request = %s %s, want GET %s", req.Method, req.URL.Path, test.path)
 				}
+				wantQuery := url.Values{}
 				for key, want := range test.query {
-					if got := req.URL.Query().Get(key); got != want {
-						t.Fatalf("query %s = %q, want %q", key, got, want)
-					}
+					wantQuery.Set(key, want)
+				}
+				if got, want := req.URL.Query().Encode(), wantQuery.Encode(); got != want {
+					t.Fatalf("query = %q, want %q", got, want)
 				}
 			}, jsonResponse(http.StatusOK, test.response))
 			if err := test.call(client); err != nil {
@@ -284,8 +287,13 @@ func TestSubscriptionGetContractsSupportVersions(t *testing.T) {
 		jsonResponse(http.StatusOK, `{"data":{"type":"subscriptions","id":"sub-1"},"included":[{"type":"subscriptionVersions","id":"ver-1","attributes":{"version":1}}]}`),
 	}
 	client := newTestClient(t, func(req *http.Request) {
-		if req.URL.Query().Get("include") != "versions" || req.URL.Query().Get("fields[subscriptionVersions]") != "version,state" || req.URL.Query().Get("limit[versions]") != "5" {
-			t.Fatalf("missing version query contract: %s", req.URL.RawQuery)
+		want := url.Values{
+			"fields[subscriptionVersions]": {"version,state"},
+			"include":                      {"versions"},
+			"limit[versions]":              {"5"},
+		}.Encode()
+		if got := req.URL.Query().Encode(); got != want {
+			t.Fatalf("query = %q, want %q", got, want)
 		}
 	}, responses...)
 	ctx := context.Background()
@@ -310,5 +318,96 @@ func TestSubscriptionVersionCreateRequestOmitsAttributes(t *testing.T) {
 	}
 	if _, err := io.ReadAll(strings.NewReader(string(data))); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSubscriptionVersionClientRequiredValuesFailBeforeRequest(t *testing.T) {
+	requestCount := 0
+	client := newTestClient(t, func(req *http.Request) {
+		requestCount++
+	}, jsonResponse(http.StatusOK, `{}`))
+	empty := ""
+	falseValue := false
+	tests := []struct {
+		name string
+		call func() error
+	}{
+		{name: "create version subscription ID", call: func() error { _, err := client.CreateSubscriptionVersion(context.Background(), " "); return err }},
+		{name: "get subscription ID", call: func() error { _, err := client.GetSubscription(context.Background(), " "); return err }},
+		{name: "get version ID", call: func() error { _, err := client.GetSubscriptionVersion(context.Background(), " "); return err }},
+		{name: "list subscription ID", call: func() error { _, err := client.GetSubscriptionVersions(context.Background(), " "); return err }},
+		{name: "version relationships subscription ID", call: func() error {
+			_, err := client.GetSubscriptionVersionsRelationships(context.Background(), " ")
+			return err
+		}},
+		{name: "localizations version ID", call: func() error {
+			_, err := client.GetSubscriptionVersionLocalizations(context.Background(), " ")
+			return err
+		}},
+		{name: "localization relationships version ID", call: func() error {
+			_, err := client.GetSubscriptionVersionLocalizationsRelationships(context.Background(), " ")
+			return err
+		}},
+		{name: "primary image version ID", call: func() error { _, err := client.GetSubscriptionVersionImage(context.Background(), " "); return err }},
+		{name: "primary image relationship version ID", call: func() error {
+			_, err := client.GetSubscriptionVersionImageRelationship(context.Background(), " ")
+			return err
+		}},
+		{name: "images version ID", call: func() error { _, err := client.GetSubscriptionVersionImages(context.Background(), " "); return err }},
+		{name: "image relationships version ID", call: func() error {
+			_, err := client.GetSubscriptionVersionImagesRelationships(context.Background(), " ")
+			return err
+		}},
+		{name: "create localization version ID", call: func() error {
+			_, err := client.CreateSubscriptionLocalizationV2(context.Background(), " ", SubscriptionLocalizationV2CreateAttributes{Name: "Pro", Locale: "en-US"})
+			return err
+		}},
+		{name: "create localization name", call: func() error {
+			_, err := client.CreateSubscriptionLocalizationV2(context.Background(), "ver-1", SubscriptionLocalizationV2CreateAttributes{Name: " ", Locale: "en-US"})
+			return err
+		}},
+		{name: "create localization locale", call: func() error {
+			_, err := client.CreateSubscriptionLocalizationV2(context.Background(), "ver-1", SubscriptionLocalizationV2CreateAttributes{Name: "Pro", Locale: " "})
+			return err
+		}},
+		{name: "get localization ID", call: func() error { _, err := client.GetSubscriptionLocalizationV2(context.Background(), " "); return err }},
+		{name: "update localization ID", call: func() error {
+			_, err := client.UpdateSubscriptionLocalizationV2(context.Background(), " ", SubscriptionLocalizationV2UpdateAttributes{Name: &empty})
+			return err
+		}},
+		{name: "delete localization ID", call: func() error { return client.DeleteSubscriptionLocalizationV2(context.Background(), " ") }},
+		{name: "create image version ID", call: func() error {
+			_, err := client.CreateSubscriptionImageV2(context.Background(), " ", "image.png", 1)
+			return err
+		}},
+		{name: "create image file name", call: func() error {
+			_, err := client.CreateSubscriptionImageV2(context.Background(), "ver-1", " ", 1)
+			return err
+		}},
+		{name: "create image zero size", call: func() error {
+			_, err := client.CreateSubscriptionImageV2(context.Background(), "ver-1", "image.png", 0)
+			return err
+		}},
+		{name: "create image negative size", call: func() error {
+			_, err := client.CreateSubscriptionImageV2(context.Background(), "ver-1", "image.png", -1)
+			return err
+		}},
+		{name: "get image ID", call: func() error { _, err := client.GetSubscriptionImageV2(context.Background(), " "); return err }},
+		{name: "update image ID", call: func() error {
+			_, err := client.UpdateSubscriptionImageV2(context.Background(), " ", SubscriptionImageV2UpdateAttributes{Uploaded: &falseValue})
+			return err
+		}},
+		{name: "delete image ID", call: func() error { return client.DeleteSubscriptionImageV2(context.Background(), " ") }},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.call(); err == nil {
+				t.Fatal("expected validation error")
+			}
+		})
+	}
+	if requestCount != 0 {
+		t.Fatalf("requests = %d, want 0", requestCount)
 	}
 }

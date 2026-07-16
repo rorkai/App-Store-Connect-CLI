@@ -1,6 +1,7 @@
 package asc
 
 import (
+	"encoding/json"
 	"net/url"
 	"strings"
 )
@@ -87,6 +88,27 @@ type SubscriptionRelationships struct {
 	Group *Relationship `json:"group"`
 }
 
+// SubscriptionResponseRelationships describes relationships returned with a
+// subscription resource. It is intentionally separate from
+// SubscriptionRelationships, which models the narrower create request shape.
+type SubscriptionResponseRelationships struct {
+	Versions *SubscriptionVersionsRelationship `json:"versions,omitempty"`
+}
+
+// SubscriptionVersionsRelationship describes the version linkages attached to
+// a subscription response in App Store Connect API 4.4.1.
+type SubscriptionVersionsRelationship struct {
+	Data  []ResourceData    `json:"data"`
+	Links RelationshipLinks `json:"links,omitempty"`
+	Meta  json.RawMessage   `json:"meta,omitempty"`
+}
+
+// RelationshipLinks describes links returned for a JSON:API relationship.
+type RelationshipLinks struct {
+	Self    string `json:"self,omitempty"`
+	Related string `json:"related,omitempty"`
+}
+
 // SubscriptionCreateData is the data portion of a subscription create request.
 type SubscriptionCreateData struct {
 	Type          ResourceType                 `json:"type"`
@@ -162,6 +184,20 @@ type SubscriptionPriceRelationships struct {
 	Subscription           *Relationship `json:"subscription"`
 	SubscriptionPricePoint *Relationship `json:"subscriptionPricePoint"`
 	Territory              *Relationship `json:"territory,omitempty"`
+}
+
+// SubscriptionPricePointResponseRelationships describes relationships returned
+// with a subscription price point resource.
+type SubscriptionPricePointResponseRelationships struct {
+	AdjustedEqualizations *SubscriptionPricePointLinkRelationship `json:"adjustedEqualizations,omitempty"`
+	Equalizations         *SubscriptionPricePointLinkRelationship `json:"equalizations,omitempty"`
+	Territory             *Relationship                           `json:"territory,omitempty"`
+}
+
+// SubscriptionPricePointLinkRelationship describes a price-point relationship
+// whose response contains links but no resource linkage data.
+type SubscriptionPricePointLinkRelationship struct {
+	Links RelationshipLinks `json:"links"`
 }
 
 // SubscriptionPriceCreateData is the data portion of a price create request.

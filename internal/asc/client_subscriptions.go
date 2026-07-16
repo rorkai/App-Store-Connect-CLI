@@ -193,11 +193,15 @@ func (c *Client) CreateSubscription(ctx context.Context, groupID string, attrs S
 
 // GetSubscription retrieves a subscription by ID.
 func (c *Client) GetSubscription(ctx context.Context, subID string, opts ...SubscriptionOption) (*SubscriptionResponse, error) {
+	subID = strings.TrimSpace(subID)
+	if subID == "" {
+		return nil, fmt.Errorf("subscription ID is required")
+	}
 	query := &subscriptionQuery{}
 	for _, opt := range opts {
 		opt(query)
 	}
-	path := fmt.Sprintf("/v1/subscriptions/%s", strings.TrimSpace(subID))
+	path := fmt.Sprintf("/v1/subscriptions/%s", subID)
 	if queryString := buildSubscriptionQuery(query); queryString != "" {
 		path += "?" + queryString
 	}

@@ -73,6 +73,9 @@ Examples:
   asc subscriptions versions create --subscription-id "SUBSCRIPTION_ID"`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --subscription-id is required")
@@ -123,19 +126,22 @@ Examples:
   asc subscriptions versions list --subscription-id "SUBSCRIPTION_ID" --state PREPARE_FOR_SUBMISSION --include localizations`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			if err := validateNextFlagConflicts(
 				*next,
-				flagConflict{"--subscription-id", strings.TrimSpace(*subscriptionID) != ""},
-				flagConflict{"--app", strings.TrimSpace(*appID) != ""},
-				flagConflict{"--state", strings.TrimSpace(*state) != ""},
-				flagConflict{"--fields", strings.TrimSpace(*fields) != ""},
-				flagConflict{"--subscription-fields", strings.TrimSpace(*subscriptionFields) != ""},
-				flagConflict{"--image-fields", strings.TrimSpace(*imageFields) != ""},
-				flagConflict{"--localization-fields", strings.TrimSpace(*localizationFields) != ""},
-				flagConflict{"--include", strings.TrimSpace(*include) != ""},
-				flagConflict{"--image-limit", *imageLimit != 0},
-				flagConflict{"--localization-limit", *localizationLimit != 0},
-				flagConflict{"--limit", *limit != 0},
+				flagConflict{"--subscription-id", flagWasProvided(fs, "subscription-id")},
+				flagConflict{"--app", flagWasProvided(fs, "app")},
+				flagConflict{"--state", flagWasProvided(fs, "state")},
+				flagConflict{"--fields", flagWasProvided(fs, "fields")},
+				flagConflict{"--subscription-fields", flagWasProvided(fs, "subscription-fields")},
+				flagConflict{"--image-fields", flagWasProvided(fs, "image-fields")},
+				flagConflict{"--localization-fields", flagWasProvided(fs, "localization-fields")},
+				flagConflict{"--include", flagWasProvided(fs, "include")},
+				flagConflict{"--image-limit", flagWasProvided(fs, "image-limit")},
+				flagConflict{"--localization-limit", flagWasProvided(fs, "localization-limit")},
+				flagConflict{"--limit", flagWasProvided(fs, "limit")},
 			); err != nil {
 				return err
 			}
@@ -144,6 +150,29 @@ Examples:
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("subscriptions versions list: %v", err)
+			}
+			versionFieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionFieldsList())
+			if err != nil {
+				return err
+			}
+			subscriptionFieldValues, err := normalizeSelectionFlag(fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
+			if err != nil {
+				return err
+			}
+			imageFieldValues, err := normalizeSelectionFlag(fs, *imageFields, "--image-fields", subscriptionVersionImageFieldsList())
+			if err != nil {
+				return err
+			}
+			localizationFieldValues, err := normalizeSelectionFlag(fs, *localizationFields, "--localization-fields", subscriptionVersionLocalizationFieldsList())
+			if err != nil {
+				return err
+			}
+			includeValues, err := normalizeSelectionFlag(fs, *include, "--include", subscriptionVersionIncludeList())
+			if err != nil {
+				return err
+			}
+			if flagWasProvided(fs, "state") && len(csvValues(*state)) == 0 {
+				return shared.UsageError("--state must not be empty")
 			}
 			states, err := parseSubscriptionVersionStates(*state)
 			if err != nil {
@@ -168,11 +197,11 @@ Examples:
 			defer cancel()
 			opts := []asc.SubscriptionVersionsOption{
 				asc.WithSubscriptionVersionsLimit(*limit), asc.WithSubscriptionVersionsNextURL(*next),
-				asc.WithSubscriptionVersionsStates(states), asc.WithSubscriptionVersionsFields(csvValues(*fields)),
-				asc.WithSubscriptionVersionsSubscriptionFields(csvValues(*subscriptionFields)),
-				asc.WithSubscriptionVersionsImageFields(csvValues(*imageFields)),
-				asc.WithSubscriptionVersionsLocalizationFields(csvValues(*localizationFields)),
-				asc.WithSubscriptionVersionsInclude(csvValues(*include)),
+				asc.WithSubscriptionVersionsStates(states), asc.WithSubscriptionVersionsFields(versionFieldValues),
+				asc.WithSubscriptionVersionsSubscriptionFields(subscriptionFieldValues),
+				asc.WithSubscriptionVersionsImageFields(imageFieldValues),
+				asc.WithSubscriptionVersionsLocalizationFields(localizationFieldValues),
+				asc.WithSubscriptionVersionsInclude(includeValues),
 				asc.WithSubscriptionVersionsImageLimit(*imageLimit), asc.WithSubscriptionVersionsLocalizationLimit(*localizationLimit),
 			}
 			resp, err := client.GetSubscriptionVersions(requestCtx, id, opts...)
@@ -209,6 +238,9 @@ func SubscriptionsVersionsViewCommand() *ffcli.Command {
 		Name: "view", ShortUsage: "asc subscriptions versions view --id \"VERSION_ID\"", ShortHelp: "View a subscription version.",
 		LongHelp: "View a subscription version by ID.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			versionID := strings.TrimSpace(*id)
 			if versionID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -220,6 +252,26 @@ func SubscriptionsVersionsViewCommand() *ffcli.Command {
 			if err := validateRelationshipLimit("--localization-limit", *localizationLimit); err != nil {
 				return err
 			}
+			versionFieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionFieldsList())
+			if err != nil {
+				return err
+			}
+			subscriptionFieldValues, err := normalizeSelectionFlag(fs, *subscriptionFields, "--subscription-fields", subscriptionFieldsList())
+			if err != nil {
+				return err
+			}
+			imageFieldValues, err := normalizeSelectionFlag(fs, *imageFields, "--image-fields", subscriptionVersionImageFieldsList())
+			if err != nil {
+				return err
+			}
+			localizationFieldValues, err := normalizeSelectionFlag(fs, *localizationFields, "--localization-fields", subscriptionVersionLocalizationFieldsList())
+			if err != nil {
+				return err
+			}
+			includeValues, err := normalizeSelectionFlag(fs, *include, "--include", subscriptionVersionIncludeList())
+			if err != nil {
+				return err
+			}
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions versions view: %w", err)
@@ -228,11 +280,11 @@ func SubscriptionsVersionsViewCommand() *ffcli.Command {
 			defer cancel()
 			resp, err := client.GetSubscriptionVersion(
 				requestCtx, versionID,
-				asc.WithSubscriptionVersionFields(csvValues(*fields)),
-				asc.WithSubscriptionVersionSubscriptionFields(csvValues(*subscriptionFields)),
-				asc.WithSubscriptionVersionImageFields(csvValues(*imageFields)),
-				asc.WithSubscriptionVersionLocalizationFields(csvValues(*localizationFields)),
-				asc.WithSubscriptionVersionInclude(csvValues(*include)),
+				asc.WithSubscriptionVersionFields(versionFieldValues),
+				asc.WithSubscriptionVersionSubscriptionFields(subscriptionFieldValues),
+				asc.WithSubscriptionVersionImageFields(imageFieldValues),
+				asc.WithSubscriptionVersionLocalizationFields(localizationFieldValues),
+				asc.WithSubscriptionVersionInclude(includeValues),
 				asc.WithSubscriptionVersionImageLimit(*imageLimit),
 				asc.WithSubscriptionVersionLocalizationLimit(*localizationLimit),
 			)
@@ -257,11 +309,14 @@ func SubscriptionsVersionsLinksCommand() *ffcli.Command {
 		Name: "links", ShortUsage: "asc subscriptions versions links [flags]", ShortHelp: "List raw subscription version linkages.",
 		LongHelp: "List raw version relationship linkages for a subscription.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			if err := validateNextFlagConflicts(
 				*next,
-				flagConflict{"--subscription-id", strings.TrimSpace(*subscriptionID) != ""},
-				flagConflict{"--app", strings.TrimSpace(*appID) != ""},
-				flagConflict{"--limit", *limit != 0},
+				flagConflict{"--subscription-id", flagWasProvided(fs, "subscription-id")},
+				flagConflict{"--app", flagWasProvided(fs, "app")},
+				flagConflict{"--limit", flagWasProvided(fs, "limit")},
 			); err != nil {
 				return err
 			}
@@ -367,6 +422,13 @@ func validateNextFlagConflicts(next string, flags ...flagConflict) error {
 		if candidate.set {
 			return shared.UsageErrorf("--next cannot be combined with %s", candidate.name)
 		}
+	}
+	return nil
+}
+
+func rejectUnexpectedArgs(args []string) error {
+	if len(args) > 0 {
+		return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
 	}
 	return nil
 }

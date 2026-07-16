@@ -243,6 +243,12 @@ func (c *Client) CreateSubscriptionLocalizationV2(ctx context.Context, versionID
 	if versionID == "" {
 		return nil, fmt.Errorf("version ID is required")
 	}
+	if strings.TrimSpace(attrs.Name) == "" {
+		return nil, fmt.Errorf("name is required")
+	}
+	if strings.TrimSpace(attrs.Locale) == "" {
+		return nil, fmt.Errorf("locale is required")
+	}
 	payload := SubscriptionLocalizationV2CreateRequest{Data: SubscriptionLocalizationV2CreateData{
 		Type:       ResourceTypeSubscriptionLocalizations,
 		Attributes: attrs,
@@ -336,6 +342,9 @@ func (c *Client) CreateSubscriptionImageV2(ctx context.Context, versionID, fileN
 	}
 	if fileName == "" {
 		return nil, fmt.Errorf("file name is required")
+	}
+	if fileSize <= 0 {
+		return nil, fmt.Errorf("file size must be greater than zero")
 	}
 	payload := SubscriptionImageV2CreateRequest{Data: SubscriptionImageV2CreateData{
 		Type: ResourceTypeSubscriptionImages,

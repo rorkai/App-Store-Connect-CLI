@@ -47,6 +47,11 @@ const (
 
 var ErrMissingAuth = errors.New("missing authentication")
 
+var (
+	ascClientFactoryMu sync.RWMutex
+	ascClientFactory   = getASCClient
+)
+
 type missingAuthError struct {
 	msg string
 }
@@ -1643,7 +1648,10 @@ func GetASCClient() (*asc.Client, error) {
 	var client *asc.Client
 	err := WithSpinnerDelayed("", authSpinnerDelay, func() error {
 		var innerErr error
-		client, innerErr = getASCClient()
+		ascClientFactoryMu.RLock()
+		factory := ascClientFactory
+		ascClientFactoryMu.RUnlock()
+		client, innerErr = factory()
 		return innerErr
 	})
 	return client, err

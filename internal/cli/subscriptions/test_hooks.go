@@ -1,6 +1,10 @@
 package subscriptions
 
 import (
+	"context"
+	"os"
+	"sync"
+
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -30,5 +34,35 @@ func SetPricePointsClientFactory(fn func() (*asc.Client, error)) func() {
 	}
 	return func() {
 		subscriptionPricePointsClientFactory = previous
+	}
+}
+
+var (
+	subscriptionVersionImageUploaderMu sync.RWMutex
+	subscriptionVersionImageUploader   = asc.UploadAssetFromFile
+)
+
+func uploadSubscriptionVersionImage(ctx context.Context, file *os.File, fileSize int64, operations []asc.UploadOperation) error {
+	subscriptionVersionImageUploaderMu.RLock()
+	uploader := subscriptionVersionImageUploader
+	subscriptionVersionImageUploaderMu.RUnlock()
+	return uploader(ctx, file, fileSize, operations)
+}
+
+// SetSubscriptionVersionImageUploaderForTesting replaces the version-image uploader.
+// It returns a restore function for test isolation.
+func SetSubscriptionVersionImageUploaderForTesting(fn func(context.Context, *os.File, int64, []asc.UploadOperation) error) func() {
+	subscriptionVersionImageUploaderMu.Lock()
+	previous := subscriptionVersionImageUploader
+	if fn == nil {
+		subscriptionVersionImageUploader = asc.UploadAssetFromFile
+	} else {
+		subscriptionVersionImageUploader = fn
+	}
+	subscriptionVersionImageUploaderMu.Unlock()
+	return func() {
+		subscriptionVersionImageUploaderMu.Lock()
+		subscriptionVersionImageUploader = previous
+		subscriptionVersionImageUploaderMu.Unlock()
 	}
 }

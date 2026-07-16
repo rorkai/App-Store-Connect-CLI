@@ -51,8 +51,13 @@ Detail commands expose only the include, sparse-field, and relationship-limit
 parameters accepted by their exact endpoints.
 
 API responses remain JSON:API resources. JSON output preserves compound
-`included` resources. Table output renders the primary version, localization,
-image, or linkage rows.
+`included` resources. The shared subscription response model now represents the
+4.4.1 `versions` relationship, and the shared subscription-price-point response
+model represents `adjustedEqualizations`. Because Apple reuses those schemas in
+legacy screenshot, image, localization, offer, submission, promoted-purchase,
+and subscription create/update/read responses, compatibility tests decode the
+new relationship data through each inherited response shape. Table output
+renders the primary version, localization, image, or linkage rows.
 
 ## Output, errors, and lifecycle
 

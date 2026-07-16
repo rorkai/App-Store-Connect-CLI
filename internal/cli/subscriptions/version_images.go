@@ -52,11 +52,14 @@ func SubscriptionsVersionImagesListCommand() *ffcli.Command {
 		Name: "list", ShortUsage: "asc subscriptions versions images list [flags]", ShortHelp: "List images for a subscription version.",
 		LongHelp: "List version-scoped subscription images.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			if err := validateNextFlagConflicts(
 				*next,
-				flagConflict{"--version-id", strings.TrimSpace(*versionID) != ""},
-				flagConflict{"--fields", strings.TrimSpace(*fields) != ""},
-				flagConflict{"--limit", *limit != 0},
+				flagConflict{"--version-id", flagWasProvided(fs, "version-id")},
+				flagConflict{"--fields", flagWasProvided(fs, "fields")},
+				flagConflict{"--limit", flagWasProvided(fs, "limit")},
 			); err != nil {
 				return err
 			}
@@ -65,6 +68,10 @@ func SubscriptionsVersionImagesListCommand() *ffcli.Command {
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageErrorf("subscriptions versions images list: %v", err)
+			}
+			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
+			if err != nil {
+				return err
 			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
@@ -78,7 +85,7 @@ func SubscriptionsVersionImagesListCommand() *ffcli.Command {
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 			resp, err := client.GetSubscriptionVersionImages(requestCtx, id,
-				asc.WithSubscriptionVersionImagesLimit(*limit), asc.WithSubscriptionVersionImagesNextURL(*next), asc.WithSubscriptionVersionImagesFields(csvValues(*fields)))
+				asc.WithSubscriptionVersionImagesLimit(*limit), asc.WithSubscriptionVersionImagesNextURL(*next), asc.WithSubscriptionVersionImagesFields(fieldValues))
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images list: failed to fetch: %w", err)
 			}
@@ -106,10 +113,17 @@ func SubscriptionsVersionImagesPrimaryCommand() *ffcli.Command {
 		Name: "primary", ShortUsage: "asc subscriptions versions images primary --version-id \"VERSION_ID\"", ShortHelp: "View the singular image for a version.",
 		LongHelp: "View the singular image relationship for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return shared.MissingRequiredUsageError("--version-id")
+			}
+			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
+			if err != nil {
+				return err
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -117,7 +131,7 @@ func SubscriptionsVersionImagesPrimaryCommand() *ffcli.Command {
 			}
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
-			resp, err := client.GetSubscriptionVersionImage(requestCtx, id, asc.WithSubscriptionImageV2Fields(csvValues(*fields)))
+			resp, err := client.GetSubscriptionVersionImage(requestCtx, id, asc.WithSubscriptionImageV2Fields(fieldValues))
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images primary: failed to fetch: %w", err)
 			}
@@ -138,10 +152,13 @@ func SubscriptionsVersionImagesLinksCommand() *ffcli.Command {
 		Name: "links", ShortUsage: "asc subscriptions versions images links [flags]", ShortHelp: "List raw image linkages.",
 		LongHelp: "List raw plural image relationship linkages for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			if err := validateNextFlagConflicts(
 				*next,
-				flagConflict{"--version-id", strings.TrimSpace(*versionID) != ""},
-				flagConflict{"--limit", *limit != 0},
+				flagConflict{"--version-id", flagWasProvided(fs, "version-id")},
+				flagConflict{"--limit", flagWasProvided(fs, "limit")},
 			); err != nil {
 				return err
 			}
@@ -189,6 +206,9 @@ func SubscriptionsVersionImagesPrimaryLinkCommand() *ffcli.Command {
 		Name: "primary-link", ShortUsage: "asc subscriptions versions images primary-link --version-id \"VERSION_ID\"", ShortHelp: "View the singular image linkage.",
 		LongHelp: "View the raw singular image relationship linkage for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -219,10 +239,17 @@ func SubscriptionsVersionImagesViewCommand() *ffcli.Command {
 		Name: "view", ShortUsage: "asc subscriptions versions images view --id \"IMAGE_ID\"", ShortHelp: "View a version-scoped image.",
 		LongHelp: "View a version-scoped subscription image by ID.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError("--id")
+			}
+			fieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionImageFieldsList())
+			if err != nil {
+				return err
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -230,7 +257,7 @@ func SubscriptionsVersionImagesViewCommand() *ffcli.Command {
 			}
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
-			resp, err := client.GetSubscriptionImageV2(requestCtx, imageID, asc.WithSubscriptionImageV2Fields(csvValues(*fields)))
+			resp, err := client.GetSubscriptionImageV2(requestCtx, imageID, asc.WithSubscriptionImageV2Fields(fieldValues))
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images view: failed to fetch: %w", err)
 			}
@@ -249,6 +276,9 @@ func SubscriptionsVersionImagesUploadCommand() *ffcli.Command {
 		Name: "upload", ShortUsage: "asc subscriptions versions images upload [flags]", ShortHelp: "Upload a version-scoped subscription image.",
 		LongHelp: "Reserve, upload, and commit an image for a subscription version.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			id, pathValue := strings.TrimSpace(*versionID), strings.TrimSpace(*filePath)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -274,15 +304,19 @@ func SubscriptionsVersionImagesUploadCommand() *ffcli.Command {
 				return fmt.Errorf("subscriptions versions images upload: failed to reserve: %w", err)
 			}
 			if reservation == nil || len(reservation.Data.Attributes.UploadOperations) == 0 {
-				return fmt.Errorf("subscriptions versions images upload: no upload operations returned")
+				reservedID := "unknown"
+				if reservation != nil && strings.TrimSpace(reservation.Data.ID) != "" {
+					reservedID = reservation.Data.ID
+				}
+				return fmt.Errorf("subscriptions versions images upload: reserved image %s returned no upload operations", reservedID)
 			}
-			if err := asc.UploadAssetFromFile(requestCtx, file, info.Size(), reservation.Data.Attributes.UploadOperations); err != nil {
-				return fmt.Errorf("subscriptions versions images upload: upload failed: %w", err)
+			if err := uploadSubscriptionVersionImage(requestCtx, file, info.Size(), reservation.Data.Attributes.UploadOperations); err != nil {
+				return fmt.Errorf("subscriptions versions images upload: upload failed for reserved image %s: %w", reservation.Data.ID, err)
 			}
 			uploaded := true
 			resp, err := client.UpdateSubscriptionImageV2(requestCtx, reservation.Data.ID, asc.SubscriptionImageV2UpdateAttributes{Uploaded: &uploaded})
 			if err != nil {
-				return fmt.Errorf("subscriptions versions images upload: failed to commit: %w", err)
+				return fmt.Errorf("subscriptions versions images upload: failed to commit reserved image %s: %w", reservation.Data.ID, err)
 			}
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
@@ -300,6 +334,9 @@ func SubscriptionsVersionImagesUpdateCommand() *ffcli.Command {
 		Name: "update", ShortUsage: "asc subscriptions versions images update --id \"IMAGE_ID\" --uploaded true", ShortHelp: "Update a version-scoped image.",
 		LongHelp: "Update the uploaded state for a version-scoped subscription image.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -334,6 +371,9 @@ func SubscriptionsVersionImagesDeleteCommand() *ffcli.Command {
 		Name: "delete", ShortUsage: "asc subscriptions versions images delete --id \"IMAGE_ID\" --confirm", ShortHelp: "Delete a version-scoped image.",
 		LongHelp: "Delete a version-scoped subscription image.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			imageID := strings.TrimSpace(*id)
 			if imageID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
