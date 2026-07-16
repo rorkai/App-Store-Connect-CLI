@@ -64,7 +64,36 @@ func TestUpdateInAppPurchaseLocalization(t *testing.T) {
 
 	name := "Updated"
 	if _, err := client.UpdateInAppPurchaseLocalization(context.Background(), "loc-1", InAppPurchaseLocalizationUpdateAttributes{
-		Name: &name,
+		Name: &NullableString{Value: &name},
+	}); err != nil {
+		t.Fatalf("UpdateInAppPurchaseLocalization() error: %v", err)
+	}
+}
+
+func TestUpdateInAppPurchaseLocalizationClearsNullableFields(t *testing.T) {
+	client := newTestClient(t, func(req *http.Request) {
+		if req.Method != http.MethodPatch || req.URL.Path != "/v1/inAppPurchaseLocalizations/loc-1" {
+			t.Fatalf("request = %s %s, want PATCH /v1/inAppPurchaseLocalizations/loc-1", req.Method, req.URL.Path)
+		}
+		var got map[string]any
+		if err := json.NewDecoder(req.Body).Decode(&got); err != nil {
+			t.Fatalf("decode payload error: %v", err)
+		}
+		attrs, ok := got["data"].(map[string]any)["attributes"].(map[string]any)
+		if !ok {
+			t.Fatalf("attributes = %#v, want object", got)
+		}
+		if value, exists := attrs["name"]; !exists || value != nil {
+			t.Fatalf("name = %#v (exists %t), want explicit null", value, exists)
+		}
+		if value, exists := attrs["description"]; !exists || value != nil {
+			t.Fatalf("description = %#v (exists %t), want explicit null", value, exists)
+		}
+	}, jsonResponse(http.StatusOK, `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`))
+
+	if _, err := client.UpdateInAppPurchaseLocalization(context.Background(), "loc-1", InAppPurchaseLocalizationUpdateAttributes{
+		Name:        &NullableString{},
+		Description: &NullableString{},
 	}); err != nil {
 		t.Fatalf("UpdateInAppPurchaseLocalization() error: %v", err)
 	}

@@ -76,6 +76,7 @@ func IAPListCommand() *ffcli.Command {
 	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchases endpoint")
 	includeVersions := fs.Bool("include-versions", false, "Include related in-app purchase versions (v2 only)")
 	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50, v2 only)")
+	fields := fs.String("fields", "", "fields[inAppPurchases] (comma-separated, v2 only)")
 	versionFields := fs.String("version-fields", "", "fields[inAppPurchaseVersions] (comma-separated, v2 only)")
 	output := shared.BindOutputFlags(fs)
 
@@ -90,6 +91,7 @@ Examples:
   asc iap list --app "APP_ID" --limit 50
   asc iap list --app "APP_ID" --paginate
   asc iap list --app "APP_ID" --include-versions --versions-limit 10
+  asc iap list --app "APP_ID" --fields name,versions
   asc iap list --app "APP_ID" --legacy`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -103,11 +105,18 @@ Examples:
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
 				return fmt.Errorf("iap list: --versions-limit must be between 1 and 50")
 			}
+			if *legacy && strings.TrimSpace(*fields) != "" {
+				return shared.UsageError("iap list: --fields requires the v2 endpoint")
+			}
 			if *legacy && (*includeVersions || *versionsLimit != 0 || strings.TrimSpace(*versionFields) != "") {
 				return shared.UsageError("iap list: --include-versions, --versions-limit, and --version-fields require the v2 endpoint")
 			}
-			if strings.TrimSpace(*next) != "" && (*includeVersions || *versionsLimit != 0 || strings.TrimSpace(*versionFields) != "") {
-				return shared.UsageError("iap list: --next cannot be combined with --include-versions, --versions-limit, or --version-fields")
+			if strings.TrimSpace(*next) != "" && (*includeVersions || *versionsLimit != 0 || strings.TrimSpace(*fields) != "" || strings.TrimSpace(*versionFields) != "") {
+				return shared.UsageError("iap list: --next cannot be combined with --include-versions, --versions-limit, --fields, or --version-fields")
+			}
+			fieldValues, err := shared.NormalizeSelection(*fields, iapVersionIAPFields, "--fields")
+			if err != nil {
+				return shared.UsageError("iap list: " + err.Error())
 			}
 			versionFieldValues, err := shared.NormalizeSelection(*versionFields, iapVersionFields, "--version-fields")
 			if err != nil {
@@ -131,6 +140,7 @@ Examples:
 			opts := []asc.IAPOption{
 				asc.WithIAPLimit(*limit),
 				asc.WithIAPNextURL(*next),
+				asc.WithIAPFields(fieldValues),
 				asc.WithIAPNestedVersionsLimit(*versionsLimit),
 				asc.WithIAPVersionFields(versionFieldValues),
 			}
@@ -198,6 +208,7 @@ func IAPGetCommand() *ffcli.Command {
 	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchase endpoint")
 	includeVersions := fs.Bool("include-versions", false, "Include related in-app purchase versions (v2 only)")
 	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50, v2 only)")
+	fields := fs.String("fields", "", "fields[inAppPurchases] (comma-separated, v2 only)")
 	versionFields := fs.String("version-fields", "", "fields[inAppPurchaseVersions] (comma-separated, v2 only)")
 	output := shared.BindOutputFlags(fs)
 
@@ -210,6 +221,7 @@ func IAPGetCommand() *ffcli.Command {
 Examples:
   asc iap view --id "IAP_ID"
   asc iap view --id "IAP_ID" --include-versions --versions-limit 10
+  asc iap view --id "IAP_ID" --fields name,versions
   asc iap view --id "IAP_ID" --legacy`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -222,8 +234,15 @@ Examples:
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
 				return fmt.Errorf("iap view: --versions-limit must be between 1 and 50")
 			}
+			if *legacy && strings.TrimSpace(*fields) != "" {
+				return shared.UsageError("iap view: --fields requires the v2 endpoint")
+			}
 			if *legacy && (*includeVersions || *versionsLimit != 0 || strings.TrimSpace(*versionFields) != "") {
 				return shared.UsageError("iap view: --include-versions, --versions-limit, and --version-fields require the v2 endpoint")
+			}
+			fieldValues, err := shared.NormalizeSelection(*fields, iapVersionIAPFields, "--fields")
+			if err != nil {
+				return shared.UsageError("iap view: " + err.Error())
 			}
 			versionFieldValues, err := shared.NormalizeSelection(*versionFields, iapVersionFields, "--version-fields")
 			if err != nil {
@@ -247,9 +266,13 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			opts := []asc.IAPOption{asc.WithIAPNestedVersionsLimit(*versionsLimit), asc.WithIAPVersionFields(versionFieldValues)}
+			opts := []asc.IAPGetOption{
+				asc.WithIAPGetFields(fieldValues),
+				asc.WithIAPGetNestedVersionsLimit(*versionsLimit),
+				asc.WithIAPGetVersionFields(versionFieldValues),
+			}
 			if *includeVersions {
-				opts = append(opts, asc.WithIAPInclude([]string{"versions"}))
+				opts = append(opts, asc.WithIAPGetInclude([]string{"versions"}))
 			}
 			resp, err := client.GetInAppPurchaseV2(requestCtx, id, opts...)
 			if err != nil {

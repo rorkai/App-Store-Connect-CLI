@@ -200,11 +200,13 @@ func flagSet(fs *flag.FlagSet, name string) bool {
 func IAPVersionLocalizationsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions localizations update", flag.ExitOnError)
 	id := fs.String("localization-id", "", "Localization ID")
-	name := fs.String("name", "", "Localization name (empty clears it)")
-	description := fs.String("description", "", "Description (empty clears it)")
+	name := fs.String("name", "", "Localization name")
+	clearName := fs.Bool("clear-name", false, "Clear the localization name")
+	description := fs.String("description", "", "Description")
+	clearDescription := fs.Bool("clear-description", false, "Clear the description")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
-		Name: "update", ShortUsage: `asc iap versions localizations update --localization-id "LOCALIZATION_ID" [flags]`, ShortHelp: "Update a version-scoped IAP localization.", LongHelp: "Update a version-scoped IAP localization.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		Name: "update", ShortUsage: `asc iap versions localizations update --localization-id "LOCALIZATION_ID" [flags]`, ShortHelp: "Update a version-scoped IAP localization.", LongHelp: "Update a version-scoped IAP localization.\n\nExamples:\n  asc iap versions localizations update --localization-id \"LOCALIZATION_ID\" --name \"New Name\"\n  asc iap versions localizations update --localization-id \"LOCALIZATION_ID\" --clear-description", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := rejectIAPVersionArgs(args); err != nil {
 				return err
@@ -215,18 +217,28 @@ func IAPVersionLocalizationsUpdateCommand() *ffcli.Command {
 				return shared.MissingRequiredUsageError()
 			}
 			nameSet, descriptionSet := flagSet(fs, "name"), flagSet(fs, "description")
-			if !nameSet && !descriptionSet {
+			if nameSet && *clearName {
+				return shared.UsageError("iap versions localizations update: --name and --clear-name are mutually exclusive")
+			}
+			if descriptionSet && *clearDescription {
+				return shared.UsageError("iap versions localizations update: --description and --clear-description are mutually exclusive")
+			}
+			if !nameSet && !descriptionSet && !*clearName && !*clearDescription {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return shared.MissingRequiredUsageError()
 			}
 			attrs := asc.InAppPurchaseLocalizationUpdateAttributes{}
 			if nameSet {
 				nameValue := strings.TrimSpace(*name)
-				attrs.Name = &nameValue
+				attrs.Name = &asc.NullableString{Value: &nameValue}
+			} else if *clearName {
+				attrs.Name = &asc.NullableString{}
 			}
 			if descriptionSet {
 				descriptionValue := strings.TrimSpace(*description)
-				attrs.Description = &descriptionValue
+				attrs.Description = &asc.NullableString{Value: &descriptionValue}
+			} else if *clearDescription {
+				attrs.Description = &asc.NullableString{}
 			}
 			client, err := iapVersionClientFactory()
 			if err != nil {

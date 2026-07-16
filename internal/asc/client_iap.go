@@ -69,13 +69,18 @@ func (c *Client) GetInAppPurchases(ctx context.Context, appID string, opts ...IA
 }
 
 // GetInAppPurchaseV2 retrieves an in-app purchase by ID.
-func (c *Client) GetInAppPurchaseV2(ctx context.Context, iapID string, opts ...IAPOption) (*InAppPurchaseV2Response, error) {
-	query := &inAppPurchasesQuery{}
+func (c *Client) GetInAppPurchaseV2(ctx context.Context, iapID string, opts ...IAPGetOption) (*InAppPurchaseV2Response, error) {
+	iapID = strings.TrimSpace(iapID)
+	if iapID == "" {
+		return nil, fmt.Errorf("iapID is required")
+	}
+
+	query := &inAppPurchaseGetQuery{}
 	for _, opt := range opts {
 		opt(query)
 	}
-	path := fmt.Sprintf("/v2/inAppPurchases/%s", strings.TrimSpace(iapID))
-	if queryString := buildInAppPurchasesQuery(query); queryString != "" {
+	path := fmt.Sprintf("/v2/inAppPurchases/%s", iapID)
+	if queryString := buildInAppPurchaseGetQuery(query); queryString != "" {
 		path += "?" + queryString
 	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)

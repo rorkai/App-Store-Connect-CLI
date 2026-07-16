@@ -41,6 +41,13 @@ func TestIAPVersionsValidationErrors(t *testing.T) {
 		{"localization detail validates version fields before auth", []string{"iap", "versions", "localizations", "view", "--localization-id", "loc-1", "--version-fields", "nope"}, "--version-fields must be one of"},
 		{"iap list validates propagated version fields before auth", []string{"iap", "list", "--app", "app-1", "--version-fields", "nope"}, "--version-fields must be one of"},
 		{"iap view validates propagated version fields before auth", []string{"iap", "view", "--id", "iap-1", "--version-fields", "nope"}, "--version-fields must be one of"},
+		{"iap list validates parent fields before auth", []string{"iap", "list", "--app", "app-1", "--fields", "nope"}, "--fields must be one of"},
+		{"iap view validates parent fields before auth", []string{"iap", "view", "--id", "iap-1", "--fields", "nope"}, "--fields must be one of"},
+		{"iap list rejects parent fields on legacy endpoint", []string{"iap", "list", "--app", "app-1", "--legacy", "--fields", "name"}, "--fields requires the v2 endpoint"},
+		{"version localization update rejects name and clear-name", []string{"iap", "versions", "localizations", "update", "--localization-id", "loc-1", "--name", "Name", "--clear-name"}, "--name and --clear-name are mutually exclusive"},
+		{"version localization update rejects description and clear-description", []string{"iap", "versions", "localizations", "update", "--localization-id", "loc-1", "--description", "Description", "--clear-description"}, "--description and --clear-description are mutually exclusive"},
+		{"legacy localization update rejects name and clear-name", []string{"iap", "localizations", "update", "--localization-id", "loc-1", "--name", "Name", "--clear-name"}, "--name and --clear-name are mutually exclusive"},
+		{"legacy localization update rejects description and clear-description", []string{"iap", "localizations", "update", "--localization-id", "loc-1", "--description", "Description", "--clear-description"}, "--description and --clear-description are mutually exclusive"},
 		{"version list rejects next with selectors", []string{"iap", "versions", "list", "--next", next, "--state", "READY_FOR_REVIEW"}, "--next cannot be combined"},
 		{"image list rejects next with fields", []string{"iap", "versions", "images", "list", "--next", next, "--image-fields", "fileName"}, "--next cannot be combined"},
 		{"localization list rejects next with include", []string{"iap", "versions", "localizations", "list", "--next", next, "--include", "version"}, "--next cannot be combined"},
@@ -126,9 +133,21 @@ func TestIAPVersionPrincipalCLIFlowsUseExactHTTPContracts(t *testing.T) {
 			response: `{"data":[{"type":"inAppPurchases","id":"iap-1"}]}`,
 		},
 		{
+			name: "existing IAP list propagates parent fields", args: []string{"iap", "list", "--app", "app-1", "--fields", "name,versions", "--output", "json"},
+			method: http.MethodGet, path: "/v1/apps/app-1/inAppPurchasesV2",
+			query:    map[string]string{"fields[inAppPurchases]": "name,versions"},
+			response: `{"data":[{"type":"inAppPurchases","id":"iap-1"}]}`,
+		},
+		{
 			name: "existing IAP view propagates version fields", args: []string{"iap", "view", "--id", "iap-1", "--include-versions", "--version-fields", "version,state", "--versions-limit", "5", "--output", "json"},
 			method: http.MethodGet, path: "/v2/inAppPurchases/iap-1",
 			query:    map[string]string{"fields[inAppPurchaseVersions]": "version,state", "include": "versions", "limit[versions]": "5"},
+			response: `{"data":{"type":"inAppPurchases","id":"iap-1"}}`,
+		},
+		{
+			name: "existing IAP view propagates parent fields", args: []string{"iap", "view", "--id", "iap-1", "--fields", "name,versions", "--output", "json"},
+			method: http.MethodGet, path: "/v2/inAppPurchases/iap-1",
+			query:    map[string]string{"fields[inAppPurchases]": "name,versions"},
 			response: `{"data":{"type":"inAppPurchases","id":"iap-1"}}`,
 		},
 		{
@@ -171,6 +190,12 @@ func TestIAPVersionPrincipalCLIFlowsUseExactHTTPContracts(t *testing.T) {
 			name: "update localization trims values", args: []string{"iap", "versions", "localizations", "update", "--localization-id", "loc-1", "--name", " Updated ", "--description", " Description ", "--output", "json"},
 			method: http.MethodPatch, path: "/v2/inAppPurchaseLocalizations/loc-1",
 			wantBody: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1","attributes":{"name":"Updated","description":"Description"}}}`,
+			response: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`,
+		},
+		{
+			name: "update localization clears nullable values", args: []string{"iap", "versions", "localizations", "update", "--localization-id", "loc-1", "--clear-name", "--clear-description", "--output", "json"},
+			method: http.MethodPatch, path: "/v2/inAppPurchaseLocalizations/loc-1",
+			wantBody: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1","attributes":{"name":null,"description":null}}}`,
 			response: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`,
 		},
 	}

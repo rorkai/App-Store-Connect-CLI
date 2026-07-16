@@ -181,7 +181,19 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 			responseBody: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`,
 			wantBody:     `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1","attributes":{"name":"Updated"}}}`,
 			call: func(c *Client) error {
-				_, err := c.UpdateInAppPurchaseLocalizationV2(context.Background(), "loc-1", InAppPurchaseLocalizationUpdateAttributes{Name: &name})
+				_, err := c.UpdateInAppPurchaseLocalizationV2(context.Background(), "loc-1", InAppPurchaseLocalizationUpdateAttributes{Name: &NullableString{Value: &name}})
+				return err
+			},
+		},
+		{
+			name: "clear nullable localization v2 fields", method: http.MethodPatch, path: "/v2/inAppPurchaseLocalizations/loc-1", responseCode: http.StatusOK,
+			responseBody: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`,
+			wantBody:     `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1","attributes":{"name":null,"description":null}}}`,
+			call: func(c *Client) error {
+				_, err := c.UpdateInAppPurchaseLocalizationV2(context.Background(), "loc-1", InAppPurchaseLocalizationUpdateAttributes{
+					Name:        &NullableString{},
+					Description: &NullableString{},
+				})
 				return err
 			},
 		},
@@ -269,11 +281,11 @@ func TestInAppPurchaseExistingEndpointsExposeVersionsQuerySurface(t *testing.T) 
 		call     func(*Client) error
 	}{
 		{"app IAP collection", "/v1/apps/app-1/inAppPurchasesV2", `{"data":[]}`, func(c *Client) error {
-			_, err := c.GetInAppPurchasesV2(context.Background(), "app-1", WithIAPInclude([]string{"versions"}), WithIAPVersionFields([]string{"version", "state"}), WithIAPNestedVersionsLimit(5))
+			_, err := c.GetInAppPurchasesV2(context.Background(), "app-1", WithIAPFields([]string{"name", "versions"}), WithIAPInclude([]string{"versions"}), WithIAPVersionFields([]string{"version", "state"}), WithIAPNestedVersionsLimit(5))
 			return err
 		}},
 		{"IAP detail", "/v2/inAppPurchases/iap-1", `{"data":{"type":"inAppPurchases","id":"iap-1"}}`, func(c *Client) error {
-			_, err := c.GetInAppPurchaseV2(context.Background(), "iap-1", WithIAPInclude([]string{"versions"}), WithIAPVersionFields([]string{"version", "state"}), WithIAPNestedVersionsLimit(5))
+			_, err := c.GetInAppPurchaseV2(context.Background(), "iap-1", WithIAPGetFields([]string{"name", "versions"}), WithIAPGetInclude([]string{"versions"}), WithIAPGetVersionFields([]string{"version", "state"}), WithIAPGetNestedVersionsLimit(5))
 			return err
 		}},
 	}
@@ -283,20 +295,34 @@ func TestInAppPurchaseExistingEndpointsExposeVersionsQuerySurface(t *testing.T) 
 				if req.URL.Path != test.path {
 					t.Fatalf("path = %s, want %s", req.URL.Path, test.path)
 				}
-				if got := req.URL.Query().Get("include"); got != "versions" {
-					t.Fatalf("include = %q", got)
+				wantQuery := url.Values{
+					"fields[inAppPurchases]":        []string{"name,versions"},
+					"fields[inAppPurchaseVersions]": []string{"version,state"},
+					"include":                       []string{"versions"},
+					"limit[versions]":               []string{"5"},
 				}
-				if got := req.URL.Query().Get("fields[inAppPurchaseVersions]"); got != "version,state" {
-					t.Fatalf("version fields = %q", got)
-				}
-				if got := req.URL.Query().Get("limit[versions]"); got != "5" {
-					t.Fatalf("version limit = %q", got)
+				if got := req.URL.Query(); !reflect.DeepEqual(got, wantQuery) {
+					t.Fatalf("query = %v, want %v", got, wantQuery)
 				}
 			}, jsonResponse(http.StatusOK, test.response))
 			if err := test.call(client); err != nil {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestGetInAppPurchaseV2RejectsBlankIDBeforeHTTP(t *testing.T) {
+	requestCount := 0
+	client := newTestClient(t, func(_ *http.Request) {
+		requestCount++
+	}, jsonResponse(http.StatusOK, `{"data":{"type":"inAppPurchases","id":"unexpected"}}`))
+
+	if _, err := client.GetInAppPurchaseV2(context.Background(), "   "); err == nil {
+		t.Fatal("expected blank IAP ID error")
+	}
+	if requestCount != 0 {
+		t.Fatalf("request count = %d, want 0", requestCount)
 	}
 }
 

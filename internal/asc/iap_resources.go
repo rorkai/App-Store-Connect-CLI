@@ -8,8 +8,8 @@ type InAppPurchaseLocalizationCreateAttributes struct {
 }
 
 type InAppPurchaseLocalizationUpdateAttributes struct {
-	Name        *string `json:"name,omitempty"`
-	Description *string `json:"description,omitempty"`
+	Name        *NullableString `json:"name,omitempty"`
+	Description *NullableString `json:"description,omitempty"`
 }
 
 type InAppPurchaseLocalizationCreateRelationships struct {

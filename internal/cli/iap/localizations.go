@@ -155,7 +155,9 @@ func IAPLocalizationsUpdateCommand() *ffcli.Command {
 	localizationID := fs.String("localization-id", "", "Localization ID")
 	legacyID := shared.BindDeprecatedStringFlagAlias(fs, "id", "localization-id")
 	name := fs.String("name", "", "Localization name")
+	clearName := fs.Bool("clear-name", false, "Clear the localization name")
 	description := fs.String("description", "", "Description")
+	clearDescription := fs.Bool("clear-description", false, "Clear the description")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -166,7 +168,8 @@ func IAPLocalizationsUpdateCommand() *ffcli.Command {
 
 Examples:
   asc iap localizations update --localization-id "LOC_ID" --name "New Name"
-  asc iap localizations update --localization-id "LOC_ID" --description "New Description"`,
+  asc iap localizations update --localization-id "LOC_ID" --description "New Description"
+  asc iap localizations update --localization-id "LOC_ID" --clear-description`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -178,9 +181,15 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --localization-id is required")
 				return shared.MissingRequiredUsageError()
 			}
-			nameValue := strings.TrimSpace(*name)
-			descriptionValue := strings.TrimSpace(*description)
-			if nameValue == "" && descriptionValue == "" {
+			nameSet := flagSet(fs, "name")
+			descriptionSet := flagSet(fs, "description")
+			if nameSet && *clearName {
+				return shared.UsageError("iap localizations update: --name and --clear-name are mutually exclusive")
+			}
+			if descriptionSet && *clearDescription {
+				return shared.UsageError("iap localizations update: --description and --clear-description are mutually exclusive")
+			}
+			if !nameSet && !descriptionSet && !*clearName && !*clearDescription {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return shared.MissingRequiredUsageError()
 			}
@@ -194,11 +203,17 @@ Examples:
 			defer cancel()
 
 			attrs := asc.InAppPurchaseLocalizationUpdateAttributes{}
-			if nameValue != "" {
-				attrs.Name = &nameValue
+			if nameSet {
+				nameValue := strings.TrimSpace(*name)
+				attrs.Name = &asc.NullableString{Value: &nameValue}
+			} else if *clearName {
+				attrs.Name = &asc.NullableString{}
 			}
-			if descriptionValue != "" {
-				attrs.Description = &descriptionValue
+			if descriptionSet {
+				descriptionValue := strings.TrimSpace(*description)
+				attrs.Description = &asc.NullableString{Value: &descriptionValue}
+			} else if *clearDescription {
+				attrs.Description = &asc.NullableString{}
 			}
 
 			resp, err := client.UpdateInAppPurchaseLocalization(requestCtx, locValue, attrs)
