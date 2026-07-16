@@ -923,7 +923,12 @@ func (c *Client) GetSubscriptionPricePoints(ctx context.Context, subscriptionID 
 		opt.applySubscriptionPricePoints(query)
 	}
 
-	path := fmt.Sprintf("/v1/subscriptions/%s/pricePoints", strings.TrimSpace(subscriptionID))
+	subscriptionID = strings.TrimSpace(subscriptionID)
+	if query.nextURL == "" && subscriptionID == "" {
+		return nil, fmt.Errorf("subscriptionID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptions/%s/pricePoints", subscriptionID)
 	if query.nextURL != "" {
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionPricePoints: %w", err)
@@ -950,7 +955,11 @@ func (c *Client) GetSubscriptionPricePoints(ctx context.Context, subscriptionID 
 
 // GetSubscriptionPricePoint retrieves a subscription price point by ID.
 func (c *Client) GetSubscriptionPricePoint(ctx context.Context, pricePointID string) (*SubscriptionPricePointResponse, error) {
-	path := fmt.Sprintf("/v1/subscriptionPricePoints/%s", strings.TrimSpace(pricePointID))
+	pricePointID = strings.TrimSpace(pricePointID)
+	if pricePointID == "" {
+		return nil, fmt.Errorf("pricePointID is required")
+	}
+	path := fmt.Sprintf("/v1/subscriptionPricePoints/%s", pricePointID)
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -970,7 +979,12 @@ func (c *Client) GetSubscriptionPricePointEqualizations(ctx context.Context, pri
 		opt.applySubscriptionPricePoints(query)
 	}
 
-	path := fmt.Sprintf("/v1/subscriptionPricePoints/%s/equalizations", strings.TrimSpace(pricePointID))
+	pricePointID = strings.TrimSpace(pricePointID)
+	if query.nextURL == "" && pricePointID == "" {
+		return nil, fmt.Errorf("pricePointID is required")
+	}
+
+	path := fmt.Sprintf("/v1/subscriptionPricePoints/%s/equalizations", pricePointID)
 	if query.nextURL != "" {
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionPricePointEqualizations: %w", err)

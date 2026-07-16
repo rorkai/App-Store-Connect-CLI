@@ -17,7 +17,8 @@ func TestSubscriptionsAdjustedEqualizationsSendsExactFilters(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/subscriptionPricePoints/base-1/adjustedEqualizations" {
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+			return
 		}
 		query := req.URL.Query()
 		for key, want := range map[string]string{
@@ -31,7 +32,8 @@ func TestSubscriptionsAdjustedEqualizationsSendsExactFilters(t *testing.T) {
 			"limit":                           "50",
 		} {
 			if got := query.Get(key); got != want {
-				t.Fatalf("%s=%q, want %q; raw query=%s", key, got, want, req.URL.RawQuery)
+				t.Errorf("%s=%q, want %q; raw query=%s", key, got, want, req.URL.RawQuery)
+				return
 			}
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -309,7 +311,7 @@ func TestSubscriptionsPricePointsPaginationPreservesAppleNextLimit(t *testing.T)
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
-	_, stderr := captureOutput(t, func() {
+	stdout, stderr := captureOutput(t, func() {
 		if err := root.Parse([]string{
 			"subscriptions", "pricing", "price-points", "list",
 			"--subscription-id", "8000000001",
@@ -328,5 +330,12 @@ func TestSubscriptionsPricePointsPaginationPreservesAppleNextLimit(t *testing.T)
 	}
 	if requestCount != 2 {
 		t.Fatalf("request count=%d, want 2", requestCount)
+	}
+	var response asc.SubscriptionPricePointsResponse
+	if err := json.Unmarshal([]byte(stdout), &response); err != nil {
+		t.Fatalf("parse stdout: %v; stdout=%q", err, stdout)
+	}
+	if len(response.Data) != 2 || response.Data[0].ID != "point-1" || response.Data[1].ID != "point-2" {
+		t.Fatalf("unexpected paginated response: %#v", response.Data)
 	}
 }
