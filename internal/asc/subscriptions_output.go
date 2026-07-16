@@ -50,6 +50,42 @@ func subscriptionsRows(resp *SubscriptionsResponse) ([]string, [][]string) {
 	return headers, rows
 }
 
+func subscriptionVersionsRows(resp *SubscriptionVersionsResponse) ([]string, [][]string) {
+	headers := []string{"ID", "Version", "State"}
+	rows := make([][]string, 0, len(resp.Data))
+	for _, item := range resp.Data {
+		rows = append(rows, []string{item.ID, fmt.Sprintf("%d", item.Attributes.Version), string(item.Attributes.State)})
+	}
+	return headers, rows
+}
+
+func subscriptionLocalizationsV2Rows(resp *SubscriptionLocalizationsV2Response) ([]string, [][]string) {
+	headers := []string{"ID", "Locale", "Name", "Description"}
+	rows := make([][]string, 0, len(resp.Data))
+	for _, item := range resp.Data {
+		rows = append(rows, []string{
+			item.ID,
+			item.Attributes.Locale,
+			compactWhitespace(item.Attributes.Name),
+			compactWhitespace(item.Attributes.Description),
+		})
+	}
+	return headers, rows
+}
+
+func subscriptionImagesV2Rows(resp *SubscriptionImagesV2Response) ([]string, [][]string) {
+	headers := []string{"ID", "File Name", "File Size", "State"}
+	rows := make([][]string, 0, len(resp.Data))
+	for _, item := range resp.Data {
+		state := ""
+		if item.Attributes.AssetDeliveryState != nil && item.Attributes.AssetDeliveryState.State != nil {
+			state = *item.Attributes.AssetDeliveryState.State
+		}
+		rows = append(rows, []string{item.ID, item.Attributes.FileName, fmt.Sprintf("%d", item.Attributes.FileSize), state})
+	}
+	return headers, rows
+}
+
 func subscriptionPriceRows(resp *SubscriptionPriceResponse) ([]string, [][]string) {
 	headers := []string{"ID", "Start Date", "Preserved"}
 	rows := [][]string{{

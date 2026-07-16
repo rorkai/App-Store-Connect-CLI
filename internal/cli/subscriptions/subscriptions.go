@@ -57,6 +57,7 @@ Examples:
 			SubscriptionsPromotedPurchasesCommand(),
 			SubscriptionsLocalizationsCommand(),
 			SubscriptionsImagesCommand(),
+			SubscriptionsVersionsCommand(),
 			SubscriptionsGracePeriodsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -376,6 +377,10 @@ func SubscriptionsListCommand() *ffcli.Command {
 
 	groupID := fs.String("group-id", "", "Subscription group ID")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env); lists subscriptions across all groups")
+	fields := fs.String("fields", "", "Sparse fields for subscriptions")
+	versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
+	include := fs.String("include", "", "Include relationships (supports versions)")
+	versionLimit := fs.Int("version-limit", 0, "Maximum included versions (1-50)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -400,6 +405,9 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions list: %w", err)
 			}
+			if err := validateRelationshipLimit("--version-limit", *versionLimit); err != nil {
+				return err
+			}
 
 			id := strings.TrimSpace(*groupID)
 			appFlag := strings.TrimSpace(*appID)
@@ -413,6 +421,9 @@ Examples:
 			resolvedAppID := ""
 			if appFlag != "" || (id == "" && nextURL == "") {
 				resolvedAppID = shared.ResolveAppID(*appID)
+			}
+			if resolvedAppID != "" && (strings.TrimSpace(*fields) != "" || strings.TrimSpace(*versionFields) != "" || strings.TrimSpace(*include) != "" || *versionLimit != 0) {
+				return shared.UsageError("--fields, --version-fields, --include, and --version-limit require --group-id")
 			}
 			if id == "" && resolvedAppID == "" && nextURL == "" {
 				fmt.Fprintln(os.Stderr, "Error: --group-id or --app is required (or set ASC_APP_ID)")
@@ -438,6 +449,10 @@ Examples:
 			opts := []asc.SubscriptionsOption{
 				asc.WithSubscriptionsLimit(*limit),
 				asc.WithSubscriptionsNextURL(nextURL),
+				asc.WithSubscriptionsFields(csvValues(*fields)),
+				asc.WithSubscriptionsVersionFields(csvValues(*versionFields)),
+				asc.WithSubscriptionsInclude(csvValues(*include)),
+				asc.WithSubscriptionsVersionLimit(*versionLimit),
 			}
 
 			if *paginate {
@@ -601,6 +616,10 @@ func SubscriptionsGetCommand() *ffcli.Command {
 
 	subID := fs.String("id", "", "Subscription ID")
 	legacySubscriptionID := shared.BindDeprecatedStringFlagAlias(fs, "subscription-id", "id")
+	fields := fs.String("fields", "", "Sparse fields for subscriptions")
+	versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
+	include := fs.String("include", "", "Include relationships (supports versions)")
+	versionLimit := fs.Int("version-limit", 0, "Maximum included versions (1-50)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -622,6 +641,9 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError()
 			}
+			if err := validateRelationshipLimit("--version-limit", *versionLimit); err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -631,7 +653,13 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetSubscription(requestCtx, id)
+			resp, err := client.GetSubscription(
+				requestCtx, id,
+				asc.WithSubscriptionFields(csvValues(*fields)),
+				asc.WithSubscriptionIncludedVersionFields(csvValues(*versionFields)),
+				asc.WithSubscriptionInclude(csvValues(*include)),
+				asc.WithSubscriptionVersionLimit(*versionLimit),
+			)
 			if err != nil {
 				return fmt.Errorf("subscriptions view: failed to fetch: %w", err)
 			}

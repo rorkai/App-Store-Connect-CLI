@@ -226,6 +226,9 @@ type SubscriptionGroupsOption func(*subscriptionGroupsQuery)
 // SubscriptionsOption is a functional option for GetSubscriptions.
 type SubscriptionsOption func(*subscriptionsQuery)
 
+// SubscriptionOption is a functional option for GetSubscription.
+type SubscriptionOption func(*subscriptionQuery)
+
 // SubscriptionAvailabilityTerritoriesOption is a functional option for availability territory listings.
 type SubscriptionAvailabilityTerritoriesOption func(*subscriptionAvailabilityTerritoriesQuery)
 
@@ -235,8 +238,19 @@ type subscriptionGroupsQuery struct {
 
 type subscriptionsQuery struct {
 	listQuery
-	productIDs []string
-	names      []string
+	productIDs    []string
+	names         []string
+	fields        []string
+	versionFields []string
+	include       []string
+	versionLimit  int
+}
+
+type subscriptionQuery struct {
+	fields        []string
+	versionFields []string
+	include       []string
+	versionLimit  int
 }
 
 type subscriptionAvailabilityTerritoriesQuery struct {
@@ -293,6 +307,54 @@ func WithSubscriptionsNames(names []string) SubscriptionsOption {
 	}
 }
 
+// WithSubscriptionsFields sets sparse fields for subscription resources.
+func WithSubscriptionsFields(fields []string) SubscriptionsOption {
+	return func(q *subscriptionsQuery) { q.fields = normalizeList(fields) }
+}
+
+// WithSubscriptionsVersionFields sets sparse fields for included subscription versions.
+func WithSubscriptionsVersionFields(fields []string) SubscriptionsOption {
+	return func(q *subscriptionsQuery) { q.versionFields = normalizeList(fields) }
+}
+
+// WithSubscriptionsInclude sets relationships to include.
+func WithSubscriptionsInclude(include []string) SubscriptionsOption {
+	return func(q *subscriptionsQuery) { q.include = normalizeList(include) }
+}
+
+// WithSubscriptionsVersionLimit sets the maximum included versions.
+func WithSubscriptionsVersionLimit(limit int) SubscriptionsOption {
+	return func(q *subscriptionsQuery) {
+		if limit > 0 {
+			q.versionLimit = limit
+		}
+	}
+}
+
+// WithSubscriptionFields sets sparse fields for a subscription detail response.
+func WithSubscriptionFields(fields []string) SubscriptionOption {
+	return func(q *subscriptionQuery) { q.fields = normalizeList(fields) }
+}
+
+// WithSubscriptionIncludedVersionFields sets sparse fields for included versions.
+func WithSubscriptionIncludedVersionFields(fields []string) SubscriptionOption {
+	return func(q *subscriptionQuery) { q.versionFields = normalizeList(fields) }
+}
+
+// WithSubscriptionInclude sets relationships to include for a subscription detail response.
+func WithSubscriptionInclude(include []string) SubscriptionOption {
+	return func(q *subscriptionQuery) { q.include = normalizeList(include) }
+}
+
+// WithSubscriptionVersionLimit sets the maximum included versions.
+func WithSubscriptionVersionLimit(limit int) SubscriptionOption {
+	return func(q *subscriptionQuery) {
+		if limit > 0 {
+			q.versionLimit = limit
+		}
+	}
+}
+
 // WithSubscriptionAvailabilityTerritoriesLimit sets the max number of territories to return.
 func WithSubscriptionAvailabilityTerritoriesLimit(limit int) SubscriptionAvailabilityTerritoriesOption {
 	return func(q *subscriptionAvailabilityTerritoriesQuery) {
@@ -322,6 +384,19 @@ func buildSubscriptionsQuery(query *subscriptionsQuery) string {
 	addLimit(values, query.limit)
 	addCSV(values, "filter[productId]", query.productIDs)
 	addCSV(values, "filter[name]", query.names)
+	addCSV(values, "fields[subscriptions]", query.fields)
+	addCSV(values, "fields[subscriptionVersions]", query.versionFields)
+	addCSV(values, "include", query.include)
+	addNamedLimit(values, "limit[versions]", query.versionLimit)
+	return values.Encode()
+}
+
+func buildSubscriptionQuery(query *subscriptionQuery) string {
+	values := url.Values{}
+	addCSV(values, "fields[subscriptions]", query.fields)
+	addCSV(values, "fields[subscriptionVersions]", query.versionFields)
+	addCSV(values, "include", query.include)
+	addNamedLimit(values, "limit[versions]", query.versionLimit)
 	return values.Encode()
 }
 
