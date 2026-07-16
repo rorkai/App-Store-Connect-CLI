@@ -420,6 +420,7 @@ Examples:
 			}
 			if err := validateNextFlagConflicts(
 				nextURL,
+				flagConflict{"--app", flagWasProvided(fs, "app")},
 				flagConflict{"--group-id", flagWasProvided(fs, "group-id")},
 				flagConflict{"--fields", flagWasProvided(fs, "fields")},
 				flagConflict{"--version-fields", flagWasProvided(fs, "version-fields")},
