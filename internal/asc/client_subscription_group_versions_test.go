@@ -322,6 +322,89 @@ func TestGetSubscriptionGroupRejectsEmptyIDBeforeHTTP(t *testing.T) {
 	}
 }
 
+func TestGetSubscriptionGroupRejectsCollectionOnlyOptionsBeforeHTTP(t *testing.T) {
+	tests := []struct {
+		name    string
+		option  SubscriptionGroupsOption
+		wantErr string
+	}{
+		{name: "limit", option: WithSubscriptionGroupsLimit(20), wantErr: "limit is only supported when listing subscription groups"},
+		{name: "next URL", option: WithSubscriptionGroupsNextURL("https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=next"), wantErr: "next URL is only supported when listing subscription groups"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t, func(req *http.Request) {
+				t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL)
+			}, jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionGroups","id":"group-1"}}`))
+			_, err := client.GetSubscriptionGroup(context.Background(), "group-1", test.option)
+			if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestSubscriptionGroupVersionDetailEndpointsRejectCollectionOnlyOptionsBeforeHTTP(t *testing.T) {
+	tests := []struct {
+		name    string
+		call    func(*Client) error
+		wantErr string
+	}{
+		{
+			name: "version limit",
+			call: func(client *Client) error {
+				_, err := client.GetSubscriptionGroupVersion(context.Background(), "version-1", WithSubscriptionGroupVersionsLimit(20))
+				return err
+			},
+			wantErr: "limit is only supported when listing subscription group versions",
+		},
+		{
+			name: "version next URL",
+			call: func(client *Client) error {
+				_, err := client.GetSubscriptionGroupVersion(context.Background(), "version-1", WithSubscriptionGroupVersionsNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/versions?cursor=next"))
+				return err
+			},
+			wantErr: "next URL is only supported when listing subscription group versions",
+		},
+		{
+			name: "version state filter",
+			call: func(client *Client) error {
+				_, err := client.GetSubscriptionGroupVersion(context.Background(), "version-1", WithSubscriptionGroupVersionsStates([]string{"READY_FOR_REVIEW"}))
+				return err
+			},
+			wantErr: "state filter is only supported when listing subscription group versions",
+		},
+		{
+			name: "localization limit",
+			call: func(client *Client) error {
+				_, err := client.GetSubscriptionGroupLocalizationV2(context.Background(), "loc-1", WithSubscriptionGroupVersionLocalizationsLimit(20))
+				return err
+			},
+			wantErr: "limit is only supported when listing subscription group version localizations",
+		},
+		{
+			name: "localization next URL",
+			call: func(client *Client) error {
+				_, err := client.GetSubscriptionGroupLocalizationV2(context.Background(), "loc-1", WithSubscriptionGroupVersionLocalizationsNextURL("https://api.appstoreconnect.apple.com/v1/subscriptionGroupVersions/version-1/localizations?cursor=next"))
+				return err
+			},
+			wantErr: "next URL is only supported when listing subscription group version localizations",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newTestClient(t, func(req *http.Request) {
+				t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL)
+			}, jsonResponse(http.StatusOK, `{"data":{}}`))
+			if err := test.call(client); err == nil || !strings.Contains(err.Error(), test.wantErr) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 func TestCreateSubscriptionGroupVersionPropagatesAPIError(t *testing.T) {
 	client := newTestClient(t, nil, jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","detail":"A draft version already exists."}]}`))
 	_, err := client.CreateSubscriptionGroupVersion(context.Background(), "group-1")

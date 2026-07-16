@@ -161,6 +161,15 @@ func (c *Client) GetSubscriptionGroupVersion(ctx context.Context, versionID stri
 	for _, opt := range opts {
 		opt(q)
 	}
+	if q.limit > 0 {
+		return nil, fmt.Errorf("limit is only supported when listing subscription group versions")
+	}
+	if q.nextURL != "" {
+		return nil, fmt.Errorf("next URL is only supported when listing subscription group versions")
+	}
+	if len(q.states) > 0 {
+		return nil, fmt.Errorf("state filter is only supported when listing subscription group versions")
+	}
 	path := fmt.Sprintf("/v1/subscriptionGroupVersions/%s", versionID)
 	if query := buildSubscriptionGroupVersionsQuery(q, false); query != "" {
 		path += "?" + query
@@ -293,6 +302,12 @@ func (c *Client) GetSubscriptionGroupLocalizationV2(ctx context.Context, localiz
 	q := &subscriptionGroupVersionLocalizationsQuery{}
 	for _, opt := range opts {
 		opt(q)
+	}
+	if q.limit > 0 {
+		return nil, fmt.Errorf("limit is only supported when listing subscription group version localizations")
+	}
+	if q.nextURL != "" {
+		return nil, fmt.Errorf("next URL is only supported when listing subscription group version localizations")
 	}
 	path := fmt.Sprintf("/v2/subscriptionGroupLocalizations/%s", localizationID)
 	if query := buildSubscriptionGroupVersionLocalizationsQuery(q, false); query != "" {

@@ -282,8 +282,14 @@ func SubscriptionsGroupsVersionLinksCommand() *ffcli.Command {
 
 func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ffcli.Command {
 	fs := flag.NewFlagSet("groups versions links "+name, flag.ExitOnError)
-	groupID := fs.String("group-id", "", "Subscription group ID")
-	versionID := fs.String("version-id", "", "Subscription group version ID")
+	var ownerID *string
+	requiredFlag := "--version-id"
+	if groupOwned {
+		ownerID = fs.String("group-id", "", "Subscription group ID")
+		requiredFlag = "--group-id"
+	} else {
+		ownerID = fs.String("version-id", "", "Subscription group version ID")
+	}
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages")
@@ -295,12 +301,7 @@ func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ff
 			if err := rejectSubscriptionGroupVersionArgs(args); err != nil {
 				return err
 			}
-			id := strings.TrimSpace(*versionID)
-			requiredFlag := "--version-id"
-			if groupOwned {
-				id = strings.TrimSpace(*groupID)
-				requiredFlag = "--group-id"
-			}
+			id := strings.TrimSpace(*ownerID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintf(os.Stderr, "Error: %s is required\n", requiredFlag)
 				return shared.MissingRequiredUsageError()

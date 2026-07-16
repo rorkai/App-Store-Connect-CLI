@@ -48,8 +48,8 @@ func subscriptionGroupVersionsRows(resp *SubscriptionGroupVersionsResponse) ([]s
 	return headers, rows
 }
 
-func subscriptionGroupLocalizationsRows(resp *SubscriptionGroupLocalizationsResponse) ([]string, [][]string) {
-	headers := []string{"ID", "Locale", "Name", "Custom App Name", "State"}
+func subscriptionGroupLocalizationsV2Rows(resp *SubscriptionGroupLocalizationsV2Response) ([]string, [][]string) {
+	headers := []string{"ID", "Locale", "Name", "Custom App Name"}
 	rows := make([][]string, 0, len(resp.Data))
 	for _, item := range resp.Data {
 		rows = append(rows, []string{
@@ -57,7 +57,6 @@ func subscriptionGroupLocalizationsRows(resp *SubscriptionGroupLocalizationsResp
 			item.Attributes.Locale,
 			compactWhitespace(item.Attributes.Name),
 			compactWhitespace(item.Attributes.CustomAppName),
-			item.Attributes.State,
 		})
 	}
 	return headers, rows

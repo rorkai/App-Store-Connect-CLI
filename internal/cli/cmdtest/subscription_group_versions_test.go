@@ -125,6 +125,47 @@ func TestSubscriptionGroupsListRejectsVersionQueryFlagsWithNext(t *testing.T) {
 	}
 }
 
+func TestSubscriptionGroupVersionLinksExposeOnlyApplicableOwnerFlag(t *testing.T) {
+	tests := []struct {
+		name           string
+		requiredFlag   string
+		irrelevantFlag string
+	}{
+		{
+			name:           "versions",
+			requiredFlag:   "group-id",
+			irrelevantFlag: "version-id",
+		},
+		{
+			name:           "localizations",
+			requiredFlag:   "version-id",
+			irrelevantFlag: "group-id",
+		},
+	}
+
+	links := subscriptionscli.SubscriptionsGroupsVersionLinksCommand()
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var commandFound bool
+			for _, command := range links.Subcommands {
+				if command.Name != test.name {
+					continue
+				}
+				commandFound = true
+				if command.FlagSet.Lookup(test.requiredFlag) == nil {
+					t.Fatalf("missing required owner flag --%s", test.requiredFlag)
+				}
+				if command.FlagSet.Lookup(test.irrelevantFlag) != nil {
+					t.Fatalf("irrelevant owner flag --%s is exposed", test.irrelevantFlag)
+				}
+			}
+			if !commandFound {
+				t.Fatalf("missing links subcommand %q", test.name)
+			}
+		})
+	}
+}
+
 func TestSubscriptionGroupVersionsCreateUsesRequiredRelationship(t *testing.T) {
 	useSubscriptionGroupVersionTestServer(t, func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost || req.URL.Path != "/v1/subscriptionGroupVersions" {

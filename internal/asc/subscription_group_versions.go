@@ -6,6 +6,14 @@ type SubscriptionGroupVersionAttributes struct {
 	State   string `json:"state,omitempty"`
 }
 
+// SubscriptionGroupLocalizationV2Attributes describes version-scoped localization attributes.
+// Unlike the legacy v1 resource, the v2 schema does not expose state.
+type SubscriptionGroupLocalizationV2Attributes struct {
+	Name          string `json:"name,omitempty"`
+	CustomAppName string `json:"customAppName,omitempty"`
+	Locale        string `json:"locale,omitempty"`
+}
+
 type (
 	SubscriptionGroupVersionResponse  = SingleResponse[SubscriptionGroupVersionAttributes]
 	SubscriptionGroupVersionsResponse = Response[SubscriptionGroupVersionAttributes]
@@ -65,6 +73,6 @@ type SubscriptionGroupLocalizationV2UpdateRequest struct {
 }
 
 type (
-	SubscriptionGroupLocalizationV2Response  = SingleResponse[SubscriptionGroupLocalizationAttributes]
-	SubscriptionGroupLocalizationsV2Response = Response[SubscriptionGroupLocalizationAttributes]
+	SubscriptionGroupLocalizationV2Response  = SingleResponse[SubscriptionGroupLocalizationV2Attributes]
+	SubscriptionGroupLocalizationsV2Response = Response[SubscriptionGroupLocalizationV2Attributes]
 )

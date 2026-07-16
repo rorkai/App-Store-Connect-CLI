@@ -140,12 +140,15 @@ func TestPrintTable_SubscriptionGroupVersions(t *testing.T) {
 }
 
 func TestPrintMarkdown_SubscriptionGroupLocalizationV2(t *testing.T) {
-	resp := &SubscriptionGroupLocalizationV2Response{Data: Resource[SubscriptionGroupLocalizationAttributes]{
-		ID: "loc-1", Attributes: SubscriptionGroupLocalizationAttributes{Locale: "en-US", Name: "Premium", CustomAppName: "Example"},
+	resp := &SubscriptionGroupLocalizationV2Response{Data: Resource[SubscriptionGroupLocalizationV2Attributes]{
+		ID: "loc-1", Attributes: SubscriptionGroupLocalizationV2Attributes{Locale: "en-US", Name: "Premium", CustomAppName: "Example"},
 	}}
 
 	output := captureStdout(t, func() error { return PrintMarkdown(resp) })
 	if !strings.Contains(output, "Locale") || !strings.Contains(output, "en-US") || !strings.Contains(output, "Premium") {
 		t.Fatalf("expected localization fields in output, got: %s", output)
+	}
+	if strings.Contains(output, "State") {
+		t.Fatalf("v2 localization output exposed legacy-only state: %s", output)
 	}
 }

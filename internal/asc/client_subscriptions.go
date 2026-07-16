@@ -84,6 +84,12 @@ func (c *Client) GetSubscriptionGroup(ctx context.Context, groupID string, opts 
 	for _, opt := range opts {
 		opt(query)
 	}
+	if query.limit > 0 {
+		return nil, fmt.Errorf("limit is only supported when listing subscription groups")
+	}
+	if query.nextURL != "" {
+		return nil, fmt.Errorf("next URL is only supported when listing subscription groups")
+	}
 
 	path := fmt.Sprintf("/v1/subscriptionGroups/%s", groupID)
 	if queryString := buildSubscriptionGroupsQuery(query); queryString != "" {
