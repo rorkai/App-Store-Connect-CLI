@@ -530,6 +530,11 @@ func normalizeOptionalCSVFilter(fs *flag.FlagSet, name, raw string, upper bool) 
 	if strings.TrimSpace(raw) == "" {
 		return nil, fmt.Errorf("invalid value for --%s: cannot be empty", name)
 	}
+	for _, part := range strings.Split(raw, ",") {
+		if strings.TrimSpace(part) == "" {
+			return nil, fmt.Errorf("invalid value for --%s: cannot contain empty values", name)
+		}
+	}
 	if upper {
 		return shared.SplitCSVUpper(raw), nil
 	}
