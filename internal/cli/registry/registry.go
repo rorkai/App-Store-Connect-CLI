@@ -213,6 +213,7 @@ func (c *Catalog) MetadataCommands() []*ffcli.Command {
 		commands = append(commands, &ffcli.Command{
 			Name:      factory.name,
 			ShortHelp: factory.shortHelp,
+			UsageFunc: shared.DefaultUsageFunc,
 		})
 	}
 	return commands

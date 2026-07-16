@@ -33,6 +33,9 @@ func TestCatalogMetadataMatchesMaterializedCommands(t *testing.T) {
 		if metadata[i].ShortHelp != cmd.ShortHelp {
 			t.Errorf("factory %q metadata help = %q, command help = %q", factory.name, metadata[i].ShortHelp, cmd.ShortHelp)
 		}
+		if metadata[i].UsageFunc == nil {
+			t.Errorf("factory %q metadata command has nil UsageFunc", factory.name)
+		}
 	}
 }
 
