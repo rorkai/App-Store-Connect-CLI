@@ -18,3 +18,17 @@ func SetSetupClientFactory(fn func() (*asc.Client, error)) func() {
 		subscriptionsSetupClientFactory = previous
 	}
 }
+
+// SetPricePointsClientFactory replaces the price-points ASC client factory for tests.
+// It returns a restore function to reset the previous factory.
+func SetPricePointsClientFactory(fn func() (*asc.Client, error)) func() {
+	previous := subscriptionPricePointsClientFactory
+	if fn == nil {
+		subscriptionPricePointsClientFactory = shared.GetASCClient
+	} else {
+		subscriptionPricePointsClientFactory = fn
+	}
+	return func() {
+		subscriptionPricePointsClientFactory = previous
+	}
+}

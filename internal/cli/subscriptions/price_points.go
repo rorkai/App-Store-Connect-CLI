@@ -14,6 +14,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+var subscriptionPricePointsClientFactory = shared.GetASCClient
+
 // SubscriptionsPricePointsCommand returns the subscription price points command group.
 func SubscriptionsPricePointsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points", flag.ExitOnError)
@@ -95,11 +97,18 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("subscriptions price-points list: --limit must be between 1 and 200")
-			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions price-points list: %w", err)
+			}
+			if strings.TrimSpace(*next) != "" && flagWasProvided(
+				fs,
+				"subscription-id", "app", "territory", "price", "min-price", "max-price",
+				"upfront-price-point-id", "plan-type", "fields", "territory-fields", "include", "limit",
+			) {
+				return shared.UsageError("--next cannot be combined with owner flags, --limit, API filters, sparse fields, includes, or client-side price filters")
+			}
+			if *limit != 0 && (*limit < 1 || *limit > 200) {
+				return fmt.Errorf("subscriptions price-points list: --limit must be between 1 and 200")
 			}
 			if *stream && !*paginate {
 				return shared.UsageError("--stream requires --paginate")
@@ -156,12 +165,7 @@ Examples:
 			if len(selectedTerritoryFields) != 0 && !containsString(selectedIncludes, "territory") {
 				selectedIncludes = append(selectedIncludes, "territory")
 			}
-			if strings.TrimSpace(*next) != "" && (*limit != 0 || territoryFilter != "" || len(upfrontIDs) != 0 || len(plans) != 0 ||
-				len(selectedFields) != 0 || len(selectedTerritoryFields) != 0 || len(selectedIncludes) != 0) {
-				return shared.UsageError("--next cannot be combined with --limit, API filters, --fields, --territory-fields, or --include")
-			}
-
-			client, err := shared.GetASCClient()
+			client, err := subscriptionPricePointsClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions price-points list: %w", err)
 			}
@@ -273,6 +277,21 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func flagWasProvided(fs *flag.FlagSet, names ...string) bool {
+	wanted := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		wanted[name] = struct{}{}
+	}
+
+	provided := false
+	fs.Visit(func(f *flag.Flag) {
+		if _, ok := wanted[f.Name]; ok {
+			provided = true
+		}
+	})
+	return provided
 }
 
 // filterSubscriptionPricePoints removes data entries that don't match the price filter.
@@ -401,11 +420,18 @@ Examples:
 		if len(args) > 0 {
 			return shared.UsageErrorf("unexpected argument(s): %s", strings.Join(args, " "))
 		}
-		if *limit != 0 && (*limit < 1 || *limit > 8000) {
-			return shared.UsageErrorf("%s: --limit must be between 1 and 8000", usageErrorPrefix())
-		}
 		if err := shared.ValidateNextURL(*next); err != nil {
 			return shared.UsageErrorf("%s: %v", usageErrorPrefix(), err)
+		}
+		if strings.TrimSpace(*next) != "" && flagWasProvided(
+			fs,
+			"price-point-id", "territory", "subscription-id", "upfront-price-point-id",
+			"plan-type", "fields", "territory-fields", "include", "limit",
+		) {
+			return shared.UsageError("--next cannot be combined with owner flags, --limit, API filters, sparse fields, or includes")
+		}
+		if *limit != 0 && (*limit < 1 || *limit > 8000) {
+			return shared.UsageErrorf("%s: --limit must be between 1 and 8000", usageErrorPrefix())
 		}
 
 		id := strings.TrimSpace(*pricePointID)
@@ -453,12 +479,7 @@ Examples:
 		if len(selectedTerritoryFields) != 0 && !containsString(selectedIncludes, "territory") {
 			selectedIncludes = append(selectedIncludes, "territory")
 		}
-		if strings.TrimSpace(*next) != "" && (*limit != 0 || len(territories) != 0 || len(subscriptions) != 0 || len(upfrontIDs) != 0 ||
-			len(plans) != 0 || len(selectedFields) != 0 || len(selectedTerritoryFields) != 0 || len(selectedIncludes) != 0) {
-			return shared.UsageError("--next cannot be combined with --limit, API filters, --fields, --territory-fields, or --include")
-		}
-
-		client, err := shared.GetASCClient()
+		client, err := subscriptionPricePointsClientFactory()
 		if err != nil {
 			return fmt.Errorf("%s: %w", errorPrefix, err)
 		}

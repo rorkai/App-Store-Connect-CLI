@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	subscriptionscli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
 )
 
 func TestSubscriptionsAdjustedEqualizationsSendsExactFilters(t *testing.T) {
@@ -214,6 +216,213 @@ func TestSubscriptionsPricePointsListRejectsNextQueryConflictsBeforeLookup(t *te
 		"--next", "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=next",
 		"--fields", "customerPrice",
 	}, "--next cannot be combined")
+}
+
+func TestSubscriptionsPricePointCommandsRejectAllOpaqueNextConflictsBeforeClient(t *testing.T) {
+	tests := []struct {
+		name     string
+		command  []string
+		nextURL  string
+		conflict []string
+	}{
+		{
+			name:     "list empty owner subscription",
+			command:  []string{"subscriptions", "pricing", "price-points", "list"},
+			nextURL:  "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=next",
+			conflict: []string{"--subscription-id", ""},
+		},
+		{
+			name:     "list empty owner app",
+			command:  []string{"subscriptions", "pricing", "price-points", "list"},
+			nextURL:  "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=next",
+			conflict: []string{"--app", ""},
+		},
+		{
+			name:     "list territory filter",
+			command:  []string{"subscriptions", "pricing", "price-points", "list"},
+			nextURL:  "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=next",
+			conflict: []string{"--territory", "USA"},
+		},
+		{
+			name:     "list price filter",
+			command:  []string{"subscriptions", "pricing", "price-points", "list"},
+			nextURL:  "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=next",
+			conflict: []string{"--price", "4.99"},
+		},
+		{
+			name:     "list minimum price filter",
+			command:  []string{"subscriptions", "pricing", "price-points", "list"},
+			nextURL:  "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=next",
+			conflict: []string{"--min-price", "1.00"},
+		},
+		{
+			name:     "list maximum price filter",
+			command:  []string{"subscriptions", "pricing", "price-points", "list"},
+			nextURL:  "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=next",
+			conflict: []string{"--max-price", "9.99"},
+		},
+	}
+
+	commonFilters := []struct {
+		name string
+		args []string
+	}{
+		{name: "upfront price point filter", args: []string{"--upfront-price-point-id", "upfront-1"}},
+		{name: "plan type filter", args: []string{"--plan-type", "MONTHLY"}},
+		{name: "sparse fields", args: []string{"--fields", "customerPrice"}},
+		{name: "territory sparse fields", args: []string{"--territory-fields", "currency"}},
+		{name: "include", args: []string{"--include", "territory"}},
+		{name: "limit", args: []string{"--limit", "0"}},
+	}
+	for _, filter := range commonFilters {
+		tests = append(tests, struct {
+			name     string
+			command  []string
+			nextURL  string
+			conflict []string
+		}{
+			name:     "list " + filter.name,
+			command:  []string{"subscriptions", "pricing", "price-points", "list"},
+			nextURL:  "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=next",
+			conflict: filter.args,
+		})
+	}
+
+	equalizationCommands := []struct {
+		name    string
+		command []string
+		path    string
+	}{
+		{name: "equalizations", command: []string{"subscriptions", "pricing", "price-points", "equalizations"}, path: "equalizations"},
+		{name: "adjusted equalizations", command: []string{"subscriptions", "pricing", "price-points", "adjusted-equalizations"}, path: "adjustedEqualizations"},
+	}
+	equalizationConflicts := append([]struct {
+		name string
+		args []string
+	}{
+		{name: "empty owner price point", args: []string{"--price-point-id", ""}},
+		{name: "territory filter", args: []string{"--territory", "USA"}},
+		{name: "subscription filter", args: []string{"--subscription-id", "sub-1"}},
+	}, commonFilters...)
+	for _, command := range equalizationCommands {
+		for _, conflict := range equalizationConflicts {
+			tests = append(tests, struct {
+				name     string
+				command  []string
+				nextURL  string
+				conflict []string
+			}{
+				name:     command.name + " " + conflict.name,
+				command:  command.command,
+				nextURL:  "https://api.appstoreconnect.apple.com/v1/subscriptionPricePoints/point-1/" + command.path + "?cursor=next",
+				conflict: conflict.args,
+			})
+		}
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clientFactoryCalled := false
+			restore := subscriptionscli.SetPricePointsClientFactory(func() (*asc.Client, error) {
+				clientFactoryCalled = true
+				return nil, errors.New("poison price-points client factory called")
+			})
+			t.Cleanup(restore)
+
+			args := append(append(append([]string{}, test.command...), "--next", test.nextURL), test.conflict...)
+			assertUsageExit(t, args, "--next cannot be combined")
+			if clientFactoryCalled {
+				t.Fatal("next conflict reached the price-points client factory")
+			}
+		})
+	}
+}
+
+func TestSubscriptionsPricePointCommandsContinueFromOpaqueNextURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		command []string
+		path    string
+		limit   string
+	}{
+		{
+			name:    "list",
+			command: []string{"subscriptions", "pricing", "price-points", "list"},
+			path:    "/v1/subscriptions/sub-1/pricePoints",
+			limit:   "200",
+		},
+		{
+			name:    "equalizations",
+			command: []string{"subscriptions", "pricing", "price-points", "equalizations"},
+			path:    "/v1/subscriptionPricePoints/point-1/equalizations",
+			limit:   "8000",
+		},
+		{
+			name:    "adjusted equalizations",
+			command: []string{"subscriptions", "pricing", "price-points", "adjusted-equalizations"},
+			path:    "/v1/subscriptionPricePoints/point-1/adjustedEqualizations",
+			limit:   "8000",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_APP_ID", "6759231657")
+			requestCount := 0
+			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requestCount++
+				if req.URL.Path != test.path {
+					t.Fatalf("path=%q, want %q", req.URL.Path, test.path)
+				}
+				if got := req.URL.Query().Get("limit"); got != test.limit {
+					t.Fatalf("limit=%q, want %q", got, test.limit)
+				}
+				switch requestCount {
+				case 1:
+					if got := req.URL.Query().Get("cursor"); got != "start" {
+						t.Fatalf("cursor=%q, want start", got)
+					}
+					next := "https://api.appstoreconnect.apple.com" + test.path + "?cursor=finish&limit=" + test.limit
+					return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"point-1"}],"links":{"next":"`+next+`"}}`)
+				case 2:
+					if got := req.URL.Query().Get("cursor"); got != "finish" {
+						t.Fatalf("cursor=%q, want finish", got)
+					}
+					return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"point-2"}],"links":{}}`)
+				default:
+					t.Fatalf("unexpected request %d: %s", requestCount, req.URL)
+					return nil, nil
+				}
+			}))
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			next := "https://api.appstoreconnect.apple.com" + test.path + "?cursor=start&limit=" + test.limit
+			stdout, stderr := captureOutput(t, func() {
+				args := append(append([]string{}, test.command...), "--next", next, "--paginate", "--output", "json")
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("unexpected stderr: %q", stderr)
+			}
+			if requestCount != 2 {
+				t.Fatalf("request count=%d, want 2", requestCount)
+			}
+			var response asc.SubscriptionPricePointsResponse
+			if err := json.Unmarshal([]byte(stdout), &response); err != nil {
+				t.Fatalf("parse stdout: %v; stdout=%q", err, stdout)
+			}
+			if len(response.Data) != 2 || response.Data[0].ID != "point-1" || response.Data[1].ID != "point-2" {
+				t.Fatalf("unexpected response: %#v", response.Data)
+			}
+		})
+	}
 }
 
 func TestSubscriptionsPricePointsListKeepsCustomerPriceForClientSideFiltering(t *testing.T) {
