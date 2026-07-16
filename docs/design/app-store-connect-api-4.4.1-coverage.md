@@ -63,6 +63,8 @@ top-level contract changes.
 - Every one of the 102 modified existing operations is classified as a new
   query/response behavior, a deprecation reversal, or a change already covered
   before the schema PR.
+- Both schema-mediated operation-contract changes that are not direct path-item
+  diffs are classified separately: review-item creation and age-rating update.
 - All 47 added and 61 modified schemas decode and encode through typed models
   where user-facing behavior depends on them, or have an explicit schema-only
   disposition.
@@ -167,9 +169,10 @@ may delegate to the same typed client after their ID semantics are explicit.
 | Subscription | `subscriptionVersion.data.type=subscriptionVersions` | `subscriptionVersions` | HTTP body test plus built command test | Planned cross-cutting review integration |
 | Subscription group | `subscriptionGroupVersion.data.type=subscriptionGroupVersions` | `subscriptionGroupVersions` | HTTP body test plus built command test | Planned cross-cutting review integration |
 
-The exact modified-operation checklist includes the `POST` operation as well as
-the four review-submission read operations whose sparse fields and includes
-gain the three version relationships.
+The exact directly modified-operation checklist includes the four
+review-submission read operations whose sparse fields and includes gain the
+three version relationships. The `POST` request change is schema-mediated and
+is tracked separately below because the operation object itself is unchanged.
 
 ### Subscription adjusted equalizations: 1
 
@@ -347,6 +350,12 @@ Subscription-group ownership:
 
 ### Exact modified-operation checklist
 
+This checklist contains exactly the 102 operations whose path-item operation
+objects differ between 4.4 and 4.4.1: 50 behavior changes that remained at the
+immediate pre-PR base plus 52 changes already reconciled after the 4.4 import.
+Schema-mediated request-contract changes are listed separately after it and do
+not alter this count.
+
 Age rating and app info:
 
 - [ ] `GET /v1/appInfoLocalizations/{id}`
@@ -376,7 +385,6 @@ IAP and promoted-purchase propagation:
 
 Review submissions:
 
-- [ ] `POST /v1/reviewSubmissionItems` - schema-mediated request-contract change for three version relationships
 - [ ] `GET /v1/reviewSubmissions`
 - [ ] `GET /v1/reviewSubmissions/{id}`
 - [ ] `GET /v1/reviewSubmissions/{id}/items`
@@ -472,6 +480,20 @@ Operation deprecation reversals:
 - [x] `POST /v1/appScreenshotSets`
 - [x] `POST /v1/appScreenshots`
 
+### Schema-mediated operation-contract checklist
+
+These two operations do not appear in the 102-operation path-item diff because
+their operation objects are byte-for-byte unchanged. Their referenced request
+schemas changed in 4.4.1, so both still require behavior coverage. Together
+with the 102 directly modified operations, they produce 104 operation-contract
+audit items.
+
+- [ ] `POST /v1/reviewSubmissionItems` - `ReviewSubmissionItemCreateRequest`
+  gains the three version relationships
+- [ ] `PATCH /v1/ageRatingDeclarations/{id}` -
+  `AgeRatingDeclarationUpdateRequest` gains `socialMedia` and
+  `socialMediaAgeRestricted`
+
 ## Release-note capability ledger
 
 | # | Apple addition | Owner | Verification | Status |
@@ -559,9 +581,10 @@ than trusting the per-PR reports:
 2. Recompute added, removed, and modified operations and schemas from 4.4.
 3. Map all 47 added operations to code, tests, docs, or an explicit schema-only
    decision.
-4. Map all 102 directly modified operations plus the schema-mediated
-   `POST /v1/reviewSubmissionItems` contract change to query, payload,
-   deprecation, or compatibility coverage.
+4. Map all 102 directly modified operations plus both schema-mediated contract
+   changes (`POST /v1/reviewSubmissionItems` and
+   `PATCH /v1/ageRatingDeclarations/{id}`) to query, payload, deprecation, or
+   compatibility coverage: 104 operation-contract items in total.
 5. Map all 47 added and 61 modified schemas to typed models, documented generic
    decoding, or an already-reconciled schema-only disposition.
 6. Map all nine release-note additions and seven deprecations to commands and
