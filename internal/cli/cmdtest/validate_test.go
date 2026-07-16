@@ -282,6 +282,8 @@ func validValidateFixture() validateFixture {
 			"messagingAndChat":true,
 			"parentalControls":true,
 			"ageAssurance":false,
+			"socialMedia":false,
+			"socialMediaAgeRestricted":false,
 			"unrestrictedWebAccess":false,
 			"userGeneratedContent":true,
 			"alcoholTobaccoOrDrugUseOrReferences":"NONE",

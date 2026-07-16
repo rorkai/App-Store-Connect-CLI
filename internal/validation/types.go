@@ -147,15 +147,17 @@ type Build struct {
 
 // AgeRatingDeclaration represents age rating attributes for validation.
 type AgeRatingDeclaration struct {
-	Advertising            *bool
-	Gambling               *bool
-	HealthOrWellnessTopics *bool
-	LootBox                *bool
-	MessagingAndChat       *bool
-	ParentalControls       *bool
-	AgeAssurance           *bool
-	UnrestrictedWebAccess  *bool
-	UserGeneratedContent   *bool
+	Advertising              *bool
+	Gambling                 *bool
+	HealthOrWellnessTopics   *bool
+	LootBox                  *bool
+	MessagingAndChat         *bool
+	ParentalControls         *bool
+	AgeAssurance             *bool
+	SocialMedia              *bool
+	SocialMediaAgeRestricted *bool
+	UnrestrictedWebAccess    *bool
+	UserGeneratedContent     *bool
 
 	AlcoholTobaccoOrDrugUseOrReferences         *string
 	Contests                                    *string

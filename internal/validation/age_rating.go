@@ -64,6 +64,8 @@ func ageRatingChecks(declaration *AgeRatingDeclaration) []CheckResult {
 		{field: "messagingAndChat", value: declaration.MessagingAndChat},
 		{field: "parentalControls", value: declaration.ParentalControls},
 		{field: "ageAssurance", value: declaration.AgeAssurance},
+		{field: "socialMedia", value: declaration.SocialMedia},
+		{field: "socialMediaAgeRestricted", value: declaration.SocialMediaAgeRestricted},
 		{field: "unrestrictedWebAccess", value: declaration.UnrestrictedWebAccess},
 		{field: "userGeneratedContent", value: declaration.UserGeneratedContent},
 	}

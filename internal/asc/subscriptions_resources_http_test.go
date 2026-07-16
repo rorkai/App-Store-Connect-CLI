@@ -259,7 +259,7 @@ func TestSubscriptionListEndpoints_UseNextURL(t *testing.T) {
 				resp, err := c.GetSubscriptionPricePointEqualizations(
 					ctx,
 					"price-1",
-					WithSubscriptionPricePointsLimit(200),
+					WithSubscriptionPricePointsLimit(17),
 					WithSubscriptionPricePointsNextURL(next),
 				)
 				if err != nil {

@@ -76,7 +76,8 @@ results to ~800 and completes in seconds instead of 20+ minutes.
 
 Use --price to find a specific customer price, or --min-price/--max-price for
 a range. These filters are applied client-side after fetching. Combine with
---territory and --paginate for best results.
+--territory and --paginate for best results. When --fields is also set, the CLI
+automatically requests customerPrice so the client-side filter remains correct.
 
 Use --stream with --paginate to emit each page as a separate JSON line (NDJSON)
 instead of buffering all pages in memory. This gives immediate feedback and
@@ -119,23 +120,9 @@ Examples:
 				return shared.UsageError("--subscription-id is required")
 			}
 
-			client, err := shared.GetASCClient()
-			if err != nil {
-				return fmt.Errorf("subscriptions price-points list: %w", err)
-			}
-
-			if strings.TrimSpace(*next) == "" {
-				id, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, id)
-				if err != nil {
-					return err
-				}
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			territoryFilter := strings.TrimSpace(*territory)
 			if territoryFilter != "" {
+				var err error
 				territoryFilter, err = ascterritory.Normalize(territoryFilter)
 				if err != nil {
 					return shared.UsageError(err.Error())
@@ -153,6 +140,9 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+			if priceFilter.HasFilter() && !containsString(selectedFields, "customerPrice") {
+				selectedFields = append(selectedFields, "customerPrice")
+			}
 			selectedTerritoryFields, err := normalizeOptionalSelection(fs, "territory-fields", *territoryFields, []string{"currency"})
 			if err != nil {
 				return shared.UsageError(err.Error())
@@ -162,20 +152,34 @@ Examples:
 				return shared.UsageError(err.Error())
 			}
 
-			opts := []asc.SubscriptionPricePointsOption{
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("subscriptions price-points list: %w", err)
+			}
+
+			if strings.TrimSpace(*next) == "" {
+				id, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, id)
+				if err != nil {
+					return err
+				}
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			baseOpts := []asc.SubscriptionPricePointsOption{
 				asc.WithSubscriptionPricePointsTerritory(territoryFilter),
 				asc.WithSubscriptionPricePointsUpfrontPricePointIDs(upfrontIDs),
 				asc.WithSubscriptionPricePointsPlanTypes(plans),
 				asc.WithSubscriptionPricePointsFields(selectedFields),
 				asc.WithSubscriptionPricePointsTerritoryFields(selectedTerritoryFields),
 				asc.WithSubscriptionPricePointsInclude(selectedIncludes),
-				asc.WithSubscriptionPricePointsLimit(*limit),
-				asc.WithSubscriptionPricePointsNextURL(*next),
 			}
+			opts := append(baseOpts, asc.WithSubscriptionPricePointsLimit(*limit), asc.WithSubscriptionPricePointsNextURL(*next))
 
 			if *paginate && *stream {
 				// Streaming mode: emit each page as a separate JSON line
-				paginateOpts := append(opts, asc.WithSubscriptionPricePointsLimit(200))
+				paginateOpts := append(baseOpts, asc.WithSubscriptionPricePointsLimit(200), asc.WithSubscriptionPricePointsNextURL(*next))
 				firstPageCtx, firstPageCancel := shared.ContextWithTimeout(ctx)
 				page, err := client.GetSubscriptionPricePoints(firstPageCtx, id, paginateOpts...)
 				firstPageCancel()
@@ -188,7 +192,7 @@ Examples:
 					func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 						pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 						defer pageCancel()
-						pageOpts := append(opts, asc.WithSubscriptionPricePointsNextURL(nextURL))
+						pageOpts := append(baseOpts, asc.WithSubscriptionPricePointsNextURL(nextURL))
 						return client.GetSubscriptionPricePoints(pageCtx, id, pageOpts...)
 					},
 					func(page asc.PaginatedResponse) error {
@@ -205,7 +209,7 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionPricePointsLimit(200))
+				paginateOpts := append(baseOpts, asc.WithSubscriptionPricePointsLimit(200), asc.WithSubscriptionPricePointsNextURL(*next))
 				firstPageCtx, firstPageCancel := shared.ContextWithTimeout(ctx)
 				firstPage, err := client.GetSubscriptionPricePoints(firstPageCtx, id, paginateOpts...)
 				firstPageCancel()
@@ -216,7 +220,7 @@ Examples:
 				resp, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 					defer pageCancel()
-					pageOpts := append(opts, asc.WithSubscriptionPricePointsNextURL(nextURL))
+					pageOpts := append(baseOpts, asc.WithSubscriptionPricePointsNextURL(nextURL))
 					return client.GetSubscriptionPricePoints(pageCtx, id, pageOpts...)
 				})
 				if err != nil {
@@ -245,6 +249,15 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 // filterSubscriptionPricePoints removes data entries that don't match the price filter.

@@ -519,6 +519,11 @@ func mergeSubscriptionPricePointsQuery(rawURL string, query *subscriptionPricePo
 		return "", fmt.Errorf("build subscription price points query: %w", err)
 	}
 	for key, items := range extra {
+		// Pagination URLs are opaque cursors. Preserve Apple's page-size choice
+		// instead of replacing it with the caller's first-page limit.
+		if key == "limit" {
+			continue
+		}
 		values.Del(key)
 		for _, item := range items {
 			values.Add(key, item)

@@ -73,6 +73,9 @@ func TestAgeRatingEditSendsSocialMediaFields(t *testing.T) {
 	if response.Data.Attributes.SocialMedia == nil || !*response.Data.Attributes.SocialMedia {
 		t.Fatalf("expected socialMedia=true output, got %#v", response.Data.Attributes.SocialMedia)
 	}
+	if response.Data.Attributes.SocialMediaAgeRestricted == nil || *response.Data.Attributes.SocialMediaAgeRestricted {
+		t.Fatalf("expected socialMediaAgeRestricted=false output, got %#v", response.Data.Attributes.SocialMediaAgeRestricted)
+	}
 }
 
 func TestAgeRatingEditInvalidSocialMediaReturnsUsageExit(t *testing.T) {
