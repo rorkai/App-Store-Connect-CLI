@@ -1,7 +1,6 @@
 package asc
 
 import (
-	"fmt"
 	"net/url"
 	"strings"
 )
@@ -30,8 +29,36 @@ type SubscriptionOfferCodeCustomCodesOption func(*subscriptionOfferCodeCustomCod
 // SubscriptionOfferCodePricesOption is a functional option for offer code prices list endpoints.
 type SubscriptionOfferCodePricesOption func(*subscriptionOfferCodePricesQuery)
 
-// SubscriptionPricePointsOption is a functional option for subscription price point list endpoints.
-type SubscriptionPricePointsOption func(*subscriptionPricePointsQuery)
+// SubscriptionPricePointsOption configures the subscription-scoped price-points endpoint.
+// It intentionally excludes equalization-only filters such as filter[subscription].
+type SubscriptionPricePointsOption interface {
+	applySubscriptionPricePoints(*subscriptionPricePointsQuery)
+	subscriptionPricePointsOption()
+}
+
+// SubscriptionPricePointEqualizationsOption configures equalizations and adjusted-equalizations endpoints.
+type SubscriptionPricePointEqualizationsOption interface {
+	applySubscriptionPricePoints(*subscriptionPricePointsQuery)
+	subscriptionPricePointEqualizationsOption()
+}
+
+// SubscriptionPricePointsCommonOption is accepted by both subscription-scoped and equalization endpoints.
+type SubscriptionPricePointsCommonOption func(*subscriptionPricePointsQuery)
+
+func (option SubscriptionPricePointsCommonOption) applySubscriptionPricePoints(query *subscriptionPricePointsQuery) {
+	option(query)
+}
+
+func (SubscriptionPricePointsCommonOption) subscriptionPricePointsOption()             {}
+func (SubscriptionPricePointsCommonOption) subscriptionPricePointEqualizationsOption() {}
+
+type subscriptionPricePointEqualizationsOnlyOption func(*subscriptionPricePointsQuery)
+
+func (option subscriptionPricePointEqualizationsOnlyOption) applySubscriptionPricePoints(query *subscriptionPricePointsQuery) {
+	option(query)
+}
+
+func (subscriptionPricePointEqualizationsOnlyOption) subscriptionPricePointEqualizationsOption() {}
 
 // SubscriptionPricesOption is a functional option for subscription price list endpoints.
 type SubscriptionPricesOption func(*subscriptionPricesQuery)
@@ -273,79 +300,79 @@ func WithSubscriptionOfferCodePricesNextURL(next string) SubscriptionOfferCodePr
 }
 
 // WithSubscriptionPricePointsLimit sets the max number of price points to return.
-func WithSubscriptionPricePointsLimit(limit int) SubscriptionPricePointsOption {
-	return func(q *subscriptionPricePointsQuery) {
+func WithSubscriptionPricePointsLimit(limit int) SubscriptionPricePointsCommonOption {
+	return SubscriptionPricePointsCommonOption(func(q *subscriptionPricePointsQuery) {
 		if limit > 0 {
 			q.limit = limit
 		}
-	}
+	})
 }
 
 // WithSubscriptionPricePointsNextURL uses a next page URL directly.
-func WithSubscriptionPricePointsNextURL(next string) SubscriptionPricePointsOption {
-	return func(q *subscriptionPricePointsQuery) {
+func WithSubscriptionPricePointsNextURL(next string) SubscriptionPricePointsCommonOption {
+	return SubscriptionPricePointsCommonOption(func(q *subscriptionPricePointsQuery) {
 		if strings.TrimSpace(next) != "" {
 			q.nextURL = strings.TrimSpace(next)
 		}
-	}
+	})
 }
 
 // WithSubscriptionPricePointsTerritory filters price points by territory (e.g., "USA").
-func WithSubscriptionPricePointsTerritory(territory string) SubscriptionPricePointsOption {
-	return func(q *subscriptionPricePointsQuery) {
+func WithSubscriptionPricePointsTerritory(territory string) SubscriptionPricePointsCommonOption {
+	return SubscriptionPricePointsCommonOption(func(q *subscriptionPricePointsQuery) {
 		if strings.TrimSpace(territory) != "" {
 			q.territories = []string{strings.ToUpper(strings.TrimSpace(territory))}
 		}
-	}
+	})
 }
 
 // WithSubscriptionPricePointsTerritories filters price points by territory IDs.
-func WithSubscriptionPricePointsTerritories(territories []string) SubscriptionPricePointsOption {
-	return func(q *subscriptionPricePointsQuery) {
+func WithSubscriptionPricePointsTerritories(territories []string) SubscriptionPricePointsCommonOption {
+	return SubscriptionPricePointsCommonOption(func(q *subscriptionPricePointsQuery) {
 		q.territories = normalizeList(territories)
-	}
+	})
 }
 
 // WithSubscriptionPricePointsSubscriptions filters equalizations by subscription IDs.
-func WithSubscriptionPricePointsSubscriptions(subscriptionIDs []string) SubscriptionPricePointsOption {
-	return func(q *subscriptionPricePointsQuery) {
+func WithSubscriptionPricePointsSubscriptions(subscriptionIDs []string) SubscriptionPricePointEqualizationsOption {
+	return subscriptionPricePointEqualizationsOnlyOption(func(q *subscriptionPricePointsQuery) {
 		q.subscriptionIDs = normalizeList(subscriptionIDs)
-	}
+	})
 }
 
 // WithSubscriptionPricePointsUpfrontPricePointIDs filters by upfront price point IDs.
-func WithSubscriptionPricePointsUpfrontPricePointIDs(pricePointIDs []string) SubscriptionPricePointsOption {
-	return func(q *subscriptionPricePointsQuery) {
+func WithSubscriptionPricePointsUpfrontPricePointIDs(pricePointIDs []string) SubscriptionPricePointsCommonOption {
+	return SubscriptionPricePointsCommonOption(func(q *subscriptionPricePointsQuery) {
 		q.upfrontPricePointIDs = normalizeList(pricePointIDs)
-	}
+	})
 }
 
 // WithSubscriptionPricePointsPlanTypes filters by billing plan types.
-func WithSubscriptionPricePointsPlanTypes(planTypes []string) SubscriptionPricePointsOption {
-	return func(q *subscriptionPricePointsQuery) {
+func WithSubscriptionPricePointsPlanTypes(planTypes []string) SubscriptionPricePointsCommonOption {
+	return SubscriptionPricePointsCommonOption(func(q *subscriptionPricePointsQuery) {
 		q.planTypes = normalizeList(planTypes)
-	}
+	})
 }
 
 // WithSubscriptionPricePointsInclude sets the relationships to include (e.g., "territory").
-func WithSubscriptionPricePointsInclude(include []string) SubscriptionPricePointsOption {
-	return func(q *subscriptionPricePointsQuery) {
+func WithSubscriptionPricePointsInclude(include []string) SubscriptionPricePointsCommonOption {
+	return SubscriptionPricePointsCommonOption(func(q *subscriptionPricePointsQuery) {
 		q.include = normalizeList(include)
-	}
+	})
 }
 
 // WithSubscriptionPricePointsFields sets fields for returned subscriptionPricePoints resources.
-func WithSubscriptionPricePointsFields(fields []string) SubscriptionPricePointsOption {
-	return func(q *subscriptionPricePointsQuery) {
+func WithSubscriptionPricePointsFields(fields []string) SubscriptionPricePointsCommonOption {
+	return SubscriptionPricePointsCommonOption(func(q *subscriptionPricePointsQuery) {
 		q.pricePointFields = normalizeList(fields)
-	}
+	})
 }
 
 // WithSubscriptionPricePointsTerritoryFields sets fields for included territories.
-func WithSubscriptionPricePointsTerritoryFields(fields []string) SubscriptionPricePointsOption {
-	return func(q *subscriptionPricePointsQuery) {
+func WithSubscriptionPricePointsTerritoryFields(fields []string) SubscriptionPricePointsCommonOption {
+	return SubscriptionPricePointsCommonOption(func(q *subscriptionPricePointsQuery) {
 		q.territoryFields = normalizeList(fields)
-	}
+	})
 }
 
 // WithSubscriptionPricesLimit sets the max number of prices to return.
@@ -508,29 +535,10 @@ func buildSubscriptionPricePointsQuery(query *subscriptionPricePointsQuery) stri
 	return values.Encode()
 }
 
-func mergeSubscriptionPricePointsQuery(rawURL string, query *subscriptionPricePointsQuery) (string, error) {
-	parsed, err := url.Parse(rawURL)
-	if err != nil {
-		return "", fmt.Errorf("invalid pagination URL: %w", err)
-	}
-	values := parsed.Query()
-	extra, err := url.ParseQuery(buildSubscriptionPricePointsQuery(query))
-	if err != nil {
-		return "", fmt.Errorf("build subscription price points query: %w", err)
-	}
-	for key, items := range extra {
-		// Pagination URLs are opaque cursors. Preserve Apple's page-size choice
-		// instead of replacing it with the caller's first-page limit.
-		if key == "limit" {
-			continue
-		}
-		values.Del(key)
-		for _, item := range items {
-			values.Add(key, item)
-		}
-	}
-	parsed.RawQuery = values.Encode()
-	return parsed.String(), nil
+func subscriptionPricePointsQueryHasModifiers(query *subscriptionPricePointsQuery) bool {
+	return query.limit != 0 || len(query.territories) != 0 || len(query.subscriptionIDs) != 0 ||
+		len(query.upfrontPricePointIDs) != 0 || len(query.planTypes) != 0 || len(query.include) != 0 ||
+		len(query.pricePointFields) != 0 || len(query.territoryFields) != 0
 }
 
 func buildSubscriptionPricesQuery(query *subscriptionPricesQuery) string {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -259,7 +260,6 @@ func TestSubscriptionListEndpoints_UseNextURL(t *testing.T) {
 				resp, err := c.GetSubscriptionPricePointEqualizations(
 					ctx,
 					"price-1",
-					WithSubscriptionPricePointsLimit(17),
 					WithSubscriptionPricePointsNextURL(next),
 				)
 				if err != nil {
@@ -301,6 +301,22 @@ func TestSubscriptionListEndpoints_UseNextURL(t *testing.T) {
 
 			tt.call(t, client, tt.next)
 		})
+	}
+}
+
+func TestSubscriptionPricePointNextURLRejectsQueryModifiers(t *testing.T) {
+	client := newTestClient(t, func(req *http.Request) {
+		t.Fatalf("unexpected request: %s", req.URL.String())
+	}, jsonResponse(http.StatusOK, `{"data":[]}`))
+	next := "https://api.appstoreconnect.apple.com/v1/subscriptionPricePoints/price-1/equalizations?cursor=abc&limit=200"
+
+	if _, err := client.GetSubscriptionPricePointEqualizations(
+		context.Background(),
+		"price-1",
+		WithSubscriptionPricePointsNextURL(next),
+		WithSubscriptionPricePointsLimit(17),
+	); err == nil || !strings.Contains(err.Error(), "next URL cannot be combined") {
+		t.Fatalf("error = %v, want next URL conflict", err)
 	}
 }
 

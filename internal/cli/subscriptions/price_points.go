@@ -151,6 +151,10 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+			if strings.TrimSpace(*next) != "" && (*limit != 0 || territoryFilter != "" || len(upfrontIDs) != 0 || len(plans) != 0 ||
+				len(selectedFields) != 0 || len(selectedTerritoryFields) != 0 || len(selectedIncludes) != 0) {
+				return shared.UsageError("--next cannot be combined with --limit, API filters, --fields, --territory-fields, or --include")
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -179,7 +183,10 @@ Examples:
 
 			if *paginate && *stream {
 				// Streaming mode: emit each page as a separate JSON line
-				paginateOpts := append(baseOpts, asc.WithSubscriptionPricePointsLimit(200), asc.WithSubscriptionPricePointsNextURL(*next))
+				paginateOpts := []asc.SubscriptionPricePointsOption{asc.WithSubscriptionPricePointsNextURL(*next)}
+				if strings.TrimSpace(*next) == "" {
+					paginateOpts = append(baseOpts, asc.WithSubscriptionPricePointsLimit(200))
+				}
 				firstPageCtx, firstPageCancel := shared.ContextWithTimeout(ctx)
 				page, err := client.GetSubscriptionPricePoints(firstPageCtx, id, paginateOpts...)
 				firstPageCancel()
@@ -192,7 +199,7 @@ Examples:
 					func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 						pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 						defer pageCancel()
-						pageOpts := append(baseOpts, asc.WithSubscriptionPricePointsNextURL(nextURL))
+						pageOpts := []asc.SubscriptionPricePointsOption{asc.WithSubscriptionPricePointsNextURL(nextURL)}
 						return client.GetSubscriptionPricePoints(pageCtx, id, pageOpts...)
 					},
 					func(page asc.PaginatedResponse) error {
@@ -209,7 +216,10 @@ Examples:
 			}
 
 			if *paginate {
-				paginateOpts := append(baseOpts, asc.WithSubscriptionPricePointsLimit(200), asc.WithSubscriptionPricePointsNextURL(*next))
+				paginateOpts := []asc.SubscriptionPricePointsOption{asc.WithSubscriptionPricePointsNextURL(*next)}
+				if strings.TrimSpace(*next) == "" {
+					paginateOpts = append(baseOpts, asc.WithSubscriptionPricePointsLimit(200))
+				}
 				firstPageCtx, firstPageCancel := shared.ContextWithTimeout(ctx)
 				firstPage, err := client.GetSubscriptionPricePoints(firstPageCtx, id, paginateOpts...)
 				firstPageCancel()
@@ -220,7 +230,7 @@ Examples:
 				resp, err := asc.PaginateAll(ctx, firstPage, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 					pageCtx, pageCancel := shared.ContextWithTimeout(ctx)
 					defer pageCancel()
-					pageOpts := append(baseOpts, asc.WithSubscriptionPricePointsNextURL(nextURL))
+					pageOpts := []asc.SubscriptionPricePointsOption{asc.WithSubscriptionPricePointsNextURL(nextURL)}
 					return client.GetSubscriptionPricePoints(pageCtx, id, pageOpts...)
 				})
 				if err != nil {
@@ -435,6 +445,10 @@ Examples:
 		if err != nil {
 			return shared.UsageError(err.Error())
 		}
+		if strings.TrimSpace(*next) != "" && (*limit != 0 || len(territories) != 0 || len(subscriptions) != 0 || len(upfrontIDs) != 0 ||
+			len(plans) != 0 || len(selectedFields) != 0 || len(selectedTerritoryFields) != 0 || len(selectedIncludes) != 0) {
+			return shared.UsageError("--next cannot be combined with --limit, API filters, --fields, --territory-fields, or --include")
+		}
 
 		client, err := shared.GetASCClient()
 		if err != nil {
@@ -445,16 +459,20 @@ Examples:
 		defer cancel()
 
 		fetchPage := func(pageCtx context.Context, nextURL string, pageLimit int) (asc.PaginatedResponse, error) {
-			opts := []asc.SubscriptionPricePointsOption{
-				asc.WithSubscriptionPricePointsTerritories(territories),
-				asc.WithSubscriptionPricePointsSubscriptions(subscriptions),
-				asc.WithSubscriptionPricePointsUpfrontPricePointIDs(upfrontIDs),
-				asc.WithSubscriptionPricePointsPlanTypes(plans),
-				asc.WithSubscriptionPricePointsFields(selectedFields),
-				asc.WithSubscriptionPricePointsTerritoryFields(selectedTerritoryFields),
-				asc.WithSubscriptionPricePointsInclude(selectedIncludes),
-				asc.WithSubscriptionPricePointsLimit(pageLimit),
-				asc.WithSubscriptionPricePointsNextURL(nextURL),
+			var opts []asc.SubscriptionPricePointEqualizationsOption
+			if strings.TrimSpace(nextURL) != "" {
+				opts = []asc.SubscriptionPricePointEqualizationsOption{asc.WithSubscriptionPricePointsNextURL(nextURL)}
+			} else {
+				opts = []asc.SubscriptionPricePointEqualizationsOption{
+					asc.WithSubscriptionPricePointsTerritories(territories),
+					asc.WithSubscriptionPricePointsSubscriptions(subscriptions),
+					asc.WithSubscriptionPricePointsUpfrontPricePointIDs(upfrontIDs),
+					asc.WithSubscriptionPricePointsPlanTypes(plans),
+					asc.WithSubscriptionPricePointsFields(selectedFields),
+					asc.WithSubscriptionPricePointsTerritoryFields(selectedTerritoryFields),
+					asc.WithSubscriptionPricePointsInclude(selectedIncludes),
+					asc.WithSubscriptionPricePointsLimit(pageLimit),
+				}
 			}
 			if adjusted {
 				return client.GetSubscriptionPricePointAdjustedEqualizations(pageCtx, id, opts...)

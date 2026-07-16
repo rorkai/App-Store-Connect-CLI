@@ -166,6 +166,7 @@ func TestSubscriptionsAdjustedEqualizationsUsageErrors(t *testing.T) {
 		{name: "empty plan type", args: []string{"subscriptions", "pricing", "price-points", "adjusted-equalizations", "--price-point-id", "base-1", "--plan-type", ""}, want: "invalid value for --plan-type: cannot be empty"},
 		{name: "unsupported adjusted plan type", args: []string{"subscriptions", "pricing", "price-points", "adjusted-equalizations", "--price-point-id", "base-1", "--plan-type", "UPFRONT"}, want: "--plan-type must be MONTHLY for adjusted equalizations"},
 		{name: "invalid territory fields", args: []string{"subscriptions", "pricing", "price-points", "adjusted-equalizations", "--price-point-id", "base-1", "--territory-fields", "name"}, want: "--territory-fields must be one of: currency"},
+		{name: "next with filter", args: []string{"subscriptions", "pricing", "price-points", "adjusted-equalizations", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionPricePoints/base-1/adjustedEqualizations?cursor=next", "--territory", "USA"}, want: "--next cannot be combined"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -186,6 +187,20 @@ func TestSubscriptionsPricePointsListValidates441FlagsBeforeLookup(t *testing.T)
 		"--subscription-id", "human-readable-product-id",
 		"--fields", "bogus",
 	}, "--fields must be one of")
+}
+
+func TestSubscriptionsPricePointsListRejectsNextQueryConflictsBeforeLookup(t *testing.T) {
+	setupAuth(t)
+	installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("next conflicts must fail before HTTP lookup: %s %s", req.Method, req.URL)
+		return nil, nil
+	}))
+
+	assertUsageExit(t, []string{
+		"subscriptions", "pricing", "price-points", "list",
+		"--next", "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/pricePoints?cursor=next",
+		"--fields", "customerPrice",
+	}, "--next cannot be combined")
 }
 
 func TestSubscriptionsPricePointsListKeepsCustomerPriceForClientSideFiltering(t *testing.T) {

@@ -920,7 +920,7 @@ func (c *Client) GetSubscriptionPrices(ctx context.Context, subscriptionID strin
 func (c *Client) GetSubscriptionPricePoints(ctx context.Context, subscriptionID string, opts ...SubscriptionPricePointsOption) (*SubscriptionPricePointsResponse, error) {
 	query := &subscriptionPricePointsQuery{}
 	for _, opt := range opts {
-		opt(query)
+		opt.applySubscriptionPricePoints(query)
 	}
 
 	path := fmt.Sprintf("/v1/subscriptions/%s/pricePoints", strings.TrimSpace(subscriptionID))
@@ -928,11 +928,10 @@ func (c *Client) GetSubscriptionPricePoints(ctx context.Context, subscriptionID 
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionPricePoints: %w", err)
 		}
-		mergedPath, err := mergeSubscriptionPricePointsQuery(query.nextURL, query)
-		if err != nil {
-			return nil, fmt.Errorf("subscriptionPricePoints: %w", err)
+		if subscriptionPricePointsQueryHasModifiers(query) {
+			return nil, fmt.Errorf("subscriptionPricePoints: next URL cannot be combined with query options")
 		}
-		path = mergedPath
+		path = query.nextURL
 	} else if queryString := buildSubscriptionPricePointsQuery(query); queryString != "" {
 		path += "?" + queryString
 	}
@@ -965,10 +964,10 @@ func (c *Client) GetSubscriptionPricePoint(ctx context.Context, pricePointID str
 }
 
 // GetSubscriptionPricePointEqualizations retrieves equalizations for a price point.
-func (c *Client) GetSubscriptionPricePointEqualizations(ctx context.Context, pricePointID string, opts ...SubscriptionPricePointsOption) (*SubscriptionPricePointsResponse, error) {
+func (c *Client) GetSubscriptionPricePointEqualizations(ctx context.Context, pricePointID string, opts ...SubscriptionPricePointEqualizationsOption) (*SubscriptionPricePointsResponse, error) {
 	query := &subscriptionPricePointsQuery{}
 	for _, opt := range opts {
-		opt(query)
+		opt.applySubscriptionPricePoints(query)
 	}
 
 	path := fmt.Sprintf("/v1/subscriptionPricePoints/%s/equalizations", strings.TrimSpace(pricePointID))
@@ -976,11 +975,10 @@ func (c *Client) GetSubscriptionPricePointEqualizations(ctx context.Context, pri
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionPricePointEqualizations: %w", err)
 		}
-		mergedPath, err := mergeSubscriptionPricePointsQuery(query.nextURL, query)
-		if err != nil {
-			return nil, fmt.Errorf("subscriptionPricePointEqualizations: %w", err)
+		if subscriptionPricePointsQueryHasModifiers(query) {
+			return nil, fmt.Errorf("subscriptionPricePointEqualizations: next URL cannot be combined with query options")
 		}
-		path = mergedPath
+		path = query.nextURL
 	} else if queryString := buildSubscriptionPricePointsQuery(query); queryString != "" {
 		path += "?" + queryString
 	}
@@ -998,10 +996,10 @@ func (c *Client) GetSubscriptionPricePointEqualizations(ctx context.Context, pri
 }
 
 // GetSubscriptionPricePointAdjustedEqualizations retrieves adjusted equalizations for a price point.
-func (c *Client) GetSubscriptionPricePointAdjustedEqualizations(ctx context.Context, pricePointID string, opts ...SubscriptionPricePointsOption) (*SubscriptionPricePointsResponse, error) {
+func (c *Client) GetSubscriptionPricePointAdjustedEqualizations(ctx context.Context, pricePointID string, opts ...SubscriptionPricePointEqualizationsOption) (*SubscriptionPricePointsResponse, error) {
 	query := &subscriptionPricePointsQuery{}
 	for _, opt := range opts {
-		opt(query)
+		opt.applySubscriptionPricePoints(query)
 	}
 
 	pricePointID = strings.TrimSpace(pricePointID)
@@ -1014,11 +1012,10 @@ func (c *Client) GetSubscriptionPricePointAdjustedEqualizations(ctx context.Cont
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionPricePointAdjustedEqualizations: %w", err)
 		}
-		mergedPath, err := mergeSubscriptionPricePointsQuery(query.nextURL, query)
-		if err != nil {
-			return nil, fmt.Errorf("subscriptionPricePointAdjustedEqualizations: %w", err)
+		if subscriptionPricePointsQueryHasModifiers(query) {
+			return nil, fmt.Errorf("subscriptionPricePointAdjustedEqualizations: next URL cannot be combined with query options")
 		}
-		path = mergedPath
+		path = query.nextURL
 	} else if queryString := buildSubscriptionPricePointsQuery(query); queryString != "" {
 		path += "?" + queryString
 	}
