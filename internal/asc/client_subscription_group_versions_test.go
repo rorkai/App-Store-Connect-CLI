@@ -209,6 +209,15 @@ func TestSubscriptionGroupVersionsUsesValidatedNextURL(t *testing.T) {
 	}
 }
 
+func TestGetSubscriptionGroupRejectsEmptyIDBeforeHTTP(t *testing.T) {
+	client := newTestClient(t, func(req *http.Request) {
+		t.Fatalf("unexpected HTTP request: %s %s", req.Method, req.URL)
+	}, jsonResponse(http.StatusOK, `{"data":{"type":"subscriptionGroups","id":"group-1"}}`))
+	if _, err := client.GetSubscriptionGroup(context.Background(), "   "); err == nil || !strings.Contains(err.Error(), "groupID is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestCreateSubscriptionGroupVersionPropagatesAPIError(t *testing.T) {
 	client := newTestClient(t, nil, jsonResponse(http.StatusConflict, `{"errors":[{"status":"409","code":"ENTITY_ERROR.RELATIONSHIP.INVALID","detail":"A draft version already exists."}]}`))
 	_, err := client.CreateSubscriptionGroupVersion(context.Background(), "group-1")

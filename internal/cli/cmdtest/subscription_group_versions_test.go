@@ -23,8 +23,10 @@ func TestSubscriptionGroupVersionsValidationErrors(t *testing.T) {
 		{"list requires group", []string{"subscriptions", "groups", "versions", "list"}, "--group-id is required"},
 		{"list validates state", []string{"subscriptions", "groups", "versions", "list", "--group-id", "group-1", "--state", "NOPE"}, "--state must be one of"},
 		{"list validates include", []string{"subscriptions", "groups", "versions", "list", "--group-id", "group-1", "--include", "subscriptions"}, "--include must be one of"},
+		{"list rejects query flags with next", []string{"subscriptions", "groups", "versions", "list", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/versions?cursor=next", "--state", "READY_FOR_REVIEW"}, "--next cannot be combined with query flags"},
 		{"view requires version", []string{"subscriptions", "groups", "versions", "view"}, "--version-id is required"},
 		{"localizations list requires version", []string{"subscriptions", "groups", "versions", "localizations", "list"}, "--version-id is required"},
+		{"localizations list rejects query flags with next", []string{"subscriptions", "groups", "versions", "localizations", "list", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroupVersions/version-1/localizations?cursor=next", "--include", "version"}, "--next cannot be combined with query flags"},
 		{"localization create requires version", []string{"subscriptions", "groups", "versions", "localizations", "create", "--name", "Premium", "--locale", "en-US"}, "--version-id is required"},
 		{"localization view requires id", []string{"subscriptions", "groups", "versions", "localizations", "view"}, "--id is required"},
 		{"localization update requires a change", []string{"subscriptions", "groups", "versions", "localizations", "update", "--id", "loc-1"}, "at least one update flag is required"},
@@ -32,6 +34,17 @@ func TestSubscriptionGroupVersionsValidationErrors(t *testing.T) {
 		{"localization delete requires confirm", []string{"subscriptions", "groups", "versions", "localizations", "delete", "--id", "loc-1"}, "--confirm is required"},
 		{"links versions requires group", []string{"subscriptions", "groups", "versions", "links", "versions"}, "--group-id is required"},
 		{"links localizations requires version", []string{"subscriptions", "groups", "versions", "links", "localizations"}, "--version-id is required"},
+		{"links reject limit with next", []string{"subscriptions", "groups", "versions", "links", "versions", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptionGroups/group-1/relationships/versions?cursor=next", "--limit", "5"}, "--next cannot be combined with --limit"},
+		{"create rejects positional args", []string{"subscriptions", "groups", "versions", "create", "--group-id", "group-1", "unexpected"}, "unexpected argument"},
+		{"list rejects positional args", []string{"subscriptions", "groups", "versions", "list", "--group-id", "group-1", "unexpected"}, "unexpected argument"},
+		{"view rejects positional args", []string{"subscriptions", "groups", "versions", "view", "--version-id", "version-1", "unexpected"}, "unexpected argument"},
+		{"localization list rejects positional args", []string{"subscriptions", "groups", "versions", "localizations", "list", "--version-id", "version-1", "unexpected"}, "unexpected argument"},
+		{"localization create rejects positional args", []string{"subscriptions", "groups", "versions", "localizations", "create", "--version-id", "version-1", "--name", "Premium", "--locale", "en-US", "unexpected"}, "unexpected argument"},
+		{"localization view rejects positional args", []string{"subscriptions", "groups", "versions", "localizations", "view", "--id", "loc-1", "unexpected"}, "unexpected argument"},
+		{"localization update rejects positional args", []string{"subscriptions", "groups", "versions", "localizations", "update", "--id", "loc-1", "--name", "Premium", "unexpected"}, "unexpected argument"},
+		{"localization delete rejects positional args", []string{"subscriptions", "groups", "versions", "localizations", "delete", "--id", "loc-1", "--confirm", "unexpected"}, "unexpected argument"},
+		{"versions links reject positional args", []string{"subscriptions", "groups", "versions", "links", "versions", "--group-id", "group-1", "unexpected"}, "unexpected argument"},
+		{"localizations links reject positional args", []string{"subscriptions", "groups", "versions", "links", "localizations", "--version-id", "version-1", "unexpected"}, "unexpected argument"},
 	}
 
 	for _, test := range tests {
@@ -54,6 +67,23 @@ func TestSubscriptionGroupVersionsValidationErrors(t *testing.T) {
 				t.Fatalf("expected stderr to contain %q, got %q", test.wantErr, stderr)
 			}
 		})
+	}
+}
+
+func TestSubscriptionGroupsListRejectsVersionQueryFlagsWithNext(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"subscriptions", "groups", "list", "--next", "https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=next", "--include", "versions"}); err != nil {
+			t.Fatal(err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+	if !strings.Contains(stderr, "--next cannot be combined with query flags") {
+		t.Fatalf("unexpected stderr: %q", stderr)
 	}
 }
 

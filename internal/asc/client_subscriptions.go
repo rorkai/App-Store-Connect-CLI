@@ -76,12 +76,16 @@ func (c *Client) CreateSubscriptionGroup(ctx context.Context, appID string, attr
 
 // GetSubscriptionGroup retrieves a subscription group by ID.
 func (c *Client) GetSubscriptionGroup(ctx context.Context, groupID string, opts ...SubscriptionGroupsOption) (*SubscriptionGroupResponse, error) {
+	groupID = strings.TrimSpace(groupID)
+	if groupID == "" {
+		return nil, fmt.Errorf("groupID is required")
+	}
 	query := &subscriptionGroupsQuery{}
 	for _, opt := range opts {
 		opt(query)
 	}
 
-	path := fmt.Sprintf("/v1/subscriptionGroups/%s", strings.TrimSpace(groupID))
+	path := fmt.Sprintf("/v1/subscriptionGroups/%s", groupID)
 	if queryString := buildSubscriptionGroupsQuery(query); queryString != "" {
 		path += "?" + queryString
 	}

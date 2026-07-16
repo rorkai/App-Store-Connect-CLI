@@ -76,11 +76,17 @@ func SubscriptionsGroupsVersionLocalizationsListCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc subscriptions groups versions localizations list --version-id "VERSION_ID" [flags]`, ShortHelp: "List localizations for a subscription group version.",
 		LongHelp: "List localizations for a subscription group version.\n\nExamples:\n  asc subscriptions groups versions localizations list --version-id \"VERSION_ID\" --paginate", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, _ []string) error {
+		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectSubscriptionGroupVersionArgs(args); err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*versionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
 				return shared.MissingRequiredUsageError()
+			}
+			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "include", "fields", "version-fields", "limit") {
+				return shared.UsageError("subscriptions groups versions localizations list: --next cannot be combined with query flags")
 			}
 			opts, err := subscriptionGroupVersionLocalizationOptions(*include, *fields, *versionFields, *limit, *next)
 			if err != nil {
@@ -121,7 +127,10 @@ func SubscriptionsGroupsVersionLocalizationsCreateCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name: "create", ShortUsage: `asc subscriptions groups versions localizations create --version-id "VERSION_ID" --name "Premium" --locale "en-US"`, ShortHelp: "Create a localization for a subscription group version.",
 		LongHelp: "Create a localization for a subscription group version.\n\nExamples:\n  asc subscriptions groups versions localizations create --version-id \"VERSION_ID\" --name \"Premium\" --locale \"en-US\"", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, _ []string) error {
+		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectSubscriptionGroupVersionArgs(args); err != nil {
+				return err
+			}
 			vid := strings.TrimSpace(*versionID)
 			if vid == "" {
 				fmt.Fprintln(os.Stderr, "Error: --version-id is required")
@@ -165,7 +174,10 @@ func SubscriptionsGroupsVersionLocalizationsViewCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name: "view", ShortUsage: `asc subscriptions groups versions localizations view --id "LOCALIZATION_ID"`, ShortHelp: "View a version-scoped subscription group localization.", LongHelp: "View a version-scoped subscription group localization.",
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, _ []string) error {
+		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectSubscriptionGroupVersionArgs(args); err != nil {
+				return err
+			}
 			value := strings.TrimSpace(*id)
 			if value == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -212,7 +224,10 @@ func SubscriptionsGroupsVersionLocalizationsUpdateCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name: "update", ShortUsage: `asc subscriptions groups versions localizations update --id "LOCALIZATION_ID" [flags]`, ShortHelp: "Update a version-scoped subscription group localization.",
 		LongHelp: "Update a version-scoped subscription group localization.\n\nExamples:\n  asc subscriptions groups versions localizations update --id \"LOCALIZATION_ID\" --name \"Premium Plus\"\n  asc subscriptions groups versions localizations update --id \"LOCALIZATION_ID\" --clear-custom-app-name", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, _ []string) error {
+		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectSubscriptionGroupVersionArgs(args); err != nil {
+				return err
+			}
 			value := strings.TrimSpace(*id)
 			if value == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -269,7 +284,10 @@ func SubscriptionsGroupsVersionLocalizationsDeleteCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name: "delete", ShortUsage: `asc subscriptions groups versions localizations delete --id "LOCALIZATION_ID" --confirm`, ShortHelp: "Delete a version-scoped subscription group localization.", LongHelp: "Delete a version-scoped subscription group localization.",
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
-		Exec: func(ctx context.Context, _ []string) error {
+		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectSubscriptionGroupVersionArgs(args); err != nil {
+				return err
+			}
 			value := strings.TrimSpace(*id)
 			if value == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")

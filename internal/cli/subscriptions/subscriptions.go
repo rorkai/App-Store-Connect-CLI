@@ -130,6 +130,9 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions groups list: %w", err)
 			}
+			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "limit", "include", "fields", "version-fields", "versions-limit") {
+				return shared.UsageError("subscriptions groups list: --next cannot be combined with query flags")
+			}
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
 				return shared.UsageError("subscriptions groups list: --versions-limit must be between 1 and 50")
 			}
