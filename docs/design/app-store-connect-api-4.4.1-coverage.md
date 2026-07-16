@@ -68,12 +68,12 @@ recorded here are the exact commits used to reconcile this ledger:
 | --- | --- | --- | --- |
 | Relationship-aware schema discovery and stale-index enforcement | #1776 | `aaa9b62d` | Implemented and repository-gated |
 | IAP versions, v2 localizations/images, compatibility, and docs | #1777 | `2b4668b1` | Implemented and repository-gated |
-| Age-rating social-media fields and adjusted equalizations | #1778 | `64e2f1da` | Implemented and repository-gated |
+| Age-rating social-media fields and adjusted equalizations | #1778 | `a00232b3` | Implemented and repository-gated |
 | Subscription versions, v2 localizations/images, compatibility, and docs | #1779 | `aa4856bd` | Implemented and repository-gated |
 | Subscription-group versions, v2 localizations, compatibility, and docs | #1780 | `83f3103e` | Implemented and repository-gated |
 | Cross-cutting review-submission version items and migration notes | #1781 | `77ced0b1` | Implemented and repository-gated |
 | External ASC workflow skills | rorkai/app-store-connect-cli-skills#50 | `5e6fad3d` | Targeted runtime examples green; two optional validators `UNVERIFIED` |
-| Zero-conflict six-PR integration | Local integration audit | `5f486516` | Exact-head format/docs/lint/test/build green |
+| Zero-conflict six-PR integration | Local integration audit | `9fd9a246` | Exact-head format/docs/lint/test/build green |
 
 The hard audit found and fixed contract gaps beyond the initial implementation:
 explicit JSON `null` support for nullable v2 localization updates; endpoint-
@@ -92,6 +92,9 @@ lists and equalizations, with exact-query tests that omit the explicit include.
 The shared pricing CSV parser now rejects separator-only input and any empty
 element for every new pricing flag, with seven CLI cases proving exit 2 before
 authentication.
+Every plan-type CSV value is now enum-validated as `MONTHLY` or `UPFRONT`
+before authentication or HTTP; adjusted equalizations remain `MONTHLY`-only,
+with list and non-adjusted equalization regression cases.
 The subscription-group test hook was moved to a dedicated file, eliminating
 the only genuine #1779/#1780 merge conflict without changing runtime behavior.
 Four group-version list commands now reject an owner ID combined with opaque
@@ -99,7 +102,7 @@ Four group-version list commands now reject an owner ID combined with opaque
 tests.
 
 The external ASC workflow skills are synchronized in draft PR #50 at
-`5e6fad3d`, whose body references exact CLI heads #1778 `64e2f1da` and #1780
+`5e6fad3d`, whose body references exact CLI heads #1778 `a00232b3` and #1780
 `83f3103e`. Rebuilt-head checks pass all three review-item examples, six group
 examples, both pricing/age help paths, opaque-next conflicts, separator-only
 CSV rejection, and value/clear conflicts. The draft is mergeable with no
@@ -107,7 +110,7 @@ review threads and no proven content drift. Its PyYAML and npm-based optional
 validators remain explicitly `UNVERIFIED` because those validators were
 unavailable; targeted runtime evidence covers the changed surface.
 
-The definitive integration at `5f486516` starts from `main` `25b33c17` and
+The definitive integration at `9fd9a246` starts from `main` `25b33c17` and
 combines the six whole PR heads above with zero conflicts and zero manual edits.
 It preserves the exact 37-path, 47-operation, 47-schema, 102-direct,
 71-transitive, 173-contract, 61-modified-schema, and 9-addition/7-deprecation
@@ -115,7 +118,9 @@ counts. All 62 changed or new leaf help paths render, and `make format`, `make
 check-docs`, `make lint`, `ASC_BYPASS_KEYCHAIN=1 make test`, and `make build`
 pass on that exact clean tree. #1778's one unrelated submit-package timing
 failure was classified against the same head; its GitHub package-shard rerun
-passed without a code change.
+passed without a code change. Relative to the prior audited integration, only
+the pricing command and its regression test changed; schema indexes, generated
+artifacts, documentation, counts, and all 62 help surfaces are unchanged.
 
 ## Definition of done
 
@@ -240,7 +245,7 @@ is tracked separately below because the operation object itself is unchanged.
 
 | Method | Path | Required behavior | Disposition | Owner | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| `GET` | `/v1/subscriptionPricePoints/{id}/adjustedEqualizations` | List adjusted equalized price points using the exact territory, subscription, upfront-price-point, and plan-type filters supported by this operation | Implemented typed command | #1778 | `64e2f1da`; exact query/response, strict CSV, territory inclusion, opaque-next, ID validation, aggregation, and conflict tests |
+| `GET` | `/v1/subscriptionPricePoints/{id}/adjustedEqualizations` | List adjusted equalized price points using the exact territory, subscription, upfront-price-point, and plan-type filters supported by this operation | Implemented typed command | #1778 | `a00232b3`; exact query/response, strict CSV/enums, territory inclusion, opaque-next, ID validation, aggregation, and conflict tests |
 
 ## Modified existing contract ledger
 
@@ -258,9 +263,9 @@ change.
 | Subscription reads | Subscription detail and group-subscription reads gain version includes, sparse fields, and relationship limits; subscription sparse fields gain `versions` across related endpoints | #1779 | `aa4856bd`; exact query and compatibility tests |
 | Subscription-group reads | Group detail and app-group collection reads gain version includes, sparse fields, and relationship limits; group sparse fields gain `versions` | #1780 | `83f3103e`; exact query, owner/next validation, and compatibility tests |
 | Review submission reads | Review-item sparse fields and includes gain `inAppPurchaseVersion`, `subscriptionVersion`, and `subscriptionGroupVersion` | #1781 | `77ced0b1`; all four changed GET surfaces, automatic item inclusion, and response round-trip tests |
-| Pricing reads | Price-point sparse fields gain `adjustedEqualizations`; existing equalization and price-point relationship operations gain `filter[upfrontPricePointId]` and `filter[planType]` where allowed | #1778 | `64e2f1da`; endpoint-specific option, exact query, strict CSV, territory inclusion, opaque-next, ID validation, and aggregation tests |
-| Age rating reads and update | Age-rating sparse fields and update schema gain `socialMedia` and `socialMediaAgeRestricted` | #1778 | `64e2f1da`; payload, output, help, and exit-behavior tests |
-| App info reads | `AppInfo.attributes.kidsAgeBand` and `fields[appInfos]=kidsAgeBand` appear as deprecated additions | #1778 | `64e2f1da`; generic decoding/output characterization, no new write path |
+| Pricing reads | Price-point sparse fields gain `adjustedEqualizations`; existing equalization and price-point relationship operations gain `filter[upfrontPricePointId]` and `filter[planType]` where allowed | #1778 | `a00232b3`; endpoint-specific option, exact query, strict CSV/enums, territory inclusion, opaque-next, ID validation, and aggregation tests |
+| Age rating reads and update | Age-rating sparse fields and update schema gain `socialMedia` and `socialMediaAgeRestricted` | #1778 | `a00232b3`; payload, output, help, and exit-behavior tests |
+| App info reads | `AppInfo.attributes.kidsAgeBand` and `fields[appInfos]=kidsAgeBand` appear as deprecated additions | #1778 | `a00232b3`; generic decoding/output characterization, no new write path |
 | Included-resource unions | IAP, subscription, group, and review-submission responses gain their corresponding version resource discriminators | #1777, #1779, #1780, #1781 | `2b4668b1`, `aa4856bd`, `83f3103e`, `77ced0b1`; typed response and included-resource tests |
 
 No existing operation changes from nondeprecated to `deprecated: true` in the
@@ -291,9 +296,9 @@ remained at the immediate pre-PR base.
 
 Still different before the 4.4.1 schema PR:
 
-- [x] `AgeRatingDeclaration` - two social-media Boolean attributes (#1778, `64e2f1da`)
-- [x] `AgeRatingDeclarationUpdateRequest` - two nullable social-media update attributes (#1778, `64e2f1da`)
-- [x] `AppInfo` - deprecated `kidsAgeBand` read attribute (#1778, `64e2f1da`)
+- [x] `AgeRatingDeclaration` - two social-media Boolean attributes (#1778, `a00232b3`)
+- [x] `AgeRatingDeclarationUpdateRequest` - two nullable social-media update attributes (#1778, `a00232b3`)
+- [x] `AppInfo` - deprecated `kidsAgeBand` read attribute (#1778, `a00232b3`)
 - [x] `InAppPurchaseV2` - versions relationship (#1777, `2b4668b1`)
 - [x] `InAppPurchaseV2Response` - included IAP-version discriminator (#1777, `2b4668b1`)
 - [x] `InAppPurchasesV2Response` - included IAP-version discriminator (#1777, `2b4668b1`)
@@ -305,7 +310,7 @@ Still different before the 4.4.1 schema PR:
 - [x] `SubscriptionGroup` - versions relationship (#1780, `83f3103e`)
 - [x] `SubscriptionGroupResponse` - included group-version discriminator (#1780, `83f3103e`)
 - [x] `SubscriptionGroupsResponse` - included group-version discriminator (#1780, `83f3103e`)
-- [x] `SubscriptionPricePoint` - adjusted-equalizations relationship (#1778, `64e2f1da`)
+- [x] `SubscriptionPricePoint` - adjusted-equalizations relationship (#1778, `a00232b3`)
 - [x] `SubscriptionResponse` - included subscription-version discriminator (#1779, `aa4856bd`)
 - [x] `SubscriptionsResponse` - included subscription-version discriminator (#1779, `aa4856bd`)
 
@@ -426,7 +431,7 @@ immediate pre-PR base plus 52 changes already reconciled after the 4.4 import.
 Schema-mediated request-contract changes are listed separately after it and do
 not alter this count.
 
-Age rating and app info (#1778 at `64e2f1da`; sparse-field, typed-decoder,
+Age rating and app info (#1778 at `a00232b3`; sparse-field, typed-decoder,
 payload, output, and compatibility tests):
 
 - [x] `GET /v1/appInfoLocalizations/{id}`
@@ -463,7 +468,7 @@ Review submissions (#1781 at `77ced0b1`; exact sparse-field/include tests plus
 - [x] `GET /v1/reviewSubmissions/{id}/items`
 - [x] `GET /v1/apps/{id}/reviewSubmissions`
 
-Subscriptions, groups, and pricing (#1778 at `64e2f1da`, #1779 at `aa4856bd`,
+Subscriptions, groups, and pricing (#1778 at `a00232b3`, #1779 at `aa4856bd`,
 and #1780 at `83f3103e`; endpoint-exact query, response, compatibility, and
 opaque-pagination tests):
 
@@ -565,7 +570,7 @@ modified response contracts. Together with the 102 directly modified
 operations, they produce 173 unique operation-contract audit items.
 
 Behavior work remaining at the immediate pre-PR base (40), now reconciled.
-`PATCH /v1/ageRatingDeclarations/{id}` is covered by #1778 at `64e2f1da`;
+`PATCH /v1/ageRatingDeclarations/{id}` is covered by #1778 at `a00232b3`;
 review-submission item request/response changes are covered by #1781 at
 `77ced0b1`; IAP, subscription, and group response propagation is covered by
 #1777 at `2b4668b1`, #1779 at `aa4856bd`, and #1780 at `83f3103e`. Checked
@@ -659,8 +664,8 @@ after the original 4.4 import (31):
 | 5 | Version-scoped v2 IAP localizations and images | #1777 | CRUD, explicit-null, and upload lifecycle tests | Implemented at `2b4668b1` |
 | 6 | Version-scoped v2 subscription localizations and images | #1779 | CRUD, explicit-null, and upload lifecycle tests | Implemented at `aa4856bd` |
 | 7 | Version-scoped v2 subscription-group localizations | #1780 | CRUD tests including `customAppName` | Implemented at `83f3103e` |
-| 8 | Adjusted subscription equalizations and new filters | #1778 | Exact query/response, option-scope, strict-CSV, territory-inclusion, opaque-next, ID-validation, and aggregation tests | Implemented at `64e2f1da` |
-| 9 | `socialMedia` and `socialMediaAgeRestricted` age-rating attributes | #1778 | Payload, output, help, and exit-behavior tests | Implemented at `64e2f1da` |
+| 8 | Adjusted subscription equalizations and new filters | #1778 | Exact query/response, option-scope, strict-CSV/enum, territory-inclusion, opaque-next, ID-validation, and aggregation tests | Implemented at `a00232b3` |
+| 9 | `socialMedia` and `socialMediaAgeRestricted` age-rating attributes | #1778 | Payload, output, help, and exit-behavior tests | Implemented at `a00232b3` |
 
 ## Deprecation and migration ledger
 
@@ -684,7 +689,7 @@ migration guidance, and a release-note entry. Removal is outside this goal.
 ## Pull-request sequence and status
 
 1. Schema tooling is implemented in #1776 at `aaa9b62d`.
-2. Age rating and pricing are implemented in #1778 at `64e2f1da`.
+2. Age rating and pricing are implemented in #1778 at `a00232b3`.
 3. IAP versions are implemented in #1777 at `2b4668b1`.
 4. Subscription versions are implemented in #1779 at `aa4856bd`.
 5. Subscription-group versions are implemented in #1780 at `83f3103e`.
@@ -692,7 +697,7 @@ migration guidance, and a release-note entry. Removal is outside this goal.
 7. External workflow skills are synchronized in draft PR #50 at `5e6fad3d`;
    targeted runtime checks are green and two unavailable optional validators are
    recorded as `UNVERIFIED`.
-8. Combined integration is complete at `5f486516`: all six whole PR heads apply
+8. Combined integration is complete at `9fd9a246`: all six whole PR heads apply
    with zero conflicts or manual edits, all 62 leaf help paths render, and the
    full repository gate is green.
 
@@ -750,7 +755,7 @@ trusting the per-PR reports:
   workflow skills for stale v1 assumptions.
 - [x] Applied all six exact PR heads to `main` `25b33c17` with zero conflicts or
   manual edits and passed format, docs, lint, test, and build on clean
-  integration SHA `5f486516`.
+  integration SHA `9fd9a246`.
 - [x] Performed read-only live checks where account state permitted, used
   deterministic fixtures for mutations, and performed no live mutations during
   integration. The two unavailable optional external-skill validators remain
