@@ -420,10 +420,12 @@ Examples:
 			}
 			if err := validateNextFlagConflicts(
 				nextURL,
+				flagConflict{"--group-id", flagWasProvided(fs, "group-id")},
 				flagConflict{"--fields", flagWasProvided(fs, "fields")},
 				flagConflict{"--version-fields", flagWasProvided(fs, "version-fields")},
 				flagConflict{"--include", flagWasProvided(fs, "include")},
 				flagConflict{"--version-limit", flagWasProvided(fs, "version-limit")},
+				flagConflict{"--limit", flagWasProvided(fs, "limit")},
 			); err != nil {
 				return err
 			}
