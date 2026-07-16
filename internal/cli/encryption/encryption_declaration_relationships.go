@@ -22,7 +22,7 @@ func EncryptionDeclarationsAppCommand() *ffcli.Command {
 		LongHelp: `Access the app for an encryption declaration.
 
 Examples:
-  asc encryption declarations app get --id "DECL_ID"`,
+  asc encryption declarations app view --id "DECL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -36,19 +36,19 @@ Examples:
 
 // EncryptionDeclarationsAppGetCommand returns the get subcommand for declaration apps.
 func EncryptionDeclarationsAppGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("encryption declarations app get", flag.ExitOnError)
+	fs := flag.NewFlagSet("encryption declarations app view", flag.ExitOnError)
 
 	declarationID := fs.String("id", "", "Encryption declaration ID (required)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc encryption declarations app get --id \"DECL_ID\"",
-		ShortHelp:  "Get the app for an encryption declaration.",
-		LongHelp: `Get the app for an encryption declaration.
+		Name:       "view",
+		ShortUsage: "asc encryption declarations app view --id \"DECL_ID\"",
+		ShortHelp:  "View the app for an encryption declaration.",
+		LongHelp: `View the app for an encryption declaration.
 
 Examples:
-  asc encryption declarations app get --id "DECL_ID"`,
+  asc encryption declarations app view --id "DECL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -60,7 +60,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("encryption declarations app get: %w", err)
+				return fmt.Errorf("encryption declarations app view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -68,7 +68,7 @@ Examples:
 
 			resp, err := client.GetAppEncryptionDeclarationApp(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("encryption declarations app get: failed to fetch: %w", err)
+				return fmt.Errorf("encryption declarations app view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -87,7 +87,7 @@ func EncryptionDeclarationsDeclarationDocumentCommand() *ffcli.Command {
 		LongHelp: `Access the document for an encryption declaration.
 
 Examples:
-  asc encryption declarations app-encryption-declaration-document get --id "DECL_ID"`,
+  asc encryption declarations app-encryption-declaration-document view --id "DECL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -101,19 +101,19 @@ Examples:
 
 // EncryptionDeclarationsDeclarationDocumentGetCommand returns the get subcommand for declaration documents.
 func EncryptionDeclarationsDeclarationDocumentGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("encryption declarations app-encryption-declaration-document get", flag.ExitOnError)
+	fs := flag.NewFlagSet("encryption declarations app-encryption-declaration-document view", flag.ExitOnError)
 
 	declarationID := fs.String("id", "", "Encryption declaration ID (required)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc encryption declarations app-encryption-declaration-document get --id \"DECL_ID\"",
-		ShortHelp:  "Get the document for an encryption declaration.",
-		LongHelp: `Get the document for an encryption declaration.
+		Name:       "view",
+		ShortUsage: "asc encryption declarations app-encryption-declaration-document view --id \"DECL_ID\"",
+		ShortHelp:  "View the document for an encryption declaration.",
+		LongHelp: `View the document for an encryption declaration.
 
 Examples:
-  asc encryption declarations app-encryption-declaration-document get --id "DECL_ID"`,
+  asc encryption declarations app-encryption-declaration-document view --id "DECL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -125,7 +125,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("encryption declarations app-encryption-declaration-document get: %w", err)
+				return fmt.Errorf("encryption declarations app-encryption-declaration-document view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -133,7 +133,7 @@ Examples:
 
 			resp, err := client.GetAppEncryptionDeclarationDocumentForDeclaration(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("encryption declarations app-encryption-declaration-document get: failed to fetch: %w", err)
+				return fmt.Errorf("encryption declarations app-encryption-declaration-document view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

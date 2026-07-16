@@ -27,8 +27,8 @@ func ProfilesCommand() *ffcli.Command {
 Examples:
   asc profiles list
   asc profiles list --profile-type IOS_APP_DEVELOPMENT
-  asc profiles get --id "PROFILE_ID"
-  asc profiles get --id "PROFILE_ID" --include bundleId,certificates,devices
+  asc profiles view --id "PROFILE_ID"
+  asc profiles view --id "PROFILE_ID" --include bundleId,certificates,devices
   asc profiles create --name "Profile" --profile-type IOS_APP_DEVELOPMENT --bundle "BUNDLE_ID" --certificate "CERT_ID"
   asc profiles delete --id "PROFILE_ID" --confirm
   asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision"
@@ -137,23 +137,23 @@ Examples:
 	}
 }
 
-// ProfilesGetCommand returns the profiles get subcommand.
+// ProfilesGetCommand returns the profiles view subcommand.
 func ProfilesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Profile ID")
 	include := fs.String("include", "", "Include related resources: bundleId, certificates, devices")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc profiles get --id \"PROFILE_ID\"",
-		ShortHelp:  "Get a profile by ID.",
-		LongHelp: `Get a profile by ID.
+		Name:       "view",
+		ShortUsage: "asc profiles view --id \"PROFILE_ID\"",
+		ShortHelp:  "View a profile by ID.",
+		LongHelp: `View a profile by ID.
 
 Examples:
-  asc profiles get --id "PROFILE_ID"
-  asc profiles get --id "PROFILE_ID" --include bundleId,certificates,devices`,
+  asc profiles view --id "PROFILE_ID"
+  asc profiles view --id "PROFILE_ID" --include bundleId,certificates,devices`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -165,12 +165,12 @@ Examples:
 
 			includeValues, err := normalizeProfileInclude(*include)
 			if err != nil {
-				return fmt.Errorf("profiles get: %w", err)
+				return fmt.Errorf("profiles view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("profiles get: %w", err)
+				return fmt.Errorf("profiles view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -183,7 +183,7 @@ Examples:
 
 			resp, err := client.GetProfile(requestCtx, idValue, opts...)
 			if err != nil {
-				return fmt.Errorf("profiles get: failed to fetch: %w", err)
+				return fmt.Errorf("profiles view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

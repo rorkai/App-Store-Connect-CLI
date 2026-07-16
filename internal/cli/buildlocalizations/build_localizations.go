@@ -25,7 +25,7 @@ func BuildLocalizationsCommand() *ffcli.Command {
 
 Examples:
   asc build-localizations list --build "BUILD_ID"
-  asc build-localizations get --id "LOCALIZATION_ID"
+  asc build-localizations view --id "LOCALIZATION_ID"
   asc build-localizations create --build "BUILD_ID" --locale "en-US" --whats-new "Bug fixes"
   asc build-localizations update --id "LOCALIZATION_ID" --whats-new "New features"
   asc build-localizations delete --id "LOCALIZATION_ID" --confirm`,
@@ -134,19 +134,19 @@ Examples:
 
 // BuildLocalizationsGetCommand returns the get subcommand.
 func BuildLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc build-localizations get [flags]",
-		ShortHelp:  "Get a localization by ID.",
-		LongHelp: `Get a localization by ID.
+		Name:       "view",
+		ShortUsage: "asc build-localizations view [flags]",
+		ShortHelp:  "View a localization by ID.",
+		LongHelp: `View a localization by ID.
 
 Examples:
-  asc build-localizations get --id "LOCALIZATION_ID"`,
+  asc build-localizations view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -158,7 +158,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("build-localizations get: %w", err)
+				return fmt.Errorf("build-localizations view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -166,7 +166,7 @@ Examples:
 
 			resp, err := client.GetAppStoreVersionLocalization(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("build-localizations get: %w", err)
+				return fmt.Errorf("build-localizations view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

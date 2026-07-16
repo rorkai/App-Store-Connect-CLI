@@ -22,7 +22,7 @@ func BetaAppLocalizationsAppCommand() *ffcli.Command {
 		LongHelp: `View the app for a beta app localization.
 
 Examples:
-  asc beta-app-localizations app get --id "LOCALIZATION_ID"`,
+  asc beta-app-localizations app view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -36,19 +36,19 @@ Examples:
 
 // BetaAppLocalizationsAppGetCommand returns the app get subcommand.
 func BetaAppLocalizationsAppGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app get", flag.ExitOnError)
+	fs := flag.NewFlagSet("app view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta app localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc beta-app-localizations app get --id \"LOCALIZATION_ID\"",
-		ShortHelp:  "Get the app for a beta app localization.",
-		LongHelp: `Get the app for a beta app localization.
+		Name:       "view",
+		ShortUsage: "asc beta-app-localizations app view --id \"LOCALIZATION_ID\"",
+		ShortHelp:  "View the app for a beta app localization.",
+		LongHelp: `View the app for a beta app localization.
 
 Examples:
-  asc beta-app-localizations app get --id "LOCALIZATION_ID"`,
+  asc beta-app-localizations app view --id "LOCALIZATION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -60,7 +60,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("beta-app-localizations app get: %w", err)
+				return fmt.Errorf("beta-app-localizations app view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -68,7 +68,7 @@ Examples:
 
 			resp, err := client.GetBetaAppLocalizationApp(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("beta-app-localizations app get: failed to fetch: %w", err)
+				return fmt.Errorf("beta-app-localizations app view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

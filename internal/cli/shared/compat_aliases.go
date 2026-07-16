@@ -98,6 +98,34 @@ func cloneFlagSet(fs *flag.FlagSet) *flag.FlagSet {
 	return clone
 }
 
+func renameFlagSetLastToken(fs *flag.FlagSet, oldName, newName string) {
+	if fs == nil {
+		return
+	}
+
+	output := fs.Output()
+	usage := fs.Usage
+	name := strings.TrimSpace(fs.Name())
+	switch {
+	case name == "":
+		name = newName
+	case name == oldName:
+		name = newName
+	case strings.HasSuffix(name, " "+oldName):
+		name = strings.TrimSuffix(name, " "+oldName) + " " + newName
+	default:
+		name = newName
+	}
+
+	fs.Init(name, fs.ErrorHandling())
+	if output != nil {
+		fs.SetOutput(output)
+	}
+	if usage != nil {
+		fs.Usage = usage
+	}
+}
+
 func flagHiddenFromHelp(f *flag.Flag) bool {
 	if f == nil {
 		return false

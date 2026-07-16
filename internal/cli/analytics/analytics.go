@@ -23,8 +23,8 @@ Examples:
   asc analytics request --app "APP_ID" --access-type ONGOING
   asc analytics request --app "APP_ID" --access-type ONGOING --reuse-existing
   asc analytics requests --app "APP_ID"
-  asc analytics get --request-id "REQUEST_ID"
-  asc analytics reports get --report-id "REPORT_ID"
+  asc analytics view --request-id "REQUEST_ID"
+  asc analytics reports view --report-id "REPORT_ID"
   asc analytics instances links --instance-id "INSTANCE_ID"
   asc analytics download --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"`,
 		FlagSet:   fs,

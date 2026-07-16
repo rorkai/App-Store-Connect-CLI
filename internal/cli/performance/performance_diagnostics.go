@@ -25,7 +25,7 @@ func PerformanceDiagnosticsCommand() *ffcli.Command {
 
 Examples:
   asc performance diagnostics list --build "BUILD_ID"
-  asc performance diagnostics get --id "SIGNATURE_ID"`,
+  asc performance diagnostics view --id "SIGNATURE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -124,21 +124,21 @@ Examples:
 
 // PerformanceDiagnosticsGetCommand returns the diagnostics get subcommand.
 func PerformanceDiagnosticsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("diagnostics get", flag.ExitOnError)
+	fs := flag.NewFlagSet("diagnostics view", flag.ExitOnError)
 
 	signatureID := fs.String("id", "", "Diagnostic signature ID")
 	limit := fs.Int("limit", 0, "Limit number of logs (max 200)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc performance diagnostics get --id \"SIGNATURE_ID\"",
-		ShortHelp:  "Get diagnostic logs for a signature.",
-		LongHelp: `Get diagnostic logs for a signature.
+		Name:       "view",
+		ShortUsage: "asc performance diagnostics view --id \"SIGNATURE_ID\"",
+		ShortHelp:  "View diagnostic logs for a signature.",
+		LongHelp: `View diagnostic logs for a signature.
 
 Examples:
-  asc performance diagnostics get --id "SIGNATURE_ID"
-  asc performance diagnostics get --id "SIGNATURE_ID" --limit 50`,
+  asc performance diagnostics view --id "SIGNATURE_ID"
+  asc performance diagnostics view --id "SIGNATURE_ID" --limit 50`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -148,12 +148,12 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("performance diagnostics get: --limit must be between 1 and 200")
+				return fmt.Errorf("performance diagnostics view: --limit must be between 1 and 200")
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("performance diagnostics get: %w", err)
+				return fmt.Errorf("performance diagnostics view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -161,7 +161,7 @@ Examples:
 
 			resp, err := client.GetDiagnosticSignatureLogs(requestCtx, trimmedID, asc.WithDiagnosticLogsLimit(*limit))
 			if err != nil {
-				return fmt.Errorf("performance diagnostics get: %w", err)
+				return fmt.Errorf("performance diagnostics view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

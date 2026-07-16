@@ -74,7 +74,7 @@ func ReviewsResponseCommand() *ffcli.Command {
 		LongHelp: `Manage customer review responses.
 
 Examples:
-  asc reviews response get --id "RESPONSE_ID"
+  asc reviews response view --id "RESPONSE_ID"
   asc reviews response delete --id "RESPONSE_ID" --confirm
   asc reviews response for-review --review-id "REVIEW_ID"`,
 		FlagSet:   fs,
@@ -90,22 +90,22 @@ Examples:
 	}
 }
 
-// ReviewsResponseGetCommand returns the reviews response get subcommand.
+// ReviewsResponseGetCommand returns the reviews response view subcommand.
 func ReviewsResponseGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	responseID := fs.String("id", "", "Customer review response ID (required)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc reviews response get [flags]",
-		ShortHelp:  "Get a customer review response by ID.",
-		LongHelp: `Get a customer review response by ID.
+		Name:       "view",
+		ShortUsage: "asc reviews response view [flags]",
+		ShortHelp:  "View a customer review response by ID.",
+		LongHelp: `View a customer review response by ID.
 
 Examples:
-  asc reviews response get --id "RESPONSE_ID"
-  asc reviews response get --id "RESPONSE_ID" --output table`,
+  asc reviews response view --id "RESPONSE_ID"
+  asc reviews response view --id "RESPONSE_ID" --output table`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -116,7 +116,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("reviews response get: %w", err)
+				return fmt.Errorf("reviews response view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -124,7 +124,7 @@ Examples:
 
 			resp, err := client.GetCustomerReviewResponse(requestCtx, strings.TrimSpace(*responseID))
 			if err != nil {
-				return fmt.Errorf("reviews response get: failed to fetch: %w", err)
+				return fmt.Errorf("reviews response view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

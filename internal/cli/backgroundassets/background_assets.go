@@ -26,11 +26,11 @@ func BackgroundAssetsCommand() *ffcli.Command {
 
 Examples:
   asc background-assets list --app "APP_ID"
-  asc background-assets get --id "ASSET_ID"
+  asc background-assets view --id "ASSET_ID"
   asc background-assets create --app "APP_ID" --asset-pack-identifier "com.example.assetpack"
   asc background-assets update --id "ASSET_ID" --archived true
   asc background-assets versions list --background-asset-id "ASSET_ID"
-  asc background-assets app-store-releases get --id "RELEASE_ID"
+  asc background-assets app-store-releases view --id "RELEASE_ID"
   asc background-assets upload-files create --version-id "VERSION_ID" --file "./asset.zip" --asset-type ASSET
   asc background-assets submit --app "APP_ID" --background-asset-id "ASSET_ID" --confirm`,
 		FlagSet:   fs,
@@ -155,19 +155,19 @@ Examples:
 
 // BackgroundAssetsGetCommand returns the background assets get subcommand.
 func BackgroundAssetsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	assetID := fs.String("id", "", "Background asset ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc background-assets get --id \"ASSET_ID\"",
-		ShortHelp:  "Get a background asset by ID.",
-		LongHelp: `Get a background asset by ID.
+		Name:       "view",
+		ShortUsage: "asc background-assets view --id \"ASSET_ID\"",
+		ShortHelp:  "View a background asset by ID.",
+		LongHelp: `View a background asset by ID.
 
 Examples:
-  asc background-assets get --id "ASSET_ID"`,
+  asc background-assets view --id "ASSET_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -179,7 +179,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("background-assets get: %w", err)
+				return fmt.Errorf("background-assets view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -187,7 +187,7 @@ Examples:
 
 			resp, err := client.GetBackgroundAsset(requestCtx, assetIDValue)
 			if err != nil {
-				return fmt.Errorf("background-assets get: failed to fetch: %w", err)
+				return fmt.Errorf("background-assets view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

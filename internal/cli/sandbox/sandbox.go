@@ -21,7 +21,7 @@ func SandboxCommand() *ffcli.Command {
 Examples:
   asc sandbox list
   asc sandbox list --email "tester@example.com"
-  asc sandbox get --id "SANDBOX_TESTER_ID"
+  asc sandbox view --id "SANDBOX_TESTER_ID"
   asc sandbox update --id "SANDBOX_TESTER_ID" --territory "US"
   asc sandbox clear-history --id "SANDBOX_TESTER_ID" --confirm
 `,

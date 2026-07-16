@@ -129,19 +129,19 @@ Examples:
 
 // AppClipDefaultExperienceLocalizationsGetCommand gets a localization by ID.
 func AppClipDefaultExperienceLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	localizationID := fs.String("localization-id", "", "Localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc app-clips default-experiences localizations get --localization-id \"LOC_ID\"",
-		ShortHelp:  "Get a localization by ID.",
-		LongHelp: `Get a localization by ID.
+		Name:       "view",
+		ShortUsage: "asc app-clips default-experiences localizations view --localization-id \"LOC_ID\"",
+		ShortHelp:  "View a localization by ID.",
+		LongHelp: `View a localization by ID.
 
 Examples:
-  asc app-clips default-experiences localizations get --localization-id "LOC_ID"`,
+  asc app-clips default-experiences localizations view --localization-id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -153,7 +153,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-clips default-experiences localizations get: %w", err)
+				return fmt.Errorf("app-clips default-experiences localizations view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -161,7 +161,7 @@ Examples:
 
 			resp, err := client.GetAppClipDefaultExperienceLocalization(requestCtx, locValue)
 			if err != nil {
-				return fmt.Errorf("app-clips default-experiences localizations get: failed to fetch: %w", err)
+				return fmt.Errorf("app-clips default-experiences localizations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

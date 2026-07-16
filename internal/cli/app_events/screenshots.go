@@ -213,19 +213,19 @@ Examples:
 
 // AppEventScreenshotsGetCommand returns the app event screenshots get subcommand.
 func AppEventScreenshotsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("screenshots get", flag.ExitOnError)
+	fs := flag.NewFlagSet("screenshots view", flag.ExitOnError)
 
 	screenshotID := fs.String("screenshot-id", "", "App event screenshot ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc app-events screenshots get --screenshot-id \"SHOT_ID\"",
-		ShortHelp:  "Get an in-app event screenshot by ID.",
-		LongHelp: `Get an in-app event screenshot by ID.
+		Name:       "view",
+		ShortUsage: "asc app-events screenshots view --screenshot-id \"SHOT_ID\"",
+		ShortHelp:  "View an in-app event screenshot by ID.",
+		LongHelp: `View an in-app event screenshot by ID.
 
 Examples:
-  asc app-events screenshots get --screenshot-id "SHOT_ID"`,
+  asc app-events screenshots view --screenshot-id "SHOT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -237,7 +237,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-events screenshots get: %w", err)
+				return fmt.Errorf("app-events screenshots view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -245,7 +245,7 @@ Examples:
 
 			resp, err := client.GetAppEventScreenshot(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("app-events screenshots get: failed to fetch: %w", err)
+				return fmt.Errorf("app-events screenshots view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

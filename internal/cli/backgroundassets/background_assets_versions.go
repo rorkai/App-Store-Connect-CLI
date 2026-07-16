@@ -25,7 +25,7 @@ func BackgroundAssetsVersionsCommand() *ffcli.Command {
 
 Examples:
   asc background-assets versions list --background-asset-id "ASSET_ID"
-  asc background-assets versions get --version-id "VERSION_ID"
+  asc background-assets versions view --version-id "VERSION_ID"
   asc background-assets versions create --background-asset-id "ASSET_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -121,19 +121,19 @@ Examples:
 
 // BackgroundAssetsVersionsGetCommand returns the versions get subcommand.
 func BackgroundAssetsVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "Background asset version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc background-assets versions get --version-id \"VERSION_ID\"",
-		ShortHelp:  "Get a background asset version by ID.",
-		LongHelp: `Get a background asset version by ID.
+		Name:       "view",
+		ShortUsage: "asc background-assets versions view --version-id \"VERSION_ID\"",
+		ShortHelp:  "View a background asset version by ID.",
+		LongHelp: `View a background asset version by ID.
 
 Examples:
-  asc background-assets versions get --version-id "VERSION_ID"`,
+  asc background-assets versions view --version-id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -145,7 +145,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("background-assets versions get: %w", err)
+				return fmt.Errorf("background-assets versions view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -153,7 +153,7 @@ Examples:
 
 			resp, err := client.GetBackgroundAssetVersion(requestCtx, versionIDValue)
 			if err != nil {
-				return fmt.Errorf("background-assets versions get: failed to fetch: %w", err)
+				return fmt.Errorf("background-assets versions view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

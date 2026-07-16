@@ -40,7 +40,7 @@ Phased release gradually rolls out your app update over 7 days:
 You can pause, resume, or complete the rollout at any time.
 
 Examples:
-  asc versions phased-release get --version-id "VERSION_ID"
+  asc versions phased-release view --version-id "VERSION_ID"
   asc versions phased-release create --version-id "VERSION_ID"
   asc versions phased-release update --id "PHASED_ID" --state PAUSED
   asc versions phased-release delete --id "PHASED_ID" --confirm`,
@@ -59,19 +59,19 @@ Examples:
 
 // PhasedReleaseGetCommand returns the get subcommand.
 func PhasedReleaseGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("phased-release get", flag.ExitOnError)
+	fs := flag.NewFlagSet("phased-release view", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "App Store version ID (required)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc versions phased-release get [flags]",
-		ShortHelp:  "Get phased release status for an app store version.",
-		LongHelp: `Get phased release status for an app store version.
+		Name:       "view",
+		ShortUsage: "asc versions phased-release view [flags]",
+		ShortHelp:  "View phased release status for an app store version.",
+		LongHelp: `View phased release status for an app store version.
 
 Examples:
-  asc versions phased-release get --version-id "VERSION_ID"`,
+  asc versions phased-release view --version-id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -83,7 +83,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("phased-release get: %w", err)
+				return fmt.Errorf("phased-release view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -91,7 +91,7 @@ Examples:
 
 			resp, err := client.GetAppStoreVersionPhasedRelease(requestCtx, version)
 			if err != nil {
-				return fmt.Errorf("phased-release get: %w", err)
+				return fmt.Errorf("phased-release view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

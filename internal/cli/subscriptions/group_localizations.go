@@ -119,19 +119,19 @@ Examples:
 
 // SubscriptionsGroupsLocalizationsGetCommand returns the group localizations get subcommand.
 func SubscriptionsGroupsLocalizationsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("groups localizations get", flag.ExitOnError)
+	fs := flag.NewFlagSet("groups localizations view", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Subscription group localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc subscriptions groups localizations get --id \"LOC_ID\"",
-		ShortHelp:  "Get a subscription group localization by ID.",
-		LongHelp: `Get a subscription group localization by ID.
+		Name:       "view",
+		ShortUsage: "asc subscriptions groups localizations view --id \"LOC_ID\"",
+		ShortHelp:  "View a subscription group localization by ID.",
+		LongHelp: `View a subscription group localization by ID.
 
 Examples:
-  asc subscriptions groups localizations get --id "LOC_ID"`,
+  asc subscriptions groups localizations view --id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -143,7 +143,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions groups localizations get: %w", err)
+				return fmt.Errorf("subscriptions groups localizations view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -151,7 +151,7 @@ Examples:
 
 			resp, err := client.GetSubscriptionGroupLocalization(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("subscriptions groups localizations get: failed to fetch: %w", err)
+				return fmt.Errorf("subscriptions groups localizations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

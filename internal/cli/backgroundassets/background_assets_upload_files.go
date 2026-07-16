@@ -26,7 +26,7 @@ func BackgroundAssetsUploadFilesCommand() *ffcli.Command {
 
 Examples:
   asc background-assets upload-files list --version-id "VERSION_ID"
-  asc background-assets upload-files get --upload-file-id "UPLOAD_FILE_ID"
+  asc background-assets upload-files view --upload-file-id "UPLOAD_FILE_ID"
   asc background-assets upload-files create --version-id "VERSION_ID" --file "./asset.zip" --asset-type ASSET
   asc background-assets upload-files update --upload-file-id "UPLOAD_FILE_ID" --uploaded true --file "./asset.zip"`,
 		FlagSet:   fs,
@@ -119,19 +119,19 @@ Examples:
 
 // BackgroundAssetsUploadFilesGetCommand returns the upload files get subcommand.
 func BackgroundAssetsUploadFilesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	uploadFileID := fs.String("upload-file-id", "", "Background asset upload file ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc background-assets upload-files get --upload-file-id \"UPLOAD_FILE_ID\"",
-		ShortHelp:  "Get a background asset upload file by ID.",
-		LongHelp: `Get a background asset upload file by ID.
+		Name:       "view",
+		ShortUsage: "asc background-assets upload-files view --upload-file-id \"UPLOAD_FILE_ID\"",
+		ShortHelp:  "View a background asset upload file by ID.",
+		LongHelp: `View a background asset upload file by ID.
 
 Examples:
-  asc background-assets upload-files get --upload-file-id "UPLOAD_FILE_ID"`,
+  asc background-assets upload-files view --upload-file-id "UPLOAD_FILE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -143,7 +143,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("background-assets upload-files get: %w", err)
+				return fmt.Errorf("background-assets upload-files view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -151,7 +151,7 @@ Examples:
 
 			resp, err := client.GetBackgroundAssetUploadFile(requestCtx, uploadFileIDValue)
 			if err != nil {
-				return fmt.Errorf("background-assets upload-files get: failed to fetch: %w", err)
+				return fmt.Errorf("background-assets upload-files view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

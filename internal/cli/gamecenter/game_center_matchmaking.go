@@ -58,7 +58,7 @@ func GameCenterMatchmakingQueuesCommand() *ffcli.Command {
 
 Examples:
   asc game-center matchmaking queues list
-  asc game-center matchmaking queues get --id "QUEUE_ID"
+  asc game-center matchmaking queues view --id "QUEUE_ID"
   asc game-center matchmaking queues create --reference-name "Queue 1" --rule-set-id "RULE_SET_ID"
   asc game-center matchmaking queues update --id "QUEUE_ID" --classic-bundle-ids "com.example.app"
   asc game-center matchmaking queues delete --id "QUEUE_ID" --confirm`,
@@ -148,19 +148,19 @@ Examples:
 
 // GameCenterMatchmakingQueuesGetCommand returns the matchmaking queues get subcommand.
 func GameCenterMatchmakingQueuesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	queueID := fs.String("id", "", "Matchmaking queue ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center matchmaking queues get --id \"QUEUE_ID\"",
-		ShortHelp:  "Get a matchmaking queue by ID.",
-		LongHelp: `Get a matchmaking queue by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center matchmaking queues view --id \"QUEUE_ID\"",
+		ShortHelp:  "View a matchmaking queue by ID.",
+		LongHelp: `View a matchmaking queue by ID.
 
 Examples:
-  asc game-center matchmaking queues get --id "QUEUE_ID"`,
+  asc game-center matchmaking queues view --id "QUEUE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -172,7 +172,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center matchmaking queues get: %w", err)
+				return fmt.Errorf("game-center matchmaking queues view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -180,7 +180,7 @@ Examples:
 
 			resp, err := client.GetGameCenterMatchmakingQueue(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center matchmaking queues get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center matchmaking queues view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -365,7 +365,7 @@ func GameCenterMatchmakingRuleSetsCommand() *ffcli.Command {
 
 Examples:
   asc game-center matchmaking rule-sets list
-  asc game-center matchmaking rule-sets get --id "RULE_SET_ID"
+  asc game-center matchmaking rule-sets view --id "RULE_SET_ID"
   asc game-center matchmaking rule-sets create --reference-name "Rules" --rule-language-version 1 --min-players 2 --max-players 8
   asc game-center matchmaking rule-sets update --id "RULE_SET_ID" --min-players 2
   asc game-center matchmaking rule-sets delete --id "RULE_SET_ID" --confirm
@@ -457,19 +457,19 @@ Examples:
 
 // GameCenterMatchmakingRuleSetsGetCommand returns the rule sets get subcommand.
 func GameCenterMatchmakingRuleSetsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	ruleSetID := fs.String("id", "", "Matchmaking rule set ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center matchmaking rule-sets get --id \"RULE_SET_ID\"",
-		ShortHelp:  "Get a matchmaking rule set by ID.",
-		LongHelp: `Get a matchmaking rule set by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center matchmaking rule-sets view --id \"RULE_SET_ID\"",
+		ShortHelp:  "View a matchmaking rule set by ID.",
+		LongHelp: `View a matchmaking rule set by ID.
 
 Examples:
-  asc game-center matchmaking rule-sets get --id "RULE_SET_ID"`,
+  asc game-center matchmaking rule-sets view --id "RULE_SET_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -481,7 +481,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center matchmaking rule-sets get: %w", err)
+				return fmt.Errorf("game-center matchmaking rule-sets view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -489,7 +489,7 @@ Examples:
 
 			resp, err := client.GetGameCenterMatchmakingRuleSet(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center matchmaking rule-sets get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center matchmaking rule-sets view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

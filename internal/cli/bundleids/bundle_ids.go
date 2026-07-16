@@ -25,8 +25,8 @@ func BundleIDsCommand() *ffcli.Command {
 
 Examples:
   asc bundle-ids list
-  asc bundle-ids get --id "BUNDLE_ID"
-  asc bundle-ids app get --id "BUNDLE_ID"
+  asc bundle-ids view --id "BUNDLE_ID"
+  asc bundle-ids app view --id "BUNDLE_ID"
   asc bundle-ids profiles list --id "BUNDLE_ID"
   asc bundle-ids create --identifier "com.example.app" --name "Example" --platform IOS
   asc bundle-ids update --id "BUNDLE_ID" --name "New Name"
@@ -121,19 +121,19 @@ Examples:
 
 // BundleIDsGetCommand returns the bundle IDs get subcommand.
 func BundleIDsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Bundle ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc bundle-ids get --id \"BUNDLE_ID\"",
-		ShortHelp:  "Get a bundle ID by ID.",
-		LongHelp: `Get a bundle ID by ID.
+		Name:       "view",
+		ShortUsage: "asc bundle-ids view --id \"BUNDLE_ID\"",
+		ShortHelp:  "View a bundle ID by ID.",
+		LongHelp: `View a bundle ID by ID.
 
 Examples:
-  asc bundle-ids get --id "BUNDLE_ID"`,
+  asc bundle-ids view --id "BUNDLE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -144,7 +144,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("bundle-ids get: %w", err)
+				return fmt.Errorf("bundle-ids view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -152,7 +152,7 @@ Examples:
 
 			resp, err := client.GetBundleID(requestCtx, strings.TrimSpace(*id))
 			if err != nil {
-				return fmt.Errorf("bundle-ids get: failed to fetch: %w", err)
+				return fmt.Errorf("bundle-ids view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

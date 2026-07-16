@@ -352,7 +352,7 @@ Examples:
 
 // AnalyticsGetCommand retrieves analytics reports and instances for a request.
 func AnalyticsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	requestID := fs.String("request-id", "", "Analytics report request ID")
 	instanceID := fs.String("instance-id", "", "Filter by specific instance ID")
@@ -364,16 +364,16 @@ func AnalyticsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc analytics get [flags]",
-		ShortHelp:  "Get analytics reports for a request.",
-		LongHelp: `Get analytics reports for a request.
+		Name:       "view",
+		ShortUsage: "asc analytics view [flags]",
+		ShortHelp:  "View analytics reports for a request.",
+		LongHelp: `View analytics reports for a request.
 
 Examples:
-  asc analytics get --request-id "REQUEST_ID"
-  asc analytics get --request-id "REQUEST_ID" --include-segments
-  asc analytics get --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"
-  asc analytics get --request-id "REQUEST_ID" --date "2024-01-20" --paginate`,
+  asc analytics view --request-id "REQUEST_ID"
+  asc analytics view --request-id "REQUEST_ID" --include-segments
+  asc analytics view --request-id "REQUEST_ID" --instance-id "INSTANCE_ID"
+  asc analytics view --request-id "REQUEST_ID" --date "2024-01-20" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -383,29 +383,29 @@ Examples:
 			}
 			if strings.TrimSpace(*requestID) != "" {
 				if err := validateUUIDFlag("--request-id", *requestID); err != nil {
-					return fmt.Errorf("analytics get: %w", err)
+					return fmt.Errorf("analytics view: %w", err)
 				}
 			}
 			if strings.TrimSpace(*instanceID) != "" {
 				if err := validateUUIDFlag("--instance-id", *instanceID); err != nil {
-					return fmt.Errorf("analytics get: %w", err)
+					return fmt.Errorf("analytics view: %w", err)
 				}
 			}
 			if *limit != 0 && (*limit < 1 || *limit > analyticsMaxLimit) {
-				return fmt.Errorf("analytics get: --limit must be between 1 and 200")
+				return fmt.Errorf("analytics view: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("analytics get: %w", err)
+				return fmt.Errorf("analytics view: %w", err)
 			}
 
 			dateFilter, err := normalizeAnalyticsDateFilter(*date)
 			if err != nil {
-				return fmt.Errorf("analytics get: %w", err)
+				return fmt.Errorf("analytics view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("analytics get: %w", err)
+				return fmt.Errorf("analytics view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -414,7 +414,7 @@ Examples:
 			paginateReports := strings.TrimSpace(*next) == "" && (strings.TrimSpace(*instanceID) != "" || *paginate)
 			reports, links, err := fetchAnalyticsReports(requestCtx, client, strings.TrimSpace(*requestID), *limit, *next, paginateReports)
 			if err != nil {
-				return fmt.Errorf("analytics get: failed to fetch reports: %w", err)
+				return fmt.Errorf("analytics view: failed to fetch reports: %w", err)
 			}
 
 			result := &asc.AnalyticsReportGetResult{
@@ -426,7 +426,7 @@ Examples:
 			for _, report := range reports {
 				instances, err := fetchAnalyticsReportInstances(requestCtx, client, report.ID)
 				if err != nil {
-					return fmt.Errorf("analytics get: failed to fetch instances: %w", err)
+					return fmt.Errorf("analytics view: failed to fetch instances: %w", err)
 				}
 
 				reportResult := asc.AnalyticsReportGetReport{
@@ -456,7 +456,7 @@ Examples:
 					if *includeSegments {
 						segments, err := fetchAnalyticsReportSegments(requestCtx, client, instance.ID)
 						if err != nil {
-							return fmt.Errorf("analytics get: failed to fetch segments: %w", err)
+							return fmt.Errorf("analytics view: failed to fetch segments: %w", err)
 						}
 						for _, segment := range segments {
 							instanceResult.Segments = append(instanceResult.Segments, asc.AnalyticsReportGetSegment{
@@ -488,13 +488,13 @@ Examples:
 			}
 
 			if strings.TrimSpace(*instanceID) != "" && !foundInstance {
-				return fmt.Errorf("analytics get: instance %q not found for request %q", strings.TrimSpace(*instanceID), strings.TrimSpace(*requestID))
+				return fmt.Errorf("analytics view: instance %q not found for request %q", strings.TrimSpace(*instanceID), strings.TrimSpace(*requestID))
 			}
 			if dateFilter != "" && len(result.Data) == 0 {
 				if strings.TrimSpace(*next) == "" && !*paginate {
-					return fmt.Errorf("analytics get: no instances found for date %q in the first page of reports (use --paginate or --next)", dateFilter)
+					return fmt.Errorf("analytics view: no instances found for date %q in the first page of reports (use --paginate or --next)", dateFilter)
 				}
-				return fmt.Errorf("analytics get: no instances found for date %q", dateFilter)
+				return fmt.Errorf("analytics view: no instances found for date %q", dateFilter)
 			}
 
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)

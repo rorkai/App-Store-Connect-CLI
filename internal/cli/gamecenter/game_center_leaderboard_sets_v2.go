@@ -25,7 +25,7 @@ func GameCenterLeaderboardSetsV2Command() *ffcli.Command {
 
 Examples:
   asc game-center leaderboard-sets v2 list --app "APP_ID"
-  asc game-center leaderboard-sets v2 get --id "SET_ID"
+  asc game-center leaderboard-sets v2 view --id "SET_ID"
   asc game-center leaderboard-sets v2 create --app "APP_ID" --reference-name "Season 1" --vendor-id "com.example.season1"
   asc game-center leaderboard-sets v2 members list --set-id "SET_ID"
   asc game-center leaderboard-sets v2 versions list --set-id "SET_ID"
@@ -144,19 +144,19 @@ Examples:
 
 // GameCenterLeaderboardSetsV2GetCommand returns the leaderboard-sets v2 get subcommand.
 func GameCenterLeaderboardSetsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	setID := fs.String("id", "", "Game Center leaderboard set ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center leaderboard-sets v2 get --id \"SET_ID\"",
-		ShortHelp:  "Get a Game Center leaderboard set (v2) by ID.",
-		LongHelp: `Get a Game Center leaderboard set (v2) by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboard-sets v2 view --id \"SET_ID\"",
+		ShortHelp:  "View a Game Center leaderboard set (v2) by ID.",
+		LongHelp: `View a Game Center leaderboard set (v2) by ID.
 
 Examples:
-  asc game-center leaderboard-sets v2 get --id "SET_ID"`,
+  asc game-center leaderboard-sets v2 view --id "SET_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -168,7 +168,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 get: %w", err)
+				return fmt.Errorf("game-center leaderboard-sets v2 view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -176,7 +176,7 @@ Examples:
 
 			resp, err := client.GetGameCenterLeaderboardSetV2(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center leaderboard-sets v2 view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -537,7 +537,7 @@ func GameCenterLeaderboardSetVersionsV2Command() *ffcli.Command {
 
 Examples:
   asc game-center leaderboard-sets v2 versions list --set-id "SET_ID"
-  asc game-center leaderboard-sets v2 versions get --id "VERSION_ID"
+  asc game-center leaderboard-sets v2 versions view --id "VERSION_ID"
   asc game-center leaderboard-sets v2 versions create --set-id "SET_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -629,19 +629,19 @@ Examples:
 
 // GameCenterLeaderboardSetVersionsV2GetCommand returns the leaderboard set versions v2 get subcommand.
 func GameCenterLeaderboardSetVersionsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	versionID := fs.String("id", "", "Game Center leaderboard set version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center leaderboard-sets v2 versions get --id \"VERSION_ID\"",
-		ShortHelp:  "Get a Game Center leaderboard set version (v2) by ID.",
-		LongHelp: `Get a Game Center leaderboard set version (v2) by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboard-sets v2 versions view --id \"VERSION_ID\"",
+		ShortHelp:  "View a Game Center leaderboard set version (v2) by ID.",
+		LongHelp: `View a Game Center leaderboard set version (v2) by ID.
 
 Examples:
-  asc game-center leaderboard-sets v2 versions get --id "VERSION_ID"`,
+  asc game-center leaderboard-sets v2 versions view --id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -653,7 +653,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 versions get: %w", err)
+				return fmt.Errorf("game-center leaderboard-sets v2 versions view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -661,7 +661,7 @@ Examples:
 
 			resp, err := client.GetGameCenterLeaderboardSetVersion(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 versions get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center leaderboard-sets v2 versions view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -816,19 +816,19 @@ Examples:
 
 // GameCenterLeaderboardSetLocalizationsV2GetCommand returns the leaderboard set localizations v2 get subcommand.
 func GameCenterLeaderboardSetLocalizationsV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Game Center leaderboard set localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center leaderboard-sets v2 localizations get --id \"LOC_ID\"",
-		ShortHelp:  "Get a Game Center leaderboard set localization (v2) by ID.",
-		LongHelp: `Get a Game Center leaderboard set localization (v2) by ID.
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboard-sets v2 localizations view --id \"LOC_ID\"",
+		ShortHelp:  "View a Game Center leaderboard set localization (v2) by ID.",
+		LongHelp: `View a Game Center leaderboard set localization (v2) by ID.
 
 Examples:
-  asc game-center leaderboard-sets v2 localizations get --id "LOC_ID"`,
+  asc game-center leaderboard-sets v2 localizations view --id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -840,7 +840,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations get: %w", err)
+				return fmt.Errorf("game-center leaderboard-sets v2 localizations view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -848,7 +848,7 @@ Examples:
 
 			resp, err := client.GetGameCenterLeaderboardSetLocalizationV2(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 localizations get: failed to fetch: %w", err)
+				return fmt.Errorf("game-center leaderboard-sets v2 localizations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -1033,8 +1033,8 @@ func GameCenterLeaderboardSetImagesV2Command() *ffcli.Command {
 
 Examples:
   asc game-center leaderboard-sets v2 images upload --localization-id "LOC_ID" --file path/to/image.png
-  asc game-center leaderboard-sets v2 images get --id "IMAGE_ID"
-  asc game-center leaderboard-sets v2 images get --localization-id "LOC_ID"
+  asc game-center leaderboard-sets v2 images view --id "IMAGE_ID"
+  asc game-center leaderboard-sets v2 images view --localization-id "LOC_ID"
   asc game-center leaderboard-sets v2 images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -1102,21 +1102,21 @@ Examples:
 
 // GameCenterLeaderboardSetImagesV2GetCommand returns the leaderboard set images v2 get subcommand.
 func GameCenterLeaderboardSetImagesV2GetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	imageID := fs.String("id", "", "Game Center leaderboard set image ID")
 	localizationID := fs.String("localization-id", "", "Game Center leaderboard set localization ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc game-center leaderboard-sets v2 images get --id \"IMAGE_ID\" | --localization-id \"LOC_ID\"",
-		ShortHelp:  "Get a Game Center leaderboard set image (v2).",
-		LongHelp: `Get a Game Center leaderboard set image (v2).
+		Name:       "view",
+		ShortUsage: "asc game-center leaderboard-sets v2 images view --id \"IMAGE_ID\" | --localization-id \"LOC_ID\"",
+		ShortHelp:  "View a Game Center leaderboard set image (v2).",
+		LongHelp: `View a Game Center leaderboard set image (v2).
 
 Examples:
-  asc game-center leaderboard-sets v2 images get --id "IMAGE_ID"
-  asc game-center leaderboard-sets v2 images get --localization-id "LOC_ID"`,
+  asc game-center leaderboard-sets v2 images view --id "IMAGE_ID"
+  asc game-center leaderboard-sets v2 images view --localization-id "LOC_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1133,7 +1133,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 images get: %w", err)
+				return fmt.Errorf("game-center leaderboard-sets v2 images view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -1142,14 +1142,14 @@ Examples:
 			if locID != "" {
 				resp, err := client.GetGameCenterLeaderboardSetLocalizationImageV2(requestCtx, locID)
 				if err != nil {
-					return fmt.Errorf("game-center leaderboard-sets v2 images get: %w", err)
+					return fmt.Errorf("game-center leaderboard-sets v2 images view: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetGameCenterLeaderboardSetImageV2(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("game-center leaderboard-sets v2 images get: %w", err)
+				return fmt.Errorf("game-center leaderboard-sets v2 images view: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

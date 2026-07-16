@@ -25,7 +25,7 @@ func AlternativeDistributionDomainsCommand() *ffcli.Command {
 
 Examples:
   asc alternative-distribution domains list
-  asc alternative-distribution domains get --domain-id "DOMAIN_ID"
+  asc alternative-distribution domains view --domain-id "DOMAIN_ID"
   asc alternative-distribution domains create --domain "example.com" --reference-name "Example"
   asc alternative-distribution domains delete --domain-id "DOMAIN_ID" --confirm`,
 		FlagSet:   fs,
@@ -113,19 +113,19 @@ Examples:
 
 // AlternativeDistributionDomainsGetCommand returns the domains get subcommand.
 func AlternativeDistributionDomainsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	domainID := fs.String("domain-id", "", "Alternative distribution domain ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc alternative-distribution domains get --domain-id \"DOMAIN_ID\"",
-		ShortHelp:  "Get an alternative distribution domain.",
-		LongHelp: `Get an alternative distribution domain.
+		Name:       "view",
+		ShortUsage: "asc alternative-distribution domains view --domain-id \"DOMAIN_ID\"",
+		ShortHelp:  "View an alternative distribution domain.",
+		LongHelp: `View an alternative distribution domain.
 
 Examples:
-  asc alternative-distribution domains get --domain-id "DOMAIN_ID"`,
+  asc alternative-distribution domains view --domain-id "DOMAIN_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -137,7 +137,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("alternative-distribution domains get: %w", err)
+				return fmt.Errorf("alternative-distribution domains view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -145,7 +145,7 @@ Examples:
 
 			resp, err := client.GetAlternativeDistributionDomain(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("alternative-distribution domains get: failed to fetch: %w", err)
+				return fmt.Errorf("alternative-distribution domains view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

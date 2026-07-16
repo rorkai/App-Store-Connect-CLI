@@ -38,7 +38,7 @@ Examples:
   asc xcode-cloud build-runs --workflow-id "WORKFLOW_ID"
   asc xcode-cloud build-runs --workflow-id "WORKFLOW_ID" --sort "-number"
   asc xcode-cloud build-runs list --workflow-id "WORKFLOW_ID"
-  asc xcode-cloud build-runs get --id "BUILD_RUN_ID"
+  asc xcode-cloud build-runs view --id "BUILD_RUN_ID"
   asc xcode-cloud build-runs builds --run-id "BUILD_RUN_ID"
   asc xcode-cloud build-runs --workflow-id "WORKFLOW_ID" --limit 50
   asc xcode-cloud build-runs --workflow-id "WORKFLOW_ID" --paginate`,
@@ -81,18 +81,18 @@ Examples:
 
 func XcodeCloudBuildRunsGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "get",
-		Name:        "get",
-		ShortUsage:  "asc xcode-cloud build-runs get --id \"BUILD_RUN_ID\"",
-		ShortHelp:   "Get details for a build run.",
-		LongHelp: `Get details for a build run.
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc xcode-cloud build-runs view --id \"BUILD_RUN_ID\"",
+		ShortHelp:   "View details for a build run.",
+		LongHelp: `View details for a build run.
 
 Examples:
-  asc xcode-cloud build-runs get --id "BUILD_RUN_ID"
-  asc xcode-cloud build-runs get --id "BUILD_RUN_ID" --output table`,
+  asc xcode-cloud build-runs view --id "BUILD_RUN_ID"
+  asc xcode-cloud build-runs view --id "BUILD_RUN_ID" --output table`,
 		IDFlag:      "id",
 		IDUsage:     "Build run ID",
-		ErrorPrefix: "xcode-cloud build-runs get",
+		ErrorPrefix: "xcode-cloud build-runs view",
 		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
 			return contextWithXcodeCloudTimeout(ctx, 0)
 		},

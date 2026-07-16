@@ -31,7 +31,7 @@ func CertificatesCommand() *ffcli.Command {
 Examples:
   asc certificates list
   asc certificates list --certificate-type IOS_DISTRIBUTION
-  asc certificates get --id "CERT_ID" --include passTypeId
+  asc certificates view --id "CERT_ID" --include passTypeId
   asc certificates create --certificate-type IOS_DISTRIBUTION --csr "./cert.csr"
   asc certificates update --id "CERT_ID" --activated true
   asc certificates update --id "CERT_ID" --activated false
@@ -130,23 +130,23 @@ Examples:
 	}
 }
 
-// CertificatesGetCommand returns the certificates get subcommand.
+// CertificatesGetCommand returns the certificates view subcommand.
 func CertificatesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Certificate ID")
 	include := fs.String("include", "", "Include related resources: passTypeId")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc certificates get --id \"CERT_ID\" [flags]",
-		ShortHelp:  "Get a signing certificate by ID.",
-		LongHelp: `Get a signing certificate by ID.
+		Name:       "view",
+		ShortUsage: "asc certificates view --id \"CERT_ID\" [flags]",
+		ShortHelp:  "View a signing certificate by ID.",
+		LongHelp: `View a signing certificate by ID.
 
 Examples:
-  asc certificates get --id "CERT_ID"
-  asc certificates get --id "CERT_ID" --include passTypeId`,
+  asc certificates view --id "CERT_ID"
+  asc certificates view --id "CERT_ID" --include passTypeId`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -158,12 +158,12 @@ Examples:
 
 			includeValues, err := normalizeCertificatesInclude(*include)
 			if err != nil {
-				return fmt.Errorf("certificates get: %w", err)
+				return fmt.Errorf("certificates view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("certificates get: %w", err)
+				return fmt.Errorf("certificates view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -176,7 +176,7 @@ Examples:
 
 			resp, err := client.GetCertificate(requestCtx, idValue, opts...)
 			if err != nil {
-				return fmt.Errorf("certificates get: failed to fetch: %w", err)
+				return fmt.Errorf("certificates view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

@@ -24,7 +24,7 @@ func AppClipAdvancedExperienceImagesCommand() *ffcli.Command {
 		LongHelp: `Manage App Clip advanced experience images.
 
 Examples:
-  asc app-clips advanced-experiences images get --id "IMAGE_ID"
+  asc app-clips advanced-experiences images view --id "IMAGE_ID"
   asc app-clips advanced-experiences images create --experience-id "EXP_ID" --file path/to/image.png
   asc app-clips advanced-experiences images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
@@ -42,19 +42,19 @@ Examples:
 
 // AppClipAdvancedExperienceImagesGetCommand retrieves an image by ID.
 func AppClipAdvancedExperienceImagesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	imageID := fs.String("id", "", "Image ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc app-clips advanced-experiences images get --id \"IMAGE_ID\"",
-		ShortHelp:  "Get an advanced experience image by ID.",
-		LongHelp: `Get an advanced experience image by ID.
+		Name:       "view",
+		ShortUsage: "asc app-clips advanced-experiences images view --id \"IMAGE_ID\"",
+		ShortHelp:  "View an advanced experience image by ID.",
+		LongHelp: `View an advanced experience image by ID.
 
 Examples:
-  asc app-clips advanced-experiences images get --id "IMAGE_ID"`,
+  asc app-clips advanced-experiences images view --id "IMAGE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -66,7 +66,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences images get: %w", err)
+				return fmt.Errorf("app-clips advanced-experiences images view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -74,7 +74,7 @@ Examples:
 
 			resp, err := client.GetAppClipAdvancedExperienceImage(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("app-clips advanced-experiences images get: failed to fetch: %w", err)
+				return fmt.Errorf("app-clips advanced-experiences images view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

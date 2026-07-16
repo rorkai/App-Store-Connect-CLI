@@ -24,8 +24,8 @@ func EULACommand() *ffcli.Command {
 		LongHelp: `Manage End User License Agreements (EULA).
 
 Examples:
-  asc eula get --id "EULA_ID"
-  asc eula get --app "APP_ID"
+  asc eula view --id "EULA_ID"
+  asc eula view --app "APP_ID"
   asc eula list --app "APP_ID"
   asc eula create --app "APP_ID" --agreement-text "Terms..." --territory "US,Canada"
   asc eula update --id "EULA_ID" --agreement-text "Updated terms"
@@ -46,23 +46,23 @@ Examples:
 	}
 }
 
-// EULAGetCommand returns the eula get subcommand.
+// EULAGetCommand returns the eula view subcommand.
 func EULAGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "EULA ID")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc eula get --id \"EULA_ID\" | asc eula get --app \"APP_ID\"",
-		ShortHelp:  "Get an EULA by ID or app.",
-		LongHelp: `Get an End User License Agreement (EULA).
+		Name:       "view",
+		ShortUsage: "asc eula view --id \"EULA_ID\" | asc eula view --app \"APP_ID\"",
+		ShortHelp:  "View an EULA by ID or app.",
+		LongHelp: `View an End User License Agreement (EULA).
 
 Examples:
-  asc eula get --id "EULA_ID"
-  asc eula get --app "APP_ID"`,
+  asc eula view --id "EULA_ID"
+  asc eula view --app "APP_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -82,7 +82,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("eula get: %w", err)
+				return fmt.Errorf("eula view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -95,7 +95,7 @@ Examples:
 				resp, err = client.GetEndUserLicenseAgreement(requestCtx, idValue)
 			}
 			if err != nil {
-				return fmt.Errorf("eula get: failed to fetch: %w", err)
+				return fmt.Errorf("eula view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

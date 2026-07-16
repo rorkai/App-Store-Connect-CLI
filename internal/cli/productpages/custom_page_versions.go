@@ -117,19 +117,19 @@ Examples:
 
 // CustomPageVersionsGetCommand returns the custom page versions get subcommand.
 func CustomPageVersionsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("custom-page-versions get", flag.ExitOnError)
+	fs := flag.NewFlagSet("custom-page-versions view", flag.ExitOnError)
 
 	versionID := fs.String("custom-page-version-id", "", "Custom product page version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc product-pages custom-pages versions get --custom-page-version-id \"VERSION_ID\"",
-		ShortHelp:  "Get a custom product page version by ID.",
-		LongHelp: `Get a custom product page version by ID.
+		Name:       "view",
+		ShortUsage: "asc product-pages custom-pages versions view --custom-page-version-id \"VERSION_ID\"",
+		ShortHelp:  "View a custom product page version by ID.",
+		LongHelp: `View a custom product page version by ID.
 
 Examples:
-  asc product-pages custom-pages versions get --custom-page-version-id "VERSION_ID"`,
+  asc product-pages custom-pages versions view --custom-page-version-id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -141,7 +141,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("custom-pages versions get: %w", err)
+				return fmt.Errorf("custom-pages versions view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -149,7 +149,7 @@ Examples:
 
 			resp, err := client.GetAppCustomProductPageVersion(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("custom-pages versions get: failed to fetch: %w", err)
+				return fmt.Errorf("custom-pages versions view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

@@ -22,7 +22,7 @@ func VersionsAppClipDefaultExperienceCommand() *ffcli.Command {
 		LongHelp: `Manage App Clip default experience for a version.
 
 Examples:
-  asc versions app-clip-default-experience get --version-id "VERSION_ID"`,
+  asc versions app-clip-default-experience view --version-id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -36,19 +36,19 @@ Examples:
 
 // VersionsAppClipDefaultExperienceGetCommand gets the App Clip default experience for a version.
 func VersionsAppClipDefaultExperienceGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("app-clip-default-experience get", flag.ExitOnError)
+	fs := flag.NewFlagSet("app-clip-default-experience view", flag.ExitOnError)
 
 	versionID := fs.String("version-id", "", "App Store version ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc versions app-clip-default-experience get --version-id \"VERSION_ID\"",
-		ShortHelp:  "Get App Clip default experience for an app store version.",
-		LongHelp: `Get App Clip default experience for an app store version.
+		Name:       "view",
+		ShortUsage: "asc versions app-clip-default-experience view --version-id \"VERSION_ID\"",
+		ShortHelp:  "View App Clip default experience for an app store version.",
+		LongHelp: `View App Clip default experience for an app store version.
 
 Examples:
-  asc versions app-clip-default-experience get --version-id "VERSION_ID"`,
+  asc versions app-clip-default-experience view --version-id "VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -60,7 +60,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("versions app-clip-default-experience get: %w", err)
+				return fmt.Errorf("versions app-clip-default-experience view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -68,7 +68,7 @@ Examples:
 
 			resp, err := client.GetAppStoreVersionAppClipDefaultExperience(requestCtx, versionValue)
 			if err != nil {
-				return fmt.Errorf("versions app-clip-default-experience get: failed to fetch: %w", err)
+				return fmt.Errorf("versions app-clip-default-experience view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

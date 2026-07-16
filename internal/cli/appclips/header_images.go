@@ -24,7 +24,7 @@ func AppClipHeaderImagesCommand() *ffcli.Command {
 		LongHelp: `Manage App Clip header images.
 
 Examples:
-  asc app-clips header-images get --id "IMAGE_ID"
+  asc app-clips header-images view --id "IMAGE_ID"
   asc app-clips header-images create --localization-id "LOC_ID" --file path/to/image.png
   asc app-clips header-images delete --id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
@@ -42,19 +42,19 @@ Examples:
 
 // AppClipHeaderImagesGetCommand retrieves a header image by ID.
 func AppClipHeaderImagesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	imageID := fs.String("id", "", "Header image ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc app-clips header-images get --id \"IMAGE_ID\"",
-		ShortHelp:  "Get a header image by ID.",
-		LongHelp: `Get a header image by ID.
+		Name:       "view",
+		ShortUsage: "asc app-clips header-images view --id \"IMAGE_ID\"",
+		ShortHelp:  "View a header image by ID.",
+		LongHelp: `View a header image by ID.
 
 Examples:
-  asc app-clips header-images get --id "IMAGE_ID"`,
+  asc app-clips header-images view --id "IMAGE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -66,7 +66,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-clips header-images get: %w", err)
+				return fmt.Errorf("app-clips header-images view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -74,7 +74,7 @@ Examples:
 
 			resp, err := client.GetAppClipHeaderImage(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("app-clips header-images get: failed to fetch: %w", err)
+				return fmt.Errorf("app-clips header-images view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

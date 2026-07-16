@@ -42,7 +42,7 @@ func DevicesCommand() *ffcli.Command {
 
 Examples:
   asc devices list
-  asc devices get --id "DEVICE_ID"
+  asc devices view --id "DEVICE_ID"
   asc devices local-udid
   asc devices register --name "iPhone 15" --udid "UDID" --platform IOS
   asc devices update --id "DEVICE_ID" --status DISABLED`,
@@ -174,23 +174,23 @@ Examples:
 	}
 }
 
-// DevicesGetCommand returns the devices get subcommand.
+// DevicesGetCommand returns the devices view subcommand.
 func DevicesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Device ID")
 	fields := fs.String("fields", "", "Fields to include: addedDate, deviceClass, model, name, platform, status, udid")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc devices get --id DEVICE_ID",
-		ShortHelp:  "Get a device by ID.",
-		LongHelp: `Get a device by ID.
+		Name:       "view",
+		ShortUsage: "asc devices view --id DEVICE_ID",
+		ShortHelp:  "View a device by ID.",
+		LongHelp: `View a device by ID.
 
 Examples:
-  asc devices get --id "DEVICE_ID"
-  asc devices get --id "DEVICE_ID" --fields "name,udid,platform,status"`,
+  asc devices view --id "DEVICE_ID"
+  asc devices view --id "DEVICE_ID" --fields "name,udid,platform,status"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -202,12 +202,12 @@ Examples:
 
 			fieldsValue, err := normalizeDeviceFields(*fields)
 			if err != nil {
-				return fmt.Errorf("devices get: %w", err)
+				return fmt.Errorf("devices view: %w", err)
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("devices get: %w", err)
+				return fmt.Errorf("devices view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -215,7 +215,7 @@ Examples:
 
 			device, err := client.GetDevice(requestCtx, idValue, fieldsValue)
 			if err != nil {
-				return fmt.Errorf("devices get: failed to fetch: %w", err)
+				return fmt.Errorf("devices view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(device, *output.Output, *output.Pretty)

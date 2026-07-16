@@ -45,7 +45,7 @@ Examples:
 
 // IAPPriceSchedulesGetCommand returns the price schedules get subcommand.
 func IAPPriceSchedulesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("schedules get", flag.ExitOnError)
+	fs := flag.NewFlagSet("schedules view", flag.ExitOnError)
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
 	appID := addIAPLookupAppFlag(fs)
@@ -59,10 +59,10 @@ func IAPPriceSchedulesGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
+		Name:       "view",
 		ShortUsage: "asc iap pricing schedules view --iap-id \"IAP_ID\"",
-		ShortHelp:  "Get in-app purchase price schedule.",
-		LongHelp: `Get in-app purchase price schedule.
+		ShortHelp:  "View in-app purchase price schedule.",
+		LongHelp: `View in-app purchase price schedule.
 
 Examples:
   asc iap pricing schedules view --iap-id "IAP_ID"
@@ -98,7 +98,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("iap pricing schedules get: %w", err)
+				return fmt.Errorf("iap pricing schedules view: %w", err)
 			}
 
 			opts := make([]asc.IAPPriceScheduleOption, 0, 6)
@@ -127,7 +127,7 @@ Examples:
 
 				resp, err := client.GetInAppPurchasePriceScheduleByID(requestCtx, scheduleValue, opts...)
 				if err != nil {
-					return fmt.Errorf("iap pricing schedules get: failed to fetch: %w", err)
+					return fmt.Errorf("iap pricing schedules view: failed to fetch: %w", err)
 				}
 
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -143,7 +143,7 @@ Examples:
 
 			resp, err := client.GetInAppPurchasePriceSchedule(requestCtx, iapValue, opts...)
 			if err != nil {
-				return fmt.Errorf("iap pricing schedules get: failed to fetch: %w", err)
+				return fmt.Errorf("iap pricing schedules view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

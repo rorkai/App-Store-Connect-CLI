@@ -126,19 +126,19 @@ Examples:
 
 // SubscriptionsImagesGetCommand returns the images get subcommand.
 func SubscriptionsImagesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("images get", flag.ExitOnError)
+	fs := flag.NewFlagSet("images view", flag.ExitOnError)
 
 	imageID := fs.String("id", "", "Subscription image ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc subscriptions images get --id \"IMAGE_ID\"",
-		ShortHelp:  "Get a subscription image by ID.",
-		LongHelp: `Get a subscription image by ID.
+		Name:       "view",
+		ShortUsage: "asc subscriptions images view --id \"IMAGE_ID\"",
+		ShortHelp:  "View a subscription image by ID.",
+		LongHelp: `View a subscription image by ID.
 
 Examples:
-  asc subscriptions images get --id "IMAGE_ID"`,
+  asc subscriptions images view --id "IMAGE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -150,7 +150,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions images get: %w", err)
+				return fmt.Errorf("subscriptions images view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -158,7 +158,7 @@ Examples:
 
 			resp, err := client.GetSubscriptionImage(requestCtx, id)
 			if err != nil {
-				return fmt.Errorf("subscriptions images get: failed to fetch: %w", err)
+				return fmt.Errorf("subscriptions images view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

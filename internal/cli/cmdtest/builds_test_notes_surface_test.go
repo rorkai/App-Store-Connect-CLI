@@ -63,29 +63,3 @@ func TestBuildsTestNotesHelpShowsViewNotGet(t *testing.T) {
 		t.Fatalf("expected builds test-notes help to hide get alias, got %q", stderr)
 	}
 }
-
-func TestRemovedBuildsTestNotesGetShowsGuidance(t *testing.T) {
-	root := RootCommand("1.2.3")
-	root.FlagSet.SetOutput(io.Discard)
-
-	var runErr error
-	stdout, stderr := captureOutput(t, func() {
-		if err := root.Parse([]string{"builds", "test-notes", "get", "--id", "loc-1"}); err != nil {
-			t.Fatalf("parse error: %v", err)
-		}
-		runErr = root.Run(context.Background())
-	})
-
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("expected ErrHelp, got %v", runErr)
-	}
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
-	}
-	if strings.Contains(stderr, "Unknown command: get") {
-		t.Fatalf("expected targeted removal guidance, got %q", stderr)
-	}
-	if !strings.Contains(stderr, "Error: `asc builds test-notes get` was removed. Use `asc builds test-notes view` instead.") {
-		t.Fatalf("expected removal guidance, got %q", stderr)
-	}
-}

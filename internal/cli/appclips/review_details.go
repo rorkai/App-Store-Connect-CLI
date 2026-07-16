@@ -24,7 +24,7 @@ func AppClipReviewDetailsCommand() *ffcli.Command {
 		LongHelp: `Manage App Clip App Store review details (invocation URLs).
 
 Examples:
-  asc app-clips review-details get --id "DETAIL_ID"
+  asc app-clips review-details view --id "DETAIL_ID"
   asc app-clips review-details create --experience-id "EXP_ID" --url "https://example.com/clip"
   asc app-clips review-details update --id "DETAIL_ID" --url "https://example.com/clip"`,
 		FlagSet:   fs,
@@ -42,19 +42,19 @@ Examples:
 
 // AppClipReviewDetailsGetCommand gets review details by ID.
 func AppClipReviewDetailsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	detailID := fs.String("id", "", "Review detail ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc app-clips review-details get --id \"DETAIL_ID\"",
-		ShortHelp:  "Get App Clip review details by ID.",
-		LongHelp: `Get App Clip review details by ID.
+		Name:       "view",
+		ShortUsage: "asc app-clips review-details view --id \"DETAIL_ID\"",
+		ShortHelp:  "View App Clip review details by ID.",
+		LongHelp: `View App Clip review details by ID.
 
 Examples:
-  asc app-clips review-details get --id "DETAIL_ID"`,
+  asc app-clips review-details view --id "DETAIL_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -66,7 +66,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("app-clips review-details get: %w", err)
+				return fmt.Errorf("app-clips review-details view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -74,7 +74,7 @@ Examples:
 
 			resp, err := client.GetAppClipAppStoreReviewDetail(requestCtx, detailValue)
 			if err != nil {
-				return fmt.Errorf("app-clips review-details get: failed to fetch: %w", err)
+				return fmt.Errorf("app-clips review-details view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

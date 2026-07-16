@@ -108,17 +108,17 @@ func parseOfferCodePrices(value string, mode asc.SubscriptionOfferMode) ([]asc.S
 // OfferCodesGetCommand returns the offer codes get subcommand.
 func OfferCodesGetCommand() *ffcli.Command {
 	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "get",
-		Name:        "get",
-		ShortUsage:  "asc offer-codes get --offer-code-id ID",
-		ShortHelp:   "Get a subscription offer code by ID.",
-		LongHelp: `Get a subscription offer code by ID.
+		FlagSetName: "view",
+		Name:        "view",
+		ShortUsage:  "asc offer-codes view --offer-code-id ID",
+		ShortHelp:   "View a subscription offer code by ID.",
+		LongHelp: `View a subscription offer code by ID.
 
 Examples:
-  asc offer-codes get --offer-code-id "OFFER_CODE_ID"`,
+  asc offer-codes view --offer-code-id "OFFER_CODE_ID"`,
 		IDFlag:      "offer-code-id",
 		IDUsage:     "Subscription offer code ID (required)",
-		ErrorPrefix: "offer-codes get",
+		ErrorPrefix: "offer-codes view",
 		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
 			return client.GetSubscriptionOfferCode(ctx, id)
 		},

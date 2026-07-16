@@ -178,23 +178,23 @@ Examples:
 	}
 }
 
-// ExperimentsGetCommand returns the experiments get subcommand.
+// ExperimentsGetCommand returns the experiments view subcommand.
 func ExperimentsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("experiments get", flag.ExitOnError)
+	fs := flag.NewFlagSet("experiments view", flag.ExitOnError)
 
 	experimentID := fs.String("experiment-id", "", "Experiment ID")
 	output := shared.BindOutputFlags(fs)
 	v2 := fs.Bool("v2", false, "Use v2 experiments endpoint")
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc product-pages experiments get --experiment-id \"EXPERIMENT_ID\" [--v2]",
-		ShortHelp:  "Get an experiment by ID.",
-		LongHelp: `Get an experiment by ID.
+		Name:       "view",
+		ShortUsage: "asc product-pages experiments view --experiment-id \"EXPERIMENT_ID\" [--v2]",
+		ShortHelp:  "View an experiment by ID.",
+		LongHelp: `View an experiment by ID.
 
 Examples:
-  asc product-pages experiments get --experiment-id "EXPERIMENT_ID"
-  asc product-pages experiments get --experiment-id "EXPERIMENT_ID" --v2`,
+  asc product-pages experiments view --experiment-id "EXPERIMENT_ID"
+  asc product-pages experiments view --experiment-id "EXPERIMENT_ID" --v2`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -206,7 +206,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("experiments get: %w", err)
+				return fmt.Errorf("experiments view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -215,14 +215,14 @@ Examples:
 			if *v2 {
 				resp, err := client.GetAppStoreVersionExperimentV2(requestCtx, trimmedID)
 				if err != nil {
-					return fmt.Errorf("experiments get: failed to fetch: %w", err)
+					return fmt.Errorf("experiments view: failed to fetch: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.GetAppStoreVersionExperiment(requestCtx, trimmedID)
 			if err != nil {
-				return fmt.Errorf("experiments get: failed to fetch: %w", err)
+				return fmt.Errorf("experiments view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

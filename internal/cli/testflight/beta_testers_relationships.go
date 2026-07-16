@@ -30,8 +30,8 @@ func BetaTestersRelationshipsCommand() *ffcli.Command {
 		LongHelp: `View beta tester relationship linkages.
 
 Examples:
-  asc testflight beta-testers relationships get --tester-id "TESTER_ID" --type "apps"
-  asc testflight beta-testers relationships get --tester-id "TESTER_ID" --type "betaGroups" --paginate`,
+  asc testflight beta-testers relationships view --tester-id "TESTER_ID" --type "apps"
+  asc testflight beta-testers relationships view --tester-id "TESTER_ID" --type "betaGroups" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -45,7 +45,7 @@ Examples:
 
 // BetaTestersRelationshipsGetCommand returns the beta-testers relationships get subcommand.
 func BetaTestersRelationshipsGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("relationships get", flag.ExitOnError)
+	fs := flag.NewFlagSet("relationships view", flag.ExitOnError)
 
 	testerID := fs.String("tester-id", "", "Beta tester ID")
 	aliasID := fs.String("id", "", "Beta tester ID (alias of --tester-id)")
@@ -56,22 +56,22 @@ func BetaTestersRelationshipsGetCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc testflight beta-testers relationships get --tester-id \"TESTER_ID\" --type \"RELATIONSHIP\" [flags]",
-		ShortHelp:  "Get beta tester relationship linkages.",
-		LongHelp: `Get beta tester relationship linkages.
+		Name:       "view",
+		ShortUsage: "asc testflight beta-testers relationships view --tester-id \"TESTER_ID\" --type \"RELATIONSHIP\" [flags]",
+		ShortHelp:  "View beta tester relationship linkages.",
+		LongHelp: `View beta tester relationship linkages.
 
 Examples:
-  asc testflight beta-testers relationships get --tester-id "TESTER_ID" --type "apps"
-  asc testflight beta-testers relationships get --tester-id "TESTER_ID" --type "builds" --paginate`,
+  asc testflight beta-testers relationships view --tester-id "TESTER_ID" --type "apps"
+  asc testflight beta-testers relationships view --tester-id "TESTER_ID" --type "builds" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("testflight beta-testers relationships get: --limit must be between 1 and 200")
+				return fmt.Errorf("testflight beta-testers relationships view: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("testflight beta-testers relationships get: %w", err)
+				return fmt.Errorf("testflight beta-testers relationships view: %w", err)
 			}
 
 			relationshipType := strings.TrimSpace(*relType)
@@ -91,7 +91,7 @@ Examples:
 			if testerValue == "" {
 				testerValue = aliasValue
 			} else if aliasValue != "" && aliasValue != testerValue {
-				return fmt.Errorf("testflight beta-testers relationships get: --tester-id and --id must match")
+				return fmt.Errorf("testflight beta-testers relationships view: --tester-id and --id must match")
 			}
 
 			nextValue := strings.TrimSpace(*next)
@@ -107,7 +107,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("testflight beta-testers relationships get: %w", err)
+				return fmt.Errorf("testflight beta-testers relationships view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -130,7 +130,7 @@ Examples:
 					},
 				)
 				if err != nil {
-					return fmt.Errorf("testflight beta-testers relationships get: %w", err)
+					return fmt.Errorf("testflight beta-testers relationships view: %w", err)
 				}
 
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -138,7 +138,7 @@ Examples:
 
 			resp, err := getBetaTesterRelationshipList(requestCtx, client, relationshipType, testerValue, opts...)
 			if err != nil {
-				return fmt.Errorf("testflight beta-testers relationships get: %w", err)
+				return fmt.Errorf("testflight beta-testers relationships view: %w", err)
 			}
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},

@@ -202,7 +202,8 @@ func TestRemovedTestFlightAliasPathsPreferCanonicalParentHelp(t *testing.T) {
 		{
 			name:               "beta app localizations leaf removed",
 			args:               []string{"testflight", "app-localizations", "get"},
-			wantRemovedMessage: "Error: `asc testflight app-localizations get` was removed. Use `asc testflight app-localizations view` instead.",
+			wantCanonicalUsage: "asc testflight app-localizations <subcommand> [flags]",
+			wantCanonicalHint:  "view",
 			wantNotShown: []string{
 				"asc beta-app-localizations get --id \"LOCALIZATION_ID\"",
 			},

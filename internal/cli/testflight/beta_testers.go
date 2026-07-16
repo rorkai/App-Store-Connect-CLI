@@ -26,7 +26,7 @@ func BetaTestersCommand() *ffcli.Command {
 
 Examples:
   asc testflight beta-testers list --app "APP_ID"
-  asc testflight beta-testers get --id "TESTER_ID"
+  asc testflight beta-testers view --id "TESTER_ID"
   asc testflight beta-testers add --app "APP_ID" --email "tester@example.com" --group "Beta"
   asc testflight beta-testers export --app "APP_ID" --output "./testflight-testers.csv"
   asc testflight beta-testers import --app "APP_ID" --input "./testflight-testers.csv" --dry-run
@@ -171,19 +171,19 @@ Examples:
 
 // BetaTestersGetCommand returns the beta testers get subcommand.
 func BetaTestersGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	id := fs.String("id", "", "Beta tester ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc testflight beta-testers get [flags]",
-		ShortHelp:  "Get a TestFlight beta tester by ID.",
-		LongHelp: `Get a TestFlight beta tester by ID.
+		Name:       "view",
+		ShortUsage: "asc testflight beta-testers view --id \"TESTER_ID\" [flags]",
+		ShortHelp:  "View a TestFlight beta tester by ID.",
+		LongHelp: `View a TestFlight beta tester by ID.
 
 Examples:
-  asc testflight beta-testers get --id "TESTER_ID"`,
+  asc testflight beta-testers view --id "TESTER_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -195,7 +195,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("beta-testers get: %w", err)
+				return fmt.Errorf("beta-testers view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -203,7 +203,7 @@ Examples:
 
 			tester, err := client.GetBetaTester(requestCtx, idValue)
 			if err != nil {
-				return fmt.Errorf("beta-testers get: failed to fetch: %w", err)
+				return fmt.Errorf("beta-testers view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(tester, *output.Output, *output.Pretty)

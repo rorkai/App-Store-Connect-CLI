@@ -20,11 +20,11 @@ func AnalyticsInstancesCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "instances",
 		ShortUsage: "asc analytics instances <subcommand> [flags]",
-		ShortHelp:  "Get analytics report instances or relationships.",
-		LongHelp: `Get analytics report instances or relationships.
+		ShortHelp:  "View analytics report instances or relationships.",
+		LongHelp: `View analytics report instances or relationships.
 
 Examples:
-  asc analytics instances get --instance-id "INSTANCE_ID"
+  asc analytics instances view --instance-id "INSTANCE_ID"
   asc analytics instances links --instance-id "INSTANCE_ID"
   asc analytics instances links --instance-id "INSTANCE_ID" --paginate`,
 		FlagSet:   fs,
@@ -41,19 +41,19 @@ Examples:
 
 // AnalyticsInstancesGetCommand retrieves a specific analytics report instance.
 func AnalyticsInstancesGetCommand() *ffcli.Command {
-	fs := flag.NewFlagSet("get", flag.ExitOnError)
+	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	instanceID := fs.String("instance-id", "", "Analytics report instance ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
-		Name:       "get",
-		ShortUsage: "asc analytics instances get --instance-id \"INSTANCE_ID\" [flags]",
-		ShortHelp:  "Get an analytics report instance by ID.",
-		LongHelp: `Get an analytics report instance by ID.
+		Name:       "view",
+		ShortUsage: "asc analytics instances view --instance-id \"INSTANCE_ID\" [flags]",
+		ShortHelp:  "View an analytics report instance by ID.",
+		LongHelp: `View an analytics report instance by ID.
 
 Examples:
-  asc analytics instances get --instance-id "INSTANCE_ID"`,
+  asc analytics instances view --instance-id "INSTANCE_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -64,7 +64,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("analytics instances get: %w", err)
+				return fmt.Errorf("analytics instances view: %w", err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -72,7 +72,7 @@ Examples:
 
 			resp, err := client.GetAnalyticsReportInstance(requestCtx, strings.TrimSpace(*instanceID))
 			if err != nil {
-				return fmt.Errorf("analytics instances get: failed to fetch: %w", err)
+				return fmt.Errorf("analytics instances view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
