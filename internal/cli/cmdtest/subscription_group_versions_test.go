@@ -139,6 +139,50 @@ func TestSubscriptionGroupsListRejectsVersionQueryFlagsWithNext(t *testing.T) {
 	}
 }
 
+func TestSubscriptionGroupsListRejectsExplicitAppWithOpaqueNextBeforeClient(t *testing.T) {
+	const next = "https://api.appstoreconnect.apple.com/v1/apps/app-1/subscriptionGroups?cursor=next"
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "nonempty app", args: []string{"--app", "app-2"}},
+		{name: "explicit empty app", args: []string{"--app", ""}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clientFactoryCalled := false
+			restore := subscriptionscli.SetGroupVersionClientFactory(func() (*asc.Client, error) {
+				clientFactoryCalled = true
+				return nil, errors.New("client factory must not run during validation")
+			})
+			defer restore()
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			args := append([]string{"subscriptions", "groups", "list", "--next", next}, test.args...)
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatal(err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected usage error, got %v", err)
+				}
+			})
+			if stdout != "" {
+				t.Fatalf("stdout = %q", stdout)
+			}
+			if !strings.Contains(stderr, "--next cannot be combined with --app") {
+				t.Fatalf("stderr = %q", stderr)
+			}
+			if clientFactoryCalled {
+				t.Fatal("client factory ran before opaque next validation")
+			}
+		})
+	}
+}
+
 func TestSubscriptionGroupVersionLinksExposeOnlyApplicableOwnerFlag(t *testing.T) {
 	tests := []struct {
 		name           string

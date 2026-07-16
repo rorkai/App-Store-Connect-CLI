@@ -130,6 +130,9 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions groups list: %w", err)
 			}
+			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "app") {
+				return shared.UsageError("subscriptions groups list: --next cannot be combined with --app")
+			}
 			if strings.TrimSpace(*next) != "" && subscriptionGroupAnyFlagSet(fs, "limit", "include", "fields", "version-fields", "versions-limit") {
 				return shared.UsageError("subscriptions groups list: --next cannot be combined with query flags")
 			}
@@ -155,7 +158,7 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups list: %w", err)
 			}
