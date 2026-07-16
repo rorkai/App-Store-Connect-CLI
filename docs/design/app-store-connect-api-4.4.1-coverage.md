@@ -1,4 +1,4 @@
-# App Store Connect API 4.4.1 coverage plan
+# App Store Connect API 4.4.1 coverage ledger
 
 ## Objective
 
@@ -59,6 +59,64 @@ The semantic diff changes only `info.version`, `paths`, and
 `components.schemas`; no other component category, security scheme, or
 top-level contract changes.
 
+## Current effort and status
+
+The implementation is complete across six reviewable pull requests. The heads
+recorded here are the exact commits used to reconcile this ledger:
+
+| Scope | Pull request | Audited head | Status |
+| --- | --- | --- | --- |
+| Relationship-aware schema discovery and stale-index enforcement | #1776 | `aaa9b62d` | Implemented and repository-gated |
+| IAP versions, v2 localizations/images, compatibility, and docs | #1777 | `2b4668b1` | Implemented and repository-gated |
+| Age-rating social-media fields and adjusted equalizations | #1778 | `64e2f1da` | Implemented and repository-gated |
+| Subscription versions, v2 localizations/images, compatibility, and docs | #1779 | `aa4856bd` | Implemented and repository-gated |
+| Subscription-group versions, v2 localizations, compatibility, and docs | #1780 | `83f3103e` | Implemented and repository-gated |
+| Cross-cutting review-submission version items and migration notes | #1781 | `77ced0b1` | Implemented and repository-gated |
+| External ASC workflow skills | rorkai/app-store-connect-cli-skills#50 | `5e6fad3d` | Targeted runtime examples green; two optional validators `UNVERIFIED` |
+| Zero-conflict six-PR integration | Local integration audit | `5f486516` | Exact-head format/docs/lint/test/build green |
+
+The hard audit found and fixed contract gaps beyond the initial implementation:
+explicit JSON `null` support for nullable v2 localization updates; endpoint-
+exact IAP detail/list options; IAP `versions` sparse-field propagation; opaque
+Apple pagination URLs and mutually exclusive query flags for price points;
+exact review-item fields/includes; preservation of review response `links`,
+`included`, and `meta`; positional-argument rejection; and missing command
+documentation. The final review pass also made `--item-fields` automatically
+include submission items on list/detail requests, removed duplicate cross-PR
+resource-type constants, and removed examples for absent companion commands.
+Pricing closeout added next-aware blank subscription/price-point ID validation
+before HTTP, asserted both aggregated pagination pages, and made the HTTP test
+handler concurrency-safe by avoiding `Fatalf`. It also made
+`--territory-fields` automatically request `include=territory` for price-point
+lists and equalizations, with exact-query tests that omit the explicit include.
+The shared pricing CSV parser now rejects separator-only input and any empty
+element for every new pricing flag, with seven CLI cases proving exit 2 before
+authentication.
+The subscription-group test hook was moved to a dedicated file, eliminating
+the only genuine #1779/#1780 merge conflict without changing runtime behavior.
+Four group-version list commands now reject an owner ID combined with opaque
+`--next` before authentication or HTTP, proven by poison-client regression
+tests.
+
+The external ASC workflow skills are synchronized in draft PR #50 at
+`5e6fad3d`, whose body references exact CLI heads #1778 `64e2f1da` and #1780
+`83f3103e`. Rebuilt-head checks pass all three review-item examples, six group
+examples, both pricing/age help paths, opaque-next conflicts, separator-only
+CSV rejection, and value/clear conflicts. The draft is mergeable with no
+review threads and no proven content drift. Its PyYAML and npm-based optional
+validators remain explicitly `UNVERIFIED` because those validators were
+unavailable; targeted runtime evidence covers the changed surface.
+
+The definitive integration at `5f486516` starts from `main` `25b33c17` and
+combines the six whole PR heads above with zero conflicts and zero manual edits.
+It preserves the exact 37-path, 47-operation, 47-schema, 102-direct,
+71-transitive, 173-contract, 61-modified-schema, and 9-addition/7-deprecation
+counts. All 62 changed or new leaf help paths render, and `make format`, `make
+check-docs`, `make lint`, `ASC_BYPASS_KEYCHAIN=1 make test`, and `make build`
+pass on that exact clean tree. #1778's one unrelated submit-package timing
+failure was classified against the same head; its GitHub package-shard rerun
+passed without a code change.
+
 ## Definition of done
 
 - Every added operation below is implemented and tested, or marked schema-only
@@ -93,24 +151,24 @@ top-level contract changes.
 
 | Method | Path | Required behavior | Disposition | Owner | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| `POST` | `/v1/inAppPurchaseVersions` | Create a version for an IAP relationship | Planned typed command | IAP version PR | Pending |
-| `GET` | `/v1/inAppPurchaseVersions/{id}` | View a version | Planned typed command | IAP version PR | Pending |
-| `GET` | `/v2/inAppPurchases/{id}/versions` | List related versions with pagination | Planned typed command | IAP version PR | Pending |
-| `GET` | `/v2/inAppPurchases/{id}/relationships/versions` | List version linkages | Planned typed client/command | IAP version PR | Pending |
-| `GET` | `/v1/inAppPurchaseVersions/{id}/localizations` | List version localizations | Planned typed command | IAP version PR | Pending |
-| `GET` | `/v1/inAppPurchaseVersions/{id}/relationships/localizations` | List localization linkages | Planned typed client/command | IAP version PR | Pending |
-| `GET` | `/v1/inAppPurchaseVersions/{id}/image` | Get the singular review image | Planned typed command | IAP version PR | Pending |
-| `GET` | `/v1/inAppPurchaseVersions/{id}/relationships/image` | Get singular image linkage | Planned typed client/command | IAP version PR | Pending |
-| `GET` | `/v1/inAppPurchaseVersions/{id}/images` | List review images | Planned typed command | IAP version PR | Pending |
-| `GET` | `/v1/inAppPurchaseVersions/{id}/relationships/images` | List image linkages | Planned typed client/command | IAP version PR | Pending |
-| `POST` | `/v2/inAppPurchaseLocalizations` | Create a version-scoped localization | Planned typed command | IAP version PR | Pending |
-| `GET` | `/v2/inAppPurchaseLocalizations/{id}` | View a localization | Planned typed command | IAP version PR | Pending |
-| `PATCH` | `/v2/inAppPurchaseLocalizations/{id}` | Update a localization | Planned typed command | IAP version PR | Pending |
-| `DELETE` | `/v2/inAppPurchaseLocalizations/{id}` | Delete a localization with confirmation | Planned typed command | IAP version PR | Pending |
-| `POST` | `/v2/inAppPurchaseImages` | Reserve and upload a version-scoped image | Planned upload command | IAP version PR | Pending |
-| `GET` | `/v2/inAppPurchaseImages/{id}` | View an image and upload state | Planned typed command | IAP version PR | Pending |
-| `PATCH` | `/v2/inAppPurchaseImages/{id}` | Commit uploaded parts | Planned upload command | IAP version PR | Pending |
-| `DELETE` | `/v2/inAppPurchaseImages/{id}` | Delete an image with confirmation | Planned typed command | IAP version PR | Pending |
+| `POST` | `/v1/inAppPurchaseVersions` | Create a version for an IAP relationship | Implemented typed command | #1777 | `2b4668b1`; HTTP body and built-command tests |
+| `GET` | `/v1/inAppPurchaseVersions/{id}` | View a version | Implemented typed command | #1777 | `2b4668b1`; HTTP query and built-command tests |
+| `GET` | `/v2/inAppPurchases/{id}/versions` | List related versions with pagination | Implemented typed command | #1777 | `2b4668b1`; exact query and pagination tests |
+| `GET` | `/v2/inAppPurchases/{id}/relationships/versions` | List version linkages | Implemented typed client/command | #1777 | `2b4668b1`; linkage response tests |
+| `GET` | `/v1/inAppPurchaseVersions/{id}/localizations` | List version localizations | Implemented typed command | #1777 | `2b4668b1`; exact path/query tests |
+| `GET` | `/v1/inAppPurchaseVersions/{id}/relationships/localizations` | List localization linkages | Implemented typed client/command | #1777 | `2b4668b1`; linkage response tests |
+| `GET` | `/v1/inAppPurchaseVersions/{id}/image` | Get the singular review image | Implemented typed command | #1777 | `2b4668b1`; singular response tests |
+| `GET` | `/v1/inAppPurchaseVersions/{id}/relationships/image` | Get singular image linkage | Implemented typed client/command | #1777 | `2b4668b1`; linkage response tests |
+| `GET` | `/v1/inAppPurchaseVersions/{id}/images` | List review images | Implemented typed command | #1777 | `2b4668b1`; list and pagination tests |
+| `GET` | `/v1/inAppPurchaseVersions/{id}/relationships/images` | List image linkages | Implemented typed client/command | #1777 | `2b4668b1`; linkage response tests |
+| `POST` | `/v2/inAppPurchaseLocalizations` | Create a version-scoped localization | Implemented typed command | #1777 | `2b4668b1`; exact create payload tests |
+| `GET` | `/v2/inAppPurchaseLocalizations/{id}` | View a localization | Implemented typed command | #1777 | `2b4668b1`; detail response tests |
+| `PATCH` | `/v2/inAppPurchaseLocalizations/{id}` | Update a localization | Implemented typed command | #1777 | `2b4668b1`; omitted/value/null payload tests |
+| `DELETE` | `/v2/inAppPurchaseLocalizations/{id}` | Delete a localization with confirmation | Implemented typed command | #1777 | `2b4668b1`; confirmation and HTTP tests |
+| `POST` | `/v2/inAppPurchaseImages` | Reserve and upload a version-scoped image | Implemented upload command | #1777 | `2b4668b1`; reserve/upload lifecycle tests |
+| `GET` | `/v2/inAppPurchaseImages/{id}` | View an image and upload state | Implemented typed command | #1777 | `2b4668b1`; detail response tests |
+| `PATCH` | `/v2/inAppPurchaseImages/{id}` | Commit uploaded parts | Implemented upload command | #1777 | `2b4668b1`; checksum and commit tests |
+| `DELETE` | `/v2/inAppPurchaseImages/{id}` | Delete an image with confirmation | Implemented typed command | #1777 | `2b4668b1`; confirmation and HTTP tests |
 
 The review-submission relationship for `inAppPurchaseVersion` modifies the
 existing `/v1/reviewSubmissionItems` operation rather than adding another path.
@@ -119,24 +177,24 @@ existing `/v1/reviewSubmissionItems` operation rather than adding another path.
 
 | Method | Path | Required behavior | Disposition | Owner | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| `POST` | `/v1/subscriptionVersions` | Create a version for a subscription relationship | Planned typed command | Subscription version PR | Pending |
-| `GET` | `/v1/subscriptionVersions/{id}` | View a version | Planned typed command | Subscription version PR | Pending |
-| `GET` | `/v1/subscriptions/{id}/versions` | List related versions with pagination | Planned typed command | Subscription version PR | Pending |
-| `GET` | `/v1/subscriptions/{id}/relationships/versions` | List version linkages | Planned typed client/command | Subscription version PR | Pending |
-| `GET` | `/v1/subscriptionVersions/{id}/localizations` | List version localizations | Planned typed command | Subscription version PR | Pending |
-| `GET` | `/v1/subscriptionVersions/{id}/relationships/localizations` | List localization linkages | Planned typed client/command | Subscription version PR | Pending |
-| `GET` | `/v1/subscriptionVersions/{id}/image` | Get the singular promotional image | Planned typed command | Subscription version PR | Pending |
-| `GET` | `/v1/subscriptionVersions/{id}/relationships/image` | Get singular image linkage | Planned typed client/command | Subscription version PR | Pending |
-| `GET` | `/v1/subscriptionVersions/{id}/images` | List promotional images | Planned typed command | Subscription version PR | Pending |
-| `GET` | `/v1/subscriptionVersions/{id}/relationships/images` | List image linkages | Planned typed client/command | Subscription version PR | Pending |
-| `POST` | `/v2/subscriptionLocalizations` | Create a version-scoped localization | Planned typed command | Subscription version PR | Pending |
-| `GET` | `/v2/subscriptionLocalizations/{id}` | View a localization | Planned typed command | Subscription version PR | Pending |
-| `PATCH` | `/v2/subscriptionLocalizations/{id}` | Update a localization | Planned typed command | Subscription version PR | Pending |
-| `DELETE` | `/v2/subscriptionLocalizations/{id}` | Delete a localization with confirmation | Planned typed command | Subscription version PR | Pending |
-| `POST` | `/v2/subscriptionImages` | Reserve and upload a version-scoped image | Planned upload command | Subscription version PR | Pending |
-| `GET` | `/v2/subscriptionImages/{id}` | View an image and upload state | Planned typed command | Subscription version PR | Pending |
-| `PATCH` | `/v2/subscriptionImages/{id}` | Commit uploaded parts | Planned upload command | Subscription version PR | Pending |
-| `DELETE` | `/v2/subscriptionImages/{id}` | Delete an image with confirmation | Planned typed command | Subscription version PR | Pending |
+| `POST` | `/v1/subscriptionVersions` | Create a version for a subscription relationship | Implemented typed command | #1779 | `aa4856bd`; HTTP body and built-command tests |
+| `GET` | `/v1/subscriptionVersions/{id}` | View a version | Implemented typed command | #1779 | `aa4856bd`; HTTP query and built-command tests |
+| `GET` | `/v1/subscriptions/{id}/versions` | List related versions with pagination | Implemented typed command | #1779 | `aa4856bd`; exact query and pagination tests |
+| `GET` | `/v1/subscriptions/{id}/relationships/versions` | List version linkages | Implemented typed client/command | #1779 | `aa4856bd`; linkage response tests |
+| `GET` | `/v1/subscriptionVersions/{id}/localizations` | List version localizations | Implemented typed command | #1779 | `aa4856bd`; exact path/query tests |
+| `GET` | `/v1/subscriptionVersions/{id}/relationships/localizations` | List localization linkages | Implemented typed client/command | #1779 | `aa4856bd`; linkage response tests |
+| `GET` | `/v1/subscriptionVersions/{id}/image` | Get the singular promotional image | Implemented typed command | #1779 | `aa4856bd`; singular response tests |
+| `GET` | `/v1/subscriptionVersions/{id}/relationships/image` | Get singular image linkage | Implemented typed client/command | #1779 | `aa4856bd`; linkage response tests |
+| `GET` | `/v1/subscriptionVersions/{id}/images` | List promotional images | Implemented typed command | #1779 | `aa4856bd`; list and pagination tests |
+| `GET` | `/v1/subscriptionVersions/{id}/relationships/images` | List image linkages | Implemented typed client/command | #1779 | `aa4856bd`; linkage response tests |
+| `POST` | `/v2/subscriptionLocalizations` | Create a version-scoped localization | Implemented typed command | #1779 | `aa4856bd`; exact create payload tests |
+| `GET` | `/v2/subscriptionLocalizations/{id}` | View a localization | Implemented typed command | #1779 | `aa4856bd`; detail response tests |
+| `PATCH` | `/v2/subscriptionLocalizations/{id}` | Update a localization | Implemented typed command | #1779 | `aa4856bd`; omitted/value/null payload tests |
+| `DELETE` | `/v2/subscriptionLocalizations/{id}` | Delete a localization with confirmation | Implemented typed command | #1779 | `aa4856bd`; confirmation and HTTP tests |
+| `POST` | `/v2/subscriptionImages` | Reserve and upload a version-scoped image | Implemented upload command | #1779 | `aa4856bd`; reserve/upload lifecycle tests |
+| `GET` | `/v2/subscriptionImages/{id}` | View an image and upload state | Implemented typed command | #1779 | `aa4856bd`; detail response tests |
+| `PATCH` | `/v2/subscriptionImages/{id}` | Commit uploaded parts | Implemented upload command | #1779 | `aa4856bd`; checksum and commit tests |
+| `DELETE` | `/v2/subscriptionImages/{id}` | Delete an image with confirmation | Implemented typed command | #1779 | `aa4856bd`; confirmation and HTTP tests |
 
 The review-submission relationship for `subscriptionVersion` modifies the
 existing `/v1/reviewSubmissionItems` operation.
@@ -145,16 +203,16 @@ existing `/v1/reviewSubmissionItems` operation.
 
 | Method | Path | Required behavior | Disposition | Owner | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| `POST` | `/v1/subscriptionGroupVersions` | Create a version for a group relationship | Planned typed command | Subscription-group version PR | Pending |
-| `GET` | `/v1/subscriptionGroupVersions/{id}` | View a version | Planned typed command | Subscription-group version PR | Pending |
-| `GET` | `/v1/subscriptionGroups/{id}/versions` | List related versions with pagination | Planned typed command | Subscription-group version PR | Pending |
-| `GET` | `/v1/subscriptionGroups/{id}/relationships/versions` | List version linkages | Planned typed client/command | Subscription-group version PR | Pending |
-| `GET` | `/v1/subscriptionGroupVersions/{id}/localizations` | List version localizations | Planned typed command | Subscription-group version PR | Pending |
-| `GET` | `/v1/subscriptionGroupVersions/{id}/relationships/localizations` | List localization linkages | Planned typed client/command | Subscription-group version PR | Pending |
-| `POST` | `/v2/subscriptionGroupLocalizations` | Create a version-scoped localization | Planned typed command | Subscription-group version PR | Pending |
-| `GET` | `/v2/subscriptionGroupLocalizations/{id}` | View a localization | Planned typed command | Subscription-group version PR | Pending |
-| `PATCH` | `/v2/subscriptionGroupLocalizations/{id}` | Update a localization | Planned typed command | Subscription-group version PR | Pending |
-| `DELETE` | `/v2/subscriptionGroupLocalizations/{id}` | Delete a localization with confirmation | Planned typed command | Subscription-group version PR | Pending |
+| `POST` | `/v1/subscriptionGroupVersions` | Create a version for a group relationship | Implemented typed command | #1780 | `83f3103e`; HTTP body and built-command tests |
+| `GET` | `/v1/subscriptionGroupVersions/{id}` | View a version | Implemented typed command | #1780 | `83f3103e`; HTTP query and built-command tests |
+| `GET` | `/v1/subscriptionGroups/{id}/versions` | List related versions with pagination | Implemented typed command | #1780 | `83f3103e`; exact query, owner/next validation, and pagination tests |
+| `GET` | `/v1/subscriptionGroups/{id}/relationships/versions` | List version linkages | Implemented typed client/command | #1780 | `83f3103e`; owner/next validation and linkage response tests |
+| `GET` | `/v1/subscriptionGroupVersions/{id}/localizations` | List version localizations | Implemented typed command | #1780 | `83f3103e`; exact path/query and owner/next validation tests |
+| `GET` | `/v1/subscriptionGroupVersions/{id}/relationships/localizations` | List localization linkages | Implemented typed client/command | #1780 | `83f3103e`; owner/next validation and linkage response tests |
+| `POST` | `/v2/subscriptionGroupLocalizations` | Create a version-scoped localization | Implemented typed command | #1780 | `83f3103e`; exact create payload tests |
+| `GET` | `/v2/subscriptionGroupLocalizations/{id}` | View a localization | Implemented typed command | #1780 | `83f3103e`; detail response tests |
+| `PATCH` | `/v2/subscriptionGroupLocalizations/{id}` | Update a localization | Implemented typed command | #1780 | `83f3103e`; omitted/value/null payload tests |
+| `DELETE` | `/v2/subscriptionGroupLocalizations/{id}` | Delete a localization with confirmation | Implemented typed command | #1780 | `83f3103e`; confirmation and HTTP tests |
 
 The review-submission relationship for `subscriptionGroupVersion` modifies the
 existing `/v1/reviewSubmissionItems` operation.
@@ -169,9 +227,9 @@ may delegate to the same typed client after their ID semantics are explicit.
 
 | Version type | Relationship payload | `--item-type` | Required test evidence | Status |
 | --- | --- | --- | --- | --- |
-| IAP | `inAppPurchaseVersion.data.type=inAppPurchaseVersions` | `inAppPurchaseVersions` | HTTP body test plus built command test | Planned in IAP version PR |
-| Subscription | `subscriptionVersion.data.type=subscriptionVersions` | `subscriptionVersions` | HTTP body test plus built command test | Planned cross-cutting review integration |
-| Subscription group | `subscriptionGroupVersion.data.type=subscriptionGroupVersions` | `subscriptionGroupVersions` | HTTP body test plus built command test | Planned cross-cutting review integration |
+| IAP | `inAppPurchaseVersion.data.type=inAppPurchaseVersions` | `inAppPurchaseVersions` | HTTP body test plus built command test | Implemented in #1777 at `2b4668b1` and cross-verified in #1781 at `77ced0b1` |
+| Subscription | `subscriptionVersion.data.type=subscriptionVersions` | `subscriptionVersions` | HTTP body test plus built command test | Implemented in #1781 at `77ced0b1` |
+| Subscription group | `subscriptionGroupVersion.data.type=subscriptionGroupVersions` | `subscriptionGroupVersions` | HTTP body test plus built command test | Implemented in #1781 at `77ced0b1` |
 
 The exact directly modified-operation checklist includes the four
 review-submission read operations whose sparse fields and includes gain the
@@ -182,7 +240,7 @@ is tracked separately below because the operation object itself is unchanged.
 
 | Method | Path | Required behavior | Disposition | Owner | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| `GET` | `/v1/subscriptionPricePoints/{id}/adjustedEqualizations` | List adjusted equalized price points using the exact territory, subscription, upfront-price-point, and plan-type filters supported by this operation | Planned typed command | Age/pricing PR | Pending |
+| `GET` | `/v1/subscriptionPricePoints/{id}/adjustedEqualizations` | List adjusted equalized price points using the exact territory, subscription, upfront-price-point, and plan-type filters supported by this operation | Implemented typed command | #1778 | `64e2f1da`; exact query/response, strict CSV, territory inclusion, opaque-next, ID validation, aggregation, and conflict tests |
 
 ## Modified existing contract ledger
 
@@ -194,16 +252,16 @@ eight add media-localization sparse-field parameters. Each item remains in the
 checklist so "already covered" is an audited disposition rather than an omitted
 change.
 
-| Contract area | Semantic change | Verification owner |
-| --- | --- | --- |
-| IAP reads | `fields[inAppPurchases]` gains `versions`; IAP detail and app-IAP collection reads gain `include=versions`, `fields[inAppPurchaseVersions]`, and `limit[versions]` | IAP version PR |
-| Subscription reads | Subscription detail and group-subscription reads gain version includes, sparse fields, and relationship limits; subscription sparse fields gain `versions` across related endpoints | Subscription version PR |
-| Subscription-group reads | Group detail and app-group collection reads gain version includes, sparse fields, and relationship limits; group sparse fields gain `versions` | Subscription-group version PR |
-| Review submission reads | Review-item sparse fields and includes gain `inAppPurchaseVersion`, `subscriptionVersion`, and `subscriptionGroupVersion` | Review-submission portions of all three version PRs |
-| Pricing reads | Price-point sparse fields gain `adjustedEqualizations`; existing equalization and price-point relationship operations gain `filter[upfrontPricePointId]` and `filter[planType]` where allowed | Age/pricing PR |
-| Age rating reads and update | Age-rating sparse fields and update schema gain `socialMedia` and `socialMediaAgeRestricted` | Age/pricing PR |
-| App info reads | `AppInfo.attributes.kidsAgeBand` and `fields[appInfos]=kidsAgeBand` appear as deprecated additions | Characterize current generic decoding/output; do not introduce a new write path |
-| Included-resource unions | IAP, subscription, group, and review-submission responses gain their corresponding version resource discriminators | Owning typed-client tests |
+| Contract area | Semantic change | Verification owner | Exact evidence |
+| --- | --- | --- | --- |
+| IAP reads | `fields[inAppPurchases]` gains `versions`; IAP detail and app-IAP collection reads gain `include=versions`, `fields[inAppPurchaseVersions]`, and `limit[versions]` | #1777 | `2b4668b1`; endpoint-specific option and exact query tests |
+| Subscription reads | Subscription detail and group-subscription reads gain version includes, sparse fields, and relationship limits; subscription sparse fields gain `versions` across related endpoints | #1779 | `aa4856bd`; exact query and compatibility tests |
+| Subscription-group reads | Group detail and app-group collection reads gain version includes, sparse fields, and relationship limits; group sparse fields gain `versions` | #1780 | `83f3103e`; exact query, owner/next validation, and compatibility tests |
+| Review submission reads | Review-item sparse fields and includes gain `inAppPurchaseVersion`, `subscriptionVersion`, and `subscriptionGroupVersion` | #1781 | `77ced0b1`; all four changed GET surfaces, automatic item inclusion, and response round-trip tests |
+| Pricing reads | Price-point sparse fields gain `adjustedEqualizations`; existing equalization and price-point relationship operations gain `filter[upfrontPricePointId]` and `filter[planType]` where allowed | #1778 | `64e2f1da`; endpoint-specific option, exact query, strict CSV, territory inclusion, opaque-next, ID validation, and aggregation tests |
+| Age rating reads and update | Age-rating sparse fields and update schema gain `socialMedia` and `socialMediaAgeRestricted` | #1778 | `64e2f1da`; payload, output, help, and exit-behavior tests |
+| App info reads | `AppInfo.attributes.kidsAgeBand` and `fields[appInfos]=kidsAgeBand` appear as deprecated additions | #1778 | `64e2f1da`; generic decoding/output characterization, no new write path |
+| Included-resource unions | IAP, subscription, group, and review-submission responses gain their corresponding version resource discriminators | #1777, #1779, #1780, #1781 | `2b4668b1`, `aa4856bd`, `83f3103e`, `77ced0b1`; typed response and included-resource tests |
 
 No existing operation changes from nondeprecated to `deprecated: true` in the
 OpenAPI JSON. Forty-four operations instead reverse `deprecated: true` from the
@@ -213,6 +271,11 @@ families below without setting new operation-level flags. Deprecation behavior
 therefore cannot be inferred solely from OpenAPI flags.
 
 ## Added and modified schema ledger
+
+Schema discovery and drift enforcement are implemented in #1776 at
+`aaa9b62d`: create/update request relationships are exposed through `asc schema`,
+referenced relationship schemas are resolved recursively, and both generated
+indexes fail their tests when stale.
 
 The 47 added schemas break down into:
 
@@ -228,23 +291,23 @@ remained at the immediate pre-PR base.
 
 Still different before the 4.4.1 schema PR:
 
-- [ ] `AgeRatingDeclaration` - two social-media Boolean attributes
-- [ ] `AgeRatingDeclarationUpdateRequest` - two nullable social-media update attributes
-- [ ] `AppInfo` - deprecated `kidsAgeBand` read attribute
-- [ ] `InAppPurchaseV2` - versions relationship
-- [ ] `InAppPurchaseV2Response` - included IAP-version discriminator
-- [ ] `InAppPurchasesV2Response` - included IAP-version discriminator
-- [ ] `ReviewSubmissionItem` - three version relationships
-- [ ] `ReviewSubmissionItemCreateRequest` - three version create relationships
-- [ ] `ReviewSubmissionItemResponse` - three included version discriminators
-- [ ] `ReviewSubmissionItemsResponse` - three included version discriminators
-- [ ] `Subscription` - versions relationship
-- [ ] `SubscriptionGroup` - versions relationship
-- [ ] `SubscriptionGroupResponse` - included group-version discriminator
-- [ ] `SubscriptionGroupsResponse` - included group-version discriminator
-- [ ] `SubscriptionPricePoint` - adjusted-equalizations relationship
-- [ ] `SubscriptionResponse` - included subscription-version discriminator
-- [ ] `SubscriptionsResponse` - included subscription-version discriminator
+- [x] `AgeRatingDeclaration` - two social-media Boolean attributes (#1778, `64e2f1da`)
+- [x] `AgeRatingDeclarationUpdateRequest` - two nullable social-media update attributes (#1778, `64e2f1da`)
+- [x] `AppInfo` - deprecated `kidsAgeBand` read attribute (#1778, `64e2f1da`)
+- [x] `InAppPurchaseV2` - versions relationship (#1777, `2b4668b1`)
+- [x] `InAppPurchaseV2Response` - included IAP-version discriminator (#1777, `2b4668b1`)
+- [x] `InAppPurchasesV2Response` - included IAP-version discriminator (#1777, `2b4668b1`)
+- [x] `ReviewSubmissionItem` - three version relationships (#1781, `77ced0b1`)
+- [x] `ReviewSubmissionItemCreateRequest` - three version create relationships (#1781, `77ced0b1`)
+- [x] `ReviewSubmissionItemResponse` - three included version discriminators (#1781, `77ced0b1`)
+- [x] `ReviewSubmissionItemsResponse` - three included version discriminators (#1781, `77ced0b1`)
+- [x] `Subscription` - versions relationship (#1779, `aa4856bd`)
+- [x] `SubscriptionGroup` - versions relationship (#1780, `83f3103e`)
+- [x] `SubscriptionGroupResponse` - included group-version discriminator (#1780, `83f3103e`)
+- [x] `SubscriptionGroupsResponse` - included group-version discriminator (#1780, `83f3103e`)
+- [x] `SubscriptionPricePoint` - adjusted-equalizations relationship (#1778, `64e2f1da`)
+- [x] `SubscriptionResponse` - included subscription-version discriminator (#1779, `aa4856bd`)
+- [x] `SubscriptionsResponse` - included subscription-version discriminator (#1779, `aa4856bd`)
 
 Already reconciled after the original 4.4 import and retained as audited
 schema-only dispositions:
@@ -296,61 +359,64 @@ schema-only dispositions:
 
 ### Exact added schema checklist
 
-IAP ownership:
+IAP ownership (#1777 at `2b4668b1`; typed models plus request/response and
+round-trip tests):
 
-- [ ] `InAppPurchaseVersion`
-- [ ] `InAppPurchaseVersionCreateRequest`
-- [ ] `InAppPurchaseVersionResponse`
-- [ ] `InAppPurchaseVersionsResponse`
-- [ ] `InAppPurchaseV2VersionsLinkagesResponse`
-- [ ] `InAppPurchaseVersionImageLinkageResponse`
-- [ ] `InAppPurchaseVersionImagesLinkagesResponse`
-- [ ] `InAppPurchaseVersionLocalizationsLinkagesResponse`
-- [ ] `InAppPurchaseLocalizationV2`
-- [ ] `InAppPurchaseLocalizationV2CreateRequest`
-- [ ] `InAppPurchaseLocalizationV2UpdateRequest`
-- [ ] `InAppPurchaseLocalizationV2Response`
-- [ ] `InAppPurchaseLocalizationsV2Response`
-- [ ] `InAppPurchaseImageV2`
-- [ ] `InAppPurchaseImageV2CreateRequest`
-- [ ] `InAppPurchaseImageV2UpdateRequest`
-- [ ] `InAppPurchaseImageV2Response`
-- [ ] `InAppPurchaseImagesV2Response`
+- [x] `InAppPurchaseVersion`
+- [x] `InAppPurchaseVersionCreateRequest`
+- [x] `InAppPurchaseVersionResponse`
+- [x] `InAppPurchaseVersionsResponse`
+- [x] `InAppPurchaseV2VersionsLinkagesResponse`
+- [x] `InAppPurchaseVersionImageLinkageResponse`
+- [x] `InAppPurchaseVersionImagesLinkagesResponse`
+- [x] `InAppPurchaseVersionLocalizationsLinkagesResponse`
+- [x] `InAppPurchaseLocalizationV2`
+- [x] `InAppPurchaseLocalizationV2CreateRequest`
+- [x] `InAppPurchaseLocalizationV2UpdateRequest`
+- [x] `InAppPurchaseLocalizationV2Response`
+- [x] `InAppPurchaseLocalizationsV2Response`
+- [x] `InAppPurchaseImageV2`
+- [x] `InAppPurchaseImageV2CreateRequest`
+- [x] `InAppPurchaseImageV2UpdateRequest`
+- [x] `InAppPurchaseImageV2Response`
+- [x] `InAppPurchaseImagesV2Response`
 
-Subscription ownership:
+Subscription ownership (#1779 at `aa4856bd`; typed models plus request/response
+and round-trip tests):
 
-- [ ] `SubscriptionVersion`
-- [ ] `SubscriptionVersionCreateRequest`
-- [ ] `SubscriptionVersionResponse`
-- [ ] `SubscriptionVersionsResponse`
-- [ ] `SubscriptionVersionsLinkagesResponse`
-- [ ] `SubscriptionVersionImageLinkageResponse`
-- [ ] `SubscriptionVersionImagesLinkagesResponse`
-- [ ] `SubscriptionVersionLocalizationsLinkagesResponse`
-- [ ] `SubscriptionLocalizationV2`
-- [ ] `SubscriptionLocalizationV2CreateRequest`
-- [ ] `SubscriptionLocalizationV2UpdateRequest`
-- [ ] `SubscriptionLocalizationV2Response`
-- [ ] `SubscriptionLocalizationsV2Response`
-- [ ] `SubscriptionImageV2`
-- [ ] `SubscriptionImageV2CreateRequest`
-- [ ] `SubscriptionImageV2UpdateRequest`
-- [ ] `SubscriptionImageV2Response`
-- [ ] `SubscriptionImagesV2Response`
+- [x] `SubscriptionVersion`
+- [x] `SubscriptionVersionCreateRequest`
+- [x] `SubscriptionVersionResponse`
+- [x] `SubscriptionVersionsResponse`
+- [x] `SubscriptionVersionsLinkagesResponse`
+- [x] `SubscriptionVersionImageLinkageResponse`
+- [x] `SubscriptionVersionImagesLinkagesResponse`
+- [x] `SubscriptionVersionLocalizationsLinkagesResponse`
+- [x] `SubscriptionLocalizationV2`
+- [x] `SubscriptionLocalizationV2CreateRequest`
+- [x] `SubscriptionLocalizationV2UpdateRequest`
+- [x] `SubscriptionLocalizationV2Response`
+- [x] `SubscriptionLocalizationsV2Response`
+- [x] `SubscriptionImageV2`
+- [x] `SubscriptionImageV2CreateRequest`
+- [x] `SubscriptionImageV2UpdateRequest`
+- [x] `SubscriptionImageV2Response`
+- [x] `SubscriptionImagesV2Response`
 
-Subscription-group ownership:
+Subscription-group ownership (#1780 at `83f3103e`; typed models plus
+request/response and round-trip tests):
 
-- [ ] `SubscriptionGroupVersion`
-- [ ] `SubscriptionGroupVersionCreateRequest`
-- [ ] `SubscriptionGroupVersionResponse`
-- [ ] `SubscriptionGroupVersionsResponse`
-- [ ] `SubscriptionGroupVersionsLinkagesResponse`
-- [ ] `SubscriptionGroupVersionLocalizationsLinkagesResponse`
-- [ ] `SubscriptionGroupLocalizationV2`
-- [ ] `SubscriptionGroupLocalizationV2CreateRequest`
-- [ ] `SubscriptionGroupLocalizationV2UpdateRequest`
-- [ ] `SubscriptionGroupLocalizationV2Response`
-- [ ] `SubscriptionGroupLocalizationsV2Response`
+- [x] `SubscriptionGroupVersion`
+- [x] `SubscriptionGroupVersionCreateRequest`
+- [x] `SubscriptionGroupVersionResponse`
+- [x] `SubscriptionGroupVersionsResponse`
+- [x] `SubscriptionGroupVersionsLinkagesResponse`
+- [x] `SubscriptionGroupVersionLocalizationsLinkagesResponse`
+- [x] `SubscriptionGroupLocalizationV2`
+- [x] `SubscriptionGroupLocalizationV2CreateRequest`
+- [x] `SubscriptionGroupLocalizationV2UpdateRequest`
+- [x] `SubscriptionGroupLocalizationV2Response`
+- [x] `SubscriptionGroupLocalizationsV2Response`
 
 ### Exact modified-operation checklist
 
@@ -360,67 +426,72 @@ immediate pre-PR base plus 52 changes already reconciled after the 4.4 import.
 Schema-mediated request-contract changes are listed separately after it and do
 not alter this count.
 
-Age rating and app info:
+Age rating and app info (#1778 at `64e2f1da`; sparse-field, typed-decoder,
+payload, output, and compatibility tests):
 
-- [ ] `GET /v1/appInfoLocalizations/{id}`
-- [ ] `GET /v1/appInfos/{id}`
-- [ ] `GET /v1/appInfos/{id}/ageRatingDeclaration`
-- [ ] `GET /v1/appInfos/{id}/appInfoLocalizations`
-- [ ] `GET /v1/apps`
-- [ ] `GET /v1/apps/{id}`
-- [ ] `GET /v1/apps/{id}/appInfos`
-- [ ] `GET /v1/ciProducts/{id}/app`
+- [x] `GET /v1/appInfoLocalizations/{id}`
+- [x] `GET /v1/appInfos/{id}`
+- [x] `GET /v1/appInfos/{id}/ageRatingDeclaration`
+- [x] `GET /v1/appInfos/{id}/appInfoLocalizations`
+- [x] `GET /v1/apps`
+- [x] `GET /v1/apps/{id}`
+- [x] `GET /v1/apps/{id}/appInfos`
+- [x] `GET /v1/ciProducts/{id}/app`
 
-IAP and promoted-purchase propagation:
+IAP and promoted-purchase propagation (#1777 at `2b4668b1`; endpoint-exact
+query and response compatibility tests):
 
-- [ ] `GET /v1/apps/{id}/inAppPurchasesV2`
-- [ ] `GET /v1/inAppPurchaseAppStoreReviewScreenshots/{id}`
-- [ ] `GET /v1/inAppPurchaseContents/{id}`
-- [ ] `GET /v1/inAppPurchaseImages/{id}`
-- [ ] `GET /v1/inAppPurchaseLocalizations/{id}`
-- [ ] `GET /v1/promotedPurchases/{id}`
-- [ ] `GET /v2/inAppPurchases/{id}`
-- [ ] `GET /v2/inAppPurchases/{id}/appStoreReviewScreenshot`
-- [ ] `GET /v2/inAppPurchases/{id}/content`
-- [ ] `GET /v2/inAppPurchases/{id}/images`
-- [ ] `GET /v2/inAppPurchases/{id}/inAppPurchaseLocalizations`
-- [ ] `GET /v2/inAppPurchases/{id}/promotedPurchase`
-- [ ] `GET /v1/apps/{id}/promotedPurchases`
+- [x] `GET /v1/apps/{id}/inAppPurchasesV2`
+- [x] `GET /v1/inAppPurchaseAppStoreReviewScreenshots/{id}`
+- [x] `GET /v1/inAppPurchaseContents/{id}`
+- [x] `GET /v1/inAppPurchaseImages/{id}`
+- [x] `GET /v1/inAppPurchaseLocalizations/{id}`
+- [x] `GET /v1/promotedPurchases/{id}`
+- [x] `GET /v2/inAppPurchases/{id}`
+- [x] `GET /v2/inAppPurchases/{id}/appStoreReviewScreenshot`
+- [x] `GET /v2/inAppPurchases/{id}/content`
+- [x] `GET /v2/inAppPurchases/{id}/images`
+- [x] `GET /v2/inAppPurchases/{id}/inAppPurchaseLocalizations`
+- [x] `GET /v2/inAppPurchases/{id}/promotedPurchase`
+- [x] `GET /v1/apps/{id}/promotedPurchases`
 
-Review submissions:
+Review submissions (#1781 at `77ced0b1`; exact sparse-field/include tests plus
+`links`, `included`, and `meta` response round trips):
 
-- [ ] `GET /v1/reviewSubmissions`
-- [ ] `GET /v1/reviewSubmissions/{id}`
-- [ ] `GET /v1/reviewSubmissions/{id}/items`
-- [ ] `GET /v1/apps/{id}/reviewSubmissions`
+- [x] `GET /v1/reviewSubmissions`
+- [x] `GET /v1/reviewSubmissions/{id}`
+- [x] `GET /v1/reviewSubmissions/{id}/items`
+- [x] `GET /v1/apps/{id}/reviewSubmissions`
 
-Subscriptions, groups, and pricing:
+Subscriptions, groups, and pricing (#1778 at `64e2f1da`, #1779 at `aa4856bd`,
+and #1780 at `83f3103e`; endpoint-exact query, response, compatibility, and
+opaque-pagination tests):
 
-- [ ] `GET /v1/apps/{id}/subscriptionGroups`
-- [ ] `GET /v1/subscriptionAppStoreReviewScreenshots/{id}`
-- [ ] `GET /v1/subscriptionGroupLocalizations/{id}`
-- [ ] `GET /v1/subscriptionGroups/{id}`
-- [ ] `GET /v1/subscriptionGroups/{id}/subscriptionGroupLocalizations`
-- [ ] `GET /v1/subscriptionGroups/{id}/subscriptions`
-- [ ] `GET /v1/subscriptionImages/{id}`
-- [ ] `GET /v1/subscriptionLocalizations/{id}`
-- [ ] `GET /v1/subscriptionOfferCodes/{id}`
-- [ ] `GET /v1/subscriptionOfferCodes/{id}/prices`
-- [ ] `GET /v1/subscriptionPricePoints/{id}`
-- [ ] `GET /v1/subscriptionPricePoints/{id}/equalizations`
-- [ ] `GET /v1/subscriptionPromotionalOffers/{id}`
-- [ ] `GET /v1/subscriptionPromotionalOffers/{id}/prices`
-- [ ] `GET /v1/subscriptions/{id}`
-- [ ] `GET /v1/subscriptions/{id}/appStoreReviewScreenshot`
-- [ ] `GET /v1/subscriptions/{id}/images`
-- [ ] `GET /v1/subscriptions/{id}/introductoryOffers`
-- [ ] `GET /v1/subscriptions/{id}/offerCodes`
-- [ ] `GET /v1/subscriptions/{id}/pricePoints`
-- [ ] `GET /v1/subscriptions/{id}/prices`
-- [ ] `GET /v1/subscriptions/{id}/promotedPurchase`
-- [ ] `GET /v1/subscriptions/{id}/promotionalOffers`
-- [ ] `GET /v1/subscriptions/{id}/subscriptionLocalizations`
-- [ ] `GET /v1/winBackOffers/{id}/prices`
+- [x] `GET /v1/apps/{id}/subscriptionGroups`
+- [x] `GET /v1/subscriptionAppStoreReviewScreenshots/{id}`
+- [x] `GET /v1/subscriptionGroupLocalizations/{id}`
+- [x] `GET /v1/subscriptionGroups/{id}`
+- [x] `GET /v1/subscriptionGroups/{id}/subscriptionGroupLocalizations`
+- [x] `GET /v1/subscriptionGroups/{id}/subscriptions`
+- [x] `GET /v1/subscriptionImages/{id}`
+- [x] `GET /v1/subscriptionLocalizations/{id}`
+- [x] `GET /v1/subscriptionOfferCodes/{id}`
+- [x] `GET /v1/subscriptionOfferCodes/{id}/prices`
+- [x] `GET /v1/subscriptionPricePoints/{id}`
+- [x] `GET /v1/subscriptionPricePoints/{id}/equalizations`
+- [x] `GET /v1/subscriptionPromotionalOffers/{id}`
+- [x] `GET /v1/subscriptionPromotionalOffers/{id}/prices`
+- [x] `GET /v1/subscriptions/{id}`
+- [x] `GET /v1/subscriptions/{id}/appStoreReviewScreenshot`
+- [x] `GET /v1/subscriptions/{id}/images`
+- [x] `GET /v1/subscriptions/{id}/introductoryOffers`
+- [x] `GET /v1/subscriptions/{id}/offerCodes`
+- [x] `GET /v1/subscriptions/{id}/pricePoints`
+- [x] `GET /v1/subscriptions/{id}/prices`
+- [x] `GET /v1/subscriptions/{id}/promotedPurchase`
+- [x] `GET /v1/subscriptions/{id}/promotionalOffers`
+- [x] `GET /v1/subscriptions/{id}/subscriptionLocalizations`
+- [x] `GET /v1/winBackOffers/{id}/prices`
 
 Already reconciled between the original 4.4 import and the immediate pre-PR
 base; checked items require no new behavior PR but remain part of the 102-item
@@ -493,48 +564,54 @@ contracts still change. Two have modified request contracts and all 71 have
 modified response contracts. Together with the 102 directly modified
 operations, they produce 173 unique operation-contract audit items.
 
-Behavior work remaining at the immediate pre-PR base (40):
+Behavior work remaining at the immediate pre-PR base (40), now reconciled.
+`PATCH /v1/ageRatingDeclarations/{id}` is covered by #1778 at `64e2f1da`;
+review-submission item request/response changes are covered by #1781 at
+`77ced0b1`; IAP, subscription, and group response propagation is covered by
+#1777 at `2b4668b1`, #1779 at `aa4856bd`, and #1780 at `83f3103e`. Checked
+response-only operations retain their existing command semantics and decode the
+expanded typed relationships without introducing a new flag or ID contract.
 
-- [ ] `PATCH /v1/ageRatingDeclarations/{id}` - request and response
-- [ ] `PATCH /v1/appInfoLocalizations/{id}`
-- [ ] `PATCH /v1/appInfos/{id}`
-- [ ] `PATCH /v1/apps/{id}`
-- [ ] `PATCH /v1/inAppPurchaseAppStoreReviewScreenshots/{id}`
-- [ ] `PATCH /v1/inAppPurchaseImages/{id}`
-- [ ] `PATCH /v1/inAppPurchaseLocalizations/{id}`
-- [ ] `PATCH /v1/promotedPurchases/{id}`
-- [ ] `PATCH /v1/reviewSubmissionItems/{id}`
-- [ ] `PATCH /v1/reviewSubmissions/{id}`
-- [ ] `PATCH /v1/subscriptionAppStoreReviewScreenshots/{id}`
-- [ ] `PATCH /v1/subscriptionGroupLocalizations/{id}`
-- [ ] `PATCH /v1/subscriptionGroups/{id}`
-- [ ] `PATCH /v1/subscriptionImages/{id}`
-- [ ] `PATCH /v1/subscriptionIntroductoryOffers/{id}`
-- [ ] `PATCH /v1/subscriptionLocalizations/{id}`
-- [ ] `PATCH /v1/subscriptionOfferCodes/{id}`
-- [ ] `PATCH /v1/subscriptionPromotionalOffers/{id}`
-- [ ] `PATCH /v1/subscriptions/{id}`
-- [ ] `PATCH /v2/inAppPurchases/{id}`
-- [ ] `POST /v1/appInfoLocalizations`
-- [ ] `POST /v1/inAppPurchaseAppStoreReviewScreenshots`
-- [ ] `POST /v1/inAppPurchaseImages`
-- [ ] `POST /v1/inAppPurchaseLocalizations`
-- [ ] `POST /v1/inAppPurchaseSubmissions`
-- [ ] `POST /v1/promotedPurchases`
-- [ ] `POST /v1/reviewSubmissionItems` - request and response
-- [ ] `POST /v1/reviewSubmissions`
-- [ ] `POST /v1/subscriptionAppStoreReviewScreenshots`
-- [ ] `POST /v1/subscriptionGroupLocalizations`
-- [ ] `POST /v1/subscriptionGroups`
-- [ ] `POST /v1/subscriptionImages`
-- [ ] `POST /v1/subscriptionIntroductoryOffers`
-- [ ] `POST /v1/subscriptionLocalizations`
-- [ ] `POST /v1/subscriptionOfferCodes`
-- [ ] `POST /v1/subscriptionPrices`
-- [ ] `POST /v1/subscriptionPromotionalOffers`
-- [ ] `POST /v1/subscriptionSubmissions`
-- [ ] `POST /v1/subscriptions`
-- [ ] `POST /v2/inAppPurchases`
+- [x] `PATCH /v1/ageRatingDeclarations/{id}` - request and response
+- [x] `PATCH /v1/appInfoLocalizations/{id}`
+- [x] `PATCH /v1/appInfos/{id}`
+- [x] `PATCH /v1/apps/{id}`
+- [x] `PATCH /v1/inAppPurchaseAppStoreReviewScreenshots/{id}`
+- [x] `PATCH /v1/inAppPurchaseImages/{id}`
+- [x] `PATCH /v1/inAppPurchaseLocalizations/{id}`
+- [x] `PATCH /v1/promotedPurchases/{id}`
+- [x] `PATCH /v1/reviewSubmissionItems/{id}`
+- [x] `PATCH /v1/reviewSubmissions/{id}`
+- [x] `PATCH /v1/subscriptionAppStoreReviewScreenshots/{id}`
+- [x] `PATCH /v1/subscriptionGroupLocalizations/{id}`
+- [x] `PATCH /v1/subscriptionGroups/{id}`
+- [x] `PATCH /v1/subscriptionImages/{id}`
+- [x] `PATCH /v1/subscriptionIntroductoryOffers/{id}`
+- [x] `PATCH /v1/subscriptionLocalizations/{id}`
+- [x] `PATCH /v1/subscriptionOfferCodes/{id}`
+- [x] `PATCH /v1/subscriptionPromotionalOffers/{id}`
+- [x] `PATCH /v1/subscriptions/{id}`
+- [x] `PATCH /v2/inAppPurchases/{id}`
+- [x] `POST /v1/appInfoLocalizations`
+- [x] `POST /v1/inAppPurchaseAppStoreReviewScreenshots`
+- [x] `POST /v1/inAppPurchaseImages`
+- [x] `POST /v1/inAppPurchaseLocalizations`
+- [x] `POST /v1/inAppPurchaseSubmissions`
+- [x] `POST /v1/promotedPurchases`
+- [x] `POST /v1/reviewSubmissionItems` - request and response
+- [x] `POST /v1/reviewSubmissions`
+- [x] `POST /v1/subscriptionAppStoreReviewScreenshots`
+- [x] `POST /v1/subscriptionGroupLocalizations`
+- [x] `POST /v1/subscriptionGroups`
+- [x] `POST /v1/subscriptionImages`
+- [x] `POST /v1/subscriptionIntroductoryOffers`
+- [x] `POST /v1/subscriptionLocalizations`
+- [x] `POST /v1/subscriptionOfferCodes`
+- [x] `POST /v1/subscriptionPrices`
+- [x] `POST /v1/subscriptionPromotionalOffers`
+- [x] `POST /v1/subscriptionSubmissions`
+- [x] `POST /v1/subscriptions`
+- [x] `POST /v2/inAppPurchases`
 
 Already reconciled through schema deprecation reversals or media model changes
 after the original 4.4 import (31):
@@ -575,48 +652,49 @@ after the original 4.4 import (31):
 
 | # | Apple addition | Owner | Verification | Status |
 | ---: | --- | --- | --- | --- |
-| 1 | Discrete IAP versions and their localizations/review images | IAP version PR | 18-operation ledger, CLI/HTTP/upload tests | Planned |
-| 2 | Discrete subscription versions and their localizations/promotional images | Subscription version PR | 18-operation ledger, CLI/HTTP/upload tests | Planned |
-| 3 | Discrete subscription-group versions and their localizations | Subscription-group version PR | 10-operation ledger and CLI/HTTP tests | Planned |
-| 4 | Submit all three version types through review-submission items | IAP plus cross-cutting review integration | Three exact relationship payload tests | Planned |
-| 5 | Version-scoped v2 IAP localizations and images | IAP version PR | CRUD and upload lifecycle tests | Planned |
-| 6 | Version-scoped v2 subscription localizations and images | Subscription version PR | CRUD and upload lifecycle tests | Planned |
-| 7 | Version-scoped v2 subscription-group localizations | Subscription-group version PR | CRUD tests including `customAppName` | Planned |
-| 8 | Adjusted subscription equalizations and new filters | Age/pricing PR | Exact query and response tests | Planned |
-| 9 | `socialMedia` and `socialMediaAgeRestricted` age-rating attributes | Age/pricing PR | Payload, output, help, and exit-behavior tests | Planned |
+| 1 | Discrete IAP versions and their localizations/review images | #1777 | 18-operation ledger, CLI/HTTP/upload tests | Implemented at `2b4668b1` |
+| 2 | Discrete subscription versions and their localizations/promotional images | #1779 | 18-operation ledger, CLI/HTTP/upload tests | Implemented at `aa4856bd` |
+| 3 | Discrete subscription-group versions and their localizations | #1780 | 10-operation ledger and CLI/HTTP tests | Implemented at `83f3103e` |
+| 4 | Submit all three version types through review-submission items | #1777 and #1781 | Three exact relationship payload tests plus built-command tests | Implemented at `2b4668b1` and `77ced0b1` |
+| 5 | Version-scoped v2 IAP localizations and images | #1777 | CRUD, explicit-null, and upload lifecycle tests | Implemented at `2b4668b1` |
+| 6 | Version-scoped v2 subscription localizations and images | #1779 | CRUD, explicit-null, and upload lifecycle tests | Implemented at `aa4856bd` |
+| 7 | Version-scoped v2 subscription-group localizations | #1780 | CRUD tests including `customAppName` | Implemented at `83f3103e` |
+| 8 | Adjusted subscription equalizations and new filters | #1778 | Exact query/response, option-scope, strict-CSV, territory-inclusion, opaque-next, ID-validation, and aggregation tests | Implemented at `64e2f1da` |
+| 9 | `socialMedia` and `socialMediaAgeRestricted` age-rating attributes | #1778 | Payload, output, help, and exit-behavior tests | Implemented at `64e2f1da` |
 
 ## Deprecation and migration ledger
 
 Apple deprecates seven resource families in the prose release notes:
 
-| Deprecated family | Replacement API and planned command | Owner | Compatibility and warning status | Required transition evidence |
+| Deprecated family | Replacement API and implemented command | Owner | Compatibility and warning status | Transition evidence |
 | --- | --- | --- | --- | --- |
-| IAP localizations v1 | `/v2/inAppPurchaseLocalizations`; `asc iap versions localizations ... --version-id` | IAP version PR | Keep existing product-ID command unchanged; no warning until replacement ships | Old command characterization plus new v2 CRUD/ID tests |
-| IAP images v1 | `/v2/inAppPurchaseImages`; `asc iap versions images ... --version-id` | IAP version PR | Keep existing product-ID upload command unchanged; no warning until replacement ships | Old upload characterization plus new reserve/upload/commit tests |
-| IAP submissions | `/v1/reviewSubmissionItems`; `asc review items add --item-type inAppPurchaseVersions` | IAP version PR | Keep existing IAP-ID submit shortcut unchanged; no warning until version path ships | Old submit characterization and exact new relationship payload test |
-| Subscription localizations v1 | `/v2/subscriptionLocalizations`; `asc subscriptions versions localizations ... --version-id` | Subscription version PR | Keep existing subscription-ID command unchanged; no warning until replacement ships | Old command characterization plus new v2 CRUD/ID tests |
-| Subscription images v1 | `/v2/subscriptionImages`; `asc subscriptions versions images ... --version-id` | Subscription version PR | Keep existing subscription-ID upload command unchanged; no warning until replacement ships | Old upload characterization plus new reserve/upload/commit tests |
-| Subscription-group localizations v1 | `/v2/subscriptionGroupLocalizations`; `asc subscriptions groups versions localizations ... --version-id` | Subscription-group version PR | Keep existing group-ID command unchanged; no warning until replacement ships | Old command characterization plus new v2 CRUD/ID tests |
-| Subscription and group submissions | `/v1/reviewSubmissionItems`; item types `subscriptionVersions` and `subscriptionGroupVersions` | Cross-cutting review integration | Keep existing subscription/group-ID submit shortcuts unchanged; no warning until version paths ship | Two old-submit characterizations and two exact new relationship payload tests |
+| IAP localizations v1 | `/v2/inAppPurchaseLocalizations`; `asc iap versions localizations ... --version-id` | #1777 | Existing product-ID command preserved; no warning or removal in this compatibility slice | `2b4668b1`; old-command characterization, v2 CRUD/ID, explicit-null, and docs tests |
+| IAP images v1 | `/v2/inAppPurchaseImages`; `asc iap versions images ... --version-id` | #1777 | Existing product-ID upload command preserved; no warning or removal in this compatibility slice | `2b4668b1`; old-upload characterization and reserve/upload/commit tests |
+| IAP submissions | `/v1/reviewSubmissionItems`; `asc review items add --item-type inAppPurchaseVersions` | #1777 and #1781 | Existing IAP-ID submit shortcut preserved; version-item path is additive | `2b4668b1`, `77ced0b1`; old-submit characterization, exact relationship payload, built-command, and migration-doc tests |
+| Subscription localizations v1 | `/v2/subscriptionLocalizations`; `asc subscriptions versions localizations ... --version-id` | #1779 | Existing subscription-ID command preserved; no warning or removal in this compatibility slice | `aa4856bd`; old-command characterization, v2 CRUD/ID, explicit-null, and docs tests |
+| Subscription images v1 | `/v2/subscriptionImages`; `asc subscriptions versions images ... --version-id` | #1779 | Existing subscription-ID upload command preserved; no warning or removal in this compatibility slice | `aa4856bd`; old-upload characterization and reserve/upload/commit tests |
+| Subscription-group localizations v1 | `/v2/subscriptionGroupLocalizations`; `asc subscriptions groups versions localizations ... --version-id` | #1780 | Existing group-ID command preserved; no warning or removal in this compatibility slice | `83f3103e`; old-command characterization, v2 CRUD/ID, explicit-null, and docs tests |
+| Subscription and group submissions | `/v1/reviewSubmissionItems`; item types `subscriptionVersions` and `subscriptionGroupVersions` | #1781 | Existing subscription/group-ID submit shortcuts preserved; version-item paths are additive | `77ced0b1`; two old-submit characterizations, two exact relationship payload tests, built-command tests, and migration notes |
 
 The replacement APIs are version-scoped. Existing stable commands must remain
 available while new version-aware commands are introduced. Any later
 deprecation of a stable command requires warning text, transition tests,
 migration guidance, and a release-note entry. Removal is outside this goal.
 
-## Pull-request sequence
+## Pull-request sequence and status
 
-1. Schema tooling: relationship-aware request discovery and stale-index checks.
-2. Age rating and pricing: two Boolean age fields, adjusted equalizations, and
-   characterization of the deprecated `AppInfo.kidsAgeBand` addition.
-3. IAP versions: version reads/creation, v2 localizations/images, upload flow,
-   review-submission integration, and compatibility guidance.
-4. Subscription versions: version reads/creation, v2 localizations/images,
-   upload flow, review-submission integration, and compatibility guidance.
-5. Subscription-group versions: version reads/creation, v2 localizations,
-   review-submission integration, and compatibility guidance.
-6. Integration closeout: generated documentation, external skills, complete
-   ledger reconciliation, live validation, and any narrowly proven fixes.
+1. Schema tooling is implemented in #1776 at `aaa9b62d`.
+2. Age rating and pricing are implemented in #1778 at `64e2f1da`.
+3. IAP versions are implemented in #1777 at `2b4668b1`.
+4. Subscription versions are implemented in #1779 at `aa4856bd`.
+5. Subscription-group versions are implemented in #1780 at `83f3103e`.
+6. Cross-cutting review integration is implemented in #1781 at `77ced0b1`.
+7. External workflow skills are synchronized in draft PR #50 at `5e6fad3d`;
+   targeted runtime checks are green and two unavailable optional validators are
+   recorded as `UNVERIFIED`.
+8. Combined integration is complete at `5f486516`: all six whole PR heads apply
+   with zero conflicts or manual edits, all 62 leaf help paths render, and the
+   full repository gate is green.
 
 The schema update is merged. Feature PRs target `main` unless a shared-client or
 command dependency requires an explicit stack; stacked PRs are retargeted after
@@ -651,23 +729,29 @@ ASC_BYPASS_KEYCHAIN=1 make test
 
 ## Final omission audit
 
-The integration closeout must independently repeat all of these checks rather
-than trusting the per-PR reports:
+The integration closeout independently repeated these checks rather than
+trusting the per-PR reports:
 
-1. Re-download Apple's official OpenAPI zip and verify its hash/version.
-2. Recompute added, removed, and modified operations and schemas from 4.4.
-3. Map all 47 added operations to code, tests, docs, or an explicit schema-only
-   decision.
-4. Map all 102 directly modified operations plus all 71 unchanged operations
-   that transitively reference modified schemas to query, payload, response,
-   deprecation, or compatibility coverage: 173 unique operation-contract items
-   in total.
-5. Map all 47 added and 61 modified schemas to typed models, documented generic
-   decoding, or an already-reconciled schema-only disposition.
-6. Map all nine release-note additions and seven deprecations to commands and
-   migration guidance.
-7. Search built help, generated command docs, Go clients, review-item type
-   registries, upload helpers, and workflow skills for stale v1 assumptions.
-8. Run the full gate from a clean integration head and verify every GitHub
-   review thread and check against that exact SHA.
-9. Record live verification and any behavior that remains `UNVERIFIED`.
+- [x] Re-downloaded Apple's official OpenAPI zip and verified the artifact and
+  extracted JSON hashes against the repository snapshot.
+- [x] Recomputed the 4.4-to-4.4.1 delta: 37 paths, 47 added operations, 47 added
+  schemas, zero removals, 102 directly modified operations, and 61 modified
+  schemas.
+- [x] Mapped all 47 added operations to exact HTTP method/path tests and
+  discoverable typed command/client surfaces.
+- [x] Classified all 102 direct plus 71 transitive operation-contract changes:
+  173 unique existing-operation contracts with no missing or extra ledger item.
+- [x] Mapped all 47 added and 61 modified schemas to typed models, documented
+  generic decoding, or an already-reconciled schema-only disposition.
+- [x] Mapped all nine release-note additions and seven deprecated families to
+  commands, compatibility treatment, tests, and migration guidance.
+- [x] Exercised all 62 changed or new leaf help paths and checked generated
+  command docs, clients, review-item registries, upload helpers, and external
+  workflow skills for stale v1 assumptions.
+- [x] Applied all six exact PR heads to `main` `25b33c17` with zero conflicts or
+  manual edits and passed format, docs, lint, test, and build on clean
+  integration SHA `5f486516`.
+- [x] Performed read-only live checks where account state permitted, used
+  deterministic fixtures for mutations, and performed no live mutations during
+  integration. The two unavailable optional external-skill validators remain
+  explicitly `UNVERIFIED`; no user-facing behavior is otherwise unverified.
