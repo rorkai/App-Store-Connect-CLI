@@ -103,11 +103,37 @@ class GenerateSchemaIndexTests(unittest.TestCase):
                     continue
                 resolved = generate_schema_index.resolve_ref(self.schemas, ref)
                 data = resolved.get("properties", {}).get("data", {})
+                if "$ref" in data:
+                    data = (
+                        generate_schema_index.resolve_ref(self.schemas, data["$ref"])
+                        or data
+                    )
                 relationships = data.get("properties", {}).get("relationships", {})
+                if "$ref" in relationships:
+                    relationships = (
+                        generate_schema_index.resolve_ref(
+                            self.schemas, relationships["$ref"]
+                        )
+                        or relationships
+                    )
                 required = set(relationships.get("required", []))
                 expected = {}
                 for name, relationship in relationships.get("properties", {}).items():
+                    if "$ref" in relationship:
+                        relationship = (
+                            generate_schema_index.resolve_ref(
+                                self.schemas, relationship["$ref"]
+                            )
+                            or relationship
+                        )
                     linkage = relationship.get("properties", {}).get("data", {})
+                    if "$ref" in linkage:
+                        linkage = (
+                            generate_schema_index.resolve_ref(
+                                self.schemas, linkage["$ref"]
+                            )
+                            or linkage
+                        )
                     cardinality = (
                         "many" if linkage.get("type") == "array" else "one"
                     )
@@ -116,6 +142,13 @@ class GenerateSchemaIndexTests(unittest.TestCase):
                         if cardinality == "many"
                         else linkage
                     )
+                    if "$ref" in identifier:
+                        identifier = (
+                            generate_schema_index.resolve_ref(
+                                self.schemas, identifier["$ref"]
+                            )
+                            or identifier
+                        )
                     resource_types = (
                         identifier.get("properties", {})
                         .get("type", {})
