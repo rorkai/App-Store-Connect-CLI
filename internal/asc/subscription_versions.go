@@ -59,8 +59,8 @@ type SubscriptionLocalizationV2CreateAttributes struct {
 
 // SubscriptionLocalizationV2UpdateAttributes describes localization update attributes.
 type SubscriptionLocalizationV2UpdateAttributes struct {
-	Name        *string `json:"name,omitempty"`
-	Description *string `json:"description,omitempty"`
+	Name        *NullableString `json:"name,omitempty"`
+	Description *NullableString `json:"description,omitempty"`
 }
 
 // SubscriptionVersionRelationship identifies the owning version.

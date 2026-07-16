@@ -40,9 +40,13 @@ The client covers all 18 new subscription operations:
 Version creation has no attributes and requires a `subscription` relationship.
 Localization creation requires `name`, `locale`, and a `version` relationship;
 description is optional. Localization updates support name and description,
-but not locale. Image creation requires file name, file size, and a `version`
-relationship. The image upload command reserves the resource, executes the
-returned upload operations, and commits it with `uploaded: true`.
+but not locale. Their update schema distinguishes omitted attributes, string
+values (including an explicit empty string), and JSON `null`; the CLI exposes
+the null form as `--clear-name` and `--clear-description`, mutually exclusive
+with the corresponding value flag. Image creation requires file name, file
+size, and a `version` relationship. The image upload command reserves the
+resource, executes the returned upload operations, and commits it with
+`uploaded: true`.
 
 Version list accepts the documented state enum, sparse fields, includes,
 relationship limits, `--next`, and `--paginate`. Related localizations/images

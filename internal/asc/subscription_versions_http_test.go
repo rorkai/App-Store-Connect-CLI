@@ -171,6 +171,7 @@ func TestCreateSubscriptionVersionRequest(t *testing.T) {
 
 func TestSubscriptionLocalizationV2Mutations(t *testing.T) {
 	description := "Access every feature"
+	updatedName := "Pro Plus"
 	client := newTestClient(
 		t, func(req *http.Request) {
 			switch req.Method {
@@ -189,12 +190,19 @@ func TestSubscriptionLocalizationV2Mutations(t *testing.T) {
 				if req.URL.Path != "/v2/subscriptionLocalizations/loc-1" {
 					t.Fatalf("PATCH path = %s", req.URL.Path)
 				}
-				var payload SubscriptionLocalizationV2UpdateRequest
+				var payload struct {
+					Data struct {
+						Attributes map[string]json.RawMessage `json:"attributes"`
+					} `json:"data"`
+				}
 				if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 					t.Fatal(err)
 				}
-				if payload.Data.Attributes.Description == nil || *payload.Data.Attributes.Description != "" {
-					t.Fatalf("expected explicit empty description: %+v", payload)
+				if got := string(payload.Data.Attributes["name"]); got != `"Pro Plus"` {
+					t.Fatalf("name JSON = %s", got)
+				}
+				if got := string(payload.Data.Attributes["description"]); got != "null" {
+					t.Fatalf("description JSON = %s, want null", got)
 				}
 			case http.MethodDelete:
 				if req.URL.Path != "/v2/subscriptionLocalizations/loc-1" {
@@ -212,12 +220,72 @@ func TestSubscriptionLocalizationV2Mutations(t *testing.T) {
 	if _, err := client.CreateSubscriptionLocalizationV2(ctx, "ver-1", SubscriptionLocalizationV2CreateAttributes{Name: "Pro", Locale: "en-US", Description: &description}); err != nil {
 		t.Fatal(err)
 	}
-	empty := ""
-	if _, err := client.UpdateSubscriptionLocalizationV2(ctx, "loc-1", SubscriptionLocalizationV2UpdateAttributes{Description: &empty}); err != nil {
+	if _, err := client.UpdateSubscriptionLocalizationV2(ctx, "loc-1", SubscriptionLocalizationV2UpdateAttributes{
+		Name:        &NullableString{Value: &updatedName},
+		Description: &NullableString{Value: nil},
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if err := client.DeleteSubscriptionLocalizationV2(ctx, "loc-1"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSubscriptionLocalizationV2UpdateNullableEncoding(t *testing.T) {
+	t.Parallel()
+
+	name := "Pro Plus"
+	empty := ""
+	tests := []struct {
+		name  string
+		attrs SubscriptionLocalizationV2UpdateAttributes
+		want  map[string]string
+	}{
+		{name: "omitted", attrs: SubscriptionLocalizationV2UpdateAttributes{}, want: map[string]string{}},
+		{
+			name: "string values",
+			attrs: SubscriptionLocalizationV2UpdateAttributes{
+				Name:        &NullableString{Value: &name},
+				Description: &NullableString{Value: &empty},
+			},
+			want: map[string]string{"name": `"Pro Plus"`, "description": `""`},
+		},
+		{
+			name: "explicit nulls",
+			attrs: SubscriptionLocalizationV2UpdateAttributes{
+				Name:        &NullableString{Value: nil},
+				Description: &NullableString{Value: nil},
+			},
+			want: map[string]string{"name": "null", "description": "null"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			encoded, err := json.Marshal(SubscriptionLocalizationV2UpdateRequest{Data: SubscriptionLocalizationV2UpdateData{
+				Type: ResourceTypeSubscriptionLocalizations, ID: "loc-1", Attributes: test.attrs,
+			}})
+			if err != nil {
+				t.Fatalf("marshal request: %v", err)
+			}
+			var payload struct {
+				Data struct {
+					Attributes map[string]json.RawMessage `json:"attributes"`
+				} `json:"data"`
+			}
+			if err := json.Unmarshal(encoded, &payload); err != nil {
+				t.Fatalf("decode request: %v", err)
+			}
+			if len(payload.Data.Attributes) != len(test.want) {
+				t.Fatalf("attributes = %s, want %v", payload.Data.Attributes, test.want)
+			}
+			for key, want := range test.want {
+				if got := string(payload.Data.Attributes[key]); got != want {
+					t.Fatalf("%s JSON = %s, want %s", key, got, want)
+				}
+			}
+		})
 	}
 }
 
@@ -376,7 +444,7 @@ func TestSubscriptionVersionClientRequiredValuesFailBeforeRequest(t *testing.T) 
 		}},
 		{name: "get localization ID", call: func() error { _, err := client.GetSubscriptionLocalizationV2(context.Background(), " "); return err }},
 		{name: "update localization ID", call: func() error {
-			_, err := client.UpdateSubscriptionLocalizationV2(context.Background(), " ", SubscriptionLocalizationV2UpdateAttributes{Name: &empty})
+			_, err := client.UpdateSubscriptionLocalizationV2(context.Background(), " ", SubscriptionLocalizationV2UpdateAttributes{Name: &NullableString{Value: &empty}})
 			return err
 		}},
 		{name: "delete localization ID", call: func() error { return client.DeleteSubscriptionLocalizationV2(context.Background(), " ") }},

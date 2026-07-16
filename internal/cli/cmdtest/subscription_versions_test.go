@@ -372,6 +372,90 @@ func TestSubscriptionVersionImageUploadErrorsIncludeReservedID(t *testing.T) {
 	}
 }
 
+func TestSubscriptionVersionLocalizationUpdateNullableFields(t *testing.T) {
+	setupAuth(t)
+	useSubscriptionVersionServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodPatch || req.URL.Path != "/v2/subscriptionLocalizations/loc-1" {
+			reportSubscriptionVersionHandlerError(t, w, "unexpected request: %s %s", req.Method, req.URL.Path)
+			return
+		}
+		var payload struct {
+			Data struct {
+				Attributes map[string]json.RawMessage `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			reportSubscriptionVersionHandlerError(t, w, "decode update body: %v", err)
+			return
+		}
+		if got := string(payload.Data.Attributes["name"]); got != "null" {
+			reportSubscriptionVersionHandlerError(t, w, "name JSON = %s, want null", got)
+			return
+		}
+		if got := string(payload.Data.Attributes["description"]); got != `""` {
+			reportSubscriptionVersionHandlerError(t, w, "description JSON = %s, want empty string", got)
+			return
+		}
+		writeSubscriptionVersionJSON(w, http.StatusOK, `{"data":{"type":"subscriptionLocalizations","id":"loc-1","attributes":{"locale":"en-US","description":""}}}`)
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"subscriptions", "versions", "localizations", "update",
+			"--id", "loc-1", "--clear-name", "--description", "", "--output", "json",
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	var response asc.SubscriptionLocalizationV2Response
+	if err := json.Unmarshal([]byte(stdout), &response); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	if response.Data.ID != "loc-1" {
+		t.Fatalf("output ID = %q", response.Data.ID)
+	}
+}
+
+func TestSubscriptionVersionLocalizationUpdateRejectsSetAndClear(t *testing.T) {
+	clearSubscriptionVersionAuth(t)
+	tests := []struct {
+		name    string
+		args    []string
+		message string
+	}{
+		{name: "name", args: []string{"--name", "Pro", "--clear-name"}, message: "--name cannot be used with --clear-name"},
+		{name: "description", args: []string{"--description", "Features", "--clear-description"}, message: "--description cannot be used with --clear-description"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			args := []string{"subscriptions", "versions", "localizations", "update", "--id", "loc-1"}
+			args = append(args, test.args...)
+			_, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatal(err)
+				}
+				err := root.Run(context.Background())
+				if !errors.Is(err, flag.ErrHelp) {
+					t.Fatalf("expected usage error, got %v", err)
+				}
+			})
+			if !strings.Contains(stderr, test.message) {
+				t.Fatalf("stderr = %q, want %q", stderr, test.message)
+			}
+		})
+	}
+}
+
 func clearSubscriptionVersionAuth(t *testing.T) {
 	t.Helper()
 	for _, key := range []string{

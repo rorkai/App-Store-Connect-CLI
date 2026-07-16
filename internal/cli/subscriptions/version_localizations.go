@@ -291,10 +291,16 @@ func SubscriptionsVersionLocalizationsUpdateCommand() *ffcli.Command {
 	var name, description optionalString
 	fs.Var(&name, "name", "Localized display name (may be empty)")
 	fs.Var(&description, "description", "Localized description (may be empty)")
+	clearName := fs.Bool("clear-name", false, "Set the localized display name to null")
+	clearDescription := fs.Bool("clear-description", false, "Set the localized description to null")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "update", ShortUsage: "asc subscriptions versions localizations update [flags]", ShortHelp: "Update a version-scoped localization.",
-		LongHelp: "Update a version-scoped subscription localization. Locale is immutable.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: `Update a version-scoped subscription localization. Locale is immutable.
+
+Examples:
+  asc subscriptions versions localizations update --id "LOCALIZATION_ID" --name "Pro Plus"
+  asc subscriptions versions localizations update --id "LOCALIZATION_ID" --clear-description`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := rejectUnexpectedArgs(args); err != nil {
 				return err
@@ -304,15 +310,25 @@ func SubscriptionsVersionLocalizationsUpdateCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError("--id")
 			}
-			if !name.set && !description.set {
-				return shared.UsageError("at least one of --name or --description is required")
+			if name.set && *clearName {
+				return shared.UsageError("--name cannot be used with --clear-name")
+			}
+			if description.set && *clearDescription {
+				return shared.UsageError("--description cannot be used with --clear-description")
+			}
+			if !name.set && !description.set && !*clearName && !*clearDescription {
+				return shared.UsageError("at least one of --name, --description, --clear-name, or --clear-description is required")
 			}
 			attrs := asc.SubscriptionLocalizationV2UpdateAttributes{}
 			if name.set {
-				attrs.Name = &name.value
+				attrs.Name = &asc.NullableString{Value: &name.value}
+			} else if *clearName {
+				attrs.Name = &asc.NullableString{Value: nil}
 			}
 			if description.set {
-				attrs.Description = &description.value
+				attrs.Description = &asc.NullableString{Value: &description.value}
+			} else if *clearDescription {
+				attrs.Description = &asc.NullableString{Value: nil}
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {
