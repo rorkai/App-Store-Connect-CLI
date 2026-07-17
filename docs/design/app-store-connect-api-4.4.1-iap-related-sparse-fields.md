@@ -11,8 +11,8 @@ The public additions are endpoint-specific sparse-field flags:
 - `asc iap content view ... --iap-fields versions`
 - `asc iap images list|view ... --iap-fields versions`
 - `asc iap localizations list ... --iap-fields versions`
-- `asc iap promoted-purchases list|view ... --iap-fields versions`
-- `asc subscriptions promoted-purchases list|view ... --subscription-fields versions`
+- `asc iap promoted-purchases list|view ... --iap-fields versions --subscription-fields versions`
+- `asc subscriptions promoted-purchases list|view ... --iap-fields versions --subscription-fields versions`
 
 The IAP-scoped promoted-purchase view also accepts
 `--iap-id IAP_ID` as an alternative to `--promoted-purchase-id PROMO_ID` and
@@ -21,9 +21,10 @@ required. The shared scoped-command hook is owner-agnostic so the subscription
 slice can add its symmetric relationship selector without duplicating command
 logic.
 
-The current help for these commands has no related-product sparse-field flag.
-The deprecated product-scoped image and localization commands remain available
-and retain their existing warnings and migration guidance.
+Both promoted-purchase command scopes expose both related-product sparse-field
+flags because their shared API operations permit both fieldsets. The deprecated
+product-scoped image and localization commands remain available and retain
+their existing warnings and migration guidance.
 
 ## Exact API contracts
 
@@ -73,7 +74,8 @@ deprecated warning surface. The changed help will regenerate
 After focused tests, validation is `make format`, `make check-docs`,
 `make lint`, and `ASC_BYPASS_KEYCHAIN=1 make test`, plus built-binary help and
 error-stream checks. A read-only live smoke is optional; no mutation is needed
-to validate query construction.
+to validate query construction. The public IAP command page documents the
+long-form flags and owner selector against the built help.
 
 ## Alternatives
 

@@ -88,8 +88,8 @@ func configureScopedPromotedPurchasesListCommand(cmd *ffcli.Command, cfg ScopedP
 	if cmd == nil || cmd.FlagSet == nil {
 		return
 	}
-	fieldsFlag, fieldsAllowed := scopedPromotedPurchaseFields(cfg.ProductType)
-	bindStringFlagIfMissing(cmd.FlagSet, fieldsFlag, promotedPurchaseFieldsUsage(fieldsFlag))
+	bindStringFlagIfMissing(cmd.FlagSet, "iap-fields", promotedPurchaseFieldsUsage("iap-fields"))
+	bindStringFlagIfMissing(cmd.FlagSet, "subscription-fields", promotedPurchaseFieldsUsage("subscription-fields"))
 
 	cmd.ShortUsage = fmt.Sprintf("%s list (--app APP_ID | --next URL) [flags]", cfg.PathPrefix)
 	cmd.ShortHelp = fmt.Sprintf("List promoted purchases for %s in an app.", cfg.ProductPlural)
@@ -98,13 +98,14 @@ func configureScopedPromotedPurchasesListCommand(cmd *ffcli.Command, cfg ScopedP
 Examples:
   %s list --app "APP_ID"
   %s list --app "APP_ID" --limit 10
-  %s list --app "APP_ID" --%s versions
-  %s list --app "APP_ID" --paginate`, cfg.ProductPlural, cfg.PathPrefix, cfg.PathPrefix, cfg.PathPrefix, fieldsFlag, cfg.PathPrefix)
+  %s list --app "APP_ID" --iap-fields versions --subscription-fields versions
+  %s list --app "APP_ID" --paginate`, cfg.ProductPlural, cfg.PathPrefix, cfg.PathPrefix, cfg.PathPrefix, cfg.PathPrefix)
 
 	cmd.Exec = func(ctx context.Context, args []string) error {
 		limit := intFlagValue(cmd.FlagSet, "limit")
 		next := stringFlagValue(cmd.FlagSet, "next")
-		fieldsValue := stringFlagValue(cmd.FlagSet, fieldsFlag)
+		iapFieldsValue := stringFlagValue(cmd.FlagSet, "iap-fields")
+		subscriptionFieldsValue := stringFlagValue(cmd.FlagSet, "subscription-fields")
 		paginate := boolFlagValue(cmd.FlagSet, "paginate")
 		output := stringFlagValue(cmd.FlagSet, "output")
 		pretty := boolFlagValue(cmd.FlagSet, "pretty")
@@ -118,10 +119,14 @@ Examples:
 		if err := shared.ValidateNextURL(next); err != nil {
 			return fmt.Errorf("%s: %w", errorPrefix, err)
 		}
-		if strings.TrimSpace(next) != "" && flagWasSet(cmd.FlagSet, fieldsFlag) {
-			return shared.UsageErrorf("%s: --next cannot be combined with --%s", errorPrefix, fieldsFlag)
+		if strings.TrimSpace(next) != "" && (flagWasSet(cmd.FlagSet, "iap-fields") || flagWasSet(cmd.FlagSet, "subscription-fields")) {
+			return shared.UsageErrorf("%s: --next cannot be combined with --iap-fields or --subscription-fields", errorPrefix)
 		}
-		fields, err := shared.NormalizeSelection(fieldsValue, fieldsAllowed, "--"+fieldsFlag)
+		iapFields, err := shared.NormalizeSelection(iapFieldsValue, promotedPurchaseIAPFields, "--iap-fields")
+		if err != nil {
+			return shared.UsageError(errorPrefix + ": " + err.Error())
+		}
+		subscriptionFields, err := shared.NormalizeSelection(subscriptionFieldsValue, promotedPurchaseSubscriptionFields, "--subscription-fields")
 		if err != nil {
 			return shared.UsageError(errorPrefix + ": " + err.Error())
 		}
@@ -141,7 +146,8 @@ Examples:
 		opts := []asc.PromotedPurchasesOption{
 			asc.WithPromotedPurchasesLimit(limit),
 			asc.WithPromotedPurchasesNextURL(next),
-			scopedPromotedPurchasesFieldsOption(cfg.ProductType, fields),
+			asc.WithPromotedPurchasesIAPFields(iapFields),
+			asc.WithPromotedPurchasesSubscriptionFields(subscriptionFields),
 		}
 
 		if paginate {
@@ -184,8 +190,8 @@ func configureScopedPromotedPurchasesViewCommand(cmd *ffcli.Command, cfg ScopedP
 	if cmd == nil || cmd.FlagSet == nil {
 		return
 	}
-	fieldsFlag, fieldsAllowed := scopedPromotedPurchaseFields(cfg.ProductType)
-	bindStringFlagIfMissing(cmd.FlagSet, fieldsFlag, promotedPurchaseFieldsUsage(fieldsFlag))
+	bindStringFlagIfMissing(cmd.FlagSet, "iap-fields", promotedPurchaseFieldsUsage("iap-fields"))
+	bindStringFlagIfMissing(cmd.FlagSet, "subscription-fields", promotedPurchaseFieldsUsage("subscription-fields"))
 	ownerIDFlag := strings.TrimSpace(cfg.OwnerIDFlag)
 	if ownerIDFlag != "" {
 		bindStringFlagIfMissing(cmd.FlagSet, ownerIDFlag, cfg.OwnerIDUsage)
@@ -201,9 +207,9 @@ func configureScopedPromotedPurchasesViewCommand(cmd *ffcli.Command, cfg ScopedP
 
 Examples:
   %s view --promoted-purchase-id "PROMO_ID"
-  %s view --promoted-purchase-id "PROMO_ID" --%s versions`, cfg.ProductSingular, cfg.PathPrefix, cfg.PathPrefix, fieldsFlag)
+  %s view --promoted-purchase-id "PROMO_ID" --iap-fields versions --subscription-fields versions`, cfg.ProductSingular, cfg.PathPrefix, cfg.PathPrefix)
 	if ownerIDFlag != "" {
-		cmd.LongHelp += fmt.Sprintf("\n  %s view --%s \"PRODUCT_ID\" --%s versions", cfg.PathPrefix, ownerIDFlag, fieldsFlag)
+		cmd.LongHelp += fmt.Sprintf("\n  %s view --%s \"PRODUCT_ID\" --iap-fields versions --subscription-fields versions", cfg.PathPrefix, ownerIDFlag)
 	}
 
 	cmd.Exec = func(ctx context.Context, args []string) error {
@@ -222,7 +228,11 @@ Examples:
 		if promotedPurchaseID != "" && ownerID != "" {
 			return shared.UsageErrorf("%s: --promoted-purchase-id and --%s are mutually exclusive", errorPrefix, ownerIDFlag)
 		}
-		fields, err := shared.NormalizeSelection(stringFlagValue(cmd.FlagSet, fieldsFlag), fieldsAllowed, "--"+fieldsFlag)
+		iapFields, err := shared.NormalizeSelection(stringFlagValue(cmd.FlagSet, "iap-fields"), promotedPurchaseIAPFields, "--iap-fields")
+		if err != nil {
+			return shared.UsageError(errorPrefix + ": " + err.Error())
+		}
+		subscriptionFields, err := shared.NormalizeSelection(stringFlagValue(cmd.FlagSet, "subscription-fields"), promotedPurchaseSubscriptionFields, "--subscription-fields")
 		if err != nil {
 			return shared.UsageError(errorPrefix + ": " + err.Error())
 		}
@@ -234,7 +244,10 @@ Examples:
 
 		requestCtx, cancel := shared.ContextWithTimeout(ctx)
 		defer cancel()
-		getOpts := []asc.PromotedPurchaseGetOption{scopedPromotedPurchaseFieldsGetOption(cfg.ProductType, fields)}
+		getOpts := []asc.PromotedPurchaseGetOption{
+			asc.WithPromotedPurchaseIAPFields(iapFields),
+			asc.WithPromotedPurchaseSubscriptionFields(subscriptionFields),
+		}
 
 		if ownerID != "" {
 			if cfg.FetchForOwner == nil {
@@ -262,31 +275,6 @@ Examples:
 		pretty := boolFlagValue(cmd.FlagSet, "pretty")
 		return shared.PrintOutput(resp, output, pretty)
 	}
-}
-
-func scopedPromotedPurchaseFields(productType promotedPurchaseProductType) (string, []string) {
-	switch productType {
-	case promotedPurchaseProductTypeInAppPurchase:
-		return "iap-fields", promotedPurchaseIAPFields
-	case promotedPurchaseProductTypeSubscription:
-		return "subscription-fields", promotedPurchaseSubscriptionFields
-	default:
-		return "product-fields", nil
-	}
-}
-
-func scopedPromotedPurchasesFieldsOption(productType promotedPurchaseProductType, fields []string) asc.PromotedPurchasesOption {
-	if productType == promotedPurchaseProductTypeSubscription {
-		return asc.WithPromotedPurchasesSubscriptionFields(fields)
-	}
-	return asc.WithPromotedPurchasesIAPFields(fields)
-}
-
-func scopedPromotedPurchaseFieldsGetOption(productType promotedPurchaseProductType, fields []string) asc.PromotedPurchaseGetOption {
-	if productType == promotedPurchaseProductTypeSubscription {
-		return asc.WithPromotedPurchaseSubscriptionFields(fields)
-	}
-	return asc.WithPromotedPurchaseIAPFields(fields)
 }
 
 func promotedPurchaseFieldsUsage(flagName string) string {

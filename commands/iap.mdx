@@ -84,6 +84,11 @@ asc iap versions submit --version-id "IAP_VERSION_ID" --submission "REVIEW_SUBMI
 Use the version ID—not the product ID—for v2 localization, image, and review
 submission operations.
 
+The deprecated product-scoped localization and image read commands remain
+available only for migration. Their list/detail reads accept
+`--iap-fields versions` when the included parent product must expose its
+versions, but new automation should use the version-scoped commands above.
+
 <Warning>
   Resolve and reuse an existing version before running `versions create`.
   Apple exposes no DELETE operation for IAP versions, and deleting the parent
@@ -361,7 +366,9 @@ asc iap review-screenshots create \
   --file "./screenshot.png"
 
 # View review screenshot
-asc iap review-screenshots view --iap-id "IAP_ID"
+asc iap review-screenshots view \
+  --iap-id "IAP_ID" \
+  --iap-fields versions
 
 # Delete review screenshot
 asc iap review-screenshots delete \
@@ -406,11 +413,39 @@ asc iap pricing availabilities view --id "AVAILABILITY_ID"
 
 Promote in-app purchases on your App Store product page.
 
+Promoted-purchase reads support the exact related-resource sparse fields from
+App Store Connect API 4.4.1. `--iap-fields` maps to
+`fields[inAppPurchases]`; `--subscription-fields` maps to
+`fields[subscriptions]`. Selecting either field set automatically includes its
+matching relationship.
+
+### List Promoted Purchases
+
+```bash  theme={null}
+asc iap promoted-purchases list \
+  --app "APP_ID" \
+  --iap-fields versions \
+  --subscription-fields versions
+```
+
 ### View Promoted Purchase
 
 ```bash  theme={null}
-asc iap promoted-purchases view --promoted-purchase-id "PROMO_ID"
+asc iap promoted-purchases view \
+  --promoted-purchase-id "PROMO_ID" \
+  --iap-fields versions \
+  --subscription-fields versions
+
+# Resolve the promoted purchase through its IAP relationship
+asc iap promoted-purchases view \
+  --iap-id "IAP_ID" \
+  --iap-fields versions \
+  --subscription-fields versions
 ```
+
+Provide exactly one of `--promoted-purchase-id` or `--iap-id`. Sparse-field
+flags cannot be combined with `--next` on list commands because the next-page
+URL already owns its query parameters.
 
 ### Create Promoted Purchase
 
@@ -463,7 +498,9 @@ Manage hosted content for in-app purchases.
 
 ```bash  theme={null}
 # View content status
-asc iap content view --iap-id "IAP_ID"
+asc iap content view \
+  --iap-id "IAP_ID" \
+  --iap-fields versions
 ```
 
 ## Submission

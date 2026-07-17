@@ -16,25 +16,35 @@ func TestIAPRelatedSparseFieldFlagsSendExactQueries441(t *testing.T) {
 		name         string
 		args         []string
 		path         string
-		fieldKey     string
-		include      string
+		wantQuery    map[string]string
 		response     string
 		relationship string
 		resourceType string
 	}{
 		{
 			name: "content", args: []string{"iap", "content", "view", "--content-id", "content-1", "--iap-fields", "versions", "--output", "json"},
-			path: "/v1/inAppPurchaseContents/content-1", fieldKey: "fields[inAppPurchases]", include: "inAppPurchaseV2",
+			path: "/v1/inAppPurchaseContents/content-1", wantQuery: map[string]string{
+				"fields[inAppPurchases]": "versions",
+				"include":                "inAppPurchaseV2",
+			},
 			response: "{\"data\":{\"type\":\"inAppPurchaseContents\",\"id\":\"content-1\"}}",
 		},
 		{
-			name: "iap promoted list", args: []string{"iap", "promoted-purchases", "list", "--app", "app-1", "--iap-fields", "versions", "--output", "json"},
-			path: "/v1/apps/app-1/promotedPurchases", fieldKey: "fields[inAppPurchases]", include: "inAppPurchaseV2",
+			name: "iap promoted list", args: []string{"iap", "promoted-purchases", "list", "--app", "app-1", "--iap-fields", "versions", "--subscription-fields", "versions", "--output", "json"},
+			path: "/v1/apps/app-1/promotedPurchases", wantQuery: map[string]string{
+				"fields[inAppPurchases]": "versions",
+				"fields[subscriptions]":  "versions",
+				"include":                "inAppPurchaseV2,subscription",
+			},
 			relationship: "inAppPurchaseV2", resourceType: "inAppPurchases",
 		},
 		{
-			name: "subscription promoted list", args: []string{"subscriptions", "promoted-purchases", "list", "--app", "app-1", "--subscription-fields", "versions", "--output", "json"},
-			path: "/v1/apps/app-1/promotedPurchases", fieldKey: "fields[subscriptions]", include: "subscription",
+			name: "subscription promoted list", args: []string{"subscriptions", "promoted-purchases", "list", "--app", "app-1", "--iap-fields", "versions", "--subscription-fields", "versions", "--output", "json"},
+			path: "/v1/apps/app-1/promotedPurchases", wantQuery: map[string]string{
+				"fields[inAppPurchases]": "versions",
+				"fields[subscriptions]":  "versions",
+				"include":                "inAppPurchaseV2,subscription",
+			},
 			relationship: "subscription", resourceType: "subscriptions",
 		},
 	}
@@ -48,14 +58,13 @@ func TestIAPRelatedSparseFieldFlagsSendExactQueries441(t *testing.T) {
 				if req.Method != http.MethodGet || req.URL.Path != tt.path {
 					t.Fatalf("request = %s %s, want GET %s", req.Method, req.URL.Path, tt.path)
 				}
-				if got := req.URL.Query().Get(tt.fieldKey); got != "versions" {
-					t.Fatalf("%s = %q, want versions", tt.fieldKey, got)
+				if len(req.URL.Query()) != len(tt.wantQuery) {
+					t.Fatalf("query = %v, want exactly %v", req.URL.Query(), tt.wantQuery)
 				}
-				if got := req.URL.Query().Get("include"); got != tt.include {
-					t.Fatalf("include = %q, want %q", got, tt.include)
-				}
-				if len(req.URL.Query()) != 2 {
-					t.Fatalf("query = %v, want exactly sparse field and include", req.URL.Query())
+				for key, want := range tt.wantQuery {
+					if got := req.URL.Query().Get(key); got != want {
+						t.Fatalf("%s = %q, want %q", key, got, want)
+					}
 				}
 				body := tt.response
 				if body == "" {
@@ -91,11 +100,18 @@ func TestIAPPromotedPurchaseViewByOwnerSendsRelationshipQuery441(t *testing.T) {
 		if req.Method != http.MethodGet || req.URL.Path != "/v2/inAppPurchases/123456789/promotedPurchase" {
 			t.Fatalf("request = %s %s, want relationship GET", req.Method, req.URL.Path)
 		}
-		if got := req.URL.Query().Get("fields[inAppPurchases]"); got != "versions" {
-			t.Fatalf("fields[inAppPurchases] = %q, want versions", got)
+		wantQuery := map[string]string{
+			"fields[inAppPurchases]": "versions",
+			"fields[subscriptions]":  "versions",
+			"include":                "inAppPurchaseV2,subscription",
 		}
-		if got := req.URL.Query().Get("include"); got != "inAppPurchaseV2" {
-			t.Fatalf("include = %q, want inAppPurchaseV2", got)
+		if len(req.URL.Query()) != len(wantQuery) {
+			t.Fatalf("query = %v, want exactly %v", req.URL.Query(), wantQuery)
+		}
+		for key, want := range wantQuery {
+			if got := req.URL.Query().Get(key); got != want {
+				t.Fatalf("%s = %q, want %q", key, got, want)
+			}
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte("{\"data\":{\"type\":\"promotedPurchases\",\"id\":\"promo-1\"}}"))
@@ -108,6 +124,7 @@ func TestIAPPromotedPurchaseViewByOwnerSendsRelationshipQuery441(t *testing.T) {
 			"iap", "promoted-purchases", "view",
 			"--iap-id", "123456789",
 			"--iap-fields", "versions",
+			"--subscription-fields", "versions",
 			"--output", "json",
 		}, "1.2.3")
 		if code != cmd.ExitSuccess {
@@ -128,10 +145,12 @@ func TestIAPRelatedSparseFieldValidationPrecedesHTTP441(t *testing.T) {
 	}{
 		{name: "invalid iap fields", args: []string{"iap", "content", "view", "--content-id", "content-1", "--iap-fields", "notAField"}, want: "--iap-fields must be one of"},
 		{name: "invalid subscription fields", args: []string{"subscriptions", "promoted-purchases", "list", "--app", "app-1", "--subscription-fields", "notAField"}, want: "--subscription-fields must be one of"},
+		{name: "invalid cross-scope iap fields", args: []string{"subscriptions", "promoted-purchases", "view", "--promoted-purchase-id", "promo-1", "--iap-fields", "notAField"}, want: "--iap-fields must be one of"},
+		{name: "invalid cross-scope subscription fields", args: []string{"iap", "promoted-purchases", "view", "--promoted-purchase-id", "promo-1", "--subscription-fields", "notAField"}, want: "--subscription-fields must be one of"},
 		{name: "images next conflict", args: []string{"iap", "images", "list", "--next", next, "--iap-fields", "versions"}, want: "--next cannot be combined with --iap-fields"},
 		{name: "localizations next conflict", args: []string{"iap", "localizations", "list", "--next", next, "--iap-fields", "versions"}, want: "--next cannot be combined with --iap-fields"},
-		{name: "iap promoted next conflict", args: []string{"iap", "promoted-purchases", "list", "--next", next, "--iap-fields", "versions"}, want: "--next cannot be combined with --iap-fields"},
-		{name: "subscription promoted next conflict", args: []string{"subscriptions", "promoted-purchases", "list", "--next", next, "--subscription-fields", "versions"}, want: "--next cannot be combined with --subscription-fields"},
+		{name: "iap promoted next conflict", args: []string{"iap", "promoted-purchases", "list", "--next", next, "--subscription-fields", "versions"}, want: "--next cannot be combined with --iap-fields or --subscription-fields"},
+		{name: "subscription promoted next conflict", args: []string{"subscriptions", "promoted-purchases", "list", "--next", next, "--iap-fields", "versions"}, want: "--next cannot be combined with --iap-fields or --subscription-fields"},
 		{name: "promoted view selector conflict", args: []string{"iap", "promoted-purchases", "view", "--promoted-purchase-id", "promo-1", "--iap-id", "123"}, want: "--promoted-purchase-id and --iap-id are mutually exclusive"},
 	}
 
@@ -164,9 +183,13 @@ func TestIAPRelatedSparseFieldHelp441(t *testing.T) {
 		{path: []string{"iap", "images", "view"}, flag: "--iap-fields"},
 		{path: []string{"iap", "localizations", "list"}, flag: "--iap-fields"},
 		{path: []string{"iap", "promoted-purchases", "list"}, flag: "--iap-fields"},
+		{path: []string{"iap", "promoted-purchases", "list"}, flag: "--subscription-fields"},
 		{path: []string{"iap", "promoted-purchases", "view"}, flag: "--iap-id"},
 		{path: []string{"iap", "promoted-purchases", "view"}, flag: "--iap-fields"},
+		{path: []string{"iap", "promoted-purchases", "view"}, flag: "--subscription-fields"},
+		{path: []string{"subscriptions", "promoted-purchases", "list"}, flag: "--iap-fields"},
 		{path: []string{"subscriptions", "promoted-purchases", "list"}, flag: "--subscription-fields"},
+		{path: []string{"subscriptions", "promoted-purchases", "view"}, flag: "--iap-fields"},
 		{path: []string{"subscriptions", "promoted-purchases", "view"}, flag: "--subscription-fields"},
 	}
 	for _, tt := range tests {
