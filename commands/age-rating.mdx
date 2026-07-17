@@ -19,6 +19,17 @@ Use `--output json`, `--output table`, or `--output markdown`. Add `--pretty`
 when using JSON interactively. Only one of `--app-info-id` and `--version-id`
 may be supplied; use `--app` when neither direct relationship ID is known.
 
+API 4.4.1 sparse reads can return only the new social-media attributes:
+
+```bash  theme={null}
+asc age-rating view \
+  --app-info-id "APP_INFO_ID" \
+  --fields socialMedia,socialMediaAgeRestricted
+```
+
+`--fields` accepts `socialMedia` and `socialMediaAgeRestricted`. It is also
+supported when the declaration is resolved through `--app` or `--version-id`.
+
 ## Update a Declaration
 
 Target the declaration directly or let the CLI resolve it from the app, app
@@ -95,7 +106,7 @@ asc age-rating edit \
 After an update, read the declaration again to verify the stored combination:
 
 ```bash  theme={null}
-asc age-rating view --app "APP_ID" --output json --pretty
+asc age-rating view --app "APP_ID" --fields socialMedia,socialMediaAgeRestricted --output json --pretty
 ```
 
 ## Other Update Fields

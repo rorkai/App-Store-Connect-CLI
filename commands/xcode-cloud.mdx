@@ -149,6 +149,26 @@ asc xcode-cloud build-runs builds --run-id "BUILD_RUN_ID"
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
 
+### xcode-cloud products app
+
+Get the app related to an Xcode Cloud product. API 4.4.1 can expose the new
+version relationships on included in-app purchases and subscription groups:
+
+```bash  theme={null}
+asc xcode-cloud products app \
+  --id "PRODUCT_ID" \
+  --iap-fields versions \
+  --subscription-group-fields versions
+```
+
+* `--id` - Xcode Cloud product ID (required)
+* `--iap-fields` - Sparse fields for included in-app purchases: `versions`;
+  automatically includes `inAppPurchases`
+* `--subscription-group-fields` - Sparse fields for included subscription
+  groups: `versions`; automatically includes `subscriptionGroups`
+* `--output` - Output format: `json`, `table`, `markdown`
+* `--pretty` - Pretty-print JSON output
+
 ### xcode-cloud actions
 
 List actions for a build run:

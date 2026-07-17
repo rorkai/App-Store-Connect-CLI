@@ -44,6 +44,16 @@ List apps from App Store Connect.
   Automatically fetch all pages (aggregate results)
 </ParamField>
 
+<ParamField path="--iap-fields" type="string">
+  Sparse fields for included in-app purchases. API 4.4.1 supports `versions`.
+  Supplying this flag automatically includes `inAppPurchases`.
+</ParamField>
+
+<ParamField path="--subscription-group-fields" type="string">
+  Sparse fields for included subscription groups. API 4.4.1 supports
+  `versions`. Supplying this flag automatically includes `subscriptionGroups`.
+</ParamField>
+
 <ParamField path="--output" type="string" default="json">
   Output format: `json`, `table`, `markdown`
 </ParamField>
@@ -56,6 +66,7 @@ asc apps list --bundle-id "com.example.app"
 asc apps list --name "My App"
 asc apps list --limit 10
 asc apps list --sort name
+asc apps list --iap-fields versions --subscription-group-fields versions
 asc apps list --output table
 asc apps list --paginate
 ```
@@ -92,6 +103,16 @@ View app details by ID.
   App Store Connect app ID
 </ParamField>
 
+<ParamField path="--iap-fields" type="string">
+  Sparse fields for included in-app purchases: `versions`. Automatically
+  includes `inAppPurchases`.
+</ParamField>
+
+<ParamField path="--subscription-group-fields" type="string">
+  Sparse fields for included subscription groups: `versions`. Automatically
+  includes `subscriptionGroups`.
+</ParamField>
+
 <ParamField path="--output" type="string" default="json">
   Output format: `json`, `table`
 </ParamField>
@@ -100,6 +121,7 @@ View app details by ID.
 
 ```bash  theme={null}
 asc apps view --id "APP_ID"
+asc apps view --id "APP_ID" --iap-fields versions --subscription-group-fields versions
 asc apps view --id "APP_ID" --output table
 ```
 
@@ -119,6 +141,50 @@ asc apps view --id "APP_ID" --output table
     }
   }
 }
+```
+
+***
+
+### `asc apps info list`
+
+List app-info records for an app. API 4.4.1 adds sparse reads for the app info
+kids age band and the age-rating declaration's social-media fields.
+
+<ParamField path="--app" type="string" required>
+  App Store Connect app ID (or `ASC_APP_ID`)
+</ParamField>
+
+<ParamField path="--fields" type="string">
+  Sparse app-info fields: `kidsAgeBand`
+</ParamField>
+
+<ParamField path="--age-rating-fields" type="string">
+  Sparse fields for the included age-rating declaration:
+  `socialMedia`, `socialMediaAgeRestricted`. Automatically includes
+  `ageRatingDeclaration`.
+</ParamField>
+
+```bash  theme={null}
+asc apps info list --app "APP_ID" --fields kidsAgeBand
+asc apps info list --app "APP_ID" --age-rating-fields socialMedia,socialMediaAgeRestricted
+```
+
+<Note>
+  Apple's production API accepted the API 4.4.1 social-media fields in live
+  testing on July 17, 2026, but still rejected the official
+  `fields[appInfos]=kidsAgeBand` value on app-info detail and collection reads.
+  The CLI exposes the published schema while Apple's rollout catches up.
+</Note>
+
+### `asc apps info view`
+
+Use an app-info ID to request the same sparse fields from one record. These
+app-info flags cannot be combined with version-localization selectors such as
+`--version-id`, `--locale`, `--next`, or `--paginate`.
+
+```bash  theme={null}
+asc apps info view --info-id "APP_INFO_ID" --fields kidsAgeBand
+asc apps info view --info-id "APP_INFO_ID" --age-rating-fields socialMedia,socialMediaAgeRestricted
 ```
 
 ***
