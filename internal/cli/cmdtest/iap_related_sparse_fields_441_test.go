@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -430,6 +431,60 @@ func TestIAPRelatedSparseFieldValidationPrecedesHTTP441(t *testing.T) {
 			}
 			if !strings.Contains(stderr, tt.want) {
 				t.Fatalf("stderr = %q, want %q", stderr, tt.want)
+			}
+		})
+	}
+}
+
+func TestScopedPromotedPurchaseExplicitEmptyFieldsFailBeforeAuth441(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		flag string
+	}{
+		{name: "iap list iap fields", args: []string{"iap", "promoted-purchases", "list", "--app", "app-1", "--iap-fields", ""}, flag: "--iap-fields"},
+		{name: "iap list subscription fields", args: []string{"iap", "promoted-purchases", "list", "--app", "app-1", "--subscription-fields", ""}, flag: "--subscription-fields"},
+		{name: "subscription list iap fields", args: []string{"subscriptions", "promoted-purchases", "list", "--app", "app-1", "--iap-fields", ""}, flag: "--iap-fields"},
+		{name: "subscription list subscription fields", args: []string{"subscriptions", "promoted-purchases", "list", "--app", "app-1", "--subscription-fields", ""}, flag: "--subscription-fields"},
+		{name: "iap view iap fields", args: []string{"iap", "promoted-purchases", "view", "--promoted-purchase-id", "promo-1", "--iap-fields", ""}, flag: "--iap-fields"},
+		{name: "iap view subscription fields", args: []string{"iap", "promoted-purchases", "view", "--promoted-purchase-id", "promo-1", "--subscription-fields", ""}, flag: "--subscription-fields"},
+		{name: "subscription view iap fields", args: []string{"subscriptions", "promoted-purchases", "view", "--promoted-purchase-id", "promo-1", "--iap-fields", ""}, flag: "--iap-fields"},
+		{name: "subscription view subscription fields", args: []string{"subscriptions", "promoted-purchases", "view", "--promoted-purchase-id", "promo-1", "--subscription-fields", ""}, flag: "--subscription-fields"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, key := range []string{
+				"ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_PRIVATE_KEY_PATH", "ASC_PRIVATE_KEY",
+				"ASC_PRIVATE_KEY_B64", "ASC_PROFILE", "ASC_STRICT_AUTH",
+			} {
+				t.Setenv(key, "")
+			}
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+
+			requests := 0
+			originalTransport := http.DefaultTransport
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				requests++
+				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+				return nil, nil
+			})
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+			stdout, stderr := captureOutput(t, func() {
+				if code := cmd.Run(tt.args, "1.2.3"); code != cmd.ExitUsage {
+					t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+				}
+			})
+			if strings.TrimSpace(stdout) != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if requests != 0 {
+				t.Fatalf("requests = %d, want 0", requests)
+			}
+			if want := tt.flag + " must not be empty"; !strings.Contains(stderr, want) {
+				t.Fatalf("stderr = %q, want %q", stderr, want)
 			}
 		})
 	}

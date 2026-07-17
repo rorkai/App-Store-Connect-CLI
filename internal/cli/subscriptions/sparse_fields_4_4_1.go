@@ -14,6 +14,18 @@ func normalizeSparseFieldsFlag(fs *flag.FlagSet, next, name, value string, allow
 	return normalizeSelectionFlag(fs, value, "--"+name, allowed)
 }
 
+func validateNextExclusiveFlags(fs *flag.FlagSet, next string, names ...string) error {
+	if strings.TrimSpace(next) == "" {
+		return nil
+	}
+	for _, name := range names {
+		if flagWasProvided(fs, name) {
+			return shared.UsageErrorf("--next cannot be combined with --%s", name)
+		}
+	}
+	return nil
+}
+
 func includeRelationshipForFields(fields []string, relationship string) []string {
 	if len(fields) == 0 {
 		return nil

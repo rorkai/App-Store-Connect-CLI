@@ -86,7 +86,7 @@ separately and has no invented landed `main` commit:
 | Hardened public 4.4.1 command workflows | #1791 | `e9c2a0dc` | `e902d375` | Merged; documentation only |
 | Seven-property nullable request fidelity | #1792 | `3f7d1449` | `804624cd` | Merged; exact final head landed on `main` |
 | IAP and promoted-purchase related sparse fields | #1793 | `917d719d` | `f6b34d9e` | Merged; exact final head, six resolved threads, and green exact-head gates |
-| External ASC workflow skills | rorkai/app-store-connect-cli-skills#50 | `61b9634` | `e5561a9` | Merged; landed tree revalidated |
+| External ASC workflow skills | rorkai/app-store-connect-cli-skills#51 | `d7888b2b4a1a152f8524fc18c99d2d73d1c431fc` | `26b2fa92e612dff3477537f67b44f1bcfedf0fc5` | Merged; exact final head and landed tree revalidated |
 
 The hard audit fixed contract gaps beyond the initial six implementation PRs:
 endpoint-exact fields, includes, sparse fields, and relationship limits; opaque
@@ -519,8 +519,8 @@ payload, output, and compatibility tests):
 
 IAP and promoted-purchase propagation (#1777 at `ee40c7b3` plus #1793 final
 head `917d719d`, landed as `f6b34d9e`; endpoint-exact query and response
-compatibility tests). #1793 closes the 11 related GETs below while
-preserving #1777's top-level IAP list/detail behavior:
+compatibility tests). #1793 closes 11 of the 13 GETs below while preserving
+#1777's two top-level IAP list/detail behaviors:
 
 - [x] `GET /v1/apps/{id}/inAppPurchasesV2`
 - [x] `GET /v1/inAppPurchaseAppStoreReviewScreenshots/{id}`
@@ -824,9 +824,12 @@ documented deprecation window; this goal intentionally stops before release.
 18. #1793 completed the IAP and promoted-purchase related sparse-field follow-up
     at exact final head `917d719df73a8dce9eefd5f378bad5a0562a67c0`
     and landed on `main` as `f6b34d9e042964673ee39c32fbae4f7aa99fc874`.
-19. External workflow skills were audited at exact head `61b9634` and landed as
-    `e5561a9`. All 11 review threads are resolved, and the landed tree passes all
-    23 skill validators plus 245 command-example and 716 flag help checks.
+19. External workflow skills were audited through
+    rorkai/app-store-connect-cli-skills#51 at exact head
+    `d7888b2b4a1a152f8524fc18c99d2d73d1c431fc` and landed as skills `main`
+    `26b2fa92e612dff3477537f67b44f1bcfedf0fc5`. All three PR #51 review
+    threads are resolved; final-head exact-help validation covered 28 commands
+    and 108 flags with zero failures, and the skill validator passed.
 20. Exact CLI `main` `f6b34d9e` is the current fully merged behavior integration
     through #1793. Its PR head passed integration, Govulncheck, and CodeQL workflows.
     The historical built-help audit through #1788 found 48 added and 52 changed
@@ -1030,10 +1033,12 @@ pre-merge evidence are separated explicitly:
 - [x] Cleaned every disposable resource the API permits and recorded the three
   unavoidable version/localization remnant pairs. All four review submissions
   are empty and age-rating fields were restored.
-- [x] Audited and merged companion workflow-skills PR #50 at exact head
-  `61b9634`, producing skills `main` `e5561a9`; all 11 threads are resolved,
-  all 23 skills validate, and 245 command examples with 716 flags match exact
-  CLI help. No runnable deprecated localization or submission teaching remains.
+- [x] Audited and merged companion workflow-skills PR #51 at exact head
+  `d7888b2b4a1a152f8524fc18c99d2d73d1c431fc`, producing skills `main`
+  `26b2fa92e612dff3477537f67b44f1bcfedf0fc5`; all three threads are resolved,
+  final-head exact-help validation covered 28 commands and 108 flags with zero
+  failures, and the skill validator passed. No runnable deprecated localization
+  or submission teaching remains.
 - [x] Ran the final read-only live smoke on disposable app `6759231657` after
   behavior work through #1788 and the workflow-skill changes merged: the app
   read succeeded, all four age fields were restored to `false`, and all four
@@ -1044,7 +1049,9 @@ pre-merge evidence are separated explicitly:
   workflows; #1789 previously landed
   the ledger at `d6d8d94b`, test-only #1790 landed at `73466720`, docs-only
   #1791 landed at `e902d375`, and nullable-fidelity #1792 landed at
-  `804624cd`. Skills `main` `e5561a9` still passes local validation (it has no
-  configured `main` status or check runs), and the latest release/tag remains
+  `804624cd`. Skills `main`
+  `26b2fa92e612dff3477537f67b44f1bcfedf0fc5` is the landed companion-skills
+  integration (that repository has no configured `main` status or check runs),
+  and the latest release/tag remains
   `3.0.0` at the pre-integration commit `839c4da6`. No release, tag,
   Homebrew/WinGet update, or package publication was performed.

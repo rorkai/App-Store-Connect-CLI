@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
@@ -236,47 +237,81 @@ func TestSubscriptionSparseFields441ValidationBeforeClient(t *testing.T) {
 
 func TestSubscriptionSparseFields441NextConflictsBeforeClient(t *testing.T) {
 	const next = "https://api.appstoreconnect.apple.com/v1/subscriptions/123456789/images?cursor=next"
-	tests := []struct {
-		name string
-		args []string
+	commands := []struct {
+		name      string
+		base      []string
+		modifiers [][]string
 	}{
-		{"group localizations", []string{"subscriptions", "groups", "localizations", "list", "--next", next, "--group-fields", "versions"}},
-		{"offer code prices", []string{"subscriptions", "offers", "offer-codes", "prices", "--next", next, "--price-point-fields", "adjustedEqualizations"}},
-		{"promotional offer prices", []string{"subscriptions", "offers", "promotional", "prices", "--next", next, "--price-point-fields", "adjustedEqualizations"}},
-		{"images", []string{"subscriptions", "images", "list", "--next", next, "--subscription-fields", "versions"}},
-		{"introductory offers subscription", []string{"subscriptions", "offers", "introductory", "list", "--next", next, "--subscription-fields", "versions"}},
-		{"introductory offers price point", []string{"subscriptions", "offers", "introductory", "list", "--next", next, "--price-point-fields", "adjustedEqualizations"}},
-		{"offer codes", []string{"subscriptions", "offers", "offer-codes", "list", "--next", next, "--subscription-fields", "versions"}},
-		{"promotional offers", []string{"subscriptions", "offers", "promotional", "list", "--next", next, "--subscription-fields", "versions"}},
-		{"localizations", []string{"subscriptions", "localizations", "list", "--next", next, "--subscription-fields", "versions"}},
+		{
+			name: "group localizations", base: []string{"subscriptions", "groups", "localizations", "list"},
+			modifiers: [][]string{{"--group-id", "group-1"}, {"--limit", "10"}, {"--group-fields", "versions"}},
+		},
+		{
+			name: "images", base: []string{"subscriptions", "images", "list"},
+			modifiers: subscriptionNextModifierFamilies441(),
+		},
+		{
+			name: "localizations", base: []string{"subscriptions", "localizations", "list"},
+			modifiers: subscriptionNextModifierFamilies441(),
+		},
+		{
+			name: "introductory offers", base: []string{"subscriptions", "offers", "introductory", "list"},
+			modifiers: append(subscriptionNextModifierFamilies441(), []string{"--price-point-fields", "adjustedEqualizations"}),
+		},
+		{
+			name: "offer codes", base: []string{"subscriptions", "offers", "offer-codes", "list"},
+			modifiers: subscriptionNextModifierFamilies441(),
+		},
+		{
+			name: "promotional offers", base: []string{"subscriptions", "offers", "promotional", "list"},
+			modifiers: subscriptionNextModifierFamilies441(),
+		},
+		{
+			name: "offer code prices", base: []string{"subscriptions", "offers", "offer-codes", "prices"},
+			modifiers: [][]string{{"--offer-code-id", "code-1"}, {"--limit", "10"}, {"--price-point-fields", "adjustedEqualizations"}},
+		},
+		{
+			name: "promotional offer prices", base: []string{"subscriptions", "offers", "promotional", "prices"},
+			modifiers: [][]string{{"--id", "promo-1"}, {"--limit", "10"}, {"--price-point-fields", "adjustedEqualizations"}},
+		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			clientFactoryCalled := false
-			restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
-				clientFactoryCalled = true
-				return nil, errors.New("client factory must not run")
-			})
-			defer restore()
+	for _, command := range commands {
+		for _, modifier := range command.modifiers {
+			modifier := modifier
+			t.Run(command.name+" "+modifier[0], func(t *testing.T) {
+				clientFactoryCalled := false
+				restore := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+					clientFactoryCalled = true
+					return nil, errors.New("client factory must not run")
+				})
+				defer restore()
 
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-			_, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
+				args := append(append(append([]string{}, command.base...), "--next", next), modifier...)
+				stdout, stderr := captureOutput(t, func() {
+					if code := cmd.Run(args, "1.2.3"); code != cmd.ExitUsage {
+						t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+					}
+				})
+				if strings.TrimSpace(stdout) != "" {
+					t.Fatalf("stdout = %q, want empty", stdout)
 				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("error = %v, want usage error", err)
+				if !strings.Contains(stderr, "--next cannot be combined with "+modifier[0]) {
+					t.Fatalf("stderr = %q, want conflict for %s", stderr, modifier[0])
+				}
+				if clientFactoryCalled {
+					t.Fatal("client factory called before validation")
 				}
 			})
-			if !strings.Contains(stderr, "--next cannot be combined") {
-				t.Fatalf("stderr = %q", stderr)
-			}
-			if clientFactoryCalled {
-				t.Fatal("client factory called before validation")
-			}
-		})
+		}
+	}
+}
+
+func subscriptionNextModifierFamilies441() [][]string {
+	return [][]string{
+		{"--subscription-id", "123456789"},
+		{"--app", "app-1"},
+		{"--limit", "10"},
+		{"--subscription-fields", "versions"},
 	}
 }

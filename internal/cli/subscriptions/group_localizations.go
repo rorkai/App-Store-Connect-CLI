@@ -73,6 +73,9 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions groups localizations list: %w", err)
 			}
+			if err := validateNextExclusiveFlags(fs, *next, "group-id", "limit", "group-fields"); err != nil {
+				return err
+			}
 			selectedGroupFields, err := normalizeSparseFieldsFlag(fs, *next, "group-fields", *groupFields, subscriptionGroupFieldsList())
 			if err != nil {
 				return err

@@ -124,6 +124,9 @@ Examples:
 		if strings.TrimSpace(next) != "" && (flagWasSet(cmd.FlagSet, "iap-fields") || flagWasSet(cmd.FlagSet, "subscription-fields")) {
 			return shared.UsageErrorf("%s: --next cannot be combined with --iap-fields or --subscription-fields", errorPrefix)
 		}
+		if err := validateExplicitPromotedPurchaseFields(cmd.FlagSet); err != nil {
+			return shared.UsageError(errorPrefix + ": " + err.Error())
+		}
 		iapFields, err := shared.NormalizeSelection(iapFieldsValue, promotedPurchaseIAPFields, "--iap-fields")
 		if err != nil {
 			return shared.UsageError(errorPrefix + ": " + err.Error())
@@ -234,6 +237,9 @@ Examples:
 		if promotedPurchaseID != "" && ownerID != "" {
 			return shared.UsageErrorf("%s: --promoted-purchase-id and --%s are mutually exclusive", errorPrefix, ownerIDFlag)
 		}
+		if err := validateExplicitPromotedPurchaseFields(cmd.FlagSet); err != nil {
+			return shared.UsageError(errorPrefix + ": " + err.Error())
+		}
 		iapFields, err := shared.NormalizeSelection(stringFlagValue(cmd.FlagSet, "iap-fields"), promotedPurchaseIAPFields, "--iap-fields")
 		if err != nil {
 			return shared.UsageError(errorPrefix + ": " + err.Error())
@@ -321,6 +327,15 @@ func flagWasSet(fs *flag.FlagSet, name string) bool {
 		}
 	})
 	return found
+}
+
+func validateExplicitPromotedPurchaseFields(fs *flag.FlagSet) error {
+	for _, name := range []string{"iap-fields", "subscription-fields"} {
+		if flagWasSet(fs, name) && strings.TrimSpace(stringFlagValue(fs, name)) == "" {
+			return fmt.Errorf("--%s must not be empty", name)
+		}
+	}
+	return nil
 }
 
 func configureScopedPromotedPurchasesUpdateCommand(cmd *ffcli.Command, cfg ScopedPromotedPurchasesCommandConfig) {
