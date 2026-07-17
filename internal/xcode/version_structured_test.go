@@ -838,6 +838,35 @@ func TestStructuredVersion_GroupRelativeXCConfigReference(t *testing.T) {
 	}
 }
 
+func TestStructuredVersion_AbsoluteGroupXCConfigReference(t *testing.T) {
+	project := writeStructuredVersionProject(t, true)
+	configDir := filepath.Join(filepath.Dir(project), "Configs")
+	pbxprojPath := filepath.Join(project, "project.pbxproj")
+	contents := mustReadVersionTestFile(t, pbxprojPath)
+	old := "path = Configs/App.xcconfig; sourceTree = SOURCE_ROOT;"
+	if count := strings.Count(contents, old); count != 1 {
+		t.Fatalf("expected one App.xcconfig reference, found %d", count)
+	}
+	contents = strings.Replace(contents,
+		old,
+		"path = App.xcconfig; sourceTree = \"<group>\";", 1)
+	old = "AAAAAAAAAAAAAAAAAAAAAAAA /* App.xcconfig */ ="
+	if count := strings.Count(contents, old); count != 1 {
+		t.Fatalf("expected one App.xcconfig object, found %d", count)
+	}
+	contents = strings.Replace(contents,
+		old,
+		"ABABABABABABABABABABABAB /* Configs */ = {isa = PBXGroup; children = (AAAAAAAAAAAAAAAAAAAAAAAA,); path = \""+configDir+"\"; sourceTree = \"<absolute>\"; };\n\t\tAAAAAAAAAAAAAAAAAAAAAAAA /* App.xcconfig */ =", 1)
+	if err := os.WriteFile(pbxprojPath, []byte(contents), 0o644); err != nil {
+		t.Fatalf("WriteFile(project) error = %v", err)
+	}
+
+	view := mustGetStructuredVersion(t, project, "App", "Release")
+	if view.Version != "1.2.3" || !strings.HasSuffix(view.VersionSource, "Configs/Shared.xcconfig") {
+		t.Fatalf("absolute-group xcconfig was not resolved: %#v", view)
+	}
+}
+
 func TestStructuredVersion_ScopedBumps(t *testing.T) {
 	t.Run("patch", func(t *testing.T) {
 		project := writeStructuredVersionProject(t, false)

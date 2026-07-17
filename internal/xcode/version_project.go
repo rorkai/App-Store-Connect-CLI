@@ -703,7 +703,8 @@ func (project *structuredVersionProject) fileReferencePath(referenceID string) (
 		if err != nil {
 			return "", err
 		}
-		if groupPath, err := parent.String("path"); err == nil && groupPath != "" {
+		groupPath, _ := parent.String("path")
+		if groupPath != "" {
 			groupPaths = append([]string{groupPath}, groupPaths...)
 		}
 		parentSourceTree, _ := parent.String("sourceTree")
@@ -712,7 +713,10 @@ func (project *structuredVersionProject) fileReferencePath(referenceID string) (
 			break
 		}
 	}
-	parts := append([]string{project.rootDir}, groupPaths...)
+	parts := append([]string(nil), groupPaths...)
+	if len(parts) == 0 || !filepath.IsAbs(parts[0]) {
+		parts = append([]string{project.rootDir}, parts...)
+	}
 	parts = append(parts, path)
 	return filepath.Clean(filepath.Join(parts...)), nil
 }
