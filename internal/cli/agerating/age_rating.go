@@ -53,6 +53,11 @@ var kidsAgeBandValues = []string{
 	"NINE_TO_ELEVEN",
 }
 
+var ageRatingSparseFields441 = []string{
+	"socialMedia",
+	"socialMediaAgeRestricted",
+}
+
 // AgeRatingCommand returns the age rating command with subcommands.
 func AgeRatingCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("age-rating", flag.ExitOnError)
@@ -86,6 +91,7 @@ func AgeRatingViewCommand() *ffcli.Command {
 	appID := fs.String("app", os.Getenv("ASC_APP_ID"), "App ID (required unless --app-info-id or --version-id is provided)")
 	appInfoID := fs.String("app-info-id", "", "App info ID (optional)")
 	versionID := fs.String("version-id", "", "App Store version ID (optional)")
+	fields := fs.String("fields", "", "Sparse fields: socialMedia, socialMediaAgeRestricted")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -97,6 +103,7 @@ func AgeRatingViewCommand() *ffcli.Command {
 Examples:
   asc age-rating view --app APP_ID
   asc age-rating view --app-info-id APP_INFO_ID
+  asc age-rating view --app-info-id APP_INFO_ID --fields socialMedia,socialMediaAgeRestricted
   asc age-rating view --version-id VERSION_ID`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -112,6 +119,10 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError()
 			}
+			fieldValues, err := shared.NormalizeSelection(*fields, ageRatingSparseFields441, "--fields")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -121,7 +132,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := fetchAgeRatingDeclaration(requestCtx, client, appValue, appInfoValue, versionValue)
+			resp, err := fetchAgeRatingDeclaration(requestCtx, client, appValue, appInfoValue, versionValue, fieldValues)
 			if err != nil {
 				return fmt.Errorf("age-rating view: %w", err)
 			}
@@ -339,12 +350,13 @@ func nullableBoolValue(value *asc.NullableBool) *bool {
 	return value.Value
 }
 
-func fetchAgeRatingDeclaration(ctx context.Context, client *asc.Client, appID, appInfoID, versionID string) (*asc.AgeRatingDeclarationResponse, error) {
+func fetchAgeRatingDeclaration(ctx context.Context, client *asc.Client, appID, appInfoID, versionID string, fields []string) (*asc.AgeRatingDeclarationResponse, error) {
+	opts := []asc.AgeRatingDeclarationOption{asc.WithAgeRatingDeclarationFields(fields)}
 	switch {
 	case appInfoID != "":
-		return client.GetAgeRatingDeclarationForAppInfo(ctx, appInfoID)
+		return client.GetAgeRatingDeclarationForAppInfo(ctx, appInfoID, opts...)
 	case versionID != "":
-		return client.GetAgeRatingDeclarationForAppStoreVersion(ctx, versionID)
+		return client.GetAgeRatingDeclarationForAppStoreVersion(ctx, versionID, opts...)
 	default:
 		appInfos, err := client.GetAppInfos(ctx, appID)
 		if err != nil {
@@ -357,12 +369,12 @@ func fetchAgeRatingDeclaration(ctx context.Context, client *asc.Client, appID, a
 		if strings.TrimSpace(appInfoID) == "" {
 			return nil, fmt.Errorf("app info id is empty for app %s", appID)
 		}
-		return client.GetAgeRatingDeclarationForAppInfo(ctx, appInfoID)
+		return client.GetAgeRatingDeclarationForAppInfo(ctx, appInfoID, opts...)
 	}
 }
 
 func resolveAgeRatingDeclarationID(ctx context.Context, client *asc.Client, appID, appInfoID, versionID string) (string, error) {
-	resp, err := fetchAgeRatingDeclaration(ctx, client, appID, appInfoID, versionID)
+	resp, err := fetchAgeRatingDeclaration(ctx, client, appID, appInfoID, versionID, nil)
 	if err != nil {
 		return "", err
 	}

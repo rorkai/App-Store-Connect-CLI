@@ -1616,13 +1616,21 @@ func (c *Client) UpdateAppInfoLocalizationFields(ctx context.Context, localizati
 }
 
 // GetAppInfoLocalization retrieves an app info localization by ID.
-func (c *Client) GetAppInfoLocalization(ctx context.Context, localizationID string) (*AppInfoLocalizationResponse, error) {
+func (c *Client) GetAppInfoLocalization(ctx context.Context, localizationID string, opts ...AppInfoLocalizationOption) (*AppInfoLocalizationResponse, error) {
+	query := &appInfoLocalizationQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
 	localizationID = strings.TrimSpace(localizationID)
 	if localizationID == "" {
 		return nil, fmt.Errorf("localizationID is required")
 	}
 
 	path := fmt.Sprintf("/v1/appInfoLocalizations/%s", localizationID)
+	if queryString := buildAppInfoLocalizationQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err

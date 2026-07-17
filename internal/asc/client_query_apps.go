@@ -8,10 +8,13 @@ import (
 
 type appsQuery struct {
 	listQuery
-	sort      string
-	bundleIDs []string
-	names     []string
-	skus      []string
+	sort                    string
+	bundleIDs               []string
+	names                   []string
+	skus                    []string
+	inAppPurchaseFields     []string
+	subscriptionGroupFields []string
+	include                 []string
 }
 
 type appSearchKeywordsQuery struct {
@@ -103,6 +106,9 @@ func buildAppsQuery(query *appsQuery) string {
 	if query.sort != "" {
 		values.Set("sort", query.sort)
 	}
+	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
+	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
@@ -438,6 +444,27 @@ func WithAppsNames(names []string) AppsOption {
 func WithAppsSKUs(skus []string) AppsOption {
 	return func(q *appsQuery) {
 		q.skus = normalizeList(skus)
+	}
+}
+
+// WithAppsInAppPurchaseFields sets fields[inAppPurchases].
+func WithAppsInAppPurchaseFields(fields []string) AppsOption {
+	return func(q *appsQuery) {
+		q.inAppPurchaseFields = normalizeList(fields)
+	}
+}
+
+// WithAppsSubscriptionGroupFields sets fields[subscriptionGroups].
+func WithAppsSubscriptionGroupFields(fields []string) AppsOption {
+	return func(q *appsQuery) {
+		q.subscriptionGroupFields = normalizeList(fields)
+	}
+}
+
+// WithAppsInclude includes related resources in app collection responses.
+func WithAppsInclude(include []string) AppsOption {
+	return func(q *appsQuery) {
+		q.include = normalizeList(include)
 	}
 }
 

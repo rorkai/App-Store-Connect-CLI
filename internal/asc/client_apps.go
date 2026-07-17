@@ -101,8 +101,21 @@ func (c *Client) GetApps(ctx context.Context, opts ...AppsOption) (*AppsResponse
 
 // GetApp retrieves a single app by ID.
 func (c *Client) GetApp(ctx context.Context, appID string) (*AppResponse, error) {
+	return c.GetAppWithOptions(ctx, appID)
+}
+
+// GetAppWithOptions retrieves a single app by ID with sparse fields and includes.
+func (c *Client) GetAppWithOptions(ctx context.Context, appID string, opts ...AppOption) (*AppResponse, error) {
+	query := &appQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
 	appID = strings.TrimSpace(appID)
 	path := fmt.Sprintf("/v1/apps/%s", appID)
+	if queryString := buildAppQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err

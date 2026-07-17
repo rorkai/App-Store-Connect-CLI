@@ -377,8 +377,16 @@ func (c *Client) GetCiProduct(ctx context.Context, productID string) (*CiProduct
 }
 
 // GetCiProductApp retrieves the app for a CI product.
-func (c *Client) GetCiProductApp(ctx context.Context, productID string) (*AppResponse, error) {
+func (c *Client) GetCiProductApp(ctx context.Context, productID string, opts ...CiProductAppOption) (*AppResponse, error) {
+	query := &ciProductAppQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
+
 	path := fmt.Sprintf("/v1/ciProducts/%s/app", productID)
+	if queryString := buildCiProductAppQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err

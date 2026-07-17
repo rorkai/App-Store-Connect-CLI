@@ -99,26 +99,64 @@ Examples:
 }
 
 func XcodeCloudProductsAppCommand() *ffcli.Command {
-	return shared.BuildIDGetCommand(shared.IDGetCommandConfig{
-		FlagSetName: "app",
-		Name:        "app",
-		ShortUsage:  "asc xcode-cloud products app --id \"PRODUCT_ID\"",
-		ShortHelp:   "Get the app for a product.",
+	fs := flag.NewFlagSet("app", flag.ExitOnError)
+	id := fs.String("id", "", "Product ID")
+	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: versions")
+	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: versions")
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "app",
+		ShortUsage: "asc xcode-cloud products app --id \"PRODUCT_ID\"",
+		ShortHelp:  "Get the app for a product.",
 		LongHelp: `Get the app for a product.
 
 Examples:
   asc xcode-cloud products app --id "PRODUCT_ID"
+  asc xcode-cloud products app --id "PRODUCT_ID" --iap-fields versions
   asc xcode-cloud products app --id "PRODUCT_ID" --output table`,
-		IDFlag:      "id",
-		IDUsage:     "Product ID",
-		ErrorPrefix: "xcode-cloud products app",
-		ContextTimeout: func(ctx context.Context) (context.Context, context.CancelFunc) {
-			return contextWithXcodeCloudTimeout(ctx, 0)
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			idValue := strings.TrimSpace(*id)
+			if idValue == "" {
+				return shared.UsageError("--id is required")
+			}
+			iapFieldValues, err := shared.NormalizeSelection(*iapFields, ciProductAppInAppPurchaseSparseFields441, "--iap-fields")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+			groupFieldValues, err := shared.NormalizeSelection(*subscriptionGroupFields, ciProductAppSubscriptionGroupSparseFields441, "--subscription-group-fields")
+			if err != nil {
+				return shared.UsageError(err.Error())
+			}
+
+			client, err := shared.GetASCClient()
+			if err != nil {
+				return fmt.Errorf("xcode-cloud products app: %w", err)
+			}
+			requestCtx, cancel := contextWithXcodeCloudTimeout(ctx, 0)
+			defer cancel()
+
+			includeValues := []string{}
+			if len(iapFieldValues) > 0 {
+				includeValues = addCiProductAppInclude(includeValues, "inAppPurchases")
+			}
+			if len(groupFieldValues) > 0 {
+				includeValues = addCiProductAppInclude(includeValues, "subscriptionGroups")
+			}
+			resp, err := client.GetCiProductApp(
+				requestCtx, idValue,
+				asc.WithCiProductAppInAppPurchaseFields(iapFieldValues),
+				asc.WithCiProductAppSubscriptionGroupFields(groupFieldValues),
+				asc.WithCiProductAppInclude(includeValues),
+			)
+			if err != nil {
+				return fmt.Errorf("xcode-cloud products app: failed to fetch: %w", err)
+			}
+			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-		Fetch: func(ctx context.Context, client *asc.Client, id string) (any, error) {
-			return client.GetCiProductApp(ctx, id)
-		},
-	})
+	}
 }
 
 func XcodeCloudProductsBuildRunsCommand() *ffcli.Command {
