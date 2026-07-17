@@ -520,7 +520,7 @@ payload, output, and compatibility tests):
 IAP and promoted-purchase propagation (#1777 at `ee40c7b3` plus #1793 final
 head `917d719d`, landed as `f6b34d9e`; endpoint-exact query and response
 compatibility tests). #1793 closes 11 of the 13 GETs below while preserving
-#1777's two top-level IAP list/detail behaviors:
+the two top-level IAP list/detail behaviors from #1777:
 
 - [x] `GET /v1/apps/{id}/inAppPurchasesV2`
 - [x] `GET /v1/inAppPurchaseAppStoreReviewScreenshots/{id}`
