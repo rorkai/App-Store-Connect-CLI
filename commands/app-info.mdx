@@ -10,6 +10,35 @@ App Info commands manage version-specific metadata like descriptions, keywords, 
 
 ## Commands
 
+### `asc apps info list`
+
+List every app-info record for an app. Use this command to find the app-info ID
+needed by app-info detail and age-rating commands.
+
+<ParamField path="--app" type="string" required>
+  App Store Connect app ID (or `ASC_APP_ID` env variable)
+</ParamField>
+
+<ParamField path="--fields" type="string">
+  Sparse app-info fields. API 4.4.1 supports only `kidsAgeBand`; Apple marks
+  this selector deprecated, so prefer `asc age-rating view` for current
+  age-rating data.
+</ParamField>
+
+<ParamField path="--age-rating-fields" type="string">
+  Sparse fields for the included age-rating declaration. Supported values are
+  `socialMedia` and `socialMediaAgeRestricted`. Supplying this flag
+  automatically includes `ageRatingDeclaration`.
+</ParamField>
+
+```bash  theme={null}
+asc apps info list --app "APP_ID"
+asc apps info list --app "APP_ID" --fields kidsAgeBand
+asc apps info list --app "APP_ID" --fields kidsAgeBand --age-rating-fields socialMedia,socialMediaAgeRestricted
+```
+
+***
+
 ### `asc apps info view`
 
 View app store version localization metadata.
@@ -55,7 +84,19 @@ View app store version localization metadata.
 </ParamField>
 
 <ParamField path="--include" type="string">
-  Include related resources (comma-separated): `ageRatingDeclaration`, `territoryAgeRatings`, `primaryCategory`, `primarySubcategoryOne`, `primarySubcategoryTwo`, `secondaryCategory`, `secondarySubcategoryOne`, `secondarySubcategoryTwo`
+  Include related resources (comma-separated): `app`, `ageRatingDeclaration`, `appInfoLocalizations`, `primaryCategory`, `primarySubcategoryOne`, `primarySubcategoryTwo`, `secondaryCategory`, `secondarySubcategoryOne`, `secondarySubcategoryTwo`
+</ParamField>
+
+<ParamField path="--fields" type="string">
+  Sparse app-info fields. API 4.4.1 supports only `kidsAgeBand`; Apple marks
+  this selector deprecated, so prefer `asc age-rating view` for current
+  age-rating data.
+</ParamField>
+
+<ParamField path="--age-rating-fields" type="string">
+  Sparse fields for the included age-rating declaration. Supported values are
+  `socialMedia` and `socialMediaAgeRestricted`. Supplying this flag
+  automatically includes `ageRatingDeclaration`.
 </ParamField>
 
 **Examples:**
@@ -65,9 +106,28 @@ asc apps info view --app "APP_ID"
 asc apps info view --app "APP_ID" --version "1.2.3" --platform IOS
 asc apps info view --version-id "VERSION_ID"
 asc apps info view --info-id "APP_INFO_ID" --include "ageRatingDeclaration"
-asc apps info view --app "APP_ID" --include "ageRatingDeclaration,territoryAgeRatings"
+asc apps info view --info-id "APP_INFO_ID" --fields kidsAgeBand --age-rating-fields socialMedia
+asc apps info view --app "APP_ID" --include "ageRatingDeclaration,appInfoLocalizations"
 asc apps info view --app "APP_ID" --locale "en-US" --output table
 ```
+
+When an app-info sparse fieldset and relationships are requested together, the
+CLI retains each included relationship in `fields[appInfos]`. For example, the
+combined sparse example above sends
+`fields[appInfos]=kidsAgeBand,ageRatingDeclaration` and
+`include=ageRatingDeclaration`, so App Store Connect does not drop the included
+age-rating declaration.
+
+App-info selectors (`--include`, `--fields`, and `--age-rating-fields`) cannot
+be combined with version-localization selectors such as `--version-id`,
+`--locale`, `--limit`, `--next`, or `--paginate`. Unsupported or empty sparse
+field values are rejected before authentication or HTTP.
+
+<Warning>
+  `kidsAgeBand` remains available because API 4.4.1 publishes it in the
+  app-info sparse-field enum, but Apple marks it deprecated. New workflows
+  should read age-rating data with `asc age-rating view`.
+</Warning>
 
 **Response:**
 
@@ -200,7 +260,7 @@ asc apps info edit --app "123456789" --locale "fr-FR" --copy-from-locale "en-US"
 ### Get metadata with related resources
 
 ```bash  theme={null}
-asc apps info view --app "123456789" --include "ageRatingDeclaration,territoryAgeRatings" --output json
+asc apps info view --app "123456789" --include "ageRatingDeclaration,appInfoLocalizations" --output json
 ```
 
 ## Submit-Required Fields
