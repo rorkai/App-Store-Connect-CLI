@@ -292,9 +292,10 @@ type PaginatedResponse interface {
 
 // Links represents pagination links.
 type Links struct {
-	Self string `json:"self,omitempty"`
-	Next string `json:"next,omitempty"`
-	Prev string `json:"prev,omitempty"`
+	Self  string `json:"self,omitempty"`
+	First string `json:"first,omitempty"`
+	Next  string `json:"next,omitempty"`
+	Prev  string `json:"prev,omitempty"`
 }
 
 // Platform represents an Apple platform.
@@ -337,7 +338,9 @@ type Relationship struct {
 
 // RelationshipList represents a relationship containing multiple resources.
 type RelationshipList struct {
-	Data []ResourceData `json:"data"`
+	Data  []ResourceData  `json:"data"`
+	Links json.RawMessage `json:"links,omitempty"`
+	Meta  json.RawMessage `json:"meta,omitempty"`
 }
 
 // RelationshipRequest represents a relationship list payload.

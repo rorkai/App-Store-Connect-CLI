@@ -128,36 +128,59 @@ func TestReviewSubmissionsItemFieldsAutomaticallyIncludeItems(t *testing.T) {
 
 func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing.T) {
 	tests := []struct {
-		name          string
-		flag          string
-		field         string
-		wantInclude   string
-		wantQueryName string
-		wantItemField string
+		name           string
+		flag           string
+		field          string
+		itemFields     string
+		include        string
+		wantInclude    string
+		wantQueryName  string
+		wantItemFields string
 	}{
 		{
-			name:          "in-app purchase version",
-			flag:          "--iap-version-fields",
-			field:         "inAppPurchase",
-			wantInclude:   "inAppPurchaseVersion",
-			wantQueryName: "fields[inAppPurchaseVersions]",
-			wantItemField: "inAppPurchaseVersion",
+			name:           "in-app purchase version",
+			flag:           "--iap-version-fields",
+			field:          "inAppPurchase",
+			itemFields:     "state",
+			wantInclude:    "inAppPurchaseVersion",
+			wantQueryName:  "fields[inAppPurchaseVersions]",
+			wantItemFields: "state,inAppPurchaseVersion",
 		},
 		{
-			name:          "subscription version",
-			flag:          "--subscription-version-fields",
-			field:         "subscription",
-			wantInclude:   "subscriptionVersion",
-			wantQueryName: "fields[subscriptionVersions]",
-			wantItemField: "subscriptionVersion",
+			name:           "subscription version",
+			flag:           "--subscription-version-fields",
+			field:          "subscription",
+			itemFields:     "state",
+			wantInclude:    "subscriptionVersion",
+			wantQueryName:  "fields[subscriptionVersions]",
+			wantItemFields: "state,subscriptionVersion",
 		},
 		{
-			name:          "subscription group version",
-			flag:          "--subscription-group-version-fields",
-			field:         "subscriptionGroup",
-			wantInclude:   "subscriptionGroupVersion",
-			wantQueryName: "fields[subscriptionGroupVersions]",
-			wantItemField: "subscriptionGroupVersion",
+			name:           "subscription group version",
+			flag:           "--subscription-group-version-fields",
+			field:          "subscriptionGroup",
+			itemFields:     "state",
+			wantInclude:    "subscriptionGroupVersion",
+			wantQueryName:  "fields[subscriptionGroupVersions]",
+			wantItemFields: "state,subscriptionGroupVersion",
+		},
+		{
+			name:           "without item sparse fields",
+			flag:           "--subscription-version-fields",
+			field:          "version",
+			wantInclude:    "subscriptionVersion",
+			wantQueryName:  "fields[subscriptionVersions]",
+			wantItemFields: "",
+		},
+		{
+			name:           "preserves explicit includes without duplicates",
+			flag:           "--iap-version-fields",
+			field:          "version",
+			itemFields:     "state",
+			include:        "appStoreVersion,inAppPurchaseVersion",
+			wantInclude:    "appStoreVersion,inAppPurchaseVersion",
+			wantQueryName:  "fields[inAppPurchaseVersions]",
+			wantItemFields: "state,inAppPurchaseVersion",
 		},
 	}
 
@@ -178,8 +201,8 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 				if got := req.URL.Query().Get(test.wantQueryName); got != test.field {
 					t.Fatalf("%s = %q, want %q", test.wantQueryName, got, test.field)
 				}
-				if got, want := req.URL.Query().Get("fields[reviewSubmissionItems]"), "state,"+test.wantItemField; got != want {
-					t.Fatalf("fields[reviewSubmissionItems] = %q, want %q", got, want)
+				if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); got != test.wantItemFields {
+					t.Fatalf("fields[reviewSubmissionItems] = %q, want %q", got, test.wantItemFields)
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
@@ -191,7 +214,15 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
 			_, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"review", "items", "list", "--submission", "submission-1", "--fields", "state", test.flag, test.field}); err != nil {
+				args := []string{"review", "items", "list", "--submission", "submission-1"}
+				if test.itemFields != "" {
+					args = append(args, "--fields", test.itemFields)
+				}
+				if test.include != "" {
+					args = append(args, "--include", test.include)
+				}
+				args = append(args, test.flag, test.field)
+				if err := root.Parse(args); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				if err := root.Run(context.Background()); err != nil {

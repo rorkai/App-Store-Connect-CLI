@@ -93,9 +93,16 @@ func TestReviewSubmissionsResponsePreservesSchemaMetadata(t *testing.T) {
 		"data": [{
 			"type": "reviewSubmissions",
 			"id": "submission-123",
+			"relationships": {
+				"items": {
+					"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-123/relationships/items", "related": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-123/items"},
+					"meta": {"paging": {"total": 1, "limit": 50, "nextCursor": "item-next"}},
+					"data": [{"type": "reviewSubmissionItems", "id": "item-123"}]
+				}
+			},
 			"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-123"}
 		}],
-		"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-123/reviewSubmissions"},
+		"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-123/reviewSubmissions", "first": "https://api.appstoreconnect.apple.com/v1/apps/app-123/reviewSubmissions?cursor=first", "next": "https://api.appstoreconnect.apple.com/v1/apps/app-123/reviewSubmissions?cursor=next"},
 		"meta": {"paging": {"total": 1, "limit": 50}}
 	}`)
 	client := newTestClient(t, func(req *http.Request) {}, response)
@@ -109,6 +116,22 @@ func TestReviewSubmissionsResponsePreservesSchemaMetadata(t *testing.T) {
 	}
 	if !strings.Contains(string(resp.Meta), `"paging"`) {
 		t.Fatalf("response meta was not preserved: %s", resp.Meta)
+	}
+	if !strings.Contains(resp.Links.First, "cursor=first") {
+		t.Fatalf("paged document first link was not preserved: %+v", resp.Links)
+	}
+	items := resp.Data[0].Relationships.Items
+	if items == nil || !strings.Contains(string(items.Links), `"related"`) || !strings.Contains(string(items.Meta), `"nextCursor"`) {
+		t.Fatalf("items relationship links/meta were not preserved: %+v", items)
+	}
+	encoded, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("marshal response: %v", err)
+	}
+	for _, want := range []string{`"first"`, `"related"`, `"nextCursor"`} {
+		if !strings.Contains(string(encoded), want) {
+			t.Fatalf("re-encoded response omitted %s: %s", want, encoded)
+		}
 	}
 }
 
@@ -636,7 +659,9 @@ func TestGetReviewSubmissionItemsRelationships(t *testing.T) {
 				"type": "reviewSubmissionItems",
 				"id": "item-123"
 			}
-		]
+		],
+		"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-123/relationships/items", "first": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-123/relationships/items?cursor=first"},
+		"meta": {"paging": {"total": 1, "limit": 50}}
 	}`)
 
 	client := newTestClient(t, func(req *http.Request) {
@@ -659,6 +684,12 @@ func TestGetReviewSubmissionItemsRelationships(t *testing.T) {
 	if resp.Data[0].ID != "item-123" {
 		t.Fatalf("expected item ID item-123, got %s", resp.Data[0].ID)
 	}
+	if !strings.Contains(resp.Links.First, "cursor=first") {
+		t.Fatalf("linkage first link was not preserved: %+v", resp.Links)
+	}
+	if !strings.Contains(string(resp.Meta), `"paging"`) {
+		t.Fatalf("linkage meta was not preserved: %s", resp.Meta)
+	}
 }
 
 func TestGetReviewSubmissionItems(t *testing.T) {
@@ -668,7 +699,9 @@ func TestGetReviewSubmissionItems(t *testing.T) {
 				"type": "reviewSubmissionItems",
 				"id": "item-456"
 			}
-		]
+		],
+		"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-456/items", "first": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-456/items?cursor=first"},
+		"meta": {"paging": {"total": 1, "limit": 50}}
 	}`)
 
 	client := newTestClient(t, func(req *http.Request) {
@@ -687,6 +720,12 @@ func TestGetReviewSubmissionItems(t *testing.T) {
 
 	if len(resp.Data) != 1 {
 		t.Fatalf("expected 1 item, got %d", len(resp.Data))
+	}
+	if !strings.Contains(resp.Links.First, "cursor=first") {
+		t.Fatalf("items first link was not preserved: %+v", resp.Links)
+	}
+	if !strings.Contains(string(resp.Meta), `"paging"`) {
+		t.Fatalf("items meta was not preserved: %s", resp.Meta)
 	}
 	if resp.Data[0].ID != "item-456" {
 		t.Fatalf("expected item ID item-456, got %s", resp.Data[0].ID)
