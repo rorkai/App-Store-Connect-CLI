@@ -249,10 +249,16 @@ func TestSubscriptionsPricePointEqualizationsKeepTerritoryInSparseFields(t *test
 			name:    "adjusted equalizations territory fields imply include",
 			command: "adjusted-equalizations",
 			path:    "adjustedEqualizations",
-			args:    []string{"--territory-fields", "currency"},
+			args: []string{
+				"--upfront-price-point-id", "upfront-1",
+				"--plan-type", "MONTHLY",
+				"--territory-fields", "currency",
+			},
 			wantQuery: url.Values{
 				"fields[subscriptionPricePoints]": {"customerPrice,territory"},
 				"fields[territories]":             {"currency"},
+				"filter[planType]":                {"MONTHLY"},
+				"filter[upfrontPricePointId]":     {"upfront-1"},
 				"include":                         {"territory"},
 			},
 		},
@@ -324,6 +330,49 @@ func TestSubscriptionsAdjustedEqualizationsUsageErrors(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assertUsageExit(t, test.args, test.want)
+		})
+	}
+}
+
+func TestSubscriptionsAdjustedEqualizationsRequiresLiveFiltersBeforeClient(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "missing upfront price point",
+			args: []string{
+				"subscriptions", "pricing", "price-points", "adjusted-equalizations",
+				"--price-point-id", "base-1",
+				"--plan-type", "MONTHLY",
+			},
+			want: "--upfront-price-point-id is required for adjusted equalizations",
+		},
+		{
+			name: "missing plan type",
+			args: []string{
+				"subscriptions", "pricing", "price-points", "adjusted-equalizations",
+				"--price-point-id", "base-1",
+				"--upfront-price-point-id", "upfront-1",
+			},
+			want: "--plan-type is required for adjusted equalizations",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			clientFactoryCalled := false
+			restore := subscriptionscli.SetPricePointsClientFactory(func() (*asc.Client, error) {
+				clientFactoryCalled = true
+				return nil, errors.New("poison price-points client factory called")
+			})
+			t.Cleanup(restore)
+
+			assertUsageExit(t, test.args, test.want)
+			if clientFactoryCalled {
+				t.Fatal("missing adjusted-equalizations filters reached the price-points client factory")
+			}
 		})
 	}
 }

@@ -380,10 +380,14 @@ func buildSubscriptionPricePointEqualizationsCommand(name string, adjusted bool)
 	pricePointID := fs.String("price-point-id", "", "Subscription price point ID")
 	territory := fs.String("territory", "", "Filter by territory IDs or names (comma-separated)")
 	subscriptionIDs := fs.String("subscription-id", "", "Filter by subscription IDs (comma-separated)")
-	upfrontPricePointIDs := fs.String("upfront-price-point-id", "", "Filter by upfront price point IDs (comma-separated)")
+	upfrontPricePointIDUsage := "Filter by upfront price point IDs (comma-separated)"
+	if adjusted {
+		upfrontPricePointIDUsage = "Required upfront price point IDs (comma-separated)"
+	}
+	upfrontPricePointIDs := fs.String("upfront-price-point-id", "", upfrontPricePointIDUsage)
 	planTypeUsage := "Filter by plan types (comma-separated)"
 	if adjusted {
-		planTypeUsage = "Filter by plan type: MONTHLY"
+		planTypeUsage = "Required plan type: MONTHLY"
 	}
 	planTypes := fs.String("plan-type", "", planTypeUsage)
 	fields := fs.String("fields", "", "Subscription price point fields (comma-separated)")
@@ -400,6 +404,17 @@ func buildSubscriptionPricePointEqualizationsCommand(name string, adjusted bool)
 	}
 	errorPrefix := "subscriptions price-points " + name
 	baseUsage := fmt.Sprintf(`asc subscriptions price-points %s --price-point-id "PRICE_POINT_ID"`, name)
+	subscriptionExample := baseUsage + ` --subscription-id "SUB_ID" --plan-type MONTHLY`
+	requirementHelp := ""
+	if adjusted {
+		baseUsage += ` --upfront-price-point-id "UPFRONT_PRICE_POINT_ID" --plan-type MONTHLY`
+		subscriptionExample = baseUsage + ` --subscription-id "SUB_ID"`
+		requirementHelp = `
+
+Apple's live endpoint requires both --upfront-price-point-id and --plan-type
+MONTHLY for the first page. An opaque --next URL already carries its query and
+does not accept those flags.`
+	}
 
 	cmd := &ffcli.Command{
 		Name:       name,
@@ -409,13 +424,13 @@ func buildSubscriptionPricePointEqualizationsCommand(name string, adjusted bool)
 
 Filters accept comma-separated values and map directly to the App Store Connect
 API. Setting --territory-fields automatically includes the territory relationship
-so the requested metadata is present in returned price points.
+so the requested metadata is present in returned price points.%s
 
 Examples:
   %s
   %s --territory "US,France" --include territory
-  %s --subscription-id "SUB_ID" --plan-type MONTHLY
-  %s --paginate`, adjective, baseUsage, baseUsage, baseUsage, baseUsage),
+  %s
+  %s --paginate`, adjective, requirementHelp, baseUsage, baseUsage, subscriptionExample, baseUsage),
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 	}
@@ -483,6 +498,14 @@ Examples:
 		selectedIncludes, err := normalizeOptionalSelection(fs, "include", *include, []string{"territory"})
 		if err != nil {
 			return shared.UsageError(err.Error())
+		}
+		if adjusted && strings.TrimSpace(*next) == "" {
+			if len(upfrontIDs) == 0 {
+				return shared.UsageError("--upfront-price-point-id is required for adjusted equalizations")
+			}
+			if len(plans) == 0 {
+				return shared.UsageError("--plan-type is required for adjusted equalizations")
+			}
 		}
 		if len(selectedTerritoryFields) != 0 && !containsString(selectedIncludes, "territory") {
 			selectedIncludes = append(selectedIncludes, "territory")

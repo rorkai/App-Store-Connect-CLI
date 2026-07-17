@@ -34,6 +34,16 @@ func TestSubscriptionPricePointEqualizationCommandsExpose441Filters(t *testing.T
 		}
 	}
 
+	adjusted := SubscriptionsPricePointsAdjustedEqualizationsCommand()
+	for _, required := range []string{"--upfront-price-point-id", "--plan-type MONTHLY"} {
+		if !strings.Contains(adjusted.ShortUsage, required) {
+			t.Fatalf("adjusted-equalizations usage must require %s, got %q", required, adjusted.ShortUsage)
+		}
+	}
+	if !strings.Contains(adjusted.LongHelp, "requires both --upfront-price-point-id and --plan-type") {
+		t.Fatalf("adjusted-equalizations help must explain the live filter requirements, got %q", adjusted.LongHelp)
+	}
+
 	parent := SubscriptionsPricePointsCommand()
 	found := false
 	for _, subcommand := range parent.Subcommands {
