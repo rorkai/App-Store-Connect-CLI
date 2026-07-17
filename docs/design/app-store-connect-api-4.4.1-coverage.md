@@ -82,7 +82,8 @@ separately and has no invented landed `main` commit:
 | Deprecated IAP submit discoverability | #1787 | `04b52a62` | `38fa9b5f` | Merged and `main`-gated |
 | Transitive age-rating dependency closure | #1788 | `08003c38` | `9282e82d` | Merged and `main`-gated |
 | Final 4.4.1 coverage ledger | #1789 | `51b3a962` | `d6d8d94b` | Merged and `main`-gated; documentation only |
-| Subscription localization delete-confirmation coverage | #1790 | `49eda126` | `73466720` | Merged; test only; current #1792 base |
+| Subscription localization delete-confirmation coverage | #1790 | `49eda126` | `73466720` | Merged; test only |
+| Hardened public 4.4.1 command workflows | #1791 | `e9c2a0dc` | `e902d375` | Merged; documentation only; current #1792 base |
 | Seven-property nullable request fidelity | #1792 | `f5e447ef` implementation head | - | Open and pre-merge; no landed `main` SHA |
 | External ASC workflow skills | rorkai/app-store-connect-cli-skills#50 | `61b9634` | `e5561a9` | Merged; landed tree revalidated |
 
@@ -110,8 +111,8 @@ head.
 
 The last fully merged behavior integration before #1792 is `main` commit
 `9282e82d1feebddaaaa3285c658e6960b8a500f3`; #1789 then landed this coverage
-ledger at `d6d8d94b`, and test-only #1790 produced the current #1792 base
-`73466720`. The 37-path, 47-operation, 47-schema, 102-direct, 71-transitive,
+ledger at `d6d8d94b`, test-only #1790 landed at `73466720`, and docs-only #1791
+produced the current #1792 base `e902d375`. The 37-path, 47-operation, 47-schema, 102-direct, 71-transitive,
 173-contract, 61-modified-schema, and 9-addition/7-deprecation counts are
 unchanged. The recursive built-help comparison from `839c4da6` to `9282e82d`
 found 48 added and 52 changed leaf paths, 100 affected paths total, with zero
@@ -809,24 +810,27 @@ documented deprecation window; this goal intentionally stops before release.
 14. The final coverage ledger was audited at #1789 head `51b3a962` and landed
     as `d6d8d94b` without changing CLI behavior.
 15. Subscription localization delete-confirmation coverage was audited at
-    #1790 head `49eda126` and landed as `73466720`; it is test-only and is the
+    #1790 head `49eda126` and landed as `73466720`; it is test-only.
+16. Hardened public 4.4.1 command workflows were audited at #1791 head
+    `e9c2a0dc` and landed as `e902d375`; that docs-only commit is the current
     base of #1792.
-16. #1792 first completes all seven nullable request properties at exact
+17. #1792 first completes all seven nullable request properties at exact
     implementation head `f5e447efd75fe902fc46570ed8ce19715ab1051c`.
     The PR remains open and pre-merge, this ledger change is a later docs-only
     commit on that PR, and no landed `main` SHA is claimed.
-17. External workflow skills were audited at exact head `61b9634` and landed as
+18. External workflow skills were audited at exact head `61b9634` and landed as
     `e5561a9`. All 11 review threads are resolved, and the landed tree passes all
     23 skill validators plus 245 command-example and 716 flag help checks.
-18. Exact CLI `main` `9282e82d` is the last fully merged behavior integration
+19. Exact CLI `main` `9282e82d` is the last fully merged behavior integration
     before #1792 and has green integration, Govulncheck, and CodeQL workflows.
     Its built help has 48 added and 52 changed leaf paths relative to
     `839c4da6`, with zero removals. Those workflows and help counts do not prove
     #1792's still-pre-merge nullable encoding.
 
 CLI behavior and lifecycle PRs through #1788, the ledger PR, test-only #1790,
-and the companion skills PR are merged. #1792 remains the nullable-fidelity
-closeout gate. No release, tag, or package publication is part of this goal.
+docs-only #1791, and the companion skills PR are merged. #1792 remains the
+nullable-fidelity closeout gate. No release, tag, or package publication is
+part of this goal.
 
 ### Built help-surface delta
 
@@ -1029,8 +1033,8 @@ pre-merge evidence are separated explicitly:
   evidence that Apple accepts explicit null for its seven corrected fields.
 - [x] Confirmed the last fully merged behavior integration, `main` `9282e82d`,
   has green integration, Govulncheck, and CodeQL workflows; #1789 later landed
-  the ledger at `d6d8d94b`, and test-only #1790 produced #1792's base
-  `73466720`. Skills `main` `e5561a9` still passes local validation (it has no
+  the ledger at `d6d8d94b`, test-only #1790 landed at `73466720`, and docs-only
+  #1791 produced #1792's base `e902d375`. Skills `main` `e5561a9` still passes local validation (it has no
   configured `main` status or check runs), and the latest release/tag remains
   `3.0.0` at the pre-integration commit `839c4da6`. No release, tag,
   Homebrew/WinGet update, or package publication was performed.

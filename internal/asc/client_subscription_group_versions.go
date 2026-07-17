@@ -265,7 +265,11 @@ func (c *Client) CreateSubscriptionGroupLocalizationV2(ctx context.Context, vers
 	attrs.Locale = strings.TrimSpace(attrs.Locale)
 	if attrs.CustomAppName != nil && attrs.CustomAppName.Value != nil {
 		trimmed := strings.TrimSpace(*attrs.CustomAppName.Value)
-		attrs.CustomAppName = &NullableString{Value: &trimmed}
+		if trimmed == "" {
+			attrs.CustomAppName = nil
+		} else {
+			attrs.CustomAppName = &NullableString{Value: &trimmed}
+		}
 	}
 	if attrs.Name == "" {
 		return nil, fmt.Errorf("name is required")
