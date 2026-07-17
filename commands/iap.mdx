@@ -619,7 +619,10 @@ echo "Submitted IAP $IAP_ID using version $IAP_VERSION_ID"
 The workflow deliberately stops when several versions or same-locale resources
 exist. Select the intended IDs and resume rather than creating replacements.
 Image and review-screenshot uploads are writes; on a retry, inspect the current
-resources first and skip an upload that already succeeded.
+resources first and skip an upload that already succeeded. Price-schedule
+creation is also an unconditional write: if the script stops after that command
+succeeds, resume at step 6 instead of restarting the script and creating a
+second schedule.
 
 ### Bulk Update Availability
 

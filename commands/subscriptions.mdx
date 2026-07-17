@@ -1048,6 +1048,7 @@ APP_ID="123456789"
 GROUP_REFERENCE_NAME="Premium"
 PRODUCT_ID="com.example.app.monthly"
 PRICE_POINT_ID="PRICE_POINT_ID"
+PRICE_TERRITORY="USA"
 PROMOTIONAL_IMAGE="./promo.png"
 REVIEW_SCREENSHOT="./review.png"
 
@@ -1197,11 +1198,12 @@ esac
 # 5. Configure pricing, promotional art, and the App Review screenshot.
 asc subscriptions pricing prices set \
   --subscription-id "$SUBSCRIPTION_ID" \
-  --price-point "$PRICE_POINT_ID"
+  --price-point "$PRICE_POINT_ID" \
+  --territory "$PRICE_TERRITORY"
 
 asc subscriptions pricing availability edit \
   --subscription-id "$SUBSCRIPTION_ID" \
-  --territories "USA,CAN,GBR,AUS"
+  --territories "$PRICE_TERRITORY"
 
 asc subscriptions versions images upload \
   --version-id "$SUBSCRIPTION_VERSION_ID" \
