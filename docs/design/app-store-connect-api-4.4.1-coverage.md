@@ -8,9 +8,9 @@ of existing stable commands. Schema-only support is acceptable only when the
 ledger below records an evidence-backed reason that a first-class command is not
 useful.
 
-The work is split into stacked, independently reviewable pull requests based on
-the 4.4.1 schema update. Each behavior PR must use RED-GREEN tests, verify a
-freshly built binary, and pass the complete repository gate before review.
+The work was split into stacked, independently reviewable pull requests based
+on the 4.4.1 schema update. Each behavior PR used RED-GREEN tests, verified a
+freshly built binary, and passed the complete repository gate before review.
 
 ## Source contract
 
@@ -61,10 +61,10 @@ top-level contract changes.
 
 ## Current effort and status
 
-The CLI pull requests landed sequentially after exact-head audit. Rows marked
-`main`-gated passed their post-merge integration, Govulncheck, and CodeQL
-workflows before the next behavior PR advanced. Open work is identified
-separately and has no invented landed `main` commit:
+The CLI pull requests landed sequentially after exact-head audit. Each behavior
+PR passed its exact-head gates before merge. The final behavior integration at
+`48e0d003` also passed its post-merge Main Branch, Govulncheck, and CodeQL
+workflows. No App Store Connect API 4.4.1 behavior PR remains open:
 
 | Scope | Pull request | Reference head | Landed `main` commit | Status |
 | --- | --- | --- | --- | --- |
@@ -87,8 +87,8 @@ separately and has no invented landed `main` commit:
 | Seven-property nullable request fidelity | #1792 | `3f7d1449` | `804624cd` | Merged; exact final head landed on `main` |
 | IAP and promoted-purchase related sparse fields | #1793 | `917d719d` | `f6b34d9e` | Merged; exact final head, six resolved threads, and green exact-head gates |
 | Subscription and pricing related sparse fields | #1795 | `229dc07c` | `5bf2d154` | Merged; exact final head landed on `main` |
-| App-info related sparse-field query transport | #1796 | — | — | Open; current PR, exact endpoint transport and CLI follow-up |
-| External ASC workflow skills | rorkai/app-store-connect-cli-skills#51 | `d7888b2b4a1a152f8524fc18c99d2d73d1c431fc` | `26b2fa92e612dff3477537f67b44f1bcfedf0fc5` | Merged; exact final head and landed tree revalidated |
+| App-info, age-rating, and Xcode Cloud related sparse fields | #1796 | `8b4821a4` | `48e0d003` | Merged and `main`-gated; exact final head, four resolved threads, and green exact-head gates |
+| External ASC workflow skills | rorkai/app-store-connect-cli-skills#51 and #52 | `1aeb0dc607d8fa327501bc4b1d1cf981448512f9` | `f8f43c29d96a85792b99a8a1f23a7f048f8b312d` | Merged; final cross-repository audit passed 23/23 skills and 695/695 runnable command occurrences; zero review threads |
 
 The hard audit fixed contract gaps beyond the initial six implementation PRs:
 endpoint-exact fields, includes, sparse fields, and relationship limits; opaque
@@ -112,21 +112,24 @@ legacy omission behavior for a whitespace-only `customAppName` while retaining
 explicit JSON `null`; it landed on `main` as
 `804624cd158d1eb8843d8e0be7cf55bc639da0a1`.
 
-The current fully merged behavior integration is #1795 at `main` commit
-`5bf2d1545785a863242a8509bf55cc25d8a4ab49`; #1789 previously landed this
+The fully merged behavior integration is #1796 at `main` commit
+`48e0d003ebde8d2046b0a19463526c95c3bc25e4`; #1789 previously landed this
 coverage ledger at `d6d8d94b`, test-only #1790 landed at `73466720`,
 docs-only #1791 landed at `e902d375`, and nullable-fidelity #1792 landed at
-`804624cd`; IAP sparse-field #1793 landed at `f6b34d9e`. The 37-path,
-47-operation, 47-schema, 102-direct, 71-transitive,
-173-contract, 61-modified-schema, and 9-addition/7-deprecation counts are
-unchanged. The recursive built-help comparison from `839c4da6` to `9282e82d`
-found 48 added and 52 changed leaf paths, 100 affected paths total, with zero
-removals; it is historical help-surface evidence rather than the nullable
-request-encoding proof, which is carried by #1792's typed tests.
+`804624cd`; IAP sparse-field #1793 landed at `f6b34d9e`, and
+subscription/pricing sparse-field #1795 landed at `5bf2d154`. The 37-path,
+47-operation, 47-schema, 102-direct, 71-transitive, 173-contract,
+61-modified-schema, and 9-addition/7-deprecation counts are unchanged. The
+recursive built-help comparison from `839c4da6` to `9282e82d` found 48 added
+and 52 changed leaf paths, 100 affected paths total, with zero removals; it is
+historical help-surface evidence rather than the nullable request-encoding
+proof, which is carried by #1792's typed tests.
 
-#1796 is an open follow-up. It supplies the operation-specific app-info query
-transport and public CLI validation missing from the merged response-decoding
-work; it is not part of the fully merged integration claim above.
+PR `#1796` was audited at exact final head
+`8b4821a4529ae3a257dc56945a67dbef0ab7ac6b` and landed as
+`48e0d003ebde8d2046b0a19463526c95c3bc25e4`, completing all eight app-info,
+age-rating, and Xcode Cloud sparse-query transports. No behavior follow-up
+remains open.
 
 ## Live App Store Connect verification
 
@@ -149,7 +152,7 @@ the expected readiness rejection because the throwaway products lacked review
 prerequisites; no review submission was submitted. All four current
 `READY_FOR_REVIEW` submissions contained zero items at closeout.
 
-Live behavior refined four schema-level assumptions:
+Live behavior refined five schema-level assumptions:
 
 - Adjusted equalizations succeed only when both an upfront price point and
   `--plan-type MONTHLY` are supplied. #1783 now enforces both before HTTP.
@@ -165,6 +168,12 @@ Live behavior refined four schema-level assumptions:
 - Five retained validator v1 reads returned the same IDs for v2-created group
   localizations, subscription localizations, and subscription images. A runtime
   validator migration was therefore a live-verified no-op, not an assumption.
+- Apple production returned `400` for the official
+  `fields[appInfos]=kidsAgeBand` selector on app-info detail and collection
+  reads. The CLI retains the published 4.4.1 contract and records this as an
+  upstream rollout lag. The other new app-carried IAP/subscription-group and
+  age-rating sparse fields returned `200`; the disposable app has no Xcode
+  Cloud product, so that transport remains deterministically HTTP-tested.
 
 PR #1792 made no new live explicit-null claim. It added typed-client fidelity and
 table-driven omit/value/null encoding tests only. The existing CLI commands
@@ -195,13 +204,15 @@ it. All four review submissions were empty at closeout.
 These six retained version/localization resources are confined to the disposable
 app. No presigned upload URL, credential, or non-disposable app data is recorded.
 
-After every behavior and workflow-skill change was merged, a final read-only
-smoke with the locally built CLI re-read app `6759231657`, its age-rating
-declaration, all review submissions, and every submission's items. The app read
+After every CLI behavior change was merged, a final read-only smoke with the
+locally built exact-`main` `48e0d003` CLI re-read app
+`6759231657`, its full age-rating declaration, all four review submissions,
+every submission's items, and all retained resource IDs. The app read
 succeeded; `userGeneratedContent`, `ageAssurance`, `socialMedia`, and
-`socialMediaAgeRestricted` were all `false`; and each of the four submissions
-returned no items. A separate independent audit repeated the age-rating,
-submission-item, and retained-resource reads with the same results.
+`socialMediaAgeRestricted` were all `false`; every submission returned no
+items; all six retained resources remained readable; and every parent or
+container recorded as deleted still returned not found. The subsequent
+skills-only #52 help-path correction did not change CLI or live behavior.
 
 ## Definition of done
 
@@ -340,13 +351,13 @@ change.
 
 | Contract area | Semantic change | Verification owner | Exact evidence |
 | --- | --- | --- | --- |
-| IAP reads | `fields[inAppPurchases]` gains `versions`; IAP detail and app-IAP collection reads gain `include=versions`, `fields[inAppPurchaseVersions]`, and `limit[versions]` | #1777 and #1793 | `ee40c7b3`; #1793 final head `917d719d`, landed as `f6b34d9e`, adds all 11 propagated IAP/promoted-purchase GETs with endpoint-exact options, queries, stable owner selection, and response compatibility tests |
+| IAP reads | `fields[inAppPurchases]` gains `versions`; IAP detail and app-IAP collection reads gain `include=versions`, `fields[inAppPurchaseVersions]`, and `limit[versions]` | #1777, #1793, and #1796 | `ee40c7b3`; #1793 final head `917d719d`, landed as `f6b34d9e`, adds all 11 propagated IAP/promoted-purchase GETs; #1796 final head `8b4821a4`, landed as `48e0d003`, adds the three app and CI-product transports |
 | Subscription reads | Subscription detail and group-subscription reads gain version includes, sparse fields, and relationship limits; subscription sparse fields gain `versions` across related endpoints | #1779 and #1795 | `c8f3ab52`; #1795 final head `229dc07c`, landed as `5bf2d154`, adds exact query, stable owner selection, opaque-pagination, and compatibility tests across all 17 propagated subscription/pricing GETs |
-| Subscription-group reads | Group detail and app-group collection reads gain version includes, sparse fields, and relationship limits; group sparse fields gain `versions` | #1780 | `48d04e0b`; exact query, owner/next validation, and compatibility tests |
+| Subscription-group reads | Group detail and app-group collection reads gain version includes, sparse fields, and relationship limits; group sparse fields gain `versions` | #1780, #1795, and #1796 | `48d04e0b`; #1795 at `229dc07c`, landed as `5bf2d154`, adds two propagated group-field GETs; #1796 at `8b4821a4`, landed as `48e0d003`, adds the three app and CI-product transports |
 | Review submission reads | Review-item sparse fields and includes gain `inAppPurchaseVersion`, `subscriptionVersion`, and `subscriptionGroupVersion` | #1781 | `aba35e0a`; all four changed GET surfaces, automatic item inclusion, and response round-trip tests |
-| Pricing reads | Price-point sparse fields gain `adjustedEqualizations`; existing equalization and price-point relationship operations gain `filter[upfrontPricePointId]` and `filter[planType]` where allowed | #1778 | `39284b0a`; endpoint-specific option, exact query, strict CSV/enums, territory inclusion, opaque-next, ID validation, and aggregation tests |
-| Age rating reads and update | Age-rating sparse fields and update schema gain `socialMedia` and `socialMediaAgeRestricted` | #1778 and #1792 | `39284b0a` added the fields and CLI behavior; #1792 final head `3f7d1449`, landed as `804624cd`, adds exact omit/value/null request encoding |
-| App info reads | `AppInfo.attributes.kidsAgeBand` and `fields[appInfos]=kidsAgeBand` appear as deprecated additions | #1778 and #1796 | #1778 at `39284b0a` adds response decoding and output characterization; open #1796 adds exact operation-specific query transport, CLI flags and automatic includes, strict validation, and query-cardinality tests across all seven `fields[appInfos]` reads |
+| Pricing reads | Price-point sparse fields gain `adjustedEqualizations`; existing equalization and price-point relationship operations gain `filter[upfrontPricePointId]` and `filter[planType]` where allowed | #1778 and #1795 | `39284b0a` adds endpoint-specific filters, strict CSV/enums, territory inclusion, opaque-next, ID validation, and aggregation; #1795 final head `229dc07c`, landed as `5bf2d154`, adds the propagated sparse-field transports |
+| Age rating reads and update | Age-rating sparse fields and update schema gain `socialMedia` and `socialMediaAgeRestricted` | #1778, #1792, and #1796 | `39284b0a` added the fields and CLI behavior; #1792 at `3f7d1449`, landed as `804624cd`, adds omit/value/null encoding; #1796 at `8b4821a4`, landed as `48e0d003`, completes direct and included sparse-query transport |
+| App info reads | `AppInfo.attributes.kidsAgeBand` and `fields[appInfos]=kidsAgeBand` appear as deprecated additions | #1778 and #1796 | #1778 at `39284b0a` adds response decoding and output characterization; #1796 final head `8b4821a4`, landed as `48e0d003`, adds operation-specific query transport, CLI flags and automatic includes, strict validation, and query-cardinality tests across all seven `fields[appInfos]` reads |
 | Included-resource unions | IAP, subscription, group, and review-submission responses gain their corresponding version resource discriminators | #1777, #1779, #1780, #1781 | `ee40c7b3`, `c8f3ab52`, `48d04e0b`, `aba35e0a`; typed response and included-resource tests |
 
 No existing operation changes from nondeprecated to `deprecated: true` in the
@@ -513,8 +524,8 @@ Schema-mediated request-contract changes are listed separately after it and do
 not alter this count.
 
 Age rating and app info (#1778 at `39284b0a` covers response decoding and
-update behavior; open #1796 covers exact sparse-query transport, CLI flags,
-and query-cardinality tests):
+update behavior; #1796 final head `8b4821a4`, landed as `48e0d003`, covers
+exact sparse-query transport, CLI flags, and query-cardinality tests):
 
 - [x] `GET /v1/appInfoLocalizations/{id}`
 - [x] `GET /v1/appInfos/{id}`
@@ -567,8 +578,8 @@ permits omission or `null`; changing that stable behavior is outside this
 compatibility slice.
 
 Subscriptions, groups, and pricing (#1778 at `39284b0a`, #1779 at `c8f3ab52`,
-and #1780 at `48d04e0b`; endpoint-exact query, response, compatibility, and
-opaque-pagination tests):
+PR `#1780` at `48d04e0b`, and #1795 final head `229dc07c`, landed as `5bf2d154`;
+endpoint-exact query, response, compatibility, and opaque-pagination tests):
 
 - [x] `GET /v1/apps/{id}/subscriptionGroups`
 - [x] `GET /v1/subscriptionAppStoreReviewScreenshots/{id}`
@@ -832,26 +843,35 @@ documented deprecation window; this goal intentionally stops before release.
 18. #1793 completed the IAP and promoted-purchase related sparse-field follow-up
     at exact final head `917d719df73a8dce9eefd5f378bad5a0562a67c0`
     and landed on `main` as `f6b34d9e042964673ee39c32fbae4f7aa99fc874`.
-19. External workflow skills were audited through
+19. External workflow skills were first audited through
     rorkai/app-store-connect-cli-skills#51 at exact head
-    `d7888b2b4a1a152f8524fc18c99d2d73d1c431fc` and landed as skills `main`
-    `26b2fa92e612dff3477537f67b44f1bcfedf0fc5`. All three PR #51 review
-    threads are resolved; final-head exact-help validation covered 28 commands
-    and 108 flags with zero failures, and the skill validator passed.
+    `d7888b2b4a1a152f8524fc18c99d2d73d1c431fc`. The final cross-repository
+    audit found one invalid combined Xcode help path; skills #52 fixed it at
+    exact head `1aeb0dc607d8fa327501bc4b1d1cf981448512f9` and landed as skills `main`
+    `f8f43c29d96a85792b99a8a1f23a7f048f8b312d`. CodeRabbit and Cursor Bugbot
+    passed, the PR had zero review threads, all 23 skill validators passed, and
+    all 695 runnable command occurrences validated against CLI `48e0d003`.
 20. #1795 completed the subscription and pricing related sparse-field follow-up
     at exact final head `229dc07c3b999777e9b03dd543f66c3c6898e705`
     and landed on `main` as `5bf2d1545785a863242a8509bf55cc25d8a4ab49`.
-21. Exact CLI `main` `5bf2d154` is the current fully merged behavior integration
-    through #1795. Its PR head passed integration, Govulncheck, and CodeQL workflows.
-    The historical built-help audit through #1788 found 48 added and 52 changed
-    leaf paths relative to `839c4da6`, with zero removals; later flag-level help
-    changes are verified by their focused command tests. Those historical
-    counts do not replace #1792's typed nullable-encoding tests.
+21. #1796 completed the app-info, age-rating, and Xcode Cloud sparse-field
+    follow-up at exact final head
+    `8b4821a4529ae3a257dc56945a67dbef0ab7ac6b` and landed on `main` as
+    `48e0d003ebde8d2046b0a19463526c95c3bc25e4`; all four review threads are
+    resolved.
+22. Exact CLI `main` `48e0d003` is the fully merged behavior integration through
+    #1796. Its PR gates and post-merge Main Branch, Govulncheck, and CodeQL
+    workflows passed. The historical built-help audit through #1788 found 48
+    added and 52 changed leaf paths relative to `839c4da6`, with zero removals;
+    later flag-level help changes are verified by their focused command tests.
+    Those historical counts do not replace #1792's typed nullable-encoding
+    tests.
 
 CLI behavior and lifecycle PRs through #1788, the ledger PR, test-only #1790,
 docs-only #1791, nullable-fidelity #1792, IAP sparse-field #1793,
-subscription/pricing sparse-field #1795, and the companion skills PR are merged.
-No release, tag, or package publication is part of this goal.
+subscription/pricing sparse-field #1795, app-info/age-rating/Xcode Cloud
+sparse-field #1796, and the companion skills PR are merged. No behavior PR
+remains open. No release, tag, or package publication is part of this goal.
 
 ### Built help-surface delta
 
@@ -999,9 +1019,9 @@ ASC_BYPASS_KEYCHAIN=1 make test
 
 ## Final omission audit
 
-The merged closeout through #1789 independently repeated these checks rather
-than trusting the per-PR reports. The later nullable-fidelity finding and its
-pre-merge evidence are separated explicitly:
+The final closeout on exact CLI `main` `48e0d003` independently repeated these
+checks rather than trusting the per-PR reports. Historical evidence is labelled
+separately from the final sparse-query, nullable-fidelity, and live checks:
 
 - [x] Re-downloaded Apple's official OpenAPI zip and verified the artifact and
   extracted JSON hashes against the repository snapshot.
@@ -1012,6 +1032,11 @@ pre-merge evidence are separated explicitly:
   discoverable typed command/client surfaces.
 - [x] Classified all 102 direct plus 71 transitive operation-contract changes:
   173 unique existing-operation contracts with no missing or extra ledger item.
+- [x] Closed all 50 directly modified sparse-query transports: 14 were already
+  handled before the hard follow-up; #1793 added 11 IAP/promoted-purchase
+  transports, #1795 added 17 subscription/pricing transports, and #1796 added
+  eight app-info/age-rating/Xcode Cloud transports. The final matrix has zero
+  missing or extra operations.
 - [x] On #1792 final head `3f7d1449`, landed as `804624cd`, mapped all 47 added and 61
   modified schemas to typed models, documented generic decoding, or an
   already-reconciled schema-only disposition. This includes table-driven
@@ -1019,10 +1044,11 @@ pre-merge evidence are separated explicitly:
   earlier merged closeout.
 - [x] Mapped all nine release-note additions and seven deprecated families to
   commands, compatibility treatment, tests, and migration guidance.
-- [x] Exercised all 100 changed or new leaf help paths: 48 additions and 52
-  changes, with zero removals. Generated command docs and rendered parent help
-  teach the v2 migrations; client registries and upload helpers match the
-  contract.
+- [x] The historical built-help comparison through #1788 exercised all 100
+  paths changed in that slice: 48 additions and 52 changes, with zero removals.
+  Later sparse-field flag changes were verified by their focused exact-help and
+  generated-command-doc tests; the historical 100-path count is not presented
+  as a final flag-level delta.
 - [x] Sequentially merged all 13 exact audited CLI heads through #1788,
   producing `main` `9282e82d`; its integration, Govulncheck, and CodeQL
   workflows passed.
@@ -1043,25 +1069,27 @@ pre-merge evidence are separated explicitly:
 - [x] Cleaned every disposable resource the API permits and recorded the three
   unavoidable version/localization remnant pairs. All four review submissions
   are empty and age-rating fields were restored.
-- [x] Audited and merged companion workflow-skills PR #51 at exact head
-  `d7888b2b4a1a152f8524fc18c99d2d73d1c431fc`, producing skills `main`
-  `26b2fa92e612dff3477537f67b44f1bcfedf0fc5`; all three threads are resolved,
-  final-head exact-help validation covered 28 commands and 108 flags with zero
-  failures, and the skill validator passed. No runnable deprecated localization
+- [x] Audited and merged companion workflow-skills PR #51, then closed the one
+  remaining invalid combined Xcode help path in PR #52 at exact head
+  `1aeb0dc607d8fa327501bc4b1d1cf981448512f9`, producing skills `main`
+  `f8f43c29d96a85792b99a8a1f23a7f048f8b312d`. PR #52 had zero review threads;
+  CodeRabbit and Cursor Bugbot passed; all 23 validators and 695 runnable command
+  occurrences passed against CLI `48e0d003`. No runnable deprecated localization
   or submission teaching remains.
-- [x] Ran the final read-only live smoke on disposable app `6759231657` after
-  behavior work through #1788 and the workflow-skill changes merged: the app
-  read succeeded, all four age fields were restored to `false`, and all four
-  review submissions contained zero items. This predates #1792 and is not
-  evidence that Apple accepts explicit null for its seven corrected fields.
-- [x] Confirmed the fully merged behavior integration through #1795, `main`
-  `5bf2d154`, follows green exact-head integration, Govulncheck, and CodeQL
-  workflows; #1789 previously landed
-  the ledger at `d6d8d94b`, test-only #1790 landed at `73466720`, docs-only
-  #1791 landed at `e902d375`, and nullable-fidelity #1792 landed at
-  `804624cd`. Skills `main`
-  `26b2fa92e612dff3477537f67b44f1bcfedf0fc5` is the landed companion-skills
-  integration (that repository has no configured `main` status or check runs),
-  and the latest release/tag remains
+- [x] Ran the final read-only live smoke with the exact-`main` `48e0d003` CLI on
+  disposable app `6759231657`: the app read succeeded, all four age fields were
+  `false`, every one of the four review submissions returned no items, all six
+  retained resources remained readable, and all deleted parents and containers
+  remained not found. This read-only smoke is not evidence that Apple accepts
+  explicit null for #1792's seven corrected fields.
+- [x] Confirmed the fully merged behavior integration through #1796, `main`
+  `48e0d003`, follows green exact-head and post-merge Main Branch, Govulncheck,
+  and CodeQL workflows; #1789 previously landed the ledger at `d6d8d94b`,
+  test-only #1790 landed at `73466720`, docs-only #1791 landed at `e902d375`,
+  nullable-fidelity #1792 landed at `804624cd`, IAP sparse-field #1793 landed at
+  `f6b34d9e`, and subscription/pricing sparse-field #1795 landed at `5bf2d154`.
+  Skills `main` `f8f43c29d96a85792b99a8a1f23a7f048f8b312d` is the landed
+  companion-skills integration; its final PR's CodeRabbit and Cursor Bugbot
+  checks passed. The latest release/tag remains
   `3.0.0` at the pre-integration commit `839c4da6`. No release, tag,
   Homebrew/WinGet update, or package publication was performed.
