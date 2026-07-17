@@ -210,6 +210,15 @@ func TestReviewSubmitSubscriptionPreflightUsesReviewSubmitGuidance(t *testing.T)
 	if !strings.Contains(stderr, "before retrying `asc review submit`") {
 		t.Fatalf("expected retry guidance for review submit, got %q", stderr)
 	}
+	if !strings.Contains(stderr, `asc subscriptions versions list --subscription-id "SUB_ID"`) {
+		t.Fatalf("expected subscription version discovery guidance, got %q", stderr)
+	}
+	if !strings.Contains(stderr, `asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "VERSION_ID"`) {
+		t.Fatalf("expected version review-item guidance, got %q", stderr)
+	}
+	if strings.Contains(stderr, "asc subscriptions review submit") {
+		t.Fatalf("did not expect deprecated subscription submission guidance, got %q", stderr)
+	}
 	if strings.Contains(stderr, "submit create") {
 		t.Fatalf("did not expect removed submit create guidance, got %q", stderr)
 	}

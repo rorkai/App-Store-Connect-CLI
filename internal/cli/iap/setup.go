@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -117,9 +118,9 @@ func IAPSetupCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "setup",
 		ShortUsage: "asc iap setup [flags]",
-		ShortHelp:  "Create an in-app purchase with optional localization and pricing.",
-		LongHelp: `Create a new in-app purchase and optionally bootstrap its first
-localization and price schedule in one workflow.
+		ShortHelp:  "Create an in-app purchase with optional pricing.",
+		LongHelp: `Create a new in-app purchase and optionally bootstrap its price
+schedule in one workflow.
 
 The setup command is create-oriented: use it when you want a one-shot happy
 path for a new IAP. Existing low-level commands remain available for partial
@@ -130,10 +131,13 @@ verifies the resulting IAP, localization, and current price. Use
 --no-verify to skip that postcondition check when speed matters more than
 confirmed final state.
 
+The localization flags use Apple's deprecated v1 localization resource and
+remain only for compatibility. For new workflows, create or resolve an IAP
+version, then use "asc iap versions localizations" commands.
+
 Examples:
   asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime"
-  asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --locale "en-US" --display-name "Second Draft Pro" --description "Unlock everything"
-  asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --locale "en-US" --display-name "Second Draft Pro" --price "3.99" --base-territory "United States" --start-date "2026-03-01"`,
+  asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --price "3.99" --base-territory "United States" --start-date "2026-03-01"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -198,6 +202,7 @@ Examples:
 				if opts.DisplayName == "" {
 					return shared.UsageError("--display-name is required when localization flags are provided")
 				}
+				fmt.Fprintln(os.Stderr, "Warning: localization flags on `asc iap setup` use the deprecated v1 localization resource. After setup, create or resolve an IAP version, then use `asc iap versions localizations create --version-id \"IAP_VERSION_ID\" --name \"NAME\" --locale \"LOCALE\"`.")
 			}
 
 			if err := shared.ValidateFinitePriceFlag("--price", opts.Price); err != nil {
@@ -310,7 +315,7 @@ func executeIAPSetup(ctx context.Context, opts iapSetupOptions) (iapSetupResult,
 		})
 	} else {
 		locCtx, locCancel := shared.ContextWithTimeout(ctx)
-		localizationResp, err := client.CreateInAppPurchaseLocalization(locCtx, result.IAPID, asc.InAppPurchaseLocalizationCreateAttributes{
+		localizationResp, err := client.CreateInAppPurchaseLocalization(locCtx, result.IAPID, asc.InAppPurchaseLocalizationCreateAttributes{ //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			Name:        opts.DisplayName,
 			Locale:      opts.Locale,
 			Description: opts.Description,
@@ -510,7 +515,7 @@ func verifyIAPSetupState(ctx context.Context, client *asc.Client, result iapSetu
 	hasLocalization := opts.Locale != "" || opts.DisplayName != "" || opts.Description != ""
 	if hasLocalization {
 		locCtx, locCancel := shared.ContextWithTimeout(ctx)
-		locResp, err := client.GetInAppPurchaseLocalizations(locCtx, result.IAPID, asc.WithIAPLocalizationsLimit(200))
+		locResp, err := client.GetInAppPurchaseLocalizations(locCtx, result.IAPID, asc.WithIAPLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		locCancel()
 		if err != nil {
 			verification.Status = "failed"

@@ -31,12 +31,12 @@ Examples:
   asc iap pricing summary --app "APP_ID"
   asc iap view --id "IAP_ID"
   asc iap create --app "APP_ID" --type CONSUMABLE --ref-name "Pro" --product-id "com.example.pro"
-  asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --locale "en-US" --display-name "Pro Lifetime" --price "3.99" --base-territory "United States"
+  asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --price "3.99" --base-territory "United States"
   asc iap update --id "IAP_ID" --ref-name "New Name"
   asc iap delete --id "IAP_ID" --confirm
   asc iap versions list --iap-id "IAP_ID"
-  asc iap localizations list --iap-id "IAP_ID"
-  asc iap images create --iap-id "IAP_ID" --file "./image.png"
+  asc iap versions localizations list --version-id "IAP_VERSION_ID"
+  asc iap versions images create --version-id "IAP_VERSION_ID" --file "./image.png"
   asc iap pricing availability set --iap-id "IAP_ID" --territories "US,Canada"
   asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --prices "USA:PRICE_POINT_ID"
   asc iap promoted-purchases create --app "APP_ID" --product-id "IAP_ID" --visible-for-all-users true`,
@@ -481,11 +481,13 @@ func IAPLocalizationsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "localizations",
 		ShortUsage: "asc iap localizations <subcommand> [flags]",
-		ShortHelp:  "Manage in-app purchase localizations.",
-		LongHelp: `Manage in-app purchase localizations.
+		ShortHelp:  "Manage deprecated product-scoped IAP localizations.",
+		LongHelp: `Manage deprecated product-scoped in-app purchase localizations.
+
+Use version-scoped localizations for new workflows.
 
 Examples:
-  asc iap localizations list --iap-id "IAP_ID"`,
+  asc iap versions localizations list --version-id "IAP_VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -512,7 +514,7 @@ func IAPLocalizationsListCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc iap localizations list [flags]",
 		ShortHelp:  "List in-app purchase localizations.",
@@ -561,13 +563,13 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithIAPLocalizationsLimit(200))
-				firstPage, err := client.GetInAppPurchaseLocalizations(requestCtx, resolvedID, paginateOpts...)
+				firstPage, err := client.GetInAppPurchaseLocalizations(requestCtx, resolvedID, paginateOpts...) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				if err != nil {
 					return fmt.Errorf("iap localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchaseLocalizations(ctx, resolvedID, asc.WithIAPLocalizationsNextURL(nextURL))
+					return client.GetInAppPurchaseLocalizations(ctx, resolvedID, asc.WithIAPLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				})
 				if err != nil {
 					return fmt.Errorf("iap localizations list: %w", err)
@@ -576,14 +578,14 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			resp, err := client.GetInAppPurchaseLocalizations(requestCtx, resolvedID, opts...)
+			resp, err := client.GetInAppPurchaseLocalizations(requestCtx, resolvedID, opts...) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("iap localizations list: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc iap localizations list", `asc iap versions localizations list --version-id "IAP_VERSION_ID"`)
 }
 
 func normalizeIAPType(value string) (string, error) {

@@ -18,9 +18,11 @@ asc subscriptions groups versions links versions --group-id "GROUP_ID"
 asc subscriptions groups versions links localizations --version-id "VERSION_ID"
 ```
 
-The current stable `asc subscriptions groups localizations ...` commands keep
-using the v1 group-scoped endpoints. No existing command, flag, payload, output,
-or exit code is removed or redirected.
+The original additive slice kept `asc subscriptions groups localizations ...`
+on the v1 group-scoped endpoints. That tree is now deprecated; use
+`asc subscriptions groups versions localizations ...` with a group version ID.
+The compatibility commands, flags, payloads, output, and exit codes are not
+removed or redirected during the transition.
 
 The existing group list and view commands gain sparse-field and include controls
 needed to retrieve versions: `--include`, `--fields`, `--version-fields`, and
@@ -107,10 +109,11 @@ Pagination validates `links.next` URLs with the shared ASC URL policy.
 
 ## Alternatives considered
 
-Reusing `asc subscriptions groups localizations` with a version flag would make
-the same command silently select either v1 or v2 and would complicate required
-relationship validation. A dedicated `versions localizations` subtree makes the
-API generation and owning relationship explicit.
+Reusing the now-deprecated `asc subscriptions groups localizations` tree with a
+version flag would make the same command silently select either v1 or v2 and
+would complicate required relationship validation. The dedicated
+`versions localizations` subtree makes the API generation and owning
+relationship explicit.
 
 A new top-level `subscription-group-versions` command would mirror the raw API
 resource, but it would split closely related group workflows across top-level

@@ -578,8 +578,17 @@ func TestWebReviewSubscriptionsAttachFailsFastForMissingMetadata(t *testing.T) {
 	if !strings.Contains(stderr, `asc validate subscriptions --app "app-1"`) {
 		t.Fatalf("expected validate subscriptions hint, got %q", stderr)
 	}
-	if !strings.Contains(stderr, `asc subscriptions images create --subscription-id "sub-1" --file "./image.png"`) {
-		t.Fatalf("expected promotional image hint, got %q", stderr)
+	for _, want := range []string{
+		`asc subscriptions versions list --subscription-id "sub-1"`,
+		`asc subscriptions versions create --subscription-id "sub-1"`,
+		`asc subscriptions versions images upload --version-id "VERSION_ID" --file "./image.png"`,
+	} {
+		if !strings.Contains(stderr, want) {
+			t.Fatalf("expected promotional image hint containing %q, got %q", want, stderr)
+		}
+	}
+	if strings.Contains(stderr, "asc subscriptions images create") {
+		t.Fatalf("promotional image hint must not teach the deprecated product-scoped command, got %q", stderr)
 	}
 	wantLabels := []string{"Loading review subscriptions"}
 	if strings.Join(*labels, "|") != strings.Join(wantLabels, "|") {

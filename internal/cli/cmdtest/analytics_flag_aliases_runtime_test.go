@@ -119,9 +119,7 @@ func TestAnalyticsRankedStringAliasesMatchCanonicalCommands(t *testing.T) {
 			if canonicalErr != nil {
 				t.Fatalf("canonical command error: %v", canonicalErr)
 			}
-			if canonicalStderr != "" {
-				t.Fatalf("canonical stderr = %q, want empty", canonicalStderr)
-			}
+			assertOnlyDeprecatedCommandWarnings(t, canonicalStderr)
 
 			aliasStdout, aliasStderr, aliasErr := runCommand(t, test.aliasArgs)
 			if aliasErr != nil {

@@ -54,6 +54,8 @@ type subscriptionsSetupOutput struct {
 	} `json:"steps"`
 }
 
+const subscriptionsSetupLegacyLocalizationWarning = "Warning: localization flags on `asc subscriptions setup` use deprecated v1 localization resources. After setup, create or resolve a subscription version, then use `asc subscriptions versions localizations create --version-id \"SUBSCRIPTION_VERSION_ID\" --name \"NAME\" --locale \"LOCALE\"`.\n"
+
 func TestSubscriptionsHelpShowsSetupCommand(t *testing.T) {
 	root := RootCommand("1.2.3")
 
@@ -633,8 +635,8 @@ func TestSubscriptionsSetupReusesExistingGroupSubscriptionAndLocalization(t *tes
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if stderr != subscriptionsSetupLegacyLocalizationWarning {
+		t.Fatalf("stderr = %q, want exact deprecation warning %q", stderr, subscriptionsSetupLegacyLocalizationWarning)
 	}
 	if requestCount != 3 {
 		t.Fatalf("expected only lookup requests, got %d", requestCount)
@@ -909,8 +911,8 @@ func TestSubscriptionsSetupRejectsMismatchedExistingLocalization(t *testing.T) {
 	if result.Status != "error" || result.FailedStep != "create_localization" {
 		t.Fatalf("unexpected setup result: %+v", result)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if stderr != subscriptionsSetupLegacyLocalizationWarning {
+		t.Fatalf("stderr = %q, want exact deprecation warning %q", stderr, subscriptionsSetupLegacyLocalizationWarning)
 	}
 	if requestCount != 3 {
 		t.Fatalf("expected lookup requests only, got %d", requestCount)
@@ -982,8 +984,8 @@ func TestSubscriptionsSetupRejectsMismatchedExistingLocalizationDescription(t *t
 	if result.Status != "error" || result.FailedStep != "create_localization" {
 		t.Fatalf("unexpected setup result: %+v", result)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if stderr != subscriptionsSetupLegacyLocalizationWarning {
+		t.Fatalf("stderr = %q, want exact deprecation warning %q", stderr, subscriptionsSetupLegacyLocalizationWarning)
 	}
 	if requestCount != 3 {
 		t.Fatalf("expected lookup requests only, got %d", requestCount)
@@ -1709,8 +1711,8 @@ func TestSubscriptionsSetupCreateLocalizationPricingAndAvailabilitySuccess(t *te
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	if stderr != subscriptionsSetupLegacyLocalizationWarning {
+		t.Fatalf("stderr = %q, want exact deprecation warning %q", stderr, subscriptionsSetupLegacyLocalizationWarning)
 	}
 	if requestCount != 13 {
 		t.Fatalf("expected full create and verify flow, got %d requests", requestCount)

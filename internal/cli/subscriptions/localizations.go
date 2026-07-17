@@ -24,12 +24,14 @@ func SubscriptionsLocalizationsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "localizations",
 		ShortUsage: "asc subscriptions localizations <subcommand> [flags]",
-		ShortHelp:  "Manage subscription localizations.",
-		LongHelp: `Manage subscription localizations.
+		ShortHelp:  "Manage deprecated product-scoped subscription localizations.",
+		LongHelp: `Manage deprecated product-scoped subscription localizations.
+
+Use version-scoped localizations for new workflows.
 
 Examples:
-  asc subscriptions localizations list --subscription-id "SUB_ID"
-  asc subscriptions localizations create --subscription-id "SUB_ID" --locale "en-US" --name "Pro"`,
+  asc subscriptions versions localizations list --version-id "SUBSCRIPTION_VERSION_ID"
+  asc subscriptions versions localizations create --version-id "SUBSCRIPTION_VERSION_ID" --locale "en-US" --name "Pro"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -57,7 +59,7 @@ func SubscriptionsLocalizationsListCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc subscriptions localizations list [flags]",
 		ShortHelp:  "List subscription localizations.",
@@ -104,13 +106,13 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithSubscriptionLocalizationsLimit(200))
-				firstPage, err := client.GetSubscriptionLocalizations(requestCtx, id, paginateOpts...)
+				firstPage, err := client.GetSubscriptionLocalizations(requestCtx, id, paginateOpts...) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				if err != nil {
 					return fmt.Errorf("subscriptions localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionLocalizations(ctx, id, asc.WithSubscriptionLocalizationsNextURL(nextURL))
+					return client.GetSubscriptionLocalizations(ctx, id, asc.WithSubscriptionLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions localizations list: %w", err)
@@ -119,14 +121,14 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			resp, err := client.GetSubscriptionLocalizations(requestCtx, id, opts...)
+			resp, err := client.GetSubscriptionLocalizations(requestCtx, id, opts...) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions localizations list: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions localizations list", `asc subscriptions versions localizations list --version-id "SUBSCRIPTION_VERSION_ID"`)
 }
 
 // SubscriptionsLocalizationsGetCommand returns the localizations get subcommand.
@@ -136,7 +138,7 @@ func SubscriptionsLocalizationsGetCommand() *ffcli.Command {
 	localizationID := fs.String("id", "", "Subscription localization ID")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "view",
 		ShortUsage: "asc subscriptions localizations view --id \"LOC_ID\"",
 		ShortHelp:  "View a subscription localization by ID.",
@@ -161,14 +163,14 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetSubscriptionLocalization(requestCtx, id)
+			resp, err := client.GetSubscriptionLocalization(requestCtx, id) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions localizations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions localizations view", `asc subscriptions versions localizations view --id "LOCALIZATION_ID"`)
 }
 
 // SubscriptionsLocalizationsCreateCommand returns the localizations create subcommand.
@@ -182,7 +184,7 @@ func SubscriptionsLocalizationsCreateCommand() *ffcli.Command {
 	description := fs.String("description", "", "Localized description")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "create",
 		ShortUsage: "asc subscriptions localizations create [flags]",
 		ShortHelp:  "Create a subscription localization.",
@@ -255,14 +257,14 @@ Examples:
 				})
 			}
 
-			resp, err := client.CreateSubscriptionLocalization(requestCtx, id, attrs)
+			resp, err := client.CreateSubscriptionLocalization(requestCtx, id, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions localizations create: failed to create: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions localizations create", `asc subscriptions versions localizations create --version-id "SUBSCRIPTION_VERSION_ID" --name "NAME" --locale "LOCALE"`)
 }
 
 func findSubscriptionLocalizationByLocale(ctx context.Context, client *asc.Client, subscriptionID, locale string) (asc.Resource[asc.SubscriptionLocalizationAttributes], bool, error) {
@@ -270,7 +272,7 @@ func findSubscriptionLocalizationByLocale(ctx context.Context, client *asc.Clien
 	if locale == "" {
 		return asc.Resource[asc.SubscriptionLocalizationAttributes]{}, false, nil
 	}
-	firstPage, err := client.GetSubscriptionLocalizations(ctx, subscriptionID, asc.WithSubscriptionLocalizationsLimit(200))
+	firstPage, err := client.GetSubscriptionLocalizations(ctx, subscriptionID, asc.WithSubscriptionLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 	if err != nil {
 		return asc.Resource[asc.SubscriptionLocalizationAttributes]{}, false, err
 	}
@@ -283,7 +285,7 @@ func findSubscriptionLocalizationByLocale(ctx context.Context, client *asc.Clien
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionLocalizations(ctx, subscriptionID, asc.WithSubscriptionLocalizationsNextURL(nextURL))
+			return client.GetSubscriptionLocalizations(ctx, subscriptionID, asc.WithSubscriptionLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		},
 		func(page asc.PaginatedResponse) error {
 			resp, ok := page.(*asc.SubscriptionLocalizationsResponse)
@@ -321,7 +323,7 @@ func SubscriptionsLocalizationsUpdateCommand() *ffcli.Command {
 	description := fs.String("description", "", "Localized description")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "update",
 		ShortUsage: "asc subscriptions localizations update [flags]",
 		ShortHelp:  "Update a subscription localization.",
@@ -361,14 +363,14 @@ Examples:
 				attrs.Description = &descriptionValue
 			}
 
-			resp, err := client.UpdateSubscriptionLocalization(requestCtx, id, attrs)
+			resp, err := client.UpdateSubscriptionLocalization(requestCtx, id, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions localizations update: failed to update: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions localizations update", `asc subscriptions versions localizations update --id "LOCALIZATION_ID" --name "NAME"`)
 }
 
 // SubscriptionsLocalizationsDeleteCommand returns the localizations delete subcommand.
@@ -379,7 +381,7 @@ func SubscriptionsLocalizationsDeleteCommand() *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "delete",
 		ShortUsage: "asc subscriptions localizations delete --id \"LOC_ID\" --confirm",
 		ShortHelp:  "Delete a subscription localization.",
@@ -408,12 +410,12 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			if err := client.DeleteSubscriptionLocalization(requestCtx, id); err != nil {
+			if err := client.DeleteSubscriptionLocalization(requestCtx, id); err != nil { //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				return fmt.Errorf("subscriptions localizations delete: failed to delete: %w", err)
 			}
 
 			result := &asc.AssetDeleteResult{ID: id, Deleted: true}
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions localizations delete", `asc subscriptions versions localizations delete --id "LOCALIZATION_ID" --confirm`)
 }

@@ -34,9 +34,9 @@ func SubscriptionsVersionsCommand() *ffcli.Command {
 		ShortHelp:  "Manage version-scoped subscription metadata.",
 		LongHelp: `Manage version-scoped subscription metadata.
 
-Version IDs are distinct from subscription product IDs. Existing
-"subscriptions localizations" and "subscriptions images" commands continue to
-use product-scoped v1 resources.
+Version IDs are distinct from subscription product IDs. The product-scoped
+"subscriptions localizations" and "subscriptions images" commands are
+deprecated; use these version-scoped commands for new workflows.
 
 Examples:
   asc subscriptions versions list --subscription-id "SUBSCRIPTION_ID"

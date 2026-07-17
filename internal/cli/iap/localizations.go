@@ -27,7 +27,7 @@ func IAPLocalizationsCreateCommand() *ffcli.Command {
 	description := fs.String("description", "", "Description")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "create",
 		ShortUsage: "asc iap localizations create --iap-id \"IAP_ID\" --name \"Name\" --locale \"en-US\"",
 		ShortHelp:  "Create an in-app purchase localization.",
@@ -91,14 +91,14 @@ Examples:
 				))
 			}
 
-			resp, err := client.CreateInAppPurchaseLocalization(requestCtx, iapValue, attrs)
+			resp, err := client.CreateInAppPurchaseLocalization(requestCtx, iapValue, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("iap localizations create: failed to create: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc iap localizations create", `asc iap versions localizations create --version-id "IAP_VERSION_ID" --name "NAME" --locale "LOCALE"`)
 }
 
 func findIAPLocalizationByLocale(ctx context.Context, client *asc.Client, iapID, locale string) (asc.Resource[asc.InAppPurchaseLocalizationAttributes], bool, error) {
@@ -106,7 +106,7 @@ func findIAPLocalizationByLocale(ctx context.Context, client *asc.Client, iapID,
 	if locale == "" {
 		return asc.Resource[asc.InAppPurchaseLocalizationAttributes]{}, false, nil
 	}
-	firstPage, err := client.GetInAppPurchaseLocalizations(ctx, iapID, asc.WithIAPLocalizationsLimit(200))
+	firstPage, err := client.GetInAppPurchaseLocalizations(ctx, iapID, asc.WithIAPLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 	if err != nil {
 		return asc.Resource[asc.InAppPurchaseLocalizationAttributes]{}, false, err
 	}
@@ -119,7 +119,7 @@ func findIAPLocalizationByLocale(ctx context.Context, client *asc.Client, iapID,
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetInAppPurchaseLocalizations(ctx, iapID, asc.WithIAPLocalizationsNextURL(nextURL))
+			return client.GetInAppPurchaseLocalizations(ctx, iapID, asc.WithIAPLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		},
 		func(page asc.PaginatedResponse) error {
 			resp, ok := page.(*asc.InAppPurchaseLocalizationsResponse)
@@ -160,7 +160,7 @@ func IAPLocalizationsUpdateCommand() *ffcli.Command {
 	clearDescription := fs.Bool("clear-description", false, "Clear the description")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "update",
 		ShortUsage: "asc iap localizations update --localization-id \"LOC_ID\" [flags]",
 		ShortHelp:  "Update an in-app purchase localization.",
@@ -219,14 +219,14 @@ Examples:
 				attrs.Description = &asc.NullableString{}
 			}
 
-			resp, err := client.UpdateInAppPurchaseLocalization(requestCtx, locValue, attrs)
+			resp, err := client.UpdateInAppPurchaseLocalization(requestCtx, locValue, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("iap localizations update: failed to update: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc iap localizations update", `asc iap versions localizations update --localization-id "LOCALIZATION_ID" --name "NAME"`)
 }
 
 // IAPLocalizationsDeleteCommand returns the localizations delete subcommand.
@@ -237,7 +237,7 @@ func IAPLocalizationsDeleteCommand() *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "delete",
 		ShortUsage: "asc iap localizations delete --localization-id \"LOC_ID\" --confirm",
 		ShortHelp:  "Delete an in-app purchase localization.",
@@ -266,7 +266,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			if err := client.DeleteInAppPurchaseLocalization(requestCtx, locValue); err != nil {
+			if err := client.DeleteInAppPurchaseLocalization(requestCtx, locValue); err != nil { //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				return fmt.Errorf("iap localizations delete: failed to delete: %w", err)
 			}
 
@@ -277,5 +277,5 @@ Examples:
 
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc iap localizations delete", `asc iap versions localizations delete --localization-id "LOCALIZATION_ID" --confirm`)
 }

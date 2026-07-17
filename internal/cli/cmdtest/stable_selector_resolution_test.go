@@ -271,8 +271,10 @@ func TestIAPLocalizationsListFallsBackToNumericIDAfterLookupTimeout(t *testing.T
 	if runErr != nil {
 		t.Fatalf("expected nil error, got %v", runErr)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
+	const wantWarning = "Warning: `asc iap localizations list` is deprecated by App Store Connect API 4.4.1. Use `asc iap versions localizations list --version-id \"IAP_VERSION_ID\"`."
+	if got := strings.TrimSpace(stderr); got != wantWarning {
+		t.Fatalf("expected only deprecation warning %q, got %q", wantWarning, stderr)
 	}
 	if requests != 2 {
 		t.Fatalf("expected lookup timeout followed by localizations fetch, got %d requests", requests)
@@ -423,8 +425,10 @@ func TestSubscriptionLocalizationsListFallsBackToNumericIDAfterLookupTimeout(t *
 	if runErr != nil {
 		t.Fatalf("expected nil error, got %v", runErr)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
+	const wantWarning = "Warning: `asc subscriptions localizations list` is deprecated by App Store Connect API 4.4.1. Use `asc subscriptions versions localizations list --version-id \"SUBSCRIPTION_VERSION_ID\"`."
+	if got := strings.TrimSpace(stderr); got != wantWarning {
+		t.Fatalf("expected only deprecation warning %q, got %q", wantWarning, stderr)
 	}
 	if requests != 2 {
 		t.Fatalf("expected lookup timeout followed by localizations fetch, got %d requests", requests)

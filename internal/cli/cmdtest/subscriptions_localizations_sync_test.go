@@ -96,9 +96,7 @@ func TestSubscriptionsLocalizationsSyncUpsertsExactFields(t *testing.T) {
 			t.Fatalf("run: %v", err)
 		}
 	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyCommandDeprecationWarning(t, stderr, subscriptionsLocalizationsSyncDeprecationWarning)
 	if err := json.Unmarshal([]byte(stdout), &summary); err != nil {
 		t.Fatalf("decode summary: %v\n%s", err, stdout)
 	}
@@ -161,7 +159,8 @@ func TestSubscriptionsLocalizationsSyncReconcilesAmbiguousCreate(t *testing.T) {
 			t.Fatalf("run: %v", err)
 		}
 	})
-	if stderr != "" || creates != 1 || reads != 2 {
+	assertOnlyCommandDeprecationWarning(t, stderr, subscriptionsLocalizationsSyncDeprecationWarning)
+	if creates != 1 || reads != 2 {
 		t.Fatalf("unexpected reconcile calls: reads=%d creates=%d stderr=%q", reads, creates, stderr)
 	}
 	if err := json.Unmarshal([]byte(stdout), &summary); err != nil {
@@ -213,7 +212,8 @@ func TestSubscriptionsLocalizationsSyncReconcilesAmbiguousUpdate(t *testing.T) {
 			t.Fatalf("run: %v", err)
 		}
 	})
-	if stderr != "" || reads != 2 || patches != 1 {
+	assertOnlyCommandDeprecationWarning(t, stderr, subscriptionsLocalizationsSyncDeprecationWarning)
+	if reads != 2 || patches != 1 {
 		t.Fatalf("unexpected reconcile calls: reads=%d patches=%d stderr=%q", reads, patches, stderr)
 	}
 	if err := json.Unmarshal([]byte(stdout), &summary); err != nil {
@@ -266,7 +266,8 @@ func TestSubscriptionsLocalizationsSyncContinuesAndWritesFailureArtifact(t *test
 	if _, ok := errors.AsType[ReportedError](runErr); !ok {
 		t.Fatalf("expected ReportedError, got %T %v", runErr, runErr)
 	}
-	if stderr != "" || creates != 2 || reads != 2 {
+	assertOnlyCommandDeprecationWarning(t, stderr, subscriptionsLocalizationsSyncDeprecationWarning)
+	if creates != 2 || reads != 2 {
 		t.Fatalf("expected continuation after failure, reads=%d creates=%d stderr=%q", reads, creates, stderr)
 	}
 	if err := json.Unmarshal([]byte(stdout), &summary); err != nil {
@@ -336,7 +337,8 @@ func TestSubscriptionsGroupsLocalizationsSyncClearsCustomAppName(t *testing.T) {
 			t.Fatalf("run: %v", err)
 		}
 	})
-	if stderr != "" || !strings.Contains(stdout, `"updated":1`) {
+	assertOnlyCommandDeprecationWarning(t, stderr, subscriptionsGroupsLocalizationsSyncDeprecationWarning)
+	if !strings.Contains(stdout, `"updated":1`) {
 		t.Fatalf("unexpected output: stdout=%q stderr=%q", stdout, stderr)
 	}
 }
@@ -362,6 +364,7 @@ func TestSubscriptionsLocalizationsSyncRejectsDuplicateCanonicalLocale(t *testin
 			t.Fatalf("expected usage error, got %T %v", err, err)
 		}
 	})
+	stderr = stripCommandDeprecationWarning(t, stderr, subscriptionsLocalizationsSyncDeprecationWarning)
 	if stdout != "" || !strings.Contains(stderr, `duplicate canonical locale "en-US"`) {
 		t.Fatalf("unexpected validation output: stdout=%q stderr=%q", stdout, stderr)
 	}
@@ -369,22 +372,25 @@ func TestSubscriptionsLocalizationsSyncRejectsDuplicateCanonicalLocale(t *testin
 
 func TestSubscriptionsLocalizationSyncRejectsUnsafeInvocationBeforeHTTP(t *testing.T) {
 	tests := []struct {
-		name    string
-		args    []string
-		input   string
-		wantErr string
+		name        string
+		args        []string
+		input       string
+		wantErr     string
+		wantWarning string
 	}{
 		{
-			name:    "subscription positional",
-			args:    []string{"subscriptions", "localizations", "sync", "stray", "--subscription-id", "8000000001"},
-			input:   `{"en-US":{"name":"English"}}`,
-			wantErr: "does not accept positional arguments",
+			name:        "subscription positional",
+			args:        []string{"subscriptions", "localizations", "sync", "stray", "--subscription-id", "8000000001"},
+			input:       `{"en-US":{"name":"English"}}`,
+			wantErr:     "does not accept positional arguments",
+			wantWarning: subscriptionsLocalizationsSyncDeprecationWarning,
 		},
 		{
-			name:    "group positional",
-			args:    []string{"subscriptions", "groups", "localizations", "sync", "stray", "--group-id", "group-1"},
-			input:   `{"en-US":{"name":"English"}}`,
-			wantErr: "does not accept positional arguments",
+			name:        "group positional",
+			args:        []string{"subscriptions", "groups", "localizations", "sync", "stray", "--group-id", "group-1"},
+			input:       `{"en-US":{"name":"English"}}`,
+			wantErr:     "does not accept positional arguments",
+			wantWarning: subscriptionsGroupsLocalizationsSyncDeprecationWarning,
 		},
 		{
 			name:    "unsupported output",
@@ -399,22 +405,25 @@ func TestSubscriptionsLocalizationSyncRejectsUnsafeInvocationBeforeHTTP(t *testi
 			wantErr: "--pretty is only valid with JSON output",
 		},
 		{
-			name:    "subscription blank name",
-			args:    []string{"subscriptions", "localizations", "sync", "--subscription-id", "8000000001"},
-			input:   `{"en-US":{"name":"  "}}`,
-			wantErr: `field "name" must not be empty`,
+			name:        "subscription blank name",
+			args:        []string{"subscriptions", "localizations", "sync", "--subscription-id", "8000000001"},
+			input:       `{"en-US":{"name":"  "}}`,
+			wantErr:     `field "name" must not be empty`,
+			wantWarning: subscriptionsLocalizationsSyncDeprecationWarning,
 		},
 		{
-			name:    "group blank name",
-			args:    []string{"subscriptions", "groups", "localizations", "sync", "--group-id", "group-1"},
-			input:   `{"en-US":{"name":""}}`,
-			wantErr: `field "name" must not be empty`,
+			name:        "group blank name",
+			args:        []string{"subscriptions", "groups", "localizations", "sync", "--group-id", "group-1"},
+			input:       `{"en-US":{"name":""}}`,
+			wantErr:     `field "name" must not be empty`,
+			wantWarning: subscriptionsGroupsLocalizationsSyncDeprecationWarning,
 		},
 		{
-			name:    "trailing second value",
-			args:    []string{"subscriptions", "localizations", "sync", "--subscription-id", "8000000001"},
-			input:   `{"en-US":{"name":"English"}} {}`,
-			wantErr: "invalid JSON",
+			name:        "trailing second value",
+			args:        []string{"subscriptions", "localizations", "sync", "--subscription-id", "8000000001"},
+			input:       `{"en-US":{"name":"English"}} {}`,
+			wantErr:     "invalid JSON",
+			wantWarning: subscriptionsLocalizationsSyncDeprecationWarning,
 		},
 	}
 
@@ -440,6 +449,9 @@ func TestSubscriptionsLocalizationSyncRejectsUnsafeInvocationBeforeHTTP(t *testi
 					t.Fatalf("expected usage error, got %T %v", err, err)
 				}
 			})
+			if tt.wantWarning != "" {
+				stderr = stripCommandDeprecationWarning(t, stderr, tt.wantWarning)
+			}
 			if stdout != "" || !strings.Contains(stderr, tt.wantErr) {
 				t.Fatalf("expected %q, stdout=%q stderr=%q", tt.wantErr, stdout, stderr)
 			}
@@ -484,7 +496,8 @@ func TestSubscriptionsGroupsLocalizationsSyncReassertsFieldsOnNextPage(t *testin
 			t.Fatalf("run: %v", err)
 		}
 	})
-	if pages != 2 || stderr != "" || !strings.Contains(stdout, `"unchanged":1`) {
+	assertOnlyCommandDeprecationWarning(t, stderr, subscriptionsGroupsLocalizationsSyncDeprecationWarning)
+	if pages != 2 || !strings.Contains(stdout, `"unchanged":1`) {
 		t.Fatalf("unexpected pagination result: pages=%d stdout=%q stderr=%q", pages, stdout, stderr)
 	}
 }
@@ -504,7 +517,8 @@ func TestRunSubscriptionsLocalizationsSyncExitCodes(t *testing.T) {
 				t.Fatalf("expected exit %d, got %d", rootcmd.ExitSuccess, code)
 			}
 		})
-		if stderr != "" || !strings.Contains(stdout, `"unchanged":1`) {
+		assertOnlyCommandDeprecationWarning(t, stderr, subscriptionsLocalizationsSyncDeprecationWarning)
+		if !strings.Contains(stdout, `"unchanged":1`) {
 			t.Fatalf("unexpected success output: stdout=%q stderr=%q", stdout, stderr)
 		}
 	})
@@ -527,7 +541,8 @@ func TestRunSubscriptionsLocalizationsSyncExitCodes(t *testing.T) {
 				t.Fatalf("expected exit %d, got %d", rootcmd.ExitError, code)
 			}
 		})
-		if stderr != "" || !strings.Contains(stdout, `"failed":1`) {
+		assertOnlyCommandDeprecationWarning(t, stderr, subscriptionsLocalizationsSyncDeprecationWarning)
+		if !strings.Contains(stdout, `"failed":1`) {
 			t.Fatalf("unexpected failure output: stdout=%q stderr=%q", stdout, stderr)
 		}
 	})
@@ -559,25 +574,28 @@ func TestSubscriptionsLocalizationsSyncBuiltBinaryInvalidOutputExitUsage(t *test
 
 func TestSubscriptionsLocalizationSyncPreflightsEveryCreateBeforeMutating(t *testing.T) {
 	tests := []struct {
-		name      string
-		args      []string
-		input     string
-		listPath  string
-		wantError string
+		name        string
+		args        []string
+		input       string
+		listPath    string
+		wantError   string
+		wantWarning string
 	}{
 		{
-			name:      "subscription",
-			args:      []string{"subscriptions", "localizations", "sync", "--subscription-id", "8000000001"},
-			input:     `{"de-DE":{"name":"Deutsch"},"en-US":{"description":"Missing name"}}`,
-			listPath:  "/v1/subscriptions/8000000001/subscriptionLocalizations",
-			wantError: `locale "en-US" does not exist remotely and requires a non-empty name`,
+			name:        "subscription",
+			args:        []string{"subscriptions", "localizations", "sync", "--subscription-id", "8000000001"},
+			input:       `{"de-DE":{"name":"Deutsch"},"en-US":{"description":"Missing name"}}`,
+			listPath:    "/v1/subscriptions/8000000001/subscriptionLocalizations",
+			wantError:   `locale "en-US" does not exist remotely and requires a non-empty name`,
+			wantWarning: subscriptionsLocalizationsSyncDeprecationWarning,
 		},
 		{
-			name:      "group",
-			args:      []string{"subscriptions", "groups", "localizations", "sync", "--group-id", "group-1"},
-			input:     `{"de-DE":{"name":"Deutsch"},"en-US":{"customAppName":"Missing name"}}`,
-			listPath:  "/v1/subscriptionGroups/group-1/subscriptionGroupLocalizations",
-			wantError: `locale "en-US" does not exist remotely and requires a non-empty name`,
+			name:        "group",
+			args:        []string{"subscriptions", "groups", "localizations", "sync", "--group-id", "group-1"},
+			input:       `{"de-DE":{"name":"Deutsch"},"en-US":{"customAppName":"Missing name"}}`,
+			listPath:    "/v1/subscriptionGroups/group-1/subscriptionGroupLocalizations",
+			wantError:   `locale "en-US" does not exist remotely and requires a non-empty name`,
+			wantWarning: subscriptionsGroupsLocalizationsSyncDeprecationWarning,
 		},
 	}
 
@@ -607,6 +625,7 @@ func TestSubscriptionsLocalizationSyncPreflightsEveryCreateBeforeMutating(t *tes
 					t.Fatalf("expected usage error, got %T %v", err, err)
 				}
 			})
+			stderr = stripCommandDeprecationWarning(t, stderr, tt.wantWarning)
 			if stdout != "" || !strings.Contains(stderr, tt.wantError) || requests != 1 {
 				t.Fatalf("unexpected preflight result: requests=%d stdout=%q stderr=%q", requests, stdout, stderr)
 			}
@@ -651,9 +670,7 @@ func TestSubscriptionsLocalizationsSyncReportsArtifactWriteFailure(t *testing.T)
 	if _, ok := errors.AsType[ReportedError](runErr); !ok {
 		t.Fatalf("expected ReportedError, got %T %v", runErr, runErr)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyCommandDeprecationWarning(t, stderr, subscriptionsLocalizationsSyncDeprecationWarning)
 	if err := json.Unmarshal([]byte(stdout), &summary); err != nil {
 		t.Fatalf("decode summary: %v", err)
 	}
@@ -683,7 +700,8 @@ func TestSubscriptionsLocalizationsSyncRendersTableAndMarkdown(t *testing.T) {
 					t.Fatalf("run: %v", err)
 				}
 			})
-			if stderr != "" || !strings.Contains(stdout, "Target ID") || !strings.Contains(stdout, "Locale") || !strings.Contains(stdout, "en-US") {
+			assertOnlyCommandDeprecationWarning(t, stderr, subscriptionsLocalizationsSyncDeprecationWarning)
+			if !strings.Contains(stdout, "Target ID") || !strings.Contains(stdout, "Locale") || !strings.Contains(stdout, "en-US") {
 				t.Fatalf("unexpected %s output: stdout=%q stderr=%q", format, stdout, stderr)
 			}
 			if format == "markdown" && !strings.Contains(stdout, "|") {

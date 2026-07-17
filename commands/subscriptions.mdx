@@ -70,32 +70,38 @@ asc subscriptions groups delete \
 
 **Warning:** Cannot delete groups with active subscriptions.
 
-### Group Localizations
+### Version-Scoped Group Localizations
 
-Manage legacy v1 group-scoped display names for different locales.
+Manage group display names through a subscription group version. The old
+group-scoped `asc subscriptions groups localizations ...` commands are
+deprecated; create or resolve a group version and use its version ID.
 
 ```bash  theme={null}
 # Create localization
-asc subscriptions groups localizations create \
-  --group-id "GROUP_ID" \
+asc subscriptions groups versions localizations create \
+  --version-id "GROUP_VERSION_ID" \
   --locale "en-US" \
   --name "Premium Subscription" \
   --custom-app-name "Premium App"
 
 # List localizations
-asc subscriptions groups localizations list \
-  --group-id "GROUP_ID"
+asc subscriptions groups versions localizations list \
+  --version-id "GROUP_VERSION_ID"
 
 # Update localization
-asc subscriptions groups localizations update \
+asc subscriptions groups versions localizations update \
   --id "LOCALIZATION_ID" \
   --name "Premium Plus Subscription"
 
 # Delete localization
-asc subscriptions groups localizations delete \
+asc subscriptions groups versions localizations delete \
   --id "LOCALIZATION_ID" \
   --confirm
 ```
+
+The deprecated `asc subscriptions groups localizations sync` command has no
+one-command version-scoped replacement. Reconcile metadata with the group
+version-localization `list`, `create`, `update`, and `delete` commands.
 
 ### Subscription Group Versions (API 4.4.1)
 
@@ -223,11 +229,11 @@ versions linkage accepts only `--group-id`; the localizations linkage accepts
 only `--version-id`.
 
 <Note>
-  `asc subscriptions groups localizations ...` remains the stable v1,
-  group-scoped workflow. API 4.4.1 version-scoped localizations use
-  `asc subscriptions groups versions localizations ...` and the v2 API. The
-  existing commands are not redirected or removed, so choose the subtree that
-  matches whether the localization belongs to a group or a group version.
+  `asc subscriptions groups localizations ...` is the deprecated v1,
+  group-scoped compatibility workflow. Use
+  `asc subscriptions groups versions localizations ...` with a group version
+  ID for the v2 resource. The deprecated commands are not redirected or
+  removed during this transition.
 </Note>
 
 ## Subscriptions
@@ -323,9 +329,9 @@ asc subscriptions delete --id "SUB_ID" --confirm
 
 App Store Connect API 4.4.1 adds version-scoped metadata for subscriptions.
 A subscription version ID is distinct from a subscription product ID. The
-existing `asc subscriptions localizations` and `asc subscriptions images`
-commands remain product-scoped v1 workflows; use the commands below for the
-new version-scoped resources.
+old `asc subscriptions localizations` and `asc subscriptions images` command
+trees remain product-scoped v1 compatibility workflows, but are deprecated.
+Use the commands below for new version-scoped automation.
 
 The command group covers all 18 new operations: four version operations, six
 localization operations, and eight image operations.
@@ -363,10 +369,10 @@ The version read commands expose only the query parameters accepted by their
 exact endpoints:
 
 * `list`: `--state`, `--fields`, `--include`, `--subscription-fields`,
-  `--image-fields`, `--localization-fields`, `--image-limit`,
-  `--localization-limit`, `--limit`, `--next`, and `--paginate`
+  `--image-fields`, `--localization-fields`, `--images-limit`,
+  `--localizations-limit`, `--limit`, `--next`, and `--paginate`
 * `view`: `--fields`, `--include`, `--subscription-fields`, `--image-fields`,
-  `--localization-fields`, `--image-limit`, and `--localization-limit`
+  `--localization-fields`, `--images-limit`, and `--localizations-limit`
 * `links`: `--limit`, `--next`, and `--paginate`
 
 Valid `--include` values for version resources are `subscription`, `image`,
@@ -722,48 +728,56 @@ Monthly with 12-Month Commitment is available only outside the United States and
 Singapore, requires devices on OS version 26.4 or later, excludes watchOS, and
 requires apps built with SDK 26.5 or later.
 
-## Localizations
+## Version-Scoped Localizations
 
-Manage subscription display names and descriptions.
+Manage subscription display names and descriptions through a subscription
+version. The product-scoped `asc subscriptions localizations ...` commands are
+deprecated. Create or resolve a subscription version, then use its version ID.
 
 ```bash  theme={null}
 # Create localization
-asc subscriptions localizations create \
-  --subscription-id "SUB_ID" \
+asc subscriptions versions localizations create \
+  --version-id "SUBSCRIPTION_VERSION_ID" \
   --locale "en-US" \
   --name "Monthly Premium" \
   --description "Get unlimited access to all premium features"
 
 # List localizations
-asc subscriptions localizations list \
-  --subscription-id "SUB_ID"
+asc subscriptions versions localizations list \
+  --version-id "SUBSCRIPTION_VERSION_ID"
 
 # Update localization
-asc subscriptions localizations update \
+asc subscriptions versions localizations update \
   --id "LOCALIZATION_ID" \
   --name "Monthly Premium Plus"
 
 # Delete localization
-asc subscriptions localizations delete \
+asc subscriptions versions localizations delete \
   --id "LOCALIZATION_ID" \
   --confirm
 ```
 
-## Promotional Images
+The deprecated `asc subscriptions localizations sync` command has no
+one-command version-scoped replacement. Reconcile metadata with the
+version-localization `list`, `create`, `update`, and `delete` commands.
 
-Upload promotional images for subscriptions.
+## Version-Scoped Promotional Images
+
+Upload promotional images for subscription versions. The product-scoped
+`asc subscriptions images ...` commands are deprecated; create or resolve a
+subscription version and use the version image resource.
 
 ```bash  theme={null}
 # Upload image
-asc subscriptions images create \
-  --subscription-id "SUB_ID" \
+asc subscriptions versions images upload \
+  --version-id "SUBSCRIPTION_VERSION_ID" \
   --file "./promo.png"
 
 # List images
-asc subscriptions images list --subscription-id "SUB_ID"
+asc subscriptions versions images list --version-id "SUBSCRIPTION_VERSION_ID"
 
 # Delete image
-asc subscriptions images delete --id "IMAGE_ID" --confirm
+asc subscriptions versions images delete --id "IMAGE_ID" --confirm
 ```
 
 **Image Requirements:**
@@ -937,17 +951,31 @@ asc subscriptions promoted-purchases link \
 
 ## Submission
 
-Submit subscription groups or individual subscriptions for review.
+Submit subscription group versions and subscription versions through a review
+submission. Create one submission, add each typed version item, then submit the
+collection when it is complete.
 
 ```bash  theme={null}
-# Submit subscription group
-asc subscriptions review submit-group \
-  --group-id "GROUP_ID" \
-  --confirm
+# Create the review submission
+asc review submissions-create \
+  --app "APP_ID" \
+  --platform IOS
 
-# Submit individual subscription
-asc subscriptions review submit \
-  --subscription-id "SUB_ID" \
+# Add a subscription group version
+asc review items add \
+  --submission "SUBMISSION_ID" \
+  --item-type subscriptionGroupVersions \
+  --item-id "GROUP_VERSION_ID"
+
+# Add a subscription version
+asc review items add \
+  --submission "SUBMISSION_ID" \
+  --item-type subscriptionVersions \
+  --item-id "SUBSCRIPTION_VERSION_ID"
+
+# Submit after every intended item has been added
+asc review submissions-submit \
+  --id "SUBMISSION_ID" \
   --confirm
 ```
 

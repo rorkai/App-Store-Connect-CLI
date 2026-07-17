@@ -57,9 +57,7 @@ func runGameCenterAchievementsInvalidNextURLCases(
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if stderr != "" {
-				t.Fatalf("expected empty stderr, got %q", stderr)
-			}
+			assertOnlyDeprecatedCommandWarnings(t, stderr)
 		})
 	}
 }
@@ -125,9 +123,7 @@ func runGameCenterAchievementsPaginateFromNext(
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 	for _, id := range wantIDs {
 		needle := `"id":"` + id + `"`
 		if !strings.Contains(stdout, needle) {

@@ -695,6 +695,8 @@ func (c *Client) GetSubscriptionAvailabilityAvailableTerritoriesRelationships(ct
 }
 
 // GetSubscriptionGroupSubscriptionGroupLocalizationsRelationships retrieves localization linkages for a subscription group.
+//
+// Deprecated: Use GetSubscriptionGroupVersionLocalizationsRelationships with a subscription group version ID.
 func (c *Client) GetSubscriptionGroupSubscriptionGroupLocalizationsRelationships(ctx context.Context, groupID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	query := &linkagesQuery{}
 	for _, opt := range opts {
@@ -786,6 +788,8 @@ func (c *Client) GetSubscriptionAppStoreReviewScreenshotRelationship(ctx context
 }
 
 // GetSubscriptionImagesRelationships retrieves image linkages for a subscription.
+//
+// Deprecated: Use GetSubscriptionVersionImagesRelationships with a subscription version ID.
 func (c *Client) GetSubscriptionImagesRelationships(ctx context.Context, subID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	query := &linkagesQuery{}
 	for _, opt := range opts {
@@ -1100,6 +1104,8 @@ func (c *Client) GetSubscriptionSubscriptionAvailabilityRelationship(ctx context
 }
 
 // GetSubscriptionSubscriptionLocalizationsRelationships retrieves subscription localization linkages for a subscription.
+//
+// Deprecated: Use GetSubscriptionVersionLocalizationsRelationships with a subscription version ID.
 func (c *Client) GetSubscriptionSubscriptionLocalizationsRelationships(ctx context.Context, subID string, opts ...LinkagesOption) (*LinkagesResponse, error) {
 	query := &linkagesQuery{}
 	for _, opt := range opts {

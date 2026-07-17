@@ -62,9 +62,10 @@ asc iap view --id "IAP_ID"
 
 ## Versioned IAP Resources (API 4.4.1)
 
-IAP metadata and promotional images can now be managed through a discrete
-version resource. Existing product-scoped commands remain available for
-compatibility.
+IAP metadata and promotional images are managed through a discrete version
+resource. The product-scoped v1 localization, image, and submission commands
+remain available only during their deprecation window; use the version-scoped
+commands for new automation.
 
 ```bash  theme={null}
 asc iap versions list --iap-id "IAP_ID"
@@ -218,14 +219,17 @@ asc iap pricing schedules create \
   --prices "PRICE_POINT_ID:2026-03-01"
 ```
 
-## Localizations
+## Version-Scoped Localizations
 
-Manage in-app purchase localizations for different languages and regions.
+Manage in-app purchase localizations for different languages and regions. First
+create or resolve an IAP version, then pass its version ID to these commands.
+The product-scoped `asc iap localizations ...` commands are deprecated.
 
 ### List Localizations
 
 ```bash  theme={null}
-asc iap localizations list --iap-id "IAP_ID"
+asc iap versions localizations list --version-id "IAP_VERSION_ID"
+asc iap versions localizations view --localization-id "LOCALIZATION_ID"
 ```
 
 **Optional Flags:**
@@ -236,8 +240,8 @@ asc iap localizations list --iap-id "IAP_ID"
 ### Create Localization
 
 ```bash  theme={null}
-asc iap localizations create \
-  --iap-id "IAP_ID" \
+asc iap versions localizations create \
+  --version-id "IAP_VERSION_ID" \
   --locale "en-US" \
   --name "Premium Features" \
   --description "Unlock all premium features"
@@ -246,7 +250,7 @@ asc iap localizations create \
 ### Update Localization
 
 ```bash  theme={null}
-asc iap localizations update \
+asc iap versions localizations update \
   --localization-id "LOCALIZATION_ID" \
   --name "Updated Name" \
   --description "Updated description"
@@ -255,21 +259,28 @@ asc iap localizations update \
 ### Delete Localization
 
 ```bash  theme={null}
-asc iap localizations delete \
+asc iap versions localizations delete \
   --localization-id "LOCALIZATION_ID" \
   --confirm
 ```
 
-## Images and Screenshots
+## Version-Scoped Images and Review Screenshots
 
 ### Upload Promotional Image
 
-Upload a promotional image for an in-app purchase.
+Upload a promotional image for an in-app purchase version. The product-scoped
+`asc iap images ...` commands are deprecated; create or resolve an IAP version
+and use the version image resource instead.
 
 ```bash  theme={null}
-asc iap images create \
-  --iap-id "IAP_ID" \
+asc iap versions images create \
+  --version-id "IAP_VERSION_ID" \
   --file "./promo-image.png"
+
+asc iap versions images list --version-id "IAP_VERSION_ID"
+asc iap versions images view --image-id "IMAGE_ID"
+asc iap versions images update --image-id "IMAGE_ID" --uploaded true
+asc iap versions images delete --image-id "IMAGE_ID" --confirm
 ```
 
 **Image Requirements:**
@@ -397,10 +408,23 @@ asc iap content view --iap-id "IAP_ID"
 
 ## Submission
 
-Submit in-app purchases for review.
+Submit an in-app purchase version through a review submission. A review
+submission can contain up to 200 items, including app versions and other
+versioned resources.
 
 ```bash  theme={null}
-asc iap submit --iap-id "IAP_ID" --confirm
+asc review submissions-create \
+  --app "APP_ID" \
+  --platform IOS
+
+asc review items add \
+  --submission "SUBMISSION_ID" \
+  --item-type inAppPurchaseVersions \
+  --item-id "IAP_VERSION_ID"
+
+asc review submissions-submit \
+  --id "SUBMISSION_ID" \
+  --confirm
 ```
 
 **Requirements before submission:**
@@ -431,24 +455,31 @@ IAP_RESPONSE=$(asc iap create \
 
 IAP_ID=$(echo "$IAP_RESPONSE" | jq -r '.data.id')
 
-# 2. Add localization
-asc iap localizations create \
+# 2. Create the review-content version
+IAP_VERSION_RESPONSE=$(asc iap versions create \
   --iap-id "$IAP_ID" \
+  --output json)
+
+IAP_VERSION_ID=$(echo "$IAP_VERSION_RESPONSE" | jq -r '.data.id')
+
+# 3. Add version-scoped localization
+asc iap versions localizations create \
+  --version-id "$IAP_VERSION_ID" \
   --locale "en-US" \
   --name "Premium Features" \
   --description "Unlock all premium features"
 
-# 3. Upload promotional image
-asc iap images create \
-  --iap-id "$IAP_ID" \
+# 4. Upload the version-scoped promotional image
+asc iap versions images create \
+  --version-id "$IAP_VERSION_ID" \
   --file "./promo.png"
 
-# 4. Set availability
+# 5. Set availability
 asc iap pricing availability set \
   --iap-id "$IAP_ID" \
   --territories "USA,CAN,GBR,AUS"
 
-# 5. Configure pricing (requires price point ID)
+# 6. Configure pricing (requires price point ID)
 # See pricing documentation for details
 
 echo "IAP created with ID: $IAP_ID"

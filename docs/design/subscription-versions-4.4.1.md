@@ -20,11 +20,12 @@ asc subscriptions versions images primary-link --version-id VERSION_ID
 asc subscriptions versions images view|upload|update|delete ...
 ```
 
-The existing `asc subscriptions localizations` and
-`asc subscriptions images` commands remain unchanged. They accept a
-subscription/product ID and call the v1 product-scoped endpoints. The new
-commands require version IDs and call the 4.4.1 version-scoped endpoints; no
-stable command silently changes ID meaning.
+The original additive slice left `asc subscriptions localizations` and
+`asc subscriptions images` unchanged. Those product-ID v1 command trees are
+now deprecated compatibility paths. New automation should pass a version ID to
+`asc subscriptions versions localizations ...` or
+`asc subscriptions versions images ...`; no command silently changes ID
+meaning during the transition.
 
 ## API contract
 
@@ -70,10 +71,10 @@ required-flag messages use stderr. Required flags and invalid values return
 usage exit code 2. Deletes require `--confirm`; there are no prompts. List
 commands support `--paginate`; upload work uses the shared upload timeout.
 
-The new version lifecycle does not remove or deprecate the existing stable v1
-commands in this change. Review-submission item support is intentionally a
-cross-cutting follow-up because another 4.4.1 slice owns the shared review item
-types.
+The original version-resource change did not remove or deprecate the then-stable
+v1 commands. A later transition now marks those paths deprecated while
+preserving their behavior, and review-submission item support landed in the
+cross-cutting 4.4.1 review integration.
 
 ## Tests and verification
 

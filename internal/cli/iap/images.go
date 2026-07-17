@@ -20,15 +20,16 @@ func IAPImagesCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "images",
 		ShortUsage: "asc iap images <subcommand> [flags]",
-		ShortHelp:  "Manage in-app purchase images.",
-		LongHelp: `Manage in-app purchase images.
+		ShortHelp:  "Manage deprecated product-scoped IAP images.",
+		LongHelp: `Manage deprecated product-scoped in-app purchase images.
+
+Use version-scoped images for new workflows.
 
 Examples:
-  asc iap images list --iap-id "IAP_ID"
-  asc iap images view --image-id "IMAGE_ID"
-  asc iap images create --iap-id "IAP_ID" --file "./image.png"
-  asc iap images update --image-id "IMAGE_ID" --file "./image.png"
-  asc iap images delete --image-id "IMAGE_ID" --confirm`,
+  asc iap versions images list --version-id "IAP_VERSION_ID"
+  asc iap versions images view --image-id "IMAGE_ID"
+  asc iap versions images create --version-id "IAP_VERSION_ID" --file "./image.png"
+  asc iap versions images delete --image-id "IMAGE_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -55,7 +56,7 @@ func IAPImagesListCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc iap images list --iap-id \"IAP_ID\"",
 		ShortHelp:  "List images for an in-app purchase.",
@@ -102,13 +103,13 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithIAPImagesLimit(200))
-				firstPage, err := client.GetInAppPurchaseImages(requestCtx, iapValue, paginateOpts...)
+				firstPage, err := client.GetInAppPurchaseImages(requestCtx, iapValue, paginateOpts...) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				if err != nil {
 					return fmt.Errorf("iap images list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetInAppPurchaseImages(ctx, iapValue, asc.WithIAPImagesNextURL(nextURL))
+					return client.GetInAppPurchaseImages(ctx, iapValue, asc.WithIAPImagesNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				})
 				if err != nil {
 					return fmt.Errorf("iap images list: %w", err)
@@ -117,14 +118,14 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			resp, err := client.GetInAppPurchaseImages(requestCtx, iapValue, opts...)
+			resp, err := client.GetInAppPurchaseImages(requestCtx, iapValue, opts...) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("iap images list: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc iap images list", `asc iap versions images list --version-id "IAP_VERSION_ID"`)
 }
 
 // IAPImagesGetCommand returns the images get subcommand.
@@ -134,7 +135,7 @@ func IAPImagesGetCommand() *ffcli.Command {
 	imageID := fs.String("image-id", "", "Image ID")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "view",
 		ShortUsage: "asc iap images view --image-id \"IMAGE_ID\"",
 		ShortHelp:  "View an in-app purchase image by ID.",
@@ -159,14 +160,14 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetInAppPurchaseImage(requestCtx, imageValue)
+			resp, err := client.GetInAppPurchaseImage(requestCtx, imageValue) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("iap images view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc iap images view", `asc iap versions images view --image-id "IMAGE_ID"`)
 }
 
 // IAPImagesCreateCommand returns the images create subcommand.
@@ -178,7 +179,7 @@ func IAPImagesCreateCommand() *ffcli.Command {
 	filePath := fs.String("file", "", "Path to image file")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "create",
 		ShortUsage: "asc iap images create --iap-id \"IAP_ID\" --file \"./image.png\"",
 		ShortHelp:  "Upload an in-app purchase image.",
@@ -224,7 +225,7 @@ Examples:
 			requestCtx, cancel := contextWithAssetUploadTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.CreateInAppPurchaseImage(requestCtx, iapValue, info.Name(), info.Size())
+			resp, err := client.CreateInAppPurchaseImage(requestCtx, iapValue, info.Name(), info.Size()) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("iap images create: failed to create: %w", err)
 			}
@@ -237,21 +238,21 @@ Examples:
 			}
 
 			uploaded := true
-			if _, err := client.UpdateInAppPurchaseImage(requestCtx, resp.Data.ID, asc.InAppPurchaseImageUpdateAttributes{
+			if _, err := client.UpdateInAppPurchaseImage(requestCtx, resp.Data.ID, asc.InAppPurchaseImageUpdateAttributes{ //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				Uploaded:           &uploaded,
 				SourceFileChecksum: &checksum.Hash,
 			}); err != nil {
 				return fmt.Errorf("iap images create: failed to commit upload: %w", err)
 			}
 
-			finalResp, err := client.GetInAppPurchaseImage(requestCtx, resp.Data.ID)
+			finalResp, err := client.GetInAppPurchaseImage(requestCtx, resp.Data.ID) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("iap images create: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(finalResp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc iap images create", `asc iap versions images create --version-id "IAP_VERSION_ID" --file "./image.png"`)
 }
 
 // IAPImagesUpdateCommand returns the images update subcommand.
@@ -262,7 +263,7 @@ func IAPImagesUpdateCommand() *ffcli.Command {
 	filePath := fs.String("file", "", "Path to image file")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "update",
 		ShortUsage: "asc iap images update --image-id \"IMAGE_ID\" --file \"./image.png\"",
 		ShortHelp:  "Re-upload an in-app purchase image.",
@@ -303,7 +304,7 @@ Examples:
 			requestCtx, cancel := contextWithAssetUploadTimeout(ctx)
 			defer cancel()
 
-			imageResp, err := client.GetInAppPurchaseImage(requestCtx, imageValue)
+			imageResp, err := client.GetInAppPurchaseImage(requestCtx, imageValue) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("iap images update: failed to fetch: %w", err)
 			}
@@ -320,7 +321,7 @@ Examples:
 					return fmt.Errorf("iap images update: %w", err)
 				}
 
-				created, err := client.CreateInAppPurchaseImage(requestCtx, iapID, info.Name(), info.Size())
+				created, err := client.CreateInAppPurchaseImage(requestCtx, iapID, info.Name(), info.Size()) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				if err != nil {
 					return fmt.Errorf("iap images update: failed to create: %w", err)
 				}
@@ -338,7 +339,7 @@ Examples:
 			}
 
 			uploaded := true
-			updated, err := client.UpdateInAppPurchaseImage(requestCtx, targetImageID, asc.InAppPurchaseImageUpdateAttributes{
+			updated, err := client.UpdateInAppPurchaseImage(requestCtx, targetImageID, asc.InAppPurchaseImageUpdateAttributes{ //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				Uploaded:           &uploaded,
 				SourceFileChecksum: &checksum.Hash,
 			})
@@ -347,14 +348,14 @@ Examples:
 			}
 
 			if createdReplacement {
-				if err := client.DeleteInAppPurchaseImage(requestCtx, imageValue); err != nil {
+				if err := client.DeleteInAppPurchaseImage(requestCtx, imageValue); err != nil { //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 					return fmt.Errorf("iap images update: failed to delete previous image: %w", err)
 				}
 			}
 
 			return shared.PrintOutput(updated, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc iap images update", `asc iap versions images create --version-id "IAP_VERSION_ID" --file "./image.png"`)
 }
 
 // IAPImagesDeleteCommand returns the images delete subcommand.
@@ -365,7 +366,7 @@ func IAPImagesDeleteCommand() *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "delete",
 		ShortUsage: "asc iap images delete --image-id \"IMAGE_ID\" --confirm",
 		ShortHelp:  "Delete an in-app purchase image.",
@@ -394,7 +395,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			if err := client.DeleteInAppPurchaseImage(requestCtx, imageValue); err != nil {
+			if err := client.DeleteInAppPurchaseImage(requestCtx, imageValue); err != nil { //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				return fmt.Errorf("iap images delete: failed to delete: %w", err)
 			}
 
@@ -405,5 +406,5 @@ Examples:
 
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc iap images delete", `asc iap versions images delete --image-id "IMAGE_ID" --confirm`)
 }

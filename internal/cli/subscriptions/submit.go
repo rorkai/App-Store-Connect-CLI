@@ -54,7 +54,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.CreateSubscriptionSubmission(requestCtx, id)
+			resp, err := client.CreateSubscriptionSubmission(requestCtx, id) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions submit: failed to submit: %w", err)
 			}
@@ -101,7 +101,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.CreateSubscriptionGroupSubmission(requestCtx, id)
+			resp, err := client.CreateSubscriptionGroupSubmission(requestCtx, id) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions groups submit: failed to submit: %w", err)
 			}

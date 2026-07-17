@@ -34,14 +34,14 @@ Examples:
   asc subscriptions groups list --app "APP_ID"
   asc subscriptions list --group-id "GROUP_ID"
   asc subscriptions create --group-id "GROUP_ID" --reference-name "Monthly" --product-id "com.example.sub.monthly"
-  asc subscriptions setup --app "APP_ID" --group-reference-name "Pro" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH --locale "en-US" --display-name "Pro Monthly" --price "3.99" --price-territory "United States" --territories "US,Canada"
+  asc subscriptions setup --app "APP_ID" --group-reference-name "Pro" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH --price "3.99" --price-territory "United States" --territories "US,Canada"
   asc subscriptions pricing summary --app "APP_ID"
   asc subscriptions pricing prices set --subscription-id "SUB_ID" --price-point "PRICE_POINT_ID"
   asc subscriptions pricing availability edit --subscription-id "SUB_ID" --territories "US,Canada"
   asc subscriptions offers offer-codes generate --offer-code-id "OFFER_CODE_ID" --quantity 10 --expiration-date "2026-02-01"
   asc subscriptions offers win-back list --subscription-id "SUB_ID"
   asc subscriptions review screenshots create --subscription-id "SUB_ID" --file "./review.png"
-  asc subscriptions review submit --subscription-id "SUB_ID" --confirm
+  asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
   asc subscriptions promoted-purchases create --app "APP_ID" --product-id "SUB_ID" --visible-for-all-users true`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,

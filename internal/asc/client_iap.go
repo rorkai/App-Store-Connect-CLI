@@ -184,6 +184,8 @@ func (c *Client) DeleteInAppPurchaseV2(ctx context.Context, iapID string) error 
 }
 
 // GetInAppPurchaseLocalizations fetches localizations for an IAP.
+//
+// Deprecated: Use GetInAppPurchaseVersionLocalizations with an in-app purchase version ID.
 func (c *Client) GetInAppPurchaseLocalizations(ctx context.Context, iapID string, opts ...IAPLocalizationsOption) (*InAppPurchaseLocalizationsResponse, error) {
 	query := &iapLocalizationsQuery{}
 	for _, opt := range opts {

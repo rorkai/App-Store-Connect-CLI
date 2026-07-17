@@ -343,7 +343,7 @@ func fetchSubscriptionsForGroup(ctx context.Context, client *asc.Client, groupID
 
 func fetchGroupLocalizations(ctx context.Context, client *asc.Client, groupID string) ([]validation.SubscriptionGroupLocalizationInfo, metadataCheckStatus, error) {
 	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.SubscriptionGroupLocalizationsResponse, error) {
-		return client.GetSubscriptionGroupLocalizations(requestCtx, strings.TrimSpace(groupID), asc.WithSubscriptionGroupLocalizationsLimit(200))
+		return client.GetSubscriptionGroupLocalizations(requestCtx, strings.TrimSpace(groupID), asc.WithSubscriptionGroupLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -357,7 +357,7 @@ func fetchGroupLocalizations(ctx context.Context, client *asc.Client, groupID st
 
 	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionGroupLocalizations(requestCtx, strings.TrimSpace(groupID), asc.WithSubscriptionGroupLocalizationsNextURL(nextURL))
+			return client.GetSubscriptionGroupLocalizations(requestCtx, strings.TrimSpace(groupID), asc.WithSubscriptionGroupLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		})
 	})
 	if err != nil {
@@ -394,7 +394,7 @@ func fetchGroupLocalizations(ctx context.Context, client *asc.Client, groupID st
 // fetchSubscriptionLocalizations fetches localization info for a subscription.
 func fetchSubscriptionLocalizations(ctx context.Context, client *asc.Client, subscriptionID string) ([]validation.SubscriptionLocalizationInfo, metadataCheckStatus, error) {
 	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.SubscriptionLocalizationsResponse, error) {
-		return client.GetSubscriptionLocalizations(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionLocalizationsLimit(200))
+		return client.GetSubscriptionLocalizations(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 	})
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
@@ -408,7 +408,7 @@ func fetchSubscriptionLocalizations(ctx context.Context, client *asc.Client, sub
 
 	paginated, err := asc.PaginateAll(ctx, resp, func(_ context.Context, nextURL string) (asc.PaginatedResponse, error) {
 		return doReadinessRequest(ctx, func(requestCtx context.Context) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionLocalizations(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionLocalizationsNextURL(nextURL))
+			return client.GetSubscriptionLocalizations(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		})
 	})
 	if err != nil {
@@ -764,7 +764,7 @@ func fetchSubscriptionWinBackOfferCount(ctx context.Context, client *asc.Client,
 
 func subscriptionHasImage(ctx context.Context, client *asc.Client, subscriptionID string) (subscriptionImageStatus, error) {
 	resp, err := doReadinessRequest(ctx, func(requestCtx context.Context) (*asc.SubscriptionImagesResponse, error) {
-		return client.GetSubscriptionImages(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionImagesLimit(1))
+		return client.GetSubscriptionImages(requestCtx, strings.TrimSpace(subscriptionID), asc.WithSubscriptionImagesLimit(1)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 	})
 	if err != nil {
 		if asc.IsNotFound(err) {

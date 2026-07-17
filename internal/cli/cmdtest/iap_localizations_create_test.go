@@ -67,9 +67,7 @@ func TestIAPLocalizationsCreateReusesMatchingLocale(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 	if requestCount != 1 {
 		t.Fatalf("expected only localization lookup request, got %d", requestCount)
 	}

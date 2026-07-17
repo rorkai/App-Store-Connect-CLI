@@ -263,10 +263,82 @@ func TestSubscriptionMetadataDiagnostics_ReportsConcreteMissingItems(t *testing.
 		if strings.HasPrefix(check.ID, "subscriptions.diagnostics.") && check.ID != "subscriptions.diagnostics.group_localization_unverified" && check.ID != "subscriptions.diagnostics.localization_unverified" && check.ID != "subscriptions.diagnostics.pricing_unverified" && check.Severity != SeverityWarning {
 			t.Fatalf("expected concrete missing-metadata diagnostics to be warnings, got %+v", check)
 		}
-		if check.ID == "subscriptions.diagnostics.group_localization_missing" && check.Remediation != "" &&
-			check.Remediation != "Create at least one subscription group localization (with group display name) via App Store Connect or `asc subscriptions groups localizations create`; this is a common cause of MISSING_METADATA" {
-			t.Fatalf("expected corrected group localization remediation, got %+v", check)
+		switch check.ID {
+		case "subscriptions.diagnostics.group_localization_missing":
+			for _, want := range []string{
+				`asc subscriptions groups versions list --group-id "group-1"`,
+				`asc subscriptions groups versions create --group-id "group-1"`,
+				`asc subscriptions groups versions localizations create --version-id "VERSION_ID"`,
+			} {
+				if !strings.Contains(check.Remediation, want) {
+					t.Fatalf("expected group version remediation containing %q, got %+v", want, check)
+				}
+			}
+		case "subscriptions.diagnostics.localization_missing":
+			for _, want := range []string{
+				`asc subscriptions versions list --subscription-id "sub-1"`,
+				`asc subscriptions versions create --subscription-id "sub-1"`,
+				`asc subscriptions versions localizations create --version-id "VERSION_ID"`,
+			} {
+				if !strings.Contains(check.Remediation, want) {
+					t.Fatalf("expected subscription version remediation containing %q, got %+v", want, check)
+				}
+			}
 		}
+	}
+}
+
+func TestSubscriptionDiagnosticsUseVersionScopedMetadataRemediation(t *testing.T) {
+	sub := Subscription{ID: "sub-1", GroupID: "group-1"}
+	tests := []struct {
+		name       string
+		row        SubscriptionDiagnosticRow
+		want       []string
+		legacyPath string
+	}{
+		{
+			name: "group localization",
+			row:  buildGroupLocalizationsDiagnosticRow(sub),
+			want: []string{
+				`asc subscriptions groups versions list --group-id "group-1"`,
+				`asc subscriptions groups versions create --group-id "group-1"`,
+				`asc subscriptions groups versions localizations create --version-id "VERSION_ID"`,
+			},
+			legacyPath: "asc subscriptions groups localizations create",
+		},
+		{
+			name: "subscription localization",
+			row:  buildSubscriptionLocalizationsDiagnosticRow(sub),
+			want: []string{
+				`asc subscriptions versions list --subscription-id "sub-1"`,
+				`asc subscriptions versions create --subscription-id "sub-1"`,
+				`asc subscriptions versions localizations create --version-id "VERSION_ID"`,
+			},
+			legacyPath: "asc subscriptions localizations create",
+		},
+		{
+			name: "subscription image",
+			row:  buildPromotionalImageDiagnosticRow(sub),
+			want: []string{
+				`asc subscriptions versions list --subscription-id "sub-1"`,
+				`asc subscriptions versions create --subscription-id "sub-1"`,
+				`asc subscriptions versions images upload --version-id "VERSION_ID"`,
+			},
+			legacyPath: "asc subscriptions images create",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			for _, want := range test.want {
+				if !strings.Contains(test.row.Remediation, want) {
+					t.Fatalf("remediation = %q, want containing %q", test.row.Remediation, want)
+				}
+			}
+			if strings.Contains(test.row.Remediation, test.legacyPath) {
+				t.Fatalf("remediation = %q, must not teach legacy path %q", test.row.Remediation, test.legacyPath)
+			}
+		})
 	}
 }
 

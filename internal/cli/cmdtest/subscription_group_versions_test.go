@@ -322,9 +322,8 @@ func TestSubscriptionGroupLegacyLocalizationCreateRemainsV1(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
-	if stderr != "" {
-		t.Fatalf("unexpected stderr: %s", stderr)
-	}
+	requireStderrContainsWarning(t, stderr, "Warning: `asc subscriptions groups localizations create` is deprecated by App Store Connect API 4.4.1.")
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 }
 
 func TestSubscriptionGroupLegacyLocalizationCommandsRemainGroupScoped(t *testing.T) {
@@ -339,7 +338,10 @@ func TestSubscriptionGroupLegacyLocalizationCommandsRemainGroupScoped(t *testing
 			t.Fatalf("expected ErrHelp, got %v", err)
 		}
 	})
-	if !strings.Contains(stderr, "--group-id is required") || strings.Contains(stderr, "--version-id") {
+	requireStderrContainsWarning(t, stderr, "Warning: `asc subscriptions groups localizations create` is deprecated by App Store Connect API 4.4.1.")
+	stderr = stripDeprecatedCommandWarnings(stderr)
+	validationStderr, _, _ := strings.Cut(stderr, "\nDESCRIPTION")
+	if !strings.Contains(validationStderr, "--group-id is required") || strings.Contains(validationStderr, "--version-id") {
 		t.Fatalf("legacy command changed ownership semantics: %q", stderr)
 	}
 }

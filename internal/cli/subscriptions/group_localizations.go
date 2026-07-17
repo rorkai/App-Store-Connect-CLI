@@ -20,12 +20,14 @@ func SubscriptionsGroupsLocalizationsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "localizations",
 		ShortUsage: "asc subscriptions groups localizations <subcommand> [flags]",
-		ShortHelp:  "Manage subscription group localizations.",
-		LongHelp: `Manage subscription group localizations.
+		ShortHelp:  "Manage deprecated product-scoped group localizations.",
+		LongHelp: `Manage deprecated product-scoped subscription group localizations.
+
+Use version-scoped group localizations for new workflows.
 
 Examples:
-  asc subscriptions groups localizations list --group-id "GROUP_ID"
-  asc subscriptions groups localizations create --group-id "GROUP_ID" --locale "en-US" --name "Premium"`,
+  asc subscriptions groups versions localizations list --version-id "GROUP_VERSION_ID"
+  asc subscriptions groups versions localizations create --version-id "GROUP_VERSION_ID" --locale "en-US" --name "Premium"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -52,7 +54,7 @@ func SubscriptionsGroupsLocalizationsListCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc subscriptions groups localizations list [flags]",
 		ShortHelp:  "List subscription group localizations.",
@@ -92,13 +94,13 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithSubscriptionGroupLocalizationsLimit(200))
-				firstPage, err := client.GetSubscriptionGroupLocalizations(requestCtx, id, paginateOpts...)
+				firstPage, err := client.GetSubscriptionGroupLocalizations(requestCtx, id, paginateOpts...) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				if err != nil {
 					return fmt.Errorf("subscriptions groups localizations list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionGroupLocalizations(ctx, id, asc.WithSubscriptionGroupLocalizationsNextURL(nextURL))
+					return client.GetSubscriptionGroupLocalizations(ctx, id, asc.WithSubscriptionGroupLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions groups localizations list: %w", err)
@@ -107,14 +109,14 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			resp, err := client.GetSubscriptionGroupLocalizations(requestCtx, id, opts...)
+			resp, err := client.GetSubscriptionGroupLocalizations(requestCtx, id, opts...) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions groups localizations list: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions groups localizations list", `asc subscriptions groups versions localizations list --version-id "GROUP_VERSION_ID"`)
 }
 
 // SubscriptionsGroupsLocalizationsGetCommand returns the group localizations get subcommand.
@@ -124,7 +126,7 @@ func SubscriptionsGroupsLocalizationsGetCommand() *ffcli.Command {
 	localizationID := fs.String("id", "", "Subscription group localization ID")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "view",
 		ShortUsage: "asc subscriptions groups localizations view --id \"LOC_ID\"",
 		ShortHelp:  "View a subscription group localization by ID.",
@@ -149,14 +151,14 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetSubscriptionGroupLocalization(requestCtx, id)
+			resp, err := client.GetSubscriptionGroupLocalization(requestCtx, id) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions groups localizations view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions groups localizations view", `asc subscriptions groups versions localizations view --id "LOCALIZATION_ID"`)
 }
 
 // SubscriptionsGroupsLocalizationsCreateCommand returns the group localizations create subcommand.
@@ -169,7 +171,7 @@ func SubscriptionsGroupsLocalizationsCreateCommand() *ffcli.Command {
 	customAppName := fs.String("custom-app-name", "", "Custom app name")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "create",
 		ShortUsage: "asc subscriptions groups localizations create [flags]",
 		ShortHelp:  "Create a subscription group localization.",
@@ -214,14 +216,14 @@ Examples:
 				attrs.CustomAppName = customName
 			}
 
-			resp, err := client.CreateSubscriptionGroupLocalization(requestCtx, id, attrs)
+			resp, err := client.CreateSubscriptionGroupLocalization(requestCtx, id, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions groups localizations create: failed to create: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions groups localizations create", `asc subscriptions groups versions localizations create --version-id "GROUP_VERSION_ID" --name "NAME" --locale "LOCALE"`)
 }
 
 // SubscriptionsGroupsLocalizationsUpdateCommand returns the group localizations update subcommand.
@@ -233,7 +235,7 @@ func SubscriptionsGroupsLocalizationsUpdateCommand() *ffcli.Command {
 	customAppName := fs.String("custom-app-name", "", "Custom app name")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "update",
 		ShortUsage: "asc subscriptions groups localizations update [flags]",
 		ShortHelp:  "Update a subscription group localization.",
@@ -273,14 +275,14 @@ Examples:
 				attrs.CustomAppName = &customValue
 			}
 
-			resp, err := client.UpdateSubscriptionGroupLocalization(requestCtx, id, attrs)
+			resp, err := client.UpdateSubscriptionGroupLocalization(requestCtx, id, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions groups localizations update: failed to update: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions groups localizations update", `asc subscriptions groups versions localizations update --id "LOCALIZATION_ID" --name "NAME"`)
 }
 
 // SubscriptionsGroupsLocalizationsDeleteCommand returns the group localizations delete subcommand.
@@ -291,7 +293,7 @@ func SubscriptionsGroupsLocalizationsDeleteCommand() *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "delete",
 		ShortUsage: "asc subscriptions groups localizations delete --id \"LOC_ID\" --confirm",
 		ShortHelp:  "Delete a subscription group localization.",
@@ -320,12 +322,12 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			if err := client.DeleteSubscriptionGroupLocalization(requestCtx, id); err != nil {
+			if err := client.DeleteSubscriptionGroupLocalization(requestCtx, id); err != nil { //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				return fmt.Errorf("subscriptions groups localizations delete: failed to delete: %w", err)
 			}
 
 			result := &asc.AssetDeleteResult{ID: id, Deleted: true}
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions groups localizations delete", `asc subscriptions groups versions localizations delete --id "LOCALIZATION_ID" --confirm`)
 }

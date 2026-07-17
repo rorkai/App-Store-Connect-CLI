@@ -20,12 +20,14 @@ func SubscriptionsImagesCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "images",
 		ShortUsage: "asc subscriptions images <subcommand> [flags]",
-		ShortHelp:  "Manage subscription images.",
-		LongHelp: `Manage subscription images.
+		ShortHelp:  "Manage deprecated product-scoped subscription images.",
+		LongHelp: `Manage deprecated product-scoped subscription images.
+
+Use version-scoped images for new workflows.
 
 Examples:
-  asc subscriptions images list --subscription-id "SUB_ID"
-  asc subscriptions images create --subscription-id "SUB_ID" --file "./image.png"`,
+  asc subscriptions versions images list --version-id "SUBSCRIPTION_VERSION_ID"
+  asc subscriptions versions images upload --version-id "SUBSCRIPTION_VERSION_ID" --file "./image.png"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -52,7 +54,7 @@ func SubscriptionsImagesListCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc subscriptions images list [flags]",
 		ShortHelp:  "List subscription images.",
@@ -99,13 +101,13 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithSubscriptionImagesLimit(200))
-				firstPage, err := client.GetSubscriptionImages(requestCtx, id, paginateOpts...)
+				firstPage, err := client.GetSubscriptionImages(requestCtx, id, paginateOpts...) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				if err != nil {
 					return fmt.Errorf("subscriptions images list: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionImages(ctx, id, asc.WithSubscriptionImagesNextURL(nextURL))
+					return client.GetSubscriptionImages(ctx, id, asc.WithSubscriptionImagesNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions images list: %w", err)
@@ -114,14 +116,14 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			resp, err := client.GetSubscriptionImages(requestCtx, id, opts...)
+			resp, err := client.GetSubscriptionImages(requestCtx, id, opts...) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions images list: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions images list", `asc subscriptions versions images list --version-id "SUBSCRIPTION_VERSION_ID"`)
 }
 
 // SubscriptionsImagesGetCommand returns the images get subcommand.
@@ -131,7 +133,7 @@ func SubscriptionsImagesGetCommand() *ffcli.Command {
 	imageID := fs.String("id", "", "Subscription image ID")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "view",
 		ShortUsage: "asc subscriptions images view --id \"IMAGE_ID\"",
 		ShortHelp:  "View a subscription image by ID.",
@@ -156,14 +158,14 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetSubscriptionImage(requestCtx, id)
+			resp, err := client.GetSubscriptionImage(requestCtx, id) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions images view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions images view", `asc subscriptions versions images view --id "IMAGE_ID"`)
 }
 
 // SubscriptionsImagesCreateCommand returns the images create subcommand.
@@ -175,7 +177,7 @@ func SubscriptionsImagesCreateCommand() *ffcli.Command {
 	filePath := fs.String("file", "", "Path to image file")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "create",
 		ShortUsage: "asc subscriptions images create [flags]",
 		ShortHelp:  "Upload a subscription image.",
@@ -217,7 +219,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithUploadTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.CreateSubscriptionImage(requestCtx, id, info.Name(), info.Size())
+			resp, err := client.CreateSubscriptionImage(requestCtx, id, info.Name(), info.Size()) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions images create: failed to create: %w", err)
 			}
@@ -240,7 +242,7 @@ Examples:
 				Uploaded:           &uploaded,
 			}
 
-			commitResp, err := client.UpdateSubscriptionImage(requestCtx, resp.Data.ID, updateAttrs)
+			commitResp, err := client.UpdateSubscriptionImage(requestCtx, resp.Data.ID, updateAttrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions images create: failed to commit upload: %w", err)
 			}
@@ -250,7 +252,7 @@ Examples:
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions images create", `asc subscriptions versions images upload --version-id "SUBSCRIPTION_VERSION_ID" --file "./image.png"`)
 }
 
 // SubscriptionsImagesUpdateCommand returns the images update subcommand.
@@ -263,7 +265,7 @@ func SubscriptionsImagesUpdateCommand() *ffcli.Command {
 	fs.Var(&uploaded, "uploaded", "Mark upload complete: true or false")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "update",
 		ShortUsage: "asc subscriptions images update [flags]",
 		ShortHelp:  "Update a subscription image.",
@@ -303,14 +305,14 @@ Examples:
 				attrs.Uploaded = &value
 			}
 
-			resp, err := client.UpdateSubscriptionImage(requestCtx, id, attrs)
+			resp, err := client.UpdateSubscriptionImage(requestCtx, id, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("subscriptions images update: failed to update: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions images update", `asc subscriptions versions images upload --version-id "SUBSCRIPTION_VERSION_ID" --file "./image.png"`)
 }
 
 // SubscriptionsImagesDeleteCommand returns the images delete subcommand.
@@ -321,7 +323,7 @@ func SubscriptionsImagesDeleteCommand() *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "delete",
 		ShortUsage: "asc subscriptions images delete --id \"IMAGE_ID\" --confirm",
 		ShortHelp:  "Delete a subscription image.",
@@ -350,12 +352,12 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			if err := client.DeleteSubscriptionImage(requestCtx, id); err != nil {
+			if err := client.DeleteSubscriptionImage(requestCtx, id); err != nil { //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				return fmt.Errorf("subscriptions images delete: failed to delete: %w", err)
 			}
 
 			result := &asc.AssetDeleteResult{ID: id, Deleted: true}
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc subscriptions images delete", `asc subscriptions versions images delete --id "IMAGE_ID" --confirm`)
 }

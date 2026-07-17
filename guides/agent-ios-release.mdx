@@ -165,29 +165,42 @@ asc validate iap --app "$ASC_APP_ID" --output json
 asc validate subscriptions --app "$ASC_APP_ID" --output json
 ```
 
-Resolve the exact `resourceId` for every product included in this release.
-`READY_TO_SUBMIT` is an action item, not a passing state. Submit each affected
-product, then re-read its state:
+Resolve the exact product `resourceId` and its current version ID for every
+product included in this release. Use `asc iap versions list` and
+`asc subscriptions versions list` to find versions in
+`PREPARE_FOR_SUBMISSION`. `READY_TO_SUBMIT` is an action item, not a passing
+state.
+
+Create one review submission, retain its returned ID, and add every affected
+product version. A submission supports up to 200 items:
 
 ```bash  theme={null}
-asc iap submit \
+asc review submissions-create \
   --app "$ASC_APP_ID" \
-  --iap-id "IAP_ID" \
-  --confirm \
+  --platform IOS \
   --output json
 
-asc subscriptions review submit \
-  --app "$ASC_APP_ID" \
-  --subscription-id "SUBSCRIPTION_ID" \
+asc review items add \
+  --submission "SUBMISSION_ID" \
+  --item-type inAppPurchaseVersions \
+  --item-id "IAP_VERSION_ID" \
+  --output json
+
+asc review items add \
+  --submission "SUBMISSION_ID" \
+  --item-type subscriptionVersions \
+  --item-id "SUBSCRIPTION_VERSION_ID" \
+  --output json
+
+asc review submissions-submit \
+  --id "SUBMISSION_ID" \
   --confirm \
   --output json
 ```
 
-These product submission commands do not support `--dry-run`; use the
-validation report and exact resource IDs as the pre-mutation check. First-time
-subscriptions may need to be submitted with the app version in App Store
-Connect instead of through the public API. If that limitation applies, stop and
-complete or hand off the UI step with the exact subscription and version IDs.
+These review-submission commands do not support `--dry-run`; use the validation
+report and exact product and version IDs as the pre-mutation check. Do not
+submit the review submission until every intended item has been added.
 
 After product submission, rerun the applicable validators:
 

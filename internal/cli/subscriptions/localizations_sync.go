@@ -92,7 +92,7 @@ func SubscriptionsLocalizationsSyncCommand() *ffcli.Command {
 	dryRun := fs.Bool("dry-run", false, "Preview changes without creating or updating localizations")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommandWithGuidance(&ffcli.Command{
 		Name:       "sync",
 		ShortUsage: "asc subscriptions localizations sync --subscription-id \"SUB_ID\" --input \"./localizations.json\" [flags]",
 		ShortHelp:  "[experimental] Sync subscription localizations from JSON.",
@@ -147,7 +147,7 @@ Examples:
 			api := newSubscriptionLocalizationSyncAPI(client, id)
 			return runLocalizationSyncCommand(ctx, api, id, path, entries, *dryRun, "subscriptions localizations sync", output)
 		},
-	}
+	}, "asc subscriptions localizations sync", "No one-command replacement exists. Reconcile each locale through `asc subscriptions versions localizations` list/create/update/delete commands with a subscription version ID.")
 }
 
 // SubscriptionsGroupsLocalizationsSyncCommand returns the experimental group localization sync command.
@@ -158,7 +158,7 @@ func SubscriptionsGroupsLocalizationsSyncCommand() *ffcli.Command {
 	dryRun := fs.Bool("dry-run", false, "Preview changes without creating or updating localizations")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommandWithGuidance(&ffcli.Command{
 		Name:       "sync",
 		ShortUsage: "asc subscriptions groups localizations sync --group-id \"GROUP_ID\" --input \"./localizations.json\" [flags]",
 		ShortHelp:  "[experimental] Sync subscription group localizations from JSON.",
@@ -206,7 +206,7 @@ Examples:
 			api := newSubscriptionGroupLocalizationSyncAPI(client, id)
 			return runLocalizationSyncCommand(ctx, api, id, path, entries, *dryRun, "subscriptions groups localizations sync", output)
 		},
-	}
+	}, "asc subscriptions groups localizations sync", "No one-command replacement exists. Reconcile each locale through `asc subscriptions groups versions localizations` list/create/update/delete commands with a subscription group version ID.")
 }
 
 func runLocalizationSyncCommand(ctx context.Context, api localizationSyncAPI, targetID, inputPath string, entries []localizationSyncEntry, dryRun bool, command string, output shared.OutputFlags) error {
@@ -534,7 +534,7 @@ func newSubscriptionLocalizationSyncAPI(client *asc.Client, subscriptionID strin
 			if description, ok := entry.Fields["description"]; ok {
 				attrs.Description = description
 			}
-			resp, err := client.CreateSubscriptionLocalization(ctx, subscriptionID, attrs)
+			resp, err := client.CreateSubscriptionLocalization(ctx, subscriptionID, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return localizationSyncRemote{}, err
 			}
@@ -548,7 +548,7 @@ func newSubscriptionLocalizationSyncAPI(client *asc.Client, subscriptionID strin
 			if description, ok := entry.Fields["description"]; ok {
 				attrs.Description = &description
 			}
-			resp, err := client.UpdateSubscriptionLocalization(ctx, existing.ID, attrs)
+			resp, err := client.UpdateSubscriptionLocalization(ctx, existing.ID, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return localizationSyncRemote{}, err
 			}
@@ -571,7 +571,7 @@ func newSubscriptionGroupLocalizationSyncAPI(client *asc.Client, groupID string)
 			if customAppName, ok := entry.Fields["customAppName"]; ok {
 				attrs.CustomAppName = customAppName
 			}
-			resp, err := client.CreateSubscriptionGroupLocalization(ctx, groupID, attrs)
+			resp, err := client.CreateSubscriptionGroupLocalization(ctx, groupID, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return localizationSyncRemote{}, err
 			}
@@ -585,7 +585,7 @@ func newSubscriptionGroupLocalizationSyncAPI(client *asc.Client, groupID string)
 			if customAppName, ok := entry.Fields["customAppName"]; ok {
 				attrs.CustomAppName = &customAppName
 			}
-			resp, err := client.UpdateSubscriptionGroupLocalization(ctx, existing.ID, attrs)
+			resp, err := client.UpdateSubscriptionGroupLocalization(ctx, existing.ID, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return localizationSyncRemote{}, err
 			}
@@ -596,7 +596,7 @@ func newSubscriptionGroupLocalizationSyncAPI(client *asc.Client, groupID string)
 
 func fetchSubscriptionLocalizationSyncState(ctx context.Context, client *asc.Client, subscriptionID string) ([]localizationSyncRemote, error) {
 	first, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionLocalizationsResponse, error) {
-		return client.GetSubscriptionLocalizations(
+		return client.GetSubscriptionLocalizations( //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			requestCtx,
 			subscriptionID,
 			asc.WithSubscriptionLocalizationsFields([]string{"description", "locale", "name"}),
@@ -614,7 +614,7 @@ func fetchSubscriptionLocalizationSyncState(ctx context.Context, client *asc.Cli
 			return nil, mergeErr
 		}
 		return shared.RetryReadWithFreshTimeout(pageCtx, func(requestCtx context.Context) (*asc.SubscriptionLocalizationsResponse, error) {
-			return client.GetSubscriptionLocalizations(requestCtx, subscriptionID, asc.WithSubscriptionLocalizationsNextURL(nextURL))
+			return client.GetSubscriptionLocalizations(requestCtx, subscriptionID, asc.WithSubscriptionLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		})
 	})
 	if err != nil {
@@ -633,7 +633,7 @@ func fetchSubscriptionLocalizationSyncState(ctx context.Context, client *asc.Cli
 
 func fetchSubscriptionGroupLocalizationSyncState(ctx context.Context, client *asc.Client, groupID string) ([]localizationSyncRemote, error) {
 	first, err := shared.RetryReadWithFreshTimeout(ctx, func(requestCtx context.Context) (*asc.SubscriptionGroupLocalizationsResponse, error) {
-		return client.GetSubscriptionGroupLocalizations(
+		return client.GetSubscriptionGroupLocalizations( //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			requestCtx,
 			groupID,
 			asc.WithSubscriptionGroupLocalizationsFields([]string{"customAppName", "locale", "name"}),
@@ -651,7 +651,7 @@ func fetchSubscriptionGroupLocalizationSyncState(ctx context.Context, client *as
 			return nil, mergeErr
 		}
 		return shared.RetryReadWithFreshTimeout(pageCtx, func(requestCtx context.Context) (*asc.SubscriptionGroupLocalizationsResponse, error) {
-			return client.GetSubscriptionGroupLocalizations(requestCtx, groupID, asc.WithSubscriptionGroupLocalizationsNextURL(nextURL))
+			return client.GetSubscriptionGroupLocalizations(requestCtx, groupID, asc.WithSubscriptionGroupLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		})
 	})
 	if err != nil {

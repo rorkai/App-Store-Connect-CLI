@@ -9,6 +9,8 @@ import (
 )
 
 // GetSubscriptionLocalizations retrieves subscription localizations for a subscription.
+//
+// Deprecated: Use GetSubscriptionVersionLocalizations with a subscription version ID.
 func (c *Client) GetSubscriptionLocalizations(ctx context.Context, subscriptionID string, opts ...SubscriptionLocalizationsOption) (*SubscriptionLocalizationsResponse, error) {
 	query := &subscriptionLocalizationsQuery{}
 	for _, opt := range opts {
@@ -39,6 +41,8 @@ func (c *Client) GetSubscriptionLocalizations(ctx context.Context, subscriptionI
 }
 
 // GetSubscriptionLocalization retrieves a subscription localization by ID.
+//
+// Deprecated: Use GetSubscriptionLocalizationV2.
 func (c *Client) GetSubscriptionLocalization(ctx context.Context, localizationID string) (*SubscriptionLocalizationResponse, error) {
 	path := fmt.Sprintf("/v1/subscriptionLocalizations/%s", strings.TrimSpace(localizationID))
 	data, err := c.do(ctx, http.MethodGet, path, nil)
@@ -54,6 +58,8 @@ func (c *Client) GetSubscriptionLocalization(ctx context.Context, localizationID
 }
 
 // CreateSubscriptionLocalization creates a subscription localization.
+//
+// Deprecated: Use CreateSubscriptionLocalizationV2 with a subscription version ID.
 func (c *Client) CreateSubscriptionLocalization(ctx context.Context, subscriptionID string, attrs SubscriptionLocalizationCreateAttributes) (*SubscriptionLocalizationResponse, error) {
 	subscriptionID = strings.TrimSpace(subscriptionID)
 	if subscriptionID == "" {
@@ -93,6 +99,8 @@ func (c *Client) CreateSubscriptionLocalization(ctx context.Context, subscriptio
 }
 
 // UpdateSubscriptionLocalization updates a subscription localization.
+//
+// Deprecated: Use UpdateSubscriptionLocalizationV2.
 func (c *Client) UpdateSubscriptionLocalization(ctx context.Context, localizationID string, attrs SubscriptionLocalizationUpdateAttributes) (*SubscriptionLocalizationResponse, error) {
 	payload := SubscriptionLocalizationUpdateRequest{
 		Data: SubscriptionLocalizationUpdateData{
@@ -121,6 +129,8 @@ func (c *Client) UpdateSubscriptionLocalization(ctx context.Context, localizatio
 }
 
 // DeleteSubscriptionLocalization deletes a subscription localization.
+//
+// Deprecated: Use DeleteSubscriptionLocalizationV2.
 func (c *Client) DeleteSubscriptionLocalization(ctx context.Context, localizationID string) error {
 	path := fmt.Sprintf("/v1/subscriptionLocalizations/%s", strings.TrimSpace(localizationID))
 	_, err := c.do(ctx, http.MethodDelete, path, nil)
@@ -128,6 +138,8 @@ func (c *Client) DeleteSubscriptionLocalization(ctx context.Context, localizatio
 }
 
 // GetSubscriptionImages retrieves subscription images for a subscription.
+//
+// Deprecated: Use GetSubscriptionVersionImages with a subscription version ID.
 func (c *Client) GetSubscriptionImages(ctx context.Context, subscriptionID string, opts ...SubscriptionImagesOption) (*SubscriptionImagesResponse, error) {
 	query := &subscriptionImagesQuery{}
 	for _, opt := range opts {
@@ -157,6 +169,8 @@ func (c *Client) GetSubscriptionImages(ctx context.Context, subscriptionID strin
 }
 
 // GetSubscriptionImage retrieves a subscription image by ID.
+//
+// Deprecated: Use GetSubscriptionImageV2.
 func (c *Client) GetSubscriptionImage(ctx context.Context, imageID string) (*SubscriptionImageResponse, error) {
 	path := fmt.Sprintf("/v1/subscriptionImages/%s", strings.TrimSpace(imageID))
 	data, err := c.do(ctx, http.MethodGet, path, nil)
@@ -172,6 +186,8 @@ func (c *Client) GetSubscriptionImage(ctx context.Context, imageID string) (*Sub
 }
 
 // CreateSubscriptionImage creates a subscription image.
+//
+// Deprecated: Use CreateSubscriptionImageV2 with a subscription version ID.
 func (c *Client) CreateSubscriptionImage(ctx context.Context, subscriptionID, fileName string, fileSize int64) (*SubscriptionImageResponse, error) {
 	subscriptionID = strings.TrimSpace(subscriptionID)
 	if subscriptionID == "" {
@@ -218,6 +234,8 @@ func (c *Client) CreateSubscriptionImage(ctx context.Context, subscriptionID, fi
 }
 
 // UpdateSubscriptionImage updates a subscription image.
+//
+// Deprecated: Use CreateSubscriptionImageV2 for a new upload and UpdateSubscriptionImageV2 to commit its upload state.
 func (c *Client) UpdateSubscriptionImage(ctx context.Context, imageID string, attrs SubscriptionImageUpdateAttributes) (*SubscriptionImageResponse, error) {
 	payload := SubscriptionImageUpdateRequest{
 		Data: SubscriptionImageUpdateData{
@@ -246,6 +264,8 @@ func (c *Client) UpdateSubscriptionImage(ctx context.Context, imageID string, at
 }
 
 // DeleteSubscriptionImage deletes a subscription image.
+//
+// Deprecated: Use DeleteSubscriptionImageV2.
 func (c *Client) DeleteSubscriptionImage(ctx context.Context, imageID string) error {
 	path := fmt.Sprintf("/v1/subscriptionImages/%s", strings.TrimSpace(imageID))
 	_, err := c.do(ctx, http.MethodDelete, path, nil)
@@ -1082,6 +1102,8 @@ func (c *Client) GetSubscriptionPricePointEqualizationsRelationships(ctx context
 }
 
 // CreateSubscriptionSubmission creates a subscription submission.
+//
+// Deprecated: Create a subscription version and add it with CreateReviewSubmissionItem.
 func (c *Client) CreateSubscriptionSubmission(ctx context.Context, subscriptionID string) (*SubscriptionSubmissionResponse, error) {
 	subscriptionID = strings.TrimSpace(subscriptionID)
 	if subscriptionID == "" {
@@ -1120,6 +1142,8 @@ func (c *Client) CreateSubscriptionSubmission(ctx context.Context, subscriptionI
 }
 
 // CreateSubscriptionGroupSubmission creates a subscription group submission.
+//
+// Deprecated: Create a subscription group version and add it with CreateReviewSubmissionItem.
 func (c *Client) CreateSubscriptionGroupSubmission(ctx context.Context, groupID string) (*SubscriptionGroupSubmissionResponse, error) {
 	groupID = strings.TrimSpace(groupID)
 	if groupID == "" {
@@ -1254,6 +1278,8 @@ func (c *Client) DeleteSubscriptionAppStoreReviewScreenshot(ctx context.Context,
 }
 
 // GetSubscriptionGroupLocalizations retrieves subscription group localizations for a group.
+//
+// Deprecated: Use GetSubscriptionGroupVersionLocalizations with a subscription group version ID.
 func (c *Client) GetSubscriptionGroupLocalizations(ctx context.Context, groupID string, opts ...SubscriptionGroupLocalizationsOption) (*SubscriptionGroupLocalizationsResponse, error) {
 	query := &subscriptionGroupLocalizationsQuery{}
 	for _, opt := range opts {
@@ -1283,6 +1309,8 @@ func (c *Client) GetSubscriptionGroupLocalizations(ctx context.Context, groupID 
 }
 
 // GetSubscriptionGroupLocalization retrieves a subscription group localization by ID.
+//
+// Deprecated: Use GetSubscriptionGroupLocalizationV2.
 func (c *Client) GetSubscriptionGroupLocalization(ctx context.Context, localizationID string) (*SubscriptionGroupLocalizationResponse, error) {
 	path := fmt.Sprintf("/v1/subscriptionGroupLocalizations/%s", strings.TrimSpace(localizationID))
 	data, err := c.do(ctx, http.MethodGet, path, nil)
@@ -1298,6 +1326,8 @@ func (c *Client) GetSubscriptionGroupLocalization(ctx context.Context, localizat
 }
 
 // CreateSubscriptionGroupLocalization creates a subscription group localization.
+//
+// Deprecated: Use CreateSubscriptionGroupLocalizationV2 with a subscription group version ID.
 func (c *Client) CreateSubscriptionGroupLocalization(ctx context.Context, groupID string, attrs SubscriptionGroupLocalizationCreateAttributes) (*SubscriptionGroupLocalizationResponse, error) {
 	groupID = strings.TrimSpace(groupID)
 	if groupID == "" {
@@ -1337,6 +1367,8 @@ func (c *Client) CreateSubscriptionGroupLocalization(ctx context.Context, groupI
 }
 
 // UpdateSubscriptionGroupLocalization updates a subscription group localization.
+//
+// Deprecated: Use UpdateSubscriptionGroupLocalizationV2.
 func (c *Client) UpdateSubscriptionGroupLocalization(ctx context.Context, localizationID string, attrs SubscriptionGroupLocalizationUpdateAttributes) (*SubscriptionGroupLocalizationResponse, error) {
 	payload := SubscriptionGroupLocalizationUpdateRequest{
 		Data: SubscriptionGroupLocalizationUpdateData{
@@ -1365,6 +1397,8 @@ func (c *Client) UpdateSubscriptionGroupLocalization(ctx context.Context, locali
 }
 
 // DeleteSubscriptionGroupLocalization deletes a subscription group localization.
+//
+// Deprecated: Use DeleteSubscriptionGroupLocalizationV2.
 func (c *Client) DeleteSubscriptionGroupLocalization(ctx context.Context, localizationID string) error {
 	path := fmt.Sprintf("/v1/subscriptionGroupLocalizations/%s", strings.TrimSpace(localizationID))
 	_, err := c.do(ctx, http.MethodDelete, path, nil)

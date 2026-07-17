@@ -376,7 +376,7 @@ func IAPVersionSubmitCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "submit", ShortUsage: `asc iap versions submit --version-id "VERSION_ID" --submission "SUBMISSION_ID" --confirm`, ShortHelp: "Add an IAP version to a review submission.",
-		LongHelp: "Add an IAP version to a review submission. The legacy `asc iap submit --iap-id` command remains unchanged.\n\nExamples:\n  asc iap versions submit --version-id \"VERSION_ID\" --submission \"SUBMISSION_ID\" --confirm", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: "Add an IAP version to a review submission. This version-scoped workflow replaces the deprecated product-scoped submission resource.\n\nExamples:\n  asc iap versions submit --version-id \"VERSION_ID\" --submission \"SUBMISSION_ID\" --confirm", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := rejectIAPVersionArgs(args); err != nil {
 				return err

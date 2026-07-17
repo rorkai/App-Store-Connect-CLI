@@ -411,7 +411,7 @@ func subscriptionMetadataDiagnostics(subs []Subscription) []CheckResult {
 					ResourceType: "subscriptionGroup",
 					ResourceID:   groupID,
 					Message:      fmt.Sprintf("Subscription group %s has no localizations", groupLabel),
-					Remediation:  "Create at least one subscription group localization (with group display name) via App Store Connect or `asc subscriptions groups localizations create`; this is a common cause of MISSING_METADATA",
+					Remediation:  fmt.Sprintf("Create the localization in App Store Connect, or resolve the subscription group version with `asc subscriptions groups versions list --group-id %[1]q` (creating one with `asc subscriptions groups versions create --group-id %[1]q` if none exists) and run `asc subscriptions groups versions localizations create --version-id \"VERSION_ID\" --locale \"en-US\" --name \"GROUP_NAME\"`; this is a common cause of MISSING_METADATA", fallbackString(groupID, "GROUP_ID")),
 				})
 			} else {
 				for _, loc := range sub.GroupLocalizations {
@@ -458,7 +458,7 @@ func subscriptionMetadataDiagnostics(subs []Subscription) []CheckResult {
 				ResourceType: "subscription",
 				ResourceID:   strings.TrimSpace(sub.ID),
 				Message:      fmt.Sprintf("%s has no localizations (display name and description)", label),
-				Remediation:  "Create at least one subscription localization with display name and description via App Store Connect or `asc subscriptions localizations create`",
+				Remediation:  fmt.Sprintf("Create the localization in App Store Connect, or resolve the subscription version with `asc subscriptions versions list --subscription-id %[1]q` (creating one with `asc subscriptions versions create --subscription-id %[1]q` if none exists) and run `asc subscriptions versions localizations create --version-id \"VERSION_ID\" --locale \"en-US\" --name \"DISPLAY_NAME\" --description \"DESCRIPTION\"`", fallbackString(strings.TrimSpace(sub.ID), "SUB_ID")),
 			})
 		} else {
 			for _, loc := range sub.Localizations {

@@ -22,8 +22,8 @@ func SubscriptionsReviewCommand() *ffcli.Command {
 Examples:
   asc subscriptions review screenshots create --subscription-id "SUB_ID" --file "./screenshot.png"
   asc subscriptions review app-store-screenshot view --subscription-id "SUB_ID"
-  asc subscriptions review submit --subscription-id "SUB_ID" --confirm
-  asc subscriptions review submit-group --group-id "GROUP_ID" --confirm`,
+  asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
+  asc review items add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -41,20 +41,20 @@ Examples:
 				"app-store-screenshot",
 				"Inspect the App Store review screenshot for a subscription.",
 			),
-			wrapSubscriptionsCommand(
+			shared.DeprecatedCommand(wrapSubscriptionsCommand(
 				SubscriptionsSubmitCommand(),
 				"asc subscriptions submit",
 				"asc subscriptions review submit",
 				"submit",
 				"Submit a subscription for review.",
-			),
-			wrapSubscriptionsCommand(
+			), "asc subscriptions review submit", `asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"`),
+			shared.DeprecatedCommand(wrapSubscriptionsCommand(
 				SubscriptionsGroupsSubmitCommand(),
 				"asc subscriptions groups submit",
 				"asc subscriptions review submit-group",
 				"submit-group",
 				"Submit a subscription group for review.",
-			),
+			), "asc subscriptions review submit-group", `asc review items add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"`),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp

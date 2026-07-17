@@ -2,6 +2,7 @@ package cmdtest
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -16,11 +17,12 @@ type capabilitiesTestResponse struct {
 		Statuses            map[string]int `json:"statuses"`
 	} `json:"summary"`
 	Capabilities []struct {
-		Area       string   `json:"area"`
-		Capability string   `json:"capability"`
-		Status     string   `json:"status"`
-		Commands   []string `json:"commands"`
-		Notes      []string `json:"notes"`
+		Area         string   `json:"area"`
+		Capability   string   `json:"capability"`
+		Status       string   `json:"status"`
+		Commands     []string `json:"commands"`
+		APIResources []string `json:"apiResources"`
+		Notes        []string `json:"notes"`
 	} `json:"capabilities"`
 }
 
@@ -60,6 +62,52 @@ func TestRun_CapabilitiesJSONReportsKnownGaps(t *testing.T) {
 	assertCapability(t, resp, "Metadata and localization sync", "cli-supported", "asc metadata validate")
 	assertCapability(t, resp, "App privacy data-use declarations", "web-session", "asc web privacy")
 	assertCapability(t, resp, "Transaction tax reports", "not-public-api", "")
+	assertCapability(t, resp, "Subscriptions and in-app purchases", "cli-supported", "asc review items add")
+	assertMonetizationVersionWorkflow(t, resp)
+}
+
+func assertMonetizationVersionWorkflow(t *testing.T, resp capabilitiesTestResponse) {
+	t.Helper()
+
+	for _, entry := range resp.Capabilities {
+		if entry.Capability != "Subscriptions and in-app purchases" {
+			continue
+		}
+		for _, command := range []string{
+			"asc subscriptions versions create",
+			"asc subscriptions groups versions create",
+			"asc iap versions create",
+			"asc review items add",
+		} {
+			if !slices.Contains(entry.Commands, command) {
+				t.Fatalf("expected monetization commands to include %q, got %v", command, entry.Commands)
+			}
+		}
+		for _, resource := range []string{
+			"subscriptionVersions",
+			"subscriptionGroupVersions",
+			"inAppPurchaseVersions",
+			"reviewSubmissions",
+			"reviewSubmissionItems",
+		} {
+			if !slices.Contains(entry.APIResources, resource) {
+				t.Fatalf("expected monetization API resources to include %q, got %v", resource, entry.APIResources)
+			}
+		}
+		for _, stale := range []string{"asc subscriptions review submit", "asc iap submit"} {
+			if slices.Contains(entry.Commands, stale) {
+				t.Fatalf("did not expect deprecated command %q in monetization capabilities: %v", stale, entry.Commands)
+			}
+		}
+		for _, stale := range []string{"inAppPurchaseSubmissions", "subscriptionSubmissions", "subscriptionGroupSubmissions"} {
+			if slices.Contains(entry.APIResources, stale) {
+				t.Fatalf("did not expect deprecated resource %q in monetization capabilities: %v", stale, entry.APIResources)
+			}
+		}
+		return
+	}
+
+	t.Fatal("monetization capability not found")
 }
 
 func TestRun_CapabilitiesFiltersByStatus(t *testing.T) {

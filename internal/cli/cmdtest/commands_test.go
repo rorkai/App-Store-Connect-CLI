@@ -1298,9 +1298,7 @@ func TestIAPImagesListRejectsInvalidNextURL(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyDeprecatedCommandWarnings(t, stderr)
 }
 
 func TestUsersValidationErrors(t *testing.T) {

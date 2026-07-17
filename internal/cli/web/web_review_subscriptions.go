@@ -102,7 +102,7 @@ func reviewSubscriptionAttachPreflight(appID string, subscription webcore.Review
 		fmt.Fprintln(os.Stderr, "Hint: Check localizations, pricing coverage, and the App Store review screenshot.")
 		fmt.Fprintf(
 			os.Stderr,
-			"Hint: In live testing, a subscription promotional image also mattered even though App Store Connect surfaces it as a recommendation. Upload one with `asc subscriptions images create --subscription-id \"%s\" --file \"./image.png\"` if it is missing.\n",
+			"Hint: In live testing, a subscription promotional image also mattered even though App Store Connect surfaces it as a recommendation. Resolve the version with `asc subscriptions versions list --subscription-id \"%[1]s\"` (or create one with `asc subscriptions versions create --subscription-id \"%[1]s\"` if none exists), then upload one with `asc subscriptions versions images upload --version-id \"VERSION_ID\" --file \"./image.png\"` if it is missing.\n",
 			reviewSubscriptionValue(subscriptionID),
 		)
 	case "":

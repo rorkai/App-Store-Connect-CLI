@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -214,9 +215,13 @@ MISSING_METADATA state fails the command and includes deep diagnostics when
 matrix even when the selected base price is unchanged. Use --no-verify only
 when intentionally skipping these postcondition checks.
 
+The subscription and group localization flags use Apple's deprecated v1
+localization resources and remain only for compatibility. For new workflows,
+create or resolve subscription and group versions, then use their
+version-scoped localization commands.
+
 Examples:
   asc subscriptions setup --app "APP_ID" --group-reference-name "Pro" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH
-  asc subscriptions setup --app "APP_ID" --group-reference-name "Pro" --group-locale "en-US" --group-display-name "Premium" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH --locale "en-US" --display-name "Pro Monthly" --description "Unlock everything" --review-screenshot "./review.png"
   asc subscriptions setup --app "APP_ID" --group-reference-name "Pro" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --price "3.99" --price-territory "United States" --territories "US,Canada"
   asc subscriptions setup --app "APP_ID" --group-reference-name "Pro" --reference-name "Pro Yearly" --product-id "com.example.pro.yearly" --subscription-period ONE_YEAR --enable-monthly-commitment
   asc subscriptions setup --group-id "GROUP_ID" --reference-name "Pro Monthly" --product-id "com.example.pro.monthly" --subscription-period ONE_MONTH --no-verify`,
@@ -321,6 +326,16 @@ Examples:
 				if opts.GroupDisplayName == "" {
 					return shared.UsageError("--group-display-name is required when group localization flags are provided")
 				}
+			}
+			if opts.hasLocalization() || opts.hasGroupLocalization() {
+				guidance := "After setup, create or resolve a subscription version, then use `asc subscriptions versions localizations create --version-id \"SUBSCRIPTION_VERSION_ID\" --name \"NAME\" --locale \"LOCALE\"`."
+				if opts.hasGroupLocalization() && !opts.hasLocalization() {
+					guidance = "After setup, create or resolve a subscription group version, then use `asc subscriptions groups versions localizations create --version-id \"GROUP_VERSION_ID\" --name \"NAME\" --locale \"LOCALE\"`."
+				}
+				if opts.hasLocalization() && opts.hasGroupLocalization() {
+					guidance = "After setup, create or resolve subscription and group versions, then use `asc subscriptions versions localizations create --version-id \"SUBSCRIPTION_VERSION_ID\" --name \"NAME\" --locale \"LOCALE\"` and `asc subscriptions groups versions localizations create --version-id \"GROUP_VERSION_ID\" --name \"NAME\" --locale \"LOCALE\"`."
+				}
+				fmt.Fprintf(os.Stderr, "Warning: localization flags on `asc subscriptions setup` use deprecated v1 localization resources. %s\n", guidance)
 			}
 			if opts.Repair && !opts.hasPricing(*startDate) {
 				return shared.UsageError("--repair requires pricing flags")
@@ -506,7 +521,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 				attrs.CustomAppName = opts.GroupCustomAppName
 			}
 			groupLocCtx, groupLocCancel := shared.ContextWithTimeout(ctx)
-			groupLocalizationResp, err := client.CreateSubscriptionGroupLocalization(groupLocCtx, result.GroupID, attrs)
+			groupLocalizationResp, err := client.CreateSubscriptionGroupLocalization(groupLocCtx, result.GroupID, attrs) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			groupLocCancel()
 			if err != nil {
 				return failSubscriptionsSetupStep(result, subscriptionsSetupStepCreateGroupLocalization, err, "failed to create group localization")
@@ -731,7 +746,7 @@ func executeSubscriptionsSetup(ctx context.Context, opts subscriptionsSetupOptio
 		}
 		if !reusedLocalization {
 			locCtx, locCancel := shared.ContextWithTimeout(ctx)
-			locResp, err := client.CreateSubscriptionLocalization(locCtx, result.SubscriptionID, asc.SubscriptionLocalizationCreateAttributes{
+			locResp, err := client.CreateSubscriptionLocalization(locCtx, result.SubscriptionID, asc.SubscriptionLocalizationCreateAttributes{ //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				Name:        opts.DisplayName,
 				Locale:      opts.Locale,
 				Description: opts.Description,
@@ -1056,7 +1071,7 @@ func verifySubscriptionsSetupState(ctx context.Context, client *asc.Client, resu
 
 	if opts.hasLocalization() {
 		locCtx, locCancel := shared.ContextWithTimeout(ctx)
-		locResp, err := client.GetSubscriptionLocalizations(locCtx, result.SubscriptionID, asc.WithSubscriptionLocalizationsLimit(200))
+		locResp, err := client.GetSubscriptionLocalizations(locCtx, result.SubscriptionID, asc.WithSubscriptionLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		locCancel()
 		if err != nil {
 			verification.Status = "failed"
@@ -1322,7 +1337,7 @@ func findExistingSubscriptionSetupGroupLocalization(ctx context.Context, client 
 	if locale == "" {
 		return asc.Resource[asc.SubscriptionGroupLocalizationAttributes]{}, false, nil
 	}
-	firstPage, err := client.GetSubscriptionGroupLocalizations(ctx, groupID, asc.WithSubscriptionGroupLocalizationsLimit(200))
+	firstPage, err := client.GetSubscriptionGroupLocalizations(ctx, groupID, asc.WithSubscriptionGroupLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 	if err != nil {
 		return asc.Resource[asc.SubscriptionGroupLocalizationAttributes]{}, false, err
 	}
@@ -1331,7 +1346,7 @@ func findExistingSubscriptionSetupGroupLocalization(ctx context.Context, client 
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionGroupLocalizations(ctx, groupID, asc.WithSubscriptionGroupLocalizationsNextURL(nextURL))
+			return client.GetSubscriptionGroupLocalizations(ctx, groupID, asc.WithSubscriptionGroupLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		},
 		func(page asc.PaginatedResponse) error {
 			resp, ok := page.(*asc.SubscriptionGroupLocalizationsResponse)
@@ -1575,7 +1590,7 @@ func findExistingSubscriptionSetupLocalization(ctx context.Context, client *asc.
 	if locale == "" {
 		return asc.Resource[asc.SubscriptionLocalizationAttributes]{}, false, nil
 	}
-	firstPage, err := client.GetSubscriptionLocalizations(ctx, subscriptionID, asc.WithSubscriptionLocalizationsLimit(200))
+	firstPage, err := client.GetSubscriptionLocalizations(ctx, subscriptionID, asc.WithSubscriptionLocalizationsLimit(200)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 	if err != nil {
 		return asc.Resource[asc.SubscriptionLocalizationAttributes]{}, false, err
 	}
@@ -1588,7 +1603,7 @@ func findExistingSubscriptionSetupLocalization(ctx context.Context, client *asc.
 		ctx,
 		firstPage,
 		func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return client.GetSubscriptionLocalizations(ctx, subscriptionID, asc.WithSubscriptionLocalizationsNextURL(nextURL))
+			return client.GetSubscriptionLocalizations(ctx, subscriptionID, asc.WithSubscriptionLocalizationsNextURL(nextURL)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 		},
 		func(page asc.PaginatedResponse) error {
 			resp, ok := page.(*asc.SubscriptionLocalizationsResponse)

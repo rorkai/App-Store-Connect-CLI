@@ -20,7 +20,7 @@ func IAPSubmitCommand() *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm submission")
 	output := shared.BindOutputFlags(fs)
 
-	return &ffcli.Command{
+	return shared.DeprecatedCommand(&ffcli.Command{
 		Name:       "submit",
 		ShortUsage: "asc iap submit --iap-id \"IAP_ID\" --confirm",
 		ShortHelp:  "Submit an in-app purchase for review.",
@@ -54,12 +54,12 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.CreateInAppPurchaseSubmission(requestCtx, iapValue)
+			resp, err := client.CreateInAppPurchaseSubmission(requestCtx, iapValue) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("iap submit: failed to submit: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
-	}
+	}, "asc iap submit", `asc review items add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"`)
 }

@@ -21,7 +21,8 @@ func SubscriptionsGroupsVersionLocalizationsCommand() *ffcli.Command {
 		LongHelp: `Manage version-scoped subscription group localizations.
 
 These commands use the v2 localization API. Existing group-scoped commands at
-asc subscriptions groups localizations remain unchanged.`,
+asc subscriptions groups localizations are deprecated; use these version-scoped
+commands for new workflows.`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			SubscriptionsGroupsVersionLocalizationsListCommand(),

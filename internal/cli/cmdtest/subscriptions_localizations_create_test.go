@@ -70,9 +70,7 @@ func TestSubscriptionsLocalizationsCreateReusesMatchingLocale(t *testing.T) {
 		}
 	})
 
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyCommandDeprecationWarning(t, stderr, subscriptionsLocalizationsCreateDeprecationWarning)
 	if requestCount != 1 {
 		t.Fatalf("expected only localization lookup request, got %d", requestCount)
 	}
@@ -127,9 +125,7 @@ func TestSubscriptionsLocalizationsCreateRejectsDifferentExistingLocale(t *testi
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
-	}
+	assertOnlyCommandDeprecationWarning(t, stderr, subscriptionsLocalizationsCreateDeprecationWarning)
 	if !strings.Contains(runErr.Error(), `localization for locale "en-US" already exists as loc-1`) {
 		t.Fatalf("expected existing localization guidance, got %v", runErr)
 	}
