@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -243,6 +244,15 @@ func reviewItemsListOptions(limit int, next, fields, include, iapVersionFields, 
 	groupFields, err := shared.NormalizeSelection(subscriptionGroupVersionFields, reviewSubmissionItemSubscriptionGroupVersionFields, "--subscription-group-version-fields")
 	if err != nil {
 		return nil, err
+	}
+	if len(iapFields) != 0 && !slices.Contains(includes, "inAppPurchaseVersion") {
+		includes = append(includes, "inAppPurchaseVersion")
+	}
+	if len(subscriptionFields) != 0 && !slices.Contains(includes, "subscriptionVersion") {
+		includes = append(includes, "subscriptionVersion")
+	}
+	if len(groupFields) != 0 && !slices.Contains(includes, "subscriptionGroupVersion") {
+		includes = append(includes, "subscriptionGroupVersion")
 	}
 
 	return []asc.ReviewSubmissionItemsOption{

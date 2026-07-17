@@ -61,19 +61,22 @@ func TestReviewSubmissionsListGlobalSuccess(t *testing.T) {
 
 func TestReviewSubmissionsItemFieldsAutomaticallyIncludeItems(t *testing.T) {
 	tests := []struct {
-		name string
-		args []string
-		path string
+		name       string
+		args       []string
+		path       string
+		wantFields string
 	}{
 		{
-			name: "global list",
-			args: []string{"review", "submissions-list", "--global", "--app", "app-1", "--item-fields", "subscriptionVersion"},
-			path: "/v1/reviewSubmissions",
+			name:       "global list",
+			args:       []string{"review", "submissions-list", "--global", "--app", "app-1", "--item-fields", "subscriptionVersion"},
+			path:       "/v1/reviewSubmissions",
+			wantFields: "subscriptionVersion",
 		},
 		{
-			name: "detail",
-			args: []string{"review", "submissions-get", "--id", "submission-1", "--item-fields", "subscriptionGroupVersion"},
-			path: "/v1/reviewSubmissions/submission-1",
+			name:       "detail",
+			args:       []string{"review", "submissions-get", "--id", "submission-1", "--item-fields", "subscriptionGroupVersion"},
+			path:       "/v1/reviewSubmissions/submission-1",
+			wantFields: "subscriptionGroupVersion",
 		},
 	}
 
@@ -92,8 +95,8 @@ func TestReviewSubmissionsItemFieldsAutomaticallyIncludeItems(t *testing.T) {
 				if got := req.URL.Query().Get("include"); got != "items" {
 					t.Fatalf("include = %q, want items", got)
 				}
-				if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); got == "" {
-					t.Fatal("fields[reviewSubmissionItems] is empty")
+				if got := req.URL.Query().Get("fields[reviewSubmissionItems]"); got != test.wantFields {
+					t.Fatalf("fields[reviewSubmissionItems] = %q, want %q", got, test.wantFields)
 				}
 				body := `{"data":{"type":"reviewSubmissions","id":"submission-1"}}`
 				if strings.Contains(test.name, "list") {
@@ -108,11 +111,88 @@ func TestReviewSubmissionsItemFieldsAutomaticallyIncludeItems(t *testing.T) {
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
-			if err := root.Parse(test.args); err != nil {
-				t.Fatalf("parse error: %v", err)
+			_, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
-			if err := root.Run(context.Background()); err != nil {
-				t.Fatalf("run error: %v", err)
+		})
+	}
+}
+
+func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing.T) {
+	tests := []struct {
+		name          string
+		flag          string
+		field         string
+		wantInclude   string
+		wantQueryName string
+	}{
+		{
+			name:          "in-app purchase version",
+			flag:          "--iap-version-fields",
+			field:         "inAppPurchase",
+			wantInclude:   "inAppPurchaseVersion",
+			wantQueryName: "fields[inAppPurchaseVersions]",
+		},
+		{
+			name:          "subscription version",
+			flag:          "--subscription-version-fields",
+			field:         "subscription",
+			wantInclude:   "subscriptionVersion",
+			wantQueryName: "fields[subscriptionVersions]",
+		},
+		{
+			name:          "subscription group version",
+			flag:          "--subscription-group-version-fields",
+			field:         "subscriptionGroup",
+			wantInclude:   "subscriptionGroupVersion",
+			wantQueryName: "fields[subscriptionGroupVersions]",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setupAuth(t)
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet || req.URL.Path != "/v1/reviewSubmissions/submission-1/items" {
+					t.Fatalf("request = %s %s, want GET /v1/reviewSubmissions/submission-1/items", req.Method, req.URL.Path)
+				}
+				if got := req.URL.Query().Get("include"); got != test.wantInclude {
+					t.Fatalf("include = %q, want %q", got, test.wantInclude)
+				}
+				if got := req.URL.Query().Get(test.wantQueryName); got != test.field {
+					t.Fatalf("%s = %q, want %q", test.wantQueryName, got, test.field)
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+				}, nil
+			})
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			_, stderr := captureOutput(t, func() {
+				if err := root.Parse([]string{"review", "items", "list", "--submission", "submission-1", test.flag, test.field}); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run error: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
 		})
 	}

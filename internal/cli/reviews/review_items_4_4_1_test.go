@@ -96,10 +96,20 @@ func TestReviewListNextConflictsUseFlagPresenceBeforeClientFactory(t *testing.T)
 }
 
 func TestReviewItemsListRejectsPositionalArgsBeforeAuth(t *testing.T) {
+	factoryCalled := false
+	restore := SetReviewItemsClientFactory(func() (*asc.Client, error) {
+		factoryCalled = true
+		return nil, errors.New("poison client factory called")
+	})
+	defer restore()
+
 	cmd := ReviewItemsListCommand()
 	err := cmd.ParseAndRun(context.Background(), []string{"unexpected"})
 	if err == nil || !errors.Is(err, flag.ErrHelp) {
 		t.Fatalf("error = %v, want usage error", err)
+	}
+	if factoryCalled {
+		t.Fatal("client factory called before positional-argument validation")
 	}
 }
 
@@ -123,9 +133,19 @@ func TestReviewSubmissionsValidateIncludeBeforeAuth(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			factoryCalled := false
+			restore := SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+				factoryCalled = true
+				return nil, errors.New("poison client factory called")
+			})
+			defer restore()
+
 			err := test.cmd.ParseAndRun(context.Background(), test.args)
 			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "--include must be one of") {
 				t.Fatalf("error = %v, want include usage error", err)
+			}
+			if factoryCalled {
+				t.Fatal("client factory called before include validation")
 			}
 		})
 	}
