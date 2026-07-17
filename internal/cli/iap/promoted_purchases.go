@@ -13,6 +13,7 @@ import (
 func IAPPromotedPurchasesCommand() *ffcli.Command {
 	cmd := promotedpurchases.PromotedPurchasesCommand()
 	if cmd != nil {
+		lookupAppID := addIAPPromotedPurchaseLookupAppFlag(cmd)
 		cmd.ShortUsage = "asc iap promoted-purchases <subcommand> [flags]"
 		promotedpurchases.ConfigureScopedPromotedPurchasesCommand(cmd, promotedpurchases.ScopedPromotedPurchasesCommandConfig{
 			PathPrefix:      "asc iap promoted-purchases",
@@ -20,7 +21,10 @@ func IAPPromotedPurchasesCommand() *ffcli.Command {
 			ProductSingular: "an in-app purchase",
 			ProductPlural:   "in-app purchases",
 			OwnerIDFlag:     "iap-id",
-			OwnerIDUsage:    "In-app purchase ID",
+			OwnerIDUsage:    "In-app purchase ID, product ID, or exact current name",
+			ResolveOwnerID: func(ctx context.Context, client *asc.Client, selector string) (string, error) {
+				return resolveIAPLookupIDWithTimeout(ctx, client, *lookupAppID, selector)
+			},
 			FetchForOwner: func(ctx context.Context, client *asc.Client, iapID string, opts ...asc.PromotedPurchaseGetOption) (*asc.PromotedPurchaseResponse, error) {
 				return client.GetInAppPurchasePromotedPurchase(ctx, iapID, opts...)
 			},
@@ -42,6 +46,16 @@ Examples:
 		configureIAPPromotedPurchasesCreate(cmd)
 	}
 	return cmd
+}
+
+func addIAPPromotedPurchaseLookupAppFlag(cmd *ffcli.Command) *string {
+	for _, subcommand := range cmd.Subcommands {
+		if subcommand != nil && subcommand.Name == "view" && subcommand.FlagSet != nil {
+			return addIAPLookupAppFlag(subcommand.FlagSet)
+		}
+	}
+	appID := ""
+	return &appID
 }
 
 func configureIAPPromotedPurchasesCreate(cmd *ffcli.Command) {

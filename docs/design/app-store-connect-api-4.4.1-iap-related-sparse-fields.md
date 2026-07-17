@@ -14,12 +14,14 @@ The public additions are endpoint-specific sparse-field flags:
 - `asc iap promoted-purchases list|view ... --iap-fields versions --subscription-fields versions`
 - `asc subscriptions promoted-purchases list|view ... --iap-fields versions --subscription-fields versions`
 
-The IAP-scoped promoted-purchase view also accepts
-`--iap-id IAP_ID` as an alternative to `--promoted-purchase-id PROMO_ID` and
-uses `/v2/inAppPurchases/{id}/promotedPurchase`. Exactly one selector is
-required. The shared scoped-command hook is owner-agnostic so the subscription
-slice can add its symmetric relationship selector without duplicating command
-logic.
+The IAP-scoped promoted-purchase view also accepts `--iap-id IAP_SELECTOR` as
+an alternative to `--promoted-purchase-id PROMO_ID` and uses
+`/v2/inAppPurchases/{id}/promotedPurchase`. The selector follows the established
+IAP convention: an ASC resource ID passes through directly, while a product ID
+or exact current name is resolved inside `--app` or `ASC_APP_ID`. Exactly one
+selector is required. The shared scoped-command hook is owner-agnostic so the
+subscription slice can add its symmetric relationship selector and resolver
+without duplicating command logic.
 
 Both promoted-purchase command scopes expose both related-product sparse-field
 flags because their shared API operations permit both fieldsets. The deprecated

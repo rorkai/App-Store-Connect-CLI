@@ -175,8 +175,9 @@ func TestIAPRelatedReadsPropagateVersionSparseFields441(t *testing.T) {
 					t.Fatalf("query = %v, want exactly %v", req.URL.Query(), tt.wantQuery)
 				}
 				for key, want := range tt.wantQuery {
-					if got := req.URL.Query().Get(key); got != want {
-						t.Fatalf("query %s = %q, want %q", key, got, want)
+					values := req.URL.Query()[key]
+					if len(values) != 1 || values[0] != want {
+						t.Fatalf("query %s = %v, want exactly [%q]", key, values, want)
 					}
 				}
 			}, jsonResponse(http.StatusOK, tt.response))
@@ -190,8 +191,9 @@ func TestIAPRelatedReadsPropagateVersionSparseFields441(t *testing.T) {
 
 func TestIAPRelatedSparseFieldsExplicitIncludesAreDeduplicated441(t *testing.T) {
 	client := newTestClient(t, func(req *http.Request) {
-		if got := req.URL.Query().Get("include"); got != "inAppPurchaseV2" {
-			t.Fatalf("include = %q, want inAppPurchaseV2", got)
+		values := req.URL.Query()["include"]
+		if len(values) != 1 || values[0] != "inAppPurchaseV2" {
+			t.Fatalf("include = %v, want exactly [inAppPurchaseV2]", values)
 		}
 	}, jsonResponse(http.StatusOK, `{"data":{"type":"inAppPurchaseContents","id":"content-1"}}`))
 

@@ -26,6 +26,7 @@ type ScopedPromotedPurchasesCommandConfig struct {
 	RootLongHelp    string
 	OwnerIDFlag     string
 	OwnerIDUsage    string
+	ResolveOwnerID  func(context.Context, *asc.Client, string) (string, error)
 	FetchForOwner   func(context.Context, *asc.Client, string, ...asc.PromotedPurchaseGetOption) (*asc.PromotedPurchaseResponse, error)
 }
 
@@ -242,8 +243,6 @@ Examples:
 			return fmt.Errorf("%s: %w", errorPrefix, err)
 		}
 
-		requestCtx, cancel := shared.ContextWithTimeout(ctx)
-		defer cancel()
 		getOpts := []asc.PromotedPurchaseGetOption{
 			asc.WithPromotedPurchaseIAPFields(iapFields),
 			asc.WithPromotedPurchaseSubscriptionFields(subscriptionFields),
@@ -253,6 +252,15 @@ Examples:
 			if cfg.FetchForOwner == nil {
 				return fmt.Errorf("%s: --%s is not supported", errorPrefix, ownerIDFlag)
 			}
+			if cfg.ResolveOwnerID != nil {
+				ownerID, err = cfg.ResolveOwnerID(ctx, client, ownerID)
+				if err != nil {
+					return err
+				}
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
 			resp, err := cfg.FetchForOwner(requestCtx, client, ownerID, getOpts...)
 			if err != nil {
 				return fmt.Errorf("%s: failed to fetch: %w", errorPrefix, err)
@@ -262,6 +270,8 @@ Examples:
 			return shared.PrintOutput(resp, output, pretty)
 		}
 
+		requestCtx, cancel := shared.ContextWithTimeout(ctx)
+		defer cancel()
 		if err := validatePromotedPurchaseScope(requestCtx, client, promotedPurchaseID, cfg, "view"); err != nil {
 			return err
 		}

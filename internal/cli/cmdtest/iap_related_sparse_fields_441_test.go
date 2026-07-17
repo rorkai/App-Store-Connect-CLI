@@ -59,14 +59,7 @@ func TestIAPRelatedSparseFieldFlagsSendExactQueries441(t *testing.T) {
 				if req.Method != http.MethodGet || req.URL.Path != tt.path {
 					t.Fatalf("request = %s %s, want GET %s", req.Method, req.URL.Path, tt.path)
 				}
-				if len(req.URL.Query()) != len(tt.wantQuery) {
-					t.Fatalf("query = %v, want exactly %v", req.URL.Query(), tt.wantQuery)
-				}
-				for key, want := range tt.wantQuery {
-					if got := req.URL.Query().Get(key); got != want {
-						t.Fatalf("%s = %q, want %q", key, got, want)
-					}
-				}
+				assertExactQueryValues441(t, req, tt.wantQuery)
 				body := tt.response
 				if body == "" {
 					body = `{"data":[` +
@@ -120,6 +113,7 @@ func TestIAPRelatedSparseFieldFlagsSendExactQueries441(t *testing.T) {
 
 func TestIAPPromotedPurchaseViewByOwnerSendsRelationshipQuery441(t *testing.T) {
 	setupSubmitCreateAuth(t)
+	t.Setenv("ASC_APP_ID", "")
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requests++
@@ -131,14 +125,7 @@ func TestIAPPromotedPurchaseViewByOwnerSendsRelationshipQuery441(t *testing.T) {
 			"fields[subscriptions]":  "versions",
 			"include":                "inAppPurchaseV2,subscription",
 		}
-		if len(req.URL.Query()) != len(wantQuery) {
-			t.Fatalf("query = %v, want exactly %v", req.URL.Query(), wantQuery)
-		}
-		for key, want := range wantQuery {
-			if got := req.URL.Query().Get(key); got != want {
-				t.Fatalf("%s = %q, want %q", key, got, want)
-			}
-		}
+		assertExactQueryValues441(t, req, wantQuery)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte("{\"data\":{\"type\":\"promotedPurchases\",\"id\":\"promo-1\"}}"))
 	}))
@@ -160,6 +147,160 @@ func TestIAPPromotedPurchaseViewByOwnerSendsRelationshipQuery441(t *testing.T) {
 	if requests != 1 || !strings.Contains(stdout, "\"id\":\"promo-1\"") {
 		t.Fatalf("requests=%d stdout=%q stderr=%q", requests, stdout, stderr)
 	}
+}
+
+func TestIAPPromotedPurchaseViewResolvesStableSelector441(t *testing.T) {
+	tests := []struct {
+		name         string
+		selector     string
+		useAppEnv    bool
+		wantRequests int
+	}{
+		{name: "product ID via ASC_APP_ID", selector: "com.example.pro", useAppEnv: true, wantRequests: 2},
+		{name: "exact current name", selector: "Premium", wantRequests: 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupSubmitCreateAuth(t)
+			if tt.useAppEnv {
+				t.Setenv("ASC_APP_ID", "app-1")
+			} else {
+				t.Setenv("ASC_APP_ID", "")
+			}
+			requests := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				requests++
+				w.Header().Set("Content-Type", "application/json")
+				switch req.URL.Path {
+				case "/v1/apps/app-1/inAppPurchasesV2":
+					productValues := req.URL.Query()["filter[productId]"]
+					nameValues := req.URL.Query()["filter[name]"]
+					if len(productValues) == 1 {
+						assertExactQueryValues441(t, req, map[string]string{"filter[productId]": tt.selector, "limit": "200"})
+						if tt.selector == "com.example.pro" {
+							_, _ = w.Write([]byte(`{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Premium","productId":"com.example.pro"}}]}`))
+							return
+						}
+						_, _ = w.Write([]byte(`{"data":[]}`))
+						return
+					}
+					if len(nameValues) == 1 {
+						assertExactQueryValues441(t, req, map[string]string{"filter[name]": tt.selector, "limit": "200"})
+						_, _ = w.Write([]byte(`{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Premium","productId":"com.example.other"}}]}`))
+						return
+					}
+					t.Fatalf("unexpected lookup query: %v", req.URL.Query())
+				case "/v2/inAppPurchases/iap-1/promotedPurchase":
+					assertExactQueryValues441(t, req, map[string]string{
+						"fields[inAppPurchases]": "versions",
+						"include":                "inAppPurchaseV2",
+					})
+					_, _ = w.Write([]byte(`{"data":{"type":"promotedPurchases","id":"promo-1"}}`))
+				default:
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+				}
+			}))
+			defer server.Close()
+			setIAPRelatedTestServerClient(t, server)
+
+			args := []string{
+				"iap", "promoted-purchases", "view",
+				"--iap-id", tt.selector,
+				"--iap-fields", "versions",
+				"--output", "json",
+			}
+			if !tt.useAppEnv {
+				args = append(args, "--app", "app-1")
+			}
+			stdout, stderr := captureOutput(t, func() {
+				code := cmd.Run(args, "1.2.3")
+				if code != cmd.ExitSuccess {
+					t.Fatalf("exit code = %d, want %d", code, cmd.ExitSuccess)
+				}
+			})
+			if requests != tt.wantRequests || !strings.Contains(stdout, `"id":"promo-1"`) {
+				t.Fatalf("requests=%d stdout=%q stderr=%q", requests, stdout, stderr)
+			}
+		})
+	}
+}
+
+func TestIAPPromotedPurchaseViewStableSelectorErrors441(t *testing.T) {
+	t.Run("missing app", func(t *testing.T) {
+		setupSubmitCreateAuth(t)
+		t.Setenv("ASC_APP_ID", "")
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+		}))
+		defer server.Close()
+		setIAPRelatedTestServerClient(t, server)
+
+		stdout, stderr := captureOutput(t, func() {
+			if code := cmd.Run([]string{"iap", "promoted-purchases", "view", "--iap-id", "com.example.pro"}, "1.2.3"); code != cmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+			}
+		})
+		if strings.TrimSpace(stdout) != "" || !strings.Contains(stderr, "--app is required (or set ASC_APP_ID) when --iap-id is a product ID or name") {
+			t.Fatalf("stdout=%q stderr=%q", stdout, stderr)
+		}
+	})
+
+	t.Run("ambiguous name", func(t *testing.T) {
+		setupSubmitCreateAuth(t)
+		requests := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			requests++
+			w.Header().Set("Content-Type", "application/json")
+			if req.URL.Path != "/v1/apps/app-1/inAppPurchasesV2" {
+				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			}
+			if req.URL.Query().Get("filter[productId]") == "Premium" {
+				assertExactQueryValues441(t, req, map[string]string{"filter[productId]": "Premium", "limit": "200"})
+				_, _ = w.Write([]byte(`{"data":[]}`))
+				return
+			}
+			assertExactQueryValues441(t, req, map[string]string{"filter[name]": "Premium", "limit": "200"})
+			_, _ = w.Write([]byte(`{"data":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"Premium","productId":"com.example.one"}},{"type":"inAppPurchases","id":"iap-2","attributes":{"name":"Premium","productId":"com.example.two"}}]}`))
+		}))
+		defer server.Close()
+		setIAPRelatedTestServerClient(t, server)
+
+		_, stderr := captureOutput(t, func() {
+			if code := cmd.Run([]string{"iap", "promoted-purchases", "view", "--app", "app-1", "--iap-id", "Premium"}, "1.2.3"); code == cmd.ExitSuccess {
+				t.Fatal("expected ambiguity failure")
+			}
+		})
+		if requests != 2 || !strings.Contains(stderr, "Use the explicit ASC ID to disambiguate") {
+			t.Fatalf("requests=%d stderr=%q", requests, stderr)
+		}
+	})
+
+	t.Run("lookup API error", func(t *testing.T) {
+		setupSubmitCreateAuth(t)
+		requests := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			requests++
+			if req.URL.Path != "/v1/apps/app-1/inAppPurchasesV2" {
+				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			}
+			assertExactQueryValues441(t, req, map[string]string{"filter[productId]": "com.example.pro", "limit": "200"})
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"errors":[{"status":"403","code":"FORBIDDEN.REQUIRED_ROLE","detail":"forbidden"}]}`))
+		}))
+		defer server.Close()
+		setIAPRelatedTestServerClient(t, server)
+
+		_, stderr := captureOutput(t, func() {
+			if code := cmd.Run([]string{"iap", "promoted-purchases", "view", "--app", "app-1", "--iap-id", "com.example.pro"}, "1.2.3"); code == cmd.ExitSuccess {
+				t.Fatal("expected lookup error")
+			}
+		})
+		if requests != 1 || !strings.Contains(stderr, "resolve in-app purchase by product ID") {
+			t.Fatalf("requests=%d stderr=%q", requests, stderr)
+		}
+	})
 }
 
 func TestPromotedPurchasePaginatedScopedListsPruneIncluded441(t *testing.T) {
@@ -191,9 +332,7 @@ func TestPromotedPurchasePaginatedScopedListsPruneIncluded441(t *testing.T) {
 				}
 				w.Header().Set("Content-Type", "application/json")
 				if req.URL.Query().Get("cursor") == "next" {
-					if len(req.URL.Query()) != 1 {
-						t.Fatalf("next query = %v, want opaque cursor only", req.URL.Query())
-					}
+					assertExactQueryValues441(t, req, map[string]string{"cursor": "next"})
 					_, _ = w.Write([]byte(`{"data":[{"type":"promotedPurchases","id":"promo-subscription","relationships":{"subscription":{"data":{"type":"subscriptions","id":"subscription-1"}}}}],"included":[{"type":"subscriptions","id":"subscription-1","attributes":{"versions":["subscription-version"],"name":"Subscription"}}]}`))
 					return
 				}
@@ -204,14 +343,7 @@ func TestPromotedPurchasePaginatedScopedListsPruneIncluded441(t *testing.T) {
 					"include":                "inAppPurchaseV2,subscription",
 					"limit":                  "200",
 				}
-				if len(req.URL.Query()) != len(wantFirstQuery) {
-					t.Fatalf("first query = %v, want exactly %v", req.URL.Query(), wantFirstQuery)
-				}
-				for key, want := range wantFirstQuery {
-					if got := req.URL.Query().Get(key); got != want {
-						t.Fatalf("first query %s = %q, want %q", key, got, want)
-					}
-				}
+				assertExactQueryValues441(t, req, wantFirstQuery)
 				body := `{"data":[{"type":"promotedPurchases","id":"promo-iap","relationships":{"inAppPurchaseV2":{"data":{"type":"inAppPurchases","id":"iap-1"}}}}],"included":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"IAP","versions":["iap-version"]}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/promotedPurchases?cursor=next"}}`
 				_, _ = w.Write([]byte(body))
 			}))
@@ -273,6 +405,7 @@ func TestIAPRelatedSparseFieldValidationPrecedesHTTP441(t *testing.T) {
 		{name: "localizations next conflict", args: []string{"iap", "localizations", "list", "--next", next, "--iap-fields", "versions"}, want: "--next cannot be combined with --iap-fields"},
 		{name: "iap promoted next conflict", args: []string{"iap", "promoted-purchases", "list", "--next", next, "--subscription-fields", "versions"}, want: "--next cannot be combined with --iap-fields or --subscription-fields"},
 		{name: "subscription promoted next conflict", args: []string{"subscriptions", "promoted-purchases", "list", "--next", next, "--iap-fields", "versions"}, want: "--next cannot be combined with --iap-fields or --subscription-fields"},
+		{name: "promoted view missing selector", args: []string{"iap", "promoted-purchases", "view"}, want: "--promoted-purchase-id or --iap-id is required"},
 		{name: "promoted view selector conflict", args: []string{"iap", "promoted-purchases", "view", "--promoted-purchase-id", "promo-1", "--iap-id", "123"}, want: "--promoted-purchase-id and --iap-id are mutually exclusive"},
 	}
 
@@ -323,6 +456,20 @@ func TestIAPRelatedSparseFieldHelp441(t *testing.T) {
 			t.Fatalf("help for %v does not contain %s: %q", tt.path, tt.flag, usage)
 		}
 	}
+
+	iapView := findSubcommand(root, "iap", "promoted-purchases", "view")
+	iapUsage := iapView.UsageFunc(iapView)
+	if !strings.Contains(iapUsage, "In-app purchase ID, product ID, or exact current name") {
+		t.Fatalf("IAP promoted view help does not describe stable selectors: %q", iapUsage)
+	}
+	if !strings.Contains(iapUsage, "App Store Connect app ID (or ASC_APP_ID env; required when --iap-id uses a product ID or name)") {
+		t.Fatalf("IAP promoted view help does not describe app lookup context: %q", iapUsage)
+	}
+
+	subscriptionView := findSubcommand(root, "subscriptions", "promoted-purchases", "view")
+	if usage := subscriptionView.UsageFunc(subscriptionView); strings.Contains(usage, "--app") {
+		t.Fatalf("subscription promoted view unexpectedly changed to expose --app: %q", usage)
+	}
 }
 
 func setIAPRelatedTestServerClient(t *testing.T, server *httptest.Server) {
@@ -332,4 +479,18 @@ func setIAPRelatedTestServerClient(t *testing.T, server *httptest.Server) {
 		return client, nil
 	})
 	t.Cleanup(restore)
+}
+
+func assertExactQueryValues441(t *testing.T, req *http.Request, want map[string]string) {
+	t.Helper()
+	query := req.URL.Query()
+	if len(query) != len(want) {
+		t.Fatalf("query = %v, want exactly %v", query, want)
+	}
+	for key, wantValue := range want {
+		values, ok := query[key]
+		if !ok || len(values) != 1 || values[0] != wantValue {
+			t.Fatalf("query[%q] = %v, want exactly [%q]", key, values, wantValue)
+		}
+	}
 }
