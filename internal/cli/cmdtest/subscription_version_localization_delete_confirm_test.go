@@ -40,8 +40,11 @@ func TestSubscriptionVersionLocalizationDeleteRequiresConfirmBeforeAuthOrHTTP(t 
 		t.Fatalf("stderr = %q, want one missing-confirm diagnostic", stderr)
 	}
 	const usage = "USAGE\n  asc subscriptions versions localizations delete --id \"LOCALIZATION_ID\" --confirm\n"
-	if strings.Count(stderr, usage) != 1 {
-		t.Fatalf("stderr = %q, want command usage once", stderr)
+	if strings.Count(stderr, "USAGE\n") != 1 {
+		t.Fatalf("stderr = %q, want one usage block", stderr)
+	}
+	if !strings.Contains(stderr, usage) {
+		t.Fatalf("stderr = %q, want localization-delete usage", stderr)
 	}
 	if clientFactoryCalled {
 		t.Fatal("authenticated client factory ran before confirmation")
