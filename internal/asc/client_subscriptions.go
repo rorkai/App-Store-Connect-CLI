@@ -621,13 +621,20 @@ func (c *Client) GetSubscriptionAppStoreReviewScreenshotForSubscription(ctx cont
 }
 
 // GetSubscriptionPromotedPurchase retrieves the promoted purchase for a subscription.
-func (c *Client) GetSubscriptionPromotedPurchase(ctx context.Context, subID string) (*PromotedPurchaseResponse, error) {
+func (c *Client) GetSubscriptionPromotedPurchase(ctx context.Context, subID string, opts ...PromotedPurchaseGetOption) (*PromotedPurchaseResponse, error) {
 	subID = strings.TrimSpace(subID)
 	if subID == "" {
 		return nil, fmt.Errorf("subscription ID is required")
 	}
 
+	query := &promotedPurchaseGetQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
 	path := fmt.Sprintf("/v1/subscriptions/%s/promotedPurchase", subID)
+	if queryString := buildPromotedPurchaseGetQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err

@@ -331,6 +331,23 @@ func TestSubscriptionSparseFields441ExactQueries(t *testing.T) {
 			},
 		},
 		{
+			name: "subscription promoted purchase dual sparse fields",
+			path: "/v1/subscriptions/sub-1/promotedPurchase",
+			wantQuery: url.Values{
+				"fields[inAppPurchases]": {"versions"},
+				"fields[subscriptions]":  {"versions"},
+				"include":                {"inAppPurchaseV2,subscription"},
+			},
+			call: func(c *Client) error {
+				_, err := c.GetSubscriptionPromotedPurchase(
+					context.Background(), "sub-1",
+					WithPromotedPurchaseIAPFields([]string{"versions"}),
+					WithPromotedPurchaseSubscriptionFields([]string{"versions"}),
+				)
+				return err
+			},
+		},
+		{
 			name: "subscription promotional offers subscription versions",
 			path: "/v1/subscriptions/sub-1/promotionalOffers",
 			wantQuery: url.Values{

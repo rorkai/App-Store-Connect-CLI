@@ -108,6 +108,22 @@ func TestSubscriptionSparseFields441CommandQueries(t *testing.T) {
 			wantQuery: url.Values{"fields[subscriptions]": {"versions"}, "include": {"subscription"}},
 		},
 		{
+			name: "subscription promoted purchase",
+			args: []string{
+				"subscriptions", "promoted-purchases", "view",
+				"--subscription-id", "123456789",
+				"--iap-fields", "versions",
+				"--subscription-fields", "versions",
+				"--output", "json",
+			},
+			path: "/v1/subscriptions/123456789/promotedPurchase",
+			wantQuery: url.Values{
+				"fields[inAppPurchases]": {"versions"},
+				"fields[subscriptions]":  {"versions"},
+				"include":                {"inAppPurchaseV2,subscription"},
+			},
+		},
+		{
 			name:      "subscription promotional offers",
 			args:      []string{"subscriptions", "offers", "promotional", "list", "--subscription-id", "123456789", "--subscription-fields", "versions", "--output", "json"},
 			path:      "/v1/subscriptions/123456789/promotionalOffers",
@@ -177,6 +193,9 @@ func TestSubscriptionSparseFields441ValidationBeforeClient(t *testing.T) {
 		{"introductory subscription fields", []string{"subscriptions", "offers", "introductory", "list", "--subscription-id", "123456789", "--subscription-fields", "bogus"}, "--subscription-fields must be one of"},
 		{"introductory price point fields", []string{"subscriptions", "offers", "introductory", "list", "--subscription-id", "123456789", "--price-point-fields", "bogus"}, "--price-point-fields must be one of"},
 		{"subscription offer codes", []string{"subscriptions", "offers", "offer-codes", "list", "--subscription-id", "123456789", "--subscription-fields", "bogus"}, "--subscription-fields must be one of"},
+		{"subscription promoted purchase invalid iap fields", []string{"subscriptions", "promoted-purchases", "view", "--subscription-id", "123456789", "--iap-fields", "bogus"}, "--iap-fields must be one of"},
+		{"subscription promoted purchase invalid subscription fields", []string{"subscriptions", "promoted-purchases", "view", "--subscription-id", "123456789", "--subscription-fields", "bogus"}, "--subscription-fields must be one of"},
+		{"subscription promoted purchase selector conflict", []string{"subscriptions", "promoted-purchases", "view", "--subscription-id", "123456789", "--promoted-purchase-id", "promo-1"}, "--promoted-purchase-id and --subscription-id are mutually exclusive"},
 		{"subscription promotional offers", []string{"subscriptions", "offers", "promotional", "list", "--subscription-id", "123456789", "--subscription-fields", "bogus"}, "--subscription-fields must be one of"},
 		{"subscription localizations", []string{"subscriptions", "localizations", "list", "--subscription-id", "123456789", "--subscription-fields", "bogus"}, "--subscription-fields must be one of"},
 		{"subscription fields reject price point field", []string{"subscriptions", "images", "view", "--id", "image-1", "--subscription-fields", "adjustedEqualizations"}, "--subscription-fields must be one of"},

@@ -479,10 +479,15 @@ func TestIAPRelatedSparseFieldHelp441(t *testing.T) {
 	}
 
 	subscriptionView := findSubcommand(root, "subscriptions", "promoted-purchases", "view")
-	if usage := subscriptionView.UsageFunc(subscriptionView); strings.Contains(usage, "--app") {
-		t.Fatalf("subscription promoted view unexpectedly changed to expose --app: %q", usage)
+	subscriptionUsage := subscriptionView.UsageFunc(subscriptionView)
+	if !strings.Contains(subscriptionUsage, "--subscription-id SUBSCRIPTION_SELECTOR") ||
+		!strings.Contains(subscriptionUsage, "Subscription ID, product ID, or exact current name") ||
+		!strings.Contains(subscriptionUsage, subscriptionLookupAppUsageForTest) {
+		t.Fatalf("subscription promoted view does not expose the stable selector contract: %q", subscriptionUsage)
 	}
 }
+
+const subscriptionLookupAppUsageForTest = "App Store Connect app ID (or ASC_APP_ID env; required when --subscription-id uses a product ID or name)"
 
 func setIAPRelatedTestServerClient(t *testing.T, server *httptest.Server) {
 	t.Helper()

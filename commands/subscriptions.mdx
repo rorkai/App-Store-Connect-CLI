@@ -778,6 +778,39 @@ Current CLI behavior:
   before creating MONTHLY `subscriptionPrices`, as required by Apple.
 * Creates MONTHLY `subscriptionPrices` for each eligible territory at `--price`.
 
+## API 4.4.1 Related Sparse Fields
+
+App Store Connect API 4.4.1 adds version and adjusted-equalization fields to
+existing subscription relationship reads. Use the long-form flag matching the
+related resource:
+
+```bash  theme={null}
+# Include subscription versions with a relationship read
+asc subscriptions offers promotional list \
+  --subscription-id "SUBSCRIPTION_SELECTOR" \
+  --subscription-fields versions
+
+# Include subscription-group versions with deprecated v1 group localizations
+asc subscriptions groups localizations list \
+  --group-id "GROUP_ID" \
+  --group-fields versions
+
+# Include adjusted equalizations with offer prices
+asc subscriptions offers promotional prices \
+  --id "OFFER_ID" \
+  --price-point-fields adjustedEqualizations
+
+# Select adjusted equalizations on a price-point detail read
+asc subscriptions pricing price-points view \
+  --price-point-id "PRICE_POINT_ID" \
+  --fields adjustedEqualizations
+```
+
+Related sparse fields automatically add the required include relationship. Do
+not combine them with `--next`; the next-page URL already contains the server's
+query state. The product-scoped v1 localization and image commands remain
+deprecated: use the version-scoped commands below for writes and new workflows.
+
 Monthly with 12-Month Commitment is available only outside the United States and
 Singapore, requires devices on OS version 26.4 or later, excludes watchOS, and
 requires apps built with SDK 26.5 or later.
@@ -994,6 +1027,13 @@ asc subscriptions promoted-purchases list \
 asc subscriptions promoted-purchases view \
   --promoted-purchase-id "PROMO_ID"
 
+# View the promoted purchase attached to a subscription selector
+asc subscriptions promoted-purchases view \
+  --app "APP_ID" \
+  --subscription-id "SUBSCRIPTION_SELECTOR" \
+  --subscription-fields versions \
+  --iap-fields versions
+
 # Create promoted subscription
 asc subscriptions promoted-purchases create \
   --app "APP_ID" \
@@ -1005,6 +1045,12 @@ asc subscriptions promoted-purchases link \
   --app "APP_ID" \
   --promoted-purchase-id "PROMO_ID"
 ```
+
+Provide exactly one of `--promoted-purchase-id` or
+`--subscription-id SUBSCRIPTION_SELECTOR`. `SUBSCRIPTION_SELECTOR` accepts an
+ASC subscription ID, product ID, or exact current name. Product IDs and names
+require `--app "APP_ID"` or `ASC_APP_ID`. The sparse-field flags automatically
+include the matching `subscription` and `inAppPurchaseV2` relationships.
 
 ## Submission
 
