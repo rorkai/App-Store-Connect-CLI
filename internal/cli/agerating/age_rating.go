@@ -318,6 +318,9 @@ func validateAgeRatingDependencies(attrs asc.AgeRatingDeclarationAttributes) err
 	if boolIsTrue(attrs.SocialMediaAgeRestricted) && boolIsFalse(attrs.SocialMedia) {
 		return shared.UsageError("--social-media-age-restricted true cannot be combined with --social-media false")
 	}
+	if boolIsTrue(attrs.SocialMediaAgeRestricted) && boolIsFalse(attrs.UserGeneratedContent) {
+		return shared.UsageError("--social-media-age-restricted true cannot be combined with --user-generated-content false")
+	}
 	return nil
 }
 

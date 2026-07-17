@@ -171,6 +171,20 @@ func TestAgeRatingHelpers(t *testing.T) {
 	}
 }
 
+func TestValidateAgeRatingDependenciesRejectsTransitiveUGCContradiction(t *testing.T) {
+	trueValue := true
+	falseValue := false
+
+	err := validateAgeRatingDependencies(asc.AgeRatingDeclarationAttributes{
+		AgeAssurance:             &trueValue,
+		SocialMediaAgeRestricted: &trueValue,
+		UserGeneratedContent:     &falseValue,
+	})
+	if err == nil || !strings.Contains(err.Error(), "--social-media-age-restricted true cannot be combined with --user-generated-content false") {
+		t.Fatalf("expected transitive user-generated-content dependency error, got %v", err)
+	}
+}
+
 func TestValidateAgeRatingDependenciesAllowsPartialUpdates(t *testing.T) {
 	trueValue := true
 	falseValue := false

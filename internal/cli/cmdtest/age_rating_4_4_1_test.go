@@ -118,6 +118,15 @@ func TestAgeRatingEditRejectsExplicitDependencyContradictions(t *testing.T) {
 			wantErr: "--social-media-age-restricted true cannot be combined with --social-media false",
 		},
 		{
+			name: "age restricted social media with user generated content disabled",
+			args: []string{
+				"age-rating", "edit", "--id", "age-441",
+				"--social-media-age-restricted", "true",
+				"--user-generated-content", "false",
+			},
+			wantErr: "--social-media-age-restricted true cannot be combined with --user-generated-content false",
+		},
+		{
 			name: "all none materializes conflicting false prerequisites",
 			args: []string{
 				"age-rating", "edit", "--id", "age-441",
