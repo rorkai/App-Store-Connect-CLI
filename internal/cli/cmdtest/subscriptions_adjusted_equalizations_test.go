@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -267,16 +269,46 @@ func TestSubscriptionsPricePointEqualizationsKeepTerritoryInSparseFields(t *test
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			setupAuth(t)
-			installDefaultTransport(t, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				wantPath := "/v1/subscriptionPricePoints/base-1/" + test.path
 				if req.Method != http.MethodGet || req.URL.Path != wantPath {
-					t.Fatalf("unexpected request: %s %s", req.Method, req.URL)
+					t.Errorf("unexpected request: %s %s", req.Method, req.URL)
+					return
 				}
 				if got, want := req.URL.RawQuery, test.wantQuery.Encode(); got != want {
-					t.Fatalf("query=%q, want %q", got, want)
+					t.Errorf("query=%q, want %q", got, want)
+					return
 				}
-				return jsonResponse(http.StatusOK, `{"data":[{"type":"subscriptionPricePoints","id":"point-1"}],"links":{}}`)
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `{"data":[{"type":"subscriptionPricePoints","id":"point-1"}],"links":{}}`)
 			}))
+			t.Cleanup(server.Close)
+
+			transport, ok := server.Client().Transport.(*http.Transport)
+			if !ok {
+				t.Fatalf("server transport type = %T, want *http.Transport", server.Client().Transport)
+			}
+			transport = transport.Clone()
+			transport.Proxy = nil
+			transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+			transport.TLSClientConfig.ServerName = "example.com"
+			dialer := &net.Dialer{}
+			transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+				return dialer.DialContext(ctx, network, server.Listener.Addr().String())
+			}
+			client, err := asc.NewClientWithHTTPClient(
+				"TEST_KEY",
+				"TEST_ISSUER",
+				os.Getenv("ASC_PRIVATE_KEY_PATH"),
+				&http.Client{Transport: transport},
+			)
+			if err != nil {
+				t.Fatalf("new test client: %v", err)
+			}
+			restore := subscriptionscli.SetPricePointsClientFactory(func() (*asc.Client, error) {
+				return client, nil
+			})
+			t.Cleanup(restore)
 
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
