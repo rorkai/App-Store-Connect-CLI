@@ -1052,11 +1052,11 @@ PROMOTIONAL_IMAGE="./promo.png"
 REVIEW_SCREENSHOT="./review.png"
 
 # 1. Resolve the group by exact reference name, or create it once.
-GROUPS=$(asc subscriptions groups list \
+GROUP_LIST=$(asc subscriptions groups list \
   --app "$APP_ID" \
   --paginate \
   --output json)
-GROUP_IDS=$(echo "$GROUPS" | jq -r --arg name "$GROUP_REFERENCE_NAME" \
+GROUP_IDS=$(echo "$GROUP_LIST" | jq -r --arg name "$GROUP_REFERENCE_NAME" \
   '.data[] | select(.attributes.referenceName == $name) | .id')
 GROUP_COUNT=$(printf '%s\n' "$GROUP_IDS" | sed '/^$/d' | wc -l | tr -d ' ')
 
