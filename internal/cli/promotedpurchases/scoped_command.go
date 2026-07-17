@@ -517,6 +517,7 @@ func filterPromotedPurchasesByProductType(ctx context.Context, client *asc.Clien
 	}
 
 	filtered := resp.Data[:0]
+	retainedProducts := make(map[string]struct{}, len(resp.Data))
 	for _, item := range resp.Data {
 		scope, err := promotedPurchaseScopeForResource(ctx, client, item)
 		if err != nil {
@@ -524,10 +525,59 @@ func filterPromotedPurchasesByProductType(ctx context.Context, client *asc.Clien
 		}
 		if scope.productType == productType {
 			filtered = append(filtered, item)
+			retainedProducts[promotedPurchaseProductResourceKey(scope)] = struct{}{}
 		}
 	}
 	resp.Data = filtered
+
+	included, err := filterPromotedPurchaseIncluded(resp.Included, retainedProducts)
+	if err != nil {
+		return err
+	}
+	resp.Included = included
 	return nil
+}
+
+func promotedPurchaseProductResourceKey(scope promotedPurchaseScope) string {
+	resourceType := asc.ResourceTypeInAppPurchases
+	if scope.productType == promotedPurchaseProductTypeSubscription {
+		resourceType = asc.ResourceTypeSubscriptions
+	}
+	return string(resourceType) + "\x00" + scope.productID
+}
+
+func filterPromotedPurchaseIncluded(included json.RawMessage, retainedProducts map[string]struct{}) (json.RawMessage, error) {
+	if len(included) == 0 || string(included) == "null" {
+		return included, nil
+	}
+
+	var resources []json.RawMessage
+	if err := json.Unmarshal(included, &resources); err != nil {
+		return nil, fmt.Errorf("parse promoted purchase included resources: %w", err)
+	}
+
+	filtered := make([]json.RawMessage, 0, len(resources))
+	for _, resource := range resources {
+		var identifier struct {
+			Type asc.ResourceType `json:"type"`
+			ID   string           `json:"id"`
+		}
+		if err := json.Unmarshal(resource, &identifier); err != nil {
+			return nil, fmt.Errorf("parse promoted purchase included resource: %w", err)
+		}
+		if strings.TrimSpace(string(identifier.Type)) == "" || strings.TrimSpace(identifier.ID) == "" {
+			return nil, fmt.Errorf("parse promoted purchase included resource: missing type or id")
+		}
+		if _, ok := retainedProducts[string(identifier.Type)+"\x00"+identifier.ID]; ok {
+			filtered = append(filtered, resource)
+		}
+	}
+
+	encoded, err := json.Marshal(filtered)
+	if err != nil {
+		return nil, fmt.Errorf("encode promoted purchase included resources: %w", err)
+	}
+	return encoded, nil
 }
 
 func collectPreservedPromotedPurchaseIDs(ctx context.Context, client *asc.Client, appID string, scopedType promotedPurchaseProductType) ([]string, error) {

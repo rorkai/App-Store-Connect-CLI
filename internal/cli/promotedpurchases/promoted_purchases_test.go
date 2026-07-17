@@ -2,6 +2,7 @@ package promotedpurchases
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"path/filepath"
@@ -101,6 +102,64 @@ func TestScopedPromotedPurchasesDetailCommandsUseScopedErrorPrefixes(t *testing.
 			wantPrefix := "iap promoted-purchases " + tt.name + ":"
 			if !strings.HasPrefix(err.Error(), wantPrefix) {
 				t.Fatalf("expected error prefix %q, got %q", wantPrefix, err.Error())
+			}
+		})
+	}
+}
+
+func TestFilterPromotedPurchaseIncludedPreservesRetainedResourcesAndOrder(t *testing.T) {
+	included := json.RawMessage(`[{"type":"inAppPurchases","id":"iap-2","attributes":{"versions":["v2"],"name":"Second"}},{"type":"subscriptions","id":"subscription-1","attributes":{"versions":["subscription-version"]}},{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"First","versions":["v1"]}}]`)
+	retained := map[string]struct{}{
+		promotedPurchaseProductResourceKey(promotedPurchaseScope{productType: promotedPurchaseProductTypeInAppPurchase, productID: "iap-1"}): {},
+		promotedPurchaseProductResourceKey(promotedPurchaseScope{productType: promotedPurchaseProductTypeInAppPurchase, productID: "iap-2"}): {},
+	}
+
+	got, err := filterPromotedPurchaseIncluded(included, retained)
+	if err != nil {
+		t.Fatalf("filterPromotedPurchaseIncluded() error: %v", err)
+	}
+	want := `[{"type":"inAppPurchases","id":"iap-2","attributes":{"versions":["v2"],"name":"Second"}},{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"First","versions":["v1"]}}]`
+	if string(got) != want {
+		t.Fatalf("included = %s, want exact retained attributes and order %s", got, want)
+	}
+}
+
+func TestFilterPromotedPurchaseIncludedNilAndNullAreNoOps(t *testing.T) {
+	tests := []struct {
+		name     string
+		included json.RawMessage
+	}{
+		{name: "nil"},
+		{name: "null", included: json.RawMessage("null")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := filterPromotedPurchaseIncluded(tt.included, nil)
+			if err != nil {
+				t.Fatalf("filterPromotedPurchaseIncluded() error: %v", err)
+			}
+			if string(got) != string(tt.included) {
+				t.Fatalf("included = %q, want unchanged %q", got, tt.included)
+			}
+		})
+	}
+}
+
+func TestFilterPromotedPurchaseIncludedRejectsMissingIdentifiers(t *testing.T) {
+	tests := []struct {
+		name     string
+		included json.RawMessage
+	}{
+		{name: "missing type", included: json.RawMessage(`[{"id":"iap-1","attributes":{"name":"Premium"}}]`)},
+		{name: "missing id", included: json.RawMessage(`[{"type":"inAppPurchases","attributes":{"name":"Premium"}}]`)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := filterPromotedPurchaseIncluded(tt.included, nil)
+			if err == nil || !strings.Contains(err.Error(), "missing type or id") {
+				t.Fatalf("error = %v, want missing type or id", err)
 			}
 		})
 	}

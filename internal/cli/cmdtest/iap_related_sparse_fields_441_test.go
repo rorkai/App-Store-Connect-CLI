@@ -1,6 +1,7 @@
 package cmdtest
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,8 +19,8 @@ func TestIAPRelatedSparseFieldFlagsSendExactQueries441(t *testing.T) {
 		path         string
 		wantQuery    map[string]string
 		response     string
-		relationship string
-		resourceType string
+		wantDataID   string
+		wantIncluded string
 	}{
 		{
 			name: "content", args: []string{"iap", "content", "view", "--content-id", "content-1", "--iap-fields", "versions", "--output", "json"},
@@ -36,7 +37,7 @@ func TestIAPRelatedSparseFieldFlagsSendExactQueries441(t *testing.T) {
 				"fields[subscriptions]":  "versions",
 				"include":                "inAppPurchaseV2,subscription",
 			},
-			relationship: "inAppPurchaseV2", resourceType: "inAppPurchases",
+			wantDataID: "promo-iap", wantIncluded: "inAppPurchases:iap-1",
 		},
 		{
 			name: "subscription promoted list", args: []string{"subscriptions", "promoted-purchases", "list", "--app", "app-1", "--iap-fields", "versions", "--subscription-fields", "versions", "--output", "json"},
@@ -45,7 +46,7 @@ func TestIAPRelatedSparseFieldFlagsSendExactQueries441(t *testing.T) {
 				"fields[subscriptions]":  "versions",
 				"include":                "inAppPurchaseV2,subscription",
 			},
-			relationship: "subscription", resourceType: "subscriptions",
+			wantDataID: "promo-subscription", wantIncluded: "subscriptions:subscription-1",
 		},
 	}
 
@@ -68,8 +69,13 @@ func TestIAPRelatedSparseFieldFlagsSendExactQueries441(t *testing.T) {
 				}
 				body := tt.response
 				if body == "" {
-					body = "{\"data\":[{\"type\":\"promotedPurchases\",\"id\":\"promo-1\",\"relationships\":{\"" +
-						tt.relationship + "\":{\"data\":{\"type\":\"" + tt.resourceType + "\",\"id\":\"product-1\"}}}}]}"
+					body = `{"data":[` +
+						`{"type":"promotedPurchases","id":"promo-iap","relationships":{"inAppPurchaseV2":{"data":{"type":"inAppPurchases","id":"iap-1"}}}},` +
+						`{"type":"promotedPurchases","id":"promo-subscription","relationships":{"subscription":{"data":{"type":"subscriptions","id":"subscription-1"}}}}` +
+						`],"included":[` +
+						`{"type":"inAppPurchases","id":"iap-1","attributes":{"versions":"iap-version"}},` +
+						`{"type":"subscriptions","id":"subscription-1","attributes":{"versions":"subscription-version"}}` +
+						`]}`
 				}
 				w.Header().Set("Content-Type", "application/json")
 				_, _ = w.Write([]byte(body))
@@ -87,6 +93,26 @@ func TestIAPRelatedSparseFieldFlagsSendExactQueries441(t *testing.T) {
 			}
 			if !strings.Contains(stdout, "\"data\"") {
 				t.Fatalf("stdout = %q, want JSON response; stderr=%q", stdout, stderr)
+			}
+			if tt.wantDataID != "" {
+				var output struct {
+					Data []struct {
+						ID string `json:"id"`
+					} `json:"data"`
+					Included []struct {
+						Type string `json:"type"`
+						ID   string `json:"id"`
+					} `json:"included"`
+				}
+				if err := json.Unmarshal([]byte(stdout), &output); err != nil {
+					t.Fatalf("decode stdout: %v; stdout=%q stderr=%q", err, stdout, stderr)
+				}
+				if len(output.Data) != 1 || output.Data[0].ID != tt.wantDataID {
+					t.Fatalf("data = %+v, want only %q", output.Data, tt.wantDataID)
+				}
+				if len(output.Included) != 1 || output.Included[0].Type+":"+output.Included[0].ID != tt.wantIncluded {
+					t.Fatalf("included = %+v, want only %q", output.Included, tt.wantIncluded)
+				}
 			}
 		})
 	}
@@ -133,6 +159,102 @@ func TestIAPPromotedPurchaseViewByOwnerSendsRelationshipQuery441(t *testing.T) {
 	})
 	if requests != 1 || !strings.Contains(stdout, "\"id\":\"promo-1\"") {
 		t.Fatalf("requests=%d stdout=%q stderr=%q", requests, stdout, stderr)
+	}
+}
+
+func TestPromotedPurchasePaginatedScopedListsPruneIncluded441(t *testing.T) {
+	tests := []struct {
+		name         string
+		command      []string
+		wantDataID   string
+		wantIncluded string
+		wantVersion  string
+	}{
+		{
+			name: "iap scope", command: []string{"iap", "promoted-purchases", "list"},
+			wantDataID: "promo-iap", wantIncluded: "inAppPurchases:iap-1", wantVersion: "iap-version",
+		},
+		{
+			name: "subscription scope", command: []string{"subscriptions", "promoted-purchases", "list"},
+			wantDataID: "promo-subscription", wantIncluded: "subscriptions:subscription-1", wantVersion: "subscription-version",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupSubmitCreateAuth(t)
+			requests := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				requests++
+				if req.Method != http.MethodGet || req.URL.Path != "/v1/apps/app-1/promotedPurchases" {
+					t.Fatalf("request = %s %s, want promoted-purchases GET", req.Method, req.URL.Path)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				if req.URL.Query().Get("cursor") == "next" {
+					if len(req.URL.Query()) != 1 {
+						t.Fatalf("next query = %v, want opaque cursor only", req.URL.Query())
+					}
+					_, _ = w.Write([]byte(`{"data":[{"type":"promotedPurchases","id":"promo-subscription","relationships":{"subscription":{"data":{"type":"subscriptions","id":"subscription-1"}}}}],"included":[{"type":"subscriptions","id":"subscription-1","attributes":{"versions":["subscription-version"],"name":"Subscription"}}]}`))
+					return
+				}
+
+				wantFirstQuery := map[string]string{
+					"fields[inAppPurchases]": "versions",
+					"fields[subscriptions]":  "versions",
+					"include":                "inAppPurchaseV2,subscription",
+					"limit":                  "200",
+				}
+				if len(req.URL.Query()) != len(wantFirstQuery) {
+					t.Fatalf("first query = %v, want exactly %v", req.URL.Query(), wantFirstQuery)
+				}
+				for key, want := range wantFirstQuery {
+					if got := req.URL.Query().Get(key); got != want {
+						t.Fatalf("first query %s = %q, want %q", key, got, want)
+					}
+				}
+				body := `{"data":[{"type":"promotedPurchases","id":"promo-iap","relationships":{"inAppPurchaseV2":{"data":{"type":"inAppPurchases","id":"iap-1"}}}}],"included":[{"type":"inAppPurchases","id":"iap-1","attributes":{"name":"IAP","versions":["iap-version"]}}],"links":{"next":"https://api.appstoreconnect.apple.com/v1/apps/app-1/promotedPurchases?cursor=next"}}`
+				_, _ = w.Write([]byte(body))
+			}))
+			defer server.Close()
+			setIAPRelatedTestServerClient(t, server)
+
+			args := append(append([]string{}, tt.command...), "--app", "app-1", "--iap-fields", "versions", "--subscription-fields", "versions", "--paginate", "--output", "json")
+			exitCode := -1
+			stdout, stderr := captureOutput(t, func() {
+				exitCode = cmd.Run(args, "1.2.3")
+			})
+			if exitCode != cmd.ExitSuccess {
+				t.Fatalf("exit code = %d, want %d; stdout=%q stderr=%q", exitCode, cmd.ExitSuccess, stdout, stderr)
+			}
+			if requests != 2 {
+				t.Fatalf("requests = %d, want two pages", requests)
+			}
+
+			var output struct {
+				Data []struct {
+					ID string `json:"id"`
+				} `json:"data"`
+				Included []struct {
+					Type       string `json:"type"`
+					ID         string `json:"id"`
+					Attributes struct {
+						Versions []string `json:"versions"`
+					} `json:"attributes"`
+				} `json:"included"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &output); err != nil {
+				t.Fatalf("decode stdout: %v; stdout=%q stderr=%q", err, stdout, stderr)
+			}
+			if len(output.Data) != 1 || output.Data[0].ID != tt.wantDataID {
+				t.Fatalf("data = %+v, want only %q", output.Data, tt.wantDataID)
+			}
+			if len(output.Included) != 1 || output.Included[0].Type+":"+output.Included[0].ID != tt.wantIncluded {
+				t.Fatalf("included = %+v, want only %q", output.Included, tt.wantIncluded)
+			}
+			if len(output.Included[0].Attributes.Versions) != 1 || output.Included[0].Attributes.Versions[0] != tt.wantVersion {
+				t.Fatalf("included attributes = %+v, want version %q", output.Included[0].Attributes, tt.wantVersion)
+			}
+		})
 	}
 }
 

@@ -1,4 +1,4 @@
-# App Store Connect API 4.4.1 IAP related sparse fields
+# App Store Connect API 4.4.1 IAP-related sparse fields
 
 ## Placement and command shape
 
