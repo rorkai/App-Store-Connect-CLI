@@ -84,7 +84,7 @@ separately and has no invented landed `main` commit:
 | Final 4.4.1 coverage ledger | #1789 | `51b3a962` | `d6d8d94b` | Merged and `main`-gated; documentation only |
 | Subscription localization delete-confirmation coverage | #1790 | `49eda126` | `73466720` | Merged; test only |
 | Hardened public 4.4.1 command workflows | #1791 | `e9c2a0dc` | `e902d375` | Merged; documentation only; current #1792 base |
-| Seven-property nullable request fidelity | #1792 | `f5e447ef` implementation head | - | Open and pre-merge; no landed `main` SHA |
+| Seven-property nullable request fidelity | #1792 | `db3657b6` implementation head | - | Open and pre-merge; no landed `main` SHA |
 | External ASC workflow skills | rorkai/app-store-connect-cli-skills#50 | `61b9634` | `e5561a9` | Merged; landed tree revalidated |
 
 The hard audit fixed contract gaps beyond the initial six implementation PRs:
@@ -104,8 +104,10 @@ preserve all three states for `socialMedia`, `socialMediaAgeRestricted`, the two
 v2 localization `description` properties, v2 group-localization
 `customAppName`, and the two v2 image `uploaded` properties. Its exact audited
 implementation head is
-`f5e447efd75fe902fc46570ed8ce19715ab1051c`. This documentation follow-up is a
-later commit on the same open PR, so `f5e447ef` is deliberately recorded as the
+`db3657b6c6e88ebbf7f0da59137c92df99931e59`. That head also preserves the
+legacy omission behavior for a whitespace-only `customAppName` while retaining
+explicit JSON `null`. This documentation follow-up is a later commit on the same
+open PR, so `db3657b6` is deliberately recorded as the
 implementation head rather than misrepresented as a self-referential final PR
 head.
 
@@ -336,7 +338,7 @@ change.
 | Subscription-group reads | Group detail and app-group collection reads gain version includes, sparse fields, and relationship limits; group sparse fields gain `versions` | #1780 | `48d04e0b`; exact query, owner/next validation, and compatibility tests |
 | Review submission reads | Review-item sparse fields and includes gain `inAppPurchaseVersion`, `subscriptionVersion`, and `subscriptionGroupVersion` | #1781 | `aba35e0a`; all four changed GET surfaces, automatic item inclusion, and response round-trip tests |
 | Pricing reads | Price-point sparse fields gain `adjustedEqualizations`; existing equalization and price-point relationship operations gain `filter[upfrontPricePointId]` and `filter[planType]` where allowed | #1778 | `39284b0a`; endpoint-specific option, exact query, strict CSV/enums, territory inclusion, opaque-next, ID validation, and aggregation tests |
-| Age rating reads and update | Age-rating sparse fields and update schema gain `socialMedia` and `socialMediaAgeRestricted` | #1778 and #1792 | `39284b0a` added the fields and CLI behavior; #1792 implementation head `f5e447ef` adds exact omit/value/null request encoding |
+| Age rating reads and update | Age-rating sparse fields and update schema gain `socialMedia` and `socialMediaAgeRestricted` | #1778 and #1792 | `39284b0a` added the fields and CLI behavior; #1792 implementation head `db3657b6` adds exact omit/value/null request encoding |
 | App info reads | `AppInfo.attributes.kidsAgeBand` and `fields[appInfos]=kidsAgeBand` appear as deprecated additions | #1778 | `39284b0a`; generic decoding/output characterization, no new write path |
 | Included-resource unions | IAP, subscription, group, and review-submission responses gain their corresponding version resource discriminators | #1777, #1779, #1780, #1781 | `ee40c7b3`, `c8f3ab52`, `48d04e0b`, `aba35e0a`; typed response and included-resource tests |
 
@@ -369,7 +371,7 @@ remained at the immediate pre-PR base.
 Still different before the 4.4.1 schema PR:
 
 - [x] `AgeRatingDeclaration` - two social-media Boolean attributes (#1778, `39284b0a`)
-- [x] `AgeRatingDeclarationUpdateRequest` - two social-media update attributes added in #1778 (`39284b0a`); exact omit/value/null fidelity first implemented in #1792 at `f5e447ef`
+- [x] `AgeRatingDeclarationUpdateRequest` - two social-media update attributes added in #1778 (`39284b0a`); exact omit/value/null fidelity first implemented in #1792 at `db3657b6`
 - [x] `AppInfo` - deprecated `kidsAgeBand` read attribute (#1778, `39284b0a`)
 - [x] `InAppPurchaseV2` - versions relationship (#1777, `ee40c7b3`)
 - [x] `InAppPurchaseV2Response` - included IAP-version discriminator (#1777, `ee40c7b3`)
@@ -448,13 +450,13 @@ round-trip tests):
 - [x] `InAppPurchaseVersionImagesLinkagesResponse`
 - [x] `InAppPurchaseVersionLocalizationsLinkagesResponse`
 - [x] `InAppPurchaseLocalizationV2`
-- [x] `InAppPurchaseLocalizationV2CreateRequest` - nullable create description completed by #1792 at `f5e447ef`
+- [x] `InAppPurchaseLocalizationV2CreateRequest` - nullable create description completed by #1792 at `db3657b6`
 - [x] `InAppPurchaseLocalizationV2UpdateRequest`
 - [x] `InAppPurchaseLocalizationV2Response`
 - [x] `InAppPurchaseLocalizationsV2Response`
 - [x] `InAppPurchaseImageV2`
 - [x] `InAppPurchaseImageV2CreateRequest`
-- [x] `InAppPurchaseImageV2UpdateRequest` - nullable uploaded state completed by #1792 at `f5e447ef`
+- [x] `InAppPurchaseImageV2UpdateRequest` - nullable uploaded state completed by #1792 at `db3657b6`
 - [x] `InAppPurchaseImageV2Response`
 - [x] `InAppPurchaseImagesV2Response`
 
@@ -470,13 +472,13 @@ and round-trip tests):
 - [x] `SubscriptionVersionImagesLinkagesResponse`
 - [x] `SubscriptionVersionLocalizationsLinkagesResponse`
 - [x] `SubscriptionLocalizationV2`
-- [x] `SubscriptionLocalizationV2CreateRequest` - nullable create description completed by #1792 at `f5e447ef`
+- [x] `SubscriptionLocalizationV2CreateRequest` - nullable create description completed by #1792 at `db3657b6`
 - [x] `SubscriptionLocalizationV2UpdateRequest`
 - [x] `SubscriptionLocalizationV2Response`
 - [x] `SubscriptionLocalizationsV2Response`
 - [x] `SubscriptionImageV2`
 - [x] `SubscriptionImageV2CreateRequest`
-- [x] `SubscriptionImageV2UpdateRequest` - nullable uploaded state completed by #1792 at `f5e447ef`
+- [x] `SubscriptionImageV2UpdateRequest` - nullable uploaded state completed by #1792 at `db3657b6`
 - [x] `SubscriptionImageV2Response`
 - [x] `SubscriptionImagesV2Response`
 
@@ -490,7 +492,7 @@ request/response and round-trip tests):
 - [x] `SubscriptionGroupVersionsLinkagesResponse`
 - [x] `SubscriptionGroupVersionLocalizationsLinkagesResponse`
 - [x] `SubscriptionGroupLocalizationV2`
-- [x] `SubscriptionGroupLocalizationV2CreateRequest` - nullable custom app name completed by #1792 at `f5e447ef`
+- [x] `SubscriptionGroupLocalizationV2CreateRequest` - nullable custom app name completed by #1792 at `db3657b6`
 - [x] `SubscriptionGroupLocalizationV2UpdateRequest`
 - [x] `SubscriptionGroupLocalizationV2Response`
 - [x] `SubscriptionGroupLocalizationsV2Response`
@@ -747,11 +749,11 @@ after the original 4.4 import (31):
 | 2 | Discrete subscription versions and their localizations/promotional images | #1779 | 18-operation ledger, CLI/HTTP/upload tests | Implemented at `c8f3ab52` |
 | 3 | Discrete subscription-group versions and their localizations | #1780 | 10-operation ledger and CLI/HTTP tests | Implemented at `48d04e0b` |
 | 4 | Submit all three version types through review-submission items | #1777 and #1781 | Three exact relationship payload tests plus built-command tests | Implemented at `ee40c7b3` and `aba35e0a` |
-| 5 | Version-scoped v2 IAP localizations and images | #1777 and #1792 | CRUD/upload coverage from #1777; #1792 table-tests create-description and image-upload omission/value/null encoding | Feature implementation at `ee40c7b3`; complete nullable request fidelity at #1792 implementation head `f5e447ef` (pre-merge) |
-| 6 | Version-scoped v2 subscription localizations and images | #1779 and #1792 | CRUD/upload coverage from #1779; #1792 table-tests create-description and image-upload omission/value/null encoding | Feature implementation at `c8f3ab52`; complete nullable request fidelity at #1792 implementation head `f5e447ef` (pre-merge) |
-| 7 | Version-scoped v2 subscription-group localizations | #1780 and #1792 | CRUD coverage from #1780; #1792 table-tests `customAppName` omission/value/null encoding | Feature implementation at `48d04e0b`; complete nullable request fidelity at #1792 implementation head `f5e447ef` (pre-merge) |
+| 5 | Version-scoped v2 IAP localizations and images | #1777 and #1792 | CRUD/upload coverage from #1777; #1792 table-tests create-description and image-upload omission/value/null encoding | Feature implementation at `ee40c7b3`; complete nullable request fidelity at #1792 implementation head `db3657b6` (pre-merge) |
+| 6 | Version-scoped v2 subscription localizations and images | #1779 and #1792 | CRUD/upload coverage from #1779; #1792 table-tests create-description and image-upload omission/value/null encoding | Feature implementation at `c8f3ab52`; complete nullable request fidelity at #1792 implementation head `db3657b6` (pre-merge) |
+| 7 | Version-scoped v2 subscription-group localizations | #1780 and #1792 | CRUD coverage from #1780; #1792 table-tests `customAppName` omission/value/null encoding, including whitespace omission | Feature implementation at `48d04e0b`; complete nullable request fidelity at #1792 implementation head `db3657b6` (pre-merge) |
 | 8 | Adjusted subscription equalizations and new filters | #1778 | Exact query/response, option-scope, strict-CSV/enum, territory-inclusion, opaque-next, ID-validation, and aggregation tests | Implemented at `39284b0a` |
-| 9 | `socialMedia` and `socialMediaAgeRestricted` age-rating attributes | #1778 and #1792 | Payload/output/help coverage from #1778; #1792 table-tests omission/value/null encoding for both update fields | Feature implementation at `39284b0a`; complete nullable request fidelity at #1792 implementation head `f5e447ef` (pre-merge) |
+| 9 | `socialMedia` and `socialMediaAgeRestricted` age-rating attributes | #1778 and #1792 | Payload/output/help coverage from #1778; #1792 table-tests omission/value/null encoding for both update fields | Feature implementation at `39284b0a`; complete nullable request fidelity at #1792 implementation head `db3657b6` (pre-merge) |
 
 ## Deprecation and migration ledger
 
@@ -815,7 +817,7 @@ documented deprecation window; this goal intentionally stops before release.
     `e9c2a0dc` and landed as `e902d375`; that docs-only commit is the current
     base of #1792.
 17. #1792 first completes all seven nullable request properties at exact
-    implementation head `f5e447efd75fe902fc46570ed8ce19715ab1051c`.
+    implementation head `db3657b6c6e88ebbf7f0da59137c92df99931e59`.
     The PR remains open and pre-merge, this ledger change is a later docs-only
     commit on that PR, and no landed `main` SHA is claimed.
 18. External workflow skills were audited at exact head `61b9634` and landed as
@@ -991,7 +993,7 @@ pre-merge evidence are separated explicitly:
   discoverable typed command/client surfaces.
 - [x] Classified all 102 direct plus 71 transitive operation-contract changes:
   173 unique existing-operation contracts with no missing or extra ledger item.
-- [x] On #1792 implementation head `f5e447ef`, mapped all 47 added and 61
+- [x] On #1792 implementation head `db3657b6`, mapped all 47 added and 61
   modified schemas to typed models, documented generic decoding, or an
   already-reconciled schema-only disposition. This includes table-driven
   omission/value/null encoding for the seven nullable properties missed by the
@@ -1006,7 +1008,7 @@ pre-merge evidence are separated explicitly:
   producing `main` `9282e82d`; its integration, Govulncheck, and CodeQL
   workflows passed.
 - [ ] #1792 remains open and pre-merge. Its implementation head is
-  `f5e447efd75fe902fc46570ed8ce19715ab1051c`; there is no landed `main` SHA or
+  `db3657b6c6e88ebbf7f0da59137c92df99931e59`; there is no landed `main` SHA or
   post-merge workflow result to record yet.
 - [x] Deprecated all 29 public legacy leaves with one exact warning and direct
   migration help, added conditional setup warnings, and documented all 33
