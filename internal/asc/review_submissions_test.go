@@ -88,6 +88,30 @@ func TestCreateReviewSubmission(t *testing.T) {
 	}
 }
 
+func TestReviewSubmissionsResponsePreservesSchemaMetadata(t *testing.T) {
+	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
+		"data": [{
+			"type": "reviewSubmissions",
+			"id": "submission-123",
+			"links": {"self": "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/submission-123"}
+		}],
+		"links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/app-123/reviewSubmissions"},
+		"meta": {"paging": {"total": 1, "limit": 50}}
+	}`)
+	client := newTestClient(t, func(req *http.Request) {}, response)
+
+	resp, err := client.GetReviewSubmissions(context.Background(), "app-123")
+	if err != nil {
+		t.Fatalf("GetReviewSubmissions() error: %v", err)
+	}
+	if len(resp.Data) != 1 || !strings.Contains(string(resp.Data[0].Links), `"self"`) {
+		t.Fatalf("resource links were not preserved: %+v", resp.Data)
+	}
+	if !strings.Contains(string(resp.Meta), `"paging"`) {
+		t.Fatalf("response meta was not preserved: %s", resp.Meta)
+	}
+}
+
 func TestSubmitReviewSubmission(t *testing.T) {
 	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
 		"data": {
@@ -125,7 +149,7 @@ func TestSubmitReviewSubmission(t *testing.T) {
 		if payload.Data.ID != "submission-123" {
 			t.Fatalf("expected submission ID submission-123, got %s", payload.Data.ID)
 		}
-		if payload.Data.Attributes.Submitted == nil || !*payload.Data.Attributes.Submitted {
+		if payload.Data.Attributes.Submitted == nil || payload.Data.Attributes.Submitted.Value == nil || !*payload.Data.Attributes.Submitted.Value {
 			t.Fatalf("expected submitted true, got %v", payload.Data.Attributes.Submitted)
 		}
 	}, response)
@@ -140,36 +164,41 @@ func TestSubmitReviewSubmission(t *testing.T) {
 	}
 }
 
-func TestGetReviewSubmissionItem(t *testing.T) {
-	response := reviewSubmissionsJSONResponse(http.StatusOK, `{
-		"data": {
-			"type": "reviewSubmissionItems",
-			"id": "item-123",
-			"attributes": {
-				"state": "READY_FOR_REVIEW"
-			}
-		}
-	}`)
-
+func TestUpdateReviewSubmissionUsesExactNullableSchema(t *testing.T) {
+	response := reviewSubmissionsJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"submission-123"}}`)
 	client := newTestClient(t, func(req *http.Request) {
-		if req.Method != http.MethodGet {
-			t.Fatalf("expected GET, got %s", req.Method)
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
 		}
-		if req.URL.Path != "/v1/reviewSubmissionItems/item-123" {
-			t.Fatalf("expected path /v1/reviewSubmissionItems/item-123, got %s", req.URL.Path)
+		var payload struct {
+			Data struct {
+				Attributes map[string]json.RawMessage `json:"attributes"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(body, &payload); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if got := string(payload.Data.Attributes["platform"]); got != `"MAC_OS"` {
+			t.Fatalf("platform = %s, want MAC_OS", got)
+		}
+		if got := string(payload.Data.Attributes["submitted"]); got != "false" {
+			t.Fatalf("submitted = %s, want false", got)
+		}
+		if got := string(payload.Data.Attributes["canceled"]); got != "null" {
+			t.Fatalf("canceled = %s, want null", got)
 		}
 	}, response)
 
-	resp, err := client.GetReviewSubmissionItem(context.Background(), "item-123")
+	platform := PlatformMacOS
+	submitted := false
+	_, err := client.UpdateReviewSubmission(context.Background(), "submission-123", ReviewSubmissionUpdateAttributes{
+		Platform:  &NullablePlatform{Value: &platform},
+		Submitted: &NullableBool{Value: &submitted},
+		Canceled:  &NullableBool{},
+	})
 	if err != nil {
-		t.Fatalf("GetReviewSubmissionItem() error: %v", err)
-	}
-
-	if resp.Data.ID != "item-123" {
-		t.Fatalf("expected ID item-123, got %s", resp.Data.ID)
-	}
-	if resp.Data.Attributes.State != "READY_FOR_REVIEW" {
-		t.Fatalf("expected state READY_FOR_REVIEW, got %s", resp.Data.Attributes.State)
+		t.Fatalf("UpdateReviewSubmission() error: %v", err)
 	}
 }
 
@@ -267,7 +296,7 @@ func TestCreateReviewSubmissionItem_SupportedItemTypes(t *testing.T) {
 			name:     "subscription version",
 			itemType: ReviewSubmissionItemTypeSubscriptionVersion,
 			itemID:   "subscription-version-123",
-			wantType: reviewSubmissionItemResourceTypeSubscriptionVersions,
+			wantType: ResourceTypeSubscriptionVersions,
 			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
 				return relationships.SubscriptionVersion
 			},
@@ -276,7 +305,7 @@ func TestCreateReviewSubmissionItem_SupportedItemTypes(t *testing.T) {
 			name:     "subscription group version",
 			itemType: ReviewSubmissionItemTypeSubscriptionGroupVersion,
 			itemID:   "subscription-group-version-123",
-			wantType: reviewSubmissionItemResourceTypeSubscriptionGroupVersions,
+			wantType: ResourceTypeSubscriptionGroupVersions,
 			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
 				return relationships.SubscriptionGroupVersion
 			},
@@ -294,15 +323,6 @@ func TestCreateReviewSubmissionItem_SupportedItemTypes(t *testing.T) {
 			name:     "app custom product page version",
 			itemType: ReviewSubmissionItemTypeAppCustomProductPageVersion,
 			itemID:   "cppv-123",
-			wantType: ResourceTypeAppCustomProductPageVersions,
-			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
-				return relationships.AppCustomProductPageVersion
-			},
-		},
-		{
-			name:     "legacy app custom product page alias",
-			itemType: ReviewSubmissionItemTypeAppCustomProductPage,
-			itemID:   "cppv-legacy-123",
 			wantType: ResourceTypeAppCustomProductPageVersions,
 			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
 				return relationships.AppCustomProductPageVersion
@@ -327,12 +347,12 @@ func TestCreateReviewSubmissionItem_SupportedItemTypes(t *testing.T) {
 			},
 		},
 		{
-			name:     "app store version experiment treatment",
-			itemType: ReviewSubmissionItemTypeAppStoreVersionExperimentTreatment,
-			itemID:   "treatment-123",
-			wantType: ResourceTypeAppStoreVersionExperimentTreatments,
+			name:     "app store version experiment v2",
+			itemType: ReviewSubmissionItemTypeAppStoreVersionExperimentV2,
+			itemID:   "experiment-v2-123",
+			wantType: ResourceTypeAppStoreVersionExperiments,
 			getRelationship: func(relationships ReviewSubmissionItemCreateRelationships) *Relationship {
-				return relationships.AppStoreVersionExperimentTreatment
+				return relationships.AppStoreVersionExperimentV2
 			},
 		},
 		{
@@ -483,7 +503,13 @@ func TestUpdateReviewSubmissionItem(t *testing.T) {
 			t.Fatalf("failed to read request body: %v", err)
 		}
 
-		var payload ReviewSubmissionItemUpdateRequest
+		var payload struct {
+			Data struct {
+				Type       ResourceType               `json:"type"`
+				ID         string                     `json:"id"`
+				Attributes map[string]json.RawMessage `json:"attributes"`
+			} `json:"data"`
+		}
 		if err := json.Unmarshal(body, &payload); err != nil {
 			t.Fatalf("failed to unmarshal request body: %v", err)
 		}
@@ -494,13 +520,22 @@ func TestUpdateReviewSubmissionItem(t *testing.T) {
 		if payload.Data.ID != "item-123" {
 			t.Fatalf("expected item ID item-123, got %s", payload.Data.ID)
 		}
-		if payload.Data.Attributes.State == nil || *payload.Data.Attributes.State != "READY_FOR_REVIEW" {
-			t.Fatalf("expected state READY_FOR_REVIEW, got %v", payload.Data.Attributes.State)
+		if got := string(payload.Data.Attributes["resolved"]); got != "false" {
+			t.Fatalf("resolved = %s, want false", got)
+		}
+		if got := string(payload.Data.Attributes["removed"]); got != "null" {
+			t.Fatalf("removed = %s, want null", got)
+		}
+		if _, ok := payload.Data.Attributes["state"]; ok {
+			t.Fatalf("unsupported state attribute was sent: %s", body)
 		}
 	}, response)
 
-	state := "READY_FOR_REVIEW"
-	resp, err := client.UpdateReviewSubmissionItem(context.Background(), "item-123", ReviewSubmissionItemUpdateAttributes{State: &state})
+	resolved := false
+	resp, err := client.UpdateReviewSubmissionItem(context.Background(), "item-123", ReviewSubmissionItemUpdateAttributes{
+		Resolved: &NullableBool{Value: &resolved},
+		Removed:  &NullableBool{},
+	})
 	if err != nil {
 		t.Fatalf("UpdateReviewSubmissionItem() error: %v", err)
 	}
@@ -543,8 +578,8 @@ func TestReviewSubmissionItemMutationsDecode441VersionRelationships(t *testing.T
 			name:   "update",
 			method: http.MethodPatch,
 			call: func(client *Client) (*ReviewSubmissionItemResponse, error) {
-				state := "READY_FOR_REVIEW"
-				return client.UpdateReviewSubmissionItem(context.Background(), "item-441", ReviewSubmissionItemUpdateAttributes{State: &state})
+				resolved := true
+				return client.UpdateReviewSubmissionItem(context.Background(), "item-441", ReviewSubmissionItemUpdateAttributes{Resolved: &NullableBool{Value: &resolved}})
 			},
 		},
 	}
@@ -748,7 +783,7 @@ func TestGetReviewSubmissionItems_With441VersionSparseFields(t *testing.T) {
 	if err := json.Unmarshal(result.Included, &included); err != nil {
 		t.Fatalf("decode included: %v", err)
 	}
-	if len(included) != 3 || included[0].Type != ResourceTypeInAppPurchaseVersions || included[1].Type != reviewSubmissionItemResourceTypeSubscriptionVersions || included[2].Type != reviewSubmissionItemResourceTypeSubscriptionGroupVersions {
+	if len(included) != 3 || included[0].Type != ResourceTypeInAppPurchaseVersions || included[1].Type != ResourceTypeSubscriptionVersions || included[2].Type != ResourceTypeSubscriptionGroupVersions {
 		t.Fatalf("included = %#v, want all 4.4.1 version resources", included)
 	}
 	if !strings.Contains(string(result.Meta), `"total":1`) {
@@ -895,10 +930,6 @@ func TestReviewSubmissionValidationErrors(t *testing.T) {
 		t.Fatalf("expected submissionID required error, got nil")
 	}
 
-	if _, err := client.GetReviewSubmissionItem(context.Background(), ""); err == nil {
-		t.Fatalf("expected itemID required error, got nil")
-	}
-
 	if _, err := client.CreateReviewSubmissionItem(context.Background(), "", ReviewSubmissionItemTypeAppStoreVersion, "item-1"); err == nil {
 		t.Fatalf("expected submissionID required error, got nil")
 	}
@@ -938,7 +969,7 @@ func countReviewSubmissionItemCreateRelationships(relationships ReviewSubmission
 		relationships.AppCustomProductPageVersion,
 		relationships.AppEvent,
 		relationships.AppStoreVersionExperiment,
-		relationships.AppStoreVersionExperimentTreatment,
+		relationships.AppStoreVersionExperimentV2,
 		relationships.BackgroundAssetVersion,
 		relationships.GameCenterAchievementVersion,
 		relationships.GameCenterActivityVersion,

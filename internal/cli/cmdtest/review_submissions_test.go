@@ -35,6 +35,11 @@ func TestReviewCommandSubmissionsValidationErrors(t *testing.T) {
 			wantErr: "--app is required",
 		},
 		{
+			name:    "review submissions-create invalid platform",
+			args:    []string{"review", "submissions-create", "--app", "app-1", "--platform", "NOPE"},
+			wantErr: "--platform must be one of",
+		},
+		{
 			name:    "review submissions-submit missing id",
 			args:    []string{"review", "submissions-submit", "--confirm"},
 			wantErr: "--id is required",
@@ -46,18 +51,28 @@ func TestReviewCommandSubmissionsValidationErrors(t *testing.T) {
 		},
 		{
 			name:    "review submissions-update missing id",
-			args:    []string{"review", "submissions-update", "--canceled", "true"},
+			args:    []string{"review", "submissions-update", "--canceled=true"},
 			wantErr: "--id is required",
 		},
 		{
 			name:    "review submissions-update missing canceled",
 			args:    []string{"review", "submissions-update", "--id", "SUBMISSION_123"},
-			wantErr: "--canceled is required",
+			wantErr: "at least one update flag is required",
 		},
 		{
 			name:    "review submissions-items-ids missing id",
 			args:    []string{"review", "submissions-items-ids"},
 			wantErr: "--id is required",
+		},
+		{
+			name:    "review submissions-items-ids invalid limit",
+			args:    []string{"review", "submissions-items-ids", "--id", "sub-1", "--limit", "201"},
+			wantErr: "--limit must be between 1 and 200",
+		},
+		{
+			name:    "review history rejects positional arguments",
+			args:    []string{"review", "history", "unexpected", "--app", "app-1"},
+			wantErr: "unexpected positional arguments",
 		},
 	}
 
@@ -128,9 +143,9 @@ func TestReviewCommandItemsValidationErrors(t *testing.T) {
 			wantErr: "--id is required",
 		},
 		{
-			name:    "review items-update missing state",
+			name:    "review items-update missing update",
 			args:    []string{"review", "items-update", "--id", "ITEM_ID"},
-			wantErr: "--state is required",
+			wantErr: "at least one of --resolved, --removed, --clear-resolved, or --clear-removed is required",
 		},
 		{
 			name:    "review items-remove missing id",
@@ -153,9 +168,9 @@ func TestReviewCommandItemsValidationErrors(t *testing.T) {
 			wantErr: "--item-id is required",
 		},
 		{
-			name:    "nested review items update missing state",
+			name:    "nested review items update missing update",
 			args:    []string{"review", "items", "update", "--id", "ITEM_ID"},
-			wantErr: "--state is required",
+			wantErr: "at least one of --resolved, --removed, --clear-resolved, or --clear-removed is required",
 		},
 		{
 			name:    "nested review items remove missing confirm",

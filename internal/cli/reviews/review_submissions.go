@@ -209,7 +209,7 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := reviewSubmissionsClientFactory()
 			if err != nil {
 				return fmt.Errorf("review submissions-get: %w", err)
 			}
@@ -259,6 +259,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				return shared.UsageError("unexpected positional arguments")
+			}
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
@@ -267,10 +270,10 @@ Examples:
 
 			normalizedPlatform, err := shared.NormalizeAppStoreVersionPlatform(*platform)
 			if err != nil {
-				return fmt.Errorf("review submissions-create: %w", err)
+				return fmt.Errorf("review submissions-create: %w", shared.UsageError(err.Error()))
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := reviewSubmissionsClientFactory()
 			if err != nil {
 				return fmt.Errorf("review submissions-create: %w", err)
 			}
@@ -293,40 +296,89 @@ func ReviewSubmissionsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submissions-update", flag.ExitOnError)
 
 	submissionID := fs.String("id", "", "Review submission ID (required)")
-	canceled := fs.Bool("canceled", false, "Cancel submission (true/false)")
+	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
+	submitted := fs.Bool("submitted", false, "Whether the submission is submitted (true/false)")
+	canceled := fs.Bool("canceled", false, "Whether the submission is canceled (true/false)")
+	clearPlatform := fs.Bool("clear-platform", false, "Set platform to JSON null")
+	clearSubmitted := fs.Bool("clear-submitted", false, "Set submitted to JSON null")
+	clearCanceled := fs.Bool("clear-canceled", false, "Set canceled to JSON null")
+	confirm := fs.Bool("confirm", false, "Confirm submission or cancellation when setting it true")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "submissions-update",
-		ShortUsage: "asc review submissions-update --id \"SUBMISSION_ID\" --canceled=true [flags]",
+		ShortUsage: "asc review submissions-update --id \"SUBMISSION_ID\" [flags]",
 		ShortHelp:  "Update a review submission.",
 		LongHelp: `Update a review submission.
 
+Use the matching --clear-* flag to send JSON null. Setting --submitted=true
+or --canceled=true requires --confirm.
+
 Examples:
-  asc review submissions-update --id "SUBMISSION_ID" --canceled=true`,
+  asc review submissions-update --id "SUBMISSION_ID" --platform IOS
+  asc review submissions-update --id "SUBMISSION_ID" --submitted=false
+  asc review submissions-update --id "SUBMISSION_ID" --clear-platform
+  asc review submissions-update --id "SUBMISSION_ID" --canceled=true --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				return shared.UsageError("unexpected positional arguments")
+			}
 			trimmedID := strings.TrimSpace(*submissionID)
 			if trimmedID == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError()
 			}
 
-			visited := map[string]bool{}
-			fs.Visit(func(f *flag.Flag) {
-				visited[f.Name] = true
-			})
-			if !visited["canceled"] {
-				fmt.Fprintln(os.Stderr, "Error: --canceled is required")
-				return shared.MissingRequiredUsageError()
+			platformProvided := reviewFlagWasProvided(fs, "platform")
+			submittedProvided := reviewFlagWasProvided(fs, "submitted")
+			canceledProvided := reviewFlagWasProvided(fs, "canceled")
+			if platformProvided && *clearPlatform {
+				return shared.UsageError("--platform cannot be combined with --clear-platform")
+			}
+			if submittedProvided && *clearSubmitted {
+				return shared.UsageError("--submitted cannot be combined with --clear-submitted")
+			}
+			if canceledProvided && *clearCanceled {
+				return shared.UsageError("--canceled cannot be combined with --clear-canceled")
+			}
+			if !platformProvided && !submittedProvided && !canceledProvided && !*clearPlatform && !*clearSubmitted && !*clearCanceled {
+				return shared.UsageError("at least one update flag is required: --platform, --submitted, --canceled, or a matching --clear-* flag")
+			}
+			if canceledProvided && *canceled && !*confirm {
+				return shared.UsageError("--confirm is required when --canceled=true")
+			}
+			if submittedProvided && *submitted && !*confirm {
+				return shared.UsageError("--confirm is required when --submitted=true")
+			}
+			if submittedProvided && *submitted && canceledProvided && *canceled {
+				return shared.UsageError("--submitted=true cannot be combined with --canceled=true")
 			}
 
-			attrs := asc.ReviewSubmissionUpdateAttributes{
-				Canceled: canceled,
+			attrs := asc.ReviewSubmissionUpdateAttributes{}
+			if platformProvided {
+				normalized, err := shared.NormalizeAppStoreVersionPlatform(*platform)
+				if err != nil {
+					return fmt.Errorf("review submissions-update: %w", shared.UsageError(err.Error()))
+				}
+				value := asc.Platform(normalized)
+				attrs.Platform = &asc.NullablePlatform{Value: &value}
+			} else if *clearPlatform {
+				attrs.Platform = &asc.NullablePlatform{}
+			}
+			if submittedProvided {
+				attrs.Submitted = &asc.NullableBool{Value: submitted}
+			} else if *clearSubmitted {
+				attrs.Submitted = &asc.NullableBool{}
+			}
+			if canceledProvided {
+				attrs.Canceled = &asc.NullableBool{Value: canceled}
+			} else if *clearCanceled {
+				attrs.Canceled = &asc.NullableBool{}
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := reviewSubmissionsClientFactory()
 			if err != nil {
 				return fmt.Errorf("review submissions-update: %w", err)
 			}
@@ -363,6 +415,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				return shared.UsageError("unexpected positional arguments")
+			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to submit")
 				return shared.MissingRequiredUsageError()
@@ -372,7 +427,7 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := reviewSubmissionsClientFactory()
 			if err != nil {
 				return fmt.Errorf("review submissions-submit: %w", err)
 			}
@@ -409,6 +464,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				return shared.UsageError("unexpected positional arguments")
+			}
 			if !*confirm {
 				fmt.Fprintln(os.Stderr, "Error: --confirm is required to cancel")
 				return shared.MissingRequiredUsageError()
@@ -418,7 +476,7 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := reviewSubmissionsClientFactory()
 			if err != nil {
 				return fmt.Errorf("review submissions-cancel: %w", err)
 			}
@@ -458,19 +516,25 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				return shared.UsageError("unexpected positional arguments")
+			}
+			if err := shared.ValidateNextURL(*next); err != nil {
+				return fmt.Errorf("review submissions-items-ids: %w", err)
+			}
+			if err := rejectReviewNextFlagConflicts(fs, *next, "review submissions-items-ids", "id", "limit"); err != nil {
+				return err
+			}
 			trimmedID := strings.TrimSpace(*submissionID)
 			if trimmedID == "" && strings.TrimSpace(*next) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError()
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("review submissions-items-ids: --limit must be between 1 and 200")
-			}
-			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("review submissions-items-ids: %w", err)
+				return fmt.Errorf("review submissions-items-ids: %w", shared.UsageError("--limit must be between 1 and 200"))
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := reviewSubmissionsClientFactory()
 			if err != nil {
 				return fmt.Errorf("review submissions-items-ids: %w", err)
 			}

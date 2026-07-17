@@ -70,10 +70,10 @@ func TestSubmitResolvedVersionReusesReadySubmissionWithTargetVersion(t *testing.
 				return nil, fmt.Errorf("decode patch body: %w", err)
 			}
 			switch {
-			case payload.Data.Attributes.Canceled != nil && *payload.Data.Attributes.Canceled:
+			case payload.Data.Attributes.Canceled != nil && payload.Data.Attributes.Canceled.Value != nil && *payload.Data.Attributes.Canceled.Value:
 				canceledSubmission = true
 				return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"existing-submission","attributes":{"state":"DEVELOPER_REMOVED_FROM_SALE"}}}`)
-			case payload.Data.Attributes.Submitted != nil && *payload.Data.Attributes.Submitted:
+			case payload.Data.Attributes.Submitted != nil && payload.Data.Attributes.Submitted.Value != nil && *payload.Data.Attributes.Submitted.Value:
 				submittedSubmission = true
 				return submitJSONResponse(http.StatusOK, `{"data":{"type":"reviewSubmissions","id":"existing-submission","attributes":{"state":"WAITING_FOR_REVIEW","submittedDate":"2026-03-29T00:00:00Z"}}}`)
 			default:

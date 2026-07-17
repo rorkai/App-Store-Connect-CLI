@@ -71,11 +71,9 @@ func reviewSubmissionItemTarget(rel *ReviewSubmissionItemRelationships) (string,
 		rel.SubscriptionGroupVersion,
 		rel.AppStoreVersion,
 		rel.AppCustomProductPageVersion,
-		rel.AppCustomProductPage,
 		rel.AppEvent,
 		rel.AppStoreVersionExperiment,
 		rel.AppStoreVersionExperimentV2,
-		rel.AppStoreVersionExperimentTreatment,
 		rel.BackgroundAssetVersion,
 		rel.GameCenterAchievementVersion,
 		rel.GameCenterActivityVersion,
@@ -91,9 +89,8 @@ func reviewSubmissionItemTarget(rel *ReviewSubmissionItemRelationships) (string,
 	return "", ""
 }
 
-func reviewSubmissionItemSubmissionID(rel *ReviewSubmissionItemRelationships) string {
-	if rel == nil || rel.ReviewSubmission == nil {
-		return ""
-	}
-	return rel.ReviewSubmission.Data.ID
+// reviewSubmissionItemSubmissionID preserves the existing table column even though
+// API 4.4.1 no longer exposes a reviewSubmission relationship on item responses.
+func reviewSubmissionItemSubmissionID(_ *ReviewSubmissionItemRelationships) string {
+	return ""
 }

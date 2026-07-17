@@ -23,20 +23,20 @@ func TestReviewSubmissionItemsRows_UsesExpandedRelationships(t *testing.T) {
 			name: "subscription version",
 			rel: &ReviewSubmissionItemRelationships{
 				SubscriptionVersion: &Relationship{
-					Data: ResourceData{Type: reviewSubmissionItemResourceTypeSubscriptionVersions, ID: "subv-1"},
+					Data: ResourceData{Type: ResourceTypeSubscriptionVersions, ID: "subv-1"},
 				},
 			},
-			wantType: string(reviewSubmissionItemResourceTypeSubscriptionVersions),
+			wantType: string(ResourceTypeSubscriptionVersions),
 			wantID:   "subv-1",
 		},
 		{
 			name: "subscription group version",
 			rel: &ReviewSubmissionItemRelationships{
 				SubscriptionGroupVersion: &Relationship{
-					Data: ResourceData{Type: reviewSubmissionItemResourceTypeSubscriptionGroupVersions, ID: "sgv-1"},
+					Data: ResourceData{Type: ResourceTypeSubscriptionGroupVersions, ID: "sgv-1"},
 				},
 			},
-			wantType: string(reviewSubmissionItemResourceTypeSubscriptionGroupVersions),
+			wantType: string(ResourceTypeSubscriptionGroupVersions),
 			wantID:   "sgv-1",
 		},
 		{
@@ -48,16 +48,6 @@ func TestReviewSubmissionItemsRows_UsesExpandedRelationships(t *testing.T) {
 			},
 			wantType: string(ResourceTypeAppCustomProductPageVersions),
 			wantID:   "cppv-1",
-		},
-		{
-			name: "legacy app custom product page",
-			rel: &ReviewSubmissionItemRelationships{
-				AppCustomProductPage: &Relationship{
-					Data: ResourceData{Type: ResourceTypeAppCustomProductPages, ID: "cpp-1"},
-				},
-			},
-			wantType: string(ResourceTypeAppCustomProductPages),
-			wantID:   "cpp-1",
 		},
 		{
 			name: "app store version experiment v2",
@@ -133,9 +123,6 @@ func TestReviewSubmissionItemsRows_UsesExpandedRelationships(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			test.rel.ReviewSubmission = &Relationship{
-				Data: ResourceData{Type: ResourceTypeReviewSubmissions, ID: "submission-1"},
-			}
 			resp := &ReviewSubmissionItemsResponse{
 				Data: []ReviewSubmissionItemResource{
 					{
@@ -162,8 +149,8 @@ func TestReviewSubmissionItemsRows_UsesExpandedRelationships(t *testing.T) {
 			if rows[0][3] != test.wantID {
 				t.Fatalf("expected item id %q, got %q", test.wantID, rows[0][3])
 			}
-			if rows[0][4] != "submission-1" {
-				t.Fatalf("expected submission id %q, got %q", "submission-1", rows[0][4])
+			if rows[0][4] != "" {
+				t.Fatalf("expected schema-absent submission id to remain blank, got %q", rows[0][4])
 			}
 		})
 	}

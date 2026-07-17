@@ -880,3 +880,13 @@ func TestEnrichSubmissions_EmptyResultsMarshalAsArray(t *testing.T) {
 		t.Fatalf("json = %s, want []", data)
 	}
 }
+
+func TestReviewSubmissionItemHistoryFieldsAreUnique(t *testing.T) {
+	seen := make(map[string]struct{})
+	for _, field := range reviewSubmissionItemHistoryFields() {
+		if _, exists := seen[field]; exists {
+			t.Fatalf("duplicate review submission item history field %q", field)
+		}
+		seen[field] = struct{}{}
+	}
+}

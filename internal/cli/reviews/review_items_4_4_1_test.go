@@ -133,9 +133,190 @@ func TestReviewSubmissionsValidateIncludeBeforeAuth(t *testing.T) {
 
 func TestReviewItemTypeListIncludes441VersionTypes(t *testing.T) {
 	joined := strings.Join(reviewSubmissionItemTypeList(), ",")
-	for _, want := range []string{"inAppPurchaseVersions", "subscriptionVersions", "subscriptionGroupVersions"} {
+	for _, want := range []string{"inAppPurchaseVersions", "subscriptionVersions", "subscriptionGroupVersions", "appStoreVersionExperimentsV2"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("item types %q do not contain %q", joined, want)
 		}
+	}
+	if strings.Contains(joined, "appStoreVersionExperimentTreatments") {
+		t.Fatalf("item types %q must not advertise unsupported experiment treatments", joined)
+	}
+	if strings.Contains(joined, "appCustomProductPages") {
+		t.Fatalf("item types %q must not advertise unsupported custom product pages", joined)
+	}
+}
+
+func TestReviewItemsAddRejectsDeprecatedExperimentTreatment(t *testing.T) {
+	_, err := normalizeReviewSubmissionItemType("appStoreVersionExperimentTreatments")
+	if err == nil || !strings.Contains(err.Error(), "deprecated and no longer supported") {
+		t.Fatalf("error = %v, want treatment deprecation guidance", err)
+	}
+}
+
+func TestReviewItemsAddRejectsDeprecatedCustomProductPage(t *testing.T) {
+	_, err := normalizeReviewSubmissionItemType("appCustomProductPages")
+	if err == nil || !strings.Contains(err.Error(), "app custom product page version ID") || !strings.Contains(err.Error(), "appCustomProductPageVersions") {
+		t.Fatalf("error = %v, want custom product page version migration guidance", err)
+	}
+}
+
+func TestReviewItemsAddRejectsUnsupportedLegacyTypesBeforeAuth(t *testing.T) {
+	tests := []struct {
+		name     string
+		itemType string
+		want     string
+	}{
+		{name: "custom product page", itemType: "appCustomProductPages", want: "appCustomProductPageVersions"},
+		{name: "experiment treatment", itemType: "appStoreVersionExperimentTreatments", want: "experiment treatments cannot be added"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			factoryCalled := false
+			restore := SetReviewItemsClientFactory(func() (*asc.Client, error) {
+				factoryCalled = true
+				return nil, errors.New("poison client factory called")
+			})
+			defer restore()
+
+			err := ReviewItemsAddCommand().ParseAndRun(context.Background(), []string{
+				"--submission", "submission-1",
+				"--item-type", test.itemType,
+				"--item-id", "item-1",
+			})
+			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error = %v, want usage error containing %q", err, test.want)
+			}
+			if factoryCalled {
+				t.Fatal("client factory called before legacy type validation")
+			}
+		})
+	}
+}
+
+func TestReviewItemsViewIsDeprecatedBeforeAuth(t *testing.T) {
+	tests := []struct {
+		name    string
+		command func() *ffcli.Command
+	}{
+		{name: "legacy", command: ReviewItemsGetCommand},
+		{name: "nested", command: func() *ffcli.Command {
+			return reviewItemsGetCommand("view", "review items view", `asc review items view --id "ITEM_ID"`)
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			factoryCalled := false
+			restore := SetReviewItemsClientFactory(func() (*asc.Client, error) {
+				factoryCalled = true
+				return nil, errors.New("poison client factory called")
+			})
+			defer restore()
+
+			err := test.command().ParseAndRun(context.Background(), []string{"--id", "item-1"})
+			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "has no item-detail GET") || !strings.Contains(err.Error(), "review items list --submission") {
+				t.Fatalf("error = %v, want deprecated item-detail guidance", err)
+			}
+			if factoryCalled {
+				t.Fatal("client factory called for unsupported item-detail GET")
+			}
+		})
+	}
+}
+
+func TestReviewItemsUpdateValidatesSchemaFlagsBeforeAuth(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "deprecated state", args: []string{"--id", "item-1", "--state", "READY_FOR_REVIEW"}, want: "--state is deprecated"},
+		{name: "explicit empty state", args: []string{"--id", "item-1", "--state", ""}, want: "--state is deprecated"},
+		{name: "missing update", args: []string{"--id", "item-1"}, want: "at least one of --resolved, --removed, --clear-resolved, or --clear-removed is required"},
+		{name: "invalid resolved", args: []string{"--id", "item-1", "--resolved", "yes"}, want: "--resolved must be true or false"},
+		{name: "invalid removed", args: []string{"--id", "item-1", "--removed", "no"}, want: "--removed must be true or false"},
+		{name: "resolved conflict", args: []string{"--id", "item-1", "--resolved", "false", "--clear-resolved"}, want: "--resolved cannot be combined with --clear-resolved"},
+		{name: "removed conflict", args: []string{"--id", "item-1", "--removed", "true", "--clear-removed"}, want: "--removed cannot be combined with --clear-removed"},
+		{name: "positional", args: []string{"--id", "item-1", "--resolved", "true", "unexpected"}, want: "unexpected positional arguments"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			factoryCalled := false
+			restore := SetReviewItemsClientFactory(func() (*asc.Client, error) {
+				factoryCalled = true
+				return nil, errors.New("poison client factory called")
+			})
+			defer restore()
+
+			err := ReviewItemsUpdateCommand().ParseAndRun(context.Background(), test.args)
+			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error = %v, want usage error containing %q", err, test.want)
+			}
+			if factoryCalled {
+				t.Fatal("client factory called before update validation")
+			}
+		})
+	}
+}
+
+func TestReviewSubmissionItemIDsRejectOpaqueNextConflictsAndPositionals(t *testing.T) {
+	const next = "https://api.appstoreconnect.apple.com/v1/reviewSubmissions/sub-1/relationships/items?cursor=next"
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "owner", args: []string{"--next", next, "--id", "sub-1"}, want: "--id"},
+		{name: "empty owner", args: []string{"--next", next, "--id", ""}, want: "--id"},
+		{name: "zero limit", args: []string{"--next", next, "--limit", "0"}, want: "--limit"},
+		{name: "positional", args: []string{"--id", "sub-1", "unexpected"}, want: "unexpected positional arguments"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			factoryCalled := false
+			restore := SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+				factoryCalled = true
+				return nil, errors.New("poison client factory called")
+			})
+			defer restore()
+
+			err := ReviewSubmissionsItemsIDsCommand().ParseAndRun(context.Background(), test.args)
+			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error = %v, want usage error containing %q", err, test.want)
+			}
+			if factoryCalled {
+				t.Fatal("client factory called before linkage validation")
+			}
+		})
+	}
+}
+
+func TestReviewSubmissionMutationsRejectPositionalsBeforeAuth(t *testing.T) {
+	tests := []struct {
+		name    string
+		command func() *ffcli.Command
+		args    []string
+	}{
+		{name: "create", command: ReviewSubmissionsCreateCommand, args: []string{"--app", "app-1", "unexpected"}},
+		{name: "update", command: ReviewSubmissionsUpdateCommand, args: []string{"--id", "sub-1", "--canceled", "true", "unexpected"}},
+		{name: "submit", command: ReviewSubmissionsSubmitCommand, args: []string{"--id", "sub-1", "--confirm", "unexpected"}},
+		{name: "cancel", command: ReviewSubmissionsCancelCommand, args: []string{"--id", "sub-1", "--confirm", "unexpected"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			factoryCalled := false
+			restore := SetReviewSubmissionsClientFactory(func() (*asc.Client, error) {
+				factoryCalled = true
+				return nil, errors.New("poison client factory called")
+			})
+			defer restore()
+
+			err := test.command().ParseAndRun(context.Background(), test.args)
+			if err == nil || !errors.Is(err, flag.ErrHelp) || !strings.Contains(err.Error(), "unexpected positional arguments") {
+				t.Fatalf("error = %v, want positional usage error", err)
+			}
+			if factoryCalled {
+				t.Fatal("client factory called before positional validation")
+			}
+		})
 	}
 }

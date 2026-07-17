@@ -68,6 +68,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if len(args) != 0 {
+				return fmt.Errorf("review history: %w", shared.UsageError("unexpected positional arguments"))
+			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return shared.UsageError("--limit must be between 1 and 200")
 			}
@@ -393,9 +396,6 @@ func populateSubmissionHistoryItem(histItem *SubmissionHistoryItem, item asc.Rev
 	case item.Relationships.AppCustomProductPageVersion != nil:
 		histItem.Type = "appCustomProductPageVersion"
 		histItem.ResourceID = item.Relationships.AppCustomProductPageVersion.Data.ID
-	case item.Relationships.AppCustomProductPage != nil:
-		histItem.Type = "appCustomProductPage"
-		histItem.ResourceID = item.Relationships.AppCustomProductPage.Data.ID
 	case item.Relationships.AppStoreVersionExperimentV2 != nil:
 		histItem.Type = "appStoreVersionExperimentV2"
 		histItem.ResourceID = item.Relationships.AppStoreVersionExperimentV2.Data.ID
@@ -423,9 +423,6 @@ func populateSubmissionHistoryItem(histItem *SubmissionHistoryItem, item asc.Rev
 	case item.Relationships.AppStoreVersionExperiment != nil:
 		histItem.Type = "appStoreVersionExperiment"
 		histItem.ResourceID = item.Relationships.AppStoreVersionExperiment.Data.ID
-	case item.Relationships.AppStoreVersionExperimentTreatment != nil:
-		histItem.Type = "appStoreVersionExperimentTreatment"
-		histItem.ResourceID = item.Relationships.AppStoreVersionExperimentTreatment.Data.ID
 	}
 }
 

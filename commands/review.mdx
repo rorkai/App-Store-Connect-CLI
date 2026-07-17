@@ -25,15 +25,15 @@ asc review submissions-get --id "SUBMISSION_ID"
 asc review submissions-create --app "123456789" --platform IOS
 asc review submissions-submit --id "SUBMISSION_ID" --confirm
 asc review submissions-cancel --id "SUBMISSION_ID" --confirm
-asc review submissions-update --id "SUBMISSION_ID" --canceled=true
+asc review submissions-update --id "SUBMISSION_ID" --canceled=true --confirm
 asc review submissions-items-ids --id "SUBMISSION_ID"
-asc review items view --id "ITEM_ID"
 asc review items-list --submission "SUBMISSION_ID"
 asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
 asc review items-add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
 asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
 asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
-asc review items-update --id "ITEM_ID" --state READY_FOR_REVIEW
+asc review items-update --id "ITEM_ID" --resolved true
+asc review items-update --id "ITEM_ID" --clear-removed
 asc review items-remove --id "ITEM_ID" --confirm
 asc review history --app "123456789"
 ```
@@ -135,7 +135,41 @@ asc review submissions-get --id "SUBMISSION_ID" --item-fields subscriptionGroupV
 
 ***
 
-### `asc review items-list` and `asc review items-add`
+### `asc review submissions-update`
+
+Update the nullable `platform`, `submitted`, or `canceled` attributes on a
+review submission.
+
+<ParamField path="--id" type="string" required>
+  Review submission ID
+</ParamField>
+
+<ParamField path="--platform" type="string">
+  Platform: `IOS`, `MAC_OS`, `TV_OS`, or `VISION_OS`
+</ParamField>
+
+<ParamField path="--submitted" type="boolean">
+  Set whether the submission is submitted
+</ParamField>
+
+<ParamField path="--canceled" type="boolean">
+  Set whether the submission is canceled
+</ParamField>
+
+Use `--clear-platform`, `--clear-submitted`, or `--clear-canceled` to send JSON
+`null`. Setting `--submitted=true` or `--canceled=true` requires `--confirm`.
+The corresponding false and clear operations do not.
+
+```bash  theme={null}
+asc review submissions-update --id "SUBMISSION_ID" --platform IOS
+asc review submissions-update --id "SUBMISSION_ID" --submitted=false
+asc review submissions-update --id "SUBMISSION_ID" --clear-canceled
+asc review submissions-update --id "SUBMISSION_ID" --canceled=true --confirm
+```
+
+***
+
+### `asc review items-list`, `asc review items-add`, and `asc review items-update`
 
 List items with version relationships and add any of the three API 4.4.1
 version resources to a review submission.
@@ -145,6 +179,9 @@ asc review items-list --submission "SUBMISSION_ID" --include subscriptionVersion
 asc review items-add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
 asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
 asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
+asc review items-add --submission "SUBMISSION_ID" --item-type appStoreVersionExperimentsV2 --item-id "EXPERIMENT_ID"
+asc review items-update --id "ITEM_ID" --resolved false
+asc review items-update --id "ITEM_ID" --clear-removed
 ```
 
 `--fields` controls review-item fields. The related sparse-field flags are
@@ -152,6 +189,17 @@ asc review items-add --submission "SUBMISSION_ID" --item-type subscriptionGroupV
 `--subscription-group-version-fields`. `--item-fields` exposes the expanded
 review-item relationship fields on submission list and detail commands and
 automatically includes the related `items` resources.
+
+API 4.4.1 permits item updates only through the nullable `resolved` and
+`removed` attributes. Use `--resolved true|false` or `--removed true|false` to
+set a value and `--clear-resolved` or `--clear-removed` to send JSON `null`.
+The former `--state` update flag is deprecated and rejected because `state` is
+response-only. Setting `--removed=true` also requires `--confirm`.
+
+`asc review items view` and the compatibility command `asc review items-get`
+are deprecated because API 4.4.1 does not provide
+`GET /v1/reviewSubmissionItems/{id}`. Use
+`asc review items-list --submission "SUBMISSION_ID"` instead.
 
 ***
 

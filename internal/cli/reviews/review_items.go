@@ -26,13 +26,12 @@ func ReviewItemsCommand() *ffcli.Command {
 		LongHelp: `Manage review submission items.
 
 Examples:
-  asc review items view --id "ITEM_ID"
   asc review items list --submission "SUBMISSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type appStoreVersions --item-id "VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type inAppPurchaseVersions --item-id "IAP_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
-  asc review items update --id "ITEM_ID" --state READY_FOR_REVIEW
+  asc review items update --id "ITEM_ID" --resolved true
   asc review items remove --id "ITEM_ID" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -45,7 +44,8 @@ Examples:
   asc review items add --submission "SUBMISSION_ID" --item-type subscriptionVersions --item-id "SUBSCRIPTION_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type subscriptionGroupVersions --item-id "GROUP_VERSION_ID"
   asc review items add --submission "SUBMISSION_ID" --item-type gameCenterChallengeVersions --item-id "VERSION_ID"`),
-			reviewItemsUpdateCommand("update", "review items update", `asc review items update --id "ITEM_ID" --state READY_FOR_REVIEW [flags]`, `asc review items update --id "ITEM_ID" --state READY_FOR_REVIEW`),
+			reviewItemsUpdateCommand("update", "review items update", `asc review items update --id "ITEM_ID" [flags]`, `asc review items update --id "ITEM_ID" --resolved true
+  asc review items update --id "ITEM_ID" --clear-removed`),
 			reviewItemsRemoveCommand("remove", "review items remove", `asc review items remove [flags]`, `asc review items remove --id "ITEM_ID" --confirm`),
 		},
 		Exec: func(ctx context.Context, args []string) error {
@@ -63,18 +63,20 @@ func reviewItemsGetCommand(name, errorPrefix, example string) *ffcli.Command {
 	fs := flag.NewFlagSet(name, flag.ExitOnError)
 
 	itemID := fs.String("id", "", "Review submission item ID (required)")
-	output := shared.BindOutputFlags(fs)
+	shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       name,
 		ShortUsage: example + " [flags]",
-		ShortHelp:  "View a review submission item by ID.",
-		LongHelp: `View a review submission item by ID.
+		ShortHelp:  "DEPRECATED: App Store Connect has no review-item detail endpoint.",
+		LongHelp: `DEPRECATED: App Store Connect API 4.4.1 has no review-item detail endpoint.
+
+Use asc review items list --submission "SUBMISSION_ID" instead.
 
 Examples:
   ` + example,
 		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		UsageFunc: shared.DeprecatedUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if len(args) != 0 {
 				return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError("unexpected positional arguments"))
@@ -85,20 +87,7 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 
-			client, err := reviewItemsClientFactory()
-			if err != nil {
-				return fmt.Errorf("%s: %w", errorPrefix, err)
-			}
-
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.GetReviewSubmissionItem(requestCtx, trimmedID)
-			if err != nil {
-				return fmt.Errorf("%s: %w", errorPrefix, err)
-			}
-
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError(`App Store Connect API 4.4.1 has no item-detail GET; use asc review items list --submission "SUBMISSION_ID"`))
 		},
 	}
 }
@@ -337,21 +326,29 @@ Examples:
 
 // ReviewItemsUpdateCommand returns the review items update subcommand.
 func ReviewItemsUpdateCommand() *ffcli.Command {
-	return reviewItemsUpdateCommand("items-update", "review items-update", `asc review items-update --id "ITEM_ID" --state READY_FOR_REVIEW [flags]`, `asc review items-update --id "ITEM_ID" --state READY_FOR_REVIEW`)
+	return reviewItemsUpdateCommand("items-update", "review items-update", `asc review items-update --id "ITEM_ID" [flags]`, `asc review items-update --id "ITEM_ID" --resolved true
+  asc review items-update --id "ITEM_ID" --clear-removed`)
 }
 
 func reviewItemsUpdateCommand(name, errorPrefix, shortUsage, examples string) *ffcli.Command {
 	fs := flag.NewFlagSet(name, flag.ExitOnError)
 
 	itemID := fs.String("id", "", "Review submission item ID (required)")
-	state := fs.String("state", "", "Item state: READY_FOR_REVIEW, ACCEPTED, APPROVED, REJECTED, REMOVED (required)")
+	fs.String("state", "", "Deprecated: no longer supported by App Store Connect")
+	resolved := fs.String("resolved", "", "Whether the item is resolved: true or false")
+	removed := fs.String("removed", "", "Whether the item is removed: true or false")
+	clearResolved := fs.Bool("clear-resolved", false, "Set resolved to JSON null")
+	clearRemoved := fs.Bool("clear-removed", false, "Set removed to JSON null")
+	confirm := fs.Bool("confirm", false, "Confirm removal when --removed=true")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       name,
 		ShortUsage: shortUsage,
-		ShortHelp:  "Update a review submission item.",
+		ShortHelp:  "Update a review submission item's resolved or removed status.",
 		LongHelp: `Update a review submission item.
+
+Use --confirm when setting --removed=true.
 
 Examples:
   ` + examples,
@@ -366,14 +363,42 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError()
 			}
-			if strings.TrimSpace(*state) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --state is required")
-				return shared.MissingRequiredUsageError()
+			if reviewFlagWasProvided(fs, "state") {
+				return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError("--state is deprecated and no longer supported by App Store Connect; use --resolved or --removed"))
+			}
+			resolvedProvided := reviewFlagWasProvided(fs, "resolved")
+			removedProvided := reviewFlagWasProvided(fs, "removed")
+			if resolvedProvided && *clearResolved {
+				return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError("--resolved cannot be combined with --clear-resolved"))
+			}
+			if removedProvided && *clearRemoved {
+				return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError("--removed cannot be combined with --clear-removed"))
+			}
+			if !resolvedProvided && !removedProvided && !*clearResolved && !*clearRemoved {
+				return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError("at least one of --resolved, --removed, --clear-resolved, or --clear-removed is required"))
 			}
 
-			normalizedState, err := normalizeReviewSubmissionItemState(*state)
-			if err != nil {
-				return fmt.Errorf("%s: %w", errorPrefix, err)
+			attrs := asc.ReviewSubmissionItemUpdateAttributes{}
+			if resolvedProvided {
+				value, err := parseReviewSubmissionItemBool(*resolved, "--resolved")
+				if err != nil {
+					return fmt.Errorf("%s: %w", errorPrefix, err)
+				}
+				attrs.Resolved = &asc.NullableBool{Value: &value}
+			} else if *clearResolved {
+				attrs.Resolved = &asc.NullableBool{}
+			}
+			if removedProvided {
+				value, err := parseReviewSubmissionItemBool(*removed, "--removed")
+				if err != nil {
+					return fmt.Errorf("%s: %w", errorPrefix, err)
+				}
+				if value && !*confirm {
+					return fmt.Errorf("%s: %w", errorPrefix, shared.UsageError("--confirm is required when --removed=true"))
+				}
+				attrs.Removed = &asc.NullableBool{Value: &value}
+			} else if *clearRemoved {
+				attrs.Removed = &asc.NullableBool{}
 			}
 
 			client, err := reviewItemsClientFactory()
@@ -384,9 +409,6 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			attrs := asc.ReviewSubmissionItemUpdateAttributes{
-				State: &normalizedState,
-			}
 			resp, err := client.UpdateReviewSubmissionItem(requestCtx, trimmedID, attrs)
 			if err != nil {
 				return fmt.Errorf("%s: %w", errorPrefix, err)
@@ -394,6 +416,31 @@ Examples:
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
+	}
+}
+
+func reviewFlagWasProvided(fs *flag.FlagSet, names ...string) bool {
+	wanted := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		wanted[name] = struct{}{}
+	}
+	provided := false
+	fs.Visit(func(f *flag.Flag) {
+		if _, ok := wanted[f.Name]; ok {
+			provided = true
+		}
+	})
+	return provided
+}
+
+func parseReviewSubmissionItemBool(value, name string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	default:
+		return false, shared.UsageErrorf("%s must be true or false", name)
 	}
 }
 
@@ -458,6 +505,12 @@ func normalizeReviewSubmissionItemType(value string) (asc.ReviewSubmissionItemTy
 	if strings.TrimSpace(value) == "" {
 		return "", fmt.Errorf("--item-type is required")
 	}
+	if strings.TrimSpace(value) == string(asc.ReviewSubmissionItemTypeAppStoreVersionExperimentTreatment) {
+		return "", fmt.Errorf("--item-type %s is deprecated and no longer supported by App Store Connect; experiment treatments cannot be added as review submission items", asc.ReviewSubmissionItemTypeAppStoreVersionExperimentTreatment)
+	}
+	if strings.TrimSpace(value) == string(asc.ReviewSubmissionItemTypeAppCustomProductPage) {
+		return "", fmt.Errorf("--item-type %s is deprecated and no longer supported by App Store Connect; pass an app custom product page version ID with --item-type %s", asc.ReviewSubmissionItemTypeAppCustomProductPage, asc.ReviewSubmissionItemTypeAppCustomProductPageVersion)
+	}
 	if itemType, ok := asc.ParseReviewSubmissionItemType(value); ok {
 		return itemType, nil
 	}
@@ -466,33 +519,4 @@ func normalizeReviewSubmissionItemType(value string) (asc.ReviewSubmissionItemTy
 
 func reviewSubmissionItemTypeList() []string {
 	return asc.ReviewSubmissionItemTypeNames()
-}
-
-func normalizeReviewSubmissionItemState(value string) (string, error) {
-	normalized := strings.ToUpper(strings.TrimSpace(value))
-	if normalized == "" {
-		return "", fmt.Errorf("--state is required")
-	}
-	if _, ok := reviewSubmissionItemStates[normalized]; ok {
-		return normalized, nil
-	}
-	return "", fmt.Errorf("--state must be one of: %s", strings.Join(reviewSubmissionItemStateList(), ", "))
-}
-
-func reviewSubmissionItemStateList() []string {
-	return []string{
-		"READY_FOR_REVIEW",
-		"ACCEPTED",
-		"APPROVED",
-		"REJECTED",
-		"REMOVED",
-	}
-}
-
-var reviewSubmissionItemStates = map[string]struct{}{
-	"READY_FOR_REVIEW": {},
-	"ACCEPTED":         {},
-	"APPROVED":         {},
-	"REJECTED":         {},
-	"REMOVED":          {},
 }

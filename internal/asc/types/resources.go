@@ -115,6 +115,7 @@ const (
 	ResourceTypeSubscriptionGroupVersions                       ResourceType = "subscriptionGroupVersions"
 	ResourceTypeSubscriptionGroupSubmissions                    ResourceType = "subscriptionGroupSubmissions"
 	ResourceTypeSubscriptions                                   ResourceType = "subscriptions"
+	ResourceTypeSubscriptionVersions                            ResourceType = "subscriptionVersions"
 	ResourceTypeSubscriptionLocalizations                       ResourceType = "subscriptionLocalizations"
 	ResourceTypeSubscriptionImages                              ResourceType = "subscriptionImages"
 	ResourceTypeSubscriptionIntroductoryOffers                  ResourceType = "subscriptionIntroductoryOffers"

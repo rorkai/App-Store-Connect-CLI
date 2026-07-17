@@ -146,6 +146,7 @@ const (
 	ResourceTypeSubscriptionGroupVersions                       = types.ResourceTypeSubscriptionGroupVersions
 	ResourceTypeSubscriptionGroupSubmissions                    = types.ResourceTypeSubscriptionGroupSubmissions
 	ResourceTypeSubscriptions                                   = types.ResourceTypeSubscriptions
+	ResourceTypeSubscriptionVersions                            = types.ResourceTypeSubscriptionVersions
 	ResourceTypeSubscriptionLocalizations                       = types.ResourceTypeSubscriptionLocalizations
 	ResourceTypeSubscriptionImages                              = types.ResourceTypeSubscriptionImages
 	ResourceTypeSubscriptionIntroductoryOffers                  = types.ResourceTypeSubscriptionIntroductoryOffers
