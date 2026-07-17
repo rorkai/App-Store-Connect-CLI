@@ -159,7 +159,7 @@ Live behavior refined four schema-level assumptions:
   localizations, subscription localizations, and subscription images. A runtime
   validator migration was therefore a live-verified no-op, not an assumption.
 
-#1792 makes no new live explicit-null claim. It adds typed-client fidelity and
+PR #1792 makes no new live explicit-null claim. It adds typed-client fidelity and
 table-driven omit/value/null encoding tests only. The existing CLI commands
 continue to send the same concrete values or omissions as before; they do not
 gain a new clear/null flag. No explicit-null request for the age-rating, group
