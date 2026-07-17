@@ -22,6 +22,9 @@ func (c *Client) GetSubscriptionLocalizations(ctx context.Context, subscriptionI
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionLocalizations: %w", err)
 		}
+		if subscriptionLocalizationsQueryHasModifiers(query) {
+			return nil, fmt.Errorf("subscriptionLocalizations: next URL cannot be combined with query options")
+		}
 		path = query.nextURL
 	} else if queryString := buildSubscriptionLocalizationsQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -43,8 +46,15 @@ func (c *Client) GetSubscriptionLocalizations(ctx context.Context, subscriptionI
 // GetSubscriptionLocalization retrieves a subscription localization by ID.
 //
 // Deprecated: Use GetSubscriptionLocalizationV2.
-func (c *Client) GetSubscriptionLocalization(ctx context.Context, localizationID string) (*SubscriptionLocalizationResponse, error) {
+func (c *Client) GetSubscriptionLocalization(ctx context.Context, localizationID string, opts ...SubscriptionLocalizationOption) (*SubscriptionLocalizationResponse, error) {
+	query := &subscriptionRelatedFieldsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
 	path := fmt.Sprintf("/v1/subscriptionLocalizations/%s", strings.TrimSpace(localizationID))
+	if queryString := buildSubscriptionRelatedFieldsQuery("subscriptions", query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -151,6 +161,9 @@ func (c *Client) GetSubscriptionImages(ctx context.Context, subscriptionID strin
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionImages: %w", err)
 		}
+		if subscriptionImagesQueryHasModifiers(query) {
+			return nil, fmt.Errorf("subscriptionImages: next URL cannot be combined with query options")
+		}
 		path = query.nextURL
 	} else if queryString := buildSubscriptionImagesQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -171,8 +184,15 @@ func (c *Client) GetSubscriptionImages(ctx context.Context, subscriptionID strin
 // GetSubscriptionImage retrieves a subscription image by ID.
 //
 // Deprecated: Use GetSubscriptionImageV2.
-func (c *Client) GetSubscriptionImage(ctx context.Context, imageID string) (*SubscriptionImageResponse, error) {
+func (c *Client) GetSubscriptionImage(ctx context.Context, imageID string, opts ...SubscriptionImageOption) (*SubscriptionImageResponse, error) {
+	query := &subscriptionRelatedFieldsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
 	path := fmt.Sprintf("/v1/subscriptionImages/%s", strings.TrimSpace(imageID))
+	if queryString := buildSubscriptionRelatedFieldsQuery("subscriptions", query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -283,6 +303,9 @@ func (c *Client) GetSubscriptionIntroductoryOffers(ctx context.Context, subscrip
 	if query.nextURL != "" {
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionIntroductoryOffers: %w", err)
+		}
+		if subscriptionIntroductoryOffersQueryHasModifiers(query) {
+			return nil, fmt.Errorf("subscriptionIntroductoryOffers: next URL cannot be combined with query options")
 		}
 		path = query.nextURL
 	} else if queryString := buildSubscriptionIntroductoryOffersQuery(query); queryString != "" {
@@ -420,6 +443,9 @@ func (c *Client) GetSubscriptionPromotionalOffers(ctx context.Context, subscript
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionPromotionalOffers: %w", err)
 		}
+		if subscriptionPromotionalOffersQueryHasModifiers(query) {
+			return nil, fmt.Errorf("subscriptionPromotionalOffers: next URL cannot be combined with query options")
+		}
 		path = query.nextURL
 	} else if queryString := buildSubscriptionPromotionalOffersQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -438,8 +464,15 @@ func (c *Client) GetSubscriptionPromotionalOffers(ctx context.Context, subscript
 }
 
 // GetSubscriptionPromotionalOffer retrieves a promotional offer by ID.
-func (c *Client) GetSubscriptionPromotionalOffer(ctx context.Context, offerID string) (*SubscriptionPromotionalOfferResponse, error) {
+func (c *Client) GetSubscriptionPromotionalOffer(ctx context.Context, offerID string, opts ...SubscriptionPromotionalOfferOption) (*SubscriptionPromotionalOfferResponse, error) {
+	query := &subscriptionRelatedFieldsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
 	path := fmt.Sprintf("/v1/subscriptionPromotionalOffers/%s", strings.TrimSpace(offerID))
+	if queryString := buildSubscriptionRelatedFieldsQuery("subscriptions", query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -566,6 +599,9 @@ func (c *Client) GetSubscriptionPromotionalOfferPrices(ctx context.Context, offe
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionPromotionalOfferPrices: %w", err)
 		}
+		if subscriptionPromotionalOfferPricesQueryHasModifiers(query) {
+			return nil, fmt.Errorf("subscriptionPromotionalOfferPrices: next URL cannot be combined with query options")
+		}
 		path = query.nextURL
 	} else if queryString := buildSubscriptionPromotionalOfferPricesQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -630,6 +666,9 @@ func (c *Client) GetSubscriptionOfferCodes(ctx context.Context, subscriptionID s
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionOfferCodes: %w", err)
 		}
+		if subscriptionOfferCodesQueryHasModifiers(query) {
+			return nil, fmt.Errorf("subscriptionOfferCodes: next URL cannot be combined with query options")
+		}
 		path = query.nextURL
 	} else if queryString := buildSubscriptionOfferCodesQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -648,8 +687,15 @@ func (c *Client) GetSubscriptionOfferCodes(ctx context.Context, subscriptionID s
 }
 
 // GetSubscriptionOfferCode retrieves an offer code by ID.
-func (c *Client) GetSubscriptionOfferCode(ctx context.Context, offerCodeID string) (*SubscriptionOfferCodeResponse, error) {
+func (c *Client) GetSubscriptionOfferCode(ctx context.Context, offerCodeID string, opts ...SubscriptionOfferCodeOption) (*SubscriptionOfferCodeResponse, error) {
+	query := &subscriptionRelatedFieldsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
 	path := fmt.Sprintf("/v1/subscriptionOfferCodes/%s", strings.TrimSpace(offerCodeID))
+	if queryString := buildSubscriptionRelatedFieldsQuery("subscriptions", query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -855,6 +901,9 @@ func (c *Client) GetSubscriptionOfferCodePrices(ctx context.Context, offerCodeID
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionOfferCodePrices: %w", err)
 		}
+		if subscriptionOfferCodePricesQueryHasModifiers(query) {
+			return nil, fmt.Errorf("subscriptionOfferCodePrices: next URL cannot be combined with query options")
+		}
 		path = query.nextURL
 	} else if queryString := buildSubscriptionOfferCodePricesQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -974,12 +1023,19 @@ func (c *Client) GetSubscriptionPricePoints(ctx context.Context, subscriptionID 
 }
 
 // GetSubscriptionPricePoint retrieves a subscription price point by ID.
-func (c *Client) GetSubscriptionPricePoint(ctx context.Context, pricePointID string) (*SubscriptionPricePointResponse, error) {
+func (c *Client) GetSubscriptionPricePoint(ctx context.Context, pricePointID string, opts ...SubscriptionPricePointOption) (*SubscriptionPricePointResponse, error) {
 	pricePointID = strings.TrimSpace(pricePointID)
 	if pricePointID == "" {
 		return nil, fmt.Errorf("pricePointID is required")
 	}
+	query := &subscriptionPricePointDetailQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
 	path := fmt.Sprintf("/v1/subscriptionPricePoints/%s", pricePointID)
+	if queryString := buildSubscriptionPricePointDetailQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -1182,8 +1238,15 @@ func (c *Client) CreateSubscriptionGroupSubmission(ctx context.Context, groupID 
 }
 
 // GetSubscriptionAppStoreReviewScreenshot retrieves a review screenshot by ID.
-func (c *Client) GetSubscriptionAppStoreReviewScreenshot(ctx context.Context, screenshotID string) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
+func (c *Client) GetSubscriptionAppStoreReviewScreenshot(ctx context.Context, screenshotID string, opts ...SubscriptionAppStoreReviewScreenshotOption) (*SubscriptionAppStoreReviewScreenshotResponse, error) {
+	query := &subscriptionAppStoreReviewScreenshotQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
 	path := fmt.Sprintf("/v1/subscriptionAppStoreReviewScreenshots/%s", strings.TrimSpace(screenshotID))
+	if queryString := buildSubscriptionAppStoreReviewScreenshotQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
@@ -1291,6 +1354,9 @@ func (c *Client) GetSubscriptionGroupLocalizations(ctx context.Context, groupID 
 		if err := validateNextURL(query.nextURL); err != nil {
 			return nil, fmt.Errorf("subscriptionGroupLocalizations: %w", err)
 		}
+		if subscriptionGroupLocalizationsQueryHasModifiers(query) {
+			return nil, fmt.Errorf("subscriptionGroupLocalizations: next URL cannot be combined with query options")
+		}
 		path = query.nextURL
 	} else if queryString := buildSubscriptionGroupLocalizationsQuery(query); queryString != "" {
 		path += "?" + queryString
@@ -1311,8 +1377,15 @@ func (c *Client) GetSubscriptionGroupLocalizations(ctx context.Context, groupID 
 // GetSubscriptionGroupLocalization retrieves a subscription group localization by ID.
 //
 // Deprecated: Use GetSubscriptionGroupLocalizationV2.
-func (c *Client) GetSubscriptionGroupLocalization(ctx context.Context, localizationID string) (*SubscriptionGroupLocalizationResponse, error) {
+func (c *Client) GetSubscriptionGroupLocalization(ctx context.Context, localizationID string, opts ...SubscriptionGroupLocalizationOption) (*SubscriptionGroupLocalizationResponse, error) {
+	query := &subscriptionRelatedFieldsQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
 	path := fmt.Sprintf("/v1/subscriptionGroupLocalizations/%s", strings.TrimSpace(localizationID))
+	if queryString := buildSubscriptionRelatedFieldsQuery("subscriptionGroups", query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err

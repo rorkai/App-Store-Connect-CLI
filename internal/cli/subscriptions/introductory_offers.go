@@ -58,6 +58,8 @@ func SubscriptionsIntroductoryOffersListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
+	pricePointFields := fs.String("price-point-fields", "", "Included subscription price point fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -78,6 +80,16 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions introductory-offers list: %w", err)
 			}
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			if err != nil {
+				return err
+			}
+			selectedPricePointFields, err := normalizeSparseFieldsFlag(fs, *next, "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
+			if err != nil {
+				return err
+			}
+			include := includeRelationshipForFields(selectedSubscriptionFields, "subscription")
+			include = appendIncludeForFields(include, selectedPricePointFields, "subscriptionPricePoint")
 
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" && strings.TrimSpace(*next) == "" {
@@ -103,10 +115,16 @@ Examples:
 			opts := []asc.SubscriptionIntroductoryOffersOption{
 				asc.WithSubscriptionIntroductoryOffersLimit(*limit),
 				asc.WithSubscriptionIntroductoryOffersNextURL(*next),
+				asc.WithSubscriptionIntroductoryOffersSubscriptionFields(selectedSubscriptionFields),
+				asc.WithSubscriptionIntroductoryOffersPricePointFields(selectedPricePointFields),
+				asc.WithSubscriptionIntroductoryOffersInclude(include),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionIntroductoryOffersLimit(200))
+				paginateOpts := opts
+				if strings.TrimSpace(*next) == "" {
+					paginateOpts = append(paginateOpts, asc.WithSubscriptionIntroductoryOffersLimit(200))
+				}
 				firstPage, err := client.GetSubscriptionIntroductoryOffers(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("subscriptions introductory-offers list: failed to fetch: %w", err)

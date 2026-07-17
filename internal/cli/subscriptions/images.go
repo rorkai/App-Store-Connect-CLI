@@ -52,6 +52,7 @@ func SubscriptionsImagesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return shared.DeprecatedCommand(&ffcli.Command{
@@ -71,6 +72,10 @@ Examples:
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions images list: %w", err)
+			}
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			if err != nil {
+				return err
 			}
 
 			id := strings.TrimSpace(*subscriptionID)
@@ -97,10 +102,15 @@ Examples:
 			opts := []asc.SubscriptionImagesOption{
 				asc.WithSubscriptionImagesLimit(*limit),
 				asc.WithSubscriptionImagesNextURL(*next),
+				asc.WithSubscriptionImagesSubscriptionFields(selectedSubscriptionFields),
+				asc.WithSubscriptionImagesInclude(includeRelationshipForFields(selectedSubscriptionFields, "subscription")),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionImagesLimit(200))
+				paginateOpts := opts
+				if strings.TrimSpace(*next) == "" {
+					paginateOpts = append(paginateOpts, asc.WithSubscriptionImagesLimit(200))
+				}
 				firstPage, err := client.GetSubscriptionImages(requestCtx, id, paginateOpts...) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				if err != nil {
 					return fmt.Errorf("subscriptions images list: failed to fetch: %w", err)
@@ -131,6 +141,7 @@ func SubscriptionsImagesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("images view", flag.ExitOnError)
 
 	imageID := fs.String("id", "", "Subscription image ID")
+	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return shared.DeprecatedCommand(&ffcli.Command{
@@ -144,6 +155,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			if err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*imageID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -158,7 +173,11 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetSubscriptionImage(requestCtx, id) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+			resp, err := client.GetSubscriptionImage( //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+				requestCtx, id,
+				asc.WithSubscriptionImageSubscriptionFields(selectedSubscriptionFields),
+				asc.WithSubscriptionImageInclude(includeRelationshipForFields(selectedSubscriptionFields, "subscription")),
+			)
 			if err != nil {
 				return fmt.Errorf("subscriptions images view: failed to fetch: %w", err)
 			}

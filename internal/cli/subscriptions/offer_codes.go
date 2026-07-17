@@ -60,6 +60,7 @@ func SubscriptionsOfferCodesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -80,6 +81,10 @@ Examples:
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions offer-codes list: %w", err)
+			}
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, *next, "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			if err != nil {
+				return err
 			}
 
 			id := strings.TrimSpace(*subscriptionID)
@@ -106,10 +111,15 @@ Examples:
 			opts := []asc.SubscriptionOfferCodesOption{
 				asc.WithSubscriptionOfferCodesLimit(*limit),
 				asc.WithSubscriptionOfferCodesNextURL(*next),
+				asc.WithSubscriptionOfferCodesSubscriptionFields(selectedSubscriptionFields),
+				asc.WithSubscriptionOfferCodesInclude(includeRelationshipForFields(selectedSubscriptionFields, "subscription")),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionOfferCodesLimit(200))
+				paginateOpts := opts
+				if strings.TrimSpace(*next) == "" {
+					paginateOpts = append(paginateOpts, asc.WithSubscriptionOfferCodesLimit(200))
+				}
 				firstPage, err := client.GetSubscriptionOfferCodes(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("subscriptions offer-codes list: failed to fetch: %w", err)
@@ -176,6 +186,7 @@ func SubscriptionsOfferCodesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes view", flag.ExitOnError)
 
 	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
+	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -189,6 +200,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			if err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --offer-code-id is required")
@@ -203,7 +218,11 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetSubscriptionOfferCode(requestCtx, id)
+			resp, err := client.GetSubscriptionOfferCode(
+				requestCtx, id,
+				asc.WithSubscriptionOfferCodeSubscriptionFields(selectedSubscriptionFields),
+				asc.WithSubscriptionOfferCodeInclude(includeRelationshipForFields(selectedSubscriptionFields, "subscription")),
+			)
 			if err != nil {
 				return fmt.Errorf("subscriptions offer-codes view: failed to fetch: %w", err)
 			}
@@ -541,6 +560,7 @@ func SubscriptionsOfferCodesPricesCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	pricePointFields := fs.String("price-point-fields", "", "Included subscription price point fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -560,6 +580,10 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions offer-codes prices: %w", err)
 			}
+			selectedPricePointFields, err := normalizeSparseFieldsFlag(fs, *next, "price-point-fields", *pricePointFields, subscriptionPricePointFieldsList())
+			if err != nil {
+				return err
+			}
 
 			id := strings.TrimSpace(*offerCodeID)
 			if id == "" && strings.TrimSpace(*next) == "" {
@@ -578,10 +602,15 @@ Examples:
 			opts := []asc.SubscriptionOfferCodePricesOption{
 				asc.WithSubscriptionOfferCodePricesLimit(*limit),
 				asc.WithSubscriptionOfferCodePricesNextURL(*next),
+				asc.WithSubscriptionOfferCodePricesPricePointFields(selectedPricePointFields),
+				asc.WithSubscriptionOfferCodePricesInclude(includeRelationshipForFields(selectedPricePointFields, "subscriptionPricePoint")),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionOfferCodePricesLimit(200))
+				paginateOpts := opts
+				if strings.TrimSpace(*next) == "" {
+					paginateOpts = append(paginateOpts, asc.WithSubscriptionOfferCodePricesLimit(200))
+				}
 				firstPage, err := client.GetSubscriptionOfferCodePrices(requestCtx, id, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("subscriptions offer-codes prices: failed to fetch: %w", err)

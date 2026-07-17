@@ -48,6 +48,7 @@ func SubscriptionsReviewScreenshotsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-screenshots view", flag.ExitOnError)
 
 	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
+	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -61,6 +62,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			selectedSubscriptionFields, err := normalizeSparseFieldsFlag(fs, "", "subscription-fields", *subscriptionFields, subscriptionFieldsList())
+			if err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*screenshotID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --screenshot-id is required")
@@ -75,7 +80,11 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetSubscriptionAppStoreReviewScreenshot(requestCtx, id)
+			resp, err := client.GetSubscriptionAppStoreReviewScreenshot(
+				requestCtx, id,
+				asc.WithSubscriptionAppStoreReviewScreenshotSubscriptionFields(selectedSubscriptionFields),
+				asc.WithSubscriptionAppStoreReviewScreenshotInclude(includeRelationshipForFields(selectedSubscriptionFields, "subscription")),
+			)
 			if err != nil {
 				return fmt.Errorf("subscriptions review-screenshots view: failed to fetch: %w", err)
 			}

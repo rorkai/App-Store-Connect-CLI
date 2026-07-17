@@ -52,6 +52,7 @@ func SubscriptionsGroupsLocalizationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	groupFields := fs.String("group-fields", "", "Included subscription group fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return shared.DeprecatedCommand(&ffcli.Command{
@@ -72,6 +73,10 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions groups localizations list: %w", err)
 			}
+			selectedGroupFields, err := normalizeSparseFieldsFlag(fs, *next, "group-fields", *groupFields, subscriptionGroupFieldsList())
+			if err != nil {
+				return err
+			}
 
 			id := strings.TrimSpace(*groupID)
 			if id == "" && strings.TrimSpace(*next) == "" {
@@ -90,10 +95,15 @@ Examples:
 			opts := []asc.SubscriptionGroupLocalizationsOption{
 				asc.WithSubscriptionGroupLocalizationsLimit(*limit),
 				asc.WithSubscriptionGroupLocalizationsNextURL(*next),
+				asc.WithSubscriptionGroupLocalizationsGroupFields(selectedGroupFields),
+				asc.WithSubscriptionGroupLocalizationsInclude(includeRelationshipForFields(selectedGroupFields, "subscriptionGroup")),
 			}
 
 			if *paginate {
-				paginateOpts := append(opts, asc.WithSubscriptionGroupLocalizationsLimit(200))
+				paginateOpts := opts
+				if strings.TrimSpace(*next) == "" {
+					paginateOpts = append(paginateOpts, asc.WithSubscriptionGroupLocalizationsLimit(200))
+				}
 				firstPage, err := client.GetSubscriptionGroupLocalizations(requestCtx, id, paginateOpts...) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 				if err != nil {
 					return fmt.Errorf("subscriptions groups localizations list: failed to fetch: %w", err)
@@ -124,6 +134,7 @@ func SubscriptionsGroupsLocalizationsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("groups localizations view", flag.ExitOnError)
 
 	localizationID := fs.String("id", "", "Subscription group localization ID")
+	groupFields := fs.String("group-fields", "", "Included subscription group fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return shared.DeprecatedCommand(&ffcli.Command{
@@ -137,6 +148,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			selectedGroupFields, err := normalizeSparseFieldsFlag(fs, "", "group-fields", *groupFields, subscriptionGroupFieldsList())
+			if err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*localizationID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -151,7 +166,11 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetSubscriptionGroupLocalization(requestCtx, id) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+			resp, err := client.GetSubscriptionGroupLocalization( //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+				requestCtx, id,
+				asc.WithSubscriptionGroupLocalizationGroupFields(selectedGroupFields),
+				asc.WithSubscriptionGroupLocalizationInclude(includeRelationshipForFields(selectedGroupFields, "subscriptionGroup")),
+			)
 			if err != nil {
 				return fmt.Errorf("subscriptions groups localizations view: failed to fetch: %w", err)
 			}

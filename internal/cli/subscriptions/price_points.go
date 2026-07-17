@@ -321,6 +321,7 @@ func SubscriptionsPricePointsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points view", flag.ExitOnError)
 
 	pricePointID := fs.String("price-point-id", "", "Subscription price point ID")
+	fields := fs.String("fields", "", "Subscription price point fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -334,6 +335,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			selectedFields, err := normalizeSparseFieldsFlag(fs, "", "fields", *fields, subscriptionPricePointFieldsList())
+			if err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*pricePointID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --price-point-id is required")
@@ -348,7 +353,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetSubscriptionPricePoint(requestCtx, id)
+			resp, err := client.GetSubscriptionPricePoint(requestCtx, id, asc.WithSubscriptionPricePointFields(selectedFields))
 			if err != nil {
 				return fmt.Errorf("subscriptions price-points view: failed to fetch: %w", err)
 			}
@@ -368,14 +373,7 @@ func SubscriptionsPricePointsAdjustedEqualizationsCommand() *ffcli.Command {
 	return buildSubscriptionPricePointEqualizationsCommand("adjusted-equalizations", true)
 }
 
-var subscriptionPricePointFields = []string{
-	"customerPrice",
-	"proceeds",
-	"proceedsYear2",
-	"territory",
-	"equalizations",
-	"adjustedEqualizations",
-}
+var subscriptionPricePointFields = subscriptionPricePointFieldsList()
 
 func buildSubscriptionPricePointEqualizationsCommand(name string, adjusted bool) *ffcli.Command {
 	flagSetName := "price-points " + name
