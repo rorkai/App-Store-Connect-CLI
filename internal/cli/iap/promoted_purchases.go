@@ -16,12 +16,13 @@ func IAPPromotedPurchasesCommand() *ffcli.Command {
 		lookupAppID := addIAPPromotedPurchaseLookupAppFlag(cmd)
 		cmd.ShortUsage = "asc iap promoted-purchases <subcommand> [flags]"
 		promotedpurchases.ConfigureScopedPromotedPurchasesCommand(cmd, promotedpurchases.ScopedPromotedPurchasesCommandConfig{
-			PathPrefix:      "asc iap promoted-purchases",
-			ProductType:     "IN_APP_PURCHASE",
-			ProductSingular: "an in-app purchase",
-			ProductPlural:   "in-app purchases",
-			OwnerIDFlag:     "iap-id",
-			OwnerIDUsage:    "In-app purchase ID, product ID, or exact current name",
+			PathPrefix:         "asc iap promoted-purchases",
+			ProductType:        "IN_APP_PURCHASE",
+			ProductSingular:    "an in-app purchase",
+			ProductPlural:      "in-app purchases",
+			OwnerIDFlag:        "iap-id",
+			OwnerIDUsage:       "In-app purchase ID, product ID, or exact current name",
+			OwnerIDPlaceholder: "IAP_SELECTOR",
 			ResolveOwnerID: func(ctx context.Context, client *asc.Client, selector string) (string, error) {
 				return resolveIAPLookupIDWithTimeout(ctx, client, *lookupAppID, selector)
 			},

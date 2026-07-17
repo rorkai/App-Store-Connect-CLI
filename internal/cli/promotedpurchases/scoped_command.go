@@ -18,16 +18,17 @@ import (
 // ScopedPromotedPurchasesCommandConfig customizes a promoted-purchases command tree
 // to a single product family while preserving the shared generic implementation.
 type ScopedPromotedPurchasesCommandConfig struct {
-	PathPrefix      string
-	ProductType     promotedPurchaseProductType
-	ProductSingular string
-	ProductPlural   string
-	RootShortHelp   string
-	RootLongHelp    string
-	OwnerIDFlag     string
-	OwnerIDUsage    string
-	ResolveOwnerID  func(context.Context, *asc.Client, string) (string, error)
-	FetchForOwner   func(context.Context, *asc.Client, string, ...asc.PromotedPurchaseGetOption) (*asc.PromotedPurchaseResponse, error)
+	PathPrefix         string
+	ProductType        promotedPurchaseProductType
+	ProductSingular    string
+	ProductPlural      string
+	RootShortHelp      string
+	RootLongHelp       string
+	OwnerIDFlag        string
+	OwnerIDUsage       string
+	OwnerIDPlaceholder string
+	ResolveOwnerID     func(context.Context, *asc.Client, string) (string, error)
+	FetchForOwner      func(context.Context, *asc.Client, string, ...asc.PromotedPurchaseGetOption) (*asc.PromotedPurchaseResponse, error)
 }
 
 var promotedPurchaseIAPFields = []string{
@@ -194,6 +195,10 @@ func configureScopedPromotedPurchasesViewCommand(cmd *ffcli.Command, cfg ScopedP
 	bindStringFlagIfMissing(cmd.FlagSet, "iap-fields", promotedPurchaseFieldsUsage("iap-fields"))
 	bindStringFlagIfMissing(cmd.FlagSet, "subscription-fields", promotedPurchaseFieldsUsage("subscription-fields"))
 	ownerIDFlag := strings.TrimSpace(cfg.OwnerIDFlag)
+	ownerIDPlaceholder := strings.TrimSpace(cfg.OwnerIDPlaceholder)
+	if ownerIDPlaceholder == "" {
+		ownerIDPlaceholder = "PRODUCT_ID"
+	}
 	if ownerIDFlag != "" {
 		bindStringFlagIfMissing(cmd.FlagSet, ownerIDFlag, cfg.OwnerIDUsage)
 	}
@@ -201,7 +206,7 @@ func configureScopedPromotedPurchasesViewCommand(cmd *ffcli.Command, cfg ScopedP
 	if ownerIDFlag == "" {
 		cmd.ShortUsage = fmt.Sprintf("%s view --promoted-purchase-id PROMO_ID", cfg.PathPrefix)
 	} else {
-		cmd.ShortUsage = fmt.Sprintf("%s view (--promoted-purchase-id PROMO_ID | --%s PRODUCT_ID) [flags]", cfg.PathPrefix, ownerIDFlag)
+		cmd.ShortUsage = fmt.Sprintf("%s view (--promoted-purchase-id PROMO_ID | --%s %s) [flags]", cfg.PathPrefix, ownerIDFlag, ownerIDPlaceholder)
 	}
 	cmd.ShortHelp = fmt.Sprintf("View a promoted purchase for %s by ID.", cfg.ProductSingular)
 	cmd.LongHelp = fmt.Sprintf(`View a promoted purchase for %s by ID.
@@ -210,7 +215,7 @@ Examples:
   %s view --promoted-purchase-id "PROMO_ID"
   %s view --promoted-purchase-id "PROMO_ID" --iap-fields versions --subscription-fields versions`, cfg.ProductSingular, cfg.PathPrefix, cfg.PathPrefix)
 	if ownerIDFlag != "" {
-		cmd.LongHelp += fmt.Sprintf("\n  %s view --%s \"PRODUCT_ID\" --iap-fields versions --subscription-fields versions", cfg.PathPrefix, ownerIDFlag)
+		cmd.LongHelp += fmt.Sprintf("\n  %s view --%s \"%s\" --iap-fields versions --subscription-fields versions", cfg.PathPrefix, ownerIDFlag, ownerIDPlaceholder)
 	}
 
 	cmd.Exec = func(ctx context.Context, args []string) error {

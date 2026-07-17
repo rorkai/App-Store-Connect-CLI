@@ -449,11 +449,11 @@ asc iap promoted-purchases view \
   --iap-fields versions
 ```
 
-Provide exactly one of `--promoted-purchase-id` or `--iap-id`. The IAP selector
-accepts an ASC resource ID, product ID, or exact current name. Product IDs and
-names require `--app` or `ASC_APP_ID`; a numeric ASC resource ID can be used
-directly without app context. Sparse-field flags cannot be combined with
-`--next` on list commands because the next-page URL already owns its query
+Provide exactly one of `--promoted-purchase-id` or `--iap-id IAP_SELECTOR`.
+`IAP_SELECTOR` accepts an ASC resource ID, product ID, or exact current name.
+Product IDs and names require `--app` or `ASC_APP_ID`; a numeric ASC resource ID
+can be used directly without app context. Sparse-field flags cannot be combined
+with `--next` on list commands because the next-page URL already owns its query
 parameters.
 
 ### Create Promoted Purchase

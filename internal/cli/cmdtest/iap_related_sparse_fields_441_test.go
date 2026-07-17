@@ -171,6 +171,9 @@ func TestIAPPromotedPurchaseViewResolvesStableSelector441(t *testing.T) {
 			requests := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				requests++
+				if req.Method != http.MethodGet {
+					t.Fatalf("request method = %s, want GET", req.Method)
+				}
 				w.Header().Set("Content-Type", "application/json")
 				switch req.URL.Path {
 				case "/v1/apps/app-1/inAppPurchasesV2":
@@ -251,6 +254,9 @@ func TestIAPPromotedPurchaseViewStableSelectorErrors441(t *testing.T) {
 		requests := 0
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			requests++
+			if req.Method != http.MethodGet {
+				t.Fatalf("request method = %s, want GET", req.Method)
+			}
 			w.Header().Set("Content-Type", "application/json")
 			if req.URL.Path != "/v1/apps/app-1/inAppPurchasesV2" {
 				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -281,6 +287,9 @@ func TestIAPPromotedPurchaseViewStableSelectorErrors441(t *testing.T) {
 		requests := 0
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			requests++
+			if req.Method != http.MethodGet {
+				t.Fatalf("request method = %s, want GET", req.Method)
+			}
 			if req.URL.Path != "/v1/apps/app-1/inAppPurchasesV2" {
 				t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
 			}
@@ -464,6 +473,9 @@ func TestIAPRelatedSparseFieldHelp441(t *testing.T) {
 	}
 	if !strings.Contains(iapUsage, "App Store Connect app ID (or ASC_APP_ID env; required when --iap-id uses a product ID or name)") {
 		t.Fatalf("IAP promoted view help does not describe app lookup context: %q", iapUsage)
+	}
+	if !strings.Contains(iapUsage, "--iap-id IAP_SELECTOR") || !strings.Contains(iapUsage, `--iap-id "IAP_SELECTOR"`) {
+		t.Fatalf("IAP promoted view help does not use the stable-selector placeholder: %q", iapUsage)
 	}
 
 	subscriptionView := findSubcommand(root, "subscriptions", "promoted-purchases", "view")
