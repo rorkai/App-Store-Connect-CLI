@@ -254,9 +254,16 @@ func buildAppInfoLocalizationsQuery(query *appInfoLocalizationsQuery) string {
 
 func buildAppInfoQuery(query *appInfoQuery) string {
 	values := url.Values{}
-	addCSV(values, "fields[appInfos]", query.fields)
+	include := normalizeUniqueList(query.include)
+	fields := normalizeUniqueList(query.fields)
+	if len(fields) > 0 {
+		// A primary sparse fieldset must retain every included relationship or
+		// ASC can omit the linkage and included resource from the response.
+		fields = normalizeUniqueList(append(fields, include...))
+	}
+	addCSV(values, "fields[appInfos]", fields)
 	addCSV(values, "fields[ageRatingDeclarations]", query.ageRatingDeclarationFields)
-	addCSV(values, "include", query.include)
+	addCSV(values, "include", include)
 	if query.localizationsLimit > 0 {
 		values.Set("limit[appInfoLocalizations]", strconv.Itoa(query.localizationsLimit))
 	}

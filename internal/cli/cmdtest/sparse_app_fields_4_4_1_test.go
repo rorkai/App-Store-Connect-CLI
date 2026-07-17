@@ -22,6 +22,7 @@ func TestSparseAppFieldFlagsValidateBeforeAuth(t *testing.T) {
 		{"apps view group", []string{"apps", "view", "--id", "app-1", "--subscription-group-fields", "subscriptions"}, "--subscription-group-fields must be one of: versions"},
 		{"app infos list fields", []string{"apps", "info", "list", "--app", "app-1", "--fields", "state"}, "--fields must be one of: kidsAgeBand"},
 		{"app info view age rating", []string{"apps", "info", "view", "--info-id", "info-1", "--age-rating-fields", "gambling"}, "--age-rating-fields must be one of"},
+		{"app info view unsupported include", []string{"apps", "info", "view", "--info-id", "info-1", "--include", "territoryAgeRatings"}, "--include must be one of: app, ageRatingDeclaration, appInfoLocalizations, primaryCategory"},
 		{"app info fields conflict with version", []string{"apps", "info", "view", "--app", "app-1", "--version-id", "version-1", "--fields", "kidsAgeBand"}, "--fields cannot be used with version localization flags"},
 		{"app info age rating fields conflict with next", []string{"apps", "info", "view", "--app", "app-1", "--next", "https://api.appstoreconnect.apple.com/v1/appStoreVersionLocalizations?cursor=next", "--age-rating-fields", "socialMedia"}, "--next cannot be combined with --age-rating-fields"},
 		{"age rating view", []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", "gambling"}, "--fields must be one of"},
@@ -204,12 +205,12 @@ func TestSparseAppFieldCommandsSendExactQueries(t *testing.T) {
 		{
 			name: "app infos list", args: []string{"apps", "info", "list", "--app", "app-1", "--fields", "kidsAgeBand", "--age-rating-fields", "socialMedia,socialMediaAgeRestricted", "--output", "json"},
 			wantPath: "/v1/apps/app-1/appInfos", response: `{"data":[]}`,
-			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted", "include": "ageRatingDeclaration"},
+			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand,ageRatingDeclaration", "fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted", "include": "ageRatingDeclaration"},
 		},
 		{
 			name: "app info view", args: []string{"apps", "info", "view", "--info-id", "info-1", "--fields", "kidsAgeBand", "--age-rating-fields", "socialMedia", "--output", "json"},
 			wantPath: "/v1/appInfos/info-1", response: `{"data":{"type":"appInfos","id":"info-1"}}`,
-			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand", "fields[ageRatingDeclarations]": "socialMedia", "include": "ageRatingDeclaration"},
+			wantQuery: map[string]string{"fields[appInfos]": "kidsAgeBand,ageRatingDeclaration", "fields[ageRatingDeclarations]": "socialMedia", "include": "ageRatingDeclaration"},
 		},
 		{
 			name: "age rating view", args: []string{"age-rating", "view", "--app-info-id", "info-1", "--fields", "socialMedia,socialMediaAgeRestricted", "--output", "json"},
@@ -300,5 +301,15 @@ func TestSparseAppFieldHelp441(t *testing.T) {
 	}
 	if usage := localizations.UsageFunc(localizations); !strings.Contains(usage, "--app-info-fields") {
 		t.Fatalf("help for [localizations list] does not contain --app-info-fields: %q", usage)
+	}
+
+	appInfoView := findSubcommand(root, "apps", "info", "view")
+	if appInfoView == nil {
+		t.Fatal("command [apps info view] not found")
+	}
+	usage := appInfoView.UsageFunc(appInfoView)
+	wantIncludes := "app, ageRatingDeclaration, appInfoLocalizations, primaryCategory, primarySubcategoryOne, primarySubcategoryTwo, secondaryCategory, secondarySubcategoryOne, secondarySubcategoryTwo"
+	if !strings.Contains(usage, wantIncludes) || strings.Contains(usage, "territoryAgeRatings") {
+		t.Fatalf("help for [apps info view] does not teach exact app-info includes: %q", usage)
 	}
 }

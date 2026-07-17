@@ -8,8 +8,9 @@ func normalizeAppInfoInclude(value string) ([]string, error) {
 
 func appInfoIncludeList() []string {
 	return []string{
+		"app",
 		"ageRatingDeclaration",
-		"territoryAgeRatings",
+		"appInfoLocalizations",
 		"primaryCategory",
 		"primarySubcategoryOne",
 		"primarySubcategoryTwo",

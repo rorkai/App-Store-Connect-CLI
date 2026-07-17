@@ -87,7 +87,7 @@ Examples:
   asc apps info view --info-id "APP_INFO_ID" --fields kidsAgeBand
   asc apps info view --info-id "APP_INFO_ID" --age-rating-fields socialMedia,socialMediaAgeRestricted
   asc apps info view --info-id "APP_INFO_ID" --include "ageRatingDeclaration"
-  asc apps info view --app "APP_ID" --include "ageRatingDeclaration,territoryAgeRatings"
+  asc apps info view --app "APP_ID" --include "appInfoLocalizations,primaryCategory"
   asc apps info view --app "APP_ID" --locale "en-US" --output table`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,

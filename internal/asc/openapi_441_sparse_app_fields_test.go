@@ -34,7 +34,7 @@ func TestOpenAPI441SparseAppFields(t *testing.T) {
 			name:     "app info detail",
 			wantPath: "/v1/appInfos/info-1",
 			wantQuery: map[string]string{
-				"fields[appInfos]":              "kidsAgeBand",
+				"fields[appInfos]":              "kidsAgeBand,ageRatingDeclaration",
 				"fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted",
 				"include":                       "ageRatingDeclaration",
 			},
@@ -125,7 +125,7 @@ func TestOpenAPI441SparseAppFields(t *testing.T) {
 			wantPath: "/v1/apps/app-1/appInfos",
 			response: `{"data":[]}`,
 			wantQuery: map[string]string{
-				"fields[appInfos]":              "kidsAgeBand",
+				"fields[appInfos]":              "kidsAgeBand,ageRatingDeclaration",
 				"fields[ageRatingDeclarations]": "socialMedia,socialMediaAgeRestricted",
 				"include":                       "ageRatingDeclaration",
 			},

@@ -1032,18 +1032,35 @@ func TestBuildAppStoreVersionQuery(t *testing.T) {
 
 func TestBuildAppInfoQuery(t *testing.T) {
 	query := &appInfoQuery{}
-	WithAppInfoInclude([]string{"ageRatingDeclaration", "territoryAgeRatings"})(query)
+	WithAppInfoInclude([]string{"ageRatingDeclaration", "primaryCategory"})(query)
 	WithAppInfoLocalizationsIncludeLimit(50)(query)
 
 	values, err := url.ParseQuery(buildAppInfoQuery(query))
 	if err != nil {
 		t.Fatalf("failed to parse query: %v", err)
 	}
-	if got := values.Get("include"); got != "ageRatingDeclaration,territoryAgeRatings" {
-		t.Fatalf("expected include=ageRatingDeclaration,territoryAgeRatings, got %q", got)
+	if got := values.Get("include"); got != "ageRatingDeclaration,primaryCategory" {
+		t.Fatalf("expected include=ageRatingDeclaration,primaryCategory, got %q", got)
 	}
 	if got := values.Get("limit[appInfoLocalizations]"); got != "50" {
 		t.Fatalf("expected localization include limit 50, got %q", got)
+	}
+}
+
+func TestBuildAppInfoQueryAddsIncludedRelationshipsToSparseFields(t *testing.T) {
+	query := &appInfoQuery{}
+	WithAppInfoFields([]string{"kidsAgeBand", "ageRatingDeclaration"})(query)
+	WithAppInfoInclude([]string{"ageRatingDeclaration", "primaryCategory", "ageRatingDeclaration"})(query)
+
+	values, err := url.ParseQuery(buildAppInfoQuery(query))
+	if err != nil {
+		t.Fatalf("failed to parse query: %v", err)
+	}
+	if got := values["fields[appInfos]"]; len(got) != 1 || got[0] != "kidsAgeBand,ageRatingDeclaration,primaryCategory" {
+		t.Fatalf("fields[appInfos] = %q, want one ordered, deduplicated value", got)
+	}
+	if got := values["include"]; len(got) != 1 || got[0] != "ageRatingDeclaration,primaryCategory" {
+		t.Fatalf("include = %q, want one ordered, deduplicated value", got)
 	}
 }
 

@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -22,9 +23,15 @@ func TestNormalizeInclude(t *testing.T) {
 		},
 		{
 			name:    "valid",
-			input:   "ageRatingDeclaration,territoryAgeRatings",
+			input:   "ageRatingDeclaration,appInfoLocalizations",
 			allowed: appInfoIncludeList(),
 			wantLen: 2,
+		},
+		{
+			name:    "unsupported territory age ratings",
+			input:   "territoryAgeRatings",
+			allowed: appInfoIncludeList(),
+			wantErr: true,
 		},
 		{
 			name:    "invalid option",
@@ -50,6 +57,23 @@ func TestNormalizeInclude(t *testing.T) {
 				t.Fatalf("expected %d values, got %d", test.wantLen, len(got))
 			}
 		})
+	}
+}
+
+func TestAppInfoIncludeListMatchesOpenAPI441(t *testing.T) {
+	want := []string{
+		"app",
+		"ageRatingDeclaration",
+		"appInfoLocalizations",
+		"primaryCategory",
+		"primarySubcategoryOne",
+		"primarySubcategoryTwo",
+		"secondaryCategory",
+		"secondarySubcategoryOne",
+		"secondarySubcategoryTwo",
+	}
+	if got := appInfoIncludeList(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("appInfoIncludeList() = %v, want exact OpenAPI 4.4.1 enum %v", got, want)
 	}
 }
 
