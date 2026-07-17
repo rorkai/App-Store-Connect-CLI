@@ -217,7 +217,7 @@ func TestSubscriptionLocalizationV2Mutations(t *testing.T) {
 		jsonResponse(http.StatusNoContent, ``),
 	)
 	ctx := context.Background()
-	if _, err := client.CreateSubscriptionLocalizationV2(ctx, "ver-1", SubscriptionLocalizationV2CreateAttributes{Name: "Pro", Locale: "en-US", Description: &description}); err != nil {
+	if _, err := client.CreateSubscriptionLocalizationV2(ctx, "ver-1", SubscriptionLocalizationV2CreateAttributes{Name: "Pro", Locale: "en-US", Description: &NullableString{Value: &description}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := client.UpdateSubscriptionLocalizationV2(ctx, "loc-1", SubscriptionLocalizationV2UpdateAttributes{
@@ -312,7 +312,7 @@ func TestSubscriptionImageV2Mutations(t *testing.T) {
 				if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 					t.Fatal(err)
 				}
-				if payload.Data.Attributes.Uploaded == nil || !*payload.Data.Attributes.Uploaded {
+				if payload.Data.Attributes.Uploaded == nil || payload.Data.Attributes.Uploaded.Value == nil || !*payload.Data.Attributes.Uploaded.Value {
 					t.Fatalf("expected uploaded=true: %+v", payload)
 				}
 			case http.MethodDelete:
@@ -332,7 +332,7 @@ func TestSubscriptionImageV2Mutations(t *testing.T) {
 		t.Fatal(err)
 	}
 	uploaded := true
-	if _, err := client.UpdateSubscriptionImageV2(ctx, "img-1", SubscriptionImageV2UpdateAttributes{Uploaded: &uploaded}); err != nil {
+	if _, err := client.UpdateSubscriptionImageV2(ctx, "img-1", SubscriptionImageV2UpdateAttributes{Uploaded: &NullableBool{Value: &uploaded}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := client.DeleteSubscriptionImageV2(ctx, "img-1"); err != nil {
@@ -466,7 +466,7 @@ func TestSubscriptionVersionClientRequiredValuesFailBeforeRequest(t *testing.T) 
 		}},
 		{name: "get image ID", call: func() error { _, err := client.GetSubscriptionImageV2(context.Background(), " "); return err }},
 		{name: "update image ID", call: func() error {
-			_, err := client.UpdateSubscriptionImageV2(context.Background(), " ", SubscriptionImageV2UpdateAttributes{Uploaded: &falseValue})
+			_, err := client.UpdateSubscriptionImageV2(context.Background(), " ", SubscriptionImageV2UpdateAttributes{Uploaded: &NullableBool{Value: &falseValue}})
 			return err
 		}},
 		{name: "delete image ID", call: func() error { return client.DeleteSubscriptionImageV2(context.Background(), " ") }},

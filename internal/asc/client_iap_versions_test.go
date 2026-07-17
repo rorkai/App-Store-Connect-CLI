@@ -163,7 +163,7 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 			responseBody: `{"data":{"type":"inAppPurchaseLocalizations","id":"loc-1"}}`,
 			wantBody:     `{"data":{"type":"inAppPurchaseLocalizations","attributes":{"name":"Name","locale":"en-US"},"relationships":{"version":{"data":{"type":"inAppPurchaseVersions","id":"version-1"}}}}}`,
 			call: func(c *Client) error {
-				_, err := c.CreateInAppPurchaseLocalizationV2(context.Background(), "version-1", InAppPurchaseLocalizationCreateAttributes{Name: "Name", Locale: "en-US"})
+				_, err := c.CreateInAppPurchaseLocalizationV2(context.Background(), "version-1", InAppPurchaseLocalizationV2CreateAttributes{Name: "Name", Locale: "en-US"})
 				return err
 			},
 		},
@@ -224,7 +224,7 @@ func TestInAppPurchaseVersionEndpoints(t *testing.T) {
 			responseBody: `{"data":{"type":"inAppPurchaseImages","id":"image-1"}}`,
 			wantBody:     `{"data":{"type":"inAppPurchaseImages","id":"image-1","attributes":{"uploaded":true}}}`,
 			call: func(c *Client) error {
-				_, err := c.UpdateInAppPurchaseImageV2(context.Background(), "image-1", InAppPurchaseImageV2UpdateAttributes{Uploaded: &uploaded})
+				_, err := c.UpdateInAppPurchaseImageV2(context.Background(), "image-1", InAppPurchaseImageV2UpdateAttributes{Uploaded: &NullableBool{Value: &uploaded}})
 				return err
 			},
 		},

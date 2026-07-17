@@ -463,7 +463,7 @@ func (c *Client) GetInAppPurchaseVersionLocalizationsRelationships(ctx context.C
 	return c.getResourceLinkages(ctx, versionID, "localizations", "versionID", "/v1/inAppPurchaseVersions/%s/relationships/%s", "inAppPurchaseVersionLocalizationsRelationships", opts...)
 }
 
-func (c *Client) CreateInAppPurchaseLocalizationV2(ctx context.Context, versionID string, attrs InAppPurchaseLocalizationCreateAttributes) (*InAppPurchaseLocalizationResponse, error) {
+func (c *Client) CreateInAppPurchaseLocalizationV2(ctx context.Context, versionID string, attrs InAppPurchaseLocalizationV2CreateAttributes) (*InAppPurchaseLocalizationResponse, error) {
 	versionID = strings.TrimSpace(versionID)
 	if versionID == "" {
 		return nil, fmt.Errorf("versionID is required")

@@ -314,7 +314,7 @@ func SubscriptionsVersionImagesUploadCommand() *ffcli.Command {
 				return fmt.Errorf("subscriptions versions images upload: upload failed for reserved image %s: %w", reservation.Data.ID, err)
 			}
 			uploaded := true
-			resp, err := client.UpdateSubscriptionImageV2(requestCtx, reservation.Data.ID, asc.SubscriptionImageV2UpdateAttributes{Uploaded: &uploaded})
+			resp, err := client.UpdateSubscriptionImageV2(requestCtx, reservation.Data.ID, asc.SubscriptionImageV2UpdateAttributes{Uploaded: &asc.NullableBool{Value: &uploaded}})
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images upload: failed to commit reserved image %s: %w", reservation.Data.ID, err)
 			}
@@ -352,7 +352,7 @@ func SubscriptionsVersionImagesUpdateCommand() *ffcli.Command {
 			}
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
-			resp, err := client.UpdateSubscriptionImageV2(requestCtx, imageID, asc.SubscriptionImageV2UpdateAttributes{Uploaded: &value})
+			resp, err := client.UpdateSubscriptionImageV2(requestCtx, imageID, asc.SubscriptionImageV2UpdateAttributes{Uploaded: &asc.NullableBool{Value: &value}})
 			if err != nil {
 				return fmt.Errorf("subscriptions versions images update: failed to update: %w", err)
 			}

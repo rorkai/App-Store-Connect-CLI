@@ -37,9 +37,9 @@ type SubscriptionGroupVersionCreateRequest struct {
 
 // SubscriptionGroupLocalizationV2CreateAttributes describes version-scoped localization attributes.
 type SubscriptionGroupLocalizationV2CreateAttributes struct {
-	Name          string `json:"name"`
-	CustomAppName string `json:"customAppName,omitempty"`
-	Locale        string `json:"locale"`
+	Name          string          `json:"name"`
+	CustomAppName *NullableString `json:"customAppName,omitempty"`
+	Locale        string          `json:"locale"`
 }
 
 // SubscriptionGroupLocalizationV2UpdateAttributes describes nullable v2 updates.

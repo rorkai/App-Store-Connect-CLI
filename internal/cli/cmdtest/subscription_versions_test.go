@@ -323,7 +323,7 @@ func TestSubscriptionVersionImageUploadLifecycle(t *testing.T) {
 				reportSubscriptionVersionHandlerError(t, w, "decode commit body: %v", err)
 				return
 			}
-			if payload.Data.ID != "img-1" || payload.Data.Attributes.Uploaded == nil || !*payload.Data.Attributes.Uploaded {
+			if payload.Data.ID != "img-1" || payload.Data.Attributes.Uploaded == nil || payload.Data.Attributes.Uploaded.Value == nil || !*payload.Data.Attributes.Uploaded.Value {
 				reportSubscriptionVersionHandlerError(t, w, "commit payload = %+v", payload)
 				return
 			}

@@ -23,10 +23,10 @@ func TestAgeRatingEditSendsSocialMediaFields(t *testing.T) {
 		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 			t.Fatalf("decode payload: %v", err)
 		}
-		if payload.Data.Attributes.SocialMedia == nil || !*payload.Data.Attributes.SocialMedia {
+		if payload.Data.Attributes.SocialMedia == nil || payload.Data.Attributes.SocialMedia.Value == nil || !*payload.Data.Attributes.SocialMedia.Value {
 			t.Fatalf("expected socialMedia=true, got %#v", payload.Data.Attributes.SocialMedia)
 		}
-		if payload.Data.Attributes.SocialMediaAgeRestricted == nil || *payload.Data.Attributes.SocialMediaAgeRestricted {
+		if payload.Data.Attributes.SocialMediaAgeRestricted == nil || payload.Data.Attributes.SocialMediaAgeRestricted.Value == nil || *payload.Data.Attributes.SocialMediaAgeRestricted.Value {
 			t.Fatalf("expected socialMediaAgeRestricted=false, got %#v", payload.Data.Attributes.SocialMediaAgeRestricted)
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -70,10 +70,10 @@ func TestAgeRatingEditSendsSocialMediaFields(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &response); err != nil {
 		t.Fatalf("parse stdout: %v; stdout=%q", err, stdout)
 	}
-	if response.Data.Attributes.SocialMedia == nil || !*response.Data.Attributes.SocialMedia {
+	if response.Data.Attributes.SocialMedia == nil || response.Data.Attributes.SocialMedia.Value == nil || !*response.Data.Attributes.SocialMedia.Value {
 		t.Fatalf("expected socialMedia=true output, got %#v", response.Data.Attributes.SocialMedia)
 	}
-	if response.Data.Attributes.SocialMediaAgeRestricted == nil || *response.Data.Attributes.SocialMediaAgeRestricted {
+	if response.Data.Attributes.SocialMediaAgeRestricted == nil || response.Data.Attributes.SocialMediaAgeRestricted.Value == nil || *response.Data.Attributes.SocialMediaAgeRestricted.Value {
 		t.Fatalf("expected socialMediaAgeRestricted=false output, got %#v", response.Data.Attributes.SocialMediaAgeRestricted)
 	}
 }

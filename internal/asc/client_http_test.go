@@ -3865,10 +3865,10 @@ func TestUpdateAgeRatingDeclaration(t *testing.T) {
 		if payload.Data.Attributes.Gambling == nil || !*payload.Data.Attributes.Gambling {
 			t.Fatalf("expected gambling=true in request")
 		}
-		if payload.Data.Attributes.SocialMedia == nil || !*payload.Data.Attributes.SocialMedia {
+		if payload.Data.Attributes.SocialMedia == nil || payload.Data.Attributes.SocialMedia.Value == nil || !*payload.Data.Attributes.SocialMedia.Value {
 			t.Fatalf("expected socialMedia=true in request")
 		}
-		if payload.Data.Attributes.SocialMediaAgeRestricted == nil || *payload.Data.Attributes.SocialMediaAgeRestricted {
+		if payload.Data.Attributes.SocialMediaAgeRestricted == nil || payload.Data.Attributes.SocialMediaAgeRestricted.Value == nil || *payload.Data.Attributes.SocialMediaAgeRestricted.Value {
 			t.Fatalf("expected socialMediaAgeRestricted=false in request")
 		}
 		assertAuthorized(t, req)
@@ -3876,8 +3876,8 @@ func TestUpdateAgeRatingDeclaration(t *testing.T) {
 
 	attrs := AgeRatingDeclarationAttributes{
 		Gambling:                 func() *bool { value := true; return &value }(),
-		SocialMedia:              func() *bool { value := true; return &value }(),
-		SocialMediaAgeRestricted: func() *bool { value := false; return &value }(),
+		SocialMedia:              &NullableBool{Value: func() *bool { value := true; return &value }()},
+		SocialMediaAgeRestricted: &NullableBool{Value: func() *bool { value := false; return &value }()},
 	}
 	if _, err := client.UpdateAgeRatingDeclaration(context.Background(), "age-3", attrs); err != nil {
 		t.Fatalf("UpdateAgeRatingDeclaration() error: %v", err)

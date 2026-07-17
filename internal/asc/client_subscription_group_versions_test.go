@@ -94,7 +94,8 @@ func TestSubscriptionGroupVersionEndpoints(t *testing.T) {
 			responseBody: `{"data":{"type":"subscriptionGroupLocalizations","id":"loc-1"}}`,
 			bodyContains: []string{`"version":{"data":{"type":"subscriptionGroupVersions","id":"version-1"}}`, `"name":"Premium"`, `"locale":"en-US"`, `"customAppName":"Example"`},
 			call: func(c *Client) error {
-				_, err := c.CreateSubscriptionGroupLocalizationV2(context.Background(), "version-1", SubscriptionGroupLocalizationV2CreateAttributes{Name: "Premium", Locale: "en-US", CustomAppName: "Example"})
+				customAppName := "Example"
+				_, err := c.CreateSubscriptionGroupLocalizationV2(context.Background(), "version-1", SubscriptionGroupLocalizationV2CreateAttributes{Name: "Premium", Locale: "en-US", CustomAppName: &NullableString{Value: &customAppName}})
 				return err
 			},
 		},

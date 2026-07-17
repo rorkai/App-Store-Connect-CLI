@@ -34,9 +34,16 @@ type InAppPurchaseLocalizationV2CreateRelationships struct {
 	Version Relationship `json:"version"`
 }
 
+// InAppPurchaseLocalizationV2CreateAttributes describes version-scoped localization create attributes.
+type InAppPurchaseLocalizationV2CreateAttributes struct {
+	Name        string          `json:"name"`
+	Locale      string          `json:"locale"`
+	Description *NullableString `json:"description,omitempty"`
+}
+
 type InAppPurchaseLocalizationV2CreateData struct {
 	Type          ResourceType                                   `json:"type"`
-	Attributes    InAppPurchaseLocalizationCreateAttributes      `json:"attributes"`
+	Attributes    InAppPurchaseLocalizationV2CreateAttributes    `json:"attributes"`
 	Relationships InAppPurchaseLocalizationV2CreateRelationships `json:"relationships"`
 }
 
@@ -88,7 +95,7 @@ type InAppPurchaseImageV2CreateRequest struct {
 }
 
 type InAppPurchaseImageV2UpdateAttributes struct {
-	Uploaded *bool `json:"uploaded,omitempty"`
+	Uploaded *NullableBool `json:"uploaded,omitempty"`
 }
 
 type InAppPurchaseImageV2UpdateData struct {

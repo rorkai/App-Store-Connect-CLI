@@ -131,7 +131,11 @@ func IAPVersionLocalizationsCreateCommand() *ffcli.Command {
 			}
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
-			resp, err := client.CreateInAppPurchaseLocalizationV2(requestCtx, vid, asc.InAppPurchaseLocalizationCreateAttributes{Name: nameValue, Locale: localeValue, Description: strings.TrimSpace(*description)})
+			attrs := asc.InAppPurchaseLocalizationV2CreateAttributes{Name: nameValue, Locale: localeValue}
+			if descriptionValue := strings.TrimSpace(*description); descriptionValue != "" {
+				attrs.Description = &asc.NullableString{Value: &descriptionValue}
+			}
+			resp, err := client.CreateInAppPurchaseLocalizationV2(requestCtx, vid, attrs)
 			if err != nil {
 				return fmt.Errorf("iap versions localizations create: failed to create: %w", err)
 			}

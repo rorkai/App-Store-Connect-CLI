@@ -52,9 +52,9 @@ type SubscriptionLocalizationV2Attributes struct {
 
 // SubscriptionLocalizationV2CreateAttributes describes localization create attributes.
 type SubscriptionLocalizationV2CreateAttributes struct {
-	Name        string  `json:"name"`
-	Locale      string  `json:"locale"`
-	Description *string `json:"description,omitempty"`
+	Name        string          `json:"name"`
+	Locale      string          `json:"locale"`
+	Description *NullableString `json:"description,omitempty"`
 }
 
 // SubscriptionLocalizationV2UpdateAttributes describes localization update attributes.
@@ -110,7 +110,7 @@ type SubscriptionImageV2CreateAttributes struct {
 
 // SubscriptionImageV2UpdateAttributes describes the upload commit state.
 type SubscriptionImageV2UpdateAttributes struct {
-	Uploaded *bool `json:"uploaded,omitempty"`
+	Uploaded *NullableBool `json:"uploaded,omitempty"`
 }
 
 // SubscriptionImageV2CreateData is the data portion of an image create request.

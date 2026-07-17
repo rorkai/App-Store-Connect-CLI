@@ -11,8 +11,8 @@ func TestMapAgeRatingDeclarationIncludesSocialMediaFields(t *testing.T) {
 	falseValue := false
 
 	mapped := mapAgeRatingDeclaration(asc.AgeRatingDeclarationAttributes{
-		SocialMedia:              &trueValue,
-		SocialMediaAgeRestricted: &falseValue,
+		SocialMedia:              &asc.NullableBool{Value: &trueValue},
+		SocialMediaAgeRestricted: &asc.NullableBool{Value: &falseValue},
 	})
 
 	if mapped.SocialMedia == nil || !*mapped.SocialMedia {

@@ -360,8 +360,8 @@ func mapAgeRatingDeclaration(attrs asc.AgeRatingDeclarationAttributes) *validati
 		MessagingAndChat:                    attrs.MessagingAndChat,
 		ParentalControls:                    attrs.ParentalControls,
 		AgeAssurance:                        attrs.AgeAssurance,
-		SocialMedia:                         attrs.SocialMedia,
-		SocialMediaAgeRestricted:            attrs.SocialMediaAgeRestricted,
+		SocialMedia:                         nullableAgeRatingBool(attrs.SocialMedia),
+		SocialMediaAgeRestricted:            nullableAgeRatingBool(attrs.SocialMediaAgeRestricted),
 		UnrestrictedWebAccess:               attrs.UnrestrictedWebAccess,
 		UserGeneratedContent:                attrs.UserGeneratedContent,
 		AlcoholTobaccoOrDrugUseOrReferences: attrs.AlcoholTobaccoOrDrugUseOrReferences,
@@ -383,4 +383,11 @@ func mapAgeRatingDeclaration(attrs asc.AgeRatingDeclarationAttributes) *validati
 		KoreaAgeRatingOverride:    attrs.KoreaAgeRatingOverride,
 		DeveloperAgeRatingInfoURL: attrs.DeveloperAgeRatingInfoURL,
 	}
+}
+
+func nullableAgeRatingBool(value *asc.NullableBool) *bool {
+	if value == nil {
+		return nil
+	}
+	return value.Value
 }

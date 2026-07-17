@@ -267,7 +267,7 @@ func SubscriptionsVersionLocalizationsCreateCommand() *ffcli.Command {
 			}
 			attrs := asc.SubscriptionLocalizationV2CreateAttributes{Name: nameValue, Locale: localeValue}
 			if description.set {
-				attrs.Description = &description.value
+				attrs.Description = &asc.NullableString{Value: &description.value}
 			}
 			client, err := shared.GetASCClient()
 			if err != nil {

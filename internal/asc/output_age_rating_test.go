@@ -13,8 +13,8 @@ func TestPrintTableAgeRatingIncludesSocialMediaFields(t *testing.T) {
 			ID:   "age-441",
 			Type: ResourceTypeAgeRatingDeclarations,
 			Attributes: AgeRatingDeclarationAttributes{
-				SocialMedia:              &socialMedia,
-				SocialMediaAgeRestricted: &ageRestricted,
+				SocialMedia:              &NullableBool{Value: &socialMedia},
+				SocialMediaAgeRestricted: &NullableBool{Value: &ageRestricted},
 			},
 		},
 	}

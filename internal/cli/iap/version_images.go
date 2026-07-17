@@ -127,7 +127,7 @@ func IAPVersionImagesCreateCommand() *ffcli.Command {
 				return fmt.Errorf("iap versions images create: upload failed for reserved image %q: %w", reservedID, err)
 			}
 			uploaded := true
-			if _, err := client.UpdateInAppPurchaseImageV2(requestCtx, reservedID, asc.InAppPurchaseImageV2UpdateAttributes{Uploaded: &uploaded}); err != nil {
+			if _, err := client.UpdateInAppPurchaseImageV2(requestCtx, reservedID, asc.InAppPurchaseImageV2UpdateAttributes{Uploaded: &asc.NullableBool{Value: &uploaded}}); err != nil {
 				return fmt.Errorf("iap versions images create: failed to commit upload for reserved image %q: %w", reservedID, err)
 			}
 			resp, err := client.GetInAppPurchaseImageV2(requestCtx, reservedID)
@@ -204,7 +204,7 @@ func IAPVersionImagesUpdateCommand() *ffcli.Command {
 			}
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
-			resp, err := client.UpdateInAppPurchaseImageV2(requestCtx, value, asc.InAppPurchaseImageV2UpdateAttributes{Uploaded: &uploadedValue})
+			resp, err := client.UpdateInAppPurchaseImageV2(requestCtx, value, asc.InAppPurchaseImageV2UpdateAttributes{Uploaded: &asc.NullableBool{Value: &uploadedValue}})
 			if err != nil {
 				return fmt.Errorf("iap versions images update: failed to update: %w", err)
 			}

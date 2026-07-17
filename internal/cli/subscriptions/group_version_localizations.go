@@ -156,9 +156,11 @@ func SubscriptionsGroupsVersionLocalizationsCreateCommand() *ffcli.Command {
 			}
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
-			resp, err := client.CreateSubscriptionGroupLocalizationV2(requestCtx, vid, asc.SubscriptionGroupLocalizationV2CreateAttributes{
-				Name: nameValue, Locale: localeValue, CustomAppName: strings.TrimSpace(*customAppName),
-			})
+			attrs := asc.SubscriptionGroupLocalizationV2CreateAttributes{Name: nameValue, Locale: localeValue}
+			if customNameValue := strings.TrimSpace(*customAppName); customNameValue != "" {
+				attrs.CustomAppName = &asc.NullableString{Value: &customNameValue}
+			}
+			resp, err := client.CreateSubscriptionGroupLocalizationV2(requestCtx, vid, attrs)
 			if err != nil {
 				return fmt.Errorf("subscriptions groups versions localizations create: failed to create: %w", err)
 			}

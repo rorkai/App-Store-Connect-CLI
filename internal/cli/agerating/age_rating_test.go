@@ -93,10 +93,10 @@ func TestAgeRatingHelpers(t *testing.T) {
 	if attrs.Gambling == nil || *attrs.Gambling != true {
 		t.Fatal("expected gambling=true")
 	}
-	if attrs.SocialMedia == nil || !*attrs.SocialMedia {
+	if attrs.SocialMedia == nil || attrs.SocialMedia.Value == nil || !*attrs.SocialMedia.Value {
 		t.Fatal("expected social-media=true")
 	}
-	if attrs.SocialMediaAgeRestricted == nil || *attrs.SocialMediaAgeRestricted {
+	if attrs.SocialMediaAgeRestricted == nil || attrs.SocialMediaAgeRestricted.Value == nil || *attrs.SocialMediaAgeRestricted.Value {
 		t.Fatal("expected social-media-age-restricted=false")
 	}
 
@@ -177,7 +177,7 @@ func TestValidateAgeRatingDependenciesRejectsTransitiveUGCContradiction(t *testi
 
 	err := validateAgeRatingDependencies(asc.AgeRatingDeclarationAttributes{
 		AgeAssurance:             &trueValue,
-		SocialMediaAgeRestricted: &trueValue,
+		SocialMediaAgeRestricted: &asc.NullableBool{Value: &trueValue},
 		UserGeneratedContent:     &falseValue,
 	})
 	if err == nil || !strings.Contains(err.Error(), "--social-media-age-restricted true cannot be combined with --user-generated-content false") {
@@ -195,20 +195,20 @@ func TestValidateAgeRatingDependenciesAllowsPartialUpdates(t *testing.T) {
 	}{
 		{
 			name:  "social media may rely on stored user generated content",
-			attrs: asc.AgeRatingDeclarationAttributes{SocialMedia: &trueValue},
+			attrs: asc.AgeRatingDeclarationAttributes{SocialMedia: &asc.NullableBool{Value: &trueValue}},
 		},
 		{
 			name: "age restriction may rely on stored prerequisites",
 			attrs: asc.AgeRatingDeclarationAttributes{
-				SocialMediaAgeRestricted: &trueValue,
+				SocialMediaAgeRestricted: &asc.NullableBool{Value: &trueValue},
 			},
 		},
 		{
 			name: "all prerequisites explicitly enabled",
 			attrs: asc.AgeRatingDeclarationAttributes{
 				AgeAssurance:             &trueValue,
-				SocialMedia:              &trueValue,
-				SocialMediaAgeRestricted: &trueValue,
+				SocialMedia:              &asc.NullableBool{Value: &trueValue},
+				SocialMediaAgeRestricted: &asc.NullableBool{Value: &trueValue},
 				UserGeneratedContent:     &trueValue,
 			},
 		},
@@ -216,7 +216,7 @@ func TestValidateAgeRatingDependenciesAllowsPartialUpdates(t *testing.T) {
 			name: "unrelated false fields",
 			attrs: asc.AgeRatingDeclarationAttributes{
 				AgeAssurance:         &falseValue,
-				SocialMedia:          &falseValue,
+				SocialMedia:          &asc.NullableBool{Value: &falseValue},
 				UserGeneratedContent: &falseValue,
 			},
 		},
@@ -248,8 +248,8 @@ func TestApplyAllNoneDefaultsSetsAllContentDescriptors(t *testing.T) {
 		"messaging-and-chat":          attrs.MessagingAndChat,
 		"parental-controls":           attrs.ParentalControls,
 		"age-assurance":               attrs.AgeAssurance,
-		"social-media":                attrs.SocialMedia,
-		"social-media-age-restricted": attrs.SocialMediaAgeRestricted,
+		"social-media":                nullableBoolValue(attrs.SocialMedia),
+		"social-media-age-restricted": nullableBoolValue(attrs.SocialMediaAgeRestricted),
 		"unrestricted-web-access":     attrs.UnrestrictedWebAccess,
 		"user-generated-content":      attrs.UserGeneratedContent,
 	}

@@ -309,16 +309,16 @@ Examples:
 }
 
 func validateAgeRatingDependencies(attrs asc.AgeRatingDeclarationAttributes) error {
-	if boolIsTrue(attrs.SocialMedia) && boolIsFalse(attrs.UserGeneratedContent) {
+	if boolIsTrue(nullableBoolValue(attrs.SocialMedia)) && boolIsFalse(attrs.UserGeneratedContent) {
 		return shared.UsageError("--social-media true cannot be combined with --user-generated-content false")
 	}
-	if boolIsTrue(attrs.SocialMediaAgeRestricted) && boolIsFalse(attrs.AgeAssurance) {
+	if boolIsTrue(nullableBoolValue(attrs.SocialMediaAgeRestricted)) && boolIsFalse(attrs.AgeAssurance) {
 		return shared.UsageError("--social-media-age-restricted true cannot be combined with --age-assurance false")
 	}
-	if boolIsTrue(attrs.SocialMediaAgeRestricted) && boolIsFalse(attrs.SocialMedia) {
+	if boolIsTrue(nullableBoolValue(attrs.SocialMediaAgeRestricted)) && boolIsFalse(nullableBoolValue(attrs.SocialMedia)) {
 		return shared.UsageError("--social-media-age-restricted true cannot be combined with --social-media false")
 	}
-	if boolIsTrue(attrs.SocialMediaAgeRestricted) && boolIsFalse(attrs.UserGeneratedContent) {
+	if boolIsTrue(nullableBoolValue(attrs.SocialMediaAgeRestricted)) && boolIsFalse(attrs.UserGeneratedContent) {
 		return shared.UsageError("--social-media-age-restricted true cannot be combined with --user-generated-content false")
 	}
 	return nil
@@ -330,6 +330,13 @@ func boolIsTrue(value *bool) bool {
 
 func boolIsFalse(value *bool) bool {
 	return value != nil && !*value
+}
+
+func nullableBoolValue(value *asc.NullableBool) *bool {
+	if value == nil {
+		return nil
+	}
+	return value.Value
 }
 
 func fetchAgeRatingDeclaration(ctx context.Context, client *asc.Client, appID, appInfoID, versionID string) (*asc.AgeRatingDeclarationResponse, error) {
@@ -381,8 +388,6 @@ func buildAgeRatingAttributes(values map[string]string) (asc.AgeRatingDeclaratio
 		{"messaging-and-chat", &attrs.MessagingAndChat},
 		{"parental-controls", &attrs.ParentalControls},
 		{"age-assurance", &attrs.AgeAssurance},
-		{"social-media", &attrs.SocialMedia},
-		{"social-media-age-restricted", &attrs.SocialMediaAgeRestricted},
 		{"unrestricted-web-access", &attrs.UnrestrictedWebAccess},
 		{"user-generated-content", &attrs.UserGeneratedContent},
 	}
@@ -392,6 +397,22 @@ func buildAgeRatingAttributes(values map[string]string) (asc.AgeRatingDeclaratio
 			return attrs, err
 		}
 		*f.dest = val
+	}
+	nullableBoolFields := []struct {
+		flag string
+		dest **asc.NullableBool
+	}{
+		{"social-media", &attrs.SocialMedia},
+		{"social-media-age-restricted", &attrs.SocialMediaAgeRestricted},
+	}
+	for _, f := range nullableBoolFields {
+		val, err := shared.ParseOptionalBoolFlag("--"+f.flag, values[f.flag])
+		if err != nil {
+			return attrs, err
+		}
+		if val != nil {
+			*f.dest = &asc.NullableBool{Value: val}
+		}
 	}
 
 	// Enum content descriptors (NONE, INFREQUENT_OR_MILD, FREQUENT_OR_INTENSE)
