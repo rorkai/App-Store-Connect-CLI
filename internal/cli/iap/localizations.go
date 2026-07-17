@@ -173,6 +173,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectIAPVersionArgs(args); err != nil {
+				return err
+			}
 			if err := legacyID.Apply(localizationID); err != nil {
 				return err
 			}
@@ -194,7 +197,7 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := iapQueryClientFactory()
 			if err != nil {
 				return fmt.Errorf("iap localizations update: %w", err)
 			}

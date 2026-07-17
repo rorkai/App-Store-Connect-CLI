@@ -18,6 +18,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
+var subscriptionQueryClientFactory = shared.GetASCClient
+
 // SubscriptionsCommand returns the subscriptions command group.
 func SubscriptionsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("subscriptions", flag.ExitOnError)
@@ -124,6 +126,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("subscriptions groups list: --limit must be between 1 and 200")
 			}
@@ -277,6 +282,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*groupID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
@@ -298,7 +306,7 @@ Examples:
 				return shared.UsageError("subscriptions groups view: " + err.Error())
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := subscriptionGroupVersionClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions groups view: %w", err)
 			}
@@ -454,6 +462,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("subscriptions list: --limit must be between 1 and 200")
 			}
@@ -509,7 +520,7 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := subscriptionQueryClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions list: %w", err)
 			}
@@ -712,6 +723,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			if err := legacySubscriptionID.Apply(subID); err != nil {
 				return err
 			}
@@ -736,7 +750,7 @@ Examples:
 				return err
 			}
 
-			client, err := shared.GetASCClient()
+			client, err := subscriptionQueryClientFactory()
 			if err != nil {
 				return fmt.Errorf("subscriptions view: %w", err)
 			}

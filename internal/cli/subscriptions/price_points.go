@@ -97,6 +97,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectUnexpectedArgs(args); err != nil {
+				return err
+			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions price-points list: %w", err)
 			}

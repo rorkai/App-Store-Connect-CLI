@@ -96,6 +96,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectIAPVersionArgs(args); err != nil {
+				return err
+			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap list: %w", err)
 			}
@@ -106,7 +109,7 @@ Examples:
 				return fmt.Errorf("iap list: --limit must be between 1 and 200")
 			}
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
-				return fmt.Errorf("iap list: --versions-limit must be between 1 and 50")
+				return shared.UsageError("iap list: --versions-limit must be between 1 and 50")
 			}
 			if *legacy && strings.TrimSpace(*fields) != "" {
 				return shared.UsageError("iap list: --fields requires the v2 endpoint")
@@ -225,13 +228,16 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectIAPVersionArgs(args); err != nil {
+				return err
+			}
 			id := strings.TrimSpace(*iapID)
 			if id == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError()
 			}
 			if *versionsLimit != 0 && (*versionsLimit < 1 || *versionsLimit > 50) {
-				return fmt.Errorf("iap view: --versions-limit must be between 1 and 50")
+				return shared.UsageError("iap view: --versions-limit must be between 1 and 50")
 			}
 			if *legacy && strings.TrimSpace(*fields) != "" {
 				return shared.UsageError("iap view: --fields requires the v2 endpoint")
