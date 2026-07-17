@@ -126,6 +126,20 @@ func TestIAP441ParentHelpPromotesVersionScopedResources(t *testing.T) {
 	}
 }
 
+func TestIAP441ParentHelpListsDeprecatedSubmitMigration(t *testing.T) {
+	cmd := IAPCommand()
+	usage := cmd.UsageFunc(cmd)
+	const submitEntry = "\n  submit"
+	const migration = "DEPRECATED: App Store Connect API 4.4.1 replaced this resource. Use `asc review items add --submission \"SUBMISSION_ID\" --item-type inAppPurchaseVersions --item-id \"IAP_VERSION_ID\"`."
+
+	if got := strings.Count(usage, submitEntry); got != 1 {
+		t.Fatalf("submit entry count = %d, want 1; usage = %q", got, usage)
+	}
+	if !strings.Contains(usage, migration) {
+		t.Fatalf("usage = %q, want migration text %q", usage, migration)
+	}
+}
+
 func TestIAPSetupWarnsOnlyForLegacyLocalization(t *testing.T) {
 	tests := []struct {
 		name             string

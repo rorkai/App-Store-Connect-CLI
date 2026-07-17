@@ -41,7 +41,7 @@ Examples:
   asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --prices "USA:PRICE_POINT_ID"
   asc iap promoted-purchases create --app "APP_ID" --product-id "IAP_ID" --visible-for-all-users true`,
 		FlagSet:   fs,
-		UsageFunc: shared.VisibleUsageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			IAPListCommand(),
 			IAPVersionsCommand(),
