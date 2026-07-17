@@ -99,9 +99,16 @@ func (c *Client) SetAppPromotedPurchases(ctx context.Context, appID string, prom
 }
 
 // GetPromotedPurchase retrieves a promoted purchase by ID.
-func (c *Client) GetPromotedPurchase(ctx context.Context, promotedPurchaseID string) (*PromotedPurchaseResponse, error) {
+func (c *Client) GetPromotedPurchase(ctx context.Context, promotedPurchaseID string, opts ...PromotedPurchaseGetOption) (*PromotedPurchaseResponse, error) {
 	promotedPurchaseID = strings.TrimSpace(promotedPurchaseID)
+	query := &promotedPurchaseGetQuery{}
+	for _, opt := range opts {
+		opt(query)
+	}
 	path := fmt.Sprintf("/v1/promotedPurchases/%s", promotedPurchaseID)
+	if queryString := buildPromotedPurchaseGetQuery(query); queryString != "" {
+		path += "?" + queryString
+	}
 	data, err := c.do(ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err

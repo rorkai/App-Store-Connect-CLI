@@ -29,6 +29,9 @@ type winBackOfferPricesQuery struct {
 
 type promotedPurchasesQuery struct {
 	listQuery
+	iapFields          []string
+	subscriptionFields []string
+	include            []string
 }
 
 type territoryAvailabilitiesQuery struct {
@@ -58,6 +61,11 @@ type appPriceSchedulePricesQuery struct {
 func buildPromotedPurchasesQuery(query *promotedPurchasesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
+	addCSV(values, "fields[inAppPurchases]", query.iapFields)
+	addCSV(values, "fields[subscriptions]", query.subscriptionFields)
+	include := includeWhenFieldsSelected(query.include, "inAppPurchaseV2", query.iapFields)
+	include = includeWhenFieldsSelected(include, "subscription", query.subscriptionFields)
+	addCSV(values, "include", include)
 	return values.Encode()
 }
 
@@ -283,6 +291,21 @@ func WithPromotedPurchasesNextURL(next string) PromotedPurchasesOption {
 			q.nextURL = strings.TrimSpace(next)
 		}
 	}
+}
+
+// WithPromotedPurchasesIAPFields sets fields[inAppPurchases] for included IAPs.
+func WithPromotedPurchasesIAPFields(fields []string) PromotedPurchasesOption {
+	return func(q *promotedPurchasesQuery) { q.iapFields = normalizeUniqueList(fields) }
+}
+
+// WithPromotedPurchasesSubscriptionFields sets fields[subscriptions] for included subscriptions.
+func WithPromotedPurchasesSubscriptionFields(fields []string) PromotedPurchasesOption {
+	return func(q *promotedPurchasesQuery) { q.subscriptionFields = normalizeUniqueList(fields) }
+}
+
+// WithPromotedPurchasesInclude sets the exact promoted-purchase relationship include set.
+func WithPromotedPurchasesInclude(include []string) PromotedPurchasesOption {
+	return func(q *promotedPurchasesQuery) { q.include = normalizeUniqueList(include) }
 }
 
 // WithTerritoryAvailabilitiesLimit sets the max number of territory availabilities to return.

@@ -512,6 +512,7 @@ func IAPLocalizationsListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	iapFields := fs.String("iap-fields", "", "fields[inAppPurchases] for included in-app purchases (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return shared.DeprecatedCommand(&ffcli.Command{
@@ -526,6 +527,9 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectIAPVersionNextFlagConflicts(fs, *next, "iap localizations list", "iap-fields"); err != nil {
+				return err
+			}
 			resolvedID := strings.TrimSpace(*iapID)
 			if resolvedID == "" {
 				resolvedID = strings.TrimSpace(*legacyID)
@@ -539,6 +543,10 @@ Examples:
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap localizations list: %w", err)
+			}
+			fieldValues, err := shared.NormalizeSelection(*iapFields, iapVersionIAPFields, "--iap-fields")
+			if err != nil {
+				return shared.UsageError("iap localizations list: " + err.Error())
 			}
 
 			client, err := shared.GetASCClient()
@@ -559,6 +567,7 @@ Examples:
 			opts := []asc.IAPLocalizationsOption{
 				asc.WithIAPLocalizationsLimit(*limit),
 				asc.WithIAPLocalizationsNextURL(*next),
+				asc.WithIAPLocalizationsIAPFields(fieldValues),
 			}
 
 			if *paginate {

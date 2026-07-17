@@ -1,8 +1,11 @@
 package iap
 
 import (
+	"context"
+
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/promotedpurchases"
 )
 
@@ -16,7 +19,12 @@ func IAPPromotedPurchasesCommand() *ffcli.Command {
 			ProductType:     "IN_APP_PURCHASE",
 			ProductSingular: "an in-app purchase",
 			ProductPlural:   "in-app purchases",
-			RootShortHelp:   "Manage promoted purchases for in-app purchases.",
+			OwnerIDFlag:     "iap-id",
+			OwnerIDUsage:    "In-app purchase ID",
+			FetchForOwner: func(ctx context.Context, client *asc.Client, iapID string, opts ...asc.PromotedPurchaseGetOption) (*asc.PromotedPurchaseResponse, error) {
+				return client.GetInAppPurchasePromotedPurchase(ctx, iapID, opts...)
+			},
+			RootShortHelp: "Manage promoted purchases for in-app purchases.",
 			RootLongHelp: `Manage promoted purchases for in-app purchases.
 
 Only promoted purchases attached to in-app purchases are listed or modified.

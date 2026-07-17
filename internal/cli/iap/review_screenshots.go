@@ -52,6 +52,7 @@ func IAPReviewScreenshotsGetCommand() *ffcli.Command {
 	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
 	appID := addIAPLookupAppFlag(fs)
 	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
+	iapFields := fs.String("iap-fields", "", "fields[inAppPurchases] for the included in-app purchase (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -72,6 +73,10 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --iap-id or --screenshot-id is required")
 				return shared.MissingRequiredUsageError()
 			}
+			fieldValues, err := shared.NormalizeSelection(*iapFields, iapVersionIAPFields, "--iap-fields")
+			if err != nil {
+				return shared.UsageError("iap review-screenshots view: " + err.Error())
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -82,7 +87,7 @@ Examples:
 				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
-				resp, err := client.GetInAppPurchaseAppStoreReviewScreenshot(requestCtx, screenshotValue)
+				resp, err := client.GetInAppPurchaseAppStoreReviewScreenshot(requestCtx, screenshotValue, asc.WithIAPReviewScreenshotIAPFields(fieldValues))
 				if err != nil {
 					return fmt.Errorf("iap review-screenshots view: failed to fetch: %w", err)
 				}
@@ -97,7 +102,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetInAppPurchaseAppStoreReviewScreenshotForIAP(requestCtx, iapValue)
+			resp, err := client.GetInAppPurchaseAppStoreReviewScreenshotForIAP(requestCtx, iapValue, asc.WithIAPReviewScreenshotIAPFields(fieldValues))
 			if err != nil {
 				return fmt.Errorf("iap review-screenshots view: failed to fetch: %w", err)
 			}

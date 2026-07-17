@@ -333,7 +333,7 @@ change.
 
 | Contract area | Semantic change | Verification owner | Exact evidence |
 | --- | --- | --- | --- |
-| IAP reads | `fields[inAppPurchases]` gains `versions`; IAP detail and app-IAP collection reads gain `include=versions`, `fields[inAppPurchaseVersions]`, and `limit[versions]` | #1777 | `ee40c7b3`; endpoint-specific option and exact query tests |
+| IAP reads | `fields[inAppPurchases]` gains `versions`; IAP detail and app-IAP collection reads gain `include=versions`, `fields[inAppPurchaseVersions]`, and `limit[versions]` | #1777 plus the related-resource sparse-field follow-up | `ee40c7b3` plus `client_iap_related_sparse_fields_441_test.go`; all 11 propagated IAP/promoted-purchase GETs now have endpoint-specific options and exact-query tests |
 | Subscription reads | Subscription detail and group-subscription reads gain version includes, sparse fields, and relationship limits; subscription sparse fields gain `versions` across related endpoints | #1779 | `c8f3ab52`; exact query and compatibility tests |
 | Subscription-group reads | Group detail and app-group collection reads gain version includes, sparse fields, and relationship limits; group sparse fields gain `versions` | #1780 | `48d04e0b`; exact query, owner/next validation, and compatibility tests |
 | Review submission reads | Review-item sparse fields and includes gain `inAppPurchaseVersion`, `subscriptionVersion`, and `subscriptionGroupVersion` | #1781 | `aba35e0a`; all four changed GET surfaces, automatic item inclusion, and response round-trip tests |
@@ -517,8 +517,10 @@ payload, output, and compatibility tests):
 - [x] `GET /v1/apps/{id}/appInfos`
 - [x] `GET /v1/ciProducts/{id}/app`
 
-IAP and promoted-purchase propagation (#1777 at `ee40c7b3`; endpoint-exact
-query and response compatibility tests):
+IAP and promoted-purchase propagation (#1777 at `ee40c7b3` plus the
+related-resource sparse-field follow-up; endpoint-exact query and response
+compatibility tests). The follow-up closes the 11 related GETs below while
+preserving #1777's top-level IAP list/detail behavior:
 
 - [x] `GET /v1/apps/{id}/inAppPurchasesV2`
 - [x] `GET /v1/inAppPurchaseAppStoreReviewScreenshots/{id}`

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -41,6 +42,7 @@ func IAPContentGetCommand() *ffcli.Command {
 	appID := addIAPLookupAppFlag(fs)
 	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
 	contentID := fs.String("content-id", "", "In-app purchase content ID")
+	iapFields := fs.String("iap-fields", "", "fields[inAppPurchases] for the included in-app purchase (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -64,6 +66,10 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --iap-id and --content-id are mutually exclusive")
 				return flag.ErrHelp
 			}
+			fieldValues, err := shared.NormalizeSelection(*iapFields, iapVersionIAPFields, "--iap-fields")
+			if err != nil {
+				return shared.UsageError("iap content view: " + err.Error())
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -74,7 +80,7 @@ Examples:
 				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				defer cancel()
 
-				resp, err := client.GetInAppPurchaseContentByID(requestCtx, contentValue)
+				resp, err := client.GetInAppPurchaseContentByID(requestCtx, contentValue, asc.WithIAPContentIAPFields(fieldValues))
 				if err != nil {
 					return fmt.Errorf("iap content view: failed to fetch: %w", err)
 				}
@@ -90,7 +96,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetInAppPurchaseContent(requestCtx, iapValue)
+			resp, err := client.GetInAppPurchaseContent(requestCtx, iapValue, asc.WithIAPContentIAPFields(fieldValues))
 			if err != nil {
 				return fmt.Errorf("iap content view: failed to fetch: %w", err)
 			}

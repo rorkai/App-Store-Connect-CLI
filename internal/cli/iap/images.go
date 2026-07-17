@@ -54,6 +54,7 @@ func IAPImagesListCommand() *ffcli.Command {
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	iapFields := fs.String("iap-fields", "", "fields[inAppPurchases] for included in-app purchases (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return shared.DeprecatedCommand(&ffcli.Command{
@@ -68,11 +69,18 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := rejectIAPVersionNextFlagConflicts(fs, *next, "iap images list", "iap-fields"); err != nil {
+				return err
+			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
 				return fmt.Errorf("iap images list: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("iap images list: %w", err)
+			}
+			fieldValues, err := shared.NormalizeSelection(*iapFields, iapVersionIAPFields, "--iap-fields")
+			if err != nil {
+				return shared.UsageError("iap images list: " + err.Error())
 			}
 
 			iapValue := strings.TrimSpace(*iapID)
@@ -99,6 +107,7 @@ Examples:
 			opts := []asc.IAPImagesOption{
 				asc.WithIAPImagesLimit(*limit),
 				asc.WithIAPImagesNextURL(*next),
+				asc.WithIAPImagesIAPFields(fieldValues),
 			}
 
 			if *paginate {
@@ -133,6 +142,7 @@ func IAPImagesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("images view", flag.ExitOnError)
 
 	imageID := fs.String("image-id", "", "Image ID")
+	iapFields := fs.String("iap-fields", "", "fields[inAppPurchases] for the included in-app purchase (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
 	return shared.DeprecatedCommand(&ffcli.Command{
@@ -151,6 +161,10 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --image-id is required")
 				return shared.MissingRequiredUsageError()
 			}
+			fieldValues, err := shared.NormalizeSelection(*iapFields, iapVersionIAPFields, "--iap-fields")
+			if err != nil {
+				return shared.UsageError("iap images view: " + err.Error())
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -160,7 +174,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resp, err := client.GetInAppPurchaseImage(requestCtx, imageValue) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
+			resp, err := client.GetInAppPurchaseImage(requestCtx, imageValue, asc.WithIAPImageIAPFields(fieldValues)) //nolint:staticcheck // Compatibility path retained during the App Store Connect API 4.4.1 deprecation window.
 			if err != nil {
 				return fmt.Errorf("iap images view: failed to fetch: %w", err)
 			}

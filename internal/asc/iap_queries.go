@@ -20,6 +20,8 @@ type (
 
 type iapImagesQuery struct {
 	listQuery
+	iapFields []string
+	include   []string
 }
 
 type iapOfferCodesQuery struct {
@@ -81,6 +83,16 @@ func WithIAPImagesNextURL(next string) IAPImagesOption {
 			q.nextURL = strings.TrimSpace(next)
 		}
 	}
+}
+
+// WithIAPImagesIAPFields sets fields[inAppPurchases] for included IAPs.
+func WithIAPImagesIAPFields(fields []string) IAPImagesOption {
+	return func(q *iapImagesQuery) { q.iapFields = normalizeUniqueList(fields) }
+}
+
+// WithIAPImagesInclude sets the exact image relationship include set.
+func WithIAPImagesInclude(include []string) IAPImagesOption {
+	return func(q *iapImagesQuery) { q.include = normalizeUniqueList(include) }
 }
 
 func WithIAPOfferCodesLimit(limit int) IAPOfferCodesOption {
@@ -288,6 +300,8 @@ func WithIAPPriceScheduleAutomaticPricesLimit(limit int) IAPPriceScheduleOption 
 func buildIAPImagesQuery(query *iapImagesQuery) string {
 	values := url.Values{}
 	addLimit(values, query.limit)
+	addCSV(values, "fields[inAppPurchases]", query.iapFields)
+	addCSV(values, "include", includeWhenFieldsSelected(query.include, "inAppPurchase", query.iapFields))
 	return values.Encode()
 }
 
