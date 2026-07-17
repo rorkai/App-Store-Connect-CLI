@@ -133,6 +133,7 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 		field         string
 		wantInclude   string
 		wantQueryName string
+		wantItemField string
 	}{
 		{
 			name:          "in-app purchase version",
@@ -140,6 +141,7 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 			field:         "inAppPurchase",
 			wantInclude:   "inAppPurchaseVersion",
 			wantQueryName: "fields[inAppPurchaseVersions]",
+			wantItemField: "inAppPurchaseVersion",
 		},
 		{
 			name:          "subscription version",
@@ -147,6 +149,7 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 			field:         "subscription",
 			wantInclude:   "subscriptionVersion",
 			wantQueryName: "fields[subscriptionVersions]",
+			wantItemField: "subscriptionVersion",
 		},
 		{
 			name:          "subscription group version",
@@ -154,6 +157,7 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 			field:         "subscriptionGroup",
 			wantInclude:   "subscriptionGroupVersion",
 			wantQueryName: "fields[subscriptionGroupVersions]",
+			wantItemField: "subscriptionGroupVersion",
 		},
 	}
 
@@ -174,6 +178,9 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 				if got := req.URL.Query().Get(test.wantQueryName); got != test.field {
 					t.Fatalf("%s = %q, want %q", test.wantQueryName, got, test.field)
 				}
+				if got, want := req.URL.Query().Get("fields[reviewSubmissionItems]"), "state,"+test.wantItemField; got != want {
+					t.Fatalf("fields[reviewSubmissionItems] = %q, want %q", got, want)
+				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       io.NopCloser(strings.NewReader(`{"data":[]}`)),
@@ -184,7 +191,7 @@ func TestReviewItemsVersionFieldsAutomaticallyIncludeRelatedResources(t *testing
 			root := RootCommand("1.2.3")
 			root.FlagSet.SetOutput(io.Discard)
 			_, stderr := captureOutput(t, func() {
-				if err := root.Parse([]string{"review", "items", "list", "--submission", "submission-1", test.flag, test.field}); err != nil {
+				if err := root.Parse([]string{"review", "items", "list", "--submission", "submission-1", "--fields", "state", test.flag, test.field}); err != nil {
 					t.Fatalf("parse error: %v", err)
 				}
 				if err := root.Run(context.Background()); err != nil {

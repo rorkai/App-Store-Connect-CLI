@@ -245,15 +245,20 @@ func reviewItemsListOptions(limit int, next, fields, include, iapVersionFields, 
 	if err != nil {
 		return nil, err
 	}
-	if len(iapFields) != 0 && !slices.Contains(includes, "inAppPurchaseVersion") {
-		includes = append(includes, "inAppPurchaseVersion")
+	addVersionRelationship := func(versionFields []string, relationship string) {
+		if len(versionFields) == 0 {
+			return
+		}
+		if !slices.Contains(includes, relationship) {
+			includes = append(includes, relationship)
+		}
+		if len(itemFields) != 0 && !slices.Contains(itemFields, relationship) {
+			itemFields = append(itemFields, relationship)
+		}
 	}
-	if len(subscriptionFields) != 0 && !slices.Contains(includes, "subscriptionVersion") {
-		includes = append(includes, "subscriptionVersion")
-	}
-	if len(groupFields) != 0 && !slices.Contains(includes, "subscriptionGroupVersion") {
-		includes = append(includes, "subscriptionGroupVersion")
-	}
+	addVersionRelationship(iapFields, "inAppPurchaseVersion")
+	addVersionRelationship(subscriptionFields, "subscriptionVersion")
+	addVersionRelationship(groupFields, "subscriptionGroupVersion")
 
 	return []asc.ReviewSubmissionItemsOption{
 		asc.WithReviewSubmissionItemsLimit(limit),
