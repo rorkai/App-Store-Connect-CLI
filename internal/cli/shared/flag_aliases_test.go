@@ -141,6 +141,56 @@ func TestDeprecatedIntFlagAliasApply(t *testing.T) {
 	}
 }
 
+func TestDeprecatedIntFlagAliasParsingMatchesCanonical(t *testing.T) {
+	tests := []struct {
+		name      string
+		value     string
+		want      int
+		wantError bool
+	}{
+		{name: "decimal", value: "42", want: 42},
+		{name: "octal", value: "0664", want: 436},
+		{name: "hexadecimal", value: "0x10", want: 16},
+		{name: "negative hexadecimal", value: "-0x10", want: -16},
+		{name: "invalid octal", value: "08", wantError: true},
+		{name: "invalid text", value: "invalid", wantError: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fs := flag.NewFlagSet("test", flag.ContinueOnError)
+			canonical := fs.Int("canonical", 0, "Canonical value")
+			alias := BindDeprecatedIntFlagAlias(fs, "legacy", "canonical")
+
+			err := fs.Parse([]string{"--legacy", test.value})
+			if test.wantError {
+				if err == nil {
+					t.Fatal("Parse() error = nil, want invalid integer error")
+				}
+				if alias.WasProvided() {
+					t.Fatal("WasProvided() = true after invalid alias value")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Parse() error: %v", err)
+			}
+
+			captureOutput(t, func() {
+				if err := alias.Apply(canonical); err != nil {
+					t.Fatalf("Apply() error: %v", err)
+				}
+			})
+			if *canonical != test.want {
+				t.Fatalf("canonical value = %d, want %d", *canonical, test.want)
+			}
+			if !alias.WasProvided() {
+				t.Fatal("WasProvided() = false after valid alias value")
+			}
+		})
+	}
+}
+
 func TestBindDeprecatedIntFlagAliasHidesCompatibilityFlag(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	_ = fs.Int("canonical", 0, "Canonical value")

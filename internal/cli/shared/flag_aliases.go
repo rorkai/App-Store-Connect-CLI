@@ -104,11 +104,11 @@ func (f *DeprecatedIntFlagAlias) String() string {
 
 // Set records that the compatibility spelling was explicitly supplied.
 func (f *DeprecatedIntFlagAlias) Set(value string) error {
-	parsed, err := strconv.Atoi(value)
+	parsed, err := strconv.ParseInt(value, 0, strconv.IntSize)
 	if err != nil {
 		return err
 	}
-	f.value = parsed
+	f.value = int(parsed)
 	f.set = true
 	return nil
 }
