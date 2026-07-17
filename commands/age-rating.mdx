@@ -1,0 +1,118 @@
+# Age Ratings
+
+> View and update App Store age rating declarations
+
+The `age-rating` command manages the declaration associated with an app, app
+info, or App Store version.
+
+## View a Declaration
+
+Identify the declaration through one app-scoped target:
+
+```bash  theme={null}
+asc age-rating view --app "APP_ID"
+asc age-rating view --app-info-id "APP_INFO_ID"
+asc age-rating view --version-id "APP_STORE_VERSION_ID"
+```
+
+Use `--output json`, `--output table`, or `--output markdown`. Add `--pretty`
+when using JSON interactively. Only one of `--app-info-id` and `--version-id`
+may be supplied; use `--app` when neither direct relationship ID is known.
+
+## Update a Declaration
+
+Target the declaration directly or let the CLI resolve it from the app, app
+info, or version:
+
+```bash  theme={null}
+asc age-rating edit --id "DECLARATION_ID" --gambling false
+asc age-rating edit --app "APP_ID" --kids-age-band FIVE_AND_UNDER
+asc age-rating edit --app-info-id "APP_INFO_ID" --loot-box false
+asc age-rating edit --version-id "APP_STORE_VERSION_ID" --advertising true
+```
+
+Every update flag is sparse: omitted values remain unchanged. Boolean fields
+take explicit `true` or `false`. Common content-frequency fields accept
+`NONE`, `INFREQUENT_OR_MILD`, or `FREQUENT_OR_INTENSE`.
+
+To declare that an app has none of the listed content, reset the declaration to
+safe defaults and then add any exceptions in the same request:
+
+```bash  theme={null}
+asc age-rating edit \
+  --app "APP_ID" \
+  --all-none \
+  --unrestricted-web-access true
+```
+
+## Social Media Fields (API 4.4.1)
+
+App Store Connect API 4.4.1 adds two declaration attributes exposed as these
+flags:
+
+* `--social-media` - The app contains social media features
+* `--social-media-age-restricted` - Those social media features are restricted
+  by age
+
+Apple enforces dependencies that are stricter than the two fields in
+isolation:
+
+* `--social-media true` requires `--user-generated-content true`.
+* `--social-media-age-restricted true` requires `--age-assurance true` and
+  `--social-media true`.
+* Because social media itself requires user-generated content, a complete
+  age-restricted update includes all four true flags.
+
+```bash  theme={null}
+# Enable social media
+asc age-rating edit \
+  --app "APP_ID" \
+  --social-media true \
+  --user-generated-content true
+
+# Enable age-restricted social media with every prerequisite
+asc age-rating edit \
+  --app "APP_ID" \
+  --social-media-age-restricted true \
+  --age-assurance true \
+  --social-media true \
+  --user-generated-content true
+```
+
+Include the prerequisite flags when enabling these attributes unless the
+current declaration already stores them as true. The CLI rejects combinations
+that are provably contradictory before making an HTTP request. When disabling
+a prerequisite, also disable the dependent fields in the same request:
+
+```bash  theme={null}
+asc age-rating edit \
+  --app "APP_ID" \
+  --social-media-age-restricted false \
+  --social-media false \
+  --user-generated-content false
+```
+
+After an update, read the declaration again to verify the stored combination:
+
+```bash  theme={null}
+asc age-rating view --app "APP_ID" --output json --pretty
+```
+
+## Other Update Fields
+
+The command also supports:
+
+* Booleans: `--advertising`, `--age-assurance`, `--gambling`,
+  `--health-or-wellness-topics`, `--loot-box`, `--messaging-and-chat`,
+  `--parental-controls`, `--unrestricted-web-access`, and
+  `--user-generated-content`
+* Content frequencies: `--alcohol-tobacco-drug-use`, `--contests`,
+  `--gambling-simulated`, `--guns-or-other-weapons`, `--horror-fear`,
+  `--mature-suggestive`, `--medical-treatment`, `--profanity-humor`, the
+  sexual-content fields, and the violence fields
+* Overrides: `--age-rating-override-v2`, `--korea-age-rating-override`,
+  `--kids-age-band`, and `--developer-age-rating-info-url`
+
+`--age-rating-override` is deprecated. Use `--age-rating-override-v2` for new
+automation, and run `asc age-rating edit --help` for the current accepted enum
+values before scripting an override.

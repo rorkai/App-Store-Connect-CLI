@@ -80,6 +80,7 @@
             "group": "App Management",
             "pages": [
               "commands/apps",
+              "commands/age-rating",
               "commands/app-tags",
               "commands/app-info",
               "commands/localizations",

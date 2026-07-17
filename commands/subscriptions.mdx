@@ -109,6 +109,13 @@ App Store Connect API 4.4.1 adds discrete review versions for subscription
 groups and version-scoped v2 localizations. The commands live under
 `asc subscriptions groups versions`.
 
+<Warning>
+  List and reuse an existing group version before creating one. The API has no
+  subscription-group-version DELETE operation. Treat zero versions as the only
+  automatic create case, reuse the sole returned ID, and require an explicit
+  choice when several versions exist.
+</Warning>
+
 #### Include Versions with Groups
 
 The existing group list and view commands can include version resources and
@@ -266,8 +273,8 @@ asc subscriptions create \
 
 **Required Flags:**
 
-* `--group` - Subscription group ID
-* `--ref-name` - Reference name
+* `--group-id` - Subscription group ID
+* `--reference-name` - Reference name
 * `--product-id` - Product ID (must match bundle ID prefix)
 
 **Optional Flags:**
@@ -315,7 +322,7 @@ asc subscriptions update \
 
 **Optional Flags:**
 
-* `--ref-name` - New reference name
+* `--reference-name` - New reference name
 * `--subscription-period` - New duration
 * `--family-sharable` - Enable Family Sharing
 
@@ -332,6 +339,13 @@ A subscription version ID is distinct from a subscription product ID. The
 old `asc subscriptions localizations` and `asc subscriptions images` command
 trees remain product-scoped v1 compatibility workflows, but are deprecated.
 Use the commands below for new version-scoped automation.
+
+<Warning>
+  Resolve versions before creating them. Apple exposes no subscription-version
+  DELETE operation, and deleting a parent subscription can leave versions
+  orphaned. Create only for a zero-result list, reuse the ID when exactly one
+  version exists, and stop for explicit selection when several exist.
+</Warning>
 
 The command group covers all 18 new operations: four version operations, six
 localization operations, and eight image operations.
@@ -382,8 +396,16 @@ selectors; the pagination URL is opaque and already contains its query state.
 ### Version Localizations
 
 Version localizations use the API 4.4.1 v2 localization resource. Creation
-requires `--version-id`, `--locale`, and `--name`; `--description` is optional.
-Locale cannot be changed after creation.
+requires `--version-id`, `--locale`, and `--name`; the CLI models
+`--description` as schema-optional. In live App Store Connect, provide a
+non-empty description because Apple rejects both an empty string and JSON
+`null`. Locale cannot be changed after creation.
+
+<Warning>
+  App Store Connect rejects deletion of the final required localization on a
+  subscription version. Create and verify a replacement locale before deleting
+  the old one.
+</Warning>
 
 ```bash  theme={null}
 # List resources or raw relationship linkages
@@ -403,16 +425,11 @@ asc subscriptions versions localizations create \
   --name "Premium" \
   --description "Premium subscription access"
 
-# Set a string value, including an explicitly empty string
+# Update with non-empty live-service values
 asc subscriptions versions localizations update \
   --id "LOCALIZATION_ID" \
   --name "Premium Plus" \
-  --description ""
-
-# Encode JSON null to clear a nullable value
-asc subscriptions versions localizations update \
-  --id "LOCALIZATION_ID" \
-  --clear-description
+  --description "Premium subscription access with family features"
 
 # Delete a localization
 asc subscriptions versions localizations delete \
@@ -423,7 +440,7 @@ asc subscriptions versions localizations delete \
 Localization updates preserve all three OpenAPI states:
 
 * Omit a flag to leave that attribute unchanged.
-* Use `--name` or `--description` to send a string, including `""`.
+* Use `--name` or `--description` to send a string.
 * Use `--clear-name` or `--clear-description` to send JSON `null`.
 
 `--name` and `--clear-name` are mutually exclusive, as are `--description` and
@@ -431,6 +448,11 @@ Localization updates preserve all three OpenAPI states:
 `--include version`, `--version-fields`, `--limit`, `--next`, and `--paginate`;
 `view` supports the corresponding sparse fields and `--include version`
 without pagination.
+
+Those three encodings describe the OpenAPI contract and remain available in
+the CLI. They are not all accepted by the live service: do not send
+`--description ""` or `--clear-description` for subscription-version
+localizations.
 
 ### Version Images
 
@@ -631,6 +653,38 @@ asc subscriptions pricing price-points view \
   --price-point-id "PRICE_POINT_ID"
 ```
 
+### Adjusted Equalizations (API 4.4.1)
+
+List Apple's adjusted MONTHLY equalizations for an upfront subscription price
+point:
+
+```bash  theme={null}
+asc subscriptions pricing price-points adjusted-equalizations \
+  --price-point-id "MONTHLY_PRICE_POINT_ID" \
+  --upfront-price-point-id "UPFRONT_PRICE_POINT_ID" \
+  --plan-type MONTHLY \
+  --include territory \
+  --territory-fields currency \
+  --paginate
+```
+
+For the first page, all three identifiers are required:
+
+* `--price-point-id` - The subscription price point whose adjusted
+  equalizations are being read
+* `--upfront-price-point-id` - Required upfront price point filter; accepts a
+  comma-separated list
+* `--plan-type MONTHLY` - Required plan type; no other value is accepted
+
+Apple's live endpoint rejects the request when the upfront price point or plan
+type is omitted even though the published query schema does not mark both
+filters as required. An opaque `--next` URL already contains its query state;
+when using `--next`, do not repeat these filters or other query selectors.
+
+Optional selectors include `--territory`, `--subscription-id`, `--fields`,
+`--include territory`, `--territory-fields currency`, `--limit`, and
+`--paginate`.
+
 ## Availability
 
 Control which territories can purchase your subscriptions.
@@ -733,6 +787,9 @@ requires apps built with SDK 26.5 or later.
 Manage subscription display names and descriptions through a subscription
 version. The product-scoped `asc subscriptions localizations ...` commands are
 deprecated. Create or resolve a subscription version, then use its version ID.
+Always keep a non-empty description, and do not delete the version's final
+required localization; these live-service rules are stricter than the nullable
+OpenAPI request schema.
 
 ```bash  theme={null}
 # Create localization
@@ -981,58 +1038,206 @@ asc review submissions-submit \
 
 ## Common Workflows
 
-### Create Complete Subscription Tier
+### Create a Complete, Version-Safe Subscription
 
 ```bash  theme={null}
 #!/bin/bash
-# Create a full subscription tier (monthly, yearly)
+set -euo pipefail
 
 APP_ID="123456789"
-BUNDLE_ID="com.example.app"
+GROUP_REFERENCE_NAME="Premium"
+PRODUCT_ID="com.example.app.monthly"
+PRICE_POINT_ID="PRICE_POINT_ID"
+PROMOTIONAL_IMAGE="./promo.png"
+REVIEW_SCREENSHOT="./review.png"
 
-# 1. Create subscription group
-GROUP_RESPONSE=$(asc subscriptions groups create \
+# 1. Resolve the group by exact reference name, or create it once.
+GROUPS=$(asc subscriptions groups list \
   --app "$APP_ID" \
-  --reference-name "Premium" \
+  --paginate \
   --output json)
+GROUP_IDS=$(echo "$GROUPS" | jq -r --arg name "$GROUP_REFERENCE_NAME" \
+  '.data[] | select(.attributes.referenceName == $name) | .id')
+GROUP_COUNT=$(printf '%s\n' "$GROUP_IDS" | sed '/^$/d' | wc -l | tr -d ' ')
 
-GROUP_ID=$(echo "$GROUP_RESPONSE" | jq -r '.data.id')
+case "$GROUP_COUNT" in
+  0)
+    GROUP_ID=$(asc subscriptions groups create \
+      --app "$APP_ID" \
+      --reference-name "$GROUP_REFERENCE_NAME" \
+      --output json | jq -r '.data.id')
+    ;;
+  1) GROUP_ID="$GROUP_IDS" ;;
+  *) echo "Multiple groups matched $GROUP_REFERENCE_NAME." >&2; exit 1 ;;
+esac
 
-# 2. Create monthly subscription
-MONTHLY_RESPONSE=$(asc subscriptions create \
+# 2. Resolve the subscription by exact product ID, or create it once.
+SUBSCRIPTIONS=$(asc subscriptions list \
   --group-id "$GROUP_ID" \
-  --reference-name "Monthly Premium" \
-  --product-id "${BUNDLE_ID}.monthly" \
-  --subscription-period ONE_MONTH \
+  --paginate \
   --output json)
+SUBSCRIPTION_IDS=$(echo "$SUBSCRIPTIONS" | jq -r --arg product "$PRODUCT_ID" \
+  '.data[] | select(.attributes.productId == $product) | .id')
+SUBSCRIPTION_COUNT=$(printf '%s\n' "$SUBSCRIPTION_IDS" | sed '/^$/d' | wc -l | tr -d ' ')
 
-MONTHLY_ID=$(echo "$MONTHLY_RESPONSE" | jq -r '.data.id')
+case "$SUBSCRIPTION_COUNT" in
+  0)
+    SUBSCRIPTION_ID=$(asc subscriptions create \
+      --group-id "$GROUP_ID" \
+      --reference-name "Monthly Premium" \
+      --product-id "$PRODUCT_ID" \
+      --subscription-period ONE_MONTH \
+      --output json | jq -r '.data.id')
+    ;;
+  1) SUBSCRIPTION_ID="$SUBSCRIPTION_IDS" ;;
+  *) echo "Multiple subscriptions matched $PRODUCT_ID." >&2; exit 1 ;;
+esac
 
-# 3. Create yearly subscription
-YEARLY_RESPONSE=$(asc subscriptions create \
+# 3. Resolve the group version. Never create speculatively: there is no
+# group-version DELETE endpoint.
+GROUP_VERSIONS=$(asc subscriptions groups versions list \
   --group-id "$GROUP_ID" \
-  --reference-name "Yearly Premium" \
-  --product-id "${BUNDLE_ID}.yearly" \
-  --subscription-period ONE_YEAR \
+  --paginate \
   --output json)
+GROUP_VERSION_COUNT=$(echo "$GROUP_VERSIONS" | jq '.data | length')
 
-YEARLY_ID=$(echo "$YEARLY_RESPONSE" | jq -r '.data.id')
+case "$GROUP_VERSION_COUNT" in
+  0)
+    GROUP_VERSION_ID=$(asc subscriptions groups versions create \
+      --group-id "$GROUP_ID" \
+      --output json | jq -r '.data.id')
+    ;;
+  1) GROUP_VERSION_ID=$(echo "$GROUP_VERSIONS" | jq -r '.data[0].id') ;;
+  *) echo "Multiple group versions exist; choose the intended editable ID." >&2; exit 1 ;;
+esac
 
-# 4. Set pricing
+GROUP_VERSION_STATE=$(asc subscriptions groups versions view \
+  --version-id "$GROUP_VERSION_ID" \
+  --output json | jq -r '.data.attributes.state')
+test "$GROUP_VERSION_STATE" = "PREPARE_FOR_SUBMISSION" || {
+  echo "Group version $GROUP_VERSION_ID is not editable: $GROUP_VERSION_STATE" >&2
+  exit 1
+}
+
+# Reconcile the group display name.
+GROUP_LOCALIZATIONS=$(asc subscriptions groups versions localizations list \
+  --version-id "$GROUP_VERSION_ID" \
+  --paginate \
+  --output json)
+GROUP_LOCALIZATION_IDS=$(echo "$GROUP_LOCALIZATIONS" | jq -r \
+  '.data[] | select(.attributes.locale == "en-US") | .id')
+GROUP_LOCALIZATION_COUNT=$(printf '%s\n' "$GROUP_LOCALIZATION_IDS" | sed '/^$/d' | wc -l | tr -d ' ')
+
+case "$GROUP_LOCALIZATION_COUNT" in
+  0)
+    asc subscriptions groups versions localizations create \
+      --version-id "$GROUP_VERSION_ID" \
+      --locale "en-US" \
+      --name "Premium"
+    ;;
+  1)
+    asc subscriptions groups versions localizations update \
+      --id "$GROUP_LOCALIZATION_IDS" \
+      --name "Premium"
+    ;;
+  *) echo "Multiple en-US group localizations exist." >&2; exit 1 ;;
+esac
+
+# 4. Resolve the subscription version using the same zero/one/many rule.
+SUBSCRIPTION_VERSIONS=$(asc subscriptions versions list \
+  --subscription-id "$SUBSCRIPTION_ID" \
+  --paginate \
+  --output json)
+SUBSCRIPTION_VERSION_COUNT=$(echo "$SUBSCRIPTION_VERSIONS" | jq '.data | length')
+
+case "$SUBSCRIPTION_VERSION_COUNT" in
+  0)
+    SUBSCRIPTION_VERSION_ID=$(asc subscriptions versions create \
+      --subscription-id "$SUBSCRIPTION_ID" \
+      --output json | jq -r '.data.id')
+    ;;
+  1) SUBSCRIPTION_VERSION_ID=$(echo "$SUBSCRIPTION_VERSIONS" | jq -r '.data[0].id') ;;
+  *) echo "Multiple subscription versions exist; choose the intended editable ID." >&2; exit 1 ;;
+esac
+
+SUBSCRIPTION_VERSION_STATE=$(asc subscriptions versions view \
+  --id "$SUBSCRIPTION_VERSION_ID" \
+  --output json | jq -r '.data.attributes.state')
+test "$SUBSCRIPTION_VERSION_STATE" = "PREPARE_FOR_SUBMISSION" || {
+  echo "Subscription version $SUBSCRIPTION_VERSION_ID is not editable: $SUBSCRIPTION_VERSION_STATE" >&2
+  exit 1
+}
+
+# Reconcile the required locale with a non-empty live-service description.
+LOCALIZATIONS=$(asc subscriptions versions localizations list \
+  --version-id "$SUBSCRIPTION_VERSION_ID" \
+  --paginate \
+  --output json)
+LOCALIZATION_IDS=$(echo "$LOCALIZATIONS" | jq -r \
+  '.data[] | select(.attributes.locale == "en-US") | .id')
+LOCALIZATION_COUNT=$(printf '%s\n' "$LOCALIZATION_IDS" | sed '/^$/d' | wc -l | tr -d ' ')
+
+case "$LOCALIZATION_COUNT" in
+  0)
+    asc subscriptions versions localizations create \
+      --version-id "$SUBSCRIPTION_VERSION_ID" \
+      --locale "en-US" \
+      --name "Monthly Premium" \
+      --description "Unlimited premium access, billed monthly"
+    ;;
+  1)
+    asc subscriptions versions localizations update \
+      --id "$LOCALIZATION_IDS" \
+      --name "Monthly Premium" \
+      --description "Unlimited premium access, billed monthly"
+    ;;
+  *) echo "Multiple en-US subscription localizations exist." >&2; exit 1 ;;
+esac
+
+# 5. Configure pricing, promotional art, and the App Review screenshot.
 asc subscriptions pricing prices set \
-  --subscription-id "$MONTHLY_ID" \
-  --tier 5 \
-  --territory "USA"
+  --subscription-id "$SUBSCRIPTION_ID" \
+  --price-point "$PRICE_POINT_ID"
 
-asc subscriptions pricing prices set \
-  --subscription-id "$YEARLY_ID" \
-  --tier 40 \
-  --territory "USA"
+asc subscriptions pricing availability edit \
+  --subscription-id "$SUBSCRIPTION_ID" \
+  --territories "USA,CAN,GBR,AUS"
 
-echo "Created subscription group: $GROUP_ID"
-echo "Monthly subscription: $MONTHLY_ID"
-echo "Yearly subscription: $YEARLY_ID"
+asc subscriptions versions images upload \
+  --version-id "$SUBSCRIPTION_VERSION_ID" \
+  --file "$PROMOTIONAL_IMAGE"
+
+asc subscriptions review screenshots create \
+  --subscription-id "$SUBSCRIPTION_ID" \
+  --file "$REVIEW_SCREENSHOT"
+
+# 6. Submit both typed versions together.
+SUBMISSION_ID=$(asc review submissions-create \
+  --app "$APP_ID" \
+  --platform IOS \
+  --output json | jq -r '.data.id')
+
+asc review items add \
+  --submission "$SUBMISSION_ID" \
+  --item-type subscriptionGroupVersions \
+  --item-id "$GROUP_VERSION_ID"
+
+asc review items add \
+  --submission "$SUBMISSION_ID" \
+  --item-type subscriptionVersions \
+  --item-id "$SUBSCRIPTION_VERSION_ID"
+
+asc review submissions-submit \
+  --id "$SUBMISSION_ID" \
+  --confirm
+
+echo "Submitted subscription $SUBSCRIPTION_ID and group $GROUP_ID"
 ```
+
+This workflow refuses ambiguous version or localization matches rather than
+creating resources that cannot be deleted. Image and review-screenshot uploads
+are writes; inspect their current resources and skip an upload that already
+succeeded before retrying the script.
 
 ### Bulk Price Update
 
