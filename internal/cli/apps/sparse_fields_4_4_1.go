@@ -2,6 +2,7 @@ package apps
 
 import (
 	"flag"
+	"fmt"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -18,8 +19,15 @@ var appInAppPurchaseSparseFields441 = []string{"versions"}
 
 var appSubscriptionGroupSparseFields441 = []string{"versions"}
 
-func normalizeSparseField(value string, allowed []string, flagName string) ([]string, error) {
-	return shared.NormalizeSelection(value, allowed, flagName)
+func normalizeSparseField(fs *flag.FlagSet, value string, allowed []string, flagName string) ([]string, error) {
+	values, err := shared.NormalizeSelection(value, allowed, flagName)
+	if err != nil {
+		return nil, err
+	}
+	if _, provided := appFlagWasProvided(fs, strings.TrimPrefix(flagName, "--")); provided && len(values) == 0 {
+		return nil, fmt.Errorf("%s must not be empty", flagName)
+	}
+	return values, nil
 }
 
 func addInclude(values []string, include string) []string {

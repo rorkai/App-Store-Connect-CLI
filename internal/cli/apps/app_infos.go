@@ -45,11 +45,11 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --app is required (or set ASC_APP_ID)")
 				return shared.MissingRequiredUsageError()
 			}
-			fieldValues, err := normalizeSparseField(*fields, appInfoSparseFields441, "--fields")
+			fieldValues, err := normalizeSparseField(fs, *fields, appInfoSparseFields441, "--fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			ageRatingFieldValues, err := normalizeSparseField(*ageRatingFields, ageRatingSparseFields441, "--age-rating-fields")
+			ageRatingFieldValues, err := normalizeSparseField(fs, *ageRatingFields, ageRatingSparseFields441, "--age-rating-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}

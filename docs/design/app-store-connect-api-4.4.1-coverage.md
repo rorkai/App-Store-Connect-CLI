@@ -86,6 +86,7 @@ separately and has no invented landed `main` commit:
 | Hardened public 4.4.1 command workflows | #1791 | `e9c2a0dc` | `e902d375` | Merged; documentation only |
 | Seven-property nullable request fidelity | #1792 | `3f7d1449` | `804624cd` | Merged; exact final head landed on `main` |
 | IAP and promoted-purchase related sparse fields | #1793 | `917d719d` | `f6b34d9e` | Merged; exact final head, six resolved threads, and green exact-head gates |
+| Subscription and pricing related sparse fields | #1795 | `229dc07c` | `5bf2d154` | Merged; exact final head landed on `main` |
 | External ASC workflow skills | rorkai/app-store-connect-cli-skills#51 | `d7888b2b4a1a152f8524fc18c99d2d73d1c431fc` | `26b2fa92e612dff3477537f67b44f1bcfedf0fc5` | Merged; exact final head and landed tree revalidated |
 
 The hard audit fixed contract gaps beyond the initial six implementation PRs:
@@ -110,11 +111,12 @@ legacy omission behavior for a whitespace-only `customAppName` while retaining
 explicit JSON `null`; it landed on `main` as
 `804624cd158d1eb8843d8e0be7cf55bc639da0a1`.
 
-The current fully merged behavior integration is #1793 at `main` commit
-`f6b34d9e042964673ee39c32fbae4f7aa99fc874`; #1789 previously landed this
+The current fully merged behavior integration is #1795 at `main` commit
+`5bf2d1545785a863242a8509bf55cc25d8a4ab49`; #1789 previously landed this
 coverage ledger at `d6d8d94b`, test-only #1790 landed at `73466720`,
 docs-only #1791 landed at `e902d375`, and nullable-fidelity #1792 landed at
-`804624cd`. The 37-path, 47-operation, 47-schema, 102-direct, 71-transitive,
+`804624cd`; IAP sparse-field #1793 landed at `f6b34d9e`. The 37-path,
+47-operation, 47-schema, 102-direct, 71-transitive,
 173-contract, 61-modified-schema, and 9-addition/7-deprecation counts are
 unchanged. The recursive built-help comparison from `839c4da6` to `9282e82d`
 found 48 added and 52 changed leaf paths, 100 affected paths total, with zero
@@ -334,7 +336,7 @@ change.
 | Contract area | Semantic change | Verification owner | Exact evidence |
 | --- | --- | --- | --- |
 | IAP reads | `fields[inAppPurchases]` gains `versions`; IAP detail and app-IAP collection reads gain `include=versions`, `fields[inAppPurchaseVersions]`, and `limit[versions]` | #1777 and #1793 | `ee40c7b3`; #1793 final head `917d719d`, landed as `f6b34d9e`, adds all 11 propagated IAP/promoted-purchase GETs with endpoint-exact options, queries, stable owner selection, and response compatibility tests |
-| Subscription reads | Subscription detail and group-subscription reads gain version includes, sparse fields, and relationship limits; subscription sparse fields gain `versions` across related endpoints | #1779 plus the subscription sparse-field follow-up | `c8f3ab52` plus `subscription_sparse_fields_4_4_1_test.go`; exact query, stable owner selection, opaque-pagination, and compatibility tests across all 17 propagated subscription/pricing GETs |
+| Subscription reads | Subscription detail and group-subscription reads gain version includes, sparse fields, and relationship limits; subscription sparse fields gain `versions` across related endpoints | #1779 and #1795 | `c8f3ab52`; #1795 final head `229dc07c`, landed as `5bf2d154`, adds exact query, stable owner selection, opaque-pagination, and compatibility tests across all 17 propagated subscription/pricing GETs |
 | Subscription-group reads | Group detail and app-group collection reads gain version includes, sparse fields, and relationship limits; group sparse fields gain `versions` | #1780 | `48d04e0b`; exact query, owner/next validation, and compatibility tests |
 | Review submission reads | Review-item sparse fields and includes gain `inAppPurchaseVersion`, `subscriptionVersion`, and `subscriptionGroupVersion` | #1781 | `aba35e0a`; all four changed GET surfaces, automatic item inclusion, and response round-trip tests |
 | Pricing reads | Price-point sparse fields gain `adjustedEqualizations`; existing equalization and price-point relationship operations gain `filter[upfrontPricePointId]` and `filter[planType]` where allowed | #1778 | `39284b0a`; endpoint-specific option, exact query, strict CSV/enums, territory inclusion, opaque-next, ID validation, and aggregation tests |
@@ -830,18 +832,20 @@ documented deprecation window; this goal intentionally stops before release.
     `26b2fa92e612dff3477537f67b44f1bcfedf0fc5`. All three PR #51 review
     threads are resolved; final-head exact-help validation covered 28 commands
     and 108 flags with zero failures, and the skill validator passed.
-20. Exact CLI `main` `f6b34d9e` is the current fully merged behavior integration
-    through #1793. Its PR head passed integration, Govulncheck, and CodeQL workflows.
+20. #1795 completed the subscription and pricing related sparse-field follow-up
+    at exact final head `229dc07c3b999777e9b03dd543f66c3c6898e705`
+    and landed on `main` as `5bf2d1545785a863242a8509bf55cc25d8a4ab49`.
+21. Exact CLI `main` `5bf2d154` is the current fully merged behavior integration
+    through #1795. Its PR head passed integration, Govulncheck, and CodeQL workflows.
     The historical built-help audit through #1788 found 48 added and 52 changed
     leaf paths relative to `839c4da6`, with zero removals; later flag-level help
     changes are verified by their focused command tests. Those historical
     counts do not replace #1792's typed nullable-encoding tests.
 
 CLI behavior and lifecycle PRs through #1788, the ledger PR, test-only #1790,
-docs-only #1791, nullable-fidelity #1792, IAP sparse-field #1793, and the
-companion skills PR are merged. The subscription and pricing sparse-field
-follow-up is verified by its endpoint ledger and exact-query tests in this
-branch. No release, tag, or package publication is part of this goal.
+docs-only #1791, nullable-fidelity #1792, IAP sparse-field #1793,
+subscription/pricing sparse-field #1795, and the companion skills PR are merged.
+No release, tag, or package publication is part of this goal.
 
 ### Built help-surface delta
 
@@ -1044,8 +1048,8 @@ pre-merge evidence are separated explicitly:
   read succeeded, all four age fields were restored to `false`, and all four
   review submissions contained zero items. This predates #1792 and is not
   evidence that Apple accepts explicit null for its seven corrected fields.
-- [x] Confirmed the fully merged behavior integration through #1793, `main`
-  `f6b34d9e`, follows green exact-head integration, Govulncheck, and CodeQL
+- [x] Confirmed the fully merged behavior integration through #1795, `main`
+  `5bf2d154`, follows green exact-head integration, Govulncheck, and CodeQL
   workflows; #1789 previously landed
   the ledger at `d6d8d94b`, test-only #1790 landed at `73466720`, docs-only
   #1791 landed at `e902d375`, and nullable-fidelity #1792 landed at

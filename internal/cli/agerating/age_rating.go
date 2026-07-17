@@ -123,6 +123,11 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+			fieldsProvided := false
+			fs.Visit(func(f *flag.Flag) { fieldsProvided = fieldsProvided || f.Name == "fields" })
+			if fieldsProvided && len(fieldValues) == 0 {
+				return shared.UsageError("--fields must not be empty")
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {

@@ -156,11 +156,11 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError()
 			}
-			iapFieldValues, err := normalizeSparseField(*iapFields, appInAppPurchaseSparseFields441, "--iap-fields")
+			iapFieldValues, err := normalizeSparseField(fs, *iapFields, appInAppPurchaseSparseFields441, "--iap-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			groupFieldValues, err := normalizeSparseField(*subscriptionGroupFields, appSubscriptionGroupSparseFields441, "--subscription-group-fields")
+			groupFieldValues, err := normalizeSparseField(fs, *subscriptionGroupFields, appSubscriptionGroupSparseFields441, "--subscription-group-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
@@ -281,11 +281,11 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 			return flag.ErrHelp
 		}
 	}
-	iapFieldValues, err := normalizeSparseField(iapFields, appInAppPurchaseSparseFields441, "--iap-fields")
+	iapFieldValues, err := normalizeSparseField(fs, iapFields, appInAppPurchaseSparseFields441, "--iap-fields")
 	if err != nil {
 		return shared.UsageError(err.Error())
 	}
-	groupFieldValues, err := normalizeSparseField(subscriptionGroupFields, appSubscriptionGroupSparseFields441, "--subscription-group-fields")
+	groupFieldValues, err := normalizeSparseField(fs, subscriptionGroupFields, appSubscriptionGroupSparseFields441, "--subscription-group-fields")
 	if err != nil {
 		return shared.UsageError(err.Error())
 	}

@@ -44,9 +44,11 @@ Commands add it deterministically and preserve explicit compatible includes.
 ## Validation and compatibility
 
 The new flags are additive. They validate against the exact new enum members
-before authentication or HTTP. On paginated app lists, `--next` cannot be
-combined with any sparse-field flag because the continuation URL owns the full
-query. Existing invocations and output shapes are unchanged.
+before authentication or HTTP, and explicitly provided empty or whitespace-only
+values are rejected. On paginated app lists and app-info localization reads,
+`--next` cannot be combined with any sparse-field flag, even when that flag's
+explicit value is empty, because the continuation URL owns the full query.
+Existing invocations and output shapes are unchanged.
 
 The typed client keeps operation-specific query structs and functional options;
 there is intentionally no universal query map. Invalid or unsupported values

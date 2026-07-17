@@ -122,11 +122,11 @@ Examples:
 			if idValue == "" {
 				return shared.UsageError("--id is required")
 			}
-			iapFieldValues, err := shared.NormalizeSelection(*iapFields, ciProductAppInAppPurchaseSparseFields441, "--iap-fields")
+			iapFieldValues, err := normalizeCiProductAppSparseField(fs, *iapFields, ciProductAppInAppPurchaseSparseFields441, "--iap-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			groupFieldValues, err := shared.NormalizeSelection(*subscriptionGroupFields, ciProductAppSubscriptionGroupSparseFields441, "--subscription-group-fields")
+			groupFieldValues, err := normalizeCiProductAppSparseField(fs, *subscriptionGroupFields, ciProductAppSubscriptionGroupSparseFields441, "--subscription-group-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}

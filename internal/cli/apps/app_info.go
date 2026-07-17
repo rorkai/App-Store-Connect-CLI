@@ -102,6 +102,11 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return shared.UsageError(err.Error())
 			}
+			if strings.TrimSpace(*next) != "" {
+				if flagName, ok := appFlagWasProvided(fs, "fields", "age-rating-fields"); ok {
+					return shared.UsageErrorf("--next cannot be combined with %s", flagName)
+				}
+			}
 			if strings.TrimSpace(*version) != "" && strings.TrimSpace(*versionID) != "" {
 				return shared.UsageError("--version and --version-id are mutually exclusive")
 			}
@@ -116,11 +121,11 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			fieldValues, err := normalizeSparseField(*fields, appInfoSparseFields441, "--fields")
+			fieldValues, err := normalizeSparseField(fs, *fields, appInfoSparseFields441, "--fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
-			ageRatingFieldValues, err := normalizeSparseField(*ageRatingFields, ageRatingSparseFields441, "--age-rating-fields")
+			ageRatingFieldValues, err := normalizeSparseField(fs, *ageRatingFields, ageRatingSparseFields441, "--age-rating-fields")
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
