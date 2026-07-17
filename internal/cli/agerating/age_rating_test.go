@@ -171,6 +171,52 @@ func TestAgeRatingHelpers(t *testing.T) {
 	}
 }
 
+func TestValidateAgeRatingDependenciesAllowsPartialUpdates(t *testing.T) {
+	trueValue := true
+	falseValue := false
+
+	tests := []struct {
+		name  string
+		attrs asc.AgeRatingDeclarationAttributes
+	}{
+		{
+			name:  "social media may rely on stored user generated content",
+			attrs: asc.AgeRatingDeclarationAttributes{SocialMedia: &trueValue},
+		},
+		{
+			name: "age restriction may rely on stored prerequisites",
+			attrs: asc.AgeRatingDeclarationAttributes{
+				SocialMediaAgeRestricted: &trueValue,
+			},
+		},
+		{
+			name: "all prerequisites explicitly enabled",
+			attrs: asc.AgeRatingDeclarationAttributes{
+				AgeAssurance:             &trueValue,
+				SocialMedia:              &trueValue,
+				SocialMediaAgeRestricted: &trueValue,
+				UserGeneratedContent:     &trueValue,
+			},
+		},
+		{
+			name: "unrelated false fields",
+			attrs: asc.AgeRatingDeclarationAttributes{
+				AgeAssurance:         &falseValue,
+				SocialMedia:          &falseValue,
+				UserGeneratedContent: &falseValue,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := validateAgeRatingDependencies(test.attrs); err != nil {
+				t.Fatalf("unexpected dependency error: %v", err)
+			}
+		})
+	}
+}
+
 func TestApplyAllNoneDefaultsSetsAllContentDescriptors(t *testing.T) {
 	values := map[string]string{}
 	applyAllNoneDefaults(values)

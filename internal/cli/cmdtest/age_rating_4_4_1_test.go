@@ -83,3 +83,54 @@ func TestAgeRatingEditInvalidSocialMediaReturnsUsageExit(t *testing.T) {
 		"age-rating", "edit", "--id", "age-441", "--social-media", "sometimes",
 	}, "--social-media must be true or false")
 }
+
+func TestAgeRatingEditRejectsExplicitDependencyContradictions(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name: "social media with user generated content disabled",
+			args: []string{
+				"age-rating", "edit", "--id", "age-441",
+				"--social-media", "true",
+				"--user-generated-content", "false",
+			},
+			wantErr: "--social-media true cannot be combined with --user-generated-content false",
+		},
+		{
+			name: "age restricted social media with age assurance disabled",
+			args: []string{
+				"age-rating", "edit", "--id", "age-441",
+				"--social-media-age-restricted", "true",
+				"--age-assurance", "false",
+			},
+			wantErr: "--social-media-age-restricted true cannot be combined with --age-assurance false",
+		},
+		{
+			name: "age restricted social media with social media disabled",
+			args: []string{
+				"age-rating", "edit", "--id", "age-441",
+				"--social-media-age-restricted", "true",
+				"--social-media", "false",
+			},
+			wantErr: "--social-media-age-restricted true cannot be combined with --social-media false",
+		},
+		{
+			name: "all none materializes conflicting false prerequisites",
+			args: []string{
+				"age-rating", "edit", "--id", "age-441",
+				"--all-none",
+				"--social-media", "true",
+			},
+			wantErr: "--social-media true cannot be combined with --user-generated-content false",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assertUsageExit(t, test.args, test.wantErr)
+		})
+	}
+}

@@ -187,11 +187,17 @@ func AgeRatingEditCommand() *ffcli.Command {
 Use --all-none to set all ratings to their safe defaults (NONE/false) in one
 command, then override individual fields as needed.
 
+App Store Connect accepts --social-media true only when user-generated content
+is true. It accepts --social-media-age-restricted true only when age assurance
+and social media are both true. Include the matching prerequisite flags when
+enabling these fields unless the declaration already stores them as true.
+
 Examples:
   asc age-rating edit --app APP_ID --all-none
   asc age-rating edit --app APP_ID --all-none --unrestricted-web-access true
   asc age-rating edit --id DECLARATION_ID --gambling false --kids-age-band FIVE_AND_UNDER
-  asc age-rating edit --app APP_ID --violence-realistic FREQUENT_OR_INTENSE --unrestricted-web-access true`,
+  asc age-rating edit --app APP_ID --social-media true --user-generated-content true
+  asc age-rating edit --app APP_ID --social-media-age-restricted true --age-assurance true --social-media true --user-generated-content true`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -269,6 +275,9 @@ Examples:
 			if err != nil {
 				return err
 			}
+			if err := validateAgeRatingDependencies(attributes); err != nil {
+				return err
+			}
 
 			if !hasAgeRatingUpdates(attributes) {
 				return fmt.Errorf("age-rating edit: at least one update flag is required")
@@ -297,6 +306,27 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func validateAgeRatingDependencies(attrs asc.AgeRatingDeclarationAttributes) error {
+	if boolIsTrue(attrs.SocialMedia) && boolIsFalse(attrs.UserGeneratedContent) {
+		return shared.UsageError("--social-media true cannot be combined with --user-generated-content false")
+	}
+	if boolIsTrue(attrs.SocialMediaAgeRestricted) && boolIsFalse(attrs.AgeAssurance) {
+		return shared.UsageError("--social-media-age-restricted true cannot be combined with --age-assurance false")
+	}
+	if boolIsTrue(attrs.SocialMediaAgeRestricted) && boolIsFalse(attrs.SocialMedia) {
+		return shared.UsageError("--social-media-age-restricted true cannot be combined with --social-media false")
+	}
+	return nil
+}
+
+func boolIsTrue(value *bool) bool {
+	return value != nil && *value
+}
+
+func boolIsFalse(value *bool) bool {
+	return value != nil && !*value
 }
 
 func fetchAgeRatingDeclaration(ctx context.Context, client *asc.Client, appID, appInfoID, versionID string) (*asc.AgeRatingDeclarationResponse, error) {
