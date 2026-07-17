@@ -89,3 +89,69 @@ func TestBindDeprecatedStringFlagAliasHidesCompatibilityFlag(t *testing.T) {
 		}
 	}
 }
+
+func TestDeprecatedIntFlagAliasApply(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		want         int
+		wantErr      string
+		warningCount int
+		aliasWasSet  bool
+	}{
+		{name: "canonical only", args: []string{"--canonical", "7"}, want: 7},
+		{name: "alias only", args: []string{"--legacy", "8"}, want: 8, warningCount: 1, aliasWasSet: true},
+		{name: "both spellings conflict", args: []string{"--canonical", "9", "--legacy", "9"}, want: 9, wantErr: "--legacy conflicts with --canonical", warningCount: 1, aliasWasSet: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fs := flag.NewFlagSet("test", flag.ContinueOnError)
+			canonical := fs.Int("canonical", 0, "Canonical value")
+			alias := BindDeprecatedIntFlagAlias(fs, "legacy", "canonical")
+			if err := fs.Parse(test.args); err != nil {
+				t.Fatalf("Parse() error: %v", err)
+			}
+
+			_, stderr := captureOutput(t, func() {
+				err := alias.Apply(canonical)
+				if test.wantErr == "" && err != nil {
+					t.Fatalf("Apply() error: %v", err)
+				}
+				if test.wantErr != "" {
+					if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+						t.Fatalf("Apply() error = %v, want containing %q", err, test.wantErr)
+					}
+					if !errors.Is(err, flag.ErrHelp) {
+						t.Fatalf("Apply() error = %v, want usage error", err)
+					}
+				}
+			})
+
+			if *canonical != test.want {
+				t.Fatalf("canonical value = %d, want %d", *canonical, test.want)
+			}
+			if got := strings.Count(stderr, "Warning: `--legacy` is deprecated. Use `--canonical`."); got != test.warningCount {
+				t.Fatalf("warning count = %d, want %d; stderr=%q", got, test.warningCount, stderr)
+			}
+			if got := alias.WasProvided(); got != test.aliasWasSet {
+				t.Fatalf("WasProvided() = %t, want %t", got, test.aliasWasSet)
+			}
+		})
+	}
+}
+
+func TestBindDeprecatedIntFlagAliasHidesCompatibilityFlag(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	_ = fs.Int("canonical", 0, "Canonical value")
+	BindDeprecatedIntFlagAlias(fs, "legacy", "canonical")
+
+	if fs.Lookup("legacy") == nil {
+		t.Fatal("compatibility flag was not registered")
+	}
+	for _, visible := range VisibleHelpFlags(fs) {
+		if visible.Name == "legacy" {
+			t.Fatal("compatibility flag should be hidden from canonical help")
+		}
+	}
+}

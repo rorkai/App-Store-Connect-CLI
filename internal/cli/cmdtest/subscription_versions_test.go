@@ -61,8 +61,10 @@ func TestSubscriptionVersionsListJSON(t *testing.T) {
 			t.Fatalf("run error: %v", err)
 		}
 	})
-	if stderr != "" {
-		t.Fatalf("stderr = %q", stderr)
+	wantStderr := "Warning: `--image-limit` is deprecated. Use `--images-limit`.\n" +
+		"Warning: `--localization-limit` is deprecated. Use `--localizations-limit`.\n"
+	if stderr != wantStderr {
+		t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
 	}
 	var payload struct {
 		Data []struct {
@@ -85,7 +87,7 @@ func TestSubscriptionVersionsValidationUsesUsageErrors(t *testing.T) {
 	}{
 		{name: "missing version ID", args: []string{"subscriptions", "versions", "view"}, message: "Error: --id is required"},
 		{name: "invalid state", args: []string{"subscriptions", "versions", "list", "--subscription-id", "123456789", "--state", "UNKNOWN"}, message: "invalid --state"},
-		{name: "invalid relationship limit", args: []string{"subscriptions", "versions", "view", "--id", "ver-1", "--image-limit", "51"}, message: "--image-limit must be between 1 and 50"},
+		{name: "invalid relationship limit", args: []string{"subscriptions", "versions", "view", "--id", "ver-1", "--images-limit", "51"}, message: "--images-limit must be between 1 and 50"},
 		{name: "next query conflict", args: []string{"subscriptions", "versions", "list", "--next", "https://api.appstoreconnect.apple.com/v1/subscriptions/sub-1/versions?cursor=next", "--state", "APPROVED"}, message: "--next cannot be combined with --state"},
 		{name: "delete confirm", args: []string{"subscriptions", "versions", "images", "delete", "--id", "img-1"}, message: "Error: --confirm is required"},
 	}

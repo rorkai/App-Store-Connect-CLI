@@ -111,8 +111,10 @@ func SubscriptionsVersionsListCommand() *ffcli.Command {
 	imageFields := fs.String("image-fields", "", "Sparse fields for included subscriptionImages")
 	localizationFields := fs.String("localization-fields", "", "Sparse fields for included subscriptionLocalizations")
 	include := fs.String("include", "", "Include relationships: subscription,image,images,localizations")
-	imageLimit := fs.Int("image-limit", 0, "Maximum included images (1-50)")
-	localizationLimit := fs.Int("localization-limit", 0, "Maximum included localizations (1-50)")
+	imagesLimit := fs.Int("images-limit", 0, "Maximum included images (1-50)")
+	legacyImageLimit := shared.BindDeprecatedIntFlagAlias(fs, "image-limit", "images-limit")
+	localizationsLimit := fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
+	legacyLocalizationLimit := shared.BindDeprecatedIntFlagAlias(fs, "localization-limit", "localizations-limit")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages")
@@ -123,9 +125,16 @@ func SubscriptionsVersionsListCommand() *ffcli.Command {
 
 Examples:
   asc subscriptions versions list --subscription-id "SUBSCRIPTION_ID"
-  asc subscriptions versions list --subscription-id "SUBSCRIPTION_ID" --state PREPARE_FOR_SUBMISSION --include localizations`,
+  asc subscriptions versions list --subscription-id "SUBSCRIPTION_ID" --state PREPARE_FOR_SUBMISSION --include localizations --localizations-limit 10
+  asc subscriptions versions list --subscription-id "SUBSCRIPTION_ID" --include images --images-limit 10`,
 		FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := legacyImageLimit.Apply(imagesLimit); err != nil {
+				return err
+			}
+			if err := legacyLocalizationLimit.Apply(localizationsLimit); err != nil {
+				return err
+			}
 			if err := rejectUnexpectedArgs(args); err != nil {
 				return err
 			}
@@ -139,13 +148,13 @@ Examples:
 				flagConflict{"--image-fields", flagWasProvided(fs, "image-fields")},
 				flagConflict{"--localization-fields", flagWasProvided(fs, "localization-fields")},
 				flagConflict{"--include", flagWasProvided(fs, "include")},
-				flagConflict{"--image-limit", flagWasProvided(fs, "image-limit")},
-				flagConflict{"--localization-limit", flagWasProvided(fs, "localization-limit")},
+				flagConflict{"--images-limit", flagWasProvided(fs, "images-limit") || legacyImageLimit.WasProvided()},
+				flagConflict{"--localizations-limit", flagWasProvided(fs, "localizations-limit") || legacyLocalizationLimit.WasProvided()},
 				flagConflict{"--limit", flagWasProvided(fs, "limit")},
 			); err != nil {
 				return err
 			}
-			if err := validateVersionListLimits(*limit, *imageLimit, *localizationLimit); err != nil {
+			if err := validateVersionListLimits(*limit, *imagesLimit, *localizationsLimit); err != nil {
 				return err
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
@@ -202,7 +211,7 @@ Examples:
 				asc.WithSubscriptionVersionsImageFields(imageFieldValues),
 				asc.WithSubscriptionVersionsLocalizationFields(localizationFieldValues),
 				asc.WithSubscriptionVersionsInclude(includeValues),
-				asc.WithSubscriptionVersionsImageLimit(*imageLimit), asc.WithSubscriptionVersionsLocalizationLimit(*localizationLimit),
+				asc.WithSubscriptionVersionsImageLimit(*imagesLimit), asc.WithSubscriptionVersionsLocalizationLimit(*localizationsLimit),
 			}
 			resp, err := client.GetSubscriptionVersions(requestCtx, id, opts...)
 			if err != nil {
@@ -231,13 +240,25 @@ func SubscriptionsVersionsViewCommand() *ffcli.Command {
 	imageFields := fs.String("image-fields", "", "Sparse fields for included subscriptionImages")
 	localizationFields := fs.String("localization-fields", "", "Sparse fields for included subscriptionLocalizations")
 	include := fs.String("include", "", "Include relationships: subscription,image,images,localizations")
-	imageLimit := fs.Int("image-limit", 0, "Maximum included images (1-50)")
-	localizationLimit := fs.Int("localization-limit", 0, "Maximum included localizations (1-50)")
+	imagesLimit := fs.Int("images-limit", 0, "Maximum included images (1-50)")
+	legacyImageLimit := shared.BindDeprecatedIntFlagAlias(fs, "image-limit", "images-limit")
+	localizationsLimit := fs.Int("localizations-limit", 0, "Maximum included localizations (1-50)")
+	legacyLocalizationLimit := shared.BindDeprecatedIntFlagAlias(fs, "localization-limit", "localizations-limit")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "view", ShortUsage: "asc subscriptions versions view --id \"VERSION_ID\"", ShortHelp: "View a subscription version.",
-		LongHelp: "View a subscription version by ID.", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: `View a subscription version by ID.
+
+Examples:
+  asc subscriptions versions view --id "VERSION_ID"
+  asc subscriptions versions view --id "VERSION_ID" --include images,localizations --images-limit 10 --localizations-limit 10`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if err := legacyImageLimit.Apply(imagesLimit); err != nil {
+				return err
+			}
+			if err := legacyLocalizationLimit.Apply(localizationsLimit); err != nil {
+				return err
+			}
 			if err := rejectUnexpectedArgs(args); err != nil {
 				return err
 			}
@@ -246,10 +267,10 @@ func SubscriptionsVersionsViewCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError("--id")
 			}
-			if err := validateRelationshipLimit("--image-limit", *imageLimit); err != nil {
+			if err := validateRelationshipLimit("--images-limit", *imagesLimit); err != nil {
 				return err
 			}
-			if err := validateRelationshipLimit("--localization-limit", *localizationLimit); err != nil {
+			if err := validateRelationshipLimit("--localizations-limit", *localizationsLimit); err != nil {
 				return err
 			}
 			versionFieldValues, err := normalizeSelectionFlag(fs, *fields, "--fields", subscriptionVersionFieldsList())
@@ -285,8 +306,8 @@ func SubscriptionsVersionsViewCommand() *ffcli.Command {
 				asc.WithSubscriptionVersionImageFields(imageFieldValues),
 				asc.WithSubscriptionVersionLocalizationFields(localizationFieldValues),
 				asc.WithSubscriptionVersionInclude(includeValues),
-				asc.WithSubscriptionVersionImageLimit(*imageLimit),
-				asc.WithSubscriptionVersionLocalizationLimit(*localizationLimit),
+				asc.WithSubscriptionVersionImageLimit(*imagesLimit),
+				asc.WithSubscriptionVersionLocalizationLimit(*localizationsLimit),
 			)
 			if err != nil {
 				return fmt.Errorf("subscriptions versions view: failed to fetch: %w", err)
@@ -399,14 +420,14 @@ func validateRelationshipLimit(name string, limit int) error {
 	return nil
 }
 
-func validateVersionListLimits(limit, imageLimit, localizationLimit int) error {
+func validateVersionListLimits(limit, imagesLimit, localizationsLimit int) error {
 	if err := validatePageLimit(limit); err != nil {
 		return err
 	}
-	if err := validateRelationshipLimit("--image-limit", imageLimit); err != nil {
+	if err := validateRelationshipLimit("--images-limit", imagesLimit); err != nil {
 		return err
 	}
-	return validateRelationshipLimit("--localization-limit", localizationLimit)
+	return validateRelationshipLimit("--localizations-limit", localizationsLimit)
 }
 
 type flagConflict struct {
