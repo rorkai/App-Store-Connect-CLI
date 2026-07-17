@@ -101,6 +101,7 @@ Examples:
 func XcodeCloudProductsAppCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app", flag.ExitOnError)
 	id := fs.String("id", "", "Product ID")
+	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated; prefer age-rating data)")
 	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: versions")
 	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: versions")
 	output := shared.BindOutputFlags(fs)
@@ -113,7 +114,7 @@ func XcodeCloudProductsAppCommand() *ffcli.Command {
 
 Examples:
   asc xcode-cloud products app --id "PRODUCT_ID"
-  asc xcode-cloud products app --id "PRODUCT_ID" --iap-fields versions
+  asc xcode-cloud products app --id "PRODUCT_ID" --app-info-fields kidsAgeBand --iap-fields versions
   asc xcode-cloud products app --id "PRODUCT_ID" --output table`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -121,6 +122,10 @@ Examples:
 			idValue := strings.TrimSpace(*id)
 			if idValue == "" {
 				return shared.UsageError("--id is required")
+			}
+			appInfoFieldValues, err := normalizeCiProductAppSparseField(fs, *appInfoFields, ciProductAppInfoSparseFields441, "--app-info-fields")
+			if err != nil {
+				return shared.UsageError(err.Error())
 			}
 			iapFieldValues, err := normalizeCiProductAppSparseField(fs, *iapFields, ciProductAppInAppPurchaseSparseFields441, "--iap-fields")
 			if err != nil {
@@ -139,6 +144,9 @@ Examples:
 			defer cancel()
 
 			includeValues := []string{}
+			if len(appInfoFieldValues) > 0 {
+				includeValues = addCiProductAppInclude(includeValues, "appInfos")
+			}
 			if len(iapFieldValues) > 0 {
 				includeValues = addCiProductAppInclude(includeValues, "inAppPurchases")
 			}
@@ -147,6 +155,7 @@ Examples:
 			}
 			resp, err := client.GetCiProductApp(
 				requestCtx, idValue,
+				asc.WithCiProductAppAppInfoFields(appInfoFieldValues),
 				asc.WithCiProductAppInAppPurchaseFields(iapFieldValues),
 				asc.WithCiProductAppSubscriptionGroupFields(groupFieldValues),
 				asc.WithCiProductAppInclude(includeValues),

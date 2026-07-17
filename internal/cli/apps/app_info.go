@@ -67,7 +67,7 @@ func AppsInfoViewCommand() *ffcli.Command {
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	include := fs.String("include", "", "Include related resources: "+strings.Join(appInfoIncludeList(), ", "))
-	fields := fs.String("fields", "", "Sparse app info fields: kidsAgeBand")
+	fields := fs.String("fields", "", "Sparse app info fields: kidsAgeBand (deprecated by Apple; prefer asc age-rating view)")
 	ageRatingFields := fs.String("age-rating-fields", "", "Sparse fields for included age rating declaration: socialMedia, socialMediaAgeRestricted")
 	output := shared.BindOutputFlags(fs)
 

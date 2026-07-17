@@ -87,6 +87,7 @@ separately and has no invented landed `main` commit:
 | Seven-property nullable request fidelity | #1792 | `3f7d1449` | `804624cd` | Merged; exact final head landed on `main` |
 | IAP and promoted-purchase related sparse fields | #1793 | `917d719d` | `f6b34d9e` | Merged; exact final head, six resolved threads, and green exact-head gates |
 | Subscription and pricing related sparse fields | #1795 | `229dc07c` | `5bf2d154` | Merged; exact final head landed on `main` |
+| App-info related sparse-field query transport | #1796 | — | — | Open; current PR, exact endpoint transport and CLI follow-up |
 | External ASC workflow skills | rorkai/app-store-connect-cli-skills#51 | `d7888b2b4a1a152f8524fc18c99d2d73d1c431fc` | `26b2fa92e612dff3477537f67b44f1bcfedf0fc5` | Merged; exact final head and landed tree revalidated |
 
 The hard audit fixed contract gaps beyond the initial six implementation PRs:
@@ -122,6 +123,10 @@ unchanged. The recursive built-help comparison from `839c4da6` to `9282e82d`
 found 48 added and 52 changed leaf paths, 100 affected paths total, with zero
 removals; it is historical help-surface evidence rather than the nullable
 request-encoding proof, which is carried by #1792's typed tests.
+
+#1796 is an open follow-up. It supplies the operation-specific app-info query
+transport and public CLI validation missing from the merged response-decoding
+work; it is not part of the fully merged integration claim above.
 
 ## Live App Store Connect verification
 
@@ -341,7 +346,7 @@ change.
 | Review submission reads | Review-item sparse fields and includes gain `inAppPurchaseVersion`, `subscriptionVersion`, and `subscriptionGroupVersion` | #1781 | `aba35e0a`; all four changed GET surfaces, automatic item inclusion, and response round-trip tests |
 | Pricing reads | Price-point sparse fields gain `adjustedEqualizations`; existing equalization and price-point relationship operations gain `filter[upfrontPricePointId]` and `filter[planType]` where allowed | #1778 | `39284b0a`; endpoint-specific option, exact query, strict CSV/enums, territory inclusion, opaque-next, ID validation, and aggregation tests |
 | Age rating reads and update | Age-rating sparse fields and update schema gain `socialMedia` and `socialMediaAgeRestricted` | #1778 and #1792 | `39284b0a` added the fields and CLI behavior; #1792 final head `3f7d1449`, landed as `804624cd`, adds exact omit/value/null request encoding |
-| App info reads | `AppInfo.attributes.kidsAgeBand` and `fields[appInfos]=kidsAgeBand` appear as deprecated additions | #1778 | `39284b0a`; generic decoding/output characterization, no new write path |
+| App info reads | `AppInfo.attributes.kidsAgeBand` and `fields[appInfos]=kidsAgeBand` appear as deprecated additions | #1778 and #1796 | #1778 at `39284b0a` adds response decoding and output characterization; open #1796 adds exact operation-specific query transport, CLI flags and automatic includes, strict validation, and query-cardinality tests across all seven `fields[appInfos]` reads |
 | Included-resource unions | IAP, subscription, group, and review-submission responses gain their corresponding version resource discriminators | #1777, #1779, #1780, #1781 | `ee40c7b3`, `c8f3ab52`, `48d04e0b`, `aba35e0a`; typed response and included-resource tests |
 
 No existing operation changes from nondeprecated to `deprecated: true` in the
@@ -507,8 +512,9 @@ immediate pre-PR base plus 52 changes already reconciled after the 4.4 import.
 Schema-mediated request-contract changes are listed separately after it and do
 not alter this count.
 
-Age rating and app info (#1778 at `39284b0a`; sparse-field, typed-decoder,
-payload, output, and compatibility tests):
+Age rating and app info (#1778 at `39284b0a` covers response decoding and
+update behavior; open #1796 covers exact sparse-query transport, CLI flags,
+and query-cardinality tests):
 
 - [x] `GET /v1/appInfoLocalizations/{id}`
 - [x] `GET /v1/appInfos/{id}`

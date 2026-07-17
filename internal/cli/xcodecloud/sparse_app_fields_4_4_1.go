@@ -12,6 +12,8 @@ var ciProductAppInAppPurchaseSparseFields441 = []string{"versions"}
 
 var ciProductAppSubscriptionGroupSparseFields441 = []string{"versions"}
 
+var ciProductAppInfoSparseFields441 = []string{"kidsAgeBand"}
+
 func normalizeCiProductAppSparseField(fs *flag.FlagSet, value string, allowed []string, flagName string) ([]string, error) {
 	values, err := shared.NormalizeSelection(value, allowed, flagName)
 	if err != nil {

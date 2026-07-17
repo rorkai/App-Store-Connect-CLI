@@ -5,6 +5,7 @@ import (
 )
 
 type appQuery struct {
+	appInfoFields           []string
 	inAppPurchaseFields     []string
 	subscriptionGroupFields []string
 	include                 []string
@@ -20,6 +21,7 @@ type ageRatingDeclarationQuery struct {
 }
 
 type ciProductAppQuery struct {
+	appInfoFields           []string
 	inAppPurchaseFields     []string
 	subscriptionGroupFields []string
 	include                 []string
@@ -39,6 +41,7 @@ type CiProductAppOption func(*ciProductAppQuery)
 
 func buildAppQuery(query *appQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[appInfos]", query.appInfoFields)
 	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
 	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
 	addCSV(values, "include", query.include)
@@ -60,6 +63,7 @@ func buildAgeRatingDeclarationQuery(query *ageRatingDeclarationQuery) string {
 
 func buildCiProductAppQuery(query *ciProductAppQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[appInfos]", query.appInfoFields)
 	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
 	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
 	addCSV(values, "include", query.include)
@@ -69,6 +73,11 @@ func buildCiProductAppQuery(query *ciProductAppQuery) string {
 // WithAppInAppPurchaseFields sets fields[inAppPurchases].
 func WithAppInAppPurchaseFields(fields []string) AppOption {
 	return func(q *appQuery) { q.inAppPurchaseFields = normalizeList(fields) }
+}
+
+// WithAppAppInfoFields sets fields[appInfos].
+func WithAppAppInfoFields(fields []string) AppOption {
+	return func(q *appQuery) { q.appInfoFields = normalizeList(fields) }
 }
 
 // WithAppSubscriptionGroupFields sets fields[subscriptionGroups].
@@ -99,6 +108,11 @@ func WithAgeRatingDeclarationFields(fields []string) AgeRatingDeclarationOption 
 // WithCiProductAppInAppPurchaseFields sets fields[inAppPurchases].
 func WithCiProductAppInAppPurchaseFields(fields []string) CiProductAppOption {
 	return func(q *ciProductAppQuery) { q.inAppPurchaseFields = normalizeList(fields) }
+}
+
+// WithCiProductAppAppInfoFields sets fields[appInfos].
+func WithCiProductAppAppInfoFields(fields []string) CiProductAppOption {
+	return func(q *ciProductAppQuery) { q.appInfoFields = normalizeList(fields) }
 }
 
 // WithCiProductAppSubscriptionGroupFields sets fields[subscriptionGroups].

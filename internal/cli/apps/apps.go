@@ -13,7 +13,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
-func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *string, name *string, sku *string, sort *string, limit *int, next *string, paginate *bool, iapFields *string, subscriptionGroupFields *string) {
+func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *string, name *string, sku *string, sort *string, limit *int, next *string, paginate *bool, appInfoFields *string, iapFields *string, subscriptionGroupFields *string) {
 	output = shared.BindOutputFlags(fs)
 	bundleID = fs.String("bundle-id", "", "Filter by bundle ID(s), comma-separated")
 	name = fs.String("name", "", "Filter by app name(s), comma-separated")
@@ -22,6 +22,7 @@ func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *strin
 	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next = fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
+	appInfoFields = fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated by Apple; prefer asc age-rating view)")
 	iapFields = fs.String("iap-fields", "", "Sparse fields for included in-app purchases: versions")
 	subscriptionGroupFields = fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: versions")
 	return
@@ -31,7 +32,7 @@ func appsListFlags(fs *flag.FlagSet) (output shared.OutputFlags, bundleID *strin
 func AppsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps", flag.ExitOnError)
 
-	output, bundleID, name, sku, sort, limit, next, paginate, iapFields, subscriptionGroupFields := appsListFlags(fs)
+	output, bundleID, name, sku, sort, limit, next, paginate, appInfoFields, iapFields, subscriptionGroupFields := appsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "apps",
@@ -59,7 +60,7 @@ Examples:
   asc apps content-rights edit --app "APP_ID" --uses-third-party-content=false
   asc apps --limit 10
   asc apps --sort name
-  asc apps --iap-fields versions --subscription-group-fields versions
+  asc apps --app-info-fields kidsAgeBand --iap-fields versions --subscription-group-fields versions
   asc apps --output table
   asc apps --next "<links.next>"
   asc apps --paginate`,
@@ -90,7 +91,7 @@ Examples:
 				fmt.Fprintf(os.Stderr, "Error: unknown subcommand %q\n", subcommand)
 				return flag.ErrHelp
 			}
-			return appsList(ctx, fs, *output.Output, *output.Pretty, *bundleID, *name, *sku, *sort, *limit, *next, *paginate, *iapFields, *subscriptionGroupFields)
+			return appsList(ctx, fs, *output.Output, *output.Pretty, *bundleID, *name, *sku, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields)
 		},
 	}
 }
@@ -99,7 +100,7 @@ Examples:
 func AppsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps list", flag.ExitOnError)
 
-	output, bundleID, name, sku, sort, limit, next, paginate, iapFields, subscriptionGroupFields := appsListFlags(fs)
+	output, bundleID, name, sku, sort, limit, next, paginate, appInfoFields, iapFields, subscriptionGroupFields := appsListFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
@@ -113,14 +114,14 @@ Examples:
   asc apps list --name "My App"
   asc apps list --limit 10
   asc apps list --sort name
-  asc apps list --iap-fields versions --subscription-group-fields versions
+  asc apps list --app-info-fields kidsAgeBand --iap-fields versions --subscription-group-fields versions
   asc apps list --output table
   asc apps list --next "<links.next>"
   asc apps list --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
-			return appsList(ctx, fs, *output.Output, *output.Pretty, *bundleID, *name, *sku, *sort, *limit, *next, *paginate, *iapFields, *subscriptionGroupFields)
+			return appsList(ctx, fs, *output.Output, *output.Pretty, *bundleID, *name, *sku, *sort, *limit, *next, *paginate, *appInfoFields, *iapFields, *subscriptionGroupFields)
 		},
 	}
 }
@@ -131,6 +132,7 @@ func AppsGetCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "App Store Connect app ID")
 	legacyAppID := shared.BindDeprecatedStringFlagAlias(fs, "app", "id")
+	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated by Apple; prefer asc age-rating view)")
 	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: versions")
 	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: versions")
 	output := shared.BindOutputFlags(fs)
@@ -143,7 +145,7 @@ func AppsGetCommand() *ffcli.Command {
 
 Examples:
   asc apps view --id "APP_ID"
-  asc apps view --id "APP_ID" --iap-fields versions --subscription-group-fields versions
+  asc apps view --id "APP_ID" --app-info-fields kidsAgeBand --iap-fields versions --subscription-group-fields versions
   asc apps view --id "APP_ID" --output table`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -155,6 +157,10 @@ Examples:
 			if idValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --id is required")
 				return shared.MissingRequiredUsageError()
+			}
+			appInfoFieldValues, err := normalizeSparseField(fs, *appInfoFields, appInfoSparseFields441, "--app-info-fields")
+			if err != nil {
+				return shared.UsageError(err.Error())
 			}
 			iapFieldValues, err := normalizeSparseField(fs, *iapFields, appInAppPurchaseSparseFields441, "--iap-fields")
 			if err != nil {
@@ -174,6 +180,9 @@ Examples:
 			defer cancel()
 
 			includeValues := []string{}
+			if len(appInfoFieldValues) > 0 {
+				includeValues = addInclude(includeValues, "appInfos")
+			}
 			if len(iapFieldValues) > 0 {
 				includeValues = addInclude(includeValues, "inAppPurchases")
 			}
@@ -181,6 +190,7 @@ Examples:
 				includeValues = addInclude(includeValues, "subscriptionGroups")
 			}
 			opts := []asc.AppOption{
+				asc.WithAppAppInfoFields(appInfoFieldValues),
 				asc.WithAppInAppPurchaseFields(iapFieldValues),
 				asc.WithAppSubscriptionGroupFields(groupFieldValues),
 				asc.WithAppInclude(includeValues),
@@ -265,7 +275,7 @@ Examples:
 	}
 }
 
-func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool, bundleID string, name string, sku string, sort string, limit int, next string, paginate bool, iapFields string, subscriptionGroupFields string) error {
+func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool, bundleID string, name string, sku string, sort string, limit int, next string, paginate bool, appInfoFields string, iapFields string, subscriptionGroupFields string) error {
 	if limit != 0 && (limit < 1 || limit > 200) {
 		return fmt.Errorf("apps: --limit must be between 1 and 200")
 	}
@@ -276,10 +286,14 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 		return fmt.Errorf("apps: %w", err)
 	}
 	if strings.TrimSpace(next) != "" {
-		if flagName, ok := appFlagWasProvided(fs, "iap-fields", "subscription-group-fields"); ok {
+		if flagName, ok := appFlagWasProvided(fs, "app-info-fields", "iap-fields", "subscription-group-fields"); ok {
 			fmt.Fprintf(os.Stderr, "Error: --next cannot be combined with %s\n", flagName)
 			return flag.ErrHelp
 		}
+	}
+	appInfoFieldValues, err := normalizeSparseField(fs, appInfoFields, appInfoSparseFields441, "--app-info-fields")
+	if err != nil {
+		return shared.UsageError(err.Error())
 	}
 	iapFieldValues, err := normalizeSparseField(fs, iapFields, appInAppPurchaseSparseFields441, "--iap-fields")
 	if err != nil {
@@ -304,10 +318,14 @@ func appsList(ctx context.Context, fs *flag.FlagSet, output string, pretty bool,
 		asc.WithAppsSKUs(shared.SplitCSV(sku)),
 		asc.WithAppsLimit(limit),
 		asc.WithAppsNextURL(next),
+		asc.WithAppsAppInfoFields(appInfoFieldValues),
 		asc.WithAppsInAppPurchaseFields(iapFieldValues),
 		asc.WithAppsSubscriptionGroupFields(groupFieldValues),
 	}
 	includeValues := []string{}
+	if len(appInfoFieldValues) > 0 {
+		includeValues = addInclude(includeValues, "appInfos")
+	}
 	if len(iapFieldValues) > 0 {
 		includeValues = addInclude(includeValues, "inAppPurchases")
 	}

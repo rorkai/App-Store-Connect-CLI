@@ -44,6 +44,12 @@ List apps from App Store Connect.
   Automatically fetch all pages (aggregate results)
 </ParamField>
 
+<ParamField path="--app-info-fields" type="string">
+  Sparse fields for included app-info records. API 4.4.1 supports the deprecated
+  `kidsAgeBand` selector. Supplying this flag automatically includes `appInfos`.
+  Prefer `asc age-rating view` for current age-rating data.
+</ParamField>
+
 <ParamField path="--iap-fields" type="string">
   Sparse fields for included in-app purchases. API 4.4.1 supports `versions`.
   Supplying this flag automatically includes `inAppPurchases`.
@@ -66,7 +72,7 @@ asc apps list --bundle-id "com.example.app"
 asc apps list --name "My App"
 asc apps list --limit 10
 asc apps list --sort name
-asc apps list --iap-fields versions --subscription-group-fields versions
+asc apps list --app-info-fields kidsAgeBand --iap-fields versions --subscription-group-fields versions
 asc apps list --output table
 asc apps list --paginate
 ```
@@ -103,6 +109,11 @@ View app details by ID.
   App Store Connect app ID
 </ParamField>
 
+<ParamField path="--app-info-fields" type="string">
+  Sparse fields for included app-info records: the deprecated `kidsAgeBand`
+  selector. Automatically includes `appInfos`; prefer `asc age-rating view`.
+</ParamField>
+
 <ParamField path="--iap-fields" type="string">
   Sparse fields for included in-app purchases: `versions`. Automatically
   includes `inAppPurchases`.
@@ -121,7 +132,7 @@ View app details by ID.
 
 ```bash  theme={null}
 asc apps view --id "APP_ID"
-asc apps view --id "APP_ID" --iap-fields versions --subscription-group-fields versions
+asc apps view --id "APP_ID" --app-info-fields kidsAgeBand --iap-fields versions --subscription-group-fields versions
 asc apps view --id "APP_ID" --output table
 ```
 
@@ -155,7 +166,8 @@ kids age band and the age-rating declaration's social-media fields.
 </ParamField>
 
 <ParamField path="--fields" type="string">
-  Sparse app-info fields: `kidsAgeBand`
+  Sparse app-info fields: `kidsAgeBand`. Apple marks this selector deprecated;
+  prefer `asc age-rating view` for current age-rating data.
 </ParamField>
 
 <ParamField path="--age-rating-fields" type="string">
@@ -175,6 +187,13 @@ asc apps info list --app "APP_ID" --age-rating-fields socialMedia,socialMediaAge
   `fields[appInfos]=kidsAgeBand` value on app-info detail and collection reads.
   The CLI exposes the published schema while Apple's rollout catches up.
 </Note>
+
+<Warning>
+  `kidsAgeBand` remains available because it is present in the official API
+  4.4.1 sparse-field enum, but Apple marks it deprecated. New workflows should
+  read the age-rating declaration with `asc age-rating view`; use its `--fields`
+  flag for the API 4.4.1 social-media fields.
+</Warning>
 
 ### `asc apps info view`
 

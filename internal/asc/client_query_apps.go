@@ -12,6 +12,7 @@ type appsQuery struct {
 	bundleIDs               []string
 	names                   []string
 	skus                    []string
+	appInfoFields           []string
 	inAppPurchaseFields     []string
 	subscriptionGroupFields []string
 	include                 []string
@@ -106,6 +107,7 @@ func buildAppsQuery(query *appsQuery) string {
 	if query.sort != "" {
 		values.Set("sort", query.sort)
 	}
+	addCSV(values, "fields[appInfos]", query.appInfoFields)
 	addCSV(values, "fields[inAppPurchases]", query.inAppPurchaseFields)
 	addCSV(values, "fields[subscriptionGroups]", query.subscriptionGroupFields)
 	addCSV(values, "include", query.include)
@@ -451,6 +453,13 @@ func WithAppsSKUs(skus []string) AppsOption {
 func WithAppsInAppPurchaseFields(fields []string) AppsOption {
 	return func(q *appsQuery) {
 		q.inAppPurchaseFields = normalizeList(fields)
+	}
+}
+
+// WithAppsAppInfoFields sets fields[appInfos].
+func WithAppsAppInfoFields(fields []string) AppsOption {
+	return func(q *appsQuery) {
+		q.appInfoFields = normalizeList(fields)
 	}
 }
 

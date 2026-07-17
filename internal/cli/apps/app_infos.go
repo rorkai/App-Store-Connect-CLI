@@ -17,7 +17,7 @@ func AppsInfoListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps info list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	fields := fs.String("fields", "", "Sparse app info fields: kidsAgeBand")
+	fields := fs.String("fields", "", "Sparse app info fields: kidsAgeBand (deprecated by Apple; prefer asc age-rating view)")
 	ageRatingFields := fs.String("age-rating-fields", "", "Sparse fields for included age rating declaration: socialMedia, socialMediaAgeRestricted")
 	output := shared.BindOutputFlags(fs)
 

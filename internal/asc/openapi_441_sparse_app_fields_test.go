@@ -53,16 +53,18 @@ func TestOpenAPI441SparseAppFields(t *testing.T) {
 			wantPath: "/v1/apps",
 			response: `{"data":[]}`,
 			wantQuery: map[string]string{
+				"fields[appInfos]":           "kidsAgeBand",
 				"fields[inAppPurchases]":     "versions",
 				"fields[subscriptionGroups]": "versions",
-				"include":                    "inAppPurchases,subscriptionGroups",
+				"include":                    "appInfos,inAppPurchases,subscriptionGroups",
 			},
 			call: func(client *Client) error {
 				_, err := client.GetApps(
 					context.Background(),
+					WithAppsAppInfoFields([]string{"kidsAgeBand"}),
 					WithAppsInAppPurchaseFields([]string{"versions"}),
 					WithAppsSubscriptionGroupFields([]string{"versions"}),
-					WithAppsInclude([]string{"inAppPurchases", "subscriptionGroups"}),
+					WithAppsInclude([]string{"appInfos", "inAppPurchases", "subscriptionGroups"}),
 				)
 				return err
 			},
@@ -71,16 +73,18 @@ func TestOpenAPI441SparseAppFields(t *testing.T) {
 			name:     "app detail",
 			wantPath: "/v1/apps/app-1",
 			wantQuery: map[string]string{
+				"fields[appInfos]":           "kidsAgeBand",
 				"fields[inAppPurchases]":     "versions",
 				"fields[subscriptionGroups]": "versions",
-				"include":                    "inAppPurchases,subscriptionGroups",
+				"include":                    "appInfos,inAppPurchases,subscriptionGroups",
 			},
 			call: func(client *Client) error {
 				_, err := client.GetAppWithOptions(
 					context.Background(), "app-1",
+					WithAppAppInfoFields([]string{"kidsAgeBand"}),
 					WithAppInAppPurchaseFields([]string{"versions"}),
 					WithAppSubscriptionGroupFields([]string{"versions"}),
-					WithAppInclude([]string{"inAppPurchases", "subscriptionGroups"}),
+					WithAppInclude([]string{"appInfos", "inAppPurchases", "subscriptionGroups"}),
 				)
 				return err
 			},
@@ -139,16 +143,18 @@ func TestOpenAPI441SparseAppFields(t *testing.T) {
 			name:     "ci product app",
 			wantPath: "/v1/ciProducts/product-1/app",
 			wantQuery: map[string]string{
+				"fields[appInfos]":           "kidsAgeBand",
 				"fields[inAppPurchases]":     "versions",
 				"fields[subscriptionGroups]": "versions",
-				"include":                    "inAppPurchases,subscriptionGroups",
+				"include":                    "appInfos,inAppPurchases,subscriptionGroups",
 			},
 			call: func(client *Client) error {
 				_, err := client.GetCiProductApp(
 					context.Background(), "product-1",
+					WithCiProductAppAppInfoFields([]string{"kidsAgeBand"}),
 					WithCiProductAppInAppPurchaseFields([]string{"versions"}),
 					WithCiProductAppSubscriptionGroupFields([]string{"versions"}),
-					WithCiProductAppInclude([]string{"inAppPurchases", "subscriptionGroups"}),
+					WithCiProductAppInclude([]string{"appInfos", "inAppPurchases", "subscriptionGroups"}),
 				)
 				return err
 			},
@@ -166,8 +172,13 @@ func TestOpenAPI441SparseAppFields(t *testing.T) {
 				}
 				query := req.URL.Query()
 				for key, want := range test.wantQuery {
-					if got := query.Get(key); got != want {
-						t.Errorf("query %s = %q, want %q", key, got, want)
+					got, ok := query[key]
+					if !ok {
+						t.Errorf("query is missing %s", key)
+						continue
+					}
+					if len(got) != 1 || got[0] != want {
+						t.Errorf("query %s = %q, want exactly [%q]", key, got, want)
 					}
 				}
 				if len(query) != len(test.wantQuery) {

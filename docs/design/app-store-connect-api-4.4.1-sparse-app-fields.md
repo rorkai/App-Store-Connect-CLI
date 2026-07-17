@@ -6,7 +6,8 @@ This slice covers eight existing GET operations whose sparse-field enums gained
 new values in App Store Connect API 4.4.1. It extends the existing typed clients
 and the closest existing commands; it does not add a generic query escape hatch.
 
-- `asc apps list` and `asc apps view` accept `--iap-fields versions` and
+- `asc apps list` and `asc apps view` accept
+  `--app-info-fields kidsAgeBand`, `--iap-fields versions`, and
   `--subscription-group-fields versions`, automatically including the matching
   relationship.
 - `asc apps info list` and the app-info form of `asc apps info view` accept
@@ -15,11 +16,18 @@ and the closest existing commands; it does not add a generic query escape hatch.
   including `ageRatingDeclaration`.
 - `asc age-rating view` accepts
   `--fields socialMedia,socialMediaAgeRestricted`.
+- `asc localizations list --type app-info` accepts
+  `--app-info-fields kidsAgeBand`, automatically including `appInfo`.
 - `asc xcode-cloud products app` accepts `--iap-fields versions` and
   `--subscription-group-fields versions`, automatically including the matching
   relationship.
-- The app-info-localization detail and collection operations have typed client
-  options only because there is no direct CLI read command for those resources.
+- The app-info-localization detail operation has typed client options only;
+  the collection operation is exposed by `asc localizations list --type app-info`.
+
+Apple marks `kidsAgeBand` deprecated even though API 4.4.1 adds it to these
+sparse-field enums. The CLI supports the published selector for compatibility,
+labels it deprecated, and guides new workflows to `asc age-rating view` and its
+current age-rating fields.
 
 All flags use the exact OpenAPI field names and comma-separated long-form CLI
 syntax. JSON remains the default non-TTY output and errors remain on stderr.
@@ -30,12 +38,12 @@ syntax. JSON remains the default non-TTY output and errors remain on stderr.
 | --- | --- |
 | `GET /v1/appInfoLocalizations/{id}` | `fields[appInfos]=kidsAgeBand` |
 | `GET /v1/appInfos/{id}` | `fields[appInfos]=kidsAgeBand`; `fields[ageRatingDeclarations]=socialMedia,socialMediaAgeRestricted` |
-| `GET /v1/apps` | `fields[inAppPurchases]=versions`; `fields[subscriptionGroups]=versions` |
-| `GET /v1/apps/{id}` | `fields[inAppPurchases]=versions`; `fields[subscriptionGroups]=versions` |
+| `GET /v1/apps` | `fields[appInfos]=kidsAgeBand`; `fields[inAppPurchases]=versions`; `fields[subscriptionGroups]=versions` |
+| `GET /v1/apps/{id}` | `fields[appInfos]=kidsAgeBand`; `fields[inAppPurchases]=versions`; `fields[subscriptionGroups]=versions` |
 | `GET /v1/appInfos/{id}/ageRatingDeclaration` | `fields[ageRatingDeclarations]=socialMedia,socialMediaAgeRestricted` |
 | `GET /v1/appInfos/{id}/appInfoLocalizations` | `fields[appInfos]=kidsAgeBand` |
 | `GET /v1/apps/{id}/appInfos` | `fields[appInfos]=kidsAgeBand`; `fields[ageRatingDeclarations]=socialMedia,socialMediaAgeRestricted` |
-| `GET /v1/ciProducts/{id}/app` | `fields[inAppPurchases]=versions`; `fields[subscriptionGroups]=versions` |
+| `GET /v1/ciProducts/{id}/app` | `fields[appInfos]=kidsAgeBand`; `fields[inAppPurchases]=versions`; `fields[subscriptionGroups]=versions` |
 
 Relationship sparse fields require the corresponding `include` value:
 `appInfo`, `ageRatingDeclaration`, `inAppPurchases`, or `subscriptionGroups`.
@@ -45,10 +53,12 @@ Commands add it deterministically and preserve explicit compatible includes.
 
 The new flags are additive. They validate against the exact new enum members
 before authentication or HTTP, and explicitly provided empty or whitespace-only
-values are rejected. On paginated app lists and app-info localization reads,
-`--next` cannot be combined with any sparse-field flag, even when that flag's
-explicit value is empty, because the continuation URL owns the full query.
-Existing invocations and output shapes are unchanged.
+values are rejected. `--app-info-fields` is rejected on non-app-info
+localization types rather than silently ignored. On paginated app lists,
+app-info localization reads, and the app-info command's paginated localization
+mode, `--next` cannot be combined with a sparse-field flag, even when that
+flag's explicit value is empty, because the continuation URL owns the full
+query. Existing invocations and output shapes are unchanged.
 
 The typed client keeps operation-specific query structs and functional options;
 there is intentionally no universal query map. Invalid or unsupported values

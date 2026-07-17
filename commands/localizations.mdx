@@ -28,6 +28,13 @@ List localization metadata for an app or version.
   Localization type: `version` (default) or `app-info`
 </ParamField>
 
+<ParamField path="--app-info-fields" type="string">
+  Sparse app-info fields for `--type app-info`: the deprecated API 4.4.1
+  `kidsAgeBand` selector. Automatically includes `appInfo`. Prefer
+  `asc age-rating view` for current age-rating data. This flag is rejected for
+  other localization types and cannot be combined with `--next`.
+</ParamField>
+
 <ParamField path="--locale" type="string">
   Filter by locale(s), comma-separated (e.g., en-US,ja)
 </ParamField>
@@ -48,7 +55,7 @@ List localization metadata for an app or version.
 
 ```bash  theme={null}
 asc localizations list --version "VERSION_ID"
-asc localizations list --app "APP_ID" --type app-info
+asc localizations list --app "APP_ID" --type app-info --app-info-fields kidsAgeBand
 asc localizations list --version "VERSION_ID" --locale "en-US,ja"
 asc localizations list --version "VERSION_ID" --paginate
 ```
