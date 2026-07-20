@@ -196,7 +196,8 @@
   },
   {
     "app": "Chronoid",
-    "link": "https://www.chronoid.app"
+    "link": "https://www.chronoid.app",
+    "icon": "https://www.chronoid.app/app-icon.png"
   },
   {
     "app": "Cinefuse: AI Movie Maker",
