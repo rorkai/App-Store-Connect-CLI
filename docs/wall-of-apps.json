@@ -1313,7 +1313,8 @@
   },
   {
     "app": "SmoothCapture",
-    "link": "https://www.smoothcapture.app"
+    "link": "https://www.smoothcapture.app",
+    "icon": "https://www.smoothcapture.app/presskit/SmoothCapture-1024x1024@1x.png"
   },
   {
     "app": "SnaPOP: Screenshot Editor",
