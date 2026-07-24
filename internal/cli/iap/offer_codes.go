@@ -184,7 +184,7 @@ func IAPOfferCodesCreateCommand() *ffcli.Command {
 	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
 	name := fs.String("name", "", "Offer code name")
 	eligibilities := fs.String("eligibilities", "", "Customer eligibilities (comma-separated)")
-	prices := fs.String("prices", "", "Prices: TERRITORY:PRICE_POINT_ID entries (territory accepts alpha-2, alpha-3, or exact English country name)")
+	prices := fs.String("prices", "", "Prices: TERRITORY:PRICE_POINT_ID or TERRITORY:FREE entries (territory accepts alpha-2, alpha-3, or exact English country name)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -195,6 +195,7 @@ func IAPOfferCodesCreateCommand() *ffcli.Command {
 
 Examples:
   asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --prices "US:PRICE_POINT_ID"
+  asc iap offer-codes create --iap-id "IAP_ID" --name "GIFT" --prices "US:FREE,CA:FREE"
   asc iap offer-codes create --iap-id "IAP_ID" --name "SPRING" --eligibilities "NON_SPENDER" --prices "France:PRICE_POINT_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,

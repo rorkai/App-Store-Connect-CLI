@@ -820,15 +820,29 @@ func TestCreateInAppPurchaseOfferCode(t *testing.T) {
 		if req.URL.Path != "/v1/inAppPurchaseOfferCodes" {
 			t.Fatalf("expected path /v1/inAppPurchaseOfferCodes, got %s", req.URL.Path)
 		}
-		var payload InAppPurchaseOfferCodeCreateRequest
+		var payload struct {
+			Data     InAppPurchaseOfferCodeCreateData `json:"data"`
+			Included []struct {
+				Relationships struct {
+					Territory  Relationship  `json:"territory"`
+					PricePoint *Relationship `json:"pricePoint"`
+				} `json:"relationships"`
+			} `json:"included"`
+		}
 		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
 			t.Fatalf("decode payload error: %v", err)
 		}
 		if payload.Data.Relationships.InAppPurchase.Data.ID != "iap-1" {
 			t.Fatalf("expected inAppPurchase ID iap-1, got %q", payload.Data.Relationships.InAppPurchase.Data.ID)
 		}
-		if len(payload.Included) != 1 || payload.Included[0].Relationships.Territory.Data.ID != "USA" {
-			t.Fatalf("expected included territory USA")
+		if len(payload.Included) != 2 || payload.Included[0].Relationships.Territory.Data.ID != "USA" {
+			t.Fatalf("expected included paid territory USA")
+		}
+		if payload.Included[0].Relationships.PricePoint == nil {
+			t.Fatalf("expected paid territory price point")
+		}
+		if payload.Included[1].Relationships.Territory.Data.ID != "CAN" || payload.Included[1].Relationships.PricePoint != nil {
+			t.Fatalf("expected included free territory CAN without a price point")
 		}
 		assertAuthorized(t, req)
 	}, response)
@@ -843,6 +857,10 @@ func TestCreateInAppPurchaseOfferCode(t *testing.T) {
 			{
 				TerritoryID:  "USA",
 				PricePointID: "price-1",
+			},
+			{
+				TerritoryID:  "CAN",
+				PricePointID: "FREE",
 			},
 		},
 	}

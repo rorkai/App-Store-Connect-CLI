@@ -68,10 +68,15 @@ func TestIAPOfferCodesCreateUsesDefaultEligibilitiesAndParsedPrices(t *testing.T
 		}
 
 		territoryIDs := make([]string, 0, 2)
-		for _, resource := range included {
+		for index, resource := range included {
 			relationships := resource.(map[string]any)["relationships"].(map[string]any)
 			territory := relationships["territory"].(map[string]any)["data"].(map[string]any)
 			territoryIDs = append(territoryIDs, territory["id"].(string))
+			if index == 1 {
+				if _, exists := relationships["pricePoint"]; exists {
+					t.Fatalf("expected free territory to omit pricePoint relationship")
+				}
+			}
 		}
 		if !slices.Equal(territoryIDs, []string{"USA", "JPN"}) {
 			t.Fatalf("expected normalized territory ids [USA JPN], got %v", territoryIDs)
@@ -93,7 +98,7 @@ func TestIAPOfferCodesCreateUsesDefaultEligibilitiesAndParsedPrices(t *testing.T
 			"iap", "offer-codes", "create",
 			"--iap-id", "9000000001",
 			"--name", "SPRING",
-			"--prices", "usa:pp-us,jpn:pp-jp",
+			"--prices", "usa:pp-us,jpn:FREE",
 		}); err != nil {
 			t.Fatalf("parse error: %v", err)
 		}
