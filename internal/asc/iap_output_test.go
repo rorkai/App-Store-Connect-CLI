@@ -201,6 +201,26 @@ func TestPrintTable_InAppPurchasePrices(t *testing.T) {
 	}
 }
 
+func TestPrintTable_InAppPurchaseOfferCodeFreePrice(t *testing.T) {
+	relationships := json.RawMessage(`{"territory":{"data":{"type":"territories","id":"USA"}}}`)
+	resp := &InAppPurchaseOfferPricesResponse{
+		Data: []Resource[InAppPurchaseOfferPriceAttributes]{
+			{
+				ID:            "offer-price-1",
+				Relationships: relationships,
+			},
+		},
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(resp)
+	})
+
+	if !strings.Contains(output, "USA") || !strings.Contains(output, "FREE") {
+		t.Fatalf("expected free offer price in output, got: %s", output)
+	}
+}
+
 func TestPrintMarkdown_InAppPurchasePrices(t *testing.T) {
 	relationships := json.RawMessage(`{"territory":{"data":{"type":"territories","id":"USA"}},"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"PRICE_POINT_1"}}}`)
 	resp := &InAppPurchasePricesResponse{
