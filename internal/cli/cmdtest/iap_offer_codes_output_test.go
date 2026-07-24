@@ -63,18 +63,27 @@ func TestIAPOfferCodesCreateUsesDefaultEligibilitiesAndParsedPrices(t *testing.T
 			t.Fatalf("expected 2 included price objects, got %d", len(included))
 		}
 
-		territoryIDs := make([]string, 0, 2)
-		for index, resource := range included {
+		territoryIDs := make(map[string]bool, 2)
+		for _, resource := range included {
 			relationships := resource.(map[string]any)["relationships"].(map[string]any)
 			territory := relationships["territory"].(map[string]any)["data"].(map[string]any)
-			territoryIDs = append(territoryIDs, territory["id"].(string))
-			if index == 1 {
+			territoryID := territory["id"].(string)
+			territoryIDs[territoryID] = true
+			switch territoryID {
+			case "USA":
+				pricePoint := relationships["pricePoint"].(map[string]any)["data"].(map[string]any)
+				if pricePoint["id"] != "pp-us" {
+					t.Fatalf("expected USA price point pp-us, got %#v", pricePoint["id"])
+				}
+			case "JPN":
 				if _, exists := relationships["pricePoint"]; exists {
 					t.Fatalf("expected free territory to omit pricePoint relationship")
 				}
+			default:
+				t.Fatalf("unexpected territory %q", territoryID)
 			}
 		}
-		if !slices.Equal(territoryIDs, []string{"USA", "JPN"}) {
+		if !territoryIDs["USA"] || !territoryIDs["JPN"] {
 			t.Fatalf("expected normalized territory ids [USA JPN], got %v", territoryIDs)
 		}
 
