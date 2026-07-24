@@ -7,6 +7,7 @@ import (
 	"flag"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -17,12 +18,7 @@ func TestIAPOfferCodesCreateUsesDefaultEligibilitiesAndParsedPrices(t *testing.T
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() {
-		http.DefaultTransport = originalTransport
-	})
-
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if req.Method != http.MethodPost {
 			t.Fatalf("expected POST, got %s", req.Method)
 		}
@@ -83,12 +79,12 @@ func TestIAPOfferCodesCreateUsesDefaultEligibilitiesAndParsedPrices(t *testing.T
 		}
 
 		body := `{"data":{"type":"inAppPurchaseOfferCodes","id":"offer-1","attributes":{"name":"SPRING","active":true}}}`
-		return &http.Response{
-			StatusCode: http.StatusCreated,
-			Body:       io.NopCloser(strings.NewReader(body)),
-			Header:     http.Header{"Content-Type": []string{"application/json"}},
-		}, nil
-	})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(w, body)
+	}))
+	t.Cleanup(server.Close)
+	setIAPRelatedTestServerClient(t, server)
 
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
