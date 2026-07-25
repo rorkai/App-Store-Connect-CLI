@@ -59,6 +59,8 @@ Examples:
 			opts := []asc.IAPOfferCodePricesOption{
 				asc.WithIAPOfferCodePricesLimit(*limit),
 				asc.WithIAPOfferCodePricesNextURL(*next),
+				asc.WithIAPOfferCodePricesFields([]string{"territory", "pricePoint"}),
+				asc.WithIAPOfferCodePricesInclude([]string{"territory", "pricePoint"}),
 			}
 
 			if *paginate {

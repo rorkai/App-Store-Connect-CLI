@@ -202,7 +202,7 @@ func TestPrintTable_InAppPurchasePrices(t *testing.T) {
 }
 
 func TestPrintTable_InAppPurchaseOfferCodeFreePrice(t *testing.T) {
-	relationships := json.RawMessage(`{"territory":{"data":{"type":"territories","id":"USA"}}}`)
+	relationships := json.RawMessage(`{"territory":{"data":{"type":"territories","id":"USA"}},"pricePoint":{"data":null}}`)
 	resp := &InAppPurchaseOfferPricesResponse{
 		Data: []Resource[InAppPurchaseOfferPriceAttributes]{
 			{

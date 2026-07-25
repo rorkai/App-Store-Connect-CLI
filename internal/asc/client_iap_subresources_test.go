@@ -776,7 +776,7 @@ func TestGetInAppPurchaseOfferCodes_UsesNextURL(t *testing.T) {
 	}
 }
 
-func TestGetInAppPurchaseOfferCodePrices_WithLimit(t *testing.T) {
+func TestGetInAppPurchaseOfferCodePrices_WithQuery(t *testing.T) {
 	response := jsonResponse(http.StatusOK, `{"data":[{"type":"inAppPurchaseOfferPrices","id":"price-1"}]}`)
 	client := newTestClient(t, func(req *http.Request) {
 		if req.Method != http.MethodGet {
@@ -788,10 +788,22 @@ func TestGetInAppPurchaseOfferCodePrices_WithLimit(t *testing.T) {
 		if req.URL.Query().Get("limit") != "5" {
 			t.Fatalf("expected limit=5, got %q", req.URL.Query().Get("limit"))
 		}
+		if got := req.URL.Query().Get("fields[inAppPurchaseOfferPrices]"); got != "territory,pricePoint" {
+			t.Fatalf("expected offer price fields, got %q", got)
+		}
+		if got := req.URL.Query().Get("include"); got != "territory,pricePoint" {
+			t.Fatalf("expected offer price include values, got %q", got)
+		}
 		assertAuthorized(t, req)
 	}, response)
 
-	if _, err := client.GetInAppPurchaseOfferCodePrices(context.Background(), "offer-1", WithIAPOfferCodePricesLimit(5)); err != nil {
+	if _, err := client.GetInAppPurchaseOfferCodePrices(
+		context.Background(),
+		"offer-1",
+		WithIAPOfferCodePricesLimit(5),
+		WithIAPOfferCodePricesFields([]string{"territory", "pricePoint"}),
+		WithIAPOfferCodePricesInclude([]string{"territory", "pricePoint"}),
+	); err != nil {
 		t.Fatalf("GetInAppPurchaseOfferCodePrices() error: %v", err)
 	}
 }

@@ -46,6 +46,8 @@ type iapOfferCodeOneTimeUseCodesQuery struct {
 
 type iapOfferCodePricesQuery struct {
 	listQuery
+	fields  []string
+	include []string
 }
 
 type iapAvailabilityTerritoriesQuery struct {
@@ -201,6 +203,20 @@ func WithIAPOfferCodePricesNextURL(next string) IAPOfferCodePricesOption {
 	}
 }
 
+// WithIAPOfferCodePricesFields sets fields[inAppPurchaseOfferPrices].
+func WithIAPOfferCodePricesFields(fields []string) IAPOfferCodePricesOption {
+	return func(q *iapOfferCodePricesQuery) {
+		q.fields = normalizeUniqueList(fields)
+	}
+}
+
+// WithIAPOfferCodePricesInclude sets relationships to include.
+func WithIAPOfferCodePricesInclude(include []string) IAPOfferCodePricesOption {
+	return func(q *iapOfferCodePricesQuery) {
+		q.include = normalizeUniqueList(include)
+	}
+}
+
 func WithIAPAvailabilityTerritoriesLimit(limit int) IAPAvailabilityTerritoriesOption {
 	return func(q *iapAvailabilityTerritoriesQuery) {
 		if limit > 0 {
@@ -337,6 +353,8 @@ func buildIAPOfferCodeOneTimeUseCodesQuery(query *iapOfferCodeOneTimeUseCodesQue
 
 func buildIAPOfferCodePricesQuery(query *iapOfferCodePricesQuery) string {
 	values := url.Values{}
+	addCSV(values, "fields[inAppPurchaseOfferPrices]", query.fields)
+	addCSV(values, "include", query.include)
 	addLimit(values, query.limit)
 	return values.Encode()
 }
