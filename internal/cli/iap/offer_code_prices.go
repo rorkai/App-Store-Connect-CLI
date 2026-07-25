@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -56,9 +57,14 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			nextURL, err := shared.MergeNextURLQuery(*next, offerCodePricesRelationshipQuery())
+			if err != nil {
+				return fmt.Errorf("iap offer-codes prices: invalid --next URL: %w", err)
+			}
+
 			opts := []asc.IAPOfferCodePricesOption{
 				asc.WithIAPOfferCodePricesLimit(*limit),
-				asc.WithIAPOfferCodePricesNextURL(*next),
+				asc.WithIAPOfferCodePricesNextURL(nextURL),
 				asc.WithIAPOfferCodePricesFields([]string{"territory", "pricePoint"}),
 				asc.WithIAPOfferCodePricesInclude([]string{"territory", "pricePoint"}),
 			}
@@ -71,6 +77,10 @@ Examples:
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+					nextURL, err := shared.MergeNextURLQuery(nextURL, offerCodePricesRelationshipQuery())
+					if err != nil {
+						return nil, err
+					}
 					return client.GetInAppPurchaseOfferCodePrices(ctx, id, asc.WithIAPOfferCodePricesNextURL(nextURL))
 				})
 				if err != nil {
@@ -87,5 +97,12 @@ Examples:
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
+	}
+}
+
+func offerCodePricesRelationshipQuery() url.Values {
+	return url.Values{
+		"fields[inAppPurchaseOfferPrices]": []string{"territory,pricePoint"},
+		"include":                          []string{"territory,pricePoint"},
 	}
 }
