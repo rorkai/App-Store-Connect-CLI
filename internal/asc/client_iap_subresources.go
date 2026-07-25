@@ -1366,23 +1366,26 @@ func (c *Client) CreateInAppPurchaseOfferCode(ctx context.Context, iapID string,
 			Type: ResourceTypeInAppPurchaseOfferPrices,
 			ID:   resourceID,
 		})
-		included = append(included, InAppPurchaseOfferPriceInlineCreateResource{
-			Type: ResourceTypeInAppPurchaseOfferPrices,
-			ID:   resourceID,
-			Relationships: InAppPurchaseOfferPriceInlineRelationships{
-				Territory: Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeTerritories,
-						ID:   territoryID,
-					},
-				},
-				PricePoint: Relationship{
-					Data: ResourceData{
-						Type: ResourceTypeInAppPurchasePricePoints,
-						ID:   pricePointID,
-					},
+		relationships := InAppPurchaseOfferPriceInlineRelationships{
+			Territory: Relationship{
+				Data: ResourceData{
+					Type: ResourceTypeTerritories,
+					ID:   territoryID,
 				},
 			},
+		}
+		if !strings.EqualFold(pricePointID, "FREE") {
+			relationships.PricePoint = &Relationship{
+				Data: ResourceData{
+					Type: ResourceTypeInAppPurchasePricePoints,
+					ID:   pricePointID,
+				},
+			}
+		}
+		included = append(included, InAppPurchaseOfferPriceInlineCreateResource{
+			Type:          ResourceTypeInAppPurchaseOfferPrices,
+			ID:            resourceID,
+			Relationships: relationships,
 		})
 	}
 

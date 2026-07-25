@@ -307,8 +307,8 @@ type InAppPurchaseOfferPriceInlineCreateResource struct {
 }
 
 type InAppPurchaseOfferPriceInlineRelationships struct {
-	Territory  Relationship `json:"territory"`
-	PricePoint Relationship `json:"pricePoint"`
+	Territory  Relationship  `json:"territory"`
+	PricePoint *Relationship `json:"pricePoint,omitempty"`
 }
 
 // Offer code custom codes and one-time use codes.
