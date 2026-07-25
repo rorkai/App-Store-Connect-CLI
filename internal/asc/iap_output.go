@@ -251,9 +251,12 @@ func inAppPurchaseOfferPriceRelationshipIDs(raw json.RawMessage) (string, string
 	if err := json.Unmarshal(raw, &relationships); err != nil {
 		return "", "", fmt.Errorf("decode in-app purchase offer price relationships: %w", err)
 	}
-	pricePointID := "FREE"
-	if relationships.PricePoint != nil && strings.TrimSpace(relationships.PricePoint.Data.ID) != "" {
+	pricePointID := ""
+	if relationships.PricePoint != nil {
 		pricePointID = relationships.PricePoint.Data.ID
+		if strings.TrimSpace(pricePointID) == "" {
+			pricePointID = "FREE"
+		}
 	}
 	return relationships.Territory.Data.ID, pricePointID, nil
 }

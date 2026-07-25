@@ -221,6 +221,21 @@ func TestPrintTable_InAppPurchaseOfferCodeFreePrice(t *testing.T) {
 	}
 }
 
+func TestInAppPurchaseOfferPriceRelationshipIDs_MissingPricePointIsUnknown(t *testing.T) {
+	relationships := json.RawMessage(`{"territory":{"data":{"type":"territories","id":"USA"}}}`)
+
+	territoryID, pricePointID, err := inAppPurchaseOfferPriceRelationshipIDs(relationships)
+	if err != nil {
+		t.Fatalf("unexpected relationship decode error: %v", err)
+	}
+	if territoryID != "USA" {
+		t.Fatalf("expected territory USA, got %q", territoryID)
+	}
+	if pricePointID != "" {
+		t.Fatalf("expected an unknown price point when the relationship is absent, got %q", pricePointID)
+	}
+}
+
 func TestPrintMarkdown_InAppPurchasePrices(t *testing.T) {
 	relationships := json.RawMessage(`{"territory":{"data":{"type":"territories","id":"USA"}},"inAppPurchasePricePoint":{"data":{"type":"inAppPurchasePricePoints","id":"PRICE_POINT_1"}}}`)
 	resp := &InAppPurchasePricesResponse{
