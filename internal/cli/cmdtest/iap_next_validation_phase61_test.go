@@ -146,8 +146,8 @@ func TestIAPOfferCodePricesRejectsInvalidNextURLPhase61(t *testing.T) {
 }
 
 func TestIAPOfferCodePricesPaginateFromNextWithoutOfferCodeIDPhase61(t *testing.T) {
-	const firstURL = "https://api.appstoreconnect.apple.com/v1/inAppPurchaseOfferCodes/offer-1/prices?cursor=AQ&limit=200"
-	const secondURL = "https://api.appstoreconnect.apple.com/v1/inAppPurchaseOfferCodes/offer-1/prices?cursor=BQ&limit=200"
+	const firstURL = "https://api.appstoreconnect.apple.com/v1/inAppPurchaseOfferCodes/offer-1/prices?cursor=AQ&fields%5BinAppPurchaseOfferPrices%5D=territory%2CpricePoint&include=territory%2CpricePoint&limit=200"
+	const secondURL = "https://api.appstoreconnect.apple.com/v1/inAppPurchaseOfferCodes/offer-1/prices?cursor=BQ&fields%5BinAppPurchaseOfferPrices%5D=territory%2CpricePoint&include=territory%2CpricePoint&limit=200"
 
 	firstBody := `{"data":[{"type":"inAppPurchaseOfferPrices","id":"iap-offer-price-next-1"}],"links":{"next":"` + secondURL + `"}}`
 	secondBody := `{"data":[{"type":"inAppPurchaseOfferPrices","id":"iap-offer-price-next-2"}],"links":{"next":""}}`
