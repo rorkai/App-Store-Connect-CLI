@@ -6,7 +6,9 @@ import (
 	"errors"
 	"flag"
 	"io"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -388,6 +390,76 @@ func TestAdsAuthDiscoverContinuesWhenOptionalOrgConfigIsInvalid(t *testing.T) {
 	}
 }
 
+func TestAdsCampaignUpdateSendsRequiredEnvelope(t *testing.T) {
+	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
+	t.Setenv("ASC_ADS_ORG_ID", "987654")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+
+	campaignUpdate := writeAdsEvalPayload(t, "campaign-update.json", `{"campaign":{"status":"PAUSED"}}`)
+	requests := newRequestLog(1)
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		requests.Add(req.Method + " " + req.URL.RequestURI())
+		if req.Method != http.MethodPut || req.URL.Path != "/api/v5/campaigns/1001" {
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+		if got := req.Header.Get("Authorization"); got != "Bearer ACCESS" {
+			t.Errorf("Authorization = %q, want Bearer ACCESS", got)
+		}
+		if got := req.Header.Get("X-AP-Context"); got != "orgId=987654" {
+			t.Errorf("X-AP-Context = %q, want orgId=987654", got)
+		}
+
+		var body map[string]any
+		if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+			t.Errorf("decode campaign update body: %v", err)
+		}
+		campaign, ok := body["campaign"].(map[string]any)
+		if !ok {
+			t.Errorf("campaign update body = %#v, want campaign envelope", body)
+		} else if got := campaign["status"]; got != "PAUSED" {
+			t.Errorf("campaign update status = %#v, want PAUSED", got)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"data":{"id":1001,"status":"PAUSED"}}`)
+	}))
+	t.Cleanup(server.Close)
+
+	transport, ok := server.Client().Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("server transport type = %T, want *http.Transport", server.Client().Transport)
+	}
+	transport = transport.Clone()
+	transport.Proxy = nil
+	transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+	transport.TLSClientConfig.ServerName = "example.com"
+	dialer := &net.Dialer{}
+	transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return dialer.DialContext(ctx, network, server.Listener.Addr().String())
+	}
+	installDefaultTransport(t, transport)
+
+	stdout, stderr, err := runAdsEvalCommand(
+		t,
+		"ads", "campaigns", "update",
+		"--campaign", "1001",
+		"--file", campaignUpdate,
+		"--output", "json",
+	)
+	if err != nil {
+		t.Fatalf("campaign update error: %v\nstderr: %s", err, stderr)
+	}
+	if stderr != "" {
+		t.Fatalf("campaign update stderr = %q, want empty", stderr)
+	}
+	if got := requests.Snapshot(); len(got) != 1 || got[0] != "PUT /api/v5/campaigns/1001" {
+		t.Fatalf("requests = %q, want one campaign update", got)
+	}
+	if !strings.Contains(stdout, `"status":"PAUSED"`) {
+		t.Fatalf("campaign update stdout = %q, want paused response", stdout)
+	}
+}
+
 func TestAdsAgentMutationEvalWorkflow(t *testing.T) {
 	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
 	t.Setenv("ASC_ADS_ORG_ID", "987654")
@@ -398,7 +470,7 @@ func TestAdsAgentMutationEvalWorkflow(t *testing.T) {
 	keywords := writeAdsEvalPayload(t, "keywords.json", `[{"text":"example keyword","matchType":"EXACT","status":"PAUSED"}]`)
 	keywordIDs := writeAdsEvalPayload(t, "keyword-ids.json", `[111111111]`)
 
-	log := newRequestLog(4)
+	log := newRequestLog(5)
 	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		assertAdsEvalBearer(t, req)
 		assertAdsEvalOrg(t, req)
@@ -412,14 +484,6 @@ func TestAdsAgentMutationEvalWorkflow(t *testing.T) {
 			}
 			return adsJSONResponse(200, `{"data":{"id":1001}}`), nil
 		case req.Method == http.MethodPut && req.URL.Path == "/api/v5/campaigns/1001":
-			body := readAdsEvalJSONBody(t, req)
-			campaign, ok := body["campaign"].(map[string]any)
-			if !ok {
-				t.Fatalf("campaign update body = %#v, want campaign envelope", body)
-			}
-			if got := campaign["status"]; got != "PAUSED" {
-				t.Fatalf("campaign update status = %#v, want PAUSED", got)
-			}
 			return adsJSONResponse(200, `{"data":{"id":1001,"status":"PAUSED"}}`), nil
 		case req.Method == http.MethodPost && req.URL.Path == "/api/v5/campaigns/1001/adgroups/2002/targetingkeywords/bulk":
 			items := readAdsEvalJSONArrayBody(t, req)
