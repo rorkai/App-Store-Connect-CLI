@@ -70,6 +70,23 @@ func TestAdsCampaignsHelpReadsAsManagementSurface(t *testing.T) {
 	}
 }
 
+func TestAdsCampaignUpdateHelpDocumentsRequiredEnvelope(t *testing.T) {
+	root := AdsCommand()
+	update := findCommand(root, "campaigns", "update")
+	if update == nil {
+		t.Fatal("missing campaigns update command")
+	}
+
+	for _, want := range []string{
+		`Apple requires a "campaign" envelope for campaign updates.`,
+		`{"campaign":{"status":"PAUSED"}}`,
+	} {
+		if !strings.Contains(update.LongHelp, want) {
+			t.Fatalf("campaigns update LongHelp = %q, want %q", update.LongHelp, want)
+		}
+	}
+}
+
 func TestCollectQueryValidatesEndpointSpecificLimitsAndEnums(t *testing.T) {
 	customReports, _ := appleads.EndpointByCommandPath("impression-share-reports", "list")
 	fs, flags := bindEndpointFlags(customReports, "test")

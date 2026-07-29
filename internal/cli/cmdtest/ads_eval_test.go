@@ -394,7 +394,7 @@ func TestAdsAgentMutationEvalWorkflow(t *testing.T) {
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 
 	campaignCreate := writeAdsEvalPayload(t, "campaign-create.json", `{"name":"ASC CLI Eval Campaign","status":"PAUSED"}`)
-	campaignUpdate := writeAdsEvalPayload(t, "campaign-update.json", `{"status":"PAUSED"}`)
+	campaignUpdate := writeAdsEvalPayload(t, "campaign-update.json", `{"campaign":{"status":"PAUSED"}}`)
 	keywords := writeAdsEvalPayload(t, "keywords.json", `[{"text":"example keyword","matchType":"EXACT","status":"PAUSED"}]`)
 	keywordIDs := writeAdsEvalPayload(t, "keyword-ids.json", `[111111111]`)
 
@@ -413,7 +413,11 @@ func TestAdsAgentMutationEvalWorkflow(t *testing.T) {
 			return adsJSONResponse(200, `{"data":{"id":1001}}`), nil
 		case req.Method == http.MethodPut && req.URL.Path == "/api/v5/campaigns/1001":
 			body := readAdsEvalJSONBody(t, req)
-			if got := body["status"]; got != "PAUSED" {
+			campaign, ok := body["campaign"].(map[string]any)
+			if !ok {
+				t.Fatalf("campaign update body = %#v, want campaign envelope", body)
+			}
+			if got := campaign["status"]; got != "PAUSED" {
 				t.Fatalf("campaign update status = %#v, want PAUSED", got)
 			}
 			return adsJSONResponse(200, `{"data":{"id":1001,"status":"PAUSED"}}`), nil

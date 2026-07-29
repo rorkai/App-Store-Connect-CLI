@@ -137,7 +137,17 @@ asc ads campaigns list --org "123456" --paginate --output json
 ```
 
 Create or update resources with JSON payload files. The CLI sends the file body
-to Apple without inventing extra field mappings:
+to Apple without inventing extra field mappings. Apple requires campaign update
+payloads to use a `campaign` envelope, so `campaign-update.json` must contain a
+wrapped object such as:
+
+```json  theme={null}
+{
+  "campaign": {
+    "status": "PAUSED"
+  }
+}
+```
 
 ```bash  theme={null}
 asc ads campaigns create --org "123456" --file campaign.json

@@ -215,7 +215,7 @@ func writeAdsGuidePayloads(t *testing.T, dir string) map[string]string {
 
 	files := map[string]string{
 		"campaign.json":              `{"name":"Brand Campaign","status":"PAUSED"}`,
-		"campaign-update.json":       `{"status":"PAUSED"}`,
+		"campaign-update.json":       `{"campaign":{"status":"PAUSED"}}`,
 		"ad-group.json":              `{"name":"Brand Ad Group","status":"PAUSED"}`,
 		"ad.json":                    `{"name":"Brand Ad","status":"PAUSED"}`,
 		"selector.json":              `{"conditions":[{"field":"deleted","operator":"EQUALS","values":["false"]}],"pagination":{"offset":0,"limit":100}}`,

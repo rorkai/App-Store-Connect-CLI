@@ -151,7 +151,11 @@ func endpointLongHelp(node *commandNode, path []string) string {
 	if node.spec.RequiresOrg {
 		examples[0] += " --org ORG_ID"
 	}
-	return fmt.Sprintf("%s\n\nEndpoint: %s %s\n\nExamples:\n%s", endpointShortHelp(node), node.spec.Method, node.spec.Path, strings.Join(examples, "\n"))
+	help := fmt.Sprintf("%s\n\nEndpoint: %s %s", endpointShortHelp(node), node.spec.Method, node.spec.Path)
+	if node.spec.BodyType == "UpdateCampaignRequest" {
+		help += "\n\nPayload:\n  Apple requires a \"campaign\" envelope for campaign updates.\n  Example: {\"campaign\":{\"status\":\"PAUSED\"}}"
+	}
+	return help + "\n\nExamples:\n" + strings.Join(examples, "\n")
 }
 
 func endpointGroupHelp(name string) string {
