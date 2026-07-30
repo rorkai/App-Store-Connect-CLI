@@ -210,6 +210,8 @@ type analyticsReportsQuery struct {
 
 type analyticsReportInstancesQuery struct {
 	listQuery
+	granularity    string
+	processingDate []string
 }
 
 type analyticsReportSegmentsQuery struct {
@@ -289,6 +291,33 @@ func WithAnalyticsReportInstancesNextURL(next string) AnalyticsReportInstancesOp
 	}
 }
 
+// WithAnalyticsReportInstancesGranularity filters instances by granularity.
+func WithAnalyticsReportInstancesGranularity(granularity string) AnalyticsReportInstancesOption {
+	return func(q *analyticsReportInstancesQuery) {
+		q.granularity = strings.TrimSpace(granularity)
+	}
+}
+
+// WithAnalyticsReportInstancesProcessingDates filters instances by processing date.
+func WithAnalyticsReportInstancesProcessingDates(dates ...string) AnalyticsReportInstancesOption {
+	return func(q *analyticsReportInstancesQuery) {
+		seen := make(map[string]struct{}, len(dates))
+		normalized := make([]string, 0, len(dates))
+		for _, date := range dates {
+			value := strings.TrimSpace(date)
+			if value == "" {
+				continue
+			}
+			if _, ok := seen[value]; ok {
+				continue
+			}
+			seen[value] = struct{}{}
+			normalized = append(normalized, value)
+		}
+		q.processingDate = normalized
+	}
+}
+
 // WithAnalyticsReportSegmentsLimit sets the max number of segments to return.
 func WithAnalyticsReportSegmentsLimit(limit int) AnalyticsReportSegmentsOption {
 	return func(q *analyticsReportSegmentsQuery) {
@@ -350,6 +379,12 @@ func buildAnalyticsReportsQuery(query *analyticsReportsQuery) string {
 
 func buildAnalyticsReportInstancesQuery(query *analyticsReportInstancesQuery) string {
 	values := url.Values{}
+	if strings.TrimSpace(query.granularity) != "" {
+		values.Set("filter[granularity]", strings.TrimSpace(query.granularity))
+	}
+	if len(query.processingDate) > 0 {
+		values.Set("filter[processingDate]", strings.Join(query.processingDate, ","))
+	}
 	addLimit(values, query.limit)
 	return values.Encode()
 }
