@@ -66,15 +66,19 @@ func normalizeSalesReportFrequency(value string) (asc.SalesReportFrequency, erro
 func normalizeSalesReportVersion(value string, reportType asc.SalesReportType) (asc.SalesReportVersion, error) {
 	normalized := strings.TrimSpace(value)
 	if normalized == "" {
-		if reportType == asc.SalesReportTypeSubscription {
-			return asc.SalesReportVersion1_4, nil
-		}
-		return asc.SalesReportVersion1_0, nil
+		return defaultSalesReportVersion(reportType), nil
 	}
 	if !salesReportVersionPattern.MatchString(normalized) {
 		return "", fmt.Errorf("--version must use major_minor format (for example, 1_4)")
 	}
 	return asc.SalesReportVersion(normalized), nil
+}
+
+func defaultSalesReportVersion(reportType asc.SalesReportType) asc.SalesReportVersion {
+	if reportType == asc.SalesReportTypeSubscription {
+		return asc.SalesReportVersion1_4
+	}
+	return asc.SalesReportVersion1_0
 }
 
 func normalizeAnalyticsAccessType(value string) (asc.AnalyticsAccessType, error) {

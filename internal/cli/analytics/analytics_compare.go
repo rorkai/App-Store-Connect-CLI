@@ -212,7 +212,7 @@ func fetchAndAggregate(ctx context.Context, client *asc.Client, vendor string, s
 			ReportSubType: subType,
 			Frequency:     freq,
 			ReportDate:    date,
-			Version:       asc.SalesReportVersion1_0,
+			Version:       defaultSalesReportVersion(salesType),
 		})
 		if err != nil {
 			if asc.IsNotFound(err) {

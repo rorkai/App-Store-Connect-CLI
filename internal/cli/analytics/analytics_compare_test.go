@@ -472,6 +472,40 @@ func TestFetchAndAggregate_SingleReportKeepsAvailableColumns(t *testing.T) {
 	}
 }
 
+func TestFetchAndAggregate_UsesSubscriptionVersion1_4(t *testing.T) {
+	client := newCompareTestClient(t, func(req *http.Request) (*http.Response, error) {
+		if got := req.URL.Query().Get("filter[version]"); got != "1_4" {
+			t.Fatalf("filter[version] = %q, want 1_4", got)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body: io.NopCloser(bytes.NewReader(gzipCompareText(t, compareSalesReportTSV(
+				"123",
+				"APP",
+			)))),
+			Request: req,
+		}, nil
+	})
+
+	_, found, err := fetchAndAggregate(
+		context.Background(),
+		client,
+		"V",
+		insights.SalesScope{AppID: "123", AppSKU: "APP"},
+		[]string{"2026-01-01"},
+		asc.SalesReportTypeSubscription,
+		asc.SalesReportSubTypeSummary,
+		asc.SalesReportFrequencyDaily,
+	)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if found != 1 {
+		t.Fatalf("expected 1 found report, got %d", found)
+	}
+}
+
 func TestFetchAndAggregate_ReturnsParseError(t *testing.T) {
 	client := newCompareTestClient(t, func(req *http.Request) (*http.Response, error) {
 		return &http.Response{

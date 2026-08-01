@@ -1,6 +1,8 @@
 package cmdtest
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"io"
@@ -18,6 +20,15 @@ import (
 func TestAnalyticsSalesDefaultsSubscriptionsToVersion1_4(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	var reportPayload bytes.Buffer
+	gzipWriter := gzip.NewWriter(&reportPayload)
+	if _, err := gzipWriter.Write([]byte("report-data")); err != nil {
+		t.Fatalf("create report payload: %v", err)
+	}
+	if err := gzipWriter.Close(); err != nil {
+		t.Fatalf("close report payload: %v", err)
+	}
 
 	requestCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -46,7 +57,7 @@ func TestAnalyticsSalesDefaultsSubscriptionsToVersion1_4(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/a-gzip")
 		w.WriteHeader(http.StatusOK)
-		_, _ = io.WriteString(w, "report-data")
+		_, _ = w.Write(reportPayload.Bytes())
 	}))
 	t.Cleanup(server.Close)
 
@@ -108,7 +119,21 @@ func TestAnalyticsSalesDefaultsSubscriptionsToVersion1_4(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read report: %v", err)
 	}
-	if got := string(data); got != "report-data" {
+	if !bytes.Equal(data, reportPayload.Bytes()) {
+		t.Fatal("downloaded report does not match the gzip response payload")
+	}
+	gzipReader, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("open downloaded report: %v", err)
+	}
+	uncompressed, err := io.ReadAll(gzipReader)
+	if err != nil {
+		t.Fatalf("read downloaded report: %v", err)
+	}
+	if err := gzipReader.Close(); err != nil {
+		t.Fatalf("close downloaded report: %v", err)
+	}
+	if got := string(uncompressed); got != "report-data" {
 		t.Fatalf("report contents = %q, want report-data", got)
 	}
 
@@ -120,7 +145,7 @@ func TestAnalyticsSalesDefaultsSubscriptionsToVersion1_4(t *testing.T) {
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("parse JSON output: %v\nstdout=%s", err, stdout)
 	}
-	if result.Version != "1_4" || result.FilePath != outputPath || result.FileSize != int64(len("report-data")) {
+	if result.Version != "1_4" || result.FilePath != outputPath || result.FileSize != int64(reportPayload.Len()) {
 		t.Fatalf("unexpected result: %+v", result)
 	}
 }
