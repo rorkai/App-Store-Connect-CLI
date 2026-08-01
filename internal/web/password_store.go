@@ -1,0 +1,173 @@
+package web
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/99designs/keyring"
+)
+
+const (
+	webPasswordKeyringService = "asc-web-password"
+	webPasswordKeyPrefix      = "asc:web-password:"
+	keychainBypassEnv         = "ASC_BYPASS_KEYCHAIN"
+)
+
+// ErrPasswordStoreUnavailable indicates that native credential storage is
+// unavailable or intentionally bypassed. Web login can continue without it.
+var ErrPasswordStoreUnavailable = errors.New("native password store unavailable")
+
+var passwordKeyringOpen = func() (keyring.Keyring, error) {
+	return keyring.Open(keyring.Config{
+		ServiceName:                    webPasswordKeyringService,
+		KeychainTrustApplication:       true,
+		KeychainSynchronizable:         false,
+		KeychainAccessibleWhenUnlocked: true,
+		AllowedBackends: []keyring.BackendType{
+			keyring.KeychainBackend,
+			keyring.WinCredBackend,
+			keyring.SecretServiceBackend,
+			keyring.KWalletBackend,
+			keyring.KeyCtlBackend,
+		},
+	})
+}
+
+func passwordStoreBypassed() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(keychainBypassEnv))) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizedPasswordAppleID(appleID string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(appleID))
+	if normalized == "" {
+		return "", fmt.Errorf("apple id is required")
+	}
+	return normalized, nil
+}
+
+func passwordKey(appleID string) (string, error) {
+	normalized, err := normalizedPasswordAppleID(appleID)
+	if err != nil {
+		return "", err
+	}
+	digest := sha256.Sum256([]byte(normalized))
+	return webPasswordKeyPrefix + hex.EncodeToString(digest[:]), nil
+}
+
+// LoadPassword loads a password for one Apple Account from the native
+// credential store. It never falls back to a file-backed store.
+func LoadPassword(appleID string) (string, bool, error) {
+	if passwordStoreBypassed() {
+		return "", false, nil
+	}
+	key, err := passwordKey(appleID)
+	if err != nil {
+		return "", false, err
+	}
+	kr, err := passwordKeyringOpen()
+	if err != nil {
+		return "", false, fmt.Errorf("open native password store: %w", err)
+	}
+	item, err := kr.Get(key)
+	if errors.Is(err, keyring.ErrKeyNotFound) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("read native password store: %w", err)
+	}
+	if len(item.Data) == 0 {
+		return "", false, nil
+	}
+	return string(item.Data), true, nil
+}
+
+// PasswordStored reports whether a password exists for one Apple Account.
+func PasswordStored(appleID string) (bool, error) {
+	_, ok, err := LoadPassword(appleID)
+	return ok, err
+}
+
+// StorePassword saves a password for one Apple Account in the native
+// credential store. The caller is responsible for only storing passwords that
+// have already authenticated successfully.
+func StorePassword(appleID, password string) error {
+	if passwordStoreBypassed() {
+		return ErrPasswordStoreUnavailable
+	}
+	normalized, err := normalizedPasswordAppleID(appleID)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(password) == "" {
+		return fmt.Errorf("password is required")
+	}
+	key, err := passwordKey(normalized)
+	if err != nil {
+		return err
+	}
+	kr, err := passwordKeyringOpen()
+	if err != nil {
+		return fmt.Errorf("open native password store: %w", err)
+	}
+	if err := kr.Set(keyring.Item{
+		Key:         key,
+		Data:        []byte(password),
+		Label:       "ASC Apple Account Password (" + normalized + ")",
+		Description: "Password saved by asc web auth",
+	}); err != nil {
+		return fmt.Errorf("store native password: %w", err)
+	}
+	return nil
+}
+
+// DeletePassword removes the password for one Apple Account.
+func DeletePassword(appleID string) error {
+	if passwordStoreBypassed() {
+		return ErrPasswordStoreUnavailable
+	}
+	key, err := passwordKey(appleID)
+	if err != nil {
+		return err
+	}
+	kr, err := passwordKeyringOpen()
+	if err != nil {
+		return fmt.Errorf("open native password store: %w", err)
+	}
+	if err := kr.Remove(key); err != nil && !errors.Is(err, keyring.ErrKeyNotFound) {
+		return fmt.Errorf("delete native password: %w", err)
+	}
+	return nil
+}
+
+// DeleteAllPasswords removes every password saved by asc web auth.
+func DeleteAllPasswords() error {
+	if passwordStoreBypassed() {
+		return ErrPasswordStoreUnavailable
+	}
+	kr, err := passwordKeyringOpen()
+	if err != nil {
+		return fmt.Errorf("open native password store: %w", err)
+	}
+	keys, err := kr.Keys()
+	if err != nil {
+		return fmt.Errorf("list native passwords: %w", err)
+	}
+	for _, key := range keys {
+		if !strings.HasPrefix(key, webPasswordKeyPrefix) {
+			continue
+		}
+		if err := kr.Remove(key); err != nil && !errors.Is(err, keyring.ErrKeyNotFound) {
+			return fmt.Errorf("delete native password: %w", err)
+		}
+	}
+	return nil
+}
