@@ -277,6 +277,59 @@ func TestResolveSessionUsesStoredPasswordAndCachedCookiesForTwoFactorReauth(t *t
 	}
 }
 
+func TestResolveAppCreateSessionPersistsStoredPasswordAutoReauth(t *testing.T) {
+	preserveWebPasswordHooks(t)
+	preserveWebLoginHooks(t)
+	t.Setenv(webPasswordEnv, "")
+	t.Setenv(webDontStorePasswordEnv, "")
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+
+	cachedClient := &http.Client{}
+	expected := &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com"}
+	tryResumeSessionFn = func(context.Context, string) (*webcore.AuthSession, bool, error) {
+		return nil, false, webcore.ErrCachedSessionExpired
+	}
+	loadCachedSessionFn = func(string) (*webcore.AuthSession, bool, error) {
+		return &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com"}, true, nil
+	}
+	loadStoredWebPasswordFn = func(appleID string) (string, bool, error) {
+		if appleID != "user@example.com" {
+			t.Fatalf("stored password lookup Apple ID = %q", appleID)
+		}
+		return "stored-secret", true, nil
+	}
+	webLoginWithClientFn = func(_ context.Context, client *http.Client, credentials webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		if client != cachedClient || credentials.Password != "stored-secret" {
+			t.Fatalf("cached login = (%p, %+v), want cached client and stored password", client, credentials)
+		}
+		return expected, nil
+	}
+	promptPasswordFn = func(context.Context) (string, error) {
+		t.Fatal("stored password should avoid the password prompt")
+		return "", nil
+	}
+	webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		t.Fatal("auto-reauthentication should reuse the cached client")
+		return nil, nil
+	}
+	var persisted *webcore.AuthSession
+	persistWebSessionFn = func(session *webcore.AuthSession) error {
+		persisted = session
+		return nil
+	}
+
+	session, source, err := resolveAppCreateSession(context.Background(), "user@example.com", "", "")
+	if err != nil {
+		t.Fatalf("resolveAppCreateSession() error = %v", err)
+	}
+	if session != expected || source != "auto-reauth" {
+		t.Fatalf("resolveAppCreateSession() = (%+v, %q), want (%+v, auto-reauth)", session, source, expected)
+	}
+	if persisted != expected {
+		t.Fatalf("persisted session = %+v, want refreshed app-create session %+v", persisted, expected)
+	}
+}
+
 func TestResolveSessionPromptedPasswordFallsBackFromExpiredCookiesToFreshClient(t *testing.T) {
 	preserveWebPasswordHooks(t)
 	preserveWebLoginHooks(t)

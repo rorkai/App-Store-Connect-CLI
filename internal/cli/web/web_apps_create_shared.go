@@ -238,6 +238,10 @@ func persistFreshAppCreateSession(session *webcore.AuthSession) error {
 	return nil
 }
 
+func persistAutoReauthAppCreateSession(session *webcore.AuthSession) {
+	_ = persistFreshAppCreateSession(session)
+}
+
 func rollbackCreatedBundleID(ctx context.Context, bundleID string) error {
 	bundleID = strings.TrimSpace(bundleID)
 	if bundleID == "" {
@@ -259,6 +263,7 @@ func resolveAppCreateSession(ctx context.Context, appleID, password, twoFactorCo
 		promptAppleID:        promptAppsCreateSessionAppleID,
 		resolvePassword:      resolveAppCreatePassword,
 		persistFresh:         persistFreshAppCreateSession,
+		persistAutoReauth:    persistAutoReauthAppCreateSession,
 		twoFactorCodeCommand: command,
 	})
 	if err != nil {
