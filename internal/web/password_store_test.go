@@ -2,7 +2,6 @@ package web
 
 import (
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/99designs/keyring"
@@ -45,11 +44,8 @@ func TestStoredWebPasswordRoundTripNormalizesAppleID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Keys() error = %v", err)
 	}
-	if len(keys) != 1 || !strings.HasPrefix(keys[0], webPasswordKeyPrefix) {
-		t.Fatalf("stored keys = %v, want one %q-prefixed key", keys, webPasswordKeyPrefix)
-	}
-	if strings.Contains(keys[0], "user@example.com") {
-		t.Fatalf("stored key %q unexpectedly exposes the Apple ID", keys[0])
+	if len(keys) != 1 || keys[0] != webPasswordKeyPrefix+"user@example.com" {
+		t.Fatalf("stored keys = %v, want normalized account key", keys)
 	}
 }
 

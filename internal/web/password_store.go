@@ -1,8 +1,6 @@
 package web
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -54,13 +52,12 @@ func normalizedPasswordAppleID(appleID string) (string, error) {
 	return normalized, nil
 }
 
-func passwordKey(appleID string) (string, error) {
+func passwordItemKey(appleID string) (string, error) {
 	normalized, err := normalizedPasswordAppleID(appleID)
 	if err != nil {
 		return "", err
 	}
-	digest := sha256.Sum256([]byte(normalized))
-	return webPasswordKeyPrefix + hex.EncodeToString(digest[:]), nil
+	return webPasswordKeyPrefix + normalized, nil
 }
 
 // LoadPassword loads a password for one Apple Account from the native
@@ -69,7 +66,7 @@ func LoadPassword(appleID string) (string, bool, error) {
 	if passwordStoreBypassed() {
 		return "", false, nil
 	}
-	key, err := passwordKey(appleID)
+	key, err := passwordItemKey(appleID)
 	if err != nil {
 		return "", false, err
 	}
@@ -110,7 +107,7 @@ func StorePassword(appleID, password string) error {
 	if strings.TrimSpace(password) == "" {
 		return fmt.Errorf("password is required")
 	}
-	key, err := passwordKey(normalized)
+	key, err := passwordItemKey(normalized)
 	if err != nil {
 		return err
 	}
@@ -134,7 +131,7 @@ func DeletePassword(appleID string) error {
 	if passwordStoreBypassed() {
 		return ErrPasswordStoreUnavailable
 	}
-	key, err := passwordKey(appleID)
+	key, err := passwordItemKey(appleID)
 	if err != nil {
 		return err
 	}
