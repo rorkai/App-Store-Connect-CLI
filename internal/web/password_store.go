@@ -35,7 +35,9 @@ var passwordKeyringOpen = func() (keyring.Keyring, error) {
 	})
 }
 
-func passwordStoreBypassed() bool {
+// PasswordStoreBypassed reports whether native credential-store access is
+// intentionally disabled for this process.
+func PasswordStoreBypassed() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(keychainBypassEnv))) {
 	case "1", "true", "yes", "on":
 		return true
@@ -63,7 +65,7 @@ func passwordItemKey(appleID string) (string, error) {
 // LoadPassword loads a password for one Apple Account from the native
 // credential store. It never falls back to a file-backed store.
 func LoadPassword(appleID string) (string, bool, error) {
-	if passwordStoreBypassed() {
+	if PasswordStoreBypassed() {
 		return "", false, nil
 	}
 	key, err := passwordItemKey(appleID)
@@ -89,15 +91,40 @@ func LoadPassword(appleID string) (string, bool, error) {
 
 // PasswordStored reports whether a password exists for one Apple Account.
 func PasswordStored(appleID string) (bool, error) {
-	_, ok, err := LoadPassword(appleID)
-	return ok, err
+	if PasswordStoreBypassed() {
+		return false, nil
+	}
+	key, err := passwordItemKey(appleID)
+	if err != nil {
+		return false, err
+	}
+	kr, err := passwordKeyringOpen()
+	if err != nil {
+		return false, fmt.Errorf("open native password store: %w", err)
+	}
+	if _, err := kr.GetMetadata(key); errors.Is(err, keyring.ErrKeyNotFound) {
+		return false, nil
+	} else if errors.Is(err, keyring.ErrMetadataNeedsCredentials) || errors.Is(err, keyring.ErrMetadataNotSupported) {
+		// Some native backends cannot query existence without retrieving the
+		// credential. Preserve status behavior there while keeping macOS
+		// Keychain's metadata-only path secret-free.
+		if _, err := kr.Get(key); errors.Is(err, keyring.ErrKeyNotFound) {
+			return false, nil
+		} else if err != nil {
+			return false, fmt.Errorf("check native password store: %w", err)
+		}
+		return true, nil
+	} else if err != nil {
+		return false, fmt.Errorf("check native password store: %w", err)
+	}
+	return true, nil
 }
 
 // StorePassword saves a password for one Apple Account in the native
 // credential store. The caller is responsible for only storing passwords that
 // have already authenticated successfully.
 func StorePassword(appleID, password string) error {
-	if passwordStoreBypassed() {
+	if PasswordStoreBypassed() {
 		return ErrPasswordStoreUnavailable
 	}
 	normalized, err := normalizedPasswordAppleID(appleID)
@@ -128,7 +155,7 @@ func StorePassword(appleID, password string) error {
 
 // DeletePassword removes the password for one Apple Account.
 func DeletePassword(appleID string) error {
-	if passwordStoreBypassed() {
+	if PasswordStoreBypassed() {
 		return ErrPasswordStoreUnavailable
 	}
 	key, err := passwordItemKey(appleID)
@@ -147,7 +174,7 @@ func DeletePassword(appleID string) error {
 
 // DeleteAllPasswords removes every password saved by asc web auth.
 func DeleteAllPasswords() error {
-	if passwordStoreBypassed() {
+	if PasswordStoreBypassed() {
 		return ErrPasswordStoreUnavailable
 	}
 	kr, err := passwordKeyringOpen()

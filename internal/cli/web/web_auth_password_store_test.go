@@ -160,21 +160,25 @@ func TestResolveSessionDoesNotStoreEnvironmentPassword(t *testing.T) {
 }
 
 func TestResolveSessionOptOutSkipsStoredPasswordReadAndWrite(t *testing.T) {
-	configureFreshPasswordLoginTest(t)
-	t.Setenv(webDontStorePasswordEnv, "1")
+	for _, optOutEnv := range []string{webDontStorePasswordEnv, "ASC_BYPASS_KEYCHAIN"} {
+		t.Run(optOutEnv, func(t *testing.T) {
+			configureFreshPasswordLoginTest(t)
+			t.Setenv(optOutEnv, "1")
 
-	loadStoredWebPasswordFn = func(string) (string, bool, error) {
-		t.Fatal("stored password should not be loaded when storage is disabled")
-		return "", false, nil
-	}
-	storeStoredWebPasswordFn = func(string, string) error {
-		t.Fatal("prompted password should not be stored when storage is disabled")
-		return nil
-	}
-	promptPasswordFn = func(context.Context) (string, error) { return "prompted-secret", nil }
+			loadStoredWebPasswordFn = func(string) (string, bool, error) {
+				t.Error("stored password should not be loaded when storage is disabled")
+				return "", false, nil
+			}
+			storeStoredWebPasswordFn = func(string, string) error {
+				t.Error("prompted password should not be stored when storage is disabled")
+				return nil
+			}
+			promptPasswordFn = func(context.Context) (string, error) { return "prompted-secret", nil }
 
-	if _, _, err := resolveSession(context.Background(), "user@example.com", "", ""); err != nil {
-		t.Fatalf("resolveSession() error = %v", err)
+			if _, _, err := resolveSession(context.Background(), "user@example.com", "", ""); err != nil {
+				t.Fatalf("resolveSession() error = %v", err)
+			}
+		})
 	}
 }
 
@@ -292,6 +296,8 @@ func TestResolveSessionReplacesRejectedStoredPasswordOnlyAfterSuccessfulLogin(t 
 		return nil, nil
 	}
 	persistWebSessionFn = func(*webcore.AuthSession) error { return nil }
+	var warning bytes.Buffer
+	passwordStoreWarningWriter = &warning
 	stored := ""
 	storeStoredWebPasswordFn = func(_ string, password string) error {
 		if loginAttempts != 2 {
@@ -307,6 +313,66 @@ func TestResolveSessionReplacesRejectedStoredPasswordOnlyAfterSuccessfulLogin(t 
 	}
 	if session != expected || source != "fresh" || stored != "new-secret" {
 		t.Fatalf("result = (%+v, %q, stored %q), want expected fresh session with replacement", session, source, stored)
+	}
+	if got := warning.String(); !strings.Contains(got, "Saved Apple Account password was rejected; enter the current password to replace it.") {
+		t.Fatalf("warning = %q, want stored-password rejection notice", got)
+	}
+}
+
+func TestResolveSessionReplacesRejectedStoredPasswordWithoutCachedSession(t *testing.T) {
+	preserveWebPasswordHooks(t)
+	preserveWebLoginHooks(t)
+	t.Setenv(webPasswordEnv, "")
+	t.Setenv(webDontStorePasswordEnv, "")
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+
+	expected := &webcore.AuthSession{UserEmail: "user@example.com"}
+	tryResumeSessionFn = func(context.Context, string) (*webcore.AuthSession, bool, error) {
+		return nil, false, nil
+	}
+	loadStoredWebPasswordFn = func(string) (string, bool, error) { return "old-secret", true, nil }
+	promptPasswordFn = func(context.Context) (string, error) { return "new-secret", nil }
+	persistWebSessionFn = func(*webcore.AuthSession) error { return nil }
+
+	loginAttempts := 0
+	webLoginFn = func(_ context.Context, credentials webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		loginAttempts++
+		switch loginAttempts {
+		case 1:
+			if credentials.Password != "old-secret" {
+				t.Fatalf("first password = %q, want old-secret", credentials.Password)
+			}
+			return nil, webcore.ErrInvalidAppleAccountCredentials
+		case 2:
+			if credentials.Password != "new-secret" {
+				t.Fatalf("second password = %q, want new-secret", credentials.Password)
+			}
+			return expected, nil
+		default:
+			t.Fatalf("unexpected login attempt %d", loginAttempts)
+			return nil, nil
+		}
+	}
+	var warning bytes.Buffer
+	passwordStoreWarningWriter = &warning
+	stored := ""
+	storeStoredWebPasswordFn = func(_ string, password string) error {
+		if loginAttempts != 2 {
+			t.Fatal("replacement password was stored before its login succeeded")
+		}
+		stored = password
+		return nil
+	}
+
+	session, source, err := resolveSession(context.Background(), "user@example.com", "", "")
+	if err != nil {
+		t.Fatalf("resolveSession() error = %v", err)
+	}
+	if session != expected || source != "fresh" || stored != "new-secret" {
+		t.Fatalf("result = (%+v, %q, stored %q), want expected fresh session with replacement", session, source, stored)
+	}
+	if got := warning.String(); !strings.Contains(got, "Saved Apple Account password was rejected; enter the current password to replace it.") {
+		t.Fatalf("warning = %q, want stored-password rejection notice", got)
 	}
 }
 
@@ -405,5 +471,91 @@ func TestWebAuthLogoutCanForgetPasswordWithSession(t *testing.T) {
 	}
 	if !strings.Contains(stdout, "stored password") {
 		t.Fatalf("logout output = %q, want stored-password confirmation", stdout)
+	}
+}
+
+func TestWebAuthLogoutForgetPasswordFailsBeforeDeletingSession(t *testing.T) {
+	preserveWebPasswordHooks(t)
+	deleteStoredWebPasswordFn = func(string) error { return webcore.ErrPasswordStoreUnavailable }
+	deleteWebSessionFn = func(string) error {
+		t.Fatal("session should not be deleted when the saved password cannot be removed")
+		return nil
+	}
+
+	cmd := WebAuthLogoutCommand()
+	if err := cmd.FlagSet.Parse([]string{"--apple-id", "user@example.com", "--forget-password", "--confirm"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	err := cmd.Exec(context.Background(), nil)
+	if !errors.Is(err, webcore.ErrPasswordStoreUnavailable) || !strings.Contains(err.Error(), "failed to forget saved password") {
+		t.Fatalf("Exec() error = %v, want password-store failure before session deletion", err)
+	}
+}
+
+func TestWebAuthLogoutAllForgetPasswordRequiresConfirmationWithoutDeletingAnything(t *testing.T) {
+	preserveWebPasswordHooks(t)
+	deleteAllStoredWebPasswordsFn = func() error {
+		t.Fatal("passwords should not be deleted without --confirm")
+		return nil
+	}
+	deleteAllWebSessionsFn = func() error {
+		t.Fatal("sessions should not be deleted without --confirm")
+		return nil
+	}
+
+	cmd := WebAuthLogoutCommand()
+	if err := cmd.FlagSet.Parse([]string{"--all", "--forget-password"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	var runErr error
+	_, stderr := captureWebCommandOutput(t, func() {
+		runErr = cmd.Exec(context.Background(), nil)
+	})
+	if !errors.Is(runErr, flag.ErrHelp) || !strings.Contains(stderr, "--confirm") {
+		t.Fatalf("Exec() = %v, stderr %q; want --confirm usage error", runErr, stderr)
+	}
+}
+
+func TestWebAuthLogoutAllCanForgetPasswordsWithSessions(t *testing.T) {
+	preserveWebPasswordHooks(t)
+	var calls []string
+	deleteAllStoredWebPasswordsFn = func() error {
+		calls = append(calls, "passwords")
+		return nil
+	}
+	deleteAllWebSessionsFn = func() error {
+		calls = append(calls, "sessions")
+		return nil
+	}
+
+	cmd := WebAuthLogoutCommand()
+	if err := cmd.FlagSet.Parse([]string{"--all", "--forget-password", "--confirm"}); err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	var runErr error
+	stdout, _ := captureWebCommandOutput(t, func() {
+		runErr = cmd.Exec(context.Background(), nil)
+	})
+	if runErr != nil {
+		t.Fatalf("logout Exec() error = %v", runErr)
+	}
+	if got := strings.Join(calls, ","); got != "passwords,sessions" {
+		t.Fatalf("deletion order = %q, want passwords,sessions", got)
+	}
+	if !strings.Contains(stdout, "stored passwords") {
+		t.Fatalf("logout output = %q, want stored-password confirmation", stdout)
+	}
+}
+
+func TestWebAuthLogoutPasswordFlagsAreExperimental(t *testing.T) {
+	cmd := WebAuthLogoutCommand()
+	for _, name := range []string{"forget-password", "confirm"} {
+		flag := cmd.FlagSet.Lookup(name)
+		if flag == nil {
+			t.Fatalf("--%s flag not found", name)
+		}
+		if !strings.HasPrefix(flag.Usage, "[experimental]") {
+			t.Fatalf("--%s usage = %q, want [experimental] prefix", name, flag.Usage)
+		}
 	}
 }

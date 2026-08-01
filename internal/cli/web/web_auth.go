@@ -96,7 +96,7 @@ func webPasswordStorageDisabled() bool {
 	if webEnvTruthy(os.Getenv(webDontStorePasswordEnv)) {
 		return true
 	}
-	return webEnvTruthy(os.Getenv("ASC_BYPASS_KEYCHAIN"))
+	return webcore.PasswordStoreBypassed()
 }
 
 func webEnvTruthy(value string) bool {
@@ -412,6 +412,12 @@ func persistPromptedWebPassword(appleID string, password resolvedWebPassword) {
 	}
 }
 
+func printStoredPasswordRejected() {
+	if passwordStoreWarningWriter != nil {
+		_, _ = fmt.Fprintln(passwordStoreWarningWriter, "Saved Apple Account password was rejected; enter the current password to replace it.")
+	}
+}
+
 func storedWebPasswordStatus(appleID string) bool {
 	if webPasswordStorageDisabled() || strings.TrimSpace(appleID) == "" {
 		return false
@@ -581,7 +587,7 @@ func resolveKnownWebSession(ctx context.Context, appleID string) (*webcore.AuthS
 func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode string, opts webSessionResolveOptions) (*webcore.AuthSession, string, error) {
 	shared.ApplyRootLoggingOverrides()
 
-	appleID = strings.TrimSpace(appleID)
+	resolvedAppleID := strings.TrimSpace(appleID)
 	twoFactorCode = strings.TrimSpace(twoFactorCode)
 	command := strings.TrimSpace(opts.twoFactorCodeCommand)
 	if command == "" {
@@ -640,8 +646,8 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 		if reauthAppleID == "" {
 			return nil, "", false, shared.UsageError("last cached web session predates stored Apple ID metadata; re-run once with --apple-id to refresh the cache")
 		}
-		if appleID == "" {
-			appleID = reauthAppleID
+		if resolvedAppleID == "" {
+			resolvedAppleID = reauthAppleID
 		}
 
 		silentPassword := resolveNonInteractiveWebPassword(reauthAppleID, password, skipStoredPassword)
@@ -661,9 +667,7 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 			if silentPassword.source != webPasswordSourceStored {
 				return nil, "", false, fmt.Errorf("web auth auto-reauth failed: %w", loginErr)
 			}
-			if passwordStoreWarningWriter != nil {
-				_, _ = fmt.Fprintln(passwordStoreWarningWriter, "Saved Apple Account password was rejected; enter the current password to replace it.")
-			}
+			printStoredPasswordRejected()
 			skipStoredPassword = true
 			printExpiredNotice()
 			return nil, "", false, nil
@@ -677,21 +681,21 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 		return nil, "", false, nil
 	}
 
-	if session, source, ok, err := tryKnownSession(appleID); err != nil {
+	if session, source, ok, err := tryKnownSession(resolvedAppleID); err != nil {
 		return nil, "", err
 	} else if ok {
 		return session, source, nil
 	}
 
-	if appleID == "" {
+	if resolvedAppleID == "" {
 		if opts.promptAppleID == nil {
 			return nil, "", shared.UsageError("--apple-id is required when no cached web session is available")
 		}
-		if err := opts.promptAppleID(&appleID); err != nil {
+		if err := opts.promptAppleID(&resolvedAppleID); err != nil {
 			return nil, "", err
 		}
-		appleID = strings.TrimSpace(appleID)
-		if session, source, ok, err := tryKnownSession(appleID); err != nil {
+		resolvedAppleID = strings.TrimSpace(resolvedAppleID)
+		if session, source, ok, err := tryKnownSession(resolvedAppleID); err != nil {
 			return nil, "", err
 		} else if ok {
 			return session, source, nil
@@ -703,7 +707,7 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 	}
 	resolvedPassword := fallbackPassword
 	if !webPasswordProvided(resolvedPassword.value) {
-		resolvedPassword = resolveNonInteractiveWebPassword(appleID, password, skipStoredPassword)
+		resolvedPassword = resolveNonInteractiveWebPassword(resolvedAppleID, password, skipStoredPassword)
 	}
 	if !webPasswordProvided(resolvedPassword.value) {
 		promptedPassword, err := opts.resolvePassword(ctx, "")
@@ -718,19 +722,29 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 		return nil, "", shared.UsageError(fmt.Sprintf("password is required: run in a terminal for an interactive prompt or set %s", webPasswordEnvDisplay()))
 	}
 
-	var (
-		session *webcore.AuthSession
-		err     error
-	)
-	if expiredCachedSession != nil && expiredCachedSession.Client != nil {
-		session, err = loginWithOptionalTwoFactorClient(ctx, expiredCachedSession.Client, appleID, resolvedPassword.value, twoFactorCode, command)
-	} else {
-		session, err = loginWithOptionalTwoFactor(ctx, appleID, resolvedPassword.value, twoFactorCode, command)
+	login := func(candidate resolvedWebPassword) (*webcore.AuthSession, error) {
+		if expiredCachedSession != nil && expiredCachedSession.Client != nil {
+			return loginWithOptionalTwoFactorClient(ctx, expiredCachedSession.Client, resolvedAppleID, candidate.value, twoFactorCode, command)
+		}
+		return loginWithOptionalTwoFactor(ctx, resolvedAppleID, candidate.value, twoFactorCode, command)
+	}
+
+	session, err := login(resolvedPassword)
+	if errors.Is(err, webcore.ErrInvalidAppleAccountCredentials) && resolvedPassword.source == webPasswordSourceStored {
+		printStoredPasswordRejected()
+		promptedPassword, promptErr := opts.resolvePassword(ctx, "")
+		if promptErr != nil {
+			return nil, "", promptErr
+		}
+		if webPasswordProvided(promptedPassword) {
+			resolvedPassword = resolvedWebPassword{value: promptedPassword, source: webPasswordSourcePrompted}
+			session, err = login(resolvedPassword)
+		}
 	}
 	if err != nil {
 		return nil, "", fmt.Errorf("web auth login failed: %w", err)
 	}
-	persistPromptedWebPassword(appleID, resolvedPassword)
+	persistPromptedWebPassword(resolvedAppleID, resolvedPassword)
 	if opts.persistFresh != nil {
 		if err := opts.persistFresh(session); err != nil {
 			return nil, "", err
@@ -990,8 +1004,8 @@ func WebAuthLogoutCommand() *ffcli.Command {
 
 	appleID := fs.String("apple-id", "", "Apple Account email to remove from cache")
 	all := fs.Bool("all", false, "Remove all cached web sessions")
-	forgetPassword := fs.Bool("forget-password", false, "Also remove the saved Apple Account password")
-	confirm := fs.Bool("confirm", false, "Confirm removal of saved password credentials")
+	forgetPassword := fs.Bool("forget-password", false, "[experimental] Also remove the saved Apple Account password")
+	confirm := fs.Bool("confirm", false, "[experimental] Confirm removal of saved password credentials")
 
 	return &ffcli.Command{
 		Name:       "logout",
@@ -1017,13 +1031,18 @@ Pass --forget-password --confirm to also remove the native credential-store pass
 				return shared.UsageError("--forget-password requires --confirm")
 			}
 			if *all {
+				if *forgetPassword {
+					if err := deleteAllStoredWebPasswordsFn(); err != nil {
+						return fmt.Errorf("web auth logout failed to forget saved passwords: %w", err)
+					}
+				}
 				if err := deleteAllWebSessionsFn(); err != nil {
+					if *forgetPassword {
+						return fmt.Errorf("web auth logout forgot saved passwords but failed to remove sessions: %w", err)
+					}
 					return fmt.Errorf("web auth logout failed: %w", err)
 				}
 				if *forgetPassword {
-					if err := deleteAllStoredWebPasswordsFn(); err != nil {
-						return fmt.Errorf("web auth logout removed sessions but failed to forget saved passwords: %w", err)
-					}
 					_, _ = fmt.Fprintln(os.Stdout, "Removed all cached web sessions and stored passwords.")
 					return nil
 				}
@@ -1033,13 +1052,18 @@ Pass --forget-password --confirm to also remove the native credential-store pass
 			if trimmedAppleID == "" {
 				return shared.UsageError("provide --apple-id or --all")
 			}
+			if *forgetPassword {
+				if err := deleteStoredWebPasswordFn(trimmedAppleID); err != nil {
+					return fmt.Errorf("web auth logout failed to forget saved password: %w", err)
+				}
+			}
 			if err := deleteWebSessionFn(trimmedAppleID); err != nil {
+				if *forgetPassword {
+					return fmt.Errorf("web auth logout forgot saved password but failed to remove session: %w", err)
+				}
 				return fmt.Errorf("web auth logout failed: %w", err)
 			}
 			if *forgetPassword {
-				if err := deleteStoredWebPasswordFn(trimmedAppleID); err != nil {
-					return fmt.Errorf("web auth logout removed the session but failed to forget saved password: %w", err)
-				}
 				_, _ = fmt.Fprintf(os.Stdout, "Removed cached web session and stored password for %s.\n", trimmedAppleID)
 				return nil
 			}

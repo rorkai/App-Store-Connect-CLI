@@ -7,6 +7,24 @@ import (
 	"github.com/99designs/keyring"
 )
 
+type passwordMetadataKeyring struct {
+	keyring.Keyring
+	getCalls      int
+	metadataCalls int
+	metadataKey   string
+}
+
+func (kr *passwordMetadataKeyring) Get(key string) (keyring.Item, error) {
+	kr.getCalls++
+	return kr.Keyring.Get(key)
+}
+
+func (kr *passwordMetadataKeyring) GetMetadata(key string) (keyring.Metadata, error) {
+	kr.metadataCalls++
+	kr.metadataKey = key
+	return keyring.Metadata{}, nil
+}
+
 func useTestPasswordKeyring(t *testing.T) keyring.Keyring {
 	t.Helper()
 
@@ -77,7 +95,7 @@ func TestStoredWebPasswordsAreIsolatedAndDeletable(t *testing.T) {
 	}
 }
 
-func TestStoredWebPasswordExistsDoesNotReturnSecret(t *testing.T) {
+func TestStoredWebPasswordExistsReportsPresence(t *testing.T) {
 	useTestPasswordKeyring(t)
 
 	if err := StorePassword("user@example.com", "secret"); err != nil {
@@ -89,6 +107,28 @@ func TestStoredWebPasswordExistsDoesNotReturnSecret(t *testing.T) {
 	}
 	if !exists {
 		t.Fatal("PasswordStored() = false, want true")
+	}
+}
+
+func TestStoredWebPasswordExistsUsesMetadataWithoutLoadingSecret(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+	kr := &passwordMetadataKeyring{}
+	originalOpen := passwordKeyringOpen
+	passwordKeyringOpen = func() (keyring.Keyring, error) { return kr, nil }
+	t.Cleanup(func() { passwordKeyringOpen = originalOpen })
+
+	exists, err := PasswordStored(" User@Example.COM ")
+	if err != nil {
+		t.Fatalf("PasswordStored() error = %v", err)
+	}
+	if !exists {
+		t.Fatal("PasswordStored() = false, want true")
+	}
+	if kr.getCalls != 0 || kr.metadataCalls != 1 {
+		t.Fatalf("keyring calls = (Get %d, GetMetadata %d), want (0, 1)", kr.getCalls, kr.metadataCalls)
+	}
+	if kr.metadataKey != webPasswordKeyPrefix+"user@example.com" {
+		t.Fatalf("metadata key = %q, want normalized account key", kr.metadataKey)
 	}
 }
 
@@ -108,5 +148,11 @@ func TestStoredWebPasswordHonorsKeychainBypass(t *testing.T) {
 	}
 	if err := StorePassword("user@example.com", "secret"); !errors.Is(err, ErrPasswordStoreUnavailable) {
 		t.Fatalf("StorePassword() error = %v, want ErrPasswordStoreUnavailable", err)
+	}
+	if err := DeletePassword("user@example.com"); !errors.Is(err, ErrPasswordStoreUnavailable) {
+		t.Fatalf("DeletePassword() error = %v, want ErrPasswordStoreUnavailable", err)
+	}
+	if err := DeleteAllPasswords(); !errors.Is(err, ErrPasswordStoreUnavailable) {
+		t.Fatalf("DeleteAllPasswords() error = %v, want ErrPasswordStoreUnavailable", err)
 	}
 }
