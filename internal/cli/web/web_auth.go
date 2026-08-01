@@ -462,7 +462,7 @@ func storedWebPasswordStatus(appleID string) bool {
 	return stored
 }
 
-func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, appleID, password, twoFactorCode string, loginFn func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error), twoFactorCodeCommand ...string) (*webcore.AuthSession, error) {
+func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, appleID, password, twoFactorCode string, loginFn func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error), twoFactorStarted func(), twoFactorCodeCommand ...string) (*webcore.AuthSession, error) {
 	session, err := withWebSpinnerValue(progressMessage, func() (*webcore.AuthSession, error) {
 		return loginFn(ctx, webcore.LoginCredentials{
 			Username: appleID,
@@ -475,6 +475,9 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 
 	var tfaErr *webcore.TwoFactorRequiredError
 	if session != nil && errors.As(err, &tfaErr) {
+		if twoFactorStarted != nil {
+			twoFactorStarted()
+		}
 		challenge, prepErr := prepareTwoFactorChallengeFn(ctx, session)
 		if prepErr != nil {
 			return nil, fmt.Errorf("2fa challenge setup failed: %w", prepErr)
@@ -553,13 +556,22 @@ func loginWithOptionalTwoFactorUsing(ctx context.Context, progressMessage, apple
 }
 
 func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, error) {
-	return loginWithOptionalTwoFactorUsing(ctx, "Signing in to Apple web session", appleID, password, twoFactorCode, webLoginFn, twoFactorCodeCommand...)
+	return loginWithOptionalTwoFactorUsing(ctx, "Signing in to Apple web session", appleID, password, twoFactorCode, webLoginFn, nil, twoFactorCodeCommand...)
 }
 
 func loginWithOptionalTwoFactorClient(ctx context.Context, client *http.Client, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, error) {
-	return loginWithOptionalTwoFactorUsing(ctx, "Refreshing expired web session", appleID, password, twoFactorCode, func(ctx context.Context, credentials webcore.LoginCredentials) (*webcore.AuthSession, error) {
+	session, _, err := loginWithOptionalTwoFactorClientTracked(ctx, client, appleID, password, twoFactorCode, twoFactorCodeCommand...)
+	return session, err
+}
+
+func loginWithOptionalTwoFactorClientTracked(ctx context.Context, client *http.Client, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, bool, error) {
+	twoFactorStarted := false
+	session, err := loginWithOptionalTwoFactorUsing(ctx, "Refreshing expired web session", appleID, password, twoFactorCode, func(ctx context.Context, credentials webcore.LoginCredentials) (*webcore.AuthSession, error) {
 		return webLoginWithClientFn(ctx, client, credentials)
+	}, func() {
+		twoFactorStarted = true
 	}, twoFactorCodeCommand...)
+	return session, twoFactorStarted, err
 }
 
 func tryResumeWebSession(ctx context.Context, appleID string) (*webcore.AuthSession, bool, error) {
@@ -754,22 +766,24 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 		return nil, "", shared.UsageError(fmt.Sprintf("password is required: run in a terminal for an interactive prompt or set %s", webPasswordEnvDisplay()))
 	}
 
-	login := func(candidate resolvedWebPassword) (*webcore.AuthSession, error) {
+	login := func(candidate resolvedWebPassword) (*webcore.AuthSession, bool, error) {
 		if expiredCachedSession != nil && expiredCachedSession.Client != nil {
-			return loginWithOptionalTwoFactorClient(ctx, expiredCachedSession.Client, resolvedAppleID, candidate.value, twoFactorCode, command)
+			return loginWithOptionalTwoFactorClientTracked(ctx, expiredCachedSession.Client, resolvedAppleID, candidate.value, twoFactorCode, command)
 		}
-		return loginWithOptionalTwoFactor(ctx, resolvedAppleID, candidate.value, twoFactorCode, command)
+		session, err := loginWithOptionalTwoFactor(ctx, resolvedAppleID, candidate.value, twoFactorCode, command)
+		return session, false, err
 	}
 	loginWithPromptedFreshFallback := func(candidate resolvedWebPassword) (*webcore.AuthSession, error) {
-		session, err := login(candidate)
-		if err == nil || candidate.source != webPasswordSourcePrompted || expiredCachedSession == nil || errors.Is(err, webcore.ErrInvalidAppleAccountCredentials) {
+		session, twoFactorStarted, err := login(candidate)
+		if err == nil || candidate.source != webPasswordSourcePrompted || expiredCachedSession == nil || twoFactorStarted || errors.Is(err, webcore.ErrInvalidAppleAccountCredentials) {
 			return session, err
 		}
 		// Match the non-interactive reauth path: a non-credential failure can
 		// mean that the cached cookie jar itself is unusable. Retry once with a
 		// fresh client while preserving the already-resolved password.
 		expiredCachedSession = nil
-		return login(candidate)
+		session, _, err = login(candidate)
+		return session, err
 	}
 
 	session, err := loginWithPromptedFreshFallback(resolvedPassword)

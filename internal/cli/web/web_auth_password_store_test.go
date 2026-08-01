@@ -320,6 +320,40 @@ func TestResolveSessionPromptedPasswordFallsBackFromExpiredCookiesToFreshClient(
 	}
 }
 
+func TestResolveSessionPromptedPasswordDoesNotRetryFreshAfterTwoFactorStarts(t *testing.T) {
+	preserveWebPasswordHooks(t)
+	preserveWebLoginHooks(t)
+	t.Setenv(webPasswordEnv, "")
+	t.Setenv(webDontStorePasswordEnv, "")
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+
+	cachedClient := &http.Client{}
+	twoFactorSession := &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com"}
+	tryResumeSessionFn = func(context.Context, string) (*webcore.AuthSession, bool, error) {
+		return nil, false, webcore.ErrCachedSessionExpired
+	}
+	loadCachedSessionFn = func(string) (*webcore.AuthSession, bool, error) {
+		return &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com"}, true, nil
+	}
+	loadStoredWebPasswordFn = func(string) (string, bool, error) { return "", false, nil }
+	promptPasswordFn = func(context.Context) (string, error) { return "prompted-secret", nil }
+	webLoginWithClientFn = func(context.Context, *http.Client, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		return twoFactorSession, &webcore.TwoFactorRequiredError{}
+	}
+	prepareTwoFactorChallengeFn = func(context.Context, *webcore.AuthSession) (*webcore.TwoFactorChallenge, error) {
+		return nil, errors.New("challenge setup failed")
+	}
+	webLoginFn = func(context.Context, webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		t.Fatal("2FA flow errors must not trigger a fresh login retry")
+		return nil, nil
+	}
+
+	_, _, err := resolveSession(context.Background(), "user@example.com", "", "")
+	if err == nil || !strings.Contains(err.Error(), "2fa challenge setup failed") {
+		t.Fatalf("resolveSession() error = %v, want original 2FA setup failure", err)
+	}
+}
+
 func TestResolveSessionReplacesRejectedStoredPasswordOnlyAfterSuccessfulLogin(t *testing.T) {
 	preserveWebPasswordHooks(t)
 	preserveWebLoginHooks(t)
