@@ -9,6 +9,7 @@ Quirks and tips for specific App Store Connect API endpoints.
   - MONTHLY: `YYYY-MM`
   - YEARLY: `YYYY`
 - Vendor number comes from Sales and Trends → Reports URL (`vendorNumber=...`)
+- Although OpenAPI marks `filter[version]` optional, the live Sales Reports endpoint requires it for subscription reports; Apple currently reports `1_4` as the latest `SUBSCRIPTION` version. Version values can advance independently of the API schema.
 - Use `--paginate` with `asc analytics get --date` to avoid missing instances on later pages
 - Long analytics runs may require raising `ASC_TIMEOUT`
 

@@ -22,7 +22,7 @@ func AnalyticsSalesCommand() *ffcli.Command {
 	reportSubType := fs.String("subtype", "", "Report subtype: SUMMARY, DETAILED")
 	frequency := fs.String("frequency", "", "Frequency: DAILY, WEEKLY, MONTHLY, YEARLY")
 	date := fs.String("date", "", "Report date: daily YYYY-MM-DD, weekly Monday(start) or Sunday(end) YYYY-MM-DD, monthly YYYY-MM, yearly YYYY")
-	version := fs.String("version", "1_0", "Report format version: 1_0 (default), 1_1, 1_3")
+	version := fs.String("version", "", "Report format version in major_minor format (defaults to 1_4 for SUBSCRIPTION and 1_0 otherwise)")
 	output := fs.String("output", "", "Output file path (default: sales_report_{date}_{type}.tsv.gz)")
 	decompress := fs.Bool("decompress", false, "Decompress gzip output to .tsv")
 	outputFlags := shared.BindMetadataOutputFlags(fs)
@@ -80,7 +80,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("analytics sales: %w", err)
 			}
-			reportVersion, err := normalizeSalesReportVersion(*version)
+			reportVersion, err := normalizeSalesReportVersion(*version, salesType)
 			if err != nil {
 				return fmt.Errorf("analytics sales: %w", err)
 			}

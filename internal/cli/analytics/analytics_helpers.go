@@ -12,7 +12,10 @@ import (
 
 const analyticsMaxLimit = 200
 
-var uuidPattern = regexp.MustCompile(`^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`)
+var (
+	uuidPattern               = regexp.MustCompile(`^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$`)
+	salesReportVersionPattern = regexp.MustCompile(`^[0-9]+_[0-9]+$`)
+)
 
 func normalizeSalesReportType(value string) (asc.SalesReportType, error) {
 	normalized := strings.ToUpper(strings.TrimSpace(value))
@@ -60,21 +63,18 @@ func normalizeSalesReportFrequency(value string) (asc.SalesReportFrequency, erro
 	}
 }
 
-func normalizeSalesReportVersion(value string) (asc.SalesReportVersion, error) {
+func normalizeSalesReportVersion(value string, reportType asc.SalesReportType) (asc.SalesReportVersion, error) {
 	normalized := strings.TrimSpace(value)
 	if normalized == "" {
+		if reportType == asc.SalesReportTypeSubscription {
+			return asc.SalesReportVersion1_4, nil
+		}
 		return asc.SalesReportVersion1_0, nil
 	}
-	switch normalized {
-	case string(asc.SalesReportVersion1_0):
-		return asc.SalesReportVersion1_0, nil
-	case string(asc.SalesReportVersion1_1):
-		return asc.SalesReportVersion1_1, nil
-	case string(asc.SalesReportVersion1_3):
-		return asc.SalesReportVersion1_3, nil
-	default:
-		return "", fmt.Errorf("--version must be 1_0, 1_1, or 1_3")
+	if !salesReportVersionPattern.MatchString(normalized) {
+		return "", fmt.Errorf("--version must use major_minor format (for example, 1_4)")
 	}
+	return asc.SalesReportVersion(normalized), nil
 }
 
 func normalizeAnalyticsAccessType(value string) (asc.AnalyticsAccessType, error) {

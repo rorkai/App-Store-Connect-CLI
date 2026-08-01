@@ -91,20 +91,50 @@ func TestNormalizeReportDate_WeeklyRejectsNonBoundaryDate(t *testing.T) {
 	}
 }
 
-func TestNormalizeSalesReportVersionSupports1_3(t *testing.T) {
-	version, err := normalizeSalesReportVersion("1_3")
+func TestNormalizeSalesReportVersionSupportsCurrentVersion(t *testing.T) {
+	version, err := normalizeSalesReportVersion("1_4", asc.SalesReportTypeSales)
 	if err != nil {
-		t.Fatalf("expected version 1_3 to parse, got %v", err)
+		t.Fatalf("expected version 1_4 to parse, got %v", err)
 	}
-	if version != asc.SalesReportVersion1_3 {
-		t.Fatalf("expected version 1_3, got %q", version)
+	if version != asc.SalesReportVersion1_4 {
+		t.Fatalf("expected version 1_4, got %q", version)
+	}
+}
+
+func TestNormalizeSalesReportVersionDefaultsSubscriptionTo1_4(t *testing.T) {
+	version, err := normalizeSalesReportVersion("  ", asc.SalesReportTypeSubscription)
+	if err != nil {
+		t.Fatalf("expected empty version to use the default, got %v", err)
+	}
+	if version != asc.SalesReportVersion1_4 {
+		t.Fatalf("expected subscription default version 1_4, got %q", version)
+	}
+}
+
+func TestNormalizeSalesReportVersionPreservesOtherDefaults(t *testing.T) {
+	version, err := normalizeSalesReportVersion("  ", asc.SalesReportTypeSales)
+	if err != nil {
+		t.Fatalf("expected empty version to use the default, got %v", err)
+	}
+	if version != asc.SalesReportVersion1_0 {
+		t.Fatalf("expected sales default version 1_0, got %q", version)
 	}
 }
 
 func TestNormalizeSalesReportVersionRejectsInvalidValue(t *testing.T) {
-	_, err := normalizeSalesReportVersion("2_0")
+	_, err := normalizeSalesReportVersion("1.4", asc.SalesReportTypeSubscription)
 	if err == nil {
 		t.Fatal("expected invalid version error")
+	}
+}
+
+func TestNormalizeSalesReportVersionAllowsFutureVersion(t *testing.T) {
+	version, err := normalizeSalesReportVersion(" 1_5 ", asc.SalesReportTypeSubscription)
+	if err != nil {
+		t.Fatalf("expected future version to parse, got %v", err)
+	}
+	if version != asc.SalesReportVersion("1_5") {
+		t.Fatalf("expected version 1_5, got %q", version)
 	}
 }
 

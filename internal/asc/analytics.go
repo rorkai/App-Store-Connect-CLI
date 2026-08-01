@@ -45,6 +45,7 @@ const (
 	SalesReportVersion1_0 SalesReportVersion = "1_0"
 	SalesReportVersion1_1 SalesReportVersion = "1_1"
 	SalesReportVersion1_3 SalesReportVersion = "1_3"
+	SalesReportVersion1_4 SalesReportVersion = "1_4"
 )
 
 // AnalyticsAccessType represents analytics report access types.
