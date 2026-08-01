@@ -5,21 +5,22 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestAnalyticsSalesDefaultsSubscriptionsToVersion1_4(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
 	requestCount := 0
-	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requestCount++
 		if req.Method != http.MethodGet || req.URL.Path != "/v1/salesReports" {
 			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
@@ -43,13 +44,35 @@ func TestAnalyticsSalesDefaultsSubscriptionsToVersion1_4(t *testing.T) {
 		if req.Header.Get("Authorization") == "" {
 			t.Fatal("expected Authorization header")
 		}
-		return &http.Response{
-			StatusCode:    http.StatusOK,
-			Body:          io.NopCloser(strings.NewReader("report-data")),
-			ContentLength: int64(len("report-data")),
-			Header:        http.Header{"Content-Type": []string{"application/a-gzip"}},
-		}, nil
+		w.Header().Set("Content-Type", "application/a-gzip")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "report-data")
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse test server URL: %v", err)
+	}
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		cloned := req.Clone(req.Context())
+		cloned.URL.Scheme = serverURL.Scheme
+		cloned.URL.Host = serverURL.Host
+		return server.Client().Transport.RoundTrip(cloned)
 	})
+	client, err := asc.NewClientWithHTTPClient(
+		os.Getenv("ASC_KEY_ID"),
+		os.Getenv("ASC_ISSUER_ID"),
+		os.Getenv("ASC_PRIVATE_KEY_PATH"),
+		&http.Client{Transport: transport},
+	)
+	if err != nil {
+		t.Fatalf("create analytics sales test client: %v", err)
+	}
+	restoreClient := shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+		return client, nil
+	})
+	t.Cleanup(restoreClient)
 
 	outputPath := filepath.Join(t.TempDir(), "subscription.tsv.gz")
 	root := RootCommand("1.2.3")
