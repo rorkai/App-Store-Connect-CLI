@@ -559,11 +559,6 @@ func loginWithOptionalTwoFactor(ctx context.Context, appleID, password, twoFacto
 	return loginWithOptionalTwoFactorUsing(ctx, "Signing in to Apple web session", appleID, password, twoFactorCode, webLoginFn, nil, twoFactorCodeCommand...)
 }
 
-func loginWithOptionalTwoFactorClient(ctx context.Context, client *http.Client, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, error) {
-	session, _, err := loginWithOptionalTwoFactorClientTracked(ctx, client, appleID, password, twoFactorCode, twoFactorCodeCommand...)
-	return session, err
-}
-
 func loginWithOptionalTwoFactorClientTracked(ctx context.Context, client *http.Client, appleID, password, twoFactorCode string, twoFactorCodeCommand ...string) (*webcore.AuthSession, bool, error) {
 	twoFactorStarted := false
 	session, err := loginWithOptionalTwoFactorUsing(ctx, "Refreshing expired web session", appleID, password, twoFactorCode, func(ctx context.Context, credentials webcore.LoginCredentials) (*webcore.AuthSession, error) {
@@ -700,12 +695,15 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 			return nil, "", false, nil
 		}
 
-		session, loginErr := loginWithOptionalTwoFactorClient(ctx, expiredCachedSession.Client, reauthAppleID, silentPassword.value, twoFactorCode, command)
+		session, twoFactorStarted, loginErr := loginWithOptionalTwoFactorClientTracked(ctx, expiredCachedSession.Client, reauthAppleID, silentPassword.value, twoFactorCode, command)
 		if loginErr == nil {
 			if opts.persistAutoReauth != nil {
 				opts.persistAutoReauth(session)
 			}
 			return session, "auto-reauth", true, nil
+		}
+		if twoFactorStarted {
+			return nil, "", false, fmt.Errorf("web auth auto-reauth failed: %w", loginErr)
 		}
 		if errors.Is(loginErr, webcore.ErrInvalidAppleAccountCredentials) {
 			if silentPassword.source != webPasswordSourceStored {
@@ -717,8 +715,8 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 			return nil, "", false, nil
 		}
 
-		// A cached jar can become unusable independently of the credentials.
-		// Preserve the same password source for one fresh-client fallback.
+		// Before 2FA begins, a cached jar can become unusable independently of
+		// the credentials. Preserve the password source for one fresh fallback.
 		fallbackPassword = silentPassword
 		expiredCachedSession = nil
 		printExpiredNotice()
