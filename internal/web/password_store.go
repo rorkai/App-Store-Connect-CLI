@@ -3,16 +3,16 @@ package web
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/99designs/keyring"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
 )
 
 const (
 	webPasswordKeyringService = "asc-web-password"
 	webPasswordKeyPrefix      = "asc:web-password:"
-	keychainBypassEnv         = "ASC_BYPASS_KEYCHAIN"
 )
 
 // ErrPasswordStoreUnavailable indicates that native credential storage is
@@ -38,12 +38,7 @@ var passwordKeyringOpen = func() (keyring.Keyring, error) {
 // PasswordStoreBypassed reports whether native credential-store access is
 // intentionally disabled for this process.
 func PasswordStoreBypassed() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv(keychainBypassEnv))) {
-	case "1", "true", "yes", "on":
-		return true
-	default:
-		return false
-	}
+	return auth.ShouldBypassKeychain()
 }
 
 func normalizedPasswordAppleID(appleID string) (string, error) {

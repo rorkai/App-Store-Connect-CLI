@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -70,6 +71,8 @@ var (
 	sessionExpiredWriter           io.Writer = os.Stderr
 	sessionCacheWarningWriter      io.Writer = os.Stderr
 	passwordStoreWarningWriter     io.Writer = os.Stderr
+	invalidWebPasswordOptOutMu     sync.Mutex
+	invalidWebPasswordOptOutValues = map[string]struct{}{}
 )
 
 func callSessionResolverHook(ctx context.Context, hook any, hookName, appleID, password, twoFactorCode, twoFactorCodeCommand string) (*webcore.AuthSession, string, error) {
@@ -93,19 +96,48 @@ func webPasswordProvided(password string) bool {
 }
 
 func webPasswordStorageDisabled() bool {
-	if webEnvTruthy(os.Getenv(webDontStorePasswordEnv)) {
+	if webPasswordStorageOptedOut() {
 		return true
 	}
 	return webcore.PasswordStoreBypassed()
 }
 
-func webEnvTruthy(value string) bool {
-	switch strings.ToLower(strings.TrimSpace(value)) {
+func webPasswordStorageOptedOut() bool {
+	value := strings.ToLower(strings.TrimSpace(os.Getenv(webDontStorePasswordEnv)))
+	switch value {
 	case "1", "true", "yes", "on":
 		return true
-	default:
+	case "", "0", "false", "no", "off":
 		return false
+	default:
+		warnInvalidWebPasswordOptOutOnce(value)
+		return true
 	}
+}
+
+func warnInvalidWebPasswordOptOutOnce(value string) {
+	invalidWebPasswordOptOutMu.Lock()
+	if _, warned := invalidWebPasswordOptOutValues[value]; warned {
+		invalidWebPasswordOptOutMu.Unlock()
+		return
+	}
+	invalidWebPasswordOptOutValues[value] = struct{}{}
+	invalidWebPasswordOptOutMu.Unlock()
+
+	if passwordStoreWarningWriter != nil {
+		_, _ = fmt.Fprintf(
+			passwordStoreWarningWriter,
+			"Warning: invalid %s value %q (expected true/false, 1/0, yes/no, or on/off); password storage disabled.\n",
+			webDontStorePasswordEnv,
+			value,
+		)
+	}
+}
+
+func resetInvalidWebPasswordOptOutWarnings() {
+	invalidWebPasswordOptOutMu.Lock()
+	defer invalidWebPasswordOptOutMu.Unlock()
+	invalidWebPasswordOptOutValues = map[string]struct{}{}
 }
 
 type webPasswordSource string
@@ -728,8 +760,19 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 		}
 		return loginWithOptionalTwoFactor(ctx, resolvedAppleID, candidate.value, twoFactorCode, command)
 	}
+	loginWithPromptedFreshFallback := func(candidate resolvedWebPassword) (*webcore.AuthSession, error) {
+		session, err := login(candidate)
+		if err == nil || candidate.source != webPasswordSourcePrompted || expiredCachedSession == nil || errors.Is(err, webcore.ErrInvalidAppleAccountCredentials) {
+			return session, err
+		}
+		// Match the non-interactive reauth path: a non-credential failure can
+		// mean that the cached cookie jar itself is unusable. Retry once with a
+		// fresh client while preserving the already-resolved password.
+		expiredCachedSession = nil
+		return login(candidate)
+	}
 
-	session, err := login(resolvedPassword)
+	session, err := loginWithPromptedFreshFallback(resolvedPassword)
 	if errors.Is(err, webcore.ErrInvalidAppleAccountCredentials) && resolvedPassword.source == webPasswordSourceStored {
 		printStoredPasswordRejected()
 		promptedPassword, promptErr := opts.resolvePassword(ctx, "")
@@ -738,7 +781,7 @@ func resolveWebSession(ctx context.Context, appleID, password, twoFactorCode str
 		}
 		if webPasswordProvided(promptedPassword) {
 			resolvedPassword = resolvedWebPassword{value: promptedPassword, source: webPasswordSourcePrompted}
-			session, err = login(resolvedPassword)
+			session, err = loginWithPromptedFreshFallback(resolvedPassword)
 		}
 	}
 	if err != nil {

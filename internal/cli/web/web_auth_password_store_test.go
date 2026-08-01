@@ -182,6 +182,32 @@ func TestResolveSessionOptOutSkipsStoredPasswordReadAndWrite(t *testing.T) {
 	}
 }
 
+func TestResolveSessionInvalidOptOutFailsClosedWithWarning(t *testing.T) {
+	configureFreshPasswordLoginTest(t)
+	t.Setenv(webDontStorePasswordEnv, "treu")
+
+	loadStoredWebPasswordFn = func(string) (string, bool, error) {
+		t.Error("stored password should not be loaded for an invalid opt-out value")
+		return "", false, nil
+	}
+	storeStoredWebPasswordFn = func(string, string) error {
+		t.Error("prompted password should not be stored for an invalid opt-out value")
+		return nil
+	}
+	promptPasswordFn = func(context.Context) (string, error) { return "prompted-secret", nil }
+	var warning bytes.Buffer
+	passwordStoreWarningWriter = &warning
+	resetInvalidWebPasswordOptOutWarnings()
+	t.Cleanup(resetInvalidWebPasswordOptOutWarnings)
+
+	if _, _, err := resolveSession(context.Background(), "user@example.com", "", ""); err != nil {
+		t.Fatalf("resolveSession() error = %v", err)
+	}
+	if got := warning.String(); !strings.Contains(got, `invalid ASC_WEB_DONT_STORE_PASSWORD value "treu"`) || !strings.Contains(got, "password storage disabled") {
+		t.Fatalf("warning = %q, want invalid opt-out warning with fail-closed behavior", got)
+	}
+}
+
 func TestResolveSessionUsesStoredPasswordAndCachedCookiesForTwoFactorReauth(t *testing.T) {
 	preserveWebPasswordHooks(t)
 	preserveWebLoginHooks(t)
@@ -248,6 +274,49 @@ func TestResolveSessionUsesStoredPasswordAndCachedCookiesForTwoFactorReauth(t *t
 	}
 	if session != expected || source != "auto-reauth" {
 		t.Fatalf("resolveSession() = (%+v, %q), want (%+v, auto-reauth)", session, source, expected)
+	}
+}
+
+func TestResolveSessionPromptedPasswordFallsBackFromExpiredCookiesToFreshClient(t *testing.T) {
+	preserveWebPasswordHooks(t)
+	preserveWebLoginHooks(t)
+	t.Setenv(webPasswordEnv, "")
+	t.Setenv(webDontStorePasswordEnv, "")
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "")
+
+	cachedClient := &http.Client{}
+	expected := &webcore.AuthSession{UserEmail: "user@example.com"}
+	tryResumeSessionFn = func(context.Context, string) (*webcore.AuthSession, bool, error) {
+		return nil, false, webcore.ErrCachedSessionExpired
+	}
+	loadCachedSessionFn = func(string) (*webcore.AuthSession, bool, error) {
+		return &webcore.AuthSession{Client: cachedClient, UserEmail: "user@example.com"}, true, nil
+	}
+	loadStoredWebPasswordFn = func(string) (string, bool, error) { return "", false, nil }
+	promptPasswordFn = func(context.Context) (string, error) { return "prompted-secret", nil }
+	webLoginWithClientFn = func(_ context.Context, client *http.Client, credentials webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		if client != cachedClient || credentials.Password != "prompted-secret" {
+			t.Fatalf("cached login = (%p, %+v), want cached client and prompted password", client, credentials)
+		}
+		return nil, errors.New("cached cookie jar rejected")
+	}
+	freshAttempts := 0
+	webLoginFn = func(_ context.Context, credentials webcore.LoginCredentials) (*webcore.AuthSession, error) {
+		freshAttempts++
+		if credentials.Password != "prompted-secret" {
+			t.Fatalf("fresh password = %q, want prompted-secret", credentials.Password)
+		}
+		return expected, nil
+	}
+	persistWebSessionFn = func(*webcore.AuthSession) error { return nil }
+	storeStoredWebPasswordFn = func(string, string) error { return nil }
+
+	session, source, err := resolveSession(context.Background(), "user@example.com", "", "")
+	if err != nil {
+		t.Fatalf("resolveSession() error = %v", err)
+	}
+	if session != expected || source != "fresh" || freshAttempts != 1 {
+		t.Fatalf("result = (%+v, %q, fresh attempts %d), want fresh fallback", session, source, freshAttempts)
 	}
 }
 
