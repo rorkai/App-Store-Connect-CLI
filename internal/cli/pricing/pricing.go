@@ -749,7 +749,10 @@ func PricingAvailabilityCreateCommand() *ffcli.Command {
 		LongHelp: `Initialize app availability for territories.
 
 Creates the initial app availability record and its territory availability
-entries through the public App Store Connect API. Once created, use
+entries through the public App Store Connect API. Apple can reject this
+bootstrap request even when it matches the published schema. If that happens,
+the command fails without treating availability as configured and explains the
+authenticated web-session or App Store Connect fallback. Once created, use
 "asc pricing availability edit" to update the record.
 
 Examples:
@@ -813,12 +816,30 @@ Examples:
 				TerritoryAvailabilities:   territoryAvailabilities,
 			})
 			if err != nil {
+				if isAvailabilityBootstrapRelationshipRejection(err) {
+					return fmt.Errorf(
+						"pricing availability create: Apple rejected the initial availability request through the public API; availability was not configured. Authenticate a web session with \"asc web auth login --apple-id EMAIL\", then retry with \"asc web apps availability create\", or configure Pricing and Availability in App Store Connect: %w",
+						err,
+					)
+				}
 				return fmt.Errorf("pricing availability create: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func isAvailabilityBootstrapRelationshipRejection(err error) bool {
+	var apiErr *asc.APIError
+	if !errors.As(err, &apiErr) || apiErr.Code != "ENTITY_ERROR.RELATIONSHIP.INVALID" {
+		return false
+	}
+
+	detail := apiErr.Detail
+	return strings.Contains(detail, "territoryAvailabilities.territory") &&
+		strings.Contains(detail, "expects an included resource with type 'territories'") &&
+		strings.Contains(detail, "no matching resource was included")
 }
 
 // PricingAvailabilitySetCommand returns the availability edit subcommand.
@@ -836,7 +857,11 @@ Examples:
 
 Note:
   This command only updates an existing app availability. If the app has no
-  availability record yet, use "asc pricing availability create" first.`,
+  availability record yet, use "asc pricing availability create" first. If
+  Apple rejects public-API bootstrap, authenticate with
+  "asc web auth login --apple-id EMAIL" and use
+  "asc web apps availability create", or configure Pricing and Availability in
+  App Store Connect.`,
 		ErrorPrefix:                      "pricing availability edit",
 		IncludeAvailableInNewTerritories: true,
 	})

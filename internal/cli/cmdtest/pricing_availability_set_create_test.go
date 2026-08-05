@@ -35,7 +35,7 @@ func TestAvailabilitySet_MissingAvailabilityReturnsUpdateOnlyError(t *testing.T)
 				"--output", "json",
 			},
 			wantPrefix: `pricing availability edit: app availability not found for app "app-1"; this command only updates existing app availability`,
-			wantHint:   `use "asc pricing availability create" first`,
+			wantHint:   `use "asc pricing availability create" first. If Apple rejects public-API bootstrap`,
 		},
 		{
 			name: "app-setup availability edit",
@@ -48,7 +48,7 @@ func TestAvailabilitySet_MissingAvailabilityReturnsUpdateOnlyError(t *testing.T)
 				"--output", "json",
 			},
 			wantPrefix: `app-setup availability edit: app availability not found for app "app-1"; this command only updates existing app availability`,
-			wantHint:   `use "asc pricing availability create" first`,
+			wantHint:   `use "asc pricing availability create" first. If Apple rejects public-API bootstrap`,
 		},
 	}
 

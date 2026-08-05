@@ -58,6 +58,8 @@ func TestRun_CapabilitiesJSONReportsKnownGaps(t *testing.T) {
 
 	assertCapability(t, resp, "App Store release submission", "cli-supported", "asc publish appstore --submit")
 	assertCapability(t, resp, "App creation", "web-session", "asc web apps create")
+	assertCapability(t, resp, "Initial app availability bootstrap", "partial", "asc pricing availability create")
+	assertCapability(t, resp, "Initial app availability bootstrap", "partial", "asc web apps availability create")
 	assertCapability(t, resp, "Metadata and localization sync", "cli-supported", "asc metadata init")
 	assertCapability(t, resp, "Metadata and localization sync", "cli-supported", "asc metadata validate")
 	assertCapability(t, resp, "App privacy data-use declarations", "web-session", "asc web privacy")

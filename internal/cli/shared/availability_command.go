@@ -99,7 +99,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				if isAppAvailabilityMissing(err) {
 					return NewErrorWithCause(
 						fmt.Errorf(
-							"%s: app availability not found for app %q; this command only updates existing app availability, so use \"asc pricing availability create\" first: %w",
+							"%s: app availability not found for app %q; this command only updates existing app availability, so use \"asc pricing availability create\" first. If Apple rejects public-API bootstrap, authenticate with \"asc web auth login --apple-id EMAIL\" and use \"asc web apps availability create\", or configure Pricing and Availability in App Store Connect: %w",
 							config.ErrorPrefix,
 							resolvedAppID,
 							asc.ErrNotFound,
