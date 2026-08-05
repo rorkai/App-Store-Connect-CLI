@@ -256,6 +256,41 @@ func TestSendHTTPEventAllowsSlowCollectorResponse(t *testing.T) {
 	}
 }
 
+func TestSendHTTPEventClassifiesPermanentCollectorRejections(t *testing.T) {
+	tests := []struct {
+		name          string
+		statusCode    int
+		wantPermanent bool
+	}{
+		{name: "bad request", statusCode: http.StatusBadRequest, wantPermanent: true},
+		{name: "unprocessable event", statusCode: http.StatusUnprocessableEntity, wantPermanent: true},
+		{name: "request timeout", statusCode: http.StatusRequestTimeout, wantPermanent: false},
+		{name: "rate limited", statusCode: http.StatusTooManyRequests, wantPermanent: false},
+		{name: "server error", statusCode: http.StatusInternalServerError, wantPermanent: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(test.statusCode)
+			}))
+			t.Cleanup(server.Close)
+
+			originalClient := http.DefaultClient
+			http.DefaultClient = server.Client()
+			t.Cleanup(func() { http.DefaultClient = originalClient })
+
+			err := sendHTTPEventToEndpoint(Event{}, server.URL)
+			if err == nil {
+				t.Fatalf("sendHTTPEvent() error = nil for status %d", test.statusCode)
+			}
+			if got := isPermanentDeliveryError(err); got != test.wantPermanent {
+				t.Fatalf("isPermanentDeliveryError(%v) = %t, want %t", err, got, test.wantPermanent)
+			}
+		})
+	}
+}
+
 func TestSendHTTPEventRejectsPlaintextRedirect(t *testing.T) {
 	plaintextHit := false
 	plaintextServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {

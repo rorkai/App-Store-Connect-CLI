@@ -51,6 +51,48 @@ func TestFlushSpoolRetainsOnlyFailedEvents(t *testing.T) {
 	assertSpoolEventIDs(t, store, "event-02")
 }
 
+func TestFlushSpoolDoesNotRetryPermanentCollectorRejections(t *testing.T) {
+	store := testSpoolStore(filepath.Join(t.TempDir(), spoolFileName))
+	for _, id := range []string{"permanent", "retryable", "accepted"} {
+		if err := store.append(testSpoolRecord(id)); err != nil {
+			t.Fatalf("append %s: %v", id, err)
+		}
+	}
+
+	var firstAttempt []string
+	err := flushSpool(store, func(event Event, _ string) error {
+		firstAttempt = append(firstAttempt, event.EventID)
+		switch event.EventID {
+		case "permanent":
+			return &permanentDeliveryError{statusCode: 400}
+		case "retryable":
+			return errors.New("endpoint unavailable")
+		default:
+			return nil
+		}
+	})
+	if err != nil {
+		t.Fatalf("first flushSpool() error = %v", err)
+	}
+	if len(firstAttempt) != 3 {
+		t.Fatalf("first-attempt events = %v, want all three records", firstAttempt)
+	}
+	assertSpoolEventIDs(t, store, "retryable")
+
+	var secondAttempt []string
+	err = flushSpool(store, func(event Event, _ string) error {
+		secondAttempt = append(secondAttempt, event.EventID)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("second flushSpool() error = %v", err)
+	}
+	if len(secondAttempt) != 1 || secondAttempt[0] != "retryable" {
+		t.Fatalf("second-attempt events = %v, want only retryable record", secondAttempt)
+	}
+	assertSpoolEventIDs(t, store)
+}
+
 func TestMaintenanceWorkerDeduplicatesActiveFlushes(t *testing.T) {
 	clearContextEnv(t)
 	setTelemetryTestHome(t)

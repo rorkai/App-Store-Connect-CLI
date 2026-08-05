@@ -164,8 +164,10 @@ Collectors should accept `POST /asc/v1/events`, validate the event schema, add
 server-side receive metadata, and insert accepted events into analytics storage.
 They should return a 2xx response only after that insert commits; temporary
 storage failures should return a retryable non-2xx response so the CLI keeps the
-event in its bounded local spool. Collector credentials must never be shipped
-in the CLI.
+event in its bounded local spool. The CLI retries network errors, HTTP 408, HTTP
+429, and 5xx responses. It acknowledges and removes events rejected with any
+other 4xx response because replay cannot repair an unsupported schema or
+semantic shape. Collector credentials must never be shipped in the CLI.
 
 Recommended ClickHouse table:
 

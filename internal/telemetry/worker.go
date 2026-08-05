@@ -90,6 +90,11 @@ func flushSpoolWhileEnabled(
 				return nil
 			}
 			if err := deliver(record.Event, record.Endpoint); err != nil {
+				if isPermanentDeliveryError(err) {
+					delivered[record.Event.EventID] = struct{}{}
+					debugf("telemetry event permanently rejected: %v", err)
+					continue
+				}
 				hadFailure = true
 				debugf("telemetry send failed: %v", err)
 				continue

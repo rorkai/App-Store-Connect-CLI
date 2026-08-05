@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -19,6 +20,19 @@ const (
 	endpointEnvVar  = "ASC_TELEMETRY_ENDPOINT"
 	maxSendDuration = 3 * time.Second
 )
+
+type permanentDeliveryError struct {
+	statusCode int
+}
+
+func (err *permanentDeliveryError) Error() string {
+	return fmt.Sprintf("unexpected telemetry status %d", err.statusCode)
+}
+
+func isPermanentDeliveryError(err error) bool {
+	var permanentError *permanentDeliveryError
+	return errors.As(err, &permanentError)
+}
 
 func Emit(commandName, version string, duration time.Duration, exitCode int) {
 	EmitWithContext(commandName, version, duration, exitCode, EventContext{InvocationShape: InvocationShapeLeaf})
@@ -129,6 +143,11 @@ func sendHTTPEventToEndpoint(ev Event, endpointURL string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 &&
+			resp.StatusCode != http.StatusRequestTimeout &&
+			resp.StatusCode != http.StatusTooManyRequests {
+			return &permanentDeliveryError{statusCode: resp.StatusCode}
+		}
 		return fmt.Errorf("unexpected telemetry status %d", resp.StatusCode)
 	}
 	return nil
