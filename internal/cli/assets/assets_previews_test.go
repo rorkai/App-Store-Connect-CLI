@@ -38,6 +38,36 @@ func TestAssetsPreviewsUploadCommandRejectsSkipExistingWithReplace(t *testing.T)
 	}
 }
 
+func TestNormalizePreviewTypeCanonicalizesIPhone69Alias(t *testing.T) {
+	testCases := []string{
+		"IPHONE_69",
+		"APP_IPHONE_69",
+		" app_iphone_69 ",
+	}
+
+	for _, input := range testCases {
+		t.Run(input, func(t *testing.T) {
+			got, err := normalizePreviewType(input)
+			if err != nil {
+				t.Fatalf("normalizePreviewType(%q) error: %v", input, err)
+			}
+			if got != "IPHONE_67" {
+				t.Fatalf("normalizePreviewType(%q) = %q, want %q", input, got, "IPHONE_67")
+			}
+		})
+	}
+}
+
+func TestNormalizePreviewTypeRejectsUnknownType(t *testing.T) {
+	_, err := normalizePreviewType("IPHONE_70")
+	if err == nil {
+		t.Fatal("normalizePreviewType() expected an error")
+	}
+	if !strings.Contains(err.Error(), `unsupported preview type "IPHONE_70"`) {
+		t.Fatalf("normalizePreviewType() error = %q", err)
+	}
+}
+
 func TestIsValidPreviewFrameTimeCode(t *testing.T) {
 	tests := []struct {
 		name  string

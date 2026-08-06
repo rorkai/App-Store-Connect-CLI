@@ -612,6 +612,9 @@ func normalizePreviewType(input string) (string, error) {
 		return "", fmt.Errorf("device type is required")
 	}
 	value = strings.TrimPrefix(value, "APP_")
+	if value == "IPHONE_69" {
+		value = "IPHONE_67"
+	}
 	if !asc.IsValidPreviewType(value) {
 		return "", fmt.Errorf("unsupported preview type %q", value)
 	}
