@@ -7,24 +7,42 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Existing release tag to rebuild
+        description: Release tag to build or repair
         required: true
         type: string
+      notarize_existing:
+        description: Notarize an existing release without replacing its assets
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: release-cli-${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
-  release:
+  repair-notarization:
+    if: github.event_name == 'workflow_dispatch' && inputs.notarize_existing
     runs-on: macos-latest
     permissions:
-      contents: write
+      contents: read
     steps:
-      - name: Checkout code
+      - name: Checkout release tag
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.version) || github.ref }}
+          ref: refs/tags/${{ inputs.version }}
+          persist-credentials: false
+
+      - name: Checkout workflow verification tools
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: workflow-source
+          persist-credentials: false
 
       - name: Validate release tag
         env:
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          RELEASE_TAG: ${{ inputs.version }}
         run: |
           TAG="${RELEASE_TAG}"
 
@@ -41,15 +59,336 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Validate notarization secrets
+        env:
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY_B64 }}
+        run: |
+          missing=0
+          for name in APPLE_DEVELOPER_ID ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY_B64; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Required secret ${name} is not set"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Prepare App Store Connect auth
+        env:
+          ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY_B64 }}
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/AuthKey.p8"
+          python3 -c 'import base64, os; from pathlib import Path; Path(os.environ["RUNNER_TEMP"], "AuthKey.p8").write_bytes(base64.b64decode(os.environ["ASC_PRIVATE_KEY_B64"], validate=True))'
+          go build -trimpath -ldflags "-s -w" -o /tmp/asc-notary-bootstrap .
+
+      - name: Verify notarization auth
+        env:
+          ASC_BYPASS_KEYCHAIN: "1"
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY_PATH: ${{ runner.temp }}/AuthKey.p8
+        run: /tmp/asc-notary-bootstrap notarization list --limit 1 --output json >/dev/null
+
+      - name: Download and verify existing release
+        env:
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p existing-release
+          gh release download "${VERSION}" --dir existing-release
+          python3 workflow-source/scripts/verify_release_assets.py --release-dir existing-release --version "${VERSION}"
+          for binary in existing-release/asc_*_macOS_*; do
+            test -f "$binary"
+            codesign --verify --deep --strict --verbose=2 "$binary"
+            authority=$(codesign -dv --verbose=4 "$binary" 2>&1 | sed -n 's/^Authority=//p' | head -n 1)
+            if [ "$authority" != "$APPLE_DEVELOPER_ID" ]; then
+              echo "::error::$(basename "$binary") is signed by an unexpected Developer ID"
+              exit 1
+            fi
+          done
+
+      - name: Notarize existing macOS binaries
+        env:
+          ASC_BYPASS_KEYCHAIN: "1"
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY_PATH: ${{ runner.temp }}/AuthKey.p8
+        run: |
+          for binary in existing-release/asc_*_macOS_*; do
+            archive="${RUNNER_TEMP}/$(basename "$binary").zip"
+            output="${RUNNER_TEMP}/$(basename "$binary").notarization.json"
+            errors="${RUNNER_TEMP}/$(basename "$binary").notarization.stderr"
+            ditto -c -k --keepParent "$binary" "$archive"
+
+            set +e
+            /tmp/asc-notary-bootstrap notarization submit \
+              --file "$archive" \
+              --wait \
+              --timeout 1h \
+              --output json >"$output" 2>"$errors"
+            status=$?
+            set -e
+
+            cat "$errors" >&2 || true
+            cat "$output"
+            submission_id=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("data", {}).get("id", ""))' "$output" 2>/dev/null || true)
+            if [ "$status" -ne 0 ]; then
+              if [ -n "$submission_id" ]; then
+                /tmp/asc-notary-bootstrap notarization log --id "$submission_id" --output json || true
+              fi
+              exit "$status"
+            fi
+
+            ticket_available=0
+            for _ in {1..20}; do
+              if codesign -vvvv -R="notarized" --check-notarization "$binary"; then
+                ticket_available=1
+                break
+              fi
+              sleep 15
+            done
+            if [ "$ticket_available" -ne 1 ]; then
+              echo "::error::Notarization ticket is not available for $(basename "$binary")"
+              exit 1
+            fi
+          done
+
+      - name: Remove notarization credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"
+
+  prepare:
+    name: Resolve release state
+    if: github.event_name != 'workflow_dispatch' || !inputs.notarize_existing
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      published: ${{ steps.release.outputs.published }}
+    steps:
+      - name: Validate release tag
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+        run: |
+          TAG="${RELEASE_TAG}"
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tags must match x.y.z. Got: ${TAG}"
+            exit 1
+          fi
+          printf 'VERSION=%s\n' "$TAG" >> "$GITHUB_ENV"
+          printf 'version=%s\n' "$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Detect published GitHub release
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          release_error="${RUNNER_TEMP}/release-state.stderr"
+          if release_is_draft=$(gh api "repos/${GH_REPO}/releases/tags/${VERSION}" --jq '.draft' 2>"$release_error"); then
+            if [ "$release_is_draft" = "false" ]; then
+              echo "published=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          elif ! grep -Fq "HTTP 404" "$release_error"; then
+            cat "$release_error" >&2
+            exit 1
+          fi
+          echo "published=false" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build, sign, and notarize
+    needs: prepare
+    if: needs.prepare.outputs.published != 'true'
+    runs-on: macos-latest
+    permissions:
+      actions: read
+      contents: read
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.version) || github.ref }}
+          persist-credentials: false
+
+      - name: Check for existing immutable build artifact
+        id: candidate_artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          artifact_name="candidate-release-${VERSION}"
+          release_commit=$(git rev-parse HEAD)
+          artifact_id=$(gh api --paginate "repos/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" | \
+            jq -sr --arg name "$artifact_name" '[.[].artifacts[] | select(.name == $name and .expired == false)][0].id // empty')
+          if [ -n "$artifact_id" ]; then
+            echo "Reusing immutable build artifact ${artifact_name}."
+            echo "reused=true" >> "$GITHUB_OUTPUT"
+            echo "cross_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          draft_dir="${RUNNER_TEMP}/existing-release-draft"
+          draft_has_assets=0
+          release_is_draft=$(gh release view "${VERSION}" --json isDraft --jq '.isDraft' 2>/dev/null || true)
+          if [ "$release_is_draft" = "true" ]; then
+            draft_asset_count=$(gh release view "${VERSION}" --json assets --jq '.assets | length')
+            if [ "$draft_asset_count" -gt 0 ]; then
+              mkdir -p "$draft_dir"
+              gh release download "${VERSION}" --dir "$draft_dir"
+              draft_has_assets=1
+            fi
+          fi
+
+          mkdir -p workflow-artifact
+          default_branch=$(gh api "repos/${GH_REPO}" --jq '.default_branch')
+          while IFS=$'\t' read -r artifact_id artifact_run_id; do
+            [ -n "$artifact_id" ] || continue
+            run_path=""
+            run_head_sha=""
+            run_event=""
+            run_repository=""
+            run_head_branch=""
+            IFS=$'\t' read -r run_path run_head_sha run_event run_repository run_head_branch < <(gh api "repos/${GH_REPO}/actions/runs/${artifact_run_id}" \
+              --jq '[.path, .head_sha, .event, .head_repository.full_name, .head_branch] | @tsv' 2>/dev/null || true)
+            if [ "$run_path" != ".github/workflows/release.yml" ] || [ "$run_repository" != "$GH_REPO" ]; then
+              continue
+            fi
+            case "$run_event" in
+              push) [ "$run_head_sha" = "$release_commit" ] || continue ;;
+              workflow_dispatch) [ "$run_head_branch" = "$default_branch" ] || continue ;;
+              *) continue ;;
+            esac
+            artifact_dir="${RUNNER_TEMP}/candidate-artifact-${artifact_id}"
+            archive_zip="${artifact_dir}/artifact.zip"
+            archive_dir="${artifact_dir}/download"
+            candidate_dir="${artifact_dir}/candidate"
+            mkdir -p "$archive_dir" "$candidate_dir"
+            if ! gh api "repos/${GH_REPO}/actions/artifacts/${artifact_id}/zip" > "$archive_zip"; then
+              continue
+            fi
+            if ! ditto -x -k "$archive_zip" "$archive_dir"; then
+              continue
+            fi
+            archive="${archive_dir}/candidate-release-${VERSION}.tar"
+            provenance="${archive_dir}/candidate-release-${VERSION}.commit"
+            if [ ! -f "$archive" ] || [ ! -f "$provenance" ] || ! test "$(cat "$provenance")" = "$release_commit"; then
+              continue
+            fi
+
+            if [ "$draft_has_assets" -eq 1 ]; then
+              if ! tar -xf "$archive" -C "$candidate_dir"; then
+                continue
+              fi
+              candidate_matches=1
+              while IFS= read -r -d '' draft_asset; do
+                name=$(basename "$draft_asset")
+                if [ ! -f "$candidate_dir/release/$name" ] || ! cmp -s "$draft_asset" "$candidate_dir/release/$name"; then
+                  candidate_matches=0
+                  break
+                fi
+              done < <(find "$draft_dir" -maxdepth 1 -type f -print0)
+              if [ "$candidate_matches" -ne 1 ]; then
+                continue
+              fi
+            fi
+
+            cp "$archive" "workflow-artifact/candidate-release-${VERSION}.tar"
+            cp "$provenance" "workflow-artifact/candidate-release-${VERSION}.commit"
+            echo "Recovered immutable build artifact ${artifact_name} (${artifact_id})."
+            echo "reused=true" >> "$GITHUB_OUTPUT"
+            echo "cross_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          done < <(gh api --paginate -X GET "repos/${GH_REPO}/actions/artifacts" \
+            -f name="$artifact_name" \
+            -f per_page=100 | \
+            jq -sr '[.[].artifacts[]] | sort_by(.created_at) | reverse[] | select(.expired == false) | [.id, .workflow_run.id] | @tsv')
+
+          if [ "$draft_has_assets" -eq 1 ]; then
+            echo "::error::No retained candidate artifact matches the existing draft assets"
+            exit 1
+          fi
+          echo "reused=false" >> "$GITHUB_OUTPUT"
+          echo "cross_run=false" >> "$GITHUB_OUTPUT"
+
+      - name: Materialize recovered immutable release artifact
+        if: steps.candidate_artifact.outputs.cross_run == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-release-${{ needs.prepare.outputs.version }}
+          path: |
+            workflow-artifact/candidate-release-${{ needs.prepare.outputs.version }}.tar
+            workflow-artifact/candidate-release-${{ needs.prepare.outputs.version }}.commit
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Validate release secrets
+        if: steps.candidate_artifact.outputs.reused != 'true'
+        env:
+          APPLE_DEVELOPER_ID_CERT: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
+          APPLE_DEVELOPER_ID_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_PASSWORD }}
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY_B64 }}
+        run: |
+          missing=0
+          for name in APPLE_DEVELOPER_ID_CERT APPLE_DEVELOPER_ID_PASSWORD APPLE_DEVELOPER_ID ASC_KEY_ID ASC_ISSUER_ID ASC_PRIVATE_KEY_B64; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Required secret ${name} is not set"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Set up Go
+        if: steps.candidate_artifact.outputs.reused != 'true'
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
       - name: Install tooling
+        if: steps.candidate_artifact.outputs.reused != 'true'
         run: make tools
 
+      - name: Prepare App Store Connect auth
+        if: steps.candidate_artifact.outputs.reused != 'true'
+        env:
+          ASC_PRIVATE_KEY_B64: ${{ secrets.ASC_PRIVATE_KEY_B64 }}
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/AuthKey.p8"
+          python3 -c 'import base64, os; from pathlib import Path; Path(os.environ["RUNNER_TEMP"], "AuthKey.p8").write_bytes(base64.b64decode(os.environ["ASC_PRIVATE_KEY_B64"], validate=True))'
+          go build -trimpath -ldflags "-s -w" -o /tmp/asc-notary-bootstrap .
+
+      - name: Verify notarization auth
+        if: steps.candidate_artifact.outputs.reused != 'true'
+        env:
+          ASC_BYPASS_KEYCHAIN: "1"
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY_PATH: ${{ runner.temp }}/AuthKey.p8
+        run: /tmp/asc-notary-bootstrap notarization list --limit 1 --output json >/dev/null
+
       - name: Self-test docs validators
+        if: steps.candidate_artifact.outputs.reused != 'true'
         run: python3 scripts/test_check_docs.py
 
       - name: Run release guardrails
+        if: steps.candidate_artifact.outputs.reused != 'true'
         run: |
-          export PATH="$(go env GOPATH)/bin:$PATH"
+          PATH_VALUE="$(go env GOPATH)/bin:$PATH"
+          export PATH="$PATH_VALUE"
           make format-check
           make check-docs
           make check-wall-of-apps
@@ -57,65 +396,317 @@ jobs:
           ASC_BYPASS_KEYCHAIN=1 make test
 
       - name: Create release directory
+        if: steps.candidate_artifact.outputs.reused != 'true'
         run: mkdir -p release
 
       - name: Import Apple certificate
+        if: steps.candidate_artifact.outputs.reused != 'true'
         uses: apple-actions/import-codesign-certs@5142e029c445c10ffc7149d172e540235a065466 # v7
         with:
           p12-file-base64: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
           p12-password: ${{ secrets.APPLE_DEVELOPER_ID_PASSWORD }}
 
-      - parallel:
-          - name: Build macOS binaries
-            run: |
-              COMMIT=$(git rev-parse --short HEAD)
-              DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-              GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_macOS_amd64 .
-              GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_macOS_arm64 .
+      - name: Build macOS binaries
+        if: steps.candidate_artifact.outputs.reused != 'true'
+        run: |
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(git show -s --format=%cI HEAD)
+          GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_macOS_amd64" .
+          GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_macOS_arm64" .
 
-          - name: Build for Linux
-            run: |
-              COMMIT=$(git rev-parse --short HEAD)
-              DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-              GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_linux_amd64 .
-              GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_linux_arm64 .
+      - name: Build for Linux
+        if: steps.candidate_artifact.outputs.reused != 'true'
+        run: |
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(git show -s --format=%cI HEAD)
+          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_linux_amd64" .
+          GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_linux_arm64" .
 
-          - name: Build for Windows
-            run: |
-              COMMIT=$(git rev-parse --short HEAD)
-              DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-              GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o release/asc_${VERSION}_windows_amd64.exe .
+      - name: Build for Windows
+        if: steps.candidate_artifact.outputs.reused != 'true'
+        run: |
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(git show -s --format=%cI HEAD)
+          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" -o "release/asc_${VERSION}_windows_amd64.exe" .
 
       - name: Sign and verify macOS binaries
+        if: steps.candidate_artifact.outputs.reused != 'true'
         env:
           APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
         run: |
-          if [ -z "${APPLE_DEVELOPER_ID}" ]; then
-            echo "::error::APPLE_DEVELOPER_ID not set"
-            exit 1
-          fi
           for binary in release/asc_*_macOS_*; do
             codesign --force --sign "${APPLE_DEVELOPER_ID}" --timestamp --options=runtime "$binary"
             codesign --verify --deep --strict --verbose=2 "$binary"
           done
 
+      - name: Notarize macOS binaries
+        if: steps.candidate_artifact.outputs.reused != 'true'
+        env:
+          ASC_BYPASS_KEYCHAIN: "1"
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY_PATH: ${{ runner.temp }}/AuthKey.p8
+        run: |
+          for binary in release/asc_*_macOS_*; do
+            archive="${RUNNER_TEMP}/$(basename "$binary").zip"
+            output="${RUNNER_TEMP}/$(basename "$binary").notarization.json"
+            errors="${RUNNER_TEMP}/$(basename "$binary").notarization.stderr"
+            ditto -c -k --keepParent "$binary" "$archive"
+
+            set +e
+            /tmp/asc-notary-bootstrap notarization submit \
+              --file "$archive" \
+              --wait \
+              --timeout 1h \
+              --output json >"$output" 2>"$errors"
+            status=$?
+            set -e
+
+            cat "$errors" >&2 || true
+            cat "$output"
+            submission_id=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("data", {}).get("id", ""))' "$output" 2>/dev/null || true)
+            if [ "$status" -ne 0 ]; then
+              if [ -n "$submission_id" ]; then
+                /tmp/asc-notary-bootstrap notarization log --id "$submission_id" --output json || true
+              fi
+              exit "$status"
+            fi
+
+            ticket_available=0
+            for _ in {1..20}; do
+              if codesign -vvvv -R="notarized" --check-notarization "$binary"; then
+                ticket_available=1
+                break
+              fi
+              sleep 15
+            done
+            if [ "$ticket_available" -ne 1 ]; then
+              echo "::error::Notarization ticket is not available for $(basename "$binary")"
+              exit 1
+            fi
+          done
+
+      - name: Remove notarization credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"
+
       - name: Create checksums
+        if: steps.candidate_artifact.outputs.reused != 'true'
         run: |
           cd release
-          shasum -a 256 * > asc_${VERSION}_checksums.txt
+          assets=(asc_*)
+          shasum -a 256 "${assets[@]}" > "asc_${VERSION}_checksums.txt"
 
       - name: Display files
+        if: steps.candidate_artifact.outputs.reused != 'true'
         run: ls -la release/
 
-      - name: Create or update GitHub Release
+      - name: Pack immutable release artifact
+        if: steps.candidate_artifact.outputs.reused != 'true'
+        run: |
+          mkdir -p workflow-artifact
+          tar -cf "workflow-artifact/candidate-release-${VERSION}.tar" release
+          git rev-parse HEAD > "workflow-artifact/candidate-release-${VERSION}.commit"
+
+      - name: Upload immutable release artifact
+        if: steps.candidate_artifact.outputs.reused != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-release-${{ needs.prepare.outputs.version }}
+          path: |
+            workflow-artifact/candidate-release-${{ needs.prepare.outputs.version }}.tar
+            workflow-artifact/candidate-release-${{ needs.prepare.outputs.version }}.commit
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish GitHub release
+    needs:
+      - prepare
+      - build
+    if: >-
+      always() &&
+      needs.prepare.result == 'success' &&
+      (needs.prepare.outputs.published == 'true' || needs.build.result == 'success')
+    runs-on: macos-latest
+    permissions:
+      actions: read
+      contents: write
+    outputs:
+      version: ${{ needs.prepare.outputs.version }}
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - name: Checkout workflow release tools
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: workflow-source
+          persist-credentials: false
+
+      - name: Check for existing published artifact
+        id: published_artifact
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          if gh release view "${VERSION}" >/dev/null 2>&1; then
-            gh release upload "${VERSION}" release/* --clobber
+          artifact_name="published-release-${VERSION}"
+          artifact_id=$(gh api --paginate "repos/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" | \
+            jq -sr --arg name "$artifact_name" '[.[].artifacts[] | select(.name == $name and .expired == false)][0].id // empty')
+          if [ -n "$artifact_id" ]; then
+            echo "Reusing immutable published artifact ${artifact_name}."
+            echo "reused=true" >> "$GITHUB_OUTPUT"
           else
-            gh release create "${VERSION}" release/* --generate-notes --verify-tag
+            echo "reused=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Download immutable release artifact
+        if: steps.published_artifact.outputs.reused != 'true' && needs.prepare.outputs.published != 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: candidate-release-${{ needs.prepare.outputs.version }}
+          path: workflow-artifact
+
+      - name: Unpack and verify release artifact
+        if: steps.published_artifact.outputs.reused != 'true' && needs.prepare.outputs.published != 'true'
+        run: |
+          tar -xf "workflow-artifact/candidate-release-${VERSION}.tar"
+          python3 workflow-source/scripts/verify_release_assets.py --release-dir release --version "${VERSION}"
+
+      - name: Recover and verify existing published release
+        if: steps.published_artifact.outputs.reused != 'true' && needs.prepare.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p published-release
+          gh release download "${VERSION}" --repo "${GH_REPO}" --dir published-release
+          python3 workflow-source/scripts/verify_release_assets.py --release-dir published-release --version "${VERSION}"
+
+      - name: Create, resume, or verify GitHub Release
+        if: steps.published_artifact.outputs.reused != 'true' && needs.prepare.outputs.published != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          expected_names="${RUNNER_TEMP}/expected-release-assets.txt"
+          published_names="${RUNNER_TEMP}/published-release-assets.txt"
+          checksum_name="asc_${VERSION}_checksums.txt"
+          find release -maxdepth 1 -type f -exec basename {} \; | LC_ALL=C sort > "$expected_names"
+          mkdir -p published-release
+
+          if ! gh release view "${VERSION}" >/dev/null 2>&1; then
+            gh release create "${VERSION}" --draft --generate-notes --verify-tag
+          fi
+
+          release_is_draft=$(gh release view "${VERSION}" --json isDraft --jq '.isDraft')
+          gh release view "${VERSION}" --json assets --jq '.assets[].name' | LC_ALL=C sort > "$published_names"
+
+          if [ "$release_is_draft" = "true" ]; then
+            unexpected_names=$(comm -13 "$expected_names" "$published_names" || true)
+            if [ -n "$unexpected_names" ]; then
+              echo "::error::Draft release contains unexpected assets"
+              echo "$unexpected_names"
+              exit 1
+            fi
+
+            if grep -Fxq "$checksum_name" "$published_names"; then
+              if ! cmp -s "$expected_names" "$published_names"; then
+                echo "::error::Draft release has a checksum but is missing required assets"
+                diff -u "$expected_names" "$published_names" || true
+                exit 1
+              fi
+              gh release download "${VERSION}" --dir published-release
+            else
+              for asset in release/asc_*; do
+                name=$(basename "$asset")
+                if [ "$name" = "$checksum_name" ]; then
+                  continue
+                fi
+                if grep -Fxq "$name" "$published_names"; then
+                  gh release download "${VERSION}" --pattern "$name" --dir published-release
+                  if ! cmp -s "$asset" "published-release/$name"; then
+                    echo "::error::Draft asset ${name} differs from the immutable build artifact"
+                    exit 1
+                  fi
+                else
+                  gh release upload "${VERSION}" "$asset"
+                  cp "$asset" published-release/
+                fi
+              done
+
+              (
+                cd published-release
+                binaries=(asc_*)
+                shasum -a 256 "${binaries[@]}" > "$checksum_name"
+              )
+              gh release upload "${VERSION}" "published-release/${checksum_name}"
+            fi
+
+            gh release view "${VERSION}" --json assets --jq '.assets[].name' | LC_ALL=C sort > "$published_names"
+            if ! cmp -s "$expected_names" "$published_names"; then
+              echo "::error::Draft release does not contain the exact expected assets"
+              diff -u "$expected_names" "$published_names" || true
+              exit 1
+            fi
+          else
+            if ! cmp -s "$expected_names" "$published_names"; then
+              echo "::error::Published release has an unexpected asset set"
+              diff -u "$expected_names" "$published_names" || true
+              exit 1
+            fi
+            gh release download "${VERSION}" --dir published-release
+          fi
+
+          python3 workflow-source/scripts/verify_release_assets.py --release-dir published-release --version "${VERSION}"
+          if [ "$release_is_draft" = "true" ]; then
+            gh release edit "${VERSION}" --draft=false
+          fi
+
+      - name: Pack immutable published artifact
+        if: steps.published_artifact.outputs.reused != 'true'
+        run: |
+          mkdir -p workflow-artifact
+          rm -rf release
+          mv published-release release
+          tar -cf "workflow-artifact/published-release-${VERSION}.tar" release
+
+      - name: Upload immutable published artifact
+        if: steps.published_artifact.outputs.reused != 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: published-release-${{ needs.prepare.outputs.version }}
+          path: workflow-artifact/published-release-${{ needs.prepare.outputs.version }}.tar
+          if-no-files-found: error
+          retention-days: 14
+
+  homebrew:
+    name: Update Homebrew tap
+    needs: publish
+    runs-on: macos-latest
+    permissions:
+      actions: read
+      contents: read
+    env:
+      VERSION: ${{ needs.publish.outputs.version }}
+    steps:
+      - name: Checkout workflow release tools
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: workflow-source
+          persist-credentials: false
+
+      - name: Download immutable release artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: published-release-${{ needs.publish.outputs.version }}
+          path: workflow-artifact
+
+      - name: Unpack and verify release artifact
+        run: |
+          tar -xf "workflow-artifact/published-release-${VERSION}.tar"
+          python3 workflow-source/scripts/verify_release_assets.py --release-dir release --version "${VERSION}"
 
       - name: Update Homebrew tap
         env:
@@ -126,14 +717,13 @@ jobs:
             exit 1
           fi
 
-          export SHA256_AMD64=$(shasum -a 256 release/asc_${VERSION}_macOS_amd64 | cut -d ' ' -f 1)
-          export SHA256=$(shasum -a 256 release/asc_${VERSION}_macOS_arm64 | cut -d ' ' -f 1)
+          SHA256_AMD64=$(shasum -a 256 "release/asc_${VERSION}_macOS_amd64" | cut -d ' ' -f 1)
+          SHA256=$(shasum -a 256 "release/asc_${VERSION}_macOS_arm64" | cut -d ' ' -f 1)
+          export SHA256_AMD64 SHA256
 
-          # Clone the tap repo
-          git clone https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/rorkai/homebrew-tap.git homebrew-tap
+          git clone "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/rorkai/homebrew-tap.git" homebrew-tap
           cd homebrew-tap
 
-          # Update the formula
           python3 - <<'PY'
           import os
           from pathlib import Path
@@ -174,7 +764,7 @@ jobs:
                 end
 
                 test do
-                  assert_match "asc is a fast, lightweight CLI for App Store Connect", shell_output("#{{bin}}/asc --help")
+                  assert_match version.to_s, shell_output("#{{bin}}/asc --version")
                 end
               end
               """
@@ -182,25 +772,63 @@ jobs:
           Path("Formula/asc.rb").write_text(formula, encoding="utf-8")
           PY
 
-          # Commit and push
           git config user.name "Rudrank Riyam"
           git config user.email "rudrankriyam@gmail.com"
           git add Formula/asc.rb
-          git commit -m "Update asc to ${VERSION}" || echo "No changes to commit"
-          git push
+          if git diff --cached --quiet; then
+            echo "Homebrew formula is already current."
+          else
+            git commit -m "Update asc to ${VERSION}"
+            git push
+          fi
+
+  winget:
+    name: Submit WinGet package
+    needs: publish
+    runs-on: macos-latest
+    permissions:
+      actions: read
+      contents: read
+    env:
+      VERSION: ${{ needs.publish.outputs.version }}
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ needs.publish.outputs.version }}
+          persist-credentials: false
+
+      - name: Checkout workflow verification tools
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: workflow-source
+          persist-credentials: false
+
+      - name: Download immutable release artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: published-release-${{ needs.publish.outputs.version }}
+          path: workflow-artifact
+
+      - name: Unpack and verify release artifact
+        run: |
+          tar -xf "workflow-artifact/published-release-${VERSION}.tar"
+          python3 workflow-source/scripts/verify_release_assets.py --release-dir release --version "${VERSION}"
 
       - name: Generate WinGet manifests
         run: |
           python3 scripts/generate_winget_manifests.py \
             --version "${VERSION}" \
             --release-dir release \
-            --output-dir release/winget
+            --output-dir winget-output
 
       - name: Upload WinGet manifests artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: winget-manifests-${{ env.VERSION }}
-          path: release/winget/manifests/r/Rorkai/ASC/${{ env.VERSION }}
+          name: winget-manifests-${{ needs.publish.outputs.version }}-${{ github.run_attempt }}
+          path: winget-output/manifests/r/Rorkai/ASC/${{ needs.publish.outputs.version }}
+          if-no-files-found: error
 
       - name: Submit WinGet package PR
         env:
@@ -212,13 +840,13 @@ jobs:
             exit 1
           fi
 
-          AUTH_LOGIN="$(gh api user --jq .login)"
+          AUTH_LOGIN=$(gh api user --jq .login)
           if [ -z "$WINGET_FORK_OWNER" ]; then
             WINGET_FORK_OWNER="${AUTH_LOGIN}"
           fi
 
           BRANCH="rorkai-asc-${VERSION}"
-          MANIFEST_SOURCE="${PWD}/release/winget/manifests/r/Rorkai/ASC/${VERSION}"
+          MANIFEST_SOURCE="${PWD}/winget-output/manifests/r/Rorkai/ASC/${VERSION}"
 
           if ! gh repo view "${WINGET_FORK_OWNER}/winget-pkgs" >/dev/null 2>&1; then
             if [ "${WINGET_FORK_OWNER}" = "${AUTH_LOGIN}" ]; then
@@ -231,22 +859,44 @@ jobs:
           git clone --filter=blob:none --sparse "https://x-access-token:${GH_TOKEN}@github.com/${WINGET_FORK_OWNER}/winget-pkgs.git" winget-pkgs
           cd winget-pkgs
           git remote add upstream https://github.com/microsoft/winget-pkgs.git
-          git fetch upstream master --depth 1
-          git fetch origin "${BRANCH}:refs/remotes/origin/${BRANCH}" --depth 1 || true
+          git fetch origin master
+          git fetch upstream master
+          if ! git merge-base --is-ancestor origin/master upstream/master; then
+            echo "::error::The WinGet fork master branch is not an ancestor of upstream/master"
+            exit 1
+          fi
+
+          git fetch origin "${BRANCH}:refs/remotes/origin/${BRANCH}" || true
           BRANCH_EXISTS=0
           if git show-ref --verify --quiet "refs/remotes/origin/${BRANCH}"; then
             BRANCH_EXISTS=1
             git checkout -B "${BRANCH}" "origin/${BRANCH}"
           else
-            git checkout -B "${BRANCH}" upstream/master
+            git checkout -b "${BRANCH}" upstream/master
           fi
           git sparse-checkout set "manifests/r/Rorkai/ASC"
+
+          verify_winget_scope() {
+            unexpected_paths=()
+            while IFS= read -r -d '' changed_path; do
+              case "$changed_path" in
+                "manifests/r/Rorkai/ASC/${VERSION}/"*) ;;
+                *) unexpected_paths+=("$changed_path") ;;
+              esac
+            done < <(git diff --name-only -z upstream/master...HEAD)
+            if [ "${#unexpected_paths[@]}" -ne 0 ]; then
+              echo "::error::WinGet branch contains changes outside the ${VERSION} manifest directory"
+              printf '%s\n' "${unexpected_paths[@]}"
+              exit 1
+            fi
+          }
+          verify_winget_scope
 
           PR_KIND="New package"
           if [ -d manifests/r/Rorkai/ASC ] && find manifests/r/Rorkai/ASC -mindepth 1 -maxdepth 1 -type d | grep -q .; then
             PR_KIND="New version"
           fi
-          OPEN_PACKAGE_PRS="$(gh pr list --repo microsoft/winget-pkgs --state open --search "Rorkai.ASC in:title" --json headRefName --jq "[.[] | select(.headRefName != \"${BRANCH}\")] | length" || echo "0")"
+          OPEN_PACKAGE_PRS=$(gh pr list --repo microsoft/winget-pkgs --state open --search "Rorkai.ASC in:title" --json headRefName --jq "[.[] | select(.headRefName != \"${BRANCH}\")] | length" || echo "0")
           if [ "${PR_KIND}" = "New package" ] && [ "${OPEN_PACKAGE_PRS}" != "0" ]; then
             PR_KIND="New version"
           fi
@@ -265,7 +915,12 @@ jobs:
             echo "WinGet manifests for ${VERSION} already exist on ${BRANCH}; checking for an open PR."
           else
             git commit -m "${PR_KIND}: Rorkai.ASC version ${VERSION}"
-            git push --force-with-lease origin "${BRANCH}"
+            verify_winget_scope
+            if [ "${BRANCH_EXISTS}" = "1" ]; then
+              git push origin "${BRANCH}"
+            else
+              git push --set-upstream origin "${BRANCH}"
+            fi
           fi
 
           if gh pr list --repo microsoft/winget-pkgs --state open --search "Rorkai.ASC version ${VERSION} in:title" --json number --jq '.[0].number // empty' | grep -q .; then
