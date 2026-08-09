@@ -16,6 +16,7 @@ const (
 	developerPortalAccountURL = developerPortalBaseURL + "/account"
 	developerServicesBaseURL  = developerPortalBaseURL + "/services-account/v1"
 	privateCloudCompute       = "PRIVATE_CLOUD_COMPUTE"
+	developerPortalAuthHint   = "run 'asc web auth logout --apple-id EMAIL', then 'asc web auth login --apple-id EMAIL', and try again"
 )
 
 var supportedDeveloperBundleIDCapabilities = map[string]struct{}{
@@ -161,7 +162,7 @@ func (c *Client) EnableDeveloperBundleIDCapability(ctx context.Context, req Deve
 
 	csrf, csrfTS := c.developerCSRFTokens()
 	if csrf == "" || csrfTS == "" {
-		return nil, fmt.Errorf("missing Developer Portal CSRF headers; run 'asc web auth login --apple-id EMAIL --reauthenticate' and try again")
+		return nil, fmt.Errorf("missing Developer Portal CSRF headers; %s", developerPortalAuthHint)
 	}
 	path := "/bundleIds/" + url.PathEscape(req.BundleID)
 	if _, err := c.doDeveloperPortalRequest(ctx, http.MethodPatch, path, payload, developerPortalHeaders(req.BundleID), true); err != nil {
@@ -192,7 +193,7 @@ func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 		return &APIError{Status: response.StatusCode, AppleRequestID: extractAppleRequestID(response.Header), rawBody: body}
 	}
 	if response.Request != nil && response.Request.URL != nil && !strings.EqualFold(response.Request.URL.Hostname(), "developer.apple.com") {
-		return fmt.Errorf("authentication redirected to %s instead of Developer Portal; run 'asc web auth login --apple-id EMAIL --reauthenticate' and try again", response.Request.URL.Hostname())
+		return fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", response.Request.URL.Hostname(), developerPortalAuthHint)
 	}
 	return nil
 }
@@ -552,5 +553,5 @@ func (c *Client) developerCSRFTokens() (string, string) {
 }
 
 func developerPortalSessionError(status int) error {
-	return fmt.Errorf("web session is unauthorized or expired for Developer Portal (status %d); run 'asc web auth login --apple-id EMAIL --reauthenticate' and try again", status)
+	return fmt.Errorf("web session is unauthorized or expired for Developer Portal (status %d); %s", status, developerPortalAuthHint)
 }

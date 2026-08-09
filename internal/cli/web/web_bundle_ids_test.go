@@ -141,6 +141,19 @@ func TestWebBundleIDCapabilitiesEnableValidationErrors(t *testing.T) {
 	}
 }
 
+func TestWebBundleIDCapabilitiesEnableHelpUsesSupportedLoginFlags(t *testing.T) {
+	cmd := WebBundleIDCapabilitiesEnableCommand()
+	if strings.Contains(cmd.LongHelp, "--reauthenticate") {
+		t.Fatalf("enable help recommends unsupported web auth login flag: %q", cmd.LongHelp)
+	}
+	if !strings.Contains(cmd.LongHelp, `asc web auth logout --apple-id "user@example.com"`) {
+		t.Fatalf("enable help is missing the supported cache-clear command: %q", cmd.LongHelp)
+	}
+	if !strings.Contains(cmd.LongHelp, `asc web auth login --apple-id "user@example.com"`) {
+		t.Fatalf("enable help is missing the supported login command: %q", cmd.LongHelp)
+	}
+}
+
 func TestWebBundleIDCapabilitiesEnableCallsDeveloperPortalClient(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	origNewWebClient := newWebClientFn

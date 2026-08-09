@@ -382,7 +382,7 @@ func TestEnableDeveloperBundleIDCapabilityRequiresDeveloperPortalSession(t *test
 		BundleID:   "bundle-1",
 		Capability: "PRIVATE_CLOUD_COMPUTE",
 	})
-	if err == nil || !strings.Contains(err.Error(), "Developer Portal") || !strings.Contains(err.Error(), "asc web auth login") {
+	if err == nil || !strings.Contains(err.Error(), "Developer Portal") || !strings.Contains(err.Error(), "asc web auth login") || strings.Contains(err.Error(), "--reauthenticate") {
 		t.Fatalf("error = %v", err)
 	}
 }
@@ -408,7 +408,7 @@ func TestEnableDeveloperBundleIDCapabilityRequiresCSRFTokensBeforePatch(t *testi
 		BundleID:   "bundle-1",
 		Capability: "PRIVATE_CLOUD_COMPUTE",
 	})
-	if err == nil || !strings.Contains(err.Error(), "CSRF") || !strings.Contains(err.Error(), "asc web auth login") {
+	if err == nil || !strings.Contains(err.Error(), "CSRF") || !strings.Contains(err.Error(), "asc web auth login") || strings.Contains(err.Error(), "--reauthenticate") {
 		t.Fatalf("error = %v", err)
 	}
 }

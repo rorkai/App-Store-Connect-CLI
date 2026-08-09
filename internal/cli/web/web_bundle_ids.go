@@ -107,8 +107,9 @@ Example:
 Authentication:
   This command needs Developer Portal cookies and CSRF headers derived from the
   user-owned Apple web session. If a cached App Store Connect-only session cannot
-  be promoted, refresh it with:
-  asc web auth login --apple-id "user@example.com" --reauthenticate
+  be promoted, clear only its cached session and log in again with the same binary:
+  asc web auth logout --apple-id "user@example.com"
+  asc web auth login --apple-id "user@example.com"
 
 `,
 		FlagSet:   fs,
