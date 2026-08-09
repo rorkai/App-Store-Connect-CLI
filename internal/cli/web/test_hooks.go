@@ -59,6 +59,14 @@ func SetSyncAppClipBundleIDCapability(fn func(context.Context, *webcore.Client, 
 	}
 }
 
+func SetEnableDeveloperBundleIDCapability(fn func(context.Context, *webcore.Client, webcore.DeveloperBundleIDCapabilityEnableRequest) (*webcore.DeveloperBundleIDCapabilityEnableResult, error)) func() {
+	prev := enableDeveloperBundleIDCapabilityFn
+	enableDeveloperBundleIDCapabilityFn = fn
+	return func() {
+		enableDeveloperBundleIDCapabilityFn = prev
+	}
+}
+
 // DisableControllingTTYForTesting prevents tests from opening the process's
 // controlling terminal. The returned function restores the previous behavior.
 func DisableControllingTTYForTesting() func() {

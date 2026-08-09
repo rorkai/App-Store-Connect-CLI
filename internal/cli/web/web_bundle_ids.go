@@ -19,6 +19,10 @@ var syncAppClipBundleIDCapabilityFn = func(ctx context.Context, client *webcore.
 	return client.SyncAppClipBundleIDCapability(ctx, req)
 }
 
+var enableDeveloperBundleIDCapabilityFn = func(ctx context.Context, client *webcore.Client, req webcore.DeveloperBundleIDCapabilityEnableRequest) (*webcore.DeveloperBundleIDCapabilityEnableResult, error) {
+	return client.EnableDeveloperBundleIDCapability(ctx, req)
+}
+
 // WebBundleIDsCommand returns the Bundle ID command group.
 func WebBundleIDsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("web bundle-ids", flag.ExitOnError)
@@ -50,19 +54,118 @@ func WebBundleIDCapabilitiesCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "capabilities",
 		ShortUsage: "asc web bundle-ids capabilities <subcommand> [flags]",
-		ShortHelp:  "Sync Bundle ID capabilities via web sessions.",
+		ShortHelp:  "Manage Bundle ID capabilities via web sessions.",
 		LongHelp: `WEB SESSION WORKFLOWS
 
-Sync Bundle ID capabilities through Apple's Bundle ID patch endpoint.
+Manage Bundle ID capabilities through Apple's App Store Connect and Developer
+Portal web-session endpoints.
 
 `,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
+			WebBundleIDCapabilitiesEnableCommand(),
 			WebBundleIDCapabilitiesSyncAppClipCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
+		},
+	}
+}
+
+// WebBundleIDCapabilitiesEnableCommand enables a Developer Portal-only Bundle
+// ID capability while preserving all existing capability relationships.
+func WebBundleIDCapabilitiesEnableCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("web bundle-ids capabilities enable", flag.ExitOnError)
+
+	bundleID := fs.String("bundle-id", "", "Opaque Developer Portal Bundle ID resource ID")
+	capability := fs.String("capability", "", "Developer Portal capability ID (supported: PRIVATE_CLOUD_COMPUTE)")
+	confirm := fs.Bool("confirm", false, "Confirm enabling this Bundle ID capability")
+	authFlags := bindWebSessionFlags(fs)
+	output := shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "enable",
+		ShortUsage: "asc web bundle-ids capabilities enable --bundle-id BUNDLE_RESOURCE_ID --capability PRIVATE_CLOUD_COMPUTE --confirm [flags]",
+		ShortHelp:  "Enable a Developer Portal-only Bundle ID capability.",
+		LongHelp: `WEB SESSION WORKFLOWS
+
+Enable a Bundle ID capability that is exposed by Apple Developer Portal but is
+absent from the public App Store Connect capability enum.
+
+The command loads Developer Portal capability metadata and the complete current
+Bundle ID capability graph before saving. Existing settings and relationships
+are preserved. If the requested capability is already enabled, the command
+returns an already-enabled result without sending a PATCH.
+
+Currently supported capability IDs:
+  PRIVATE_CLOUD_COMPUTE
+
+Example:
+  asc web bundle-ids capabilities enable --bundle-id "BUNDLE_RESOURCE_ID" --capability "PRIVATE_CLOUD_COMPUTE" --confirm
+
+Authentication:
+  This command needs Developer Portal cookies and CSRF headers derived from the
+  user-owned Apple web session. If a cached App Store Connect-only session cannot
+  be promoted, refresh it with:
+  asc web auth login --apple-id "user@example.com" --reauthenticate
+
+`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageError("web bundle-ids capabilities enable does not accept positional arguments")
+			}
+
+			resolvedBundleID := strings.TrimSpace(*bundleID)
+			resolvedCapability := strings.ToUpper(strings.TrimSpace(*capability))
+			switch {
+			case resolvedBundleID == "":
+				return shared.UsageError("--bundle-id is required")
+			case resolvedCapability == "":
+				return shared.UsageError("--capability is required")
+			case !*confirm:
+				return shared.UsageError("--confirm is required")
+			case resolvedCapability != "PRIVATE_CLOUD_COMPUTE":
+				return shared.UsageErrorf("unsupported Developer Portal capability %q (supported: PRIVATE_CLOUD_COMPUTE)", resolvedCapability)
+			}
+
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+
+			session, err := resolveWebSessionForCommand(requestCtx, authFlags)
+			if err != nil {
+				return err
+			}
+			client := newWebClientFn(session)
+
+			var result *webcore.DeveloperBundleIDCapabilityEnableResult
+			err = withWebSpinner("Enabling Developer Portal Bundle ID capability", func() error {
+				var enableErr error
+				result, enableErr = enableDeveloperBundleIDCapabilityFn(requestCtx, client, webcore.DeveloperBundleIDCapabilityEnableRequest{
+					BundleID:   resolvedBundleID,
+					Capability: resolvedCapability,
+				})
+				return enableErr
+			})
+			if err != nil {
+				return withWebAuthHint(err, "web bundle-ids capabilities enable")
+			}
+			if result == nil {
+				return fmt.Errorf("web bundle-ids capabilities enable failed: missing enable result")
+			}
+			// Developer Portal bootstrap can add origin-specific cookies to the
+			// shared jar. Cache them best-effort after the operation succeeds.
+			_ = persistWebSessionFn(session)
+
+			return shared.PrintOutputWithRenderers(
+				result,
+				*output.Output,
+				*output.Pretty,
+				func() error { return renderDeveloperBundleIDCapabilityEnableTable(result) },
+				func() error { return renderDeveloperBundleIDCapabilityEnableMarkdown(result) },
+			)
 		},
 	}
 }
@@ -199,6 +302,34 @@ func renderWebBundleIDCapabilitySyncMarkdown(result *webcore.AppClipBundleIDCapa
 			result.ParentBundleID,
 			result.Capability,
 			fmt.Sprintf("%t", result.Enabled),
+		}},
+	)
+	return nil
+}
+
+func renderDeveloperBundleIDCapabilityEnableTable(result *webcore.DeveloperBundleIDCapabilityEnableResult) error {
+	asc.RenderTable(
+		[]string{"Bundle ID", "Capability", "Enabled", "Changed", "Status"},
+		[][]string{{
+			result.BundleID,
+			result.Capability,
+			fmt.Sprintf("%t", result.Enabled),
+			fmt.Sprintf("%t", result.Changed),
+			result.Status,
+		}},
+	)
+	return nil
+}
+
+func renderDeveloperBundleIDCapabilityEnableMarkdown(result *webcore.DeveloperBundleIDCapabilityEnableResult) error {
+	asc.RenderMarkdown(
+		[]string{"Bundle ID", "Capability", "Enabled", "Changed", "Status"},
+		[][]string{{
+			result.BundleID,
+			result.Capability,
+			fmt.Sprintf("%t", result.Enabled),
+			fmt.Sprintf("%t", result.Changed),
+			result.Status,
 		}},
 	)
 	return nil

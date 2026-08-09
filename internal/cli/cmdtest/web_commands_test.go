@@ -77,6 +77,19 @@ func TestWebBundleIDCapabilitiesSyncAppClipSubcommandIsRegistered(t *testing.T) 
 	}
 }
 
+func TestWebBundleIDCapabilitiesEnableSubcommandIsRegistered(t *testing.T) {
+	root := RootCommand("1.2.3")
+	sub := findSubcommand(root, "web", "bundle-ids", "capabilities", "enable")
+	if sub == nil {
+		t.Fatalf("expected web bundle-ids capabilities enable to be registered")
+	}
+	for _, flagName := range []string{"bundle-id", "capability", "confirm", "apple-id", "output"} {
+		if sub.FlagSet.Lookup(flagName) == nil {
+			t.Fatalf("expected --%s flag", flagName)
+		}
+	}
+}
+
 func TestWebSandboxCreateSubcommandIsRegistered(t *testing.T) {
 	root := RootCommand("1.2.3")
 	if sub := findSubcommand(root, "web", "sandbox", "create"); sub == nil {

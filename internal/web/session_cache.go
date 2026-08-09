@@ -215,6 +215,7 @@ func legacyIrisLastFilePath() (string, error) {
 func sessionCookieURLs() []*url.URL {
 	return []*url.URL{
 		{Scheme: "https", Host: "appstoreconnect.apple.com", Path: "/"},
+		{Scheme: "https", Host: "developer.apple.com", Path: "/"},
 		{Scheme: "https", Host: "idmsa.apple.com", Path: "/"},
 		{Scheme: "https", Host: "gsa.apple.com", Path: "/"},
 	}

@@ -428,6 +428,15 @@ func capabilityRows() []Capability {
 			},
 		},
 		{
+			Area:         "signing",
+			Capability:   "Developer Portal-only Bundle ID capabilities",
+			Status:       statusWebSession,
+			Commands:     []string{"asc web bundle-ids capabilities enable"},
+			APIResources: []string{"PRIVATE_CLOUD_COMPUTE"},
+			Notes:        []string{"Supports explicitly modeled Developer Portal capabilities that are absent from Apple's public App Store Connect capability enum; currently PRIVATE_CLOUD_COMPUTE."},
+			NextAction:   "Use asc web bundle-ids capabilities enable with a Developer Portal Bundle ID resource ID and --confirm.",
+		},
+		{
 			Area:       "automation",
 			Capability: "Xcode Cloud workflows and artifacts",
 			Status:     statusCLISupported,

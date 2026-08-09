@@ -809,6 +809,25 @@ func TestHydrateCookieJarSkipsExpiredCookies(t *testing.T) {
 	}
 }
 
+func TestSerializeCookieJarIncludesDeveloperPortalOrigin(t *testing.T) {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error: %v", err)
+	}
+	developerURL, err := url.Parse("https://developer.apple.com/")
+	if err != nil {
+		t.Fatalf("url.Parse() error: %v", err)
+	}
+	jar.SetCookies(developerURL, []*http.Cookie{
+		{Name: "myacinfo", Value: "developer-session", Secure: true},
+	})
+
+	serialized := serializeCookieJar(jar, "user@example.com")
+	if got := persistedMyacinfoCookieValue(serialized, "https://developer.apple.com/"); got != "developer-session" {
+		t.Fatalf("developer portal cookie = %q, want persisted session", got)
+	}
+}
+
 func TestPersistSessionUsesSingleSharedKeychainStore(t *testing.T) {
 	kr := withArraySessionKeyring(t)
 	t.Setenv(webSessionBackendEnv, "keychain")
@@ -994,7 +1013,7 @@ func TestTryResumeSessionPersistsRefreshedCookies(t *testing.T) {
 		t.Fatal("expected refreshed session in cache")
 	}
 
-	if got := persistedCookieValue(stored, "https://appstoreconnect.apple.com/", "myacinfo"); got != "refreshed-token" {
+	if got := persistedMyacinfoCookieValue(stored, "https://appstoreconnect.apple.com/"); got != "refreshed-token" {
 		t.Fatalf("expected refreshed cookie value, got %q", got)
 	}
 }
@@ -1052,7 +1071,7 @@ func TestTryResumeLastSessionPersistsRefreshedCookies(t *testing.T) {
 	if !ok {
 		t.Fatal("expected refreshed session in cache")
 	}
-	if got := persistedCookieValue(stored, "https://appstoreconnect.apple.com/", "myacinfo"); got != "new-token" {
+	if got := persistedMyacinfoCookieValue(stored, "https://appstoreconnect.apple.com/"); got != "new-token" {
 		t.Fatalf("expected refreshed cookie value, got %q", got)
 	}
 }
@@ -1336,7 +1355,7 @@ func TestTryResumeSessionMigratesLegacyIrisFileCache(t *testing.T) {
 	if !ok {
 		t.Fatal("expected migrated session in web cache")
 	}
-	if got := persistedCookieValue(stored, "https://appstoreconnect.apple.com/", "myacinfo"); got != "legacy-iris-token" {
+	if got := persistedMyacinfoCookieValue(stored, "https://appstoreconnect.apple.com/"); got != "legacy-iris-token" {
 		t.Fatalf("expected migrated legacy cookie value, got %q", got)
 	}
 	if _, err := os.Stat(filepath.Join(legacyDir, "session-"+key+".json")); !os.IsNotExist(err) {
@@ -2012,10 +2031,10 @@ func TestClearLastSessionMarkerDefaultBackendIgnoresUnavailableKeychainFallback(
 	}
 }
 
-func persistedCookieValue(sess persistedSession, baseURL, cookieName string) string {
+func persistedMyacinfoCookieValue(sess persistedSession, baseURL string) string {
 	list := sess.Cookies[baseURL]
 	for _, cookie := range list {
-		if cookie.Name == cookieName {
+		if cookie.Name == "myacinfo" {
 			return cookie.Value
 		}
 	}

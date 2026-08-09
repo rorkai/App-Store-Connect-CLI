@@ -154,6 +154,10 @@ type Client struct {
 	httpClient *http.Client
 	baseURL    string
 
+	developerSessionMu sync.Mutex
+	developerCSRF      string
+	developerCSRFTS    string
+
 	// Requests are intentionally throttled to reduce pressure on fragile, unofficial
 	// web-session endpoints and avoid bursty behavior against user accounts.
 	minRequestInterval time.Duration
@@ -250,9 +254,9 @@ func extractAppleRequestID(headers http.Header) string {
 	if len(headers) == 0 {
 		return ""
 	}
-	requestID := strings.TrimSpace(headers.Get("X-Apple-Request-Uuid"))
+	requestID := headerValueCaseInsensitive(headers, "X-Apple-Request-Uuid")
 	if requestID == "" {
-		requestID = strings.TrimSpace(headers.Get("X-Apple-Request-UUID"))
+		requestID = headerValueCaseInsensitive(headers, "X-Apple-Request-UUID")
 	}
 	return requestID
 }
@@ -1443,7 +1447,24 @@ func SubmitTwoFactorCode(ctx context.Context, session *AuthSession, code string)
 }
 
 func extractServiceErrorCodes(respBody []byte) []string {
-	return appleauth.ExtractServiceErrorCodes(respBody)
+	if codes := appleauth.ExtractServiceErrorCodes(respBody); len(codes) > 0 {
+		return codes
+	}
+	var payload struct {
+		Errors []struct {
+			Code string `json:"code"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal(respBody, &payload); err != nil {
+		return nil
+	}
+	codes := make([]string, 0, len(payload.Errors))
+	for _, responseError := range payload.Errors {
+		if code := strings.TrimSpace(responseError.Code); code != "" {
+			codes = append(codes, code)
+		}
+	}
+	return codes
 }
 
 // Apple currently returns -20101 when signin/complete rejects SRP credentials.
