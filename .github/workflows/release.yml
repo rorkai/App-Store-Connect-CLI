@@ -872,7 +872,8 @@ jobs:
             BRANCH_EXISTS=1
             git checkout -B "${BRANCH}" "origin/${BRANCH}"
           else
-            git checkout -b "${BRANCH}" upstream/master
+            # Avoid requiring workflow scope when the upstream repository has newer workflow files.
+            git checkout -b "${BRANCH}" origin/master
           fi
           git sparse-checkout set "manifests/r/Rorkai/ASC"
 

@@ -605,7 +605,7 @@ func TestReleaseWorkflowUsesCommitTimestampForBuildMetadata(t *testing.T) {
 	}
 }
 
-func TestReleaseWorkflowPushesWinGetBranchWithoutHistoryRewrite(t *testing.T) {
+func TestReleaseWorkflowPushesWinGetBranchWithoutHistoryRewriteOrWorkflowScope(t *testing.T) {
 	data, err := os.ReadFile(".github/workflows/release.yml")
 	if err != nil {
 		t.Fatalf("read release workflow: %v", err)
@@ -616,7 +616,7 @@ func TestReleaseWorkflowPushesWinGetBranchWithoutHistoryRewrite(t *testing.T) {
 		"--force-with-lease",
 		"git push --force",
 		`git merge-base --is-ancestor origin/master "origin/${BRANCH}"`,
-		`git checkout -b "${BRANCH}" origin/master`,
+		`git checkout -b "${BRANCH}" upstream/master`,
 		`grep -Ev "^manifests/r/Rorkai/ASC/${VERSION}/"`,
 	} {
 		if strings.Contains(workflow, unwanted) {
@@ -625,7 +625,7 @@ func TestReleaseWorkflowPushesWinGetBranchWithoutHistoryRewrite(t *testing.T) {
 	}
 	for _, want := range []string{
 		`git merge-base --is-ancestor origin/master upstream/master`,
-		`git checkout -b "${BRANCH}" upstream/master`,
+		`git checkout -b "${BRANCH}" origin/master`,
 		`git push --set-upstream origin "${BRANCH}"`,
 		`git diff --name-only -z upstream/master...HEAD`,
 		`case "$changed_path" in`,
