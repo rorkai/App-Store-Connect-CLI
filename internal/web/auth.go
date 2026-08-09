@@ -98,6 +98,7 @@ type AuthSession struct {
 	Client           *http.Client
 	ProviderID       int64
 	PublicProviderID string
+	ProviderName     string
 	TeamID           string
 	UserEmail        string
 
@@ -157,6 +158,8 @@ type Client struct {
 	developerSessionMu sync.Mutex
 	developerCSRF      string
 	developerCSRFTS    string
+	developerTeamID    string
+	providerName       string
 
 	// Requests are intentionally throttled to reduce pressure on fragile, unofficial
 	// web-session endpoints and avoid bursty behavior against user accounts.
@@ -431,6 +434,7 @@ func NewClient(session *AuthSession) *Client {
 	return &Client{
 		httpClient:         session.Client,
 		baseURL:            irisV1BaseURL,
+		providerName:       strings.TrimSpace(session.ProviderName),
 		minRequestInterval: resolveWebMinRequestInterval(),
 	}
 }
@@ -473,6 +477,7 @@ func applySessionInfo(session *AuthSession, info *sessionInfo) {
 	}
 	session.ProviderID = info.Provider.ProviderID
 	session.PublicProviderID = strings.TrimSpace(info.Provider.PublicProviderID)
+	session.ProviderName = strings.TrimSpace(info.Provider.Name)
 	session.TeamID = fmt.Sprintf("%d", info.Provider.ProviderID)
 	session.UserEmail = strings.TrimSpace(info.User.EmailAddress)
 }

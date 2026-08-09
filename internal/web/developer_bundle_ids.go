@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	developerPortalBaseURL    = "https://developer.apple.com"
-	developerPortalAccountURL = developerPortalBaseURL + "/account"
-	developerServicesBaseURL  = developerPortalBaseURL + "/services-account/v1"
-	privateCloudCompute       = "PRIVATE_CLOUD_COMPUTE"
-	developerPortalAuthHint   = "run 'asc web auth logout --apple-id EMAIL', then 'asc web auth login --apple-id EMAIL', and try again"
+	developerPortalBaseURL   = "https://developer.apple.com"
+	developerPortalTeamsURL  = developerPortalBaseURL + "/services-account/QH65B2/account/listTeams.action"
+	developerServicesBaseURL = developerPortalBaseURL + "/services-account/v1"
+	privateCloudCompute      = "PRIVATE_CLOUD_COMPUTE"
+	developerPortalAuthHint  = "run 'asc web auth logout --apple-id EMAIL', then 'asc web auth login --apple-id EMAIL', and try again"
 )
 
 var supportedDeveloperBundleIDCapabilities = map[string]struct{}{
@@ -71,6 +71,24 @@ type developerCapabilityMetadataAttributes struct {
 	Editable     bool   `json:"editable"`
 	CanRequest   bool   `json:"canRequestFromPortal"`
 	EnabledByDef bool   `json:"enabledByDefault"`
+}
+
+type developerPortalTeam struct {
+	TeamID string `json:"teamId"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
+type developerPortalTeamsResponse struct {
+	Teams []developerPortalTeam `json:"teams"`
+	Data  struct {
+		Teams []developerPortalTeam `json:"teams"`
+	} `json:"data"`
+}
+
+type developerPortalProxyReadRequest struct {
+	URLEncodedQueryParams string `json:"urlEncodedQueryParams"`
+	TeamID                string `json:"teamId"`
 }
 
 type developerResource struct {
@@ -159,6 +177,14 @@ func (c *Client) EnableDeveloperBundleIDCapability(ctx context.Context, req Deve
 			Status:     "already-enabled",
 		}, nil
 	}
+	teamID := c.developerPortalTeamID()
+	if teamID == "" {
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+	}
+	payload, err = addDeveloperPortalTeamID(payload, teamID)
+	if err != nil {
+		return nil, err
+	}
 
 	csrf, csrfTS := c.developerCSRFTokens()
 	if csrf == "" || csrfTS == "" {
@@ -179,30 +205,84 @@ func (c *Client) EnableDeveloperBundleIDCapability(ctx context.Context, req Deve
 }
 
 func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
+	// The App Store Connect SRP session becomes usable by Developer Portal only
+	// after its legacy team endpoint establishes Portal team and CSRF context.
 	headers := developerPortalHeaders("")
-	headers.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-	body, response, err := c.doDeveloperPortalHTTP(ctx, http.MethodGet, developerPortalAccountURL, nil, headers)
+	headers.Set("Accept", "application/json, text/javascript, */*; q=0.01")
+	headers.Set("Content-Type", "application/x-www-form-urlencoded")
+	body, response, err := c.doDeveloperPortalHTTP(ctx, http.MethodPost, developerPortalTeamsURL, nil, headers)
 	if err != nil {
 		return err
 	}
-	_ = body
+	c.captureDeveloperCSRFTokens(response.Header)
 	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
 		return developerPortalSessionError(response.StatusCode)
 	}
-	if response.StatusCode < 200 || response.StatusCode >= 400 {
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return &APIError{Status: response.StatusCode, AppleRequestID: extractAppleRequestID(response.Header), rawBody: body}
 	}
 	if response.Request != nil && response.Request.URL != nil && !strings.EqualFold(response.Request.URL.Hostname(), "developer.apple.com") {
 		return fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", response.Request.URL.Hostname(), developerPortalAuthHint)
 	}
+
+	var payload developerPortalTeamsResponse
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return fmt.Errorf("failed to parse Developer Portal teams response: %w", err)
+	}
+	teams := payload.Teams
+	if len(teams) == 0 {
+		teams = payload.Data.Teams
+	}
+	team, err := selectDeveloperPortalTeam(teams, c.providerName)
+	if err != nil {
+		return err
+	}
+	c.developerSessionMu.Lock()
+	c.developerTeamID = team.TeamID
+	c.developerSessionMu.Unlock()
 	return nil
+}
+
+func selectDeveloperPortalTeam(teams []developerPortalTeam, providerName string) (developerPortalTeam, error) {
+	valid := make([]developerPortalTeam, 0, len(teams))
+	for _, team := range teams {
+		team.TeamID = strings.TrimSpace(team.TeamID)
+		team.Name = strings.TrimSpace(team.Name)
+		if team.TeamID != "" {
+			valid = append(valid, team)
+		}
+	}
+	if len(valid) == 0 {
+		return developerPortalTeam{}, fmt.Errorf("apple account has no Developer Portal team; a paid Apple Developer Program membership may be required")
+	}
+	providerName = strings.TrimSpace(providerName)
+	if providerName != "" {
+		for _, team := range valid {
+			if strings.EqualFold(providerName, team.Name) {
+				return team, nil
+			}
+		}
+		var prefixMatch developerPortalTeam
+		for _, team := range valid {
+			if team.Name != "" && strings.HasPrefix(strings.ToLower(providerName), strings.ToLower(team.Name)) && len(team.Name) > len(prefixMatch.Name) {
+				prefixMatch = team
+			}
+		}
+		if prefixMatch.TeamID != "" {
+			return prefixMatch, nil
+		}
+	}
+	if len(valid) == 1 {
+		return valid[0], nil
+	}
+	return developerPortalTeam{}, fmt.Errorf("could not match App Store Connect provider %q to one of %d Developer Portal teams", providerName, len(valid))
 }
 
 func (c *Client) loadDeveloperCapabilityMetadata(ctx context.Context, bundleID string) (developerCapabilityMetadataResponse, error) {
 	query := make(url.Values)
 	query.Set("filter[capabilityType]", "capability,service")
 	query.Set("filter[includeRequestable]", "true")
-	body, err := c.doDeveloperPortalRequest(ctx, http.MethodPost, "/capabilities?"+query.Encode(), nil, developerPortalHeaders(bundleID), false)
+	body, err := c.doDeveloperPortalProxyRead(ctx, "/capabilities", query, developerPortalHeaders(bundleID))
 	if err != nil {
 		return developerCapabilityMetadataResponse{}, err
 	}
@@ -226,8 +306,8 @@ func (c *Client) loadDeveloperBundleID(ctx context.Context, bundleID string) (de
 	query := make(url.Values)
 	query.Set("fields[bundleIds]", "name,identifier,platform,seedId,wildcard,~permissions.delete,~permissions.edit")
 	query.Set("include", strings.Join(developerBundleIDIncludes, ","))
-	path := "/bundleIds/" + url.PathEscape(bundleID) + "?" + query.Encode()
-	body, err := c.doDeveloperPortalRequest(ctx, http.MethodPost, path, nil, developerPortalHeaders(bundleID), false)
+	path := "/bundleIds/" + url.PathEscape(bundleID)
+	body, err := c.doDeveloperPortalProxyRead(ctx, path, query, developerPortalHeaders(bundleID))
 	if err != nil {
 		return developerBundleIDResponse{}, err
 	}
@@ -303,14 +383,36 @@ func buildDeveloperBundleIDCapabilityPatchRequest(current developerBundleIDRespo
 	return payload, false, nil
 }
 
+func addDeveloperPortalTeamID(payload developerBundleIDPatchRequest, teamID string) (developerBundleIDPatchRequest, error) {
+	var attributes map[string]json.RawMessage
+	if len(payload.Data.Attributes) > 0 {
+		if err := json.Unmarshal(payload.Data.Attributes, &attributes); err != nil {
+			return payload, fmt.Errorf("failed to parse Bundle ID attributes for Developer Portal team: %w", err)
+		}
+	}
+	if attributes == nil {
+		attributes = make(map[string]json.RawMessage)
+	}
+	encodedTeamID, err := json.Marshal(strings.TrimSpace(teamID))
+	if err != nil {
+		return payload, fmt.Errorf("failed to encode Developer Portal team: %w", err)
+	}
+	attributes["teamId"] = encodedTeamID
+	encodedAttributes, err := json.Marshal(attributes)
+	if err != nil {
+		return payload, fmt.Errorf("failed to encode Bundle ID attributes for Developer Portal team: %w", err)
+	}
+	payload.Data.Attributes = encodedAttributes
+	return payload, nil
+}
+
 func developerBundleIDCapabilities(current developerBundleIDResponse) ([]developerResource, error) {
 	var relationship developerResourceRelationship
 	rawRelationship, ok := current.Data.Relationships["bundleIdCapabilities"]
-	if !ok {
-		return []developerResource{}, nil
-	}
-	if err := json.Unmarshal(rawRelationship, &relationship); err != nil {
-		return nil, fmt.Errorf("failed to parse current Bundle ID capability relationships: %w", err)
+	if ok {
+		if err := json.Unmarshal(rawRelationship, &relationship); err != nil {
+			return nil, fmt.Errorf("failed to parse current Bundle ID capability relationships: %w", err)
+		}
 	}
 
 	includedByID := make(map[string]developerResource)
@@ -454,11 +556,32 @@ func developerPortalHeaders(bundleID string) http.Header {
 	return headers
 }
 
+func (c *Client) doDeveloperPortalProxyRead(ctx context.Context, path string, query url.Values, headers http.Header) ([]byte, error) {
+	// Developer Portal's cookie-authenticated v1 API proxies logical GETs as
+	// POSTs carrying the team and encoded query in the request body.
+	teamID := c.developerPortalTeamID()
+	if teamID == "" {
+		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+	}
+	headers.Set("X-HTTP-Method-Override", http.MethodGet)
+	return c.doDeveloperPortalRequest(ctx, http.MethodPost, path, developerPortalProxyReadRequest{
+		URLEncodedQueryParams: query.Encode(),
+		TeamID:                teamID,
+	}, headers, false)
+}
+
 func (c *Client) doDeveloperPortalRequest(ctx context.Context, method, path string, body any, headers http.Header, requireCSRF bool) ([]byte, error) {
-	if requireCSRF {
-		csrf, csrfTS := c.developerCSRFTokens()
+	csrf, csrfTS := c.developerCSRFTokens()
+	if csrf != "" {
 		headers.Set("csrf", csrf)
+	}
+	if csrfTS != "" {
 		headers.Set("csrf_ts", csrfTS)
+	}
+	if requireCSRF {
+		if csrf == "" || csrfTS == "" {
+			return nil, fmt.Errorf("missing Developer Portal CSRF headers; %s", developerPortalAuthHint)
+		}
 	}
 	responseBody, response, err := c.doDeveloperPortalHTTP(ctx, method, developerServicesBaseURL+path, body, headers)
 	if err != nil {
@@ -550,6 +673,12 @@ func (c *Client) developerCSRFTokens() (string, string) {
 	c.developerSessionMu.Lock()
 	defer c.developerSessionMu.Unlock()
 	return c.developerCSRF, c.developerCSRFTS
+}
+
+func (c *Client) developerPortalTeamID() string {
+	c.developerSessionMu.Lock()
+	defer c.developerSessionMu.Unlock()
+	return c.developerTeamID
 }
 
 func developerPortalSessionError(status int) error {

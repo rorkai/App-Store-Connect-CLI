@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -32,19 +33,33 @@ func TestEnableDeveloperBundleIDCapabilityPreservesFullPayload(t *testing.T) {
 
 				switch requestCount {
 				case 1:
-					if r.Method != http.MethodGet || r.URL.Path != "/account" {
+					if r.Method != http.MethodPost || r.URL.Path != "/services-account/QH65B2/account/listTeams.action" {
 						t.Fatalf("unexpected bootstrap request %s %s", r.Method, r.URL.String())
 					}
-					return developerPortalTestResponse(http.StatusOK, `<html></html>`, nil), nil
+					return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), http.Header{"csrf": []string{"bootstrap-csrf"}, "csrf_ts": []string{"bootstrap-ts"}}), nil
 				case 2:
 					if r.Method != http.MethodPost || r.URL.Path != "/services-account/v1/capabilities" {
 						t.Fatalf("unexpected metadata request %s %s", r.Method, r.URL.String())
 					}
-					if got := r.URL.Query().Get("filter[capabilityType]"); got != "capability,service" {
+					if got := r.Header.Get("X-HTTP-Method-Override"); got != http.MethodGet {
+						t.Fatalf("metadata method override = %q", got)
+					}
+					proxy := decodeDeveloperPortalProxyReadRequest(t, r)
+					if proxy.TeamID != "TEAM123456" {
+						t.Fatalf("metadata teamId = %q", proxy.TeamID)
+					}
+					query, err := url.ParseQuery(proxy.URLEncodedQueryParams)
+					if err != nil {
+						t.Fatalf("metadata query: %v", err)
+					}
+					if got := query.Get("filter[capabilityType]"); got != "capability,service" {
 						t.Fatalf("filter[capabilityType] = %q", got)
 					}
-					if got := r.URL.Query().Get("filter[includeRequestable]"); got != "true" {
+					if got := query.Get("filter[includeRequestable]"); got != "true" {
 						t.Fatalf("filter[includeRequestable] = %q", got)
+					}
+					if r.Header.Get("csrf") != "bootstrap-csrf" || r.Header.Get("csrf_ts") != "bootstrap-ts" {
+						t.Fatalf("metadata request missing bootstrap CSRF headers")
 					}
 					return developerPortalTestResponse(http.StatusOK, `{
 						"data":[{
@@ -63,10 +78,18 @@ func TestEnableDeveloperBundleIDCapabilityPreservesFullPayload(t *testing.T) {
 					if r.Method != http.MethodPost || r.URL.Path != "/services-account/v1/bundleIds/bundle-1" {
 						t.Fatalf("unexpected bundle request %s %s", r.Method, r.URL.String())
 					}
-					if got := r.URL.Query().Get("fields[bundleIds]"); got != "name,identifier,platform,seedId,wildcard,~permissions.delete,~permissions.edit" {
+					if got := r.Header.Get("X-HTTP-Method-Override"); got != http.MethodGet {
+						t.Fatalf("bundle method override = %q", got)
+					}
+					proxy := decodeDeveloperPortalProxyReadRequest(t, r)
+					query, err := url.ParseQuery(proxy.URLEncodedQueryParams)
+					if err != nil {
+						t.Fatalf("bundle query: %v", err)
+					}
+					if got := query.Get("fields[bundleIds]"); got != "name,identifier,platform,seedId,wildcard,~permissions.delete,~permissions.edit" {
 						t.Fatalf("fields[bundleIds] = %q", got)
 					}
-					include := r.URL.Query().Get("include")
+					include := query.Get("include")
 					for _, relationship := range []string{
 						"bundleIdCapabilities",
 						"bundleIdCapabilities.capability",
@@ -161,6 +184,9 @@ func TestEnableDeveloperBundleIDCapabilityPreservesFullPayload(t *testing.T) {
 	if payload.Data.Attributes["platform"] != "IOS" || payload.Data.Attributes["seedId"] != "TEAMID" || payload.Data.Attributes["~permissions.edit"] != true {
 		t.Fatalf("bundle attributes were not preserved: %+v", payload.Data.Attributes)
 	}
+	if payload.Data.Attributes["teamId"] != "TEAM123456" {
+		t.Fatalf("Developer Portal teamId = %v", payload.Data.Attributes["teamId"])
+	}
 
 	var capabilityRelationship struct {
 		Data []struct {
@@ -201,13 +227,56 @@ func TestEnableDeveloperBundleIDCapabilityPreservesFullPayload(t *testing.T) {
 	}
 }
 
+func TestSelectDeveloperPortalTeam(t *testing.T) {
+	teams := []developerPortalTeam{
+		{TeamID: "TEAMONE123", Name: "Example"},
+		{TeamID: "TEAMTWO456", Name: "Example Company"},
+	}
+
+	t.Run("exact provider name", func(t *testing.T) {
+		team, err := selectDeveloperPortalTeam(teams, "Example Company")
+		if err != nil {
+			t.Fatalf("selectDeveloperPortalTeam() error: %v", err)
+		}
+		if team.TeamID != "TEAMTWO456" {
+			t.Fatalf("team = %+v", team)
+		}
+	})
+
+	t.Run("provider name suffix", func(t *testing.T) {
+		team, err := selectDeveloperPortalTeam(teams, "Example Company (App Store Connect)")
+		if err != nil {
+			t.Fatalf("selectDeveloperPortalTeam() error: %v", err)
+		}
+		if team.TeamID != "TEAMTWO456" {
+			t.Fatalf("team = %+v", team)
+		}
+	})
+
+	t.Run("single team fallback", func(t *testing.T) {
+		team, err := selectDeveloperPortalTeam(teams[:1], "Different Provider")
+		if err != nil {
+			t.Fatalf("selectDeveloperPortalTeam() error: %v", err)
+		}
+		if team.TeamID != "TEAMONE123" {
+			t.Fatalf("team = %+v", team)
+		}
+	})
+
+	t.Run("ambiguous teams", func(t *testing.T) {
+		if _, err := selectDeveloperPortalTeam(teams, "Different Provider"); err == nil {
+			t.Fatal("expected provider matching error")
+		}
+	})
+}
+
 func TestEnableDeveloperBundleIDCapabilityAlreadyEnabledSkipsPatch(t *testing.T) {
 	requestCount := 0
 	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
 		requestCount++
 		switch requestCount {
 		case 1:
-			return developerPortalTestResponse(http.StatusOK, `<html></html>`, nil), nil
+			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
 		case 2:
 			return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
 		case 3:
@@ -230,6 +299,44 @@ func TestEnableDeveloperBundleIDCapabilityAlreadyEnabledSkipsPatch(t *testing.T)
 	}
 }
 
+func TestEnableDeveloperBundleIDCapabilityUsesIncludedCapabilitiesWhenTopLevelRelationshipsAreOmitted(t *testing.T) {
+	requestCount := 0
+	client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
+		case 2:
+			return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
+		case 3:
+			return developerPortalTestResponse(http.StatusOK, `{
+				"data":{"id":"bundle-1","type":"bundleIds","attributes":{"name":"Example","identifier":"com.example.app"}},
+				"included":[
+					{"type":"bundleIdCapabilities","id":"iap-1","attributes":{"enabled":true,"settings":[]},"relationships":{"capability":{"data":{"type":"capabilities","id":"IN_APP_PURCHASE"}}}},
+					{"type":"bundleIdCapabilities","id":"pcc-1","attributes":{"enabled":true,"settings":[]},"relationships":{"capability":{"data":{"type":"capabilities","id":"PRIVATE_CLOUD_COMPUTE"}}}}
+				]
+			}`, nil), nil
+		default:
+			t.Fatalf("unexpected PATCH or extra request: %s %s", r.Method, r.URL.String())
+			return nil, nil
+		}
+	})
+
+	result, err := client.EnableDeveloperBundleIDCapability(context.Background(), DeveloperBundleIDCapabilityEnableRequest{
+		BundleID:   "bundle-1",
+		Capability: "PRIVATE_CLOUD_COMPUTE",
+	})
+	if err != nil {
+		t.Fatalf("EnableDeveloperBundleIDCapability() error: %v", err)
+	}
+	if !result.Enabled || result.Changed || result.Status != "already-enabled" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	if requestCount != 3 {
+		t.Fatalf("request count = %d, want 3", requestCount)
+	}
+}
+
 func TestEnableDeveloperBundleIDCapabilityUpdatesDisabledTargetOnce(t *testing.T) {
 	requestCount := 0
 	var patchBody []byte
@@ -237,7 +344,7 @@ func TestEnableDeveloperBundleIDCapabilityUpdatesDisabledTargetOnce(t *testing.T
 		requestCount++
 		switch requestCount {
 		case 1:
-			return developerPortalTestResponse(http.StatusOK, `<html></html>`, nil), nil
+			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
 		case 2:
 			return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
 		case 3:
@@ -342,7 +449,7 @@ func TestEnableDeveloperBundleIDCapabilityRejectsUnavailableAndNonEditable(t *te
 			client := developerPortalTestClient(t, func(r *http.Request) (*http.Response, error) {
 				requestCount++
 				if requestCount == 1 {
-					return developerPortalTestResponse(http.StatusOK, `<html></html>`, nil), nil
+					return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
 				}
 				return developerPortalTestResponse(http.StatusOK, tc.metadataBody, nil), nil
 			})
@@ -393,7 +500,7 @@ func TestEnableDeveloperBundleIDCapabilityRequiresCSRFTokensBeforePatch(t *testi
 		requestCount++
 		switch requestCount {
 		case 1:
-			return developerPortalTestResponse(http.StatusOK, `<html></html>`, nil), nil
+			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
 		case 2:
 			return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), nil), nil
 		case 3:
@@ -419,7 +526,7 @@ func TestEnableDeveloperBundleIDCapabilitySurfacesAppleError(t *testing.T) {
 		requestCount++
 		switch requestCount {
 		case 1:
-			return developerPortalTestResponse(http.StatusOK, `<html></html>`, nil), nil
+			return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil), nil
 		case 2:
 			return developerPortalTestResponse(http.StatusOK, developerCapabilityMetadata(true), http.Header{"csrf": []string{"token"}, "csrf_ts": []string{"time"}}), nil
 		case 3:
@@ -459,6 +566,19 @@ func developerPortalTestResponse(status int, body string, headers http.Header) *
 		Header:     headers,
 		Body:       io.NopCloser(bytes.NewBufferString(body)),
 	}
+}
+
+func developerPortalTeamsFixture() string {
+	return `{"teams":[{"teamId":"TEAM123456","name":"Example Team","status":"active"}]}`
+}
+
+func decodeDeveloperPortalProxyReadRequest(t *testing.T, r *http.Request) developerPortalProxyReadRequest {
+	t.Helper()
+	var request developerPortalProxyReadRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		t.Fatalf("decode Developer Portal proxy request: %v", err)
+	}
+	return request
 }
 
 func developerCapabilityMetadata(editable bool) string {
