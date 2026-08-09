@@ -257,11 +257,7 @@ func extractAppleRequestID(headers http.Header) string {
 	if len(headers) == 0 {
 		return ""
 	}
-	requestID := headerValueCaseInsensitive(headers, "X-Apple-Request-Uuid")
-	if requestID == "" {
-		requestID = headerValueCaseInsensitive(headers, "X-Apple-Request-UUID")
-	}
-	return requestID
+	return headerValueCaseInsensitive(headers, "X-Apple-Request-UUID")
 }
 
 func sanitizeWebAuthURLForLog(rawURL string) string {

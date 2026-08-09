@@ -158,10 +158,12 @@ func TestWebBundleIDCapabilitiesEnableCallsDeveloperPortalClient(t *testing.T) {
 	origResolveSession := resolveSessionFn
 	origNewWebClient := newWebClientFn
 	origEnable := enableDeveloperBundleIDCapabilityFn
+	origPersist := persistWebSessionFn
 	t.Cleanup(func() {
 		resolveSessionFn = origResolveSession
 		newWebClientFn = origNewWebClient
 		enableDeveloperBundleIDCapabilityFn = origEnable
+		persistWebSessionFn = origPersist
 	})
 
 	resolveSessionFn = func(ctx context.Context, appleID, password, twoFactorCode string) (*webcore.AuthSession, string, error) {
@@ -169,6 +171,9 @@ func TestWebBundleIDCapabilitiesEnableCallsDeveloperPortalClient(t *testing.T) {
 	}
 	newWebClientFn = func(session *webcore.AuthSession) *webcore.Client {
 		return &webcore.Client{}
+	}
+	persistWebSessionFn = func(session *webcore.AuthSession) error {
+		return nil
 	}
 
 	var gotReq webcore.DeveloperBundleIDCapabilityEnableRequest

@@ -433,6 +433,30 @@ func TestEnableDeveloperBundleIDCapabilityUpdatesDisabledTargetOnce(t *testing.T
 	}
 }
 
+func TestBuildDeveloperBundleIDCapabilityPatchPrefersEnabledDuplicate(t *testing.T) {
+	current := developerBundleIDResponse{}
+	current.Data.ID = "bundle-1"
+	current.Data.Type = "bundleIds"
+	current.Data.Attributes = json.RawMessage(`{"name":"Example","identifier":"com.example.app"}`)
+	current.Data.Relationships = map[string]json.RawMessage{
+		"bundleIdCapabilities": json.RawMessage(`{"data":[
+			{"type":"bundleIdCapabilities","id":"pcc-disabled","attributes":{"enabled":false,"settings":[{"key":"DISABLED"}]},"relationships":{"capability":{"data":{"type":"capabilities","id":"PRIVATE_CLOUD_COMPUTE"}}}},
+			{"type":"bundleIdCapabilities","id":"pcc-enabled","attributes":{"enabled":true,"settings":[{"key":"ENABLED"}]},"relationships":{"capability":{"data":{"type":"capabilities","id":"PRIVATE_CLOUD_COMPUTE"}},"associatedBundleIds":{"data":[{"type":"bundleIds","id":"related-1"}]}}}
+		]}`),
+	}
+
+	_, alreadyEnabled, err := buildDeveloperBundleIDCapabilityPatchRequest(current, DeveloperBundleIDCapabilityEnableRequest{
+		BundleID:   "bundle-1",
+		Capability: "PRIVATE_CLOUD_COMPUTE",
+	})
+	if err != nil {
+		t.Fatalf("buildDeveloperBundleIDCapabilityPatchRequest() error: %v", err)
+	}
+	if !alreadyEnabled {
+		t.Fatal("enabled duplicate was not recognized")
+	}
+}
+
 func TestEnableDeveloperBundleIDCapabilityRejectsUnavailableAndNonEditable(t *testing.T) {
 	tests := []struct {
 		name         string

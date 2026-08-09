@@ -327,41 +327,48 @@ func buildDeveloperBundleIDCapabilityPatchRequest(current developerBundleIDRespo
 		return developerBundleIDPatchRequest{}, false, err
 	}
 
-	updated := make([]developerResource, 0, len(capabilities)+1)
-	foundTarget := false
-	alreadyEnabled := false
-	for _, capability := range capabilities {
+	capabilityIDs := make([]string, len(capabilities))
+	targetIndex := -1
+	targetEnabled := false
+	for index, capability := range capabilities {
 		capabilityID, err := developerBundleIDCapabilityID(capability)
 		if err != nil {
 			return developerBundleIDPatchRequest{}, false, err
 		}
+		capabilityIDs[index] = capabilityID
 		if capabilityID != req.Capability {
-			updated = append(updated, capability)
 			continue
 		}
-		if foundTarget {
-			continue
-		}
-		foundTarget = true
 		enabled, err := developerBundleIDCapabilityEnabled(capability)
 		if err != nil {
 			return developerBundleIDPatchRequest{}, false, err
 		}
-		if enabled {
-			alreadyEnabled = true
+		if targetIndex == -1 || (enabled && !targetEnabled) {
+			targetIndex = index
+			targetEnabled = enabled
+		}
+	}
+	if targetEnabled {
+		return developerBundleIDPatchRequest{}, true, nil
+	}
+
+	updated := make([]developerResource, 0, len(capabilities)+1)
+	for index, capability := range capabilities {
+		if capabilityIDs[index] != req.Capability {
 			updated = append(updated, capability)
 			continue
 		}
+		if index != targetIndex {
+			continue
+		}
+		var err error
 		capability.Attributes, err = setDeveloperCapabilityEnabled(capability.Attributes)
 		if err != nil {
 			return developerBundleIDPatchRequest{}, false, err
 		}
 		updated = append(updated, capability)
 	}
-	if alreadyEnabled {
-		return developerBundleIDPatchRequest{}, true, nil
-	}
-	if !foundTarget {
+	if targetIndex == -1 {
 		updated = append(updated, newDeveloperBundleIDCapability(req.Capability))
 	}
 
