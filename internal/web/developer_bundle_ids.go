@@ -233,7 +233,7 @@ func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 	if len(teams) == 0 {
 		teams = payload.Data.Teams
 	}
-	team, err := selectDeveloperPortalTeam(teams, c.providerName)
+	team, err := selectDeveloperPortalTeam(teams, c.publicProviderID, c.providerName)
 	if err != nil {
 		return err
 	}
@@ -243,7 +243,7 @@ func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 	return nil
 }
 
-func selectDeveloperPortalTeam(teams []developerPortalTeam, providerName string) (developerPortalTeam, error) {
+func selectDeveloperPortalTeam(teams []developerPortalTeam, publicProviderID, providerName string) (developerPortalTeam, error) {
 	valid := make([]developerPortalTeam, 0, len(teams))
 	for _, team := range teams {
 		team.TeamID = strings.TrimSpace(team.TeamID)
@@ -254,6 +254,14 @@ func selectDeveloperPortalTeam(teams []developerPortalTeam, providerName string)
 	}
 	if len(valid) == 0 {
 		return developerPortalTeam{}, fmt.Errorf("apple account has no Developer Portal team; a paid Apple Developer Program membership may be required")
+	}
+	publicProviderID = strings.TrimSpace(publicProviderID)
+	if publicProviderID != "" {
+		for _, team := range valid {
+			if strings.EqualFold(publicProviderID, team.TeamID) {
+				return team, nil
+			}
+		}
 	}
 	providerName = strings.TrimSpace(providerName)
 	if providerName != "" {

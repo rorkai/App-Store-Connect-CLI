@@ -233,8 +233,18 @@ func TestSelectDeveloperPortalTeam(t *testing.T) {
 		{TeamID: "TEAMTWO456", Name: "Example Company"},
 	}
 
+	t.Run("exact public provider id wins", func(t *testing.T) {
+		team, err := selectDeveloperPortalTeam(teams, "TEAMONE123", "Example Company")
+		if err != nil {
+			t.Fatalf("selectDeveloperPortalTeam() error: %v", err)
+		}
+		if team.TeamID != "TEAMONE123" {
+			t.Fatalf("team = %+v", team)
+		}
+	})
+
 	t.Run("exact provider name", func(t *testing.T) {
-		team, err := selectDeveloperPortalTeam(teams, "Example Company")
+		team, err := selectDeveloperPortalTeam(teams, "", "Example Company")
 		if err != nil {
 			t.Fatalf("selectDeveloperPortalTeam() error: %v", err)
 		}
@@ -244,7 +254,7 @@ func TestSelectDeveloperPortalTeam(t *testing.T) {
 	})
 
 	t.Run("provider name suffix", func(t *testing.T) {
-		team, err := selectDeveloperPortalTeam(teams, "Example Company (App Store Connect)")
+		team, err := selectDeveloperPortalTeam(teams, "", "Example Company (App Store Connect)")
 		if err != nil {
 			t.Fatalf("selectDeveloperPortalTeam() error: %v", err)
 		}
@@ -254,7 +264,7 @@ func TestSelectDeveloperPortalTeam(t *testing.T) {
 	})
 
 	t.Run("single team fallback", func(t *testing.T) {
-		team, err := selectDeveloperPortalTeam(teams[:1], "Different Provider")
+		team, err := selectDeveloperPortalTeam(teams[:1], "", "Different Provider")
 		if err != nil {
 			t.Fatalf("selectDeveloperPortalTeam() error: %v", err)
 		}
@@ -264,7 +274,7 @@ func TestSelectDeveloperPortalTeam(t *testing.T) {
 	})
 
 	t.Run("ambiguous teams", func(t *testing.T) {
-		if _, err := selectDeveloperPortalTeam(teams, "Different Provider"); err == nil {
+		if _, err := selectDeveloperPortalTeam(teams, "", "Different Provider"); err == nil {
 			t.Fatal("expected provider matching error")
 		}
 	})

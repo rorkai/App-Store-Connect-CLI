@@ -159,6 +159,7 @@ type Client struct {
 	developerCSRF      string
 	developerCSRFTS    string
 	developerTeamID    string
+	publicProviderID   string
 	providerName       string
 
 	// Requests are intentionally throttled to reduce pressure on fragile, unofficial
@@ -430,6 +431,7 @@ func NewClient(session *AuthSession) *Client {
 	return &Client{
 		httpClient:         session.Client,
 		baseURL:            irisV1BaseURL,
+		publicProviderID:   strings.TrimSpace(session.PublicProviderID),
 		providerName:       strings.TrimSpace(session.ProviderName),
 		minRequestInterval: resolveWebMinRequestInterval(),
 	}

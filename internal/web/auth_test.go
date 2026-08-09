@@ -48,6 +48,21 @@ func TestAuthStatusErrorsExposeHTTPStatus(t *testing.T) {
 	}
 }
 
+func TestNewClientPreservesProviderIdentity(t *testing.T) {
+	client := NewClient(&AuthSession{
+		Client:           &http.Client{},
+		PublicProviderID: " TEAM123 ",
+		ProviderName:     " Example Team ",
+	})
+
+	if client.publicProviderID != "TEAM123" {
+		t.Fatalf("publicProviderID = %q", client.publicProviderID)
+	}
+	if client.providerName != "Example Team" {
+		t.Fatalf("providerName = %q", client.providerName)
+	}
+}
+
 func TestLogWebAuthHTTPRedactsSensitiveQueryValues(t *testing.T) {
 	origLogger := webDebugLogger
 	origDebugEnabled := webDebugEnabledFn
