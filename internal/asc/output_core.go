@@ -19,12 +19,26 @@ func printPrettyRawJSON(data json.RawMessage) error {
 
 // PrintMarkdown prints data as Markdown table.
 func PrintMarkdown(data any) error {
-	return renderByRegistry(data, RenderMarkdown)
+	return printHumanOutput(data, renderMarkdown)
 }
 
 // PrintTable prints data as a formatted table.
 func PrintTable(data any) error {
-	return renderByRegistry(data, RenderTable)
+	return printHumanOutput(data, renderTable)
+}
+
+func printHumanOutput(data any, render func([]string, [][]string) error) error {
+	var renderErr error
+	dispatchErr := renderByRegistry(data, func(headers []string, rows [][]string) {
+		if renderErr != nil {
+			return
+		}
+		renderErr = render(headers, rows)
+	})
+	if dispatchErr != nil {
+		return dispatchErr
+	}
+	return renderErr
 }
 
 // PrintJSON prints data as minified JSON (best for AI agents).
