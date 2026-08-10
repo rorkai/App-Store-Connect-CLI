@@ -2,6 +2,7 @@ package itunes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -115,23 +116,36 @@ func (c *Client) fetchHistogram(ctx context.Context, appID, country string, rati
 }
 
 // GetAllRatings fetches rating statistics for an app across all supported countries.
-func (c *Client) GetAllRatings(ctx context.Context, appID string, workers int) (*GlobalRatings, error) {
+func (c *Client) GetAllRatings(
+	ctx context.Context,
+	appID string,
+	workers int,
+	newCountryContext func(context.Context) (context.Context, context.CancelFunc),
+) (*GlobalRatings, error) {
 	if workers < 1 {
 		workers = 10
 	}
+	if newCountryContext == nil {
+		return nil, fmt.Errorf("country context factory is required")
+	}
+
+	workCtx, cancelWork := context.WithCancel(ctx)
+	defer cancelWork()
 
 	countries := AllCountries()
 
 	var (
-		mu        sync.Mutex
-		wg        sync.WaitGroup
-		results   []*AppRatings
-		appName   string
-		appIDInt  int64
-		total     int64
-		weighted  float64
-		found     bool
-		histogram = make(map[int]int64)
+		mu                 sync.Mutex
+		wg                 sync.WaitGroup
+		deadlineOnce       sync.Once
+		countryDeadlineErr error
+		results            []*AppRatings
+		appName            string
+		appIDInt           int64
+		total              int64
+		weighted           float64
+		found              bool
+		histogram          = make(map[int]int64)
 	)
 
 	sem := make(chan struct{}, workers)
@@ -142,13 +156,26 @@ func (c *Client) GetAllRatings(ctx context.Context, appID string, workers int) (
 			defer wg.Done()
 
 			select {
-			case <-ctx.Done():
+			case <-workCtx.Done():
 				return
 			case sem <- struct{}{}:
 				defer func() { <-sem }()
 			}
+			if workCtx.Err() != nil {
+				return
+			}
 
-			ratings, err := c.GetRatings(ctx, appID, country)
+			countryCtx, countryCancel := newCountryContext(workCtx)
+			ratings, err := c.GetRatings(countryCtx, appID, country)
+			countryErr := countryCtx.Err()
+			countryCancel()
+			if err != nil && (errors.Is(err, context.DeadlineExceeded) || errors.Is(countryErr, context.DeadlineExceeded)) {
+				deadlineOnce.Do(func() {
+					countryDeadlineErr = context.DeadlineExceeded
+					cancelWork()
+				})
+				return
+			}
 			if err != nil {
 				return
 			}
@@ -178,6 +205,9 @@ func (c *Client) GetAllRatings(ctx context.Context, appID string, workers int) (
 
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
+	}
+	if countryDeadlineErr != nil {
+		return nil, countryDeadlineErr
 	}
 	if !found {
 		return nil, fmt.Errorf("app not found in any country: %s", appID)

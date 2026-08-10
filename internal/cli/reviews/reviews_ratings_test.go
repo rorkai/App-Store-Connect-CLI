@@ -2,15 +2,176 @@ package reviews
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/itunes"
 )
+
+func TestRatingsAllRenewsCountryOperationDeadlines(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", time.Hour.String())
+
+	type observedRequest struct {
+		kind     string
+		country  string
+		deadline time.Time
+	}
+
+	var (
+		mu                 sync.Mutex
+		observed           []observedRequest
+		countryLookupCount int
+	)
+	record := func(req *http.Request, kind, country string) int {
+		t.Helper()
+		deadline, ok := req.Context().Deadline()
+		if !ok {
+			t.Errorf("%s request for %q has no deadline", kind, country)
+		}
+
+		mu.Lock()
+		defer mu.Unlock()
+		observed = append(observed, observedRequest{kind: kind, country: country, deadline: deadline})
+		if kind == "country lookup" {
+			countryLookupCount++
+			return countryLookupCount
+		}
+		return 0
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch {
+		case req.URL.Path == "/lookup" && req.URL.Query().Get("bundleId") != "":
+			time.Sleep(5 * time.Millisecond)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"resultCount":1,"results":[{"trackId":123,"trackName":"Deadline App","bundleId":"com.example.deadlines"}]}`)
+		case req.URL.Path == "/lookup":
+			mu.Lock()
+			lookupNumber := countryLookupCount
+			mu.Unlock()
+			if lookupNumber == 1 {
+				time.Sleep(5 * time.Millisecond)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"resultCount":1,"results":[{"trackId":123,"trackName":"Deadline App","averageUserRating":4.5,"userRatingCount":10}]}`)
+		case strings.Contains(req.URL.Path, "/customer-reviews/id123"):
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = io.WriteString(w, `<span class="total">10</span>`)
+		default:
+			http.NotFound(w, req)
+		}
+	}))
+	defer server.Close()
+
+	serverClient := server.Client()
+	baseTransport := serverClient.Transport
+	serverClient.Transport = reviewRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.URL.Path == "/lookup" && req.URL.Query().Get("bundleId") != "":
+			record(req, "app resolution", req.URL.Query().Get("country"))
+		case req.URL.Path == "/lookup":
+			record(req, "country lookup", req.URL.Query().Get("country"))
+		case strings.Contains(req.URL.Path, "/customer-reviews/id123"):
+			parts := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
+			country := ""
+			if len(parts) > 0 {
+				country = parts[0]
+			}
+			record(req, "histogram", country)
+		}
+		return baseTransport.RoundTrip(req)
+	})
+	client := &itunes.Client{BaseURL: server.URL, HTTPClient: serverClient}
+	stdout, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatalf("open stdout sink: %v", err)
+	}
+	defer stdout.Close()
+	originalStdout := os.Stdout
+	os.Stdout = stdout
+	defer func() { os.Stdout = originalStdout }()
+
+	if err := executeRatingsWithClient(context.Background(), client, "com.example.deadlines", "us", true, 1, "json", false); err != nil {
+		t.Fatalf("executeRatingsWithClient() error: %v", err)
+	}
+
+	mu.Lock()
+	requests := append([]observedRequest(nil), observed...)
+	mu.Unlock()
+
+	var resolution observedRequest
+	var countryLookups []observedRequest
+	var firstCountryHistogram observedRequest
+	for _, request := range requests {
+		switch request.kind {
+		case "app resolution":
+			resolution = request
+		case "country lookup":
+			countryLookups = append(countryLookups, request)
+		case "histogram":
+			if len(countryLookups) > 0 && request.country == countryLookups[0].country && firstCountryHistogram.deadline.IsZero() {
+				firstCountryHistogram = request
+			}
+		}
+	}
+	if resolution.deadline.IsZero() || len(countryLookups) < 2 || firstCountryHistogram.deadline.IsZero() {
+		t.Fatalf("missing deadline observations: resolution=%v lookups=%d histogram=%v", resolution, len(countryLookups), firstCountryHistogram)
+	}
+	if !countryLookups[0].deadline.After(resolution.deadline) {
+		t.Fatalf("first country deadline = %s, want later than app resolution deadline %s", countryLookups[0].deadline, resolution.deadline)
+	}
+	if !countryLookups[1].deadline.After(countryLookups[0].deadline) {
+		t.Fatalf("second country deadline = %s, want later than first country deadline %s", countryLookups[1].deadline, countryLookups[0].deadline)
+	}
+	if !firstCountryHistogram.deadline.Equal(countryLookups[0].deadline) {
+		t.Fatalf("first country histogram deadline = %s, want country operation deadline %s", firstCountryHistogram.deadline, countryLookups[0].deadline)
+	}
+}
+
+func TestRatingsAllDeadlineDoesNotPrintSuccessOutput(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "1ns")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"resultCount":1,"results":[{"trackId":123,"trackName":"Deadline App","averageUserRating":4.5,"userRatingCount":10}]}`)
+	}))
+	defer server.Close()
+
+	client := &itunes.Client{BaseURL: server.URL, HTTPClient: server.Client()}
+	stdoutReader, stdoutWriter, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create stdout pipe: %v", err)
+	}
+	originalStdout := os.Stdout
+	os.Stdout = stdoutWriter
+	commandErr := executeRatingsWithClient(context.Background(), client, "123", "us", true, 1, "json", false)
+	os.Stdout = originalStdout
+	if err := stdoutWriter.Close(); err != nil {
+		t.Fatalf("close stdout writer: %v", err)
+	}
+	output, err := io.ReadAll(stdoutReader)
+	if err != nil {
+		t.Fatalf("read stdout: %v", err)
+	}
+	if err := stdoutReader.Close(); err != nil {
+		t.Fatalf("close stdout reader: %v", err)
+	}
+
+	if !errors.Is(commandErr, context.DeadlineExceeded) {
+		t.Fatalf("executeRatingsWithClient() error = %v, want context.DeadlineExceeded", commandErr)
+	}
+	if len(output) != 0 {
+		t.Fatalf("stdout = %q, want no success output", output)
+	}
+}
 
 func TestNormalizeRatingsOutput(t *testing.T) {
 	tests := []struct {

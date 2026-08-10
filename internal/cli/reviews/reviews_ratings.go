@@ -85,19 +85,20 @@ func executeRatingsWithClient(ctx context.Context, client *itunes.Client, appID,
 		return err
 	}
 
-	requestCtx, cancel := shared.ContextWithTimeout(ctx)
-	defer cancel()
-
-	resolvedAppID, err := resolveRatingsAppID(requestCtx, client, appID, ratingsAppLookupCountry(country, all))
+	resolveCtx, resolveCancel := shared.ContextWithTimeout(ctx)
+	resolvedAppID, err := resolveRatingsAppID(resolveCtx, client, appID, ratingsAppLookupCountry(country, all))
+	resolveCancel()
 	if err != nil {
 		return fmt.Errorf("reviews ratings: %w", err)
 	}
 
 	if all {
-		return executeAllRatings(requestCtx, client, resolvedAppID, workers, format, pretty)
+		return executeAllRatings(ctx, client, resolvedAppID, workers, format, pretty)
 	}
 
-	return executeSingleRatings(requestCtx, client, resolvedAppID, country, format, pretty)
+	countryCtx, countryCancel := shared.ContextWithTimeout(ctx)
+	defer countryCancel()
+	return executeSingleRatings(countryCtx, client, resolvedAppID, country, format, pretty)
 }
 
 func ratingsAppLookupCountry(country string, all bool) string {
@@ -182,7 +183,7 @@ func executeSingleRatings(ctx context.Context, client *itunes.Client, appID, cou
 }
 
 func executeAllRatings(ctx context.Context, client *itunes.Client, appID string, workers int, output string, pretty bool) error {
-	global, err := client.GetAllRatings(ctx, appID, workers)
+	global, err := client.GetAllRatings(ctx, appID, workers, shared.ContextWithTimeout)
 	if err != nil {
 		return fmt.Errorf("reviews ratings: %w", err)
 	}

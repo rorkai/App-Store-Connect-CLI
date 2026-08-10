@@ -2,9 +2,13 @@ package itunes
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestGetRatings_Success(t *testing.T) {
@@ -271,7 +275,7 @@ func TestGetAllRatings_Aggregation(t *testing.T) {
 		},
 	}
 
-	global, err := client.GetAllRatings(context.Background(), "123", 5)
+	global, err := client.GetAllRatings(context.Background(), "123", 5, context.WithCancel)
 	if err != nil {
 		t.Fatalf("GetAllRatings() error: %v", err)
 	}
@@ -318,12 +322,12 @@ func TestGetAllRatings_InvalidWorkers(t *testing.T) {
 	}
 
 	// Should not panic with workers < 1
-	_, err := client.GetAllRatings(context.Background(), "123", 0)
+	_, err := client.GetAllRatings(context.Background(), "123", 0, context.WithCancel)
 	if err != nil {
 		t.Logf("GetAllRatings with workers=0 returned: %v", err)
 	}
 
-	_, err = client.GetAllRatings(context.Background(), "123", -5)
+	_, err = client.GetAllRatings(context.Background(), "123", -5, context.WithCancel)
 	if err != nil {
 		t.Logf("GetAllRatings with workers=-5 returned: %v", err)
 	}
@@ -359,7 +363,7 @@ func TestGetAllRatings_NoRatings(t *testing.T) {
 		},
 	}
 
-	global, err := client.GetAllRatings(context.Background(), "123", 5)
+	global, err := client.GetAllRatings(context.Background(), "123", 5, context.WithCancel)
 	if err != nil {
 		t.Fatalf("GetAllRatings() error: %v", err)
 	}
@@ -390,9 +394,90 @@ func TestGetAllRatings_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
-	_, err := client.GetAllRatings(ctx, "123", 5)
-	if err == nil {
-		t.Log("GetAllRatings completed despite cancelled context (may have cached)")
+	_, err := client.GetAllRatings(ctx, "123", 5, context.WithCancel)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("GetAllRatings() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestGetAllRatings_CountryDeadlineExceeded(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		writeBody(t, w, `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test","averageUserRating":4.0,"userRatingCount":10}]}`)
+	}))
+	defer server.Close()
+
+	client := &Client{
+		HTTPClient: &http.Client{
+			Transport: &testTransport{baseURL: server.URL},
+		},
+	}
+
+	var countries atomic.Int32
+	newCountryContext := func(parent context.Context) (context.Context, context.CancelFunc) {
+		if countries.Add(1) == 1 {
+			return context.WithDeadline(parent, time.Now().Add(-time.Second))
+		}
+		return context.WithCancel(parent)
+	}
+
+	_, err := client.GetAllRatings(context.Background(), "123", 1, newCountryContext)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("GetAllRatings() error = %v, want context.DeadlineExceeded", err)
+	}
+	if got := countries.Load(); got != 1 {
+		t.Fatalf("country context factory called %d times, want 1 after deadline cancellation", got)
+	}
+}
+
+func TestGetAllRatings_HistogramDeadlineIsNonFatal(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/lookup":
+			w.Header().Set("Content-Type", "application/json")
+			writeBody(t, w, `{"resultCount":1,"results":[{"trackId":123,"trackName":"Test","averageUserRating":4.0,"userRatingCount":10}]}`)
+		case strings.Contains(r.URL.Path, "/customer-reviews/id123"):
+			w.Header().Set("Content-Type", "text/html")
+			writeBody(t, w, `<span class="total">10</span>`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	baseTransport := &testTransport{baseURL: server.URL}
+	var histogramTimedOut atomic.Bool
+	client := &Client{
+		HTTPClient: &http.Client{
+			Transport: ratingsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if strings.Contains(req.URL.Path, "/customer-reviews/") && req.Context().Value(histogramDeadlineContextKey{}) != nil {
+					<-req.Context().Done()
+					histogramTimedOut.Store(true)
+					return nil, req.Context().Err()
+				}
+				return baseTransport.RoundTrip(req)
+			}),
+		},
+	}
+
+	var countries atomic.Int32
+	newCountryContext := func(parent context.Context) (context.Context, context.CancelFunc) {
+		if countries.Add(1) == 1 {
+			marked := context.WithValue(parent, histogramDeadlineContextKey{}, true)
+			return context.WithTimeout(marked, 500*time.Millisecond)
+		}
+		return context.WithCancel(parent)
+	}
+
+	global, err := client.GetAllRatings(context.Background(), "123", 1, newCountryContext)
+	if err != nil {
+		t.Fatalf("GetAllRatings() error: %v", err)
+	}
+	if !histogramTimedOut.Load() {
+		t.Fatal("expected one best-effort histogram request to reach its child deadline")
+	}
+	if global.CountryCount != len(AllCountries()) {
+		t.Fatalf("CountryCount = %d, want %d", global.CountryCount, len(AllCountries()))
 	}
 }
 
@@ -406,6 +491,14 @@ func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.URL.Scheme = "http"
 	req.URL.Host = t.baseURL[7:] // strip "http://"
 	return http.DefaultTransport.RoundTrip(req)
+}
+
+type histogramDeadlineContextKey struct{}
+
+type ratingsRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn ratingsRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
 
 func writeBody(t *testing.T, w http.ResponseWriter, body string) {
