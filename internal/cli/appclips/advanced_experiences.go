@@ -342,6 +342,18 @@ Examples:
 				categoryValue = &parsed
 			}
 
+			appClipValue := strings.TrimSpace(*appClipID)
+			bundleValue := strings.TrimSpace(*bundleID)
+			if appClipValue == "" && bundleValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app-clip-id or --bundle-id is required")
+				return shared.MissingRequiredUsageError()
+			}
+			appValue := strings.TrimSpace(shared.ResolveAppID(*appID))
+			if appClipValue == "" && appValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --app is required with --bundle-id")
+				return shared.MissingRequiredUsageError()
+			}
+
 			client, err := appClipsClientFactory()
 			if err != nil {
 				return fmt.Errorf("app-clips advanced-experiences create: %w", err)
@@ -349,18 +361,6 @@ Examples:
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
-
-			appClipValue := strings.TrimSpace(*appClipID)
-			bundleValue := strings.TrimSpace(*bundleID)
-			appValue := strings.TrimSpace(shared.ResolveAppID(*appID))
-			if appClipValue == "" && bundleValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app-clip-id or --bundle-id is required")
-				return shared.MissingRequiredUsageError()
-			}
-			if appClipValue == "" && appValue == "" {
-				fmt.Fprintln(os.Stderr, "Error: --app is required with --bundle-id")
-				return shared.MissingRequiredUsageError()
-			}
 
 			appClipValue, err = resolveAppClipID(requestCtx, client, appValue, appClipValue, bundleValue)
 			if err != nil {

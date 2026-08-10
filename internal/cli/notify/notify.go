@@ -308,6 +308,9 @@ func parseSlackBlocks(blocksJSON string, blocksFile string) ([]json.RawMessage, 
 	if err := json.Unmarshal([]byte(blocksJSON), &blocks); err != nil {
 		return nil, fmt.Errorf("%s must contain a JSON array: %w", source, err)
 	}
+	if blocks == nil {
+		return nil, fmt.Errorf("%s must contain a JSON array", source)
+	}
 
 	return blocks, nil
 }
