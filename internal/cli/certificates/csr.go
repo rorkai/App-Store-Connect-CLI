@@ -329,10 +329,107 @@ func validateCSRPairOutputPaths(keyOut, csrOut string) error {
 	if (keyRelativeErr == nil && keyToCSR == ".") || (csrRelativeErr == nil && csrToKey == ".") {
 		return shared.UsageError("--key-out and --csr-out must be different paths")
 	}
+	caseEquivalent, err := areCSRPathsCaseEquivalent(keyPath, csrPath)
+	if err != nil {
+		return fmt.Errorf("compare --key-out and --csr-out: %w", err)
+	}
+	if caseEquivalent {
+		return shared.UsageError("--key-out and --csr-out must be different paths")
+	}
 	if isCSRDescendantPath(keyToCSR, keyRelativeErr) || isCSRDescendantPath(csrToKey, csrRelativeErr) {
 		return shared.UsageError("--key-out and --csr-out must not contain one another")
 	}
 	return nil
+}
+
+func areCSRPathsCaseEquivalent(keyPath, csrPath string) (bool, error) {
+	if !strings.EqualFold(keyPath, csrPath) {
+		return false, nil
+	}
+
+	keyAncestor, keyInfo, keyMissing, err := deepestExistingCSRPath(keyPath)
+	if err != nil {
+		return false, err
+	}
+	_, csrInfo, csrMissing, err := deepestExistingCSRPath(csrPath)
+	if err != nil {
+		return false, err
+	}
+	if !os.SameFile(keyInfo, csrInfo) {
+		return false, nil
+	}
+	if keyMissing == 0 && csrMissing == 0 {
+		return true, nil
+	}
+	if !keyInfo.IsDir() {
+		return false, nil
+	}
+	return isCSRDirectoryCaseInsensitive(keyAncestor)
+}
+
+func deepestExistingCSRPath(path string) (string, os.FileInfo, int, error) {
+	current := path
+	missing := 0
+	for {
+		info, err := os.Stat(current)
+		if err == nil {
+			return current, info, missing, nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return "", nil, 0, err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", nil, 0, err
+		}
+		current = parent
+		missing++
+	}
+}
+
+func isCSRDirectoryCaseInsensitive(path string) (insensitive bool, err error) {
+	probePath, err := os.MkdirTemp(path, ".asc-csr-case-*")
+	if err != nil {
+		return false, err
+	}
+	defer func() {
+		if removeErr := os.Remove(probePath); removeErr != nil {
+			cleanupErr := fmt.Errorf("remove case-sensitivity probe: %w", removeErr)
+			if err == nil {
+				err = cleanupErr
+			} else {
+				err = errors.Join(err, cleanupErr)
+			}
+		}
+	}()
+
+	probeInfo, err := os.Lstat(probePath)
+	if err != nil {
+		return false, err
+	}
+	caseVariantInfo, err := os.Lstat(csrCaseVariantPath(probePath))
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return os.SameFile(probeInfo, caseVariantInfo), nil
+}
+
+func csrCaseVariantPath(path string) string {
+	name := []byte(filepath.Base(path))
+	for i, character := range name {
+		switch {
+		case character >= 'a' && character <= 'z':
+			name[i] = character - ('a' - 'A')
+			return filepath.Join(filepath.Dir(path), string(name))
+		case character >= 'A' && character <= 'Z':
+			name[i] = character + ('a' - 'A')
+			return filepath.Join(filepath.Dir(path), string(name))
+		}
+	}
+	return path
 }
 
 func resolveCSRDestinationPath(path string) (string, error) {

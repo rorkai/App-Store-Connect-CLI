@@ -400,8 +400,14 @@ func TestCertificatesCSRGenerate_RejectsAliasEquivalentOutputsBeforeWriting(t *t
 
 			if runErr == nil {
 				t.Error("expected alias-equivalent output path error")
-			} else if !strings.Contains(runErr.Error(), "must be different paths") {
-				t.Errorf("expected different output path error, got %v", runErr)
+			} else {
+				if !errors.Is(runErr, flag.ErrHelp) {
+					t.Errorf("expected usage error, got %v", runErr)
+				}
+				const expected = "--key-out and --csr-out must be different paths"
+				if runErr.Error() != expected {
+					t.Errorf("error = %q, want %q", runErr, expected)
+				}
 			}
 			if stdout != "" {
 				t.Errorf("expected empty stdout, got %q", stdout)
@@ -412,6 +418,127 @@ func TestCertificatesCSRGenerate_RejectsAliasEquivalentOutputsBeforeWriting(t *t
 				}
 			}
 		})
+	}
+}
+
+func TestCertificatesCSRGenerate_RejectsCaseEquivalentOutputsBeforeWriting(t *testing.T) {
+	dir := t.TempDir()
+	probe := filepath.Join(dir, "case-probe")
+	if err := os.Mkdir(probe, 0o755); err != nil {
+		t.Fatalf("Mkdir(probe) error: %v", err)
+	}
+	probeInfo, err := os.Stat(probe)
+	if err != nil {
+		t.Fatalf("Stat(probe) error: %v", err)
+	}
+	caseVariantInfo, err := os.Stat(filepath.Join(dir, "CASE-PROBE"))
+	if errors.Is(err, os.ErrNotExist) {
+		t.Skip("temporary volume is demonstrably case-sensitive")
+	}
+	if err != nil {
+		t.Fatalf("Stat(case variant) error: %v", err)
+	}
+	if !os.SameFile(probeInfo, caseVariantInfo) {
+		t.Skip("temporary volume resolves case variants to distinct entries")
+	}
+	if err := os.Remove(probe); err != nil {
+		t.Fatalf("Remove(probe) error: %v", err)
+	}
+
+	for _, force := range []bool{false, true} {
+		name := "without force"
+		if force {
+			name = "with force"
+		}
+		t.Run(name, func(t *testing.T) {
+			outputDir := filepath.Join(dir, strings.ReplaceAll(name, " ", "-"))
+			if err := os.Mkdir(outputDir, 0o755); err != nil {
+				t.Fatalf("Mkdir(outputDir) error: %v", err)
+			}
+			keyOut := filepath.Join(outputDir, "cert.key")
+			csrOut := filepath.Join(outputDir, "CERT.KEY")
+			args := []string{
+				"certificates", "csr", "generate",
+				"--key-out", keyOut,
+				"--csr-out", csrOut,
+				"--output", "json",
+			}
+			if force {
+				args = append(args, "--force")
+			}
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			stdout, _ := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse command: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Errorf("expected usage error, got %v", runErr)
+			}
+			const expected = "--key-out and --csr-out must be different paths"
+			if runErr == nil || runErr.Error() != expected {
+				t.Errorf("error = %v, want %q", runErr, expected)
+			}
+			if stdout != "" {
+				t.Errorf("expected empty stdout, got %q", stdout)
+			}
+			entries, err := os.ReadDir(outputDir)
+			if err != nil {
+				t.Fatalf("ReadDir(outputDir) error: %v", err)
+			}
+			if len(entries) != 0 {
+				t.Errorf("outputs were created before case-equivalent paths were rejected: %v", entries)
+			}
+		})
+	}
+}
+
+func TestCertificatesCSRGenerate_AllowsCaseDistinctOutputsOnCaseSensitiveVolume(t *testing.T) {
+	dir := t.TempDir()
+	probe := filepath.Join(dir, "case-probe")
+	if err := os.Mkdir(probe, 0o755); err != nil {
+		t.Fatalf("Mkdir(probe) error: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "CASE-PROBE")); err == nil {
+		t.Skip("temporary volume is case-insensitive")
+	} else if !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Stat(case variant) error: %v", err)
+	}
+	if err := os.Remove(probe); err != nil {
+		t.Fatalf("Remove(probe) error: %v", err)
+	}
+
+	keyOut := filepath.Join(dir, "cert.key")
+	csrOut := filepath.Join(dir, "CERT.KEY")
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	if err := root.Parse([]string{
+		"certificates", "csr", "generate",
+		"--key-out", keyOut,
+		"--csr-out", csrOut,
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse command: %v", err)
+	}
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run command: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if _, err := os.Stat(keyOut); err != nil {
+		t.Fatalf("expected case-distinct key output: %v", err)
+	}
+	if _, err := os.Stat(csrOut); err != nil {
+		t.Fatalf("expected case-distinct CSR output: %v", err)
 	}
 }
 
