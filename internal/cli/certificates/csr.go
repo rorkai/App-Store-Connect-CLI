@@ -367,78 +367,45 @@ func validateCSRPairOutputPaths(keyOut, csrOut string) error {
 }
 
 func classifyCSRFilesystemRelation(keyPath, csrPath string) (same bool, nested bool, err error) {
-	keyDepth := csrPathDepth(keyPath)
-	csrDepth := csrPathDepth(csrPath)
-	if keyDepth == csrDepth {
-		same, err = areCSRPathsFilesystemEquivalent(keyPath, csrPath)
-		return same, false, err
-	}
+	return classifyCSRFilesystemRelationWithStat(keyPath, csrPath, os.Stat)
+}
 
-	shorter := keyPath
-	longer := csrPath
-	shorterDepth := keyDepth
-	longerDepth := csrDepth
-	if keyDepth > csrDepth {
-		shorter = csrPath
-		longer = keyPath
-		shorterDepth = csrDepth
-		longerDepth = keyDepth
+func classifyCSRFilesystemRelationWithStat(keyPath, csrPath string, stat csrStatFunc) (same bool, nested bool, err error) {
+	if keyPath == csrPath {
+		return true, false, nil
 	}
-	longerPrefix := longer
-	for range longerDepth - shorterDepth {
-		longerPrefix = filepath.Dir(longerPrefix)
+	// Bind mounts and other filesystem aliases can have unrelated spellings and
+	// lexical depths. Anchor the comparison on the deepest existing inode, then
+	// compare only the unresolved destination components beneath it.
+	keyAncestor, keyInfo, keyMissing, err := deepestExistingCSRPath(keyPath, stat)
+	if err != nil {
+		return false, false, err
 	}
-	if !normalizedFoldEqual(shorter, longerPrefix) {
+	_, csrInfo, csrMissing, err := deepestExistingCSRPath(csrPath, stat)
+	if err != nil {
+		return false, false, err
+	}
+	if !os.SameFile(keyInfo, csrInfo) {
 		return false, false, nil
 	}
 
-	nested, err = areCSRPathsFilesystemEquivalent(shorter, longerPrefix)
+	keyComponents := csrMissingPathComponents(keyPath, keyMissing)
+	csrComponents := csrMissingPathComponents(csrPath, csrMissing)
+	if len(keyComponents) == len(csrComponents) {
+		same, err = areCSRPathComponentsEquivalent(keyAncestor, keyInfo, keyComponents, csrComponents)
+		return same, false, err
+	}
+	shorter := keyComponents
+	longer := csrComponents
+	if len(csrComponents) < len(keyComponents) {
+		shorter = csrComponents
+		longer = keyComponents
+	}
+	nested, err = areCSRPathComponentsEquivalent(keyAncestor, keyInfo, shorter, longer[:len(shorter)])
 	return false, nested, err
 }
 
-func csrPathDepth(path string) int {
-	depth := 0
-	for current := filepath.Clean(path); ; current = filepath.Dir(current) {
-		parent := filepath.Dir(current)
-		if parent == current {
-			return depth
-		}
-		depth++
-	}
-}
-
-func areCSRPathsFilesystemEquivalent(leftPath, rightPath string) (bool, error) {
-	if leftPath == rightPath {
-		return true, nil
-	}
-	if !normalizedFoldEqual(leftPath, rightPath) {
-		return false, nil
-	}
-
-	leftAncestor, leftInfo, leftMissing, err := deepestExistingCSRPath(leftPath)
-	if err != nil {
-		return false, err
-	}
-	_, rightInfo, rightMissing, err := deepestExistingCSRPath(rightPath)
-	if err != nil {
-		return false, err
-	}
-	if !os.SameFile(leftInfo, rightInfo) || leftMissing != rightMissing {
-		return false, nil
-	}
-	if leftMissing == 0 {
-		return true, nil
-	}
-	if !leftInfo.IsDir() {
-		return false, nil
-	}
-	leftComponents := csrMissingPathComponents(leftPath, leftMissing)
-	rightComponents := csrMissingPathComponents(rightPath, rightMissing)
-	if sameCSRPathComponents(leftComponents, rightComponents) {
-		return true, nil
-	}
-	return probeCSRPathComponentsEquivalent(leftAncestor, leftComponents, rightComponents)
-}
+type csrStatFunc func(string) (os.FileInfo, error)
 
 func normalizedFoldEqual(left, right string) bool {
 	return strings.EqualFold(norm.NFC.String(left), norm.NFC.String(right))
@@ -466,11 +433,21 @@ func sameCSRPathComponents(left, right []string) bool {
 	return true
 }
 
-func deepestExistingCSRPath(path string) (string, os.FileInfo, int, error) {
+func areCSRPathComponentsEquivalent(parent string, parentInfo os.FileInfo, left, right []string) (bool, error) {
+	if sameCSRPathComponents(left, right) {
+		return true, nil
+	}
+	if !parentInfo.IsDir() {
+		return false, nil
+	}
+	return probeCSRPathComponentsEquivalent(parent, left, right)
+}
+
+func deepestExistingCSRPath(path string, stat csrStatFunc) (string, os.FileInfo, int, error) {
 	current := path
 	missing := 0
 	for {
-		info, err := os.Stat(current)
+		info, err := stat(current)
 		if err == nil {
 			return current, info, missing, nil
 		}

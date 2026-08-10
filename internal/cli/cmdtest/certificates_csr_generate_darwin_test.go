@@ -106,3 +106,98 @@ func TestCertificatesCSRGenerate_ForceRestoresKeyWhenCSRDestinationRejectsReplac
 		})
 	}
 }
+
+func TestCertificatesCSRGenerate_RejectsMountAliasEquivalentOutputsBeforeWriting(t *testing.T) {
+	physicalParent, err := os.MkdirTemp("/private/tmp", "asc-csr-mount-alias-")
+	if err != nil {
+		t.Fatalf("MkdirTemp() error: %v", err)
+	}
+	t.Cleanup(func() {
+		entries, readErr := os.ReadDir(physicalParent)
+		if readErr == nil {
+			for _, entry := range entries {
+				if removeErr := os.Remove(filepath.Join(physicalParent, entry.Name())); removeErr != nil {
+					t.Errorf("remove mount-alias test artifact %q: %v", entry.Name(), removeErr)
+				}
+			}
+		}
+		if removeErr := os.Remove(physicalParent); removeErr != nil {
+			t.Errorf("remove mount-alias test directory: %v", removeErr)
+		}
+	})
+
+	aliasParent := filepath.Join("/System/Volumes/Data", physicalParent)
+	physicalInfo, err := os.Stat(physicalParent)
+	if err != nil {
+		t.Fatalf("Stat(physicalParent) error: %v", err)
+	}
+	aliasInfo, err := os.Stat(aliasParent)
+	if errors.Is(err, os.ErrNotExist) {
+		t.Skip("macOS data-volume alias is unavailable")
+	}
+	if err != nil {
+		t.Fatalf("Stat(aliasParent) error: %v", err)
+	}
+	if !os.SameFile(physicalInfo, aliasInfo) {
+		t.Skip("macOS data-volume paths do not alias the same directory")
+	}
+	physicalResolved, err := filepath.EvalSymlinks(physicalParent)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(physicalParent) error: %v", err)
+	}
+	aliasResolved, err := filepath.EvalSymlinks(aliasParent)
+	if err != nil {
+		t.Fatalf("EvalSymlinks(aliasParent) error: %v", err)
+	}
+	if physicalResolved == aliasResolved {
+		t.Skip("mount aliases are already canonicalized as symlinks")
+	}
+
+	for _, force := range []bool{false, true} {
+		name := "without force"
+		if force {
+			name = "with force"
+		}
+		t.Run(name, func(t *testing.T) {
+			keyOut := filepath.Join(physicalParent, strings.ReplaceAll(name, " ", "-"))
+			csrOut := filepath.Join(aliasParent, strings.ReplaceAll(name, " ", "-"))
+			args := []string{
+				"certificates", "csr", "generate",
+				"--key-out", keyOut,
+				"--csr-out", csrOut,
+				"--output", "json",
+			}
+			if force {
+				args = append(args, "--force")
+			}
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			stdout, _ := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse command: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Errorf("expected usage error, got %v", runErr)
+			}
+			const expected = "--key-out and --csr-out must be different paths"
+			if runErr == nil || runErr.Error() != expected {
+				t.Errorf("error = %v, want %q", runErr, expected)
+			}
+			if stdout != "" {
+				t.Errorf("expected empty stdout, got %q", stdout)
+			}
+			entries, err := os.ReadDir(physicalParent)
+			if err != nil {
+				t.Fatalf("ReadDir(physicalParent) error: %v", err)
+			}
+			if len(entries) != 0 {
+				t.Errorf("outputs were created before mount aliases were rejected: %v", entries)
+			}
+		})
+	}
+}
