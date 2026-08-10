@@ -1406,8 +1406,8 @@ func GameCenterMatchmakingQueueSizesCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return metricsQueueCommand("queue-sizes", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error) {
-		return ascClient().GetGameCenterMatchmakingQueueSizes(ctx, id, opts...)
+	return metricsQueueCommand("queue-sizes", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error) {
+		return client.GetGameCenterMatchmakingQueueSizes(ctx, id, opts...)
 	})
 }
 
@@ -1426,8 +1426,8 @@ func GameCenterMatchmakingQueueRequestsCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return metricsQueueCommandWithFilters("queue-requests", fs, queueID, granularity, groupBy, filterResult, filterDetail, sort, limit, next, paginate, output.Output, output.Pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error) {
-		return ascClient().GetGameCenterMatchmakingQueueRequests(ctx, id, opts...)
+	return metricsQueueCommandWithFilters("queue-requests", fs, queueID, granularity, groupBy, filterResult, filterDetail, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error) {
+		return client.GetGameCenterMatchmakingQueueRequests(ctx, id, opts...)
 	})
 }
 
@@ -1443,8 +1443,8 @@ func GameCenterMatchmakingQueueSessionsCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return metricsQueueCommand("queue-sessions", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSessionsResponse, error) {
-		return ascClient().GetGameCenterMatchmakingQueueSessions(ctx, id, opts...)
+	return metricsQueueCommand("queue-sessions", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSessionsResponse, error) {
+		return client.GetGameCenterMatchmakingQueueSessions(ctx, id, opts...)
 	})
 }
 
@@ -1460,8 +1460,8 @@ func GameCenterMatchmakingQueueExperimentSizesCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return metricsQueueCommand("experiment-queue-sizes", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueExperimentSizesResponse, error) {
-		return ascClient().GetGameCenterMatchmakingQueueExperimentSizes(ctx, id, opts...)
+	return metricsQueueCommand("experiment-queue-sizes", fs, queueID, granularity, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueExperimentSizesResponse, error) {
+		return client.GetGameCenterMatchmakingQueueExperimentSizes(ctx, id, opts...)
 	})
 }
 
@@ -1480,8 +1480,8 @@ func GameCenterMatchmakingQueueExperimentRequestsCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return metricsQueueCommandWithFilters("experiment-queue-requests", fs, queueID, granularity, groupBy, filterResult, filterDetail, sort, limit, next, paginate, output.Output, output.Pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueExperimentRequestsResponse, error) {
-		return ascClient().GetGameCenterMatchmakingQueueExperimentRequests(ctx, id, opts...)
+	return metricsQueueCommandWithFilters("experiment-queue-requests", fs, queueID, granularity, groupBy, filterResult, filterDetail, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueExperimentRequestsResponse, error) {
+		return client.GetGameCenterMatchmakingQueueExperimentRequests(ctx, id, opts...)
 	})
 }
 
@@ -1500,8 +1500,8 @@ func GameCenterMatchmakingBooleanRuleResultsCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return metricsRuleCommand("rule-boolean-results", fs, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error) {
-		return ascClient().GetGameCenterMatchmakingBooleanRuleResults(ctx, id, opts...)
+	return metricsRuleCommand("rule-boolean-results", fs, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error) {
+		return client.GetGameCenterMatchmakingBooleanRuleResults(ctx, id, opts...)
 	})
 }
 
@@ -1520,8 +1520,8 @@ func GameCenterMatchmakingNumberRuleResultsCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return metricsRuleCommand("rule-number-results", fs, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingNumberRuleResultsResponse, error) {
-		return ascClient().GetGameCenterMatchmakingNumberRuleResults(ctx, id, opts...)
+	return metricsRuleCommand("rule-number-results", fs, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingNumberRuleResultsResponse, error) {
+		return client.GetGameCenterMatchmakingNumberRuleResults(ctx, id, opts...)
 	})
 }
 
@@ -1540,12 +1540,12 @@ func GameCenterMatchmakingRuleErrorsCommand() *ffcli.Command {
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
 
-	return metricsRuleCommand("rule-errors", fs, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingRuleErrorsResponse, error) {
-		return ascClient().GetGameCenterMatchmakingRuleErrors(ctx, id, opts...)
+	return metricsRuleCommand("rule-errors", fs, ruleID, granularity, groupBy, filterResult, filterQueue, sort, limit, next, paginate, output.Output, output.Pretty, func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingRuleErrorsResponse, error) {
+		return client.GetGameCenterMatchmakingRuleErrors(ctx, id, opts...)
 	})
 }
 
-func metricsQueueCommand(name string, fs *flag.FlagSet, queueID *string, granularity *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error)) *ffcli.Command {
+func metricsQueueCommand(name string, fs *flag.FlagSet, queueID *string, granularity *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error)) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       name,
 		ShortUsage: "asc game-center matchmaking metrics " + name + " --queue-id \"QUEUE_ID\" --granularity P1D",
@@ -1562,7 +1562,7 @@ Examples:
 	}
 }
 
-func metricsQueueCommandWithFilters(name string, fs *flag.FlagSet, queueID *string, granularity *string, groupBy *string, filterResult *string, filterDetail *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error)) *ffcli.Command {
+func metricsQueueCommandWithFilters(name string, fs *flag.FlagSet, queueID *string, granularity *string, groupBy *string, filterResult *string, filterDetail *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error)) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       name,
 		ShortUsage: "asc game-center matchmaking metrics " + name + " --queue-id \"QUEUE_ID\" --granularity P1D",
@@ -1579,7 +1579,7 @@ Examples:
 	}
 }
 
-func metricsRuleCommand(name string, fs *flag.FlagSet, ruleID *string, granularity *string, groupBy *string, filterResult *string, filterQueue *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error)) *ffcli.Command {
+func metricsRuleCommand(name string, fs *flag.FlagSet, ruleID *string, granularity *string, groupBy *string, filterResult *string, filterQueue *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error)) *ffcli.Command {
 	return &ffcli.Command{
 		Name:       name,
 		ShortUsage: "asc game-center matchmaking metrics " + name + " --rule-id \"RULE_ID\" --granularity P1D",
@@ -1596,7 +1596,7 @@ Examples:
 	}
 }
 
-func runMetricsQueue(ctx context.Context, name string, queueID *string, granularity *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetchSizes func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error), fetchRequests func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error), groupBy string, filterResult string, filterDetail string) error {
+func runMetricsQueue(ctx context.Context, name string, queueID *string, granularity *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetchSizes func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueSizesResponse, error), fetchRequests func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingQueueRequestsResponse, error), groupBy string, filterResult string, filterDetail string) error {
 	if *limit != 0 && (*limit < 1 || *limit > 200) {
 		return fmt.Errorf("game-center matchmaking metrics %s: --limit must be between 1 and 200", name)
 	}
@@ -1615,7 +1615,11 @@ func runMetricsQueue(ctx context.Context, name string, queueID *string, granular
 		return shared.MissingRequiredUsageError()
 	}
 
-	var err error
+	client, err := shared.GetASCClient()
+	if err != nil {
+		return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
+	}
+
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
@@ -1640,9 +1644,9 @@ func runMetricsQueue(ctx context.Context, name string, queueID *string, granular
 		var firstPage asc.PaginatedResponse
 		var err error
 		if fetchRequests != nil {
-			firstPage, err = fetchRequests(requestCtx, id, paginateOpts...)
+			firstPage, err = fetchRequests(client, requestCtx, id, paginateOpts...)
 		} else {
-			firstPage, err = fetchSizes(requestCtx, id, paginateOpts...)
+			firstPage, err = fetchSizes(client, requestCtx, id, paginateOpts...)
 		}
 		if err != nil {
 			return fmt.Errorf("game-center matchmaking metrics %s: failed to fetch: %w", name, err)
@@ -1650,9 +1654,9 @@ func runMetricsQueue(ctx context.Context, name string, queueID *string, granular
 
 		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
 			if fetchRequests != nil {
-				return fetchRequests(ctx, id, asc.WithGCMatchmakingMetricsNextURL(nextURL))
+				return fetchRequests(client, ctx, id, asc.WithGCMatchmakingMetricsNextURL(nextURL))
 			}
-			return fetchSizes(ctx, id, asc.WithGCMatchmakingMetricsNextURL(nextURL))
+			return fetchSizes(client, ctx, id, asc.WithGCMatchmakingMetricsNextURL(nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
@@ -1663,9 +1667,9 @@ func runMetricsQueue(ctx context.Context, name string, queueID *string, granular
 
 	var resp any
 	if fetchRequests != nil {
-		resp, err = fetchRequests(requestCtx, id, opts...)
+		resp, err = fetchRequests(client, requestCtx, id, opts...)
 	} else {
-		resp, err = fetchSizes(requestCtx, id, opts...)
+		resp, err = fetchSizes(client, requestCtx, id, opts...)
 	}
 	if err != nil {
 		return fmt.Errorf("game-center matchmaking metrics %s: failed to fetch: %w", name, err)
@@ -1674,7 +1678,7 @@ func runMetricsQueue(ctx context.Context, name string, queueID *string, granular
 	return shared.PrintOutput(resp, *output, *pretty)
 }
 
-func runMetricsRule(ctx context.Context, name string, ruleID *string, granularity *string, groupBy *string, filterResult *string, filterQueue *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error)) error {
+func runMetricsRule(ctx context.Context, name string, ruleID *string, granularity *string, groupBy *string, filterResult *string, filterQueue *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool, fetch func(client *asc.Client, ctx context.Context, id string, opts ...asc.GCMatchmakingMetricsOption) (*asc.GameCenterMatchmakingBooleanRuleResultsResponse, error)) error {
 	if *limit != 0 && (*limit < 1 || *limit > 200) {
 		return fmt.Errorf("game-center matchmaking metrics %s: --limit must be between 1 and 200", name)
 	}
@@ -1693,6 +1697,11 @@ func runMetricsRule(ctx context.Context, name string, ruleID *string, granularit
 		return shared.MissingRequiredUsageError()
 	}
 
+	client, err := shared.GetASCClient()
+	if err != nil {
+		return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
+	}
+
 	requestCtx, cancel := shared.ContextWithTimeout(ctx)
 	defer cancel()
 
@@ -1708,13 +1717,13 @@ func runMetricsRule(ctx context.Context, name string, ruleID *string, granularit
 
 	if *paginate {
 		paginateOpts := append(opts, asc.WithGCMatchmakingMetricsLimit(200))
-		firstPage, err := fetch(requestCtx, id, paginateOpts...)
+		firstPage, err := fetch(client, requestCtx, id, paginateOpts...)
 		if err != nil {
 			return fmt.Errorf("game-center matchmaking metrics %s: failed to fetch: %w", name, err)
 		}
 
 		resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-			return fetch(ctx, id, asc.WithGCMatchmakingMetricsNextURL(nextURL))
+			return fetch(client, ctx, id, asc.WithGCMatchmakingMetricsNextURL(nextURL))
 		})
 		if err != nil {
 			return fmt.Errorf("game-center matchmaking metrics %s: %w", name, err)
@@ -1723,7 +1732,7 @@ func runMetricsRule(ctx context.Context, name string, ruleID *string, granularit
 		return shared.PrintOutput(resp, *output, *pretty)
 	}
 
-	resp, err := fetch(requestCtx, id, opts...)
+	resp, err := fetch(client, requestCtx, id, opts...)
 	if err != nil {
 		return fmt.Errorf("game-center matchmaking metrics %s: failed to fetch: %w", name, err)
 	}
@@ -1799,9 +1808,4 @@ Examples:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
-}
-
-func ascClient() *asc.Client {
-	client, _ := shared.GetASCClient()
-	return client
 }
