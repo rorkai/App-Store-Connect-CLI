@@ -411,6 +411,16 @@ func TestCertificatesCreateCommand_GenerateCSRWriteFailures(t *testing.T) {
 	}
 }
 
+func TestValidateCSRFileOutputPathRejectsAlternateWindowsSeparator(t *testing.T) {
+	windowsPathSeparator := func(character uint8) bool {
+		return character == '\\' || character == '/'
+	}
+
+	if _, err := validateCSRFileOutputPathWithSeparator("output/", windowsPathSeparator); err == nil {
+		t.Fatal("expected alternate Windows path separator to be rejected")
+	}
+}
+
 func TestCertificatesRevokeCommand_MissingID(t *testing.T) {
 	cmd := CertificatesRevokeCommand()
 

@@ -340,11 +340,15 @@ func preflightCSRParentDirectory(path string) error {
 }
 
 func validateCSRFileOutputPath(path string) (string, error) {
+	return validateCSRFileOutputPathWithSeparator(path, os.IsPathSeparator)
+}
+
+func validateCSRFileOutputPathWithSeparator(path string, isPathSeparator func(uint8) bool) (string, error) {
 	trimmed := strings.TrimSpace(path)
 	if trimmed == "" {
 		return "", fmt.Errorf("output path is required")
 	}
-	if strings.HasSuffix(trimmed, string(filepath.Separator)) {
+	if isPathSeparator(trimmed[len(trimmed)-1]) {
 		return "", fmt.Errorf("output path must be a file")
 	}
 	return trimmed, nil
