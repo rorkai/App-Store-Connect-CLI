@@ -59,7 +59,7 @@ func TestSigningSyncPreparesRepositoryOnceInAssetOrder(t *testing.T) {
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/profiles/profile-main/certificates":
 					return signingFetchJSONResponse(http.StatusOK, `{"data":[{"type":"certificates","id":"cert-1","attributes":{"certificateType":"IOS_DISTRIBUTION"}}]}`)
 				case req.Method == http.MethodGet && req.URL.Path == "/v1/certificates":
-					return signingFetchJSONResponse(http.StatusOK, `{"data":[{"type":"certificates","id":"cert-1","attributes":{"certificateType":"IOS_DISTRIBUTION"}}]}`)
+					return signingFetchJSONResponse(http.StatusOK, `{"data":[{"type":"certificates","id":"cert-1","attributes":{"certificateType":"IOS_DISTRIBUTION","activated":true,"expirationDate":"2100-01-01T00:00:00Z"}}]}`)
 				case req.Method == http.MethodPost && req.URL.Path == "/v1/profiles":
 					return signingFetchJSONResponse(http.StatusCreated, `{"data":{"type":"profiles","id":"profile-created","attributes":{"profileType":"IOS_APP_STORE","profileState":"ACTIVE"}}}`)
 				default:

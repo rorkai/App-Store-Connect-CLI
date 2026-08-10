@@ -281,6 +281,13 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 	if err != nil {
 		return nil, nil, false, err
 	}
+	certificates.Data = certificatesForProfileCreation(certificates.Data, options.ProfileType, time.Now())
+	if len(certificates.Data) == 0 {
+		return nil, nil, false, fmt.Errorf(
+			"no active, unexpired certificates available to create %s profile",
+			options.ProfileType,
+		)
+	}
 	if options.BeforeCreate != nil {
 		if err := options.BeforeCreate(); err != nil {
 			return nil, nil, false, fmt.Errorf("preflight before creating profile: %w", err)
@@ -308,6 +315,60 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 		return nil, nil, false, err
 	}
 	return profile, certificates, true, nil
+}
+
+func certificatesForProfileCreation(certificates []asc.Resource[asc.CertificateAttributes], profileType string, now time.Time) []asc.Resource[asc.CertificateAttributes] {
+	type candidate struct {
+		certificate asc.Resource[asc.CertificateAttributes]
+		expiresAt   time.Time
+	}
+
+	candidates := make([]candidate, 0, len(certificates))
+	for _, certificate := range certificates {
+		activated := certificate.Attributes.Activated
+		if activated != nil && !*activated {
+			continue
+		}
+		expiresAt, err := time.Parse(time.RFC3339, strings.TrimSpace(certificate.Attributes.ExpirationDate))
+		if err != nil || !expiresAt.After(now) {
+			continue
+		}
+		candidates = append(candidates, candidate{
+			certificate: certificate,
+			expiresAt:   expiresAt,
+		})
+	}
+
+	if len(candidates) == 0 {
+		return nil
+	}
+	if !isSingleCertificateProfile(profileType) {
+		eligible := make([]asc.Resource[asc.CertificateAttributes], 0, len(candidates))
+		for _, candidate := range candidates {
+			eligible = append(eligible, candidate.certificate)
+		}
+		return eligible
+	}
+
+	selected := candidates[0]
+	for _, candidate := range candidates[1:] {
+		if candidate.expiresAt.After(selected.expiresAt) ||
+			(candidate.expiresAt.Equal(selected.expiresAt) && candidate.certificate.ID < selected.certificate.ID) {
+			selected = candidate
+		}
+	}
+	return []asc.Resource[asc.CertificateAttributes]{selected.certificate}
+}
+
+func isSingleCertificateProfile(profileType string) bool {
+	switch strings.ToUpper(strings.TrimSpace(profileType)) {
+	case "IOS_APP_STORE", "IOS_APP_ADHOC", "IOS_APP_INHOUSE",
+		"TVOS_APP_STORE", "TVOS_APP_ADHOC", "TVOS_APP_INHOUSE",
+		"MAC_APP_STORE", "MAC_CATALYST_APP_STORE":
+		return true
+	default:
+		return false
+	}
 }
 
 func resolveSigningCertificateTypes(profileType, raw string) (string, error) {
