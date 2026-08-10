@@ -11,6 +11,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/validation"
 )
 
 // AppSetupCommand returns the app-setup command group.
@@ -160,6 +161,13 @@ Examples:
 				}
 			}
 
+			for _, issue := range validation.AppInfoLocalizationLengthIssues(validation.AppInfoLocalization{
+				Name:     nameValue,
+				Subtitle: subtitleValue,
+			}) {
+				return shared.UsageErrorf("--%s exceeds %d %s", issue.Field, issue.Limit, issue.Unit)
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("app-setup info set: %w", err)
@@ -167,6 +175,58 @@ Examples:
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
+
+			var localizationAttrs asc.AppInfoLocalizationAttributes
+			var resolvedAppInfoID string
+			var localizationID string
+			createLocalization := false
+			if hasLocalization {
+				resolvedAppInfoID, err = shared.ResolveAppInfoID(requestCtx, client, appIDValue, strings.TrimSpace(*appInfoID))
+				if err != nil {
+					return fmt.Errorf("app-setup info set: %w", err)
+				}
+
+				localizations, err := client.GetAppInfoLocalizations(
+					requestCtx,
+					resolvedAppInfoID,
+					asc.WithAppInfoLocalizationsLimit(200),
+					asc.WithAppInfoLocalizationLocales([]string{localeValue}),
+				)
+				if err != nil {
+					return fmt.Errorf("app-setup info set: failed to fetch app info localizations: %w", err)
+				}
+
+				if nameValue != "" {
+					localizationAttrs.Name = nameValue
+				}
+				if subtitleValue != "" {
+					localizationAttrs.Subtitle = subtitleValue
+				}
+				if privacyPolicyURLValue != "" {
+					localizationAttrs.PrivacyPolicyURL = privacyPolicyURLValue
+				}
+				if privacyChoicesURLValue != "" {
+					localizationAttrs.PrivacyChoicesURL = privacyChoicesURLValue
+				}
+				if privacyPolicyTextValue != "" {
+					localizationAttrs.PrivacyPolicyText = privacyPolicyTextValue
+				}
+
+				if len(localizations.Data) == 0 {
+					if nameValue == "" {
+						return shared.UsageError("--name is required when creating an app info localization")
+					}
+					localizationAttrs.Locale = localeValue
+					createLocalization = true
+				} else if len(localizations.Data) > 1 {
+					return fmt.Errorf("app-setup info set: multiple app info localizations found for locale %q", localeValue)
+				} else {
+					localizationID = strings.TrimSpace(localizations.Data[0].ID)
+					if localizationID == "" {
+						return fmt.Errorf("app-setup info set: localization id is empty")
+					}
+				}
+			}
 
 			var appResp *asc.AppResponse
 			if hasAppUpdate {
@@ -188,50 +248,13 @@ Examples:
 
 			var appInfoResp *asc.AppInfoLocalizationResponse
 			if hasLocalization {
-				resolvedAppInfoID, err := shared.ResolveAppInfoID(requestCtx, client, appIDValue, strings.TrimSpace(*appInfoID))
-				if err != nil {
-					return fmt.Errorf("app-setup info set: %w", err)
-				}
-
-				localizations, err := client.GetAppInfoLocalizations(
-					requestCtx,
-					resolvedAppInfoID,
-					asc.WithAppInfoLocalizationsLimit(200),
-					asc.WithAppInfoLocalizationLocales([]string{localeValue}),
-				)
-				if err != nil {
-					return fmt.Errorf("app-setup info set: failed to fetch app info localizations: %w", err)
-				}
-
-				attrs := asc.AppInfoLocalizationAttributes{}
-				if nameValue != "" {
-					attrs.Name = nameValue
-				}
-				if subtitleValue != "" {
-					attrs.Subtitle = subtitleValue
-				}
-				if privacyPolicyURLValue != "" {
-					attrs.PrivacyPolicyURL = privacyPolicyURLValue
-				}
-				if privacyChoicesURLValue != "" {
-					attrs.PrivacyChoicesURL = privacyChoicesURLValue
-				}
-				if privacyPolicyTextValue != "" {
-					attrs.PrivacyPolicyText = privacyPolicyTextValue
-				}
-
-				if len(localizations.Data) == 0 {
-					attrs.Locale = localeValue
-					appInfoResp, err = client.CreateAppInfoLocalization(requestCtx, resolvedAppInfoID, attrs)
+				if createLocalization {
+					appInfoResp, err = client.CreateAppInfoLocalization(requestCtx, resolvedAppInfoID, localizationAttrs)
 					if err != nil {
 						return fmt.Errorf("app-setup info set: %w", err)
 					}
 				} else {
-					localizationID := strings.TrimSpace(localizations.Data[0].ID)
-					if localizationID == "" {
-						return fmt.Errorf("app-setup info set: localization id is empty")
-					}
-					appInfoResp, err = client.UpdateAppInfoLocalization(requestCtx, localizationID, attrs)
+					appInfoResp, err = client.UpdateAppInfoLocalization(requestCtx, localizationID, localizationAttrs)
 					if err != nil {
 						return fmt.Errorf("app-setup info set: %w", err)
 					}
