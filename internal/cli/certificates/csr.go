@@ -114,8 +114,8 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --csr-out is required")
 				return shared.MissingRequiredUsageError()
 			}
-			if filepath.Clean(keyOutValue) == filepath.Clean(csrOutValue) {
-				return shared.UsageError("--key-out and --csr-out must be different paths")
+			if err := validateCSRPairOutputPaths(keyOutValue, csrOutValue); err != nil {
+				return err
 			}
 
 			result, _, err := generateCSRFiles(csrGenerateOptions{
@@ -154,8 +154,8 @@ func generateCSRFiles(opts csrGenerateOptions) (*csrGenerateResult, []byte, erro
 	if csrOutValue == "" {
 		return nil, nil, fmt.Errorf("--csr-out is required")
 	}
-	if filepath.Clean(keyOutValue) == filepath.Clean(csrOutValue) {
-		return nil, nil, shared.UsageError("--key-out and --csr-out must be different paths")
+	if err := validateCSRPairOutputPaths(keyOutValue, csrOutValue); err != nil {
+		return nil, nil, err
 	}
 
 	normalizedKeyType := strings.ToLower(strings.TrimSpace(opts.KeyType))
@@ -312,6 +312,32 @@ func preflightCSRFileWrite(path string, force bool) error {
 		return fmt.Errorf("output path %q is a directory", trimmed)
 	}
 	return nil
+}
+
+func validateCSRPairOutputPaths(keyOut, csrOut string) error {
+	keyPath, err := filepath.Abs(keyOut)
+	if err != nil {
+		return fmt.Errorf("resolve --key-out: %w", err)
+	}
+	csrPath, err := filepath.Abs(csrOut)
+	if err != nil {
+		return fmt.Errorf("resolve --csr-out: %w", err)
+	}
+
+	keyToCSR, keyRelativeErr := filepath.Rel(keyPath, csrPath)
+	csrToKey, csrRelativeErr := filepath.Rel(csrPath, keyPath)
+	if (keyRelativeErr == nil && keyToCSR == ".") || (csrRelativeErr == nil && csrToKey == ".") {
+		return shared.UsageError("--key-out and --csr-out must be different paths")
+	}
+	if isCSRDescendantPath(keyToCSR, keyRelativeErr) || isCSRDescendantPath(csrToKey, csrRelativeErr) {
+		return shared.UsageError("--key-out and --csr-out must not contain one another")
+	}
+	return nil
+}
+
+func isCSRDescendantPath(relative string, err error) bool {
+	return err == nil && relative != "" && relative != "." && relative != ".." &&
+		!filepath.IsAbs(relative) && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 func preflightCSRParentDirectory(path string) error {

@@ -304,6 +304,61 @@ func TestCertificatesCSRGenerate_ForcePreservesExistingKeyWhenCSROutCannotBeWrit
 	}
 }
 
+func TestCertificatesCSRGenerate_RejectsNestedOutputPathsBeforeWriting(t *testing.T) {
+	tests := []struct {
+		name   string
+		keyOut func(string) string
+		csrOut func(string) string
+	}{
+		{
+			name:   "key contains csr",
+			keyOut: func(dir string) string { return filepath.Join(dir, "pair") },
+			csrOut: func(dir string) string { return filepath.Join(dir, "pair", "cert.csr") },
+		},
+		{
+			name:   "csr contains key",
+			keyOut: func(dir string) string { return filepath.Join(dir, "pair", "cert.key") },
+			csrOut: func(dir string) string { return filepath.Join(dir, "pair") },
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			keyOut := test.keyOut(dir)
+			csrOut := test.csrOut(dir)
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			_, _ = captureOutput(t, func() {
+				if err := root.Parse([]string{
+					"certificates", "csr", "generate",
+					"--key-out", keyOut,
+					"--csr-out", csrOut,
+					"--output", "json",
+				}); err != nil {
+					t.Fatalf("parse command: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if runErr == nil {
+				t.Fatal("expected nested output path error")
+			}
+			if _, err := os.Lstat(keyOut); err == nil {
+				t.Errorf("key output was created before nested paths were rejected: %q", keyOut)
+			}
+			if _, err := os.Lstat(csrOut); err == nil {
+				t.Errorf("CSR output was created before nested paths were rejected: %q", csrOut)
+			}
+			if !strings.Contains(runErr.Error(), "must not contain one another") {
+				t.Errorf("expected nested output path error, got %v", runErr)
+			}
+		})
+	}
+}
+
 func TestCertificatesCSRGenerate_RefusesSymlinkOutputs(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)
