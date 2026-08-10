@@ -50,9 +50,8 @@ Examples:
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			setsResp, err := client.GetAppPreviewSets(requestCtx, locID)
+			cancel()
 			if err != nil {
 				return fmt.Errorf("video-previews list: failed to fetch sets: %w", err)
 			}
@@ -63,7 +62,9 @@ Examples:
 			}
 
 			for _, set := range setsResp.Data {
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				previews, err := client.GetAppPreviews(requestCtx, set.ID)
+				cancel()
 				if err != nil {
 					return fmt.Errorf("video-previews list: failed to fetch previews for set %s: %w", set.ID, err)
 				}

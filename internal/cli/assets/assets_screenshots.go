@@ -315,9 +315,8 @@ Examples:
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			setsResp, err := client.GetAppScreenshotSets(requestCtx, locID)
+			cancel()
 			if err != nil {
 				return fmt.Errorf("screenshots list: failed to fetch sets: %w", err)
 			}
@@ -328,7 +327,9 @@ Examples:
 			}
 
 			for _, set := range setsResp.Data {
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
 				screenshots, err := client.GetAppScreenshots(requestCtx, set.ID)
+				cancel()
 				if err != nil {
 					return fmt.Errorf("screenshots list: failed to fetch screenshots for set %s: %w", set.ID, err)
 				}
