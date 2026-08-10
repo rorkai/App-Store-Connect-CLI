@@ -471,11 +471,8 @@ Examples:
 				return fmt.Errorf("analytics view: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
 			paginateReports := strings.TrimSpace(*next) == "" && (strings.TrimSpace(*instanceID) != "" || *paginate)
-			reports, links, err := fetchAnalyticsReports(requestCtx, client, strings.TrimSpace(*requestID), *limit, *next, paginateReports)
+			reports, links, err := fetchAnalyticsReports(ctx, client, strings.TrimSpace(*requestID), *limit, *next, paginateReports)
 			if err != nil {
 				return fmt.Errorf("analytics view: failed to fetch reports: %w", err)
 			}
@@ -494,7 +491,7 @@ Examples:
 
 			foundInstance := false
 			for _, report := range reports {
-				instances, err := fetchAnalyticsReportInstances(requestCtx, client, report.ID, instanceOpts...)
+				instances, err := fetchAnalyticsReportInstances(ctx, client, report.ID, instanceOpts...)
 				if err != nil {
 					return fmt.Errorf("analytics view: failed to fetch instances: %w", err)
 				}
@@ -524,7 +521,7 @@ Examples:
 					}
 
 					if *includeSegments {
-						segments, err := fetchAnalyticsReportSegments(requestCtx, client, instance.ID)
+						segments, err := fetchAnalyticsReportSegments(ctx, client, instance.ID)
 						if err != nil {
 							return fmt.Errorf("analytics view: failed to fetch segments: %w", err)
 						}
@@ -630,17 +627,14 @@ Examples:
 				return fmt.Errorf("analytics download: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			reports, _, err := fetchAnalyticsReports(requestCtx, client, strings.TrimSpace(*requestID), 0, "", true)
+			reports, _, err := fetchAnalyticsReports(ctx, client, strings.TrimSpace(*requestID), 0, "", true)
 			if err != nil {
 				return fmt.Errorf("analytics download: failed to fetch reports: %w", err)
 			}
 
 			instanceFound := false
 			for _, report := range reports {
-				instances, err := fetchAnalyticsReportInstances(requestCtx, client, report.ID)
+				instances, err := fetchAnalyticsReportInstances(ctx, client, report.ID)
 				if err != nil {
 					return fmt.Errorf("analytics download: failed to fetch instances: %w", err)
 				}
@@ -658,7 +652,7 @@ Examples:
 				return fmt.Errorf("analytics download: instance %q not found for request %q", strings.TrimSpace(*instanceID), strings.TrimSpace(*requestID))
 			}
 
-			segments, err := fetchAnalyticsReportSegments(requestCtx, client, strings.TrimSpace(*instanceID))
+			segments, err := fetchAnalyticsReportSegments(ctx, client, strings.TrimSpace(*instanceID))
 			if err != nil {
 				return fmt.Errorf("analytics download: failed to fetch segments: %w", err)
 			}
@@ -688,15 +682,9 @@ Examples:
 				return fmt.Errorf("analytics download: segment download URL is empty")
 			}
 
-			download, err := client.DownloadAnalyticsReport(requestCtx, downloadURL)
+			compressedSize, err := downloadAnalyticsReportToFile(ctx, client, downloadURL, compressedPath)
 			if err != nil {
-				return fmt.Errorf("analytics download: failed to download report: %w", err)
-			}
-			defer download.Body.Close()
-
-			compressedSize, err := shared.WriteStreamToFile(compressedPath, download.Body)
-			if err != nil {
-				return fmt.Errorf("analytics download: failed to write report: %w", err)
+				return fmt.Errorf("analytics download: %w", err)
 			}
 
 			var decompressedSize int64
