@@ -690,6 +690,195 @@ func TestCertificatesCSRGenerate_AllowsCaseVariantNonNestedOutputsOnCaseSensitiv
 	}
 }
 
+func TestCertificatesCSRGenerate_RejectsUnicodeEquivalentOutputsBeforeWriting(t *testing.T) {
+	dir := t.TempDir()
+	if !temporaryVolumeAliasesUnicodeNames(t, dir) {
+		t.Skip("temporary volume preserves canonically distinct Unicode names")
+	}
+
+	for _, relation := range []struct {
+		name     string
+		keyOut   func(string) string
+		csrOut   func(string) string
+		expected string
+	}{
+		{
+			name: "equivalent names",
+			keyOut: func(outputDir string) string {
+				return filepath.Join(outputDir, "caf\u00e9.key")
+			},
+			csrOut: func(outputDir string) string {
+				return filepath.Join(outputDir, "cafe\u0301.key")
+			},
+			expected: "--key-out and --csr-out must be different paths",
+		},
+		{
+			name: "key is Unicode-equivalent ancestor",
+			keyOut: func(outputDir string) string {
+				return filepath.Join(outputDir, "caf\u00e9")
+			},
+			csrOut: func(outputDir string) string {
+				return filepath.Join(outputDir, "cafe\u0301", "cert.csr")
+			},
+			expected: "--key-out and --csr-out must not contain one another",
+		},
+		{
+			name: "CSR is Unicode-equivalent ancestor",
+			keyOut: func(outputDir string) string {
+				return filepath.Join(outputDir, "cafe\u0301", "cert.key")
+			},
+			csrOut: func(outputDir string) string {
+				return filepath.Join(outputDir, "caf\u00e9")
+			},
+			expected: "--key-out and --csr-out must not contain one another",
+		},
+	} {
+		t.Run(relation.name, func(t *testing.T) {
+			for _, force := range []bool{false, true} {
+				name := "without force"
+				if force {
+					name = "with force"
+				}
+				t.Run(name, func(t *testing.T) {
+					outputDir := filepath.Join(dir, strings.ReplaceAll(relation.name+"-"+name, " ", "-"))
+					if err := os.Mkdir(outputDir, 0o755); err != nil {
+						t.Fatalf("Mkdir(outputDir) error: %v", err)
+					}
+					args := []string{
+						"certificates", "csr", "generate",
+						"--key-out", relation.keyOut(outputDir),
+						"--csr-out", relation.csrOut(outputDir),
+						"--output", "json",
+					}
+					if force {
+						args = append(args, "--force")
+					}
+
+					root := RootCommand("1.2.3")
+					root.FlagSet.SetOutput(io.Discard)
+					var runErr error
+					stdout, _ := captureOutput(t, func() {
+						if err := root.Parse(args); err != nil {
+							t.Fatalf("parse command: %v", err)
+						}
+						runErr = root.Run(context.Background())
+					})
+
+					if !errors.Is(runErr, flag.ErrHelp) {
+						t.Errorf("expected usage error, got %v", runErr)
+					}
+					if runErr == nil || runErr.Error() != relation.expected {
+						t.Errorf("error = %v, want %q", runErr, relation.expected)
+					}
+					if stdout != "" {
+						t.Errorf("expected empty stdout, got %q", stdout)
+					}
+					entries, err := os.ReadDir(outputDir)
+					if err != nil {
+						t.Fatalf("ReadDir(outputDir) error: %v", err)
+					}
+					if len(entries) != 0 {
+						t.Errorf("outputs were created before Unicode-equivalent paths were rejected: %v", entries)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestCertificatesCSRGenerate_AllowsUnicodeDistinctOutputsOnNormalizationSensitiveVolume(t *testing.T) {
+	dir := t.TempDir()
+	if temporaryVolumeAliasesUnicodeNames(t, dir) {
+		t.Skip("temporary volume normalizes canonically equivalent Unicode names")
+	}
+
+	for _, relation := range []struct {
+		name   string
+		keyOut func(string) string
+		csrOut func(string) string
+	}{
+		{
+			name: "distinct names",
+			keyOut: func(outputDir string) string {
+				return filepath.Join(outputDir, "caf\u00e9.key")
+			},
+			csrOut: func(outputDir string) string {
+				return filepath.Join(outputDir, "cafe\u0301.key")
+			},
+		},
+		{
+			name: "distinct nested-looking names",
+			keyOut: func(outputDir string) string {
+				return filepath.Join(outputDir, "caf\u00e9")
+			},
+			csrOut: func(outputDir string) string {
+				return filepath.Join(outputDir, "cafe\u0301", "cert.csr")
+			},
+		},
+	} {
+		t.Run(relation.name, func(t *testing.T) {
+			outputDir := filepath.Join(dir, strings.ReplaceAll(relation.name, " ", "-"))
+			if err := os.Mkdir(outputDir, 0o755); err != nil {
+				t.Fatalf("Mkdir(outputDir) error: %v", err)
+			}
+			keyOut := relation.keyOut(outputDir)
+			csrOut := relation.csrOut(outputDir)
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			if err := root.Parse([]string{
+				"certificates", "csr", "generate",
+				"--key-out", keyOut,
+				"--csr-out", csrOut,
+				"--output", "json",
+			}); err != nil {
+				t.Fatalf("parse command: %v", err)
+			}
+
+			_, stderr := captureOutput(t, func() {
+				if err := root.Run(context.Background()); err != nil {
+					t.Fatalf("run command: %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("expected empty stderr, got %q", stderr)
+			}
+			if _, err := os.Stat(keyOut); err != nil {
+				t.Fatalf("expected key output: %v", err)
+			}
+			if _, err := os.Stat(csrOut); err != nil {
+				t.Fatalf("expected CSR output: %v", err)
+			}
+		})
+	}
+}
+
+func temporaryVolumeAliasesUnicodeNames(t *testing.T, dir string) bool {
+	t.Helper()
+	probeDir := filepath.Join(dir, "normalization-probe")
+	if err := os.Mkdir(probeDir, 0o755); err != nil {
+		t.Fatalf("Mkdir(probeDir) error: %v", err)
+	}
+	composed := filepath.Join(probeDir, "caf\u00e9")
+	if err := os.Mkdir(composed, 0o755); err != nil {
+		t.Fatalf("Mkdir(composed) error: %v", err)
+	}
+	composedInfo, err := os.Stat(composed)
+	if err != nil {
+		t.Fatalf("Stat(composed) error: %v", err)
+	}
+	decomposedInfo, decomposedErr := os.Stat(filepath.Join(probeDir, "cafe\u0301"))
+	if decomposedErr != nil && !errors.Is(decomposedErr, os.ErrNotExist) {
+		t.Fatalf("Stat(decomposed) error: %v", decomposedErr)
+	}
+	if err := os.Remove(composed); err != nil {
+		t.Fatalf("Remove(composed) error: %v", err)
+	}
+	if err := os.Remove(probeDir); err != nil {
+		t.Fatalf("Remove(probeDir) error: %v", err)
+	}
+	return decomposedErr == nil && os.SameFile(composedInfo, decomposedInfo)
+}
+
 func TestCertificatesCSRGenerate_ForcePreservesExistingKeyWhenCSRParentIsNotWritable(t *testing.T) {
 	dir := t.TempDir()
 	keyDir := filepath.Join(dir, "key")

@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
@@ -330,20 +331,20 @@ func validateCSRPairOutputPaths(keyOut, csrOut string) error {
 	if (keyRelativeErr == nil && keyToCSR == ".") || (csrRelativeErr == nil && csrToKey == ".") {
 		return shared.UsageError("--key-out and --csr-out must be different paths")
 	}
-	caseEquivalent, caseNested, err := classifyCSRCaseFoldRelation(keyPath, csrPath)
+	sameOutput, nestedOutput, err := classifyCSRFilesystemRelation(keyPath, csrPath)
 	if err != nil {
 		return fmt.Errorf("compare --key-out and --csr-out: %w", err)
 	}
-	if caseEquivalent {
+	if sameOutput {
 		return shared.UsageError("--key-out and --csr-out must be different paths")
 	}
-	if caseNested || isCSRDescendantPath(keyToCSR, keyRelativeErr) || isCSRDescendantPath(csrToKey, csrRelativeErr) {
+	if nestedOutput || isCSRDescendantPath(keyToCSR, keyRelativeErr) || isCSRDescendantPath(csrToKey, csrRelativeErr) {
 		return shared.UsageError("--key-out and --csr-out must not contain one another")
 	}
 	return nil
 }
 
-func classifyCSRCaseFoldRelation(keyPath, csrPath string) (same bool, nested bool, err error) {
+func classifyCSRFilesystemRelation(keyPath, csrPath string) (same bool, nested bool, err error) {
 	keyDepth := csrPathDepth(keyPath)
 	csrDepth := csrPathDepth(csrPath)
 	if keyDepth == csrDepth {
@@ -365,7 +366,7 @@ func classifyCSRCaseFoldRelation(keyPath, csrPath string) (same bool, nested boo
 	for range longerDepth - shorterDepth {
 		longerPrefix = filepath.Dir(longerPrefix)
 	}
-	if !strings.EqualFold(shorter, longerPrefix) {
+	if !normalizedFoldEqual(shorter, longerPrefix) {
 		return false, false, nil
 	}
 
@@ -388,7 +389,7 @@ func areCSRPathsFilesystemEquivalent(leftPath, rightPath string) (bool, error) {
 	if leftPath == rightPath {
 		return true, nil
 	}
-	if !strings.EqualFold(leftPath, rightPath) {
+	if !normalizedFoldEqual(leftPath, rightPath) {
 		return false, nil
 	}
 
@@ -403,24 +404,42 @@ func areCSRPathsFilesystemEquivalent(leftPath, rightPath string) (bool, error) {
 	if !os.SameFile(leftInfo, rightInfo) || leftMissing != rightMissing {
 		return false, nil
 	}
-	if leftMissing == 0 || haveSameCSRMissingSuffix(leftPath, rightPath, leftMissing) {
+	if leftMissing == 0 {
 		return true, nil
 	}
 	if !leftInfo.IsDir() {
 		return false, nil
 	}
-	return isCSRDirectoryCaseInsensitive(leftAncestor)
+	leftComponents := csrMissingPathComponents(leftPath, leftMissing)
+	rightComponents := csrMissingPathComponents(rightPath, rightMissing)
+	if sameCSRPathComponents(leftComponents, rightComponents) {
+		return true, nil
+	}
+	return probeCSRPathComponentsEquivalent(leftAncestor, leftComponents, rightComponents)
 }
 
-func haveSameCSRMissingSuffix(leftPath, rightPath string, missing int) bool {
-	left := leftPath
-	right := rightPath
-	for range missing {
-		if filepath.Base(left) != filepath.Base(right) {
+func normalizedFoldEqual(left, right string) bool {
+	return strings.EqualFold(norm.NFC.String(left), norm.NFC.String(right))
+}
+
+func csrMissingPathComponents(path string, missing int) []string {
+	components := make([]string, missing)
+	current := path
+	for i := missing - 1; i >= 0; i-- {
+		components[i] = filepath.Base(current)
+		current = filepath.Dir(current)
+	}
+	return components
+}
+
+func sameCSRPathComponents(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
 			return false
 		}
-		left = filepath.Dir(left)
-		right = filepath.Dir(right)
 	}
 	return true
 }
@@ -445,49 +464,68 @@ func deepestExistingCSRPath(path string) (string, os.FileInfo, int, error) {
 	}
 }
 
-func isCSRDirectoryCaseInsensitive(path string) (insensitive bool, err error) {
-	probePath, err := os.MkdirTemp(path, ".asc-csr-case-*")
+func probeCSRPathComponentsEquivalent(parent string, left, right []string) (equivalent bool, err error) {
+	if len(left) != len(right) {
+		return false, nil
+	}
+	for i := range left {
+		if !normalizedFoldEqual(left[i], right[i]) {
+			return false, nil
+		}
+	}
+
+	// Replay unresolved components beneath a private directory on the target
+	// filesystem. SameFile, rather than normalization alone, decides whether
+	// the two spellings would address the same destination.
+	probePath, err := os.MkdirTemp(parent, ".asc-csr-equivalence-*")
 	if err != nil {
 		return false, err
 	}
+	rooted, err := os.OpenRoot(probePath)
+	if err != nil {
+		return false, errors.Join(err, os.Remove(probePath))
+	}
+	created := []string{}
 	defer func() {
-		if removeErr := os.Remove(probePath); removeErr != nil {
-			cleanupErr := fmt.Errorf("remove case-sensitivity probe: %w", removeErr)
-			if err == nil {
-				err = cleanupErr
-			} else {
-				err = errors.Join(err, cleanupErr)
+		for i := len(created) - 1; i >= 0; i-- {
+			if removeErr := rooted.Remove(created[i]); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+				err = errors.Join(err, fmt.Errorf("remove equivalence probe component: %w", removeErr))
 			}
+		}
+		if closeErr := rooted.Close(); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+		if removeErr := os.Remove(probePath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			err = errors.Join(err, fmt.Errorf("remove equivalence probe: %w", removeErr))
 		}
 	}()
 
-	probeInfo, err := os.Lstat(probePath)
-	if err != nil {
-		return false, err
-	}
-	caseVariantInfo, err := os.Lstat(csrCaseVariantPath(probePath))
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return os.SameFile(probeInfo, caseVariantInfo), nil
-}
+	leftPath := "."
+	rightPath := "."
+	for i := range left {
+		leftPath = filepath.Join(leftPath, left[i])
+		rightPath = filepath.Join(rightPath, right[i])
+		if err := rooted.Mkdir(leftPath, 0o700); err != nil {
+			return false, err
+		}
+		created = append(created, leftPath)
 
-func csrCaseVariantPath(path string) string {
-	name := []byte(filepath.Base(path))
-	for i, character := range name {
-		switch {
-		case character >= 'a' && character <= 'z':
-			name[i] = character - ('a' - 'A')
-			return filepath.Join(filepath.Dir(path), string(name))
-		case character >= 'A' && character <= 'Z':
-			name[i] = character + ('a' - 'A')
-			return filepath.Join(filepath.Dir(path), string(name))
+		leftInfo, err := rooted.Stat(leftPath)
+		if err != nil {
+			return false, err
+		}
+		rightInfo, err := rooted.Stat(rightPath)
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		if !os.SameFile(leftInfo, rightInfo) {
+			return false, nil
 		}
 	}
-	return path
+	return true, nil
 }
 
 func resolveCSRDestinationPath(path string) (string, error) {
