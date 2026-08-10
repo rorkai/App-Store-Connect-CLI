@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -64,6 +65,7 @@ type preparedCSRWrite struct {
 	existed      bool
 	root         rootfs.Root
 	name         string
+	backupName   string
 }
 
 // CertificatesCSRCommand returns the certificates csr command group.
@@ -257,10 +259,11 @@ func generateCSRFiles(opts csrGenerateOptions) (*csrGenerateResult, []byte, erro
 	if err != nil {
 		return nil, nil, fmt.Errorf("write --key-out: %w", err)
 	}
-	writes := []preparedCSRWrite{
-		keyWrite,
-		{flag: "--csr-out", path: csrOutValue, data: csrPEM, mode: 0o644, force: opts.Force},
+	csrWrite, err := prepareCSRWrite("--csr-out", csrOutValue, csrPEM, 0o644, opts.Force)
+	if err != nil {
+		return nil, nil, fmt.Errorf("write --csr-out: %w", err)
 	}
+	writes := []preparedCSRWrite{keyWrite, csrWrite}
 
 	// Write key first so a successful command never exposes a CSR before its key.
 	// If the CSR commit fails, restore the key's pre-command state.
@@ -706,24 +709,19 @@ func prepareCSRWrite(flagName, path string, data []byte, mode os.FileMode, force
 		root:  root,
 		name:  name,
 	}
-	file, err := root.OpenFile(name)
-	if errors.Is(err, os.ErrNotExist) {
-		return write, nil
-	}
+	rooted, err := os.OpenRoot(root.Path())
 	if err != nil {
 		return preparedCSRWrite{}, err
 	}
-	defer file.Close()
-	info, err := file.Stat()
-	if err != nil {
+	defer rooted.Close()
+	// Only record existence here. Backing up the destination happens at commit
+	// time and does not require read access to the existing file.
+	if _, err := rooted.Lstat(name); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return write, nil
+		}
 		return preparedCSRWrite{}, err
 	}
-	original, err := io.ReadAll(file)
-	if err != nil {
-		return preparedCSRWrite{}, err
-	}
-	write.original = original
-	write.originalMode = info.Mode().Perm()
 	write.existed = true
 	return write, nil
 }
@@ -731,27 +729,161 @@ func prepareCSRWrite(flagName, path string, data []byte, mode os.FileMode, force
 type csrWriteFileFunc func(path string, data []byte, mode os.FileMode, force bool) error
 
 func commitCSRWrites(writes []preparedCSRWrite, writeFile csrWriteFileFunc) error {
-	committed := make([]preparedCSRWrite, 0, len(writes))
-	for _, write := range writes {
+	committed := make([]*preparedCSRWrite, 0, len(writes))
+	rollback := func(writeErr error) error {
+		var rollbackErrors []error
+		for index := len(committed) - 1; index >= 0; index-- {
+			if rollbackErr := restoreCSRWrite(committed[index], writeFile); rollbackErr != nil {
+				rollbackErrors = append(rollbackErrors, fmt.Errorf("restore %s: %w", committed[index].flag, rollbackErr))
+			}
+		}
+		if len(rollbackErrors) == 0 {
+			return writeErr
+		}
+		return errors.Join(writeErr, fmt.Errorf("rollback failed: %w", errors.Join(rollbackErrors...)))
+	}
+
+	for index := range writes {
+		write := &writes[index]
+		if err := backupCSRDestination(write); err != nil {
+			return rollback(fmt.Errorf("write %s: %w", write.flag, err))
+		}
 		if err := writeFile(write.path, write.data, write.mode, write.force); err != nil {
 			writeErr := fmt.Errorf("write %s: %w", write.flag, err)
-			var rollbackErrors []error
-			for index := len(committed) - 1; index >= 0; index-- {
-				if rollbackErr := restoreCSRWrite(committed[index], writeFile); rollbackErr != nil {
-					rollbackErrors = append(rollbackErrors, fmt.Errorf("restore %s: %w", committed[index].flag, rollbackErr))
-				}
+			// The overwrite path preserves the destination on failure, in which
+			// case restoring from the backup link is a no-op that drops the
+			// extra directory entry.
+			if restoreErr := restoreCSRBackup(write); restoreErr != nil {
+				writeErr = errors.Join(writeErr, fmt.Errorf("restore %s: %w", write.flag, restoreErr))
 			}
-			if len(rollbackErrors) == 0 {
-				return writeErr
-			}
-			return errors.Join(writeErr, fmt.Errorf("rollback failed: %w", errors.Join(rollbackErrors...)))
+			return rollback(writeErr)
 		}
 		committed = append(committed, write)
 	}
+
+	var cleanupErrors []error
+	for _, write := range committed {
+		if err := discardCSRBackup(write); err != nil {
+			cleanupErrors = append(cleanupErrors, err)
+		}
+	}
+	return errors.Join(cleanupErrors...)
+}
+
+// backupCSRDestination preserves an existing destination before a forced
+// replacement. It prefers a hard link to the original directory entry, which
+// requires no read access and lets rollback restore the original file with its
+// full metadata and inode identity. Filesystems without hard links fall back
+// to an in-memory snapshot of the file contents and permissions.
+func backupCSRDestination(write *preparedCSRWrite) error {
+	if !write.existed || !write.force {
+		return nil
+	}
+	linkErr := linkCSRBackup(write)
+	if linkErr == nil {
+		return nil
+	}
+	if write.original != nil {
+		return nil
+	}
+	original, originalMode, err := snapshotCSRDestination(write.root, write.name)
+	if err != nil {
+		return errors.Join(fmt.Errorf("back up existing %s before replacement: %w", write.flag, linkErr), err)
+	}
+	write.original = original
+	write.originalMode = originalMode
 	return nil
 }
 
-func restoreCSRWrite(write preparedCSRWrite, writeFile csrWriteFileFunc) error {
+func linkCSRBackup(write *preparedCSRWrite) error {
+	rooted, err := os.OpenRoot(write.root.Path())
+	if err != nil {
+		return err
+	}
+	defer rooted.Close()
+
+	dir := filepath.Dir(write.name)
+	var randBytes [12]byte
+	const maxAttempts = 10_000
+	for range maxAttempts {
+		if _, err := rand.Read(randBytes[:]); err != nil {
+			return err
+		}
+		backupName := filepath.Join(dir, ".asc-csr-keybackup-"+hex.EncodeToString(randBytes[:]))
+		err := rooted.Link(write.name, backupName)
+		if err == nil {
+			write.backupName = backupName
+			return nil
+		}
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		return err
+	}
+	return fmt.Errorf("create backup link for %q", write.path)
+}
+
+func snapshotCSRDestination(root rootfs.Root, name string) ([]byte, os.FileMode, error) {
+	file, err := root.OpenFile(name)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, 0, err
+	}
+	original, err := io.ReadAll(file)
+	if err != nil {
+		return nil, 0, err
+	}
+	return original, info.Mode().Perm(), nil
+}
+
+// restoreCSRBackup puts the backed-up original directory entry back at the
+// destination. Rename atomically replaces a failed or partial replacement with
+// the original file. When the destination still names the original file, POSIX
+// defines the same-file rename as a no-op, so the leftover backup entry is
+// removed afterwards.
+func restoreCSRBackup(write *preparedCSRWrite) error {
+	if write.backupName == "" {
+		return nil
+	}
+	rooted, err := os.OpenRoot(write.root.Path())
+	if err != nil {
+		return err
+	}
+	defer rooted.Close()
+	if err := rooted.Rename(write.backupName, write.name); err != nil {
+		return err
+	}
+	if err := rooted.Remove(write.backupName); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	write.backupName = ""
+	return nil
+}
+
+func discardCSRBackup(write *preparedCSRWrite) error {
+	if write.backupName == "" {
+		return nil
+	}
+	rooted, err := os.OpenRoot(write.root.Path())
+	if err != nil {
+		return fmt.Errorf("remove backup of replaced %s at %q: %w", write.flag, filepath.Join(write.root.Path(), write.backupName), err)
+	}
+	defer rooted.Close()
+	if err := rooted.Remove(write.backupName); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("remove backup of replaced %s at %q: %w", write.flag, filepath.Join(write.root.Path(), write.backupName), err)
+	}
+	write.backupName = ""
+	return nil
+}
+
+func restoreCSRWrite(write *preparedCSRWrite, writeFile csrWriteFileFunc) error {
+	if write.backupName != "" {
+		return restoreCSRBackup(write)
+	}
 	if write.existed {
 		return writeFile(write.path, write.original, write.originalMode, true)
 	}

@@ -304,6 +304,64 @@ func TestCertificatesCSRGenerate_ForcePreservesExistingKeyWhenCSROutCannotBeWrit
 	}
 }
 
+func TestCertificatesCSRGenerate_ForceReplacesUnreadableExistingKey(t *testing.T) {
+	dir := t.TempDir()
+	keyOut := filepath.Join(dir, "cert.key")
+	csrOut := filepath.Join(dir, "cert.csr")
+	if err := os.WriteFile(keyOut, []byte("existing-private-key"), 0o000); err != nil {
+		t.Fatalf("WriteFile(keyOut) error: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chmod(keyOut, 0o600)
+	})
+	if probe, err := os.Open(keyOut); err == nil {
+		_ = probe.Close()
+		t.Skip("environment does not enforce file read permissions")
+	}
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	var runErr error
+	_, _ = captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"certificates", "csr", "generate",
+			"--common-name", "ASC Signing",
+			"--key-out", keyOut,
+			"--csr-out", csrOut,
+			"--force",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse force command: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+	if runErr != nil {
+		t.Fatalf("expected forced replacement of unreadable key, got %v", runErr)
+	}
+
+	keyContents, err := os.ReadFile(keyOut)
+	if err != nil {
+		t.Fatalf("ReadFile(keyOut) error: %v", err)
+	}
+	if !strings.Contains(string(keyContents), "PRIVATE KEY") {
+		t.Errorf("key output does not contain a PEM private key: %q", keyContents)
+	}
+	csrContents, err := os.ReadFile(csrOut)
+	if err != nil {
+		t.Fatalf("ReadFile(csrOut) error: %v", err)
+	}
+	if !strings.Contains(string(csrContents), "CERTIFICATE REQUEST") {
+		t.Errorf("CSR output does not contain a PEM request: %q", csrContents)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir(dir) error: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Errorf("unexpected pair-write artifacts: %v", entries)
+	}
+}
+
 func TestCertificatesCSRGenerate_RejectsNestedOutputPathsBeforeWriting(t *testing.T) {
 	tests := []struct {
 		name   string
