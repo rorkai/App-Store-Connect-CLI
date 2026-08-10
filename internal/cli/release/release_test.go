@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,6 +71,53 @@ func captureReleaseStderr(t *testing.T, fn func()) string {
 
 func newReleaseTestClient(t *testing.T) *asc.Client {
 	t.Helper()
+	pemBytes := newReleaseTestPrivateKeyPEM(t)
+
+	client, err := asc.NewClientFromPEM("KEY_ID", "ISSUER_ID", string(pemBytes))
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	return client
+}
+
+func newReleaseTestServerClient(t *testing.T, handler http.Handler) (*asc.Client, string) {
+	t.Helper()
+
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	target, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse test server URL: %v", err)
+	}
+	serverTransport := server.Client().Transport
+	httpClient := &http.Client{Transport: releaseRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		cloned := req.Clone(req.Context())
+		cloned.URL.Scheme = target.Scheme
+		cloned.URL.Host = target.Host
+		cloned.Host = target.Host
+		return serverTransport.RoundTrip(cloned)
+	})}
+
+	pemBytes := newReleaseTestPrivateKeyPEM(t)
+	keyPath := filepath.Join(t.TempDir(), "AuthKey_TEST.p8")
+	if err := os.WriteFile(keyPath, pemBytes, 0o600); err != nil {
+		t.Fatalf("write private key: %v", err)
+	}
+	client, err := asc.NewClientWithHTTPClient("KEY_ID", "ISSUER_ID", keyPath, httpClient)
+	if err != nil {
+		t.Fatalf("new client with test server: %v", err)
+	}
+	return client, server.URL
+}
+
+func writeReleaseTestJSON(w http.ResponseWriter, status int, body string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_, _ = io.WriteString(w, body)
+}
+
+func newReleaseTestPrivateKeyPEM(t *testing.T) []byte {
+	t.Helper()
 
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -82,12 +131,7 @@ func newReleaseTestClient(t *testing.T) *asc.Client {
 	if pemBytes == nil {
 		t.Fatal("encode pem: nil")
 	}
-
-	client, err := asc.NewClientFromPEM("KEY_ID", "ISSUER_ID", string(pemBytes))
-	if err != nil {
-		t.Fatalf("new client: %v", err)
-	}
-	return client
+	return pemBytes
 }
 
 func TestReleaseCommandShape(t *testing.T) {
@@ -118,6 +162,62 @@ func TestReleaseStageCommand_MissingRequiredFlags(t *testing.T) {
 	}
 }
 
+func TestReleaseStageCommandExposesRoutingCoverageFile(t *testing.T) {
+	cmd := ReleaseStageCommand()
+	flag := cmd.FlagSet.Lookup("routing-coverage-file")
+	if flag == nil {
+		t.Fatal("expected --routing-coverage-file flag")
+	}
+	if !strings.HasPrefix(flag.Usage, "[experimental] ") {
+		t.Fatalf("expected --routing-coverage-file to be introduced as experimental, got %q", flag.Usage)
+	}
+	if !strings.Contains(flag.Usage, "before readiness") {
+		t.Fatalf("expected routing coverage timing in flag help, got %q", flag.Usage)
+	}
+}
+
+func TestReleaseStageCommandValidatesRoutingCoverageBeforePipeline(t *testing.T) {
+	originalClientFactory := releaseClientFactory
+	t.Cleanup(func() { releaseClientFactory = originalClientFactory })
+	clientCalled := false
+	releaseClientFactory = func() (*asc.Client, error) {
+		clientCalled = true
+		return nil, errors.New("client must not be created")
+	}
+
+	coveragePath := filepath.Join(t.TempDir(), "coverage.geojson")
+	if err := os.WriteFile(coveragePath, []byte(`{"type":"MultiPolygon","coordinates":`), 0o600); err != nil {
+		t.Fatalf("write routing coverage fixture: %v", err)
+	}
+	t.Chdir(filepath.Dir(coveragePath))
+
+	cmd := ReleaseStageCommand()
+	if err := cmd.FlagSet.Parse([]string{
+		"--app", "APP_123",
+		"--version", "2.4.0",
+		"--build", "BUILD_123",
+		"--copy-metadata-from", "2.3.2",
+		"--routing-coverage-file", coveragePath,
+		"--dry-run",
+	}); err != nil {
+		t.Fatalf("parse flags: %v", err)
+	}
+
+	var execErr error
+	stderr := captureReleaseStderr(t, func() {
+		execErr = cmd.Exec(context.Background(), nil)
+	})
+	if !errors.Is(execErr, flag.ErrHelp) {
+		t.Fatalf("expected usage error, got %v", execErr)
+	}
+	if !strings.Contains(stderr, "--routing-coverage-file is not usable") || !strings.Contains(stderr, "invalid JSON") {
+		t.Fatalf("unexpected stderr: %q", stderr)
+	}
+	if clientCalled {
+		t.Fatal("release pipeline started before routing coverage validation")
+	}
+}
+
 func TestDefaultCheckpointPathSanitizesValues(t *testing.T) {
 	path := defaultCheckpointPath("app/123", "1.2.3-beta", "build#12", "IOS")
 	want := filepath.Join(".asc", "release", "checkpoints", "app_123_1.2.3-beta_build_12_IOS.json")
@@ -145,6 +245,298 @@ func TestCheckpointModeMatches(t *testing.T) {
 			got := checkpointModeMatches(tt.existing, tt.desired)
 			if got != tt.wantMatched {
 				t.Fatalf("checkpointModeMatches(%q, %q) = %v, want %v", tt.existing, tt.desired, got, tt.wantMatched)
+			}
+		})
+	}
+}
+
+func TestExecuteStageResumesPartialCheckpointAfterRemovingRoutingCoverage(t *testing.T) {
+	originalClientFactory := releaseClientFactory
+	originalCopyExecutor := metadataCopyExecutor
+	originalReadinessBuilder := readinessReportBuilder
+	t.Cleanup(func() {
+		releaseClientFactory = originalClientFactory
+		metadataCopyExecutor = originalCopyExecutor
+		readinessReportBuilder = originalReadinessBuilder
+	})
+
+	client := newCheckpointBindingClient(t, func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123":
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_123","attributes":{"versionString":"2.4.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_123"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123/build":
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"BUILD_123","attributes":{"processingState":"VALID"}}}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+	})
+	releaseClientFactory = func() (*asc.Client, error) { return client, nil }
+	metadataRuns := 0
+	metadataCopyExecutor = func(context.Context, *asc.Client, metadataCopyOptions) (*asc.AppStoreVersionMetadataCopySummary, error) {
+		metadataRuns++
+		return &asc.AppStoreVersionMetadataCopySummary{CopiedLocales: 1}, nil
+	}
+	readinessRuns := 0
+	readinessReportBuilder = func(context.Context, validatecli.ReadinessOptions) (validation.Report, error) {
+		readinessRuns++
+		return validation.Report{Summary: validation.Summary{}}, nil
+	}
+
+	checkpointPath := filepath.Join(t.TempDir(), "stage-checkpoint.json")
+	if err := saveCheckpoint(checkpointPath, runCheckpoint{
+		AppID:               "APP_123",
+		Version:             "2.4.0",
+		BuildID:             "BUILD_123",
+		CopyMetadataFrom:    "2.3.2",
+		RoutingCoverageFile: filepath.Join(t.TempDir(), "invalid-coverage.geojson"),
+		Platform:            "IOS",
+		VersionID:           "VERSION_123",
+		Mode:                releaseModeStage,
+		Completed: map[string]bool{
+			stepEnsureVersion: true,
+			stepApplyMetadata: true,
+		},
+	}); err != nil {
+		t.Fatalf("save checkpoint: %v", err)
+	}
+
+	result, err := executeStage(context.Background(), runOptions{
+		AppID:            "APP_123",
+		Version:          "2.4.0",
+		BuildID:          "BUILD_123",
+		CopyMetadataFrom: "2.3.2",
+		Platform:         "IOS",
+		Timeout:          releaseRunTimeout,
+		Confirm:          true,
+		CheckpointFile:   checkpointPath,
+	})
+	if err != nil {
+		t.Fatalf("executeStage() error: %v", err)
+	}
+	if !result.Resumed {
+		t.Fatal("executeStage() resumed = false, want true")
+	}
+	if len(result.Steps) != 4 {
+		t.Fatalf("executeStage() steps = %#v, want four steps without routing coverage", result.Steps)
+	}
+	for _, step := range result.Steps {
+		if step.Name == stepApplyRoutingCoverage {
+			t.Fatalf("executeStage() retained removed routing coverage step: %#v", result.Steps)
+		}
+	}
+	if metadataRuns != 1 || readinessRuns != 1 {
+		t.Fatalf("executeStage() reruns metadata=%d readiness=%d, want 1 each", metadataRuns, readinessRuns)
+	}
+	saved, err := loadCheckpoint(checkpointPath)
+	if err != nil {
+		t.Fatalf("load checkpoint: %v", err)
+	}
+	if saved == nil {
+		t.Fatal("load checkpoint = nil")
+	}
+	if saved.RoutingCoverageFile != "" {
+		t.Fatalf("saved routingCoverageFile = %q, want empty", saved.RoutingCoverageFile)
+	}
+	if saved.Completed[stepApplyRoutingCoverage] {
+		t.Fatalf("saved checkpoint claims removed routing coverage complete: %#v", saved.Completed)
+	}
+}
+
+func TestExecuteStageRejectsRemovingRoutingCoverageAfterCompletedOrUnknownStep(t *testing.T) {
+	originalClientFactory := releaseClientFactory
+	t.Cleanup(func() { releaseClientFactory = originalClientFactory })
+
+	for _, completedStep := range []string{
+		stepApplyRoutingCoverage,
+		stepAttachBuild,
+		stepValidateReadiness,
+		stepSubmitReview,
+		"unrecognized_step",
+	} {
+		t.Run(completedStep, func(t *testing.T) {
+			clientCalled := false
+			releaseClientFactory = func() (*asc.Client, error) {
+				clientCalled = true
+				return nil, errors.New("client must not be created")
+			}
+			checkpointPath := filepath.Join(t.TempDir(), "stage-checkpoint.json")
+			if err := saveCheckpoint(checkpointPath, runCheckpoint{
+				AppID:               "APP_123",
+				Version:             "2.4.0",
+				BuildID:             "BUILD_123",
+				CopyMetadataFrom:    "2.3.2",
+				RoutingCoverageFile: filepath.Join(t.TempDir(), "coverage.geojson"),
+				Platform:            "IOS",
+				VersionID:           "VERSION_123",
+				Mode:                releaseModeStage,
+				Completed: map[string]bool{
+					stepEnsureVersion: true,
+					completedStep:     true,
+				},
+			}); err != nil {
+				t.Fatalf("save checkpoint: %v", err)
+			}
+
+			_, err := executeStage(context.Background(), runOptions{
+				AppID:            "APP_123",
+				Version:          "2.4.0",
+				BuildID:          "BUILD_123",
+				CopyMetadataFrom: "2.3.2",
+				Platform:         "IOS",
+				Timeout:          releaseRunTimeout,
+				Confirm:          true,
+				CheckpointFile:   checkpointPath,
+			})
+			if err == nil || !strings.Contains(err.Error(), "checkpoint does not match current run arguments") {
+				t.Fatalf("executeStage() error = %v, want checkpoint mismatch", err)
+			}
+			if clientCalled {
+				t.Fatal("executeStage() created a client before rejecting unsafe checkpoint transition")
+			}
+		})
+	}
+}
+
+func TestExecuteStageResumesCheckpointAfterAddingRoutingCoverage(t *testing.T) {
+	originalClientFactory := releaseClientFactory
+	originalCopyExecutor := metadataCopyExecutor
+	originalReadinessBuilder := readinessReportBuilder
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		releaseClientFactory = originalClientFactory
+		metadataCopyExecutor = originalCopyExecutor
+		readinessReportBuilder = originalReadinessBuilder
+		http.DefaultTransport = originalTransport
+	})
+
+	coveragePath := filepath.Join(t.TempDir(), "coverage.geojson")
+	if err := os.WriteFile(coveragePath, []byte(validReleaseRoutingCoverageGeoJSON), 0o600); err != nil {
+		t.Fatalf("write routing coverage fixture: %v", err)
+	}
+	checkpointPath := filepath.Join(t.TempDir(), "stage-checkpoint.json")
+	if err := saveCheckpoint(checkpointPath, runCheckpoint{
+		AppID:            "APP_123",
+		Version:          "2.4.0",
+		BuildID:          "BUILD_123",
+		CopyMetadataFrom: "2.3.2",
+		Platform:         "IOS",
+		VersionID:        "VERSION_123",
+		Mode:             releaseModeStage,
+		Completed: map[string]bool{
+			stepEnsureVersion:     true,
+			stepApplyMetadata:     true,
+			stepAttachBuild:       true,
+			stepValidateReadiness: true,
+		},
+	}); err != nil {
+		t.Fatalf("save checkpoint: %v", err)
+	}
+
+	metadataRuns := 0
+	metadataCopyExecutor = func(context.Context, *asc.Client, metadataCopyOptions) (*asc.AppStoreVersionMetadataCopySummary, error) {
+		metadataRuns++
+		return &asc.AppStoreVersionMetadataCopySummary{CopiedLocales: 1}, nil
+	}
+	coverageCommitted := false
+	readinessRuns := 0
+	readinessReportBuilder = func(context.Context, validatecli.ReadinessOptions) (validation.Report, error) {
+		readinessRuns++
+		if !coverageCommitted {
+			t.Fatal("readiness ran before newly added routing coverage completed")
+		}
+		return validation.Report{Summary: validation.Summary{}}, nil
+	}
+
+	http.DefaultTransport = releaseRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123":
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"VERSION_123","attributes":{"versionString":"2.4.0","platform":"IOS"},"relationships":{"app":{"data":{"type":"apps","id":"APP_123"}}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123/build":
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"BUILD_123","attributes":{"processingState":"VALID"}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123/routingAppCoverage":
+			return releaseJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404"}]}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/routingAppCoverages":
+			return releaseJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"routingAppCoverages","id":"COVERAGE_123","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/coverage","length":%d,"offset":0}]}}}`, len(validReleaseRoutingCoverageGeoJSON)))
+		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
+			return releaseJSONResponse(http.StatusOK, `{}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/routingAppCoverages/COVERAGE_123":
+			coverageCommitted = true
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"routingAppCoverages","id":"COVERAGE_123","attributes":{"assetDeliveryState":{"state":"UPLOAD_COMPLETE"}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/routingAppCoverages/COVERAGE_123":
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"routingAppCoverages","id":"COVERAGE_123","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+	})
+	releaseClientFactory = func() (*asc.Client, error) { return newReleaseTestClient(t), nil }
+
+	result, err := executeStage(context.Background(), runOptions{
+		AppID:               "APP_123",
+		Version:             "2.4.0",
+		BuildID:             "BUILD_123",
+		CopyMetadataFrom:    "2.3.2",
+		RoutingCoverageFile: coveragePath,
+		Platform:            "IOS",
+		Timeout:             releaseRunTimeout,
+		Confirm:             true,
+		CheckpointFile:      checkpointPath,
+	})
+	if err != nil {
+		t.Fatalf("executeStage() error: %v", err)
+	}
+	if !result.Resumed {
+		t.Fatal("executeStage() resumed = false, want true")
+	}
+	if metadataRuns != 1 || readinessRuns != 1 || !coverageCommitted {
+		t.Fatalf("executeStage() metadata=%d readiness=%d coverageCommitted=%t, want 1, 1, true", metadataRuns, readinessRuns, coverageCommitted)
+	}
+	if len(result.Steps) != 5 {
+		t.Fatalf("executeStage() steps = %#v, want five steps", result.Steps)
+	}
+	if result.Steps[0].Status != "skipped" || result.Steps[3].Status != "skipped" {
+		t.Fatalf("executeStage() did not preserve verified ensure/build completions: %#v", result.Steps)
+	}
+	if result.Steps[2].Name != stepApplyRoutingCoverage || result.Steps[2].Status != "ok" {
+		t.Fatalf("executeStage() routing step = %#v, want newly applied coverage", result.Steps[2])
+	}
+
+	saved, err := loadCheckpoint(checkpointPath)
+	if err != nil {
+		t.Fatalf("load checkpoint: %v", err)
+	}
+	if saved == nil || saved.RoutingCoverageFile != coveragePath {
+		t.Fatalf("saved checkpoint = %#v, want routing file %q", saved, coveragePath)
+	}
+	for _, step := range []string{stepEnsureVersion, stepApplyMetadata, stepApplyRoutingCoverage, stepAttachBuild, stepValidateReadiness} {
+		if !saved.Completed[step] {
+			t.Fatalf("saved checkpoint missing completed step %q: %#v", step, saved.Completed)
+		}
+	}
+}
+
+func TestCheckpointRejectsAddingRoutingCoverageAfterUnsafeCompletion(t *testing.T) {
+	for _, completedStep := range []string{stepApplyRoutingCoverage, stepSubmitReview, "unrecognized_step"} {
+		t.Run(completedStep, func(t *testing.T) {
+			existing := &runCheckpoint{
+				AppID:            "APP_123",
+				Version:          "2.4.0",
+				BuildID:          "BUILD_123",
+				CopyMetadataFrom: "2.3.2",
+				Platform:         "IOS",
+				Mode:             releaseModeStage,
+				Completed:        map[string]bool{completedStep: true},
+			}
+			opts := runOptions{
+				AppID:               "APP_123",
+				Version:             "2.4.0",
+				BuildID:             "BUILD_123",
+				CopyMetadataFrom:    "2.3.2",
+				RoutingCoverageFile: "/tmp/coverage.geojson",
+				Platform:            "IOS",
+				Mode:                releaseModeStage,
+			}
+			if checkpointMatchesRunArguments(existing, opts) {
+				t.Fatalf("checkpointMatchesRunArguments() = true with unsafe completed step %q", completedStep)
 			}
 		})
 	}
@@ -496,6 +888,93 @@ func TestExecuteStage_CopyMetadataSuccessPath(t *testing.T) {
 	}
 	if result.Steps[3].Message != "readiness checks passed with 1 advisory; App Privacy may still block submission" {
 		t.Fatalf("expected readiness advisory message, got %q", result.Steps[3].Message)
+	}
+}
+
+func TestExecuteStageAppliesRoutingCoverageBeforeReadiness(t *testing.T) {
+	origClientFactory := releaseClientFactory
+	origMetadataCopyExecutor := metadataCopyExecutor
+	origReadinessBuilder := readinessReportBuilder
+	origTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		releaseClientFactory = origClientFactory
+		metadataCopyExecutor = origMetadataCopyExecutor
+		readinessReportBuilder = origReadinessBuilder
+		http.DefaultTransport = origTransport
+	})
+
+	coveragePath := filepath.Join(t.TempDir(), "coverage.geojson")
+	if err := os.WriteFile(coveragePath, []byte(validReleaseRoutingCoverageGeoJSON), 0o600); err != nil {
+		t.Fatalf("write routing coverage fixture: %v", err)
+	}
+	t.Chdir(filepath.Dir(coveragePath))
+
+	metadataCopyExecutor = func(context.Context, *asc.Client, metadataCopyOptions) (*asc.AppStoreVersionMetadataCopySummary, error) {
+		return &asc.AppStoreVersionMetadataCopySummary{CopiedLocales: 1}, nil
+	}
+	coverageCommitted := false
+	oldCoverageDeleted := false
+	readinessReportBuilder = func(context.Context, validatecli.ReadinessOptions) (validation.Report, error) {
+		if !coverageCommitted {
+			t.Fatal("readiness ran before routing coverage completed")
+		}
+		return validation.Report{Summary: validation.Summary{}}, nil
+	}
+
+	http.DefaultTransport = releaseRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/APP_123/appStoreVersions":
+			return releaseJSONResponse(http.StatusOK, `{"data":[{"type":"appStoreVersions","id":"VERSION_123","attributes":{"versionString":"2.4.0","platform":"IOS","appStoreState":"PREPARE_FOR_SUBMISSION"}}]}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123/routingAppCoverage":
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"routingAppCoverages","id":"COVERAGE_OLD","attributes":{"sourceFileChecksum":"old-checksum","assetDeliveryState":{"state":"COMPLETE"}}}}`)
+		case req.Method == http.MethodDelete && req.URL.Path == "/v1/routingAppCoverages/COVERAGE_OLD":
+			oldCoverageDeleted = true
+			return releaseJSONResponse(http.StatusNoContent, "")
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/routingAppCoverages":
+			if !oldCoverageDeleted {
+				t.Fatal("new routing coverage was created before the old asset was deleted")
+			}
+			return releaseJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"routingAppCoverages","id":"COVERAGE_123","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/coverage","length":%d,"offset":0}]}}}`, len(validReleaseRoutingCoverageGeoJSON)))
+		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
+			return releaseJSONResponse(http.StatusOK, `{}`)
+		case req.Method == http.MethodPatch && req.URL.Path == "/v1/routingAppCoverages/COVERAGE_123":
+			coverageCommitted = true
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"routingAppCoverages","id":"COVERAGE_123","attributes":{"assetDeliveryState":{"state":"UPLOAD_COMPLETE"}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/routingAppCoverages/COVERAGE_123":
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"routingAppCoverages","id":"COVERAGE_123","attributes":{"assetDeliveryState":{"state":"COMPLETE"}}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/VERSION_123/build":
+			return releaseJSONResponse(http.StatusOK, `{"data":{"type":"builds","id":"BUILD_123","attributes":{"processingState":"VALID"}}}`)
+		default:
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+	})
+
+	releaseClientFactory = func() (*asc.Client, error) { return newReleaseTestClient(t), nil }
+	result, err := executeStage(context.Background(), runOptions{
+		AppID:               "APP_123",
+		Version:             "2.4.0",
+		BuildID:             "BUILD_123",
+		CopyMetadataFrom:    "2.3.2",
+		Platform:            "IOS",
+		RoutingCoverageFile: coveragePath,
+		Timeout:             releaseRunTimeout,
+		Confirm:             true,
+		CheckpointFile:      filepath.Join(t.TempDir(), "stage-checkpoint.json"),
+	})
+	if err != nil {
+		t.Fatalf("executeStage() error: %v", err)
+	}
+	if len(result.Steps) != 5 {
+		t.Fatalf("expected five stage steps, got %#v", result.Steps)
+	}
+	wantSteps := []string{stepEnsureVersion, stepApplyMetadata, stepApplyRoutingCoverage, stepAttachBuild, stepValidateReadiness}
+	for i, want := range wantSteps {
+		if result.Steps[i].Name != want {
+			t.Fatalf("step %d = %q, want %q", i, result.Steps[i].Name, want)
+		}
+	}
+	if result.RoutingCoverageFile != coveragePath {
+		t.Fatalf("routingCoverageFile = %q, want %q", result.RoutingCoverageFile, coveragePath)
 	}
 }
 

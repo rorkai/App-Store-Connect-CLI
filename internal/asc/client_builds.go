@@ -230,8 +230,9 @@ type AppMediaAssetState struct {
 
 // StateDetail represents details about a state (errors, warnings, infos).
 type StateDetail struct {
-	Code    string `json:"code,omitempty"`
-	Message string `json:"message,omitempty"`
+	Code        string `json:"code,omitempty"`
+	Description string `json:"description,omitempty"`
+	Message     string `json:"message,omitempty"`
 }
 
 // GetBuilds retrieves the list of builds for an app

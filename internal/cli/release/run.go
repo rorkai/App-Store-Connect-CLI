@@ -12,6 +12,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/metadata"
+	routingcoveragecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/routingcoverage"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	submitcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/submit"
 	validatecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/validate"
@@ -20,14 +21,15 @@ import (
 )
 
 const (
-	stepEnsureVersion     = "ensure_version"
-	stepApplyMetadata     = "apply_metadata"
-	stepAttachBuild       = "attach_build"
-	stepValidateReadiness = "validate_readiness"
-	stepSubmitReview      = "submit_review"
-	releaseModeRun        = "run"
-	releaseModeStage      = "stage"
-	releaseRunTimeout     = 30 * time.Minute
+	stepEnsureVersion        = "ensure_version"
+	stepApplyMetadata        = "apply_metadata"
+	stepApplyRoutingCoverage = "apply_routing_coverage"
+	stepAttachBuild          = "attach_build"
+	stepValidateReadiness    = "validate_readiness"
+	stepSubmitReview         = "submit_review"
+	releaseModeRun           = "run"
+	releaseModeStage         = "stage"
+	releaseRunTimeout        = 30 * time.Minute
 )
 
 var (
@@ -40,20 +42,22 @@ var (
 type metadataCopyOptions = shared.VersionMetadataCopyOptions
 
 type runOptions struct {
-	AppID              string
-	Version            string
-	BuildID            string
-	MetadataDir        string
-	CopyMetadataFrom   string
-	SelectedCopyFields []string
-	Platform           string
-	Timeout            time.Duration
-	DryRun             bool
-	Confirm            bool
-	StrictValidate     bool
-	CheckpointFile     string
-	Mode               string
-	SubmitForReview    bool
+	AppID                       string
+	Version                     string
+	BuildID                     string
+	MetadataDir                 string
+	CopyMetadataFrom            string
+	SelectedCopyFields          []string
+	RoutingCoverageFile         string
+	PreparedRoutingCoverageFile *routingcoveragecli.PreparedRoutingCoverageFile
+	Platform                    string
+	Timeout                     time.Duration
+	DryRun                      bool
+	Confirm                     bool
+	StrictValidate              bool
+	CheckpointFile              string
+	Mode                        string
+	SubmitForReview             bool
 }
 
 type stepResult struct {
@@ -66,37 +70,39 @@ type stepResult struct {
 }
 
 type runResult struct {
-	AppID            string       `json:"appId"`
-	Version          string       `json:"version"`
-	VersionID        string       `json:"versionId,omitempty"`
-	BuildID          string       `json:"buildId"`
-	SubmissionID     string       `json:"submissionId,omitempty"`
-	MetadataDir      string       `json:"metadataDir,omitempty"`
-	CopyMetadataFrom string       `json:"copyMetadataFrom,omitempty"`
-	Platform         string       `json:"platform"`
-	DryRun           bool         `json:"dryRun"`
-	StrictValidate   bool         `json:"strictValidate,omitempty"`
-	CheckpointFile   string       `json:"checkpointFile,omitempty"`
-	Resumed          bool         `json:"resumed,omitempty"`
-	Status           string       `json:"status"`
-	FailedStep       string       `json:"failedStep,omitempty"`
-	Error            string       `json:"error,omitempty"`
-	Steps            []stepResult `json:"steps"`
+	AppID               string       `json:"appId"`
+	Version             string       `json:"version"`
+	VersionID           string       `json:"versionId,omitempty"`
+	BuildID             string       `json:"buildId"`
+	SubmissionID        string       `json:"submissionId,omitempty"`
+	MetadataDir         string       `json:"metadataDir,omitempty"`
+	CopyMetadataFrom    string       `json:"copyMetadataFrom,omitempty"`
+	RoutingCoverageFile string       `json:"routingCoverageFile,omitempty"`
+	Platform            string       `json:"platform"`
+	DryRun              bool         `json:"dryRun"`
+	StrictValidate      bool         `json:"strictValidate,omitempty"`
+	CheckpointFile      string       `json:"checkpointFile,omitempty"`
+	Resumed             bool         `json:"resumed,omitempty"`
+	Status              string       `json:"status"`
+	FailedStep          string       `json:"failedStep,omitempty"`
+	Error               string       `json:"error,omitempty"`
+	Steps               []stepResult `json:"steps"`
 }
 
 type runCheckpoint struct {
-	AppID              string          `json:"appId"`
-	Version            string          `json:"version"`
-	BuildID            string          `json:"buildId"`
-	MetadataDir        string          `json:"metadataDir,omitempty"`
-	CopyMetadataFrom   string          `json:"copyMetadataFrom,omitempty"`
-	SelectedCopyFields []string        `json:"selectedCopyFields,omitempty"`
-	Platform           string          `json:"platform"`
-	VersionID          string          `json:"versionId,omitempty"`
-	SubmissionID       string          `json:"submissionId,omitempty"`
-	Mode               string          `json:"mode,omitempty"`
-	Completed          map[string]bool `json:"completed"`
-	UpdatedAt          string          `json:"updatedAt,omitempty"`
+	AppID               string          `json:"appId"`
+	Version             string          `json:"version"`
+	BuildID             string          `json:"buildId"`
+	MetadataDir         string          `json:"metadataDir,omitempty"`
+	CopyMetadataFrom    string          `json:"copyMetadataFrom,omitempty"`
+	SelectedCopyFields  []string        `json:"selectedCopyFields,omitempty"`
+	RoutingCoverageFile string          `json:"routingCoverageFile,omitempty"`
+	Platform            string          `json:"platform"`
+	VersionID           string          `json:"versionId,omitempty"`
+	SubmissionID        string          `json:"submissionId,omitempty"`
+	Mode                string          `json:"mode,omitempty"`
+	Completed           map[string]bool `json:"completed"`
+	UpdatedAt           string          `json:"updatedAt,omitempty"`
 }
 
 type stepOutcome struct {
@@ -122,36 +128,54 @@ func executeStage(ctx context.Context, opts runOptions) (runResult, error) {
 
 func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 	stepCapacity := 4
+	if strings.TrimSpace(opts.RoutingCoverageFile) != "" {
+		stepCapacity++
+	}
 	if opts.SubmitForReview {
-		stepCapacity = 5
+		stepCapacity++
 	}
 	result := runResult{
-		AppID:            opts.AppID,
-		Version:          opts.Version,
-		BuildID:          opts.BuildID,
-		MetadataDir:      opts.MetadataDir,
-		CopyMetadataFrom: opts.CopyMetadataFrom,
-		Platform:         opts.Platform,
-		DryRun:           opts.DryRun,
-		StrictValidate:   opts.StrictValidate,
-		CheckpointFile:   opts.CheckpointFile,
-		Status:           "ok",
-		Steps:            make([]stepResult, 0, stepCapacity),
+		AppID:               opts.AppID,
+		Version:             opts.Version,
+		BuildID:             opts.BuildID,
+		MetadataDir:         opts.MetadataDir,
+		CopyMetadataFrom:    opts.CopyMetadataFrom,
+		RoutingCoverageFile: opts.RoutingCoverageFile,
+		Platform:            opts.Platform,
+		DryRun:              opts.DryRun,
+		StrictValidate:      opts.StrictValidate,
+		CheckpointFile:      opts.CheckpointFile,
+		Status:              "ok",
+		Steps:               make([]stepResult, 0, stepCapacity),
 	}
 	if opts.DryRun {
 		result.Status = "dry-run"
 	}
+	if strings.TrimSpace(opts.RoutingCoverageFile) != "" {
+		if opts.PreparedRoutingCoverageFile == nil {
+			prepared, err := routingcoveragecli.PrepareRoutingCoverageFile(opts.RoutingCoverageFile)
+			if err != nil {
+				result.Status = "error"
+				result.Error = err.Error()
+				return result, err
+			}
+			opts.PreparedRoutingCoverageFile = &prepared
+		}
+		opts.RoutingCoverageFile = opts.PreparedRoutingCoverageFile.Path
+		result.RoutingCoverageFile = opts.RoutingCoverageFile
+	}
 
 	checkpoint := runCheckpoint{
-		AppID:              opts.AppID,
-		Version:            opts.Version,
-		BuildID:            opts.BuildID,
-		MetadataDir:        opts.MetadataDir,
-		CopyMetadataFrom:   opts.CopyMetadataFrom,
-		SelectedCopyFields: append([]string(nil), opts.SelectedCopyFields...),
-		Platform:           opts.Platform,
-		Mode:               opts.Mode,
-		Completed:          map[string]bool{},
+		AppID:               opts.AppID,
+		Version:             opts.Version,
+		BuildID:             opts.BuildID,
+		MetadataDir:         opts.MetadataDir,
+		CopyMetadataFrom:    opts.CopyMetadataFrom,
+		SelectedCopyFields:  append([]string(nil), opts.SelectedCopyFields...),
+		RoutingCoverageFile: opts.RoutingCoverageFile,
+		Platform:            opts.Platform,
+		Mode:                opts.Mode,
+		Completed:           map[string]bool{},
 	}
 
 	if !opts.DryRun {
@@ -162,20 +186,14 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 			return result, err
 		}
 		if existing != nil {
-			if existing.AppID != opts.AppID ||
-				existing.Version != opts.Version ||
-				existing.BuildID != opts.BuildID ||
-				existing.Platform != opts.Platform ||
-				existing.MetadataDir != opts.MetadataDir ||
-				existing.CopyMetadataFrom != opts.CopyMetadataFrom ||
-				!equalStringSlices(existing.SelectedCopyFields, opts.SelectedCopyFields) ||
-				!checkpointModeMatches(existing.Mode, opts.Mode) {
+			if !checkpointMatchesRunArguments(existing, opts) {
 				err := fmt.Errorf("checkpoint does not match current run arguments")
 				result.Status = "error"
 				result.Error = err.Error()
 				return result, err
 			}
 			checkpoint = *existing
+			checkpoint.RoutingCoverageFile = opts.RoutingCoverageFile
 			if checkpoint.Completed == nil {
 				checkpoint.Completed = map[string]bool{}
 			}
@@ -444,6 +462,18 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 		return result, err
 	}
 
+	if strings.TrimSpace(opts.RoutingCoverageFile) != "" {
+		if err := runStep(stepApplyRoutingCoverage, "Fix the routing coverage file or remove --routing-coverage-file and rerun.", func() (stepOutcome, error) {
+			outcome, err := applyPreparedRoutingCoverageStep(requestCtx, client, versionID, *opts.PreparedRoutingCoverageFile, opts.DryRun)
+			if err != nil {
+				return outcome, fmt.Errorf("apply routing coverage: %w", err)
+			}
+			return outcome, nil
+		}); err != nil {
+			return result, err
+		}
+	}
+
 	if err := runStep(stepAttachBuild, "Ensure --build points to a valid processed build for this app.", func() (stepOutcome, error) {
 		if strings.TrimSpace(versionID) == "" {
 			if opts.DryRun {
@@ -694,6 +724,59 @@ func checkpointModeMatches(existingMode, desiredMode string) bool {
 	default:
 		return normalizedExistingMode == desiredMode
 	}
+}
+
+func checkpointMatchesRunArguments(existing *runCheckpoint, opts runOptions) bool {
+	if existing == nil ||
+		existing.AppID != opts.AppID ||
+		existing.Version != opts.Version ||
+		existing.BuildID != opts.BuildID ||
+		existing.Platform != opts.Platform ||
+		existing.MetadataDir != opts.MetadataDir ||
+		existing.CopyMetadataFrom != opts.CopyMetadataFrom ||
+		!equalStringSlices(existing.SelectedCopyFields, opts.SelectedCopyFields) ||
+		!checkpointModeMatches(existing.Mode, opts.Mode) {
+		return false
+	}
+	if existing.RoutingCoverageFile == opts.RoutingCoverageFile {
+		return true
+	}
+	return checkpointCanDropPendingRoutingCoverage(existing, opts.RoutingCoverageFile) ||
+		checkpointCanAddRoutingCoverage(existing, opts.RoutingCoverageFile)
+}
+
+func checkpointCanDropPendingRoutingCoverage(existing *runCheckpoint, desiredFile string) bool {
+	if strings.TrimSpace(existing.RoutingCoverageFile) == "" || strings.TrimSpace(desiredFile) != "" {
+		return false
+	}
+	for name, completed := range existing.Completed {
+		if !completed {
+			continue
+		}
+		switch name {
+		case stepEnsureVersion, stepApplyMetadata:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func checkpointCanAddRoutingCoverage(existing *runCheckpoint, desiredFile string) bool {
+	if strings.TrimSpace(existing.RoutingCoverageFile) != "" || strings.TrimSpace(desiredFile) == "" {
+		return false
+	}
+	for name, completed := range existing.Completed {
+		if !completed {
+			continue
+		}
+		switch name {
+		case stepEnsureVersion, stepApplyMetadata, stepAttachBuild, stepValidateReadiness:
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func equalStringSlices(a, b []string) bool {

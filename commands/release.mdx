@@ -24,8 +24,9 @@ Run a deterministic pre-submit staging pipeline:
 
 1. Ensure or create the version
 2. Apply metadata/localizations or copy from another version
-3. Attach a selected build
-4. Run readiness checks
+3. Reconcile routing app coverage when `--routing-coverage-file` is set
+4. Attach a selected build
+5. Run readiness checks
 
 Stops before creating a review submission.
 
@@ -42,6 +43,7 @@ asc release stage \
   --version "2.4.0" \
   --build "BUILD_ID" \
   --metadata-dir "./metadata/version/2.4.0" \
+  --routing-coverage-file "./coverage.geojson" \
   --confirm
 ```
 
@@ -51,6 +53,7 @@ asc release stage \
 * `--version` - App Store version string
 * `--build` - Build ID to attach
 * `--metadata-dir` - Metadata directory to apply
+* `--routing-coverage-file` - [experimental] Routing app coverage GeoJSON file to reconcile before build attachment and readiness
 * `--copy-metadata-from` - Source version string to copy localization metadata from
 * `--copy-fields` - Comma-separated metadata fields to copy
 * `--exclude-fields` - Comma-separated metadata fields to exclude from copy

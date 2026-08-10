@@ -46,7 +46,7 @@ func verifyResumedCheckpointBinding(
 		if name == stepSubmitReview && !opts.SubmitForReview {
 			return fmt.Errorf("checkpoint completed step %q requires resuming with --submit-for-review", name)
 		}
-		if !isReleasePipelineStep(name, opts.SubmitForReview) {
+		if !isReleasePipelineStep(name, opts.SubmitForReview, strings.TrimSpace(opts.RoutingCoverageFile) != "") {
 			return fmt.Errorf("checkpoint records unknown completed step %q", name)
 		}
 	}
@@ -73,12 +73,16 @@ func verifyResumedCheckpointBinding(
 	}
 
 	// These completions cannot be authenticated from current remote state.
-	// Metadata input may have changed since the checkpoint was written, and
+	// Local inputs may have changed since the checkpoint was written, and
 	// readiness is a point-in-time observation rather than a durable server
-	// state. An unsigned checkpoint must never be able to suppress either.
+	// state. An unsigned checkpoint must never be able to suppress these steps.
 	if checkpoint.Completed[stepApplyMetadata] {
 		delete(checkpoint.Completed, stepApplyMetadata)
 		emitMessage("Rechecking %s: an unsigned checkpoint cannot prove the current metadata input was applied.", stepApplyMetadata)
+	}
+	if checkpoint.Completed[stepApplyRoutingCoverage] {
+		delete(checkpoint.Completed, stepApplyRoutingCoverage)
+		emitMessage("Rechecking %s: an unsigned checkpoint cannot prove the current routing coverage file was applied.", stepApplyRoutingCoverage)
 	}
 	if checkpoint.Completed[stepValidateReadiness] {
 		delete(checkpoint.Completed, stepValidateReadiness)
@@ -118,7 +122,11 @@ func verifyResumedCheckpointBinding(
 	// pipeline would then apply the missing mutation and skip readiness, leaving
 	// the version unvalidated against the state that mutation produced.
 	if checkpoint.Completed[stepValidateReadiness] {
-		for _, prerequisite := range []string{stepEnsureVersion, stepApplyMetadata, stepAttachBuild} {
+		prerequisites := []string{stepEnsureVersion, stepApplyMetadata, stepAttachBuild}
+		if strings.TrimSpace(opts.RoutingCoverageFile) != "" {
+			prerequisites = append(prerequisites, stepApplyRoutingCoverage)
+		}
+		for _, prerequisite := range prerequisites {
 			if checkpoint.Completed[prerequisite] {
 				continue
 			}
@@ -189,10 +197,12 @@ func verifyResumedCheckpointBinding(
 	return nil
 }
 
-func isReleasePipelineStep(name string, submitForReview bool) bool {
+func isReleasePipelineStep(name string, submitForReview, hasRoutingCoverage bool) bool {
 	switch name {
 	case stepEnsureVersion, stepApplyMetadata, stepAttachBuild, stepValidateReadiness:
 		return true
+	case stepApplyRoutingCoverage:
+		return hasRoutingCoverage
 	case stepSubmitReview:
 		return submitForReview
 	default:

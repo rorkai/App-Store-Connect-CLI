@@ -22,8 +22,9 @@ func ReleaseCommand() *ffcli.Command {
 release stage prepares a version for review without submitting it. It orchestrates:
   1. Ensure/create version
   2. Apply metadata and localizations
-  3. Attach selected build
-  4. Run readiness checks
+  3. Reconcile optional routing app coverage
+  4. Attach selected build
+  5. Run readiness checks
 
 For the canonical App Store shipping command, use:
   asc publish appstore --app "APP_ID" --ipa app.ipa --version "VERSION" --submit --confirm

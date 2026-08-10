@@ -9,6 +9,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	routingcoveragecli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/routingcoverage"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -20,6 +21,7 @@ func ReleaseStageCommand() *ffcli.Command {
 	version := fs.String("version", "", "App Store version string (required)")
 	buildID := fs.String("build", "", "Build ID to attach (required)")
 	metadataDir := fs.String("metadata-dir", "", "Metadata directory to apply")
+	routingCoverageFile := fs.String("routing-coverage-file", "", "[experimental] Routing app coverage GeoJSON file to reconcile before readiness")
 	copyMetadataFrom := fs.String("copy-metadata-from", "", "Copy localization metadata from this source version string")
 	copyFields := fs.String("copy-fields", "", "Comma-separated metadata fields to copy: description, keywords, marketingUrl, promotionalText, supportUrl, whatsNew")
 	excludeFields := fs.String("exclude-fields", "", "Comma-separated metadata fields to exclude from copy")
@@ -33,13 +35,14 @@ func ReleaseStageCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "stage",
-		ShortUsage: "asc release stage --app \"APP_ID\" --version \"2.4.0\" --build \"BUILD_ID\" (--metadata-dir \"./metadata/version/2.4.0\" | --copy-metadata-from \"2.3.2\") [flags]",
+		ShortUsage: "asc release stage --app \"APP_ID\" --version \"2.4.0\" --build \"BUILD_ID\" (--metadata-dir \"./metadata/version/2.4.0\" | --copy-metadata-from \"2.3.2\") [--routing-coverage-file \"./coverage.geojson\"] [flags]",
 		ShortHelp:  "Run version + metadata + attach + validate.",
 		LongHelp: `Run a deterministic pre-submit App Store staging pipeline:
 1. Ensure/create version
 2. Apply metadata/localizations or copy metadata from another version
-3. Attach selected build
-4. Run readiness checks
+3. Reconcile routing app coverage when --routing-coverage-file is set
+4. Attach selected build
+5. Run readiness checks
 
 Stops before creating a review submission.
 Supports dry-run planning, step-level structured output, and checkpointed resume.
@@ -47,7 +50,8 @@ Supports dry-run planning, step-level structured output, and checkpointed resume
 Examples:
   asc release stage --app "APP_ID" --version "2.4.0" --build "BUILD_ID" --copy-metadata-from "2.3.2" --dry-run
   asc release stage --app "APP_ID" --version "2.4.0" --build "BUILD_ID" --copy-metadata-from "2.3.2" --confirm
-  asc release stage --app "APP_ID" --version "2.4.0" --build "BUILD_ID" --metadata-dir "./metadata/version/2.4.0" --confirm`,
+  asc release stage --app "APP_ID" --version "2.4.0" --build "BUILD_ID" --metadata-dir "./metadata/version/2.4.0" --confirm
+  asc release stage --app "APP_ID" --version "2.4.0" --build "BUILD_ID" --copy-metadata-from "2.3.2" --routing-coverage-file "./coverage.geojson" --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -106,6 +110,17 @@ Examples:
 				}
 			}
 
+			trimmedRoutingCoverageFile := strings.TrimSpace(*routingCoverageFile)
+			var preparedRoutingCoverageFile *routingcoveragecli.PreparedRoutingCoverageFile
+			if trimmedRoutingCoverageFile != "" {
+				prepared, prepareErr := routingcoveragecli.PrepareRoutingCoverageFile(trimmedRoutingCoverageFile)
+				if prepareErr != nil {
+					return shared.UsageError(fmt.Sprintf("--routing-coverage-file is not usable: %v", prepareErr))
+				}
+				trimmedRoutingCoverageFile = prepared.Path
+				preparedRoutingCoverageFile = &prepared
+			}
+
 			checkpointPath := strings.TrimSpace(*checkpointFile)
 			if checkpointPath == "" {
 				checkpointPath = defaultStageCheckpointPath(resolvedAppID, trimmedVersion, trimmedBuildID, normalizedPlatform)
@@ -116,18 +131,20 @@ Examples:
 			}
 
 			result, runErr := executeStage(ctx, runOptions{
-				AppID:              resolvedAppID,
-				Version:            trimmedVersion,
-				BuildID:            trimmedBuildID,
-				MetadataDir:        trimmedMetadataDir,
-				CopyMetadataFrom:   trimmedCopyMetadataFrom,
-				SelectedCopyFields: selectedCopyFields,
-				Platform:           normalizedPlatform,
-				Timeout:            *timeout,
-				DryRun:             *dryRun,
-				Confirm:            *confirm,
-				StrictValidate:     *strictValidate,
-				CheckpointFile:     absCheckpointPath,
+				AppID:                       resolvedAppID,
+				Version:                     trimmedVersion,
+				BuildID:                     trimmedBuildID,
+				MetadataDir:                 trimmedMetadataDir,
+				CopyMetadataFrom:            trimmedCopyMetadataFrom,
+				SelectedCopyFields:          selectedCopyFields,
+				RoutingCoverageFile:         trimmedRoutingCoverageFile,
+				PreparedRoutingCoverageFile: preparedRoutingCoverageFile,
+				Platform:                    normalizedPlatform,
+				Timeout:                     *timeout,
+				DryRun:                      *dryRun,
+				Confirm:                     *confirm,
+				StrictValidate:              *strictValidate,
+				CheckpointFile:              absCheckpointPath,
 			})
 			if printErr := shared.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil {
 				return printErr

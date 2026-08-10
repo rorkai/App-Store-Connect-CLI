@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -155,18 +154,9 @@ Examples:
 				return shared.MissingRequiredUsageError()
 			}
 
-			info, err := os.Lstat(pathValue)
+			prepared, err := PrepareRoutingCoverageFile(pathValue)
 			if err != nil {
 				return fmt.Errorf("routing-coverage create: %w", err)
-			}
-			if info.Mode()&os.ModeSymlink != 0 {
-				return fmt.Errorf("routing-coverage create: refusing to read symlink %q", pathValue)
-			}
-			if info.IsDir() {
-				return fmt.Errorf("routing-coverage create: %q is a directory", pathValue)
-			}
-			if info.Size() <= 0 {
-				return fmt.Errorf("routing-coverage create: file size must be greater than 0")
 			}
 
 			client, err := shared.GetASCClient()
@@ -174,40 +164,9 @@ Examples:
 				return fmt.Errorf("routing-coverage create: %w", err)
 			}
 
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
-
-			resp, err := client.CreateRoutingAppCoverage(requestCtx, versionValue, filepath.Base(pathValue), info.Size())
+			commitResp, err := UploadPreparedRoutingCoverageFile(ctx, client, versionValue, prepared)
 			if err != nil {
-				return fmt.Errorf("routing-coverage create: failed to create: %w", err)
-			}
-			if resp == nil || len(resp.Data.Attributes.UploadOperations) == 0 {
-				return fmt.Errorf("routing-coverage create: no upload operations returned")
-			}
-
-			uploadCtx, uploadCancel := shared.ContextWithUploadTimeout(ctx)
-			err = asc.ExecuteUploadOperations(uploadCtx, pathValue, resp.Data.Attributes.UploadOperations)
-			uploadCancel()
-			if err != nil {
-				return fmt.Errorf("routing-coverage create: upload failed: %w", err)
-			}
-
-			checksum, err := asc.ComputeFileChecksum(pathValue, asc.ChecksumAlgorithmMD5)
-			if err != nil {
-				return fmt.Errorf("routing-coverage create: checksum failed: %w", err)
-			}
-
-			uploaded := true
-			updateAttrs := asc.RoutingAppCoverageUpdateAttributes{
-				SourceFileChecksum: &checksum.Hash,
-				Uploaded:           &uploaded,
-			}
-
-			commitCtx, commitCancel := shared.ContextWithUploadTimeout(ctx)
-			commitResp, err := client.UpdateRoutingAppCoverage(commitCtx, resp.Data.ID, updateAttrs)
-			commitCancel()
-			if err != nil {
-				return fmt.Errorf("routing-coverage create: failed to commit upload: %w", err)
+				return fmt.Errorf("routing-coverage create: %w", err)
 			}
 
 			return shared.PrintOutput(commitResp, *output.Output, *output.Pretty)

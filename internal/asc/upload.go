@@ -79,8 +79,27 @@ func newUploadClient() *http.Client {
 
 // ExecuteUploadOperations performs the file uploads for the provided operations.
 func ExecuteUploadOperations(ctx context.Context, filePath string, operations []UploadOperation, opts ...UploadOption) error {
+	if len(operations) == 0 {
+		return errors.New("no upload operations provided")
+	}
+
+	file, err := openUploadSourceFile(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return ExecuteUploadOperationsFromFile(ctx, file, operations, opts...)
+}
+
+// ExecuteUploadOperationsFromFile performs upload operations against an
+// already-opened source file. The caller retains ownership of file.
+func ExecuteUploadOperationsFromFile(ctx context.Context, file *os.File, operations []UploadOperation, opts ...UploadOption) error {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if file == nil {
+		return errors.New("upload source file is required")
 	}
 	if len(operations) == 0 {
 		return errors.New("no upload operations provided")
@@ -105,18 +124,12 @@ func ExecuteUploadOperations(ctx context.Context, filePath string, operations []
 		uploadOpts.Concurrency = len(operations)
 	}
 
-	file, err := openUploadSourceFile(filePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
 	info, err := file.Stat()
 	if err != nil {
 		return fmt.Errorf("stat file: %w", err)
 	}
 	if info.IsDir() {
-		return fmt.Errorf("path %q is a directory", filePath)
+		return fmt.Errorf("path %q is a directory", file.Name())
 	}
 	size := info.Size()
 
