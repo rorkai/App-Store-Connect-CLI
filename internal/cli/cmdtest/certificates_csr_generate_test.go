@@ -359,6 +359,102 @@ func TestCertificatesCSRGenerate_RejectsNestedOutputPathsBeforeWriting(t *testin
 	}
 }
 
+func TestCertificatesCSRGenerate_RejectsAliasEquivalentOutputsBeforeWriting(t *testing.T) {
+	for _, force := range []bool{false, true} {
+		name := "without force"
+		if force {
+			name = "with force"
+		}
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			realDir := filepath.Join(dir, "real")
+			if err := os.Mkdir(realDir, 0o755); err != nil {
+				t.Fatalf("Mkdir(realDir) error: %v", err)
+			}
+			aliasDir := filepath.Join(dir, "alias")
+			if err := os.Symlink(realDir, aliasDir); err != nil {
+				t.Fatalf("Symlink() error: %v", err)
+			}
+
+			keyOut := filepath.Join(realDir, "pair")
+			csrOut := filepath.Join(aliasDir, "pair")
+			args := []string{
+				"certificates", "csr", "generate",
+				"--key-out", keyOut,
+				"--csr-out", csrOut,
+				"--output", "json",
+			}
+			if force {
+				args = append(args, "--force")
+			}
+
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			stdout, _ := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse command: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if runErr == nil {
+				t.Error("expected alias-equivalent output path error")
+			} else if !strings.Contains(runErr.Error(), "must be different paths") {
+				t.Errorf("expected different output path error, got %v", runErr)
+			}
+			if stdout != "" {
+				t.Errorf("expected empty stdout, got %q", stdout)
+			}
+			for _, output := range []string{keyOut, csrOut} {
+				if _, err := os.Lstat(output); !errors.Is(err, os.ErrNotExist) {
+					t.Errorf("output was created before alias-equivalent paths were rejected: %q (stat error: %v)", output, err)
+				}
+			}
+		})
+	}
+}
+
+func TestCertificatesCSRGenerate_AllowsDistinctOutputsBelowSymlinkedDirectory(t *testing.T) {
+	dir := t.TempDir()
+	realDir := filepath.Join(dir, "real")
+	if err := os.Mkdir(realDir, 0o755); err != nil {
+		t.Fatalf("Mkdir(realDir) error: %v", err)
+	}
+	aliasDir := filepath.Join(dir, "alias")
+	if err := os.Symlink(realDir, aliasDir); err != nil {
+		t.Fatalf("Symlink() error: %v", err)
+	}
+
+	keyOut := filepath.Join(aliasDir, "cert.key")
+	csrOut := filepath.Join(aliasDir, "cert.csr")
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	if err := root.Parse([]string{
+		"certificates", "csr", "generate",
+		"--key-out", keyOut,
+		"--csr-out", csrOut,
+		"--output", "json",
+	}); err != nil {
+		t.Fatalf("parse command: %v", err)
+	}
+
+	_, stderr := captureOutput(t, func() {
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run command: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if _, err := os.Stat(keyOut); err != nil {
+		t.Fatalf("expected key output below symlinked directory: %v", err)
+	}
+	if _, err := os.Stat(csrOut); err != nil {
+		t.Fatalf("expected CSR output below symlinked directory: %v", err)
+	}
+}
+
 func TestCertificatesCSRGenerate_RefusesSymlinkOutputs(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

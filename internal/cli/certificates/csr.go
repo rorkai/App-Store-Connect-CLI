@@ -315,11 +315,11 @@ func preflightCSRFileWrite(path string, force bool) error {
 }
 
 func validateCSRPairOutputPaths(keyOut, csrOut string) error {
-	keyPath, err := filepath.Abs(keyOut)
+	keyPath, err := resolveCSRDestinationPath(keyOut)
 	if err != nil {
 		return fmt.Errorf("resolve --key-out: %w", err)
 	}
-	csrPath, err := filepath.Abs(csrOut)
+	csrPath, err := resolveCSRDestinationPath(csrOut)
 	if err != nil {
 		return fmt.Errorf("resolve --csr-out: %w", err)
 	}
@@ -333,6 +333,38 @@ func validateCSRPairOutputPaths(keyOut, csrOut string) error {
 		return shared.UsageError("--key-out and --csr-out must not contain one another")
 	}
 	return nil
+}
+
+func resolveCSRDestinationPath(path string) (string, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	current := absolute
+	missing := []string{}
+	// Resolve the deepest existing ancestor so absent output names keep their
+	// intended spelling while aliases in the directory chain are canonicalized.
+	for {
+		if _, err := os.Lstat(current); err == nil {
+			resolved, err := filepath.EvalSymlinks(current)
+			if err != nil {
+				return "", err
+			}
+			for i := len(missing) - 1; i >= 0; i-- {
+				resolved = filepath.Join(resolved, missing[i])
+			}
+			return filepath.Clean(resolved), nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+
+		parent := filepath.Dir(current)
+		if parent == current {
+			return filepath.Clean(absolute), nil
+		}
+		missing = append(missing, filepath.Base(current))
+		current = parent
+	}
 }
 
 func isCSRDescendantPath(relative string, err error) bool {
