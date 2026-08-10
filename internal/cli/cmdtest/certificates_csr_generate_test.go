@@ -255,6 +255,55 @@ func TestCertificatesCSRGenerate_DoesNotOrphanKeyWhenCSROutExistsWithoutForce(t 
 	}
 }
 
+func TestCertificatesCSRGenerate_ForcePreservesExistingKeyWhenCSROutCannotBeWritten(t *testing.T) {
+	dir := t.TempDir()
+	keyOut := filepath.Join(dir, "cert.key")
+	writeECDSAPEM(t, keyOut)
+	originalKey, err := os.ReadFile(keyOut)
+	if err != nil {
+		t.Fatalf("ReadFile(keyOut) error: %v", err)
+	}
+
+	blockedParent := filepath.Join(dir, "blocked-parent")
+	if err := os.WriteFile(blockedParent, []byte("not a directory"), 0o600); err != nil {
+		t.Fatalf("WriteFile(blockedParent) error: %v", err)
+	}
+	failedCSROut := filepath.Join(blockedParent, "cert.csr")
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	var runErr error
+	_, _ = captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"certificates", "csr", "generate",
+			"--key-out", keyOut,
+			"--csr-out", failedCSROut,
+			"--force",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse force command: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil {
+		t.Fatal("expected CSR destination failure")
+	}
+	if !strings.Contains(runErr.Error(), blockedParent) {
+		t.Fatalf("expected error to identify blocked CSR parent %q, got %v", blockedParent, runErr)
+	}
+	currentKey, err := os.ReadFile(keyOut)
+	if err != nil {
+		t.Fatalf("ReadFile(keyOut) after failure: %v", err)
+	}
+	if string(currentKey) != string(originalKey) {
+		t.Fatal("existing private key changed before the CSR destination failure")
+	}
+	if _, err := os.Lstat(failedCSROut); err == nil {
+		t.Fatalf("unexpected CSR output at %q", failedCSROut)
+	}
+}
+
 func TestCertificatesCSRGenerate_RefusesSymlinkOutputs(t *testing.T) {
 	root := RootCommand("1.2.3")
 	root.FlagSet.SetOutput(io.Discard)

@@ -180,18 +180,18 @@ func generateCSRFiles(opts csrGenerateOptions) (*csrGenerateResult, []byte, erro
 		subject.CommonName = "asc"
 	}
 
-	// Pre-check output paths to avoid leaving an orphaned key when CSR write fails.
-	// This is not atomic (TOCTOU), but it prevents the common confusing case.
-	if !opts.Force {
-		if _, err := os.Lstat(keyOutValue); err == nil {
-			return nil, nil, fmt.Errorf("write --key-out: output file already exists: %w", os.ErrExist)
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return nil, nil, fmt.Errorf("write --key-out: %w", err)
-		}
-		if _, err := os.Lstat(csrOutValue); err == nil {
-			return nil, nil, fmt.Errorf("write --csr-out: output file already exists: %w", os.ErrExist)
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return nil, nil, fmt.Errorf("write --csr-out: %w", err)
+	// Preflight both outputs before generating or replacing either file. This is
+	// not a cross-file transaction, but locally knowable path failures must not
+	// split the generated key and CSR pair.
+	for _, output := range []struct {
+		flag string
+		path string
+	}{
+		{flag: "--key-out", path: keyOutValue},
+		{flag: "--csr-out", path: csrOutValue},
+	} {
+		if err := preflightCSRFileWrite(output.path, opts.Force); err != nil {
+			return nil, nil, fmt.Errorf("write %s: %w", output.flag, err)
 		}
 	}
 
@@ -286,16 +286,77 @@ func renderCSRGenerateResult(result *csrGenerateResult, markdown bool) error {
 	return nil
 }
 
-func writeFileBytesNoSymlink(path string, data []byte, perm os.FileMode, force bool) error {
-	trimmed := strings.TrimSpace(path)
-	if trimmed == "" {
-		return fmt.Errorf("output path is required")
+func preflightCSRFileWrite(path string, force bool) error {
+	trimmed, err := validateCSRFileOutputPath(path)
+	if err != nil {
+		return err
 	}
-	if strings.HasSuffix(trimmed, string(filepath.Separator)) {
-		return fmt.Errorf("output path must be a file")
+	if err := preflightCSRParentDirectory(trimmed); err != nil {
+		return err
 	}
 
-	_, err := shared.SafeWriteFileNoSymlink(
+	info, err := os.Lstat(trimmed)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !force {
+		return fmt.Errorf("output file already exists: %w", os.ErrExist)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("refusing to overwrite symlink %q", trimmed)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("output path %q is a directory", trimmed)
+	}
+	return nil
+}
+
+func preflightCSRParentDirectory(path string) error {
+	for parent := filepath.Dir(path); ; parent = filepath.Dir(parent) {
+		info, err := os.Lstat(parent)
+		if errors.Is(err, os.ErrNotExist) {
+			if next := filepath.Dir(parent); next != parent {
+				continue
+			}
+			return err
+		}
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			info, err = os.Stat(parent)
+			if err != nil {
+				return err
+			}
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("%q is not a directory", parent)
+		}
+		return nil
+	}
+}
+
+func validateCSRFileOutputPath(path string) (string, error) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return "", fmt.Errorf("output path is required")
+	}
+	if strings.HasSuffix(trimmed, string(filepath.Separator)) {
+		return "", fmt.Errorf("output path must be a file")
+	}
+	return trimmed, nil
+}
+
+func writeFileBytesNoSymlink(path string, data []byte, perm os.FileMode, force bool) error {
+	trimmed, err := validateCSRFileOutputPath(path)
+	if err != nil {
+		return err
+	}
+
+	_, err = shared.SafeWriteFileNoSymlink(
 		trimmed,
 		perm,
 		force,
