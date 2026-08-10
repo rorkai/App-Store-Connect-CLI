@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestCommitCSRWrites_RestoresKeyWhenSecondWriteFails(t *testing.T) {
@@ -130,5 +132,56 @@ func TestCommitCSRWrites_ReportsRollbackFailure(t *testing.T) {
 		if !strings.Contains(err.Error(), text) {
 			t.Errorf("commitCSRWrites() error = %q, want %q", err, text)
 		}
+	}
+}
+
+func TestCommitCSRWrites_RemovesPartialNonForceCSR(t *testing.T) {
+	dir := t.TempDir()
+	keyOut := filepath.Join(dir, "cert.key")
+	csrOut := filepath.Join(dir, "cert.csr")
+	keyWrite, err := prepareCSRWrite("--key-out", keyOut, []byte("replacement-key"), 0o600, false)
+	if err != nil {
+		t.Fatalf("prepareCSRWrite() error: %v", err)
+	}
+	writeFailure := errors.New("injected CSR write failure")
+	writeFile := func(path string, data []byte, mode os.FileMode, force bool) error {
+		if path != csrOut {
+			return writeFileBytesNoSymlink(path, data, mode, force)
+		}
+		_, err := shared.SafeWriteFileNoSymlink(
+			path,
+			mode,
+			false,
+			".asc-csr-*",
+			".asc-csr-backup-*",
+			func(file *os.File) (int64, error) {
+				written, err := file.Write([]byte("partial-csr"))
+				if err != nil {
+					return int64(written), err
+				}
+				return int64(written), writeFailure
+			},
+		)
+		return err
+	}
+
+	err = commitCSRWrites([]preparedCSRWrite{
+		keyWrite,
+		{flag: "--csr-out", path: csrOut, data: []byte("replacement-csr"), mode: 0o644},
+	}, writeFile)
+	if !errors.Is(err, writeFailure) {
+		t.Fatalf("commitCSRWrites() error = %v, want CSR write failure", err)
+	}
+	for _, output := range []string{keyOut, csrOut} {
+		if _, err := os.Lstat(output); !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("pair output remained after partial CSR failure: %q (stat error: %v)", output, err)
+		}
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir(dir) error: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("pair directory contains failure residue: %v", entries)
 	}
 }
