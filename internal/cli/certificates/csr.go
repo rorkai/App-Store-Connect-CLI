@@ -18,6 +18,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
 )
 
 type csrGenerateSubject struct {
@@ -291,27 +292,27 @@ func preflightCSRFileWrite(path string, force bool) error {
 	if err != nil {
 		return err
 	}
-	if err := preflightCSRParentDirectory(trimmed); err != nil {
+	existingParent, err := preflightCSRParentDirectory(trimmed)
+	if err != nil {
 		return err
 	}
 
 	info, err := os.Lstat(trimmed)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	if !force {
-		return fmt.Errorf("output file already exists: %w", os.ErrExist)
+	if err == nil {
+		if !force {
+			return fmt.Errorf("output file already exists: %w", os.ErrExist)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing to overwrite symlink %q", trimmed)
+		}
+		if info.IsDir() {
+			return fmt.Errorf("output path %q is a directory", trimmed)
+		}
 	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("refusing to overwrite symlink %q", trimmed)
-	}
-	if info.IsDir() {
-		return fmt.Errorf("output path %q is a directory", trimmed)
-	}
-	return nil
+	return probeCSRParentWrite(existingParent, force)
 }
 
 func validateCSRPairOutputPaths(keyOut, csrOut string) error {
@@ -329,42 +330,99 @@ func validateCSRPairOutputPaths(keyOut, csrOut string) error {
 	if (keyRelativeErr == nil && keyToCSR == ".") || (csrRelativeErr == nil && csrToKey == ".") {
 		return shared.UsageError("--key-out and --csr-out must be different paths")
 	}
-	caseEquivalent, err := areCSRPathsCaseEquivalent(keyPath, csrPath)
+	caseEquivalent, caseNested, err := classifyCSRCaseFoldRelation(keyPath, csrPath)
 	if err != nil {
 		return fmt.Errorf("compare --key-out and --csr-out: %w", err)
 	}
 	if caseEquivalent {
 		return shared.UsageError("--key-out and --csr-out must be different paths")
 	}
-	if isCSRDescendantPath(keyToCSR, keyRelativeErr) || isCSRDescendantPath(csrToKey, csrRelativeErr) {
+	if caseNested || isCSRDescendantPath(keyToCSR, keyRelativeErr) || isCSRDescendantPath(csrToKey, csrRelativeErr) {
 		return shared.UsageError("--key-out and --csr-out must not contain one another")
 	}
 	return nil
 }
 
-func areCSRPathsCaseEquivalent(keyPath, csrPath string) (bool, error) {
-	if !strings.EqualFold(keyPath, csrPath) {
+func classifyCSRCaseFoldRelation(keyPath, csrPath string) (same bool, nested bool, err error) {
+	keyDepth := csrPathDepth(keyPath)
+	csrDepth := csrPathDepth(csrPath)
+	if keyDepth == csrDepth {
+		same, err = areCSRPathsFilesystemEquivalent(keyPath, csrPath)
+		return same, false, err
+	}
+
+	shorter := keyPath
+	longer := csrPath
+	shorterDepth := keyDepth
+	longerDepth := csrDepth
+	if keyDepth > csrDepth {
+		shorter = csrPath
+		longer = keyPath
+		shorterDepth = csrDepth
+		longerDepth = keyDepth
+	}
+	longerPrefix := longer
+	for range longerDepth - shorterDepth {
+		longerPrefix = filepath.Dir(longerPrefix)
+	}
+	if !strings.EqualFold(shorter, longerPrefix) {
+		return false, false, nil
+	}
+
+	nested, err = areCSRPathsFilesystemEquivalent(shorter, longerPrefix)
+	return false, nested, err
+}
+
+func csrPathDepth(path string) int {
+	depth := 0
+	for current := filepath.Clean(path); ; current = filepath.Dir(current) {
+		parent := filepath.Dir(current)
+		if parent == current {
+			return depth
+		}
+		depth++
+	}
+}
+
+func areCSRPathsFilesystemEquivalent(leftPath, rightPath string) (bool, error) {
+	if leftPath == rightPath {
+		return true, nil
+	}
+	if !strings.EqualFold(leftPath, rightPath) {
 		return false, nil
 	}
 
-	keyAncestor, keyInfo, keyMissing, err := deepestExistingCSRPath(keyPath)
+	leftAncestor, leftInfo, leftMissing, err := deepestExistingCSRPath(leftPath)
 	if err != nil {
 		return false, err
 	}
-	_, csrInfo, csrMissing, err := deepestExistingCSRPath(csrPath)
+	_, rightInfo, rightMissing, err := deepestExistingCSRPath(rightPath)
 	if err != nil {
 		return false, err
 	}
-	if !os.SameFile(keyInfo, csrInfo) {
+	if !os.SameFile(leftInfo, rightInfo) || leftMissing != rightMissing {
 		return false, nil
 	}
-	if keyMissing == 0 && csrMissing == 0 {
+	if leftMissing == 0 || haveSameCSRMissingSuffix(leftPath, rightPath, leftMissing) {
 		return true, nil
 	}
-	if !keyInfo.IsDir() {
+	if !leftInfo.IsDir() {
 		return false, nil
 	}
-	return isCSRDirectoryCaseInsensitive(keyAncestor)
+	return isCSRDirectoryCaseInsensitive(leftAncestor)
+}
+
+func haveSameCSRMissingSuffix(leftPath, rightPath string, missing int) bool {
+	left := leftPath
+	right := rightPath
+	for range missing {
+		if filepath.Base(left) != filepath.Base(right) {
+			return false
+		}
+		left = filepath.Dir(left)
+		right = filepath.Dir(right)
+	}
+	return true
 }
 
 func deepestExistingCSRPath(path string) (string, os.FileInfo, int, error) {
@@ -469,29 +527,84 @@ func isCSRDescendantPath(relative string, err error) bool {
 		!filepath.IsAbs(relative) && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
-func preflightCSRParentDirectory(path string) error {
+func preflightCSRParentDirectory(path string) (string, error) {
 	for parent := filepath.Dir(path); ; parent = filepath.Dir(parent) {
 		info, err := os.Lstat(parent)
 		if errors.Is(err, os.ErrNotExist) {
 			if next := filepath.Dir(parent); next != parent {
 				continue
 			}
-			return err
+			return "", err
 		}
 		if err != nil {
-			return err
+			return "", err
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
 			info, err = os.Stat(parent)
 			if err != nil {
-				return err
+				return "", err
 			}
 		}
 		if !info.IsDir() {
-			return fmt.Errorf("%q is not a directory", parent)
+			return "", fmt.Errorf("%q is not a directory", parent)
 		}
+		return parent, nil
+	}
+}
+
+func probeCSRParentWrite(parent string, requireRename bool) (err error) {
+	rooted, err := os.OpenRoot(parent)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if closeErr := rooted.Close(); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
+
+	probe, probeName, err := secureopen.CreateTempNoFollowInRoot(rooted, ".", ".asc-csr-preflight-*", 0o600)
+	if err != nil {
+		return err
+	}
+	if closeErr := probe.Close(); closeErr != nil {
+		return errors.Join(closeErr, rooted.Remove(probeName))
+	}
+	currentName := probeName
+	defer func() {
+		if removeErr := rooted.Remove(currentName); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			err = errors.Join(err, removeErr)
+		}
+	}()
+
+	if !requireRename {
 		return nil
 	}
+
+	spare, spareName, err := secureopen.CreateTempNoFollowInRoot(rooted, ".", ".asc-csr-preflight-*", 0o600)
+	if err != nil {
+		return err
+	}
+	spareNeedsCleanup := true
+	defer func() {
+		if spareNeedsCleanup {
+			if removeErr := rooted.Remove(spareName); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+				err = errors.Join(err, removeErr)
+			}
+		}
+	}()
+	if closeErr := spare.Close(); closeErr != nil {
+		return closeErr
+	}
+	if removeErr := rooted.Remove(spareName); removeErr != nil {
+		return removeErr
+	}
+	spareNeedsCleanup = false
+	if renameErr := rooted.Rename(probeName, spareName); renameErr != nil {
+		return renameErr
+	}
+	currentName = spareName
+	return nil
 }
 
 func validateCSRFileOutputPath(path string) (string, error) {
