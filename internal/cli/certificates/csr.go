@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
 )
 
@@ -49,6 +51,19 @@ type csrGenerateOptions struct {
 	KeyType            string
 	KeySize            int
 	Force              bool
+}
+
+type preparedCSRWrite struct {
+	flag         string
+	path         string
+	data         []byte
+	mode         os.FileMode
+	force        bool
+	original     []byte
+	originalMode os.FileMode
+	existed      bool
+	root         rootfs.Root
+	name         string
 }
 
 // CertificatesCSRCommand returns the certificates csr command group.
@@ -238,12 +253,19 @@ func generateCSRFiles(opts csrGenerateOptions) (*csrGenerateResult, []byte, erro
 		return nil, nil, fmt.Errorf("encode csr PEM failed")
 	}
 
-	// Write key first: if anything fails, do not leave a CSR without its key.
-	if err := writeFileBytesNoSymlink(keyOutValue, keyPEM, 0o600, opts.Force); err != nil {
+	keyWrite, err := prepareCSRWrite("--key-out", keyOutValue, keyPEM, 0o600, opts.Force)
+	if err != nil {
 		return nil, nil, fmt.Errorf("write --key-out: %w", err)
 	}
-	if err := writeFileBytesNoSymlink(csrOutValue, csrPEM, 0o644, opts.Force); err != nil {
-		return nil, nil, fmt.Errorf("write --csr-out: %w", err)
+	writes := []preparedCSRWrite{
+		keyWrite,
+		{flag: "--csr-out", path: csrOutValue, data: csrPEM, mode: 0o644, force: opts.Force},
+	}
+
+	// Write key first so a successful command never exposes a CSR before its key.
+	// If the CSR commit fails, restore the key's pre-command state.
+	if err := commitCSRWrites(writes, writeFileBytesNoSymlink); err != nil {
+		return nil, nil, err
 	}
 
 	result := &csrGenerateResult{
@@ -678,4 +700,91 @@ func writeFileBytesNoSymlink(path string, data []byte, perm os.FileMode, force b
 		},
 	)
 	return err
+}
+
+func prepareCSRWrite(flagName, path string, data []byte, mode os.FileMode, force bool) (preparedCSRWrite, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return preparedCSRWrite{}, err
+	}
+	existingParent, err := preflightCSRParentDirectory(absolute)
+	if err != nil {
+		return preparedCSRWrite{}, err
+	}
+	root, err := rootfs.New(existingParent)
+	if err != nil {
+		return preparedCSRWrite{}, err
+	}
+	name, err := filepath.Rel(root.Path(), absolute)
+	if err != nil {
+		return preparedCSRWrite{}, err
+	}
+
+	write := preparedCSRWrite{
+		flag:  flagName,
+		path:  path,
+		data:  data,
+		mode:  mode,
+		force: force,
+		root:  root,
+		name:  name,
+	}
+	file, err := root.OpenFile(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return write, nil
+	}
+	if err != nil {
+		return preparedCSRWrite{}, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return preparedCSRWrite{}, err
+	}
+	original, err := io.ReadAll(file)
+	if err != nil {
+		return preparedCSRWrite{}, err
+	}
+	write.original = original
+	write.originalMode = info.Mode().Perm()
+	write.existed = true
+	return write, nil
+}
+
+type csrWriteFileFunc func(path string, data []byte, mode os.FileMode, force bool) error
+
+func commitCSRWrites(writes []preparedCSRWrite, writeFile csrWriteFileFunc) error {
+	committed := make([]preparedCSRWrite, 0, len(writes))
+	for _, write := range writes {
+		if err := writeFile(write.path, write.data, write.mode, write.force); err != nil {
+			writeErr := fmt.Errorf("write %s: %w", write.flag, err)
+			var rollbackErrors []error
+			for index := len(committed) - 1; index >= 0; index-- {
+				if rollbackErr := restoreCSRWrite(committed[index], writeFile); rollbackErr != nil {
+					rollbackErrors = append(rollbackErrors, fmt.Errorf("restore %s: %w", committed[index].flag, rollbackErr))
+				}
+			}
+			if len(rollbackErrors) == 0 {
+				return writeErr
+			}
+			return errors.Join(writeErr, fmt.Errorf("rollback failed: %w", errors.Join(rollbackErrors...)))
+		}
+		committed = append(committed, write)
+	}
+	return nil
+}
+
+func restoreCSRWrite(write preparedCSRWrite, writeFile csrWriteFileFunc) error {
+	if write.existed {
+		return writeFile(write.path, write.original, write.originalMode, true)
+	}
+	rooted, err := os.OpenRoot(write.root.Path())
+	if err != nil {
+		return err
+	}
+	defer rooted.Close()
+	if err := rooted.Remove(write.name); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
 }
