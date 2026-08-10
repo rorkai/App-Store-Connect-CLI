@@ -1103,11 +1103,21 @@ func resolveAppStoreVersionForAppInfo(
 	if err != nil {
 		return asc.Resource[asc.AppStoreVersionAttributes]{}, err
 	}
-	if len(resp.Data) == 0 {
+	allPages, err := asc.PaginateAll(ctx, resp, func(pageCtx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetAppStoreVersions(pageCtx, appID, asc.WithAppStoreVersionsNextURL(nextURL))
+	})
+	if err != nil {
+		return asc.Resource[asc.AppStoreVersionAttributes]{}, err
+	}
+	versions, ok := allPages.(*asc.AppStoreVersionsResponse)
+	if !ok {
+		return asc.Resource[asc.AppStoreVersionAttributes]{}, fmt.Errorf("unexpected app store versions response type %T", allPages)
+	}
+	if len(versions.Data) == 0 {
 		return asc.Resource[asc.AppStoreVersionAttributes]{}, fmt.Errorf("no app store versions found for app %q", appID)
 	}
 
-	return selectLatestAppStoreVersion(resp.Data), nil
+	return selectLatestAppStoreVersion(versions.Data), nil
 }
 
 func selectLatestAppStoreVersion(versions []asc.Resource[asc.AppStoreVersionAttributes]) asc.Resource[asc.AppStoreVersionAttributes] {

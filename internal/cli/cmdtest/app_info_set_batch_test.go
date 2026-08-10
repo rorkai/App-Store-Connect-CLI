@@ -7,13 +7,18 @@ import (
 	"flag"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 func TestAppInfoSetBatchValidationErrors(t *testing.T) {
@@ -325,6 +330,112 @@ func TestAppInfoSetBatchDryRunInlineLocales(t *testing.T) {
 	}
 	if byLocale["de-DE"]["action"] != "create" || byLocale["de-DE"]["status"] != "planned" {
 		t.Fatalf("expected de-DE to be planned create, got %+v", byLocale["de-DE"])
+	}
+}
+
+func TestAppsInfoEditTargetsLatestVersionAcrossPages(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	const nextURL = "https://api.appstoreconnect.apple.com/v1/apps/app-1/appStoreVersions?cursor=page-2"
+	requests := make([]string, 0, 4)
+	patchBody := ""
+	oldVersionRequested := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if !strings.HasPrefix(req.Header.Get("Authorization"), "Bearer ") {
+			t.Errorf("request is missing bearer authorization: %s %s", req.Method, req.URL.String())
+			http.Error(w, "missing authorization", http.StatusUnauthorized)
+			return
+		}
+		requests = append(requests, req.Method+" "+req.URL.RequestURI())
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions" && req.URL.Query().Get("cursor") == "":
+			_, _ = io.WriteString(w, `{"data":[{"type":"appStoreVersions","id":"old","attributes":{"createdDate":"2026-01-01T00:00:00Z"}}],"links":{"next":"`+nextURL+`"}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appStoreVersions" && req.URL.Query().Get("cursor") == "page-2":
+			_, _ = io.WriteString(w, `{"data":[{"type":"appStoreVersions","id":"new","attributes":{"createdDate":"2026-02-01T00:00:00Z"}}]}`)
+		case req.Method == http.MethodGet && (req.URL.Path == "/v1/appStoreVersions/new/appStoreVersionLocalizations" || req.URL.Path == "/v1/appStoreVersions/old/appStoreVersionLocalizations"):
+			versionID := strings.TrimSuffix(strings.TrimPrefix(req.URL.Path, "/v1/appStoreVersions/"), "/appStoreVersionLocalizations")
+			oldVersionRequested = versionID == "old"
+			_, _ = io.WriteString(w, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-`+versionID+`","attributes":{"locale":"en-US","description":"Description","keywords":"keywords","supportUrl":"https://example.com/support","whatsNew":"Old notes"}}]}`)
+		case req.Method == http.MethodPatch && (req.URL.Path == "/v1/appStoreVersionLocalizations/loc-new" || req.URL.Path == "/v1/appStoreVersionLocalizations/loc-old"):
+			body, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Errorf("read PATCH body: %v", err)
+				http.Error(w, "failed to read body", http.StatusInternalServerError)
+				return
+			}
+			patchBody = string(body)
+			localizationID := strings.TrimPrefix(req.URL.Path, "/v1/appStoreVersionLocalizations/")
+			oldVersionRequested = oldVersionRequested || localizationID == "loc-old"
+			_, _ = io.WriteString(w, `{"data":{"type":"appStoreVersionLocalizations","id":"`+localizationID+`","attributes":{"locale":"en-US","whatsNew":"Fixes"}}}`)
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse test server URL: %v", err)
+	}
+	transport := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Scheme != "https" || req.URL.Host != "api.appstoreconnect.apple.com" {
+			return nil, errors.New("test transport received a non-App Store Connect URL")
+		}
+		routed := req.Clone(req.Context())
+		routed.URL.Scheme = serverURL.Scheme
+		routed.URL.Host = serverURL.Host
+		routed.Host = serverURL.Host
+		return server.Client().Transport.RoundTrip(routed)
+	})
+	client, err := asc.NewClientWithHTTPClient(
+		os.Getenv("ASC_KEY_ID"),
+		os.Getenv("ASC_ISSUER_ID"),
+		os.Getenv("ASC_PRIVATE_KEY_PATH"),
+		&http.Client{Transport: transport},
+	)
+	if err != nil {
+		t.Fatalf("create test client: %v", err)
+	}
+	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+		return client, nil
+	}))
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"apps", "info", "edit",
+			"--app", "app-1",
+			"--locale", "en-US",
+			"--whats-new", "Fixes",
+			"--output", "json",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+
+	wantRequests := []string{
+		"GET /v1/apps/app-1/appStoreVersions?limit=200",
+		"GET /v1/apps/app-1/appStoreVersions?cursor=page-2",
+		"GET /v1/appStoreVersions/new/appStoreVersionLocalizations?filter%5Blocale%5D=en-US&limit=200",
+		"PATCH /v1/appStoreVersionLocalizations/loc-new",
+	}
+	if !slices.Equal(requests, wantRequests) {
+		t.Fatalf("request sequence = %v, want %v", requests, wantRequests)
+	}
+	if oldVersionRequested {
+		t.Fatal("edit requested the older version's localization")
+	}
+	if !strings.Contains(patchBody, `"whatsNew":"Fixes"`) {
+		t.Fatalf("expected latest localization PATCH body to contain whatsNew, got %q", patchBody)
 	}
 }
 

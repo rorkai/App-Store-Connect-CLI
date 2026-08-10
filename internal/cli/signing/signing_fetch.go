@@ -70,6 +70,12 @@ Examples:
 			if outputDir == "" {
 				outputDir = "./signing"
 			}
+			prepareOutputDir := onceAfterSuccess(func() error {
+				if err := os.MkdirAll(outputDir, 0o755); err != nil {
+					return fmt.Errorf("create output dir: %w", err)
+				}
+				return nil
+			})
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -108,6 +114,7 @@ Examples:
 					CertificateType:    *certType,
 					DeviceIDs:          shared.SplitCSV(*deviceIDs),
 					CreateMissing:      *createMissing,
+					BeforeCreate:       prepareOutputDir,
 				},
 			)
 			if err != nil {
@@ -117,8 +124,8 @@ Examples:
 			result.ProfileID = profile.Data.ID
 			result.Created = created
 
-			if err := os.MkdirAll(outputDir, 0o755); err != nil {
-				return fmt.Errorf("signing fetch: create output dir: %w", err)
+			if err := prepareOutputDir(); err != nil {
+				return fmt.Errorf("signing fetch: %w", err)
 			}
 
 			profileName := safeFileName(profile.Data.Attributes.Name, profile.Data.ID)
