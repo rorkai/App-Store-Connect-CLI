@@ -2,6 +2,7 @@ package shared
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -118,6 +119,17 @@ func TestResolveAppStoreVersionIDAndState_FallsBackToTrimmedAppStoreState(t *tes
 	}
 	if versionState != "READY_FOR_SALE" {
 		t.Fatalf("expected fallback state READY_FOR_SALE, got %q", versionState)
+	}
+}
+
+func TestResolveAppStoreVersionIDAndState_EmptyCollectionIsNotFound(t *testing.T) {
+	client := newAppResolutionTestClient(t, func(req *http.Request) (*http.Response, error) {
+		return appResolutionJSONResponse(`{"data":[]}`)
+	})
+
+	_, _, err := ResolveAppStoreVersionIDAndState(context.Background(), client, "app-1", "9.9.9", "IOS")
+	if !errors.Is(err, asc.ErrNotFound) {
+		t.Fatalf("ResolveAppStoreVersionIDAndState() error = %v, want asc.ErrNotFound", err)
 	}
 }
 
