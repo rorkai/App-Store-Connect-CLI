@@ -436,6 +436,42 @@ func TestRun_MissingRequiredFlagsEmitContext(t *testing.T) {
 	}
 }
 
+func TestRun_XcodeExportManagedPassthroughEmitsUsageContext(t *testing.T) {
+	resetReportFlags(t)
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	var gotExitCode int
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, exitCode int, eventContext telemetry.EventContext) {
+		gotExitCode = exitCode
+		gotContext = eventContext
+	}
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		code := Run([]string{
+			"xcode", "export",
+			"--archive-path", "Demo.xcarchive",
+			"--ipa-path", "Demo.ipa",
+			"--xcodebuild-flag=-exportPath=/tmp/elsewhere",
+		}, "1.0.0")
+		if code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	if !strings.Contains(stderr, `--xcodebuild-flag cannot override asc-managed argument "-exportPath"`) {
+		t.Fatalf("stderr = %q, want managed-argument error", stderr)
+	}
+	if gotExitCode != ExitUsage || gotContext.FailureStage != telemetry.FailureStageValidation ||
+		gotContext.OutcomeKind != telemetry.OutcomeUsageError || gotContext.FailureParameter != "--xcodebuild-flag" {
+		t.Fatalf("unexpected telemetry: exit=%d context=%+v", gotExitCode, gotContext)
+	}
+}
+
 func TestRun_UnknownNestedSubcommandSuggestsRealSubcommand(t *testing.T) {
 	resetReportFlags(t)
 

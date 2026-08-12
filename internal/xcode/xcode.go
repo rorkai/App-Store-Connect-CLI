@@ -434,7 +434,40 @@ func validateExportOptions(opts ExportOptions) error {
 	if !strings.EqualFold(filepath.Ext(opts.IPAPath), ".ipa") {
 		return fmt.Errorf("--ipa-path must end with .ipa")
 	}
+	if err := ValidateExportXcodebuildArgs(opts.XcodebuildArgs); err != nil {
+		return err
+	}
 	return nil
+}
+
+// ValidateExportXcodebuildArgs rejects passthrough arguments that would switch
+// xcodebuild away from the export operation or override paths managed by asc.
+func ValidateExportXcodebuildArgs(args []string) error {
+	for _, arg := range args {
+		if strings.TrimSpace(arg) == "" {
+			return fmt.Errorf("--xcodebuild-flag cannot be empty")
+		}
+	}
+	if reserved := reservedExportPassthroughArgument(args); reserved != "" {
+		return fmt.Errorf("--xcodebuild-flag cannot override asc-managed argument %q", reserved)
+	}
+	return nil
+}
+
+func reservedExportPassthroughArgument(args []string) string {
+	if reserved := reservedBuildPassthroughArgument(args); reserved != "" {
+		return reserved
+	}
+	for _, arg := range args {
+		trimmed := strings.TrimSpace(arg)
+		normalized := strings.ToLower(trimmed)
+		for _, managed := range []string{"-exportpath", "-exportoptionsplist"} {
+			if normalized == managed || strings.HasPrefix(normalized, managed+"=") {
+				return strings.SplitN(trimmed, "=", 2)[0]
+			}
+		}
+	}
+	return ""
 }
 
 func validateExportInputPaths(opts ExportOptions) error {

@@ -324,6 +324,49 @@ func TestXcodeExportRejectsInvalidSigningStyleBeforeSideEffects(t *testing.T) {
 	}
 }
 
+func TestXcodeExportRejectsManagedXcodebuildFlagsBeforeSideEffects(t *testing.T) {
+	restore := overrideXcodeCommandTestHooks(t)
+	t.Cleanup(restore)
+
+	runXcodeExportPreflight = func(context.Context) error {
+		t.Fatal("preflight must not run for a managed xcodebuild argument")
+		return nil
+	}
+	runGenerateExportOptions = func(context.Context, localxcode.ExportOptionsGenerateOptions) (*localxcode.ExportOptionsGenerateResult, error) {
+		t.Fatal("export options generation must not run for a managed xcodebuild argument")
+		return nil, nil
+	}
+	runExport = func(context.Context, localxcode.ExportOptions) (*localxcode.ExportResult, error) {
+		t.Fatal("export must not run for a managed xcodebuild argument")
+		return nil, nil
+	}
+
+	cmd := XcodeExportCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse([]string{
+		"--archive-path", "Demo.xcarchive",
+		"--ipa-path", "Demo.ipa",
+		"--xcodebuild-flag=-exportPath=/tmp/elsewhere",
+	}); err != nil {
+		t.Fatalf("FlagSet.Parse() error = %v", err)
+	}
+
+	var runErr error
+	stdout, stderr := captureCommandOutput(t, func() error {
+		runErr = cmd.Exec(context.Background(), nil)
+		return runErr
+	})
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("Exec() error = %v, want usage error", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	if !strings.Contains(stderr, `--xcodebuild-flag cannot override asc-managed argument "-exportPath"`) {
+		t.Fatalf("stderr = %q, want managed-argument error", stderr)
+	}
+}
+
 func TestXcodeExportRejectsExplicitlyEmptyTeamIDBeforeSideEffects(t *testing.T) {
 	restore := overrideXcodeCommandTestHooks(t)
 	defer restore()

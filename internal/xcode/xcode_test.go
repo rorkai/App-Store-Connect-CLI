@@ -255,6 +255,64 @@ func TestExportMissingXcodebuild(t *testing.T) {
 	}
 }
 
+func TestValidateExportXcodebuildArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{name: "none"},
+		{name: "supported provisioning flag", args: []string{"-allowProvisioningUpdates"}},
+		{name: "supported authentication flags", args: []string{"-authenticationKeyPath", "/tmp/AuthKey.p8", "-authenticationKeyID", "KEY123", "-authenticationKeyIssuerID", "ISSUER456"}},
+		{name: "blank passthrough", args: []string{""}, wantErr: "--xcodebuild-flag cannot be empty"},
+		{name: "whitespace passthrough", args: []string{" \t"}, wantErr: "--xcodebuild-flag cannot be empty"},
+		{name: "export operation", args: []string{"-exportArchive"}, wantErr: `cannot override asc-managed argument "-exportArchive"`},
+		{name: "archive path", args: []string{"-archivePath=/tmp/Other.xcarchive"}, wantErr: `cannot override asc-managed argument "-archivePath"`},
+		{name: "export path", args: []string{"-EXPORTPATH", "/tmp/elsewhere"}, wantErr: `cannot override asc-managed argument "-EXPORTPATH"`},
+		{name: "export options", args: []string{"-exportOptionsPlist=/tmp/Other.plist"}, wantErr: `cannot override asc-managed argument "-exportOptionsPlist"`},
+		{name: "different operation", args: []string{"build"}, wantErr: `cannot override asc-managed argument "build"`},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := ValidateExportXcodebuildArgs(test.args)
+			if test.wantErr == "" && err != nil {
+				t.Fatalf("ValidateExportXcodebuildArgs() error = %v", err)
+			}
+			if test.wantErr != "" && (err == nil || !strings.Contains(err.Error(), test.wantErr)) {
+				t.Fatalf("ValidateExportXcodebuildArgs() error = %v, want %q", err, test.wantErr)
+			}
+		})
+	}
+}
+
+// TestValidateExportXcodebuildArgsRejectsEveryArgumentExportEmits derives its
+// expectations from the shipped command. A newly managed argument must not be
+// overridable through --xcodebuild-flag.
+func TestValidateExportXcodebuildArgsRejectsEveryArgumentExportEmits(t *testing.T) {
+	opts := ExportOptions{
+		ArchivePath:   "/tmp/AscManaged.xcarchive",
+		ExportOptions: "/tmp/AscManagedExportOptions.plist",
+	}
+	exportDir := "/tmp/asc-managed-export"
+	suppliedValues := map[string]struct{}{
+		opts.ArchivePath:   {},
+		opts.ExportOptions: {},
+		exportDir:          {},
+	}
+
+	for _, arg := range buildExportCommand(opts, exportDir) {
+		if _, isValue := suppliedValues[arg]; isValue {
+			continue
+		}
+		t.Run(arg, func(t *testing.T) {
+			if err := ValidateExportXcodebuildArgs([]string{arg}); err == nil {
+				t.Fatalf("asc emits %q but --xcodebuild-flag can still override it", arg)
+			}
+		})
+	}
+}
+
 func TestValidateUnsupportedPlatform(t *testing.T) {
 	restore := overrideTestEnvironment(t)
 	runtimeGOOS = "linux"

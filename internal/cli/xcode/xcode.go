@@ -188,7 +188,7 @@ func XcodeExportCommand() *ffcli.Command {
 	pollInterval := fs.Duration("poll-interval", shared.PublishDefaultPollInterval, "Polling interval for --wait when waiting for uploaded builds")
 	timeout := fs.Duration("timeout", 0, "Maximum duration for xcodebuild -exportArchive (0 disables local export timeout)")
 	var xcodebuildFlags shared.MultiStringFlag
-	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass a raw argument through to xcodebuild (repeatable)")
+	fs.Var(&xcodebuildFlags, "xcodebuild-flag", "Pass an additional raw argument through to xcodebuild; asc-managed arguments are rejected (repeatable)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -234,6 +234,9 @@ Examples:
 			}
 			if *timeout < 0 {
 				return shared.UsageError("--timeout must be zero or greater")
+			}
+			if err := localxcode.ValidateExportXcodebuildArgs([]string(xcodebuildFlags)); err != nil {
+				return shared.UsageError(err.Error())
 			}
 			generationFlagsSet := false
 			signingStyleSet := false
