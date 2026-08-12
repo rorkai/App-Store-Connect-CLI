@@ -40,18 +40,33 @@ func TestExecutePushPrefixesLocalMetadataReadErrors(t *testing.T) {
 	}
 }
 
-func TestRepresentativeMetadataMutationErrorPrefersHTTPStatusWithinFirstAction(t *testing.T) {
-	mutationErr := errors.New("connection reset")
+func TestRepresentativeMetadataMutationErrorPrefersPositiveHTTPStatusWithinFirstAction(t *testing.T) {
+	mutationErr := &asc.RetryableError{Err: errors.New("connection reset")}
 	readbackErr := &asc.APIError{StatusCode: 503, Code: "SERVICE_UNAVAILABLE"}
 	laterActionErr := &asc.APIError{StatusCode: 404, Code: "NOT_FOUND"}
 	firstActionErr := fmt.Errorf("mutation and readback failed: %w", errors.Join(mutationErr, readbackErr))
 
-	got := representativeMetadataMutationError(errors.Join(
-		fmt.Errorf("update version localization fr-FR: %w", firstActionErr),
-		fmt.Errorf("update version localization ja: %w", laterActionErr),
-	))
+	got := representativeMetadataMutationError(fmt.Errorf("metadata apply: %w", errors.Join(
+		errors.Join(newMetadataMutationActionError(fmt.Errorf("update version localization fr-FR: %w", firstActionErr))),
+		errors.Join(newMetadataMutationActionError(fmt.Errorf("update version localization ja: %w", laterActionErr))),
+	)))
 	if !errors.Is(got, readbackErr) {
 		t.Fatalf("representative error = %T %v, want first action HTTP cause %v", got, got, readbackErr)
+	}
+}
+
+func TestRepresentativeMetadataMutationErrorStaysWithinFirstAction(t *testing.T) {
+	firstMutationErr := errors.New("connection reset")
+	firstReadbackErr := errors.New("readback timeout")
+	laterActionErr := &asc.APIError{StatusCode: 404, Code: "NOT_FOUND"}
+	firstActionErr := fmt.Errorf("mutation and readback failed: %w", errors.Join(firstMutationErr, firstReadbackErr))
+
+	got := representativeMetadataMutationError(fmt.Errorf("metadata apply: %w", errors.Join(
+		errors.Join(newMetadataMutationActionError(fmt.Errorf("update version localization fr-FR: %w", firstActionErr))),
+		errors.Join(newMetadataMutationActionError(fmt.Errorf("update version localization ja: %w", laterActionErr))),
+	)))
+	if !errors.Is(got, firstMutationErr) {
+		t.Fatalf("representative error = %T %v, want first action leaf %v", got, got, firstMutationErr)
 	}
 }
 
