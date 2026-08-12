@@ -230,13 +230,35 @@ Notes:
 				}
 				reportedErr := errors.New(message)
 				if err != nil {
-					reportedErr = shared.NewErrorWithCause(reportedErr, err)
+					reportedErr = shared.NewErrorWithCause(reportedErr, representativeMetadataMutationError(err))
 				}
 				return shared.NewReportedError(reportedErr)
 			}
 			return nil
 		},
 	}
+}
+
+func representativeMetadataMutationError(err error) error {
+	for err != nil {
+		if joined, ok := err.(interface{ Unwrap() []error }); ok {
+			children := joined.Unwrap()
+			err = nil
+			for _, child := range children {
+				if child != nil {
+					err = child
+					break
+				}
+			}
+			continue
+		}
+		wrapped, ok := err.(interface{ Unwrap() error })
+		if !ok || wrapped.Unwrap() == nil {
+			return err
+		}
+		err = wrapped.Unwrap()
+	}
+	return nil
 }
 
 // MetadataPushCommand returns the metadata push subcommand.

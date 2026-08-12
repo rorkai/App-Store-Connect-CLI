@@ -14,6 +14,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -440,6 +441,130 @@ func TestRun_MetadataValidateFindingsEmitExpectedNegative(t *testing.T) {
 		gotContext.OutcomeKind != telemetry.OutcomeExpectedNegative {
 		t.Fatalf("unexpected telemetry: exit=%d context=%+v", gotExitCode, gotContext)
 	}
+}
+
+func TestRun_MetadataApplyMixedFailuresUseFirstCauseConsistently(t *testing.T) {
+	resetReportFlags(t)
+	tempDir := t.TempDir()
+	t.Chdir(tempDir)
+	keyPath := filepath.Join(tempDir, "AuthKey.p8")
+	writeRunTestECDSAPEM(t, keyPath)
+	metadataDir := filepath.Join(tempDir, "metadata")
+	versionDir := filepath.Join(metadataDir, "version", "1.2.3")
+	if err := os.MkdirAll(versionDir, 0o755); err != nil {
+		t.Fatalf("os.MkdirAll() error: %v", err)
+	}
+	for locale, description := range map[string]string{
+		"fr-FR": "French update",
+		"ja":    "Japanese update",
+	} {
+		path := filepath.Join(versionDir, locale+".json")
+		if err := os.WriteFile(path, []byte(fmt.Sprintf(`{"description":%q}`, description)), 0o600); err != nil {
+			t.Fatalf("os.WriteFile(%q) error: %v", locale, err)
+		}
+	}
+
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "ENVKEY")
+	t.Setenv("ASC_ISSUER_ID", "ENVISS")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_MAX_RETRIES", "0")
+	resetSelectedProfile(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	http.DefaultTransport = metadataApplyRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		responses := map[string]struct {
+			status int
+			body   string
+		}{
+			"/v1/apps/app-1/appInfos": {
+				status: http.StatusOK,
+				body:   `{"data":[{"type":"appInfos","id":"appinfo-1","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}]}`,
+			},
+			"/v1/apps/app-1/appStoreVersions": {
+				status: http.StatusOK,
+				body:   `{"data":[{"type":"appStoreVersions","id":"version-1","attributes":{"versionString":"1.2.3","platform":"IOS"}}],"links":{"next":""}}`,
+			},
+			"/v1/appInfos/appinfo-1/appInfoLocalizations": {
+				status: http.StatusOK,
+				body:   `{"data":[],"links":{"next":""}}`,
+			},
+			"/v1/appStoreVersions/version-1/appStoreVersionLocalizations": {
+				status: http.StatusOK,
+				body:   `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-fr","attributes":{"locale":"fr-FR","description":"Old French"}},{"type":"appStoreVersionLocalizations","id":"loc-ja","attributes":{"locale":"ja","description":"Old Japanese"}}],"links":{"next":""}}`,
+			},
+			"/v1/appStoreVersionLocalizations/loc-fr": {
+				status: http.StatusInternalServerError,
+				body:   `{"errors":[{"status":"500","code":"INTERNAL_ERROR","detail":"first failure"}]}`,
+			},
+			"/v1/appStoreVersionLocalizations/loc-ja": {
+				status: http.StatusNotFound,
+				body:   `{"errors":[{"status":"404","code":"NOT_FOUND","detail":"later failure"}]}`,
+			},
+		}
+		response, ok := responses[req.URL.Path]
+		if !ok {
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.Path)
+		}
+		return &http.Response{
+			StatusCode: response.status,
+			Body:       io.NopCloser(strings.NewReader(response.body)),
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+		}, nil
+	})
+
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+	var gotExitCode int
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, exitCode int, eventContext telemetry.EventContext) {
+		gotExitCode = exitCode
+		gotContext = eventContext
+	}
+
+	var exitCode int
+	stdout, stderr := captureCommandOutput(t, func() {
+		exitCode = Run([]string{
+			"metadata", "apply",
+			"--app", "app-1",
+			"--version", "1.2.3",
+			"--dir", metadataDir,
+			"--output", "json",
+		}, "1.0.0")
+	})
+	if exitCode != ExitHTTPInternalServer {
+		t.Fatalf("Run() exit code = %d, want %d; stdout=%s", exitCode, ExitHTTPInternalServer, stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	var result struct {
+		Failed  int `json:"failed"`
+		Actions []struct {
+			Status string `json:"status"`
+		} `json:"actions"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
+		t.Fatalf("json.Unmarshal() error: %v; stdout=%q", err, stdout)
+	}
+	if result.Failed != 2 || len(result.Actions) != 2 || result.Actions[0].Status != "failed" || result.Actions[1].Status != "failed" {
+		t.Fatalf("unexpected partial result: %+v", result)
+	}
+	if gotExitCode != ExitHTTPInternalServer || gotContext.HTTPStatus != http.StatusInternalServerError ||
+		gotContext.OutcomeKind != telemetry.OutcomeAPIServerError {
+		t.Fatalf("inconsistent event classification: exit=%d context=%+v", gotExitCode, gotContext)
+	}
+}
+
+type metadataApplyRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn metadataApplyRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
 
 func TestRun_MissingRequiredFlagsEmitContext(t *testing.T) {
