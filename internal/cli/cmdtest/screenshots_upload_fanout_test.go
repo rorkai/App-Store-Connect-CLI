@@ -68,8 +68,8 @@ func TestScreenshotsUploadIgnoresASCAppIDUntilAppScopedModeIsRequested(t *testin
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
 	}
-	if !strings.Contains(stderr, "Error: --version-localization is required") {
-		t.Fatalf("expected direct-mode selector error, got %q", stderr)
+	if !strings.Contains(stderr, "Error: choose an upload mode: --version-localization VERSION_LOCALIZATION_ID; --app APP_ID with --version VERSION or --version-id VERSION_ID; or --resume ARTIFACT_PATH") {
+		t.Fatalf("expected upload mode selector error, got %q", stderr)
 	}
 }
 

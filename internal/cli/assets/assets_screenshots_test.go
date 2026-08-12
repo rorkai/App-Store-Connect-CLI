@@ -319,6 +319,30 @@ func TestAssetsScreenshotsUploadCommandRejectsSkipExistingWithReplace(t *testing
 	}
 }
 
+func TestAssetsScreenshotsUploadCommandRequiresUploadMode(t *testing.T) {
+	cmd := AssetsScreenshotsUploadCommand()
+	cmd.FlagSet.SetOutput(io.Discard)
+	if err := cmd.FlagSet.Parse(nil); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		runErr = cmd.Exec(context.Background(), cmd.FlagSet.Args())
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("expected flag.ErrHelp, got %v", runErr)
+	}
+	const want = "Error: choose an upload mode: --version-localization VERSION_LOCALIZATION_ID; --app APP_ID with --version VERSION or --version-id VERSION_ID; or --resume ARTIFACT_PATH\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+}
+
 func TestAssetsScreenshotsUploadCommandRejectsMaxScreenshotsWithResume(t *testing.T) {
 	cmd := AssetsScreenshotsUploadCommand()
 	cmd.FlagSet.SetOutput(io.Discard)
