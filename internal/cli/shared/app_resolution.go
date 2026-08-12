@@ -21,7 +21,10 @@ func ResolveAppStoreVersionIDAndState(ctx context.Context, client *asc.Client, a
 		return "", "", err
 	}
 	if resp == nil || len(resp.Data) == 0 {
-		return "", "", fmt.Errorf("app store version not found for version %q and platform %q", version, platform)
+		return "", "", NewErrorWithCause(
+			fmt.Errorf("app store version not found for version %q and platform %q", version, platform),
+			asc.ErrNotFound,
+		)
 	}
 	if len(resp.Data) > 1 {
 		return "", "", fmt.Errorf("multiple app store versions found for version %q and platform %q (use --version-id)", version, platform)

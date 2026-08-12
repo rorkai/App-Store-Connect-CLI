@@ -5,7 +5,70 @@ import (
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/subscriptions"
 )
+
+func TestSubscriptionsAvailabilityHelpMatchesRegisteredPath(t *testing.T) {
+	root := RootCommand("1.2.3")
+	source := subscriptions.SubscriptionsAvailabilityCommand()
+
+	tests := []struct {
+		name          string
+		sourceCommand *ffcli.Command
+		rootPath      []string
+		usagePrefix   string
+	}{
+		{
+			name:          "group",
+			sourceCommand: source,
+			rootPath:      []string{"subscriptions", "pricing", "availability"},
+			usagePrefix:   "asc subscriptions pricing availability ",
+		},
+		{
+			name:          "view",
+			sourceCommand: findSubcommand(source, "view"),
+			rootPath:      []string{"subscriptions", "pricing", "availability", "view"},
+			usagePrefix:   "asc subscriptions pricing availability view ",
+		},
+		{
+			name:          "available-territories",
+			sourceCommand: findSubcommand(source, "available-territories"),
+			rootPath:      []string{"subscriptions", "pricing", "availability", "available-territories"},
+			usagePrefix:   "asc subscriptions pricing availability available-territories ",
+		},
+		{
+			name:          "edit",
+			sourceCommand: findSubcommand(source, "edit"),
+			rootPath:      []string{"subscriptions", "pricing", "availability", "edit"},
+			usagePrefix:   "asc subscriptions pricing availability edit ",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.sourceCommand == nil {
+				t.Fatal("expected source command")
+			}
+			if registered := findSubcommand(root, test.rootPath...); registered == nil {
+				t.Fatalf("expected registered command %q", strings.Join(test.rootPath, " "))
+			}
+			if !strings.HasPrefix(test.sourceCommand.ShortUsage, test.usagePrefix) {
+				t.Fatalf("expected source usage to match registered path %q, got %q", strings.Join(test.rootPath, " "), test.sourceCommand.ShortUsage)
+			}
+			if strings.Contains(test.sourceCommand.LongHelp, "asc subscriptions availability") {
+				t.Fatalf("expected examples to use registered pricing path, got %q", test.sourceCommand.LongHelp)
+			}
+		})
+	}
+
+	availableTerritories := findSubcommand(source, "available-territories")
+	if !strings.Contains(availableTerritories.LongHelp, "Use --next instead of either selector") {
+		t.Fatalf("expected available-territories help to explain cursor continuation, got %q", availableTerritories.LongHelp)
+	}
+}
 
 func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 	root := RootCommand("1.2.3")
