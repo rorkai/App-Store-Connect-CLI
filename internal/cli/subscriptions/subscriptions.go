@@ -1505,13 +1505,13 @@ Examples:
 	}
 }
 
-// SubscriptionsAvailabilityCommand returns the subscriptions availability command group.
+// SubscriptionsAvailabilityCommand returns the subscriptions pricing availability command group.
 func SubscriptionsAvailabilityCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability", flag.ExitOnError)
 
 	return &ffcli.Command{
 		Name:       "availability",
-		ShortUsage: "asc subscriptions availability <subcommand> [flags]",
+		ShortUsage: "asc subscriptions pricing availability <subcommand> [flags]",
 		ShortHelp:  "Manage subscription availability (deprecated by Apple).",
 		LongHelp: `Manage subscription availability.
 
@@ -1521,9 +1521,9 @@ commands keep working for now; for plan-based availability use
 ` + "`asc subscriptions pricing monthly-commitment`" + ` (enable/disable/list).
 
 Examples:
-  asc subscriptions availability view --availability-id "AVAILABILITY_ID"
-  asc subscriptions availability edit --subscription-id "SUB_ID" --territories "US,Canada"
-  asc subscriptions availability available-territories --availability-id "AVAILABILITY_ID"`,
+  asc subscriptions pricing availability view --availability-id "AVAILABILITY_ID"
+  asc subscriptions pricing availability edit --subscription-id "SUB_ID" --territories "US,Canada"
+  asc subscriptions pricing availability available-territories --availability-id "AVAILABILITY_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -1548,13 +1548,13 @@ func SubscriptionsAvailabilityViewCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "view",
-		ShortUsage: "asc subscriptions availability view --availability-id \"AVAILABILITY_ID\"",
+		ShortUsage: "asc subscriptions pricing availability view --availability-id \"AVAILABILITY_ID\"",
 		ShortHelp:  "View subscription availability by ID or subscription.",
 		LongHelp: `View subscription availability by ID or subscription.
 
 Examples:
-  asc subscriptions availability view --availability-id "AVAILABILITY_ID"
-  asc subscriptions availability view --subscription-id "SUB_ID"`,
+  asc subscriptions pricing availability view --availability-id "AVAILABILITY_ID"
+  asc subscriptions pricing availability view --subscription-id "SUB_ID"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1571,7 +1571,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions availability view: %w", err)
+				return fmt.Errorf("subscriptions pricing availability view: %w", err)
 			}
 
 			if availabilityValue != "" {
@@ -1580,7 +1580,7 @@ Examples:
 
 				resp, err := client.GetSubscriptionAvailability(requestCtx, availabilityValue)
 				if err != nil {
-					return fmt.Errorf("subscriptions availability view: failed to fetch: %w", err)
+					return fmt.Errorf("subscriptions pricing availability view: failed to fetch: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
@@ -1595,7 +1595,7 @@ Examples:
 
 			resp, err := client.GetSubscriptionAvailabilityForSubscription(requestCtx, subscriptionValue)
 			if err != nil {
-				return fmt.Errorf("subscriptions availability view: failed to fetch: %w", err)
+				return fmt.Errorf("subscriptions pricing availability view: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -1608,6 +1608,8 @@ func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability available-territories", flag.ExitOnError)
 
 	availabilityID := fs.String("availability-id", "", "Subscription availability ID")
+	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	appID := addSubscriptionLookupAppFlag(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -1615,32 +1617,66 @@ func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "available-territories",
-		ShortUsage: "asc subscriptions availability available-territories --availability-id \"AVAILABILITY_ID\"",
+		ShortUsage: "asc subscriptions pricing availability available-territories [flags]",
 		ShortHelp:  "List available territories for a subscription availability.",
-		LongHelp: `List available territories for a subscription availability.
+		LongHelp: `List available territories by subscription availability or subscription.
+Provide exactly one of --availability-id or --subscription-id for an initial request.
+Use --next instead of either selector to continue from a previous response.
 
 Examples:
-  asc subscriptions availability available-territories --availability-id "AVAILABILITY_ID"
-  asc subscriptions availability available-territories --availability-id "AVAILABILITY_ID" --paginate`,
+  asc subscriptions pricing availability available-territories --availability-id "AVAILABILITY_ID"
+  asc subscriptions pricing availability available-territories --subscription-id "SUB_ID"
+  asc subscriptions pricing availability available-territories --availability-id "AVAILABILITY_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("subscriptions availability available-territories: --limit must be between 1 and 200")
+				return shared.UsageErrorf("subscriptions pricing availability available-territories: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("subscriptions availability available-territories: %w", err)
+				return shared.UsageErrorf("subscriptions pricing availability available-territories: %v", err)
+			}
+			if err := validateNextExclusiveFlags(fs, *next, "availability-id", "subscription-id", "app", "limit"); err != nil {
+				return err
 			}
 
-			id := strings.TrimSpace(*availabilityID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --availability-id is required")
+			availabilityValue := strings.TrimSpace(*availabilityID)
+			subscriptionValue := strings.TrimSpace(*subscriptionID)
+			if availabilityValue == "" && subscriptionValue == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --availability-id or --subscription-id is required")
 				return shared.MissingRequiredUsageError()
+			}
+			if availabilityValue != "" && subscriptionValue != "" {
+				return shared.UsageError("--availability-id and --subscription-id are mutually exclusive")
+			}
+			if subscriptionValue == "" && flagWasProvided(fs, "app") {
+				return shared.UsageError("--app requires --subscription-id")
+			}
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if err := shared.RequireAppForStableSelector(resolvedAppID, subscriptionValue, "--subscription-id"); err != nil {
+				return err
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions availability available-territories: %w", err)
+				return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
+			}
+			if subscriptionValue != "" {
+				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, resolvedAppID, subscriptionValue)
+				if err != nil {
+					return err
+				}
+
+				availabilityCtx, availabilityCancel := shared.ContextWithTimeout(ctx)
+				availability, fetchErr := client.GetSubscriptionAvailabilityForSubscription(availabilityCtx, subscriptionValue)
+				availabilityCancel()
+				if fetchErr != nil {
+					return fmt.Errorf("subscriptions pricing availability available-territories: failed to resolve availability: %w", fetchErr)
+				}
+				if availability == nil || strings.TrimSpace(availability.Data.ID) == "" {
+					return fmt.Errorf("subscriptions pricing availability available-territories: subscription availability response did not include an ID")
+				}
+				availabilityValue = strings.TrimSpace(availability.Data.ID)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -1653,24 +1689,24 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithSubscriptionAvailabilityTerritoriesLimit(200))
-				firstPage, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, id, paginateOpts...)
+				firstPage, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, availabilityValue, paginateOpts...)
 				if err != nil {
-					return fmt.Errorf("subscriptions availability available-territories: failed to fetch: %w", err)
+					return fmt.Errorf("subscriptions pricing availability available-territories: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, id, asc.WithSubscriptionAvailabilityTerritoriesNextURL(nextURL))
+					return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, availabilityValue, asc.WithSubscriptionAvailabilityTerritoriesNextURL(nextURL))
 				})
 				if err != nil {
-					return fmt.Errorf("subscriptions availability available-territories: %w", err)
+					return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
 				}
 
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			resp, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, id, opts...)
+			resp, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, availabilityValue, opts...)
 			if err != nil {
-				return fmt.Errorf("subscriptions availability available-territories: failed to fetch: %w", err)
+				return fmt.Errorf("subscriptions pricing availability available-territories: failed to fetch: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -1691,13 +1727,13 @@ func SubscriptionsAvailabilityEditCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "edit",
-		ShortUsage: "asc subscriptions availability edit [flags]",
+		ShortUsage: "asc subscriptions pricing availability edit [flags]",
 		ShortHelp:  "Edit subscription availability in territories.",
 		LongHelp: `Edit subscription availability in territories.
 
 Examples:
-  asc subscriptions availability edit --subscription-id "SUB_ID" --territories "US,Canada"
-  asc subscriptions availability edit --subscription-id "SUB_ID" --billing-mode monthly-commitment --territories "Norway,Germany"`,
+  asc subscriptions pricing availability edit --subscription-id "SUB_ID" --territories "US,Canada"
+  asc subscriptions pricing availability edit --subscription-id "SUB_ID" --billing-mode monthly-commitment --territories "Norway,Germany"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -1736,7 +1772,7 @@ Examples:
 
 			client, err := shared.GetASCClient()
 			if err != nil {
-				return fmt.Errorf("subscriptions availability edit: %w", err)
+				return fmt.Errorf("subscriptions pricing availability edit: %w", err)
 			}
 
 			id, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, id)
@@ -1749,7 +1785,7 @@ Examples:
 				existing, err := client.GetSubscriptionPlanAvailabilitiesForSubscription(listCtx, id)
 				listCancel()
 				if err != nil {
-					return fmt.Errorf("subscriptions availability edit: failed to fetch monthly-commitment plan availability: %w", err)
+					return fmt.Errorf("subscriptions pricing availability edit: failed to fetch monthly-commitment plan availability: %w", err)
 				}
 
 				var resp *asc.SubscriptionPlanAvailabilityResponse
@@ -1765,7 +1801,7 @@ Examples:
 					createCancel()
 				}
 				if err != nil {
-					return fmt.Errorf("subscriptions availability edit: failed to set monthly-commitment plan availability: %w", err)
+					return fmt.Errorf("subscriptions pricing availability edit: failed to set monthly-commitment plan availability: %w", err)
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
@@ -1779,7 +1815,7 @@ Examples:
 
 			resp, err := client.CreateSubscriptionAvailability(requestCtx, id, territoryIDs, attrs)
 			if err != nil {
-				return fmt.Errorf("subscriptions availability edit: failed to set: %w", err)
+				return fmt.Errorf("subscriptions pricing availability edit: failed to set: %w", err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)

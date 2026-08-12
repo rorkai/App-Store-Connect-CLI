@@ -90,7 +90,7 @@ func Run(args []string, versionInfo string) int {
 	if shouldRejectUnknownChild(root, analysis, commandName) {
 		runErr := shared.UsageErrorf("unexpected argument(s): %s", shared.SanitizeTerminal(analysis.unknownToken))
 		fmt.Fprint(os.Stderr, analysis.command.UsageFunc(analysis.command))
-		printUnknownSubcommandSuggestion(analysis)
+		printUnknownSubcommandSuggestion(analysis, commandName)
 		emitImmediateTelemetry(args, root, versionInfo, ExitUsage, validationFailureContext(analysis, runErr))
 		return ExitUsage
 	}
@@ -148,11 +148,11 @@ func Run(args []string, versionInfo string) int {
 			return exitCode
 		}
 		if errors.Is(runErr, flag.ErrHelp) {
-			printUnknownSubcommandSuggestion(analysis)
+			printUnknownSubcommandSuggestion(analysis, commandName)
 			emitTelemetry(commandName, versionInfo, elapsed, ExitUsage, validationFailureContext(analysis, runErr))
 			return ExitUsage
 		}
-		printUnknownSubcommandSuggestion(analysis)
+		printUnknownSubcommandSuggestion(analysis, commandName)
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(runErr))
 		exitCode := ExitCodeFromError(runErr)
 		emitTelemetry(commandName, versionInfo, elapsed, exitCode, runtimeFailureContext(analysis, runErr, exitCode))

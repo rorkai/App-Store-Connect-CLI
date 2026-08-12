@@ -11,6 +11,11 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
+const (
+	removedNestedReviewItemGuidance = "Error: `asc review items view` was removed in 4.0.0; use `asc review items list --submission \"SUBMISSION_ID\"` instead"
+	removedFlatReviewItemGuidance   = "Error: `asc review items-get` was removed in 4.0.0; use `asc review items list --submission \"SUBMISSION_ID\"` instead"
+)
+
 func TestReviewDeprecatedItemSurfacesAreRemoved(t *testing.T) {
 	root := RootCommand("4.0.0")
 
@@ -39,6 +44,52 @@ func TestReviewDeprecatedItemSurfacesAreRemoved(t *testing.T) {
 				t.Fatalf("supported --%s flag is not registered on %q", flagName, strings.Join(path, " "))
 			}
 		}
+	}
+}
+
+func TestReviewRemovedItemCommandsProvideMigrationGuidance(t *testing.T) {
+	root := RootCommand("4.0.0")
+	review := findSubcommand(root, "review")
+	items := findSubcommand(root, "review", "items")
+	if review == nil || items == nil {
+		t.Fatal("review command tree is incomplete")
+	}
+
+	for _, test := range []struct {
+		name       string
+		args       []string
+		wantStderr string
+	}{
+		{
+			name:       "nested",
+			args:       []string{"review", "items", "view", "--id", "ITEM_ID"},
+			wantStderr: removedNestedReviewItemGuidance + "\n" + items.UsageFunc(items) + "\n",
+		},
+		{
+			name:       "flat",
+			args:       []string{"review", "items-get", "--id", "ITEM_ID"},
+			wantStderr: removedFlatReviewItemGuidance + "\n" + review.UsageFunc(review) + "\n",
+		},
+		{
+			name:       "ordinary typo",
+			args:       []string{"review", "items", "lits"},
+			wantStderr: "Error: unexpected argument(s): lits\n" + items.UsageFunc(items) + "Did you mean: list?\n",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := captureOutput(t, func() {
+				if code := cmd.Run(test.args, "4.0.0"); code != cmd.ExitUsage {
+					t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if stderr != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
+			}
+		})
 	}
 }
 
@@ -121,7 +172,7 @@ func TestReviewItemsGroupRejectsUnknownSubcommands(t *testing.T) {
 		{
 			name:    "removed view spelling",
 			args:    []string{"review", "items", "view", "--id", "ITEM_ID"},
-			wantErr: "Error: unexpected argument(s): view",
+			wantErr: removedNestedReviewItemGuidance,
 		},
 		{
 			name:    "unknown child",

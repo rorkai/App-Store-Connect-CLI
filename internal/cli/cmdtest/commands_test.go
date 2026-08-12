@@ -1623,7 +1623,7 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 		{
 			name:    "subscriptions pricing availability available-territories missing id",
 			args:    []string{"subscriptions", "pricing", "availability", "available-territories"},
-			wantErr: "--availability-id is required",
+			wantErr: "--availability-id or --subscription-id is required",
 		},
 		{
 			name:    "subscriptions review app-store-screenshot get missing id",
@@ -3527,9 +3527,9 @@ func TestScreenshotsAndVideoPreviewsValidationErrors(t *testing.T) {
 			wantErr: "--version-localization is required",
 		},
 		{
-			name:    "screenshots upload missing localization",
+			name:    "screenshots upload missing mode",
 			args:    []string{"screenshots", "upload", "--path", "./screenshots", "--device-type", "IPHONE_65"},
-			wantErr: "--version-localization is required",
+			wantErr: "choose an upload mode: --version-localization VERSION_LOCALIZATION_ID; (--app APP_ID or ASC_APP_ID) with --version VERSION or --version-id VERSION_ID; or --resume ARTIFACT_PATH",
 		},
 		{
 			name:    "screenshots validate missing path",

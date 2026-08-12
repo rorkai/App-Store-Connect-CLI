@@ -3,7 +3,7 @@ package cmdtest
 import "testing"
 
 func TestSubscriptionsAvailabilityAvailableTerritoriesRejectsInvalidNextURLPhase62(t *testing.T) {
-	runGameCenterAchievementsInvalidNextURLCases(
+	runInvalidNextURLUsageErrorCases(
 		t,
 		[]string{"subscriptions", "pricing", "availability", "available-territories"},
 		"subscriptions pricing availability available-territories: --next",

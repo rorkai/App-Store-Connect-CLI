@@ -109,12 +109,7 @@ func SubscriptionsPricingPricePointsCommand() *ffcli.Command {
 
 // SubscriptionsPricingAvailabilityCommand returns the canonical availability subgroup.
 func SubscriptionsPricingAvailabilityCommand() *ffcli.Command {
-	cmd := wrapSubscriptionsCommand(
-		SubscriptionsAvailabilityCommand(),
-		"asc subscriptions availability",
-		"asc subscriptions pricing availability",
-		"availability",
-		"Manage subscription availability.",
-	)
+	cmd := SubscriptionsAvailabilityCommand()
+	cmd.ShortHelp = "Manage subscription availability."
 	return cmd
 }

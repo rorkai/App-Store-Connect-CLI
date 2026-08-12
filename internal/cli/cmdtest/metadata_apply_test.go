@@ -736,6 +736,9 @@ func TestMetadataApplyFailsOnPartialMutation(t *testing.T) {
 	if _, ok := errors.AsType[ReportedError](runErr); !ok {
 		t.Fatalf("expected reported partial failure, got %T: %v", runErr, runErr)
 	}
+	if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitHTTPInternalServer {
+		t.Fatalf("expected partial server failure exit %d, got %d", rootcmd.ExitHTTPInternalServer, got)
+	}
 	if patchCount != 3 {
 		t.Fatalf("expected all three patch attempts despite the middle failure, got %d", patchCount)
 	}
@@ -1644,10 +1647,10 @@ func (r *cancelOnEOFReadCloser) Close() error {
 	return nil
 }
 
-func TestMetadataApplyPartialBatchExitCode(t *testing.T) {
+func TestMetadataApplyPartialBatchPreservesTypedExitCode(t *testing.T) {
 	run := runFailedMetadataApply(t, "json", true, false)
-	if run.code != rootcmd.ExitError {
-		t.Fatalf("expected partial exit %d, got %d; stderr=%q", rootcmd.ExitError, run.code, run.stderr)
+	if run.code != rootcmd.ExitHTTPUnprocessable {
+		t.Fatalf("expected partial exit %d, got %d; stderr=%q", rootcmd.ExitHTTPUnprocessable, run.code, run.stderr)
 	}
 	if run.stderr != "" {
 		t.Fatalf("expected reported error to avoid duplicate stderr, got %q", run.stderr)

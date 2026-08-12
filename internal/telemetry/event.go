@@ -348,6 +348,7 @@ var knownFailureParameters = map[string]struct{}{
 	"ipa":                    {},
 	"issuer-id":              {},
 	"key-id":                 {},
+	"key-type":               {},
 	"limit":                  {},
 	"locale":                 {},
 	"localization-id":        {},
