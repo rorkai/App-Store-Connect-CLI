@@ -1623,7 +1623,7 @@ func TestSubscriptionsValidationErrors(t *testing.T) {
 		{
 			name:    "subscriptions pricing availability available-territories missing id",
 			args:    []string{"subscriptions", "pricing", "availability", "available-territories"},
-			wantErr: "--availability-id is required",
+			wantErr: "--availability-id or --subscription-id is required",
 		},
 		{
 			name:    "subscriptions review app-store-screenshot get missing id",

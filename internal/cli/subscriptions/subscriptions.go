@@ -1608,6 +1608,8 @@ func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability available-territories", flag.ExitOnError)
 
 	availabilityID := fs.String("availability-id", "", "Subscription availability ID")
+	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	appID := addSubscriptionLookupAppFlag(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -1615,12 +1617,14 @@ func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "available-territories",
-		ShortUsage: "asc subscriptions availability available-territories --availability-id \"AVAILABILITY_ID\"",
+		ShortUsage: "asc subscriptions availability available-territories [flags]",
 		ShortHelp:  "List available territories for a subscription availability.",
-		LongHelp: `List available territories for a subscription availability.
+		LongHelp: `List available territories by subscription availability or subscription.
+Provide exactly one of --availability-id or --subscription-id.
 
 Examples:
   asc subscriptions availability available-territories --availability-id "AVAILABILITY_ID"
+  asc subscriptions availability available-territories --subscription-id "SUB_ID"
   asc subscriptions availability available-territories --availability-id "AVAILABILITY_ID" --paginate`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -1631,16 +1635,43 @@ Examples:
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("subscriptions availability available-territories: %w", err)
 			}
+			if err := validateNextExclusiveFlags(fs, *next, "availability-id", "subscription-id", "app", "limit"); err != nil {
+				return err
+			}
 
-			id := strings.TrimSpace(*availabilityID)
-			if id == "" && strings.TrimSpace(*next) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --availability-id is required")
+			availabilityValue := strings.TrimSpace(*availabilityID)
+			subscriptionValue := strings.TrimSpace(*subscriptionID)
+			if availabilityValue == "" && subscriptionValue == "" && strings.TrimSpace(*next) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --availability-id or --subscription-id is required")
 				return shared.MissingRequiredUsageError()
+			}
+			if availabilityValue != "" && subscriptionValue != "" {
+				return shared.UsageError("--availability-id and --subscription-id are mutually exclusive")
+			}
+			if subscriptionValue == "" && flagWasProvided(fs, "app") {
+				return shared.UsageError("--app requires --subscription-id")
 			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions availability available-territories: %w", err)
+			}
+			if subscriptionValue != "" {
+				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, subscriptionValue)
+				if err != nil {
+					return err
+				}
+
+				availabilityCtx, availabilityCancel := shared.ContextWithTimeout(ctx)
+				availability, fetchErr := client.GetSubscriptionAvailabilityForSubscription(availabilityCtx, subscriptionValue)
+				availabilityCancel()
+				if fetchErr != nil {
+					return fmt.Errorf("subscriptions availability available-territories: failed to resolve availability: %w", fetchErr)
+				}
+				if availability == nil || strings.TrimSpace(availability.Data.ID) == "" {
+					return fmt.Errorf("subscriptions availability available-territories: subscription availability response did not include an ID")
+				}
+				availabilityValue = strings.TrimSpace(availability.Data.ID)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -1653,13 +1684,13 @@ Examples:
 
 			if *paginate {
 				paginateOpts := append(opts, asc.WithSubscriptionAvailabilityTerritoriesLimit(200))
-				firstPage, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, id, paginateOpts...)
+				firstPage, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, availabilityValue, paginateOpts...)
 				if err != nil {
 					return fmt.Errorf("subscriptions availability available-territories: failed to fetch: %w", err)
 				}
 
 				resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-					return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, id, asc.WithSubscriptionAvailabilityTerritoriesNextURL(nextURL))
+					return client.GetSubscriptionAvailabilityAvailableTerritories(ctx, availabilityValue, asc.WithSubscriptionAvailabilityTerritoriesNextURL(nextURL))
 				})
 				if err != nil {
 					return fmt.Errorf("subscriptions availability available-territories: %w", err)
@@ -1668,7 +1699,7 @@ Examples:
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			}
 
-			resp, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, id, opts...)
+			resp, err := client.GetSubscriptionAvailabilityAvailableTerritories(requestCtx, availabilityValue, opts...)
 			if err != nil {
 				return fmt.Errorf("subscriptions availability available-territories: failed to fetch: %w", err)
 			}

@@ -59,7 +59,6 @@ func TestAnalyticsRankedAmbiguousFlagsRemainRejected(t *testing.T) {
 		{path: []string{"screenshots", "list"}, flag: "app"},
 		{path: []string{"screenshots", "list"}, flag: "paginate"},
 		{path: []string{"localizations", "update"}, flag: "localization-id"},
-		{path: []string{"subscriptions", "pricing", "availability", "available-territories"}, flag: "subscription-id"},
 		{path: []string{"profiles", "list"}, flag: "bundle-id"},
 		{path: []string{"subscriptions", "localizations", "update"}, flag: "subscription-id"},
 	}
