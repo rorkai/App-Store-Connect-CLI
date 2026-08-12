@@ -359,10 +359,14 @@ func TestXcodeExportRejectsManagedXcodebuildFlagsBeforeSideEffects(t *testing.T)
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("Exec() error = %v, want usage error", runErr)
 	}
+	wantError := `--xcodebuild-flag cannot override asc-managed argument "-exportPath"`
+	if runErr.Error() != wantError {
+		t.Fatalf("Exec() error = %q, want %q", runErr.Error(), wantError)
+	}
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	if !strings.Contains(stderr, `--xcodebuild-flag cannot override asc-managed argument "-exportPath"`) {
+	if !strings.Contains(stderr, wantError) {
 		t.Fatalf("stderr = %q, want managed-argument error", stderr)
 	}
 }

@@ -463,8 +463,10 @@ func TestRun_XcodeExportManagedPassthroughEmitsUsageContext(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	if !strings.Contains(stderr, `--xcodebuild-flag cannot override asc-managed argument "-exportPath"`) {
-		t.Fatalf("stderr = %q, want managed-argument error", stderr)
+	wantError := `--xcodebuild-flag cannot override asc-managed argument "-exportPath"`
+	firstLine, _, _ := strings.Cut(stderr, "\n")
+	if firstLine != "Error: "+wantError {
+		t.Fatalf("stderr first line = %q, want %q", firstLine, "Error: "+wantError)
 	}
 	if gotExitCode != ExitUsage || gotContext.FailureStage != telemetry.FailureStageValidation ||
 		gotContext.OutcomeKind != telemetry.OutcomeUsageError || gotContext.FailureParameter != "--xcodebuild-flag" {
