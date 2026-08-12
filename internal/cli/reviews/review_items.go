@@ -50,14 +50,23 @@ Examples:
 			reviewItemsRemoveCommand("remove", "review items remove", `asc review items remove [flags]`, `asc review items remove --id "ITEM_ID" --confirm`),
 		},
 		Exec: func(ctx context.Context, args []string) error {
-			// Name the unknown child (including the removed `view`/`get`
-			// spellings) rather than printing bare group help.
 			if len(args) > 0 {
-				return shared.UsageErrorf("unexpected argument(s): %s", shared.SanitizeTerminal(strings.TrimSpace(args[0])))
+				subcommand := strings.TrimSpace(args[0])
+				if subcommand == "view" {
+					return removedReviewItemDetailUsageError("asc review items view")
+				}
+				return shared.UsageErrorf("unexpected argument(s): %s", shared.SanitizeTerminal(subcommand))
 			}
 			return flag.ErrHelp
 		},
 	}
+}
+
+func removedReviewItemDetailUsageError(command string) error {
+	return shared.UsageErrorf(
+		"`%s` was removed in 4.0.0; use `asc review items list --submission \"SUBMISSION_ID\"` instead",
+		command,
+	)
 }
 
 // ReviewItemsListCommand returns the review items list subcommand.

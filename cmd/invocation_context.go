@@ -103,6 +103,10 @@ func preservesLegacyChild(analysis invocationAnalysis, commandName string) bool 
 	switch commandName {
 	case "asc apps":
 		return token == "create"
+	case "asc review":
+		return token == "items-get"
+	case "asc review items":
+		return token == "view"
 	case "asc submit":
 		return token == "create" || token == "preflight"
 	default:

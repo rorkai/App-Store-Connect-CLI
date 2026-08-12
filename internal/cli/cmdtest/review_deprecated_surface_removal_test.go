@@ -42,6 +42,29 @@ func TestReviewDeprecatedItemSurfacesAreRemoved(t *testing.T) {
 	}
 }
 
+func TestReviewRemovedItemCommandsProvideMigrationGuidance(t *testing.T) {
+	for _, args := range [][]string{
+		{"review", "items", "view", "--id", "ITEM_ID"},
+		{"review", "items-get", "--id", "ITEM_ID"},
+	} {
+		t.Run(strings.Join(args[:len(args)-2], " "), func(t *testing.T) {
+			stdout, stderr := captureOutput(t, func() {
+				if code := cmd.Run(args, "4.0.0"); code != cmd.ExitUsage {
+					t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			const want = "was removed in 4.0.0; use `asc review items list --submission \"SUBMISSION_ID\"` instead"
+			if !strings.Contains(stderr, want) {
+				t.Fatalf("expected migration guidance %q, got %q", want, stderr)
+			}
+		})
+	}
+}
+
 // TestReviewItemsAddRejectsRemovedItemTypesWithMigrationGuidance keeps the
 // migration text on the item types the CLI no longer accepts, instead of
 // falling back to the generic supported-value list.
@@ -121,7 +144,7 @@ func TestReviewItemsGroupRejectsUnknownSubcommands(t *testing.T) {
 		{
 			name:    "removed view spelling",
 			args:    []string{"review", "items", "view", "--id", "ITEM_ID"},
-			wantErr: "Error: unexpected argument(s): view",
+			wantErr: "was removed in 4.0.0; use `asc review items list --submission \"SUBMISSION_ID\"` instead",
 		},
 		{
 			name:    "unknown child",
