@@ -458,9 +458,14 @@ func reservedExportPassthroughArgument(args []string) string {
 	if reserved := reservedBuildPassthroughArgument(args); reserved != "" {
 		return reserved
 	}
-	for _, arg := range args {
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
 		trimmed := strings.TrimSpace(arg)
 		normalized := strings.ToLower(trimmed)
+		if xcodebuildPassthroughArgumentTakesValue(normalized) {
+			index++
+			continue
+		}
 		for _, managed := range []string{"-exportpath", "-exportoptionsplist"} {
 			if normalized == managed || strings.HasPrefix(normalized, managed+"=") {
 				return strings.SplitN(trimmed, "=", 2)[0]

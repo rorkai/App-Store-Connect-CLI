@@ -372,6 +372,8 @@ func TestPublishLocalBuildAcceptsActionNamedAuthenticationValues(t *testing.T) {
 				"--export-xcodebuild-flag=build",
 				"--export-xcodebuild-flag=-authenticationKeyIssuerID",
 				"--export-xcodebuild-flag=clean",
+				"--export-xcodebuild-flag=-authenticationKeyPath",
+				"--export-xcodebuild-flag=-exportPath=AuthKey.p8",
 			)
 			if err := cmd.FlagSet.Parse(args); err != nil {
 				t.Fatalf("parse flags: %v", err)

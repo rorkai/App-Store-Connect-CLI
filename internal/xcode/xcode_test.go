@@ -265,6 +265,7 @@ func TestValidateExportXcodebuildArgs(t *testing.T) {
 		{name: "supported provisioning flag", args: []string{"-allowProvisioningUpdates"}},
 		{name: "supported authentication flags", args: []string{"-authenticationKeyPath", "/tmp/AuthKey.p8", "-authenticationKeyID", "KEY123", "-authenticationKeyIssuerID", "ISSUER456"}},
 		{name: "authentication path named like action", args: []string{"-authenticationKeyPath", "archive"}},
+		{name: "authentication path named like managed export flag", args: []string{"-authenticationKeyPath", "-exportPath=AuthKey.p8"}},
 		{name: "authentication key ID named like action", args: []string{"-authenticationKeyID", "build"}},
 		{name: "authentication issuer ID named like action", args: []string{"-authenticationKeyIssuerID", "clean"}},
 		{name: "operation after authentication value", args: []string{"-authenticationKeyPath", "archive", "build"}, wantErr: `cannot override asc-managed argument "build"`},
