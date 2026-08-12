@@ -230,7 +230,15 @@ func IAPVersionsListCommand() *ffcli.Command {
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "list", ShortUsage: `asc iap versions list --iap-id "IAP_ID" [flags]`, ShortHelp: "List versions for an in-app purchase.",
-		LongHelp: "List versions for an in-app purchase.\n\nExamples:\n  asc iap versions list --iap-id \"IAP_ID\"\n  asc iap versions list --iap-id \"IAP_ID\" --state PREPARE_FOR_SUBMISSION --paginate", FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
+		LongHelp: `List versions for an in-app purchase.
+
+To find the in-app purchase ID, list the app's in-app purchases and use the
+returned id field:
+  asc iap list --app "APP_ID" --output json
+
+Examples:
+  asc iap versions list --iap-id "IAP_ID"
+  asc iap versions list --iap-id "IAP_ID" --state PREPARE_FOR_SUBMISSION --paginate`, FlagSet: fs, UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if err := rejectIAPVersionArgs(args); err != nil {
 				return err

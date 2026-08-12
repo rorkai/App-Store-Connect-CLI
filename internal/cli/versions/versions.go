@@ -536,6 +536,11 @@ func VersionsAttachBuildCommand() *ffcli.Command {
 		ShortHelp:  "Attach a build to an app store version.",
 		LongHelp: `Attach a build to an app store version.
 
+To find the version and build IDs, list each resource for the app and use its
+returned id field:
+  asc versions list --app "APP_ID" --output json
+  asc builds list --app "APP_ID" --output json
+
 Examples:
   asc versions attach-build --version-id "VERSION_ID" --build-id "BUILD_ID"`,
 		FlagSet:   fs,
