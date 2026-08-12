@@ -174,6 +174,14 @@ func validatePublishExportOptionsFlags(values *publishLocalBuildFlagValues, setF
 	return nil
 }
 
+func validatePublishExportXcodebuildArgs(args []string) error {
+	if err := localxcode.ValidateExportXcodebuildArgs(args); err != nil {
+		message := strings.Replace(err.Error(), "--xcodebuild-flag", "--export-xcodebuild-flag", 1)
+		return shared.UsageError(message)
+	}
+	return nil
+}
+
 func validateLocalBuildSelectors(values *publishLocalBuildFlagValues) error {
 	if values == nil {
 		return shared.UsageError("exactly one of --workspace or --project is required")
@@ -259,6 +267,9 @@ func resolvePublishBuildNumber(ctx context.Context, client *asc.Client, appID, v
 }
 
 func runPublishLocalBuild(ctx context.Context, client *asc.Client, appID, platform, version, buildNumber string, pollInterval, timeout time.Duration, timeoutOverride bool, config publishLocalBuildConfig) (*publishLocalBuildExecutionResult, error) {
+	if err := validatePublishExportXcodebuildArgs(config.ExportXcodebuildArgs); err != nil {
+		return nil, err
+	}
 	if strings.TrimSpace(config.SigningStyle) == "" {
 		config.SigningStyle = "automatic"
 	}

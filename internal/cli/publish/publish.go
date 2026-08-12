@@ -154,6 +154,9 @@ Examples:
 				if err := validatePublishExportOptionsFlags(localBuild, setFlags); err != nil {
 					return err
 				}
+				if err := validatePublishExportXcodebuildArgs(localBuild.exportXcodebuildArg); err != nil {
+					return err
+				}
 			}
 
 			uploadMode := ipaValue != ""
@@ -543,6 +546,9 @@ Examples:
 			}
 			if localBuildMode {
 				if err := validatePublishExportOptionsFlags(localBuild, setFlags); err != nil {
+					return err
+				}
+				if err := validatePublishExportXcodebuildArgs(localBuild.exportXcodebuildArg); err != nil {
 					return err
 				}
 			}

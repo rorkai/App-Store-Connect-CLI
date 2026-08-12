@@ -474,6 +474,69 @@ func TestRun_XcodeExportManagedPassthroughEmitsUsageContext(t *testing.T) {
 	}
 }
 
+func TestRun_PublishManagedExportPassthroughEmitsUsageContext(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		args []string
+	}{
+		{
+			name: "testflight",
+			args: []string{
+				"publish", "testflight",
+				"--app", "app-1",
+				"--workspace", "Demo.xcworkspace",
+				"--scheme", "Demo",
+				"--version", "1.2.3",
+				"--group", "External",
+				"--export-xcodebuild-flag=-exportPath=/tmp/elsewhere",
+			},
+		},
+		{
+			name: "appstore",
+			args: []string{
+				"publish", "appstore",
+				"--app", "app-1",
+				"--workspace", "Demo.xcworkspace",
+				"--scheme", "Demo",
+				"--version", "1.2.3",
+				"--export-xcodebuild-flag=-exportPath=/tmp/elsewhere",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			resetReportFlags(t)
+			originalEmitTelemetry := emitTelemetry
+			t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+			var gotExitCode int
+			var gotContext telemetry.EventContext
+			emitTelemetry = func(_ string, _ string, _ time.Duration, exitCode int, eventContext telemetry.EventContext) {
+				gotExitCode = exitCode
+				gotContext = eventContext
+			}
+
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(test.args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			wantError := `--export-xcodebuild-flag cannot override asc-managed argument "-exportPath"`
+			firstLine, _, _ := strings.Cut(stderr, "\n")
+			if firstLine != "Error: "+wantError {
+				t.Fatalf("stderr first line = %q, want %q", firstLine, "Error: "+wantError)
+			}
+			if gotExitCode != ExitUsage || gotContext.FailureStage != telemetry.FailureStageValidation ||
+				gotContext.OutcomeKind != telemetry.OutcomeUsageError || gotContext.FailureParameter != "--export-xcodebuild-flag" {
+				t.Fatalf("unexpected telemetry: exit=%d context=%+v", gotExitCode, gotContext)
+			}
+		})
+	}
+}
+
 func TestRun_UnknownNestedSubcommandSuggestsRealSubcommand(t *testing.T) {
 	resetReportFlags(t)
 

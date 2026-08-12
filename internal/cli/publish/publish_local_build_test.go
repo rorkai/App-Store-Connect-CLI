@@ -21,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
+
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
@@ -236,6 +238,88 @@ func TestPublishTestFlightLocalBuildJSONIncludesNestedStages(t *testing.T) {
 	}
 	if strings.Contains(stdout, `"archive_path"`) || strings.Contains(stdout, `"export_options_path"`) {
 		t.Fatalf("expected no snake_case nested keys, got %s", stdout)
+	}
+}
+
+func TestPublishLocalBuildRejectsManagedExportFlagsBeforeSideEffects(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		command func() *ffcli.Command
+		args    []string
+	}{
+		{
+			name:    "testflight",
+			command: PublishTestFlightCommand,
+			args: []string{
+				"--app", "app-1",
+				"--workspace", "Demo.xcworkspace",
+				"--scheme", "Demo",
+				"--version", "1.2.3",
+				"--group", "External",
+			},
+		},
+		{
+			name:    "appstore",
+			command: PublishAppStoreCommand,
+			args: []string{
+				"--app", "app-1",
+				"--workspace", "Demo.xcworkspace",
+				"--scheme", "Demo",
+				"--version", "1.2.3",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			restore := overridePublishCommandTestHooks(t)
+			defer restore()
+
+			getPublishASCClientFn = func(time.Duration) (*asc.Client, error) {
+				t.Fatal("client creation ran before export flag validation")
+				return nil, nil
+			}
+			preflightPublishXcodeFn = func(context.Context) error {
+				t.Fatal("Xcode preflight ran before export flag validation")
+				return nil
+			}
+			runPublishArchiveFn = func(context.Context, localxcode.ArchiveOptions) (*localxcode.ArchiveResult, error) {
+				t.Fatal("archive ran before export flag validation")
+				return nil, nil
+			}
+			generatePublishExportOptionsFn = func(context.Context, localxcode.ExportOptionsGenerateOptions) (*localxcode.ExportOptionsGenerateResult, error) {
+				t.Fatal("export-options generation ran before export flag validation")
+				return nil, nil
+			}
+			runPublishExportFn = func(context.Context, localxcode.ExportOptions) (*localxcode.ExportResult, error) {
+				t.Fatal("export ran before export flag validation")
+				return nil, nil
+			}
+
+			cmd := test.command()
+			cmd.FlagSet.SetOutput(io.Discard)
+			args := append(append([]string(nil), test.args...), "--export-xcodebuild-flag=-exportPath=/tmp/elsewhere")
+			if err := cmd.FlagSet.Parse(args); err != nil {
+				t.Fatalf("parse flags: %v", err)
+			}
+
+			var runErr error
+			stdout, stderr := capturePublishCommandOutput(t, func() error {
+				runErr = cmd.Exec(context.Background(), nil)
+				return runErr
+			})
+			wantError := `--export-xcodebuild-flag cannot override asc-managed argument "-exportPath"`
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("Exec() error = %T %v, want usage error", runErr, runErr)
+			}
+			if runErr.Error() != wantError {
+				t.Fatalf("Exec() error = %q, want %q", runErr.Error(), wantError)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if stderr != "Error: "+wantError+"\n" {
+				t.Fatalf("stderr = %q, want %q", stderr, "Error: "+wantError+"\n")
+			}
+		})
 	}
 }
 
