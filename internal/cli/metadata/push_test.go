@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,6 +37,21 @@ func TestExecutePushPrefixesLocalMetadataReadErrors(t *testing.T) {
 				t.Fatalf("expected %q in error, got %v", want, err)
 			}
 		})
+	}
+}
+
+func TestRepresentativeMetadataMutationErrorPrefersHTTPStatusWithinFirstAction(t *testing.T) {
+	mutationErr := errors.New("connection reset")
+	readbackErr := &asc.APIError{StatusCode: 503, Code: "SERVICE_UNAVAILABLE"}
+	laterActionErr := &asc.APIError{StatusCode: 404, Code: "NOT_FOUND"}
+	firstActionErr := fmt.Errorf("mutation and readback failed: %w", errors.Join(mutationErr, readbackErr))
+
+	got := representativeMetadataMutationError(errors.Join(
+		fmt.Errorf("update version localization fr-FR: %w", firstActionErr),
+		fmt.Errorf("update version localization ja: %w", laterActionErr),
+	))
+	if !errors.Is(got, readbackErr) {
+		t.Fatalf("representative error = %T %v, want first action HTTP cause %v", got, got, readbackErr)
 	}
 }
 

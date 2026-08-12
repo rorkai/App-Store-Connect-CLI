@@ -240,11 +240,37 @@ Notes:
 }
 
 func representativeMetadataMutationError(err error) error {
+	// Keep batch classification tied to the first failed action. Reconciliation
+	// may join its mutation and readback errors, so prefer a status-bearing cause
+	// within that action before falling back to its first leaf.
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		err = nil
+		for _, child := range joined.Unwrap() {
+			if child != nil {
+				err = child
+				break
+			}
+		}
+	}
+	if err == nil {
+		return nil
+	}
+
+	var statusErr interface {
+		error
+		HTTPStatusCode() int
+	}
+	if errors.As(err, &statusErr) {
+		status := statusErr.HTTPStatusCode()
+		if status >= 400 && status <= 599 {
+			return statusErr
+		}
+	}
+
 	for err != nil {
 		if joined, ok := err.(interface{ Unwrap() []error }); ok {
-			children := joined.Unwrap()
 			err = nil
-			for _, child := range children {
+			for _, child := range joined.Unwrap() {
 				if child != nil {
 					err = child
 					break
