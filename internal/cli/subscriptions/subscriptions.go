@@ -1620,7 +1620,8 @@ func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
 		ShortUsage: "asc subscriptions pricing availability available-territories [flags]",
 		ShortHelp:  "List available territories for a subscription availability.",
 		LongHelp: `List available territories by subscription availability or subscription.
-Provide exactly one of --availability-id or --subscription-id.
+Provide exactly one of --availability-id or --subscription-id for an initial request.
+Use --next instead of either selector to continue from a previous response.
 
 Examples:
   asc subscriptions pricing availability available-territories --availability-id "AVAILABILITY_ID"

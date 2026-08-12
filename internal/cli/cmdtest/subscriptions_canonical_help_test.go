@@ -63,6 +63,11 @@ func TestSubscriptionsAvailabilityHelpMatchesRegisteredPath(t *testing.T) {
 			}
 		})
 	}
+
+	availableTerritories := findSubcommand(source, "available-territories")
+	if !strings.Contains(availableTerritories.LongHelp, "Use --next instead of either selector") {
+		t.Fatalf("expected available-territories help to explain cursor continuation, got %q", availableTerritories.LongHelp)
+	}
 }
 
 func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
