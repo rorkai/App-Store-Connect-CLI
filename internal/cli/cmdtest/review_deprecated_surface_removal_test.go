@@ -11,6 +11,11 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
+const (
+	removedNestedReviewItemGuidance = "Error: `asc review items view` was removed in 4.0.0; use `asc review items list --submission \"SUBMISSION_ID\"` instead"
+	removedFlatReviewItemGuidance   = "Error: `asc review items-get` was removed in 4.0.0; use `asc review items list --submission \"SUBMISSION_ID\"` instead"
+)
+
 func TestReviewDeprecatedItemSurfacesAreRemoved(t *testing.T) {
 	root := RootCommand("4.0.0")
 
@@ -43,13 +48,17 @@ func TestReviewDeprecatedItemSurfacesAreRemoved(t *testing.T) {
 }
 
 func TestReviewRemovedItemCommandsProvideMigrationGuidance(t *testing.T) {
-	for _, args := range [][]string{
-		{"review", "items", "view", "--id", "ITEM_ID"},
-		{"review", "items-get", "--id", "ITEM_ID"},
+	for _, test := range []struct {
+		name       string
+		args       []string
+		wantStderr string
+	}{
+		{name: "nested", args: []string{"review", "items", "view", "--id", "ITEM_ID"}, wantStderr: removedNestedReviewItemGuidance},
+		{name: "flat", args: []string{"review", "items-get", "--id", "ITEM_ID"}, wantStderr: removedFlatReviewItemGuidance},
 	} {
-		t.Run(strings.Join(args[:len(args)-2], " "), func(t *testing.T) {
+		t.Run(test.name, func(t *testing.T) {
 			stdout, stderr := captureOutput(t, func() {
-				if code := cmd.Run(args, "4.0.0"); code != cmd.ExitUsage {
+				if code := cmd.Run(test.args, "4.0.0"); code != cmd.ExitUsage {
 					t.Fatalf("exit code = %d, want %d", code, cmd.ExitUsage)
 				}
 			})
@@ -57,9 +66,8 @@ func TestReviewRemovedItemCommandsProvideMigrationGuidance(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			const want = "was removed in 4.0.0; use `asc review items list --submission \"SUBMISSION_ID\"` instead"
-			if !strings.Contains(stderr, want) {
-				t.Fatalf("expected migration guidance %q, got %q", want, stderr)
+			if !strings.Contains(stderr, test.wantStderr) {
+				t.Fatalf("expected migration guidance %q, got %q", test.wantStderr, stderr)
 			}
 		})
 	}
@@ -144,7 +152,7 @@ func TestReviewItemsGroupRejectsUnknownSubcommands(t *testing.T) {
 		{
 			name:    "removed view spelling",
 			args:    []string{"review", "items", "view", "--id", "ITEM_ID"},
-			wantErr: "was removed in 4.0.0; use `asc review items list --submission \"SUBMISSION_ID\"` instead",
+			wantErr: removedNestedReviewItemGuidance,
 		},
 		{
 			name:    "unknown child",
