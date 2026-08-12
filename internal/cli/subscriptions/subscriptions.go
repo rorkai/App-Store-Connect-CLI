@@ -1631,10 +1631,10 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("subscriptions pricing availability available-territories: --limit must be between 1 and 200")
+				return shared.UsageErrorf("subscriptions pricing availability available-territories: --limit must be between 1 and 200")
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
-				return fmt.Errorf("subscriptions pricing availability available-territories: %w", err)
+				return shared.UsageErrorf("subscriptions pricing availability available-territories: %v", err)
 			}
 			if err := validateNextExclusiveFlags(fs, *next, "availability-id", "subscription-id", "app", "limit"); err != nil {
 				return err

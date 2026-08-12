@@ -2,10 +2,14 @@ package cmdtest
 
 import (
 	"encoding/json"
+	"errors"
+	"flag"
 	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 func TestSubscriptionsAvailabilityAvailableTerritoriesResolvesSubscriptionSelector(t *testing.T) {
@@ -150,5 +154,53 @@ func TestSubscriptionsAvailabilityAvailableTerritoriesRequiresAppBeforeAuth(t *t
 		if runErr == nil || !strings.Contains(runErr.Error(), "--app is required (or set ASC_APP_ID)") {
 			t.Fatalf("selector %q: expected app context error before authentication, got %v", selector, runErr)
 		}
+	}
+}
+
+func TestSubscriptionsAvailabilityAvailableTerritoriesClassifiesPaginationValidationAsUsage(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name: "invalid limit",
+			args: []string{
+				"subscriptions", "pricing", "availability", "available-territories",
+				"--availability-id", "avail-1",
+				"--limit", "201",
+			},
+			wantErr: "subscriptions pricing availability available-territories: --limit must be between 1 and 200",
+		},
+		{
+			name: "invalid next URL",
+			args: []string{
+				"subscriptions", "pricing", "availability", "available-territories",
+				"--next", "https://example.com/v1/subscriptionAvailabilities/avail-1/availableTerritories?cursor=x",
+			},
+			wantErr: "subscriptions pricing availability available-territories: --next must be an App Store Connect URL",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr, runErr := runRootCommand(t, test.args)
+			if !errors.Is(runErr, flag.ErrHelp) {
+				t.Fatalf("expected flag.ErrHelp, got %v", runErr)
+			}
+			if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
+				t.Fatalf("expected usage exit code %d, got %d", rootcmd.ExitUsage, got)
+			}
+			if runErr.Error() != test.wantErr {
+				t.Fatalf("expected error %q, got %q", test.wantErr, runErr.Error())
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			wantStderrPrefix := "Error: " + test.wantErr + "\nDESCRIPTION\n"
+			if !strings.HasPrefix(stderr, wantStderrPrefix) {
+				t.Fatalf("expected stderr prefix %q, got %q", wantStderrPrefix, stderr)
+			}
+		})
 	}
 }
