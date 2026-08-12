@@ -228,7 +228,11 @@ Notes:
 				if result.FailureArtifactError != "" {
 					message += "; write failure artifact: " + result.FailureArtifactError
 				}
-				return shared.NewReportedError(fmt.Errorf("%s", message))
+				reportedErr := errors.New(message)
+				if err != nil {
+					reportedErr = shared.NewErrorWithCause(reportedErr, err)
+				}
+				return shared.NewReportedError(reportedErr)
 			}
 			return nil
 		},
