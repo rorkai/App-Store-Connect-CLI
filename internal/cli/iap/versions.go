@@ -234,7 +234,7 @@ func IAPVersionsListCommand() *ffcli.Command {
 
 To find the in-app purchase ID, list the app's in-app purchases and use the
 returned id field:
-  asc iap list --app "APP_ID" --output json
+  asc iap list --app "APP_ID" --paginate --output json
 
 Examples:
   asc iap versions list --iap-id "IAP_ID"

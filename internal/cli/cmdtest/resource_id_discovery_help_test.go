@@ -17,7 +17,7 @@ func TestResourceIDHelpShowsDiscoveryCommands(t *testing.T) {
 			path: []string{"iap", "versions", "list"},
 			want: []string{
 				"To find the in-app purchase ID",
-				`asc iap list --app "APP_ID" --output json`,
+				`asc iap list --app "APP_ID" --paginate --output json`,
 			},
 		},
 		{
@@ -25,8 +25,8 @@ func TestResourceIDHelpShowsDiscoveryCommands(t *testing.T) {
 			path: []string{"versions", "attach-build"},
 			want: []string{
 				"To find the version and build IDs",
-				`asc versions list --app "APP_ID" --output json`,
-				`asc builds list --app "APP_ID" --output json`,
+				`asc versions list --app "APP_ID" --paginate --output json`,
+				`asc builds list --app "APP_ID" --paginate --output json`,
 			},
 		},
 		{
@@ -34,7 +34,7 @@ func TestResourceIDHelpShowsDiscoveryCommands(t *testing.T) {
 			path: []string{"testflight", "distribution", "view"},
 			want: []string{
 				"To find the build ID",
-				`asc builds list --app "APP_ID" --output json`,
+				`asc builds list --app "APP_ID" --paginate --output json`,
 			},
 		},
 	}

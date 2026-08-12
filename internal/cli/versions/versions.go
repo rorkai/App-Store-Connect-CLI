@@ -538,8 +538,8 @@ func VersionsAttachBuildCommand() *ffcli.Command {
 
 To find the version and build IDs, list each resource for the app and use its
 returned id field:
-  asc versions list --app "APP_ID" --output json
-  asc builds list --app "APP_ID" --output json
+  asc versions list --app "APP_ID" --paginate --output json
+  asc builds list --app "APP_ID" --paginate --output json
 
 Examples:
   asc versions attach-build --version-id "VERSION_ID" --build-id "BUILD_ID"`,

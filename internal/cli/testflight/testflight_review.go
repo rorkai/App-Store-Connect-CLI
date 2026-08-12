@@ -562,7 +562,7 @@ func TestFlightBetaDetailsGetCommand() *ffcli.Command {
 		LongHelp: `View build beta details for a build.
 
 To find the build ID, list the app's builds and use the returned id field:
-  asc builds list --app "APP_ID" --output json
+  asc builds list --app "APP_ID" --paginate --output json
 
 Examples:
   asc testflight beta-details view --build-id "BUILD_ID"`,
