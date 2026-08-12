@@ -296,6 +296,41 @@ func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
 	}
 }
 
+func TestRun_AuthLoginInvalidKeyTypeEmitsFailureParameter(t *testing.T) {
+	resetReportFlags(t)
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+		gotContext = eventContext
+	}
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{
+			"auth", "login",
+			"--name", "Test Key",
+			"--key-id", "KEY123",
+			"--key-type", "personal",
+		}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "--key-type must be one of: team, individual") {
+		t.Fatalf("expected invalid key type error, got %q", stderr)
+	}
+	if gotContext.ErrorKind != telemetry.ErrorKindInvalidValue ||
+		gotContext.FailureStage != telemetry.FailureStageValidation ||
+		gotContext.OutcomeKind != telemetry.OutcomeUsageError ||
+		gotContext.FailureParameter != "--key-type" {
+		t.Fatalf("unexpected invalid-value context: %+v", gotContext)
+	}
+}
+
 func TestRun_AuthStatusValidationFailuresEmitExpectedNegative(t *testing.T) {
 	resetReportFlags(t)
 	tempDir := t.TempDir()
