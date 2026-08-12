@@ -323,6 +323,68 @@ func TestPublishLocalBuildRejectsManagedExportFlagsBeforeSideEffects(t *testing.
 	}
 }
 
+func TestPublishLocalBuildAcceptsActionNamedAuthenticationValues(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		command func() *ffcli.Command
+		args    []string
+	}{
+		{
+			name:    "testflight",
+			command: PublishTestFlightCommand,
+			args: []string{
+				"--app", "app-1",
+				"--workspace", "Demo.xcworkspace",
+				"--scheme", "Demo",
+				"--version", "1.2.3",
+				"--group", "External",
+			},
+		},
+		{
+			name:    "appstore",
+			command: PublishAppStoreCommand,
+			args: []string{
+				"--app", "app-1",
+				"--workspace", "Demo.xcworkspace",
+				"--scheme", "Demo",
+				"--version", "1.2.3",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			restore := overridePublishCommandTestHooks(t)
+			defer restore()
+
+			wantErr := errors.New("reached client creation")
+			getPublishASCClientFn = func(time.Duration) (*asc.Client, error) { return nil, wantErr }
+			preflightPublishXcodeFn = func(context.Context) error {
+				t.Fatal("Xcode preflight ran after failed client creation")
+				return nil
+			}
+
+			cmd := test.command()
+			cmd.FlagSet.SetOutput(io.Discard)
+			args := append(
+				append([]string(nil), test.args...),
+				"--export-xcodebuild-flag=-authenticationKeyPath",
+				"--export-xcodebuild-flag=archive",
+				"--export-xcodebuild-flag=-authenticationKeyID",
+				"--export-xcodebuild-flag=build",
+				"--export-xcodebuild-flag=-authenticationKeyIssuerID",
+				"--export-xcodebuild-flag=clean",
+			)
+			if err := cmd.FlagSet.Parse(args); err != nil {
+				t.Fatalf("parse flags: %v", err)
+			}
+
+			runErr := cmd.Exec(context.Background(), nil)
+			if !errors.Is(runErr, wantErr) {
+				t.Fatalf("Exec() error = %v, want client-creation sentinel", runErr)
+			}
+		})
+	}
+}
+
 func TestPublishTestFlightLocalBuildRetriesPostUploadBuildPropagationWithoutRepeatingBuildStages(t *testing.T) {
 	restore := overridePublishCommandTestHooks(t)
 	defer restore()

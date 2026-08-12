@@ -220,9 +220,14 @@ func reservedBuildPassthroughArgument(args []string) string {
 		"action",
 		"code_signing_allowed",
 	}
-	for _, arg := range args {
+	for index := 0; index < len(args); index++ {
+		arg := args[index]
 		trimmed := strings.TrimSpace(arg)
 		normalized := strings.ToLower(trimmed)
+		if xcodebuildPassthroughArgumentTakesValue(normalized) {
+			index++
+			continue
+		}
 		for _, managed := range managedFlags {
 			if normalized == managed || strings.HasPrefix(normalized, managed+"=") {
 				return strings.SplitN(trimmed, "=", 2)[0]
@@ -238,6 +243,18 @@ func reservedBuildPassthroughArgument(args []string) string {
 		}
 	}
 	return ""
+}
+
+func xcodebuildPassthroughArgumentTakesValue(normalized string) bool {
+	if strings.Contains(normalized, "=") {
+		return false
+	}
+	switch normalized {
+	case "-authenticationkeypath", "-authenticationkeyid", "-authenticationkeyissuerid":
+		return true
+	default:
+		return false
+	}
 }
 
 func resolveBuildDerivedDataPath(opts BuildOptions) (string, error) {
