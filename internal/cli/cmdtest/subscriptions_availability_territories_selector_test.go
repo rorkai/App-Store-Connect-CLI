@@ -3,6 +3,7 @@ package cmdtest
 import (
 	"encoding/json"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -122,8 +123,17 @@ func TestSubscriptionsAvailabilityAvailableTerritoriesRequiresSubscriptionForApp
 	}
 }
 
-func TestSubscriptionsAvailabilityAvailableTerritoriesRequiresAppForProductSelector(t *testing.T) {
-	setupStableSelectorAuth(t)
+func TestSubscriptionsAvailabilityAvailableTerritoriesRequiresAppBeforeAuth(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_APP_ID", "")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_STRICT_AUTH", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
@@ -132,11 +142,13 @@ func TestSubscriptionsAvailabilityAvailableTerritoriesRequiresAppForProductSelec
 		return nil, nil
 	})
 
-	_, _, runErr := runRootCommand(t, []string{
-		"subscriptions", "pricing", "availability", "available-territories",
-		"--subscription-id", "com.example.monthly",
-	})
-	if runErr == nil || !strings.Contains(runErr.Error(), "--app is required (or set ASC_APP_ID)") {
-		t.Fatalf("expected app context error, got %v", runErr)
+	for _, selector := range []string{"com.example.monthly", "Monthly"} {
+		_, _, runErr := runRootCommand(t, []string{
+			"subscriptions", "pricing", "availability", "available-territories",
+			"--subscription-id", selector,
+		})
+		if runErr == nil || !strings.Contains(runErr.Error(), "--app is required (or set ASC_APP_ID)") {
+			t.Fatalf("selector %q: expected app context error before authentication, got %v", selector, runErr)
+		}
 	}
 }

@@ -1651,13 +1651,17 @@ Examples:
 			if subscriptionValue == "" && flagWasProvided(fs, "app") {
 				return shared.UsageError("--app requires --subscription-id")
 			}
+			resolvedAppID := shared.ResolveAppID(*appID)
+			if err := shared.RequireAppForStableSelector(resolvedAppID, subscriptionValue, "--subscription-id"); err != nil {
+				return err
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("subscriptions availability available-territories: %w", err)
 			}
 			if subscriptionValue != "" {
-				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, *appID, subscriptionValue)
+				subscriptionValue, err = resolveSubscriptionLookupIDWithTimeout(ctx, client, resolvedAppID, subscriptionValue)
 				if err != nil {
 					return err
 				}
