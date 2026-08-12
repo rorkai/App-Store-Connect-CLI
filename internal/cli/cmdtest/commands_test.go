@@ -3529,7 +3529,7 @@ func TestScreenshotsAndVideoPreviewsValidationErrors(t *testing.T) {
 		{
 			name:    "screenshots upload missing mode",
 			args:    []string{"screenshots", "upload", "--path", "./screenshots", "--device-type", "IPHONE_65"},
-			wantErr: "choose an upload mode: --version-localization VERSION_LOCALIZATION_ID; --app APP_ID with --version VERSION or --version-id VERSION_ID; or --resume ARTIFACT_PATH",
+			wantErr: "choose an upload mode: --version-localization VERSION_LOCALIZATION_ID; (--app APP_ID or ASC_APP_ID) with --version VERSION or --version-id VERSION_ID; or --resume ARTIFACT_PATH",
 		},
 		{
 			name:    "screenshots validate missing path",
