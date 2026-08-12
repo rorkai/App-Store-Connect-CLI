@@ -282,8 +282,11 @@ func printUnknownFlagSuggestion(analysis invocationAnalysis) {
 	printFlagSuggestions(input, candidates)
 }
 
-func printUnknownSubcommandSuggestion(analysis invocationAnalysis) {
+func printUnknownSubcommandSuggestion(analysis invocationAnalysis, commandName string) {
 	if analysis.shape != telemetry.InvocationShapeUnknownChild || analysis.command == nil || analysis.command.Name == "asc" {
+		return
+	}
+	if isRemovedReviewItemDetailInvocation(analysis, commandName) {
 		return
 	}
 	candidates := make([]string, 0, len(analysis.command.Subcommands))
@@ -291,6 +294,12 @@ func printUnknownSubcommandSuggestion(analysis invocationAnalysis) {
 		candidates = append(candidates, sub.Name)
 	}
 	printSuggestions(analysis.unknownToken, candidates, "")
+}
+
+func isRemovedReviewItemDetailInvocation(analysis invocationAnalysis, commandName string) bool {
+	token := strings.TrimSpace(analysis.unknownToken)
+	return (commandName == "asc review" && token == "items-get") ||
+		(commandName == "asc review items" && token == "view")
 }
 
 func printSuggestions(input string, candidates []string, prefix string) {

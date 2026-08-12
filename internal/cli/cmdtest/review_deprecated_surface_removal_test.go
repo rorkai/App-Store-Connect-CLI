@@ -48,13 +48,33 @@ func TestReviewDeprecatedItemSurfacesAreRemoved(t *testing.T) {
 }
 
 func TestReviewRemovedItemCommandsProvideMigrationGuidance(t *testing.T) {
+	root := RootCommand("4.0.0")
+	review := findSubcommand(root, "review")
+	items := findSubcommand(root, "review", "items")
+	if review == nil || items == nil {
+		t.Fatal("review command tree is incomplete")
+	}
+
 	for _, test := range []struct {
 		name       string
 		args       []string
 		wantStderr string
 	}{
-		{name: "nested", args: []string{"review", "items", "view", "--id", "ITEM_ID"}, wantStderr: removedNestedReviewItemGuidance},
-		{name: "flat", args: []string{"review", "items-get", "--id", "ITEM_ID"}, wantStderr: removedFlatReviewItemGuidance},
+		{
+			name:       "nested",
+			args:       []string{"review", "items", "view", "--id", "ITEM_ID"},
+			wantStderr: removedNestedReviewItemGuidance + "\n" + items.UsageFunc(items) + "\n",
+		},
+		{
+			name:       "flat",
+			args:       []string{"review", "items-get", "--id", "ITEM_ID"},
+			wantStderr: removedFlatReviewItemGuidance + "\n" + review.UsageFunc(review) + "\n",
+		},
+		{
+			name:       "ordinary typo",
+			args:       []string{"review", "items", "lits"},
+			wantStderr: "Error: unexpected argument(s): lits\n" + items.UsageFunc(items) + "Did you mean: list?\n",
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			stdout, stderr := captureOutput(t, func() {
@@ -66,8 +86,8 @@ func TestReviewRemovedItemCommandsProvideMigrationGuidance(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if !strings.Contains(stderr, test.wantStderr) {
-				t.Fatalf("expected migration guidance %q, got %q", test.wantStderr, stderr)
+			if stderr != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
 			}
 		})
 	}
