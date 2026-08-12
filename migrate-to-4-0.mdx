@@ -200,20 +200,21 @@ unknown keys are rejected.
 ### fastlane import
 
 `asc migrate import --fastlane-dir ...` now honors `metadata_path` and
-`screenshots_path` from the Deliverfile instead of discarding them. A run that
-relied on the flag overriding a stale `metadata_path` will read a different
-directory, and a `metadata_path` that does not resolve inside the Fastlane
-directory now fails loudly instead of silently falling back to
-`<fastlane-dir>/metadata`. Use `--allow-external-metadata` or
-`--allow-external-screenshots` when the paths are intentionally outside.
+`screenshots_path` from the Deliverfile instead of discarding them. A stale
+path in the Deliverfile will select the wrong directory, and a `metadata_path`
+that does not resolve inside the Fastlane directory now fails loudly instead
+of silently falling back to `<fastlane-dir>/metadata`. Use
+`--allow-external-metadata` or `--allow-external-screenshots` only when those
+Deliverfile paths intentionally point outside the selected Fastlane directory.
 
 Deliverfile paths resolve relative to the Deliverfile itself. A Deliverfile
 written with project-root-relative values — fastlane's common
 `metadata_path "./fastlane/metadata"` — resolves to
 `<fastlane-dir>/fastlane/metadata` under `--fastlane-dir` and fails with a
-no-such-directory error. Change it to `metadata_path "./metadata"` (and
-`screenshots_path "./screenshots"`), or override with `--metadata-dir` /
-`--screenshots-dir`.
+no-such-directory error. Change the directives to `metadata_path "./metadata"`
+and `screenshots_path "./screenshots"`, or remove them to use the conventional
+`<fastlane-dir>/metadata` and `<fastlane-dir>/screenshots` directories.
+`asc migrate import` has no `--metadata-dir` or `--screenshots-dir` overrides.
 
 Deliverfile `platform "osx"` and `platform "xros"` now resolve, screenshot
 uploads get the upload timeout (`ASC_UPLOAD_TIMEOUT`) rather than the 30-second
