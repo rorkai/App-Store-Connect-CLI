@@ -225,10 +225,15 @@ func commonCommandPathRecovery(root *ffcli.Command, analysis invocationAnalysis,
 		}
 		destination := resolveRecoveryDestination(rule.destination)
 		suffix := commandArgs[len(rule.invalid):]
-		provided, valid := commandSuffixUsesDefinedFlags(destination, suffix)
-		if destination == nil || !valid || shared.ValidateBoundOutputFlags(destination.FlagSet) != nil ||
-			(rule.validate != nil && !rule.validate(destination.FlagSet, provided)) {
+		if destination == nil {
 			continue
+		}
+		if !isTerminalRecoveryHelpSuffix(suffix) {
+			provided, valid := commandSuffixUsesDefinedFlags(destination, suffix)
+			if !valid || shared.ValidateBoundOutputFlags(destination.FlagSet) != nil ||
+				(rule.validate != nil && !rule.validate(destination.FlagSet, provided)) {
+				continue
+			}
 		}
 		invalid := "asc " + strings.Join(rule.invalid, " ")
 		suggestedArgs := recoverySuggestedRootArgs(root, args[:commandStart])
@@ -259,6 +264,10 @@ func resolveCommandPath(root *ffcli.Command, path []string) *ffcli.Command {
 		}
 	}
 	return current
+}
+
+func isTerminalRecoveryHelpSuffix(suffix []string) bool {
+	return len(suffix) == 1 && (suffix[0] == "--help" || suffix[0] == "-h")
 }
 
 func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) (map[string]struct{}, bool) {

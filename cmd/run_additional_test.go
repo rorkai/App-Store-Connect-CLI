@@ -1352,6 +1352,24 @@ func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
 			wantStderr:  "Error: unknown command `asc testflight groups builds list`\nTry:\n  asc testflight groups list --build-id BUILD_ID\nFor help:\n  asc testflight groups --help\n",
 			wantCommand: "asc testflight groups",
 		},
+		{
+			name:        "version info help",
+			args:        []string{"versions", "info", "--help"},
+			wantStderr:  "Error: unknown command `asc versions info`\nTry:\n  asc versions view --help\nFor help:\n  asc versions --help\n",
+			wantCommand: "asc versions",
+		},
+		{
+			name:        "joined review submissions short help",
+			args:        []string{"reviewsubmissions", "list", "-h"},
+			wantStderr:  "Error: unknown command `asc reviewsubmissions list`\nTry:\n  asc review submissions list -h\nFor help:\n  asc --help\n",
+			wantCommand: "asc",
+		},
+		{
+			name:        "groups builds list help",
+			args:        []string{"testflight", "groups", "builds", "list", "--help"},
+			wantStderr:  "Error: unknown command `asc testflight groups builds list`\nTry:\n  asc testflight groups list --help\nFor help:\n  asc testflight groups --help\n",
+			wantCommand: "asc testflight groups",
+		},
 	}
 
 	for _, test := range tests {

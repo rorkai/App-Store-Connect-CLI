@@ -319,6 +319,46 @@ func TestCommonCommandPathRecoveryAcceptsCompleteDestinationFlags(t *testing.T) 
 	}
 }
 
+func TestCommonCommandPathRecoveryAcceptsTerminalHelp(t *testing.T) {
+	root := RootCommand("1.0.0")
+	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
+	tests := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"versions", "info", "--help"}, "asc versions view --help"},
+		{[]string{"versions", "info", "-h"}, "asc versions view -h"},
+		{[]string{"reviewsubmissions", "list", "--help"}, "asc review submissions list --help"},
+		{[]string{"reviewsubmissions", "list", "-h"}, "asc review submissions list -h"},
+		{[]string{"testflight", "groups", "builds", "list", "--help"}, "asc testflight groups list --help"},
+		{[]string{"testflight", "groups", "builds", "list", "-h"}, "asc testflight groups list -h"},
+	}
+
+	for _, test := range tests {
+		_, suggested, ok := commonCommandPathRecovery(root, analysis, test.args)
+		if !ok {
+			t.Fatalf("commonCommandPathRecovery(%q) did not recognize terminal help", test.args)
+		}
+		if suggested != test.want {
+			t.Fatalf("commonCommandPathRecovery(%q) suggestion = %q, want %q", test.args, suggested, test.want)
+		}
+	}
+}
+
+func TestCommonCommandPathRecoveryRejectsNonTerminalHelp(t *testing.T) {
+	root := RootCommand("1.0.0")
+	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
+	for _, args := range [][]string{
+		{"versions", "info", "--help=true"},
+		{"versions", "info", "--help", "--version-id", "VERSION_ID"},
+		{"versions", "info", "-h", "false"},
+	} {
+		if invalid, suggested, ok := commonCommandPathRecovery(root, analysis, args); ok {
+			t.Fatalf("commonCommandPathRecovery(%q) = (%q, %q, true), want no recovery", args, invalid, suggested)
+		}
+	}
+}
+
 func TestCommonCommandPathRecoveryUsesAppIDEnvironment(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "APP_ID")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "invalid.json"))
