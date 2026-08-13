@@ -51,6 +51,7 @@ Examples:
   asc apps public storefronts list
   asc apps registry pull --path ".asc/app-registry.json"
   asc apps view --id "APP_ID"
+  asc apps rename --app "APP_ID" --locale "en-US" --name "New Name"
   asc apps info view --app "APP_ID"
   asc apps info edit --app "APP_ID" --locale "en-US" --whats-new "Bug fixes"
   asc apps ci-product view --id "APP_ID"
@@ -72,6 +73,7 @@ Examples:
 			AppsPublicCommand(),
 			AppsRegistryCommand(),
 			AppsGetCommand(),
+			AppsRenameCommand(),
 			AppsInfoCommand(),
 			AppsCIProductCommand(),
 			AppsUpdateCommand(),

@@ -22,6 +22,12 @@ import (
 
 const appSetupInfoLocalizationsURI = "/v1/appInfos/info-1/appInfoLocalizations?filter%5Blocale%5D=en-US&limit=200"
 
+var appSetupInfoOwnershipStep = appSetupInfoHTTPStep{
+	method:       http.MethodGet,
+	uri:          "/v1/appInfos/info-1?include=app",
+	responseBody: `{"data":{"type":"appInfos","id":"info-1","relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}},"included":[{"type":"apps","id":"app-1"}]}`,
+}
+
 type appSetupInfoHTTPStep struct {
 	method       string
 	uri          string
@@ -97,7 +103,7 @@ func TestAppSetupInfoSetPlanningFailuresDoNotMutate(t *testing.T) {
 		{
 			name:      "create without name",
 			args:      []string{"--app", "app-1", "--app-info", "info-1", "--bundle-id", "com.example.changed", "--locale", "en-US", "--subtitle", "Subtitle"},
-			steps:     []appSetupInfoHTTPStep{{method: http.MethodGet, uri: appSetupInfoLocalizationsURI, responseBody: `{"data":[]}`}},
+			steps:     []appSetupInfoHTTPStep{appSetupInfoOwnershipStep, {method: http.MethodGet, uri: appSetupInfoLocalizationsURI, responseBody: `{"data":[]}`}},
 			wantError: "--name is required when creating an app info localization",
 			usage:     true,
 		},
@@ -105,6 +111,10 @@ func TestAppSetupInfoSetPlanningFailuresDoNotMutate(t *testing.T) {
 			name: "ambiguous localization",
 			args: []string{"--app", "app-1", "--app-info", "info-1", "--bundle-id", "com.example.changed", "--locale", "en-US", "--name", "Example App"},
 			steps: []appSetupInfoHTTPStep{{
+				method:       appSetupInfoOwnershipStep.method,
+				uri:          appSetupInfoOwnershipStep.uri,
+				responseBody: appSetupInfoOwnershipStep.responseBody,
+			}, {
 				method:       http.MethodGet,
 				uri:          appSetupInfoLocalizationsURI,
 				responseBody: `{"data":[{"type":"appInfoLocalizations","id":"loc-1"},{"type":"appInfoLocalizations","id":"loc-2"}]}`,
@@ -186,6 +196,7 @@ func TestAppSetupInfoSetPlansExplicitLocalizationTargetBeforeWrites(t *testing.T
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			steps := []appSetupInfoHTTPStep{
+				appSetupInfoOwnershipStep,
 				{method: http.MethodGet, uri: appSetupInfoLocalizationsURI, responseBody: test.localizations},
 				appPatch,
 				test.localizationWrite,
