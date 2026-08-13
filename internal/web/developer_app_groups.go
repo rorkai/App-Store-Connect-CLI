@@ -137,6 +137,9 @@ func (c *Client) CreateDeveloperAppGroup(ctx context.Context, request DeveloperA
 	if err := c.ensureDeveloperPortalSession(ctx); err != nil {
 		return nil, err
 	}
+	if err := c.primeDeveloperAppGroupCSRF(ctx); err != nil {
+		return nil, err
+	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
 		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
@@ -178,6 +181,9 @@ func (c *Client) AssignDeveloperAppGroup(ctx context.Context, request DeveloperA
 	if err := c.ensureDeveloperPortalSession(ctx); err != nil {
 		return nil, err
 	}
+	if err := c.primeDeveloperAppGroupCSRF(ctx); err != nil {
+		return nil, err
+	}
 	current, err := c.loadDeveloperBundleID(ctx, request.BundleID)
 	if err != nil {
 		return nil, err
@@ -197,6 +203,38 @@ func (c *Client) AssignDeveloperAppGroup(ctx context.Context, request DeveloperA
 		return nil, err
 	}
 	return &DeveloperAppGroupAssignResult{BundleID: request.BundleID, GroupID: request.GroupID, Changed: true, Status: "assigned"}, nil
+}
+
+func (c *Client) primeDeveloperAppGroupCSRF(ctx context.Context) error {
+	csrf, csrfTS := c.developerCSRFTokens()
+	if csrf != "" && csrfTS != "" {
+		return nil
+	}
+	teamID := c.developerPortalTeamID()
+	if teamID == "" {
+		return fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+	}
+	body, err := c.doDeveloperPortalLegacyFormRequest(ctx, developerAppGroupsListPath, url.Values{
+		"teamId":     {teamID},
+		"pageNumber": {"1"},
+		"pageSize":   {strconv.Itoa(developerAppGroupsPageSize)},
+		"sort":       {"name=asc"},
+	}, false)
+	if err != nil {
+		return err
+	}
+	var response developerAppGroupsListResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to parse Developer Portal App Groups response while priming CSRF: %w", err)
+	}
+	if err := validateDeveloperPortalLegacyResponse(response.developerPortalLegacyResponse); err != nil {
+		return err
+	}
+	csrf, csrfTS = c.developerCSRFTokens()
+	if csrf == "" || csrfTS == "" {
+		return fmt.Errorf("missing Developer Portal CSRF headers after App Groups lookup; %s", developerPortalAuthHint)
+	}
+	return nil
 }
 
 func decodeDeveloperAppGroup(payload developerAppGroupPayload) (DeveloperAppGroup, error) {

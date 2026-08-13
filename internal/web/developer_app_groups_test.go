@@ -57,12 +57,17 @@ func TestCreateDeveloperAppGroupUsesPortalFormEndpoint(t *testing.T) {
 	client := newDeveloperAppGroupsTestClient(t, func(requestNumber int, request *http.Request) (*http.Response, error) {
 		switch requestNumber {
 		case 1:
-			return assertDeveloperPortalBootstrap(t, request), nil
+			return assertDeveloperPortalBootstrapWithoutCSRF(t, request), nil
 		case 2:
+			if request.URL.Path != "/services-account/QH65B2/account/ios/identifiers/listApplicationGroups.action" {
+				t.Fatalf("unexpected CSRF priming request %s %s", request.Method, request.URL.String())
+			}
+			return developerPortalTestResponse(http.StatusOK, `{"resultCode":0,"applicationGroupList":[]}`, http.Header{"csrf": {"primed-csrf"}, "csrf_ts": {"primed-ts"}}), nil
+		case 3:
 			if request.Method != http.MethodPost || request.URL.Path != "/services-account/QH65B2/account/ios/identifiers/addApplicationGroup.action" {
 				t.Fatalf("unexpected create request %s %s", request.Method, request.URL.String())
 			}
-			if request.Header.Get("csrf") != "bootstrap-csrf" || request.Header.Get("csrf_ts") != "bootstrap-ts" {
+			if request.Header.Get("csrf") != "primed-csrf" || request.Header.Get("csrf_ts") != "primed-ts" {
 				t.Fatalf("create request missing CSRF headers")
 			}
 			assertDeveloperPortalForm(t, request, url.Values{
@@ -175,8 +180,13 @@ func TestAssignDeveloperAppGroupPreservesBundleGraph(t *testing.T) {
 	client := newDeveloperAppGroupsTestClient(t, func(requestNumber int, request *http.Request) (*http.Response, error) {
 		switch requestNumber {
 		case 1:
-			return assertDeveloperPortalBootstrap(t, request), nil
+			return assertDeveloperPortalBootstrapWithoutCSRF(t, request), nil
 		case 2:
+			if request.URL.Path != "/services-account/QH65B2/account/ios/identifiers/listApplicationGroups.action" {
+				t.Fatalf("unexpected CSRF priming request %s %s", request.Method, request.URL.String())
+			}
+			return developerPortalTestResponse(http.StatusOK, `{"resultCode":0,"applicationGroupList":[]}`, http.Header{"csrf": {"primed-csrf"}, "csrf_ts": {"primed-ts"}}), nil
+		case 3:
 			if request.Method != http.MethodPost || request.URL.Path != "/services-account/v1/bundleIds/bundle-1" || request.Header.Get("X-HTTP-Method-Override") != http.MethodGet {
 				t.Fatalf("unexpected bundle read %s %s", request.Method, request.URL.String())
 			}
@@ -184,9 +194,12 @@ func TestAssignDeveloperAppGroupPreservesBundleGraph(t *testing.T) {
 				"data":{"id":"bundle-1","type":"bundleIds","attributes":{"name":"Example","identifier":"com.example.app","platform":"IOS"},"relationships":{"bundleIdCapabilities":{"data":[{"type":"bundleIdCapabilities","id":"push-1"}]}}},
 				"included":[{"type":"bundleIdCapabilities","id":"push-1","attributes":{"enabled":true,"settings":[]},"relationships":{"capability":{"data":{"type":"capabilities","id":"PUSH_NOTIFICATIONS"}}}}]
 			}`, nil), nil
-		case 3:
+		case 4:
 			if request.Method != http.MethodPatch || request.URL.Path != "/services-account/v1/bundleIds/bundle-1" {
 				t.Fatalf("unexpected bundle patch %s %s", request.Method, request.URL.String())
+			}
+			if request.Header.Get("csrf") != "primed-csrf" || request.Header.Get("csrf_ts") != "primed-ts" {
+				t.Fatalf("bundle patch missing primed CSRF headers")
 			}
 			var err error
 			patchBody, err = io.ReadAll(request.Body)
@@ -279,6 +292,14 @@ func assertDeveloperPortalBootstrap(t *testing.T, request *http.Request) *http.R
 		t.Fatalf("unexpected bootstrap request %s %s", request.Method, request.URL.String())
 	}
 	return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), http.Header{"csrf": {"bootstrap-csrf"}, "csrf_ts": {"bootstrap-ts"}})
+}
+
+func assertDeveloperPortalBootstrapWithoutCSRF(t *testing.T, request *http.Request) *http.Response {
+	t.Helper()
+	if request.Method != http.MethodPost || request.URL.Path != "/services-account/QH65B2/account/listTeams.action" {
+		t.Fatalf("unexpected bootstrap request %s %s", request.Method, request.URL.String())
+	}
+	return developerPortalTestResponse(http.StatusOK, developerPortalTeamsFixture(), nil)
 }
 
 func assertDeveloperPortalForm(t *testing.T, request *http.Request, expected url.Values) {
