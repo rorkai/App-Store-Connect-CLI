@@ -16,6 +16,44 @@ import (
 
 var reviewSubmissionsClientFactory = shared.GetASCClient
 
+// ReviewSubmissionsCommand returns the nested review submissions command group.
+func ReviewSubmissionsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("review submissions", flag.ExitOnError)
+
+	return &ffcli.Command{
+		Name:       "submissions",
+		ShortUsage: "asc review submissions <subcommand> [flags]",
+		ShortHelp:  "[experimental] Manage App Store review submissions.",
+		LongHelp: `[experimental] Manage App Store review submissions.
+
+Examples:
+  asc review submissions list --app "123456789"
+  asc review submissions list --app "123456789" --platform IOS --state READY_FOR_REVIEW`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			ReviewSubmissionsNestedListCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// ReviewSubmissionsNestedListCommand exposes the existing list implementation
+// under the discoverable `review submissions list` path.
+func ReviewSubmissionsNestedListCommand() *ffcli.Command {
+	cmd := shared.RewriteCommandTreePath(
+		ReviewSubmissionsListCommand(),
+		"asc review submissions-list",
+		"asc review submissions list",
+	)
+	cmd.Name = "list"
+	cmd.ShortHelp = "[experimental] " + cmd.ShortHelp
+	cmd.LongHelp = "[experimental] " + cmd.LongHelp
+	return cmd
+}
+
 // ReviewSubmissionsListCommand returns the review submissions list subcommand.
 func ReviewSubmissionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submissions-list", flag.ExitOnError)

@@ -28,6 +28,7 @@ Examples:
   asc review details-create --version-id "VERSION_ID" --contact-email "dev@example.com"
   asc review details-update --id "DETAIL_ID" --notes "Updated review notes"
   asc review attachments-list --review-detail "DETAIL_ID"
+  asc review submissions list --app "123456789"
   asc review submissions-list --app "123456789"
   asc review submissions-create --app "123456789" --platform IOS
   asc review submissions-submit --id "SUBMISSION_ID" --confirm
@@ -52,6 +53,7 @@ Examples:
 			ReviewDetailsAttachmentsUploadCommand(),
 			ReviewDetailsAttachmentsDeleteCommand(),
 			ReviewHistoryCommand(),
+			ReviewSubmissionsCommand(),
 			ReviewSubmissionsListCommand(),
 			ReviewSubmissionsGetCommand(),
 			ReviewSubmissionsCreateCommand(),
