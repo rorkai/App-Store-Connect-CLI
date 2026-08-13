@@ -55,6 +55,7 @@ func Run(args []string, versionInfo string) int {
 			fmt.Fprint(os.Stderr, parseOutput.String())
 			return ExitSuccess
 		}
+		recoverCIReportFlags(root, args)
 		if err := shared.ValidateReportFlags(); err != nil {
 			fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
 			emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, err))
@@ -179,6 +180,47 @@ func Run(args []string, versionInfo string) int {
 		InvocationShape: analysis.shape,
 	})
 	return ExitSuccess
+}
+
+func recoverCIReportFlags(root *ffcli.Command, args []string) {
+	if root == nil {
+		return
+	}
+	for index := 0; index < len(args); {
+		token := args[index]
+		if token == "" {
+			index++
+			continue
+		}
+		if token == "--" || findDirectSubcommand(root, token) != nil || !strings.HasPrefix(token, "-") || token == "-" {
+			return
+		}
+
+		trimmed := strings.TrimLeft(token, "-")
+		name, value, hasInlineValue := strings.Cut(trimmed, "=")
+		if name == "report" || name == "report-file" {
+			if !hasInlineValue {
+				if index+1 >= len(args) {
+					return
+				}
+				index++
+				value = args[index]
+			}
+			if name == "report" {
+				shared.SetReportFormat(value)
+			} else {
+				shared.SetReportFile(value)
+			}
+			index++
+			continue
+		}
+
+		if next, consumed := consumeFlagToken(root.FlagSet, token, args, index); consumed {
+			index = next
+			continue
+		}
+		index++
+	}
 }
 
 // normalizeSpacedBooleanFlags preserves the CLI's liberal support for both
