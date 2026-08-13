@@ -1254,6 +1254,57 @@ func TestRun_UnknownFlagDoesNotSuggestMixedCaseDeprecatedFlag(t *testing.T) {
 	}
 }
 
+func TestRun_UnknownFlagDoesNotSuggestDeprecatedAlias(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"apps", "public", "view", "--idd", "APP_ID"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if strings.Contains(stderr, "Try:\n  --id\n") {
+		t.Fatalf("deprecated alias must not be suggested, got %q", stderr)
+	}
+}
+
+func TestRun_UnknownCommandDoesNotSuggestDeprecatedSurface(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"iap", "imagez"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if strings.Contains(stderr, "asc iap images") {
+		t.Fatalf("deprecated command must not be suggested, got %q", stderr)
+	}
+}
+
+func TestIsDeprecatedHelpUsesStandaloneMarker(t *testing.T) {
+	for _, help := range []string{
+		"DEPRECATED: use --app",
+		"Deprecated alias for --app",
+		"Manage deprecated product-scoped images.",
+	} {
+		if !isDeprecatedHelp(help) {
+			t.Fatalf("isDeprecatedHelp(%q) = false, want true", help)
+		}
+	}
+	for _, help := range []string{"Manage current images.", "not-deprecated compatibility surface"} {
+		if isDeprecatedHelp(help) {
+			t.Fatalf("isDeprecatedHelp(%q) = true, want false", help)
+		}
+	}
+}
+
 func TestRun_UnknownGroupFlagIsNotClassifiedAsBareGroup(t *testing.T) {
 	resetReportFlags(t)
 	originalEmitTelemetry := emitTelemetry
