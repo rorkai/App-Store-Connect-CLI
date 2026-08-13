@@ -282,6 +282,40 @@ func TestCommonCommandPathRecoveryAcceptsCompleteDestinationFlags(t *testing.T) 
 	}
 }
 
+func TestCommonCommandPathRecoveryOmitsConsumedReportFlags(t *testing.T) {
+	root := RootCommand("1.0.0")
+	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
+	tests := []struct {
+		args []string
+		want string
+	}{
+		{
+			args: []string{
+				"--report", "junit", "--report-file", "/tmp/junit.xml", "--profile", "Team Profile",
+				"versions", "info", "--version-id", "VERSION_ID",
+			},
+			want: "asc --profile 'Team Profile' versions view --version-id VERSION_ID",
+		},
+		{
+			args: []string{
+				"--report=junit", "--report-file=/tmp/junit.xml", "--profile", "report",
+				"versions", "info", "--version-id=VERSION_ID",
+			},
+			want: "asc --profile report versions view --version-id=VERSION_ID",
+		},
+	}
+
+	for _, test := range tests {
+		_, suggested, ok := commonCommandPathRecovery(root, analysis, test.args)
+		if !ok {
+			t.Fatalf("commonCommandPathRecovery(%q) did not recognize exact command path", test.args)
+		}
+		if suggested != test.want {
+			t.Fatalf("commonCommandPathRecovery(%q) suggestion = %q, want %q", test.args, suggested, test.want)
+		}
+	}
+}
+
 func TestCommonCommandPathRecoveryRendersSuffixForSafeShellCopy(t *testing.T) {
 	root := RootCommand("1.0.0")
 	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}

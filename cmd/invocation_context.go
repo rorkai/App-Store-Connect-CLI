@@ -224,7 +224,7 @@ func commonCommandPathRecovery(root *ffcli.Command, analysis invocationAnalysis,
 			continue
 		}
 		invalid := "asc " + strings.Join(rule.invalid, " ")
-		suggestedArgs := append([]string{}, args[:commandStart]...)
+		suggestedArgs := recoverySuggestedRootArgs(args[:commandStart])
 		suggestedArgs = append(suggestedArgs, rule.destination...)
 		suggestedArgs = append(suggestedArgs, suffix...)
 		return invalid, renderSuggestedCommand(suggestedArgs), true
@@ -291,6 +291,26 @@ func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) bool
 		i += 2
 	}
 	return true
+}
+
+func recoverySuggestedRootArgs(args []string) []string {
+	filtered := make([]string, 0, len(args))
+	for i := 0; i < len(args); {
+		token := args[i]
+		trimmed := strings.TrimLeft(token, "-")
+		name, _, hasInlineValue := strings.Cut(trimmed, "=")
+		isFlag := token != "-" && strings.HasPrefix(token, "-")
+		if isFlag && (name == "report" || name == "report-file") {
+			i++
+			if !hasInlineValue && i < len(args) {
+				i++
+			}
+			continue
+		}
+		filtered = append(filtered, token)
+		i++
+	}
+	return filtered
 }
 
 func leadingCommandArgIndex(root *ffcli.Command, args []string) int {

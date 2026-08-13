@@ -1451,6 +1451,9 @@ func TestRun_CommonWrongCommandPathWritesJUnitReport(t *testing.T) {
 	if !strings.Contains(stderr, "Try:\n") || !strings.Contains(stderr, "For help:\n  asc versions --help\n") {
 		t.Fatalf("stderr = %q, want semantic recovery and help footer", stderr)
 	}
+	if strings.Contains(stderr, "--report") || strings.Contains(stderr, reportPath) {
+		t.Fatalf("stderr = %q, want retry without consumed report flags", stderr)
+	}
 
 	data, err := os.ReadFile(reportPath)
 	if err != nil {
