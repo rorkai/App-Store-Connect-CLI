@@ -1388,6 +1388,24 @@ func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
 			wantStderr:  "Error: unknown command `asc testflight groups builds list`\nTry:\n  asc testflight groups list --app APP_ID --next=\nFor help:\n  asc testflight groups --help\n",
 			wantCommand: "asc testflight groups",
 		},
+		{
+			name:        "version info with spaced empty optional include",
+			args:        []string{"versions", "info", "--version-id", "VERSION_ID", "--include", ""},
+			wantStderr:  "Error: unknown command `asc versions info`\nTry:\n  asc versions view --version-id VERSION_ID --include ''\nFor help:\n  asc versions --help\n",
+			wantCommand: "asc versions",
+		},
+		{
+			name:        "joined review submissions with spaced empty optional platform",
+			args:        []string{"reviewsubmissions", "list", "--app", "APP_ID", "--platform", ""},
+			wantStderr:  "Error: unknown command `asc reviewsubmissions list`\nTry:\n  asc review submissions list --app APP_ID --platform ''\nFor help:\n  asc --help\n",
+			wantCommand: "asc",
+		},
+		{
+			name:        "groups builds list with spaced empty optional next",
+			args:        []string{"testflight", "groups", "builds", "list", "--app", "APP_ID", "--next", ""},
+			wantStderr:  "Error: unknown command `asc testflight groups builds list`\nTry:\n  asc testflight groups list --app APP_ID --next ''\nFor help:\n  asc testflight groups --help\n",
+			wantCommand: "asc testflight groups",
+		},
 	}
 
 	for _, test := range tests {

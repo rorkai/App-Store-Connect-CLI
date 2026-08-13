@@ -311,7 +311,7 @@ func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) (map
 			i++
 			continue
 		}
-		if i+1 >= len(suffix) || suffix[i+1] == "" || strings.HasPrefix(suffix[i+1], "-") {
+		if i+1 >= len(suffix) || strings.HasPrefix(suffix[i+1], "-") {
 			return nil, false
 		}
 		if err := item.Value.Set(suffix[i+1]); err != nil {
