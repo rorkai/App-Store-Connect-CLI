@@ -266,6 +266,78 @@ func TestRun_BareGroupWritesJUnitReport(t *testing.T) {
 	}
 }
 
+func TestRun_UnknownChildWritesJUnitReport(t *testing.T) {
+	resetReportFlags(t)
+	reportPath := filepath.Join(t.TempDir(), "junit.xml")
+
+	captureCommandOutput(t, func() {
+		if code := Run([]string{
+			"--report", "junit",
+			"--report-file", reportPath,
+			"builds", "lsit",
+		}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	data, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+
+	var suite struct {
+		Failures  int `xml:"failures,attr"`
+		TestCases []struct {
+			Name string `xml:"name,attr"`
+		} `xml:"testcase"`
+	}
+	if err := xml.Unmarshal(data, &suite); err != nil {
+		t.Fatalf("xml.Unmarshal() error: %v", err)
+	}
+	if suite.Failures != 1 {
+		t.Fatalf("failures = %d, want 1", suite.Failures)
+	}
+	if len(suite.TestCases) != 1 || suite.TestCases[0].Name != "asc builds" {
+		t.Fatalf("unexpected testcase payload: %+v", suite.TestCases)
+	}
+}
+
+func TestRun_UnknownFlagWritesJUnitReport(t *testing.T) {
+	resetReportFlags(t)
+	reportPath := filepath.Join(t.TempDir(), "junit.xml")
+
+	captureCommandOutput(t, func() {
+		if code := Run([]string{
+			"--report", "junit",
+			"--report-file", reportPath,
+			"builds", "list", "--ap", "APP_ID",
+		}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	data, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+
+	var suite struct {
+		Failures  int `xml:"failures,attr"`
+		TestCases []struct {
+			Name string `xml:"name,attr"`
+		} `xml:"testcase"`
+	}
+	if err := xml.Unmarshal(data, &suite); err != nil {
+		t.Fatalf("xml.Unmarshal() error: %v", err)
+	}
+	if suite.Failures != 1 {
+		t.Fatalf("failures = %d, want 1", suite.Failures)
+	}
+	if len(suite.TestCases) != 1 || suite.TestCases[0].Name != "asc builds list" {
+		t.Fatalf("unexpected testcase payload: %+v", suite.TestCases)
+	}
+}
+
 func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
 	resetReportFlags(t)
 	t.Setenv("ASC_APP_ID", "")
@@ -1055,6 +1127,25 @@ func TestRun_UnknownFlagDoesNotSuggestHiddenCompatibilityFlag(t *testing.T) {
 		if strings.HasPrefix(line, "  --") && strings.Contains(line, "--name") {
 			t.Fatalf("hidden compatibility flag must not be suggested, got %q", stderr)
 		}
+	}
+}
+
+func TestRun_UnknownFlagDoesNotSuggestDeprecatedFlag(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{
+			"testflight", "beta-details", "update", "--external-testin", "true",
+		}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if strings.Contains(stderr, "Try:\n  --external-testing\n") {
+		t.Fatalf("deprecated flag must not be suggested, got %q", stderr)
 	}
 }
 
