@@ -253,6 +253,10 @@ func TestGetAllRatings_Aggregation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/lookup" {
 			country := r.URL.Query().Get("country")
+			if country == "fr" {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
 			if resp, ok := responses[country]; ok {
 				w.Header().Set("Content-Type", "application/json")
 				writeBody(t, w, resp)
@@ -375,6 +379,35 @@ func TestGetAllRatings_NoRatings(t *testing.T) {
 	}
 	if global.CountryCount != 0 {
 		t.Fatalf("CountryCount = %d, want 0", global.CountryCount)
+	}
+}
+
+func TestGetAllRatings_AllStorefrontHTTPFailuresRetainStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	client := &Client{
+		HTTPClient: &http.Client{
+			Transport: &testTransport{baseURL: server.URL},
+		},
+	}
+
+	_, err := client.GetAllRatings(context.Background(), "123", 5, context.WithCancel)
+	if err == nil {
+		t.Fatal("expected all-storefront failure")
+	}
+	const wantError = "app not found in any country: 123"
+	if err.Error() != wantError {
+		t.Fatalf("error = %q, want %q", err, wantError)
+	}
+	var statusError interface{ HTTPStatusCode() int }
+	if !errors.As(err, &statusError) {
+		t.Fatalf("error %T does not retain HTTP status", err)
+	}
+	if got := statusError.HTTPStatusCode(); got != http.StatusServiceUnavailable {
+		t.Fatalf("HTTPStatusCode() = %d, want %d", got, http.StatusServiceUnavailable)
 	}
 }
 

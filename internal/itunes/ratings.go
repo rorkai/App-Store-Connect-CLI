@@ -37,6 +37,19 @@ type GlobalRatings struct {
 	ByCountry     []AppRatings  `json:"byCountry"`
 }
 
+type allRatingsLookupError struct {
+	appID string
+	cause error
+}
+
+func (e *allRatingsLookupError) Error() string {
+	return fmt.Sprintf("app not found in any country: %s", e.appID)
+}
+
+func (e *allRatingsLookupError) Unwrap() error {
+	return e.cause
+}
+
 // GetRatings fetches rating statistics for an app in a specific country.
 func (c *Client) GetRatings(ctx context.Context, appID, country string) (*AppRatings, error) {
 	normalizedCountry := strings.ToLower(strings.TrimSpace(country))
@@ -139,6 +152,8 @@ func (c *Client) GetAllRatings(
 		wg                 sync.WaitGroup
 		deadlineOnce       sync.Once
 		countryDeadlineErr error
+		httpFailureCount   int
+		representativeErr  error
 		results            []*AppRatings
 		appName            string
 		appIDInt           int64
@@ -177,6 +192,15 @@ func (c *Client) GetAllRatings(
 				return
 			}
 			if err != nil {
+				var statusError interface{ HTTPStatusCode() int }
+				if errors.As(err, &statusError) {
+					mu.Lock()
+					httpFailureCount++
+					if representativeErr == nil {
+						representativeErr = err
+					}
+					mu.Unlock()
+				}
 				return
 			}
 
@@ -210,6 +234,9 @@ func (c *Client) GetAllRatings(
 		return nil, countryDeadlineErr
 	}
 	if !found {
+		if httpFailureCount == len(countries) {
+			return nil, &allRatingsLookupError{appID: appID, cause: representativeErr}
+		}
 		return nil, fmt.Errorf("app not found in any country: %s", appID)
 	}
 	if len(results) == 0 {

@@ -17,6 +17,18 @@ import (
 
 const ratingsAppSearchLimit = 200
 
+type ratingsBundleLookupError struct {
+	cause error
+}
+
+func (e *ratingsBundleLookupError) Error() string {
+	return "could not resolve --app by bundle ID; pass a numeric App Store ID or try again later"
+}
+
+func (e *ratingsBundleLookupError) Unwrap() error {
+	return e.cause
+}
+
 // ReviewsRatingsCommand returns the reviews ratings subcommand.
 func ReviewsRatingsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("ratings", flag.ExitOnError)
@@ -122,7 +134,7 @@ func resolveRatingsAppID(ctx context.Context, client *itunes.Client, app string,
 			IncludeSoftwareEntity: true,
 		})
 		if err != nil {
-			return "", fmt.Errorf("could not resolve --app by bundle ID; pass a numeric App Store ID or try again later")
+			return "", &ratingsBundleLookupError{cause: err}
 		}
 		if result != nil && result.AppID != 0 {
 			return strconv.FormatInt(result.AppID, 10), nil

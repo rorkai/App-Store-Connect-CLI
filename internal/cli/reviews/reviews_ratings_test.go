@@ -278,8 +278,74 @@ func TestResolveRatingsAppIDHidesBundleLookupFailureDetails(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected lookup failure")
 	}
+	const wantError = "could not resolve --app by bundle ID; pass a numeric App Store ID or try again later"
+	if err.Error() != wantError {
+		t.Fatalf("error = %q, want %q", err, wantError)
+	}
 	if strings.Contains(err.Error(), "com.example.secret") || strings.Contains(err.Error(), "backend leaked") {
 		t.Fatalf("expected generic lookup error, got %q", err.Error())
+	}
+	var statusError interface{ HTTPStatusCode() int }
+	if !errors.As(err, &statusError) {
+		t.Fatalf("error %T does not retain HTTP status", err)
+	}
+	if got := statusError.HTTPStatusCode(); got != http.StatusInternalServerError {
+		t.Fatalf("HTTPStatusCode() = %d, want %d", got, http.StatusInternalServerError)
+	}
+}
+
+func TestExecuteRatingsRetainsPublicHTTPStatusWithoutChangingErrors(t *testing.T) {
+	tests := []struct {
+		name      string
+		app       string
+		all       bool
+		wantError string
+	}{
+		{
+			name:      "bundle ID resolution",
+			app:       "com.example.secret",
+			wantError: "reviews ratings: could not resolve --app by bundle ID; pass a numeric App Store ID or try again later",
+		},
+		{
+			name:      "all storefronts",
+			app:       "123",
+			all:       true,
+			wantError: "reviews ratings: app not found in any country: 123",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusServiceUnavailable)
+			}))
+			defer server.Close()
+
+			client := &itunes.Client{BaseURL: server.URL, HTTPClient: server.Client()}
+			err := executeRatingsWithClient(
+				context.Background(),
+				client,
+				test.app,
+				"us",
+				test.all,
+				5,
+				"json",
+				false,
+			)
+			if err == nil {
+				t.Fatal("expected request failure")
+			}
+			if err.Error() != test.wantError {
+				t.Fatalf("error = %q, want %q", err, test.wantError)
+			}
+			var statusError interface{ HTTPStatusCode() int }
+			if !errors.As(err, &statusError) {
+				t.Fatalf("error %T does not retain HTTP status", err)
+			}
+			if got := statusError.HTTPStatusCode(); got != http.StatusServiceUnavailable {
+				t.Fatalf("HTTPStatusCode() = %d, want %d", got, http.StatusServiceUnavailable)
+			}
+		})
 	}
 }
 
