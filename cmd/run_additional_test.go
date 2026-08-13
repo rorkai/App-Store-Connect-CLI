@@ -1300,6 +1300,7 @@ func TestRun_UnknownFlagReturnsConciseRecovery(t *testing.T) {
 func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
 	resetReportFlags(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_APP_ID", "")
 	t.Setenv("ASC_PROFILE", "")
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
 	t.Setenv("ASC_KEY_ID", "")
@@ -1329,14 +1330,14 @@ func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
 		},
 		{
 			name:        "joined review submissions with inline int",
-			args:        []string{"reviewsubmissions", "list", "--limit=10"},
-			wantStderr:  "Error: unknown command `asc reviewsubmissions list`\nTry:\n  asc review submissions list --limit=10\nFor help:\n  asc --help\n",
+			args:        []string{"reviewsubmissions", "list", "--app", "APP_ID", "--limit=10"},
+			wantStderr:  "Error: unknown command `asc reviewsubmissions list`\nTry:\n  asc review submissions list --app APP_ID --limit=10\nFor help:\n  asc --help\n",
 			wantCommand: "asc",
 		},
 		{
 			name:        "joined review submissions with spaced int",
-			args:        []string{"reviewsubmissions", "list", "--limit", "10"},
-			wantStderr:  "Error: unknown command `asc reviewsubmissions list`\nTry:\n  asc review submissions list --limit 10\nFor help:\n  asc --help\n",
+			args:        []string{"reviewsubmissions", "list", "--app", "APP_ID", "--limit", "10"},
+			wantStderr:  "Error: unknown command `asc reviewsubmissions list`\nTry:\n  asc review submissions list --app APP_ID --limit 10\nFor help:\n  asc --help\n",
 			wantCommand: "asc",
 		},
 		{

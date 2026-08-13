@@ -248,9 +248,15 @@ func TestCommonCommandPathRecoveryRequiresExactUnknownPrefix(t *testing.T) {
 }
 
 func TestCommonCommandPathRecoveryRejectsUnsupportedSuffix(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
 	root := RootCommand("1.0.0")
 	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
 	tests := [][]string{
+		{"versions", "info"},
+		{"versions", "info", "--version-id", "VERSION_ID", "--include", "unknown"},
+		{"versions", "info", "--version-id", "VERSION_ID", "--include", "build", "--include-build"},
+		{"versions", "info", "--version-id", "ONE", "--id", "TWO"},
+		{"versions", "info", "--version-id", "VERSION_ID", "--output", "yaml"},
 		{"versions", "info", "--version-id", "VERSION_ID", "localizations"},
 		{"versions", "info", "--version-id"},
 		{"versions", "info", "--version-id", "--include-build"},
@@ -259,7 +265,19 @@ func TestCommonCommandPathRecoveryRejectsUnsupportedSuffix(t *testing.T) {
 		{"versions", "info", "--version-id", "VERSION_ID", "--include-build=maybe"},
 		{"reviewsubmissions", "list", "--limit=abc"},
 		{"reviewsubmissions", "list", "--limit", "abc"},
+		{"reviewsubmissions", "list", "--app", "APP_ID", "--limit", "201"},
+		{"reviewsubmissions", "list", "--app", "APP_ID", "--platform", "ANDROID"},
+		{"reviewsubmissions", "list", "--app", "APP_ID", "--state", "UNKNOWN"},
+		{"reviewsubmissions", "list", "--next", "http://api.appstoreconnect.apple.com/v1/reviewSubmissions"},
+		{"reviewsubmissions", "list", "--next", "https://api.appstoreconnect.apple.com/v1/reviewSubmissions", "--app", "APP_ID"},
+		{"reviewsubmissions", "list"},
 		{"reviewsubmissions", "list", "--unknown", "VALUE"},
+		{"testflight", "groups", "builds", "list", "--app", "APP_ID", "--limit", "201"},
+		{"testflight", "groups", "builds", "list", "--next", "http://api.appstoreconnect.apple.com/v1/betaGroups"},
+		{"testflight", "groups", "builds", "list", "--app", "APP_ID", "--internal", "--external"},
+		{"testflight", "groups", "builds", "list", "--build-id", "BUILD_ID", "--limit", "10"},
+		{"testflight", "groups", "builds", "list", "--global", "--app", "APP_ID"},
+		{"testflight", "groups", "builds", "list"},
 		{"testflight", "groups", "builds", "list", "--"},
 	}
 
@@ -271,19 +289,42 @@ func TestCommonCommandPathRecoveryRejectsUnsupportedSuffix(t *testing.T) {
 }
 
 func TestCommonCommandPathRecoveryAcceptsCompleteDestinationFlags(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
 	root := RootCommand("1.0.0")
 	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
 	tests := [][]string{
 		{"versions", "info", "--version-id", "VERSION_ID"},
 		{"versions", "info", "--version-id=VERSION_ID"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--include-build"},
-		{"reviewsubmissions", "list", "--limit=10"},
-		{"reviewsubmissions", "list", "--limit", "10"},
+		{"versions", "info", "--version-id", "VERSION_ID", "--include", "build", "--include-build=false"},
+		{"versions", "info", "--id", "VERSION_ID"},
+		{"reviewsubmissions", "list", "--app", "APP_ID", "--limit=10"},
+		{"reviewsubmissions", "list", "--app", "APP_ID", "--limit", "10"},
+		{"reviewsubmissions", "list", "--next", "https://api.appstoreconnect.apple.com/v1/reviewSubmissions"},
+		{"testflight", "groups", "builds", "list", "--app", "APP_ID", "--limit", "10"},
+		{"testflight", "groups", "builds", "list", "--build-id", "BUILD_ID", "--internal"},
+		{"testflight", "groups", "builds", "list", "--build-id", "BUILD_ID", "--internal=false", "--external"},
+		{"testflight", "groups", "builds", "list", "--global"},
 	}
 
 	for _, args := range tests {
 		if _, _, ok := commonCommandPathRecovery(root, analysis, args); !ok {
 			t.Fatalf("commonCommandPathRecovery(%q) did not recognize complete destination flags", args)
+		}
+	}
+}
+
+func TestCommonCommandPathRecoveryUsesAppIDEnvironment(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "APP_ID")
+	root := RootCommand("1.0.0")
+	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
+
+	for _, args := range [][]string{
+		{"reviewsubmissions", "list", "--limit", "10"},
+		{"testflight", "groups", "builds", "list", "--limit", "10"},
+	} {
+		if _, _, ok := commonCommandPathRecovery(root, analysis, args); !ok {
+			t.Fatalf("commonCommandPathRecovery(%q) did not honor ASC_APP_ID", args)
 		}
 	}
 }
