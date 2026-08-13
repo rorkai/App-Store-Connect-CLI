@@ -106,6 +106,48 @@ func TestRun_ReportFlagValidationErrorEmitsTelemetry(t *testing.T) {
 	}
 }
 
+func TestRun_InvalidReportFormatWinsOverUnknownFlag(t *testing.T) {
+	resetReportFlags(t)
+	reportPath := filepath.Join(t.TempDir(), "result.xml")
+
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+	var calls int
+	var gotContext telemetry.EventContext
+	emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
+		calls++
+		gotContext = eventContext
+	}
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{
+			"--report", "xml",
+			"--report-file", reportPath,
+			"builds", "list", "--ap", "PRIVATE_VALUE",
+		}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	want := "Error: --report must be \"junit\" if specified, got \"xml\"\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+	if strings.Contains(stderr, "PRIVATE_VALUE") {
+		t.Fatalf("stderr leaked a following argument: %q", stderr)
+	}
+	if _, err := os.Stat(reportPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("invalid report format must not write a report, stat error = %v", err)
+	}
+	if calls != 1 || gotContext.FailureStage != telemetry.FailureStageValidation ||
+		gotContext.OutcomeKind != telemetry.OutcomeUsageError {
+		t.Fatalf("unexpected telemetry: calls=%d context=%+v", calls, gotContext)
+	}
+}
+
 func TestRun_ParseErrorEmitsTelemetry(t *testing.T) {
 	resetReportFlags(t)
 

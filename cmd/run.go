@@ -55,6 +55,11 @@ func Run(args []string, versionInfo string) int {
 			fmt.Fprint(os.Stderr, parseOutput.String())
 			return ExitSuccess
 		}
+		if err := shared.ValidateReportFlags(); err != nil {
+			fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
+			emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, err))
+			return ExitUsage
+		}
 		if analysis.unknownFlag && isUnknownFlagParseFailure(parseErr, parseOutput.String()) {
 			printConciseUnknownFlag(analysis, getCommandName(root, args))
 		} else {
@@ -62,18 +67,17 @@ func Run(args []string, versionInfo string) int {
 		}
 		// Every non-help error returned by command-tree parsing is invalid usage,
 		// including NoExecError cases that do not write flag output.
-		exitCode := ExitUsage
 		if analysis.unknownFlag && isUnknownFlagParseFailure(parseErr, parseOutput.String()) {
 			writeUsageJUnitReport(getCommandName(root, args))
 		}
-		emitImmediateTelemetry(args, root, versionInfo, exitCode, parseFailureContext(analysis))
-		return exitCode
+		emitImmediateTelemetry(args, root, versionInfo, parseFailureContext(analysis))
+		return ExitUsage
 	}
 
 	// Validate CI report flags after parsing
 	if err := shared.ValidateReportFlags(); err != nil {
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-		emitImmediateTelemetry(args, root, versionInfo, ExitUsage, validationFailureContext(analysis, err))
+		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, err))
 		return ExitUsage
 	}
 
@@ -96,7 +100,7 @@ func Run(args []string, versionInfo string) int {
 	if shouldRenderConciseUnknownChild(root, analysis, commandName) {
 		printConciseUnknownCommand(analysis, commandName)
 		writeUsageJUnitReport(commandName)
-		emitImmediateTelemetry(args, root, versionInfo, ExitUsage, validationFailureContext(analysis, flag.ErrHelp))
+		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, flag.ErrHelp))
 		return ExitUsage
 	}
 
@@ -310,10 +314,9 @@ func emitImmediateTelemetry(
 	args []string,
 	root *ffcli.Command,
 	versionInfo string,
-	exitCode int,
 	eventContext telemetry.EventContext,
 ) {
-	emitTelemetry(getCommandName(root, args), versionInfo, 0, exitCode, eventContext)
+	emitTelemetry(getCommandName(root, args), versionInfo, 0, ExitUsage, eventContext)
 }
 
 func prepareFlagParsing(command *ffcli.Command, args []string, output *bytes.Buffer) func() {
