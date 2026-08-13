@@ -1323,6 +1323,12 @@ func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
 			wantCommand: "asc versions",
 		},
 		{
+			name:        "version info with spaced false boolean",
+			args:        []string{"versions", "info", "--version-id", "VERSION_ID", "--include-build", "false"},
+			wantStderr:  "Error: unknown command `asc versions info`\nTry:\n  asc versions view --version-id VERSION_ID --include-build false\nFor help:\n  asc versions --help\n",
+			wantCommand: "asc versions",
+		},
+		{
 			name:        "joined review submissions",
 			args:        []string{"reviewsubmissions", "list", "--app", "APP_ID"},
 			wantStderr:  "Error: unknown command `asc reviewsubmissions list`\nTry:\n  asc review submissions list --app APP_ID\nFor help:\n  asc --help\n",
@@ -1387,6 +1393,38 @@ func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
 				t.Fatalf("unexpected telemetry context: %+v", gotContext)
 			}
 		})
+	}
+}
+
+func TestRun_CommonWrongCommandPathUsesConfiguredAppID(t *testing.T) {
+	resetReportFlags(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_APP_ID", "temporary")
+	if err := os.Unsetenv("ASC_APP_ID"); err != nil {
+		t.Fatalf("Unsetenv() error: %v", err)
+	}
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(configPath, []byte(`{"app_id":"APP_FROM_CONFIG"}`), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"reviewsubmissions", "list"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	want := "Error: unknown command `asc reviewsubmissions list`\n" +
+		"Try:\n" +
+		"  asc review submissions list\n" +
+		"For help:\n" +
+		"  asc --help\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
 	}
 }
 

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -257,6 +259,7 @@ func TestCommonCommandPathRecoveryRejectsUnsupportedSuffix(t *testing.T) {
 		{"versions", "info", "--version-id", "VERSION_ID", "--include", "build", "--include-build"},
 		{"versions", "info", "--version-id", "ONE", "--id", "TWO"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--output", "yaml"},
+		{"versions", "info", "--version-id", "VERSION_ID", "--include-build", "maybe"},
 		{"versions", "info", "--version-id", "VERSION_ID", "localizations"},
 		{"versions", "info", "--version-id"},
 		{"versions", "info", "--version-id", "--include-build"},
@@ -296,6 +299,8 @@ func TestCommonCommandPathRecoveryAcceptsCompleteDestinationFlags(t *testing.T) 
 		{"versions", "info", "--version-id", "VERSION_ID"},
 		{"versions", "info", "--version-id=VERSION_ID"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--include-build"},
+		{"versions", "info", "--version-id", "VERSION_ID", "--include-build", "true"},
+		{"versions", "info", "--version-id", "VERSION_ID", "--include-build", "false"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--include", "build", "--include-build=false"},
 		{"versions", "info", "--id", "VERSION_ID"},
 		{"reviewsubmissions", "list", "--app", "APP_ID", "--limit=10"},
@@ -316,6 +321,10 @@ func TestCommonCommandPathRecoveryAcceptsCompleteDestinationFlags(t *testing.T) 
 
 func TestCommonCommandPathRecoveryUsesAppIDEnvironment(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "APP_ID")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "invalid.json"))
+	if err := os.WriteFile(os.Getenv("ASC_CONFIG_PATH"), []byte("not json"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
 	root := RootCommand("1.0.0")
 	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
 
@@ -325,6 +334,29 @@ func TestCommonCommandPathRecoveryUsesAppIDEnvironment(t *testing.T) {
 	} {
 		if _, _, ok := commonCommandPathRecovery(root, analysis, args); !ok {
 			t.Fatalf("commonCommandPathRecovery(%q) did not honor ASC_APP_ID", args)
+		}
+	}
+}
+
+func TestCommonCommandPathRecoveryUsesConfiguredAppID(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "temporary")
+	if err := os.Unsetenv("ASC_APP_ID"); err != nil {
+		t.Fatalf("Unsetenv() error: %v", err)
+	}
+	configPath := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(configPath, []byte(`{"app_id":"APP_FROM_CONFIG"}`), 0o600); err != nil {
+		t.Fatalf("WriteFile() error: %v", err)
+	}
+	t.Setenv("ASC_CONFIG_PATH", configPath)
+
+	root := RootCommand("1.0.0")
+	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
+	for _, args := range [][]string{
+		{"reviewsubmissions", "list", "--limit", "10"},
+		{"testflight", "groups", "builds", "list", "--limit", "10"},
+	} {
+		if _, _, ok := commonCommandPathRecovery(root, analysis, args); !ok {
+			t.Fatalf("commonCommandPathRecovery(%q) did not honor configured app ID", args)
 		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -289,6 +290,15 @@ func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) (map
 			continue
 		}
 		if isBoolFlag(item) {
+			if i+1 < len(suffix) {
+				if _, err := strconv.ParseBool(suffix[i+1]); err == nil {
+					if err := item.Value.Set(suffix[i+1]); err != nil {
+						return nil, false
+					}
+					i += 2
+					continue
+				}
+			}
 			if err := item.Value.Set("true"); err != nil {
 				return nil, false
 			}
@@ -376,11 +386,7 @@ func validateReviewSubmissionsListRecovery(fs *flag.FlagSet, provided map[string
 	if strings.TrimSpace(next) != "" {
 		return true
 	}
-	appID := recoveryFlagValue(fs, "app")
-	if appID == "" {
-		appID = strings.TrimSpace(os.Getenv("ASC_APP_ID"))
-	}
-	return appID != ""
+	return shared.ResolveAppID(recoveryFlagValue(fs, "app")) != ""
 }
 
 func validateTestFlightGroupsListRecovery(fs *flag.FlagSet, provided map[string]struct{}) bool {
@@ -416,10 +422,10 @@ func validateTestFlightGroupsListRecovery(fs *flag.FlagSet, provided map[string]
 	if recoveryBoolFlagValue(fs, "global") && strings.TrimSpace(appID) != "" {
 		return false
 	}
-	if recoveryBoolFlagValue(fs, "global") || strings.TrimSpace(next) != "" || appID != "" {
+	if recoveryBoolFlagValue(fs, "global") || strings.TrimSpace(next) != "" || shared.ResolveAppID(appID) != "" {
 		return true
 	}
-	return strings.TrimSpace(os.Getenv("ASC_APP_ID")) != ""
+	return false
 }
 
 func recoveryFlagValue(fs *flag.FlagSet, name string) string {
