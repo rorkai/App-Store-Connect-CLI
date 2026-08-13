@@ -177,8 +177,9 @@ does not exist, the command creates its app-info localization.
   App Info ID override. Use this when the app has multiple App Info records.
 </ParamField>
 
-<ParamField path="--output" type="string" default="json">
-  Output format: `json`, `table`, `markdown`
+<ParamField path="--output" type="string">
+  Output format: `json`, `table`, `markdown`. Defaults to `table` in an
+  interactive terminal and minified `json` for pipes or CI.
 </ParamField>
 
 **Examples:**
