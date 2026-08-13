@@ -255,6 +255,8 @@ func TestCommonCommandPathRecoveryRejectsUnsupportedSuffix(t *testing.T) {
 		{"versions", "info", "--version-id"},
 		{"versions", "info", "--version-id", "--include-build"},
 		{"versions", "info", "--version-id="},
+		{"versions", "info", "---version-id", "VERSION_ID"},
+		{"versions", "info", "--version-id", "VERSION_ID", "--include-build=maybe"},
 		{"reviewsubmissions", "list", "--unknown", "VALUE"},
 		{"testflight", "groups", "builds", "list", "--"},
 	}
@@ -302,6 +304,13 @@ func TestCommonCommandPathRecoveryOmitsConsumedReportFlags(t *testing.T) {
 				"versions", "info", "--version-id=VERSION_ID",
 			},
 			want: "asc --profile report versions view --version-id=VERSION_ID",
+		},
+		{
+			args: []string{
+				"--profile", "--report", "--report=junit", "--report-file=/tmp/junit.xml",
+				"versions", "info", "--version-id", "VERSION_ID",
+			},
+			want: "asc --profile --report versions view --version-id VERSION_ID",
 		},
 	}
 

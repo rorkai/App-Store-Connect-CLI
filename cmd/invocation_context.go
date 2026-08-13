@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -224,7 +225,7 @@ func commonCommandPathRecovery(root *ffcli.Command, analysis invocationAnalysis,
 			continue
 		}
 		invalid := "asc " + strings.Join(rule.invalid, " ")
-		suggestedArgs := recoverySuggestedRootArgs(args[:commandStart])
+		suggestedArgs := recoverySuggestedRootArgs(root, args[:commandStart])
 		suggestedArgs = append(suggestedArgs, rule.destination...)
 		suggestedArgs = append(suggestedArgs, suffix...)
 		return invalid, renderSuggestedCommand(suggestedArgs), true
@@ -264,7 +265,7 @@ func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) bool
 	}
 	for i := 0; i < len(suffix); {
 		token := suffix[i]
-		if token == "" || token == "--" || token == "-" || !strings.HasPrefix(token, "-") {
+		if !hasValidFlagPrefix(token) {
 			return false
 		}
 
@@ -277,6 +278,11 @@ func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) bool
 		if hasInlineValue {
 			if inlineValue == "" {
 				return false
+			}
+			if isBoolFlag(item) {
+				if _, err := strconv.ParseBool(inlineValue); err != nil {
+					return false
+				}
 			}
 			i++
 			continue
@@ -293,22 +299,40 @@ func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) bool
 	return true
 }
 
-func recoverySuggestedRootArgs(args []string) []string {
+func hasValidFlagPrefix(token string) bool {
+	if token == "" || token == "-" || token == "--" {
+		return false
+	}
+	return strings.HasPrefix(token, "-") && !strings.HasPrefix(token, "---")
+}
+
+func recoverySuggestedRootArgs(root *ffcli.Command, args []string) []string {
 	filtered := make([]string, 0, len(args))
 	for i := 0; i < len(args); {
 		token := args[i]
-		trimmed := strings.TrimLeft(token, "-")
-		name, _, hasInlineValue := strings.Cut(trimmed, "=")
-		isFlag := token != "-" && strings.HasPrefix(token, "-")
-		if isFlag && (name == "report" || name == "report-file") {
+		if root == nil || root.FlagSet == nil || !hasValidFlagPrefix(token) {
+			filtered = append(filtered, token)
 			i++
-			if !hasInlineValue && i < len(args) {
-				i++
-			}
 			continue
 		}
-		filtered = append(filtered, token)
-		i++
+
+		trimmed := strings.TrimLeft(token, "-")
+		name, _, hasInlineValue := strings.Cut(trimmed, "=")
+		item := root.FlagSet.Lookup(name)
+		if item == nil {
+			filtered = append(filtered, token)
+			i++
+			continue
+		}
+
+		next := i + 1
+		if !hasInlineValue && !isBoolFlag(item) && next < len(args) {
+			next++
+		}
+		if name != "report" && name != "report-file" {
+			filtered = append(filtered, args[i:next]...)
+		}
+		i = next
 	}
 	return filtered
 }

@@ -1382,6 +1382,8 @@ func TestRun_CommonWrongCommandPathDoesNotCopyUnsupportedSuffix(t *testing.T) {
 		{"versions", "info", "--version-id", "VERSION_ID", "localizations"},
 		{"versions", "info", "--version-id", "--include-build"},
 		{"versions", "info", "--version-id="},
+		{"versions", "info", "---version-id", "VERSION_ID"},
+		{"versions", "info", "--version-id", "VERSION_ID", "--include-build=maybe"},
 	}
 	want := "Error: unknown command `asc versions info`\n" +
 		"For help:\n" +
@@ -1448,11 +1450,13 @@ func TestRun_CommonWrongCommandPathWritesJUnitReport(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	if !strings.Contains(stderr, "Try:\n") || !strings.Contains(stderr, "For help:\n  asc versions --help\n") {
-		t.Fatalf("stderr = %q, want semantic recovery and help footer", stderr)
-	}
-	if strings.Contains(stderr, "--report") || strings.Contains(stderr, reportPath) {
-		t.Fatalf("stderr = %q, want retry without consumed report flags", stderr)
+	wantStderr := "Error: unknown command `asc versions info`\n" +
+		"Try:\n" +
+		"  asc versions view --version-id VERSION_ID\n" +
+		"For help:\n" +
+		"  asc versions --help\n"
+	if stderr != wantStderr || strings.Contains(stderr, reportPath) {
+		t.Fatalf("stderr = %q, want %q without report path", stderr, wantStderr)
 	}
 
 	data, err := os.ReadFile(reportPath)
@@ -1476,6 +1480,31 @@ func TestRun_CommonWrongCommandPathWritesJUnitReport(t *testing.T) {
 	}
 	if got, want := suite.TestCases[0].Failure.Message, "unknown command `asc versions info`"; got != want {
 		t.Fatalf("failure message = %q, want %q", got, want)
+	}
+}
+
+func TestRun_CommonWrongCommandPathPreservesRootFlagValueNamedReport(t *testing.T) {
+	resetReportFlags(t)
+	resetSelectedProfile(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{
+			"--profile", "--report", "versions", "info", "--version-id", "VERSION_ID",
+		}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	want := "Error: unknown command `asc versions info`\n" +
+		"Try:\n" +
+		"  asc --profile --report versions view --version-id VERSION_ID\n" +
+		"For help:\n" +
+		"  asc versions --help\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
 	}
 }
 
