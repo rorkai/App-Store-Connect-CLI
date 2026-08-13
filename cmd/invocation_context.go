@@ -170,7 +170,9 @@ func visibleSubcommandNames(command *ffcli.Command) []string {
 
 func isDeprecatedFlagHelp(help string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(help))
-	return strings.HasPrefix(normalized, "deprecated") || strings.HasPrefix(normalized, "[deprecated")
+	return strings.HasPrefix(normalized, "deprecated") ||
+		strings.HasPrefix(normalized, "[deprecated") ||
+		strings.HasSuffix(normalized, " (deprecated)")
 }
 
 func isDeprecatedCommandHelp(help string) bool {

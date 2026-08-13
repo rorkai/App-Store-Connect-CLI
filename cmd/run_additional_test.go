@@ -1340,6 +1340,26 @@ func TestRun_UnknownFlagDoesNotSuggestDeprecatedAlias(t *testing.T) {
 	}
 }
 
+func TestRun_UnknownFlagDoesNotSuggestSuffixDeprecatedAlias(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"iap", "localizations", "list", "--idd", "IAP_ID"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "Try:\n  --iap-id\n") {
+		t.Fatalf("expected canonical --iap-id suggestion, got %q", stderr)
+	}
+	if strings.Contains(stderr, "Try:\n  --id\n") {
+		t.Fatalf("deprecated --id alias must not be suggested, got %q", stderr)
+	}
+}
+
 func TestRun_UnknownCommandDoesNotSuggestDeprecatedSurface(t *testing.T) {
 	resetReportFlags(t)
 
@@ -1362,6 +1382,7 @@ func TestDeprecatedHelpDetectionUsesLifecycleMarkers(t *testing.T) {
 		"DEPRECATED: use --app",
 		"Deprecated alias for --app",
 		"[deprecated, ignored] Previously used this flag",
+		"In-app purchase ID, product ID, or exact current name (deprecated)",
 	} {
 		if !isDeprecatedFlagHelp(help) {
 			t.Fatalf("isDeprecatedFlagHelp(%q) = false, want true", help)
@@ -1369,7 +1390,6 @@ func TestDeprecatedHelpDetectionUsesLifecycleMarkers(t *testing.T) {
 	}
 	for _, help := range []string{
 		"Sparse fields: kidsAgeBand (deprecated by Apple; prefer age-rating data)",
-		"In-app purchase ID, product ID, or exact current name (deprecated)",
 		"not-deprecated compatibility surface",
 	} {
 		if isDeprecatedFlagHelp(help) {

@@ -66,6 +66,13 @@ func TestFlagsMatchesIdentifierShorthand(t *testing.T) {
 	}
 }
 
+func TestFlagsSuggestsQualifiedIdentifierForTypoOfID(t *testing.T) {
+	got := Flags("idd", []string{"app", "iap-id", "limit", "next"})
+	if len(got) == 0 || got[0] != "iap-id" {
+		t.Fatalf("Flags() = %v, want iap-id first", got)
+	}
+}
+
 func TestFlagsCapsSuggestionsAcrossMatchingStrategies(t *testing.T) {
 	tests := []struct {
 		name       string

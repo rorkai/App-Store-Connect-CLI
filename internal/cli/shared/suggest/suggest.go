@@ -93,7 +93,9 @@ func Flags(input string, candidates []string) []string {
 		if name == "" || name == in {
 			continue
 		}
-		if strings.HasSuffix(name, "-"+in) || strings.HasSuffix(in, "-"+name) {
+		identifierTypo := strings.HasSuffix(name, "-id") &&
+			(withinThreshold(in, levenshtein(in, "id")) || isAdjacentTransposition(in, "id"))
+		if strings.HasSuffix(name, "-"+in) || strings.HasSuffix(in, "-"+name) || identifierTypo {
 			if _, ok := seen[name]; !ok {
 				suffixMatches = append(suffixMatches, name)
 			}
