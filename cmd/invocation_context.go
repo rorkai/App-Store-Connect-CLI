@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -219,7 +218,7 @@ func commonCommandPathRecovery(root *ffcli.Command, analysis invocationAnalysis,
 		if !hasExactCommandPrefix(commandArgs, rule.invalid) {
 			continue
 		}
-		destination := resolveRecoveryDestination(root, rule.destination)
+		destination := resolveRecoveryDestination(rule.destination)
 		suffix := commandArgs[len(rule.invalid):]
 		if destination == nil || !commandSuffixUsesDefinedFlags(destination, suffix) {
 			continue
@@ -233,17 +232,13 @@ func commonCommandPathRecovery(root *ffcli.Command, analysis invocationAnalysis,
 	return "", "", false
 }
 
-func resolveRecoveryDestination(root *ffcli.Command, path []string) *ffcli.Command {
-	if destination := resolveCommandPath(root, path); destination != nil {
-		return destination
-	}
+func resolveRecoveryDestination(path []string) *ffcli.Command {
 	if len(path) == 0 {
 		return nil
 	}
 
-	// Invalid top-level paths leave the lazy command tree unmaterialized. Build
-	// only the destination factory so its real flags can be validated without
-	// rebinding parsed root flags such as --report and --report-file.
+	// Build only a fresh destination factory so value validation can use the
+	// real flag parsers without mutating the parsed command or root report state.
 	destinationRoot := &ffcli.Command{Subcommands: registry.NewCatalog("").CommandsFor(path[0])}
 	return resolveCommandPath(destinationRoot, path)
 }
@@ -279,10 +274,8 @@ func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) bool
 			if inlineValue == "" {
 				return false
 			}
-			if isBoolFlag(item) {
-				if _, err := strconv.ParseBool(inlineValue); err != nil {
-					return false
-				}
+			if err := item.Value.Set(inlineValue); err != nil {
+				return false
 			}
 			i++
 			continue
@@ -292,6 +285,9 @@ func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) bool
 			continue
 		}
 		if i+1 >= len(suffix) || suffix[i+1] == "" || strings.HasPrefix(suffix[i+1], "-") {
+			return false
+		}
+		if err := item.Value.Set(suffix[i+1]); err != nil {
 			return false
 		}
 		i += 2

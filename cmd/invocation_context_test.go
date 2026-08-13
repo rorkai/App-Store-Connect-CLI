@@ -257,6 +257,8 @@ func TestCommonCommandPathRecoveryRejectsUnsupportedSuffix(t *testing.T) {
 		{"versions", "info", "--version-id="},
 		{"versions", "info", "---version-id", "VERSION_ID"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--include-build=maybe"},
+		{"reviewsubmissions", "list", "--limit=abc"},
+		{"reviewsubmissions", "list", "--limit", "abc"},
 		{"reviewsubmissions", "list", "--unknown", "VALUE"},
 		{"testflight", "groups", "builds", "list", "--"},
 	}
@@ -275,6 +277,8 @@ func TestCommonCommandPathRecoveryAcceptsCompleteDestinationFlags(t *testing.T) 
 		{"versions", "info", "--version-id", "VERSION_ID"},
 		{"versions", "info", "--version-id=VERSION_ID"},
 		{"versions", "info", "--version-id", "VERSION_ID", "--include-build"},
+		{"reviewsubmissions", "list", "--limit=10"},
+		{"reviewsubmissions", "list", "--limit", "10"},
 	}
 
 	for _, args := range tests {

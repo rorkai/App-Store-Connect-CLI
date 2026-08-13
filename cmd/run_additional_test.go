@@ -1328,6 +1328,18 @@ func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
 			wantCommand: "asc",
 		},
 		{
+			name:        "joined review submissions with inline int",
+			args:        []string{"reviewsubmissions", "list", "--limit=10"},
+			wantStderr:  "Error: unknown command `asc reviewsubmissions list`\nTry:\n  asc review submissions list --limit=10\nFor help:\n  asc --help\n",
+			wantCommand: "asc",
+		},
+		{
+			name:        "joined review submissions with spaced int",
+			args:        []string{"reviewsubmissions", "list", "--limit", "10"},
+			wantStderr:  "Error: unknown command `asc reviewsubmissions list`\nTry:\n  asc review submissions list --limit 10\nFor help:\n  asc --help\n",
+			wantCommand: "asc",
+		},
+		{
 			name:        "groups builds list",
 			args:        []string{"testflight", "groups", "builds", "list", "--build-id", "BUILD_ID"},
 			wantStderr:  "Error: unknown command `asc testflight groups builds list`\nTry:\n  asc testflight groups list --build-id BUILD_ID\nFor help:\n  asc testflight groups --help\n",
@@ -1374,6 +1386,35 @@ func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
 				t.Fatalf("unexpected telemetry context: %+v", gotContext)
 			}
 		})
+	}
+}
+
+func TestRun_CommonWrongCommandPathDoesNotCopyInvalidTypedValues(t *testing.T) {
+	tests := [][]string{
+		{"reviewsubmissions", "list", "--limit=abc"},
+		{"reviewsubmissions", "list", "--limit", "abc"},
+	}
+	want := "Error: unknown command `asc reviewsubmissions`\n" +
+		"Try:\n" +
+		"  asc reviews\n" +
+		"  asc review\n" +
+		"For help:\n" +
+		"  asc --help\n"
+
+	for _, args := range tests {
+		resetReportFlags(t)
+		stdout, stderr := captureCommandOutput(t, func() {
+			if code := Run(args, "1.0.0"); code != ExitUsage {
+				t.Fatalf("Run(%q) exit code = %d, want %d", args, code, ExitUsage)
+			}
+		})
+
+		if stdout != "" {
+			t.Fatalf("Run(%q) stdout = %q, want empty", args, stdout)
+		}
+		if stderr != want {
+			t.Fatalf("Run(%q) stderr = %q, want %q", args, stderr, want)
+		}
 	}
 }
 
