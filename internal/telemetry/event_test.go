@@ -433,7 +433,11 @@ func TestBuildEventReusesInstallIDAcrossLocalInvocationSources(t *testing.T) {
 		env        map[string]string
 		wantSource InvocationSource
 	}{
-		{name: "Claude Code", env: map[string]string{"CLAUDECODE": "1"}, wantSource: SourceClaudeCode},
+		{
+			name:       "Claude Code",
+			env:        map[string]string{"CLAUDE_CODE_CHILD_SESSION": "1"},
+			wantSource: SourceClaudeCode,
+		},
 		{name: "Cursor Agent", env: map[string]string{"CURSOR_AGENT": "1"}, wantSource: SourceCursorAgent},
 		{
 			name:       "Codex Desktop",
@@ -480,7 +484,7 @@ func TestBuildEventOmitsInstallIDForEphemeralAgentRuntime(t *testing.T) {
 	}{
 		{
 			name:        "Claude Code in CI",
-			env:         map[string]string{"CI": "true", "CLAUDECODE": "1"},
+			env:         map[string]string{"CI": "true", "CLAUDE_CODE_CHILD_SESSION": "1"},
 			wantRuntime: RuntimeCI,
 			wantSource:  SourceClaudeCode,
 		},

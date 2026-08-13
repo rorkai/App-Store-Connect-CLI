@@ -108,8 +108,13 @@ func TestDetectInvocationSource(t *testing.T) {
 			want: SourceTerminal,
 		},
 		{
-			name: "claude code",
+			name: "claude code IDE terminal marker is not a direct child",
 			env:  map[string]string{"CLAUDECODE": "1"},
+			want: SourceTerminal,
+		},
+		{
+			name: "claude code child session",
+			env:  map[string]string{"CLAUDE_CODE_CHILD_SESSION": "1"},
 			want: SourceClaudeCode,
 		},
 		{
@@ -154,6 +159,7 @@ func clearContextEnv(t *testing.T) {
 		"OPENCODE",
 		"AGENT",
 		"CLAUDECODE",
+		"CLAUDE_CODE_CHILD_SESSION",
 		"CURSOR_AGENT",
 		"CODEX_SHELL",
 		"CODEX_THREAD_ID",

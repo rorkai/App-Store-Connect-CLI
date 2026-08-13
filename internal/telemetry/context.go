@@ -53,7 +53,7 @@ func DetectInvocationSource() InvocationSource {
 		return SourcePi
 	case envTruthy("OPENCODE"):
 		return SourceOpenCode
-	case os.Getenv("CLAUDECODE") == "1":
+	case os.Getenv("CLAUDE_CODE_CHILD_SESSION") == "1":
 		return SourceClaudeCode
 	case os.Getenv("CURSOR_AGENT") != "":
 		return SourceCursorAgent
