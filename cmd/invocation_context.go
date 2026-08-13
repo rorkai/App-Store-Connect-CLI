@@ -289,9 +289,6 @@ func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) (map
 		}
 		provided[name] = struct{}{}
 		if hasInlineValue {
-			if inlineValue == "" {
-				return nil, false
-			}
 			if err := item.Value.Set(inlineValue); err != nil {
 				return nil, false
 			}
