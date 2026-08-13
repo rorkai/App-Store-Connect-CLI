@@ -1378,24 +1378,29 @@ func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
 }
 
 func TestRun_CommonWrongCommandPathDoesNotCopyUnsupportedSuffix(t *testing.T) {
-	resetReportFlags(t)
-
-	stdout, stderr := captureCommandOutput(t, func() {
-		if code := Run([]string{
-			"versions", "info", "--version-id", "VERSION_ID", "localizations",
-		}, "1.0.0"); code != ExitUsage {
-			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
+	tests := [][]string{
+		{"versions", "info", "--version-id", "VERSION_ID", "localizations"},
+		{"versions", "info", "--version-id", "--include-build"},
+		{"versions", "info", "--version-id="},
 	}
 	want := "Error: unknown command `asc versions info`\n" +
 		"For help:\n" +
 		"  asc versions --help\n"
-	if stderr != want {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
+
+	for _, args := range tests {
+		resetReportFlags(t)
+		stdout, stderr := captureCommandOutput(t, func() {
+			if code := Run(args, "1.0.0"); code != ExitUsage {
+				t.Fatalf("Run(%q) exit code = %d, want %d", args, code, ExitUsage)
+			}
+		})
+
+		if stdout != "" {
+			t.Fatalf("Run(%q) stdout = %q, want empty", args, stdout)
+		}
+		if stderr != want {
+			t.Fatalf("Run(%q) stderr = %q, want %q", args, stderr, want)
+		}
 	}
 }
 

@@ -252,6 +252,9 @@ func TestCommonCommandPathRecoveryRejectsUnsupportedSuffix(t *testing.T) {
 	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
 	tests := [][]string{
 		{"versions", "info", "--version-id", "VERSION_ID", "localizations"},
+		{"versions", "info", "--version-id"},
+		{"versions", "info", "--version-id", "--include-build"},
+		{"versions", "info", "--version-id="},
 		{"reviewsubmissions", "list", "--unknown", "VALUE"},
 		{"testflight", "groups", "builds", "list", "--"},
 	}
@@ -259,6 +262,22 @@ func TestCommonCommandPathRecoveryRejectsUnsupportedSuffix(t *testing.T) {
 	for _, args := range tests {
 		if invalid, suggested, ok := commonCommandPathRecovery(root, analysis, args); ok {
 			t.Fatalf("commonCommandPathRecovery(%q) = (%q, %q, true), want no recovery", args, invalid, suggested)
+		}
+	}
+}
+
+func TestCommonCommandPathRecoveryAcceptsCompleteDestinationFlags(t *testing.T) {
+	root := RootCommand("1.0.0")
+	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
+	tests := [][]string{
+		{"versions", "info", "--version-id", "VERSION_ID"},
+		{"versions", "info", "--version-id=VERSION_ID"},
+		{"versions", "info", "--version-id", "VERSION_ID", "--include-build"},
+	}
+
+	for _, args := range tests {
+		if _, _, ok := commonCommandPathRecovery(root, analysis, args); !ok {
+			t.Fatalf("commonCommandPathRecovery(%q) did not recognize complete destination flags", args)
 		}
 	}
 }

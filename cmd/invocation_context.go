@@ -267,11 +267,28 @@ func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) bool
 		if token == "" || token == "--" || token == "-" || !strings.HasPrefix(token, "-") {
 			return false
 		}
-		next, consumed := consumeFlagToken(command.FlagSet, token, suffix, i)
-		if !consumed {
+
+		trimmed := strings.TrimLeft(token, "-")
+		name, inlineValue, hasInlineValue := strings.Cut(trimmed, "=")
+		item := command.FlagSet.Lookup(name)
+		if item == nil {
 			return false
 		}
-		i = next
+		if hasInlineValue {
+			if inlineValue == "" {
+				return false
+			}
+			i++
+			continue
+		}
+		if isBoolFlag(item) {
+			i++
+			continue
+		}
+		if i+1 >= len(suffix) || suffix[i+1] == "" || strings.HasPrefix(suffix[i+1], "-") {
+			return false
+		}
+		i += 2
 	}
 	return true
 }
