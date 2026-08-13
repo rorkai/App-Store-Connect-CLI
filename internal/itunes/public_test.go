@@ -81,6 +81,10 @@ func TestNonSuccessResponsesExposeHTTPStatus(t *testing.T) {
 			if got := statusError.HTTPStatusCode(); got != test.statusCode {
 				t.Fatalf("HTTPStatusCode() = %d, want %d", got, test.statusCode)
 			}
+			var storefrontError interface{ PublicStorefrontError() bool }
+			if !errors.As(err, &storefrontError) || !storefrontError.PublicStorefrontError() {
+				t.Fatalf("error %T does not retain public storefront semantics", err)
+			}
 		})
 	}
 }

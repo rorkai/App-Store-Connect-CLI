@@ -153,7 +153,7 @@ func (c *Client) GetAllRatings(
 		deadlineOnce       sync.Once
 		countryDeadlineErr error
 		httpFailureCount   int
-		representativeErr  error
+		httpFailures       = make(map[int]error)
 		results            []*AppRatings
 		appName            string
 		appIDInt           int64
@@ -196,8 +196,9 @@ func (c *Client) GetAllRatings(
 				if errors.As(err, &statusError) {
 					mu.Lock()
 					httpFailureCount++
-					if representativeErr == nil {
-						representativeErr = err
+					status := statusError.HTTPStatusCode()
+					if _, exists := httpFailures[status]; !exists {
+						httpFailures[status] = err
 					}
 					mu.Unlock()
 				}
@@ -235,7 +236,7 @@ func (c *Client) GetAllRatings(
 	}
 	if !found {
 		if httpFailureCount == len(countries) {
-			return nil, &allRatingsLookupError{appID: appID, cause: representativeErr}
+			return nil, &allRatingsLookupError{appID: appID, cause: preferredRatingsHTTPError(httpFailures)}
 		}
 		return nil, fmt.Errorf("app not found in any country: %s", appID)
 	}
@@ -274,4 +275,20 @@ func (c *Client) GetAllRatings(
 		Histogram:     histogram,
 		ByCountry:     byCountry,
 	}, nil
+}
+
+func preferredRatingsHTTPError(failures map[int]error) error {
+	selectedStatus := 0
+	var selected error
+	for status, err := range failures {
+		// Server failures take precedence over client failures because they best
+		// represent a full-storefront outage. Within a class, use the lowest
+		// status so the result is stable regardless of goroutine completion order.
+		if selected == nil || (status >= 500 && selectedStatus < 500) ||
+			(status/100 == selectedStatus/100 && status < selectedStatus) {
+			selectedStatus = status
+			selected = err
+		}
+	}
+	return selected
 }

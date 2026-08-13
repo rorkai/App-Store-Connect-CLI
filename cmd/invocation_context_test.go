@@ -23,6 +23,18 @@ func TestRuntimeFailureContextClassifiesItunesHTTPStatus(t *testing.T) {
 		wantOutcome telemetry.OutcomeKind
 	}{
 		{
+			name:        "public unauthorized response",
+			statusCode:  http.StatusUnauthorized,
+			wantKind:    telemetry.ErrorKindOther,
+			wantOutcome: telemetry.OutcomeAPIClientError,
+		},
+		{
+			name:        "public forbidden response",
+			statusCode:  http.StatusForbidden,
+			wantKind:    telemetry.ErrorKindOther,
+			wantOutcome: telemetry.OutcomeAPIClientError,
+		},
+		{
 			name:        "client error",
 			statusCode:  http.StatusTooManyRequests,
 			wantKind:    telemetry.ErrorKindOther,

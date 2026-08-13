@@ -14,3 +14,7 @@ func (e *httpStatusError) Error() string {
 func (e *httpStatusError) HTTPStatusCode() int {
 	return e.statusCode
 }
+
+func (e *httpStatusError) PublicStorefrontError() bool {
+	return true
+}

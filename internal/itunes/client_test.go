@@ -411,6 +411,49 @@ func TestGetAllRatings_AllStorefrontHTTPFailuresRetainStatus(t *testing.T) {
 	}
 }
 
+func TestGetAllRatings_MixedHTTPFailuresSelectServerStatusDeterministically(t *testing.T) {
+	tests := []struct {
+		name        string
+		firstStatus int
+		restStatus  int
+	}{
+		{name: "client finishes first", firstStatus: http.StatusTooManyRequests, restStatus: http.StatusServiceUnavailable},
+		{name: "server finishes first", firstStatus: http.StatusServiceUnavailable, restStatus: http.StatusTooManyRequests},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var requestCount atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				status := test.restStatus
+				if requestCount.Add(1) == 1 {
+					status = test.firstStatus
+				}
+				w.WriteHeader(status)
+			}))
+			defer server.Close()
+
+			client := &Client{
+				HTTPClient: &http.Client{
+					Transport: &testTransport{baseURL: server.URL},
+				},
+			}
+
+			_, err := client.GetAllRatings(context.Background(), "123", 1, context.WithCancel)
+			if err == nil {
+				t.Fatal("expected all-storefront failure")
+			}
+			var statusError interface{ HTTPStatusCode() int }
+			if !errors.As(err, &statusError) {
+				t.Fatalf("error %T does not retain HTTP status", err)
+			}
+			if got := statusError.HTTPStatusCode(); got != http.StatusServiceUnavailable {
+				t.Fatalf("HTTPStatusCode() = %d, want deterministic server status %d", got, http.StatusServiceUnavailable)
+			}
+		})
+	}
+}
+
 func TestGetAllRatings_ContextCancellation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
