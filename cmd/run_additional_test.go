@@ -211,6 +211,55 @@ func TestRun_UnknownFlagBeforeSpacedBooleanAndReportOptionsWritesJUnit(t *testin
 	}
 }
 
+func TestRun_UnknownFlagWithValueBeforeReportOptionsWritesJUnit(t *testing.T) {
+	resetReportFlags(t)
+	reportPath := filepath.Join(t.TempDir(), "result.xml")
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{
+			"--profiel", "ci",
+			"--report", "junit",
+			"--report-file", reportPath,
+			"builds", "list",
+		}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	want := "Error: unknown flag `--profiel` for `asc`\nTry:\n  --profile\nFor help:\n  asc --help\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+	data, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+	if !strings.Contains(string(data), "unknown flag `--profiel` for `asc`") {
+		t.Fatalf("report does not identify the unknown flag: %s", data)
+	}
+}
+
+func TestRun_MalformedTripleDashReportPreservesParseError(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"---report", "xml"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	want := "Error: bad flag syntax: ---report\nFor help:\n  asc --help\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+}
+
 func TestRun_InvalidReportFormatAfterUnknownFlagStillWins(t *testing.T) {
 	resetReportFlags(t)
 	reportPath := filepath.Join(t.TempDir(), "result.xml")
@@ -1133,8 +1182,9 @@ func TestRun_UnknownCommandSuggestionsAreBoundedAndTerminalSafe(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	if got := strings.Count(stderr, "\n  asc app-"); got != 2 {
-		t.Fatalf("suggestion count = %d, want 2; stderr=%q", got, stderr)
+	tryBlock, _, found := strings.Cut(strings.TrimPrefix(stderr, "Error: unknown command `asc app`\nTry:\n"), "For help:\n")
+	if !found || strings.Count(strings.TrimSpace(tryBlock), "\n") != 1 {
+		t.Fatalf("suggestion count is not 2; stderr=%q", stderr)
 	}
 
 	_, hostileStderr := captureCommandOutput(t, func() {
@@ -1148,6 +1198,23 @@ func TestRun_UnknownCommandSuggestionsAreBoundedAndTerminalSafe(t *testing.T) {
 	firstLine, _, _ := strings.Cut(hostileStderr, "\n")
 	if firstLine != "Error: unknown command `asc bad[31m  command`" {
 		t.Fatalf("unknown command line = %q", firstLine)
+	}
+}
+
+func TestRun_UnknownCommandRanksClosestPrefixBeforeSuggestionLimit(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"buil"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	if !strings.Contains(stderr, "Try:\n  asc builds\n") {
+		t.Fatalf("closest prefix was truncated from suggestions: %q", stderr)
 	}
 }
 

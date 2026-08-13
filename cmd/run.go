@@ -61,8 +61,14 @@ func Run(args []string, versionInfo string) int {
 			emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, err))
 			return ExitUsage
 		}
+		badFlagSyntax := parseErr.Error()
+		if firstLine, _, _ := strings.Cut(parseOutput.String(), "\n"); strings.HasPrefix(firstLine, "bad flag syntax:") {
+			badFlagSyntax = firstLine
+		}
 		if analysis.unknownFlag && isUnknownFlagParseFailure(parseErr, parseOutput.String()) {
 			printConciseUnknownFlag(analysis, getCommandName(root, args))
+		} else if strings.HasPrefix(badFlagSyntax, "bad flag syntax:") {
+			fmt.Fprintf(os.Stderr, "Error: %s\nFor help:\n  asc --help\n", shared.SanitizeTerminal(badFlagSyntax))
 		} else {
 			printParseFailure(parseErr, parseOutput.String(), analysis)
 		}
@@ -196,7 +202,16 @@ func recoverCIReportFlags(root *ffcli.Command, args []string) {
 			return
 		}
 
-		trimmed := strings.TrimLeft(token, "-")
+		trimmed := ""
+		switch {
+		case strings.HasPrefix(token, "--") && !strings.HasPrefix(token, "---"):
+			trimmed = token[2:]
+		case strings.HasPrefix(token, "-") && !strings.HasPrefix(token, "--"):
+			trimmed = token[1:]
+		default:
+			index++
+			continue
+		}
 		name, value, hasInlineValue := strings.Cut(trimmed, "=")
 		if name == "report" || name == "report-file" {
 			if !hasInlineValue {
@@ -227,6 +242,12 @@ func recoverCIReportFlags(root *ffcli.Command, args []string) {
 			continue
 		}
 		index++
+		if index < len(args) {
+			next := args[index]
+			if next != "" && !strings.HasPrefix(next, "-") && findDirectSubcommand(root, next) == nil {
+				index++
+			}
+		}
 	}
 }
 

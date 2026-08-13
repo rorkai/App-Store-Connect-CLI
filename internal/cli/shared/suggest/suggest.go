@@ -28,7 +28,7 @@ func Commands(input string, candidates []string) []string {
 
 		// Strong signal: prefix relationship.
 		if strings.HasPrefix(name, in) || strings.HasPrefix(in, name) {
-			collected = append(collected, candidate{name: name, score: 0, dist: 0})
+			collected = append(collected, candidate{name: name, score: 0, dist: levenshtein(in, name)})
 			continue
 		}
 
