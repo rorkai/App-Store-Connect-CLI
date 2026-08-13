@@ -4,13 +4,70 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/itunes"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/telemetry"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
+
+func TestRuntimeFailureContextClassifiesItunesHTTPStatus(t *testing.T) {
+	tests := []struct {
+		name        string
+		statusCode  int
+		wantKind    telemetry.ErrorKind
+		wantOutcome telemetry.OutcomeKind
+	}{
+		{
+			name:        "client error",
+			statusCode:  http.StatusTooManyRequests,
+			wantKind:    telemetry.ErrorKindOther,
+			wantOutcome: telemetry.OutcomeAPIClientError,
+		},
+		{
+			name:        "server error",
+			statusCode:  http.StatusServiceUnavailable,
+			wantKind:    telemetry.ErrorKindAPI5xx,
+			wantOutcome: telemetry.OutcomeAPIServerError,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(test.statusCode)
+			}))
+			defer server.Close()
+
+			client := &itunes.Client{BaseURL: server.URL, HTTPClient: server.Client()}
+			_, err := client.SearchApps(context.Background(), "focus", "us", 20)
+			if err == nil {
+				t.Fatal("expected non-success response error")
+			}
+
+			got := runtimeFailureContext(
+				invocationAnalysis{shape: telemetry.InvocationShapeLeaf},
+				err,
+				ExitError,
+			)
+			if got.ErrorKind != test.wantKind || got.FailureStage != telemetry.FailureStageRequest ||
+				got.OutcomeKind != test.wantOutcome || got.HTTPStatus != test.statusCode {
+				t.Fatalf(
+					"runtimeFailureContext() = %+v, want kind=%q stage=%q outcome=%q status=%d",
+					got,
+					test.wantKind,
+					telemetry.FailureStageRequest,
+					test.wantOutcome,
+					test.statusCode,
+				)
+			}
+		})
+	}
+}
 
 func TestRuntimeFailureContextClassifiesLowCardinalityFailures(t *testing.T) {
 	analysis := invocationAnalysis{shape: telemetry.InvocationShapeLeaf}

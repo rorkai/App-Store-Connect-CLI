@@ -2,12 +2,88 @@ package itunes
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sort"
 	"testing"
 )
+
+func TestNonSuccessResponsesExposeHTTPStatus(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		wantError  string
+		call       func(*Client) error
+	}{
+		{
+			name:       "search",
+			statusCode: http.StatusTooManyRequests,
+			wantError:  "search request returned status 429",
+			call: func(client *Client) error {
+				_, err := client.SearchApps(context.Background(), "focus", "us", 20)
+				return err
+			},
+		},
+		{
+			name:       "lookup",
+			statusCode: http.StatusServiceUnavailable,
+			wantError:  "lookup request returned status 503",
+			call: func(client *Client) error {
+				_, err := client.LookupApps(context.Background(), []string{"123"}, LookupOptions{})
+				return err
+			},
+		},
+		{
+			name:       "lookup by bundle ID",
+			statusCode: http.StatusNotFound,
+			wantError:  "lookup request returned status 404",
+			call: func(client *Client) error {
+				_, err := client.LookupAppByBundleID(
+					context.Background(),
+					"com.example.app",
+					LookupOptions{},
+				)
+				return err
+			},
+		},
+		{
+			name:       "ratings histogram",
+			statusCode: http.StatusBadGateway,
+			wantError:  "histogram request returned status 502",
+			call: func(client *Client) error {
+				return client.fetchHistogram(context.Background(), "123", "us", &AppRatings{})
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(test.statusCode)
+			}))
+			defer server.Close()
+
+			client := &Client{BaseURL: server.URL, HTTPClient: server.Client()}
+			err := test.call(client)
+			if err == nil {
+				t.Fatal("expected non-success response error")
+			}
+			if err.Error() != test.wantError {
+				t.Fatalf("error = %q, want %q", err, test.wantError)
+			}
+
+			var statusError interface{ HTTPStatusCode() int }
+			if !errors.As(err, &statusError) {
+				t.Fatalf("error %T does not expose HTTP status", err)
+			}
+			if got := statusError.HTTPStatusCode(); got != test.statusCode {
+				t.Fatalf("HTTPStatusCode() = %d, want %d", got, test.statusCode)
+			}
+		})
+	}
+}
 
 func TestNormalizeCountryCode(t *testing.T) {
 	country, err := NormalizeCountryCode(" US ")

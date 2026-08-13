@@ -144,7 +144,7 @@ func (c *Client) LookupApps(ctx context.Context, ids []string, opts LookupOption
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("lookup request returned status %d", resp.StatusCode)
+		return nil, &httpStatusError{operation: "lookup", statusCode: resp.StatusCode}
 	}
 
 	var lookup lookupResponse
@@ -229,7 +229,7 @@ func (c *Client) LookupAppByBundleID(ctx context.Context, bundleID string, opts 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("lookup request returned status %d", resp.StatusCode)
+		return nil, &httpStatusError{operation: "lookup", statusCode: resp.StatusCode}
 	}
 
 	var lookup lookupResponse

@@ -59,7 +59,7 @@ func (c *Client) SearchApps(ctx context.Context, term, country string, limit int
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("search request returned status %d", resp.StatusCode)
+		return nil, &httpStatusError{operation: "search", statusCode: resp.StatusCode}
 	}
 
 	var payload searchResponse

@@ -92,7 +92,7 @@ func (c *Client) fetchHistogram(ctx context.Context, appID, country string, rati
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("histogram request returned status %d", resp.StatusCode)
+		return &httpStatusError{operation: "histogram", statusCode: resp.StatusCode}
 	}
 
 	body, err := io.ReadAll(resp.Body)
