@@ -406,6 +406,7 @@ Examples:
   asc builds upload --app "123456789" --pkg "app.pkg" --version "1.0.0" --build-number "1"
   asc builds uploads list --app "123456789"
   asc builds test-notes list --build-id "BUILD_ID"
+  asc builds groups list --build-id "BUILD_ID"
   asc builds individual-testers list --app "123456789" --latest
   asc builds update --app "123456789" --latest --uses-non-exempt-encryption=false
   asc builds add-groups --app "123456789" --latest --group "GROUP_ID"
@@ -433,6 +434,7 @@ Examples:
 			BuildsUploadsCommand(),
 			BuildsTestNotesCommand(),
 			BuildsAppEncryptionDeclarationCommand(),
+			BuildsGroupsCommand(),
 			BuildsUpdateCommand(),
 			BuildsAddGroupsCommand(),
 			BuildsRemoveGroupsCommand(),
