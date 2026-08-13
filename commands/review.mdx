@@ -2,9 +2,8 @@
 
 > Manage App Store review details, attachments, submissions, and history
 
-The `review` command uses hyphenated leaf subcommands for app-scoped review
-status, blocker diagnosis, review details, attachments, submissions, and
-submission items.
+The `review` command provides grouped submission and item workflows alongside
+the existing hyphenated leaf commands for compatibility.
 
 ## Overview
 
@@ -20,7 +19,7 @@ asc review details-update --id "DETAIL_ID" --notes "Updated review notes"
 asc review attachments-list --review-detail "DETAIL_ID"
 asc review attachments-get --id "ATTACHMENT_ID"
 asc review attachments-upload --review-detail "DETAIL_ID" --file ./review-doc.pdf
-asc review submissions-list --app "123456789"
+asc review submissions list --app "123456789"
 asc review submissions-get --id "SUBMISSION_ID"
 asc review submissions-create --app "123456789" --platform IOS
 asc review submissions-submit --id "SUBMISSION_ID" --confirm
@@ -77,9 +76,12 @@ declarations before submission.
 
 ***
 
-### `asc review submissions-list`
+### `asc review submissions list`
 
 List review submissions for an app or globally.
+
+The existing `asc review submissions-list` command remains available with the
+same flags, output, and behavior.
 
 <ParamField path="--app" type="string">
   App Store Connect app ID (or `ASC_APP_ID`)
@@ -110,10 +112,10 @@ List review submissions for an app or globally.
 **Examples:**
 
 ```bash  theme={null}
-asc review submissions-list --app "123456789"
-asc review submissions-list --app "123456789" --platform IOS --state READY_FOR_REVIEW
-asc review submissions-list --app "123456789" --paginate
-asc review submissions-list --app "123456789" --item-fields subscriptionVersion
+asc review submissions list --app "123456789"
+asc review submissions list --app "123456789" --platform IOS --state READY_FOR_REVIEW
+asc review submissions list --app "123456789" --paginate
+asc review submissions list --app "123456789" --item-fields subscriptionVersion
 ```
 
 ***
