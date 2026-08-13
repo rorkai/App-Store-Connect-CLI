@@ -28,7 +28,7 @@ func PlanAppInfoLocalizationUpsert(
 	locale string,
 	values map[string]string,
 ) (*AppInfoLocalizationUpsertPlan, error) {
-	resolvedAppInfoID, err := ResolveAppInfoID(ctx, client, appID, appInfoID)
+	resolvedAppInfoID, err := ResolveOwnedAppInfoID(ctx, client, appID, appInfoID)
 	if err != nil {
 		return nil, err
 	}
