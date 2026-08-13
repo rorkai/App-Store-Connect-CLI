@@ -212,6 +212,19 @@ func TestSubscriptionsHelpShowsCanonicalCommerceSubcommands(t *testing.T) {
 		t.Fatalf("expected introductory offer view help to drop the unsupported id-only invocation, got %q", introductoryViewUsage)
 	}
 
+	introductoryCreateCmd := findSubcommand(root, "subscriptions", "offers", "introductory", "create")
+	if introductoryCreateCmd == nil {
+		t.Fatal("expected subscriptions offers introductory create command")
+		return
+	}
+	introductoryCreateUsage := introductoryCreateCmd.UsageFunc(introductoryCreateCmd)
+	if !strings.Contains(introductoryCreateUsage, `(--territory "USA" | --all-territories)`) {
+		t.Fatalf("expected introductory offer create help to require one territory selector, got %q", introductoryCreateUsage)
+	}
+	if strings.Contains(introductoryCreateUsage, `--territory ALL`) {
+		t.Fatalf("expected introductory offer create help to omit the deprecated ALL alias, got %q", introductoryCreateUsage)
+	}
+
 	offerCodesCmd := findSubcommand(root, "subscriptions", "offers", "offer-codes")
 	if offerCodesCmd == nil {
 		t.Fatal("expected subscriptions offers offer-codes command")

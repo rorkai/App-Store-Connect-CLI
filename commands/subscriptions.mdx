@@ -895,6 +895,7 @@ Offer discounted pricing to new subscribers.
 # Create introductory offer
 asc subscriptions offers introductory create \
   --subscription-id "SUB_ID" \
+  --territory "USA" \
   --offer-duration ONE_MONTH \
   --offer-mode FREE_TRIAL \
   --number-of-periods 1
@@ -910,7 +911,7 @@ asc subscriptions offers introductory create \
 # Preview all-territory introductory offer creation without mutating ASC
 asc subscriptions offers introductory create \
   --subscription-id "SUB_ID" \
-  --territory ALL \
+  --all-territories \
   --dry-run \
   --offer-duration ONE_MONTH \
   --offer-mode FREE_TRIAL \
