@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -13,8 +14,8 @@ import (
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
-var listDeveloperAppGroupsFn = func(ctx context.Context, client *webcore.Client) (*webcore.DeveloperAppGroupsListResult, error) {
-	return client.ListDeveloperAppGroups(ctx)
+var listDeveloperAppGroupsFn = func(ctx context.Context, client *webcore.Client, options webcore.DeveloperAppGroupsListOptions) (*webcore.DeveloperAppGroupsListResult, error) {
+	return client.ListDeveloperAppGroups(ctx, options)
 }
 
 var createDeveloperAppGroupFn = func(ctx context.Context, client *webcore.Client, request webcore.DeveloperAppGroupCreateRequest) (*webcore.DeveloperAppGroup, error) {
@@ -58,13 +59,17 @@ Examples:
 // WebAppGroupsListCommand lists App Groups for the selected Developer Portal team.
 func WebAppGroupsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("web app-groups list", flag.ExitOnError)
+	paginate := fs.Bool("paginate", false, "Fetch all pages")
 	authFlags := bindWebSessionFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "list",
 		ShortUsage: "asc web app-groups list [flags]",
 		ShortHelp:  "List App Groups via a Developer Portal web session.",
-		LongHelp: `List every App Group visible to the selected Apple Developer team.
+		LongHelp: `List App Groups visible to the selected Apple Developer team.
+
+By default, the command fetches the first page. Pass --paginate to fetch every
+page.
 
 The ID column is Apple's opaque App Group resource ID. Pass that value to
 "asc web app-groups assign --group".
@@ -83,11 +88,11 @@ Example:
 			if err != nil {
 				return withWebAuthHint(err, "web app-groups list")
 			}
-			result, err := listDeveloperAppGroupsFn(requestCtx, newWebClientFn(session))
+			result, err := listDeveloperAppGroupsFn(requestCtx, newWebClientFn(session), webcore.DeveloperAppGroupsListOptions{Paginate: *paginate})
 			if err != nil {
 				return withWebAuthHint(err, "web app-groups list")
 			}
-			_ = persistWebSessionFn(session)
+			persistDeveloperAppGroupSession(session)
 			return shared.PrintOutputWithRenderers(
 				result,
 				*output.Output,
@@ -149,7 +154,7 @@ Example:
 			if result == nil {
 				return fmt.Errorf("web app-groups create failed: missing create result")
 			}
-			_ = persistWebSessionFn(session)
+			persistDeveloperAppGroupSession(session)
 			return shared.PrintOutputWithRenderers(
 				result,
 				*output.Output,
@@ -212,7 +217,7 @@ Example:
 			if result == nil {
 				return fmt.Errorf("web app-groups assign failed: missing assign result")
 			}
-			_ = persistWebSessionFn(session)
+			persistDeveloperAppGroupSession(session)
 			return shared.PrintOutputWithRenderers(
 				result,
 				*output.Output,
@@ -221,6 +226,12 @@ Example:
 				func() error { return renderDeveloperAppGroupAssignMarkdown(result) },
 			)
 		},
+	}
+}
+
+func persistDeveloperAppGroupSession(session *webcore.AuthSession) {
+	if err := persistWebSessionFn(session); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to persist refreshed web session: %v\n", err)
 	}
 }
 

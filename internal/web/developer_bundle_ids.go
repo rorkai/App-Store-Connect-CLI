@@ -13,8 +13,8 @@ import (
 
 const (
 	developerPortalBaseURL   = "https://developer.apple.com"
-	developerPortalTeamsURL  = developerPortalBaseURL + "/services-account/QH65B2/account/listTeams.action"
-	developerServicesBaseURL = developerPortalBaseURL + "/services-account/v1"
+	developerPortalTeamsPath = "/services-account/QH65B2/account/listTeams.action"
+	developerServicesPath    = "/services-account/v1"
 	privateCloudCompute      = "PRIVATE_CLOUD_COMPUTE"
 	developerPortalAuthHint  = "run 'asc web auth logout --apple-id EMAIL', then 'asc web auth login --apple-id EMAIL', and try again"
 )
@@ -210,7 +210,7 @@ func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 	headers := developerPortalHeaders("")
 	headers.Set("Accept", "application/json, text/javascript, */*; q=0.01")
 	headers.Set("Content-Type", "application/x-www-form-urlencoded")
-	body, response, err := c.doDeveloperPortalHTTP(ctx, http.MethodPost, developerPortalTeamsURL, nil, headers)
+	body, response, err := c.doDeveloperPortalHTTP(ctx, http.MethodPost, c.developerPortalOrigin()+developerPortalTeamsPath, nil, headers)
 	if err != nil {
 		return err
 	}
@@ -221,7 +221,11 @@ func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return &APIError{Status: response.StatusCode, AppleRequestID: extractAppleRequestID(response.Header), rawBody: body}
 	}
-	if response.Request != nil && response.Request.URL != nil && !strings.EqualFold(response.Request.URL.Hostname(), "developer.apple.com") {
+	portalURL, parseErr := url.Parse(c.developerPortalOrigin())
+	if parseErr != nil {
+		return fmt.Errorf("invalid Developer Portal base URL: %w", parseErr)
+	}
+	if response.Request != nil && response.Request.URL != nil && !strings.EqualFold(response.Request.URL.Hostname(), portalURL.Hostname()) {
 		return fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", response.Request.URL.Hostname(), developerPortalAuthHint)
 	}
 
@@ -571,6 +575,13 @@ func developerPortalHeaders(bundleID string) http.Header {
 	return headers
 }
 
+func (c *Client) developerPortalOrigin() string {
+	if c != nil && strings.TrimSpace(c.developerPortalURL) != "" {
+		return strings.TrimRight(strings.TrimSpace(c.developerPortalURL), "/")
+	}
+	return developerPortalBaseURL
+}
+
 func (c *Client) doDeveloperPortalProxyRead(ctx context.Context, path string, query url.Values, headers http.Header) ([]byte, error) {
 	// Developer Portal's cookie-authenticated v1 API proxies logical GETs as
 	// POSTs carrying the team and encoded query in the request body.
@@ -598,7 +609,7 @@ func (c *Client) doDeveloperPortalRequest(ctx context.Context, method, path stri
 			return nil, fmt.Errorf("missing Developer Portal CSRF headers; %s", developerPortalAuthHint)
 		}
 	}
-	responseBody, response, err := c.doDeveloperPortalHTTP(ctx, method, developerServicesBaseURL+path, body, headers)
+	responseBody, response, err := c.doDeveloperPortalHTTP(ctx, method, c.developerPortalOrigin()+developerServicesPath+path, body, headers)
 	if err != nil {
 		return nil, err
 	}

@@ -67,7 +67,7 @@ func TestWebAppGroupsValidationErrors(t *testing.T) {
 func TestWebAppGroupsListOutputsJSON(t *testing.T) {
 	restore, cleanup := stubWebAppGroupsDependencies(t)
 	defer cleanup()
-	listDeveloperAppGroupsFn = func(context.Context, *webcore.Client) (*webcore.DeveloperAppGroupsListResult, error) {
+	listDeveloperAppGroupsFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupsListOptions) (*webcore.DeveloperAppGroupsListResult, error) {
 		return &webcore.DeveloperAppGroupsListResult{Data: []webcore.DeveloperAppGroup{{ID: "GROUP1", Name: "Shared", Identifier: "group.com.example.shared"}}}, nil
 	}
 	defer restore()
@@ -105,6 +105,56 @@ func TestWebAppGroupsListOutputsJSON(t *testing.T) {
 		if !strings.Contains(stdout, expected) {
 			t.Fatalf("table output %q does not contain %q", stdout, expected)
 		}
+	}
+}
+
+func TestWebAppGroupsListPropagatesPagination(t *testing.T) {
+	restore, cleanup := stubWebAppGroupsDependencies(t)
+	defer cleanup()
+	defer restore()
+
+	var received webcore.DeveloperAppGroupsListOptions
+	listDeveloperAppGroupsFn = func(_ context.Context, _ *webcore.Client, options webcore.DeveloperAppGroupsListOptions) (*webcore.DeveloperAppGroupsListResult, error) {
+		received = options
+		return &webcore.DeveloperAppGroupsListResult{Data: []webcore.DeveloperAppGroup{}}, nil
+	}
+	command := WebAppGroupsListCommand()
+	if err := command.FlagSet.Parse([]string{"--paginate", "--output", "json"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	_, _ = captureWebCommandOutput(t, func() {
+		if err := command.Exec(context.Background(), nil); err != nil {
+			t.Fatalf("Exec() error: %v", err)
+		}
+	})
+	if !received.Paginate {
+		t.Fatal("Paginate = false, want true")
+	}
+}
+
+func TestWebAppGroupsWarnsWhenRefreshedSessionCannotBePersisted(t *testing.T) {
+	restore, cleanup := stubWebAppGroupsDependencies(t)
+	defer cleanup()
+	defer restore()
+
+	listDeveloperAppGroupsFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupsListOptions) (*webcore.DeveloperAppGroupsListResult, error) {
+		return &webcore.DeveloperAppGroupsListResult{Data: []webcore.DeveloperAppGroup{{ID: "GROUP1", Name: "Shared", Identifier: "group.com.example.shared"}}}, nil
+	}
+	persistWebSessionFn = func(*webcore.AuthSession) error { return errors.New("disk full") }
+	command := WebAppGroupsListCommand()
+	if err := command.FlagSet.Parse([]string{"--output", "json"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	stdout, stderr := captureWebCommandOutput(t, func() {
+		if err := command.Exec(context.Background(), nil); err != nil {
+			t.Fatalf("Exec() error: %v", err)
+		}
+	})
+	if !strings.Contains(stdout, `"id":"GROUP1"`) {
+		t.Fatalf("successful output missing from stdout: %q", stdout)
+	}
+	if !strings.Contains(stderr, "failed to persist refreshed web session") || !strings.Contains(stderr, "disk full") {
+		t.Fatalf("persistence warning missing from stderr: %q", stderr)
 	}
 }
 

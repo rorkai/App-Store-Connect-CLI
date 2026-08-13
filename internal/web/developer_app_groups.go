@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	developerPortalLegacyBaseURL     = developerPortalBaseURL + "/services-account/QH65B2"
+	developerPortalLegacyPath        = "/services-account/QH65B2"
 	developerAppGroupsListPath       = "/account/ios/identifiers/listApplicationGroups.action"
 	developerAppGroupsCreatePath     = "/account/ios/identifiers/addApplicationGroup.action"
 	developerAppGroupsPageSize       = 500
@@ -27,9 +27,14 @@ type DeveloperAppGroup struct {
 	Status     string `json:"status,omitempty"`
 }
 
-// DeveloperAppGroupsListResult contains every App Group visible to the selected team.
+// DeveloperAppGroupsListResult contains App Groups visible to the selected team.
 type DeveloperAppGroupsListResult struct {
 	Data []DeveloperAppGroup `json:"data"`
+}
+
+// DeveloperAppGroupsListOptions controls App Group list pagination.
+type DeveloperAppGroupsListOptions struct {
+	Paginate bool
 }
 
 // DeveloperAppGroupCreateRequest registers an App Group identifier.
@@ -81,7 +86,7 @@ type developerAppGroupCreateResponse struct {
 }
 
 // ListDeveloperAppGroups lists App Groups through the selected Developer Portal team.
-func (c *Client) ListDeveloperAppGroups(ctx context.Context) (*DeveloperAppGroupsListResult, error) {
+func (c *Client) ListDeveloperAppGroups(ctx context.Context, options DeveloperAppGroupsListOptions) (*DeveloperAppGroupsListResult, error) {
 	if err := c.ensureDeveloperPortalSession(ctx); err != nil {
 		return nil, err
 	}
@@ -117,7 +122,7 @@ func (c *Client) ListDeveloperAppGroups(ctx context.Context) (*DeveloperAppGroup
 			result.Data = append(result.Data, decoded)
 		}
 
-		if len(page.ApplicationGroupList) == 0 || page.TotalRecords <= len(result.Data) {
+		if !options.Paginate || len(page.ApplicationGroupList) == 0 || page.TotalRecords <= len(result.Data) {
 			break
 		}
 	}
@@ -257,17 +262,17 @@ func validateDeveloperAppGroupIdentifier(identifier string) error {
 		return fmt.Errorf("identifier is required")
 	}
 	if !strings.HasPrefix(identifier, "group.") {
-		return fmt.Errorf("App Group identifier must start with group.")
+		return fmt.Errorf("app group identifier must use the group. prefix")
 	}
 	if strings.ContainsAny(identifier, " \t\r\n") {
-		return fmt.Errorf("App Group identifier must not contain whitespace")
+		return fmt.Errorf("app group identifier must not contain whitespace")
 	}
 	return nil
 }
 
 func validateDeveloperPortalLegacyResponse(response developerPortalLegacyResponse) error {
 	if response.ResultCode == nil {
-		return fmt.Errorf("Developer Portal response is missing resultCode")
+		return fmt.Errorf("developer portal response is missing resultCode")
 	}
 	if *response.ResultCode == 0 {
 		return nil
@@ -280,9 +285,9 @@ func validateDeveloperPortalLegacyResponse(response developerPortalLegacyRespons
 		message = "unknown Developer Portal error"
 	}
 	if response.RequestID != "" {
-		return fmt.Errorf("Developer Portal request failed (result code %d, request ID %s): %s", *response.ResultCode, response.RequestID, message)
+		return fmt.Errorf("developer portal request failed (result code %d, request ID %s): %s", *response.ResultCode, response.RequestID, message)
 	}
-	return fmt.Errorf("Developer Portal request failed (result code %d): %s", *response.ResultCode, message)
+	return fmt.Errorf("developer portal request failed (result code %d): %s", *response.ResultCode, message)
 }
 
 func (c *Client) doDeveloperPortalLegacyFormRequest(ctx context.Context, path string, values url.Values, requireCSRF bool) ([]byte, error) {
@@ -299,7 +304,7 @@ func (c *Client) doDeveloperPortalLegacyFormRequest(ctx context.Context, path st
 	if requireCSRF && (csrf == "" || csrfTS == "") {
 		return nil, fmt.Errorf("missing Developer Portal CSRF headers; %s", developerPortalAuthHint)
 	}
-	body, response, err := c.doDeveloperPortalHTTP(ctx, http.MethodPost, developerPortalLegacyBaseURL+path, values, headers)
+	body, response, err := c.doDeveloperPortalHTTP(ctx, http.MethodPost, c.developerPortalOrigin()+developerPortalLegacyPath+path, values, headers)
 	if err != nil {
 		return nil, err
 	}

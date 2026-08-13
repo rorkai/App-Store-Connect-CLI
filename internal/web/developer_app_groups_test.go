@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/cookiejar"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -44,7 +44,7 @@ func TestListDeveloperAppGroupsUsesPortalFormEndpoint(t *testing.T) {
 		}
 	})
 
-	result, err := client.ListDeveloperAppGroups(context.Background())
+	result, err := client.ListDeveloperAppGroups(context.Background(), DeveloperAppGroupsListOptions{})
 	if err != nil {
 		t.Fatalf("ListDeveloperAppGroups() error: %v", err)
 	}
@@ -124,12 +124,37 @@ func TestListDeveloperAppGroupsPaginates(t *testing.T) {
 		}
 	})
 
-	result, err := client.ListDeveloperAppGroups(context.Background())
+	result, err := client.ListDeveloperAppGroups(context.Background(), DeveloperAppGroupsListOptions{Paginate: true})
 	if err != nil {
 		t.Fatalf("ListDeveloperAppGroups() error: %v", err)
 	}
 	if len(result.Data) != 2 || result.Data[1].ID != "GROUP2" {
 		t.Fatalf("unexpected paginated result: %+v", result)
+	}
+}
+
+func TestListDeveloperAppGroupsStopsAfterFirstPageByDefault(t *testing.T) {
+	client := newDeveloperAppGroupsTestClient(t, func(requestNumber int, request *http.Request) (*http.Response, error) {
+		switch requestNumber {
+		case 1:
+			return assertDeveloperPortalBootstrap(t, request), nil
+		case 2:
+			return developerPortalTestResponse(http.StatusOK, `{
+				"resultCode":0,"pageNumber":1,"pageSize":1,"totalRecords":2,
+				"applicationGroupList":[{"name":"Group 1","identifier":"group.com.example.1","applicationGroup":"GROUP1"}]
+			}`, nil), nil
+		default:
+			t.Fatalf("default list fetched unexpected request %d", requestNumber)
+			return nil, nil
+		}
+	})
+
+	result, err := client.ListDeveloperAppGroups(context.Background(), DeveloperAppGroupsListOptions{})
+	if err != nil {
+		t.Fatalf("ListDeveloperAppGroups() error: %v", err)
+	}
+	if len(result.Data) != 1 || result.Data[0].ID != "GROUP1" {
+		t.Fatalf("unexpected first-page result: %+v", result)
 	}
 }
 
@@ -155,7 +180,7 @@ func TestDeveloperAppGroupsRejectsMalformedSuccessEnvelope(t *testing.T) {
 		return developerPortalTestResponse(http.StatusOK, `{"applicationGroupList":[]}`, nil), nil
 	})
 
-	_, err := client.ListDeveloperAppGroups(context.Background())
+	_, err := client.ListDeveloperAppGroups(context.Background(), DeveloperAppGroupsListOptions{})
 	if err == nil || !strings.Contains(err.Error(), "missing resultCode") {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -169,7 +194,7 @@ func TestDeveloperAppGroupsSurfacesHTTPError(t *testing.T) {
 		return developerPortalTestResponse(http.StatusInternalServerError, `{"error":"portal unavailable"}`, http.Header{"X-Apple-Request-UUID": {"apple-request-1"}}), nil
 	})
 
-	_, err := client.ListDeveloperAppGroups(context.Background())
+	_, err := client.ListDeveloperAppGroups(context.Background(), DeveloperAppGroupsListOptions{})
 	if err == nil || !strings.Contains(err.Error(), "500") {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -275,15 +300,35 @@ func TestAssignDeveloperAppGroupIsIdempotent(t *testing.T) {
 
 func newDeveloperAppGroupsTestClient(t *testing.T, handler func(int, *http.Request) (*http.Response, error)) *Client {
 	t.Helper()
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		t.Fatalf("cookiejar.New() error: %v", err)
-	}
 	requestNumber := 0
-	return &Client{httpClient: &http.Client{Jar: jar, Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		requestNumber++
-		return handler(requestNumber, request)
-	})}}
+		response, err := handler(requestNumber, request)
+		if err != nil {
+			t.Errorf("test Developer Portal handler: %v", err)
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if response == nil {
+			t.Error("test Developer Portal handler returned a nil response")
+			http.Error(writer, "missing test response", http.StatusInternalServerError)
+			return
+		}
+		for name, values := range response.Header {
+			for _, value := range values {
+				writer.Header().Add(name, value)
+			}
+		}
+		writer.WriteHeader(response.StatusCode)
+		if response.Body != nil {
+			defer func() { _ = response.Body.Close() }()
+			if _, err := io.Copy(writer, response.Body); err != nil {
+				t.Errorf("write test Developer Portal response: %v", err)
+			}
+		}
+	}))
+	t.Cleanup(server.Close)
+	return &Client{httpClient: server.Client(), developerPortalURL: server.URL}
 }
 
 func assertDeveloperPortalBootstrap(t *testing.T, request *http.Request) *http.Response {

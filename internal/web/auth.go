@@ -152,8 +152,9 @@ const (
 
 // Client is an internal web API client using a web session cookie jar.
 type Client struct {
-	httpClient *http.Client
-	baseURL    string
+	httpClient         *http.Client
+	baseURL            string
+	developerPortalURL string
 
 	developerSessionMu sync.Mutex
 	developerCSRF      string
