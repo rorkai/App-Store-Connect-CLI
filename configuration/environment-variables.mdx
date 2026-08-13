@@ -104,6 +104,14 @@ These variables apply only to `asc ads`. They do not replace `ASC_KEY_ID`,
 
 These variables configure default values for apps, vendors, and other resources.
 
+<ParamField path="ASC_SIGNING_SYNC_PASSWORD" type="string">
+  Encryption password for `asc signing sync push` and `asc signing sync pull`.
+
+  Prefer `--password-file` on developer machines. The older
+  `ASC_MATCH_PASSWORD` variable remains compatible through 4.x with a
+  deprecation warning and will be rejected in 5.0.0.
+</ParamField>
+
 <ParamField path="ASC_APP_ID" type="string">
   Default app ID for commands that accept `--app`
 </ParamField>

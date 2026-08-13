@@ -71,12 +71,168 @@ func TestGitStoreWriteAndReadEncryptedFileRoundTrip(t *testing.T) {
 		t.Fatal("encrypted file should not match plaintext bytes")
 	}
 
-	got, err := store.ReadEncryptedFile(relPath, password)
+	got, metadata, err := store.ReadEncryptedFileWithMetadata(relPath, password)
 	if err != nil {
-		t.Fatalf("ReadEncryptedFile: %v", err)
+		t.Fatalf("ReadEncryptedFileWithMetadata: %v", err)
 	}
 	if !bytes.Equal(got, plaintext) {
 		t.Fatalf("decrypted output mismatch: got %q, want %q", got, plaintext)
+	}
+	if metadata.Version != 0 {
+		t.Fatalf("legacy signing asset metadata = %#v", metadata)
+	}
+}
+
+func TestGitStoreWriteEncryptedFileWithMetadataCreatesExclusivePrivateFile(t *testing.T) {
+	store := &GitStore{LocalDir: t.TempDir()}
+	relPath := filepath.Join("identities", "distribution", "ABC.p12")
+	metadata := EncryptedFileMetadata{Kind: "pkcs12-identity", Sensitive: true}
+
+	if err := store.WriteEncryptedFileWithMetadata(relPath, []byte("identity"), "password", metadata); err != nil {
+		t.Fatalf("WriteEncryptedFileWithMetadata() error = %v", err)
+	}
+	path := filepath.Join(store.LocalDir, relPath+".enc")
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("mode = %o, want 600", info.Mode().Perm())
+	}
+	if err := store.WriteEncryptedFileWithMetadata(relPath, []byte("replacement"), "password", metadata); err == nil || !errors.Is(err, os.ErrExist) {
+		t.Fatalf("replacement error = %v, want existing-file refusal", err)
+	}
+	plaintext, gotMetadata, err := store.ReadEncryptedFileWithMetadata(relPath, "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(plaintext) != "identity" || gotMetadata.Kind != "pkcs12-identity" || !gotMetadata.Sensitive {
+		t.Fatalf("stored artifact changed: plaintext=%q metadata=%#v", plaintext, gotMetadata)
+	}
+}
+
+func TestGitStoreWriteEncryptedFileWithMetadataRejectsSymlinkedParent(t *testing.T) {
+	store := &GitStore{LocalDir: t.TempDir()}
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(store.LocalDir, "identities")); err != nil {
+		t.Fatal(err)
+	}
+	err := store.WriteEncryptedFileWithMetadata(filepath.Join("identities", "identity.p12"), []byte("secret"), "password", EncryptedFileMetadata{Kind: "pkcs12-identity", Sensitive: true})
+	if err == nil || !strings.Contains(err.Error(), "symlink") {
+		t.Fatalf("error = %v, want symlink refusal", err)
+	}
+	if _, err := os.Stat(filepath.Join(outside, "identity.p12.enc")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("write escaped through symlink: %v", err)
+	}
+}
+
+func TestGitStoreReadEncryptedFileWithMetadataRejectsOversizedArtifact(t *testing.T) {
+	store := &GitStore{LocalDir: t.TempDir()}
+	relPath := filepath.Join("identities", "distribution", "ABC.p12")
+	path := filepath.Join(store.LocalDir, relPath+".enc")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Truncate(maxEncryptedFileSize + 1); err != nil {
+		_ = file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := store.ReadEncryptedFileWithMetadata(relPath, "password"); err == nil || !strings.Contains(err.Error(), "size limit") {
+		t.Fatalf("ReadEncryptedFileWithMetadata() error = %v, want size limit", err)
+	}
+}
+
+func TestGitStoreReadEncryptedFileWithMetadataCanonicalizesCrossPlatformPath(t *testing.T) {
+	store := &GitStore{LocalDir: t.TempDir()}
+	localPath := filepath.Join("identities", "distribution", "ABC.p12")
+	encrypted, err := EncryptFile([]byte("identity"), "password", EncryptedFileMetadata{
+		Kind:         "pkcs12-identity",
+		RelativePath: `identities\distribution\ABC.p12`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(store.LocalDir, localPath+".enc")
+	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(destination, encrypted, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	plaintext, metadata, err := store.ReadEncryptedFileWithMetadata(localPath, "password")
+	if err != nil {
+		t.Fatalf("cross-platform metadata path rejected: %v", err)
+	}
+	if string(plaintext) != "identity" || canonicalEncryptedRepositoryPath(metadata.RelativePath) != "identities/distribution/ABC.p12" {
+		t.Fatalf("plaintext=%q metadata=%#v", plaintext, metadata)
+	}
+}
+
+func TestGitStoreListEncryptedFilesRejectsLiteralBackslashPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("backslash is a path separator on Windows")
+	}
+	store := &GitStore{LocalDir: t.TempDir()}
+	if err := os.WriteFile(filepath.Join(store.LocalDir, `identities\distribution\ABC.p12.enc`), []byte("ciphertext"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.ListEncryptedFiles(); err == nil || !strings.Contains(err.Error(), "non-portable backslash") {
+		t.Fatalf("ListEncryptedFiles() error = %v", err)
+	}
+}
+
+func TestGitStoreListEncryptedFilesRejectsControlAndBidiPaths(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows rejects some control characters at filesystem creation")
+	}
+	for name, hostile := range map[string]string{
+		"newline": "bad\nname.enc",
+		"escape":  "bad\x1bname.enc",
+		"bidi":    "bad\u202ename.enc",
+	} {
+		t.Run(name, func(t *testing.T) {
+			store := &GitStore{LocalDir: t.TempDir()}
+			if err := os.WriteFile(filepath.Join(store.LocalDir, hostile), []byte("ciphertext"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := store.ListEncryptedFiles(); err == nil || !strings.Contains(err.Error(), "control characters") {
+				t.Fatalf("ListEncryptedFiles() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestGitStoreListEncryptedFilesRejectsSymlinkFileAndDirectory(t *testing.T) {
+	for _, directory := range []bool{false, true} {
+		name := "file"
+		if directory {
+			name = "directory"
+		}
+		t.Run(name, func(t *testing.T) {
+			store := &GitStore{LocalDir: t.TempDir()}
+			target := t.TempDir()
+			link := filepath.Join(store.LocalDir, "identity-contexts")
+			if !directory {
+				target = filepath.Join(target, "context.enc")
+				if err := os.WriteFile(target, []byte("ciphertext"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				link += ".enc"
+			}
+			if err := os.Symlink(target, link); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := store.ListEncryptedFiles(); err == nil || !strings.Contains(err.Error(), "symlink") {
+				t.Fatalf("ListEncryptedFiles() error = %v", err)
+			}
+		})
 	}
 }
 
@@ -87,7 +243,7 @@ func TestGitStoreWriteEncryptedFileRejectsPathEscape(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected path escape error, got nil")
 	}
-	if !strings.Contains(err.Error(), "escapes base directory") {
+	if !strings.Contains(err.Error(), "escapes") {
 		t.Fatalf("expected path escape error, got %v", err)
 	}
 }
@@ -170,7 +326,7 @@ func TestGitStoreReadEncryptedFileRejectsSymlink(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected symlink rejection error, got nil")
 	}
-	if !strings.Contains(err.Error(), "refusing to read symlink") {
+	if !strings.Contains(err.Error(), "symlink") {
 		t.Fatalf("expected symlink rejection error, got %v", err)
 	}
 }
@@ -203,7 +359,7 @@ func TestGitStoreReadEncryptedFileRejectsSymlinkedParentDirectory(t *testing.T) 
 	}
 }
 
-func TestGitStoreListEncryptedFilesSkipsGitDirAndSymlinks(t *testing.T) {
+func TestGitStoreListEncryptedFilesSkipsGitDir(t *testing.T) {
 	store := &GitStore{LocalDir: t.TempDir()}
 
 	if err := os.MkdirAll(filepath.Join(store.LocalDir, ".git"), 0o755); err != nil {
@@ -228,13 +384,6 @@ func TestGitStoreListEncryptedFilesSkipsGitDirAndSymlinks(t *testing.T) {
 	write(filepath.Join("nested", "child.enc"))
 	write(filepath.Join(".git", "ignored.enc"))
 
-	if err := os.Symlink(filepath.Join(store.LocalDir, "root.enc"), filepath.Join(store.LocalDir, "symlink.enc")); err != nil {
-		t.Fatalf("create file symlink: %v", err)
-	}
-	if err := os.Symlink(filepath.Join(store.LocalDir, "nested"), filepath.Join(store.LocalDir, "linked-dir")); err != nil {
-		t.Fatalf("create dir symlink: %v", err)
-	}
-
 	got, err := store.ListEncryptedFiles()
 	if err != nil {
 		t.Fatalf("ListEncryptedFiles: %v", err)
@@ -253,12 +402,6 @@ func TestGitStoreListEncryptedFilesSkipsGitDirAndSymlinks(t *testing.T) {
 	}
 	if gotSet[".git/ignored"] {
 		t.Fatalf("did not expect .git file in list, got %v", got)
-	}
-	if gotSet["symlink"] {
-		t.Fatalf("did not expect symlink file in list, got %v", got)
-	}
-	if gotSet["linked-dir/child"] {
-		t.Fatalf("did not expect symlinked directory contents in list, got %v", got)
 	}
 }
 
@@ -717,6 +860,48 @@ func TestNewGitCommandIgnoresInheritedRepositorySelectors(t *testing.T) {
 	}
 }
 
+func TestNewGitCommandScrubsSigningSyncPasswordsFromGitAndHooks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake executable scripts require a POSIX shell")
+	}
+	binDir := t.TempDir()
+	hook := filepath.Join(binDir, "fake-hook")
+	capture := filepath.Join(t.TempDir(), "hook-environment.txt")
+	writeTestExecutable(t, hook, `#!/bin/sh
+set -eu
+if [ -n "${ASC_SIGNING_SYNC_PASSWORD-}" ] || [ -n "${ASC_MATCH_PASSWORD-}" ]; then
+  exit 41
+fi
+printf '%s' "$ASC_GIT_REQUIRED_CANARY" > "$ASC_FAKE_GIT_CAPTURE"
+`)
+	writeTestExecutable(t, filepath.Join(binDir, "git"), `#!/bin/sh
+set -eu
+"$ASC_FAKE_GIT_HOOK"
+`)
+
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("ASC_SIGNING_SYNC_PASSWORD", "CANARY-NEW-PASSWORD")
+	t.Setenv("ASC_MATCH_PASSWORD", "CANARY-LEGACY-PASSWORD")
+	t.Setenv("ASC_GIT_REQUIRED_CANARY", "required-environment-preserved")
+	t.Setenv("ASC_FAKE_GIT_CAPTURE", capture)
+	t.Setenv("ASC_FAKE_GIT_HOOK", hook)
+
+	cmd, err := newGitCommand(context.Background(), "", "status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("fake Git/hook rejected environment: %v", err)
+	}
+	got, err := os.ReadFile(capture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "required-environment-preserved" {
+		t.Fatalf("required environment = %q", got)
+	}
+}
+
 func TestRunTestGitIsolatesRepositoryEnvironment(t *testing.T) {
 	sentinelRepository := filepath.Join(t.TempDir(), "sentinel")
 	targetRepository := filepath.Join(t.TempDir(), "target")
@@ -864,6 +1049,22 @@ func TestGitEnvironmentWithoutRepositorySelectorsMatchesWindowsKeysCaseInsensiti
 	}
 	if !slices.Equal(environment, want) {
 		t.Fatalf("gitEnvironmentWithoutRepositorySelectors() = %v, want %v", environment, want)
+	}
+}
+
+func TestGitEnvironmentWithoutSigningSyncPasswordsMatchesWindowsKeysCaseInsensitively(t *testing.T) {
+	environment := gitEnvironmentWithoutSigningSyncPasswords([]string{
+		"PATH=C:\\Windows\\System32",
+		"asc_signing_sync_password=NEW-CANARY",
+		"Asc_Match_Password=LEGACY-CANARY",
+		`GIT_CONFIG_GLOBAL=C:\config\gitconfig`,
+	}, "windows")
+	want := []string{
+		"PATH=C:\\Windows\\System32",
+		`GIT_CONFIG_GLOBAL=C:\config\gitconfig`,
+	}
+	if !slices.Equal(environment, want) {
+		t.Fatalf("gitEnvironmentWithoutSigningSyncPasswords() = %v, want %v", environment, want)
 	}
 }
 

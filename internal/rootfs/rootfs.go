@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -296,6 +297,30 @@ func (r Root) ReadFile(name string) ([]byte, error) {
 	return io.ReadAll(file)
 }
 
+// ReadFileLimited reads at most limit bytes from a regular file beneath the
+// root. It rejects, rather than truncates, files that exceed the limit.
+func (r Root) ReadFileLimited(name string, limit int64) ([]byte, error) {
+	if limit < 0 {
+		return nil, fmt.Errorf("read limit must not be negative")
+	}
+	file, err := r.OpenFile(name)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	if limit == math.MaxInt64 {
+		return io.ReadAll(file)
+	}
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("%q exceeds the %d-byte size limit", name, limit)
+	}
+	return data, nil
+}
+
 // ReadFileOptional reads a regular file beneath the root and reports whether it
 // exists. A missing file is not an error; a symlinked path still is.
 func (r Root) ReadFileOptional(name string) ([]byte, bool, error) {
@@ -514,16 +539,65 @@ func (r Root) CheckWriteFilePreservingMode(name string) error {
 	return nil
 }
 
-// CreateNewFile writes data to a new file beneath the root and fails when the
-// destination already exists.
-func (r Root) CreateNewFile(name string, data []byte, perm os.FileMode) error {
-	resolved, err := r.prepareWrite(name)
+// CheckCreateNewFile performs the non-mutating checks required before
+// CreateNewFile publishes a destination. Missing parents are accepted because
+// the eventual rooted write creates them; existing files and symlinks are not.
+func (r Root) CheckCreateNewFile(name string) error {
+	resolved, err := r.Resolve(name)
 	if err != nil {
 		return err
 	}
-	parent, base, err := r.openParentRooted(resolved)
+	if resolved == r.path {
+		return fmt.Errorf("%w: %q is the trusted root itself", ErrEscapesRoot, name)
+	}
+	if err := r.checkParentComponents(resolved); err != nil {
+		return err
+	}
+	info, err := os.Lstat(resolved)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
 	if err != nil {
 		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return symlinkError(resolved)
+	}
+	return fmt.Errorf("%q already exists: %w", resolved, os.ErrExist)
+}
+
+// CheckFileParent validates a future file path and all existing parent
+// components without requiring the final destination name to be absent.
+func (r Root) CheckFileParent(name string) error {
+	resolved, err := r.Resolve(name)
+	if err != nil {
+		return err
+	}
+	if resolved == r.path {
+		return fmt.Errorf("%w: %q is the trusted root itself", ErrEscapesRoot, name)
+	}
+	return r.checkParentComponents(resolved)
+}
+
+// CreateNewFile atomically writes data to a new file beneath the root and fails
+// when the destination already exists.
+func (r Root) CreateNewFile(name string, data []byte, perm os.FileMode) error {
+	_, err := r.CreateNewFrom(name, bytes.NewReader(data), perm)
+	return err
+}
+
+// CreateNewFrom atomically publishes reader's complete contents as a new file
+// beneath the root. It stages an unpredictable no-follow file in the same
+// directory, syncs and closes it, then uses an atomic no-replace rename. A read,
+// write, sync, close, or publish failure leaves an existing destination intact.
+func (r Root) CreateNewFrom(name string, reader io.Reader, perm os.FileMode) (int64, error) {
+	resolved, err := r.prepareWrite(name)
+	if err != nil {
+		return 0, err
+	}
+	parent, base, err := r.openParentRooted(resolved)
+	if err != nil {
+		return 0, err
 	}
 	defer parent.Close()
 
@@ -531,25 +605,45 @@ func (r Root) CreateNewFile(name string, data []byte, perm os.FileMode) error {
 	switch {
 	case err == nil:
 		if info.Mode()&os.ModeSymlink != 0 {
-			return symlinkError(resolved)
+			return 0, symlinkError(resolved)
 		}
-		return fmt.Errorf("%q already exists: %w", resolved, os.ErrExist)
+		return 0, fmt.Errorf("%q already exists: %w", resolved, os.ErrExist)
 	case !errors.Is(err, os.ErrNotExist):
-		return err
+		return 0, err
 	}
 	if r.afterValidationForTest != nil {
 		r.afterValidationForTest()
 	}
 
-	file, err := secureopen.OpenNewFileNoFollowInRoot(parent, base, perm)
+	file, temporaryName, err := secureopen.CreateTempNoFollowInRoot(parent, ".", temporaryFilePattern, perm)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	if _, writeErr := file.Write(data); writeErr != nil {
+	published := false
+	defer func() {
 		_ = file.Close()
-		return writeErr
+		if !published {
+			_ = parent.Remove(temporaryName)
+		}
+	}()
+	if err := file.Chmod(perm); err != nil {
+		return 0, err
 	}
-	return file.Close()
+	written, err := io.Copy(file, reader)
+	if err != nil {
+		return written, err
+	}
+	if err := file.Sync(); err != nil {
+		return written, err
+	}
+	if err := file.Close(); err != nil {
+		return written, err
+	}
+	if err := secureopen.RenameNoReplaceInRoot(parent, temporaryName, base); err != nil {
+		return written, err
+	}
+	published = true
+	return written, nil
 }
 
 // AppendFile appends data to a file beneath the root, creating it when missing,

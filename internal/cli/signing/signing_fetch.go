@@ -245,6 +245,7 @@ type signingAssetsOptions struct {
 	CreateMissing      bool
 	BeforeCreate       func(profileCreatePlan) error
 	CreateContext      func() (context.Context, context.CancelFunc)
+	CertificateFilter  func(asc.Resource[asc.CertificateAttributes]) bool
 }
 
 // profileCreatePlan describes the profile that is about to be created so callers
@@ -292,6 +293,11 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 		profile := &asc.ProfileResponse{Data: profileResource}
 		certificates, err := findProfileCertificates(ctx, client, profile.Data.ID, certificateType)
 		if err == nil {
+			certificates.Data = filterSigningCertificates(certificates.Data, options.CertificateFilter)
+			if len(certificates.Data) == 0 {
+				certificateMatchErr = fmt.Errorf("profile %s has no associated certificate matching the local signing identity: %w", profile.Data.ID, errNoMatchingProfileCertificates)
+				continue
+			}
 			return profile, certificates, false, nil
 		}
 		if !errors.Is(err, errNoMatchingProfileCertificates) {
@@ -315,6 +321,7 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 	if err != nil {
 		return nil, nil, false, err
 	}
+	certificates.Data = filterSigningCertificates(certificates.Data, options.CertificateFilter)
 	certificates.Data = certificatesForProfileCreation(certificates.Data, options.ProfileType, time.Now())
 	if len(certificates.Data) == 0 {
 		return nil, nil, false, fmt.Errorf(
@@ -352,6 +359,19 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 		return nil, nil, false, err
 	}
 	return profile, certificates, true, nil
+}
+
+func filterSigningCertificates(certificates []asc.Resource[asc.CertificateAttributes], filter func(asc.Resource[asc.CertificateAttributes]) bool) []asc.Resource[asc.CertificateAttributes] {
+	if filter == nil {
+		return certificates
+	}
+	filtered := make([]asc.Resource[asc.CertificateAttributes], 0, len(certificates))
+	for _, certificate := range certificates {
+		if filter(certificate) {
+			filtered = append(filtered, certificate)
+		}
+	}
+	return filtered
 }
 
 func certificatesForProfileCreation(certificates []asc.Resource[asc.CertificateAttributes], profileType string, now time.Time) []asc.Resource[asc.CertificateAttributes] {

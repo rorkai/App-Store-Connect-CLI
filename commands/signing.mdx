@@ -180,6 +180,69 @@ asc signing fetch --bundle-id com.example.app \
 
 If `--create-missing` is not specified and no matching profile exists, the command will fail with an error suggesting you use this flag.
 
+## Sync a usable private identity
+
+App Store Connect returns certificates and provisioning profiles, but it does
+not return the private key needed to sign an app. Provide the local private
+identity explicitly when pushing to an encrypted signing repository:
+
+```bash  theme={null}
+chmod 600 ~/.config/asc/signing-sync-password ./distribution.p12 ./distribution-p12-password
+
+asc signing sync push \
+  --bundle-id com.example.app \
+  --profile-type IOS_APP_ADHOC \
+  --repo git@github.com:team/signing.git \
+  --password-file ~/.config/asc/signing-sync-password \
+  --identity ./distribution.p12 \
+  --identity-password-file ./distribution-p12-password
+```
+
+Use `--private-key ./distribution-key.pem` instead of `--identity` when the
+local input is an RSA or EC private key. The CLI matches that key to the active
+certificate associated with the selected profile; provide that certificate's
+SHA-256 fingerprint with `--identity-sha256`. If a PKCS#12 contains multiple
+private identities, the same flag selects one certificate fingerprint:
+
+```bash  theme={null}
+asc signing sync push \
+  --bundle-id com.example.app \
+  --profile-type IOS_APP_ADHOC \
+  --repo git@github.com:team/signing.git \
+  --identity ./identities.p12 \
+  --identity-sha256 A1B2C3D4E5F60718293A4B5C6D7E8F90112233445566778899AABBCCDDEEFF00 \
+  --identity-password-file ./identity-password
+```
+
+The synced identity is normalized to one password-protected PKCS#12 and stored
+encrypted under `identities/<development-or-distribution>/<certificate-sha256>.p12.enc`.
+The team-wide identity is stored once and authenticated context records bind it
+to each bundle/profile and exact verified provisioning-profile use. Pulling
+decrypts it with mode `0600` and reports it under `sensitiveFiles` in JSON:
+
+```bash  theme={null}
+asc signing sync pull \
+  --repo git@github.com:team/signing.git \
+  --password-file ~/.config/asc/signing-sync-password \
+  --output-dir ./signing \
+  --output json
+```
+
+Certificate/profile-only sync remains supported and reports
+`identityPresent: false`. It does not produce a usable signing identity.
+
+Private identity sync currently rejects `MAC_APP_DIRECT` and
+`MAC_CATALYST_APP_DIRECT` before reading local identity data. Omit
+`--identity`/`--private-key` to continue using certificate/profile-only sync for
+those profile types.
+
+Use a generated high-entropy sync password: it protects both the scrypt/AES-GCM
+repository envelope and the pulled modern PKCS#12 interchange file.
+
+`--password` and `ASC_MATCH_PASSWORD` remain available during the 4.x
+transition, but print a deprecation warning. Migrate to `--password-file` or
+`ASC_SIGNING_SYNC_PASSWORD`; the legacy sources will be rejected in 5.0.0.
+
 ## Output Files
 
 Files are saved to the output directory with sanitized names:
@@ -203,14 +266,20 @@ File names are based on profile name/ID and certificate serial numbers.
 
 ### App Store Submission
 
+`signing fetch` downloads only the public certificate and provisioning profile.
+It can support a build only when the matching private key is already installed
+in the selected keychain. To share a usable identity, use `signing sync push`
+with `--identity`, then `signing sync pull`; importing the pulled P12 remains an
+explicit operator step until the ephemeral-keychain workflow lands.
+
 ```bash  theme={null}
 # 1. Fetch App Store signing files
 asc signing fetch --bundle-id com.example.app \
   --profile-type IOS_APP_STORE \
   --output ./signing
 
-# 2. Install certificate in keychain
-security import ./signing/*.cer -k ~/Library/Keychains/login.keychain-db
+# 2. Verify the matching private signing identity is already installed
+security find-identity -v -p codesigning ~/Library/Keychains/login.keychain-db
 
 # 3. Install provisioning profile
 cp ./signing/*.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
@@ -236,31 +305,27 @@ asc signing fetch --bundle-id com.example.app \
   --output ./signing \
   --create-missing
 
-# 3. Install files
-security import ./signing/*.cer -k ~/Library/Keychains/login.keychain-db
+# 3. Install the profile; the matching private identity must already be in the keychain
 cp ./signing/*.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
 ```
 
 ### CI/CD Integration
 
 ```yaml  theme={null}
-# GitHub Actions example
-- name: Fetch signing files
+# GitHub Actions example. Provision the matching private identity into the
+# temporary keychain through your CI secret manager before the build.
+- name: Fetch public signing files
   run: |
     asc signing fetch \
       --bundle-id com.example.app \
       --profile-type IOS_APP_STORE \
       --output ./signing
 
-- name: Import certificate
+- name: Prepare keychain for a pre-provisioned private identity
   run: |
     security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
     security default-keychain -s build.keychain
     security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-    security import ./signing/*.cer \
-      -k build.keychain \
-      -P "" \
-      -T /usr/bin/codesign
     security set-key-partition-list -S apple-tool:,apple: \
       -s -k "$KEYCHAIN_PASSWORD" build.keychain
 
