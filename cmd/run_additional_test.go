@@ -1288,20 +1288,65 @@ func TestRun_UnknownCommandDoesNotSuggestDeprecatedSurface(t *testing.T) {
 	}
 }
 
-func TestIsDeprecatedHelpUsesStandaloneMarker(t *testing.T) {
+func TestDeprecatedHelpDetectionUsesLifecycleMarkers(t *testing.T) {
 	for _, help := range []string{
 		"DEPRECATED: use --app",
 		"Deprecated alias for --app",
-		"Manage deprecated product-scoped images.",
+		"[deprecated, ignored] Previously used this flag",
 	} {
-		if !isDeprecatedHelp(help) {
-			t.Fatalf("isDeprecatedHelp(%q) = false, want true", help)
+		if !isDeprecatedFlagHelp(help) {
+			t.Fatalf("isDeprecatedFlagHelp(%q) = false, want true", help)
 		}
 	}
-	for _, help := range []string{"Manage current images.", "not-deprecated compatibility surface"} {
-		if isDeprecatedHelp(help) {
-			t.Fatalf("isDeprecatedHelp(%q) = true, want false", help)
+	for _, help := range []string{
+		"Sparse fields: kidsAgeBand (deprecated by Apple; prefer age-rating data)",
+		"In-app purchase ID, product ID, or exact current name (deprecated)",
+		"not-deprecated compatibility surface",
+	} {
+		if isDeprecatedFlagHelp(help) {
+			t.Fatalf("isDeprecatedFlagHelp(%q) = true, want false", help)
 		}
+	}
+
+	for _, help := range []string{
+		"DEPRECATED: use `asc iap versions images`.",
+		"Manage deprecated product-scoped images.",
+		"Manage subscription availability (deprecated by Apple).",
+	} {
+		if !isDeprecatedCommandHelp(help) {
+			t.Fatalf("isDeprecatedCommandHelp(%q) = false, want true", help)
+		}
+	}
+	for _, help := range []string{
+		"Submit a version that replaces a deprecated resource.",
+		"Manage current images.",
+		"not-deprecated compatibility surface",
+	} {
+		if isDeprecatedCommandHelp(help) {
+			t.Fatalf("isDeprecatedCommandHelp(%q) = true, want false", help)
+		}
+	}
+}
+
+func TestRun_DeprecationMentionsRemainSuggestionCandidates(t *testing.T) {
+	resetReportFlags(t)
+
+	_, commandStderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"iap", "versions", "subimt"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+	if !strings.Contains(commandStderr, "Try:\n  asc iap versions submit\n") {
+		t.Fatalf("stable command with deprecation context must remain suggestible, got %q", commandStderr)
+	}
+
+	_, flagStderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"apps", "list", "--app-info-field", "kidsAgeBand"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+	if !strings.Contains(flagStderr, "Try:\n  --app-info-fields\n") {
+		t.Fatalf("stable flag with deprecation context must remain suggestible, got %q", flagStderr)
 	}
 }
 

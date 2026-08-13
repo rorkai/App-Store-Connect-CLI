@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -23,8 +22,6 @@ type invocationAnalysis struct {
 	unknownToken string
 	unknownFlag  bool
 }
-
-var deprecatedHelpMarker = regexp.MustCompile(`(?i)(^|[^[:alnum:]_-])deprecated([^[:alnum:]_-]|$)`)
 
 func analyzeInvocation(root *ffcli.Command, args []string) invocationAnalysis {
 	current := root
@@ -118,7 +115,7 @@ func printConciseUnknownFlag(analysis invocationAnalysis, commandName string) {
 	visibleFlags := shared.VisibleHelpFlags(analysis.command.FlagSet)
 	candidates := make([]string, 0, len(visibleFlags))
 	for _, item := range visibleFlags {
-		if isDeprecatedHelp(item.Usage) {
+		if isDeprecatedFlagHelp(item.Usage) {
 			continue
 		}
 		candidates = append(candidates, item.Name)
@@ -163,7 +160,7 @@ func visibleSubcommandNames(command *ffcli.Command) []string {
 	}
 	names := make([]string, 0, len(command.Subcommands))
 	for _, subcommand := range command.Subcommands {
-		if subcommand == nil || isDeprecatedHelp(subcommand.ShortHelp) || isDeprecatedHelp(subcommand.LongHelp) {
+		if subcommand == nil || isDeprecatedCommandHelp(subcommand.ShortHelp) {
 			continue
 		}
 		names = append(names, subcommand.Name)
@@ -171,8 +168,16 @@ func visibleSubcommandNames(command *ffcli.Command) []string {
 	return names
 }
 
-func isDeprecatedHelp(help string) bool {
-	return deprecatedHelpMarker.MatchString(help)
+func isDeprecatedFlagHelp(help string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(help))
+	return strings.HasPrefix(normalized, "deprecated") || strings.HasPrefix(normalized, "[deprecated")
+}
+
+func isDeprecatedCommandHelp(help string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(help))
+	return strings.HasPrefix(normalized, "deprecated") ||
+		strings.HasPrefix(normalized, "manage deprecated ") ||
+		strings.HasSuffix(normalized, "(deprecated by apple).")
 }
 
 func preservesLegacyChild(analysis invocationAnalysis, commandName string) bool {
