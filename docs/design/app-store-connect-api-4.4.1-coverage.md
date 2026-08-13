@@ -956,7 +956,6 @@ review items-list
 review items-update
 review submissions-get
 review submissions-list
-review submissions list
 review submissions-update
 schema
 subscriptions groups list

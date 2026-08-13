@@ -23,8 +23,8 @@ func ReviewSubmissionsCommand() *ffcli.Command {
 	return &ffcli.Command{
 		Name:       "submissions",
 		ShortUsage: "asc review submissions <subcommand> [flags]",
-		ShortHelp:  "Manage App Store review submissions.",
-		LongHelp: `Manage App Store review submissions.
+		ShortHelp:  "[experimental] Manage App Store review submissions.",
+		LongHelp: `[experimental] Manage App Store review submissions.
 
 Examples:
   asc review submissions list --app "123456789"
@@ -43,10 +43,14 @@ Examples:
 // ReviewSubmissionsNestedListCommand exposes the existing list implementation
 // under the discoverable `review submissions list` path.
 func ReviewSubmissionsNestedListCommand() *ffcli.Command {
-	cmd := ReviewSubmissionsListCommand()
+	cmd := shared.RewriteCommandTreePath(
+		ReviewSubmissionsListCommand(),
+		"asc review submissions-list",
+		"asc review submissions list",
+	)
 	cmd.Name = "list"
-	cmd.ShortUsage = "asc review submissions list [flags]"
-	cmd.LongHelp = strings.ReplaceAll(cmd.LongHelp, "asc review submissions-list", "asc review submissions list")
+	cmd.ShortHelp = "[experimental] " + cmd.ShortHelp
+	cmd.LongHelp = "[experimental] " + cmd.LongHelp
 	return cmd
 }
 

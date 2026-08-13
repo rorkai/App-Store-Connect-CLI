@@ -116,11 +116,27 @@ func TestReviewSubmissionsNestedListMatchesFlatAPIError(t *testing.T) {
 		response,
 	)
 
-	if !reflect.DeepEqual(flat, nested) {
+	if flat.stdout != nested.stdout || flat.stderr != nested.stderr || flat.method != nested.method || flat.path != nested.path || flat.rawQuery != nested.rawQuery {
 		t.Fatalf("flat result = %+v, nested result = %+v", flat, nested)
 	}
 	if flat.stdout != "" || !strings.Contains(flat.err, "review submissions-list") || !strings.Contains(flat.err, "Not allowed") {
 		t.Fatalf("unexpected API failure result: %+v", flat)
+	}
+	if !strings.Contains(nested.err, "review submissions list") || strings.Contains(nested.err, "review submissions-list") || !strings.Contains(nested.err, "Not allowed") {
+		t.Fatalf("unexpected nested API failure result: %+v", nested)
+	}
+}
+
+func TestReviewSubmissionsNestedListIsExperimental(t *testing.T) {
+	root := RootCommand("1.2.3")
+	for _, path := range [][]string{{"review", "submissions"}, {"review", "submissions", "list"}} {
+		cmd := findSubcommand(root, path...)
+		if cmd == nil {
+			t.Fatalf("command %v not found", path)
+		}
+		if !strings.HasPrefix(cmd.ShortHelp, "[experimental]") {
+			t.Fatalf("command %v ShortHelp = %q, want [experimental] prefix", path, cmd.ShortHelp)
+		}
 	}
 }
 
