@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -213,6 +214,10 @@ func isDeprecatedCommandHelp(help string) bool {
 }
 
 func commonCommandPathRecovery(root *ffcli.Command, analysis invocationAnalysis, args []string) (string, string, bool) {
+	return commonCommandPathRecoveryForOS(root, analysis, args, runtime.GOOS)
+}
+
+func commonCommandPathRecoveryForOS(root *ffcli.Command, analysis invocationAnalysis, args []string, goos string) (string, string, bool) {
 	if analysis.shape != telemetry.InvocationShapeUnknownChild {
 		return "", "", false
 	}
@@ -239,7 +244,11 @@ func commonCommandPathRecovery(root *ffcli.Command, analysis invocationAnalysis,
 		suggestedArgs := recoverySuggestedRootArgs(root, args[:commandStart])
 		suggestedArgs = append(suggestedArgs, rule.destination...)
 		suggestedArgs = append(suggestedArgs, suffix...)
-		return invalid, renderSuggestedCommand(suggestedArgs), true
+		suggested, ok := renderSuggestedCommandForOS(suggestedArgs, goos)
+		if !ok {
+			continue
+		}
+		return invalid, suggested, true
 	}
 	return "", "", false
 }
@@ -534,13 +543,31 @@ func hasExactCommandPrefix(args, prefix []string) bool {
 	return true
 }
 
-func renderSuggestedCommand(args []string) string {
+func renderSuggestedCommandForOS(args []string, goos string) (string, bool) {
 	rendered := make([]string, 0, len(args)+1)
 	rendered = append(rendered, "asc")
 	for _, arg := range args {
+		if goos == "windows" && !isWindowsRecoverySafeArg(arg) {
+			return "", false
+		}
 		rendered = append(rendered, shellSafeCommandArg(arg))
 	}
-	return strings.Join(rendered, " ")
+	return strings.Join(rendered, " "), true
+}
+
+func isWindowsRecoverySafeArg(arg string) bool {
+	if arg == "" {
+		return false
+	}
+	for _, r := range arg {
+		isASCIILetterOrDigit := (r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9')
+		if !isASCIILetterOrDigit && !strings.ContainsRune("_+=:./-", r) {
+			return false
+		}
+	}
+	return true
 }
 
 func shellSafeCommandArg(arg string) string {

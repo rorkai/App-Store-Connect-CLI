@@ -468,6 +468,61 @@ func TestCommonCommandPathRecoveryRendersSuffixForSafeShellCopy(t *testing.T) {
 	}
 }
 
+func TestRenderSuggestedCommandForWindowsUsesOnlyPortableUnquotedArgs(t *testing.T) {
+	got, ok := renderSuggestedCommandForOS([]string{
+		"versions", "view", "--version-id", "ABC_123", "--next=https://example.com/v1/builds", "--include=build+app",
+	}, "windows")
+	if !ok {
+		t.Fatal("renderSuggestedCommandForOS() rejected portable Windows arguments")
+	}
+	want := "asc versions view --version-id ABC_123 --next=https://example.com/v1/builds --include=build+app"
+	if got != want {
+		t.Fatalf("renderSuggestedCommandForOS() = %q, want %q", got, want)
+	}
+}
+
+func TestRenderSuggestedCommandForWindowsRejectsShellDependentArgs(t *testing.T) {
+	for _, arg := range []string{
+		"", "Team Profile", "100%", "bang!", "quote'", `double"quote`, "a&b", "a|b", "a<b", "a>b",
+		"caret^", "(group)", "@splat", "a,b", "C:\\path", "line\nbreak", "café",
+	} {
+		if got, ok := renderSuggestedCommandForOS([]string{"versions", "view", "--version-id", arg}, "windows"); ok {
+			t.Fatalf("renderSuggestedCommandForOS(%q) = %q, true; want rejection", arg, got)
+		}
+	}
+}
+
+func TestCommonCommandPathRecoveryForWindowsRequiresPortableArgs(t *testing.T) {
+	root := RootCommand("1.0.0")
+	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
+
+	_, suggested, ok := commonCommandPathRecoveryForOS(root, analysis, []string{
+		"versions", "info", "--version-id", "VERSION_ID",
+	}, "windows")
+	if !ok || suggested != "asc versions view --version-id VERSION_ID" {
+		t.Fatalf("portable Windows recovery = (%q, %t), want exact semantic retry", suggested, ok)
+	}
+
+	for _, value := range []string{"VERSION ID", "", "100%", `C:\\version`} {
+		if invalid, suggested, ok := commonCommandPathRecoveryForOS(root, analysis, []string{
+			"versions", "info", "--version-id", value,
+		}, "windows"); ok {
+			t.Fatalf("Windows recovery for %q = (%q, %q, true), want generic fallback", value, invalid, suggested)
+		}
+	}
+}
+
+func TestRenderSuggestedCommandForPOSIXPreservesQuotedArgs(t *testing.T) {
+	got, ok := renderSuggestedCommandForOS([]string{"--profile", "Team Profile", "versions", "view", "--include", ""}, "darwin")
+	if !ok {
+		t.Fatal("renderSuggestedCommandForOS() rejected POSIX quoted arguments")
+	}
+	want := "asc --profile 'Team Profile' versions view --include ''"
+	if got != want {
+		t.Fatalf("renderSuggestedCommandForOS() = %q, want %q", got, want)
+	}
+}
+
 func TestParseFailureContextClassifiesUnknownChildAsOther(t *testing.T) {
 	got := parseFailureContext(invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild})
 
