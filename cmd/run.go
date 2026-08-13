@@ -216,6 +216,13 @@ func recoverCIReportFlags(root *ffcli.Command, args []string) {
 		}
 
 		if next, consumed := consumeFlagToken(root.FlagSet, token, args, index); consumed {
+			if !hasInlineValue {
+				if item := root.FlagSet.Lookup(name); item != nil && isBoolFlag(item) && next < len(args) {
+					if _, err := strconv.ParseBool(strings.TrimSpace(args[next])); err == nil {
+						next++
+					}
+				}
+			}
 			index = next
 			continue
 		}

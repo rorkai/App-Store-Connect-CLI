@@ -179,6 +179,38 @@ func TestRun_UnknownFlagBetweenCompleteReportOptionsWritesJUnit(t *testing.T) {
 	}
 }
 
+func TestRun_UnknownFlagBeforeSpacedBooleanAndReportOptionsWritesJUnit(t *testing.T) {
+	resetReportFlags(t)
+	reportPath := filepath.Join(t.TempDir(), "result.xml")
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{
+			"--bogus",
+			"--strict-auth", "false",
+			"--report", "junit",
+			"--report-file", reportPath,
+			"builds", "list",
+		}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	want := "Error: unknown flag `--bogus` for `asc`\nFor help:\n  asc --help\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+	data, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error: %v", err)
+	}
+	if !strings.Contains(string(data), "unknown flag `--bogus` for `asc`") {
+		t.Fatalf("report does not identify the unknown flag: %s", data)
+	}
+}
+
 func TestRun_InvalidReportFormatAfterUnknownFlagStillWins(t *testing.T) {
 	resetReportFlags(t)
 	reportPath := filepath.Join(t.TempDir(), "result.xml")
