@@ -91,8 +91,7 @@ func shouldRenderConciseUnknownChild(root *ffcli.Command, analysis invocationAna
 }
 
 func printConciseUnknownCommand(analysis invocationAnalysis, commandName string) {
-	unknown := shared.SanitizeTerminal(analysis.unknownToken)
-	fmt.Fprintf(os.Stderr, "Error: unknown command `%s %s`\n", commandName, unknown)
+	fmt.Fprintf(os.Stderr, "Error: %s\n", unknownCommandError(analysis, commandName))
 
 	candidates := visibleSubcommandNames(analysis.command)
 	suggestions := suggest.Commands(analysis.unknownToken, candidates)
@@ -110,13 +109,8 @@ func printConciseUnknownCommand(analysis invocationAnalysis, commandName string)
 }
 
 func printConciseUnknownFlag(analysis invocationAnalysis, commandName string) {
-	flagName := strings.SplitN(analysis.unknownToken, "=", 2)[0]
-	fmt.Fprintf(
-		os.Stderr,
-		"Error: unknown flag `%s` for `%s`\n",
-		shared.SanitizeTerminal(flagName),
-		commandName,
-	)
+	flagName := unknownFlagName(analysis)
+	fmt.Fprintf(os.Stderr, "Error: %s\n", unknownFlagError(analysis, commandName))
 
 	visibleFlags := shared.VisibleHelpFlags(analysis.command.FlagSet)
 	candidates := make([]string, 0, len(visibleFlags))
@@ -138,6 +132,26 @@ func printConciseUnknownFlag(analysis invocationAnalysis, commandName string) {
 	}
 	fmt.Fprintln(os.Stderr, "For help:")
 	fmt.Fprintf(os.Stderr, "  %s --help\n", commandName)
+}
+
+func unknownCommandError(analysis invocationAnalysis, commandName string) error {
+	return fmt.Errorf(
+		"unknown command `%s %s`",
+		commandName,
+		shared.SanitizeTerminal(analysis.unknownToken),
+	)
+}
+
+func unknownFlagName(analysis invocationAnalysis) string {
+	return strings.SplitN(analysis.unknownToken, "=", 2)[0]
+}
+
+func unknownFlagError(analysis invocationAnalysis, commandName string) error {
+	return fmt.Errorf(
+		"unknown flag `%s` for `%s`",
+		shared.SanitizeTerminal(unknownFlagName(analysis)),
+		commandName,
+	)
 }
 
 func visibleSubcommandNames(command *ffcli.Command) []string {

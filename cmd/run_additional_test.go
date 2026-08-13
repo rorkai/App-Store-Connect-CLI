@@ -330,7 +330,10 @@ func TestRun_UnknownChildWritesJUnitReport(t *testing.T) {
 	var suite struct {
 		Failures  int `xml:"failures,attr"`
 		TestCases []struct {
-			Name string `xml:"name,attr"`
+			Name    string `xml:"name,attr"`
+			Failure struct {
+				Message string `xml:"message,attr"`
+			} `xml:"failure"`
 		} `xml:"testcase"`
 	}
 	if err := xml.Unmarshal(data, &suite); err != nil {
@@ -342,6 +345,9 @@ func TestRun_UnknownChildWritesJUnitReport(t *testing.T) {
 	if len(suite.TestCases) != 1 || suite.TestCases[0].Name != "asc builds" {
 		t.Fatalf("unexpected testcase payload: %+v", suite.TestCases)
 	}
+	if suite.TestCases[0].Failure.Message != "unknown command `asc builds lsit`" {
+		t.Fatalf("failure message = %q", suite.TestCases[0].Failure.Message)
+	}
 }
 
 func TestRun_UnknownFlagWritesJUnitReport(t *testing.T) {
@@ -352,7 +358,7 @@ func TestRun_UnknownFlagWritesJUnitReport(t *testing.T) {
 		if code := Run([]string{
 			"--report", "junit",
 			"--report-file", reportPath,
-			"builds", "list", "--ap", "APP_ID",
+			"builds", "list", "--ap=PRIVATE_VALUE",
 		}, "1.0.0"); code != ExitUsage {
 			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
 		}
@@ -366,7 +372,10 @@ func TestRun_UnknownFlagWritesJUnitReport(t *testing.T) {
 	var suite struct {
 		Failures  int `xml:"failures,attr"`
 		TestCases []struct {
-			Name string `xml:"name,attr"`
+			Name    string `xml:"name,attr"`
+			Failure struct {
+				Message string `xml:"message,attr"`
+			} `xml:"failure"`
 		} `xml:"testcase"`
 	}
 	if err := xml.Unmarshal(data, &suite); err != nil {
@@ -377,6 +386,33 @@ func TestRun_UnknownFlagWritesJUnitReport(t *testing.T) {
 	}
 	if len(suite.TestCases) != 1 || suite.TestCases[0].Name != "asc builds list" {
 		t.Fatalf("unexpected testcase payload: %+v", suite.TestCases)
+	}
+	if suite.TestCases[0].Failure.Message != "unknown flag `--ap` for `asc builds list`" {
+		t.Fatalf("failure message = %q", suite.TestCases[0].Failure.Message)
+	}
+	if strings.Contains(string(data), "PRIVATE_VALUE") {
+		t.Fatalf("report leaked an inline flag value: %s", data)
+	}
+}
+
+func TestUnknownInputJUnitErrorsAreTerminalSafe(t *testing.T) {
+	commandErr := unknownCommandError(
+		invocationAnalysis{unknownToken: "bad\x1b[31m\r\n"},
+		"asc builds",
+	)
+	if got, want := commandErr.Error(), "unknown command `asc builds bad[31m  `"; got != want {
+		t.Fatalf("unknown command error = %q, want %q", got, want)
+	}
+	if strings.ContainsAny(commandErr.Error(), "\x1b\r\n") {
+		t.Fatalf("unknown command report error contains terminal controls: %q", commandErr)
+	}
+
+	flagErr := unknownFlagError(
+		invocationAnalysis{unknownToken: "--ap=PRIVATE_VALUE\x1b[31m"},
+		"asc builds list",
+	)
+	if got, want := flagErr.Error(), "unknown flag `--ap` for `asc builds list`"; got != want {
+		t.Fatalf("unknown flag error = %q, want %q", got, want)
 	}
 }
 

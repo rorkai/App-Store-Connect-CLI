@@ -68,7 +68,8 @@ func Run(args []string, versionInfo string) int {
 		// Every non-help error returned by command-tree parsing is invalid usage,
 		// including NoExecError cases that do not write flag output.
 		if analysis.unknownFlag && isUnknownFlagParseFailure(parseErr, parseOutput.String()) {
-			writeUsageJUnitReport(getCommandName(root, args))
+			commandName := getCommandName(root, args)
+			writeUsageJUnitReport(commandName, unknownFlagError(analysis, commandName))
 		}
 		emitImmediateTelemetry(args, root, versionInfo, parseFailureContext(analysis))
 		return ExitUsage
@@ -99,7 +100,7 @@ func Run(args []string, versionInfo string) int {
 	commandName := getCommandName(root, args)
 	if shouldRenderConciseUnknownChild(root, analysis, commandName) {
 		printConciseUnknownCommand(analysis, commandName)
-		writeUsageJUnitReport(commandName)
+		writeUsageJUnitReport(commandName, unknownCommandError(analysis, commandName))
 		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, flag.ErrHelp))
 		return ExitUsage
 	}
@@ -505,11 +506,11 @@ func isBoolFlag(f *flag.Flag) bool {
 	return ok && v.IsBoolFlag()
 }
 
-func writeUsageJUnitReport(commandName string) {
+func writeUsageJUnitReport(commandName string, usageErr error) {
 	if shared.ReportFormat() != shared.ReportFormatJUnit || shared.ReportFile() == "" {
 		return
 	}
-	if err := writeJUnitReport(commandName, flag.ErrHelp, 0); err != nil {
+	if err := writeJUnitReport(commandName, usageErr, 0); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to write JUnit report: %v\n", err)
 	}
 }
