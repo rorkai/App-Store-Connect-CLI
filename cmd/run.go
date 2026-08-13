@@ -69,7 +69,10 @@ func Run(args []string, versionInfo string) int {
 		// including NoExecError cases that do not write flag output.
 		if analysis.unknownFlag && isUnknownFlagParseFailure(parseErr, parseOutput.String()) {
 			commandName := getCommandName(root, args)
-			writeUsageJUnitReport(commandName, unknownFlagError(analysis, commandName))
+			if err := writeUsageJUnitReport(commandName, unknownFlagError(analysis, commandName)); err != nil {
+				printUsageJUnitReportFailure(commandName, versionInfo, analysis, err)
+				return ExitError
+			}
 		}
 		emitImmediateTelemetry(args, root, versionInfo, parseFailureContext(analysis))
 		return ExitUsage
@@ -100,7 +103,10 @@ func Run(args []string, versionInfo string) int {
 	commandName := getCommandName(root, args)
 	if shouldRenderConciseUnknownChild(root, analysis, commandName) {
 		printConciseUnknownCommand(analysis, commandName)
-		writeUsageJUnitReport(commandName, unknownCommandError(analysis, commandName))
+		if err := writeUsageJUnitReport(commandName, unknownCommandError(analysis, commandName)); err != nil {
+			printUsageJUnitReportFailure(commandName, versionInfo, analysis, err)
+			return ExitError
+		}
 		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, flag.ErrHelp))
 		return ExitUsage
 	}
@@ -506,13 +512,21 @@ func isBoolFlag(f *flag.Flag) bool {
 	return ok && v.IsBoolFlag()
 }
 
-func writeUsageJUnitReport(commandName string, usageErr error) {
+func writeUsageJUnitReport(commandName string, usageErr error) error {
 	if shared.ReportFormat() != shared.ReportFormatJUnit || shared.ReportFile() == "" {
-		return
+		return nil
 	}
-	if err := writeJUnitReport(commandName, usageErr, 0); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to write JUnit report: %v\n", err)
-	}
+	return writeJUnitReport(commandName, usageErr, 0)
+}
+
+func printUsageJUnitReportFailure(commandName, versionInfo string, analysis invocationAnalysis, err error) {
+	fmt.Fprintf(os.Stderr, "Error: failed to write JUnit report: %v\n", err)
+	emitTelemetry(commandName, versionInfo, 0, ExitError, telemetry.EventContext{
+		InvocationShape: analysis.shape,
+		ErrorKind:       telemetry.ErrorKindOther,
+		FailureStage:    telemetry.FailureStageExecution,
+		OutcomeKind:     telemetry.OutcomeInternalError,
+	})
 }
 
 // writeJUnitReport writes a JUnit XML report if --report junit --report-file is configured.

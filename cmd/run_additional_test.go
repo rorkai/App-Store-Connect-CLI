@@ -395,6 +395,75 @@ func TestRun_UnknownFlagWritesJUnitReport(t *testing.T) {
 	}
 }
 
+func TestRun_UnknownInputReportWriteFailureReturnsExitError(t *testing.T) {
+	tests := []struct {
+		name       string
+		args       []string
+		wantPrefix string
+	}{
+		{
+			name:       "unknown command",
+			args:       []string{"builds", "lsit"},
+			wantPrefix: "Error: unknown command `asc builds lsit`\n",
+		},
+		{
+			name:       "unknown flag",
+			args:       []string{"builds", "list", "--ap", "PRIVATE_VALUE"},
+			wantPrefix: "Error: unknown flag `--ap` for `asc builds list`\n",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resetReportFlags(t)
+			reportPath := filepath.Join(t.TempDir(), "junit.xml")
+			if err := os.WriteFile(reportPath, []byte("existing"), 0o600); err != nil {
+				t.Fatalf("WriteFile() error: %v", err)
+			}
+
+			originalEmitTelemetry := emitTelemetry
+			t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+			var calls int
+			var gotCommand string
+			var gotExit int
+			var gotContext telemetry.EventContext
+			emitTelemetry = func(command, _ string, _ time.Duration, exitCode int, eventContext telemetry.EventContext) {
+				calls++
+				gotCommand = command
+				gotExit = exitCode
+				gotContext = eventContext
+			}
+
+			args := append([]string{
+				"--report", "junit",
+				"--report-file", reportPath,
+			}, test.args...)
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(args, "1.0.0"); code != ExitError {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitError)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.HasPrefix(stderr, test.wantPrefix) || !strings.Contains(stderr, "Error: failed to write JUnit report:") {
+				t.Fatalf("unexpected stderr: %q", stderr)
+			}
+			if strings.Contains(stderr, "PRIVATE_VALUE") {
+				t.Fatalf("stderr leaked a following argument: %q", stderr)
+			}
+			if calls != 1 || gotExit != ExitError || gotContext.FailureStage != telemetry.FailureStageExecution ||
+				gotContext.ErrorKind != telemetry.ErrorKindOther || gotContext.OutcomeKind != telemetry.OutcomeInternalError {
+				t.Fatalf("unexpected telemetry: calls=%d command=%q exit=%d context=%+v", calls, gotCommand, gotExit, gotContext)
+			}
+			if !strings.HasPrefix(gotCommand, "asc builds") {
+				t.Fatalf("telemetry command = %q, want canonical builds path", gotCommand)
+			}
+		})
+	}
+}
+
 func TestUnknownInputJUnitErrorsAreTerminalSafe(t *testing.T) {
 	commandErr := unknownCommandError(
 		invocationAnalysis{unknownToken: "bad\x1b[31m\r\n"},
