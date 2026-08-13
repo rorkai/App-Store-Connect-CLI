@@ -413,23 +413,36 @@ func TestGetAllRatings_AllStorefrontHTTPFailuresRetainStatus(t *testing.T) {
 
 func TestGetAllRatings_MixedHTTPFailuresSelectServerStatusDeterministically(t *testing.T) {
 	tests := []struct {
-		name        string
-		firstStatus int
-		restStatus  int
+		name            string
+		completionOrder []int
 	}{
-		{name: "client finishes first", firstStatus: http.StatusTooManyRequests, restStatus: http.StatusServiceUnavailable},
-		{name: "server finishes first", firstStatus: http.StatusServiceUnavailable, restStatus: http.StatusTooManyRequests},
+		{name: "client finishes first", completionOrder: []int{1, 2}},
+		{name: "server finishes first", completionOrder: []int{2, 1}},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			var requestCount atomic.Int32
+			ready := make(chan int, 2)
+			finished := make(chan int, 2)
+			releases := []chan struct{}{make(chan struct{}), make(chan struct{})}
+			releaseRemaining := make(chan struct{})
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				status := test.restStatus
-				if requestCount.Add(1) == 1 {
-					status = test.firstStatus
+				request := int(requestCount.Add(1))
+				status := http.StatusTooManyRequests
+				if request <= 2 {
+					ready <- request
+					<-releases[request-1]
+					if request == 2 {
+						status = http.StatusServiceUnavailable
+					}
+				} else {
+					<-releaseRemaining
 				}
 				w.WriteHeader(status)
+				if request <= 2 {
+					finished <- request
+				}
 			}))
 			defer server.Close()
 
@@ -439,7 +452,24 @@ func TestGetAllRatings_MixedHTTPFailuresSelectServerStatusDeterministically(t *t
 				},
 			}
 
-			_, err := client.GetAllRatings(context.Background(), "123", 1, context.WithCancel)
+			errCh := make(chan error, 1)
+			go func() {
+				_, err := client.GetAllRatings(context.Background(), "123", 2, context.WithCancel)
+				errCh <- err
+			}()
+
+			for range 2 {
+				<-ready
+			}
+			for _, request := range test.completionOrder {
+				close(releases[request-1])
+				if got := <-finished; got != request {
+					t.Fatalf("request %d completed, want %d", got, request)
+				}
+			}
+			close(releaseRemaining)
+
+			err := <-errCh
 			if err == nil {
 				t.Fatal("expected all-storefront failure")
 			}

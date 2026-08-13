@@ -87,6 +87,7 @@ type EventContext struct {
 	FailureParameter string
 	OutcomeKind      OutcomeKind
 	HTTPStatus       int
+	PublicStorefront bool
 }
 
 // processSessionID groups events from one CLI process without linking separate
@@ -194,6 +195,8 @@ func normalizeEventContext(eventContext EventContext, exitCode int) EventContext
 func normalizeOutcomeKind(eventContext EventContext, exitCode int) OutcomeKind {
 	status := eventContext.HTTPStatus
 	switch {
+	case eventContext.PublicStorefront && (status == 401 || status == 403):
+		return OutcomeAPIClientError
 	case status == 401 || status == 403:
 		return OutcomeAuthError
 	case status == 404:

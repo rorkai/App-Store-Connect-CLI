@@ -133,6 +133,32 @@ func TestBuildEventWithContextCapturesBoundedHTTPContext(t *testing.T) {
 	}
 }
 
+func TestBuildEventWithContextPreservesPublicStorefrontAuthorizationOutcome(t *testing.T) {
+	clearContextEnv(t)
+	setTelemetryTestHome(t)
+
+	event, ok := BuildEventWithContext(
+		"asc apps public search",
+		"1.2.3",
+		time.Second,
+		1,
+		EventContext{
+			InvocationShape:  InvocationShapeLeaf,
+			ErrorKind:        ErrorKindOther,
+			FailureStage:     FailureStageRequest,
+			OutcomeKind:      OutcomeAPIClientError,
+			HTTPStatus:       403,
+			PublicStorefront: true,
+		},
+	)
+	if !ok {
+		t.Fatal("expected event")
+	}
+	if event.OutcomeKind != OutcomeAPIClientError {
+		t.Fatalf("OutcomeKind = %q, want %q", event.OutcomeKind, OutcomeAPIClientError)
+	}
+}
+
 func TestBuildEventWithContextPreservesAPIOutcomesWithoutHTTPStatus(t *testing.T) {
 	clearContextEnv(t)
 	setTelemetryTestHome(t)

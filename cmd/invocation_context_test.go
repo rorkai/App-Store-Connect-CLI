@@ -67,9 +67,9 @@ func TestRuntimeFailureContextClassifiesItunesHTTPStatus(t *testing.T) {
 				ExitError,
 			)
 			if got.ErrorKind != test.wantKind || got.FailureStage != telemetry.FailureStageRequest ||
-				got.OutcomeKind != test.wantOutcome || got.HTTPStatus != test.statusCode {
+				got.OutcomeKind != test.wantOutcome || got.HTTPStatus != test.statusCode || !got.PublicStorefront {
 				t.Fatalf(
-					"runtimeFailureContext() = %+v, want kind=%q stage=%q outcome=%q status=%d",
+					"runtimeFailureContext() = %+v, want kind=%q stage=%q outcome=%q status=%d public storefront",
 					got,
 					test.wantKind,
 					telemetry.FailureStageRequest,
