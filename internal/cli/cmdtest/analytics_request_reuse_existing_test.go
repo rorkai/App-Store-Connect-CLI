@@ -79,7 +79,7 @@ func TestAnalyticsRequestReuseExistingRejectsInvalidBoolExitCode(t *testing.T) {
 				"--app", "app-1",
 				"--access-type", "ONGOING",
 			},
-			wantErr: "Unknown flag: --reuse-existing",
+			wantErr: "Error: unknown flag `--reuse-existing` for `asc`",
 		},
 	}
 
