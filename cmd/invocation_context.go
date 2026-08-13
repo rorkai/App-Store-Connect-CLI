@@ -157,7 +157,7 @@ func validationFailureContext(analysis invocationAnalysis, err error) telemetry.
 }
 
 func runtimeFailureContext(analysis invocationAnalysis, err error, exitCode int) telemetry.EventContext {
-	if errors.Is(err, flag.ErrHelp) || analysis.shape == telemetry.InvocationShapeUnknownChild {
+	if errors.Is(err, flag.ErrHelp) || shared.IsReportedUsageError(err) || analysis.shape == telemetry.InvocationShapeUnknownChild {
 		return validationFailureContext(analysis, err)
 	}
 

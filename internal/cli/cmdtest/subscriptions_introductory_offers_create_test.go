@@ -13,6 +13,7 @@ import (
 	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type cancelOnCloseBody struct {
@@ -147,8 +148,8 @@ func TestSubscriptionsIntroductoryOffersCreateRequiresExactlyOneTerritorySelecto
 		t.Run(test.name, func(t *testing.T) {
 			args := append(append([]string{}, baseArgs...), test.additional...)
 			stdout, stderr, runErr := runRootCommand(t, args)
-			if !errors.Is(runErr, flag.ErrHelp) {
-				t.Fatalf("expected usage error, got %v", runErr)
+			if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
+				t.Fatalf("expected reported usage error without flag.ErrHelp, got %v", runErr)
 			}
 			if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
 				t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitUsage)
@@ -156,7 +157,7 @@ func TestSubscriptionsIntroductoryOffersCreateRequiresExactlyOneTerritorySelecto
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			wantStderr := "Error: " + test.wantErr + "\n" + subscriptionIntroductoryOfferCreateSelectorGuidanceForTest + "\n"
+			wantStderr := "Error: " + test.wantErr + "\n" + subscriptionIntroductoryOfferCreateSelectorGuidanceForTest
 			if stderr != wantStderr {
 				t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
 			}
@@ -217,7 +218,7 @@ func TestSubscriptionsIntroductoryOffersCreateSelectorFailuresAreConciseAtTopLev
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			wantStderr := "Error: " + test.wantErr + "\n" + subscriptionIntroductoryOfferCreateSelectorGuidanceForTest + "\n"
+			wantStderr := "Error: " + test.wantErr + "\n" + subscriptionIntroductoryOfferCreateSelectorGuidanceForTest
 			if stderr != wantStderr {
 				t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
 			}
@@ -784,9 +785,10 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesPartialFailureReturn
 
 func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesRejectsConcreteTerritoryAndPricePoint(t *testing.T) {
 	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
+		name         string
+		args         []string
+		wantErr      string
+		wantReported bool
 	}{
 		{
 			name: "all territories and concrete territory",
@@ -799,7 +801,8 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesRejectsConcreteTerri
 				"--all-territories",
 				"--territory", "USA",
 			},
-			wantErr: "Error: exactly one of --territory or --all-territories is required",
+			wantErr:      "Error: exactly one of --territory or --all-territories is required",
+			wantReported: true,
 		},
 		{
 			name: "all territories and price point",
@@ -826,7 +829,11 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesRejectsConcreteTerri
 					t.Fatalf("parse error: %v", err)
 				}
 				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
+				if test.wantReported {
+					if errors.Is(err, flag.ErrHelp) || !shared.IsReportedUsageError(err) {
+						t.Fatalf("expected reported usage error, got %v", err)
+					}
+				} else if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
 				}
 			})

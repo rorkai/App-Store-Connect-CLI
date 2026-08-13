@@ -891,6 +891,10 @@ asc subscriptions versions images delete --id "IMAGE_ID" --confirm
 
 Offer discounted pricing to new subscribers.
 
+`--territory ALL` remains accepted as a deprecated compatibility spelling for
+`--all-territories` and prints a migration warning. Use `--all-territories` in
+new scripts; combining both spellings is invalid.
+
 ```bash  theme={null}
 # Create introductory offer
 asc subscriptions offers introductory create \
@@ -944,7 +948,7 @@ asc subscriptions offers introductory delete \
 * Header alias: `price_point` -> `price_point_id`
 * Territory values may be 3-letter ASC IDs, 2-letter country codes, or English territory names
 * Row values override command-level defaults, so a territory-only CSV can inherit a shared offer shape from flags
-* Use `create --all-territories` or `create --territory ALL` when every current subscription availability territory should receive the same free-trial shape
+* Use `create --all-territories` when every current subscription availability territory should receive the same free-trial shape
 
 **Offer Types:**
 

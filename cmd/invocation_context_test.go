@@ -117,6 +117,22 @@ func TestRuntimeFailureContextClassifiesLowCardinalityFailures(t *testing.T) {
 			wantOutcome: telemetry.OutcomeExpectedNegative,
 		},
 		{
+			name:        "reported missing usage failure",
+			err:         shared.NewReportedUsageError(shared.UsageErrorMissingRequired, "--territory is required"),
+			exitCode:    ExitUsage,
+			wantKind:    telemetry.ErrorKindMissingRequired,
+			wantStage:   telemetry.FailureStageValidation,
+			wantOutcome: telemetry.OutcomeUsageError,
+		},
+		{
+			name:        "reported invalid usage failure",
+			err:         shared.NewReportedUsageError(shared.UsageErrorInvalidValue, "invalid value for --territory"),
+			exitCode:    ExitUsage,
+			wantKind:    telemetry.ErrorKindInvalidValue,
+			wantStage:   telemetry.FailureStageValidation,
+			wantOutcome: telemetry.OutcomeUsageError,
+		},
+		{
 			name:        "API conflict",
 			err:         errors.New("conflict"),
 			exitCode:    ExitConflict,

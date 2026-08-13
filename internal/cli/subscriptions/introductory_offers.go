@@ -270,13 +270,6 @@ func SubscriptionsIntroductoryOffersCreateCommand() *ffcli.Command {
 	dryRun := fs.Bool("dry-run", false, "Resolve territories and print summary without creating offers")
 	continueOnError := fs.Bool("continue-on-error", true, "Continue creating offers after a territory fails")
 	output := shared.BindOutputFlags(fs)
-	conciseSelectorUsage := false
-	usageFunc := func(command *ffcli.Command) string {
-		if conciseSelectorUsage {
-			return subscriptionIntroductoryOfferCreateSelectorGuidance
-		}
-		return shared.DefaultUsageFunc(command)
-	}
 
 	return &ffcli.Command{
 		Name:       "create",
@@ -292,7 +285,7 @@ Examples:
 Timeouts:
   An explicit ASC_TIMEOUT caps the full create operation. Without an override, the operation uses a 5m fallback while individual requests retain the standard request timeout.`,
 		FlagSet:   fs,
-		UsageFunc: usageFunc,
+		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			id := strings.TrimSpace(*subscriptionID)
 			if id == "" {
@@ -343,12 +336,20 @@ Timeouts:
 			})
 			territoryID := strings.TrimSpace(*territory)
 			if territoryProvided && territoryID == "" {
-				conciseSelectorUsage = true
-				return shared.UsageError("invalid value for --territory: cannot be empty")
+				return subscriptionIntroductoryOfferSelectorUsageError(
+					shared.UsageErrorInvalidValue,
+					"invalid value for --territory: cannot be empty",
+				)
 			}
 			if territoryProvided == *allTerritories {
-				conciseSelectorUsage = true
-				return shared.UsageError("exactly one of --territory or --all-territories is required")
+				kind := shared.UsageErrorMissingRequired
+				if territoryProvided {
+					kind = shared.UsageErrorInvalidValue
+				}
+				return subscriptionIntroductoryOfferSelectorUsageError(
+					kind,
+					"exactly one of --territory or --all-territories is required",
+				)
 			}
 
 			legacyAllTerritories := territoryProvided && strings.EqualFold(territoryID, "ALL")
@@ -363,8 +364,7 @@ Timeouts:
 			} else if territoryProvided {
 				territoryID, err = ascterritory.Normalize(territoryID)
 				if err != nil {
-					conciseSelectorUsage = true
-					return shared.UsageError(err.Error())
+					return subscriptionIntroductoryOfferSelectorUsageError(shared.UsageErrorInvalidValue, err.Error())
 				}
 			}
 
@@ -423,6 +423,11 @@ Timeouts:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func subscriptionIntroductoryOfferSelectorUsageError(kind shared.UsageErrorKind, message string) error {
+	fmt.Fprintf(os.Stderr, "Error: %s\n%s", strings.TrimSpace(message), subscriptionIntroductoryOfferCreateSelectorGuidance)
+	return shared.NewReportedUsageError(kind, message)
 }
 
 type subscriptionIntroductoryOfferCreateBulkSummary struct {

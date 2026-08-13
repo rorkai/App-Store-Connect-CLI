@@ -3,6 +3,8 @@ package cmdtest
 import (
 	"context"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -409,6 +411,23 @@ func TestCanonicalWrapperErrorsUseCanonicalPaths(t *testing.T) {
 				t.Fatalf("expected empty stderr, got %q", stderr)
 			}
 		})
+	}
+}
+
+func TestSubscriptionsDocsOnlyMentionDeprecatedIntroductoryOfferAliasInMigrationNote(t *testing.T) {
+	docsPath := filepath.Join("..", "..", "..", "commands", "subscriptions.mdx")
+	docs, err := os.ReadFile(docsPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", docsPath, err)
+	}
+
+	content := string(docs)
+	const deprecatedAlias = "--territory ALL"
+	if got := strings.Count(content, deprecatedAlias); got != 1 {
+		t.Fatalf("expected subscriptions docs to mention deprecated alias once in the migration note, got %d occurrences", got)
+	}
+	if !strings.Contains(content, "`--territory ALL` remains accepted as a deprecated compatibility spelling") {
+		t.Fatal("expected subscriptions docs to retain the deprecated alias migration note")
 	}
 }
 
