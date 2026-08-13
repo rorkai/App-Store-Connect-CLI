@@ -25,7 +25,7 @@ func TestAdsUsageErrorsExitTwoWithBuiltBinary(t *testing.T) {
 		{
 			name:       "unexpected endpoint arg",
 			args:       []string{"ads", "campaigns", "--output", "json", "unexpected"},
-			wantStderr: "unexpected argument(s): unexpected",
+			wantStderr: "unknown command `asc ads campaigns unexpected`",
 		},
 		{
 			name:       "missing destructive confirm",

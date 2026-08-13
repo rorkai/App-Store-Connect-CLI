@@ -711,20 +711,159 @@ func TestRun_PublishManagedExportPassthroughEmitsUsageContext(t *testing.T) {
 	}
 }
 
-func TestRun_UnknownNestedSubcommandSuggestsRealSubcommand(t *testing.T) {
+func TestRun_UnknownCommandsReturnConciseRecovery(t *testing.T) {
 	resetReportFlags(t)
 
-	stdout, stderr := captureCommandOutput(t, func() {
+	tests := []struct {
+		name       string
+		args       []string
+		wantStderr string
+	}{
+		{
+			name: "root typo",
+			args: []string{"builts"},
+			wantStderr: "Error: unknown command `asc builts`\n" +
+				"Try:\n" +
+				"  asc builds\n" +
+				"For help:\n" +
+				"  asc --help\n",
+		},
+		{
+			name: "nested typo",
+			args: []string{"builds", "lsit"},
+			wantStderr: "Error: unknown command `asc builds lsit`\n" +
+				"Try:\n" +
+				"  asc builds list\n" +
+				"For help:\n" +
+				"  asc builds --help\n",
+		},
+		{
+			name: "deep nested typo",
+			args: []string{"xcode-cloud", "workflows", "lsit", "--app", "APP_ID"},
+			wantStderr: "Error: unknown command `asc xcode-cloud workflows lsit`\n" +
+				"Try:\n" +
+				"  asc xcode-cloud workflows list\n" +
+				"For help:\n" +
+				"  asc xcode-cloud workflows --help\n",
+		},
+		{
+			name: "no close match",
+			args: []string{"builds", "qqqqq"},
+			wantStderr: "Error: unknown command `asc builds qqqqq`\n" +
+				"For help:\n" +
+				"  asc builds --help\n",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(test.args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if stderr != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
+			}
+			for _, fullHelpSection := range []string{"DESCRIPTION", "USAGE", "SUBCOMMANDS"} {
+				if strings.Contains(stderr, fullHelpSection) {
+					t.Fatalf("stderr contains full help section %q: %q", fullHelpSection, stderr)
+				}
+			}
+		})
+	}
+}
+
+func TestRun_ConciseUnknownCommandPreservesTelemetryClassification(t *testing.T) {
+	resetReportFlags(t)
+	originalEmitTelemetry := emitTelemetry
+	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+	var calls int
+	var commandName string
+	var exitCode int
+	var eventContext telemetry.EventContext
+	emitTelemetry = func(command, _ string, _ time.Duration, code int, context telemetry.EventContext) {
+		calls++
+		commandName = command
+		exitCode = code
+		eventContext = context
+	}
+
+	_, _ = captureCommandOutput(t, func() {
 		if code := Run([]string{"builds", "lsit"}, "1.0.0"); code != ExitUsage {
 			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
 		}
 	})
 
-	if stdout != "" {
-		t.Fatalf("expected empty stdout, got %q", stdout)
+	if calls != 1 || commandName != "asc builds" || exitCode != ExitUsage {
+		t.Fatalf("telemetry calls=%d command=%q exit=%d", calls, commandName, exitCode)
 	}
-	if !strings.Contains(stderr, "Did you mean: list") {
-		t.Fatalf("expected list suggestion, got %q", stderr)
+	if eventContext.InvocationShape != telemetry.InvocationShapeUnknownChild ||
+		eventContext.ErrorKind != telemetry.ErrorKindOther ||
+		eventContext.FailureStage != telemetry.FailureStageValidation ||
+		eventContext.OutcomeKind != telemetry.OutcomeUsageError ||
+		eventContext.FailureParameter != "" {
+		t.Fatalf("unexpected telemetry context: %+v", eventContext)
+	}
+}
+
+func TestRun_UnknownCommandSuggestionsAreBoundedAndTerminalSafe(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"app"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	if got := strings.Count(stderr, "\n  asc app-"); got != 2 {
+		t.Fatalf("suggestion count = %d, want 2; stderr=%q", got, stderr)
+	}
+
+	_, hostileStderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"bad\x1b[31m\r\ncommand"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+	if strings.ContainsAny(hostileStderr, "\x1b\r") {
+		t.Fatalf("stderr contains terminal control characters: %q", hostileStderr)
+	}
+	firstLine, _, _ := strings.Cut(hostileStderr, "\n")
+	if firstLine != "Error: unknown command `asc bad[31m  command`" {
+		t.Fatalf("unknown command line = %q", firstLine)
+	}
+}
+
+func TestRun_UnknownFlagReturnsConciseRecovery(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{"builds", "list", "--ap", "SECRET_VALUE"}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	want := "Error: unknown flag `--ap` for `asc builds list`\n" +
+		"Try:\n" +
+		"  --app\n" +
+		"For help:\n" +
+		"  asc builds list --help\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+	if strings.Contains(stderr, "SECRET_VALUE") {
+		t.Fatalf("stderr leaked a following argument: %q", stderr)
 	}
 }
 
@@ -760,8 +899,11 @@ func TestRun_UnknownHybridSubcommandReturnsUsageBeforeAuth(t *testing.T) {
 			if stdout != "" {
 				t.Fatalf("expected empty stdout, got %q", stdout)
 			}
-			if !strings.Contains(stderr, "SUBCOMMANDS") {
-				t.Fatalf("expected command help, got %q", stderr)
+			if !strings.Contains(stderr, "For help:\n") {
+				t.Fatalf("expected concise help pointer, got %q", stderr)
+			}
+			if strings.Contains(stderr, "SUBCOMMANDS") {
+				t.Fatalf("did not expect full command help, got %q", stderr)
 			}
 			if strings.Contains(stderr, "missing authentication") {
 				t.Fatalf("expected unknown child validation before auth resolution, got %q", stderr)
@@ -836,13 +978,13 @@ func TestRun_UnknownFlagSuggestsRealFlagAndEmitsContext(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "Unknown flag: --buid-id") {
+	if !strings.Contains(stderr, "Error: unknown flag `--buid-id` for `asc versions attach-build`") {
 		t.Fatalf("expected normalized unknown flag diagnostic, got %q", stderr)
 	}
 	if strings.Contains(stderr, "flag provided but not defined") {
 		t.Fatalf("did not expect raw Go flag diagnostic, got %q", stderr)
 	}
-	if !strings.Contains(stderr, "Did you mean: --build-id") {
+	if !strings.Contains(stderr, "Try:\n  --build-id\n") {
 		t.Fatalf("expected --build-id suggestion, got %q", stderr)
 	}
 	if gotContext.InvocationShape != telemetry.InvocationShapeLeaf ||
@@ -867,12 +1009,12 @@ func TestRun_UnknownIdentifierFlagsSuggestCommandSpecificFlags(t *testing.T) {
 		{
 			name:           "generic version ID",
 			args:           []string{"versions", "app-clip-default-experience", "view", "--id", "VERSION_ID"},
-			wantSuggestion: "Did you mean: --version-id?",
+			wantSuggestion: "Try:\n  --version-id\n",
 		},
 		{
 			name:           "qualified subscription ID",
 			args:           []string{"subscriptions", "groups", "view", "--subscription-id", "SUBSCRIPTION_ID"},
-			wantSuggestion: "Did you mean: --id?",
+			wantSuggestion: "Try:\n  --id\n",
 		},
 	}
 
@@ -906,11 +1048,11 @@ func TestRun_UnknownFlagDoesNotSuggestHiddenCompatibilityFlag(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "Unknown flag: --nam") {
+	if !strings.Contains(stderr, "Error: unknown flag `--nam` for `asc iap setup`") {
 		t.Fatalf("expected normalized unknown flag diagnostic, got %q", stderr)
 	}
 	for _, line := range strings.Split(stderr, "\n") {
-		if strings.HasPrefix(line, "Did you mean: ") && strings.Contains(line, "--name") {
+		if strings.HasPrefix(line, "  --") && strings.Contains(line, "--name") {
 			t.Fatalf("hidden compatibility flag must not be suggested, got %q", stderr)
 		}
 	}
@@ -985,7 +1127,7 @@ func TestRun_RemovedTopLevelCommandsReturnUnknown(t *testing.T) {
 					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
 				}
 			})
-			if !strings.Contains(stderr, "Unknown command: "+test.arg) {
+			if !strings.Contains(stderr, "Error: unknown command `asc "+test.arg+"`") {
 				t.Fatalf("expected unknown command in stderr, got %q", stderr)
 			}
 		})

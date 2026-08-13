@@ -80,15 +80,75 @@ func shapeForCommand(command *ffcli.Command, sawFlag bool) telemetry.InvocationS
 	return telemetry.InvocationShapeBareGroup
 }
 
-func shouldRejectUnknownChild(root *ffcli.Command, analysis invocationAnalysis, commandName string) bool {
-	if analysis.shape != telemetry.InvocationShapeUnknownChild || analysis.command == nil || analysis.command == root {
+func shouldRenderConciseUnknownChild(root *ffcli.Command, analysis invocationAnalysis, commandName string) bool {
+	if analysis.shape != telemetry.InvocationShapeUnknownChild || analysis.command == nil {
 		return false
 	}
+	if analysis.command != root && commandName == "asc snitch" {
+		return false
+	}
+	return analysis.command == root || !preservesLegacyChild(analysis, commandName)
+}
 
-	// Snitch intentionally accepts a positional report description before its
-	// optional flush subcommand. Normalized view/edit commands and a few removed
-	// commands also handle legacy children to print precise migration guidance.
-	return commandName != "asc snitch" && !preservesLegacyChild(analysis, commandName)
+func printConciseUnknownCommand(analysis invocationAnalysis, commandName string) {
+	unknown := shared.SanitizeTerminal(analysis.unknownToken)
+	fmt.Fprintf(os.Stderr, "Error: unknown command `%s %s`\n", commandName, unknown)
+
+	candidates := visibleSubcommandNames(analysis.command)
+	suggestions := suggest.Commands(analysis.unknownToken, candidates)
+	if len(suggestions) > 2 {
+		suggestions = suggestions[:2]
+	}
+	if len(suggestions) > 0 {
+		fmt.Fprintln(os.Stderr, "Try:")
+		for _, suggestion := range suggestions {
+			fmt.Fprintf(os.Stderr, "  %s %s\n", commandName, shared.SanitizeTerminal(suggestion))
+		}
+	}
+	fmt.Fprintln(os.Stderr, "For help:")
+	fmt.Fprintf(os.Stderr, "  %s --help\n", commandName)
+}
+
+func printConciseUnknownFlag(analysis invocationAnalysis, commandName string) {
+	flagName := strings.SplitN(analysis.unknownToken, "=", 2)[0]
+	fmt.Fprintf(
+		os.Stderr,
+		"Error: unknown flag `%s` for `%s`\n",
+		shared.SanitizeTerminal(flagName),
+		commandName,
+	)
+
+	visibleFlags := shared.VisibleHelpFlags(analysis.command.FlagSet)
+	candidates := make([]string, 0, len(visibleFlags))
+	for _, item := range visibleFlags {
+		candidates = append(candidates, item.Name)
+	}
+	suggestions := suggest.Flags(strings.TrimLeft(flagName, "-"), candidates)
+	if len(suggestions) > 2 {
+		suggestions = suggestions[:2]
+	}
+	if len(suggestions) > 0 {
+		fmt.Fprintln(os.Stderr, "Try:")
+		for _, suggestion := range suggestions {
+			fmt.Fprintf(os.Stderr, "  --%s\n", shared.SanitizeTerminal(suggestion))
+		}
+	}
+	fmt.Fprintln(os.Stderr, "For help:")
+	fmt.Fprintf(os.Stderr, "  %s --help\n", commandName)
+}
+
+func visibleSubcommandNames(command *ffcli.Command) []string {
+	if command == nil {
+		return nil
+	}
+	names := make([]string, 0, len(command.Subcommands))
+	for _, subcommand := range command.Subcommands {
+		if subcommand == nil || strings.HasPrefix(strings.TrimSpace(subcommand.ShortHelp), "DEPRECATED:") {
+			continue
+		}
+		names = append(names, subcommand.Name)
+	}
+	return names
 }
 
 func preservesLegacyChild(analysis invocationAnalysis, commandName string) bool {
@@ -277,19 +337,6 @@ func hasDefinedFlags(flagSet *flag.FlagSet) bool {
 	return found
 }
 
-func printUnknownFlagSuggestion(analysis invocationAnalysis) {
-	if !analysis.unknownFlag || analysis.command == nil || analysis.command.FlagSet == nil {
-		return
-	}
-	input := strings.TrimLeft(strings.SplitN(analysis.unknownToken, "=", 2)[0], "-")
-	visibleFlags := shared.VisibleHelpFlags(analysis.command.FlagSet)
-	candidates := make([]string, 0, len(visibleFlags))
-	for _, f := range visibleFlags {
-		candidates = append(candidates, f.Name)
-	}
-	printFlagSuggestions(input, candidates)
-}
-
 func printUnknownSubcommandSuggestion(analysis invocationAnalysis, commandName string) {
 	if analysis.shape != telemetry.InvocationShapeUnknownChild || analysis.command == nil || analysis.command.Name == "asc" {
 		return
@@ -313,10 +360,6 @@ func isRemovedReviewItemDetailInvocation(analysis invocationAnalysis, commandNam
 func printSuggestions(input string, candidates []string, prefix string) {
 	suggestions := suggest.Commands(input, candidates)
 	printSuggestionList(suggestions, prefix)
-}
-
-func printFlagSuggestions(input string, candidates []string) {
-	printSuggestionList(suggest.Flags(input, candidates), "--")
 }
 
 func printSuggestionList(suggestions []string, prefix string) {

@@ -19,7 +19,7 @@ func TestRun_UnknownCommandSanitizesUnicodeTerminalControlsAndInvalidUTF8(t *tes
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	assertSafeTerminalDiagnostic(t, stderr, "Unknown command: evil31m \ufffdtail\n")
+	assertSafeTerminalDiagnostic(t, stderr, "Error: unknown command `asc evil31m \ufffdtail`\n")
 }
 
 func TestRun_UnknownFlagSanitizesUnicodeTerminalControlsAndInvalidUTF8(t *testing.T) {
@@ -35,7 +35,7 @@ func TestRun_UnknownFlagSanitizesUnicodeTerminalControlsAndInvalidUTF8(t *testin
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	assertSafeTerminalDiagnostic(t, stderr, "Unknown flag: --evil31m \ufffdtail\n")
+	assertSafeTerminalDiagnostic(t, stderr, "Error: unknown flag `--evil31m \ufffdtail` for `asc builds list`\n")
 }
 
 func assertSafeTerminalDiagnostic(t *testing.T, stderr, wantLine string) {

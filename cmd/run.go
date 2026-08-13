@@ -55,11 +55,14 @@ func Run(args []string, versionInfo string) int {
 			fmt.Fprint(os.Stderr, parseOutput.String())
 			return ExitSuccess
 		}
-		printParseFailure(parseErr, parseOutput.String(), analysis)
+		if analysis.unknownFlag && isUnknownFlagParseFailure(parseErr, parseOutput.String()) {
+			printConciseUnknownFlag(analysis, getCommandName(root, args))
+		} else {
+			printParseFailure(parseErr, parseOutput.String(), analysis)
+		}
 		// Every non-help error returned by command-tree parsing is invalid usage,
 		// including NoExecError cases that do not write flag output.
 		exitCode := ExitUsage
-		printUnknownFlagSuggestion(analysis)
 		emitImmediateTelemetry(args, root, versionInfo, exitCode, parseFailureContext(analysis))
 		return exitCode
 	}
@@ -87,11 +90,9 @@ func Run(args []string, versionInfo string) int {
 	}
 
 	commandName := getCommandName(root, args)
-	if shouldRejectUnknownChild(root, analysis, commandName) {
-		runErr := shared.UsageErrorf("unexpected argument(s): %s", shared.SanitizeTerminal(analysis.unknownToken))
-		fmt.Fprint(os.Stderr, analysis.command.UsageFunc(analysis.command))
-		printUnknownSubcommandSuggestion(analysis, commandName)
-		emitImmediateTelemetry(args, root, versionInfo, ExitUsage, validationFailureContext(analysis, runErr))
+	if shouldRenderConciseUnknownChild(root, analysis, commandName) {
+		printConciseUnknownCommand(analysis, commandName)
+		emitImmediateTelemetry(args, root, versionInfo, ExitUsage, validationFailureContext(analysis, flag.ErrHelp))
 		return ExitUsage
 	}
 
