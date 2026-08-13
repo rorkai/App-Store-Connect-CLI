@@ -1377,6 +1377,28 @@ func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
 	}
 }
 
+func TestRun_CommonWrongCommandPathDoesNotCopyUnsupportedSuffix(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{
+			"versions", "info", "--version-id", "VERSION_ID", "localizations",
+		}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	want := "Error: unknown command `asc versions info`\n" +
+		"For help:\n" +
+		"  asc versions --help\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+}
+
 func TestRun_CommonWrongCommandPathRecoveryDoesNotInterceptCanonicalHelp(t *testing.T) {
 	resetReportFlags(t)
 

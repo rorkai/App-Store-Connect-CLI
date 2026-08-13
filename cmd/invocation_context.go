@@ -10,6 +10,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/registry"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/suggest"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/telemetry"
@@ -217,13 +218,62 @@ func commonCommandPathRecovery(root *ffcli.Command, analysis invocationAnalysis,
 		if !hasExactCommandPrefix(commandArgs, rule.invalid) {
 			continue
 		}
+		destination := resolveRecoveryDestination(root, rule.destination)
+		suffix := commandArgs[len(rule.invalid):]
+		if destination == nil || !commandSuffixUsesDefinedFlags(destination, suffix) {
+			continue
+		}
 		invalid := "asc " + strings.Join(rule.invalid, " ")
 		suggestedArgs := append([]string{}, args[:commandStart]...)
 		suggestedArgs = append(suggestedArgs, rule.destination...)
-		suggestedArgs = append(suggestedArgs, commandArgs[len(rule.invalid):]...)
+		suggestedArgs = append(suggestedArgs, suffix...)
 		return invalid, renderSuggestedCommand(suggestedArgs), true
 	}
 	return "", "", false
+}
+
+func resolveRecoveryDestination(root *ffcli.Command, path []string) *ffcli.Command {
+	if destination := resolveCommandPath(root, path); destination != nil {
+		return destination
+	}
+	if len(path) == 0 {
+		return nil
+	}
+
+	// Invalid top-level paths leave the lazy command tree unmaterialized. Build
+	// only the destination factory so its real flags can be validated without
+	// rebinding parsed root flags such as --report and --report-file.
+	destinationRoot := &ffcli.Command{Subcommands: registry.NewCatalog("").CommandsFor(path[0])}
+	return resolveCommandPath(destinationRoot, path)
+}
+
+func resolveCommandPath(root *ffcli.Command, path []string) *ffcli.Command {
+	current := root
+	for _, part := range path {
+		current = findDirectSubcommand(current, part)
+		if current == nil {
+			return nil
+		}
+	}
+	return current
+}
+
+func commandSuffixUsesDefinedFlags(command *ffcli.Command, suffix []string) bool {
+	if command == nil {
+		return false
+	}
+	for i := 0; i < len(suffix); {
+		token := suffix[i]
+		if token == "" || token == "--" || token == "-" || !strings.HasPrefix(token, "-") {
+			return false
+		}
+		next, consumed := consumeFlagToken(command.FlagSet, token, suffix, i)
+		if !consumed {
+			return false
+		}
+		i = next
+	}
+	return true
 }
 
 func leadingCommandArgIndex(root *ffcli.Command, args []string) int {

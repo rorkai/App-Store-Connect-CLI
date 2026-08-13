@@ -247,6 +247,22 @@ func TestCommonCommandPathRecoveryRequiresExactUnknownPrefix(t *testing.T) {
 	}
 }
 
+func TestCommonCommandPathRecoveryRejectsUnsupportedSuffix(t *testing.T) {
+	root := RootCommand("1.0.0")
+	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
+	tests := [][]string{
+		{"versions", "info", "--version-id", "VERSION_ID", "localizations"},
+		{"reviewsubmissions", "list", "--unknown", "VALUE"},
+		{"testflight", "groups", "builds", "list", "--"},
+	}
+
+	for _, args := range tests {
+		if invalid, suggested, ok := commonCommandPathRecovery(root, analysis, args); ok {
+			t.Fatalf("commonCommandPathRecovery(%q) = (%q, %q, true), want no recovery", args, invalid, suggested)
+		}
+	}
+}
+
 func TestCommonCommandPathRecoveryRendersSuffixForSafeShellCopy(t *testing.T) {
 	root := RootCommand("1.0.0")
 	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
