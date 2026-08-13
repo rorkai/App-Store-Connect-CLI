@@ -121,7 +121,7 @@ func printConciseUnknownFlag(analysis invocationAnalysis, commandName string) {
 	visibleFlags := shared.VisibleHelpFlags(analysis.command.FlagSet)
 	candidates := make([]string, 0, len(visibleFlags))
 	for _, item := range visibleFlags {
-		if strings.HasPrefix(strings.TrimSpace(item.Usage), "DEPRECATED:") {
+		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(item.Usage)), "DEPRECATED:") {
 			continue
 		}
 		candidates = append(candidates, item.Name)

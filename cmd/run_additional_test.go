@@ -1149,6 +1149,33 @@ func TestRun_UnknownFlagDoesNotSuggestDeprecatedFlag(t *testing.T) {
 	}
 }
 
+func TestRun_UnknownFlagDoesNotSuggestMixedCaseDeprecatedFlag(t *testing.T) {
+	resetReportFlags(t)
+
+	stdout, stderr := captureCommandOutput(t, func() {
+		if code := Run([]string{
+			"web", "apps", "create", "--two-factor-cod", "PRIVATE_VALUE",
+		}, "1.0.0"); code != ExitUsage {
+			t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+		}
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	want := "Error: unknown flag `--two-factor-cod` for `asc web apps create`\n" +
+		"Try:\n" +
+		"  --two-factor-code-command\n" +
+		"For help:\n" +
+		"  asc web apps create --help\n"
+	if stderr != want {
+		t.Fatalf("stderr = %q, want %q", stderr, want)
+	}
+	if strings.Contains(stderr, "PRIVATE_VALUE") {
+		t.Fatalf("stderr leaked a following argument: %q", stderr)
+	}
+}
+
 func TestRun_UnknownGroupFlagIsNotClassifiedAsBareGroup(t *testing.T) {
 	resetReportFlags(t)
 	originalEmitTelemetry := emitTelemetry
