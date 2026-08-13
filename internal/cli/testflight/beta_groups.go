@@ -154,14 +154,6 @@ Examples:
 				if appIDSet {
 					expectedAppID = strings.TrimSpace(*appID)
 				}
-				client, err := shared.GetASCClient()
-				if err != nil {
-					return fmt.Errorf("beta-groups list: %w", err)
-				}
-
-				requestCtx, cancel := contextWithBuildGroupMembershipTimeout(ctx)
-				defer cancel()
-
 				var internalFilter *bool
 				if *internal {
 					value := true
@@ -171,27 +163,15 @@ Examples:
 					internalFilter = &value
 				}
 
-				result, usedFallback, lookupErr := lookupBuildGroupMembership(
-					requestCtx,
-					client,
+				return runBuildGroupMembershipList(
+					ctx,
 					resolvedBuildID,
 					expectedAppID,
 					internalFilter,
+					*output.Output,
+					*output.Pretty,
+					"beta-groups list",
 				)
-				if usedFallback {
-					fmt.Fprintln(os.Stderr, "Apple rejected the documented betaGroups build filter; falling back to inverse group build relationships (cost scales with groups and build pages)")
-				}
-				if result == nil {
-					return fmt.Errorf("beta-groups list: %w", lookupErr)
-				}
-				if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
-					return err
-				}
-				if lookupErr != nil {
-					fmt.Fprintf(os.Stderr, "%d group relationship lookup failed; membership result is incomplete\n", len(result.Failures))
-					return shared.NewReportedError(lookupErr)
-				}
-				return nil
 			}
 
 			// Reject --global + --app combination (check explicit flag, not resolved value)
@@ -343,6 +323,105 @@ Examples:
 			return shared.PrintOutput(groups, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// BuildGroupsListCommandConfig configures the build-centric beta-group lookup
+// surface while keeping the membership implementation in one place.
+type BuildGroupsListCommandConfig struct {
+	ShortUsage  string
+	ShortHelp   string
+	LongHelp    string
+	ErrorPrefix string
+}
+
+// BuildGroupsListCommand returns a narrow list command for beta groups that
+// contain a required build ID.
+func BuildGroupsListCommand(config BuildGroupsListCommandConfig) *ffcli.Command {
+	fs := flag.NewFlagSet("list", flag.ExitOnError)
+
+	buildID := fs.String("build-id", "", "[experimental] Build ID whose TestFlight groups should be listed")
+	output := shared.BindOutputFlags(fs)
+
+	errorPrefix := strings.TrimSpace(config.ErrorPrefix)
+	if errorPrefix == "" {
+		errorPrefix = "builds groups list"
+	}
+
+	return &ffcli.Command{
+		Name:       "list",
+		ShortUsage: config.ShortUsage,
+		ShortHelp:  config.ShortHelp,
+		LongHelp:   config.LongHelp,
+		FlagSet:    fs,
+		UsageFunc:  shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			resolvedBuildID := strings.TrimSpace(*buildID)
+			buildIDSet := false
+			fs.Visit(func(value *flag.Flag) {
+				if value.Name == "build-id" {
+					buildIDSet = true
+				}
+			})
+			if buildIDSet && resolvedBuildID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --build-id cannot be empty")
+				return shared.MissingRequiredUsageError()
+			}
+			if resolvedBuildID == "" {
+				fmt.Fprintln(os.Stderr, "Error: --build-id is required")
+				return shared.MissingRequiredUsageError()
+			}
+
+			return runBuildGroupMembershipList(
+				ctx,
+				resolvedBuildID,
+				"",
+				nil,
+				*output.Output,
+				*output.Pretty,
+				errorPrefix,
+			)
+		},
+	}
+}
+
+func runBuildGroupMembershipList(
+	ctx context.Context,
+	buildID string,
+	expectedAppID string,
+	internalFilter *bool,
+	output string,
+	pretty bool,
+	errorPrefix string,
+) error {
+	client, err := shared.GetASCClient()
+	if err != nil {
+		return fmt.Errorf("%s: %w", errorPrefix, err)
+	}
+
+	requestCtx, cancel := contextWithBuildGroupMembershipTimeout(ctx)
+	defer cancel()
+
+	result, usedFallback, lookupErr := lookupBuildGroupMembership(
+		requestCtx,
+		client,
+		buildID,
+		expectedAppID,
+		internalFilter,
+	)
+	if usedFallback {
+		fmt.Fprintln(os.Stderr, "Apple rejected the documented betaGroups build filter; falling back to inverse group build relationships (cost scales with groups and build pages)")
+	}
+	if result == nil {
+		return fmt.Errorf("%s: %w", errorPrefix, lookupErr)
+	}
+	if err := shared.PrintOutput(result, output, pretty); err != nil {
+		return err
+	}
+	if lookupErr != nil {
+		fmt.Fprintf(os.Stderr, "%d group relationship lookup failed; membership result is incomplete\n", len(result.Failures))
+		return shared.NewReportedError(lookupErr)
+	}
+	return nil
 }
 
 func contextWithBuildGroupMembershipTimeout(ctx context.Context) (context.Context, context.CancelFunc) {

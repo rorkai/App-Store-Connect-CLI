@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
 type buildGroupMembershipOutput struct {
@@ -35,6 +37,225 @@ type buildGroupMembershipRecord struct {
 type buildGroupMembershipFailure struct {
 	GroupID string `json:"groupId"`
 	Error   string `json:"error"`
+}
+
+func TestBuildsGroupsListCommandHasNarrowBuildSurface(t *testing.T) {
+	root := RootCommand("1.2.3")
+	list := findCommand(root, "builds", "groups", "list")
+	if list == nil {
+		t.Fatal("expected builds groups list command")
+	}
+
+	wantFlags := map[string]bool{
+		"build-id": true,
+		"output":   true,
+		"pretty":   true,
+	}
+	list.FlagSet.VisitAll(func(value *flag.Flag) {
+		if !wantFlags[value.Name] {
+			t.Errorf("unexpected --%s flag on builds groups list", value.Name)
+		}
+		delete(wantFlags, value.Name)
+	})
+	for name := range wantFlags {
+		t.Errorf("missing --%s flag on builds groups list", name)
+	}
+
+	for _, forbidden := range []string{"app", "global", "internal", "external", "limit", "next", "paginate"} {
+		if list.FlagSet.Lookup(forbidden) != nil {
+			t.Errorf("builds groups list must not expose --%s", forbidden)
+		}
+	}
+}
+
+func TestBuildsGroupsListRequiresBuildIDBeforeAuth(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_STRICT_AUTH", "")
+
+	tests := []struct {
+		name       string
+		args       []string
+		diagnostic string
+	}{
+		{name: "missing", args: nil, diagnostic: "Error: --build-id is required"},
+		{name: "blank", args: []string{"--build-id", " "}, diagnostic: "Error: --build-id cannot be empty"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			root := RootCommand("1.2.3")
+			root.FlagSet.SetOutput(io.Discard)
+			var runErr error
+			args := append([]string{"builds", "groups", "list"}, test.args...)
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d (err=%v)", got, rootcmd.ExitUsage, runErr)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if !strings.Contains(stderr, test.diagnostic) {
+				t.Fatalf("expected %q diagnostic, got %q", test.diagnostic, stderr)
+			}
+			if strings.Contains(stderr, "authentication") || strings.Contains(stderr, "credentials") {
+				t.Fatalf("required flag must fail before auth, got %q", stderr)
+			}
+		})
+	}
+}
+
+func TestBuildsGroupsListUsesExistingBuildMembershipLookup(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "ambient-app-must-not-be-used")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	requestCount := 0
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestCount++
+		switch requestCount {
+		case 1:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-1/relationships/app" {
+				t.Fatalf("unexpected app lookup: %s %s", req.Method, req.URL.String())
+			}
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`), nil
+		case 2:
+			assertBuildMembershipGroupQuery(t, req.URL, "filter[app]", "app-1")
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External QA","isInternalGroup":false}}]}`), nil
+		case 3:
+			assertBuildMembershipGroupQuery(t, req.URL, "filter[builds]", "build-1")
+			return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External QA","isInternalGroup":false}}]}`), nil
+		default:
+			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, nil
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "groups", "list", "--output", "json", "--build-id", "build-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr != nil {
+		t.Fatalf("run error: %v", runErr)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
+	}
+	if requestCount != 3 {
+		t.Fatalf("expected three requests, got %d", requestCount)
+	}
+
+	var got buildGroupMembershipOutput
+	if err := json.Unmarshal([]byte(stdout), &got); err != nil {
+		t.Fatalf("decode output: %v\n%s", err, stdout)
+	}
+	if got.BuildID != "build-1" || got.AppID != "app-1" || !got.Complete || got.GroupCount != 1 {
+		t.Fatalf("unexpected lookup result: %#v", got)
+	}
+	if len(got.Groups) != 1 || got.Groups[0].ID != "group-1" || got.Groups[0].Membership != "explicit" {
+		t.Fatalf("unexpected groups: %#v", got.Groups)
+	}
+}
+
+func TestBuildsGroupsListMatchesTestFlightBuildMembershipSurface(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	t.Setenv("ASC_APP_ID", "ambient-app-must-not-be-used")
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	run := func(args []string) (string, string, []string, error) {
+		t.Helper()
+		requests := make([]string, 0, 3)
+		http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requests = append(requests, req.Method+" "+req.URL.String())
+			switch len(requests) {
+			case 1:
+				return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"apps","id":"app-1"}}`), nil
+			case 2, 3:
+				return jsonHTTPResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External QA","isInternalGroup":false}}]}`), nil
+			default:
+				t.Fatalf("unexpected request: %s", req.URL.String())
+				return nil, nil
+			}
+		})
+
+		root := RootCommand("1.2.3")
+		root.FlagSet.SetOutput(io.Discard)
+		var runErr error
+		stdout, stderr := captureOutput(t, func() {
+			if err := root.Parse(args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			runErr = root.Run(context.Background())
+		})
+		return stdout, stderr, requests, runErr
+	}
+
+	buildsStdout, buildsStderr, buildsRequests, buildsErr := run([]string{"builds", "groups", "list", "--build-id", "build-1"})
+	testflightStdout, testflightStderr, testflightRequests, testflightErr := run([]string{"testflight", "groups", "list", "--build-id", "build-1"})
+
+	if buildsErr != nil || testflightErr != nil {
+		t.Fatalf("unexpected parity errors: builds=%v testflight=%v", buildsErr, testflightErr)
+	}
+	if buildsStdout != testflightStdout || buildsStderr != testflightStderr {
+		t.Fatalf("surface output differs:\nbuilds stdout=%q stderr=%q\ntestflight stdout=%q stderr=%q", buildsStdout, buildsStderr, testflightStdout, testflightStderr)
+	}
+	if strings.Join(buildsRequests, "\n") != strings.Join(testflightRequests, "\n") {
+		t.Fatalf("HTTP behavior differs:\nbuilds=%v\ntestflight=%v", buildsRequests, testflightRequests)
+	}
+}
+
+func TestBuildsGroupsListPreservesLookupAPIErrors(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/v1/builds/build-1/relationships/app" {
+			t.Fatalf("unexpected request: %s", req.URL.String())
+		}
+		return jsonHTTPResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Temporary failure"}]}`), nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"builds", "groups", "list", "--build-id", "build-1"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if runErr == nil || !strings.Contains(runErr.Error(), "builds groups list: failed to resolve app for build") {
+		t.Fatalf("unexpected error: %v", runErr)
+	}
+	if stdout != "" || stderr != "" {
+		t.Fatalf("expected empty streams, got stdout=%q stderr=%q", stdout, stderr)
+	}
 }
 
 func TestTestFlightGroupsListBuildMembershipFlagIsExperimental(t *testing.T) {

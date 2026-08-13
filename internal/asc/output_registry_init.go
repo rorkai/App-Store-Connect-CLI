@@ -11,6 +11,7 @@ func registerAllOutputRenderers() {
 	registerRowsWithSingleResourceAdapter(reviewsRows)
 	registerRows(customerReviewSummarizationsRows)
 	registerRowsWithSingleResourceAdapter(appsRows)
+	registerRows(appRenameResultRows)
 	registerRows(appsWallRows)
 	registerRowsWithSingleResourceAdapter(appClipsRows)
 	registerRowsWithSingleToListAdapter[AppCategoryResponse, AppCategoriesResponse](appCategoriesRows)

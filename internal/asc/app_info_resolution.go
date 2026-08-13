@@ -12,6 +12,10 @@ type appStoreVersionRelationships struct {
 	App *Relationship `json:"app"`
 }
 
+type appInfoRelationships struct {
+	App *Relationship `json:"app"`
+}
+
 // AppStoreVersionAppID extracts the related app ID from an app store version response.
 func AppStoreVersionAppID(resp *AppStoreVersionResponse) (string, error) {
 	if resp == nil {
@@ -31,6 +35,29 @@ func AppStoreVersionAppID(resp *AppStoreVersionResponse) (string, error) {
 	appID := strings.TrimSpace(relationships.App.Data.ID)
 	if appID == "" {
 		return "", fmt.Errorf("app relationship missing for app store version %q", strings.TrimSpace(resp.Data.ID))
+	}
+	return appID, nil
+}
+
+// AppInfoAppID extracts the related app ID from an app info response.
+func AppInfoAppID(resp *AppInfoResponse) (string, error) {
+	if resp == nil {
+		return "", fmt.Errorf("app info response is required")
+	}
+
+	var relationships appInfoRelationships
+	if len(resp.Data.Relationships) > 0 {
+		if err := json.Unmarshal(resp.Data.Relationships, &relationships); err != nil {
+			return "", fmt.Errorf("failed to parse app info relationships: %w", err)
+		}
+	}
+
+	if relationships.App == nil {
+		return "", fmt.Errorf("app relationship missing for app info %q", strings.TrimSpace(resp.Data.ID))
+	}
+	appID := strings.TrimSpace(relationships.App.Data.ID)
+	if appID == "" {
+		return "", fmt.Errorf("app relationship missing for app info %q", strings.TrimSpace(resp.Data.ID))
 	}
 	return appID, nil
 }

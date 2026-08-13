@@ -11,12 +11,12 @@ func TestValidateRemovedRemediationFlagsReturnUsageExitCode(t *testing.T) {
 		{
 			name:    "next removed",
 			args:    []string{"validate", "--app", "app-1", "--version-id", "ver-1", "--next"},
-			wantErr: "Unknown flag: --next",
+			wantErr: "Error: unknown flag `--next` for `asc validate`",
 		},
 		{
 			name:    "fix-plan removed",
 			args:    []string{"validate", "--app", "app-1", "--version-id", "ver-1", "--fix-plan"},
-			wantErr: "Unknown flag: --fix-plan",
+			wantErr: "Error: unknown flag `--fix-plan` for `asc validate`",
 		},
 	}
 
