@@ -13,6 +13,7 @@ import (
 	"time"
 
 	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type cancelOnCloseBody struct {
@@ -42,11 +43,21 @@ func TestSubscriptionsIntroductoryOffersCreateNormalizesTerritory(t *testing.T) 
 		var payload struct {
 			Data struct {
 				Relationships struct {
+					Subscription struct {
+						Data struct {
+							ID string `json:"id"`
+						} `json:"data"`
+					} `json:"subscription"`
 					Territory struct {
 						Data struct {
 							ID string `json:"id"`
 						} `json:"data"`
 					} `json:"territory"`
+					SubscriptionPricePoint struct {
+						Data struct {
+							ID string `json:"id"`
+						} `json:"data"`
+					} `json:"subscriptionPricePoint"`
 				} `json:"relationships"`
 			} `json:"data"`
 		}
@@ -55,6 +66,12 @@ func TestSubscriptionsIntroductoryOffersCreateNormalizesTerritory(t *testing.T) 
 		}
 		if got := payload.Data.Relationships.Territory.Data.ID; got != "USA" {
 			t.Fatalf("expected normalized territory USA, got %q", got)
+		}
+		if got := payload.Data.Relationships.Subscription.Data.ID; got != "8000000001" {
+			t.Fatalf("expected subscription relationship 8000000001, got %q", got)
+		}
+		if got := payload.Data.Relationships.SubscriptionPricePoint.Data.ID; got != "price-1" {
+			t.Fatalf("expected price point relationship price-1, got %q", got)
 		}
 
 		return jsonHTTPResponse(http.StatusCreated, `{"data":{"type":"subscriptionIntroductoryOffers","id":"intro-1","attributes":{"duration":"ONE_MONTH","offerMode":"FREE_TRIAL","numberOfPeriods":1}}}`), nil
@@ -70,6 +87,7 @@ func TestSubscriptionsIntroductoryOffersCreateNormalizesTerritory(t *testing.T) 
 		"--offer-mode", "FREE_TRIAL",
 		"--number-of-periods", "1",
 		"--territory", "US",
+		"--price-point", "price-1",
 	}); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
@@ -77,6 +95,166 @@ func TestSubscriptionsIntroductoryOffersCreateNormalizesTerritory(t *testing.T) 
 		t.Fatalf("run error: %v", err)
 	}
 }
+
+func TestSubscriptionsIntroductoryOffersCreateRequiresExactlyOneTerritorySelectorBeforeAuth(t *testing.T) {
+	isolateIntroductoryOfferCreateAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		t.Fatalf("validation must happen before HTTP: %s %s", req.Method, req.URL.String())
+		return nil, nil
+	})
+
+	baseArgs := []string{
+		"subscriptions", "offers", "introductory", "create",
+		"--subscription-id", "8000000001",
+		"--offer-duration", "ONE_MONTH",
+		"--offer-mode", "FREE_TRIAL",
+		"--number-of-periods", "1",
+	}
+	tests := []struct {
+		name       string
+		additional []string
+		wantErr    string
+	}{
+		{
+			name:    "missing selector",
+			wantErr: "exactly one of --territory or --all-territories is required",
+		},
+		{
+			name:       "blank territory",
+			additional: []string{"--territory", "   "},
+			wantErr:    "invalid value for --territory: cannot be empty",
+		},
+		{
+			name:       "both selectors",
+			additional: []string{"--territory", "USA", "--all-territories"},
+			wantErr:    "exactly one of --territory or --all-territories is required",
+		},
+		{
+			name:       "deprecated all alias and canonical selector",
+			additional: []string{"--territory", "ALL", "--all-territories"},
+			wantErr:    "exactly one of --territory or --all-territories is required",
+		},
+		{
+			name:       "invalid territory",
+			additional: []string{"--territory", "Atlantis"},
+			wantErr:    `territory "Atlantis" could not be mapped to an App Store Connect territory ID`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			args := append(append([]string{}, baseArgs...), test.additional...)
+			stdout, stderr, runErr := runRootCommand(t, args)
+			if errors.Is(runErr, flag.ErrHelp) || !shared.IsReportedUsageError(runErr) {
+				t.Fatalf("expected reported usage error without flag.ErrHelp, got %v", runErr)
+			}
+			if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitUsage)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			wantStderr := "Error: " + test.wantErr + "\n" + subscriptionIntroductoryOfferCreateSelectorGuidanceForTest
+			if stderr != wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
+			}
+			if strings.Contains(stderr, "missing authentication") {
+				t.Fatalf("validation must happen before authentication, got %q", stderr)
+			}
+			if strings.Contains(stderr, "DESCRIPTION") || strings.Contains(stderr, "FLAGS") {
+				t.Fatalf("selector failure must not dump full help, got %q", stderr)
+			}
+		})
+	}
+}
+
+func isolateIntroductoryOfferCreateAuth(t *testing.T) {
+	t.Helper()
+
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+	for _, key := range []string{
+		"ASC_PROFILE", "ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_PRIVATE_KEY_PATH",
+		"ASC_PRIVATE_KEY", "ASC_PRIVATE_KEY_B64", "ASC_STRICT_AUTH",
+	} {
+		t.Setenv(key, "")
+	}
+}
+
+func TestSubscriptionsIntroductoryOffersCreateSelectorFailuresAreConciseAtTopLevel(t *testing.T) {
+	isolateIntroductoryOfferCreateAuth(t)
+
+	baseArgs := []string{
+		"subscriptions", "offers", "introductory", "create",
+		"--subscription-id", "8000000001",
+		"--offer-duration", "ONE_MONTH",
+		"--offer-mode", "FREE_TRIAL",
+		"--number-of-periods", "1",
+	}
+	tests := []struct {
+		name       string
+		additional []string
+		wantErr    string
+	}{
+		{name: "missing selector", wantErr: "exactly one of --territory or --all-territories is required"},
+		{name: "blank territory", additional: []string{"--territory", "   "}, wantErr: "invalid value for --territory: cannot be empty"},
+		{name: "both selectors", additional: []string{"--territory", "USA", "--all-territories"}, wantErr: "exactly one of --territory or --all-territories is required"},
+		{name: "invalid territory", additional: []string{"--territory", "Atlantis"}, wantErr: `territory "Atlantis" could not be mapped to an App Store Connect territory ID`},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			args := append(append([]string{}, baseArgs...), test.additional...)
+			var exitCode int
+			stdout, stderr := captureOutput(t, func() {
+				exitCode = rootcmd.Run(args, "1.2.3")
+			})
+			if exitCode != rootcmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d", exitCode, rootcmd.ExitUsage)
+			}
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			wantStderr := "Error: " + test.wantErr + "\n" + subscriptionIntroductoryOfferCreateSelectorGuidanceForTest
+			if stderr != wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, wantStderr)
+			}
+		})
+	}
+}
+
+func TestSubscriptionsIntroductoryOffersCreateNonSelectorValidationKeepsFullHelp(t *testing.T) {
+	var exitCode int
+	stdout, stderr := captureOutput(t, func() {
+		exitCode = rootcmd.Run([]string{
+			"subscriptions", "offers", "introductory", "create",
+			"--subscription-id", "8000000001",
+			"--territory", "USA",
+			"--offer-mode", "FREE_TRIAL",
+			"--number-of-periods", "1",
+		}, "1.2.3")
+	})
+	if exitCode != rootcmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d", exitCode, rootcmd.ExitUsage)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.HasPrefix(stderr, "Error: --offer-duration is required\n") ||
+		!strings.Contains(stderr, "DESCRIPTION\n") || !strings.Contains(stderr, "FLAGS\n") {
+		t.Fatalf("expected non-selector validation to retain full help, got %q", stderr)
+	}
+}
+
+const subscriptionIntroductoryOfferCreateSelectorGuidanceForTest = `Try:
+  asc subscriptions offers introductory create --subscription-id "SUB_ID" --territory "USA" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+  asc subscriptions offers introductory create --subscription-id "SUB_ID" --all-territories --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+For help:
+  asc subscriptions offers introductory create --help
+`
 
 func TestSubscriptionsIntroductoryOffersCreateSelectorAndPostShareOperationTimeout(t *testing.T) {
 	setupAuth(t)
@@ -238,7 +416,7 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesDryRunSummarizesAvai
 	}
 }
 
-func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesCreatesPerAvailabilityTerritory(t *testing.T) {
+func TestSubscriptionsIntroductoryOffersCreateDeprecatedAllAliasCreatesPerAvailabilityTerritory(t *testing.T) {
 	setupAuth(t)
 	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
 
@@ -311,8 +489,9 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesCreatesPerAvailabili
 			t.Fatalf("run error: %v", err)
 		}
 	})
-	if stderr != "" {
-		t.Fatalf("expected empty stderr, got %q", stderr)
+	wantWarning := "Warning: `--territory ALL` is deprecated. Use `--all-territories`.\n"
+	if stderr != wantWarning {
+		t.Fatalf("expected stderr %q, got %q", wantWarning, stderr)
 	}
 	if err := json.Unmarshal([]byte(stdout), &summary); err != nil {
 		t.Fatalf("parse JSON summary: %v", err)
@@ -606,9 +785,10 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesPartialFailureReturn
 
 func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesRejectsConcreteTerritoryAndPricePoint(t *testing.T) {
 	tests := []struct {
-		name    string
-		args    []string
-		wantErr string
+		name         string
+		args         []string
+		wantErr      string
+		wantReported bool
 	}{
 		{
 			name: "all territories and concrete territory",
@@ -621,7 +801,8 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesRejectsConcreteTerri
 				"--all-territories",
 				"--territory", "USA",
 			},
-			wantErr: "Error: --territory and --all-territories are mutually exclusive",
+			wantErr:      "Error: exactly one of --territory or --all-territories is required",
+			wantReported: true,
 		},
 		{
 			name: "all territories and price point",
@@ -648,7 +829,11 @@ func TestSubscriptionsIntroductoryOffersCreateAllTerritoriesRejectsConcreteTerri
 					t.Fatalf("parse error: %v", err)
 				}
 				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
+				if test.wantReported {
+					if errors.Is(err, flag.ErrHelp) || !shared.IsReportedUsageError(err) {
+						t.Fatalf("expected reported usage error, got %v", err)
+					}
+				} else if !errors.Is(err, flag.ErrHelp) {
 					t.Fatalf("expected flag.ErrHelp, got %v", err)
 				}
 			})

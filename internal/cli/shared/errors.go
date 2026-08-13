@@ -15,6 +15,14 @@ type ReportedError interface {
 	Reported() bool
 }
 
+// ReportedUsageError marks an already-printed usage failure without wrapping
+// flag.ErrHelp. This lets commands provide concise corrective guidance while
+// preserving usage exit and telemetry semantics without triggering full help.
+type ReportedUsageError interface {
+	ReportedError
+	UsageErrorKind() UsageErrorKind
+}
+
 // ValidationFailure marks an error as a command/domain validation result rather
 // than a generic runtime failure. It intentionally carries no command-specific
 // value so telemetry can classify the stage without increasing cardinality.
@@ -25,6 +33,11 @@ type ValidationFailure interface {
 
 type reportedError struct {
 	err error
+}
+
+type reportedUsageError struct {
+	kind    UsageErrorKind
+	message string
 }
 
 type validationError struct {
@@ -56,6 +69,15 @@ func (e classifiedUsageError) Error() string {
 	return e.message
 }
 func (e classifiedUsageError) Unwrap() error { return flag.ErrHelp }
+func (e classifiedUsageError) UsageErrorKind() UsageErrorKind {
+	return e.kind
+}
+
+func (e reportedUsageError) Error() string  { return e.message }
+func (e reportedUsageError) Reported() bool { return true }
+func (e reportedUsageError) UsageErrorKind() UsageErrorKind {
+	return e.kind
+}
 
 func (e reportedError) Error() string {
 	return e.err.Error()
@@ -95,6 +117,24 @@ func NewReportedError(err error) error {
 		return nil
 	}
 	return reportedError{err: err}
+}
+
+// NewReportedUsageError classifies an already-printed usage failure without
+// wrapping flag.ErrHelp, which would cause ffcli to print the command's full
+// usage page. The returned error maps to usage exit code 2.
+func NewReportedUsageError(kind UsageErrorKind, message string) error {
+	trimmed := strings.TrimSpace(message)
+	if kind != UsageErrorMissingRequired && kind != UsageErrorInvalidValue && kind != UsageErrorOther {
+		kind = classifyUsageMessage(trimmed)
+	}
+	return reportedUsageError{kind: kind, message: trimmed}
+}
+
+// IsReportedUsageError reports whether err is an already-printed usage
+// failure that must not trigger ffcli's full help renderer.
+func IsReportedUsageError(err error) bool {
+	var reportedUsage ReportedUsageError
+	return errors.As(err, &reportedUsage)
 }
 
 // NewValidationError wraps an error that represents local/domain validation.
@@ -156,9 +196,9 @@ func MissingRequiredUsageError(parameters ...string) error {
 }
 
 func ClassifyUsageError(err error) UsageErrorKind {
-	var classified classifiedUsageError
+	var classified interface{ UsageErrorKind() UsageErrorKind }
 	if errors.As(err, &classified) {
-		return classified.kind
+		return classified.UsageErrorKind()
 	}
 	return ""
 }

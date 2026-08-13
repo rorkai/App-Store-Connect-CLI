@@ -655,6 +655,60 @@ func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
 	}
 }
 
+func TestRun_IntroductoryOfferSelectorReportedUsageEmitsUsageTelemetry(t *testing.T) {
+	resetReportFlags(t)
+	for _, key := range []string{
+		"ASC_PROFILE", "ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_PRIVATE_KEY_PATH",
+		"ASC_PRIVATE_KEY", "ASC_PRIVATE_KEY_B64", "ASC_STRICT_AUTH",
+	} {
+		t.Setenv(key, "")
+	}
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "nonexistent.json"))
+
+	for _, test := range []struct {
+		name     string
+		selector []string
+		wantKind telemetry.ErrorKind
+	}{
+		{name: "missing", wantKind: telemetry.ErrorKindMissingRequired},
+		{name: "conflicting", selector: []string{"--territory", "USA", "--all-territories"}, wantKind: telemetry.ErrorKindInvalidValue},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			originalEmitTelemetry := emitTelemetry
+			t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+			var gotExitCode int
+			var gotContext telemetry.EventContext
+			emitTelemetry = func(_ string, _ string, _ time.Duration, exitCode int, eventContext telemetry.EventContext) {
+				gotExitCode = exitCode
+				gotContext = eventContext
+			}
+
+			args := []string{
+				"subscriptions", "offers", "introductory", "create",
+				"--subscription-id", "8000000001",
+				"--offer-duration", "ONE_MONTH",
+				"--offer-mode", "FREE_TRIAL",
+				"--number-of-periods", "1",
+			}
+			args = append(args, test.selector...)
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+			if stdout != "" || !strings.Contains(stderr, "For help:\n  asc subscriptions offers introductory create --help") {
+				t.Fatalf("stdout=%q stderr=%q", stdout, stderr)
+			}
+			if gotExitCode != ExitUsage || gotContext.ErrorKind != test.wantKind ||
+				gotContext.FailureStage != telemetry.FailureStageValidation ||
+				gotContext.OutcomeKind != telemetry.OutcomeUsageError {
+				t.Fatalf("unexpected telemetry: exit=%d context=%+v", gotExitCode, gotContext)
+			}
+		})
+	}
+}
+
 func TestRun_AuthLoginInvalidKeyTypeEmitsFailureParameter(t *testing.T) {
 	resetReportFlags(t)
 	tempDir := t.TempDir()
