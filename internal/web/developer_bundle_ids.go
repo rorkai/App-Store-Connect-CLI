@@ -630,11 +630,16 @@ func (c *Client) doDeveloperPortalHTTP(ctx context.Context, method, requestURL s
 
 	var requestBody io.Reader
 	if body != nil {
-		encoded, err := json.Marshal(body)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to marshal Developer Portal request: %w", err)
+		switch typed := body.(type) {
+		case url.Values:
+			requestBody = strings.NewReader(typed.Encode())
+		default:
+			encoded, err := json.Marshal(body)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to marshal Developer Portal request: %w", err)
+			}
+			requestBody = bytes.NewReader(encoded)
 		}
-		requestBody = bytes.NewReader(encoded)
 	}
 	request, err := http.NewRequestWithContext(ctx, method, requestURL, requestBody)
 	if err != nil {

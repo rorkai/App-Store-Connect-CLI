@@ -17,6 +17,10 @@ asc web api-keys create --name "Release automation" --output-dir ~/.asc/keys
 # Create an app through the web flow
 asc web apps create --name "My App" --bundle-id "com.example.app" --sku "MYAPP123"
 
+# Register and assign an App Group unavailable through the public API
+asc web app-groups create --name "My App Shared" --identifier "group.com.example.app.shared" --confirm
+asc web app-groups list --output table
+
 # Bootstrap app availability where the public API falls short
 asc web apps availability create --app "123456789" --territory "USA,GBR" --available-in-new-territories false
 
@@ -117,6 +121,34 @@ Sandbox tester creation via the App Store Connect web UI contract.
 Available commands:
 
 * `asc web sandbox create` - create a sandbox tester
+
+### `asc web app-groups`
+
+App Group registration and Bundle ID assignment through Apple Developer Portal.
+The public App Store Connect API can enable the `APP_GROUPS` capability but
+does not expose App Group resources or their associations.
+
+Available commands:
+
+* `asc web app-groups list` - list every App Group for the selected Developer team
+* `asc web app-groups create` - register a new `group.` identifier
+* `asc web app-groups assign` - idempotently associate a group with a Bundle ID and enable `APP_GROUPS` when needed
+
+Use the opaque IDs returned by the list commands for assignment:
+
+```bash  theme={null}
+asc web app-groups list --output table
+asc bundle-ids list --output table
+
+asc web app-groups assign \
+  --group "GROUP_RESOURCE_ID" \
+  --bundle-id "BUNDLE_RESOURCE_ID" \
+  --confirm
+```
+
+These commands require an Account Holder or Admin web session. Because Apple
+does not publish these Developer Portal endpoints, scripts should treat this
+command family as a web-session workflow rather than a public API guarantee.
 
 ### `asc web privacy`
 
