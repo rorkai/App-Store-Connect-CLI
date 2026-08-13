@@ -60,14 +60,14 @@ func Run(args []string, versionInfo string) int {
 		// including NoExecError cases that do not write flag output.
 		exitCode := ExitUsage
 		printUnknownFlagSuggestion(analysis)
-		emitImmediateTelemetry(args, root, versionInfo, exitCode, parseFailureContext(analysis))
+		emitImmediateTelemetry(args, root, versionInfo, parseFailureContext(analysis))
 		return exitCode
 	}
 
 	// Validate CI report flags after parsing
 	if err := shared.ValidateReportFlags(); err != nil {
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-		emitImmediateTelemetry(args, root, versionInfo, ExitUsage, validationFailureContext(analysis, err))
+		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, err))
 		return ExitUsage
 	}
 
@@ -87,11 +87,16 @@ func Run(args []string, versionInfo string) int {
 	}
 
 	commandName := getCommandName(root, args)
+	if invalid, suggested, ok := commonCommandPathRecovery(root, analysis, args); ok {
+		fmt.Fprintf(os.Stderr, "Error: unknown command `%s`\nTry:\n  %s\n", invalid, suggested)
+		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, flag.ErrHelp))
+		return ExitUsage
+	}
 	if shouldRejectUnknownChild(root, analysis, commandName) {
 		runErr := shared.UsageErrorf("unexpected argument(s): %s", shared.SanitizeTerminal(analysis.unknownToken))
 		fmt.Fprint(os.Stderr, analysis.command.UsageFunc(analysis.command))
 		printUnknownSubcommandSuggestion(analysis, commandName)
-		emitImmediateTelemetry(args, root, versionInfo, ExitUsage, validationFailureContext(analysis, runErr))
+		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, runErr))
 		return ExitUsage
 	}
 
@@ -305,10 +310,9 @@ func emitImmediateTelemetry(
 	args []string,
 	root *ffcli.Command,
 	versionInfo string,
-	exitCode int,
 	eventContext telemetry.EventContext,
 ) {
-	emitTelemetry(getCommandName(root, args), versionInfo, 0, exitCode, eventContext)
+	emitTelemetry(getCommandName(root, args), versionInfo, 0, ExitUsage, eventContext)
 }
 
 func prepareFlagParsing(command *ffcli.Command, args []string, output *bytes.Buffer) func() {

@@ -23,6 +23,26 @@ type invocationAnalysis struct {
 	unknownFlag  bool
 }
 
+type commandPathRecoveryRule struct {
+	invalid     []string
+	destination []string
+}
+
+var commonCommandPathRecoveryRules = []commandPathRecoveryRule{
+	{
+		invalid:     []string{"versions", "info"},
+		destination: []string{"versions", "view"},
+	},
+	{
+		invalid:     []string{"reviewsubmissions", "list"},
+		destination: []string{"review", "submissions-list"},
+	},
+	{
+		invalid:     []string{"testflight", "groups", "builds", "list"},
+		destination: []string{"testflight", "groups", "list"},
+	},
+}
+
 func analyzeInvocation(root *ffcli.Command, args []string) invocationAnalysis {
 	current := root
 	sawFlag := false
@@ -89,6 +109,77 @@ func shouldRejectUnknownChild(root *ffcli.Command, analysis invocationAnalysis, 
 	// optional flush subcommand. Normalized view/edit commands and a few removed
 	// commands also handle legacy children to print precise migration guidance.
 	return commandName != "asc snitch" && !preservesLegacyChild(analysis, commandName)
+}
+
+func commonCommandPathRecovery(root *ffcli.Command, analysis invocationAnalysis, args []string) (string, string, bool) {
+	if analysis.shape != telemetry.InvocationShapeUnknownChild {
+		return "", "", false
+	}
+
+	commandStart := leadingCommandArgIndex(root, args)
+	commandArgs := args[commandStart:]
+	for _, rule := range commonCommandPathRecoveryRules {
+		if !hasExactCommandPrefix(commandArgs, rule.invalid) {
+			continue
+		}
+		invalid := "asc " + strings.Join(rule.invalid, " ")
+		suggestedArgs := append([]string{}, args[:commandStart]...)
+		suggestedArgs = append(suggestedArgs, rule.destination...)
+		suggestedArgs = append(suggestedArgs, commandArgs[len(rule.invalid):]...)
+		return invalid, renderSuggestedCommand(suggestedArgs), true
+	}
+	return "", "", false
+}
+
+func leadingCommandArgIndex(root *ffcli.Command, args []string) int {
+	if root == nil {
+		return 0
+	}
+	for i := 0; i < len(args); {
+		next, consumed := consumeFlagToken(root.FlagSet, args[i], args, i)
+		if !consumed {
+			return i
+		}
+		i = next
+	}
+	return len(args)
+}
+
+func hasExactCommandPrefix(args, prefix []string) bool {
+	if len(args) < len(prefix) {
+		return false
+	}
+	for i := range prefix {
+		if !strings.EqualFold(args[i], prefix[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func renderSuggestedCommand(args []string) string {
+	rendered := make([]string, 0, len(args)+1)
+	rendered = append(rendered, "asc")
+	for _, arg := range args {
+		rendered = append(rendered, shellSafeCommandArg(arg))
+	}
+	return strings.Join(rendered, " ")
+}
+
+func shellSafeCommandArg(arg string) string {
+	arg = shared.SanitizeTerminal(arg)
+	if arg == "" {
+		return "''"
+	}
+	if strings.IndexFunc(arg, func(r rune) bool {
+		isASCIILetterOrDigit := (r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9')
+		return !isASCIILetterOrDigit && !strings.ContainsRune("_@%+=:,./-", r)
+	}) == -1 {
+		return arg
+	}
+	return "'" + strings.ReplaceAll(arg, "'", "'\"'\"'") + "'"
 }
 
 func preservesLegacyChild(analysis invocationAnalysis, commandName string) bool {

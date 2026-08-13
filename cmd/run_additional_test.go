@@ -728,6 +728,112 @@ func TestRun_UnknownNestedSubcommandSuggestsRealSubcommand(t *testing.T) {
 	}
 }
 
+func TestRun_CommonWrongCommandPathsRecoverInOneStep(t *testing.T) {
+	resetReportFlags(t)
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_PROFILE", "")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+	t.Setenv("ASC_KEY_ID", "")
+	t.Setenv("ASC_ISSUER_ID", "")
+	t.Setenv("ASC_PRIVATE_KEY_PATH", "")
+	t.Setenv("ASC_PRIVATE_KEY", "")
+	t.Setenv("ASC_PRIVATE_KEY_B64", "")
+	t.Setenv("ASC_STRICT_AUTH", "")
+
+	tests := []struct {
+		name        string
+		args        []string
+		wantStderr  string
+		wantCommand string
+	}{
+		{
+			name:        "version info",
+			args:        []string{"--profile", "Team Profile", "versions", "info", "--version-id", "VERSION_ID", "--include-build"},
+			wantStderr:  "Error: unknown command `asc versions info`\nTry:\n  asc --profile 'Team Profile' versions view --version-id VERSION_ID --include-build\n",
+			wantCommand: "asc versions",
+		},
+		{
+			name:        "joined review submissions",
+			args:        []string{"reviewsubmissions", "list", "--app", "APP_ID"},
+			wantStderr:  "Error: unknown command `asc reviewsubmissions list`\nTry:\n  asc review submissions-list --app APP_ID\n",
+			wantCommand: "asc",
+		},
+		{
+			name:        "groups builds list",
+			args:        []string{"testflight", "groups", "builds", "list", "--build-id", "BUILD_ID"},
+			wantStderr:  "Error: unknown command `asc testflight groups builds list`\nTry:\n  asc testflight groups list --build-id BUILD_ID\n",
+			wantCommand: "asc testflight groups",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			originalEmitTelemetry := emitTelemetry
+			t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+
+			var telemetryCalls int
+			var gotCommand string
+			var gotExitCode int
+			var gotContext telemetry.EventContext
+			emitTelemetry = func(command, _ string, _ time.Duration, exitCode int, eventContext telemetry.EventContext) {
+				telemetryCalls++
+				gotCommand = command
+				gotExitCode = exitCode
+				gotContext = eventContext
+			}
+
+			stdout, stderr := captureCommandOutput(t, func() {
+				if code := Run(test.args, "1.0.0"); code != ExitUsage {
+					t.Fatalf("Run() exit code = %d, want %d", code, ExitUsage)
+				}
+			})
+
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if stderr != test.wantStderr {
+				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)
+			}
+			if telemetryCalls != 1 || gotCommand != test.wantCommand || gotExitCode != ExitUsage {
+				t.Fatalf("unexpected telemetry call: calls=%d command=%q exit=%d", telemetryCalls, gotCommand, gotExitCode)
+			}
+			if gotContext.InvocationShape != telemetry.InvocationShapeUnknownChild ||
+				gotContext.ErrorKind != telemetry.ErrorKindOther ||
+				gotContext.FailureStage != telemetry.FailureStageValidation ||
+				gotContext.OutcomeKind != telemetry.OutcomeUsageError ||
+				gotContext.FailureParameter != "" {
+				t.Fatalf("unexpected telemetry context: %+v", gotContext)
+			}
+		})
+	}
+}
+
+func TestRun_CommonWrongCommandPathRecoveryDoesNotInterceptCanonicalHelp(t *testing.T) {
+	resetReportFlags(t)
+
+	tests := [][]string{
+		{"versions", "view", "--help"},
+		{"review", "submissions-list", "--help"},
+		{"testflight", "groups", "list", "--help"},
+	}
+	for _, args := range tests {
+		stdout, stderr := captureCommandOutput(t, func() {
+			if code := Run(args, "1.0.0"); code != ExitSuccess {
+				t.Fatalf("Run(%q) exit code = %d, want %d", args, code, ExitSuccess)
+			}
+		})
+		if stdout != "" {
+			t.Fatalf("Run(%q) stdout = %q, want empty", args, stdout)
+		}
+		if strings.Contains(stderr, "Try:") {
+			t.Fatalf("Run(%q) was intercepted by recovery: %q", args, stderr)
+		}
+		if !strings.Contains(stderr, "USAGE") {
+			t.Fatalf("Run(%q) stderr = %q, want command help", args, stderr)
+		}
+	}
+}
+
 func TestRun_UnknownHybridSubcommandReturnsUsageBeforeAuth(t *testing.T) {
 	resetReportFlags(t)
 

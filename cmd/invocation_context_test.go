@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -193,6 +194,55 @@ func TestAnalyzeInvocationPreservesRawTokens(t *testing.T) {
 
 	if got.command != root || got.shape != telemetry.InvocationShapeUnknownChild || got.unknownToken != " builds " {
 		t.Fatalf("analyzeInvocation() = %+v, want root unknown child with raw token", got)
+	}
+}
+
+func TestCommonCommandPathRecoveryDestinationsExist(t *testing.T) {
+	root := RootCommand("1.0.0")
+
+	for _, rule := range commonCommandPathRecoveryRules {
+		current := root
+		for _, part := range rule.destination {
+			current = findDirectSubcommand(current, part)
+			if current == nil {
+				t.Fatalf("recovery destination %q does not resolve to a command", strings.Join(rule.destination, " "))
+			}
+		}
+		if current.Exec == nil {
+			t.Fatalf("recovery destination %q is not executable", strings.Join(rule.destination, " "))
+		}
+	}
+}
+
+func TestCommonCommandPathRecoveryRequiresExactUnknownPrefix(t *testing.T) {
+	root := RootCommand("1.0.0")
+	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
+	tests := [][]string{
+		{"versions", "information", "--version-id", "VERSION_ID"},
+		{" versions ", "info", "--version-id", "VERSION_ID"},
+		{"reviewsubmissions", "get", "--id", "SUBMISSION_ID"},
+		{"testflight", "groups", "build", "list", "--build-id", "BUILD_ID"},
+	}
+
+	for _, args := range tests {
+		if invalid, suggested, ok := commonCommandPathRecovery(root, analysis, args); ok {
+			t.Fatalf("commonCommandPathRecovery(%q) = (%q, %q, true), want no recovery", args, invalid, suggested)
+		}
+	}
+}
+
+func TestCommonCommandPathRecoveryRendersSuffixForSafeShellCopy(t *testing.T) {
+	root := RootCommand("1.0.0")
+	analysis := invocationAnalysis{shape: telemetry.InvocationShapeUnknownChild}
+	_, suggested, ok := commonCommandPathRecovery(root, analysis, []string{
+		"versions", "info", "--version-id", "VERSION ID; $(not-a-command)",
+	})
+	if !ok {
+		t.Fatal("commonCommandPathRecovery() did not recognize exact command path")
+	}
+	want := "asc versions view --version-id 'VERSION ID; $(not-a-command)'"
+	if suggested != want {
+		t.Fatalf("suggested command = %q, want %q", suggested, want)
 	}
 }
 
