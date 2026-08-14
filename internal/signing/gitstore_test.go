@@ -293,6 +293,10 @@ func TestValidateEncryptedRepositoryPathsRejectsCaseFoldCollisions(t *testing.T)
 			"profiles/adhoc/K.mobileprovision",
 			"profiles/adhoc/\u212A.mobileprovision",
 		},
+		"Unicode canonical normalization": {
+			"profiles/adhoc/r\u00e9lease.mobileprovision",
+			"profiles/adhoc/re\u0301lease.mobileprovision",
+		},
 	}
 	const want = "encrypted repository paths collide under Windows Unicode case folding"
 	for name, paths := range tests {

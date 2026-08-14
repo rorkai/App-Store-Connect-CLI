@@ -15,6 +15,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
+	"golang.org/x/text/unicode/norm"
 )
 
 // redactedRepoUserinfo replaces credentials that net/url cannot parse.
@@ -269,9 +270,9 @@ func canonicalEncryptedRepositoryPath(path string) string {
 }
 
 // ValidateEncryptedRepositoryPaths rejects path sets that cannot coexist on a
-// Windows case-insensitive checkout. It uses the Unicode simple-fold classes
-// behind strings.EqualFold and intentionally does not perform NFC/NFD
-// normalization because the Go standard library does not provide a normalizer.
+// Windows case-insensitive or normalization-insensitive macOS checkout. It
+// normalizes canonically equivalent paths before applying the Unicode
+// simple-fold classes behind strings.EqualFold.
 // Exact duplicate canonical paths retain their existing update semantics.
 func ValidateEncryptedRepositoryPaths(paths []string) error {
 	seen := make(map[string]string, len(paths))
@@ -361,6 +362,7 @@ func validateEncryptedRepositoryPath(path string) error {
 }
 
 func windowsUnicodeCaseFoldKey(path string) string {
+	path = norm.NFC.String(path)
 	var key strings.Builder
 	key.Grow(len(path))
 	for _, r := range path {
