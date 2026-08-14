@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -56,6 +57,9 @@ func TestLoadPrivateSigningKeyAcceptsRSAAndEC(t *testing.T) {
 }
 
 func TestLoadPrivateSigningKeyRejectsSymlinkAndPermissiveMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation and POSIX permission bits are not portable to Windows")
+	}
 	dir := t.TempDir()
 	keyPath := filepath.Join(dir, "key.pem")
 	der, err := x509.MarshalPKCS8PrivateKey(mustECKey(t))

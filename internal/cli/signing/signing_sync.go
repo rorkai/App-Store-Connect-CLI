@@ -95,6 +95,9 @@ func resolvePassword(flagValue string) (string, error) {
 }
 
 func resolveSyncPassword(passwordFile, legacyFlagValue string) (password string, legacy bool, err error) {
+	if passwordFile != "" && strings.TrimSpace(passwordFile) == "" {
+		return "", false, shared.UsageError("--password-file must not be empty")
+	}
 	if strings.TrimSpace(passwordFile) != "" {
 		data, readErr := readProtectedSecretFile(passwordFile, "signing sync password")
 		if readErr != nil {
@@ -242,7 +245,7 @@ func syncPushCommand() *ffcli.Command {
 				}
 			}
 			if err != nil {
-				return shared.UsageErrorf("signing identity: %v", err)
+				return fmt.Errorf("signing sync push: signing identity: %w", err)
 			}
 
 			client, err := shared.GetASCClient()

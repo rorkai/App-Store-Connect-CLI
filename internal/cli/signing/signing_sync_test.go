@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	signingpkg "github.com/rudrankriyam/App-Store-Connect-CLI/internal/signing"
@@ -863,6 +864,48 @@ func TestSigningSyncPushRejectsIdentityFlagConflictsBeforeSecretsOrClient(t *tes
 	}
 }
 
+func TestSigningSyncRejectsBlankPasswordFile(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  *ffcli.Command
+		args []string
+	}{
+		{
+			name: "push",
+			cmd:  syncPushCommand(),
+			args: []string{
+				"--bundle-id", "com.example.app",
+				"--profile-type", "IOS_APP_STORE",
+				"--repo", "git@example.com:team/signing.git",
+				"--password-file", " \t ",
+			},
+		},
+		{
+			name: "pull",
+			cmd:  syncPullCommand(),
+			args: []string{
+				"--repo", "git@example.com:team/signing.git",
+				"--password-file", " \t ",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.cmd.Parse(tt.args); err != nil {
+				t.Fatal(err)
+			}
+			err := tt.cmd.Run(context.Background())
+			if err == nil || err.Error() != "--password-file must not be empty" {
+				t.Fatalf("error = %v, want blank password-file usage error", err)
+			}
+			if !errors.Is(err, flag.ErrHelp) {
+				t.Fatalf("error = %v, want usage error", err)
+			}
+		})
+	}
+}
+
 func TestSigningSyncPushRejectsDirectDistributionIdentityBeforeSecretReads(t *testing.T) {
 	for _, profileType := range []string{"MAC_APP_DIRECT", "MAC_CATALYST_APP_DIRECT"} {
 		t.Run(profileType, func(t *testing.T) {
@@ -881,6 +924,27 @@ func TestSigningSyncPushRejectsDirectDistributionIdentityBeforeSecretReads(t *te
 				t.Fatalf("error = %v, want usage error %q", err, want)
 			}
 		})
+	}
+}
+
+func TestSigningSyncPushIdentityLoadFailureIsOperational(t *testing.T) {
+	t.Setenv(signingSyncPasswordEnvVar, "repository-password")
+	cmd := syncPushCommand()
+	if err := cmd.Parse([]string{
+		"--bundle-id", "com.example.app",
+		"--profile-type", "IOS_APP_STORE",
+		"--repo", "git@example.com:team/signing.git",
+		"--identity", filepath.Join(t.TempDir(), "missing.p12"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	err := cmd.Run(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "signing sync push: signing identity") {
+		t.Fatalf("error = %v, want signing identity load failure", err)
+	}
+	if errors.Is(err, flag.ErrHelp) {
+		t.Fatalf("error = %v, want operational error", err)
 	}
 }
 
