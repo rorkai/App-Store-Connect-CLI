@@ -233,7 +233,7 @@ func syncPushCommand() *ffcli.Command {
 				if strings.TrimSpace(*identityPasswordFile) != "" {
 					passwordBytes, readErr := readProtectedSecretFile(*identityPasswordFile, "identity password")
 					if readErr != nil {
-						return shared.UsageErrorf("--identity-password-file: %v", readErr)
+						return fmt.Errorf("signing sync push: identity password: %w", readErr)
 					}
 					identityPassword = trimPasswordFileNewline(string(passwordBytes))
 				}

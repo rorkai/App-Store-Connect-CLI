@@ -27,6 +27,7 @@ import (
 	"time"
 
 	legacyPKCS12 "github.com/bitrise-io/go-pkcs12"
+	rootcmd "github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"go.mozilla.org/pkcs7"
@@ -63,6 +64,185 @@ func TestSigningSyncPush_RejectsConflictingIdentityInputsBeforeAuth(t *testing.T
 	}
 }
 
+func TestSigningSyncPushIdentityLoadFailuresUseOperationalExitCode(t *testing.T) {
+	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_SIGNING_SYNC_PASSWORD", "repository-password")
+	clientCalls := 0
+	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+		clientCalls++
+		return nil, errors.New("client must not be created")
+	}))
+
+	fixtureDir := t.TempDir()
+	badPKCS12 := filepath.Join(fixtureDir, "bad.p12")
+	writeSigningSyncProtectedFile(t, badPKCS12, []byte("not a PKCS#12 identity"))
+	badKey := filepath.Join(fixtureDir, "bad-key.pem")
+	writeSigningSyncProtectedFile(t, badKey, []byte("not a PEM private key"))
+	permissiveIdentity := filepath.Join(fixtureDir, "permissive.p12")
+	writeSigningSyncProtectedFile(t, permissiveIdentity, []byte("not a PKCS#12 identity"))
+	if err := os.Chmod(permissiveIdentity, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	base := []string{
+		"signing", "sync", "push",
+		"--bundle-id", "com.example.app",
+		"--profile-type", "IOS_APP_STORE",
+		"--repo", "git@example.com:team/signing.git",
+	}
+	tests := []struct {
+		name       string
+		args       []string
+		wantStderr string
+	}{
+		{
+			name:       "missing identity",
+			args:       []string{"--identity", filepath.Join(fixtureDir, "missing.p12")},
+			wantStderr: "PKCS#12 identity file does not exist",
+		},
+		{
+			name:       "bad PKCS12",
+			args:       []string{"--identity", badPKCS12},
+			wantStderr: "decode PKCS#12 identity",
+		},
+		{
+			name:       "bad private key",
+			args:       []string{"--private-key", badKey, "--identity-sha256", strings.Repeat("A", 64)},
+			wantStderr: "private key is not PEM encoded",
+		},
+		{
+			name:       "missing identity password file",
+			args:       []string{"--identity", badPKCS12, "--identity-password-file", filepath.Join(fixtureDir, "missing-password")},
+			wantStderr: "identity password file does not exist",
+		},
+	}
+	if runtime.GOOS != "windows" {
+		tests = append(tests, struct {
+			name       string
+			args       []string
+			wantStderr string
+		}{
+			name:       "unreadable identity permissions",
+			args:       []string{"--identity", permissiveIdentity},
+			wantStderr: "PKCS#12 identity file permissions must be 0600 or more restrictive",
+		})
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var exitCode int
+			stdout, stderr := captureOutput(t, func() {
+				exitCode = rootcmd.Run(append(append([]string{}, base...), tt.args...), "test")
+			})
+			if exitCode != rootcmd.ExitError {
+				t.Fatalf("exit code = %d, want %d; stderr=%q", exitCode, rootcmd.ExitError, stderr)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if !strings.Contains(stderr, tt.wantStderr) {
+				t.Fatalf("stderr = %q, want %q", stderr, tt.wantStderr)
+			}
+		})
+	}
+	if clientCalls != 0 {
+		t.Fatalf("client factory calls = %d, want 0", clientCalls)
+	}
+}
+
+func TestSigningSyncPushInvalidIdentityCombinationUsesUsageExitCode(t *testing.T) {
+	var exitCode int
+	stdout, stderr := captureOutput(t, func() {
+		exitCode = rootcmd.Run([]string{
+			"signing", "sync", "push",
+			"--bundle-id", "com.example.app",
+			"--profile-type", "IOS_APP_STORE",
+			"--repo", "git@example.com:team/signing.git",
+			"--identity", "identity.p12",
+			"--private-key", "identity-key.pem",
+		}, "test")
+	})
+	if exitCode != rootcmd.ExitUsage {
+		t.Fatalf("exit code = %d, want %d; stderr=%q", exitCode, rootcmd.ExitUsage, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	if !strings.Contains(stderr, "--identity and --private-key are mutually exclusive") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+}
+
+func TestSigningSyncPushReportsIdentityFilterCause(t *testing.T) {
+	setupAuth(t)
+	t.Setenv("ASC_SIGNING_SYNC_PASSWORD", "repository-password")
+	localKey, localCertificate, _ := signingSyncIdentityFixture(t)
+	_, ascCertificate, _ := signingSyncIdentityFixture(t)
+	identityFile := filepath.Join(t.TempDir(), "identity.p12")
+	identity, err := legacyPKCS12.Encode(rand.Reader, localKey, localCertificate, nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeSigningSyncProtectedFile(t, identityFile, identity)
+
+	certificateContent := base64.StdEncoding.EncodeToString(ascCertificate.Raw)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/v1/bundleIds":
+			writeSigningSyncJSON(t, w, `{"data":[{"type":"bundleIds","id":"bundle-main","attributes":{"identifier":"com.example.app"}}]}`)
+		case "/v1/bundleIds/bundle-main/profiles":
+			writeSigningSyncJSON(t, w, `{"data":[]}`)
+		case "/v1/certificates":
+			writeSigningSyncJSON(t, w, fmt.Sprintf(`{"data":[{"type":"certificates","id":"cert-main","attributes":{"certificateType":"IOS_DISTRIBUTION","activated":true,"expirationDate":%q,"certificateContent":%q}}]}`,
+				ascCertificate.NotAfter.Format(time.RFC3339), certificateContent))
+		default:
+			t.Errorf("unexpected ASC request %s %s", req.Method, req.URL.String())
+			http.Error(w, "unexpected request", http.StatusInternalServerError)
+		}
+	}))
+	t.Cleanup(server.Close)
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport := server.Client().Transport
+	client, err := asc.NewClientWithHTTPClient(os.Getenv("ASC_KEY_ID"), os.Getenv("ASC_ISSUER_ID"), os.Getenv("ASC_PRIVATE_KEY_PATH"), &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		cloned := req.Clone(req.Context())
+		cloned.URL.Scheme = serverURL.Scheme
+		cloned.URL.Host = serverURL.Host
+		return transport.RoundTrip(cloned)
+	})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) { return client, nil }))
+
+	var exitCode int
+	stdout, stderr := captureOutput(t, func() {
+		exitCode = rootcmd.Run([]string{
+			"signing", "sync", "push",
+			"--bundle-id", "com.example.app",
+			"--profile-type", "IOS_APP_ADHOC",
+			"--repo", "git@example.com:team/signing.git",
+			"--identity", identityFile,
+			"--create-missing",
+			"--device", "DEVICE1",
+		}, "test")
+	})
+	if exitCode != rootcmd.ExitError {
+		t.Fatalf("exit code = %d, want %d; stderr=%q", exitCode, rootcmd.ExitError, stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	if !strings.Contains(stderr, "no App Store Connect certificate matches the local signing identity") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if strings.Contains(stderr, "no active, unexpired certificates available") {
+		t.Fatalf("stderr reports the wrong cause: %q", stderr)
+	}
+}
+
 func TestSigningSyncIdentityPushPullPublicRoundTrip(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("local Git fixture setup uses POSIX-compatible file permission assertions")
@@ -85,8 +265,8 @@ func TestSigningSyncIdentityPushPullPublicRoundTrip(t *testing.T) {
 		case "/v1/bundleIds/bundle-main/profiles":
 			writeSigningSyncJSON(t, w, fmt.Sprintf(`{"data":[{"type":"profiles","id":"profile-main","attributes":{"name":"Ad Hoc","uuid":"profile-main","profileType":"IOS_APP_ADHOC","profileState":"ACTIVE","profileContent":%q}}]}`, profileContent))
 		case "/v1/profiles/profile-main/certificates":
-			writeSigningSyncJSON(t, w, fmt.Sprintf(`{"data":[{"type":"certificates","id":"cert-main","attributes":{"certificateType":"IOS_DISTRIBUTION","serialNumber":"SERIAL","expirationDate":%q,"certificateContent":%q}}]}`,
-				certificate.NotAfter.Format(time.RFC3339), certificateContent))
+			writeSigningSyncJSON(t, w, fmt.Sprintf(`{"data":[{"type":"certificates","id":"cert-main","attributes":{"certificateType":"IOS_DISTRIBUTION","serialNumber":"SERIAL","certificateContent":%q}}]}`,
+				certificateContent))
 		default:
 			t.Errorf("unexpected ASC request %s %s", req.Method, req.URL.String())
 			http.Error(w, "unexpected request", http.StatusInternalServerError)

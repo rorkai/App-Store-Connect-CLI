@@ -892,15 +892,38 @@ func TestSigningSyncRejectsBlankPasswordFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(signingSyncPasswordEnvVar, "environment-fallback-must-not-be-used")
+			t.Setenv(matchPasswordEnvVar, "legacy-fallback-must-not-be-used")
+			clientCalls := 0
+			t.Cleanup(shared.SetASCClientFactoryForTesting(func() (*asc.Client, error) {
+				clientCalls++
+				return nil, errors.New("client must not be created")
+			}))
 			if err := tt.cmd.Parse(tt.args); err != nil {
 				t.Fatal(err)
 			}
-			err := tt.cmd.Run(context.Background())
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				runErr = tt.cmd.Run(context.Background())
+			})
+			err := runErr
 			if err == nil || err.Error() != "--password-file must not be empty" {
 				t.Fatalf("error = %v, want blank password-file usage error", err)
 			}
 			if !errors.Is(err, flag.ErrHelp) {
 				t.Fatalf("error = %v, want usage error", err)
+			}
+			if stdout != "" {
+				t.Fatalf("stdout = %q, want empty", stdout)
+			}
+			if !strings.HasPrefix(stderr, "Error: --password-file must not be empty\n") {
+				t.Fatalf("stderr = %q", stderr)
+			}
+			if strings.Contains(stderr, "Cloning signing repo") {
+				t.Fatalf("stderr shows repository side effects: %q", stderr)
+			}
+			if clientCalls != 0 {
+				t.Fatalf("client factory calls = %d, want 0", clientCalls)
 			}
 		})
 	}

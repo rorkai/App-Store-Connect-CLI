@@ -523,6 +523,34 @@ func TestIdentityCertificateFilterRejectsInactiveOrAPIExpiredCertificate(t *test
 	}
 }
 
+func TestIdentityCertificateFilterFallsBackToEncodedValidity(t *testing.T) {
+	key := mustECKey(t)
+	now := time.Now()
+	current := mustSigningCertificateWithValidity(t, key, 30, now.Add(-time.Hour), now.Add(time.Hour))
+	expired := mustSigningCertificateWithValidity(t, key, 31, now.Add(-2*time.Hour), now.Add(-time.Hour))
+	notYetValid := mustSigningCertificateWithValidity(t, key, 32, now.Add(time.Hour), now.Add(2*time.Hour))
+	filter := identityCertificateFilter(&signingIdentity{PrivateKey: key})
+
+	resource := func(content string) asc.Resource[asc.CertificateAttributes] {
+		return asc.Resource[asc.CertificateAttributes]{Attributes: asc.CertificateAttributes{
+			CertificateContent: content,
+		}}
+	}
+
+	if !filter(resource(base64.StdEncoding.EncodeToString(current.Raw))) {
+		t.Fatal("current certificate with omitted expirationDate rejected")
+	}
+	if filter(resource(base64.StdEncoding.EncodeToString(expired.Raw))) {
+		t.Fatal("expired encoded certificate accepted")
+	}
+	if filter(resource(base64.StdEncoding.EncodeToString(notYetValid.Raw))) {
+		t.Fatal("not-yet-valid encoded certificate accepted")
+	}
+	if filter(resource(base64.StdEncoding.EncodeToString([]byte("not DER")))) {
+		t.Fatal("malformed encoded certificate accepted")
+	}
+}
+
 func TestIdentityCertificateFilterUsesFingerprintToDisambiguateSameKey(t *testing.T) {
 	key := mustECKey(t)
 	first := mustSigningCertificate(t, key, 21)

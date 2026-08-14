@@ -321,7 +321,11 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 	if err != nil {
 		return nil, nil, false, err
 	}
+	fetchedCertificateCount := len(certificates.Data)
 	certificates.Data = filterSigningCertificates(certificates.Data, options.CertificateFilter)
+	if options.CertificateFilter != nil && fetchedCertificateCount > 0 && len(certificates.Data) == 0 {
+		return nil, nil, false, errors.New("no App Store Connect certificate matches the local signing identity or requested --identity-sha256")
+	}
 	certificates.Data = certificatesForProfileCreation(certificates.Data, options.ProfileType, time.Now())
 	if len(certificates.Data) == 0 {
 		return nil, nil, false, fmt.Errorf(

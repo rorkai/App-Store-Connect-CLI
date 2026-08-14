@@ -390,8 +390,20 @@ func usableIdentityCertificateResource(certificate asc.Resource[asc.CertificateA
 	if certificate.Attributes.Activated != nil && !*certificate.Attributes.Activated {
 		return false
 	}
-	expiresAt, err := time.Parse(time.RFC3339, strings.TrimSpace(certificate.Attributes.ExpirationDate))
-	return err == nil && expiresAt.After(now) && strings.TrimSpace(certificate.Attributes.CertificateContent) != ""
+	der, err := base64.StdEncoding.DecodeString(strings.TrimSpace(certificate.Attributes.CertificateContent))
+	if err != nil || len(der) == 0 {
+		return false
+	}
+	parsed, err := x509.ParseCertificate(der)
+	if err != nil || now.Before(parsed.NotBefore) || !now.Before(parsed.NotAfter) {
+		return false
+	}
+	expiration := strings.TrimSpace(certificate.Attributes.ExpirationDate)
+	if expiration == "" {
+		return true
+	}
+	expiresAt, err := time.Parse(time.RFC3339, expiration)
+	return err == nil && expiresAt.After(now)
 }
 
 func preflightIdentityForProfileCreate(identity *signingIdentity, plan profileCreatePlan, repositoryPassword string, now time.Time) error {
