@@ -188,6 +188,25 @@ func TestGitStoreListEncryptedFilesRejectsLiteralBackslashPath(t *testing.T) {
 	}
 }
 
+func TestGitStoreListEncryptedFilesReturnsPortablePaths(t *testing.T) {
+	store := &GitStore{LocalDir: t.TempDir()}
+	encryptedPath := filepath.Join(store.LocalDir, "identities", "distribution", "ABC.p12.enc")
+	if err := os.MkdirAll(filepath.Dir(encryptedPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(encryptedPath, []byte("ciphertext"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := store.ListEncryptedFiles()
+	if err != nil {
+		t.Fatalf("ListEncryptedFiles() error = %v", err)
+	}
+	if got, want := files, []string{"identities/distribution/ABC.p12"}; !slices.Equal(got, want) {
+		t.Fatalf("ListEncryptedFiles() = %q, want portable paths %q", got, want)
+	}
+}
+
 func TestGitStoreListEncryptedFilesRejectsControlAndBidiPaths(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows rejects some control characters at filesystem creation")

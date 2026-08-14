@@ -301,6 +301,7 @@ func writeSigningSyncJSON(t *testing.T, w http.ResponseWriter, body string) {
 func runSigningSyncGit(t *testing.T, args ...string) {
 	t.Helper()
 	cmd := exec.Command("git", args...)
+	cmd.Env = cleanGitRepoEnv(os.Environ())
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, output)

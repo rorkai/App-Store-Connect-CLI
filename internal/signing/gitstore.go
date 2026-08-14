@@ -264,6 +264,7 @@ func (g *GitStore) ListEncryptedFiles() ([]string, error) {
 			if err != nil {
 				return err
 			}
+			rel = filepath.ToSlash(rel)
 			if err := validateEncryptedRepositoryPath(rel); err != nil {
 				return err
 			}
