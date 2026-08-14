@@ -459,26 +459,54 @@ func TestPrepareSigningIdentityArtifactsUsesDevelopmentCategory(t *testing.T) {
 	}
 }
 
-func TestBindSigningIdentityProfileRejectsAPIAndSignedUUIDMismatch(t *testing.T) {
-	key := mustECKey(t)
-	certificate := mustSigningCertificate(t, key, 26)
-	identity := &signingIdentity{PrivateKey: key, Certificate: certificate, CertificateSHA256: certificateSHA256(certificate)}
-	artifacts, err := prepareSigningIdentityArtifacts(identity, "password", "com.example.app", "IOS_APP_ADHOC")
-	if err != nil {
-		t.Fatal(err)
+func TestBindSigningIdentityProfileNormalizesAndValidatesUUIDs(t *testing.T) {
+	const signedUUID = "01234567-89AB-CDEF-0123-456789ABCDEF"
+	tests := []struct {
+		name       string
+		signedUUID string
+		apiUUID    string
+		wantError  string
+	}{
+		{name: "API UUID omitted", signedUUID: signedUUID},
+		{name: "normalized equality", signedUUID: signedUUID, apiUUID: "  01234567-89ab-cdef-0123-456789abcdef  "},
+		{name: "mismatch", signedUUID: signedUUID, apiUUID: "11234567-89ab-cdef-0123-456789abcdef", wantError: "does not match"},
+		{name: "signed UUID missing", apiUUID: signedUUID, wantError: "verified UUID"},
+		{name: "signed UUID malformed", signedUUID: "not-a-uuid", apiUUID: "not-a-uuid", wantError: "verified UUID"},
 	}
-	profilePlist, err := plist.Marshal(map[string]any{
-		"UUID": "SIGNED-UUID", "TeamIdentifier": []string{"TEAM123"}, "ApplicationIdentifierPrefix": []string{"TEAM123"},
-		"ExpirationDate": time.Now().Add(time.Hour), "DeveloperCertificates": [][]byte{certificate.Raw},
-		"ProvisionedDevices": []string{"DEVICE1"}, "Entitlements": map[string]any{"application-identifier": "TEAM123.com.example.app", "get-task-allow": false},
-	}, plist.XMLFormat)
-	if err != nil {
-		t.Fatal(err)
-	}
-	profileContent := mustSignedCMS(t, profilePlist, certificate, key)
-	profile := &asc.ProfileResponse{Data: asc.Resource[asc.ProfileAttributes]{ID: "resource-id", Attributes: asc.ProfileAttributes{UUID: "API-UUID"}}}
-	if err := bindSigningIdentityProfile(artifacts, profile, "profiles/adhoc/profile.mobileprovision", profileContent); err == nil || !strings.Contains(err.Error(), "UUID") {
-		t.Fatalf("UUID mismatch error = %v", err)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			key := mustECKey(t)
+			certificate := mustSigningCertificate(t, key, 26)
+			identity := &signingIdentity{PrivateKey: key, Certificate: certificate, CertificateSHA256: certificateSHA256(certificate)}
+			artifacts, err := prepareSigningIdentityArtifacts(identity, "password", "com.example.app", "IOS_APP_ADHOC")
+			if err != nil {
+				t.Fatal(err)
+			}
+			profilePlist, err := plist.Marshal(map[string]any{
+				"UUID": test.signedUUID, "TeamIdentifier": []string{"TEAM123"}, "ApplicationIdentifierPrefix": []string{"TEAM123"},
+				"ExpirationDate": time.Now().Add(time.Hour), "DeveloperCertificates": [][]byte{certificate.Raw},
+				"ProvisionedDevices": []string{"DEVICE1"}, "Entitlements": map[string]any{"application-identifier": "TEAM123.com.example.app", "get-task-allow": false},
+			}, plist.XMLFormat)
+			if err != nil {
+				t.Fatal(err)
+			}
+			profileContent := mustSignedCMS(t, profilePlist, certificate, key)
+			profile := &asc.ProfileResponse{Data: asc.Resource[asc.ProfileAttributes]{ID: "resource-id", Attributes: asc.ProfileAttributes{UUID: test.apiUUID}}}
+			err = bindSigningIdentityProfile(artifacts, profile, "profiles/adhoc/profile.mobileprovision", profileContent)
+			if test.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantError) {
+					t.Fatalf("error = %v, want %q", err, test.wantError)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("bindSigningIdentityProfile() error = %v", err)
+			}
+			if artifacts.BindingMetadata.ProfileUUID != "01234567-89ab-cdef-0123-456789abcdef" {
+				t.Fatalf("profile UUID = %q", artifacts.BindingMetadata.ProfileUUID)
+			}
+		})
 	}
 }
 
@@ -615,8 +643,9 @@ func bindTestSigningIdentityArtifacts(t *testing.T, artifacts *signingIdentityAr
 
 func bindTestSigningIdentityArtifactsWithSigner(t *testing.T, artifacts *signingIdentityArtifacts, embeddedCertificate, signerCertificate *x509.Certificate, signerPrivateKey any, bundleID, profileType, profileID string) (string, []byte) {
 	t.Helper()
+	const profileUUID = "01234567-89ab-cdef-0123-456789abcdef"
 	profilePlist, err := plist.Marshal(map[string]any{
-		"UUID": profileID, "TeamIdentifier": []string{"TEAM123"}, "ApplicationIdentifierPrefix": []string{"TEAM123"},
+		"UUID": profileUUID, "TeamIdentifier": []string{"TEAM123"}, "ApplicationIdentifierPrefix": []string{"TEAM123"},
 		"ExpirationDate": time.Now().Add(time.Hour), "DeveloperCertificates": [][]byte{embeddedCertificate.Raw},
 		"ProvisionedDevices": []string{"DEVICE1"},
 		"Entitlements":       map[string]any{"application-identifier": "TEAM123." + bundleID, "get-task-allow": false},
@@ -625,7 +654,7 @@ func bindTestSigningIdentityArtifactsWithSigner(t *testing.T, artifacts *signing
 		t.Fatal(err)
 	}
 	profileContent := mustSignedCMS(t, profilePlist, signerCertificate, signerPrivateKey)
-	profile := &asc.ProfileResponse{Data: asc.Resource[asc.ProfileAttributes]{ID: profileID, Attributes: asc.ProfileAttributes{Name: profileID, UUID: profileID}}}
+	profile := &asc.ProfileResponse{Data: asc.Resource[asc.ProfileAttributes]{ID: profileID, Attributes: asc.ProfileAttributes{Name: profileID, UUID: profileUUID}}}
 	profilePath := filepath.Join("profiles", profileDirectoryName(profileType), profileID+".mobileprovision")
 	if err := bindSigningIdentityProfile(artifacts, profile, profilePath, profileContent); err != nil {
 		t.Fatal(err)

@@ -50,6 +50,9 @@ type Root struct {
 	// afterValidationForTest makes path-swap regressions deterministic. It is
 	// intentionally unexported and unset outside package tests.
 	afterValidationForTest func()
+	// renameNoReplaceForTest makes unsupported-filesystem regressions
+	// deterministic. It is intentionally unexported and unset outside tests.
+	renameNoReplaceForTest func(root *os.Root, oldName, newName string) error
 }
 
 // New returns a Root anchored at path. The root itself is operator-selected and
@@ -579,11 +582,78 @@ func (r Root) CheckFileParent(name string) error {
 	return r.checkParentComponents(resolved)
 }
 
-// CreateNewFile atomically writes data to a new file beneath the root and fails
-// when the destination already exists.
+// CreateNewFile writes data to a new file beneath the root and fails when the
+// destination already exists. It prefers atomic no-replace publication, then
+// falls back to rooted, no-follow O_EXCL creation when the filesystem does not
+// support atomic no-replace rename.
 func (r Root) CreateNewFile(name string, data []byte, perm os.FileMode) error {
 	_, err := r.CreateNewFrom(name, bytes.NewReader(data), perm)
+	if !errors.Is(err, secureopen.ErrRenameNoReplaceUnsupported) {
+		return err
+	}
+	return r.createNewFileExclusive(name, data, perm)
+}
+
+// CreateNewFileAtomic atomically publishes complete data as a new file beneath
+// the root. It returns ErrRenameNoReplaceUnsupported instead of falling back
+// when the filesystem cannot provide atomic no-replace rename semantics.
+func (r Root) CreateNewFileAtomic(name string, data []byte, perm os.FileMode) error {
+	_, err := r.CreateNewFrom(name, bytes.NewReader(data), perm)
 	return err
+}
+
+func (r Root) createNewFileExclusive(name string, data []byte, perm os.FileMode) error {
+	resolved, err := r.prepareWrite(name)
+	if err != nil {
+		return err
+	}
+	parent, base, err := r.openParentRooted(resolved)
+	if err != nil {
+		return err
+	}
+	defer parent.Close()
+
+	if r.afterValidationForTest != nil {
+		r.afterValidationForTest()
+	}
+	file, err := secureopen.OpenNewFileNoFollowInRoot(parent, base, perm)
+	if err != nil {
+		return err
+	}
+	createdInfo, statErr := file.Stat()
+	if statErr != nil {
+		_ = file.Close()
+		return statErr
+	}
+	complete := false
+	defer func() {
+		_ = file.Close()
+		if complete {
+			return
+		}
+		currentInfo, currentErr := parent.Lstat(base)
+		if currentErr == nil && os.SameFile(createdInfo, currentInfo) {
+			_ = parent.Remove(base)
+		}
+	}()
+	if err := file.Chmod(perm); err != nil {
+		return err
+	}
+	written, err := file.Write(data)
+	if err != nil {
+		return err
+	}
+	if written != len(data) {
+		return io.ErrShortWrite
+	}
+	if err := file.Sync(); err != nil {
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	complete = true
+	return nil
 }
 
 // CreateNewFrom atomically publishes reader's complete contents as a new file
@@ -639,7 +709,11 @@ func (r Root) CreateNewFrom(name string, reader io.Reader, perm os.FileMode) (in
 	if err := file.Close(); err != nil {
 		return written, err
 	}
-	if err := secureopen.RenameNoReplaceInRoot(parent, temporaryName, base); err != nil {
+	renameNoReplace := secureopen.RenameNoReplaceInRoot
+	if r.renameNoReplaceForTest != nil {
+		renameNoReplace = r.renameNoReplaceForTest
+	}
+	if err := renameNoReplace(parent, temporaryName, base); err != nil {
 		return written, err
 	}
 	published = true

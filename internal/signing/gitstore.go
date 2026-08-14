@@ -148,7 +148,7 @@ func (g *GitStore) WriteEncryptedFileWithMetadata(relPath string, plaintext []by
 	if err != nil {
 		return err
 	}
-	return root.CreateNewFile(relPath+".enc", encrypted, 0o600)
+	return root.CreateNewFileAtomic(relPath+".enc", encrypted, 0o600)
 }
 
 // ReplaceEncryptedFileWithMetadata atomically creates or replaces a versioned

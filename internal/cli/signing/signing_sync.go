@@ -673,7 +673,12 @@ func validateIdentityArtifactGraph(files []decryptedSigningFile) (map[string]str
 		if err != nil {
 			return nil, fmt.Errorf("identity context profile is invalid: %w", err)
 		}
-		if strings.TrimSpace(profile.UUID) == "" || profile.UUID != binding.ProfileUUID {
+		profileUUID, err := normalizeIdentityProfileUUID(profile.UUID)
+		if err != nil {
+			return nil, fmt.Errorf("identity context profile UUID is invalid: %w", err)
+		}
+		bindingUUID, err := normalizeIdentityProfileUUID(binding.ProfileUUID)
+		if err != nil || profileUUID != bindingUUID {
 			return nil, fmt.Errorf("identity context profile UUID does not match profile artifact")
 		}
 		if !profile.ExpirationDate.After(time.Now()) || !containsFold(profile.TeamIdentifier, binding.TeamID) {

@@ -25,6 +25,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"howett.net/plist"
 )
 
 func captureOutput(t *testing.T, fn func()) (string, string) {
@@ -805,6 +806,76 @@ func TestResolveSigningAssetsCreatesWhenActiveProfilesLackRequestedCertificate(t
 	wantPaths := "GET /v1/bundleIds/bundle-main/profiles,GET /v1/profiles/profile-first/certificates,GET /v1/profiles/profile-second/certificates,GET /v1/certificates,POST /v1/profiles"
 	if strings.Join(requestPaths, ",") != wantPaths {
 		t.Fatalf("unexpected lookup and creation order: %v", requestPaths)
+	}
+}
+
+func TestResolveSigningAssetsDoesNotRecreateAfterCreatedProfileUUIDMismatch(t *testing.T) {
+	key := mustECKey(t)
+	certificate := mustSigningCertificate(t, key, 35)
+	identity := &signingIdentity{PrivateKey: key, Certificate: certificate, CertificateSHA256: certificateSHA256(certificate)}
+	artifacts, err := prepareSigningIdentityArtifacts(identity, "password", "com.example.app", "IOS_APP_ADHOC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	profilePlist, err := plist.Marshal(map[string]any{
+		"UUID": "01234567-89ab-cdef-0123-456789abcdef", "TeamIdentifier": []string{"TEAM123"}, "ApplicationIdentifierPrefix": []string{"TEAM123"},
+		"ExpirationDate": time.Now().Add(time.Hour), "DeveloperCertificates": [][]byte{certificate.Raw},
+		"ProvisionedDevices": []string{"DEVICE1"}, "Entitlements": map[string]any{"application-identifier": "TEAM123.com.example.app", "get-task-allow": false},
+	}, plist.XMLFormat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profileContent := mustSignedCMS(t, profilePlist, certificate, key)
+	encodedProfile := base64.StdEncoding.EncodeToString(profileContent)
+	encodedCertificate := base64.StdEncoding.EncodeToString(certificate.Raw)
+	createCount := 0
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/bundleIds/bundle-main/profiles":
+			if createCount == 0 {
+				signingFetchWriteJSON(t, w, http.StatusOK, `{"data":[]}`)
+				return
+			}
+			signingFetchWriteJSON(t, w, http.StatusOK, fmt.Sprintf(`{"data":[{"type":"profiles","id":"profile-main","attributes":{"name":"Ad Hoc","uuid":"11234567-89ab-cdef-0123-456789abcdef","profileType":"IOS_APP_ADHOC","profileState":"ACTIVE","profileContent":%q}}]}`, encodedProfile))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/certificates":
+			signingFetchWriteJSON(t, w, http.StatusOK, fmt.Sprintf(`{"data":[{"type":"certificates","id":"cert-main","attributes":{"certificateType":"IOS_DISTRIBUTION","serialNumber":"SERIAL","activated":true,"expirationDate":%q,"certificateContent":%q}}]}`, certificate.NotAfter.Format(time.RFC3339), encodedCertificate))
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/profiles":
+			createCount++
+			signingFetchWriteJSON(t, w, http.StatusCreated, fmt.Sprintf(`{"data":{"type":"profiles","id":"profile-main","attributes":{"name":"Ad Hoc","uuid":"11234567-89ab-cdef-0123-456789abcdef","profileType":"IOS_APP_ADHOC","profileState":"ACTIVE","profileContent":%q}}}`, encodedProfile))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/profiles/profile-main/certificates":
+			signingFetchWriteJSON(t, w, http.StatusOK, fmt.Sprintf(`{"data":[{"type":"certificates","id":"cert-main","attributes":{"certificateType":"IOS_DISTRIBUTION","serialNumber":"SERIAL","certificateContent":%q}}]}`, encodedCertificate))
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)
+			http.Error(w, "unexpected request", http.StatusInternalServerError)
+		}
+	}))
+	t.Cleanup(server.Close)
+	client := newSigningFetchServerTestClient(t, server)
+	options := signingAssetsOptions{
+		BundleIDResourceID: "bundle-main",
+		BundleIdentifier:   "com.example.app",
+		ProfileType:        "IOS_APP_ADHOC",
+		CertificateType:    "IOS_DISTRIBUTION",
+		DeviceIDs:          []string{"DEVICE1"},
+		CreateMissing:      true,
+		CertificateFilter:  identityCertificateFilter(identity),
+	}
+
+	for attempt := 0; attempt < 2; attempt++ {
+		profile, _, created, err := resolveSigningAssets(context.Background(), client, options)
+		if err != nil {
+			t.Fatalf("resolve attempt %d: %v", attempt+1, err)
+		}
+		if created != (attempt == 0) {
+			t.Fatalf("resolve attempt %d created = %t", attempt+1, created)
+		}
+		if err := bindSigningIdentityProfile(artifacts, profile, "profiles/adhoc/profile.mobileprovision", profileContent); err == nil || !strings.Contains(err.Error(), "does not match") {
+			t.Fatalf("bind attempt %d error = %v, want UUID mismatch", attempt+1, err)
+		}
+	}
+	if createCount != 1 {
+		t.Fatalf("profile create requests = %d, want 1", createCount)
 	}
 }
 

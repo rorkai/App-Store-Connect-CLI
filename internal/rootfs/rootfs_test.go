@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
 )
 
 type errorReader struct {
@@ -540,6 +542,65 @@ func TestCreateNewFileRefusesExistingFile(t *testing.T) {
 	}
 	if got := mustRead(t, filepath.Join(dir, "AuthKey.p8")); got != "existing" {
 		t.Fatalf("content = %q, want %q", got, "existing")
+	}
+}
+
+func TestCreateNewFileFallsBackWhenAtomicRenameIsUnsupported(t *testing.T) {
+	dir := t.TempDir()
+	root := mustRoot(t, dir)
+	root.renameNoReplaceForTest = func(_ *os.Root, _, _ string) error {
+		return secureopen.ErrRenameNoReplaceUnsupported
+	}
+
+	if err := root.CreateNewFile("AuthKey.p8", []byte("complete"), 0o600); err != nil {
+		t.Fatalf("CreateNewFile() error = %v", err)
+	}
+	if got := mustRead(t, filepath.Join(dir, "AuthKey.p8")); got != "complete" {
+		t.Fatalf("content = %q, want complete", got)
+	}
+	if err := root.CreateNewFile("AuthKey.p8", []byte("replacement"), 0o600); !errors.Is(err, os.ErrExist) {
+		t.Fatalf("overwrite error = %v, want os.ErrExist", err)
+	}
+	if got := mustRead(t, filepath.Join(dir, "AuthKey.p8")); got != "complete" {
+		t.Fatalf("existing content = %q, want complete", got)
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, ".asc-tmp-*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("temporary files remain after fallback: %v", matches)
+	}
+}
+
+func TestCreateNewFileAtomicRejectsUnsupportedRenameWithoutOutput(t *testing.T) {
+	dir := t.TempDir()
+	root := mustRoot(t, dir)
+	root.renameNoReplaceForTest = func(_ *os.Root, _, _ string) error {
+		return secureopen.ErrRenameNoReplaceUnsupported
+	}
+
+	err := root.CreateNewFileAtomic("identity.p12.enc", []byte("complete"), 0o600)
+	if !errors.Is(err, secureopen.ErrRenameNoReplaceUnsupported) {
+		t.Fatalf("CreateNewFileAtomic() error = %v, want unsupported rename", err)
+	}
+	if _, err := os.Lstat(filepath.Join(dir, "identity.p12.enc")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("partial destination exists: %v", err)
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, ".asc-tmp-*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("temporary files remain after strict failure: %v", matches)
+	}
+
+	mustWrite(t, filepath.Join(dir, "identity.p12.enc"), "existing")
+	if err := root.CreateNewFileAtomic("identity.p12.enc", []byte("replacement"), 0o600); !errors.Is(err, os.ErrExist) {
+		t.Fatalf("overwrite error = %v, want os.ErrExist", err)
+	}
+	if got := mustRead(t, filepath.Join(dir, "identity.p12.enc")); got != "existing" {
+		t.Fatalf("existing content = %q, want existing", got)
 	}
 }
 

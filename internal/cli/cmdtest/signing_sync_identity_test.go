@@ -258,13 +258,24 @@ func TestSigningSyncIdentityPushPullPublicRoundTrip(t *testing.T) {
 	privateKey, certificate, profile := signingSyncIdentityFixture(t)
 	certificateContent := base64.StdEncoding.EncodeToString(certificate.Raw)
 	profileContent := base64.StdEncoding.EncodeToString(profile)
+	profileCreateCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		switch req.URL.Path {
-		case "/v1/bundleIds":
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/bundleIds":
 			writeSigningSyncJSON(t, w, `{"data":[{"type":"bundleIds","id":"bundle-main","attributes":{"identifier":"com.example.app"}}]}`)
-		case "/v1/bundleIds/bundle-main/profiles":
-			writeSigningSyncJSON(t, w, fmt.Sprintf(`{"data":[{"type":"profiles","id":"profile-main","attributes":{"name":"Ad Hoc","uuid":"profile-main","profileType":"IOS_APP_ADHOC","profileState":"ACTIVE","profileContent":%q}}]}`, profileContent))
-		case "/v1/profiles/profile-main/certificates":
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/bundleIds/bundle-main/profiles":
+			if profileCreateCount == 0 {
+				writeSigningSyncJSON(t, w, `{"data":[]}`)
+				return
+			}
+			writeSigningSyncJSON(t, w, fmt.Sprintf(`{"data":[{"type":"profiles","id":"profile-main","attributes":{"name":"Ad Hoc","profileType":"IOS_APP_ADHOC","profileState":"ACTIVE","profileContent":%q}}]}`, profileContent))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/certificates":
+			writeSigningSyncJSON(t, w, fmt.Sprintf(`{"data":[{"type":"certificates","id":"cert-main","attributes":{"certificateType":"IOS_DISTRIBUTION","serialNumber":"SERIAL","activated":true,"expirationDate":%q,"certificateContent":%q}}]}`,
+				certificate.NotAfter.Format(time.RFC3339), certificateContent))
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/profiles":
+			profileCreateCount++
+			writeSigningSyncJSON(t, w, fmt.Sprintf(`{"data":{"type":"profiles","id":"profile-main","attributes":{"name":"Ad Hoc","profileType":"IOS_APP_ADHOC","profileState":"ACTIVE","profileContent":%q}}}`, profileContent))
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/profiles/profile-main/certificates":
 			writeSigningSyncJSON(t, w, fmt.Sprintf(`{"data":[{"type":"certificates","id":"cert-main","attributes":{"certificateType":"IOS_DISTRIBUTION","serialNumber":"SERIAL","certificateContent":%q}}]}`,
 				certificateContent))
 		default:
@@ -319,6 +330,8 @@ func TestSigningSyncIdentityPushPullPublicRoundTrip(t *testing.T) {
 				"--password-file", repositoryPasswordFile,
 				"--identity", identityFile,
 				"--identity-password-file", sourcePasswordFile,
+				"--create-missing",
+				"--device", "DEVICE1",
 				"--output", "json",
 			}); err != nil {
 				t.Fatal(err)
@@ -346,6 +359,9 @@ func TestSigningSyncIdentityPushPullPublicRoundTrip(t *testing.T) {
 	second := runPush()
 	if first["identitySha256"] != second["identitySha256"] {
 		t.Fatalf("idempotent identity fingerprints differ: first=%#v second=%#v", first, second)
+	}
+	if profileCreateCount != 1 {
+		t.Fatalf("profile create requests = %d, want 1", profileCreateCount)
 	}
 
 	outDir := filepath.Join(fixtureDir, "pulled")
@@ -439,7 +455,7 @@ func signingSyncIdentityFixture(t *testing.T) (*ecdsa.PrivateKey, *x509.Certific
 		t.Fatal(err)
 	}
 	profilePlist, err := plist.Marshal(map[string]any{
-		"UUID":           "profile-main",
+		"UUID":           "01234567-89ab-cdef-0123-456789abcdef",
 		"TeamIdentifier": []string{"TEAM123"}, "ApplicationIdentifierPrefix": []string{"SEED456"},
 		"ExpirationDate": now.Add(12 * time.Hour), "DeveloperCertificates": [][]byte{certificate.Raw},
 		"ProvisionedDevices": []string{"DEVICE1"},

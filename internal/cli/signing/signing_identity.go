@@ -22,6 +22,7 @@ import (
 	"time"
 
 	pkcs12 "github.com/bitrise-io/go-pkcs12"
+	"github.com/google/uuid"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	signingpkg "github.com/rudrankriyam/App-Store-Connect-CLI/internal/signing"
@@ -560,11 +561,21 @@ func bindSigningIdentityProfile(artifacts *signingIdentityArtifacts, profile *as
 	}
 	digest := sha256.Sum256(profileContent)
 	parsedProfile, err := parseIdentityMobileProvision(profileContent)
-	if err != nil || strings.TrimSpace(parsedProfile.UUID) == "" {
-		return fmt.Errorf("identity context profile has no verified UUID")
+	if err != nil {
+		return fmt.Errorf("identity context profile has no verified UUID: %w", err)
 	}
-	if apiUUID := strings.TrimSpace(profile.Data.Attributes.UUID); apiUUID == "" || apiUUID != parsedProfile.UUID {
-		return fmt.Errorf("profile UUID returned by App Store Connect does not match signed profile UUID")
+	signedUUID, err := normalizeIdentityProfileUUID(parsedProfile.UUID)
+	if err != nil {
+		return fmt.Errorf("identity context profile has no valid verified UUID: %w", err)
+	}
+	if rawAPIUUID := strings.TrimSpace(profile.Data.Attributes.UUID); rawAPIUUID != "" {
+		apiUUID, err := normalizeIdentityProfileUUID(rawAPIUUID)
+		if err != nil {
+			return fmt.Errorf("profile UUID returned by App Store Connect is invalid: %w", err)
+		}
+		if apiUUID != signedUUID {
+			return fmt.Errorf("profile UUID returned by App Store Connect does not match signed profile UUID")
+		}
 	}
 	binding := identityContextBinding{
 		CertificateSHA256: artifacts.IdentityMetadata.CertificateSHA256,
@@ -572,7 +583,7 @@ func bindSigningIdentityProfile(artifacts *signingIdentityArtifacts, profile *as
 		BundleID:          artifacts.BindingMetadata.BundleID,
 		ProfileType:       artifacts.BindingMetadata.ProfileType,
 		ProfileResourceID: profile.Data.ID,
-		ProfileUUID:       parsedProfile.UUID,
+		ProfileUUID:       signedUUID,
 		ProfilePath:       filepath.ToSlash(profilePath),
 		ProfileSHA256:     strings.ToUpper(hex.EncodeToString(digest[:])),
 	}
@@ -586,6 +597,18 @@ func bindSigningIdentityProfile(artifacts *signingIdentityArtifacts, profile *as
 	artifacts.BindingMetadata.ProfilePath = binding.ProfilePath
 	artifacts.BindingMetadata.ProfileSHA256 = binding.ProfileSHA256
 	return nil
+}
+
+func normalizeIdentityProfileUUID(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", fmt.Errorf("profile UUID is empty")
+	}
+	parsed, err := uuid.Parse(trimmed)
+	if err != nil || !strings.EqualFold(trimmed, parsed.String()) {
+		return "", fmt.Errorf("profile UUID %q is not a canonical UUID", trimmed)
+	}
+	return parsed.String(), nil
 }
 
 func preflightSigningAssetDestinations(store *signingpkg.GitStore, plan profileCreatePlan, profileType string) error {
