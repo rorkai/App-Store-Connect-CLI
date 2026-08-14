@@ -228,6 +228,22 @@ func TestGitStoreListEncryptedFilesRejectsControlAndBidiPaths(t *testing.T) {
 	}
 }
 
+func TestGitStoreWriteEncryptedFileRejectsControlAndBidiPaths(t *testing.T) {
+	for name, hostile := range map[string]string{
+		"newline": "bad\nname",
+		"escape":  "bad\x1bname",
+		"bidi":    "bad\u202ename",
+	} {
+		t.Run(name, func(t *testing.T) {
+			store := &GitStore{LocalDir: t.TempDir()}
+			relPath := filepath.Join("profiles", "adhoc", hostile+".mobileprovision")
+			if err := store.WriteEncryptedFile(relPath, []byte("profile"), "password"); err == nil || !strings.Contains(err.Error(), "control characters") {
+				t.Fatalf("WriteEncryptedFile() error = %v, want portable-path refusal", err)
+			}
+		})
+	}
+}
+
 func TestGitStoreListEncryptedFilesRejectsSymlinkFileAndDirectory(t *testing.T) {
 	for _, directory := range []bool{false, true} {
 		name := "file"

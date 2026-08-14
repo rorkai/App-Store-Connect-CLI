@@ -121,6 +121,9 @@ func (g *GitStore) Clone(ctx context.Context, allowCreate bool) error {
 // WriteEncryptedFile writes an encrypted file into the repo.
 // Validates that the resolved path stays inside LocalDir to prevent symlink escapes.
 func (g *GitStore) WriteEncryptedFile(relPath string, plaintext []byte, password string) error {
+	if err := validateEncryptedRepositoryPath(filepath.ToSlash(relPath)); err != nil {
+		return err
+	}
 	encrypted, err := Encrypt(plaintext, password)
 	if err != nil {
 		return err
@@ -176,6 +179,9 @@ func (g *GitStore) CheckNewEncryptedFile(relPath string) error {
 // CheckWriteEncryptedFile performs the non-mutating rooted checks used before
 // replacing or creating a legacy encrypted signing artifact.
 func (g *GitStore) CheckWriteEncryptedFile(relPath string) error {
+	if err := validateEncryptedRepositoryPath(filepath.ToSlash(relPath)); err != nil {
+		return err
+	}
 	root, err := rootfs.New(g.LocalDir)
 	if err != nil {
 		return err
