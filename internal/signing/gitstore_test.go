@@ -244,6 +244,47 @@ func TestGitStoreWriteEncryptedFileRejectsControlAndBidiPaths(t *testing.T) {
 	}
 }
 
+func TestGitStoreWriteEncryptedFileRejectsWindowsIncompatiblePaths(t *testing.T) {
+	tests := map[string]string{
+		"invalid character": "release:adhoc",
+		"reserved name":     "CON",
+		"reserved stem":     "com1.mobileprovision",
+		"trailing dot":      "release.",
+		"trailing space":    "release ",
+		"nested reserved":   "profiles/NUL/release",
+	}
+	for name, hostile := range tests {
+		t.Run(name, func(t *testing.T) {
+			store := &GitStore{LocalDir: t.TempDir()}
+			err := store.WriteEncryptedFile(hostile, []byte("profile"), "password")
+			if err == nil || !strings.Contains(err.Error(), "Windows-incompatible") {
+				t.Fatalf("WriteEncryptedFile() error = %v, want portable-path refusal", err)
+			}
+			entries, readErr := os.ReadDir(store.LocalDir)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if len(entries) != 0 {
+				t.Fatalf("rejected path created repository entries: %v", entries)
+			}
+		})
+	}
+}
+
+func TestValidateEncryptedRepositoryPathAcceptsPortableWindowsNames(t *testing.T) {
+	for _, path := range []string{
+		"profiles/adhoc/release.mobileprovision",
+		"profiles/adhoc/CONTEXT.mobileprovision",
+		"profiles/adhoc/COM10.mobileprovision",
+		"profiles/adhoc/.hidden.mobileprovision",
+		"profiles/adhoc/réléase.mobileprovision",
+	} {
+		if err := validateEncryptedRepositoryPath(path); err != nil {
+			t.Fatalf("validateEncryptedRepositoryPath(%q) error = %v", path, err)
+		}
+	}
+}
+
 func TestGitStoreListEncryptedFilesRejectsSymlinkFileAndDirectory(t *testing.T) {
 	for _, directory := range []bool{false, true} {
 		name := "file"

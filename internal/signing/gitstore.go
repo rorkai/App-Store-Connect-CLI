@@ -290,6 +290,42 @@ func validateEncryptedRepositoryPath(path string) error {
 			return fmt.Errorf("encrypted repository path contains control characters")
 		}
 	}
+	for _, component := range strings.Split(path, "/") {
+		if err := validateWindowsPortablePathComponent(component); err != nil {
+			return fmt.Errorf("encrypted repository path %q has a Windows-incompatible component: %w", path, err)
+		}
+	}
+	return nil
+}
+
+func validateWindowsPortablePathComponent(component string) error {
+	if component == "" {
+		return fmt.Errorf("path component is empty")
+	}
+	// Rooted filesystem validation reports traversal components with its
+	// established ErrEscapesRoot contract.
+	if component == "." || component == ".." {
+		return nil
+	}
+	if strings.ContainsAny(component, `<>:"|?*`) {
+		return fmt.Errorf("path component %q contains a reserved character", component)
+	}
+	if strings.HasSuffix(component, ".") || strings.HasSuffix(component, " ") {
+		return fmt.Errorf("path component %q ends with a dot or space", component)
+	}
+
+	stem := component
+	if dot := strings.IndexByte(stem, '.'); dot >= 0 {
+		stem = stem[:dot]
+	}
+	upperStem := strings.ToUpper(stem)
+	switch upperStem {
+	case "CON", "PRN", "AUX", "NUL",
+		"COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+		"COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³":
+		return fmt.Errorf("path component %q uses a reserved device name", component)
+	}
 	return nil
 }
 
