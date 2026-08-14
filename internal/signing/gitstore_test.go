@@ -271,6 +271,106 @@ func TestGitStoreWriteEncryptedFileRejectsWindowsIncompatiblePaths(t *testing.T)
 	}
 }
 
+func TestValidateEncryptedRepositoryPathsRejectsCaseFoldCollisions(t *testing.T) {
+	tests := map[string][]string{
+		"profile": {
+			"profiles/adhoc/Release.mobileprovision",
+			"profiles/adhoc/release.mobileprovision",
+		},
+		"certificate": {
+			"certs/distribution/ABC.cer",
+			"certs/distribution/abc.cer",
+		},
+		"identity": {
+			"identities/distribution/ABC.p12",
+			"identities/distribution/abc.p12",
+		},
+		"context": {
+			"identity-contexts/ABC.json",
+			"identity-contexts/abc.json",
+		},
+		"Unicode simple fold": {
+			"profiles/adhoc/K.mobileprovision",
+			"profiles/adhoc/\u212A.mobileprovision",
+		},
+	}
+	const want = "encrypted repository paths collide under Windows Unicode case folding"
+	for name, paths := range tests {
+		t.Run(name, func(t *testing.T) {
+			if err := ValidateEncryptedRepositoryPaths(paths); err == nil || err.Error() != want {
+				t.Fatalf("ValidateEncryptedRepositoryPaths() error = %v, want %q", err, want)
+			}
+		})
+	}
+
+	if err := ValidateEncryptedRepositoryPaths([]string{
+		"profiles/adhoc/Release.mobileprovision",
+		"profiles/adhoc/Release.mobileprovision",
+	}); err != nil {
+		t.Fatalf("exact duplicate path rejected: %v", err)
+	}
+}
+
+func TestGitStoreListEncryptedFilesRejectsCaseFoldCollisions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows cannot create distinct case-only paths")
+	}
+	store := &GitStore{LocalDir: t.TempDir()}
+	directory := filepath.Join(store.LocalDir, "profiles", "adhoc")
+	for _, name := range []string{"Release.mobileprovision.enc", "release.mobileprovision.enc"} {
+		path := filepath.Join(directory, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("ciphertext"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 {
+		t.Skip("filesystem cannot create distinct case-only paths")
+	}
+	if _, err := store.ListEncryptedFiles(); err == nil || err.Error() != "encrypted repository paths collide under Windows Unicode case folding" {
+		t.Fatalf("ListEncryptedFiles() error = %v", err)
+	}
+}
+
+func TestEncryptedRepositoryPathsRejectInvalidUTF8(t *testing.T) {
+	invalid := string([]byte{0xff, 'x'})
+	if err := validateEncryptedRepositoryPath(invalid); err == nil || err.Error() != "encrypted repository path is not valid UTF-8" {
+		t.Fatalf("validateEncryptedRepositoryPath() error = %v", err)
+	}
+
+	store := &GitStore{LocalDir: t.TempDir()}
+	if err := store.WriteEncryptedFile(invalid, []byte("profile"), "password"); err == nil || err.Error() != "encrypted repository path is not valid UTF-8" {
+		t.Fatalf("WriteEncryptedFile() error = %v", err)
+	}
+	entries, err := os.ReadDir(store.LocalDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("invalid UTF-8 write created repository entries: %v", entries)
+	}
+}
+
+func TestGitStoreListEncryptedFilesRejectsInvalidUTF8(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not expose raw invalid UTF-8 path bytes")
+	}
+	store := &GitStore{LocalDir: t.TempDir()}
+	invalid := string([]byte{0xff}) + ".enc"
+	if err := os.WriteFile(filepath.Join(store.LocalDir, invalid), []byte("ciphertext"), 0o600); err != nil {
+		t.Skipf("filesystem rejects invalid UTF-8 names: %v", err)
+	}
+	if _, err := store.ListEncryptedFiles(); err == nil || err.Error() != "encrypted repository path is not valid UTF-8" {
+		t.Fatalf("ListEncryptedFiles() error = %v", err)
+	}
+}
+
 func TestValidateEncryptedRepositoryPathAcceptsPortableWindowsNames(t *testing.T) {
 	for _, path := range []string{
 		"profiles/adhoc/release.mobileprovision",

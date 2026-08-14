@@ -304,14 +304,20 @@ func syncPushCommand() *ffcli.Command {
 						if err := prepareRepository(); err != nil {
 							return err
 						}
-						if err := preflightSigningAssetDestinations(store, plan, profType); err != nil {
-							return err
-						}
 						if identity != nil {
 							identityArtifacts, err = prepareSigningIdentityArtifacts(identity, pass, bundle, profType)
 							if err != nil {
 								return err
 							}
+						}
+						plannedPaths := signingAssetRepositoryPaths(plan.Certificates, profType, plan.ProfileName, "profile", identityArtifacts)
+						if err := store.CheckEncryptedRepositoryPaths(plannedPaths); err != nil {
+							return err
+						}
+						if err := preflightSigningAssetDestinations(store, plan, profType); err != nil {
+							return err
+						}
+						if identity != nil {
 							if err := preflightSigningIdentityArtifactsForContextUpdate(store, identityArtifacts, pass); err != nil {
 								return err
 							}
@@ -354,6 +360,12 @@ func syncPushCommand() *ffcli.Command {
 				if err := bindSigningIdentityProfile(identityArtifacts, profile, profileRelPath, profileContent); err != nil {
 					return fmt.Errorf("signing sync push: bind signing identity profile: %w", err)
 				}
+			}
+			plannedPaths := signingAssetRepositoryPaths(certs.Data, profType, profile.Data.Attributes.Name, profile.Data.ID, identityArtifacts)
+			if err := store.CheckEncryptedRepositoryPaths(plannedPaths); err != nil {
+				return fmt.Errorf("signing sync push: preflight repository paths: %w", err)
+			}
+			if identity != nil {
 				if err := preflightSigningIdentityArtifactsForContextUpdate(store, identityArtifacts, pass); err != nil {
 					return fmt.Errorf("signing sync push: preflight signing identity: %w", err)
 				}
@@ -539,6 +551,9 @@ func prepareDecryptedSigningFiles(store *signingpkg.GitStore, encryptedFiles []s
 	if len(encryptedFiles) > maxEncryptedSigningFiles {
 		return nil, fmt.Errorf("encrypted signing repository contains %d files; limit is %d", len(encryptedFiles), maxEncryptedSigningFiles)
 	}
+	if err := signingpkg.ValidateEncryptedRepositoryPaths(encryptedFiles); err != nil {
+		return nil, err
+	}
 	var cumulativeSize int64
 	for _, relPath := range encryptedFiles {
 		size, err := store.EncryptedFileSize(relPath)
@@ -609,6 +624,14 @@ func prepareDecryptedSigningFiles(store *signingpkg.GitStore, encryptedFiles []s
 }
 
 func validateIdentityArtifactGraph(files []decryptedSigningFile) (map[string]struct{}, error) {
+	paths := make([]string, 0, len(files))
+	for _, file := range files {
+		paths = append(paths, file.RelativePath)
+	}
+	if err := signingpkg.ValidateEncryptedRepositoryPaths(paths); err != nil {
+		return nil, err
+	}
+
 	type identityCore struct {
 		teamID            string
 		certificateSHA256 string

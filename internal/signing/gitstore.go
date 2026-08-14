@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
@@ -139,6 +140,9 @@ func (g *GitStore) WriteEncryptedFile(relPath string, plaintext []byte, password
 // WriteEncryptedFileWithMetadata writes a versioned encrypted file whose
 // non-secret metadata is authenticated with the ciphertext.
 func (g *GitStore) WriteEncryptedFileWithMetadata(relPath string, plaintext []byte, password string, metadata EncryptedFileMetadata) error {
+	if err := validateEncryptedRepositoryPath(filepath.ToSlash(relPath)); err != nil {
+		return err
+	}
 	metadata.RelativePath = canonicalEncryptedRepositoryPath(relPath)
 	encrypted, err := EncryptFile(plaintext, password, metadata)
 	if err != nil {
@@ -154,6 +158,9 @@ func (g *GitStore) WriteEncryptedFileWithMetadata(relPath string, plaintext []by
 // ReplaceEncryptedFileWithMetadata atomically creates or replaces a versioned
 // encrypted non-secret index artifact after the caller has validated its scope.
 func (g *GitStore) ReplaceEncryptedFileWithMetadata(relPath string, plaintext []byte, password string, metadata EncryptedFileMetadata) error {
+	if err := validateEncryptedRepositoryPath(filepath.ToSlash(relPath)); err != nil {
+		return err
+	}
 	metadata.RelativePath = canonicalEncryptedRepositoryPath(relPath)
 	encrypted, err := EncryptFile(plaintext, password, metadata)
 	if err != nil {
@@ -169,6 +176,9 @@ func (g *GitStore) ReplaceEncryptedFileWithMetadata(relPath string, plaintext []
 // CheckNewEncryptedFile performs the rooted, non-mutating destination checks
 // used before publishing a new versioned encrypted artifact.
 func (g *GitStore) CheckNewEncryptedFile(relPath string) error {
+	if err := validateEncryptedRepositoryPath(filepath.ToSlash(relPath)); err != nil {
+		return err
+	}
 	root, err := rootfs.New(g.LocalDir)
 	if err != nil {
 		return err
@@ -192,6 +202,9 @@ func (g *GitStore) CheckWriteEncryptedFile(relPath string) error {
 // CheckEncryptedFileParent validates an encrypted artifact's future parent
 // layout without assuming its final profile-specific name is known yet.
 func (g *GitStore) CheckEncryptedFileParent(relPath string) error {
+	if err := validateEncryptedRepositoryPath(filepath.ToSlash(relPath)); err != nil {
+		return err
+	}
 	root, err := rootfs.New(g.LocalDir)
 	if err != nil {
 		return err
@@ -201,6 +214,9 @@ func (g *GitStore) CheckEncryptedFileParent(relPath string) error {
 
 // EncryptedFileSize returns the size of a regular no-follow encrypted artifact.
 func (g *GitStore) EncryptedFileSize(relPath string) (int64, error) {
+	if err := validateEncryptedRepositoryPath(filepath.ToSlash(relPath)); err != nil {
+		return 0, err
+	}
 	root, err := rootfs.New(g.LocalDir)
 	if err != nil {
 		return 0, err
@@ -227,6 +243,9 @@ func (g *GitStore) ReadEncryptedFile(relPath string, password string) ([]byte, e
 // ReadEncryptedFileWithMetadata reads either a versioned envelope or a legacy
 // encrypted file.
 func (g *GitStore) ReadEncryptedFileWithMetadata(relPath string, password string) ([]byte, EncryptedFileMetadata, error) {
+	if err := validateEncryptedRepositoryPath(filepath.ToSlash(relPath)); err != nil {
+		return nil, EncryptedFileMetadata{}, err
+	}
 	root, err := rootfs.New(g.LocalDir)
 	if err != nil {
 		return nil, EncryptedFileMetadata{}, err
@@ -247,6 +266,40 @@ func (g *GitStore) ReadEncryptedFileWithMetadata(relPath string, password string
 
 func canonicalEncryptedRepositoryPath(path string) string {
 	return strings.ReplaceAll(filepath.ToSlash(path), `\`, "/")
+}
+
+// ValidateEncryptedRepositoryPaths rejects path sets that cannot coexist on a
+// Windows case-insensitive checkout. It uses the Unicode simple-fold classes
+// behind strings.EqualFold and intentionally does not perform NFC/NFD
+// normalization because the Go standard library does not provide a normalizer.
+// Exact duplicate canonical paths retain their existing update semantics.
+func ValidateEncryptedRepositoryPaths(paths []string) error {
+	seen := make(map[string]string, len(paths))
+	for _, rawPath := range paths {
+		portablePath := filepath.ToSlash(rawPath)
+		if err := validateEncryptedRepositoryPath(portablePath); err != nil {
+			return err
+		}
+		key := windowsUnicodeCaseFoldKey(portablePath)
+		if existing, ok := seen[key]; ok && existing != portablePath {
+			return errors.New("encrypted repository paths collide under Windows Unicode case folding")
+		}
+		seen[key] = portablePath
+	}
+	return nil
+}
+
+// CheckEncryptedRepositoryPaths validates planned paths together with every
+// existing encrypted artifact before a push writes any repository files.
+func (g *GitStore) CheckEncryptedRepositoryPaths(planned []string) error {
+	existing, err := g.ListEncryptedFiles()
+	if err != nil {
+		return err
+	}
+	combined := make([]string, 0, len(existing)+len(planned))
+	combined = append(combined, existing...)
+	combined = append(combined, planned...)
+	return ValidateEncryptedRepositoryPaths(combined)
 }
 
 // ListEncryptedFiles returns relative paths (without .enc) of all encrypted files.
@@ -278,10 +331,19 @@ func (g *GitStore) ListEncryptedFiles() ([]string, error) {
 		}
 		return nil
 	})
-	return files, err
+	if err != nil {
+		return nil, err
+	}
+	if err := ValidateEncryptedRepositoryPaths(files); err != nil {
+		return nil, err
+	}
+	return files, nil
 }
 
 func validateEncryptedRepositoryPath(path string) error {
+	if !utf8.ValidString(path) {
+		return errors.New("encrypted repository path is not valid UTF-8")
+	}
 	if strings.ContainsRune(path, '\\') {
 		return fmt.Errorf("encrypted repository path %q contains a non-portable backslash", path)
 	}
@@ -296,6 +358,21 @@ func validateEncryptedRepositoryPath(path string) error {
 		}
 	}
 	return nil
+}
+
+func windowsUnicodeCaseFoldKey(path string) string {
+	var key strings.Builder
+	key.Grow(len(path))
+	for _, r := range path {
+		representative := r
+		for folded := unicode.SimpleFold(r); folded != r; folded = unicode.SimpleFold(folded) {
+			if folded < representative {
+				representative = folded
+			}
+		}
+		key.WriteRune(representative)
+	}
+	return key.String()
 }
 
 func validateWindowsPortablePathComponent(component string) error {

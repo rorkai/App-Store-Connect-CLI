@@ -611,6 +611,19 @@ func normalizeIdentityProfileUUID(raw string) (string, error) {
 	return parsed.String(), nil
 }
 
+func signingAssetRepositoryPaths(certificates []asc.Resource[asc.CertificateAttributes], profileType, profileName, profileFallback string, artifacts *signingIdentityArtifacts) []string {
+	paths := make([]string, 0, len(certificates)+3)
+	certDir := certDirectoryName(profileType)
+	for _, certificate := range certificates {
+		paths = append(paths, filepath.Join("certs", certDir, safeFileName(certificate.Attributes.SerialNumber, certificate.ID)+".cer"))
+	}
+	paths = append(paths, filepath.Join("profiles", profileDirectoryName(profileType), safeFileName(profileName, profileFallback)+".mobileprovision"))
+	if artifacts != nil {
+		paths = append(paths, artifacts.IdentityPath, artifacts.BindingPath)
+	}
+	return paths
+}
+
 func preflightSigningAssetDestinations(store *signingpkg.GitStore, plan profileCreatePlan, profileType string) error {
 	certDir := certDirectoryName(profileType)
 	for _, certificate := range plan.Certificates {
