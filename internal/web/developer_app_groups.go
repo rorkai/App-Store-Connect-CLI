@@ -186,9 +186,6 @@ func (c *Client) AssignDeveloperAppGroup(ctx context.Context, request DeveloperA
 	if err := c.ensureDeveloperPortalSession(ctx); err != nil {
 		return nil, err
 	}
-	if err := c.primeDeveloperAppGroupCSRF(ctx); err != nil {
-		return nil, err
-	}
 	current, err := c.loadDeveloperBundleID(ctx, request.BundleID)
 	if err != nil {
 		return nil, err
@@ -199,6 +196,9 @@ func (c *Client) AssignDeveloperAppGroup(ctx context.Context, request DeveloperA
 	}
 	if alreadyAssigned {
 		return &DeveloperAppGroupAssignResult{BundleID: request.BundleID, GroupID: request.GroupID, Changed: false, Status: "already-assigned"}, nil
+	}
+	if err := c.primeDeveloperAppGroupCSRF(ctx); err != nil {
+		return nil, err
 	}
 	payload, err = addDeveloperPortalTeamID(payload, c.developerPortalTeamID())
 	if err != nil {
@@ -211,14 +211,11 @@ func (c *Client) AssignDeveloperAppGroup(ctx context.Context, request DeveloperA
 }
 
 func (c *Client) primeDeveloperAppGroupCSRF(ctx context.Context) error {
-	csrf, csrfTS := c.developerCSRFTokens()
-	if csrf != "" && csrfTS != "" {
-		return nil
-	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
 		return fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
 	}
+	c.clearDeveloperCSRFTokens()
 	body, err := c.doDeveloperPortalLegacyFormRequest(ctx, developerAppGroupsListPath, url.Values{
 		"teamId":     {teamID},
 		"pageNumber": {"1"},
@@ -235,7 +232,7 @@ func (c *Client) primeDeveloperAppGroupCSRF(ctx context.Context) error {
 	if err := validateDeveloperPortalLegacyResponse(response.developerPortalLegacyResponse); err != nil {
 		return err
 	}
-	csrf, csrfTS = c.developerCSRFTokens()
+	csrf, csrfTS := c.developerCSRFTokens()
 	if csrf == "" || csrfTS == "" {
 		return fmt.Errorf("missing Developer Portal CSRF headers after App Groups lookup; %s", developerPortalAuthHint)
 	}

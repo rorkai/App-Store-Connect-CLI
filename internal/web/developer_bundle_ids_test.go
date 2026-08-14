@@ -7,10 +7,60 @@ import (
 	"io"
 	"net/http"
 	"net/http/cookiejar"
+	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
+
+func TestEnsureDeveloperPortalSessionRejectsHTTPSDowngradeRedirect(t *testing.T) {
+	var targetCalled atomic.Bool
+	target := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		targetCalled.Store(true)
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(developerPortalTeamsFixture()))
+	}))
+	t.Cleanup(target.Close)
+
+	portal := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		http.Redirect(writer, request, target.URL, http.StatusFound)
+	}))
+	t.Cleanup(portal.Close)
+
+	client := &Client{httpClient: portal.Client(), developerPortalURL: portal.URL}
+	err := client.ensureDeveloperPortalSession(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "authentication redirected to") {
+		t.Fatalf("ensureDeveloperPortalSession() error = %v, want redirect rejection", err)
+	}
+	if targetCalled.Load() {
+		t.Fatal("authenticated request followed HTTPS-to-HTTP redirect")
+	}
+}
+
+func TestEnsureDeveloperPortalSessionRejectsDifferentPortRedirect(t *testing.T) {
+	var targetCalled atomic.Bool
+	target := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		targetCalled.Store(true)
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(developerPortalTeamsFixture()))
+	}))
+	t.Cleanup(target.Close)
+
+	portal := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		http.Redirect(writer, request, target.URL, http.StatusFound)
+	}))
+	t.Cleanup(portal.Close)
+
+	client := &Client{httpClient: portal.Client(), developerPortalURL: portal.URL}
+	err := client.ensureDeveloperPortalSession(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "authentication redirected to") {
+		t.Fatalf("ensureDeveloperPortalSession() error = %v, want redirect rejection", err)
+	}
+	if targetCalled.Load() {
+		t.Fatal("authenticated request followed redirect to a different port")
+	}
+}
 
 func TestEnableDeveloperBundleIDCapabilityPreservesFullPayload(t *testing.T) {
 	jar, err := cookiejar.New(nil)

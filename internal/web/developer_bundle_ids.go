@@ -225,8 +225,8 @@ func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 	if parseErr != nil {
 		return fmt.Errorf("invalid Developer Portal base URL: %w", parseErr)
 	}
-	if response.Request != nil && response.Request.URL != nil && !strings.EqualFold(response.Request.URL.Hostname(), portalURL.Hostname()) {
-		return fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", response.Request.URL.Hostname(), developerPortalAuthHint)
+	if response.Request != nil && response.Request.URL != nil && !sameURLOrigin(portalURL, response.Request.URL) {
+		return fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", response.Request.URL.Host, developerPortalAuthHint)
 	}
 
 	var payload developerPortalTeamsResponse
@@ -659,7 +659,21 @@ func (c *Client) doDeveloperPortalHTTP(ctx context.Context, method, requestURL s
 	request.Header = cloneHeaders(headers)
 	setModifiedCookieHeader(c.httpClient, request)
 
-	response, err := c.httpClient.Do(request)
+	httpClient := *c.httpClient
+	previousCheckRedirect := httpClient.CheckRedirect
+	httpClient.CheckRedirect = func(redirect *http.Request, via []*http.Request) error {
+		if !sameURLOrigin(request.URL, redirect.URL) {
+			return fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", redirect.URL.Host, developerPortalAuthHint)
+		}
+		if previousCheckRedirect != nil {
+			return previousCheckRedirect(redirect, via)
+		}
+		if len(via) >= 10 {
+			return fmt.Errorf("stopped after 10 redirects")
+		}
+		return nil
+	}
+	response, err := httpClient.Do(request)
 	if err != nil {
 		logWebAuthHTTP("developer_portal_request", request, nil, nil, err)
 		return nil, nil, fmt.Errorf("request to Developer Portal failed: %w", err)
@@ -672,6 +686,29 @@ func (c *Client) doDeveloperPortalHTTP(ctx context.Context, method, requestURL s
 	}
 	logWebAuthHTTP("developer_portal_request", request, response, responseBody, nil)
 	return responseBody, response, nil
+}
+
+func sameURLOrigin(expected, actual *url.URL) bool {
+	if expected == nil || actual == nil || expected.Scheme == "" || actual.Scheme == "" || expected.Hostname() == "" || actual.Hostname() == "" {
+		return false
+	}
+	return strings.EqualFold(expected.Scheme, actual.Scheme) &&
+		strings.EqualFold(expected.Hostname(), actual.Hostname()) &&
+		effectiveURLPort(expected) == effectiveURLPort(actual)
+}
+
+func effectiveURLPort(value *url.URL) string {
+	if port := value.Port(); port != "" {
+		return port
+	}
+	switch strings.ToLower(value.Scheme) {
+	case "http":
+		return "80"
+	case "https":
+		return "443"
+	default:
+		return ""
+	}
 }
 
 func (c *Client) captureDeveloperCSRFTokens(headers http.Header) {
@@ -688,6 +725,13 @@ func (c *Client) captureDeveloperCSRFTokens(headers http.Header) {
 	if csrfTS != "" {
 		c.developerCSRFTS = csrfTS
 	}
+}
+
+func (c *Client) clearDeveloperCSRFTokens() {
+	c.developerSessionMu.Lock()
+	defer c.developerSessionMu.Unlock()
+	c.developerCSRF = ""
+	c.developerCSRFTS = ""
 }
 
 func headerValueCaseInsensitive(headers http.Header, name string) string {
