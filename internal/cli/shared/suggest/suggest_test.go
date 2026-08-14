@@ -12,6 +12,14 @@ func TestCommandsPrefixSuggestion(t *testing.T) {
 	}
 }
 
+func TestCommandsRanksClosestPrefixBeforeSpecializedGroups(t *testing.T) {
+	got := Commands("buil", []string{"build-bundles", "build-localizations", "builds"})
+	want := []string{"builds", "build-bundles", "build-localizations"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("Commands() = %v, want %v", got, want)
+	}
+}
+
 func TestCommandsEditDistanceSuggestion(t *testing.T) {
 	got := Commands("revews", []string{"reviews", "crashes", "apps"})
 	if len(got) == 0 || got[0] != "reviews" {
@@ -66,6 +74,13 @@ func TestFlagsMatchesIdentifierShorthand(t *testing.T) {
 	}
 }
 
+func TestFlagsSuggestsQualifiedIdentifierForTypoOfID(t *testing.T) {
+	got := Flags("idd", []string{"app", "iap-id", "limit", "next"})
+	if len(got) == 0 || got[0] != "iap-id" {
+		t.Fatalf("Flags() = %v, want iap-id first", got)
+	}
+}
+
 func TestFlagsCapsSuggestionsAcrossMatchingStrategies(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -77,7 +92,7 @@ func TestFlagsCapsSuggestionsAcrossMatchingStrategies(t *testing.T) {
 			name:       "direct matches return at cap",
 			input:      "app",
 			candidates: []string{"appstore", "application", "apple", "build-app"},
-			want:       []string{"apple", "application", "appstore"},
+			want:       []string{"apple", "appstore", "application"},
 		},
 		{
 			name:       "suffix matches top up to cap",

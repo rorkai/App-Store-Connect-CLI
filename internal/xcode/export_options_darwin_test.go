@@ -12,6 +12,7 @@ import (
 
 	"github.com/bitrise-io/go-utils/v2/log"
 	legacyexportoptions "github.com/bitrise-io/go-xcode/exportoptions"
+	"github.com/bitrise-io/go-xcode/v2/exportoptionsgenerator"
 	"howett.net/plist"
 )
 
@@ -47,6 +48,28 @@ func TestCaptureBitriseStdout(t *testing.T) {
 	}
 	if !strings.Contains(captured, "Checking if project uses CloudKit") || !strings.Contains(captured, "profile diagnostic") {
 		t.Fatalf("captureBitriseStdout() output = %q", captured)
+	}
+}
+
+func TestGenerateManualExportOptionsCapturesArchiveReaderStdout(t *testing.T) {
+	archivePath := writeExportOptionsTestArchive(t, "TEAM123")
+	wantErr := errors.New("archive reader sentinel")
+	originalReader := readArchiveExportInfoFn
+	originalStdout := os.Stdout
+	captured := false
+	readArchiveExportInfoFn = func(string) (exportoptionsgenerator.ArchiveInfo, error) {
+		captured = os.Stdout != originalStdout
+		fmt.Fprint(os.Stdout, "Fetching entitlements from executable")
+		return exportoptionsgenerator.ArchiveInfo{}, wantErr
+	}
+	t.Cleanup(func() { readArchiveExportInfoFn = originalReader })
+
+	_, err := generateManualExportOptions(t.Context(), archivePath, "TEAM123", exportOptionsMethodReleaseTesting)
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("generateManualExportOptions() error = %v, want %v", err, wantErr)
+	}
+	if !captured {
+		t.Fatal("archive reader ran before Bitrise stdout capture was installed")
 	}
 }
 

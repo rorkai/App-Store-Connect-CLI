@@ -67,6 +67,21 @@ cross-platform and only reads archive metadata. Manual signing resolution is
 Darwin-only because it inspects local Xcode signing identities and provisioning
 profiles.
 
+To export an IPA for registered devices, use the experimental modern Xcode
+method name `release-testing` (the older `ad-hoc` spelling is deprecated):
+
+```bash
+asc xcode export \
+  --archive-path .asc/artifacts/App.xcarchive \
+  --ipa-path .asc/artifacts/App.ipa \
+  --method release-testing \
+  --signing-style manual \
+  --team-id TEAM_ID
+```
+
+The default remains `app-store-connect`; release-testing always produces a
+local export and cannot be combined with `--wait`.
+
 For a PCC-capable app, or another multi-target app that needs manual signing,
 pass the signing policy directly to export. ASC reads the archive and matches
 installed profiles for the app and its embedded targets, so the command does
@@ -94,8 +109,9 @@ asc publish testflight \
   --team-id TEAM_ID
 ```
 
-An explicit `--export-options` plist cannot be combined with
-`--signing-style` or `--team-id`; the plist remains authoritative when supplied.
+An explicit `--export-options` plist cannot be combined with `--method`,
+`--signing-style`, or `--team-id`. When supplied without those flags, the
+plist is authoritative.
 
 Create `.asc/deployment.json`:
 

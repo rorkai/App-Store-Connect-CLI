@@ -59,7 +59,7 @@ func XcodeExportOptionsCommand() *ffcli.Command {
 
 	archivePath := fs.String("archive-path", "", "Path to the .xcarchive input (required)")
 	outputPath := fs.String("output-path", "", "Destination path for the generated ExportOptions.plist (defaults to a method-specific .asc path)")
-	method := fs.String("method", "app-store-connect", "Xcode export method: app-store-connect or release-testing")
+	method := fs.String("method", "app-store-connect", "[experimental] Xcode export method: app-store-connect or release-testing")
 	destination := fs.String("destination", "export", "Xcode export destination: export or upload")
 	signingStyle := fs.String("signing-style", "automatic", "Signing style: automatic or manual")
 	teamID := fs.String("team-id", "", "Apple Developer team ID (overrides archive metadata)")

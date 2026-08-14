@@ -13,8 +13,8 @@ import (
 
 const (
 	developerPortalBaseURL   = "https://developer.apple.com"
-	developerPortalTeamsURL  = developerPortalBaseURL + "/services-account/QH65B2/account/listTeams.action"
-	developerServicesBaseURL = developerPortalBaseURL + "/services-account/v1"
+	developerPortalTeamsPath = "/services-account/QH65B2/account/listTeams.action"
+	developerServicesPath    = "/services-account/v1"
 	privateCloudCompute      = "PRIVATE_CLOUD_COMPUTE"
 	developerPortalAuthHint  = "run 'asc web auth logout --apple-id EMAIL', then 'asc web auth login --apple-id EMAIL', and try again"
 )
@@ -210,7 +210,7 @@ func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 	headers := developerPortalHeaders("")
 	headers.Set("Accept", "application/json, text/javascript, */*; q=0.01")
 	headers.Set("Content-Type", "application/x-www-form-urlencoded")
-	body, response, err := c.doDeveloperPortalHTTP(ctx, http.MethodPost, developerPortalTeamsURL, nil, headers)
+	body, response, err := c.doDeveloperPortalHTTP(ctx, http.MethodPost, c.developerPortalOrigin()+developerPortalTeamsPath, nil, headers)
 	if err != nil {
 		return err
 	}
@@ -221,8 +221,12 @@ func (c *Client) ensureDeveloperPortalSession(ctx context.Context) error {
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return &APIError{Status: response.StatusCode, AppleRequestID: extractAppleRequestID(response.Header), rawBody: body}
 	}
-	if response.Request != nil && response.Request.URL != nil && !strings.EqualFold(response.Request.URL.Hostname(), "developer.apple.com") {
-		return fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", response.Request.URL.Hostname(), developerPortalAuthHint)
+	portalURL, parseErr := url.Parse(c.developerPortalOrigin())
+	if parseErr != nil {
+		return fmt.Errorf("invalid Developer Portal base URL: %w", parseErr)
+	}
+	if response.Request != nil && response.Request.URL != nil && !sameURLOrigin(portalURL, response.Request.URL) {
+		return fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", response.Request.URL.Host, developerPortalAuthHint)
 	}
 
 	var payload developerPortalTeamsResponse
@@ -571,6 +575,13 @@ func developerPortalHeaders(bundleID string) http.Header {
 	return headers
 }
 
+func (c *Client) developerPortalOrigin() string {
+	if c != nil && strings.TrimSpace(c.developerPortalURL) != "" {
+		return strings.TrimRight(strings.TrimSpace(c.developerPortalURL), "/")
+	}
+	return developerPortalBaseURL
+}
+
 func (c *Client) doDeveloperPortalProxyRead(ctx context.Context, path string, query url.Values, headers http.Header) ([]byte, error) {
 	// Developer Portal's cookie-authenticated v1 API proxies logical GETs as
 	// POSTs carrying the team and encoded query in the request body.
@@ -598,7 +609,7 @@ func (c *Client) doDeveloperPortalRequest(ctx context.Context, method, path stri
 			return nil, fmt.Errorf("missing Developer Portal CSRF headers; %s", developerPortalAuthHint)
 		}
 	}
-	responseBody, response, err := c.doDeveloperPortalHTTP(ctx, method, developerServicesBaseURL+path, body, headers)
+	responseBody, response, err := c.doDeveloperPortalHTTP(ctx, method, c.developerPortalOrigin()+developerServicesPath+path, body, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -630,11 +641,16 @@ func (c *Client) doDeveloperPortalHTTP(ctx context.Context, method, requestURL s
 
 	var requestBody io.Reader
 	if body != nil {
-		encoded, err := json.Marshal(body)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to marshal Developer Portal request: %w", err)
+		switch typed := body.(type) {
+		case url.Values:
+			requestBody = strings.NewReader(typed.Encode())
+		default:
+			encoded, err := json.Marshal(body)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to marshal Developer Portal request: %w", err)
+			}
+			requestBody = bytes.NewReader(encoded)
 		}
-		requestBody = bytes.NewReader(encoded)
 	}
 	request, err := http.NewRequestWithContext(ctx, method, requestURL, requestBody)
 	if err != nil {
@@ -643,7 +659,21 @@ func (c *Client) doDeveloperPortalHTTP(ctx context.Context, method, requestURL s
 	request.Header = cloneHeaders(headers)
 	setModifiedCookieHeader(c.httpClient, request)
 
-	response, err := c.httpClient.Do(request)
+	httpClient := *c.httpClient
+	previousCheckRedirect := httpClient.CheckRedirect
+	httpClient.CheckRedirect = func(redirect *http.Request, via []*http.Request) error {
+		if !sameURLOrigin(request.URL, redirect.URL) {
+			return fmt.Errorf("authentication redirected to %s instead of Developer Portal; %s", redirect.URL.Host, developerPortalAuthHint)
+		}
+		if previousCheckRedirect != nil {
+			return previousCheckRedirect(redirect, via)
+		}
+		if len(via) >= 10 {
+			return fmt.Errorf("stopped after 10 redirects")
+		}
+		return nil
+	}
+	response, err := httpClient.Do(request)
 	if err != nil {
 		logWebAuthHTTP("developer_portal_request", request, nil, nil, err)
 		return nil, nil, fmt.Errorf("request to Developer Portal failed: %w", err)
@@ -656,6 +686,29 @@ func (c *Client) doDeveloperPortalHTTP(ctx context.Context, method, requestURL s
 	}
 	logWebAuthHTTP("developer_portal_request", request, response, responseBody, nil)
 	return responseBody, response, nil
+}
+
+func sameURLOrigin(expected, actual *url.URL) bool {
+	if expected == nil || actual == nil || expected.Scheme == "" || actual.Scheme == "" || expected.Hostname() == "" || actual.Hostname() == "" {
+		return false
+	}
+	return strings.EqualFold(expected.Scheme, actual.Scheme) &&
+		strings.EqualFold(expected.Hostname(), actual.Hostname()) &&
+		effectiveURLPort(expected) == effectiveURLPort(actual)
+}
+
+func effectiveURLPort(value *url.URL) string {
+	if port := value.Port(); port != "" {
+		return port
+	}
+	switch strings.ToLower(value.Scheme) {
+	case "http":
+		return "80"
+	case "https":
+		return "443"
+	default:
+		return ""
+	}
 }
 
 func (c *Client) captureDeveloperCSRFTokens(headers http.Header) {
@@ -672,6 +725,13 @@ func (c *Client) captureDeveloperCSRFTokens(headers http.Header) {
 	if csrfTS != "" {
 		c.developerCSRFTS = csrfTS
 	}
+}
+
+func (c *Client) clearDeveloperCSRFTokens() {
+	c.developerSessionMu.Lock()
+	defer c.developerSessionMu.Unlock()
+	c.developerCSRF = ""
+	c.developerCSRFTS = ""
 }
 
 func headerValueCaseInsensitive(headers http.Header, name string) string {

@@ -312,6 +312,7 @@ func aggregateSalesMetrics(a, b insights.SalesMetrics) insights.SalesMetrics {
 	return insights.SalesMetrics{
 		RowCount:                       a.RowCount + b.RowCount,
 		UnitsColumnPresent:             a.UnitsColumnPresent && b.UnitsColumnPresent,
+		DownloadUnitsAvailable:         a.DownloadUnitsAvailable && b.DownloadUnitsAvailable,
 		DeveloperProceedsColumnPresent: a.DeveloperProceedsColumnPresent && b.DeveloperProceedsColumnPresent,
 		CustomerPriceColumnPresent:     a.CustomerPriceColumnPresent && b.CustomerPriceColumnPresent,
 		SubscriptionColumnPresent:      a.SubscriptionColumnPresent && b.SubscriptionColumnPresent,
@@ -335,7 +336,7 @@ func buildCompareMetrics(baseline, comparison insights.SalesMetrics) []compareMe
 	metrics := []compareMetric{
 		compareMetricFromValues("download_units", "count", "download units",
 			baseline.DownloadUnitsTotal, comparison.DownloadUnitsTotal,
-			baseline.UnitsColumnPresent, comparison.UnitsColumnPresent),
+			baseline.DownloadUnitsAvailable, comparison.DownloadUnitsAvailable),
 		compareMetricFromValues("monetized_units", "count", "monetized units",
 			baseline.MonetizedUnitsTotal, comparison.MonetizedUnitsTotal,
 			baseline.UnitsColumnPresent, comparison.UnitsColumnPresent),

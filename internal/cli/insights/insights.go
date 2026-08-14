@@ -269,6 +269,7 @@ type reportWeekWindow struct {
 type SalesMetrics struct {
 	RowCount                       int
 	UnitsColumnPresent             bool
+	DownloadUnitsAvailable         bool
 	DeveloperProceedsColumnPresent bool
 	CustomerPriceColumnPresent     bool
 	SubscriptionColumnPresent      bool
@@ -488,10 +489,10 @@ func collectSalesMetrics(ctx context.Context, client *asc.Client, vendor string,
 	metrics = append(metrics, metricFromOptionalTotals(
 		"download_units",
 		"count",
-		thisData.UnitsColumnPresent && prevData.UnitsColumnPresent && availabilityReason == "",
+		thisData.DownloadUnitsAvailable && prevData.DownloadUnitsAvailable && availabilityReason == "",
 		thisData.DownloadUnitsTotal,
 		prevData.DownloadUnitsTotal,
-		resolveSalesReason("download units", availabilityReason, thisData.UnitsColumnPresent, prevData.UnitsColumnPresent),
+		resolveSalesReason("download units", availabilityReason, thisData.DownloadUnitsAvailable, prevData.DownloadUnitsAvailable),
 	))
 	metrics = append(metrics, metricFromOptionalTotals(
 		"monetized_units",
@@ -607,6 +608,7 @@ func ParseSalesReportMetrics(reader io.Reader, scope salesScope) (salesWeekMetri
 	appleIdentifierIdx := findColumnIndex(headers, "appleidentifier")
 	parentIdentifierIdx := findColumnIndex(headers, "parentidentifier")
 	skuIdx := findColumnIndex(headers, "sku")
+	productTypeIdentifierIdx := findColumnIndex(headers, "producttypeidentifier")
 	subscriptionIdx := findColumnIndex(headers, "subscription")
 	unitsIdx := findColumnIndex(headers, "units")
 	developerProceedsIdx := findColumnIndex(headers, "developerproceeds")
@@ -618,6 +620,7 @@ func ParseSalesReportMetrics(reader io.Reader, scope salesScope) (salesWeekMetri
 	scope = EnrichSalesScopeFromRows(scope, rows[1:], appleIdentifierIdx, skuIdx)
 	metrics := salesWeekMetrics{
 		UnitsColumnPresent:             unitsIdx >= 0,
+		DownloadUnitsAvailable:         unitsIdx >= 0 && productTypeIdentifierIdx >= 0,
 		DeveloperProceedsColumnPresent: developerProceedsIdx >= 0,
 		CustomerPriceColumnPresent:     customerPriceIdx >= 0,
 		SubscriptionColumnPresent:      subscriptionIdx >= 0,
@@ -648,7 +651,7 @@ func ParseSalesReportMetrics(reader io.Reader, scope salesScope) (salesWeekMetri
 		if unitsIdx >= 0 {
 			if value, ok := parseNumericValue(valueAtIndex(row, unitsIdx)); ok {
 				metrics.UnitsTotal += value
-				if isAppRow {
+				if isAppRow && isInitialAppDownloadProductType(valueAtIndex(row, productTypeIdentifierIdx)) {
 					metrics.DownloadUnitsTotal += value
 				}
 				if isMonetizedRow {
@@ -687,6 +690,18 @@ func ParseSalesReportMetrics(reader io.Reader, scope salesScope) (salesWeekMetri
 	}
 
 	return metrics, nil
+}
+
+func isInitialAppDownloadProductType(value string) bool {
+	// Apple defines these as first-time app or app-bundle purchases. Redownload
+	// and update product types are intentionally excluded from download units.
+	// https://developer.apple.com/help/app-store-connect/reference/reporting/product-type-identifiers/
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "1", "1-B", "1E", "1EP", "1EU", "1F", "1T", "F1", "F1-B":
+		return true
+	default:
+		return false
+	}
 }
 
 // EnrichSalesScopeFromRows resolves the app SKU from report data when it is

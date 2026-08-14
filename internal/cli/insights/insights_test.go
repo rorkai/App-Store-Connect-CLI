@@ -40,11 +40,14 @@ func TestAnalyticsReportRequestIsActiveUsesCurrentAttribute(t *testing.T) {
 
 func TestParseSalesReportMetrics(t *testing.T) {
 	report := strings.Join([]string{
-		"Provider\tSKU\tApple Identifier\tParent Identifier\tSubscription\tUnits\tDeveloper Proceeds\tCustomer Price",
-		"foo\tChromism12345\t1500196580\t\t \t10\t0.00\t0.00",
-		"foo\tcom.rudrankriyam.chroma_plus\t1619633372\tChromism12345\tRenewal\t3\t0.75\t1.00",
-		"foo\tcom.rudrankriyam.chroma_plus\t1619633372\tChromism12345\tNew\t2\t1.25\t2.00",
-		"foo\tother\t999999\tOtherSKU\tRenewal\t500\t9.99\t9.99",
+		"Provider\tSKU\tApple Identifier\tParent Identifier\tProduct Type Identifier\tSubscription\tUnits\tDeveloper Proceeds\tCustomer Price",
+		"foo\tChromism12345\t1500196580\t\t1F\t \t10\t0.00\t0.00",
+		"foo\tChromism12345\t1500196580\t\t3F\t \t4\t0.00\t0.00",
+		"foo\tChromism12345\t1500196580\t\t7F\t \t6\t0.00\t0.00",
+		"foo\tChromism12345\t1500196580\t\tF1\t \t2\t0.00\t0.00",
+		"foo\tcom.rudrankriyam.chroma_plus\t1619633372\tChromism12345\tIAY\tRenewal\t3\t0.75\t1.00",
+		"foo\tcom.rudrankriyam.chroma_plus\t1619633372\tChromism12345\tIAY\tNew\t2\t1.25\t2.00",
+		"foo\tother\t999999\tOtherSKU\t1F\tRenewal\t500\t9.99\t9.99",
 		"",
 	}, "\n")
 
@@ -57,13 +60,16 @@ func TestParseSalesReportMetrics(t *testing.T) {
 		t.Fatalf("ParseSalesReportMetrics error: %v", err)
 	}
 
-	if metrics.RowCount != 3 {
-		t.Fatalf("expected RowCount=3, got %d", metrics.RowCount)
+	if metrics.RowCount != 6 {
+		t.Fatalf("expected RowCount=6, got %d", metrics.RowCount)
 	}
-	if !metrics.UnitsColumnPresent || metrics.UnitsTotal != 15 {
+	if !metrics.UnitsColumnPresent || metrics.UnitsTotal != 27 {
 		t.Fatalf("unexpected units totals: %+v", metrics)
 	}
-	if metrics.DownloadUnitsTotal != 10 {
+	if !metrics.DownloadUnitsAvailable {
+		t.Fatal("expected download units to be available")
+	}
+	if metrics.DownloadUnitsTotal != 12 {
 		t.Fatalf("unexpected download units totals: %+v", metrics)
 	}
 	if metrics.MonetizedUnitsTotal != 5 {
@@ -80,6 +86,64 @@ func TestParseSalesReportMetrics(t *testing.T) {
 	}
 	if metrics.RenewalRows != 1 || metrics.RenewalUnitsTotal != 3 || metrics.RenewalDeveloperProceeds != 0.75 {
 		t.Fatalf("unexpected renewal totals: %+v", metrics)
+	}
+}
+
+func TestIsInitialAppDownloadProductType(t *testing.T) {
+	tests := []struct {
+		name        string
+		productType string
+		want        bool
+	}{
+		{name: "app", productType: "1", want: true},
+		{name: "app bundle", productType: "1-B", want: true},
+		{name: "custom iOS app", productType: "1E", want: true},
+		{name: "custom iPadOS app", productType: "1EP", want: true},
+		{name: "custom universal app", productType: "1EU", want: true},
+		{name: "universal app", productType: "1F", want: true},
+		{name: "iPad app", productType: "1T", want: true},
+		{name: "Mac app", productType: "F1", want: true},
+		{name: "Mac app bundle", productType: "F1-B", want: true},
+		{name: "redownload", productType: "3", want: false},
+		{name: "universal redownload", productType: "3F", want: false},
+		{name: "update", productType: "7", want: false},
+		{name: "universal update", productType: "7F", want: false},
+		{name: "iPad update", productType: "7T", want: false},
+		{name: "Mac update", productType: "F7", want: false},
+		{name: "in-app purchase", productType: "IA1", want: false},
+		{name: "unknown", productType: "future", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isInitialAppDownloadProductType(tt.productType); got != tt.want {
+				t.Fatalf("isInitialAppDownloadProductType(%q) = %v, want %v", tt.productType, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseSalesReportMetricsMarksDownloadUnitsUnavailableWithoutProductType(t *testing.T) {
+	report := strings.Join([]string{
+		"Provider\tSKU\tApple Identifier\tParent Identifier\tUnits",
+		"foo\tChromism12345\t1500196580\t\t10",
+	}, "\n")
+
+	metrics, err := ParseSalesReportMetrics(bytes.NewReader(gzipText(t, report)), salesScope{
+		AppID:  "1500196580",
+		AppSKU: "Chromism12345",
+	})
+	if err != nil {
+		t.Fatalf("ParseSalesReportMetrics error: %v", err)
+	}
+	if metrics.DownloadUnitsAvailable {
+		t.Fatal("expected download units to be unavailable without Product Type Identifier")
+	}
+	if metrics.DownloadUnitsTotal != 0 {
+		t.Fatalf("expected no inferred download units, got %.2f", metrics.DownloadUnitsTotal)
+	}
+	if metrics.UnitsTotal != 10 {
+		t.Fatalf("expected all units to remain available, got %.2f", metrics.UnitsTotal)
 	}
 }
 

@@ -20,6 +20,13 @@ import (
 
 const subscriptionIntroductoryOfferCreateTimeout = 5 * time.Minute
 
+const subscriptionIntroductoryOfferCreateSelectorGuidance = `Try:
+  asc subscriptions offers introductory create --subscription-id "SUB_ID" --territory "USA" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+  asc subscriptions offers introductory create --subscription-id "SUB_ID" --all-territories --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+For help:
+  asc subscriptions offers introductory create --help
+`
+
 // SubscriptionsIntroductoryOffersCommand returns the introductory offers command group.
 func SubscriptionsIntroductoryOffersCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("introductory-offers", flag.ExitOnError)
@@ -31,9 +38,9 @@ func SubscriptionsIntroductoryOffersCommand() *ffcli.Command {
 		LongHelp: `Manage subscription introductory offers.
 
 Examples:
-  asc subscriptions introductory-offers list --subscription-id "SUB_ID"
-  asc subscriptions introductory-offers create --subscription-id "SUB_ID" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
-  asc subscriptions introductory-offers import --subscription-id "SUB_ID" --input "./offers.csv" --offer-duration ONE_WEEK --offer-mode FREE_TRIAL --number-of-periods 1 --confirm`,
+  asc subscriptions offers introductory list --subscription-id "SUB_ID"
+  asc subscriptions offers introductory create --subscription-id "SUB_ID" --territory "USA" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+  asc subscriptions offers introductory import --subscription-id "SUB_ID" --input "./offers.csv" --offer-duration ONE_WEEK --offer-mode FREE_TRIAL --number-of-periods 1 --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -257,7 +264,7 @@ func SubscriptionsIntroductoryOffersCreateCommand() *ffcli.Command {
 	numberOfPeriods := fs.Int("number-of-periods", 0, "Number of periods (required)")
 	startDate := fs.String("start-date", "", "Start date (YYYY-MM-DD)")
 	endDate := fs.String("end-date", "", "End date (YYYY-MM-DD)")
-	territory := fs.String("territory", "", "Territory input for price override (accepts alpha-2, alpha-3, or exact English country name)")
+	territory := fs.String("territory", "", "Territory for the offer (accepts alpha-2, alpha-3, or exact English country name; required unless --all-territories)")
 	allTerritories := fs.Bool("all-territories", false, "Create introductory offers for all current subscription availability territories")
 	pricePoint := fs.String("price-point", "", "Subscription price point ID")
 	dryRun := fs.Bool("dry-run", false, "Resolve territories and print summary without creating offers")
@@ -266,14 +273,14 @@ func SubscriptionsIntroductoryOffersCreateCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "create",
-		ShortUsage: "asc subscriptions introductory-offers create [flags]",
+		ShortUsage: `asc subscriptions offers introductory create --subscription-id "SUB_ID" (--territory "USA" | --all-territories) [flags]`,
 		ShortHelp:  "Create an introductory offer.",
 		LongHelp: `Create an introductory offer.
 
 Examples:
-  asc subscriptions introductory-offers create --subscription-id "SUB_ID" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
-  asc subscriptions introductory-offers create --subscription-id "SUB_ID" --all-territories --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
-  asc subscriptions introductory-offers create --subscription-id "SUB_ID" --territory ALL --dry-run --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+  asc subscriptions offers introductory create --subscription-id "SUB_ID" --territory "USA" --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+  asc subscriptions offers introductory create --subscription-id "SUB_ID" --all-territories --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
+  asc subscriptions offers introductory create --subscription-id "SUB_ID" --all-territories --dry-run --offer-duration ONE_MONTH --offer-mode FREE_TRIAL --number-of-periods 1
 
 Timeouts:
   An explicit ASC_TIMEOUT caps the full create operation. Without an override, the operation uses a 5m fallback while individual requests retain the standard request timeout.`,
@@ -321,24 +328,43 @@ Timeouts:
 				}
 			}
 
+			territoryProvided := false
+			fs.Visit(func(parsed *flag.Flag) {
+				if parsed.Name == "territory" {
+					territoryProvided = true
+				}
+			})
 			territoryID := strings.TrimSpace(*territory)
-			useAllTerritories := *allTerritories || strings.EqualFold(territoryID, "ALL")
-			if *allTerritories && territoryID != "" && !strings.EqualFold(territoryID, "ALL") {
-				fmt.Fprintln(os.Stderr, "Error: --territory and --all-territories are mutually exclusive")
-				return flag.ErrHelp
+			if territoryProvided && territoryID == "" {
+				return subscriptionIntroductoryOfferSelectorUsageError(
+					shared.UsageErrorInvalidValue,
+					"invalid value for --territory: cannot be empty",
+				)
 			}
+			if territoryProvided == *allTerritories {
+				kind := shared.UsageErrorMissingRequired
+				if territoryProvided {
+					kind = shared.UsageErrorInvalidValue
+				}
+				return subscriptionIntroductoryOfferSelectorUsageError(
+					kind,
+					"exactly one of --territory or --all-territories is required",
+				)
+			}
+
+			legacyAllTerritories := territoryProvided && strings.EqualFold(territoryID, "ALL")
+			useAllTerritories := *allTerritories || legacyAllTerritories
 			if useAllTerritories && strings.TrimSpace(*pricePoint) != "" {
 				fmt.Fprintln(os.Stderr, "Error: --price-point cannot be used with --all-territories or --territory ALL")
 				return flag.ErrHelp
 			}
-			if territoryID != "" {
-				if useAllTerritories {
-					territoryID = ""
-				} else {
-					territoryID, err = ascterritory.Normalize(territoryID)
-					if err != nil {
-						return shared.UsageError(err.Error())
-					}
+			if legacyAllTerritories {
+				fmt.Fprintln(os.Stderr, "Warning: `--territory ALL` is deprecated. Use `--all-territories`.")
+				territoryID = ""
+			} else if territoryProvided {
+				territoryID, err = ascterritory.Normalize(territoryID)
+				if err != nil {
+					return subscriptionIntroductoryOfferSelectorUsageError(shared.UsageErrorInvalidValue, err.Error())
 				}
 			}
 
@@ -397,6 +423,11 @@ Timeouts:
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func subscriptionIntroductoryOfferSelectorUsageError(kind shared.UsageErrorKind, message string) error {
+	fmt.Fprintf(os.Stderr, "Error: %s\n%s", strings.TrimSpace(message), subscriptionIntroductoryOfferCreateSelectorGuidance)
+	return shared.NewReportedUsageError(kind, message)
 }
 
 type subscriptionIntroductoryOfferCreateBulkSummary struct {

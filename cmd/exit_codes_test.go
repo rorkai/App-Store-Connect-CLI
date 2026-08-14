@@ -50,6 +50,11 @@ func TestExitCodeFromError(t *testing.T) {
 			expected: ExitUsage,
 		},
 		{
+			name:     "reported usage error returns usage",
+			err:      shared.NewReportedUsageError(shared.UsageErrorInvalidValue, "invalid selector"),
+			expected: ExitUsage,
+		},
+		{
 			name:     "ErrMissingAuth returns auth failure",
 			err:      shared.ErrMissingAuth,
 			expected: ExitAuth,

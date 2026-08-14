@@ -246,6 +246,7 @@ func TestAggregateSalesMetrics(t *testing.T) {
 	a := insights.SalesMetrics{
 		RowCount:                       2,
 		UnitsColumnPresent:             true,
+		DownloadUnitsAvailable:         true,
 		DeveloperProceedsColumnPresent: true,
 		CustomerPriceColumnPresent:     true,
 		SubscriptionColumnPresent:      true,
@@ -266,6 +267,7 @@ func TestAggregateSalesMetrics(t *testing.T) {
 	b := insights.SalesMetrics{
 		RowCount:                       3,
 		UnitsColumnPresent:             true,
+		DownloadUnitsAvailable:         true,
 		DeveloperProceedsColumnPresent: true,
 		CustomerPriceColumnPresent:     true,
 		SubscriptionColumnPresent:      true,
@@ -344,6 +346,7 @@ func TestBuildCompareMetrics(t *testing.T) {
 	baseline := insights.SalesMetrics{
 		RowCount:                       5,
 		UnitsColumnPresent:             true,
+		DownloadUnitsAvailable:         true,
 		DeveloperProceedsColumnPresent: true,
 		CustomerPriceColumnPresent:     true,
 		SubscriptionColumnPresent:      true,
@@ -356,6 +359,7 @@ func TestBuildCompareMetrics(t *testing.T) {
 	comparison := insights.SalesMetrics{
 		RowCount:                       8,
 		UnitsColumnPresent:             true,
+		DownloadUnitsAvailable:         true,
 		DeveloperProceedsColumnPresent: true,
 		CustomerPriceColumnPresent:     true,
 		SubscriptionColumnPresent:      true,
@@ -395,7 +399,7 @@ func TestBuildCompareMetrics(t *testing.T) {
 
 func TestBuildCompareMetrics_ExplainsMissingColumns(t *testing.T) {
 	baseline := insights.SalesMetrics{}
-	comparison := insights.SalesMetrics{UnitsColumnPresent: true}
+	comparison := insights.SalesMetrics{UnitsColumnPresent: true, DownloadUnitsAvailable: true}
 
 	metrics := buildCompareMetrics(baseline, comparison)
 	for _, m := range metrics {
@@ -415,12 +419,14 @@ func TestBuildCompareMetrics_ExplainsMissingColumns(t *testing.T) {
 
 func TestBuildCompareMetrics_ExplainsZeroBaselineDeltaPercent(t *testing.T) {
 	baseline := insights.SalesMetrics{
-		UnitsColumnPresent: true,
-		DownloadUnitsTotal: 0,
+		UnitsColumnPresent:     true,
+		DownloadUnitsAvailable: true,
+		DownloadUnitsTotal:     0,
 	}
 	comparison := insights.SalesMetrics{
-		UnitsColumnPresent: true,
-		DownloadUnitsTotal: 12,
+		UnitsColumnPresent:     true,
+		DownloadUnitsAvailable: true,
+		DownloadUnitsTotal:     12,
 	}
 
 	metrics := buildCompareMetrics(baseline, comparison)
@@ -473,6 +479,9 @@ func TestFetchAndAggregate_SingleReportKeepsAvailableColumns(t *testing.T) {
 	}
 	if !metrics.UnitsColumnPresent {
 		t.Fatal("expected units column to be available")
+	}
+	if !metrics.DownloadUnitsAvailable {
+		t.Fatal("expected download units to be available")
 	}
 	if !metrics.DeveloperProceedsColumnPresent {
 		t.Fatal("expected developer proceeds column to be available")

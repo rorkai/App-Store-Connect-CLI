@@ -73,7 +73,7 @@ func TestReviewRemovedItemCommandsProvideMigrationGuidance(t *testing.T) {
 		{
 			name:       "ordinary typo",
 			args:       []string{"review", "items", "lits"},
-			wantStderr: "Error: unexpected argument(s): lits\n" + items.UsageFunc(items) + "Did you mean: list?\n",
+			wantStderr: "Error: unknown command `asc review items lits`\nTry:\n  asc review items list\nFor help:\n  asc review items --help\n",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -167,7 +167,7 @@ func TestReviewItemsGroupRejectsUnknownSubcommands(t *testing.T) {
 		{
 			name:    "legacy get spelling",
 			args:    []string{"review", "items", "get", "--id", "ITEM_ID"},
-			wantErr: "Error: unexpected argument(s): get",
+			wantErr: "Error: unknown command `asc review items get`",
 		},
 		{
 			name:    "removed view spelling",
@@ -177,7 +177,7 @@ func TestReviewItemsGroupRejectsUnknownSubcommands(t *testing.T) {
 		{
 			name:    "unknown child",
 			args:    []string{"review", "items", "nope"},
-			wantErr: "Error: unexpected argument(s): nope",
+			wantErr: "Error: unknown command `asc review items nope`",
 		},
 	}
 

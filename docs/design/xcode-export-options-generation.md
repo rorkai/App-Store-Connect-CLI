@@ -105,9 +105,11 @@ It does not create or mutate signing assets.
 
 ## Compatibility and lifecycle
 
-This is an additive stable subcommand plus a relaxation of one required flag.
-Explicit export-options files retain precedence and behavior, including custom
-Xcode keys not modeled by ASC or Bitrise. No deprecation is required.
+The existing generator remains a stable additive subcommand. The new `--method`
+extension and its `release-testing` value are experimental until the complete
+direct-install workflow passes its promotion gates. Explicit export-options
+files retain precedence and behavior, including custom Xcode keys not modeled
+by ASC or Bitrise. No deprecation is required.
 
 The command remains visible on every platform with the rest of `asc xcode`.
 Automatic plist construction and atomic writing are cross-platform when the

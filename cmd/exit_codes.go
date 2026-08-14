@@ -40,7 +40,7 @@ func ExitCodeFromError(err error) int {
 	}
 
 	// Usage errors
-	if errors.Is(err, flag.ErrHelp) {
+	if errors.Is(err, flag.ErrHelp) || shared.IsReportedUsageError(err) {
 		return ExitUsage
 	}
 

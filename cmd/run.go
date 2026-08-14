@@ -55,19 +55,40 @@ func Run(args []string, versionInfo string) int {
 			fmt.Fprint(os.Stderr, parseOutput.String())
 			return ExitSuccess
 		}
-		printParseFailure(parseErr, parseOutput.String(), analysis)
+		recoverCIReportFlags(root, args)
+		if err := shared.ValidateReportFlags(); err != nil {
+			fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
+			emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, err))
+			return ExitUsage
+		}
+		badFlagSyntax := parseErr.Error()
+		if firstLine, _, _ := strings.Cut(parseOutput.String(), "\n"); strings.HasPrefix(firstLine, "bad flag syntax:") {
+			badFlagSyntax = firstLine
+		}
+		if analysis.unknownFlag && isUnknownFlagParseFailure(parseErr, parseOutput.String()) {
+			printConciseUnknownFlag(analysis, getCommandName(root, args))
+		} else if strings.HasPrefix(badFlagSyntax, "bad flag syntax:") {
+			fmt.Fprintf(os.Stderr, "Error: %s\nFor help:\n  asc --help\n", shared.SanitizeTerminal(badFlagSyntax))
+		} else {
+			printParseFailure(parseErr, parseOutput.String(), analysis)
+		}
 		// Every non-help error returned by command-tree parsing is invalid usage,
 		// including NoExecError cases that do not write flag output.
-		exitCode := ExitUsage
-		printUnknownFlagSuggestion(analysis)
-		emitImmediateTelemetry(args, root, versionInfo, exitCode, parseFailureContext(analysis))
-		return exitCode
+		if analysis.unknownFlag && isUnknownFlagParseFailure(parseErr, parseOutput.String()) {
+			commandName := getCommandName(root, args)
+			if err := writeUsageJUnitReport(commandName, unknownFlagError(analysis, commandName)); err != nil {
+				printUsageJUnitReportFailure(commandName, versionInfo, analysis, err)
+				return ExitError
+			}
+		}
+		emitImmediateTelemetry(args, root, versionInfo, parseFailureContext(analysis))
+		return ExitUsage
 	}
 
 	// Validate CI report flags after parsing
 	if err := shared.ValidateReportFlags(); err != nil {
 		fmt.Fprint(os.Stderr, errfmt.FormatStderr(err))
-		emitImmediateTelemetry(args, root, versionInfo, ExitUsage, validationFailureContext(analysis, err))
+		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, err))
 		return ExitUsage
 	}
 
@@ -87,11 +108,22 @@ func Run(args []string, versionInfo string) int {
 	}
 
 	commandName := getCommandName(root, args)
-	if shouldRejectUnknownChild(root, analysis, commandName) {
-		runErr := shared.UsageErrorf("unexpected argument(s): %s", shared.SanitizeTerminal(analysis.unknownToken))
-		fmt.Fprint(os.Stderr, analysis.command.UsageFunc(analysis.command))
-		printUnknownSubcommandSuggestion(analysis, commandName)
-		emitImmediateTelemetry(args, root, versionInfo, ExitUsage, validationFailureContext(analysis, runErr))
+	if invalid, suggested, ok := commonCommandPathRecovery(root, analysis, args); ok {
+		fmt.Fprintf(os.Stderr, "Error: unknown command `%s`\nTry:\n  %s\nFor help:\n  %s --help\n", invalid, suggested, commandName)
+		if err := writeUsageJUnitReport(commandName, commonCommandPathRecoveryError(invalid)); err != nil {
+			printUsageJUnitReportFailure(commandName, versionInfo, analysis, err)
+			return ExitError
+		}
+		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, flag.ErrHelp))
+		return ExitUsage
+	}
+	if shouldRenderConciseUnknownChild(root, analysis, commandName) {
+		printConciseUnknownCommand(analysis, commandName)
+		if err := writeUsageJUnitReport(commandName, unknownCommandError(analysis, commandName)); err != nil {
+			printUsageJUnitReportFailure(commandName, versionInfo, analysis, err)
+			return ExitError
+		}
+		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, flag.ErrHelp))
 		return ExitUsage
 	}
 
@@ -163,6 +195,69 @@ func Run(args []string, versionInfo string) int {
 		InvocationShape: analysis.shape,
 	})
 	return ExitSuccess
+}
+
+func recoverCIReportFlags(root *ffcli.Command, args []string) {
+	if root == nil {
+		return
+	}
+	for index := 0; index < len(args); {
+		token := args[index]
+		if token == "" {
+			index++
+			continue
+		}
+		if token == "--" || findDirectSubcommand(root, token) != nil || !strings.HasPrefix(token, "-") || token == "-" {
+			return
+		}
+
+		trimmed := ""
+		switch {
+		case strings.HasPrefix(token, "--") && !strings.HasPrefix(token, "---"):
+			trimmed = token[2:]
+		case strings.HasPrefix(token, "-") && !strings.HasPrefix(token, "--"):
+			trimmed = token[1:]
+		default:
+			index++
+			continue
+		}
+		name, value, hasInlineValue := strings.Cut(trimmed, "=")
+		if name == "report" || name == "report-file" {
+			if !hasInlineValue {
+				if index+1 >= len(args) {
+					return
+				}
+				index++
+				value = args[index]
+			}
+			if name == "report" {
+				shared.SetReportFormat(value)
+			} else {
+				shared.SetReportFile(value)
+			}
+			index++
+			continue
+		}
+
+		if next, consumed := consumeFlagToken(root.FlagSet, token, args, index); consumed {
+			if !hasInlineValue {
+				if item := root.FlagSet.Lookup(name); item != nil && isBoolFlag(item) && next < len(args) {
+					if _, err := strconv.ParseBool(strings.TrimSpace(args[next])); err == nil {
+						next++
+					}
+				}
+			}
+			index = next
+			continue
+		}
+		index++
+		if index < len(args) {
+			next := args[index]
+			if next != "" && !strings.HasPrefix(next, "-") && findDirectSubcommand(root, next) == nil {
+				index++
+			}
+		}
+	}
 }
 
 // normalizeSpacedBooleanFlags preserves the CLI's liberal support for both
@@ -305,10 +400,9 @@ func emitImmediateTelemetry(
 	args []string,
 	root *ffcli.Command,
 	versionInfo string,
-	exitCode int,
 	eventContext telemetry.EventContext,
 ) {
-	emitTelemetry(getCommandName(root, args), versionInfo, 0, exitCode, eventContext)
+	emitTelemetry(getCommandName(root, args), versionInfo, 0, ExitUsage, eventContext)
 }
 
 func prepareFlagParsing(command *ffcli.Command, args []string, output *bytes.Buffer) func() {
@@ -495,6 +589,23 @@ func isBoolFlag(f *flag.Flag) bool {
 	}
 	v, ok := f.Value.(boolFlag)
 	return ok && v.IsBoolFlag()
+}
+
+func writeUsageJUnitReport(commandName string, usageErr error) error {
+	if shared.ReportFormat() != shared.ReportFormatJUnit || shared.ReportFile() == "" {
+		return nil
+	}
+	return writeJUnitReport(commandName, usageErr, 0)
+}
+
+func printUsageJUnitReportFailure(commandName, versionInfo string, analysis invocationAnalysis, err error) {
+	fmt.Fprintf(os.Stderr, "Error: failed to write JUnit report: %v\n", err)
+	emitTelemetry(commandName, versionInfo, 0, ExitError, telemetry.EventContext{
+		InvocationShape: analysis.shape,
+		ErrorKind:       telemetry.ErrorKindOther,
+		FailureStage:    telemetry.FailureStageExecution,
+		OutcomeKind:     telemetry.OutcomeInternalError,
+	})
 }
 
 // writeJUnitReport writes a JUnit XML report if --report junit --report-file is configured.

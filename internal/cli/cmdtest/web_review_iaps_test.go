@@ -311,7 +311,7 @@ func TestWebReviewIAPsAttachInvalidValueExitCodes(t *testing.T) {
 		{
 			name:       "subcommand flag before attach rejected",
 			args:       []string{"web", "review", "iaps", "--app", "123456789", "attach", "--iap-id", "9000000001", "--confirm"},
-			wantStderr: "Unknown flag: --app",
+			wantStderr: "Error: unknown flag `--app` for `asc web review iaps`",
 		},
 	}
 

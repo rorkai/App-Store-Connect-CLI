@@ -22,6 +22,8 @@ import (
 
 var bitriseStdoutCaptureMu sync.Mutex
 
+var readArchiveExportInfoFn = readArchiveExportInfo
+
 // buildPlatformExportOptionsPayload uses Bitrise's current typed v2 model on
 // macOS, where xcodebuild and local signing asset resolution are available.
 func buildPlatformExportOptionsPayload(opts ExportOptionsGenerateOptions, teamID string, manual manualExportOptions) map[string]any {
@@ -60,16 +62,12 @@ func generateManualExportOptions(ctx context.Context, archivePath, teamID, metho
 	if platform != "IOS" && platform != "TV_OS" {
 		return manualExportOptions{}, fmt.Errorf("manual signing export options generation only supports iOS and tvOS archives; archive platform is %s", platform)
 	}
-	archive, err := xcarchive.NewIosArchive(archivePath)
-	if err != nil {
-		return manualExportOptions{}, fmt.Errorf("read iOS archive: %w", err)
-	}
-	archiveInfo, err := exportoptionsgenerator.ReadArchiveExportInfo(archive)
-	if err != nil {
-		return manualExportOptions{}, fmt.Errorf("read archive export information: %w", err)
-	}
 	var generated legacyexportoptions.ExportOptions
 	if _, err := captureBitriseStdout(func() error {
+		archiveInfo, err := readArchiveExportInfoFn(archivePath)
+		if err != nil {
+			return err
+		}
 		generator := exportoptionsgenerator.New(
 			xcodeversion.NewXcodeVersionProvider(command.NewFactory(env.NewRepository())),
 			log.NewLogger(),
@@ -89,6 +87,18 @@ func generateManualExportOptions(ctx context.Context, archivePath, teamID, metho
 		return manualExportOptions{}, err
 	}
 	return manualExportOptionsFromHash(generated.Hash())
+}
+
+func readArchiveExportInfo(archivePath string) (exportoptionsgenerator.ArchiveInfo, error) {
+	archive, err := xcarchive.NewIosArchive(archivePath)
+	if err != nil {
+		return exportoptionsgenerator.ArchiveInfo{}, fmt.Errorf("read iOS archive: %w", err)
+	}
+	archiveInfo, err := exportoptionsgenerator.ReadArchiveExportInfo(archive)
+	if err != nil {
+		return exportoptionsgenerator.ArchiveInfo{}, fmt.Errorf("read archive export information: %w", err)
+	}
+	return archiveInfo, nil
 }
 
 func manualExportOptionsResolverOptions(teamID, method string) exportoptionsgenerator.Opts {
