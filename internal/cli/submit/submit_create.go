@@ -292,7 +292,15 @@ func summarizeReviewSubmissionItems(
 		return summary, nil
 	}
 
-	resp, err := client.GetReviewSubmissionItems(ctx, submissionID, asc.WithReviewSubmissionItemsLimit(200))
+	// appStoreVersion must be requested explicitly. Without it the API returns items carrying no
+	// relationship linkage, so every item reads as an empty version id, hasTargetVersion never
+	// becomes true, and a correctly prepared submission is rejected as not containing its version.
+	resp, err := client.GetReviewSubmissionItems(
+		ctx,
+		submissionID,
+		asc.WithReviewSubmissionItemsFields([]string{"appStoreVersion"}),
+		asc.WithReviewSubmissionItemsLimit(200),
+	)
 	if err != nil {
 		return summary, err
 	}

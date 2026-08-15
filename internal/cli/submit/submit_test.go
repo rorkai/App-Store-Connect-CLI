@@ -2212,7 +2212,7 @@ func TestPrepareReviewSubmissionForCreateSkipsMixedTargetVersionSubmission(t *te
 
 	wantRequests := []string{
 		"GET /v1/apps/app-1/reviewSubmissions?filter%5Bplatform%5D=IOS&filter%5Bstate%5D=READY_FOR_REVIEW&include=appStoreVersionForReview&limit=200",
-		"GET /v1/reviewSubmissions/mixed-submission/items?limit=200",
+		"GET /v1/reviewSubmissions/mixed-submission/items?fields%5BreviewSubmissionItems%5D=appStoreVersion&limit=200",
 	}
 	if !reflect.DeepEqual(requests, wantRequests) {
 		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
@@ -2269,7 +2269,7 @@ func TestPrepareReviewSubmissionForCreateTreatsEmptyItemsAsMissingVersion(t *tes
 
 	wantRequests := []string{
 		"GET /v1/apps/app-1/reviewSubmissions?filter%5Bplatform%5D=IOS&filter%5Bstate%5D=READY_FOR_REVIEW&include=appStoreVersionForReview&limit=200",
-		"GET /v1/reviewSubmissions/empty-items-submission/items?limit=200",
+		"GET /v1/reviewSubmissions/empty-items-submission/items?fields%5BreviewSubmissionItems%5D=appStoreVersion&limit=200",
 	}
 	if !reflect.DeepEqual(requests, wantRequests) {
 		t.Fatalf("unexpected requests: got %v want %v", requests, wantRequests)
