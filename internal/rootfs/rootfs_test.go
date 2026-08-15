@@ -1060,6 +1060,105 @@ func TestErrorMessagesIdentifyRejectedPath(t *testing.T) {
 	}
 }
 
+func TestOpenAbsoluteRootNoFollowUsesCurrentDirectoryAnchor(t *testing.T) {
+	workingDir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected := filepath.Join(workingDir, "selected")
+	if err := os.Mkdir(selected, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	openWorkingDir := func() (*os.Root, error) {
+		return os.OpenRoot(workingDir)
+	}
+	denyVolumeRoot := func(string) (*os.Root, error) {
+		return nil, os.ErrPermission
+	}
+
+	opened, err := openAbsoluteRootNoFollowFrom(
+		selected,
+		workingDir,
+		openWorkingDir,
+		denyVolumeRoot,
+	)
+	if err != nil {
+		t.Fatalf("openAbsoluteRootNoFollowFrom() error = %v", err)
+	}
+	defer opened.Close()
+	if _, err := opened.Stat("."); err != nil {
+		t.Fatalf("opened selected root is unusable: %v", err)
+	}
+}
+
+func TestOpenAbsoluteRootNoFollowFailsClosedOutsideCurrentDirectory(t *testing.T) {
+	workingDir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	outside, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	openWorkingDir := func() (*os.Root, error) {
+		return os.OpenRoot(workingDir)
+	}
+	denyVolumeRoot := func(string) (*os.Root, error) {
+		return nil, os.ErrPermission
+	}
+
+	opened, err := openAbsoluteRootNoFollowFrom(
+		outside,
+		workingDir,
+		openWorkingDir,
+		denyVolumeRoot,
+	)
+	if opened != nil {
+		_ = opened.Close()
+		t.Fatal("openAbsoluteRootNoFollowFrom() opened a root outside the current directory")
+	}
+	if !errors.Is(err, os.ErrPermission) {
+		t.Fatalf("openAbsoluteRootNoFollowFrom() error = %v, want permission denied", err)
+	}
+}
+
+func TestOpenAbsoluteRootNoFollowRejectsReplacedCurrentDirectoryPath(t *testing.T) {
+	parent, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	workingDir := filepath.Join(parent, "working")
+	if err := os.Mkdir(workingDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	openedWorkingDir, err := os.OpenRoot(workingDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(workingDir, workingDir+"-original"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(workingDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	opened, err := openAbsoluteRootNoFollowFrom(
+		workingDir,
+		workingDir,
+		func() (*os.Root, error) { return openedWorkingDir, nil },
+		os.OpenRoot,
+	)
+	if opened != nil {
+		_ = opened.Close()
+		t.Fatal("openAbsoluteRootNoFollowFrom() accepted a replaced working directory path")
+	}
+	if !errors.Is(err, ErrSymlink) {
+		t.Fatalf("openAbsoluteRootNoFollowFrom() error = %v, want ErrSymlink", err)
+	}
+}
+
 func TestOpenRootPinsOriginalDirectoryAcrossPathReplacement(t *testing.T) {
 	requireSymlinks(t)
 	parent, err := filepath.EvalSymlinks(t.TempDir())

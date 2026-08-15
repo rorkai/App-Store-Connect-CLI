@@ -502,14 +502,65 @@ func resolveProspectivePhysicalPath(absolute string) (string, error) {
 }
 
 func openAbsoluteRootNoFollow(absolute string) (*os.Root, error) {
+	workingDir := workingDirectory()
+	if workingDir != "" {
+		physicalWorkingDir, err := filepath.EvalSymlinks(workingDir)
+		if err == nil {
+			workingDir = filepath.Clean(physicalWorkingDir)
+		} else {
+			workingDir = ""
+		}
+	}
+	return openAbsoluteRootNoFollowFrom(
+		absolute,
+		workingDir,
+		func() (*os.Root, error) { return os.OpenRoot(".") },
+		os.OpenRoot,
+	)
+}
+
+func openAbsoluteRootNoFollowFrom(
+	absolute string,
+	workingDir string,
+	openWorkingDir func() (*os.Root, error),
+	openVolumeRoot func(string) (*os.Root, error),
+) (*os.Root, error) {
 	absolute = filepath.Clean(absolute)
 	volume := filepath.VolumeName(absolute)
 	anchor := volume + string(filepath.Separator)
-	current, err := os.OpenRoot(anchor)
-	if err != nil {
-		return nil, err
-	}
 	relative := strings.TrimPrefix(absolute, anchor)
+
+	var current *os.Root
+	if workingDir != "" {
+		workingDir = filepath.Clean(workingDir)
+		if workingRelative, err := relativeWithinRoot(workingDir, absolute); err == nil {
+			current, err = openWorkingDir()
+			if err != nil {
+				return nil, err
+			}
+			openedInfo, openedErr := current.Stat(".")
+			selectedInfo, selectedErr := os.Stat(workingDir)
+			if openedErr != nil || selectedErr != nil || !os.SameFile(openedInfo, selectedInfo) {
+				_ = current.Close()
+				if openedErr != nil {
+					return nil, openedErr
+				}
+				if selectedErr != nil {
+					return nil, selectedErr
+				}
+				return nil, symlinkError(workingDir)
+			}
+			anchor = workingDir
+			relative = workingRelative
+		}
+	}
+	if current == nil {
+		var err error
+		current, err = openVolumeRoot(anchor)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if relative == "" || relative == "." {
 		return current, nil
 	}
