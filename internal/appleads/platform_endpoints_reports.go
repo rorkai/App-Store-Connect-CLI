@@ -2,6 +2,70 @@ package appleads
 
 import "strings"
 
+// Starter payloads mirror the worked request examples in Apple's Platform API
+// documentation so command help offers a valid body without external docs.
+const (
+	appsReportStarterPayload = `{
+  "timeRange": {"start": "2025-01-01", "end": "2025-01-31", "timeZone": "ORTZ", "granularity": "DAILY"},
+  "fields": ["impressions", "taps", "localSpend"],
+  "groupBy": ["countryOrRegion"],
+  "pagination": {"offset": 0, "pageSize": 20}
+}`
+	brandsReportStarterPayload = `{
+  "timeRange": {"start": "2025-01-01", "end": "2025-01-10", "timeZone": "ORTZ", "granularity": "DAILY"},
+  "fields": ["campaignId", "impressions", "taps", "localSpend"],
+  "groupBy": ["deviceClass"],
+  "options": {"includeRows": ["GRAND_TOTAL"]},
+  "pagination": {"offset": 0, "pageSize": 20}
+}`
+	impressionShareStarterPayload = `{
+  "filters": [
+    {"field": "promotedObjectId", "operator": "EQUALS", "value": "123456789"}
+  ],
+  "options": {"impressionShareReportType": "FIRST_SLOT"},
+  "timeRange": {"start": "2025-01-01", "end": "2025-01-07", "granularity": "DAILY"},
+  "pagination": {"offset": 0, "pageSize": 20}
+}`
+	searchTermPopularityStarterPayload = `{
+  "timeRange": {"start": "2025-01-05", "end": "2025-01-11", "granularity": "WEEKLY_SUN_SAT"},
+  "filters": [
+    {"field": "countryOrRegion", "operator": "EQUALS", "value": "US"}
+  ],
+  "sorting": [{"field": "rankInGenre", "order": "ASC"}],
+  "pagination": {"offset": 0, "pageSize": 20}
+}`
+	suggestionQueryStarterPayload = `{
+  "filters": [
+    {"field": "promotedObjectId", "operator": "EQUALS", "value": ["123456"]},
+    {"field": "promotedObjectType", "operator": "EQUALS", "value": ["APPSTORE_APP"]},
+    {"field": "queryType", "operator": "EQUALS", "value": ["SUGGESTION"]}
+  ]
+}`
+	recommendationQueryStarterPayload = `{
+  "filters": [
+    {"field": "promotedObjectId", "operator": "EQUALS", "value": ["123456"]},
+    {"field": "promotedObjectType", "operator": "EQUALS", "value": ["APPSTORE_APP"]}
+  ],
+  "pagination": {"offset": 0, "pageSize": 20}
+}`
+	dailyBudgetApplyStarterPayload = `[
+  {
+    "id": "RECOMMENDATION_ID",
+    "appliedDailyBudget": {"amount": "500.00", "currency": "USD"},
+    "promotedObjectId": "123456",
+    "promotedObjectType": "APPSTORE_APP"
+  }
+]`
+	targetCpaApplyStarterPayload = `[
+  {
+    "id": "RECOMMENDATION_ID",
+    "appliedTargetCPA": {"amount": "5.00", "currency": "USD"},
+    "promotedObjectId": "123456",
+    "promotedObjectType": "APPSTORE_APP"
+  }
+]`
+)
+
 // platformReportsOptimizationEndpointSpecs returns the Platform API v1
 // reporting, insights, recommendations, suggestions, and change-history
 // surface. Reporting request pagination remains in the JSON body, so these
@@ -64,21 +128,35 @@ func platformReportsOptimizationEndpointSpecs() []EndpointSpec {
 		case strings.HasPrefix(spec.Path, "v1/reports/"):
 			spec.BodyFileExample = "report.json"
 			spec.BodyHint = "Use nested timeRange {start,end,timeZone,granularity}; pagination is {offset,pageSize}. Put campaign and ad-group selectors in filters. EMPTY_METRICS cannot be combined with groupBy; brand reports support only GRAND_TOTAL."
+			if strings.HasPrefix(spec.Path, "v1/reports/business-brands/") {
+				spec.BodyExample = brandsReportStarterPayload
+			} else {
+				spec.BodyExample = appsReportStarterPayload
+			}
 		case spec.Name == "platform-query-app-impression-share-data":
 			spec.BodyFileExample = "query.json"
 			spec.BodyHint = "Required: filters must include promotedObjectId, plus a complete timeRange. Use UTC and DAILY (maximum 30 days) or WEEKLY_SUN_SAT (maximum 4 weeks, starting Sunday). impressionShareReportType is FIRST_SLOT or ALL_SLOTS; pageSize max 5000; at most 2 sort fields."
+			spec.BodyExample = impressionShareStarterPayload
 		case spec.Name == "platform-query-app-search-term-popularity-data":
 			spec.BodyFileExample = "query.json"
 			spec.BodyHint = "Required: timeRange. Use UTC and WEEKLY_SUN_SAT or MONTHLY; pageSize max 5000; at most 2 sort fields."
+			spec.BodyExample = searchTermPopularityStarterPayload
 		case strings.HasPrefix(spec.Path, "v1/suggestions/categories/") || strings.HasPrefix(spec.Path, "v1/suggestions/phrases/"):
 			spec.BodyFileExample = "query.json"
 			spec.BodyHint = "For queryType SUGGESTION, filter by promotedObjectId and promotedObjectType. For queryType SEARCH, use the phrase or category filter documented by Apple; Apple's generic request schema does not describe this exception."
+			spec.BodyExample = suggestionQueryStarterPayload
 		case strings.HasPrefix(spec.Path, "v1/suggestions/") || (strings.HasPrefix(spec.Path, "v1/recommendations/") && strings.HasSuffix(spec.Path, "/query")):
 			spec.BodyFileExample = "query.json"
 			spec.BodyHint = "filters must include promotedObjectId and promotedObjectType. Pagination defaults to offset 0 and pageSize 20, with pageSize max 1000."
+			spec.BodyExample = recommendationQueryStarterPayload
 		case spec.RequiresConfirm || spec.RiskConfirm:
 			spec.BodyFileExample = "recommendations.json"
 			spec.BodyHint = "Pass a non-empty array built from a recommendation query response. Apply and dismiss operations require --confirm."
+			if strings.HasPrefix(spec.Path, "v1/recommendations/daily-budgets/") {
+				spec.BodyExample = dailyBudgetApplyStarterPayload
+			} else if strings.HasPrefix(spec.Path, "v1/recommendations/target-cpas/") {
+				spec.BodyExample = targetCpaApplyStarterPayload
+			}
 		case spec.BodyKind != BodyNone:
 			spec.BodyFileExample = "query.json"
 		}

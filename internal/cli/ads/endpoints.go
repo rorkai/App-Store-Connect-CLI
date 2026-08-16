@@ -266,6 +266,14 @@ func endpointBodyHelp(spec appleads.EndpointSpec) string {
 		hint = strings.ReplaceAll(hint, "\n", "\n  ")
 		help += "\n  Guidance: " + hint
 	}
+	if strings.TrimSpace(spec.BodyExample) != "" {
+		fileName := strings.TrimSpace(spec.BodyFileExample)
+		if fileName == "" {
+			fileName = "payload.json"
+		}
+		example := strings.ReplaceAll(strings.TrimSpace(spec.BodyExample), "\n", "\n    ")
+		help += fmt.Sprintf("\n  Starter payload (%s):\n    %s", fileName, example)
+	}
 	return help
 }
 

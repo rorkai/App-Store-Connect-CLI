@@ -288,6 +288,20 @@ func TestPlatformEndpointHelpIncludesAgentPayloadGuidance(t *testing.T) {
 			},
 		},
 		{
+			path: []string{"insights", "search-term-popularity", "find"},
+			want: []string{
+				"Starter payload (query.json):",
+				`"granularity": "WEEKLY_SUN_SAT"`,
+			},
+		},
+		{
+			path: []string{"reports", "apps", "campaigns"},
+			want: []string{
+				"Starter payload (report.json):",
+				`"timeZone": "ORTZ"`,
+			},
+		},
+		{
 			path: []string{"budget-orders", "create"},
 			want: []string{
 				"--confirm",

@@ -51,10 +51,13 @@ type EndpointSpec struct {
 	// the SDK/OpenAPI request contract. Apple accepts an empty selector body on
 	// some query endpoints, but the Platform API requires a selector filter for
 	// the keyword queries exposed by asc.
-	CLIRequiresBody  bool
-	BodyType         string
-	BodyHint         string
-	BodyFileExample  string
+	CLIRequiresBody bool
+	BodyType        string
+	BodyHint        string
+	BodyFileExample string
+	// BodyExample is a minimal valid request payload rendered in command help
+	// so callers can start from a working body instead of external schema docs.
+	BodyExample      string
 	ResponseType     string
 	RequiresOrg      bool
 	RequiresConfirm  bool

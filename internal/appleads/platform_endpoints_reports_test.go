@@ -2,6 +2,7 @@ package appleads
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -210,6 +211,53 @@ func TestPlatformReportsOptimizationPayloadGuidance(t *testing.T) {
 		for _, want := range test.want {
 			if !strings.Contains(spec.BodyHint, want) {
 				t.Errorf("%s body hint = %q, want %q", strings.Join(test.path, " "), spec.BodyHint, want)
+			}
+		}
+	}
+}
+
+func TestPlatformReportsOptimizationStarterPayloads(t *testing.T) {
+	// Commands whose help must carry a starter payload verified against the
+	// worked examples in Apple's Platform API documentation.
+	required := [][]string{
+		{"reports", "apps", "campaigns"},
+		{"reports", "brands", "campaigns"},
+		{"insights", "impression-share", "find"},
+		{"insights", "search-term-popularity", "find"},
+		{"suggestions", "phrases", "find"},
+		{"suggestions", "keywords", "find"},
+		{"recommendations", "daily-budgets", "find"},
+		{"recommendations", "daily-budgets", "apply"},
+		{"recommendations", "target-cpas", "apply"},
+	}
+	for _, path := range required {
+		spec, ok := PlatformEndpointByCommandPath(path...)
+		if !ok {
+			t.Fatalf("missing %q", strings.Join(path, " "))
+		}
+		if strings.TrimSpace(spec.BodyExample) == "" {
+			t.Errorf("%s has no starter payload", strings.Join(path, " "))
+		}
+	}
+
+	for _, spec := range PlatformEndpointSpecs() {
+		example := strings.TrimSpace(spec.BodyExample)
+		if example == "" {
+			continue
+		}
+		var payload any
+		if err := json.Unmarshal([]byte(example), &payload); err != nil {
+			t.Errorf("%s starter payload is not valid JSON: %v", spec.Name, err)
+			continue
+		}
+		switch spec.BodyKind {
+		case BodyObject:
+			if _, ok := payload.(map[string]any); !ok {
+				t.Errorf("%s starter payload must be a JSON object", spec.Name)
+			}
+		case BodyArray:
+			if _, ok := payload.([]any); !ok {
+				t.Errorf("%s starter payload must be a JSON array", spec.Name)
 			}
 		}
 	}
