@@ -4,12 +4,14 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleads"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
 func TestAdsLegacyMigrationLedgerMatchesAllV5EndpointSpecs(t *testing.T) {
@@ -80,6 +82,13 @@ func TestAdsLegacyProductPageRejectionMigrationsUseAppEndpoints(t *testing.T) {
 }
 
 func TestAdsLegacyCommandWarningIsEmittedOnceBeforeExistingExecution(t *testing.T) {
+	// Isolate host credentials so the alias deterministically fails at
+	// credential resolution instead of reaching the live Apple Ads API.
+	asc.ResetConfigCacheForTest()
+	t.Cleanup(asc.ResetConfigCacheForTest)
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "config.json"))
+	setAdsResolverTestEnv(t)
+
 	command := findCommand(AdsCommand(), "v5", "campaigns")
 	if command == nil || command.Exec == nil {
 		t.Fatal("missing campaigns legacy alias")
