@@ -252,11 +252,6 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 			wantErr: "--app is required",
 		},
 		{
-			name:    "testers metrics invalid period",
-			args:    []string{"testflight", "testers", "metrics", "--tester-id", "TESTER_ID", "--app", "APP_ID", "--period", "P1D"},
-			wantErr: "--period must be one of",
-		},
-		{
 			name:    "testers metrics invalid limit",
 			args:    []string{"testflight", "testers", "metrics", "--tester-id", "TESTER_ID", "--app", "APP_ID", "--limit", "500"},
 			wantErr: "--limit must be between 1 and 200",
@@ -264,6 +259,37 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 	}
 
 	runValidationTests(t, tests)
+}
+
+func TestTestFlightMetricsInvalidPeriodReturnsValidationError(t *testing.T) {
+	t.Setenv("ASC_APP_ID", "")
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	args := []string{"testflight", "testers", "metrics", "--tester-id", "TESTER_ID", "--app", "APP_ID", "--period", "P1D"}
+	var runErr error
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Parse(args); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		runErr = root.Run(context.Background())
+	})
+
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr from direct command execution, got %q", stderr)
+	}
+	if runErr == nil {
+		t.Fatal("expected validation error")
+	}
+	if errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("errors.Is(flag.ErrHelp) = true, error = %v", runErr)
+	}
+	if got, want := runErr.Error(), "--period must be one of: P7D, P30D, P90D, P365D"; got != want {
+		t.Fatalf("error = %q, want %q", got, want)
+	}
 }
 
 func TestPreReleaseRelationshipsValidationErrors(t *testing.T) {

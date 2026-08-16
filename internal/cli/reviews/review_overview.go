@@ -405,6 +405,7 @@ func summarizeReviewSubmissionItems(ctx context.Context, client *asc.Client, sub
 		ctx,
 		submissionID,
 		asc.WithReviewSubmissionItemsLimit(200),
+		asc.WithReviewSubmissionItemsInclude([]string{"appStoreVersion"}),
 		asc.WithReviewSubmissionItemsFields([]string{"state", "appStoreVersion"}),
 	)
 	if err != nil {

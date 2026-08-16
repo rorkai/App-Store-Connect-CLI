@@ -22,6 +22,7 @@ func TestTestFlightValidationDiagnosticsPreserveContracts(t *testing.T) {
 		command    func() *ffcli.Command
 		args       []string
 		wantStderr string
+		wantError  string
 		wantCode   shared.DiagnosticCode
 		wantParam  string
 		noOutput   bool
@@ -115,12 +116,13 @@ func TestTestFlightValidationDiagnosticsPreserveContracts(t *testing.T) {
 			wantParam:  "--limit",
 		},
 		{
-			name:       "beta tester metrics period enum",
-			command:    BetaTestersMetricsCommand,
-			args:       []string{"--period", "P10D"},
-			wantStderr: "Error: --period must be one of: P7D, P30D, P90D, P365D\n",
-			wantCode:   shared.DiagnosticInvalidInput,
-			wantParam:  "--period",
+			name:      "beta tester metrics period enum",
+			command:   BetaTestersMetricsCommand,
+			args:      []string{"--period", "P10D"},
+			wantError: "--period must be one of: P7D, P30D, P90D, P365D",
+			wantCode:  shared.DiagnosticInvalidInput,
+			wantParam: "--period",
+			noOutput:  true,
 		},
 		{
 			name:       "beta tester relationship enum",
@@ -195,11 +197,20 @@ func TestTestFlightValidationDiagnosticsPreserveContracts(t *testing.T) {
 			if runErr == nil {
 				t.Fatal("expected validation error")
 			}
-			if !errors.Is(runErr, flag.ErrHelp) {
-				t.Fatalf("errors.Is(flag.ErrHelp) = false, error = %v", runErr)
-			}
-			if runErr.Error() != flag.ErrHelp.Error() {
-				t.Fatalf("error = %q, want %q", runErr, flag.ErrHelp.Error())
+			if test.wantError != "" {
+				if errors.Is(runErr, flag.ErrHelp) {
+					t.Fatalf("errors.Is(flag.ErrHelp) = true, error = %v", runErr)
+				}
+				if runErr.Error() != test.wantError {
+					t.Fatalf("error = %q, want %q", runErr, test.wantError)
+				}
+			} else {
+				if !errors.Is(runErr, flag.ErrHelp) {
+					t.Fatalf("errors.Is(flag.ErrHelp) = false, error = %v", runErr)
+				}
+				if runErr.Error() != flag.ErrHelp.Error() {
+					t.Fatalf("error = %q, want %q", runErr, flag.ErrHelp.Error())
+				}
 			}
 			if stderr != test.wantStderr {
 				t.Fatalf("stderr = %q, want %q", stderr, test.wantStderr)

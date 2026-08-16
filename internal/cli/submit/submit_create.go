@@ -292,12 +292,16 @@ func summarizeReviewSubmissionItems(
 		return summary, nil
 	}
 
-	// appStoreVersion must be requested explicitly. Without it the API returns items carrying no
-	// relationship linkage, so every item reads as an empty version id, hasTargetVersion never
-	// becomes true, and a correctly prepared submission is rejected as not containing its version.
+	// appStoreVersion must be INCLUDED, not merely named in fields[]. fields[] is a sparse-fieldset
+	// selector: it narrows what comes back, and the API answers it with items that carry "links" only
+	// and no "relationships" key at all. Every item then reads as an empty version id,
+	// hasTargetVersion never becomes true, and a correctly prepared submission is rejected as not
+	// containing its version. include= is what makes App Store Connect materialise the linkage;
+	// fields[] rides along to keep the item payload narrow.
 	resp, err := client.GetReviewSubmissionItems(
 		ctx,
 		submissionID,
+		asc.WithReviewSubmissionItemsInclude([]string{"appStoreVersion"}),
 		asc.WithReviewSubmissionItemsFields([]string{"appStoreVersion"}),
 		asc.WithReviewSubmissionItemsLimit(200),
 	)

@@ -202,7 +202,11 @@ func resolveReviewSubmissionVersionIDFromItems(ctx context.Context, client *asc.
 		return "", nil
 	}
 
+	// include=, not just fields[]: the API only materialises relationship linkage for an included
+	// relationship, so without it every item arrives with no relationships and this resolver reports
+	// "no version" for a submission that plainly has one.
 	opts := []asc.ReviewSubmissionItemsOption{
+		asc.WithReviewSubmissionItemsInclude([]string{"appStoreVersion"}),
 		asc.WithReviewSubmissionItemsFields([]string{"appStoreVersion"}),
 		asc.WithReviewSubmissionItemsLimit(200),
 	}

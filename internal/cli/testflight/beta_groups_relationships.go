@@ -67,7 +67,11 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("testflight beta-groups relationships view: --limit must be between 1 and 200")
+				return shared.WithDiagnostic(
+					shared.NewValidationError(fmt.Errorf("testflight beta-groups relationships view: --limit must be between 1 and 200")),
+					shared.DiagnosticInvalidInput,
+					"--limit",
+				)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight beta-groups relationships view: %w", err)
@@ -90,7 +94,11 @@ Examples:
 			if groupValue == "" {
 				groupValue = aliasValue
 			} else if aliasValue != "" && aliasValue != groupValue {
-				return fmt.Errorf("testflight beta-groups relationships view: --group-id and --id must match")
+				return shared.WithDiagnostic(
+					shared.NewValidationError(fmt.Errorf("testflight beta-groups relationships view: --group-id and --id must match")),
+					shared.DiagnosticConflictingInput,
+					"",
+				)
 			}
 
 			nextValue := strings.TrimSpace(*next)
@@ -151,6 +159,10 @@ func getBetaGroupRelationshipList(ctx context.Context, client *asc.Client, relat
 	case "builds":
 		return client.GetBetaGroupBuildsRelationships(ctx, groupID, opts...)
 	default:
-		return nil, fmt.Errorf("unsupported relationship type %q", relationshipType)
+		return nil, shared.WithDiagnostic(
+			shared.NewValidationError(fmt.Errorf("unsupported relationship type %q", relationshipType)),
+			shared.DiagnosticInvalidInput,
+			"--type",
+		)
 	}
 }

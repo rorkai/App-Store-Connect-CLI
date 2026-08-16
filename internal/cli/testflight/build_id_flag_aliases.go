@@ -59,7 +59,11 @@ func applyLegacyBuildIDAlias(buildID *string, legacyBuildID *trackedStringFlag) 
 	legacyValue := legacyBuildID.Value()
 	canonicalValue := strings.TrimSpace(*buildID)
 	if canonicalValue != "" && legacyValue != "" && canonicalValue != legacyValue {
-		return shared.UsageError("--build conflicts with --build-id; use only --build-id")
+		return shared.WithDiagnostic(
+			shared.UsageError("--build conflicts with --build-id; use only --build-id"),
+			shared.DiagnosticConflictingInput,
+			"",
+		)
 	}
 	if canonicalValue == "" {
 		*buildID = legacyValue

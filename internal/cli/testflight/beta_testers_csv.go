@@ -96,7 +96,11 @@ Examples:
 				return err
 			}
 			if strings.TrimSpace(*group) != "" && strings.TrimSpace(*buildID) != "" {
-				return shared.UsageError("--group cannot be combined with --build-id")
+				return shared.WithDiagnostic(
+					shared.UsageError("--group cannot be combined with --build-id"),
+					shared.DiagnosticConflictingInput,
+					"",
+				)
 			}
 			resolvedAppID := shared.ResolveAppID(*appID)
 			if resolvedAppID == "" {
@@ -110,7 +114,11 @@ Examples:
 				return shared.MissingRequiredUsageError("--output")
 			}
 			if strings.HasSuffix(outputValue, string(filepath.Separator)) {
-				return shared.UsageError("--output must be a file path")
+				return shared.WithDiagnostic(
+					shared.UsageError("--output must be a file path"),
+					shared.DiagnosticInvalidInput,
+					"--output",
+				)
 			}
 
 			client, err := shared.GetASCClient()
@@ -868,7 +876,11 @@ func readBetaTestersCSV(path string) ([]betaTestersCSVRow, error) {
 	header, err := reader.Read()
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			return nil, shared.UsageError("CSV file is empty")
+			return nil, shared.WithDiagnostic(
+				shared.UsageError("CSV file is empty"),
+				shared.DiagnosticFileInvalidFormat,
+				"--input",
+			)
 		}
 		return nil, fmt.Errorf("read header: %w", err)
 	}
@@ -924,34 +936,58 @@ func isAllEmpty(record []string) bool {
 
 func validateBetaTestersCSVHeader(header []string) (map[string]int, error) {
 	if len(header) == 0 {
-		return nil, shared.UsageError("CSV header row is required")
+		return nil, shared.WithDiagnostic(
+			shared.UsageError("CSV header row is required"),
+			shared.DiagnosticFileInvalidFormat,
+			"--input",
+		)
 	}
 
 	idx := make(map[string]int, len(header))
 	for i, raw := range header {
 		col := strings.ToLower(strings.TrimSpace(raw))
 		if col == "" {
-			return nil, shared.UsageError("CSV header contains an empty column name")
+			return nil, shared.WithDiagnostic(
+				shared.UsageError("CSV header contains an empty column name"),
+				shared.DiagnosticFileInvalidFormat,
+				"--input",
+			)
 		}
 		canonical, ok := canonicalBetaTestersCSVColumn(col)
 		if !ok {
-			return nil, shared.UsageErrorf("unknown CSV column %q (allowed: email, first_name, last_name, groups, %s)", col, betaTestersFormulaEscapingColumn)
+			return nil, shared.WithDiagnostic(
+				shared.UsageErrorf("unknown CSV column %q (allowed: email, first_name, last_name, groups, %s)", col, betaTestersFormulaEscapingColumn),
+				shared.DiagnosticFileInvalidFormat,
+				"--input",
+			)
 		}
 		col = canonical
 		if _, exists := idx[col]; exists {
-			return nil, shared.UsageErrorf("duplicate CSV column %q", col)
+			return nil, shared.WithDiagnostic(
+				shared.UsageErrorf("duplicate CSV column %q", col),
+				shared.DiagnosticFileInvalidFormat,
+				"--input",
+			)
 		}
 		idx[col] = i
 	}
 	if _, ok := idx["email"]; !ok {
-		return nil, shared.UsageError("CSV header must include required column \"email\"")
+		return nil, shared.WithDiagnostic(
+			shared.UsageError("CSV header must include required column \"email\""),
+			shared.DiagnosticFileInvalidFormat,
+			"--input",
+		)
 	}
 	return idx, nil
 }
 
 func parseBetaTestersCSVHeader(firstRow []string) (map[string]int, bool, error) {
 	if len(firstRow) == 0 {
-		return nil, false, shared.UsageError("CSV header row is required")
+		return nil, false, shared.WithDiagnostic(
+			shared.UsageError("CSV header row is required"),
+			shared.DiagnosticFileInvalidFormat,
+			"--input",
+		)
 	}
 	hasEmailToken := false
 	hasAtSignValue := false
@@ -1037,7 +1073,11 @@ func parseHeaderMappedBetaTesterCSVRow(record []string, headerIdx map[string]int
 
 func parseLegacyBetaTesterCSVRow(record []string) (betaTestersCSVRow, error) {
 	if len(record) < 3 || len(record) > 4 {
-		return betaTestersCSVRow{}, shared.UsageError("legacy CSV rows must have 3 or 4 columns: first_name,last_name,email[,groups]")
+		return betaTestersCSVRow{}, shared.WithDiagnostic(
+			shared.UsageError("legacy CSV rows must have 3 or 4 columns: first_name,last_name,email[,groups]"),
+			shared.DiagnosticFileInvalidFormat,
+			"--input",
+		)
 	}
 	row := betaTestersCSVRow{
 		firstName: strings.TrimSpace(record[0]),

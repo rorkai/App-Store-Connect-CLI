@@ -658,6 +658,126 @@ func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
 	}
 }
 
+func TestRun_ReviewSubmitPreflightReadinessFailuresAreExpectedNegative(t *testing.T) {
+	tests := []struct {
+		name              string
+		localizationsBody string
+		wantStderr        string
+		wantAppUpdateCall bool
+	}{
+		{
+			name:              "no localizations",
+			localizationsBody: `{"data":[]}`,
+			wantStderr:        "Submit preflight failed: no app store version localizations found for this version.",
+		},
+		{
+			name:              "missing required fields",
+			localizationsBody: `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-1","attributes":{"locale":"en-US"}}]}`,
+			wantStderr:        "  - en-US: description, keywords, supportUrl",
+			wantAppUpdateCall: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resetReportFlags(t)
+			tempDir := t.TempDir()
+			keyPath := filepath.Join(tempDir, "AuthKey.p8")
+			writeRunTestECDSAPEM(t, keyPath)
+			t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
+			t.Setenv("ASC_CONFIG_PATH", filepath.Join(tempDir, "missing.json"))
+			t.Setenv("ASC_PROFILE", "")
+			t.Setenv("ASC_KEY_ID", "ENVKEY")
+			t.Setenv("ASC_ISSUER_ID", "ENVISS")
+			t.Setenv("ASC_PRIVATE_KEY_PATH", keyPath)
+			t.Setenv("ASC_PRIVATE_KEY", "")
+			t.Setenv("ASC_PRIVATE_KEY_B64", "")
+			t.Setenv("ASC_STRICT_AUTH", "")
+			t.Setenv("ASC_MAX_RETRIES", "0")
+			t.Setenv("ASC_TIMEOUT", "1s")
+			t.Setenv("ASC_APP_ID", "")
+			resetSelectedProfile(t)
+
+			appUpdateChecked := false
+			originalTransport := http.DefaultTransport
+			t.Cleanup(func() { http.DefaultTransport = originalTransport })
+			http.DefaultTransport = metadataApplyRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
+					t.Fatalf("unexpected request method: %s %s", req.Method, req.URL.RequestURI())
+				}
+				switch req.URL.Path {
+				case "/v1/appStoreVersions/version-1":
+					return runSubmitPreflightJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"version-1","attributes":{"platform":"IOS","versionString":"1.2.3"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+				case "/v1/appStoreVersions/version-1/appStoreVersionSubmission":
+					return runSubmitPreflightJSONResponse(http.StatusNotFound, `{"errors":[{"status":"404","code":"NOT_FOUND","title":"Not Found"}]}`)
+				case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+					return runSubmitPreflightJSONResponse(http.StatusOK, test.localizationsBody)
+				case "/v1/apps/app-1/appStoreVersions":
+					appUpdateChecked = true
+					if !test.wantAppUpdateCall {
+						t.Fatalf("did not expect app update lookup for %s", test.name)
+					}
+					return runSubmitPreflightJSONResponse(http.StatusOK, `{"data":[]}`)
+				default:
+					t.Fatalf("unexpected request: %s %s", req.Method, req.URL.RequestURI())
+					return nil, nil
+				}
+			})
+
+			originalEmitTelemetry := emitTelemetry
+			t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
+			var gotExitCode int
+			var gotContext telemetry.EventContext
+			emitTelemetry = func(_ string, _ string, _ time.Duration, exitCode int, eventContext telemetry.EventContext) {
+				gotExitCode = exitCode
+				gotContext = eventContext
+			}
+
+			var exitCode int
+			stdout, stderr := captureCommandOutput(t, func() {
+				exitCode = Run([]string{
+					"review", "submit",
+					"--app", "app-1",
+					"--version-id", "version-1",
+					"--build", "build-1",
+					"--confirm",
+				}, "1.0.0")
+			})
+
+			if stdout != "" {
+				t.Fatalf("expected empty stdout, got %q", stdout)
+			}
+			if exitCode != ExitError || gotExitCode != ExitError {
+				t.Fatalf("exit code = %d, telemetry exit = %d, want %d", exitCode, gotExitCode, ExitError)
+			}
+			if !strings.Contains(stderr, test.wantStderr) {
+				t.Fatalf("stderr = %q, want substring %q", stderr, test.wantStderr)
+			}
+			if !strings.Contains(stderr, "Error: review submit: submit preflight failed") {
+				t.Fatalf("stderr = %q, want root error line", stderr)
+			}
+			if gotContext.FailureStage != telemetry.FailureStageValidation ||
+				gotContext.OutcomeKind != telemetry.OutcomeExpectedNegative ||
+				gotContext.DiagnosticCode != string(shared.DiagnosticStateNotReady) ||
+				gotContext.FailureParameter != "" {
+				t.Fatalf("unexpected telemetry: %+v", gotContext)
+			}
+			if appUpdateChecked != test.wantAppUpdateCall {
+				t.Fatalf("app update lookup = %t, want %t", appUpdateChecked, test.wantAppUpdateCall)
+			}
+		})
+	}
+}
+
+func runSubmitPreflightJSONResponse(status int, body string) (*http.Response, error) {
+	return &http.Response{
+		Status:     fmt.Sprintf("%d %s", status, http.StatusText(status)),
+		StatusCode: status,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(body)),
+	}, nil
+}
+
 func TestRun_IntroductoryOfferSelectorReportedUsageEmitsUsageTelemetry(t *testing.T) {
 	resetReportFlags(t)
 	for _, key := range []string{

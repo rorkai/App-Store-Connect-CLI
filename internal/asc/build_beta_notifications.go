@@ -15,8 +15,22 @@ type BuildBetaNotificationResource struct {
 
 // BuildBetaNotificationResponse is the response from build beta notification endpoints.
 type BuildBetaNotificationResponse struct {
-	Data  BuildBetaNotificationResource `json:"data"`
-	Links Links                         `json:"links"`
+	Data               BuildBetaNotificationResource     `json:"data"`
+	Links              Links                             `json:"links"`
+	NotificationAction BuildBetaGroupsNotificationAction `json:"notificationAction,omitempty"`
+}
+
+// MarshalJSON keeps idempotent action results focused on the action instead of
+// emitting zero-valued API resource fields when no notification was created.
+func (r BuildBetaNotificationResponse) MarshalJSON() ([]byte, error) {
+	if r.NotificationAction != BuildBetaGroupsNotificationActionNone {
+		return json.Marshal(struct {
+			NotificationAction BuildBetaGroupsNotificationAction `json:"notificationAction"`
+		}{NotificationAction: r.NotificationAction})
+	}
+
+	type responseAlias BuildBetaNotificationResponse
+	return json.Marshal(responseAlias(r))
 }
 
 // BuildBetaNotificationRelationships describes relationships for a build beta notification.
@@ -63,6 +77,14 @@ func (c *Client) CreateBuildBetaNotification(ctx context.Context, buildID string
 
 	data, err := c.do(ctx, "POST", "/v1/buildBetaNotifications", body)
 	if err != nil {
+		// The preflight detail can become stale before the create reaches Apple.
+		// Treat only Apple's known redundant auto-notify conflict as the same
+		// successful idempotent outcome.
+		if isAutoNotifyAlreadyEnabledNotificationError(err) {
+			return &BuildBetaNotificationResponse{
+				NotificationAction: BuildBetaGroupsNotificationActionAutoNotifyEnabled,
+			}, nil
+		}
 		return nil, err
 	}
 

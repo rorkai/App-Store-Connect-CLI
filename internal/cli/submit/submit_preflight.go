@@ -28,7 +28,14 @@ func runSubmissionLocalizationPreflight(
 	}
 	if len(localizations.Data) == 0 {
 		fmt.Fprintln(os.Stderr, "Submit preflight failed: no app store version localizations found for this version.")
-		return submissionPreflightWrap(errorPrefix, errors.New("submit preflight failed"))
+		return submissionPreflightWrap(
+			errorPrefix,
+			shared.WithDiagnostic(
+				shared.NewValidationError(errors.New("submit preflight failed")),
+				shared.DiagnosticStateNotReady,
+				"",
+			),
+		)
 	}
 
 	updateCtx, updateCancel := submitPreflightRequestContext(ctx, requestTimeout)
@@ -52,7 +59,14 @@ func runSubmissionLocalizationPreflight(
 		fmt.Fprintf(os.Stderr, "  - %s: %s\n", issue.Locale, strings.Join(issue.MissingFields, ", "))
 	}
 	fmt.Fprintf(os.Stderr, "Fix these with `asc metadata push` or `asc apps info edit` before retrying `%s`.\n", normalizeSubmissionRetryCommand(retryCommand))
-	return submissionPreflightWrap(errorPrefix, errors.New("submit preflight failed"))
+	return submissionPreflightWrap(
+		errorPrefix,
+		shared.WithDiagnostic(
+			shared.NewValidationError(errors.New("submit preflight failed")),
+			shared.DiagnosticStateNotReady,
+			"",
+		),
+	)
 }
 
 // isAppUpdate returns true if the target platform has ever been released,

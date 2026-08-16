@@ -442,6 +442,7 @@ var knownFailureParameters = map[string]struct{}{
 	"experience-id":                     {},
 	"experiment-id":                     {},
 	"export-xcodebuild-flag":            {},
+	"external-testing":                  {},
 	"expression":                        {},
 	"fallback-url":                      {},
 	"fastlane-dir":                      {},

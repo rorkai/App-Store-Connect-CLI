@@ -97,13 +97,21 @@ Examples:
 				return err
 			}
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("beta-testers list: --limit must be between 1 and 200")
+				return shared.WithDiagnostic(
+					shared.NewValidationError(fmt.Errorf("beta-testers list: --limit must be between 1 and 200")),
+					shared.DiagnosticInvalidInput,
+					"--limit",
+				)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("beta-testers list: %w", err)
 			}
 			if strings.TrimSpace(*group) != "" && strings.TrimSpace(*buildID) != "" && strings.TrimSpace(*next) == "" {
-				return shared.UsageError("--group cannot be combined with --build-id")
+				return shared.WithDiagnostic(
+					shared.UsageError("--group cannot be combined with --build-id"),
+					shared.DiagnosticConflictingInput,
+					"",
+				)
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)

@@ -68,7 +68,11 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			if *limit != 0 && (*limit < 1 || *limit > 200) {
-				return fmt.Errorf("testflight beta-testers relationships view: --limit must be between 1 and 200")
+				return shared.WithDiagnostic(
+					shared.NewValidationError(fmt.Errorf("testflight beta-testers relationships view: --limit must be between 1 and 200")),
+					shared.DiagnosticInvalidInput,
+					"--limit",
+				)
 			}
 			if err := shared.ValidateNextURL(*next); err != nil {
 				return fmt.Errorf("testflight beta-testers relationships view: %w", err)
@@ -91,7 +95,11 @@ Examples:
 			if testerValue == "" {
 				testerValue = aliasValue
 			} else if aliasValue != "" && aliasValue != testerValue {
-				return fmt.Errorf("testflight beta-testers relationships view: --tester-id and --id must match")
+				return shared.WithDiagnostic(
+					shared.NewValidationError(fmt.Errorf("testflight beta-testers relationships view: --tester-id and --id must match")),
+					shared.DiagnosticConflictingInput,
+					"",
+				)
 			}
 
 			nextValue := strings.TrimSpace(*next)
@@ -154,6 +162,10 @@ func getBetaTesterRelationshipList(ctx context.Context, client *asc.Client, rela
 	case "builds":
 		return client.GetBetaTesterBuildsRelationships(ctx, testerID, opts...)
 	default:
-		return nil, fmt.Errorf("unsupported relationship type %q", relationshipType)
+		return nil, shared.WithDiagnostic(
+			shared.NewValidationError(fmt.Errorf("unsupported relationship type %q", relationshipType)),
+			shared.DiagnosticInvalidInput,
+			"--type",
+		)
 	}
 }

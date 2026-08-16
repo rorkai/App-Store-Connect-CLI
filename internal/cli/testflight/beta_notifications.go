@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -74,7 +75,9 @@ Examples:
 				return fmt.Errorf("beta-notifications create: failed to inspect notification state: %w", err)
 			}
 			if detail.Data.Attributes.AutoNotifyEnabled {
-				return fmt.Errorf("beta-notifications create: auto-notify is already enabled for build %q; no manual build notification is needed", trimmedBuildID)
+				return shared.PrintOutput(&asc.BuildBetaNotificationResponse{
+					NotificationAction: asc.BuildBetaGroupsNotificationActionAutoNotifyEnabled,
+				}, *output.Output, *output.Pretty)
 			}
 
 			resp, err := client.CreateBuildBetaNotification(requestCtx, trimmedBuildID)

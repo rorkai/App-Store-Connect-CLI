@@ -567,13 +567,12 @@ func (c *Client) AddBetaGroupsToBuildWithNotify(ctx context.Context, buildID str
 		if detail.Data.Attributes.AutoNotifyEnabled {
 			return BuildBetaGroupsNotificationActionAutoNotifyEnabled, nil
 		}
-		if _, err := c.CreateBuildBetaNotification(ctx, buildID); err != nil {
-			// Apple can still reject the follow-up create with the same
-			// already-enabled state even after buildBetaDetail says false.
-			if isAutoNotifyAlreadyEnabledNotificationError(err) {
-				return BuildBetaGroupsNotificationActionAutoNotifyEnabled, nil
-			}
+		notification, err := c.CreateBuildBetaNotification(ctx, buildID)
+		if err != nil {
 			return BuildBetaGroupsNotificationActionNone, buildBetaGroupsNotifyPartialError(buildID, "notifying testers", err)
+		}
+		if notification != nil && notification.NotificationAction == BuildBetaGroupsNotificationActionAutoNotifyEnabled {
+			return BuildBetaGroupsNotificationActionAutoNotifyEnabled, nil
 		}
 		return BuildBetaGroupsNotificationActionManual, nil
 	}
@@ -591,6 +590,9 @@ func buildBetaGroupsNotifyPartialError(buildID, step string, err error) error {
 func isAutoNotifyAlreadyEnabledNotificationError(err error) bool {
 	apiErr, ok := errors.AsType[*APIError](err)
 	if !ok || apiErr == nil {
+		return false
+	}
+	if apiErr.StatusCode != http.StatusConflict {
 		return false
 	}
 	if !strings.EqualFold(strings.TrimSpace(apiErr.Code), "STATE_ERROR.ENTITY_STATE_INVALID") {

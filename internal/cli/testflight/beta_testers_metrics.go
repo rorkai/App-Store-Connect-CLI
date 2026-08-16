@@ -57,13 +57,16 @@ Examples:
 			if testerValue == "" {
 				testerValue = aliasValue
 			} else if aliasValue != "" && aliasValue != testerValue {
-				return fmt.Errorf("testflight beta-testers metrics: --tester-id and --id must match")
+				return shared.WithDiagnostic(
+					shared.NewValidationError(fmt.Errorf("testflight beta-testers metrics: --tester-id and --id must match")),
+					shared.DiagnosticConflictingInput,
+					"",
+				)
 			}
 
 			periodValue, err := normalizeBetaTesterUsagePeriod(*period)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
-				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticInvalidInput, "--period")
+				return err
 			}
 
 			resolvedAppID := shared.ResolveAppID(*appID)
@@ -108,7 +111,11 @@ func normalizeBetaTesterUsagePeriod(value string) (string, error) {
 		return "", nil
 	}
 	if _, ok := betaTesterUsagePeriods[value]; !ok {
-		return "", fmt.Errorf("--period must be one of: %s", strings.Join(betaTesterUsagePeriodList(), ", "))
+		return "", shared.WithDiagnostic(
+			shared.NewValidationError(fmt.Errorf("--period must be one of: %s", strings.Join(betaTesterUsagePeriodList(), ", "))),
+			shared.DiagnosticInvalidInput,
+			"--period",
+		)
 	}
 	return value, nil
 }
