@@ -291,6 +291,29 @@ func TestInsightStarterPayloadsUseUTCTimeZone(t *testing.T) {
 	}
 }
 
+func TestSearchTermPopularityStarterPayloadUsesRuntimeSortKey(t *testing.T) {
+	spec, ok := PlatformEndpointByCommandPath("insights", "search-term-popularity", "find")
+	if !ok {
+		t.Fatal("missing search-term-popularity find")
+	}
+
+	var payload struct {
+		Sorting []map[string]json.RawMessage `json:"sorting"`
+	}
+	if err := json.Unmarshal([]byte(spec.BodyExample), &payload); err != nil {
+		t.Fatalf("starter payload is not a JSON object: %v", err)
+	}
+	if len(payload.Sorting) != 1 {
+		t.Fatalf("sorting has %d entries, want 1", len(payload.Sorting))
+	}
+	if _, ok := payload.Sorting[0]["order"]; ok {
+		t.Fatal("search term popularity starter payload uses documentation-only order key")
+	}
+	if got := string(payload.Sorting[0]["sortOrder"]); got != `"ASC"` {
+		t.Fatalf("sorting sortOrder = %s, want ASC", got)
+	}
+}
+
 func TestRecommendationDismissStarterPayloadsExcludeApplyOnlyFields(t *testing.T) {
 	tests := []struct {
 		path       []string

@@ -31,7 +31,7 @@ const (
   "filters": [
     {"field": "countryOrRegion", "operator": "EQUALS", "value": "US"}
   ],
-  "sorting": [{"field": "rankInGenre", "order": "ASC"}],
+  "sorting": [{"field": "rankInGenre", "sortOrder": "ASC"}],
   "pagination": {"offset": 0, "pageSize": 20}
 }`
 	suggestionQueryStarterPayload = `{
@@ -153,7 +153,7 @@ func platformReportsOptimizationEndpointSpecs() []EndpointSpec {
 			spec.BodyExample = impressionShareStarterPayload
 		case spec.Name == "platform-query-app-search-term-popularity-data":
 			spec.BodyFileExample = "query.json"
-			spec.BodyHint = "Required: timeRange. Use UTC and WEEKLY_SUN_SAT or MONTHLY; pageSize max 5000; at most 2 sort fields."
+			spec.BodyHint = "Required: timeRange. Use UTC and WEEKLY_SUN_SAT or MONTHLY; pageSize max 5000; at most 2 sort fields. This endpoint uses sorting[].sortOrder with ASC or DESC."
 			spec.BodyExample = searchTermPopularityStarterPayload
 		case strings.HasPrefix(spec.Path, "v1/suggestions/categories/") || strings.HasPrefix(spec.Path, "v1/suggestions/phrases/"):
 			spec.BodyFileExample = "query.json"

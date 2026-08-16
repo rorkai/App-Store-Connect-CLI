@@ -818,6 +818,7 @@ type legacyPlatformQueryMembers struct {
 	conditions                 bool
 	values                     bool
 	orderBy                    bool
+	order                      bool
 	sortOrder                  bool
 	limit                      bool
 	selectorFields             bool
@@ -864,7 +865,11 @@ func validatePlatformQueryMigration(spec appleads.EndpointSpec, body json.RawMes
 	if legacy.orderBy {
 		migrations = append(migrations, `"orderBy" -> "sorting"`)
 	}
-	if legacy.sortOrder {
+	if spec.BodyType == "SearchTermPopularityQueryRequest" {
+		if legacy.order {
+			migrations = append(migrations, `sorting "order" -> "sortOrder" for Search Term Popularity`)
+		}
+	} else if legacy.sortOrder {
 		migrations = append(migrations, `sorting "sortOrder" -> "order"`)
 	}
 	if legacy.limit {
@@ -994,6 +999,9 @@ func inspectLegacyPlatformSorting(raw json.RawMessage, legacy *legacyPlatformQue
 		return
 	}
 	for _, entry := range entries {
+		if _, present := entry["order"]; present {
+			legacy.order = true
+		}
 		if _, present := entry["sortOrder"]; present {
 			legacy.sortOrder = true
 		}

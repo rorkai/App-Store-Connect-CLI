@@ -86,6 +86,59 @@ func TestAdsPlatformAppCampaignReportRequest(t *testing.T) {
 	}
 }
 
+func TestAdsPlatformSearchTermPopularityUsesRuntimeSortKey(t *testing.T) {
+	isolateAdsGuideEnv(t)
+	t.Setenv("ASC_ADS_BYPASS_KEYCHAIN", "1")
+	t.Setenv("ASC_ADS_ACCESS_TOKEN", "ACCESS")
+	t.Setenv("ASC_ADS_AD_ACCOUNT_ID", "AD_ACCOUNT")
+	t.Setenv("ASC_CONFIG_PATH", filepath.Join(t.TempDir(), "missing.json"))
+
+	requestJSON := `{
+  "timeRange": {"start": "2026-08-02", "end": "2026-08-08", "timeZone": "UTC", "granularity": "WEEKLY_SUN_SAT"},
+  "sorting": [{"field": "rankInGenre", "sortOrder": "ASC"}],
+  "pagination": {"offset": 0, "pageSize": 20}
+}`
+	payloadPath := filepath.Join(t.TempDir(), "query.json")
+	if err := os.WriteFile(payloadPath, []byte(requestJSON), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	installDefaultTransport(t, adsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.Method != http.MethodPost || req.URL.Host != "api.ads.apple.com" || req.URL.Path != "/v1/insights/apps/search-term-popularity/query" {
+			t.Fatalf("request = %s %s", req.Method, req.URL.String())
+		}
+		var body struct {
+			Sorting []map[string]json.RawMessage `json:"sorting"`
+		}
+		if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if len(body.Sorting) != 1 || string(body.Sorting[0]["sortOrder"]) != `"ASC"` {
+			t.Fatalf("sorting = %#v, want sortOrder ASC", body.Sorting)
+		}
+		if _, ok := body.Sorting[0]["order"]; ok {
+			t.Fatalf("sorting sent documentation-only order key: %#v", body.Sorting)
+		}
+		return adsJSONResponse(200, `{"result":[],"pagination":{"totalResults":0}}`), nil
+	}))
+
+	root := RootCommand("dev")
+	if err := root.Parse([]string{"ads", "insights", "search-term-popularity", "find", "--file", payloadPath, "--output", "json"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	stdout, stderr := captureOutput(t, func() {
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatalf("run error: %v", err)
+		}
+	})
+	if stderr != "" {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if !json.Valid([]byte(stdout)) {
+		t.Fatalf("stdout is not JSON: %s", stdout)
+	}
+}
+
 func TestAdsPlatformChangeHistoryDetailRequest(t *testing.T) {
 	isolateAdsGuideEnv(t)
 	t.Setenv("ASC_ADS_BYPASS_KEYCHAIN", "1")

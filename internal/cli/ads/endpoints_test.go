@@ -458,10 +458,15 @@ func TestPlatformQueryMigrationValidation(t *testing.T) {
 	}
 
 	validV1 := json.RawMessage(`{"filters":[{"field":"id","operator":"EQUALS","value":"123"}],"sorting":[{"field":"id","order":"DESC"}],"pagination":{"offset":0,"pageSize":5}}`)
+	validSearchTermPopularity := json.RawMessage(`{"filters":[{"field":"countryOrRegion","operator":"EQUALS","value":"US"}],"sorting":[{"field":"rankInGenre","sortOrder":"DESC"}],"pagination":{"offset":0,"pageSize":5}}`)
 	legacyConditions := json.RawMessage(`{"conditions":null}`)
 	for _, spec := range querySpecs {
 		t.Run(strings.Join(spec.CommandPath, "-"), func(t *testing.T) {
-			if err := validateEndpointBody(spec, validV1, false); err != nil {
+			validBody := validV1
+			if spec.BodyType == "SearchTermPopularityQueryRequest" {
+				validBody = validSearchTermPopularity
+			}
+			if err := validateEndpointBody(spec, validBody, false); err != nil {
 				t.Fatalf("valid Platform v1 query rejected: %v", err)
 			}
 			fieldsErr := validatePlatformQueryMigration(spec, json.RawMessage(`{"fields":null}`))
@@ -485,6 +490,16 @@ func TestPlatformQueryMigrationValidation(t *testing.T) {
 	}
 	if err := validateEndpointBody(campaigns, json.RawMessage(`{"filters":[{"field":"name","operator":"STARTS_WITH","value":"x"}],"sorting":[{"field":"id","order":"DESC"}]}`), false); err != nil {
 		t.Fatalf("renamed v1 operator and sort order rejected: %v", err)
+	}
+	searchTermPopularity, ok := appleads.PlatformEndpointByCommandPath("insights", "search-term-popularity", "find")
+	if !ok {
+		t.Fatal("missing search term popularity find")
+	}
+	if err := validateEndpointBody(searchTermPopularity, json.RawMessage(`{"sorting":[{"field":"rankInGenre","sortOrder":"ASC"}]}`), false); err != nil {
+		t.Fatalf("runtime search term popularity sort key rejected: %v", err)
+	}
+	if err := validateEndpointBody(searchTermPopularity, json.RawMessage(`{"sorting":[{"field":"rankInGenre","order":"ASC"}]}`), false); err == nil || !strings.Contains(err.Error(), `sorting "order" -> "sortOrder"`) {
+		t.Fatalf("documentation-only search term popularity sort key error = %v, want runtime migration hint", err)
 	}
 	for _, test := range []struct {
 		name string

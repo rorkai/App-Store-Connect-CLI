@@ -126,6 +126,20 @@ reports do not support `EMPTY_METRICS`. The v5 custom impression-share
 `name` and relative `dateRange` members are also rejected with their specific
 v1 migration paths.
 
+Search Term Popularity has one runtime-only exception. Apple's Platform API
+documentation and generated clients model its sort member as `order`, but the
+live endpoint rejects that property and accepts `sortOrder` instead. The CLI
+therefore accepts `sorting[].sortOrder` with the v1 values `ASC` and `DESC`
+only for `SearchTermPopularityQueryRequest`; all other v1 query schemas keep
+the documented `sorting[].order` contract. The starter payload and local
+migration errors expose this endpoint-specific spelling before authentication.
+
+Alternatives considered were silently rewriting `order` on the wire and
+removing sorting from the starter payload. Rewriting would make the sent body
+differ from the operator's file, while omission would leave explicit sorting
+unusable. An endpoint-specific validated spelling is transparent and keeps the
+exception from weakening the other v1 migration guards.
+
 Explicit `null` legacy members are rejected because the Platform API rejects
 the property itself. The CLI does not rewrite payloads automatically: value
 cardinality and accepted fields vary by endpoint, so silent conversion could
