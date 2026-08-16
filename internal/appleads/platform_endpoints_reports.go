@@ -23,11 +23,11 @@ const (
     {"field": "promotedObjectId", "operator": "EQUALS", "value": "123456789"}
   ],
   "options": {"impressionShareReportType": "FIRST_SLOT"},
-  "timeRange": {"start": "2025-01-01", "end": "2025-01-07", "granularity": "DAILY"},
+  "timeRange": {"start": "2025-01-01", "end": "2025-01-07", "timeZone": "UTC", "granularity": "DAILY"},
   "pagination": {"offset": 0, "pageSize": 20}
 }`
 	searchTermPopularityStarterPayload = `{
-  "timeRange": {"start": "2025-01-05", "end": "2025-01-11", "granularity": "WEEKLY_SUN_SAT"},
+  "timeRange": {"start": "2025-01-05", "end": "2025-01-11", "timeZone": "UTC", "granularity": "WEEKLY_SUN_SAT"},
   "filters": [
     {"field": "countryOrRegion", "operator": "EQUALS", "value": "US"}
   ],

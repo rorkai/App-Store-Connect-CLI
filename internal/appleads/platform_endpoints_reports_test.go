@@ -263,6 +263,34 @@ func TestPlatformReportsOptimizationStarterPayloads(t *testing.T) {
 	}
 }
 
+func TestInsightStarterPayloadsUseUTCTimeZone(t *testing.T) {
+	paths := [][]string{
+		{"insights", "impression-share", "find"},
+		{"insights", "search-term-popularity", "find"},
+	}
+
+	for _, path := range paths {
+		t.Run(strings.Join(path, " "), func(t *testing.T) {
+			spec, ok := PlatformEndpointByCommandPath(path...)
+			if !ok {
+				t.Fatalf("missing %q", strings.Join(path, " "))
+			}
+
+			var payload struct {
+				TimeRange struct {
+					TimeZone string `json:"timeZone"`
+				} `json:"timeRange"`
+			}
+			if err := json.Unmarshal([]byte(spec.BodyExample), &payload); err != nil {
+				t.Fatalf("starter payload is not a JSON object: %v", err)
+			}
+			if payload.TimeRange.TimeZone != "UTC" {
+				t.Errorf("timeRange.timeZone = %q, want UTC", payload.TimeRange.TimeZone)
+			}
+		})
+	}
+}
+
 func TestRecommendationDismissStarterPayloadsExcludeApplyOnlyFields(t *testing.T) {
 	tests := []struct {
 		path       []string
