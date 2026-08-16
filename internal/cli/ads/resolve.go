@@ -111,10 +111,17 @@ func resolveCredentialsWithSource(flags commonFlags) (appleads.Credentials, stri
 
 	credentials, _, err := appleads.GetCredentialsWithSource("")
 	if err != nil {
+		if errors.Is(err, appleads.ErrDefaultCredentialsNotFound) || errors.Is(err, config.ErrNotFound) {
+			return appleads.Credentials{}, "", fmt.Errorf("%w; %s", err, adsCredentialsRemediation)
+		}
 		return appleads.Credentials{}, "", err
 	}
 	return credentials, "default Ads profile", nil
 }
+
+// adsCredentialsRemediation tells a first-run caller how to authenticate when
+// no Apple Ads credential source is configured.
+const adsCredentialsRemediation = "run 'asc ads auth login' to store Apple Ads credentials, set ASC_ADS_* environment credentials, or pass --ads-profile"
 
 func envCredentials() (appleads.Credentials, bool, error) {
 	rawOrgID := os.Getenv("ASC_ADS_ORG_ID")

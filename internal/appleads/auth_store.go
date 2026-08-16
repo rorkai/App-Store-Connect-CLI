@@ -20,6 +20,10 @@ const (
 	adsBypassKeychainEnvVar = "ASC_ADS_BYPASS_KEYCHAIN"
 )
 
+// ErrDefaultCredentialsNotFound reports that no default Apple Ads credential
+// is stored in the keychain or configuration.
+var ErrDefaultCredentialsNotFound = errors.New("default credentials not found")
+
 // StoredCredential is an Apple Ads credential with storage metadata.
 type StoredCredential struct {
 	Credentials
@@ -151,7 +155,7 @@ func GetCredentialsWithSource(profile string) (Credentials, string, error) {
 				return cfgCred.Credentials, "config", nil
 			}
 			if len(credentials) > 0 {
-				return Credentials{}, "", fmt.Errorf("default credentials not found")
+				return Credentials{}, "", ErrDefaultCredentialsNotFound
 			}
 		} else if !isKeyringUnavailable(err) {
 			return Credentials{}, "", err
@@ -560,7 +564,7 @@ func getCredentialFromConfig(profile string) (StoredCredential, error) {
 	if strings.TrimSpace(profile) != "" {
 		return StoredCredential{}, fmt.Errorf("credentials not found for profile %q", profile)
 	}
-	return StoredCredential{}, fmt.Errorf("default credentials not found")
+	return StoredCredential{}, ErrDefaultCredentialsNotFound
 }
 
 func loadConfigWithPath() (*config.Config, string, error) {

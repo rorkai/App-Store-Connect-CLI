@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -392,10 +393,7 @@ func statusActiveContext() adsAuthContext {
 }
 
 func isNoAdsCredentialError(err error) bool {
-	if err == nil {
-		return false
-	}
-	return err.Error() == "default credentials not found"
+	return errors.Is(err, appleads.ErrDefaultCredentialsNotFound)
 }
 
 func storageDescription(rows []adsAuthStatusRow) string {

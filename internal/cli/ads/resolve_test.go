@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/appleads"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 )
 
@@ -160,6 +161,48 @@ func TestResolveOrgIDRejectsUnsafeValuesFromEverySource(t *testing.T) {
 			_, _, err := resolveOrgIDWithSource(flags, tt.credentials)
 			if err == nil || !strings.Contains(err.Error(), "invalid organization ID") {
 				t.Fatalf("resolveOrgIDWithSource() error = %v, want invalid organization ID", err)
+			}
+		})
+	}
+}
+
+func TestResolveCredentialsMissingDefaultExplainsRemediation(t *testing.T) {
+	tests := []struct {
+		name       string
+		saveConfig bool
+		wantBase   string
+		wantNoCred bool
+	}{
+		{name: "missing config file", saveConfig: false, wantBase: "configuration not found"},
+		{name: "config without ads credentials", saveConfig: true, wantBase: "default credentials not found", wantNoCred: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			asc.ResetConfigCacheForTest()
+			t.Cleanup(asc.ResetConfigCacheForTest)
+			configPath := filepath.Join(t.TempDir(), "config.json")
+			t.Setenv("ASC_CONFIG_PATH", configPath)
+			setAdsResolverTestEnv(t)
+			if tt.saveConfig {
+				if err := config.SaveAt(configPath, &config.Config{}); err != nil {
+					t.Fatalf("SaveAt() error: %v", err)
+				}
+			}
+
+			_, err := resolveCredentials(commonFlags{})
+			if err == nil {
+				t.Fatal("resolveCredentials() error = nil, want missing-credentials error")
+			}
+			if !strings.Contains(err.Error(), tt.wantBase) {
+				t.Fatalf("resolveCredentials() error = %v, want %q", err, tt.wantBase)
+			}
+			for _, want := range []string{"asc ads auth login", "ASC_ADS_", "--ads-profile"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("resolveCredentials() error = %q, want remediation mentioning %q", err.Error(), want)
+				}
+			}
+			if got := isNoAdsCredentialError(err); got != tt.wantNoCred {
+				t.Fatalf("isNoAdsCredentialError(%v) = %v, want %v", err, got, tt.wantNoCred)
 			}
 		})
 	}
