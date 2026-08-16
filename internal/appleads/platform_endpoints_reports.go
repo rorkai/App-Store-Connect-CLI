@@ -56,10 +56,24 @@ const (
     "promotedObjectType": "APPSTORE_APP"
   }
 ]`
+	dailyBudgetDismissStarterPayload = `[
+  {
+    "id": "RECOMMENDATION_ID",
+    "promotedObjectId": "123456",
+    "promotedObjectType": "APPSTORE_APP"
+  }
+]`
 	targetCpaApplyStarterPayload = `[
   {
     "id": "RECOMMENDATION_ID",
     "appliedTargetCPA": {"amount": "5.00", "currency": "USD"},
+    "promotedObjectId": "123456",
+    "promotedObjectType": "APPSTORE_APP"
+  }
+]`
+	targetCpaDismissStarterPayload = `[
+  {
+    "id": "RECOMMENDATION_ID",
     "promotedObjectId": "123456",
     "promotedObjectType": "APPSTORE_APP"
   }
@@ -152,10 +166,15 @@ func platformReportsOptimizationEndpointSpecs() []EndpointSpec {
 		case spec.RequiresConfirm || spec.RiskConfirm:
 			spec.BodyFileExample = "recommendations.json"
 			spec.BodyHint = "Pass a non-empty array built from a recommendation query response. Apply and dismiss operations require --confirm."
-			if strings.HasPrefix(spec.Path, "v1/recommendations/daily-budgets/") {
+			switch spec.Path {
+			case "v1/recommendations/daily-budgets/apply":
 				spec.BodyExample = dailyBudgetApplyStarterPayload
-			} else if strings.HasPrefix(spec.Path, "v1/recommendations/target-cpas/") {
+			case "v1/recommendations/daily-budgets/dismiss":
+				spec.BodyExample = dailyBudgetDismissStarterPayload
+			case "v1/recommendations/target-cpas/apply":
 				spec.BodyExample = targetCpaApplyStarterPayload
+			case "v1/recommendations/target-cpas/dismiss":
+				spec.BodyExample = targetCpaDismissStarterPayload
 			}
 		case spec.BodyKind != BodyNone:
 			spec.BodyFileExample = "query.json"

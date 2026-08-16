@@ -262,3 +262,38 @@ func TestPlatformReportsOptimizationStarterPayloads(t *testing.T) {
 		}
 	}
 }
+
+func TestRecommendationDismissStarterPayloadsExcludeApplyOnlyFields(t *testing.T) {
+	tests := []struct {
+		path       []string
+		applyField string
+	}{
+		{path: []string{"recommendations", "daily-budgets", "dismiss"}, applyField: "appliedDailyBudget"},
+		{path: []string{"recommendations", "target-cpas", "dismiss"}, applyField: "appliedTargetCPA"},
+	}
+
+	for _, test := range tests {
+		t.Run(strings.Join(test.path, " "), func(t *testing.T) {
+			spec, ok := PlatformEndpointByCommandPath(test.path...)
+			if !ok {
+				t.Fatalf("missing %q", strings.Join(test.path, " "))
+			}
+
+			var payload []map[string]json.RawMessage
+			if err := json.Unmarshal([]byte(spec.BodyExample), &payload); err != nil {
+				t.Fatalf("starter payload is not a JSON object array: %v", err)
+			}
+			if len(payload) != 1 {
+				t.Fatalf("starter payload has %d items, want 1", len(payload))
+			}
+			if _, ok := payload[0][test.applyField]; ok {
+				t.Fatalf("dismiss starter payload includes apply-only field %q", test.applyField)
+			}
+			for _, field := range []string{"id", "promotedObjectId", "promotedObjectType"} {
+				if _, ok := payload[0][field]; !ok {
+					t.Errorf("dismiss starter payload is missing %q", field)
+				}
+			}
+		})
+	}
+}
