@@ -392,7 +392,7 @@ func bindEndpointFlags(spec appleads.EndpointSpec, flagSetName string) (*flag.Fl
 		}
 	}
 	if spec.BodyKind != appleads.BodyNone {
-		values.file = fs.String("file", "", "Path to Apple Ads JSON payload")
+		values.file = fs.String("file", "", "Path to Apple Ads JSON payload ('-' reads stdin)")
 	}
 	if spec.RequiresConfirm || spec.RiskConfirm {
 		values.confirm = fs.Bool("confirm", false, confirmFlagUsage(spec))

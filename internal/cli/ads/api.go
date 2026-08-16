@@ -42,7 +42,7 @@ func APIRequestCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("ads v5 api request", flag.ExitOnError)
 	method := fs.String("method", "GET", "HTTP method: GET, POST, PUT, DELETE")
 	path := fs.String("path", "", "Relative v5 path or Apple Ads API URL")
-	file := fs.String("file", "", "Path to JSON request payload")
+	file := fs.String("file", "", "Path to JSON request payload ('-' reads stdin)")
 	confirm := fs.Bool("confirm", false, "Confirm destructive or operationally risky v5 requests")
 	common := commonFlags{
 		AdsProfile: fs.String("ads-profile", "", "Use named Apple Ads authentication profile"),

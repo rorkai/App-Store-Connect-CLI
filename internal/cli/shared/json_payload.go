@@ -18,15 +18,18 @@ const (
 	JSONPayloadAny    JSONPayloadKind = "any"
 )
 
-// ReadJSONFilePayload loads a JSON object from a file path for commands that
-// accept raw payload documents.
+// ReadJSONFilePayload loads a JSON object from a file path ("-" for standard
+// input) for commands that accept raw payload documents.
 func ReadJSONFilePayload(path string) (json.RawMessage, error) {
 	return ReadJSONFilePayloadKind(path, JSONPayloadObject)
 }
 
-// ReadJSONFilePayloadKind loads a JSON payload from a file path and validates
-// the requested top-level JSON shape.
+// ReadJSONFilePayloadKind loads a JSON payload from a file path ("-" for
+// standard input) and validates the requested top-level JSON shape.
 func ReadJSONFilePayloadKind(path string, kind JSONPayloadKind) (json.RawMessage, error) {
+	if path == "-" {
+		return readJSONStdinPayloadKind(kind)
+	}
 	file, err := openJSONPayloadFile(path)
 	if err != nil {
 		return nil, err
@@ -45,8 +48,23 @@ func ReadJSONFilePayloadKind(path string, kind JSONPayloadKind) (json.RawMessage
 	if err != nil {
 		return nil, err
 	}
+	return validateJSONPayloadKind(data, "payload file", kind)
+}
+
+func readJSONStdinPayloadKind(kind JSONPayloadKind) (json.RawMessage, error) {
+	if isTerminal(int(os.Stdin.Fd())) {
+		return nil, fmt.Errorf("stdin is a terminal; pipe JSON to --file - or pass a file path")
+	}
+	data, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return nil, err
+	}
+	return validateJSONPayloadKind(data, "stdin payload", kind)
+}
+
+func validateJSONPayloadKind(data []byte, source string, kind JSONPayloadKind) (json.RawMessage, error) {
 	if strings.TrimSpace(string(data)) == "" {
-		return nil, fmt.Errorf("payload file is empty")
+		return nil, fmt.Errorf("%s is empty", source)
 	}
 
 	var payload any

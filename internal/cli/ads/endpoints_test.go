@@ -1913,3 +1913,36 @@ func assertSpecFlags(t *testing.T, cmd *ffcli.Command, spec appleads.EndpointSpe
 		t.Fatalf("asc ads %s missing --paginate", strings.Join(spec.CommandPath, " "))
 	}
 }
+
+func TestReadBodyReadsStdinPayload(t *testing.T) {
+	spec, ok := appleads.PlatformEndpointByCommandPath("insights", "search-term-popularity", "find")
+	if !ok {
+		t.Fatal("missing insights search-term-popularity find")
+	}
+
+	payload := `{"timeRange":{"start":"2026-07-05","end":"2026-08-08","granularity":"WEEKLY_SUN_SAT"}}`
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	previous := os.Stdin
+	os.Stdin = reader
+	t.Cleanup(func() {
+		os.Stdin = previous
+		reader.Close()
+	})
+	go func() {
+		defer writer.Close()
+		_, _ = writer.WriteString(payload)
+	}()
+
+	_, flags := bindEndpointFlags(spec, "insights search-term-popularity find")
+	*flags.file = "-"
+	body, err := readBody(spec, flags)
+	if err != nil {
+		t.Fatalf("readBody(stdin) error: %v", err)
+	}
+	if string(body) != payload {
+		t.Fatalf("readBody(stdin) = %q, want %q", string(body), payload)
+	}
+}

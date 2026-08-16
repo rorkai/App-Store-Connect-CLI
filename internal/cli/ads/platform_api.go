@@ -38,7 +38,7 @@ func PlatformAPIRequestCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("ads api request", flag.ExitOnError)
 	method := fs.String("method", "GET", "HTTP method: GET, POST, PUT, DELETE")
 	path := fs.String("path", "", "Relative v1 path or Apple Ads Platform API URL")
-	file := fs.String("file", "", "Path to JSON request payload")
+	file := fs.String("file", "", "Path to JSON request payload ('-' reads stdin)")
 	confirm := fs.Bool("confirm", false, confirmFlagUsage(appleads.EndpointSpec{RiskConfirm: true}))
 	common := commonFlags{
 		AdsProfile: fs.String("ads-profile", "", "Use named Apple Ads authentication profile"),
