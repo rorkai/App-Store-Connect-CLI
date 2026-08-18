@@ -138,6 +138,28 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader) ([
 	return request(ctx)
 }
 
+// doIdempotentMutation performs an explicitly idempotent mutating request with
+// the same transient-failure retry policy used by reads. Callers must only use
+// this for operations whose exact payload can be safely replayed.
+func (c *Client) doIdempotentMutation(ctx context.Context, method, path string, body io.Reader) ([]byte, error) {
+	var bodyBytes []byte
+	if body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read request body: %w", err)
+		}
+	}
+
+	return WithRetry(ctx, func() ([]byte, error) {
+		var reader io.Reader
+		if bodyBytes != nil {
+			reader = bytes.NewReader(bodyBytes)
+		}
+		return c.do(ctx, method, path, reader)
+	}, ResolveRetryOptions())
+}
+
 func (c *Client) doWithMutatingRequestLimiter(ctx context.Context, request func(context.Context) ([]byte, error)) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("wait for mutating request slot: %w", err)

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -806,6 +807,49 @@ func TestUpdateTerritoryAvailability(t *testing.T) {
 		PreOrderEnabled: &preOrderEnabled,
 	}); err != nil {
 		t.Fatalf("UpdateTerritoryAvailability() error: %v", err)
+	}
+}
+
+func TestUpdateTerritoryAvailability_RetriesTransientFailure(t *testing.T) {
+	t.Setenv("ASC_MAX_RETRIES", "1")
+	t.Setenv("ASC_BASE_DELAY", "1ns")
+	t.Setenv("ASC_MAX_DELAY", "1ns")
+
+	resp := TerritoryAvailabilityResponse{
+		Data: Resource[TerritoryAvailabilityAttributes]{
+			Type: ResourceTypeTerritoryAvailabilities,
+			ID:   "ta-1",
+		},
+	}
+	body, _ := json.Marshal(resp)
+
+	var requests atomic.Int32
+	client := newTestClient(
+		t, func(req *http.Request) {
+			requests.Add(1)
+			if req.Method != http.MethodPatch {
+				t.Fatalf("expected PATCH, got %s", req.Method)
+			}
+			var updateReq TerritoryAvailabilityUpdateRequest
+			if err := json.NewDecoder(req.Body).Decode(&updateReq); err != nil {
+				t.Fatalf("failed to decode retry request: %v", err)
+			}
+			if updateReq.Data.Attributes == nil || updateReq.Data.Attributes.Available == nil || !*updateReq.Data.Attributes.Available {
+				t.Fatalf("expected available=true on every attempt, got %#v", updateReq.Data.Attributes)
+			}
+		},
+		jsonResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","title":"Internal Error"}]}`),
+		jsonResponse(http.StatusOK, string(body)),
+	)
+
+	available := true
+	if _, err := client.UpdateTerritoryAvailability(context.Background(), "ta-1", TerritoryAvailabilityUpdateAttributes{
+		Available: &available,
+	}); err != nil {
+		t.Fatalf("UpdateTerritoryAvailability() error: %v", err)
+	}
+	if got := requests.Load(); got != 2 {
+		t.Fatalf("expected transient PATCH to be retried once, got %d requests", got)
 	}
 }
 

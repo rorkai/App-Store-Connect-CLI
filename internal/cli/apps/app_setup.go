@@ -315,11 +315,12 @@ func AppSetupAvailabilitySetCommand() *ffcli.Command {
 		LongHelp: `Edit app availability for territories.
 
 Examples:
-  asc app-setup availability edit --app "123456789" --territory "USA,GBR" --available true --available-in-new-territories true
-  asc app-setup availability edit --app "123456789" --all-territories --available true --available-in-new-territories true
+  asc app-setup availability edit --app "123456789" --territory "USA,GBR" --available true
+  asc app-setup availability edit --app "123456789" --all-territories --available true
 
 Note:
-  This command only updates an existing app availability. If the app has no availability record yet, initialize availability in App Store Connect first.`,
+  This command only updates an existing app availability. If the app has no availability record yet, initialize availability in App Store Connect first.
+  If --available-in-new-territories is supplied, it verifies the existing policy; Apple does not expose an update operation for that setting.`,
 		ErrorPrefix:                      "app-setup availability edit",
 		IncludeAvailableInNewTerritories: true,
 	})

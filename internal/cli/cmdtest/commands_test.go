@@ -1421,11 +1421,6 @@ func TestPricingValidationErrors(t *testing.T) {
 			wantErr: "Error: --id and --app are mutually exclusive",
 		},
 		{
-			name:    "pricing availability set missing available in new territories",
-			args:    []string{"pricing", "availability", "edit", "--app", "APP_ID", "--territory", "USA", "--available", "true"},
-			wantErr: "Error: --available-in-new-territories is required",
-		},
-		{
 			name:    "pricing availability create missing app",
 			args:    []string{"pricing", "availability", "create"},
 			wantErr: "Error: --app is required",
