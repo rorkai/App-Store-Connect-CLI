@@ -114,11 +114,6 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				return fmt.Errorf("%s: app availability ID missing from response", config.ErrorPrefix)
 			}
 
-			territoryResp, err := getAllTerritoryAvailabilities(requestCtx, client, availabilityID)
-			if err != nil {
-				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
-			}
-
 			if config.IncludeAvailableInNewTerritories && availableInNewTerritories.IsSet() {
 				availableInNewTerritoriesValue := availableInNewTerritories.Value()
 				if resp.Data.Attributes.AvailableInNewTerritories != availableInNewTerritoriesValue {
@@ -128,6 +123,11 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 						resp.Data.Attributes.AvailableInNewTerritories,
 					)
 				}
+			}
+
+			territoryResp, err := getAllTerritoryAvailabilities(requestCtx, client, availabilityID)
+			if err != nil {
+				return fmt.Errorf("%s: %w", config.ErrorPrefix, err)
 			}
 
 			territoryMap, err := mapTerritoryAvailabilities(territoryResp)
@@ -237,7 +237,7 @@ func NewAvailabilitySetCommand(config AvailabilitySetCommandConfig) *ffcli.Comma
 				)
 			}
 
-			fmt.Fprintf(os.Stderr, "Updated %d territories; %d already matched; verified %d requested territories.\n", updated, skipped, len(targets))
+			fmt.Fprintf(os.Stderr, "Updated %d territories; %d already matched; verified %d updated territories.\n", updated, skipped, len(pending))
 			return printOutput(resp, *output.Output, *output.Pretty)
 		},
 	}

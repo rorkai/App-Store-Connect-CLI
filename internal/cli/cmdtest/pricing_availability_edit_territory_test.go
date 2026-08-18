@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -41,8 +42,8 @@ func TestPricingAvailabilityEditNormalizesTerritories(t *testing.T) {
 			patchedMu.Unlock()
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"territoryAvailabilities","id":"patched","attributes":{"available":true}}}`), nil
 		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
 	})
 
@@ -83,7 +84,7 @@ func TestPricingAvailabilityEditSkipsNoOpWithoutNewTerritoriesGuard(t *testing.T
 	originalTransport := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
-	patches := 0
+	var patches atomic.Int32
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appAvailabilityV2":
@@ -96,12 +97,12 @@ func TestPricingAvailabilityEditSkipsNoOpWithoutNewTerritoriesGuard(t *testing.T
 				"links":{"next":""}
 			}`), nil
 		case req.Method == http.MethodPatch:
-			patches++
-			t.Fatalf("no-op territory should not be patched: %s", req.URL.Path)
-			return nil, nil
+			patches.Add(1)
+			t.Errorf("no-op territory should not be patched: %s", req.URL.Path)
+			return nil, fmt.Errorf("unexpected PATCH %s", req.URL.Path)
 		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
 	})
 
@@ -122,14 +123,70 @@ func TestPricingAvailabilityEditSkipsNoOpWithoutNewTerritoriesGuard(t *testing.T
 		}
 	})
 
-	if patches != 0 {
-		t.Fatalf("expected no PATCH requests, got %d", patches)
+	if got := patches.Load(); got != 0 {
+		t.Fatalf("expected no PATCH requests, got %d", got)
 	}
 	if stdout == "" {
 		t.Fatal("expected command output")
 	}
 	if !strings.Contains(stderr, "Updated 0 territories; 1 already matched") {
 		t.Fatalf("expected no-op summary, got stderr %q", stderr)
+	}
+}
+
+func TestPricingAvailabilityEditRejectsMismatchedNewTerritoriesGuardBeforeTerritoryRead(t *testing.T) {
+	setupAuth(t)
+
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	var territoryReads atomic.Int32
+	var patches atomic.Int32
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		switch {
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/app-1/appAvailabilityV2":
+			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"appAvailabilities","id":"availability-1","attributes":{"availableInNewTerritories":true}}}`), nil
+		case req.Method == http.MethodGet && req.URL.Path == "/v2/appAvailabilities/availability-1/territoryAvailabilities":
+			territoryReads.Add(1)
+			t.Errorf("policy mismatch should fail before territory reads")
+			return nil, fmt.Errorf("unexpected territory availability read")
+		case req.Method == http.MethodPatch:
+			patches.Add(1)
+			t.Errorf("policy mismatch should not patch %s", req.URL.Path)
+			return nil, fmt.Errorf("unexpected PATCH %s", req.URL.Path)
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+		}
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+
+	_, _ = captureOutput(t, func() {
+		if err := root.Parse([]string{
+			"pricing", "availability", "edit",
+			"--app", "app-1",
+			"--territory", "US",
+			"--available", "true",
+			"--available-in-new-territories", "false",
+		}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if err == nil {
+			t.Fatal("expected policy mismatch error")
+		}
+		if !strings.Contains(err.Error(), "does not match the existing policy (current value: true)") {
+			t.Fatalf("expected policy mismatch error, got %v", err)
+		}
+	})
+
+	if got := territoryReads.Load(); got != 0 {
+		t.Fatalf("expected no territory reads, got %d", got)
+	}
+	if got := patches.Load(); got != 0 {
+		t.Fatalf("expected no PATCH requests, got %d", got)
 	}
 }
 
@@ -183,8 +240,8 @@ func TestPricingAvailabilityEditContinuesAfterFailureAndVerifiesFinalState(t *te
 			}
 			return jsonHTTPResponse(http.StatusOK, `{"data":{"type":"territoryAvailabilities","id":"patched","attributes":{"available":true}}}`), nil
 		default:
-			t.Fatalf("unexpected request: %s %s", req.Method, req.URL.String())
-			return nil, nil
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			return nil, fmt.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
 		}
 	})
 
