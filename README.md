@@ -463,7 +463,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=rorkai/App-Store-Connect-CLI&type=Date)](https://star-history.com/#rorkai/App-Store-Connect-CLI&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=rorkai/App-Store-Connect-CLI&type=Date)](https://star-history.dera.page/#rorkai/App-Store-Connect-CLI&Date)
 
 ---
 
