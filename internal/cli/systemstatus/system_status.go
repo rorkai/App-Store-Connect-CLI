@@ -270,7 +270,7 @@ func statusEventActive(event statusFeedEvent) (bool, error) {
 		return strings.TrimSpace(event.EndDate) == "" && event.EpochEndDate == nil, nil
 	case strings.EqualFold(status, "ongoing"):
 		return true, nil
-	case strings.EqualFold(status, "resolved"):
+	case strings.EqualFold(status, "resolved"), strings.EqualFold(status, "completed"):
 		return false, nil
 	default:
 		return false, fmt.Errorf("unknown eventStatus %q", status)

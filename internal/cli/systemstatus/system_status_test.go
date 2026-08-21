@@ -428,6 +428,16 @@ func TestDecodeDeveloperSystemStatusFeedShapes(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "completed event",
+			body: []byte(`{"services":[{"serviceName":"App Store Connect","events":[{"messageId":"2000005610","eventStatus":"completed","startDate":"08/20/2026 05:00 PDT","endDate":"08/20/2026 06:00 PDT","epochStartDate":1787227200000,"epochEndDate":1787230800000}]}]}`),
+			assert: func(t *testing.T, report *asc.DeveloperSystemStatusReport) {
+				service := report.Services[0]
+				if service.Status != "operational" || service.Events[0].Active {
+					t.Fatalf("completed service = %#v, want inactive operational event", service)
+				}
+			},
+		},
 	}
 
 	for _, test := range tests {
