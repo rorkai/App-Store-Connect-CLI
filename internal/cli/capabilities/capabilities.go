@@ -244,6 +244,14 @@ func capabilityRows() []Capability {
 			Notes:      []string{"Aggregates common blocking App Review and version readiness signals."},
 		},
 		{
+			Area:         "release",
+			Capability:   "App overview-rating reset",
+			Status:       statusPartial,
+			Commands:     []string{"asc versions rating-reset"},
+			APIResources: []string{"resetRatingsRequests"},
+			Notes:        []string{"Uses an authenticated web-session endpoint absent from Apple's published OpenAPI specification, so this command is experimental."},
+		},
+		{
 			Area:       "builds",
 			Capability: "Build upload and processing tracking",
 			Status:     statusCLISupported,

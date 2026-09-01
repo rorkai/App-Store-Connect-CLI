@@ -41,6 +41,7 @@ func TestVersionsGroupHelpDocumentsCoreWorkflows(t *testing.T) {
 		"asc versions attach-build ",
 		"asc versions release ",
 		"asc versions phased-release ",
+		"asc versions rating-reset ",
 	}
 	for _, want := range wantSubcommands {
 		if !strings.Contains(help, want) {
@@ -105,6 +106,7 @@ func TestVersionsGroupHelpListsEverySubcommand(t *testing.T) {
 		"attach-build",
 		"release",
 		"phased-release",
+		"rating-reset",
 		"promotions",
 	}
 

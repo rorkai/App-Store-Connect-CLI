@@ -317,6 +317,60 @@ asc versions release --version-id "VERSION_ID" --confirm
 
 ***
 
+### `asc versions rating-reset`
+
+**[experimental]** Schedule, inspect, or cancel the overview-rating reset for
+an App Store version. Apple doesn't include this web-session endpoint in its
+published OpenAPI specification, so the resource may change without notice.
+
+The reset affects every country or region for the selected platform when the
+version is released. Written reviews remain visible. After release, the
+previous overview rating can't be restored.
+
+These commands use an authenticated Apple Account web session. Run `asc web
+auth login` first when no valid cached session is available. Use `--apple-id`
+to select a specific cached account and `--provider-id` or
+`--public-provider-id` to select its App Store Connect provider.
+
+View the current request:
+
+```bash  theme={null}
+asc versions rating-reset view --version-id "VERSION_ID"
+```
+
+Schedule a reset:
+
+```bash  theme={null}
+asc versions rating-reset create --version-id "VERSION_ID" --confirm
+```
+
+Cancel it before release:
+
+```bash  theme={null}
+asc versions rating-reset delete --id "RESET_REQUEST_ID" --confirm
+```
+
+The create command returns:
+
+```json  theme={null}
+{
+  "ratingResetRequestId": "RESET_REQUEST_ID",
+  "versionId": "VERSION_ID",
+  "scheduled": true
+}
+```
+
+The delete command returns:
+
+```json  theme={null}
+{
+  "ratingResetRequestId": "RESET_REQUEST_ID",
+  "cancelled": true
+}
+```
+
+***
+
 ## Common Usage Patterns
 
 ### Create a new version and attach a build

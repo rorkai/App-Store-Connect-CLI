@@ -14,6 +14,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	webcli "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/web"
 )
 
 func VersionsCommand() *ffcli.Command {
@@ -34,7 +35,8 @@ Examples:
   asc versions update --version-id "VERSION_ID" --release-type MANUAL
   asc versions attach-build --version-id "VERSION_ID" --build-id "BUILD_ID"
   asc versions release --version-id "VERSION_ID" --confirm
-  asc versions phased-release view --version-id "VERSION_ID"`,
+  asc versions phased-release view --version-id "VERSION_ID"
+  asc versions rating-reset view --version-id "VERSION_ID"`,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{
 			VersionsListCommand(),
@@ -49,6 +51,7 @@ Examples:
 			VersionsAttachBuildCommand(),
 			VersionsReleaseCommand(),
 			PhasedReleaseCommand(),
+			webcli.VersionRatingResetCommand(),
 			VersionsPromotionsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
