@@ -70,6 +70,19 @@ type AppStoreVersionReleaseRequestResult struct {
 	VersionID        string `json:"versionId"`
 }
 
+// AppStoreVersionRatingResetCreateResult represents CLI output for scheduling a rating reset.
+type AppStoreVersionRatingResetCreateResult struct {
+	RatingResetRequestID string `json:"ratingResetRequestId"`
+	VersionID            string `json:"versionId"`
+	Scheduled            bool   `json:"scheduled"`
+}
+
+// AppStoreVersionRatingResetDeleteResult represents CLI output for cancelling a rating reset.
+type AppStoreVersionRatingResetDeleteResult struct {
+	RatingResetRequestID string `json:"ratingResetRequestId"`
+	Cancelled            bool   `json:"cancelled"`
+}
+
 // AppStoreVersionsLatestResult represents a computed latest-version list.
 // Unlike a raw API response, its pagination fields describe only the selected
 // items and cannot retain stale metadata from the aggregated source pages.
@@ -187,5 +200,17 @@ func appStoreVersionAttachBuildRows(result *AppStoreVersionAttachBuildResult) ([
 func appStoreVersionReleaseRequestRows(result *AppStoreVersionReleaseRequestResult) ([]string, [][]string) {
 	headers := []string{"Release Request ID", "Version ID"}
 	rows := [][]string{{result.ReleaseRequestID, result.VersionID}}
+	return headers, rows
+}
+
+func appStoreVersionRatingResetCreateRows(result *AppStoreVersionRatingResetCreateResult) ([]string, [][]string) {
+	headers := []string{"Rating Reset Request ID", "Version ID", "Scheduled"}
+	rows := [][]string{{result.RatingResetRequestID, result.VersionID, fmt.Sprintf("%t", result.Scheduled)}}
+	return headers, rows
+}
+
+func appStoreVersionRatingResetDeleteRows(result *AppStoreVersionRatingResetDeleteResult) ([]string, [][]string) {
+	headers := []string{"Rating Reset Request ID", "Cancelled"}
+	rows := [][]string{{result.RatingResetRequestID, fmt.Sprintf("%t", result.Cancelled)}}
 	return headers, rows
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -117,6 +118,47 @@ func TestCreateAppStoreVersionRatingResetRequest(t *testing.T) {
 	}
 	if strings.Contains(string(encoded), `"links"`) {
 		t.Fatalf("response = %s, want absent links to stay absent", encoded)
+	}
+}
+
+func TestRatingResetResponsePreservesCompleteEnvelopeForJSONOutput(t *testing.T) {
+	payload := []byte(`{
+		"data": {
+			"type": "resetRatingsRequests",
+			"id": "reset-123",
+			"attributes": {
+				"resetDate": null,
+				"futureAttribute": "preserve-me"
+			},
+			"relationships": {
+				"appStoreVersion": {
+					"data": {"type": "appStoreVersions", "id": "version-123"}
+				}
+			}
+		},
+		"links": {"self": "/resetRatingsRequests/reset-123"},
+		"meta": {"futureTopLevel": true},
+		"included": [{"type": "appStoreVersions", "id": "version-123"}]
+	}`)
+
+	response, err := parseRatingResetResponse(payload)
+	if err != nil {
+		t.Fatalf("parseRatingResetResponse() error = %v", err)
+	}
+	encoded, err := json.Marshal(response)
+	if err != nil {
+		t.Fatalf("marshal response: %v", err)
+	}
+
+	var got, want map[string]any
+	if err := json.Unmarshal(encoded, &got); err != nil {
+		t.Fatalf("decode marshaled response: %v", err)
+	}
+	if err := json.Unmarshal(payload, &want); err != nil {
+		t.Fatalf("decode source response: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("marshaled response = %#v, want complete envelope %#v", got, want)
 	}
 }
 

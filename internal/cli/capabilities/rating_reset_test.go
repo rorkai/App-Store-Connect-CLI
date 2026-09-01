@@ -11,8 +11,8 @@ func TestRatingResetCapabilityDocumentsExperimentalWebSessionSurface(t *testing.
 		if capability.Capability != "App overview-rating reset" {
 			continue
 		}
-		if capability.Status != statusPartial {
-			t.Fatalf("status = %q, want %q", capability.Status, statusPartial)
+		if capability.Status != statusWebSession {
+			t.Fatalf("status = %q, want %q", capability.Status, statusWebSession)
 		}
 		if !slices.Contains(capability.Commands, "asc versions rating-reset") {
 			t.Fatalf("commands = %v, want rating-reset", capability.Commands)

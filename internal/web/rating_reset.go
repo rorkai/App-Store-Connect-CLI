@@ -27,6 +27,17 @@ type RatingResetRequest struct {
 type RatingResetRequestResponse struct {
 	Data  RatingResetRequest `json:"data"`
 	Links json.RawMessage    `json:"links,omitempty"`
+	raw   json.RawMessage
+}
+
+// MarshalJSON preserves Apple's complete JSON:API response for JSON output,
+// including fields that this experimental endpoint may add without notice.
+func (response RatingResetRequestResponse) MarshalJSON() ([]byte, error) {
+	if len(response.raw) > 0 {
+		return append([]byte(nil), response.raw...), nil
+	}
+	type responseAlias RatingResetRequestResponse
+	return json.Marshal(responseAlias(response))
 }
 
 func ratingResetRequestHeaders() http.Header {
@@ -49,6 +60,7 @@ func parseRatingResetResponse(data []byte) (*RatingResetRequestResponse, error) 
 	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, fmt.Errorf("failed to parse rating reset response: %w", err)
 	}
+	response.raw = append(json.RawMessage(nil), data...)
 	return &response, nil
 }
 

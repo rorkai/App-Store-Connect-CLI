@@ -246,7 +246,7 @@ func capabilityRows() []Capability {
 		{
 			Area:         "release",
 			Capability:   "App overview-rating reset",
-			Status:       statusPartial,
+			Status:       statusWebSession,
 			Commands:     []string{"asc versions rating-reset"},
 			APIResources: []string{"resetRatingsRequests"},
 			Notes:        []string{"Uses an authenticated web-session endpoint absent from Apple's published OpenAPI specification, so this command is experimental."},

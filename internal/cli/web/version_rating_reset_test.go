@@ -10,6 +10,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -59,7 +60,7 @@ func TestVersionRatingResetCreate(t *testing.T) {
 		t.Fatalf("version = %q, want trimmed version-1", receivedVersion)
 	}
 
-	var result versionRatingResetCreateResult
+	var result asc.AppStoreVersionRatingResetCreateResult
 	if err := json.Unmarshal([]byte(stdout), &result); err != nil {
 		t.Fatalf("unmarshal output: %v; output=%q", err, stdout)
 	}

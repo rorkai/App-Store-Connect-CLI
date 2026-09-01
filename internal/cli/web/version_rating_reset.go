@@ -26,17 +26,6 @@ var (
 	}
 )
 
-type versionRatingResetCreateResult struct {
-	RatingResetRequestID string `json:"ratingResetRequestId"`
-	VersionID            string `json:"versionId"`
-	Scheduled            bool   `json:"scheduled"`
-}
-
-type versionRatingResetDeleteResult struct {
-	RatingResetRequestID string `json:"ratingResetRequestId"`
-	Cancelled            bool   `json:"cancelled"`
-}
-
 // VersionRatingResetCommand returns the version overview-rating reset command group.
 // It lives in the web command package so it can share the existing web-session
 // authentication and provider-selection implementation while remaining mounted
@@ -195,18 +184,12 @@ Examples:
 				return fmt.Errorf("rating-reset create failed: rating reset request ID missing from response")
 			}
 
-			result := &versionRatingResetCreateResult{
+			result := &asc.AppStoreVersionRatingResetCreateResult{
 				RatingResetRequestID: strings.TrimSpace(response.Data.ID),
 				VersionID:            version,
 				Scheduled:            true,
 			}
-			return shared.PrintOutputWithRenderers(
-				result,
-				*output.Output,
-				*output.Pretty,
-				func() error { return renderVersionRatingResetCreateTable(result) },
-				func() error { return renderVersionRatingResetCreateMarkdown(result) },
-			)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -262,17 +245,11 @@ Examples:
 				return withWebAuthHint(err, "rating-reset delete")
 			}
 
-			result := &versionRatingResetDeleteResult{
+			result := &asc.AppStoreVersionRatingResetDeleteResult{
 				RatingResetRequestID: id,
 				Cancelled:            true,
 			}
-			return shared.PrintOutputWithRenderers(
-				result,
-				*output.Output,
-				*output.Pretty,
-				func() error { return renderVersionRatingResetDeleteTable(result) },
-				func() error { return renderVersionRatingResetDeleteMarkdown(result) },
-			)
+			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
 }
@@ -293,45 +270,6 @@ func renderVersionRatingResetTable(response *webcore.RatingResetRequestResponse)
 
 func renderVersionRatingResetMarkdown(response *webcore.RatingResetRequestResponse) error {
 	headers, rows := versionRatingResetRows(response)
-	asc.RenderMarkdown(headers, rows)
-	return nil
-}
-
-func versionRatingResetCreateRows(result *versionRatingResetCreateResult) ([]string, [][]string) {
-	return []string{"Rating Reset Request ID", "Version ID", "Scheduled"}, [][]string{{
-		result.RatingResetRequestID,
-		result.VersionID,
-		fmt.Sprintf("%t", result.Scheduled),
-	}}
-}
-
-func renderVersionRatingResetCreateTable(result *versionRatingResetCreateResult) error {
-	headers, rows := versionRatingResetCreateRows(result)
-	asc.RenderTable(headers, rows)
-	return nil
-}
-
-func renderVersionRatingResetCreateMarkdown(result *versionRatingResetCreateResult) error {
-	headers, rows := versionRatingResetCreateRows(result)
-	asc.RenderMarkdown(headers, rows)
-	return nil
-}
-
-func versionRatingResetDeleteRows(result *versionRatingResetDeleteResult) ([]string, [][]string) {
-	return []string{"Rating Reset Request ID", "Cancelled"}, [][]string{{
-		result.RatingResetRequestID,
-		fmt.Sprintf("%t", result.Cancelled),
-	}}
-}
-
-func renderVersionRatingResetDeleteTable(result *versionRatingResetDeleteResult) error {
-	headers, rows := versionRatingResetDeleteRows(result)
-	asc.RenderTable(headers, rows)
-	return nil
-}
-
-func renderVersionRatingResetDeleteMarkdown(result *versionRatingResetDeleteResult) error {
-	headers, rows := versionRatingResetDeleteRows(result)
 	asc.RenderMarkdown(headers, rows)
 	return nil
 }

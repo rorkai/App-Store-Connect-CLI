@@ -209,3 +209,36 @@ func TestSubmissionAndVersionDetailRows_UseDisplayPlatform(t *testing.T) {
 		t.Fatalf("expected unknown detail platform passthrough CAR_OS, got %q", detailRows[0][2])
 	}
 }
+
+func TestPrintTable_AppStoreVersionRatingResetCreateResult(t *testing.T) {
+	result := &AppStoreVersionRatingResetCreateResult{
+		RatingResetRequestID: "reset-123",
+		VersionID:            "version-123",
+		Scheduled:            true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintTable(result)
+	})
+	for _, want := range []string{"Rating Reset Request ID", "Version ID", "Scheduled", "reset-123", "version-123", "true"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output = %q, want %q", output, want)
+		}
+	}
+}
+
+func TestPrintMarkdown_AppStoreVersionRatingResetDeleteResult(t *testing.T) {
+	result := &AppStoreVersionRatingResetDeleteResult{
+		RatingResetRequestID: "reset-123",
+		Cancelled:            true,
+	}
+
+	output := captureStdout(t, func() error {
+		return PrintMarkdown(result)
+	})
+	for _, want := range []string{"Rating Reset Request ID", "Cancelled", "reset-123", "true"} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("output = %q, want %q", output, want)
+		}
+	}
+}
