@@ -93,12 +93,12 @@ Examples:
 				return shared.MissingRequiredUsageError("--version-id")
 			}
 
-			session, err := resolveWebSessionForCommand(ctx, authFlags)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+			session, err := resolveWebSessionForCommand(requestCtx, authFlags)
 			if err != nil {
 				return err
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
 
 			var response *webcore.RatingResetRequestResponse
 			err = withWebSpinner("Loading rating reset request", func() error {
@@ -109,7 +109,10 @@ Examples:
 			if err != nil {
 				return withWebAuthHint(err, "rating-reset view")
 			}
-			if response == nil || strings.TrimSpace(response.Data.ID) == "" {
+			if response == nil {
+				return fmt.Errorf("rating-reset view failed: response missing")
+			}
+			if response.Data != nil && strings.TrimSpace(response.Data.ID) == "" {
 				return fmt.Errorf("rating-reset view failed: rating reset request ID missing from response")
 			}
 
@@ -164,12 +167,12 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 
-			session, err := resolveWebSessionForCommand(ctx, authFlags)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+			session, err := resolveWebSessionForCommand(requestCtx, authFlags)
 			if err != nil {
 				return err
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
 
 			var response *webcore.RatingResetRequestResponse
 			err = withWebSpinner("Scheduling rating reset", func() error {
@@ -180,7 +183,7 @@ Examples:
 			if err != nil {
 				return withWebAuthHint(err, "rating-reset create")
 			}
-			if response == nil || strings.TrimSpace(response.Data.ID) == "" {
+			if response == nil || response.Data == nil || strings.TrimSpace(response.Data.ID) == "" {
 				return fmt.Errorf("rating-reset create failed: rating reset request ID missing from response")
 			}
 
@@ -231,12 +234,12 @@ Examples:
 				return shared.MissingRequiredUsageError("--confirm")
 			}
 
-			session, err := resolveWebSessionForCommand(ctx, authFlags)
+			requestCtx, cancel := shared.ContextWithTimeout(ctx)
+			defer cancel()
+			session, err := resolveWebSessionForCommand(requestCtx, authFlags)
 			if err != nil {
 				return err
 			}
-			requestCtx, cancel := shared.ContextWithTimeout(ctx)
-			defer cancel()
 
 			err = withWebSpinner("Cancelling rating reset", func() error {
 				return deleteVersionRatingResetFn(requestCtx, newWebClientFn(session), id)
@@ -255,11 +258,15 @@ Examples:
 }
 
 func versionRatingResetRows(response *webcore.RatingResetRequestResponse) ([]string, [][]string) {
+	headers := []string{"Rating Reset Request ID", "Reset Date", "Scheduled"}
+	if response.Data == nil {
+		return headers, [][]string{{"", "", "false"}}
+	}
 	resetDate := ""
 	if response.Data.Attributes.ResetDate != nil {
 		resetDate = *response.Data.Attributes.ResetDate
 	}
-	return []string{"Rating Reset Request ID", "Reset Date"}, [][]string{{response.Data.ID, resetDate}}
+	return headers, [][]string{{response.Data.ID, resetDate, "true"}}
 }
 
 func renderVersionRatingResetTable(response *webcore.RatingResetRequestResponse) error {

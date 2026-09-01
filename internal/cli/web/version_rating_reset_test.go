@@ -30,16 +30,24 @@ func stubVersionRatingResetSession(t *testing.T) {
 	}
 }
 
+func requireVersionRatingResetDeadline(t *testing.T, ctx context.Context) {
+	t.Helper()
+	if _, ok := ctx.Deadline(); !ok {
+		t.Fatal("expected operation to receive the command timeout context")
+	}
+}
+
 func TestVersionRatingResetCreate(t *testing.T) {
 	stubVersionRatingResetSession(t)
 	originalCreate := createVersionRatingResetFn
 	t.Cleanup(func() { createVersionRatingResetFn = originalCreate })
 
 	var receivedVersion string
-	createVersionRatingResetFn = func(_ context.Context, _ *webcore.Client, versionID string) (*webcore.RatingResetRequestResponse, error) {
+	createVersionRatingResetFn = func(ctx context.Context, _ *webcore.Client, versionID string) (*webcore.RatingResetRequestResponse, error) {
+		requireVersionRatingResetDeadline(t, ctx)
 		receivedVersion = versionID
 		return &webcore.RatingResetRequestResponse{
-			Data: webcore.RatingResetRequest{Type: "resetRatingsRequests", ID: "reset-1"},
+			Data: &webcore.RatingResetRequest{Type: "resetRatingsRequests", ID: "reset-1"},
 		}, nil
 	}
 
@@ -75,12 +83,13 @@ func TestVersionRatingResetViewTable(t *testing.T) {
 	t.Cleanup(func() { getVersionRatingResetFn = originalGet })
 
 	resetDate := "2026-09-01T08:00:00Z"
-	getVersionRatingResetFn = func(_ context.Context, _ *webcore.Client, versionID string) (*webcore.RatingResetRequestResponse, error) {
+	getVersionRatingResetFn = func(ctx context.Context, _ *webcore.Client, versionID string) (*webcore.RatingResetRequestResponse, error) {
+		requireVersionRatingResetDeadline(t, ctx)
 		if versionID != "version-1" {
 			t.Fatalf("version = %q, want version-1", versionID)
 		}
 		return &webcore.RatingResetRequestResponse{
-			Data: webcore.RatingResetRequest{
+			Data: &webcore.RatingResetRequest{
 				Type:       "resetRatingsRequests",
 				ID:         "reset-1",
 				Attributes: webcore.RatingResetRequestAttributes{ResetDate: &resetDate},
@@ -107,13 +116,63 @@ func TestVersionRatingResetViewTable(t *testing.T) {
 	}
 }
 
+func TestVersionRatingResetViewReportsUnscheduledRelationship(t *testing.T) {
+	stubVersionRatingResetSession(t)
+	originalGet := getVersionRatingResetFn
+	t.Cleanup(func() { getVersionRatingResetFn = originalGet })
+	getVersionRatingResetFn = func(context.Context, *webcore.Client, string) (*webcore.RatingResetRequestResponse, error) {
+		return &webcore.RatingResetRequestResponse{Data: nil}, nil
+	}
+
+	t.Run("json preserves null data", func(t *testing.T) {
+		command := VersionRatingResetViewCommand()
+		if err := command.FlagSet.Parse([]string{"--version-id", "version-1", "--output", "json"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		stdout, stderr := captureWebCommandOutput(t, func() {
+			if err := command.Exec(context.Background(), nil); err != nil {
+				t.Fatalf("Exec() error = %v", err)
+			}
+		})
+		if stderr != "" {
+			t.Fatalf("stderr = %q, want empty", stderr)
+		}
+		if strings.TrimSpace(stdout) != `{"data":null}` {
+			t.Fatalf("stdout = %q, want null JSON:API relationship", stdout)
+		}
+	})
+
+	for _, format := range []string{"table", "markdown"} {
+		t.Run(format+" reports unscheduled", func(t *testing.T) {
+			command := VersionRatingResetViewCommand()
+			if err := command.FlagSet.Parse([]string{"--version-id", "version-1", "--output", format}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			stdout, stderr := captureWebCommandOutput(t, func() {
+				if err := command.Exec(context.Background(), nil); err != nil {
+					t.Fatalf("Exec() error = %v", err)
+				}
+			})
+			if stderr != "" {
+				t.Fatalf("stderr = %q, want empty", stderr)
+			}
+			for _, want := range []string{"Scheduled", "false"} {
+				if !strings.Contains(stdout, want) {
+					t.Fatalf("stdout = %q, want %q", stdout, want)
+				}
+			}
+		})
+	}
+}
+
 func TestVersionRatingResetDelete(t *testing.T) {
 	stubVersionRatingResetSession(t)
 	originalDelete := deleteVersionRatingResetFn
 	t.Cleanup(func() { deleteVersionRatingResetFn = originalDelete })
 
 	var receivedID string
-	deleteVersionRatingResetFn = func(_ context.Context, _ *webcore.Client, requestID string) error {
+	deleteVersionRatingResetFn = func(ctx context.Context, _ *webcore.Client, requestID string) error {
+		requireVersionRatingResetDeadline(t, ctx)
 		receivedID = requestID
 		return nil
 	}
@@ -183,6 +242,43 @@ func TestVersionRatingResetValidationRunsBeforeSessionResolution(t *testing.T) {
 	}
 	if resolverCalls != 0 {
 		t.Fatalf("session resolver calls = %d, want 0", resolverCalls)
+	}
+}
+
+func TestVersionRatingResetSessionResolutionUsesCommandTimeout(t *testing.T) {
+	originalResolver := resolveSessionFn
+	t.Cleanup(func() { resolveSessionFn = originalResolver })
+	resolveErr := errors.New("stop after context inspection")
+
+	cases := []struct {
+		name    string
+		command func() *ffcli.Command
+		args    []string
+	}{
+		{name: "view", command: VersionRatingResetViewCommand, args: []string{"--version-id", "version-1"}},
+		{name: "create", command: VersionRatingResetCreateCommand, args: []string{"--version-id", "version-1", "--confirm"}},
+		{name: "delete", command: VersionRatingResetDeleteCommand, args: []string{"--id", "reset-1", "--confirm"}},
+	}
+
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			hadDeadline := false
+			resolveSessionFn = func(ctx context.Context, _, _, _, _ string) (*webcore.AuthSession, string, error) {
+				_, hadDeadline = ctx.Deadline()
+				return nil, "", resolveErr
+			}
+
+			command := test.command()
+			if err := command.FlagSet.Parse(test.args); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			if err := command.Exec(context.Background(), nil); !errors.Is(err, resolveErr) {
+				t.Fatalf("error = %v, want resolve error", err)
+			}
+			if !hadDeadline {
+				t.Fatal("expected session resolution to receive the command timeout context")
+			}
+		})
 	}
 }
 

@@ -51,6 +51,9 @@ func TestGetAppStoreVersionRatingResetRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetAppStoreVersionRatingResetRequest() error = %v", err)
 	}
+	if result.Data == nil {
+		t.Fatal("data = nil, want rating reset request")
+	}
 	if result.Data.ID != "reset-123" {
 		t.Fatalf("id = %q, want reset-123", result.Data.ID)
 	}
@@ -106,6 +109,9 @@ func TestCreateAppStoreVersionRatingResetRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAppStoreVersionRatingResetRequest() error = %v", err)
 	}
+	if result.Data == nil {
+		t.Fatal("data = nil, want rating reset request")
+	}
 	if result.Data.ID != "reset-new" {
 		t.Fatalf("id = %q, want reset-new", result.Data.ID)
 	}
@@ -159,6 +165,25 @@ func TestRatingResetResponsePreservesCompleteEnvelopeForJSONOutput(t *testing.T)
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("marshaled response = %#v, want complete envelope %#v", got, want)
+	}
+}
+
+func TestRatingResetResponsePreservesNullRelationship(t *testing.T) {
+	payload := []byte(`{"data":null,"meta":{"state":"unscheduled"}}`)
+
+	response, err := parseRatingResetResponse(payload)
+	if err != nil {
+		t.Fatalf("parseRatingResetResponse() error = %v", err)
+	}
+	if response.Data != nil {
+		t.Fatalf("data = %#v, want nil", response.Data)
+	}
+	encoded, err := json.Marshal(response)
+	if err != nil {
+		t.Fatalf("marshal response: %v", err)
+	}
+	if string(encoded) != string(payload) {
+		t.Fatalf("marshaled response = %s, want %s", encoded, payload)
 	}
 }
 

@@ -25,8 +25,8 @@ type RatingResetRequest struct {
 
 // RatingResetRequestResponse is the JSON:API response for an overview-rating reset request.
 type RatingResetRequestResponse struct {
-	Data  RatingResetRequest `json:"data"`
-	Links json.RawMessage    `json:"links,omitempty"`
+	Data  *RatingResetRequest `json:"data"`
+	Links json.RawMessage     `json:"links,omitempty"`
 	raw   json.RawMessage
 }
 
