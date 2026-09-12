@@ -1103,11 +1103,33 @@ func macProfileEntitlementsPermitTarget(profileEntitlements, targetEntitlements 
 			continue
 		}
 		profileValue, ok := profileEntitlements[key]
-		if !ok || !macProfileEntitlementValuePermits(profileValue, targetValue) {
+		if !ok || !macProfileEntitlementValuePermitsForExport(key, profileValue, targetValue) {
 			return false
 		}
 	}
 	return true
+}
+
+func macProfileEntitlementValuePermitsForExport(key string, profileValue, targetValue any) bool {
+	if macProfileEntitlementValuePermits(profileValue, targetValue) {
+		return true
+	}
+
+	profileString, profileIsString := profileValue.(string)
+	targetString, targetIsString := targetValue.(string)
+	if !profileIsString || !targetIsString {
+		return false
+	}
+
+	switch key {
+	case "com.apple.developer.icloud-container-environment":
+		return profileString == "Production" && targetString == "Development"
+	case "com.apple.developer.aps-environment",
+		"com.apple.developer.devicecheck.appattest-environment":
+		return profileString == "production" && targetString == "development"
+	default:
+		return false
+	}
 }
 
 func macProfileEntitlementValuePermits(profileValue, targetValue any) bool {

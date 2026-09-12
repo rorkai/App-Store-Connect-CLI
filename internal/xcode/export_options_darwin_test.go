@@ -670,6 +670,102 @@ func TestSelectMacProvisioningProfileMatchesEntitlementValues(t *testing.T) {
 	}
 }
 
+func TestSelectMacProvisioningProfileAllowsAppStoreEntitlementTransitions(t *testing.T) {
+	now := time.Now()
+	profile := profileutil.ProvisioningProfileInfoModel{
+		UUID: "app-store", Name: "app-store", BundleID: "com.example.demo", TeamID: "TEAM123",
+		Type: profileutil.ProfileTypeMacOs, ExportType: legacyexportoptions.MethodAppStoreConnect,
+		ExpirationDate: now.Add(time.Hour), DeveloperCertificates: []certificateutil.CertificateInfoModel{{Serial: "CERT"}},
+		Entitlements: plistutil.PlistData{
+			"com.apple.developer.icloud-container-environment":      "Production",
+			"com.apple.developer.aps-environment":                   "production",
+			"com.apple.developer.devicecheck.appattest-environment": "production",
+		},
+	}
+	targetEntitlements := plistutil.PlistData{
+		"com.apple.developer.icloud-container-environment":      "Development",
+		"com.apple.developer.aps-environment":                   "development",
+		"com.apple.developer.devicecheck.appattest-environment": "development",
+	}
+
+	selected, ok := selectMacProvisioningProfile("com.example.demo", nil, []profileutil.ProvisioningProfileInfoModel{profile}, "CERT", "TEAM123", targetEntitlements)
+	if !ok || selected.UUID != "app-store" {
+		t.Fatalf("selected profile = %#v, %t; want App Store profile", selected, ok)
+	}
+}
+
+func TestMacProfileEntitlementTransitionsRejectWrongDirectionAndUnknownValues(t *testing.T) {
+	tests := []struct {
+		name    string
+		key     string
+		profile any
+		target  any
+	}{
+		{
+			name:    "CloudKit production archive to development profile",
+			key:     "com.apple.developer.icloud-container-environment",
+			profile: "Development",
+			target:  "Production",
+		},
+		{
+			name:    "push production archive to development profile",
+			key:     "com.apple.developer.aps-environment",
+			profile: "development",
+			target:  "production",
+		},
+		{
+			name:    "unknown CloudKit value",
+			key:     "com.apple.developer.icloud-container-environment",
+			profile: "Production",
+			target:  "Staging",
+		},
+		{
+			name:    "unknown push value",
+			key:     "com.apple.developer.aps-environment",
+			profile: "production",
+			target:  "staging",
+		},
+		{
+			name:    "App Attest production archive to development profile",
+			key:     "com.apple.developer.devicecheck.appattest-environment",
+			profile: "development",
+			target:  "production",
+		},
+		{
+			name:    "unknown App Attest value",
+			key:     "com.apple.developer.devicecheck.appattest-environment",
+			profile: "production",
+			target:  "staging",
+		},
+		{
+			name:    "noncanonical CloudKit case",
+			key:     "com.apple.developer.icloud-container-environment",
+			profile: "production",
+			target:  "development",
+		},
+		{
+			name:    "noncanonical push case",
+			key:     "com.apple.developer.aps-environment",
+			profile: "production",
+			target:  "DEVELOPMENT",
+		},
+		{
+			name:    "noncanonical App Attest whitespace",
+			key:     "com.apple.developer.devicecheck.appattest-environment",
+			profile: "production",
+			target:  " development ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if macProfileEntitlementValuePermitsForExport(tt.key, tt.profile, tt.target) {
+				t.Fatalf("profile value %#v permitted target %#v for %q", tt.profile, tt.target, tt.key)
+			}
+		})
+	}
+}
+
 func TestSelectMacProvisioningProfileAllowsWildcardEntitlementValues(t *testing.T) {
 	now := time.Now()
 	profiles := []profileutil.ProvisioningProfileInfoModel{{
