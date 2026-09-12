@@ -20,7 +20,7 @@ func ReleaseCommand() *ffcli.Command {
 		LongHelp: `Run high-level App Store release workflows.
 
 release stage prepares a version for review without submitting it. It orchestrates:
-  1. Verify the selected build belongs to the app
+  1. Verify the selected build belongs to the app and matches the requested platform
   2. Ensure/create version
   3. Apply metadata and localizations
   4. Reconcile optional routing app coverage

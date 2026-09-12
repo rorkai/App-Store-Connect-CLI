@@ -320,6 +320,10 @@ func prepareSigningSyncBatchFiles(store *signingpkg.GitStore, targets []signingS
 		}
 		target.ProfileContent = profileContent
 		target.ProfilePath = signingSyncBatchProfilePath(target.BundleID, target.ProfileType, target.Profile.Data.ID)
+		target.ProfilePath, err = resolveCompatibleSigningProfilePath(store, target.ProfilePath)
+		if err != nil {
+			return nil, "", fmt.Errorf("resolve profile repository path for %s: %w", target.BundleID, err)
+		}
 		profileMetadata, err := signingProfileArtifactMetadata(target.Profile, target.BundleID, target.ProfileType)
 		if err != nil {
 			return nil, "", fmt.Errorf("profile for %s metadata: %w", target.BundleID, err)
@@ -433,7 +437,8 @@ func preflightSigningSyncBatchProfileCreate(store *signingpkg.GitStore, plan pro
 			return fmt.Errorf("preflight certificate destination: %w", err)
 		}
 	}
-	placeholder := filepath.Join("profiles", profileDirectoryName(profileType), "target-placeholder.mobileprovision")
+	profileExtension := shared.ProvisioningProfileExtension("", profileType)
+	placeholder := filepath.Join("profiles", profileDirectoryName(profileType), "target-placeholder"+profileExtension)
 	if err := store.CheckEncryptedFileParent(placeholder); err != nil {
 		return fmt.Errorf("preflight profile destination: %w", err)
 	}
@@ -472,10 +477,11 @@ func writeOrReuseSigningSyncLegacyArtifact(store *signingpkg.GitStore, relPath s
 }
 
 func signingSyncBatchProfilePath(bundleID, profileType, profileID string) string {
+	profileExtension := shared.ProvisioningProfileExtension("", profileType)
 	return filepath.Join(
 		"profiles",
 		profileDirectoryName(profileType),
-		safeFileName(bundleID, "bundle")+"--"+safeFileName(profileID, "profile")+".mobileprovision",
+		safeFileName(bundleID, "bundle")+"--"+safeFileName(profileID, "profile")+profileExtension,
 	)
 }
 

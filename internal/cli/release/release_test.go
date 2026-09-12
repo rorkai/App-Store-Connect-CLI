@@ -110,14 +110,25 @@ func newReleaseTestServerClient(t *testing.T, handler http.Handler) (*asc.Client
 	return client, server.URL
 }
 
-// releaseBuildAppLinkageResponse answers the build ownership precondition read
-// the pipeline performs before any mutation, for the BUILD_123/APP_123 fixture
-// pair the pipeline tests share.
+// releaseBuildAppLinkageResponse answers the build ownership and platform
+// preconditions the pipeline performs before any mutation, for the
+// BUILD_123/APP_123 fixture pair the pipeline tests share.
 func releaseBuildAppLinkageResponse(req *http.Request) (*http.Response, bool) {
-	if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/BUILD_123/relationships/app" {
+	if req.Method != http.MethodGet {
 		return nil, false
 	}
-	resp, err := releaseJSONResponse(http.StatusOK, `{"data":{"type":"apps","id":"APP_123"}}`)
+
+	var body string
+	switch req.URL.Path {
+	case "/v1/builds/BUILD_123/relationships/app":
+		body = `{"data":{"type":"apps","id":"APP_123"}}`
+	case "/v1/builds/BUILD_123/preReleaseVersion":
+		body = `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"2.4.0","platform":"IOS"}}}`
+	default:
+		return nil, false
+	}
+
+	resp, err := releaseJSONResponse(http.StatusOK, body)
 	if err != nil {
 		return nil, false
 	}

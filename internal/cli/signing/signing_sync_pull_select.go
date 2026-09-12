@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
@@ -86,7 +87,7 @@ func selectSigningPullFiles(files []decryptedSigningFile, bundleIDs []string, pr
 				return nil, nil, fmt.Errorf("stored certificate fingerprint appears at multiple repository paths")
 			}
 			certificatesByFingerprint[fingerprint] = file
-		case strings.HasSuffix(strings.ToLower(path), ".mobileprovision"):
+		case shared.IsProvisioningProfilePath(path):
 			profile, err := parseIdentityMobileProvision(file.Plaintext)
 			if err != nil {
 				return nil, nil, fmt.Errorf("stored profile %s is invalid: %w", path, err)

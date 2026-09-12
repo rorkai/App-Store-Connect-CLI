@@ -48,6 +48,10 @@ The encrypted repository password resolves in this order:
 3. `ASC_SIGNING_SYNC_PASSWORD`.
 4. The legacy `ASC_MATCH_PASSWORD` environment variable, with a deprecation warning.
 
+Profile artifacts use `.provisionprofile.enc` for native macOS profile types
+and `.mobileprovision.enc` for iOS and tvOS profile types. Existing legacy
+profile paths remain readable; sync does not rename them implicitly.
+
 The existing certificate/profile-only invocation remains valid. Its structured
 result reports `identityPresent: false`. Pull results list decrypted identity
 artifacts separately in `sensitiveFiles`. Sensitive identities are new-only and

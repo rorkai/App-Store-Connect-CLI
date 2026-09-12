@@ -302,9 +302,10 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 
 	// attach_build runs after the metadata and routing coverage steps, both of
 	// which mutate. Resolve the requested build before any of them so a build
-	// that does not exist, or belongs to another app, fails the run (and the
-	// dry-run preview) instead of the version being left half-updated.
-	if err := runStep(stepValidateBuild, "Pass a --build-id that exists and belongs to --app (try `asc builds list --app <id>`).", func() (stepOutcome, error) {
+	// that does not exist, belongs to another app, or targets another platform
+	// fails the run (and the dry-run preview) instead of the version being left
+	// half-updated.
+	if err := runStep(stepValidateBuild, "Pass a --build-id that exists, belongs to --app, and matches --platform (try `asc builds list --app <id>`).", func() (stepOutcome, error) {
 		buildAppID, buildErr := resolveBuildOwningApp(requestCtx, client, opts.BuildID)
 		if buildErr != nil {
 			return stepOutcome{}, fmt.Errorf("validate build: %w", buildErr)
@@ -318,16 +319,39 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 			)
 		}
 
+		buildPlatform, platformErr := resolveBuildPlatform(requestCtx, client, opts.BuildID)
+		if platformErr != nil {
+			return stepOutcome{}, fmt.Errorf("validate build: %w", platformErr)
+		}
+		if !strings.EqualFold(buildPlatform, strings.TrimSpace(opts.Platform)) {
+			buildDetails := map[string]any{
+				"buildId":           strings.TrimSpace(opts.BuildID),
+				"appId":             buildAppID,
+				"buildPlatform":     buildPlatform,
+				"requestedPlatform": strings.TrimSpace(opts.Platform),
+			}
+			return stepOutcome{Details: buildDetails}, fmt.Errorf(
+				"validate build: build %s is on platform %q, not %q",
+				strings.TrimSpace(opts.BuildID),
+				buildPlatform,
+				strings.TrimSpace(opts.Platform),
+			)
+		}
+
 		status := "ok"
-		message := "build belongs to app"
+		message := "build belongs to app and matches platform"
 		if opts.DryRun {
 			status = "dry-run"
-			message = "build belongs to app (no action needed)"
+			message = "build belongs to app and matches platform (no action needed)"
 		}
 		return stepOutcome{
 			Status:  status,
 			Message: message,
-			Details: map[string]any{"buildId": strings.TrimSpace(opts.BuildID), "appId": buildAppID},
+			Details: map[string]any{
+				"buildId":       strings.TrimSpace(opts.BuildID),
+				"appId":         buildAppID,
+				"buildPlatform": buildPlatform,
+			},
 			Persist: false,
 		}, nil
 	}); err != nil {
@@ -634,6 +658,31 @@ func resolveBuildOwningApp(ctx context.Context, client *asc.Client, buildID stri
 		return "", fmt.Errorf("build %s is missing a related app ID", trimmedBuildID)
 	}
 	return strings.TrimSpace(linkage.Data.ID), nil
+}
+
+// resolveBuildPlatform reads the build's pre-release version metadata so the
+// selected build cannot be staged into a version for another platform.
+func resolveBuildPlatform(ctx context.Context, client *asc.Client, buildID string) (string, error) {
+	trimmedBuildID := strings.TrimSpace(buildID)
+	if trimmedBuildID == "" {
+		return "", fmt.Errorf("build ID is required")
+	}
+
+	preReleaseVersion, err := client.GetBuildPreReleaseVersion(ctx, trimmedBuildID)
+	if err != nil {
+		if asc.IsNotFound(err) {
+			return "", fmt.Errorf("build %s pre-release version was not found", trimmedBuildID)
+		}
+		return "", fmt.Errorf("resolve platform for build %s: %w", trimmedBuildID, err)
+	}
+	if preReleaseVersion == nil {
+		return "", fmt.Errorf("build %s returned an empty pre-release version", trimmedBuildID)
+	}
+	platform := strings.TrimSpace(string(preReleaseVersion.Data.Attributes.Platform))
+	if platform == "" {
+		return "", fmt.Errorf("build %s pre-release version has no platform", trimmedBuildID)
+	}
+	return platform, nil
 }
 
 func releaseReadinessSuccessMessage(report validation.Report, dryRun bool) string {

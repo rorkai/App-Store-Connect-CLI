@@ -49,11 +49,16 @@ Certificates are deduplicated by resource ID and written in canonical ID order.
 In batch mode profiles use a target-scoped path:
 
 ```text
-profiles/<profile-type-directory>/<safe-bundle-id>--<safe-profile-resource-id>.mobileprovision.enc
+profiles/<profile-type-directory>/<safe-bundle-id>--<safe-profile-resource-id><profile-extension>.enc
 ```
 
-The existing single-target profile path remains unchanged. Shared identities
-remain one authenticated core per certificate and one current authenticated
+`<profile-extension>` is `.provisionprofile` for native macOS profile types and
+`.mobileprovision` for iOS and tvOS profile types. Existing encrypted files
+with the legacy suffix remain readable and are not renamed automatically.
+
+The existing single-target iOS and tvOS profile paths remain unchanged; native
+macOS single-target paths use the same platform-specific suffix rule. Shared
+identities remain one authenticated core per certificate and one current authenticated
 context per team/bundle/profile-type; each target context binds its exact
 profile path, resource ID, UUID, and content digest.
 

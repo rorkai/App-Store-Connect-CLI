@@ -170,7 +170,8 @@ asc profiles download --id "PROFILE_ID" \
   --output "./profile.mobileprovision"
 ```
 
-The downloaded `.mobileprovision` file can be:
+Native macOS profiles conventionally use `.provisionprofile`; iOS, tvOS, and
+legacy profiles use `.mobileprovision`. Both extensions can be:
 
 * Installed with `asc profiles local install --path "./profile.mobileprovision"`
 * Opened with Xcode
@@ -178,7 +179,7 @@ The downloaded `.mobileprovision` file can be:
 
 ## Inspect Profile
 
-Inspect a downloaded `.mobileprovision` file:
+Inspect a downloaded provisioning profile file:
 
 ```bash  theme={null}
 asc profiles inspect --path "./profile.mobileprovision"
@@ -197,6 +198,9 @@ asc profiles inspect --path "./profile.mobileprovision" --entitlements
 ```
 
 This command reads local disk only. It decodes the signed provisioning profile payload and reports identifiers, expiration, certificate fingerprints, device counts, and entitlement values.
+
+For a native macOS profile, use the same commands with a `.provisionprofile`
+path. Local list and clean operations recognize both extensions.
 
 ### Install Profile
 
