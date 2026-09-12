@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	signingpkg "github.com/rudrankriyam/App-Store-Connect-CLI/internal/signing"
 )
 
@@ -52,7 +54,7 @@ func validateSigningProfileArtifactMetadata(relPath string, metadata signingpkg.
 	if metadata.Version != 1 || metadata.Kind != signingProfileArtifactKind || metadata.Sensitive {
 		return fmt.Errorf("provisioning profile must use a versioned non-sensitive envelope")
 	}
-	if !strings.HasPrefix(canonicalPath, "profiles/") || !strings.HasSuffix(strings.ToLower(canonicalPath), ".mobileprovision") {
+	if !strings.HasPrefix(canonicalPath, "profiles/") || !shared.IsProvisioningProfilePath(canonicalPath) {
 		return fmt.Errorf("provisioning profile metadata requires a profile repository path")
 	}
 	if strings.TrimSpace(metadata.BundleID) == "" || strings.TrimSpace(metadata.ProfileResourceID) == "" {
@@ -139,4 +141,39 @@ func writeOrReuseSigningProfileArtifact(store *signingpkg.GitStore, relPath stri
 		return err
 	}
 	return store.ReplaceEncryptedFileWithMetadata(relPath, plaintext, password, metadata)
+}
+
+// resolveCompatibleSigningProfilePath keeps using the legacy repository path
+// for a macOS profile when that is the only spelling already present. This
+// prevents an extension upgrade from publishing a second copy of the same
+// profile under .provisionprofile. Repositories that already contain both
+// spellings are ambiguous and must be repaired explicitly.
+func resolveCompatibleSigningProfilePath(store *signingpkg.GitStore, preferredPath string) (string, error) {
+	if store == nil || !strings.EqualFold(filepath.Ext(preferredPath), ".provisionprofile") {
+		return preferredPath, nil
+	}
+	legacyPath := strings.TrimSuffix(preferredPath, filepath.Ext(preferredPath)) + ".mobileprovision"
+	existing, err := store.ListEncryptedFiles()
+	if err != nil {
+		return "", err
+	}
+	preferredCanonical := canonicalSigningPullPath(preferredPath)
+	legacyCanonical := canonicalSigningPullPath(legacyPath)
+	preferredExists := false
+	legacyExists := false
+	for _, path := range existing {
+		switch canonicalSigningPullPath(path) {
+		case preferredCanonical:
+			preferredExists = true
+		case legacyCanonical:
+			legacyExists = true
+		}
+	}
+	if preferredExists && legacyExists {
+		return "", fmt.Errorf("macOS provisioning profile exists at both %s and %s", legacyPath, preferredPath)
+	}
+	if legacyExists {
+		return legacyPath, nil
+	}
+	return preferredPath, nil
 }

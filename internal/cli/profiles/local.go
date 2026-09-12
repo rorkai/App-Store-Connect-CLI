@@ -29,6 +29,9 @@ When no full Xcode is active (for example a Command Line Tools only host),
 ~/Library/MobileDevice/Provisioning Profiles is used and a note is written to
 stderr. Use --install-dir to choose a directory explicitly.`
 
+const profilesLocalExtensionHelp = `macOS profiles use the .provisionprofile extension;
+iOS, tvOS, and legacy profiles may use .mobileprovision.`
+
 // profileUUIDValidationRegex ensures the UUID from a provisioning profile is safe to use
 // as a filename component (prevents absolute paths / path traversal).
 var profileUUIDValidationRegex = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
@@ -114,8 +117,11 @@ not on App Store Connect API profile resources.
 
 ` + profilesLocalDirectoryHelp + `
 
+` + profilesLocalExtensionHelp + `
+
 Examples:
   asc profiles local install --path "./profile.mobileprovision"
+  asc profiles local install --path "./profile.provisionprofile"
   asc profiles local list
   asc profiles local clean --expired --dry-run
   asc profiles local clean --expired --confirm`,
@@ -136,7 +142,7 @@ Examples:
 func ProfilesLocalInstallCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("install", flag.ExitOnError)
 
-	sourcePath := fs.String("path", "", "Path to a .mobileprovision file to install")
+	sourcePath := fs.String("path", "", "Path to a .mobileprovision or .provisionprofile file to install")
 	profileID := fs.String("id", "", "Profile ID to download and install")
 	installDir := fs.String("install-dir", "", "Directory to use (defaults by active Xcode version on macOS)")
 	force := fs.Bool("force", false, "Overwrite an existing installed profile with the same UUID")
@@ -150,8 +156,11 @@ func ProfilesLocalInstallCommand() *ffcli.Command {
 
 ` + profilesLocalDirectoryHelp + `
 
+` + profilesLocalExtensionHelp + `
+
 Examples:
   asc profiles local install --path "./profile.mobileprovision"
+  asc profiles local install --path "./profile.provisionprofile"
   asc profiles local install --id "PROFILE_ID"
   asc profiles local install --path "./profile.mobileprovision" --force`,
 		FlagSet:   fs,
@@ -226,14 +235,12 @@ Examples:
 				return fmt.Errorf("profiles local install: invalid profile UUID %q", uuid)
 			}
 
-			destPath := filepath.Join(resolvedInstallDir, uuid+".mobileprovision")
-			action := "installed"
-			hadExisting := false
-			if _, err := os.Lstat(destPath); err == nil {
-				hadExisting = true
-			} else if !errors.Is(err, os.ErrNotExist) {
-				return fmt.Errorf("profiles local install: stat output path: %w", err)
+			extension := shared.ProvisioningProfileExtensionForPlatforms(parsed.Platform, "")
+			destPath, hadExisting, err := resolveProfileInstallPath(resolvedInstallDir, uuid, extension)
+			if err != nil {
+				return fmt.Errorf("profiles local install: %w", err)
 			}
+			action := "installed"
 
 			if err := writeProfileFile(destPath, content, *force); err != nil {
 				if errors.Is(err, os.ErrExist) {
@@ -274,6 +281,45 @@ Examples:
 	}
 }
 
+func resolveProfileInstallPath(installDir, uuid, preferredExtension string) (string, bool, error) {
+	preferredPath := filepath.Join(installDir, uuid+preferredExtension)
+	alternateExtension := shared.IOSProvisioningProfileExtension
+	if preferredExtension == shared.IOSProvisioningProfileExtension {
+		alternateExtension = shared.MacOSProvisioningProfileExtension
+	}
+	alternatePath := filepath.Join(installDir, uuid+alternateExtension)
+
+	preferredExists, err := profileInstallPathExists(preferredPath)
+	if err != nil {
+		return "", false, err
+	}
+	alternateExists, err := profileInstallPathExists(alternatePath)
+	if err != nil {
+		return "", false, err
+	}
+	if preferredExists && alternateExists {
+		return "", false, fmt.Errorf("duplicate installed profiles exist for UUID %q at %q and %q", uuid, preferredPath, alternatePath)
+	}
+	if preferredExists {
+		return preferredPath, true, nil
+	}
+	if alternateExists {
+		// Preserve an existing legacy filename instead of creating a second file
+		// for the same profile UUID. A later forced install replaces it in place.
+		return alternatePath, true, nil
+	}
+	return preferredPath, false, nil
+}
+
+func profileInstallPathExists(path string) (bool, error) {
+	if _, err := os.Lstat(path); err == nil {
+		return true, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return false, fmt.Errorf("stat output path: %w", err)
+	}
+	return false, nil
+}
+
 // ProfilesLocalListCommand returns the profiles local list subcommand.
 func ProfilesLocalListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
@@ -291,6 +337,8 @@ func ProfilesLocalListCommand() *ffcli.Command {
 		LongHelp: `List locally installed provisioning profiles.
 
 ` + profilesLocalDirectoryHelp + `
+
+` + profilesLocalExtensionHelp + `
 
 Examples:
   asc profiles local list
@@ -372,6 +420,8 @@ func ProfilesLocalCleanCommand() *ffcli.Command {
 		LongHelp: `Clean up locally installed provisioning profiles.
 
 ` + profilesLocalDirectoryHelp + `
+
+` + profilesLocalExtensionHelp + `
 
 Examples:
   asc profiles local clean --expired --dry-run
@@ -533,7 +583,7 @@ func scanLocalProfiles(installDir string, now time.Time) ([]localProfile, []loca
 		if entry.IsDir() {
 			continue
 		}
-		if !strings.HasSuffix(strings.ToLower(entry.Name()), ".mobileprovision") {
+		if !shared.IsProvisioningProfilePath(entry.Name()) {
 			continue
 		}
 

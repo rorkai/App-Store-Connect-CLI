@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"howett.net/plist"
 )
 
 func TestResolveProfilesInstallDirVersionBoundary(t *testing.T) {
@@ -291,5 +294,213 @@ func TestIsExpired(t *testing.T) {
 				t.Fatalf("isExpired(expiresAt=%s, now=%s)=%t, want %t", tt.expiresAt.Format(time.RFC3339Nano), tt.now.Format(time.RFC3339Nano), got, tt.want)
 			}
 		})
+	}
+}
+
+func TestProfilesLocalInstallUsesMacOSProvisioningProfileExtension(t *testing.T) {
+	root := t.TempDir()
+	sourcePath := filepath.Join(root, "downloaded-profile")
+	installDir := filepath.Join(root, "installed")
+	const uuid = "01234567-89ab-cdef-0123-456789abcdef"
+
+	data, err := plist.Marshal(map[string]any{
+		"UUID":                 uuid,
+		"Name":                 "Mac App Store",
+		"TeamIdentifier":       []string{"TEAM123"},
+		"Platform":             []string{"OSX"},
+		"ExpirationDate":       time.Now().Add(time.Hour),
+		"Entitlements":         map[string]any{"application-identifier": "TEAM123.com.example.mac"},
+		"CreationDate":         time.Now().Add(-time.Hour),
+		"ProvisionsAllDevices": false,
+	}, plist.XMLFormat)
+	if err != nil {
+		t.Fatalf("marshal profile fixture: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, data, 0o600); err != nil {
+		t.Fatalf("write profile fixture: %v", err)
+	}
+
+	cmd := ProfilesLocalInstallCommand()
+	if err := cmd.Parse([]string{"--path", sourcePath, "--install-dir", installDir, "--output", "json"}); err != nil {
+		t.Fatalf("parse install flags: %v", err)
+	}
+	if err := cmd.Run(context.Background()); err != nil {
+		t.Fatalf("install macOS profile: %v", err)
+	}
+
+	modernPath := filepath.Join(installDir, uuid+".provisionprofile")
+	if _, err := os.Stat(modernPath); err != nil {
+		t.Fatalf("macOS profile was not installed at %q: %v", modernPath, err)
+	}
+	legacyPath := filepath.Join(installDir, uuid+".mobileprovision")
+	if _, err := os.Stat(legacyPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("macOS profile unexpectedly used legacy path %q (err=%v)", legacyPath, err)
+	}
+}
+
+func TestProfilesLocalInstallDetectsLegacyPathForMacOSProfile(t *testing.T) {
+	root := t.TempDir()
+	installDir := filepath.Join(root, "installed")
+	const uuid = "01234567-89ab-cdef-0123-456789abcdef"
+	legacyPath := filepath.Join(installDir, uuid+".mobileprovision")
+	if err := os.MkdirAll(installDir, 0o755); err != nil {
+		t.Fatalf("create install dir: %v", err)
+	}
+	if err := os.WriteFile(legacyPath, []byte("legacy"), 0o600); err != nil {
+		t.Fatalf("write legacy profile: %v", err)
+	}
+
+	path, exists, err := resolveProfileInstallPath(installDir, uuid, ".provisionprofile")
+	if err != nil {
+		t.Fatalf("resolve install path: %v", err)
+	}
+	if !exists || path != legacyPath {
+		t.Fatalf("resolve install path = (%q, %t), want (%q, true)", path, exists, legacyPath)
+	}
+}
+
+func TestProfilesLocalInstallRejectsDuplicateExtensionsForSameUUID(t *testing.T) {
+	installDir := t.TempDir()
+	const uuid = "01234567-89ab-cdef-0123-456789abcdef"
+	for _, extension := range []string{".mobileprovision", ".provisionprofile"} {
+		if err := os.WriteFile(filepath.Join(installDir, uuid+extension), []byte("profile"), 0o600); err != nil {
+			t.Fatalf("write %s profile: %v", extension, err)
+		}
+	}
+
+	_, _, err := resolveProfileInstallPath(installDir, uuid, ".provisionprofile")
+	if err == nil || !strings.Contains(err.Error(), "duplicate installed profiles") {
+		t.Fatalf("resolve install path error = %v, want duplicate-path error", err)
+	}
+}
+
+func TestProfilesLocalInstallForceReplacesLegacyPathWithoutDuplicate(t *testing.T) {
+	root := t.TempDir()
+	installDir := filepath.Join(root, "installed")
+	sourcePath := filepath.Join(root, "mac.provisionprofile")
+	const uuid = "01234567-89ab-cdef-0123-456789abcdef"
+	data, err := plist.Marshal(map[string]any{
+		"UUID":           uuid,
+		"Name":           "Mac App Store",
+		"TeamIdentifier": []string{"TEAM123"},
+		"Platform":       []string{"OSX"},
+		"ExpirationDate": time.Now().Add(time.Hour),
+		"Entitlements":   map[string]any{"application-identifier": "TEAM123.com.example.mac"},
+	}, plist.XMLFormat)
+	if err != nil {
+		t.Fatalf("marshal profile fixture: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, data, 0o600); err != nil {
+		t.Fatalf("write profile fixture: %v", err)
+	}
+	if err := os.MkdirAll(installDir, 0o755); err != nil {
+		t.Fatalf("create install dir: %v", err)
+	}
+	legacyPath := filepath.Join(installDir, uuid+".mobileprovision")
+	if err := os.WriteFile(legacyPath, []byte("old profile"), 0o600); err != nil {
+		t.Fatalf("write legacy profile: %v", err)
+	}
+
+	cmd := ProfilesLocalInstallCommand()
+	if err := cmd.Parse([]string{"--path", sourcePath, "--install-dir", installDir, "--force", "--output", "json"}); err != nil {
+		t.Fatalf("parse install flags: %v", err)
+	}
+	if err := cmd.Run(context.Background()); err != nil {
+		t.Fatalf("force-install macOS profile over legacy path: %v", err)
+	}
+	got, err := os.ReadFile(legacyPath)
+	if err != nil {
+		t.Fatalf("read replaced legacy profile: %v", err)
+	}
+	if !bytes.Equal(got, data) {
+		t.Fatal("legacy profile path was not replaced with the new profile")
+	}
+	modernPath := filepath.Join(installDir, uuid+".provisionprofile")
+	if _, err := os.Stat(modernPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("force install created duplicate path %q (err=%v)", modernPath, err)
+	}
+}
+
+func TestScanLocalProfilesIncludesBothProfileExtensions(t *testing.T) {
+	installDir := t.TempDir()
+	now := time.Now()
+	fixtures := []struct {
+		name     string
+		platform string
+		expires  time.Time
+	}{
+		{name: "mac.provisionprofile", platform: "OSX", expires: now.Add(time.Hour)},
+		{name: "ios.mobileprovision", platform: "iOS", expires: now.Add(time.Hour)},
+	}
+	for index, fixture := range fixtures {
+		data, err := plist.Marshal(map[string]any{
+			"UUID":           fmt.Sprintf("01234567-89ab-cdef-0123-456789abcde%d", index),
+			"Name":           fixture.name,
+			"TeamIdentifier": []string{"TEAM123"},
+			"Platform":       []string{fixture.platform},
+			"ExpirationDate": fixture.expires,
+			"Entitlements":   map[string]any{"application-identifier": fmt.Sprintf("TEAM123.com.example.%d", index)},
+		}, plist.XMLFormat)
+		if err != nil {
+			t.Fatalf("marshal %s: %v", fixture.name, err)
+		}
+		if err := os.WriteFile(filepath.Join(installDir, fixture.name), data, 0o600); err != nil {
+			t.Fatalf("write %s: %v", fixture.name, err)
+		}
+	}
+
+	items, skipped, err := scanLocalProfiles(installDir, now)
+	if err != nil {
+		t.Fatalf("scan local profiles: %v", err)
+	}
+	if len(skipped) != 0 {
+		t.Fatalf("scan skipped valid profiles: %#v", skipped)
+	}
+	if len(items) != len(fixtures) {
+		t.Fatalf("scan returned %d profiles, want %d: %#v", len(items), len(fixtures), items)
+	}
+	paths := map[string]bool{}
+	for _, item := range items {
+		paths[filepath.Base(item.Path)] = true
+	}
+	for _, fixture := range fixtures {
+		if !paths[fixture.name] {
+			t.Fatalf("scan did not return %s: %#v", fixture.name, items)
+		}
+	}
+}
+
+func TestProfilesLocalCleanRemovesExpiredMacOSProfile(t *testing.T) {
+	root := t.TempDir()
+	installDir := filepath.Join(root, "installed")
+	const uuid = "01234567-89ab-cdef-0123-456789abcdef"
+	data, err := plist.Marshal(map[string]any{
+		"UUID":           uuid,
+		"Name":           "Expired Mac App Store",
+		"TeamIdentifier": []string{"TEAM123"},
+		"Platform":       []string{"OSX"},
+		"ExpirationDate": time.Now().Add(-time.Hour),
+		"Entitlements":   map[string]any{"application-identifier": "TEAM123.com.example.mac"},
+	}, plist.XMLFormat)
+	if err != nil {
+		t.Fatalf("marshal profile fixture: %v", err)
+	}
+	profilePath := filepath.Join(installDir, uuid+".provisionprofile")
+	if err := os.MkdirAll(installDir, 0o755); err != nil {
+		t.Fatalf("create install dir: %v", err)
+	}
+	if err := os.WriteFile(profilePath, data, 0o600); err != nil {
+		t.Fatalf("write profile fixture: %v", err)
+	}
+
+	cmd := ProfilesLocalCleanCommand()
+	if err := cmd.Parse([]string{"--install-dir", installDir, "--expired", "--confirm", "--output", "json"}); err != nil {
+		t.Fatalf("parse clean flags: %v", err)
+	}
+	if err := cmd.Run(context.Background()); err != nil {
+		t.Fatalf("clean expired macOS profile: %v", err)
+	}
+	if _, err := os.Stat(profilePath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expired macOS profile still exists (err=%v)", err)
 	}
 }

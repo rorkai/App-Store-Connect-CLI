@@ -23,6 +23,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/infoplist"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
 )
 
 var (
@@ -425,23 +426,40 @@ func Validate(ctx context.Context, opts ValidateOptions) (*ValidateResult, error
 	}
 	artifactPath := opts.IPAPath
 	artifactFlag := "--ipa"
+	artifactName := "IPA"
 	platform := ""
 	if opts.PKGPath != "" {
 		artifactPath = opts.PKGPath
 		artifactFlag = "--pkg"
+		artifactName = "PKG"
 		platform = "macos"
 	}
-	if err := validateExistingFile(artifactPath, artifactFlag); err != nil {
+	validatedArtifact, _, err := secureopen.OpenExistingRegularFileNoFollow(artifactPath, artifactName, artifactFlag)
+	if err != nil {
 		return nil, err
 	}
+	defer validatedArtifact.Close()
+	validatedInfo, err := validatedArtifact.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("inspect validated %s: %w", artifactName, err)
+	}
+	snapshotPath, cleanupSnapshot, err := snapshotValidationArtifact(ctx, validatedArtifact, validatedInfo.Size(), strings.ToLower(filepath.Ext(artifactPath)))
+	if err != nil {
+		return nil, fmt.Errorf("prepare %s for validation: %w", artifactName, err)
+	}
+	defer cleanupSnapshot()
+	snapshotArtifact, snapshotInfo, err := secureopen.OpenExistingRegularFileNoFollow(snapshotPath, artifactName+" validation snapshot", artifactFlag)
+	if err != nil {
+		return nil, fmt.Errorf("open %s validation snapshot: %w", artifactName, err)
+	}
+	defer snapshotArtifact.Close()
 	if platform == "" {
-		var err error
-		platform, err = inferValidatePlatform(opts.IPAPath)
+		platform, err = inferValidatePlatformFromFile(snapshotArtifact, snapshotInfo.Size())
 		if err != nil {
 			return nil, err
 		}
 	}
-	if err := runAltoolValidate(ctx, buildValidateCommand(opts, platform), opts.LogWriter); err != nil {
+	if err := runAltoolValidate(ctx, buildValidateCommand(opts, platform, snapshotPath), opts.LogWriter); err != nil {
 		return nil, err
 	}
 	return &ValidateResult{
@@ -846,8 +864,8 @@ func buildExportCommand(opts ExportOptions, exportDir string) []string {
 	return args
 }
 
-func inferValidatePlatform(ipaPath string) (string, error) {
-	info, err := readIPABundleInfo(ipaPath)
+func inferValidatePlatformFromFile(ipa *os.File, size int64) (string, error) {
+	info, err := readIPABundleInfoFromReaderAt(ipa, size)
 	if err != nil {
 		return "", fmt.Errorf("inspect IPA metadata before validation: %w", err)
 	}
@@ -857,13 +875,9 @@ func inferValidatePlatform(ipaPath string) (string, error) {
 	return "ios", nil
 }
 
-func buildValidateCommand(opts ValidateOptions, platform string) []string {
+func buildValidateCommand(opts ValidateOptions, platform, artifactPath string) []string {
 	if strings.TrimSpace(platform) == "" {
 		platform = "ios"
-	}
-	artifactPath := opts.IPAPath
-	if opts.PKGPath != "" {
-		artifactPath = opts.PKGPath
 	}
 	args := []string{
 		"altool",

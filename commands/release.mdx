@@ -21,7 +21,7 @@ asc release <subcommand> [flags]
 
 Run a deterministic pre-submit staging pipeline:
 
-1. Verify `--build-id` exists and belongs to `--app`
+1. Verify `--build-id` exists, belongs to `--app`, and matches `--platform`
 2. Ensure or create the version
 3. Apply metadata/localizations or copy from another version
 4. Reconcile routing app coverage when `--routing-coverage-file` is set

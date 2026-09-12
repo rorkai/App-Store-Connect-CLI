@@ -74,3 +74,71 @@ func TestClassifySigningProfileArtifactRejectsIncompleteMetadata(t *testing.T) {
 		t.Fatalf("error = %v, want incomplete metadata refusal", err)
 	}
 }
+
+func TestValidateSigningProfileArtifactMetadataAcceptsMacOSExtension(t *testing.T) {
+	for _, path := range []string{
+		"profiles/appstore/profile.provisionprofile",
+		"profiles/appstore/profile.mobileprovision",
+	} {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			err := validateSigningProfileArtifactMetadata(path, signingpkg.EncryptedFileMetadata{
+				Version:           1,
+				Kind:              signingProfileArtifactKind,
+				BundleID:          "com.example.mac",
+				ProfileType:       "MAC_APP_STORE",
+				ProfileResourceID: "profile-1",
+			})
+			if err != nil {
+				t.Fatalf("validateSigningProfileArtifactMetadata(%q): %v", path, err)
+			}
+		})
+	}
+}
+
+func TestResolveCompatibleSigningProfilePathPreservesLegacyMacOSArtifact(t *testing.T) {
+	const password = "repository-password"
+	preferred := filepath.Join("profiles", "appstore", "profile.provisionprofile")
+	legacy := filepath.Join("profiles", "appstore", "profile.mobileprovision")
+
+	t.Run("legacy only", func(t *testing.T) {
+		store := &signingpkg.GitStore{LocalDir: t.TempDir()}
+		if err := store.WriteEncryptedFile(legacy, []byte("profile"), password); err != nil {
+			t.Fatal(err)
+		}
+		got, err := resolveCompatibleSigningProfilePath(store, preferred)
+		if err != nil || got != legacy {
+			t.Fatalf("path = %q, error = %v, want legacy path %q", got, err, legacy)
+		}
+	})
+
+	t.Run("preferred only", func(t *testing.T) {
+		store := &signingpkg.GitStore{LocalDir: t.TempDir()}
+		if err := store.WriteEncryptedFile(preferred, []byte("profile"), password); err != nil {
+			t.Fatal(err)
+		}
+		got, err := resolveCompatibleSigningProfilePath(store, preferred)
+		if err != nil || got != preferred {
+			t.Fatalf("path = %q, error = %v, want preferred path %q", got, err, preferred)
+		}
+	})
+
+	t.Run("both spellings", func(t *testing.T) {
+		store := &signingpkg.GitStore{LocalDir: t.TempDir()}
+		for _, path := range []string{legacy, preferred} {
+			if err := store.WriteEncryptedFile(path, []byte("profile"), password); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, err := resolveCompatibleSigningProfilePath(store, preferred); err == nil || !strings.Contains(err.Error(), "exists at both") {
+			t.Fatalf("error = %v, want ambiguous repository refusal", err)
+		}
+	})
+
+	t.Run("iOS path is unchanged", func(t *testing.T) {
+		store := &signingpkg.GitStore{LocalDir: t.TempDir()}
+		got, err := resolveCompatibleSigningProfilePath(store, legacy)
+		if err != nil || got != legacy {
+			t.Fatalf("path = %q, error = %v, want %q", got, err, legacy)
+		}
+	})
+}

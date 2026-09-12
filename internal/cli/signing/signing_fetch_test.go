@@ -298,7 +298,7 @@ func TestSigningFetchFormatUsesSharedOutputDefault(t *testing.T) {
 
 func TestSigningOutputPathsCoverProfileAndCertificateFiles(t *testing.T) {
 	dir := filepath.Join("tmp", "signing")
-	paths := signingOutputPaths(dir, "Created Profile", "profile-created", []asc.Resource[asc.CertificateAttributes]{
+	paths := signingOutputPaths(dir, "Created Profile", "profile-created", "IOS_APP_STORE", []asc.Resource[asc.CertificateAttributes]{
 		{ID: "cert-1", Attributes: asc.CertificateAttributes{SerialNumber: "CERT1"}},
 		{ID: "cert-2", Attributes: asc.CertificateAttributes{}},
 	})
@@ -310,6 +310,12 @@ func TestSigningOutputPathsCoverProfileAndCertificateFiles(t *testing.T) {
 	}
 	if strings.Join(paths, ",") != strings.Join(want, ",") {
 		t.Fatalf("signingOutputPaths() = %v, want %v", paths, want)
+	}
+
+	macPaths := signingOutputPaths(dir, "Created Profile", "profile-created", "MAC_APP_STORE", nil)
+	macWant := []string{filepath.Join(dir, "Created Profile.provisionprofile")}
+	if strings.Join(macPaths, ",") != strings.Join(macWant, ",") {
+		t.Fatalf("signingOutputPaths() for macOS = %v, want %v", macPaths, macWant)
 	}
 }
 

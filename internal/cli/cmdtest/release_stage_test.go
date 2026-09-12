@@ -79,6 +79,8 @@ func TestReleaseStage_DryRunCopyMetadataFromVersion(t *testing.T) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123/relationships/app":
 			body = `{"data":{"type":"apps","id":"APP_123"}}`
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123/preReleaseVersion":
+			body = `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"1.2.3","platform":"IOS"}}}`
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/APP_123/appStoreVersions":
 			body = `{"data":[]}`
 		default:
@@ -130,8 +132,8 @@ func TestReleaseStage_DryRunCopyMetadataFromVersion(t *testing.T) {
 	if !strings.Contains(stdout, `"name":"validate_build","status":"dry-run"`) {
 		t.Fatalf("expected the build precondition check in the plan, got %q", stdout)
 	}
-	if requestCount != 2 {
-		t.Fatalf("expected the build check and the version lookup, got %d requests", requestCount)
+	if requestCount != 3 {
+		t.Fatalf("expected the build ownership and platform checks plus the version lookup, got %d requests", requestCount)
 	}
 }
 
@@ -153,6 +155,8 @@ func TestReleaseStage_ResolvesTrimmedCheckpointFile(t *testing.T) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123/relationships/app":
 			body = `{"data":{"type":"apps","id":"APP_123"}}`
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/BUILD_123/preReleaseVersion":
+			body = `{"data":{"type":"preReleaseVersions","id":"PRE_RELEASE_123","attributes":{"version":"1.2.3","platform":"IOS"}}}`
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/APP_123/appStoreVersions":
 			body = `{"data":[]}`
 		default:

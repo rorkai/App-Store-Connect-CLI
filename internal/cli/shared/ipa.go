@@ -12,6 +12,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/infoplist"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
 )
 
 type IPABundleInfo struct {
@@ -46,65 +47,13 @@ func ValidatePKGPath(pkgPath string) (os.FileInfo, error) {
 // OpenValidatedIPAPath opens and validates an IPA without following a symlink.
 // The returned handle pins the validated file across the upload lifecycle.
 func OpenValidatedIPAPath(ipaPath string) (*os.File, os.FileInfo, error) {
-	return openValidatedBuildArtifactPath(ipaPath, "IPA", "--ipa")
+	return secureopen.OpenExistingRegularFileNoFollow(ipaPath, "IPA", "--ipa")
 }
 
 // OpenValidatedPKGPath opens and validates a PKG without following a symlink.
 // The returned handle pins the validated file across the upload lifecycle.
 func OpenValidatedPKGPath(pkgPath string) (*os.File, os.FileInfo, error) {
-	return openValidatedBuildArtifactPath(pkgPath, "PKG", "--pkg")
-}
-
-func openValidatedBuildArtifactPath(filePath, artifactName, flagName string) (*os.File, os.FileInfo, error) {
-	pathInfo, err := os.Lstat(filePath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to stat %s: %w", artifactName, err)
-	}
-	if pathInfo.Mode()&os.ModeSymlink != 0 {
-		return nil, nil, buildArtifactSymlinkError(filePath, flagName)
-	}
-	if err := validateBuildArtifactInfo(pathInfo, flagName); err != nil {
-		return nil, nil, err
-	}
-
-	file, err := OpenExistingNoFollow(filePath)
-	if err != nil {
-		if latestInfo, statErr := os.Lstat(filePath); statErr == nil && latestInfo.Mode()&os.ModeSymlink != 0 {
-			return nil, nil, buildArtifactSymlinkError(filePath, flagName)
-		}
-		return nil, nil, fmt.Errorf("failed to open %s: %w", artifactName, err)
-	}
-	fileInfo, err := file.Stat()
-	if err != nil {
-		_ = file.Close()
-		return nil, nil, fmt.Errorf("failed to stat opened %s: %w", artifactName, err)
-	}
-	if !os.SameFile(pathInfo, fileInfo) {
-		_ = file.Close()
-		return nil, nil, fmt.Errorf("%s changed while being opened", flagName)
-	}
-	if err := validateBuildArtifactInfo(fileInfo, flagName); err != nil {
-		_ = file.Close()
-		return nil, nil, err
-	}
-	return file, fileInfo, nil
-}
-
-func validateBuildArtifactInfo(fileInfo os.FileInfo, flagName string) error {
-	if fileInfo.IsDir() {
-		return fmt.Errorf("%s must be a file", flagName)
-	}
-	if !fileInfo.Mode().IsRegular() {
-		return fmt.Errorf("%s must be a regular file", flagName)
-	}
-	if fileInfo.Size() == 0 {
-		return fmt.Errorf("%s must not be empty", flagName)
-	}
-	return nil
-}
-
-func buildArtifactSymlinkError(filePath, flagName string) error {
-	return fmt.Errorf("refusing to read symlink %q from %s", filePath, flagName)
+	return secureopen.OpenExistingRegularFileNoFollow(pkgPath, "PKG", "--pkg")
 }
 
 // ExtractBundleInfoFromIPA reads the top-level app's bundle identifier and

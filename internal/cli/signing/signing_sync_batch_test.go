@@ -31,6 +31,40 @@ func TestSigningSyncBatchProfilePathIsTargetScoped(t *testing.T) {
 	if got != want {
 		t.Fatalf("signingSyncBatchProfilePath() = %q, want %q", got, want)
 	}
+
+	macGot := signingSyncBatchProfilePath("com.example.mac", "MAC_APP_STORE", "profile-123")
+	macWant := filepath.Join("profiles", "appstore", "com.example.mac--profile-123.provisionprofile")
+	if macGot != macWant {
+		t.Fatalf("signingSyncBatchProfilePath() for macOS = %q, want %q", macGot, macWant)
+	}
+}
+
+func TestPrepareSigningSyncBatchFilesReusesLegacyMacOSProfilePath(t *testing.T) {
+	store := &signingpkg.GitStore{LocalDir: t.TempDir()}
+	const password = "repository-password"
+	legacyPath := filepath.Join("profiles", "appstore", "com.example.mac--profile-123.mobileprovision")
+	if err := store.WriteEncryptedFile(legacyPath, []byte("old-profile"), password); err != nil {
+		t.Fatal(err)
+	}
+	targets := []signingSyncBatchTarget{{
+		BundleID:    "com.example.mac",
+		ProfileType: "MAC_APP_STORE",
+		Profile: &asc.ProfileResponse{Data: asc.Resource[asc.ProfileAttributes]{
+			ID: "profile-123",
+			Attributes: asc.ProfileAttributes{
+				ProfileType:    "MAC_APP_STORE",
+				ProfileContent: base64.StdEncoding.EncodeToString([]byte("new-profile")),
+			},
+		}},
+	}}
+
+	files, _, err := prepareSigningSyncBatchFiles(store, targets, nil, password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || files[0].RelativePath != legacyPath || targets[0].ProfilePath != legacyPath {
+		t.Fatalf("files = %#v, target path = %q, want legacy path %q", files, targets[0].ProfilePath, legacyPath)
+	}
 }
 
 func TestProfileCreateNameForTargetAcceptsOperationDateBoundary(t *testing.T) {

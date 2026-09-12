@@ -61,6 +61,9 @@ Fetches signing assets from App Store Connect, encrypts them, and stores them
 in a shared git repository. Team members and CI workers can pull and decrypt
 the same verified signing files.
 
+Native macOS profile types use .provisionprofile paths; iOS and tvOS profile
+types retain .mobileprovision. Existing legacy profile paths remain readable.
+
 Examples:
   asc signing sync push --bundle-id com.example.app --profile-type IOS_APP_STORE \
     --repo git@github.com:team/certs.git --password-file ~/.config/asc/signing-sync-password
@@ -331,11 +334,17 @@ func syncPushCommand() *ffcli.Command {
 								return err
 							}
 						}
-						plannedPaths := signingAssetRepositoryPaths(plan.Certificates, profType, plan.ProfileName, "profile", identityArtifacts)
+						profileExtension := shared.ProvisioningProfileExtension("", profType)
+						preferredProfilePath := filepath.Join("profiles", profileDirectoryName(profType), safeFileName(plan.ProfileName, "profile")+profileExtension)
+						profilePath, err := resolveCompatibleSigningProfilePath(store, preferredProfilePath)
+						if err != nil {
+							return err
+						}
+						plannedPaths := signingAssetRepositoryPathsForProfile(plan.Certificates, profType, profilePath, identityArtifacts)
 						if err := store.CheckEncryptedRepositoryPaths(plannedPaths); err != nil {
 							return err
 						}
-						if err := preflightSigningAssetDestinations(store, plan, profType); err != nil {
+						if err := preflightSigningAssetDestinationsForProfile(store, plan, profType, profilePath); err != nil {
 							return err
 						}
 						if identity != nil {
@@ -370,7 +379,12 @@ func syncPushCommand() *ffcli.Command {
 				return fmt.Errorf("signing sync push: decode profile: %w", err)
 			}
 			profileDir := profileDirectoryName(profType)
-			profileRelPath := filepath.Join("profiles", profileDir, safeFileName(profile.Data.Attributes.Name, profile.Data.ID)+".mobileprovision")
+			profileExtension := shared.ProvisioningProfileExtension(string(profile.Data.Attributes.Platform), profType)
+			profileRelPath := filepath.Join("profiles", profileDir, safeFileName(profile.Data.Attributes.Name, profile.Data.ID)+profileExtension)
+			profileRelPath, err = resolveCompatibleSigningProfilePath(store, profileRelPath)
+			if err != nil {
+				return fmt.Errorf("signing sync push: resolve profile repository path: %w", err)
+			}
 			profileMetadata, err := signingProfileArtifactMetadata(profile, bundle, profType)
 			if err != nil {
 				return fmt.Errorf("signing sync push: prepare profile metadata: %w", err)
@@ -386,7 +400,7 @@ func syncPushCommand() *ffcli.Command {
 					return fmt.Errorf("signing sync push: bind signing identity profile: %w", err)
 				}
 			}
-			plannedPaths := signingAssetRepositoryPaths(certs.Data, profType, profile.Data.Attributes.Name, profile.Data.ID, identityArtifacts)
+			plannedPaths := signingAssetRepositoryPathsForProfile(certs.Data, profType, profileRelPath, identityArtifacts)
 			if err := store.CheckEncryptedRepositoryPaths(plannedPaths); err != nil {
 				return fmt.Errorf("signing sync push: preflight repository paths: %w", err)
 			}
