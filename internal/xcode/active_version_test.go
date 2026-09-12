@@ -46,6 +46,11 @@ func TestParseActiveXcodeMajorVersion(t *testing.T) {
 func TestActiveXcodeMajorVersionIncludesCommandDiagnostic(t *testing.T) {
 	originalCommandContext := commandContextFn
 	t.Cleanup(func() { commandContextFn = originalCommandContext })
+	originalTrustedXcodeToolPath := trustedXcodeToolPathFn
+	trustedXcodeToolPathFn = func(context.Context, string, []string) (string, error) {
+		return "/usr/bin/xcodebuild", nil
+	}
+	t.Cleanup(func() { trustedXcodeToolPathFn = originalTrustedXcodeToolPath })
 	commandContextFn = func(ctx context.Context, _ string, _ ...string) *exec.Cmd {
 		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestActiveXcodeVersionHelperProcess")
 		cmd.Env = append(os.Environ(), "GO_WANT_ACTIVE_XCODE_VERSION_HELPER=error")

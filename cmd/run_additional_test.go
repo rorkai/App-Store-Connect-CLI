@@ -31,6 +31,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/config"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/telemetry"
+	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 )
 
 func TestRun_VersionFlag(t *testing.T) {
@@ -3382,7 +3383,11 @@ func TestRunXcodeTestWritesStructuredJUnitReport(t *testing.T) {
 	}
 	resetReportFlags(t)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
-	binDir := t.TempDir()
+	developerDir := filepath.Join(t.TempDir(), "Xcode.app", "Contents", "Developer")
+	binDir := filepath.Join(developerDir, "usr", "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll() fake developer directory error: %v", err)
+	}
 	xcodebuildPath := filepath.Join(binDir, "xcodebuild")
 	xcodebuildScript := `#!/bin/sh
 if [ "$1" = "-version" ]; then
@@ -3407,18 +3412,23 @@ exit 0
 	if err := os.WriteFile(xcodebuildPath, []byte(xcodebuildScript), 0o755); err != nil {
 		t.Fatalf("WriteFile() xcodebuild error: %v", err)
 	}
-	xcrunPath := filepath.Join(binDir, "xcrun")
+	fakeXcrun := filepath.Join(t.TempDir(), "xcrun")
 	xcrunScript := `#!/bin/sh
+if [ "$1" = "--find" ] && [ "$2" = "xcodebuild" ]; then
+  printf '%s\n' "$DEVELOPER_DIR/usr/bin/xcodebuild"
+  exit 0
+fi
 if [ "$4" = "summary" ]; then
   printf '%s\n' '{"totalTestCount":1,"passedTests":1,"failedTests":0,"skippedTests":0,"testFailures":[]}'
 else
   printf '%s\n' '{"testNodes":[{"nodeType":"Test Plan","children":[{"nodeType":"Unit test bundle","children":[{"nodeType":"Test Suite","children":[{"nodeType":"Test Case","nodeIdentifier":"DemoTests/Smoke/testPass","name":"testPass","result":"Passed","duration":"0.25"}]}]}]}]}'
 fi
 `
-	if err := os.WriteFile(xcrunPath, []byte(xcrunScript), 0o755); err != nil {
-		t.Fatalf("WriteFile() xcrun error: %v", err)
+	if err := os.WriteFile(fakeXcrun, []byte(xcrunScript), 0o700); err != nil {
+		t.Fatalf("WriteFile() fake trusted xcrun error: %v", err)
 	}
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Cleanup(localxcode.OverrideTrustedXcrunPathForTesting(fakeXcrun))
+	t.Setenv("DEVELOPER_DIR", developerDir)
 	projectPath := filepath.Join(t.TempDir(), "Demo.xcodeproj")
 	if err := os.Mkdir(projectPath, 0o755); err != nil {
 		t.Fatalf("Mkdir() project error: %v", err)

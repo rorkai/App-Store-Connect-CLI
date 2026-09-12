@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	localxcode "github.com/rudrankriyam/App-Store-Connect-CLI/internal/xcode"
 )
 
 func TestProfilesLocalDefaultFallsBackWhenXcodeDiscoveryFails(t *testing.T) {
@@ -13,13 +15,23 @@ func TestProfilesLocalDefaultFallsBackWhenXcodeDiscoveryFails(t *testing.T) {
 		t.Skip("active Xcode profile directory is macOS-specific")
 	}
 
-	binDir := t.TempDir()
+	developerDir := filepath.Join(t.TempDir(), "Xcode.app", "Contents", "Developer")
+	binDir := filepath.Join(developerDir, "usr", "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatalf("create fake developer directory: %v", err)
+	}
 	xcodebuildPath := filepath.Join(binDir, "xcodebuild")
 	script := "#!/bin/sh\nprintf 'xcode-select: active developer directory is a command line tools instance\\n' >&2\nexit 1\n"
 	if err := os.WriteFile(xcodebuildPath, []byte(script), 0o755); err != nil {
 		t.Fatalf("write fake xcodebuild: %v", err)
 	}
-	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	fakeXcrun := filepath.Join(t.TempDir(), "xcrun")
+	xcrunScript := "#!/bin/sh\nif [ \"$1\" = \"--find\" ] && [ \"$2\" = \"xcodebuild\" ]; then\n  printf '%s\\n' \"$DEVELOPER_DIR/usr/bin/xcodebuild\"\n  exit 0\nfi\nexit 2\n"
+	if err := os.WriteFile(fakeXcrun, []byte(xcrunScript), 0o700); err != nil {
+		t.Fatalf("write fake trusted xcrun: %v", err)
+	}
+	t.Cleanup(localxcode.OverrideTrustedXcrunPathForTesting(fakeXcrun))
+	t.Setenv("DEVELOPER_DIR", developerDir)
 	homeDir := t.TempDir()
 	t.Setenv("HOME", homeDir)
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")

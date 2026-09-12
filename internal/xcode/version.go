@@ -229,7 +229,7 @@ func getVersionLegacy(
 	if err := requireMacOS(); err != nil {
 		return nil, err
 	}
-	if err := requireAgvtool(); err != nil {
+	if err := requireAgvtool(ctx); err != nil {
 		return nil, err
 	}
 
@@ -328,11 +328,11 @@ func ValidateSetVersion(opts SetVersionOptions) error {
 	if strings.TrimSpace(opts.Target) != "" || strings.TrimSpace(opts.Configuration) != "" {
 		return fmt.Errorf("scoped edits require structured Xcode build settings: %w", structuredErr)
 	}
-	return validateSetVersionLegacy()
+	return validateSetVersionLegacy(context.Background())
 }
 
 func setVersionLegacy(ctx context.Context, opts SetVersionOptions) (*SetVersionResult, error) {
-	if err := validateSetVersionLegacy(); err != nil {
+	if err := validateSetVersionLegacy(ctx); err != nil {
 		return nil, err
 	}
 	if strings.TrimSpace(opts.Target) != "" {
@@ -358,11 +358,11 @@ func setVersionLegacy(ctx context.Context, opts SetVersionOptions) (*SetVersionR
 	return result, nil
 }
 
-func validateSetVersionLegacy() error {
+func validateSetVersionLegacy(ctx context.Context) error {
 	if err := requireMacOS(); err != nil {
 		return err
 	}
-	return requireAgvtool()
+	return requireAgvtool(ctx)
 }
 
 func attachBuildSettingsLookupSession(opts *BumpVersionOptions) error {
@@ -444,7 +444,7 @@ func ValidateBumpVersion(ctx context.Context, opts BumpVersionOptions) error {
 	if strings.TrimSpace(opts.Target) != "" || strings.TrimSpace(opts.Configuration) != "" {
 		return fmt.Errorf("scoped bumps require structured Xcode build settings: %w", structuredErr)
 	}
-	if err := validateSetVersionLegacy(); err != nil {
+	if err := validateSetVersionLegacy(ctx); err != nil {
 		return err
 	}
 	current, err := getVersionLegacy(ctx, opts.ProjectDir, "", opts.BuildSettingsSession)
@@ -542,7 +542,7 @@ func bumpVersionLegacy(ctx context.Context, opts BumpVersionOptions) (*BumpVersi
 	if err := requireMacOS(); err != nil {
 		return nil, err
 	}
-	if err := requireAgvtool(); err != nil {
+	if err := requireAgvtool(ctx); err != nil {
 		return nil, err
 	}
 	trimmedTarget := strings.TrimSpace(opts.Target)
@@ -600,16 +600,25 @@ func requireMacOS() error {
 	return nil
 }
 
-func requireAgvtool() error {
-	_, err := lookPathFn("agvtool")
+func requireAgvtool(ctx context.Context) error {
+	_, err := trustedXcodeToolPathFn(ctx, "agvtool", nil)
 	if err != nil {
+		if contextErr := contextError(ctx); contextErr != nil {
+			return contextErr
+		}
+		if !isTrustedXcodeToolUnavailable(err, "agvtool") {
+			return fmt.Errorf("resolve agvtool: %w", err)
+		}
 		return fmt.Errorf("agvtool not found: install Xcode command-line tools")
 	}
 	return nil
 }
 
 func runAgvtool(ctx context.Context, projectDir string, args ...string) (string, error) {
-	cmd := commandContextFn(ctx, "agvtool", args...)
+	cmd, err := trustedXcodeCommand(ctx, "agvtool", args, nil)
+	if err != nil {
+		return "", err
+	}
 	cmd.Dir = resolvedProjectDir(projectDir)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -663,7 +672,10 @@ func readBuildSettings(
 		}
 		lookupSession.warned = true
 	}
-	cmd := commandContextFn(ctx, "xcodebuild", args...)
+	cmd, err := trustedXcodeCommand(ctx, "xcodebuild", args, nil)
+	if err != nil {
+		return nil, err
+	}
 	cmd.Dir = resolvedProjectDir(projectDir)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

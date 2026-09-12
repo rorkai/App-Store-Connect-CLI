@@ -676,8 +676,8 @@ func findXctestrunPath(derivedDataPath string) string {
 }
 
 func readTestResultSummary(ctx context.Context, resultBundlePath string) (*TestSummary, error) {
-	if _, err := lookPathFn("xcrun"); err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
+	if _, err := trustedXcodeToolPathFn(ctx, "xcrun", nil); err != nil {
+		if isTrustedXcodeToolUnavailable(err, "xcrun") {
 			return nil, fmt.Errorf("xcrun not available; install Xcode and ensure the active developer directory is configured")
 		}
 		return nil, fmt.Errorf("locate xcrun: %w", err)
@@ -726,14 +726,17 @@ func runXcresulttoolJSON(ctx context.Context, operation, resultBundlePath string
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	cmd := commandContextFn(ctx, "xcrun", "xcresulttool", "get", "test-results", operation, "--path", resultBundlePath, "--compact")
+	cmd, err := trustedXcodeCommand(ctx, "xcrun", []string{"xcresulttool", "get", "test-results", operation, "--path", resultBundlePath, "--compact"}, nil)
+	if err != nil {
+		return nil, err
+	}
 	var output boundedXcresulttoolOutput
 	output.limit = maxXcresulttoolOutputBytes
 	var diagnostics boundedXcresulttoolOutput
 	diagnostics.limit = maxXcresulttoolDiagnosticBytes
 	cmd.Stdout = &output
 	cmd.Stderr = &diagnostics
-	err := runXcodeCommand(cmd)
+	err = runXcodeCommand(cmd)
 	if output.exceeded {
 		if err != nil {
 			err = fmt.Errorf("xcresulttool %s output exceeds %d bytes: %w", operation, maxXcresulttoolOutputBytes, err)

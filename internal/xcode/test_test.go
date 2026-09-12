@@ -18,6 +18,15 @@ import (
 	"unicode/utf8"
 )
 
+func useLookPathAsTrustedResolver(t *testing.T) {
+	t.Helper()
+	previous := trustedXcodeToolPathFn
+	trustedXcodeToolPathFn = func(_ context.Context, tool string, _ []string) (string, error) {
+		return lookPathFn(tool)
+	}
+	t.Cleanup(func() { trustedXcodeToolPathFn = previous })
+}
+
 func TestValidateTestOptions(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -580,6 +589,7 @@ func TestParseTestResultSummaryRejectsInvalidExpectedFailureCounts(t *testing.T)
 func TestReadTestResultSummaryBoundsMergedCaseFailures(t *testing.T) {
 	originalLookPath := lookPathFn
 	originalCommandContext := commandContextFn
+	useLookPathAsTrustedResolver(t)
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
 		commandContextFn = originalCommandContext
@@ -923,6 +933,7 @@ func TestSetTestExitStatusLeavesSignalsWithoutStatus(t *testing.T) {
 func TestReadTestResultSummaryUsesCurrentXcodeOperations(t *testing.T) {
 	originalLookPath := lookPathFn
 	originalCommandContext := commandContextFn
+	useLookPathAsTrustedResolver(t)
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
 		commandContextFn = originalCommandContext
@@ -948,7 +959,7 @@ func TestReadTestResultSummaryUsesCurrentXcodeOperations(t *testing.T) {
 	if len(commands) != 2 {
 		t.Fatalf("xcresulttool command count = %d, want 2", len(commands))
 	}
-	wantPrefix := []string{"xcrun", "xcresulttool", "get", "test-results", "summary", "--path", "/tmp/Demo.xcresult", "--compact"}
+	wantPrefix := []string{"/usr/bin/xcrun", "xcresulttool", "get", "test-results", "summary", "--path", "/tmp/Demo.xcresult", "--compact"}
 	if !reflect.DeepEqual(commands[0], wantPrefix) {
 		t.Fatalf("summary command = %#v, want %#v", commands[0], wantPrefix)
 	}
@@ -960,6 +971,7 @@ func TestReadTestResultSummaryUsesCurrentXcodeOperations(t *testing.T) {
 func TestReadTestResultSummaryRetainsAggregateWhenCaseEnrichmentFails(t *testing.T) {
 	originalLookPath := lookPathFn
 	originalCommandContext := commandContextFn
+	useLookPathAsTrustedResolver(t)
 	t.Cleanup(func() {
 		lookPathFn = originalLookPath
 		commandContextFn = originalCommandContext
@@ -993,6 +1005,7 @@ func TestTestRunsActionAndParsesResult(t *testing.T) {
 	originalCommandContext := commandContextFn
 	originalRun := runXcodeTestCommand
 	originalRead := readTestResultSummaryFn
+	useLookPathAsTrustedResolver(t)
 	t.Cleanup(func() {
 		runtimeGOOS = originalRuntimeGOOS
 		lookPathFn = originalLookPath
@@ -1056,6 +1069,7 @@ func TestTestRejectsFailedPostProcessingSummary(t *testing.T) {
 	originalCommandContext := commandContextFn
 	originalRun := runXcodeTestCommand
 	originalRead := readTestResultSummaryFn
+	useLookPathAsTrustedResolver(t)
 	t.Cleanup(func() {
 		runtimeGOOS = originalRuntimeGOOS
 		lookPathFn = originalLookPath
@@ -1124,6 +1138,7 @@ func TestTestRejectsResultBundleSymlinkCreatedAfterPreflight(t *testing.T) {
 	originalCommandContext := commandContextFn
 	originalRun := runXcodeTestCommand
 	originalRead := readTestResultSummaryFn
+	useLookPathAsTrustedResolver(t)
 	t.Cleanup(func() {
 		runtimeGOOS = originalRuntimeGOOS
 		lookPathFn = originalLookPath
@@ -1172,6 +1187,7 @@ func TestTestPreservesProcessFailureAndPartialSummary(t *testing.T) {
 	originalCommandContext := commandContextFn
 	originalRun := runXcodeTestCommand
 	originalRead := readTestResultSummaryFn
+	useLookPathAsTrustedResolver(t)
 	t.Cleanup(func() {
 		runtimeGOOS = originalRuntimeGOOS
 		lookPathFn = originalLookPath
@@ -1221,6 +1237,7 @@ func TestTestRecoversPartialSummaryWithFreshPostProcessingContextAfterCancellati
 	originalCommandContext := commandContextFn
 	originalRun := runXcodeTestCommand
 	originalRead := readTestResultSummaryFn
+	useLookPathAsTrustedResolver(t)
 	t.Cleanup(func() {
 		runtimeGOOS = originalRuntimeGOOS
 		lookPathFn = originalLookPath
@@ -1292,6 +1309,7 @@ func TestTestOmitsExitStatusForContextCancellation(t *testing.T) {
 	originalLookPath := lookPathFn
 	originalCommandContext := commandContextFn
 	originalRun := runXcodeTestCommand
+	useLookPathAsTrustedResolver(t)
 	t.Cleanup(func() {
 		runtimeGOOS = originalRuntimeGOOS
 		lookPathFn = originalLookPath
@@ -1341,6 +1359,7 @@ func TestTestOmitsExitStatusForResultPostProcessingFailure(t *testing.T) {
 	originalCommandContext := commandContextFn
 	originalRun := runXcodeTestCommand
 	originalRead := readTestResultSummaryFn
+	useLookPathAsTrustedResolver(t)
 	t.Cleanup(func() {
 		runtimeGOOS = originalRuntimeGOOS
 		lookPathFn = originalLookPath
@@ -1386,6 +1405,7 @@ func TestTestRetainsAggregateWhenCaseEnrichmentFails(t *testing.T) {
 	originalCommandContext := commandContextFn
 	originalRun := runXcodeTestCommand
 	originalRead := readTestResultSummaryFn
+	useLookPathAsTrustedResolver(t)
 	t.Cleanup(func() {
 		runtimeGOOS = originalRuntimeGOOS
 		lookPathFn = originalLookPath

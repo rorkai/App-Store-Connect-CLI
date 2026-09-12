@@ -589,8 +589,12 @@ func overrideBuildProcess(t *testing.T, mode string, productsPaths ...string) fu
 	originalGOOS := runtimeGOOS
 	originalLookPath := lookPathFn
 	originalCommandContext := commandContextFn
+	originalTrustedXcodeToolPath := trustedXcodeToolPathFn
 	runtimeGOOS = "darwin"
 	lookPathFn = func(string) (string, error) { return "/usr/bin/xcodebuild", nil }
+	trustedXcodeToolPathFn = func(_ context.Context, tool string, _ []string) (string, error) {
+		return lookPathFn(tool)
+	}
 	commandContextFn = func(ctx context.Context, _ string, args ...string) *exec.Cmd {
 		commandArgs := []string{"-test.run=TestBuildHelperProcess", "--"}
 		commandArgs = append(commandArgs, args...)
@@ -602,6 +606,7 @@ func overrideBuildProcess(t *testing.T, mode string, productsPaths ...string) fu
 		runtimeGOOS = originalGOOS
 		lookPathFn = originalLookPath
 		commandContextFn = originalCommandContext
+		trustedXcodeToolPathFn = originalTrustedXcodeToolPath
 	}
 }
 
