@@ -705,6 +705,66 @@ func TestSelectMacProvisioningProfileAllowsAppStoreEntitlementTransitions(t *tes
 	}
 }
 
+func TestSelectMacProvisioningProfileAllowsCloudKitProfileValueShapes(t *testing.T) {
+	now := time.Now()
+	profile := profileutil.ProvisioningProfileInfoModel{
+		UUID: "cloudkit", Name: "cloudkit", BundleID: "com.example.demo", TeamID: "TEAM123",
+		Type: profileutil.ProfileTypeMacOs, ExportType: legacyexportoptions.MethodAppStoreConnect,
+		ExpirationDate: now.Add(time.Hour), DeveloperCertificates: []certificateutil.CertificateInfoModel{{Serial: "CERT"}},
+		Entitlements: plistutil.PlistData{
+			"com.apple.developer.icloud-container-environment": []any{"Production", "Development"},
+			"com.apple.developer.icloud-services":              "*",
+		},
+	}
+	targetEntitlements := plistutil.PlistData{
+		"com.apple.developer.icloud-container-environment": "Development",
+		"com.apple.developer.icloud-services":              []any{"CloudKit", "CloudDocuments"},
+	}
+
+	selected, ok := selectMacProvisioningProfile("com.example.demo", nil, []profileutil.ProvisioningProfileInfoModel{profile}, "CERT", "TEAM123", targetEntitlements)
+	if !ok || selected.UUID != "cloudkit" {
+		t.Fatalf("selected profile = %#v, %t; want CloudKit profile", selected, ok)
+	}
+}
+
+func TestSelectMacProvisioningProfileRejectsUnsafeCloudKitProfileValueShapes(t *testing.T) {
+	now := time.Now()
+	profile := func(entitlements plistutil.PlistData) profileutil.ProvisioningProfileInfoModel {
+		return profileutil.ProvisioningProfileInfoModel{
+			UUID: "unsafe", Name: "unsafe", BundleID: "com.example.demo", TeamID: "TEAM123",
+			Type: profileutil.ProfileTypeMacOs, ExportType: legacyexportoptions.MethodAppStoreConnect,
+			ExpirationDate: now.Add(time.Hour), DeveloperCertificates: []certificateutil.CertificateInfoModel{{Serial: "CERT"}},
+			Entitlements: entitlements,
+		}
+	}
+
+	tests := []struct {
+		name    string
+		profile any
+		target  any
+		key     string
+	}{
+		{name: "reverse environment transition", key: "com.apple.developer.icloud-container-environment", profile: []any{"Development"}, target: "Production"},
+		{name: "unknown profile environment", key: "com.apple.developer.icloud-container-environment", profile: []any{"Production", "Staging"}, target: "Development"},
+		{name: "unknown iCloud service", key: "com.apple.developer.icloud-services", profile: "*", target: []any{"CloudKit", "Unknown"}},
+		{name: "App Clip-only iCloud service", key: "com.apple.developer.icloud-services", profile: "*", target: []any{"CloudKit-Anonymous"}},
+		{name: "target iCloud service wildcard", key: "com.apple.developer.icloud-services", profile: "*", target: []any{"*"}},
+		{name: "scalar target iCloud service", key: "com.apple.developer.icloud-services", profile: "*", target: "CloudKit"},
+		{name: "non-string environment", key: "com.apple.developer.icloud-container-environment", profile: []any{"Production", 42}, target: "Production"},
+		{name: "empty environment set", key: "com.apple.developer.icloud-container-environment", profile: []any{}, target: "Development"},
+		{name: "non-string iCloud service", key: "com.apple.developer.icloud-services", profile: "*", target: []any{"CloudKit", 42}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			candidate := profile(plistutil.PlistData{tt.key: tt.profile})
+			if selected, ok := selectMacProvisioningProfile("com.example.demo", nil, []profileutil.ProvisioningProfileInfoModel{candidate}, "CERT", "TEAM123", plistutil.PlistData{tt.key: tt.target}); ok {
+				t.Fatalf("selected unsafe profile %#v", selected)
+			}
+		})
+	}
+}
+
 func TestMacProfileEntitlementTransitionsRejectWrongDirectionAndUnknownValues(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -746,6 +806,12 @@ func TestMacProfileEntitlementTransitionsRejectWrongDirectionAndUnknownValues(t 
 			name:    "unknown App Attest value",
 			key:     "com.apple.developer.devicecheck.appattest-environment",
 			profile: "production",
+			target:  "staging",
+		},
+		{
+			name:    "matching unknown App Attest value",
+			key:     "com.apple.developer.devicecheck.appattest-environment",
+			profile: "staging",
 			target:  "staging",
 		},
 		{

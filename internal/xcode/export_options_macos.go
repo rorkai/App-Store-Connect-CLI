@@ -1111,25 +1111,112 @@ func macProfileEntitlementsPermitTarget(profileEntitlements, targetEntitlements 
 }
 
 func macProfileEntitlementValuePermitsForExport(key string, profileValue, targetValue any) bool {
-	if macProfileEntitlementValuePermits(profileValue, targetValue) {
-		return true
+	switch key {
+	case "com.apple.developer.icloud-container-environment":
+		return macICloudEnvironmentPermits(profileValue, targetValue)
+	case "com.apple.developer.icloud-services":
+		return macICloudServicesPermit(profileValue, targetValue)
+	case "com.apple.developer.aps-environment",
+		"com.apple.developer.devicecheck.appattest-environment":
+		return macLowercaseEnvironmentPermits(profileValue, targetValue)
+	default:
+		return macProfileEntitlementValuePermits(profileValue, targetValue)
+	}
+}
+
+func macICloudEnvironmentPermits(profileValue, targetValue any) bool {
+	target, ok := targetValue.(string)
+	if !ok || (target != "Development" && target != "Production") {
+		return false
 	}
 
-	profileString, profileIsString := profileValue.(string)
-	targetString, targetIsString := targetValue.(string)
+	if profile, ok := profileValue.(string); ok {
+		return macCanonicalEnvironmentPermits(profile, target, "Development", "Production")
+	}
+	profiles, ok := macStringArray(profileValue)
+	if !ok || len(profiles) == 0 {
+		return false
+	}
+	permitted := false
+	for _, profile := range profiles {
+		if profile != "Development" && profile != "Production" {
+			return false
+		}
+		if macCanonicalEnvironmentPermits(profile, target, "Development", "Production") {
+			permitted = true
+		}
+	}
+	return permitted
+}
+
+func macLowercaseEnvironmentPermits(profileValue, targetValue any) bool {
+	profile, profileIsString := profileValue.(string)
+	target, targetIsString := targetValue.(string)
 	if !profileIsString || !targetIsString {
 		return false
 	}
+	return macCanonicalEnvironmentPermits(profile, target, "development", "production")
+}
 
-	switch key {
-	case "com.apple.developer.icloud-container-environment":
-		return profileString == "Production" && targetString == "Development"
-	case "com.apple.developer.aps-environment",
-		"com.apple.developer.devicecheck.appattest-environment":
-		return profileString == "production" && targetString == "development"
-	default:
+func macCanonicalEnvironmentPermits(profile, target, development, production string) bool {
+	if (profile != development && profile != production) || (target != development && target != production) {
 		return false
 	}
+	return profile == target || (profile == production && target == development)
+}
+
+func macICloudServicesPermit(profileValue, targetValue any) bool {
+	targetServices, ok := macStringArray(targetValue)
+	if !ok || len(targetServices) == 0 || !macICloudServicesAreCanonical(targetServices) {
+		return false
+	}
+	if profile, ok := profileValue.(string); ok {
+		return profile == "*"
+	}
+	profileServices, ok := macStringArray(profileValue)
+	if !ok || len(profileServices) == 0 || !macICloudServicesAreCanonical(profileServices) {
+		return false
+	}
+	for _, target := range targetServices {
+		matched := false
+		for _, profile := range profileServices {
+			if profile == target {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+	return true
+}
+
+func macStringArray(value any) ([]string, bool) {
+	array := reflect.ValueOf(value)
+	if !array.IsValid() || (array.Kind() != reflect.Slice && array.Kind() != reflect.Array) {
+		return nil, false
+	}
+	values := make([]string, 0, array.Len())
+	for index := 0; index < array.Len(); index++ {
+		value, ok := array.Index(index).Interface().(string)
+		if !ok {
+			return nil, false
+		}
+		values = append(values, value)
+	}
+	return values, true
+}
+
+func macICloudServicesAreCanonical(services []string) bool {
+	for _, service := range services {
+		switch service {
+		case "CloudDocuments", "CloudKit":
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func macProfileEntitlementValuePermits(profileValue, targetValue any) bool {
