@@ -19,10 +19,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
 )
 
 type notaryRoundTripper func(*http.Request) (*http.Response, error)
@@ -84,6 +86,23 @@ func TestNotarizationSubmitUploadsOpenedArchiveAfterPathReplacement(t *testing.T
 				}
 			},
 		},
+		{
+			name: "same-inode rewrite",
+			replacePath: func(t *testing.T, archivePath, preservedPath string, replacement []byte) {
+				t.Helper()
+				file, err := os.OpenFile(archivePath, os.O_WRONLY|os.O_TRUNC, 0o600)
+				if err != nil {
+					t.Errorf("open archive for same-inode rewrite: %v", err)
+					return
+				}
+				if _, err := file.Write(replacement); err != nil {
+					t.Errorf("rewrite archive in place: %v", err)
+				}
+				if err := file.Close(); err != nil {
+					t.Errorf("close rewritten archive: %v", err)
+				}
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -141,6 +160,8 @@ func TestNotarizationSubmitUploadsOpenedArchiveAfterPathReplacement(t *testing.T
 			}))
 
 			var uploadedContents []byte
+			var uploadedHash string
+			var uploadedLength int64
 			originalTransport := http.DefaultClient.Transport
 			http.DefaultClient.Transport = notaryRoundTripper(func(req *http.Request) (*http.Response, error) {
 				body, err := io.ReadAll(req.Body)
@@ -148,6 +169,8 @@ func TestNotarizationSubmitUploadsOpenedArchiveAfterPathReplacement(t *testing.T
 					return nil, err
 				}
 				uploadedContents = body
+				uploadedHash = req.Header.Get("X-Amz-Content-Sha256")
+				uploadedLength = req.ContentLength
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Header:     make(http.Header),
@@ -169,7 +192,46 @@ func TestNotarizationSubmitUploadsOpenedArchiveAfterPathReplacement(t *testing.T
 			if !bytes.Equal(uploadedContents, originalContents) {
 				t.Fatalf("uploaded contents = %q, want originally opened archive %q", uploadedContents, originalContents)
 			}
+			if uploadedHash != expectedHash {
+				t.Fatalf("uploaded hash = %q, want %q", uploadedHash, expectedHash)
+			}
+			if uploadedLength != int64(len(originalContents)) {
+				t.Fatalf("uploaded content length = %d, want %d", uploadedLength, len(originalContents))
+			}
 		})
+	}
+}
+
+func TestNotarizationSubmitDetectsReplacementBetweenLstatAndOpen(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "App.zip")
+	if err := os.WriteFile(path, []byte("original"), 0o600); err != nil {
+		t.Fatalf("write original: %v", err)
+	}
+	originalInfo, err := os.Lstat(path)
+	if err != nil {
+		t.Fatalf("lstat original: %v", err)
+	}
+	preservedPath := filepath.Join(dir, "original.zip")
+	if err := os.Rename(path, preservedPath); err != nil {
+		t.Fatalf("preserve original: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("replacement"), 0o600); err != nil {
+		t.Fatalf("write replacement: %v", err)
+	}
+	opened, err := secureopen.OpenExistingNoFollow(path)
+	if err != nil {
+		t.Fatalf("open replacement: %v", err)
+	}
+	defer opened.Close()
+	openedInfo, err := opened.Stat()
+	if err != nil {
+		t.Fatalf("stat replacement: %v", err)
+	}
+	if err := validateOpenedNotarizationArtifactIdentity(originalInfo, openedInfo); err == nil {
+		t.Fatal("expected replacement identity failure")
+	} else if !strings.Contains(err.Error(), "changed while being opened") {
+		t.Fatalf("unexpected replacement error: %v", err)
 	}
 }
 

@@ -42,6 +42,19 @@ func BuildReadinessReport(ctx context.Context, opts ReadinessOptions) (validatio
 		if err != nil {
 			return validation.Report{}, err
 		}
+	} else {
+		_, err = doReadinessRequest(ctx, func(requestCtx context.Context) (asc.Resource[asc.AppStoreVersionAttributes], error) {
+			return shared.ResolveOwnedAppStoreVersionByID(
+				requestCtx,
+				client,
+				strings.TrimSpace(opts.AppID),
+				resolvedVersionID,
+				strings.TrimSpace(opts.Platform),
+			)
+		})
+		if err != nil {
+			return validation.Report{}, fmt.Errorf("failed to verify app store version %q: %w", resolvedVersionID, err)
+		}
 	}
 
 	var versionData versionReadinessData

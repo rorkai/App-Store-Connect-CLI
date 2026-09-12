@@ -58,3 +58,22 @@ func TestScanLocalProfiles_SkipsNonRegularFiles(t *testing.T) {
 		t.Fatalf("scanLocalProfiles hung on a non-regular file (FIFO)")
 	}
 }
+
+func TestScanLocalProfiles_SkipsNonRegularMacOSProfileFiles(t *testing.T) {
+	installDir := t.TempDir()
+	fifoPath := filepath.Join(installDir, "blocked.provisionprofile")
+	if err := syscall.Mkfifo(fifoPath, 0o600); err != nil {
+		t.Fatalf("Mkfifo(%q) error: %v", fifoPath, err)
+	}
+
+	items, skipped, err := scanLocalProfiles(installDir, time.Now())
+	if err != nil {
+		t.Fatalf("scanLocalProfiles() error: %v", err)
+	}
+	if len(items) != 0 || len(skipped) != 1 {
+		t.Fatalf("scanLocalProfiles() items=%d skipped=%d, want 0 items and 1 skipped", len(items), len(skipped))
+	}
+	if skipped[0].Path != fifoPath || skipped[0].Reason != "refusing to read non-regular file" {
+		t.Fatalf("skipped[0]=%#v, want path %q and non-regular-file reason", skipped[0], fifoPath)
+	}
+}

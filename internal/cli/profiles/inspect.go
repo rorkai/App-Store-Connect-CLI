@@ -52,7 +52,7 @@ type profileInspectResult struct {
 func ProfilesInspectCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("inspect", flag.ExitOnError)
 
-	sourcePath := fs.String("path", "", "Path to a .mobileprovision file to inspect")
+	sourcePath := fs.String("path", "", "Path to a .mobileprovision or .provisionprofile file to inspect")
 	showEntitlements := fs.Bool("entitlements", false, "Include entitlement key/value rows in table or markdown output")
 	output := shared.BindOutputFlags(fs)
 
@@ -62,12 +62,13 @@ func ProfilesInspectCommand() *ffcli.Command {
 		ShortHelp:  "Inspect a local provisioning profile.",
 		LongHelp: `Inspect a local provisioning profile.
 
-This command decodes the embedded plist from a .mobileprovision file and prints
+This command decodes the embedded plist from a provisioning profile file and prints
 the profile identifiers, dates, certificate fingerprints, devices, and
 entitlements.
 
 Examples:
   asc profiles inspect --path "./profile.mobileprovision"
+  asc profiles inspect --path "./profile.provisionprofile"
   asc profiles inspect --path "./profile.mobileprovision" --output json
   asc profiles inspect --path "./profile.mobileprovision" --entitlements`,
 		FlagSet:   fs,

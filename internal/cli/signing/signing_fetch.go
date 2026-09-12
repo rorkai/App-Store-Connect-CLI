@@ -50,6 +50,9 @@ func SigningFetchCommand() *ffcli.Command {
 This command resolves the bundle ID, finds matching certificates and profiles,
 and writes them to the output directory.
 
+Native macOS profiles are written as .provisionprofile files. iOS and tvOS
+profiles continue to use .mobileprovision files.
+
 With --create-missing, it will create a new profile if none exist for the
 specified configuration. Devices are only applied to profiles this command
 creates, so --device without --create-missing is rejected with a usage error.
@@ -98,7 +101,7 @@ Examples:
 				if err := prepareOutputDir(); err != nil {
 					return err
 				}
-				return ensureOutputPathsAreFree(signingOutputPaths(outputDir, profileName, profileID, certificates))
+				return ensureOutputPathsAreFree(signingOutputPaths(outputDir, profileName, profileID, profType, certificates))
 			}
 
 			client, err := shared.GetASCClient()
@@ -154,7 +157,7 @@ Examples:
 				return fmt.Errorf("signing fetch: %w", err)
 			}
 
-			profilePath := profileOutputPath(outputDir, profile.Data.Attributes.Name, profile.Data.ID)
+			profilePath := profileOutputPath(outputDir, profile.Data.Attributes.Name, profile.Data.ID, profType)
 			profileContent, err := decodeBase64Content("profile", profile.Data.Attributes.ProfileContent)
 			if err != nil {
 				return fmt.Errorf("signing fetch: decode profile: %w", err)
@@ -642,17 +645,18 @@ func decodeBase64Content(label, content string) ([]byte, error) {
 
 // signingOutputPaths returns every file signing fetch writes for the resolved
 // assets. profileID is empty while the profile is still being planned.
-func signingOutputPaths(outputDir, profileName, profileID string, certificates []asc.Resource[asc.CertificateAttributes]) []string {
+func signingOutputPaths(outputDir, profileName, profileID, profileType string, certificates []asc.Resource[asc.CertificateAttributes]) []string {
 	paths := make([]string, 0, len(certificates)+1)
-	paths = append(paths, profileOutputPath(outputDir, profileName, profileID))
+	paths = append(paths, profileOutputPath(outputDir, profileName, profileID, profileType))
 	for _, certificate := range certificates {
 		paths = append(paths, certificateOutputPath(outputDir, certificate))
 	}
 	return paths
 }
 
-func profileOutputPath(outputDir, profileName, profileID string) string {
-	return filepath.Join(outputDir, safeFileName(profileName, profileID)+".mobileprovision")
+func profileOutputPath(outputDir, profileName, profileID, profileType string) string {
+	extension := shared.ProvisioningProfileExtension("", profileType)
+	return filepath.Join(outputDir, safeFileName(profileName, profileID)+extension)
 }
 
 func certificateOutputPath(outputDir string, certificate asc.Resource[asc.CertificateAttributes]) string {

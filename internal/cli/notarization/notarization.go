@@ -1510,6 +1510,9 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("notarization submit: failed to stat opened file: %w", err)
 			}
+			if err := validateOpenedNotarizationArtifactIdentity(pathInfo, info); err != nil {
+				return fmt.Errorf("notarization submit: %w", err)
+			}
 			if info.IsDir() {
 				return fmt.Errorf("notarization submit: %q is a directory", pathValue)
 			}
@@ -1525,14 +1528,24 @@ Examples:
 				return fmt.Errorf("notarization submit: unsupported file type %q (must be .zip, .dmg, or .pkg)", ext)
 			}
 
-			// Compute SHA-256
+			// Snapshot and compute SHA-256 before any remote mutation. The upload
+			// must consume the same operation-owned bytes as the submitted hash.
 			if shared.ProgressEnabled() {
 				fmt.Fprintf(os.Stderr, "Computing SHA-256 hash of %s...\n", pathValue)
 			}
-			sha256Hash, err := asc.ComputeFileSHA256(fileHandle)
+			snapshot, snapshotSize, sha256Hash, cleanupSnapshot, err := snapshotNotarizationArtifact(ctx, fileHandle, info.Size())
 			if err != nil {
-				return fmt.Errorf("notarization submit: failed to compute SHA-256: %w", err)
+				return fmt.Errorf("notarization submit: failed to snapshot and compute SHA-256: %w", err)
 			}
+			snapshotReleased := false
+			releaseSnapshot := func() {
+				if snapshotReleased {
+					return
+				}
+				snapshotReleased = true
+				cleanupSnapshot()
+			}
+			defer releaseSnapshot()
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -1575,9 +1588,10 @@ Examples:
 			}
 
 			contentType := notaryContentType(pathValue)
-			if err := asc.UploadToS3(uploadCtx, creds, fileHandle, sha256Hash, info.Size(), contentType); err != nil {
+			if err := asc.UploadToS3(uploadCtx, creds, snapshot, sha256Hash, snapshotSize, contentType); err != nil {
 				return fmt.Errorf("notarization submit: upload failed: %w", err)
 			}
+			releaseSnapshot()
 
 			if shared.ProgressEnabled() {
 				fmt.Fprintln(os.Stderr, "Upload complete.")
@@ -1636,6 +1650,13 @@ Examples:
 			}
 		},
 	}
+}
+
+func validateOpenedNotarizationArtifactIdentity(pathInfo, openedInfo os.FileInfo) error {
+	if pathInfo == nil || openedInfo == nil || !os.SameFile(pathInfo, openedInfo) {
+		return fmt.Errorf("file changed while being opened")
+	}
+	return nil
 }
 
 // statusCommand returns the status subcommand.

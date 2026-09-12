@@ -433,8 +433,20 @@ func TestValidateRunsAltoolWithAuthFlags(t *testing.T) {
 	if lines[0] != "xcodebuild|-version" {
 		t.Fatalf("expected version probe, got %q", lines[0])
 	}
-	if !strings.Contains(lines[1], "xcrun|altool|--validate-app|--file|"+ipaPath+"|--type|ios|--apiKey|KEY123ABC|--apiIssuer|issuer-123") {
+	if !strings.Contains(lines[1], "xcrun|altool|--validate-app|--file|") ||
+		!strings.Contains(lines[1], ".ipa|--type|ios|--apiKey|KEY123ABC|--apiIssuer|issuer-123") {
 		t.Fatalf("expected validate invocation with auth flags, got %q", lines[1])
+	}
+	commandArgs := strings.Split(lines[1], "|")
+	snapshotPath, err := valueAfter(commandArgs, "--file")
+	if err != nil {
+		t.Fatalf("validation command: %v", err)
+	}
+	if snapshotPath == ipaPath || filepath.Ext(snapshotPath) != ".ipa" {
+		t.Fatalf("validation path = %q, want a private .ipa snapshot", snapshotPath)
+	}
+	if _, err := os.Stat(snapshotPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("validation snapshot was not cleaned up: %v", err)
 	}
 }
 
@@ -482,7 +494,8 @@ func TestValidateRunsAltoolWithTVOSPlatform(t *testing.T) {
 	if len(lines) != 2 {
 		t.Fatalf("expected 2 logged commands, got %d: %q", len(lines), string(logData))
 	}
-	if !strings.Contains(lines[1], "xcrun|altool|--validate-app|--file|"+ipaPath+"|--type|appletvos") {
+	if !strings.Contains(lines[1], "xcrun|altool|--validate-app|--file|") ||
+		!strings.Contains(lines[1], ".ipa|--type|appletvos") {
 		t.Fatalf("expected validate invocation with tvOS platform, got %q", lines[1])
 	}
 }
@@ -526,8 +539,197 @@ func TestValidateRunsAltoolWithPKGAndMacOSPlatform(t *testing.T) {
 	if len(lines) != 2 {
 		t.Fatalf("expected 2 logged commands, got %d: %q", len(lines), string(logData))
 	}
-	if !strings.Contains(lines[1], "xcrun|altool|--validate-app|--file|"+pkgPath+"|--type|macos") {
+	if !strings.Contains(lines[1], "xcrun|altool|--validate-app|--file|") ||
+		!strings.Contains(lines[1], ".pkg|--type|macos") {
 		t.Fatalf("expected PKG validation with macOS type, got %q", lines[1])
+	}
+}
+
+func TestValidatePinsArtifactAcrossPathReplacement(t *testing.T) {
+	tempDir := t.TempDir()
+	ipaPath := filepath.Join(tempDir, "Demo.ipa")
+	if err := writeTestIPA(ipaPath); err != nil {
+		t.Fatalf("writeTestIPA() error: %v", err)
+	}
+	original, err := os.ReadFile(ipaPath)
+	if err != nil {
+		t.Fatalf("read original IPA: %v", err)
+	}
+	capturedPath := filepath.Join(tempDir, "captured.ipa")
+	logPath := filepath.Join(tempDir, "commands.log")
+
+	restore := overrideTestEnvironment(t)
+	runtimeGOOS = "darwin"
+	lookPathFn = func(file string) (string, error) {
+		switch file {
+		case "xcodebuild", "xcrun":
+			return "/usr/bin/" + file, nil
+		default:
+			return "", exec.ErrNotFound
+		}
+	}
+	baseCommandContext := helperCommandContext(t, logPath)
+	replaced := false
+	commandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		cmd := baseCommandContext(ctx, name, args...)
+		if name == "xcrun" && len(args) > 0 && args[0] == "altool" {
+			preservedPath := filepath.Join(tempDir, "original.ipa")
+			if err := os.Rename(ipaPath, preservedPath); err != nil {
+				t.Fatalf("preserve original IPA: %v", err)
+			}
+			if err := os.WriteFile(ipaPath, []byte("replacement"), 0o600); err != nil {
+				t.Fatalf("write replacement IPA: %v", err)
+			}
+			cmd.Env = append(cmd.Env, "ASC_XCODE_HELPER_VALIDATE_CAPTURE_FILE="+capturedPath)
+			replaced = true
+		}
+		return cmd
+	}
+	t.Cleanup(restore)
+
+	result, err := Validate(context.Background(), ValidateOptions{IPAPath: ipaPath})
+	if err != nil {
+		t.Fatalf("Validate() error: %v", err)
+	}
+	if !result.Validated || !replaced {
+		t.Fatalf("unexpected validation state: result=%+v replaced=%t", result, replaced)
+	}
+	captured, err := os.ReadFile(capturedPath)
+	if err != nil {
+		t.Fatalf("read captured validation input: %v", err)
+	}
+	if !bytes.Equal(captured, original) {
+		t.Fatal("altool did not receive the originally validated IPA bytes")
+	}
+	replacement, err := os.ReadFile(ipaPath)
+	if err != nil {
+		t.Fatalf("read replacement IPA: %v", err)
+	}
+	if string(replacement) != "replacement" {
+		t.Fatalf("replacement IPA was modified: %q", replacement)
+	}
+}
+
+func TestValidateRejectsUnsafeArtifactsBeforeAltool(t *testing.T) {
+	tests := []struct {
+		name      string
+		extension string
+		prepare   func(t *testing.T, path string)
+		wantErr   string
+	}{
+		{
+			name:      "empty IPA",
+			extension: ".ipa",
+			prepare: func(t *testing.T, path string) {
+				t.Helper()
+				if err := os.WriteFile(path, nil, 0o600); err != nil {
+					t.Fatalf("write empty IPA: %v", err)
+				}
+			},
+			wantErr: "--ipa must not be empty",
+		},
+		{
+			name:      "IPA directory",
+			extension: ".ipa",
+			prepare: func(t *testing.T, path string) {
+				t.Helper()
+				if err := os.Mkdir(path, 0o755); err != nil {
+					t.Fatalf("create IPA directory: %v", err)
+				}
+			},
+			wantErr: "--ipa must be a file",
+		},
+		{
+			name:      "IPA symlink",
+			extension: ".ipa",
+			prepare: func(t *testing.T, path string) {
+				t.Helper()
+				target := filepath.Join(filepath.Dir(path), "Target.ipa")
+				if err := writeTestIPA(target); err != nil {
+					t.Fatalf("write IPA target: %v", err)
+				}
+				if err := os.Symlink(target, path); err != nil {
+					t.Skipf("symlink not supported: %v", err)
+				}
+			},
+			wantErr: "refusing to read symlink",
+		},
+		{
+			name:      "empty PKG",
+			extension: ".pkg",
+			prepare: func(t *testing.T, path string) {
+				t.Helper()
+				if err := os.WriteFile(path, nil, 0o600); err != nil {
+					t.Fatalf("write empty PKG: %v", err)
+				}
+			},
+			wantErr: "--pkg must not be empty",
+		},
+		{
+			name:      "PKG directory",
+			extension: ".pkg",
+			prepare: func(t *testing.T, path string) {
+				t.Helper()
+				if err := os.Mkdir(path, 0o755); err != nil {
+					t.Fatalf("create PKG directory: %v", err)
+				}
+			},
+			wantErr: "--pkg must be a file",
+		},
+		{
+			name:      "PKG symlink",
+			extension: ".pkg",
+			prepare: func(t *testing.T, path string) {
+				t.Helper()
+				target := filepath.Join(filepath.Dir(path), "Target.pkg")
+				if err := os.WriteFile(target, []byte("pkg"), 0o600); err != nil {
+					t.Fatalf("write PKG target: %v", err)
+				}
+				if err := os.Symlink(target, path); err != nil {
+					t.Skipf("symlink not supported: %v", err)
+				}
+			},
+			wantErr: "refusing to read symlink",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			artifactPath := filepath.Join(tempDir, "Demo"+tt.extension)
+			tt.prepare(t, artifactPath)
+			logPath := filepath.Join(tempDir, "commands.log")
+
+			restore := overrideTestEnvironment(t)
+			runtimeGOOS = "darwin"
+			lookPathFn = func(file string) (string, error) {
+				switch file {
+				case "xcodebuild", "xcrun":
+					return "/usr/bin/" + file, nil
+				default:
+					return "", exec.ErrNotFound
+				}
+			}
+			commandContextFn = helperCommandContext(t, logPath)
+			t.Cleanup(restore)
+
+			opts := ValidateOptions{IPAPath: artifactPath}
+			if tt.extension == ".pkg" {
+				opts = ValidateOptions{PKGPath: artifactPath}
+			}
+			_, err := Validate(context.Background(), opts)
+			if err == nil {
+				t.Fatal("expected unsafe artifact error, got nil")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("Validate() error = %v, want substring %q", err, tt.wantErr)
+			}
+
+			logData, readErr := os.ReadFile(logPath)
+			if readErr == nil && strings.Contains(string(logData), "|--validate-app|") {
+				t.Fatalf("altool validation ran for unsafe artifact: %q", string(logData))
+			}
+		})
 	}
 }
 
@@ -2263,9 +2465,21 @@ func TestXcodeHelperProcess(t *testing.T) {
 			fmt.Fprintln(os.Stderr, "missing --validate-app")
 			os.Exit(2)
 		}
-		if _, err := valueAfter(commandArgs[2:], "--file"); err != nil {
+		artifactPath, err := valueAfter(commandArgs[2:], "--file")
+		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
+		}
+		if capturePath := os.Getenv("ASC_XCODE_HELPER_VALIDATE_CAPTURE_FILE"); capturePath != "" {
+			contents, err := os.ReadFile(artifactPath)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(2)
+			}
+			if err := os.WriteFile(capturePath, contents, 0o600); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(2)
+			}
 		}
 		if output := os.Getenv("ASC_XCODE_HELPER_VALIDATE_STDOUT"); output != "" {
 			fmt.Fprint(os.Stdout, output)

@@ -258,7 +258,7 @@ func TestPublishTestFlightUploadOnlyRequiresUploadSource(t *testing.T) {
 	if !errors.Is(runErr, flag.ErrHelp) {
 		t.Fatalf("expected usage error, got %v", runErr)
 	}
-	const wantErr = "--upload-only requires --ipa, --workspace, or --project"
+	const wantErr = "--upload-only requires --ipa, --pkg, --workspace, or --project"
 	if got := runErr.Error(); got != wantErr {
 		t.Fatalf("expected returned error %q, got %q", wantErr, got)
 	}

@@ -70,6 +70,9 @@ func TestPublishAppStoreHelpShowsCanonicalWorkflowGuidance(t *testing.T) {
 	if !strings.Contains(usage, "--ipa") {
 		t.Fatalf("expected publish appstore help to show flag details, got %q", usage)
 	}
+	if !strings.Contains(usage, "--pkg") {
+		t.Fatalf("expected publish appstore help to show macOS package uploads, got %q", usage)
+	}
 }
 
 func TestPublishAppStoreInvocationDoesNotWarn(t *testing.T) {
@@ -81,8 +84,8 @@ func TestPublishAppStoreInvocationDoesNotWarn(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "Error: --ipa is required") {
-		t.Fatalf("expected validation error for missing ipa, got %q", stderr)
+	if !strings.Contains(stderr, "Error: --ipa or --pkg is required") {
+		t.Fatalf("expected validation error for missing upload artifact, got %q", stderr)
 	}
 	if strings.Contains(stderr, "deprecated") {
 		t.Fatalf("expected canonical publish appstore path to avoid deprecation warnings, got %q", stderr)

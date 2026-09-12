@@ -32,7 +32,7 @@ Examples:
   asc profiles create --name "Profile" --profile-type IOS_APP_DEVELOPMENT --bundle "BUNDLE_ID" --certificate "CERT_ID"
   asc profiles delete --id "PROFILE_ID" --confirm
   asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision"
-  asc profiles inspect --path "./profile.mobileprovision"
+  asc profiles inspect --path "./profile.provisionprofile"
   asc profiles links bundle-id --id "PROFILE_ID"
   asc profiles links certificates --id "PROFILE_ID"
   asc profiles links devices --id "PROFILE_ID"`,
@@ -454,7 +454,7 @@ func ProfilesDownloadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("download", flag.ExitOnError)
 
 	id := fs.String("id", "", "Profile ID")
-	outputPath := fs.String("output", "", "Output .mobileprovision file path")
+	outputPath := fs.String("output", "", "Output .mobileprovision or .provisionprofile file path")
 	output := shared.BindMetadataOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -464,7 +464,8 @@ func ProfilesDownloadCommand() *ffcli.Command {
 		LongHelp: `Download a provisioning profile.
 
 Examples:
-  asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision"`,
+  asc profiles download --id "PROFILE_ID" --output "./profile.mobileprovision"
+  asc profiles download --id "PROFILE_ID" --output "./profile.provisionprofile"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
