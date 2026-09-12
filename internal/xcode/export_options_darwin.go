@@ -45,6 +45,7 @@ func buildPlatformExportOptionsPayload(opts ExportOptionsGenerateOptions, teamID
 	model.SigningStyle = exportoptions.SigningStyle(opts.SigningStyle)
 	if opts.SigningStyle == exportOptionsSigningStyleManual {
 		model.SigningCertificate = manual.SigningCertificate
+		model.InstallerSigningCertificate = manual.InstallerSigningCertificate
 		model.BundleIDProvisioningProfileMapping = cloneProvisioningProfiles(manual.ProvisioningProfiles)
 		model.ICloudContainerEnvironment = exportoptions.ICloudContainerEnvironment(manual.ICloudContainerEnvironment)
 	}
@@ -59,8 +60,14 @@ func generateManualExportOptions(ctx context.Context, archivePath, teamID, metho
 	if err != nil {
 		return manualExportOptions{}, fmt.Errorf("infer archive platform: %w", err)
 	}
+	if platform == "MAC_OS" {
+		if method != exportOptionsMethodAppStoreConnect {
+			return manualExportOptions{}, fmt.Errorf("manual signing export options generation for macOS archives only supports method %q; got %q", exportOptionsMethodAppStoreConnect, method)
+		}
+		return generateMacManualExportOptions(ctx, archivePath, teamID)
+	}
 	if platform != "IOS" && platform != "TV_OS" {
-		return manualExportOptions{}, fmt.Errorf("manual signing export options generation only supports iOS and tvOS archives; archive platform is %s", platform)
+		return manualExportOptions{}, fmt.Errorf("manual signing export options generation only supports iOS, tvOS, and App Store macOS archives; archive platform is %s", platform)
 	}
 	var generated legacyexportoptions.ExportOptions
 	if _, err := captureBitriseStdout(func() error {
@@ -90,6 +97,14 @@ func generateManualExportOptions(ctx context.Context, archivePath, teamID, metho
 }
 
 func readArchiveExportInfo(archivePath string) (exportoptionsgenerator.ArchiveInfo, error) {
+	platform, err := InferArchivePlatform(archivePath)
+	if err == nil && platform == "MAC_OS" {
+		macArchive, macErr := readMacArchiveExportInfo(context.Background(), archivePath)
+		if macErr != nil {
+			return exportoptionsgenerator.ArchiveInfo{}, macErr
+		}
+		return macArchive.ArchiveInfo, nil
+	}
 	archive, err := xcarchive.NewIosArchive(archivePath)
 	if err != nil {
 		return exportoptionsgenerator.ArchiveInfo{}, fmt.Errorf("read iOS archive: %w", err)
@@ -178,9 +193,10 @@ func manualExportOptionsFromHash(payload map[string]interface{}) (manualExportOp
 		cloudEnvironment = strings.TrimSpace(fmt.Sprint(value))
 	}
 	return manualExportOptions{
-		TeamID:                     strings.TrimSpace(coercePlistValueToString(payload["teamID"])),
-		SigningCertificate:         strings.TrimSpace(coercePlistValueToString(payload["signingCertificate"])),
-		ProvisioningProfiles:       profiles,
-		ICloudContainerEnvironment: cloudEnvironment,
+		TeamID:                      strings.TrimSpace(coercePlistValueToString(payload["teamID"])),
+		SigningCertificate:          strings.TrimSpace(coercePlistValueToString(payload["signingCertificate"])),
+		InstallerSigningCertificate: strings.TrimSpace(coercePlistValueToString(payload["installerSigningCertificate"])),
+		ProvisioningProfiles:        profiles,
+		ICloudContainerEnvironment:  cloudEnvironment,
 	}, nil
 }

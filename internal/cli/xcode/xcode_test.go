@@ -136,39 +136,47 @@ func TestXcodeExportRejectsMultipleArtifactPaths(t *testing.T) {
 	}
 }
 
-func TestXcodeExportRejectsGeneratedManualPKGOptions(t *testing.T) {
+func TestXcodeExportGeneratesManualPKGOptions(t *testing.T) {
 	restore := overrideXcodeCommandTestHooks(t)
 	defer restore()
 
-	runGenerateExportOptions = func(context.Context, localxcode.ExportOptionsGenerateOptions) (*localxcode.ExportOptionsGenerateResult, error) {
-		t.Fatal("generator must not run for unsupported macOS manual signing")
-		return nil, nil
+	var generatedOptions localxcode.ExportOptionsGenerateOptions
+	runGenerateExportOptions = func(_ context.Context, opts localxcode.ExportOptionsGenerateOptions) (*localxcode.ExportOptionsGenerateResult, error) {
+		generatedOptions = opts
+		return &localxcode.ExportOptionsGenerateResult{Path: filepath.Join(t.TempDir(), "ExportOptions.plist")}, nil
 	}
-	runExport = func(context.Context, localxcode.ExportOptions) (*localxcode.ExportResult, error) {
-		t.Fatal("export must not run for unsupported macOS manual signing")
-		return nil, nil
+	var exportedOptions localxcode.ExportOptions
+	runExport = func(_ context.Context, opts localxcode.ExportOptions) (*localxcode.ExportResult, error) {
+		exportedOptions = opts
+		return &localxcode.ExportResult{ArchivePath: opts.ArchivePath, PKGPath: opts.PKGPath}, nil
 	}
 
 	cmd := XcodeExportCommand()
 	cmd.FlagSet.SetOutput(io.Discard)
+	pkgPath := filepath.Join(t.TempDir(), "Demo.pkg")
 	if err := cmd.FlagSet.Parse([]string{
 		"--archive-path", "Demo.xcarchive",
-		"--pkg-path", "Demo.pkg",
+		"--pkg-path", pkgPath,
 		"--signing-style", "manual",
+		"--output", "json",
 	}); err != nil {
 		t.Fatalf("failed to parse flags: %v", err)
 	}
 
-	var runErr error
-	_, stderr := captureCommandOutput(t, func() error {
-		runErr = cmd.Exec(context.Background(), nil)
-		return runErr
+	stdout, stderr := captureCommandOutput(t, func() error {
+		return cmd.Exec(context.Background(), nil)
 	})
-	if !errors.Is(runErr, flag.ErrHelp) {
-		t.Fatalf("Exec() error = %v, want usage error", runErr)
+	if strings.TrimSpace(stderr) != "" {
+		t.Fatalf("stderr = %q, want empty", stderr)
 	}
-	if !strings.Contains(stderr, "Error: --pkg-path with manual signing requires an explicit --export-options plist") {
-		t.Fatalf("stderr = %q, want manual-signing guidance", stderr)
+	if generatedOptions.Method != "app-store-connect" || generatedOptions.SigningStyle != "manual" || generatedOptions.Destination != "export" {
+		t.Fatalf("generated options = %+v, want App Store manual export", generatedOptions)
+	}
+	if exportedOptions.PKGPath != pkgPath || exportedOptions.IPAPath != "" {
+		t.Fatalf("export options = %+v, want only PKG path", exportedOptions)
+	}
+	if !strings.Contains(stdout, `"pkg_path"`) {
+		t.Fatalf("stdout = %q, want JSON export result", stdout)
 	}
 }
 

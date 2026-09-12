@@ -221,8 +221,8 @@ uses app-store-connect and automatic signing by default. Use
 --team-id optionally overrides archive metadata.
 For local exports, provide exactly one destination: --ipa-path for iOS, tvOS,
 or visionOS, or --pkg-path for macOS. asc moves the exported artifact to that
-exact path. Generated manual signing options support iOS and tvOS archives;
-provide an explicit --export-options plist for a manually signed macOS export.
+exact path. Generated manual signing options support iOS, tvOS, and App Store
+macOS archives; provide an explicit --export-options plist for other macOS methods.
 When ExportOptions.plist uses destination=upload, xcodebuild uploads directly
 to App Store Connect and asc returns archive metadata without writing a local
 artifact or requiring a destination path. Use --wait to generate direct-upload
@@ -306,9 +306,6 @@ Examples:
 			}
 			if exportOptionsPath == "" && trimmedPKGPath != "" && methodValue == "release-testing" {
 				return shared.UsageError("--pkg-path cannot be combined with --method release-testing")
-			}
-			if exportOptionsPath == "" && trimmedPKGPath != "" && signingStyleValue == "manual" {
-				return shared.UsageError("--pkg-path with manual signing requires an explicit --export-options plist")
 			}
 			directUpload := *wait
 			if exportOptionsPath != "" {
