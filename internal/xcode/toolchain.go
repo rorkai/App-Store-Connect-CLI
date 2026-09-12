@@ -188,7 +188,7 @@ func InspectToolchain(ctx context.Context, opts ToolchainOptions) (*ToolchainRep
 	var xcrunCheck ToolchainCheck
 	var xcrunCheckErr error
 	if xcrunLookupErr != nil {
-		message := "xcrun is not available in PATH"
+		message := "trusted xcrun is not available"
 		if !errors.Is(xcrunLookupErr, exec.ErrNotFound) {
 			message = sanitizeToolchainError(fmt.Errorf("locate xcrun: %w", xcrunLookupErr))
 		}
@@ -395,26 +395,7 @@ func classifyBetaXcodePath(developerDir, xcodePath string) (*bool, error) {
 }
 
 func resolveToolchainXcrunPath() (string, error) {
-	if info, err := statPathFn(trustedXcrunPath); err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0 {
-		return trustedXcrunPath, nil
-	}
-
-	pathValue, err := lookPathFn("xcrun")
-	if err != nil {
-		return "", err
-	}
-	pathValue = strings.TrimSpace(pathValue)
-	if pathValue == "" {
-		return "", errors.New("xcrun path is empty")
-	}
-	if !filepath.IsAbs(pathValue) {
-		return "", fmt.Errorf("xcrun path %q is not absolute", pathValue)
-	}
-	pathValue = filepath.Clean(pathValue)
-	if filepath.Base(pathValue) != "xcrun" {
-		return "", fmt.Errorf("xcrun path %q has unexpected executable name", pathValue)
-	}
-	return pathValue, nil
+	return trustedXcrunPathFn()
 }
 
 func validateResolvedXcodebuildPath(pathValue, developerDir string) (string, error) {
@@ -458,8 +439,8 @@ func validateResolvedXcodebuildPath(pathValue, developerDir string) (string, err
 	if err != nil {
 		return "", fmt.Errorf("resolved xcodebuild path %q is unavailable: %w", canonicalPath, err)
 	}
-	if info.IsDir() {
-		return "", fmt.Errorf("resolved xcodebuild path %q is a directory", canonicalPath)
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("resolved xcodebuild path %q is not a regular file", canonicalPath)
 	}
 	if info.Mode().Perm()&0o111 == 0 {
 		return "", fmt.Errorf("resolved xcodebuild path %q is not executable", canonicalPath)

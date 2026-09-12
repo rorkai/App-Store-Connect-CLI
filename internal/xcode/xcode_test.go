@@ -572,7 +572,7 @@ func TestValidatePinsArtifactAcrossPathReplacement(t *testing.T) {
 	replaced := false
 	commandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		cmd := baseCommandContext(ctx, name, args...)
-		if name == "xcrun" && len(args) > 0 && args[0] == "altool" {
+		if filepath.Base(name) == "xcrun" && len(args) > 0 && args[0] == "altool" {
 			preservedPath := filepath.Join(tempDir, "original.ipa")
 			if err := os.Rename(ipaPath, preservedPath); err != nil {
 				t.Fatalf("preserve original IPA: %v", err)
@@ -1530,7 +1530,11 @@ func TestExportWarnsForBetaXcodeAppStoreExport(t *testing.T) {
 		return "/usr/bin/xcodebuild", nil
 	}
 	commandContextFn = helperCommandContext(t, logPath)
-	t.Setenv("DEVELOPER_DIR", "/Applications/Xcode-beta.app/Contents/Developer")
+	developerDir := filepath.Join(tempDir, "Xcode-beta.app", "Contents", "Developer")
+	if err := os.MkdirAll(developerDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DEVELOPER_DIR", developerDir)
 	t.Cleanup(restore)
 
 	var stderr bytes.Buffer
@@ -1543,7 +1547,7 @@ func TestExportWarnsForBetaXcodeAppStoreExport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
-	if !strings.Contains(stderr.String(), `Warning: active Xcode developer directory "/Applications/Xcode-beta.app/Contents/Developer" appears to be a beta build`) {
+	if !strings.Contains(stderr.String(), fmt.Sprintf("Warning: active Xcode developer directory %q appears to be a beta build", developerDir)) {
 		t.Fatalf("expected beta Xcode warning, got %q", stderr.String())
 	}
 	if !strings.Contains(stderr.String(), "App Store review can later reject builds for unsupported SDK/Xcode") {
@@ -1571,7 +1575,11 @@ func TestExportDoesNotWarnForStableXcodeAppStoreExport(t *testing.T) {
 		return "/usr/bin/xcodebuild", nil
 	}
 	commandContextFn = helperCommandContext(t, logPath)
-	t.Setenv("DEVELOPER_DIR", "/Applications/Xcode-26.3.0.app/Contents/Developer")
+	developerDir := filepath.Join(tempDir, "Xcode-26.3.0.app", "Contents", "Developer")
+	if err := os.MkdirAll(developerDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DEVELOPER_DIR", developerDir)
 	t.Cleanup(restore)
 
 	var stderr bytes.Buffer
@@ -1608,7 +1616,11 @@ func TestExportDoesNotWarnForBetaXcodeDevelopmentExport(t *testing.T) {
 		return "/usr/bin/xcodebuild", nil
 	}
 	commandContextFn = helperCommandContext(t, logPath)
-	t.Setenv("DEVELOPER_DIR", "/Applications/Xcode-beta.app/Contents/Developer")
+	developerDir := filepath.Join(tempDir, "Xcode-beta.app", "Contents", "Developer")
+	if err := os.MkdirAll(developerDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DEVELOPER_DIR", developerDir)
 	t.Cleanup(restore)
 
 	var stderr bytes.Buffer
@@ -1757,8 +1769,9 @@ func TestRunXcodebuildFailurePreservesRecognizedErrorsAndFinalOutputWithinBound(
 	logPath := filepath.Join(tempDir, "commands.log")
 
 	restore := overrideTestEnvironment(t)
-	commandContextFn = helperCommandContext(t, logPath)
 	t.Cleanup(restore)
+	useTrustedTestCommandNames(t)
+	commandContextFn = helperCommandContext(t, logPath)
 
 	tests := []struct {
 		name                 string
@@ -1809,8 +1822,9 @@ func TestRunXcodebuildFailureStillStreamsCompleteOutputOnce(t *testing.T) {
 	logPath := filepath.Join(tempDir, "commands.log")
 
 	restore := overrideTestEnvironment(t)
-	commandContextFn = helperCommandContext(t, logPath)
 	t.Cleanup(restore)
+	useTrustedTestCommandNames(t)
+	commandContextFn = helperCommandContext(t, logPath)
 
 	var streamed bytes.Buffer
 	err := runXcodebuild(context.Background(), []string{"fail-large-output"}, &streamed)
@@ -1843,8 +1857,9 @@ func TestRunXcodebuildFailureStillStreamsCompleteOutputOnce(t *testing.T) {
 func TestRunXcodebuildInterruptionPreservesRecognizedErrorsAndFinalOutputWithinBound(t *testing.T) {
 	tempDir := t.TempDir()
 	restore := overrideTestEnvironment(t)
-	commandContextFn = helperCommandContext(t, filepath.Join(tempDir, "commands.log"))
 	t.Cleanup(restore)
+	useTrustedTestCommandNames(t)
+	commandContextFn = helperCommandContext(t, filepath.Join(tempDir, "commands.log"))
 
 	tests := []struct {
 		name            string
@@ -2221,8 +2236,9 @@ func TestXcodeDiagnosticBufferSerializesConcurrentWrites(t *testing.T) {
 
 func TestRunXcodebuildPreservesCombinedChildStreamOrder(t *testing.T) {
 	restore := overrideTestEnvironment(t)
-	commandContextFn = helperCommandContext(t, filepath.Join(t.TempDir(), "commands.log"))
 	t.Cleanup(restore)
+	useTrustedTestCommandNames(t)
+	commandContextFn = helperCommandContext(t, filepath.Join(t.TempDir(), "commands.log"))
 
 	const want = "FIRST-STDOUT\nSECOND-STDERR\nTHIRD-STDOUT\nFINAL-STDERR\n"
 	var streamed bytes.Buffer
@@ -2267,6 +2283,8 @@ func TestRunXcodebuildDoesNotWaitForDescendantHoldingOutputPipes(t *testing.T) {
 	pidPath := filepath.Join(tempDir, "descendant.pid")
 
 	restore := overrideTestEnvironment(t)
+	t.Cleanup(restore)
+	useTrustedTestCommandNames(t)
 	// Race-instrumented helper binaries otherwise spend the race runtime's
 	// default one-second atexit delay in the direct child before it exits. That
 	// delay is unrelated to the descendant retaining the output descriptors and
@@ -2274,7 +2292,6 @@ func TestRunXcodebuildDoesNotWaitForDescendantHoldingOutputPipes(t *testing.T) {
 	t.Setenv("GORACE", strings.TrimSpace(os.Getenv("GORACE")+" atexit_sleep_ms=0"))
 	commandContextFn = helperCommandContext(t, filepath.Join(tempDir, "commands.log"))
 	t.Setenv("ASC_XCODE_HELPER_DESCENDANT_PID", pidPath)
-	t.Cleanup(restore)
 	t.Cleanup(func() {
 		data, err := os.ReadFile(pidPath)
 		if err != nil {
@@ -2303,8 +2320,9 @@ func TestRunXcodebuildDoesNotWaitForDescendantHoldingOutputPipes(t *testing.T) {
 func TestRunXcodebuildPreservesContextCancellation(t *testing.T) {
 	tempDir := t.TempDir()
 	restore := overrideTestEnvironment(t)
-	commandContextFn = helperCommandContext(t, filepath.Join(tempDir, "commands.log"))
 	t.Cleanup(restore)
+	useTrustedTestCommandNames(t)
+	commandContextFn = helperCommandContext(t, filepath.Join(tempDir, "commands.log"))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -2323,20 +2341,42 @@ func overrideTestEnvironment(t *testing.T) func() {
 	originalStatPath := statPathFn
 	originalCommandContext := commandContextFn
 	originalActiveDeveloperDir := activeDeveloperDirFn
+	originalTrustedXcrunPath := trustedXcrunPathFn
+	originalTrustedXcodeToolPath := trustedXcodeToolPathFn
+	trustedXcrunPathFn = func() (string, error) {
+		return lookPathFn("xcrun")
+	}
+	trustedXcodeToolPathFn = func(_ context.Context, tool string, _ []string) (string, error) {
+		return lookPathFn(tool)
+	}
 	return func() {
 		runtimeGOOS = originalGOOS
 		lookPathFn = originalLookPath
 		statPathFn = originalStatPath
 		commandContextFn = originalCommandContext
 		activeDeveloperDirFn = originalActiveDeveloperDir
+		trustedXcrunPathFn = originalTrustedXcrunPath
+		trustedXcodeToolPathFn = originalTrustedXcodeToolPath
 	}
+}
+
+// useTrustedTestCommandNames keeps subprocess-focused tests independent of
+// host Xcode installation while production continues to resolve absolute
+// paths from the selected trusted toolchain.
+func useTrustedTestCommandNames(t *testing.T) {
+	t.Helper()
+	previous := trustedXcodeToolPathFn
+	trustedXcodeToolPathFn = func(_ context.Context, tool string, _ []string) (string, error) {
+		return filepath.Join("/usr/bin", tool), nil
+	}
+	t.Cleanup(func() { trustedXcodeToolPathFn = previous })
 }
 
 func helperCommandContext(t *testing.T, logPath string) func(context.Context, string, ...string) *exec.Cmd {
 	t.Helper()
 
 	return func(ctx context.Context, name string, args ...string) *exec.Cmd {
-		commandArgs := []string{"-test.run=TestXcodeHelperProcess", "--", name}
+		commandArgs := []string{"-test.run=TestXcodeHelperProcess", "--", filepath.Base(name)}
 		commandArgs = append(commandArgs, args...)
 		cmd := exec.CommandContext(ctx, os.Args[0], commandArgs...)
 		cmd.Env = append(
@@ -2370,8 +2410,9 @@ func TestXcodeHelperProcess(t *testing.T) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+	commandName := filepath.Base(commandArgs[0])
 	if environmentLog := os.Getenv("ASC_XCODE_HELPER_ENV_LOG"); environmentLog != "" {
-		entry := fmt.Sprintf("%s ASC_ONLY=%s ASC_SHOULD_NOT_LEAK=%s\n", commandArgs[0], os.Getenv("ASC_ONLY"), os.Getenv("ASC_SHOULD_NOT_LEAK"))
+		entry := fmt.Sprintf("%s ASC_ONLY=%s ASC_SHOULD_NOT_LEAK=%s\n", commandName, os.Getenv("ASC_ONLY"), os.Getenv("ASC_SHOULD_NOT_LEAK"))
 		file, err := os.OpenFile(environmentLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -2388,12 +2429,12 @@ func TestXcodeHelperProcess(t *testing.T) {
 		}
 	}
 
-	if len(commandArgs) >= 2 && commandArgs[0] == "xcodebuild" && commandArgs[1] == "-version" {
+	if len(commandArgs) >= 2 && commandName == "xcodebuild" && commandArgs[1] == "-version" {
 		fmt.Fprintln(os.Stdout, "Xcode 16.2")
 		os.Exit(0)
 	}
 
-	if len(commandArgs) >= 2 && commandArgs[0] == "xcodebuild" && commandArgs[1] == "write-canary-after-delay" {
+	if len(commandArgs) >= 2 && commandName == "xcodebuild" && commandArgs[1] == "write-canary-after-delay" {
 		if err := os.WriteFile(os.Getenv("ASC_XCODE_HELPER_DESCENDANT_READY"), []byte("ready"), 0o600); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
@@ -2415,7 +2456,24 @@ func TestXcodeHelperProcess(t *testing.T) {
 		os.Exit(0)
 	}
 
-	if len(commandArgs) >= 2 && commandArgs[0] == "xcrun" && commandArgs[1] == "altool" {
+	if len(commandArgs) >= 3 && commandName == "xcrun" && commandArgs[1] == "--find" && commandArgs[2] == "xcodebuild" {
+		developerDir := os.Getenv("DEVELOPER_DIR")
+		fmt.Fprintln(os.Stdout, filepath.Join(developerDir, "usr", "bin", "xcodebuild"))
+		os.Exit(0)
+	}
+
+	if len(commandArgs) >= 3 && commandName == "xcrun" && commandArgs[1] == "--find" && commandArgs[2] == "agvtool" {
+		developerDir := os.Getenv("DEVELOPER_DIR")
+		fmt.Fprintln(os.Stdout, filepath.Join(developerDir, "usr", "bin", "agvtool"))
+		os.Exit(0)
+	}
+
+	if len(commandArgs) >= 3 && commandName == "xcrun" && commandArgs[1] == "--find" && commandArgs[2] == "stapler" {
+		fmt.Fprintln(os.Stdout, trustedStaplerPath)
+		os.Exit(0)
+	}
+
+	if len(commandArgs) >= 2 && commandName == "xcrun" && commandArgs[1] == "altool" {
 		if helperContainsArg(commandArgs[2:], "--build-status") {
 			if _, err := valueAfter(commandArgs[2:], "--apple-id"); err != nil {
 				fmt.Fprintln(os.Stderr, err)
@@ -2471,7 +2529,7 @@ func TestXcodeHelperProcess(t *testing.T) {
 		os.Exit(0)
 	}
 
-	if len(commandArgs) >= 2 && commandArgs[0] == "xcrun" && commandArgs[1] == "xcresulttool" {
+	if len(commandArgs) >= 2 && commandName == "xcrun" && commandArgs[1] == "xcresulttool" {
 		if output := os.Getenv("ASC_XCODE_HELPER_XCRESULT_STDERR"); output != "" {
 			fmt.Fprint(os.Stderr, output)
 		}
@@ -2486,7 +2544,7 @@ func TestXcodeHelperProcess(t *testing.T) {
 		os.Exit(0)
 	}
 
-	if len(commandArgs) >= 2 && commandArgs[0] == "agvtool" {
+	if len(commandArgs) >= 2 && commandName == "agvtool" {
 		switch commandArgs[1] {
 		case "what-marketing-version":
 			if os.Getenv("ASC_XCODE_HELPER_VARIABLE_VERSION") == "1" {
@@ -2515,12 +2573,12 @@ func TestXcodeHelperProcess(t *testing.T) {
 		}
 	}
 
-	if len(commandArgs) >= 2 && commandArgs[0] == "xcodebuild" && commandArgs[1] == "-showBuildSettings" {
+	if len(commandArgs) >= 2 && commandName == "xcodebuild" && commandArgs[1] == "-showBuildSettings" {
 		fmt.Fprint(os.Stdout, "Build settings for action build and target App:\n    MARKETING_VERSION = 4.5.6\n    CURRENT_PROJECT_VERSION = 99\n")
 		os.Exit(0)
 	}
 
-	if len(commandArgs) >= 1 && commandArgs[0] == "xcodebuild" && helperContainsArg(commandArgs[1:], "archive") {
+	if len(commandArgs) >= 1 && commandName == "xcodebuild" && helperContainsArg(commandArgs[1:], "archive") {
 		archivePath, err := valueAfter(commandArgs[1:], "-archivePath")
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -2533,7 +2591,7 @@ func TestXcodeHelperProcess(t *testing.T) {
 		os.Exit(0)
 	}
 
-	if len(commandArgs) >= 1 && commandArgs[0] == "xcodebuild" && helperContainsArg(commandArgs[1:], "-exportArchive") {
+	if len(commandArgs) >= 1 && commandName == "xcodebuild" && helperContainsArg(commandArgs[1:], "-exportArchive") {
 		if os.Getenv("ASC_XCODE_HELPER_EXPORT_FAIL") == "1" {
 			fmt.Fprintln(os.Stderr, "requested export failure")
 			os.Exit(1)
@@ -2664,7 +2722,7 @@ func TestXcodeHelperProcess(t *testing.T) {
 		os.Exit(0)
 	}
 
-	if len(commandArgs) >= 2 && commandArgs[0] == "xcodebuild" && commandArgs[1] == "retain-output-after-exit" {
+	if len(commandArgs) >= 2 && commandName == "xcodebuild" && commandArgs[1] == "retain-output-after-exit" {
 		descendantArgs := []string{"-test.run=TestXcodeHelperProcess", "--", "xcodebuild", "hold-output-descriptors"}
 		descendant := exec.Command(os.Args[0], descendantArgs...)
 		descendant.Env = os.Environ()
@@ -2681,24 +2739,24 @@ func TestXcodeHelperProcess(t *testing.T) {
 		os.Exit(0)
 	}
 
-	if len(commandArgs) >= 2 && commandArgs[0] == "xcodebuild" && commandArgs[1] == "hold-output-descriptors" {
+	if len(commandArgs) >= 2 && commandName == "xcodebuild" && commandArgs[1] == "hold-output-descriptors" {
 		time.Sleep(2 * time.Second)
 		os.Exit(0)
 	}
 
-	if len(commandArgs) >= 2 && commandArgs[0] == "xcodebuild" && commandArgs[1] == "wait-for-context-cancel" {
+	if len(commandArgs) >= 2 && commandName == "xcodebuild" && commandArgs[1] == "wait-for-context-cancel" {
 		time.Sleep(2 * time.Second)
 		os.Exit(0)
 	}
 
-	if len(commandArgs) >= 2 && commandArgs[0] == "xcodebuild" && commandArgs[1] == "fail-large-output" {
+	if len(commandArgs) >= 2 && commandName == "xcodebuild" && commandArgs[1] == "fail-large-output" {
 		fmt.Fprint(os.Stderr, "file.m:4:3: error: root cause\n")
 		fmt.Fprint(os.Stderr, strings.Repeat("x", xcodebuildErrorTailLimit+128))
 		fmt.Fprint(os.Stderr, "\nFINAL-DIAGNOSTIC\n")
 		os.Exit(1)
 	}
 
-	if len(commandArgs) >= 2 && commandArgs[0] == "xcodebuild" && commandArgs[1] == "alternating-stream-output" {
+	if len(commandArgs) >= 2 && commandName == "xcodebuild" && commandArgs[1] == "alternating-stream-output" {
 		stdoutInfo, stdoutErr := os.Stdout.Stat()
 		stderrInfo, stderrErr := os.Stderr.Stat()
 		fmt.Fprint(os.Stdout, "FIRST-STDOUT\n")
@@ -2712,7 +2770,7 @@ func TestXcodeHelperProcess(t *testing.T) {
 		os.Exit(0)
 	}
 
-	if len(commandArgs) >= 2 && commandArgs[0] == "xcodebuild" && commandArgs[1] == "large-output-then-wait" {
+	if len(commandArgs) >= 2 && commandName == "xcodebuild" && commandArgs[1] == "large-output-then-wait" {
 		if len(commandArgs) < 3 {
 			fmt.Fprintln(os.Stderr, "missing helper readiness path")
 			os.Exit(2)
@@ -2738,7 +2796,11 @@ func appendHelperLog(path string, args []string) error {
 		return err
 	}
 	defer f.Close()
-	_, err = fmt.Fprintln(f, strings.Join(args, "|"))
+	loggedArgs := append([]string(nil), args...)
+	if len(loggedArgs) > 0 {
+		loggedArgs[0] = filepath.Base(loggedArgs[0])
+	}
+	_, err = fmt.Fprintln(f, strings.Join(loggedArgs, "|"))
 	return err
 }
 

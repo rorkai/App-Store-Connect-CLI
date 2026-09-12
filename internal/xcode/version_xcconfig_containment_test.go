@@ -69,7 +69,7 @@ func TestValidateSetVersionRefusesExternalXCConfigByDefault(t *testing.T) {
 	externalPath := filepath.Join(externalDir, "Shared.xcconfig")
 	before := mustReadVersionTestFile(t, externalPath)
 
-	err := ValidateSetVersion(SetVersionOptions{
+	err := ValidateSetVersion(t.Context(), SetVersionOptions{
 		ProjectDir:  projectPath,
 		BuildNumber: "1",
 	})
