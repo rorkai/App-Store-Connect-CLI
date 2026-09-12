@@ -1529,7 +1529,7 @@ Examples:
 			if shared.ProgressEnabled() {
 				fmt.Fprintf(os.Stderr, "Computing SHA-256 hash of %s...\n", pathValue)
 			}
-			sha256Hash, err := asc.ComputeFileSHA256(fileHandle)
+			sha256Hash, err := asc.ComputeFileSHA256(ctx, fileHandle)
 			if err != nil {
 				return fmt.Errorf("notarization submit: failed to compute SHA-256: %w", err)
 			}
