@@ -1757,8 +1757,9 @@ func TestRunXcodebuildFailurePreservesRecognizedErrorsAndFinalOutputWithinBound(
 	logPath := filepath.Join(tempDir, "commands.log")
 
 	restore := overrideTestEnvironment(t)
-	commandContextFn = helperCommandContext(t, logPath)
 	t.Cleanup(restore)
+	useTrustedTestCommandNames(t)
+	commandContextFn = helperCommandContext(t, logPath)
 
 	tests := []struct {
 		name                 string
@@ -1809,8 +1810,9 @@ func TestRunXcodebuildFailureStillStreamsCompleteOutputOnce(t *testing.T) {
 	logPath := filepath.Join(tempDir, "commands.log")
 
 	restore := overrideTestEnvironment(t)
-	commandContextFn = helperCommandContext(t, logPath)
 	t.Cleanup(restore)
+	useTrustedTestCommandNames(t)
+	commandContextFn = helperCommandContext(t, logPath)
 
 	var streamed bytes.Buffer
 	err := runXcodebuild(context.Background(), []string{"fail-large-output"}, &streamed)
@@ -1843,8 +1845,9 @@ func TestRunXcodebuildFailureStillStreamsCompleteOutputOnce(t *testing.T) {
 func TestRunXcodebuildInterruptionPreservesRecognizedErrorsAndFinalOutputWithinBound(t *testing.T) {
 	tempDir := t.TempDir()
 	restore := overrideTestEnvironment(t)
-	commandContextFn = helperCommandContext(t, filepath.Join(tempDir, "commands.log"))
 	t.Cleanup(restore)
+	useTrustedTestCommandNames(t)
+	commandContextFn = helperCommandContext(t, filepath.Join(tempDir, "commands.log"))
 
 	tests := []struct {
 		name            string
@@ -2221,8 +2224,9 @@ func TestXcodeDiagnosticBufferSerializesConcurrentWrites(t *testing.T) {
 
 func TestRunXcodebuildPreservesCombinedChildStreamOrder(t *testing.T) {
 	restore := overrideTestEnvironment(t)
-	commandContextFn = helperCommandContext(t, filepath.Join(t.TempDir(), "commands.log"))
 	t.Cleanup(restore)
+	useTrustedTestCommandNames(t)
+	commandContextFn = helperCommandContext(t, filepath.Join(t.TempDir(), "commands.log"))
 
 	const want = "FIRST-STDOUT\nSECOND-STDERR\nTHIRD-STDOUT\nFINAL-STDERR\n"
 	var streamed bytes.Buffer
@@ -2267,6 +2271,8 @@ func TestRunXcodebuildDoesNotWaitForDescendantHoldingOutputPipes(t *testing.T) {
 	pidPath := filepath.Join(tempDir, "descendant.pid")
 
 	restore := overrideTestEnvironment(t)
+	t.Cleanup(restore)
+	useTrustedTestCommandNames(t)
 	// Race-instrumented helper binaries otherwise spend the race runtime's
 	// default one-second atexit delay in the direct child before it exits. That
 	// delay is unrelated to the descendant retaining the output descriptors and
@@ -2274,7 +2280,6 @@ func TestRunXcodebuildDoesNotWaitForDescendantHoldingOutputPipes(t *testing.T) {
 	t.Setenv("GORACE", strings.TrimSpace(os.Getenv("GORACE")+" atexit_sleep_ms=0"))
 	commandContextFn = helperCommandContext(t, filepath.Join(tempDir, "commands.log"))
 	t.Setenv("ASC_XCODE_HELPER_DESCENDANT_PID", pidPath)
-	t.Cleanup(restore)
 	t.Cleanup(func() {
 		data, err := os.ReadFile(pidPath)
 		if err != nil {
@@ -2303,8 +2308,9 @@ func TestRunXcodebuildDoesNotWaitForDescendantHoldingOutputPipes(t *testing.T) {
 func TestRunXcodebuildPreservesContextCancellation(t *testing.T) {
 	tempDir := t.TempDir()
 	restore := overrideTestEnvironment(t)
-	commandContextFn = helperCommandContext(t, filepath.Join(tempDir, "commands.log"))
 	t.Cleanup(restore)
+	useTrustedTestCommandNames(t)
+	commandContextFn = helperCommandContext(t, filepath.Join(tempDir, "commands.log"))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -2340,6 +2346,18 @@ func overrideTestEnvironment(t *testing.T) func() {
 		trustedXcrunPathFn = originalTrustedXcrunPath
 		trustedXcodeToolPathFn = originalTrustedXcodeToolPath
 	}
+}
+
+// useTrustedTestCommandNames keeps subprocess-focused tests independent of
+// host Xcode installation while production continues to resolve absolute
+// paths from the selected trusted toolchain.
+func useTrustedTestCommandNames(t *testing.T) {
+	t.Helper()
+	previous := trustedXcodeToolPathFn
+	trustedXcodeToolPathFn = func(_ context.Context, tool string, _ []string) (string, error) {
+		return filepath.Join("/usr/bin", tool), nil
+	}
+	t.Cleanup(func() { trustedXcodeToolPathFn = previous })
 }
 
 func helperCommandContext(t *testing.T, logPath string) func(context.Context, string, ...string) *exec.Cmd {

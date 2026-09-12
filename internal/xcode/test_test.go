@@ -434,6 +434,7 @@ func TestParseTestResultSummaryPreservesFlattenedCasesWhenUnitsDiffer(t *testing
 }
 
 func TestRunXcresulttoolJSONRejectsOversizedOutput(t *testing.T) {
+	useTrustedTestCommandNames(t)
 	originalCommandContext := commandContextFn
 	t.Cleanup(func() { commandContextFn = originalCommandContext })
 	commandContextFn = func(ctx context.Context, _ string, _ ...string) *exec.Cmd {
@@ -446,6 +447,7 @@ func TestRunXcresulttoolJSONRejectsOversizedOutput(t *testing.T) {
 }
 
 func TestRunXcresulttoolJSONPreservesBoundedDiagnostics(t *testing.T) {
+	useTrustedTestCommandNames(t)
 	originalCommandContext := commandContextFn
 	t.Cleanup(func() { commandContextFn = originalCommandContext })
 	commandContextFn = helperCommandContext(t, filepath.Join(t.TempDir(), "commands.log"))
