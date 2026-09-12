@@ -991,7 +991,7 @@ func macBundleRequiresProvisioningProfile(entitlements plistutil.PlistData, hasE
 // and ordinary sandbox/hardened-runtime claims. Unknown capability entitlements
 // fail closed unless the archive carried an embedded profile.
 func macEntitlementDoesNotRequireProfile(key string) bool {
-	if key == "com.apple.developer.team-identifier" || key == "com.apple.security.app-sandbox" || key == "com.apple.security.inherit" || key == "com.apple.security.get-task-allow" || key == "com.apple.security.print" {
+	if key == "com.apple.developer.team-identifier" || key == "com.apple.security.app-sandbox" || key == "com.apple.security.inherit" || key == "com.apple.security.get-task-allow" || key == "com.apple.security.print" || key == "com.apple.security.scripting-targets" {
 		return true
 	}
 	for _, prefix := range []string{

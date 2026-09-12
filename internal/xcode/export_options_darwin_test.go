@@ -604,6 +604,17 @@ func TestMacBundleRequiresProvisioningProfileForApplicationGroups(t *testing.T) 
 	}
 }
 
+func TestMacBundleDoesNotRequireProvisioningProfileForScriptingTargets(t *testing.T) {
+	if macBundleRequiresProvisioningProfile(plistutil.PlistData{
+		"com.apple.security.app-sandbox": true,
+		"com.apple.security.scripting-targets": map[string]any{
+			"com.apple.mail": []string{"com.apple.mail.compose"},
+		},
+	}, false) {
+		t.Fatal("App Sandbox scripting targets must not require a macOS provisioning profile")
+	}
+}
+
 func TestSelectMacProvisioningProfileMatchesEntitlementValues(t *testing.T) {
 	now := time.Now()
 	profile := func(uuid string, entitlements plistutil.PlistData) profileutil.ProvisioningProfileInfoModel {
