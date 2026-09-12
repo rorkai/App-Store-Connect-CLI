@@ -1038,7 +1038,7 @@ func TestValidateSetVersionDoesNotMutateProjectOrXCConfig(t *testing.T) {
 	pbxprojBefore := mustReadVersionTestFile(t, pbxprojPath)
 	xcconfigBefore := mustReadVersionTestFile(t, xcconfigPath)
 
-	err := ValidateSetVersion(SetVersionOptions{
+	err := ValidateSetVersion(t.Context(), SetVersionOptions{
 		ProjectDir:    project,
 		Target:        "App",
 		Configuration: "Release",
@@ -1361,7 +1361,7 @@ func TestStructuredVersion_ScopedConditionalSharedSettingDoesNotReportFalseSucce
 		ProjectDir: project, Target: "App", Configuration: "Release", Version: "2.0.0",
 	}
 
-	if err := ValidateSetVersion(setOptions); err == nil || !strings.Contains(err.Error(), "conditional") {
+	if err := ValidateSetVersion(t.Context(), setOptions); err == nil || !strings.Contains(err.Error(), "conditional") {
 		t.Fatalf("expected conditional-only scoped preflight error, got %v", err)
 	}
 	if got := mustReadVersionTestFile(t, sharedPath); got != conditional {

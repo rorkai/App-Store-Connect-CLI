@@ -305,7 +305,7 @@ func SetVersion(ctx context.Context, opts SetVersionOptions) (*SetVersionResult,
 
 // ValidateSetVersion verifies that a version mutation is locally valid and
 // editable without changing any files. Callers can use it before remote work.
-func ValidateSetVersion(opts SetVersionOptions) error {
+func ValidateSetVersion(ctx context.Context, opts SetVersionOptions) error {
 	if err := validateVersionMutationValue("--version", opts.Version); err != nil {
 		return err
 	}
@@ -328,7 +328,7 @@ func ValidateSetVersion(opts SetVersionOptions) error {
 	if strings.TrimSpace(opts.Target) != "" || strings.TrimSpace(opts.Configuration) != "" {
 		return fmt.Errorf("scoped edits require structured Xcode build settings: %w", structuredErr)
 	}
-	return validateSetVersionLegacy(context.Background())
+	return validateSetVersionLegacy(ctx)
 }
 
 func setVersionLegacy(ctx context.Context, opts SetVersionOptions) (*SetVersionResult, error) {

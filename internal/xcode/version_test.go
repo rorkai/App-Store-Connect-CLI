@@ -36,6 +36,34 @@ func TestGetVersionLegacyHonorsCanceledContextDuringAgvtoolResolution(t *testing
 	}
 }
 
+func TestValidateSetVersionLegacyHonorsCanceledContextDuringAgvtoolResolution(t *testing.T) {
+	projectDir := writeLegacyVersionProject(t)
+	restore := overrideTestEnvironment(t)
+	runtimeGOOS = "darwin"
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	resolverCalled := false
+	trustedXcodeToolPathFn = func(got context.Context, tool string, _ []string) (string, error) {
+		resolverCalled = true
+		if tool != "agvtool" {
+			t.Fatalf("tool = %q, want agvtool", tool)
+		}
+		return "", got.Err()
+	}
+	t.Cleanup(restore)
+
+	err := ValidateSetVersion(ctx, SetVersionOptions{
+		ProjectDir:  projectDir,
+		BuildNumber: "1",
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ValidateSetVersion() error = %v, want context.Canceled", err)
+	}
+	if !resolverCalled {
+		t.Fatal("agvtool resolver was not called")
+	}
+}
+
 func TestGetVersion_NotMacOS(t *testing.T) {
 	projectDir := writeLegacyVersionProject(t)
 	prev := runtimeGOOS

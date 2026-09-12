@@ -287,7 +287,7 @@ Examples:
 				if err := validateXcodeRemoteBuildNumberOptions(remote.options(v)); err != nil {
 					return err
 				}
-				if err := runValidateSetVersion(localxcode.SetVersionOptions{
+				if err := runValidateSetVersion(ctx, localxcode.SetVersionOptions{
 					ProjectDir:            projectInput,
 					Target:                strings.TrimSpace(*target),
 					Configuration:         strings.TrimSpace(*configuration),

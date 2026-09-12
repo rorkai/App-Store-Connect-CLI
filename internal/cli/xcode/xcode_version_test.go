@@ -391,7 +391,7 @@ func TestXcodeVersionEditResolvesAndAppliesRemoteSafeBuildNumber(t *testing.T) {
 		runSetVersion = originalSet
 		runResolveXcodeNextBuildNumber = originalResolve
 	})
-	runValidateSetVersion = func(opts localxcode.SetVersionOptions) error { return nil }
+	runValidateSetVersion = func(context.Context, localxcode.SetVersionOptions) error { return nil }
 
 	runGetConsistentMarketingVersion = func(ctx context.Context, opts localxcode.GetVersionOptions) (string, error) {
 		if opts.BuildSettingsLookup != localxcode.BuildSettingsLookupNever || opts.BuildSettingsDiagnostic == nil {
@@ -468,7 +468,7 @@ func TestXcodeVersionEditRemoteNumberRejectsDivergentLocalVersions(t *testing.T)
 		runResolveXcodeNextBuildNumber = originalResolve
 		runSetVersion = originalSet
 	})
-	runValidateSetVersion = func(opts localxcode.SetVersionOptions) error { return nil }
+	runValidateSetVersion = func(context.Context, localxcode.SetVersionOptions) error { return nil }
 
 	runGetConsistentMarketingVersion = func(ctx context.Context, opts localxcode.GetVersionOptions) (string, error) {
 		return "", errors.New("MARKETING_VERSION has differing values")
