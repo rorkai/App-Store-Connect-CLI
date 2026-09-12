@@ -1068,7 +1068,7 @@ func TestResolveMacManualExportOptionsPairsInstallerWithInferredApplicationTeam(
 		EntitlementsByBundleID: map[string]plistutil.PlistData{
 			"com.example.demo": {"com.apple.security.app-sandbox": true},
 		},
-	}}
+	}, SigningIdentity: "Apple Distribution: B"}
 	certificates := []certificateutil.CertificateInfoModel{
 		{CommonName: "Apple Distribution: A", TeamID: "TEAMA", Serial: "APP-A"},
 		{CommonName: "Apple Distribution: B", TeamID: "TEAMB", Serial: "APP-B"},
@@ -1082,8 +1082,104 @@ func TestResolveMacManualExportOptionsPairsInstallerWithInferredApplicationTeam(
 	if err != nil {
 		t.Fatalf("resolveMacManualExportOptions() error: %v", err)
 	}
-	if manual.TeamID != "TEAMA" || manual.SigningCertificate != "Apple Distribution: A" || manual.InstallerSigningCertificate != "3rd Party Mac Developer Installer: Z" {
+	if manual.TeamID != "TEAMB" || manual.SigningCertificate != "Apple Distribution: B" || manual.InstallerSigningCertificate != "3rd Party Mac Developer Installer: A" {
 		t.Fatalf("manual identities were not paired by inferred team: %#v", manual)
+	}
+}
+
+func TestResolveMacManualExportOptionsRejectsAmbiguousInstalledTeams(t *testing.T) {
+	archiveInfo := macArchiveExportInfo{ArchiveInfo: exportoptionsgenerator.ArchiveInfo{
+		AppBundleID: "com.example.demo",
+		EntitlementsByBundleID: map[string]plistutil.PlistData{
+			"com.example.demo": {"com.apple.security.app-sandbox": true},
+		},
+	}}
+	certificates := []certificateutil.CertificateInfoModel{
+		{CommonName: "Apple Distribution: A", TeamID: "TEAMA", Serial: "APP-A"},
+		{CommonName: "Apple Distribution: B", TeamID: "TEAMB", Serial: "APP-B"},
+	}
+	installers := []certificateutil.CertificateInfoModel{
+		{CommonName: "3rd Party Mac Developer Installer: A", TeamID: "TEAMA", Serial: "INSTALLER-A"},
+		{CommonName: "3rd Party Mac Developer Installer: B", TeamID: "TEAMB", Serial: "INSTALLER-B"},
+	}
+
+	_, err := resolveMacManualExportOptions(archiveInfo, nil, certificates, installers, "")
+	if err == nil || !strings.Contains(err.Error(), "multiple installed teams") || !strings.Contains(err.Error(), "--team-id") {
+		t.Fatalf("resolveMacManualExportOptions() error = %v, want ambiguous-team guidance", err)
+	}
+}
+
+func TestResolveMacManualExportOptionsInfersTeamFromEntitlements(t *testing.T) {
+	archiveInfo := macArchiveExportInfo{ArchiveInfo: exportoptionsgenerator.ArchiveInfo{
+		AppBundleID: "com.example.demo",
+		EntitlementsByBundleID: map[string]plistutil.PlistData{
+			"com.example.demo": {
+				"com.apple.developer.team-identifier": "TEAMB",
+				"com.apple.security.app-sandbox":      true,
+			},
+		},
+	}}
+	certificates := []certificateutil.CertificateInfoModel{
+		{CommonName: "Apple Distribution: A", TeamID: "TEAMA", Serial: "APP-A"},
+		{CommonName: "Apple Distribution: B", TeamID: "TEAMB", Serial: "APP-B"},
+	}
+	installers := []certificateutil.CertificateInfoModel{
+		{CommonName: "3rd Party Mac Developer Installer: A", TeamID: "TEAMA", Serial: "INSTALLER-A"},
+		{CommonName: "3rd Party Mac Developer Installer: B", TeamID: "TEAMB", Serial: "INSTALLER-B"},
+	}
+
+	manual, err := resolveMacManualExportOptions(archiveInfo, nil, certificates, installers, "")
+	if err != nil {
+		t.Fatalf("resolveMacManualExportOptions() error: %v", err)
+	}
+	if manual.TeamID != "TEAMB" || manual.SigningCertificate != "Apple Distribution: B" || manual.InstallerSigningCertificate != "3rd Party Mac Developer Installer: B" {
+		t.Fatalf("manual identities were not selected using the archived entitlement team: %#v", manual)
+	}
+}
+
+func TestResolveMacManualExportOptionsInfersTeamFromArchivedIdentityName(t *testing.T) {
+	archiveInfo := macArchiveExportInfo{
+		ArchiveInfo: exportoptionsgenerator.ArchiveInfo{
+			AppBundleID: "com.example.demo",
+			EntitlementsByBundleID: map[string]plistutil.PlistData{
+				"com.example.demo": {"com.apple.security.app-sandbox": true},
+			},
+		},
+		SigningIdentity: "Apple Development: Example (TEAM123456)",
+	}
+	certificates := []certificateutil.CertificateInfoModel{
+		{CommonName: "Apple Distribution: Other", TeamID: "OTHER12345", Serial: "APP-A"},
+		{CommonName: "Apple Distribution: Example", TeamID: "TEAM123456", Serial: "APP-B"},
+	}
+	installers := []certificateutil.CertificateInfoModel{
+		{CommonName: "Mac Installer Distribution: Example", TeamID: "TEAM123456", Serial: "INSTALLER-B"},
+	}
+
+	manual, err := resolveMacManualExportOptions(archiveInfo, nil, certificates, installers, "")
+	if err != nil {
+		t.Fatalf("resolveMacManualExportOptions() error: %v", err)
+	}
+	if manual.TeamID != "TEAM123456" || manual.SigningCertificate != "Apple Distribution: Example" {
+		t.Fatalf("manual identity was not selected using the archived identity team: %#v", manual)
+	}
+}
+
+func TestResolveMacManualExportOptionsRejectsConflictingArchiveTeams(t *testing.T) {
+	archiveInfo := macArchiveExportInfo{
+		ArchiveInfo: exportoptionsgenerator.ArchiveInfo{
+			AppBundleID: "com.example.demo",
+			EntitlementsByBundleID: map[string]plistutil.PlistData{
+				"com.example.demo": {"com.apple.developer.team-identifier": "TEAMB"},
+			},
+		},
+		EmbeddedProfiles: map[string]profileutil.ProvisioningProfileInfoModel{
+			"com.example.demo": {TeamID: "TEAMA"},
+		},
+	}
+
+	_, err := resolveMacManualExportOptions(archiveInfo, nil, nil, nil, "")
+	if err == nil || !strings.Contains(err.Error(), "conflicting team identifiers") || !strings.Contains(err.Error(), "TEAMA, TEAMB") {
+		t.Fatalf("resolveMacManualExportOptions() error = %v, want conflicting archive teams", err)
 	}
 }
 

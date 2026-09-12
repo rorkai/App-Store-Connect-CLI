@@ -899,6 +899,10 @@ func resolveMacManualExportOptions(
 	if len(bundleIDs) == 0 {
 		return manualExportOptions{}, fmt.Errorf("macOS archive is missing executable bundle identifiers")
 	}
+	effectiveTeamID, err := resolveMacManualExportTeamID(archiveInfo, certificates, teamID)
+	if err != nil {
+		return manualExportOptions{}, err
+	}
 
 	sort.SliceStable(certificates, func(i, j int) bool {
 		if certificates[i].CommonName != certificates[j].CommonName {
@@ -911,10 +915,6 @@ func resolveMacManualExportOptions(
 	for _, certificate := range certificates {
 		if !isMacAppDistributionCertificate(certificate.CommonName) {
 			continue
-		}
-		effectiveTeamID := strings.TrimSpace(teamID)
-		if effectiveTeamID == "" {
-			effectiveTeamID = strings.TrimSpace(certificate.TeamID)
 		}
 		if effectiveTeamID == "" || certificate.TeamID != effectiveTeamID {
 			continue
@@ -961,9 +961,110 @@ func resolveMacManualExportOptions(
 	}
 
 	if matchedApplicationIdentity && !matchedInstallerIdentity {
-		return manualExportOptions{}, fmt.Errorf("could not find an installed Mac App Store installer certificate matching an installed macOS distribution identity for team %q", teamID)
+		return manualExportOptions{}, fmt.Errorf("could not find an installed Mac App Store installer certificate matching an installed macOS distribution identity for team %q", effectiveTeamID)
 	}
-	return manualExportOptions{}, fmt.Errorf("could not find one installed macOS distribution certificate and required App Store provisioning profile set for team %q covering bundle identifiers %s", teamID, strings.Join(bundleIDs, ", "))
+	return manualExportOptions{}, fmt.Errorf("could not find one installed macOS distribution certificate and required App Store provisioning profile set for team %q covering bundle identifiers %s", effectiveTeamID, strings.Join(bundleIDs, ", "))
+}
+
+func resolveMacManualExportTeamID(
+	archiveInfo macArchiveExportInfo,
+	certificates []certificateutil.CertificateInfoModel,
+	requestedTeamID string,
+) (string, error) {
+	if requestedTeamID = strings.TrimSpace(requestedTeamID); requestedTeamID != "" {
+		return requestedTeamID, nil
+	}
+
+	archiveTeamIDs := make(map[string]struct{})
+	for _, profile := range archiveInfo.EmbeddedProfiles {
+		if teamID := strings.TrimSpace(profile.TeamID); teamID != "" {
+			archiveTeamIDs[teamID] = struct{}{}
+		}
+	}
+	for bundleID, entitlements := range archiveInfo.EntitlementsByBundleID {
+		value, ok := entitlements["com.apple.developer.team-identifier"]
+		if !ok {
+			continue
+		}
+		teamID, ok := value.(string)
+		teamID = strings.TrimSpace(teamID)
+		if !ok || teamID == "" {
+			return "", fmt.Errorf("macOS archive bundle %q has an invalid team identifier entitlement", bundleID)
+		}
+		archiveTeamIDs[teamID] = struct{}{}
+	}
+	if signingIdentity := strings.TrimSpace(archiveInfo.SigningIdentity); signingIdentity != "" && signingIdentity != "-" {
+		identityTeamIDs := make(map[string]struct{})
+		fingerprint := strings.ToUpper(signingIdentity)
+		for _, certificate := range certificates {
+			matchesFingerprint := sha1IdentitySelectorPattern.MatchString(fingerprint) && strings.EqualFold(strings.TrimSpace(certificate.SHA1Fingerprint), fingerprint)
+			matchesCommonName := strings.TrimSpace(certificate.CommonName) == signingIdentity
+			if !matchesFingerprint && !matchesCommonName {
+				continue
+			}
+			if teamID := strings.TrimSpace(certificate.TeamID); teamID != "" {
+				identityTeamIDs[teamID] = struct{}{}
+			}
+		}
+		identityTeamID, ok, err := oneMacTeamID(identityTeamIDs, fmt.Sprintf("archived signing identity %q matches multiple installed teams", signingIdentity))
+		if err != nil {
+			return "", err
+		}
+		if !ok {
+			identityTeamID = macSigningIdentityTeamID(signingIdentity)
+		}
+		if identityTeamID != "" {
+			archiveTeamIDs[identityTeamID] = struct{}{}
+		}
+	}
+	if teamID, ok, err := oneMacTeamID(archiveTeamIDs, "macOS archive contains conflicting team identifiers"); ok || err != nil {
+		return teamID, err
+	}
+
+	installedTeamIDs := make(map[string]struct{})
+	for _, certificate := range certificates {
+		if !isMacAppDistributionCertificate(certificate.CommonName) {
+			continue
+		}
+		if teamID := strings.TrimSpace(certificate.TeamID); teamID != "" {
+			installedTeamIDs[teamID] = struct{}{}
+		}
+	}
+	teamID, ok, err := oneMacTeamID(installedTeamIDs, "multiple installed teams provide macOS distribution identities")
+	if err != nil {
+		return "", fmt.Errorf("%w; specify --team-id", err)
+	}
+	if ok {
+		return teamID, nil
+	}
+	return "", nil
+}
+
+func macSigningIdentityTeamID(signingIdentity string) string {
+	openParen := strings.LastIndexByte(signingIdentity, '(')
+	if openParen < 0 || !strings.HasSuffix(signingIdentity, ")") {
+		return ""
+	}
+	teamID := strings.TrimSpace(signingIdentity[openParen+1 : len(signingIdentity)-1])
+	if !signingTeamIDPattern.MatchString(teamID) {
+		return ""
+	}
+	return teamID
+}
+
+func oneMacTeamID(teamIDs map[string]struct{}, conflictMessage string) (string, bool, error) {
+	if len(teamIDs) == 0 {
+		return "", false, nil
+	}
+	teams := make([]string, 0, len(teamIDs))
+	for teamID := range teamIDs {
+		teams = append(teams, teamID)
+	}
+	sort.Strings(teams)
+	if len(teams) > 1 {
+		return "", false, fmt.Errorf("%s: %s", conflictMessage, strings.Join(teams, ", "))
+	}
+	return teams[0], true, nil
 }
 
 func macCertificateSpecifier(certificate certificateutil.CertificateInfoModel) string {
