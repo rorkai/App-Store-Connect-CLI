@@ -572,7 +572,7 @@ func TestValidatePinsArtifactAcrossPathReplacement(t *testing.T) {
 	replaced := false
 	commandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
 		cmd := baseCommandContext(ctx, name, args...)
-		if name == "xcrun" && len(args) > 0 && args[0] == "altool" {
+		if filepath.Base(name) == "xcrun" && len(args) > 0 && args[0] == "altool" {
 			preservedPath := filepath.Join(tempDir, "original.ipa")
 			if err := os.Rename(ipaPath, preservedPath); err != nil {
 				t.Fatalf("preserve original IPA: %v", err)
