@@ -36,25 +36,28 @@ type ExportOptionsGenerateOptions struct {
 
 // ExportOptionsGenerateResult describes the generated ExportOptions.plist.
 type ExportOptionsGenerateResult struct {
-	Path                 string            `json:"path"`
-	ArchivePath          string            `json:"archive_path"`
-	Method               string            `json:"method"`
-	Destination          string            `json:"destination"`
-	SigningStyle         string            `json:"signing_style"`
-	TeamID               string            `json:"team_id,omitempty"`
-	SigningCertificate   string            `json:"signing_certificate,omitempty"`
-	ProvisioningProfiles map[string]string `json:"provisioning_profiles,omitempty"`
-	Overwritten          bool              `json:"overwritten"`
+	Path                        string            `json:"path"`
+	ArchivePath                 string            `json:"archive_path"`
+	Method                      string            `json:"method"`
+	Destination                 string            `json:"destination"`
+	SigningStyle                string            `json:"signing_style"`
+	TeamID                      string            `json:"team_id,omitempty"`
+	SigningCertificate          string            `json:"signing_certificate,omitempty"`
+	InstallerSigningCertificate string            `json:"installer_signing_certificate,omitempty"`
+	ProvisioningProfiles        map[string]string `json:"provisioning_profiles,omitempty"`
+	Overwritten                 bool              `json:"overwritten"`
 }
 
 // manualExportOptions contains the signing material ASC owns after Bitrise has
 // resolved installed certificates and profiles. It deliberately does not leak
 // Bitrise's v1 ExportOptions interface into ASC's public API.
 type manualExportOptions struct {
-	TeamID                     string
-	SigningCertificate         string
-	ProvisioningProfiles       map[string]string
-	ICloudContainerEnvironment string
+	TeamID                       string
+	SigningCertificate           string
+	InstallerSigningCertificate  string
+	ProvisioningProfiles         map[string]string
+	ICloudContainerEnvironment   string
+	ProvisioningProfilesOptional bool
 }
 
 var (
@@ -143,7 +146,7 @@ func GenerateExportOptions(ctx context.Context, opts ExportOptionsGenerateOption
 	}
 
 	payload := buildExportOptionsPayload(opts, teamID, manual)
-	if err := validateExportOptionsPayload(payload, opts.Method, opts.SigningStyle); err != nil {
+	if err := validateExportOptionsPayload(payload, opts.Method, opts.SigningStyle, manual.ProvisioningProfilesOptional); err != nil {
 		return nil, err
 	}
 	data, err := plist.MarshalIndent(payload, plist.XMLFormat, "\t")
@@ -154,7 +157,7 @@ func GenerateExportOptions(ctx context.Context, opts ExportOptionsGenerateOption
 	if _, err := plist.Unmarshal(data, &decoded); err != nil {
 		return nil, fmt.Errorf("decode generated export options plist: %w", err)
 	}
-	if err := validateExportOptionsPayload(decoded, opts.Method, opts.SigningStyle); err != nil {
+	if err := validateExportOptionsPayload(decoded, opts.Method, opts.SigningStyle, manual.ProvisioningProfilesOptional); err != nil {
 		return nil, fmt.Errorf("validate generated export options plist: %w", err)
 	}
 
@@ -184,6 +187,7 @@ func GenerateExportOptions(ctx context.Context, opts ExportOptionsGenerateOption
 	}
 	if opts.SigningStyle == exportOptionsSigningStyleManual {
 		result.SigningCertificate = manual.SigningCertificate
+		result.InstallerSigningCertificate = manual.InstallerSigningCertificate
 		result.ProvisioningProfiles = cloneProvisioningProfiles(manual.ProvisioningProfiles)
 	}
 	return result, nil
@@ -311,7 +315,7 @@ func buildExportOptionsPayload(opts ExportOptionsGenerateOptions, teamID string,
 	return buildPlatformExportOptionsPayload(opts, teamID, manual)
 }
 
-func validateExportOptionsPayload(payload map[string]any, method, signingStyle string) error {
+func validateExportOptionsPayload(payload map[string]any, method, signingStyle string, provisioningProfilesOptional bool) error {
 	if got := exportOptionsString(payload["method"]); got != method {
 		return fmt.Errorf("export options method must be %q", method)
 	}
@@ -333,13 +337,20 @@ func validateExportOptionsPayload(payload map[string]any, method, signingStyle s
 	if certificate == "" {
 		return fmt.Errorf("manual export options require a signing certificate")
 	}
-	profiles, err := provisioningProfilesFromPayload(payload["provisioningProfiles"])
-	if err != nil {
-		return err
+	installerCertificate := exportOptionsString(payload["installerSigningCertificate"])
+	profiles := map[string]string(nil)
+	if profilesValue, found := payload["provisioningProfiles"]; found {
+		var err error
+		profiles, err = provisioningProfilesFromPayload(profilesValue)
+		if err != nil {
+			return err
+		}
 	}
 	return validateManualExportOptions(manualExportOptions{
-		SigningCertificate:   certificate,
-		ProvisioningProfiles: profiles,
+		SigningCertificate:           certificate,
+		InstallerSigningCertificate:  installerCertificate,
+		ProvisioningProfiles:         profiles,
+		ProvisioningProfilesOptional: provisioningProfilesOptional,
 	})
 }
 
@@ -351,7 +362,10 @@ func validateManualExportOptions(options manualExportOptions) error {
 	if strings.TrimSpace(options.SigningCertificate) == "" {
 		return fmt.Errorf("manual export options require a signing certificate")
 	}
-	if len(options.ProvisioningProfiles) == 0 {
+	if options.ProvisioningProfilesOptional && strings.TrimSpace(options.InstallerSigningCertificate) == "" {
+		return fmt.Errorf("manual macOS export options require an installer signing certificate")
+	}
+	if len(options.ProvisioningProfiles) == 0 && !options.ProvisioningProfilesOptional {
 		return fmt.Errorf("manual export options require provisioning profile mappings")
 	}
 	for bundleID, profile := range options.ProvisioningProfiles {

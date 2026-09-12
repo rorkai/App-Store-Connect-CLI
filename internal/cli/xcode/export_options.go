@@ -35,6 +35,10 @@ an existing .xcarchive. Automatic signing lets Xcode resolve signing for the
 app and any embedded targets; provide --signing-style manual to resolve local
 profiles.
 
+Manual App Store macOS generation also resolves an installed package-installer
+identity. Profile mappings are emitted for executable bundles that carry an
+embedded provisioning profile or whose entitlements require one.
+
 Examples:
   asc xcode export-options generate --archive-path .asc/artifacts/App.xcarchive
   asc xcode export-options generate --archive-path .asc/artifacts/App.xcarchive --method release-testing
@@ -172,6 +176,9 @@ func exportOptionsResultRows(result *localxcode.ExportOptionsGenerateResult) [][
 	}
 	if signingCertificate := strings.TrimSpace(result.SigningCertificate); signingCertificate != "" {
 		rows = append(rows, []string{"signing_certificate", signingCertificate})
+	}
+	if installerSigningCertificate := strings.TrimSpace(result.InstallerSigningCertificate); installerSigningCertificate != "" {
+		rows = append(rows, []string{"installer_signing_certificate", installerSigningCertificate})
 	}
 	bundleIDs := make([]string, 0, len(result.ProvisioningProfiles))
 	for bundleID := range result.ProvisioningProfiles {

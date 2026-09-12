@@ -40,10 +40,13 @@ The archive is required so ASC can validate that the artifact is an Xcode
 archive and infer its team and bundle metadata. `--team-id` overrides archive
 inference. Automatic signing omits provisioning-profile mappings and lets
 Xcode resolve every embedded app, extension, widget, watch component, or App
-Clip. Manual signing delegates local certificate/profile selection to Bitrise's
-export-options generator for its supported iOS/tvOS archive shapes and fails
-clearly for unsupported or ambiguous archives; users can always retain an
-explicit custom plist.
+Clip. Manual signing delegates local certificate/profile selection for
+iOS/tvOS archive shapes to the pinned archive library. App Store macOS exports
+also resolve same-team application and installer identities, plus replacement
+profiles for executable bundles whose entitlements require one. Bundles that
+carry an embedded profile always receive a replacement mapping; bundles with
+only unrestricted macOS entitlements remain valid without a synthetic mapping.
+Other macOS export methods require an explicit custom plist.
 
 Existing invocations remain valid. `asc xcode export` accepts the same
 `--method` value for implicit generation and makes
@@ -70,8 +73,8 @@ The generator result contains:
 - `path` and `archive_path`;
 - `method`, `destination`, and `signing_style`;
 - inferred or explicit `team_id` when available;
-- `signing_certificate` and a stable bundle-ID-to-profile map for manual
-  signing and both supported methods;
+- `signing_certificate`, `installer_signing_certificate` when a macOS package
+  needs one, and a stable bundle-ID-to-profile map for manual signing;
 - `overwritten`.
 
 JSON uses those field names. Table and Markdown render the same values with one
@@ -100,8 +103,12 @@ failed validation or write leaves the previous file unchanged.
 
 Automatic generation uses archive metadata only and does not touch the
 Keychain or App Store Connect. Manual generation is macOS-only and may inspect
-locally installed signing identities and provisioning profiles through Bitrise.
-It does not create or mutate signing assets.
+locally installed signing identities and provisioning profiles through the
+pinned signing libraries. For macOS, ASC recursively inventories nested app,
+extension, XPC service, and system extension bundles so required profile
+mappings are not limited to the main app and top-level extensions. Non-bundle
+helper executables and frameworks remain Xcode-managed and are not assigned
+provisioning-profile mappings. ASC does not create or mutate signing assets.
 
 ## Compatibility and lifecycle
 
