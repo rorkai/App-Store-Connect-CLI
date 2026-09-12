@@ -340,6 +340,66 @@ func validValidateFixture() validateFixture {
 	}
 }
 
+func TestValidateRejectsExplicitVersionBindingMismatch(t *testing.T) {
+	tests := []struct {
+		name      string
+		mutate    func(*validateFixture)
+		args      []string
+		wantError string
+	}{
+		{
+			name: "version belongs to another app",
+			mutate: func(fixture *validateFixture) {
+				fixture.version = strings.Replace(fixture.version, `"id":"app-1"`, `"id":"app-2"`, 1)
+			},
+			args:      []string{"validate", "--app", "app-1", "--version-id", "ver-1"},
+			wantError: `version "ver-1" belongs to app "app-2", not "app-1"`,
+		},
+		{
+			name: "version platform does not match",
+			mutate: func(fixture *validateFixture) {
+				fixture.version = strings.Replace(fixture.version, `"platform":"IOS"`, `"platform":"MAC_OS"`, 1)
+			},
+			args:      []string{"validate", "--app", "app-1", "--version-id", "ver-1", "--platform", "IOS"},
+			wantError: `version "ver-1" is on platform "MAC_OS", not "IOS"`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			fixture := validValidateFixture()
+			test.mutate(&fixture)
+			client := newValidateTestClient(t, fixture)
+			restore := validate.SetClientFactory(func() (*asc.Client, error) {
+				return client, nil
+			})
+			t.Cleanup(restore)
+
+			root := RootCommand("1.2.3")
+			var runErr error
+			stdout, stderr := captureOutput(t, func() {
+				if err := root.Parse(test.args); err != nil {
+					t.Fatalf("parse error: %v", err)
+				}
+				runErr = root.Run(context.Background())
+			})
+
+			if runErr == nil || errors.Is(runErr, flag.ErrHelp) || !strings.Contains(runErr.Error(), test.wantError) {
+				t.Fatalf("Run() error = %v, want runtime error containing %q", runErr, test.wantError)
+			}
+			if got := rootcmd.ExitCodeFromError(runErr); got != rootcmd.ExitError {
+				t.Fatalf("exit code = %d, want %d", got, rootcmd.ExitError)
+			}
+			if stdout != "" {
+				t.Fatalf("expected no readiness report on binding failure, got stdout %q", stdout)
+			}
+			if stderr != "" {
+				t.Fatalf("expected direct command run to leave stderr empty, got %q", stderr)
+			}
+		})
+	}
+}
+
 func TestValidateRequiresAppAndVersionSelector(t *testing.T) {
 	t.Setenv("ASC_APP_ID", "")
 

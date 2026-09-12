@@ -15,11 +15,15 @@ func TestBuildReadinessReport_UsesCompoundReadsWithoutFallbacks(t *testing.T) {
 	var mu sync.Mutex
 	requests := make(map[string]int)
 	queries := make(map[string]string)
+	var versionQueries []string
 
 	client := newBuildsTestClient(t, buildsRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		mu.Lock()
 		requests[req.URL.Path]++
 		queries[req.URL.Path] = req.URL.Query().Encode()
+		if req.URL.Path == "/v1/appStoreVersions/ver-1" {
+			versionQueries = append(versionQueries, req.URL.Query().Encode())
+		}
 		mu.Unlock()
 
 		switch req.URL.Path {
@@ -124,6 +128,9 @@ func TestBuildReadinessReport_UsesCompoundReadsWithoutFallbacks(t *testing.T) {
 	if got := queries["/v1/appStoreVersions/ver-1"]; got != "include=appStoreVersionLocalizations%2Cbuild%2CappStoreReviewDetail&limit%5BappStoreVersionLocalizations%5D=50" {
 		t.Fatalf("unexpected version compound query: %q", got)
 	}
+	if len(versionQueries) != 2 || versionQueries[0] != "include=app" || versionQueries[1] != "include=appStoreVersionLocalizations%2Cbuild%2CappStoreReviewDetail&limit%5BappStoreVersionLocalizations%5D=50" {
+		t.Fatalf("unexpected version queries: %v", versionQueries)
+	}
 	if got := queries["/v1/apps/app-1/appInfos"]; got != "include=app%2CageRatingDeclaration%2CappInfoLocalizations%2CprimaryCategory&limit%5BappInfoLocalizations%5D=50" {
 		t.Fatalf("unexpected app-info compound query: %q", got)
 	}
@@ -131,8 +138,8 @@ func TestBuildReadinessReport_UsesCompoundReadsWithoutFallbacks(t *testing.T) {
 	for _, count := range requests {
 		totalRequests += count
 	}
-	if totalRequests != 4 {
-		t.Fatalf("compound readiness request count = %d, want 4 (version, app infos, price schedule, current price)", totalRequests)
+	if totalRequests != 5 {
+		t.Fatalf("compound readiness request count = %d, want 5 (version verification, version, app infos, price schedule, current price)", totalRequests)
 	}
 	if got := queries["/v1/appPriceSchedules/schedule-1/manualPrices"]; got != "fields%5BappPricePoints%5D=customerPrice&fields%5BappPrices%5D=manual%2CstartDate%2CendDate%2CappPricePoint&include=appPricePoint&limit=200" {
 		t.Fatalf("unexpected current pricing query: %q", got)
