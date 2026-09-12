@@ -181,6 +181,38 @@ func TestTrustedXcodeCommandUsesResolvedAbsolutePath(t *testing.T) {
 	}
 }
 
+func TestTrustedXcodeCommandNormalizesRelativeDeveloperDirectoryBeforeChildChangesDirectory(t *testing.T) {
+	developerDir := filepath.Join(t.TempDir(), "Developer")
+	if err := os.MkdirAll(developerDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	relativeDeveloperDir, err := filepath.Rel(workingDir, developerDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DEVELOPER_DIR", relativeDeveloperDir)
+
+	previousResolver := trustedXcodeToolPathFn
+	trustedXcodeToolPathFn = func(context.Context, string, []string) (string, error) {
+		return "/usr/bin/xcodebuild", nil
+	}
+	t.Cleanup(func() { trustedXcodeToolPathFn = previousResolver })
+
+	cmd, err := trustedXcodeCommand(t.Context(), "xcodebuild", []string{"-version"}, nil)
+	if err != nil {
+		t.Fatalf("trustedXcodeCommand() error: %v", err)
+	}
+	cmd.Dir = t.TempDir()
+	got, ok := environmentValue(cmd.Env, "DEVELOPER_DIR")
+	if !ok || got != developerDir {
+		t.Fatalf("child DEVELOPER_DIR = %q, %t; want %q", got, ok, developerDir)
+	}
+}
+
 func TestRunXcodebuildUsesTrustedResolvedPath(t *testing.T) {
 	const wantPath = "/selected/Xcode.app/Contents/Developer/usr/bin/xcodebuild"
 	previousResolver := trustedXcodeToolPathFn

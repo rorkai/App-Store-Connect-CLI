@@ -1520,9 +1520,6 @@ func runCommandWithBoundedOutputEnvironmentMode(ctx context.Context, name string
 	if err != nil {
 		return err
 	}
-	if environment != nil {
-		cmd.Env = cloneEnvironment(environment)
-	}
 	outputWindow := newXcodeDiagnosticBuffer(xcodebuildErrorTailLimit, logWriter)
 	cmd.Stdout = outputWindow
 	cmd.Stderr = outputWindow

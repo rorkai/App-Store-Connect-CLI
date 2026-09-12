@@ -55,7 +55,30 @@ func trustedXcodeCommand(ctx context.Context, tool string, args, environment []s
 	if err != nil {
 		return nil, fmt.Errorf("resolve %s: %w", tool, err)
 	}
-	return commandContextFn(ctx, pathValue, args...), nil
+	command := commandContextFn(ctx, pathValue, args...)
+	commandEnvironment, err := normalizedTrustedToolEnvironment(environment, command.Env)
+	if err != nil {
+		return nil, err
+	}
+	if commandEnvironment != nil {
+		command.Env = commandEnvironment
+	}
+	return command, nil
+}
+
+func normalizedTrustedToolEnvironment(environment, inherited []string) ([]string, error) {
+	developerDir, hasDeveloperDir := environmentValue(environment, "DEVELOPER_DIR")
+	if !hasDeveloperDir || strings.TrimSpace(developerDir) == "" {
+		if environment == nil {
+			return inherited, nil
+		}
+		return append([]string(nil), environment...), nil
+	}
+	normalizedDeveloperDir, _, _, err := normalizeToolchainDeveloperDir(developerDir)
+	if err != nil {
+		return nil, err
+	}
+	return toolchainProbeEnvironmentForCommand(environment, inherited, normalizedDeveloperDir), nil
 }
 
 func resolveTrustedXcodeToolPath(ctx context.Context, tool string, environment []string) (string, error) {

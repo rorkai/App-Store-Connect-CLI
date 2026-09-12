@@ -1530,7 +1530,11 @@ func TestExportWarnsForBetaXcodeAppStoreExport(t *testing.T) {
 		return "/usr/bin/xcodebuild", nil
 	}
 	commandContextFn = helperCommandContext(t, logPath)
-	t.Setenv("DEVELOPER_DIR", "/Applications/Xcode-beta.app/Contents/Developer")
+	developerDir := filepath.Join(tempDir, "Xcode-beta.app", "Contents", "Developer")
+	if err := os.MkdirAll(developerDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DEVELOPER_DIR", developerDir)
 	t.Cleanup(restore)
 
 	var stderr bytes.Buffer
@@ -1543,7 +1547,7 @@ func TestExportWarnsForBetaXcodeAppStoreExport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Export() error: %v", err)
 	}
-	if !strings.Contains(stderr.String(), `Warning: active Xcode developer directory "/Applications/Xcode-beta.app/Contents/Developer" appears to be a beta build`) {
+	if !strings.Contains(stderr.String(), fmt.Sprintf("Warning: active Xcode developer directory %q appears to be a beta build", developerDir)) {
 		t.Fatalf("expected beta Xcode warning, got %q", stderr.String())
 	}
 	if !strings.Contains(stderr.String(), "App Store review can later reject builds for unsupported SDK/Xcode") {
@@ -1571,7 +1575,11 @@ func TestExportDoesNotWarnForStableXcodeAppStoreExport(t *testing.T) {
 		return "/usr/bin/xcodebuild", nil
 	}
 	commandContextFn = helperCommandContext(t, logPath)
-	t.Setenv("DEVELOPER_DIR", "/Applications/Xcode-26.3.0.app/Contents/Developer")
+	developerDir := filepath.Join(tempDir, "Xcode-26.3.0.app", "Contents", "Developer")
+	if err := os.MkdirAll(developerDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DEVELOPER_DIR", developerDir)
 	t.Cleanup(restore)
 
 	var stderr bytes.Buffer
@@ -1608,7 +1616,11 @@ func TestExportDoesNotWarnForBetaXcodeDevelopmentExport(t *testing.T) {
 		return "/usr/bin/xcodebuild", nil
 	}
 	commandContextFn = helperCommandContext(t, logPath)
-	t.Setenv("DEVELOPER_DIR", "/Applications/Xcode-beta.app/Contents/Developer")
+	developerDir := filepath.Join(tempDir, "Xcode-beta.app", "Contents", "Developer")
+	if err := os.MkdirAll(developerDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DEVELOPER_DIR", developerDir)
 	t.Cleanup(restore)
 
 	var stderr bytes.Buffer
