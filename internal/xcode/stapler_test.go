@@ -303,7 +303,7 @@ func TestStapleWithVerifierDoesNotMarkStartFailureAsPartialMutation(t *testing.T
 	lookupCommandContext := commandContextFn
 	previousCommandContext := commandContextFn
 	commandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
-		if name == "xcrun" && len(args) == 2 && args[0] == "--find" && args[1] == "stapler" {
+		if filepath.Base(name) == "xcrun" && len(args) == 2 && args[0] == "--find" && args[1] == "stapler" {
 			return lookupCommandContext(ctx, name, args...)
 		}
 		return exec.CommandContext(ctx, filepath.Join(t.TempDir(), "missing-stapler"), args...)
@@ -1235,14 +1235,9 @@ func TestStaplerReportsMissingXcrunWithoutStartingChild(t *testing.T) {
 	previousOS := runtimeGOOS
 	runtimeGOOS = "darwin"
 	t.Cleanup(func() { runtimeGOOS = previousOS })
-	previousLookPath := lookPathFn
-	lookPathFn = func(file string) (string, error) {
-		if file == "xcrun" {
-			return "", exec.ErrNotFound
-		}
-		return "/usr/bin/" + file, nil
-	}
-	t.Cleanup(func() { lookPathFn = previousLookPath })
+	previousTrustedXcrunPath := trustedXcrunPathFn
+	trustedXcrunPathFn = func() (string, error) { return "", exec.ErrNotFound }
+	t.Cleanup(func() { trustedXcrunPathFn = previousTrustedXcrunPath })
 	previousCommandContext := commandContextFn
 	commandContextFn = func(context.Context, string, ...string) *exec.Cmd {
 		t.Fatal("commandContextFn called when xcrun is missing")
@@ -1262,9 +1257,9 @@ func TestStaplerRedactsNonNotFoundXcrunLookupFailure(t *testing.T) {
 	t.Cleanup(func() { runtimeGOOS = previousOS })
 	const canary = "STAPLER_LOOKUP_PATH_CANARY_2242"
 	wantErr := errors.New("lookpath /private/tmp/" + canary + "/xcrun: permission denied")
-	previousLookPath := lookPathFn
-	lookPathFn = func(string) (string, error) { return "", wantErr }
-	t.Cleanup(func() { lookPathFn = previousLookPath })
+	previousTrustedXcrunPath := trustedXcrunPathFn
+	trustedXcrunPathFn = func() (string, error) { return "", wantErr }
+	t.Cleanup(func() { trustedXcrunPathFn = previousTrustedXcrunPath })
 
 	result, err := Staple(context.Background(), "/tmp/MyApp.dmg", nil)
 	if result != nil {
@@ -1359,9 +1354,9 @@ func TestStaplerPreservesResolutionExitStatusWhenCancellationCleanupWinsRace(t *
 	previousOS := runtimeGOOS
 	runtimeGOOS = "darwin"
 	t.Cleanup(func() { runtimeGOOS = previousOS })
-	previousLookPath := lookPathFn
-	lookPathFn = func(string) (string, error) { return "/usr/bin/xcrun", nil }
-	t.Cleanup(func() { lookPathFn = previousLookPath })
+	previousTrustedXcrunPath := trustedXcrunPathFn
+	trustedXcrunPathFn = func() (string, error) { return "/usr/bin/xcrun", nil }
+	t.Cleanup(func() { trustedXcrunPathFn = previousTrustedXcrunPath })
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1553,12 +1548,22 @@ func configureStaplerTestEnvironment(t *testing.T, logPath string) {
 	t.Cleanup(func() { runtimeGOOS = previousOS })
 	previousLookPath := lookPathFn
 	lookPathFn = func(file string) (string, error) {
-		if file != "xcrun" {
+		if file != "xcrun" && file != "stapler" {
 			return "", fmt.Errorf("unexpected lookup %q", file)
 		}
-		return "/usr/bin/xcrun", nil
+		return "/usr/bin/" + file, nil
 	}
 	t.Cleanup(func() { lookPathFn = previousLookPath })
+	previousTrustedXcrunPath := trustedXcrunPathFn
+	trustedXcrunPathFn = func() (string, error) {
+		return lookPathFn("xcrun")
+	}
+	t.Cleanup(func() { trustedXcrunPathFn = previousTrustedXcrunPath })
+	previousTrustedXcodeToolPath := trustedXcodeToolPathFn
+	trustedXcodeToolPathFn = func(_ context.Context, tool string, _ []string) (string, error) {
+		return lookPathFn(tool)
+	}
+	t.Cleanup(func() { trustedXcodeToolPathFn = previousTrustedXcodeToolPath })
 	previousCommandContext := commandContextFn
 	commandContextFn = staplerHelperCommandContext(t, logPath)
 	t.Cleanup(func() { commandContextFn = previousCommandContext })
@@ -1568,7 +1573,7 @@ func configureStaplerTestEnvironment(t *testing.T, logPath string) {
 func staplerHelperCommandContext(t *testing.T, logPath string) func(context.Context, string, ...string) *exec.Cmd {
 	t.Helper()
 	return func(ctx context.Context, name string, args ...string) *exec.Cmd {
-		commandArgs := []string{"-test.run=TestStaplerHelperProcess", "--", name}
+		commandArgs := []string{"-test.run=TestStaplerHelperProcess", "--", filepath.Base(name)}
 		commandArgs = append(commandArgs, args...)
 		cmd := exec.CommandContext(ctx, os.Args[0], commandArgs...)
 		cmd.Env = append(os.Environ(), "GO_WANT_STAPLER_HELPER=1", "ASC_STAPLER_HELPER_LOG="+logPath)
@@ -1596,8 +1601,9 @@ func TestStaplerHelperProcess(t *testing.T) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+	commandName := filepath.Base(args[0])
 
-	if len(args) == 3 && args[0] == "xcrun" && args[1] == "--find" && args[2] == "stapler" {
+	if len(args) == 3 && commandName == "xcrun" && args[1] == "--find" && args[2] == "stapler" {
 		if target := os.Getenv("ASC_STAPLER_SWAP_ON_FIND"); target != "" {
 			if err := os.Rename(target, target+".original"); err != nil {
 				fmt.Fprintln(os.Stderr, err)
@@ -1665,7 +1671,7 @@ func TestStaplerHelperProcess(t *testing.T) {
 		fmt.Fprintln(os.Stdout, "/usr/bin/stapler")
 		os.Exit(0)
 	}
-	if len(args) >= 4 && args[0] == "xcrun" && args[1] == "stapler" {
+	if len(args) >= 4 && commandName == "xcrun" && args[1] == "stapler" {
 		operation := strings.ToUpper(args[2][:1]) + args[2][1:]
 		if args[2] == "validate" {
 			if observationPath := os.Getenv("ASC_STAPLER_VALIDATE_OBSERVED_PATH"); observationPath != "" {
@@ -1755,7 +1761,11 @@ func appendStaplerHelperLog(path string, args []string) error {
 		return err
 	}
 	defer file.Close()
-	_, err = fmt.Fprintln(file, strings.Join(args, "|"))
+	loggedArgs := append([]string(nil), args...)
+	if len(loggedArgs) > 0 {
+		loggedArgs[0] = filepath.Base(loggedArgs[0])
+	}
+	_, err = fmt.Fprintln(file, strings.Join(loggedArgs, "|"))
 	return err
 }
 

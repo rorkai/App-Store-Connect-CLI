@@ -28,6 +28,11 @@ password, repository clone, or output-directory side effects.
 The selected pull is additive. Existing invocations, JSON fields, full-pull
 file selection, decryption limits, and Git behavior do not change.
 
+Both native macOS `.provisionprofile` files and legacy `.mobileprovision`
+profile files are recognized during repository validation and selection. The
+stored relative path remains exact, so pulling a legacy file does not rename or
+overwrite it merely because the preferred macOS suffix is different.
+
 Profile pushes now replace the legacy encrypted profile payload with a
 versioned envelope containing non-secret, authenticated bundle, profile-type,
 resource-ID, and optional UUID metadata. Certificates retain their existing

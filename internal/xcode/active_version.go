@@ -23,7 +23,10 @@ func ActiveXcodeMajorVersion(ctx context.Context) (int, error) {
 		return 0, err
 	}
 
-	cmd := commandContextFn(ctx, "xcodebuild", "-version")
+	cmd, err := trustedXcodeCommand(ctx, "xcodebuild", []string{"-version"}, nil)
+	if err != nil {
+		return 0, err
+	}
 	var stdout bytes.Buffer
 	stderr := newTailBuffer(activeXcodeVersionDiagnosticLimit)
 	cmd.Stdout = &stdout

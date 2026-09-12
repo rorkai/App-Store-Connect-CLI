@@ -6,6 +6,7 @@ type PublishMode string
 const (
 	PublishModeExistingBuild PublishMode = "existing_build"
 	PublishModeIPAUpload     PublishMode = "ipa_upload"
+	PublishModePKGUpload     PublishMode = "pkg_upload"
 	PublishModeLocalBuild    PublishMode = "local_build"
 )
 

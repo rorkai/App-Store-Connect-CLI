@@ -110,7 +110,7 @@ Create a new profile after changing capabilities; App Store Connect profiles are
 
 ## Fetch public signing files
 
-`asc signing fetch` resolves the bundle ID, selects an active profile and its active certificates, then writes the `.mobileprovision` and `.cer` files to the output directory.
+`asc signing fetch` resolves the bundle ID, selects an active profile and its active certificates, then writes the profile and `.cer` files to the output directory. Native macOS profiles use `.provisionprofile`; iOS and tvOS profiles use `.mobileprovision`.
 
 For App Store distribution:
 
@@ -525,7 +525,7 @@ SSH the step runs:
       ' .asc/signing/pull-result.json
     )"
 
-    jq -r '.files[] | select(endswith(".mobileprovision"))' \
+    jq -r '.files[] | select(test("\\.(mobileprovision|provisionprofile)$"))' \
       .asc/signing/pull-result.json \
     | while IFS= read -r profile_path; do
         asc profiles local install \

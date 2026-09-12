@@ -3,12 +3,66 @@ package xcode
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestGetVersionLegacyHonorsCanceledContextDuringAgvtoolResolution(t *testing.T) {
+	projectDir := writeLegacyVersionProject(t)
+	restore := overrideTestEnvironment(t)
+	runtimeGOOS = "darwin"
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	resolverCalled := false
+	trustedXcodeToolPathFn = func(got context.Context, tool string, _ []string) (string, error) {
+		resolverCalled = true
+		if tool != "agvtool" {
+			t.Fatalf("tool = %q, want agvtool", tool)
+		}
+		return "", got.Err()
+	}
+	t.Cleanup(restore)
+
+	_, err := getVersionLegacy(ctx, projectDir, "", nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("getVersionLegacy() error = %v, want context.Canceled", err)
+	}
+	if !resolverCalled {
+		t.Fatal("agvtool resolver was not called")
+	}
+}
+
+func TestValidateSetVersionLegacyHonorsCanceledContextDuringAgvtoolResolution(t *testing.T) {
+	projectDir := writeLegacyVersionProject(t)
+	restore := overrideTestEnvironment(t)
+	runtimeGOOS = "darwin"
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	resolverCalled := false
+	trustedXcodeToolPathFn = func(got context.Context, tool string, _ []string) (string, error) {
+		resolverCalled = true
+		if tool != "agvtool" {
+			t.Fatalf("tool = %q, want agvtool", tool)
+		}
+		return "", got.Err()
+	}
+	t.Cleanup(restore)
+
+	err := ValidateSetVersion(ctx, SetVersionOptions{
+		ProjectDir:  projectDir,
+		BuildNumber: "1",
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ValidateSetVersion() error = %v, want context.Canceled", err)
+	}
+	if !resolverCalled {
+		t.Fatal("agvtool resolver was not called")
+	}
+}
 
 func TestGetVersion_NotMacOS(t *testing.T) {
 	projectDir := writeLegacyVersionProject(t)
@@ -48,11 +102,11 @@ func TestBumpVersion_NotMacOS(t *testing.T) {
 
 func TestGetVersion_MissingAgvtool(t *testing.T) {
 	projectDir := writeLegacyVersionProject(t)
-	prev := lookPathFn
-	lookPathFn = func(file string) (string, error) {
+	prev := trustedXcodeToolPathFn
+	trustedXcodeToolPathFn = func(context.Context, string, []string) (string, error) {
 		return "", exec.ErrNotFound
 	}
-	defer func() { lookPathFn = prev }()
+	defer func() { trustedXcodeToolPathFn = prev }()
 
 	prevOS := runtimeGOOS
 	runtimeGOOS = "darwin"
@@ -501,7 +555,7 @@ func TestGetVersionScopedAutoWarnsBeforeXcodebuildSettingsFallback(t *testing.T)
 	lookPathFn = func(file string) (string, error) { return "/usr/bin/" + file, nil }
 	helpers := helperCommandContext(t, logPath)
 	commandContextFn = func(ctx context.Context, name string, args ...string) *exec.Cmd {
-		if name == "xcodebuild" && len(args) > 0 && args[0] == "-showBuildSettings" {
+		if filepath.Base(name) == "xcodebuild" && len(args) > 0 && args[0] == "-showBuildSettings" {
 			warning := diagnostic.String()
 			for _, want := range []string{marketingVersionSetting, currentProjectSetting, "--xcodebuild-settings-lookup never"} {
 				if !strings.Contains(warning, want) {

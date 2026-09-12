@@ -23,6 +23,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/infoplist"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/secureopen"
 )
 
 var (
@@ -417,31 +418,48 @@ func Validate(ctx context.Context, opts ValidateOptions) (*ValidateResult, error
 	if err := ensureXcodeAvailable(ctx); err != nil {
 		return nil, err
 	}
-	if _, err := lookPathFn("xcrun"); err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
+	if _, err := trustedXcodeToolPathFn(ctx, "xcrun", nil); err != nil {
+		if isTrustedXcodeToolUnavailable(err, "xcrun") {
 			return nil, fmt.Errorf("xcrun not available; install Xcode and ensure the active developer directory is configured")
 		}
 		return nil, fmt.Errorf("locate xcrun: %w", err)
 	}
 	artifactPath := opts.IPAPath
 	artifactFlag := "--ipa"
+	artifactName := "IPA"
 	platform := ""
 	if opts.PKGPath != "" {
 		artifactPath = opts.PKGPath
 		artifactFlag = "--pkg"
+		artifactName = "PKG"
 		platform = "macos"
 	}
-	if err := validateExistingFile(artifactPath, artifactFlag); err != nil {
+	validatedArtifact, _, err := secureopen.OpenExistingRegularFileNoFollow(artifactPath, artifactName, artifactFlag)
+	if err != nil {
 		return nil, err
 	}
+	defer validatedArtifact.Close()
+	validatedInfo, err := validatedArtifact.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("inspect validated %s: %w", artifactName, err)
+	}
+	snapshotPath, cleanupSnapshot, err := snapshotValidationArtifact(ctx, validatedArtifact, validatedInfo.Size(), strings.ToLower(filepath.Ext(artifactPath)))
+	if err != nil {
+		return nil, fmt.Errorf("prepare %s for validation: %w", artifactName, err)
+	}
+	defer cleanupSnapshot()
+	snapshotArtifact, snapshotInfo, err := secureopen.OpenExistingRegularFileNoFollow(snapshotPath, artifactName+" validation snapshot", artifactFlag)
+	if err != nil {
+		return nil, fmt.Errorf("open %s validation snapshot: %w", artifactName, err)
+	}
+	defer snapshotArtifact.Close()
 	if platform == "" {
-		var err error
-		platform, err = inferValidatePlatform(opts.IPAPath)
+		platform, err = inferValidatePlatformFromFile(snapshotArtifact, snapshotInfo.Size())
 		if err != nil {
 			return nil, err
 		}
 	}
-	if err := runAltoolValidate(ctx, buildValidateCommand(opts, platform), opts.LogWriter); err != nil {
+	if err := runAltoolValidate(ctx, buildValidateCommand(opts, platform, snapshotPath), opts.LogWriter); err != nil {
 		return nil, err
 	}
 	return &ValidateResult{
@@ -459,8 +477,8 @@ func BuildStatus(ctx context.Context, opts BuildStatusOptions) (*BuildStatusResu
 	if err := ensureXcodeAvailable(ctx); err != nil {
 		return nil, err
 	}
-	if _, err := lookPathFn("xcrun"); err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
+	if _, err := trustedXcodeToolPathFn(ctx, "xcrun", nil); err != nil {
+		if isTrustedXcodeToolUnavailable(err, "xcrun") {
 			return nil, fmt.Errorf("xcrun not available; install Xcode and ensure the active developer directory is configured")
 		}
 		return nil, fmt.Errorf("locate xcrun: %w", err)
@@ -740,13 +758,10 @@ func ensureXcodeAvailableWithEnvironment(ctx context.Context, environment []stri
 	if runtimeGOOS != "darwin" {
 		return fmt.Errorf("supported on macOS only; current platform is %s", runtimeGOOS)
 	}
-	if _, err := lookPathFn("xcodebuild"); err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
+	if err := runXcodebuildWithEnvironment(ctx, []string{"-version"}, environment, io.Discard, terminateProcessGroup); err != nil {
+		if isTrustedXcodeToolUnavailable(err, "xcodebuild") {
 			return fmt.Errorf("xcodebuild not available; install Xcode and ensure the active developer directory is configured")
 		}
-		return fmt.Errorf("locate xcodebuild: %w", err)
-	}
-	if err := runXcodebuildWithEnvironment(ctx, []string{"-version"}, environment, io.Discard, terminateProcessGroup); err != nil {
 		return fmt.Errorf("xcodebuild not usable: %w", err)
 	}
 	return nil
@@ -791,15 +806,7 @@ func activeDeveloperDir(ctx context.Context) (string, error) {
 	if developerDir := strings.TrimSpace(os.Getenv("DEVELOPER_DIR")); developerDir != "" {
 		return filepath.Clean(developerDir), nil
 	}
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	cmd := exec.CommandContext(ctx, "xcode-select", "-p")
-	output, err := outputXcodeCommand(cmd)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Clean(strings.TrimSpace(string(output))), nil
+	return activeDeveloperDirFromTrustedSelect(ctx, nil)
 }
 
 func isBetaXcodePath(pathValue string) bool {
@@ -846,8 +853,8 @@ func buildExportCommand(opts ExportOptions, exportDir string) []string {
 	return args
 }
 
-func inferValidatePlatform(ipaPath string) (string, error) {
-	info, err := readIPABundleInfo(ipaPath)
+func inferValidatePlatformFromFile(ipa *os.File, size int64) (string, error) {
+	info, err := readIPABundleInfoFromReaderAt(ipa, size)
 	if err != nil {
 		return "", fmt.Errorf("inspect IPA metadata before validation: %w", err)
 	}
@@ -857,13 +864,9 @@ func inferValidatePlatform(ipaPath string) (string, error) {
 	return "ios", nil
 }
 
-func buildValidateCommand(opts ValidateOptions, platform string) []string {
+func buildValidateCommand(opts ValidateOptions, platform, artifactPath string) []string {
 	if strings.TrimSpace(platform) == "" {
 		platform = "ios"
-	}
-	artifactPath := opts.IPAPath
-	if opts.PKGPath != "" {
-		artifactPath = opts.PKGPath
 	}
 	args := []string{
 		"altool",
@@ -957,7 +960,10 @@ func runAltoolValidate(ctx context.Context, args []string, logWriter io.Writer) 
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	cmd := commandContextFn(ctx, "xcrun", args...)
+	cmd, err := trustedXcodeCommand(ctx, "xcrun", args, nil)
+	if err != nil {
+		return err
+	}
 	outputTail := newTailBuffer(xcodebuildErrorTailLimit)
 	combinedOutput := io.Writer(outputTail)
 	if logWriter != nil {
@@ -1190,7 +1196,10 @@ func runAltoolAndCapture(ctx context.Context, args []string, logWriter io.Writer
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	cmd := commandContextFn(ctx, "xcrun", args...)
+	cmd, err := trustedXcodeCommand(ctx, "xcrun", args, nil)
+	if err != nil {
+		return "", err
+	}
 	var stdout strings.Builder
 	var stderr strings.Builder
 	outputTail := newTailBuffer(xcodebuildErrorTailLimit)
@@ -1233,7 +1242,10 @@ func readAltoolHelpOutput(ctx context.Context) (string, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	cmd := commandContextFn(ctx, "xcrun", "altool", "--help")
+	cmd, err := trustedXcodeCommand(ctx, "xcrun", []string{"altool", "--help"}, nil)
+	if err != nil {
+		return "", err
+	}
 	var stdout strings.Builder
 	var stderr strings.Builder
 	cmd.Stdout = &stdout
@@ -1504,9 +1516,9 @@ func runCommandWithBoundedOutputEnvironmentMode(ctx context.Context, name string
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	cmd := commandContextFn(ctx, name, args...)
-	if environment != nil {
-		cmd.Env = cloneEnvironment(environment)
+	cmd, err := trustedXcodeCommand(ctx, name, args, environment)
+	if err != nil {
+		return err
 	}
 	outputWindow := newXcodeDiagnosticBuffer(xcodebuildErrorTailLimit, logWriter)
 	cmd.Stdout = outputWindow
@@ -2117,7 +2129,12 @@ func moveExportedArtifact(sourcePath, destinationPath, artifactName string, over
 }
 
 func readArchiveBundleInfo(archivePath string) (bundleInfo, error) {
-	data, err := os.ReadFile(filepath.Join(archivePath, "Info.plist"))
+	archiveRoot, err := os.OpenRoot(archivePath)
+	if err != nil {
+		return bundleInfo{}, fmt.Errorf("open archive: %w", err)
+	}
+	defer func() { _ = archiveRoot.Close() }()
+	data, err := readRegularFileFromRoot(archiveRoot, "Info.plist")
 	if err != nil {
 		return bundleInfo{}, fmt.Errorf("read archive Info.plist: %w", err)
 	}
@@ -2269,7 +2286,7 @@ func readArchivedAppInfoPlistFromRoot(archiveRoot *os.Root, appProps map[string]
 }
 
 func readRegularFileFromRoot(root *os.Root, name string) ([]byte, error) {
-	file, err := root.Open(name)
+	file, err := secureopen.OpenExistingNoFollowInRoot(root, name)
 	if err != nil {
 		return nil, err
 	}
@@ -2281,7 +2298,13 @@ func readRegularFileFromRoot(root *os.Root, name string) ([]byte, error) {
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("metadata path must be a regular file: %s", name)
 	}
-	return io.ReadAll(file)
+	if info.Size() < 0 {
+		return nil, fmt.Errorf("metadata path has an invalid size: %s", name)
+	}
+	if err := infoplist.CheckDeclaredSize(uint64(info.Size())); err != nil {
+		return nil, err
+	}
+	return infoplist.ReadBounded(file)
 }
 
 func inferAppStorePlatformFromPlist(payload map[string]any) string {

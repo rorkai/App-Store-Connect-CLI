@@ -206,7 +206,7 @@ asc signing keychain install \
   --confirm \
   --output json
 
-jq -r '.files[] | select(endswith(".mobileprovision"))' \
+jq -r '.files[] | select(test("\\.(mobileprovision|provisionprofile)$"))' \
   .asc/signing/pull-result.json \
 | while IFS= read -r profile_path; do
     asc profiles local install \

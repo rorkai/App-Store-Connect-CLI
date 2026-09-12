@@ -75,10 +75,11 @@ func PublishTestFlightCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("publish testflight", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
-	ipaPath := fs.String("ipa", "", "Path to .ipa file (required unless --build-id/--build-number is provided)")
+	ipaPath := fs.String("ipa", "", "Path to prebuilt .ipa file")
+	pkgPath := fs.String("pkg", "", "Path to prebuilt macOS .pkg file (requires --version and --build-number)")
 	buildID := fs.String("build-id", "", "Existing build ID to distribute (skip upload)")
-	version := fs.String("version", "", "CFBundleShortVersionString (auto-extracted from IPA if not provided)")
-	buildNumber := fs.String("build-number", "", "CFBundleVersion (used for upload metadata with --ipa, or build lookup when --ipa is omitted)")
+	version := fs.String("version", "", "CFBundleShortVersionString (auto-extracted from IPA if not provided; required with --pkg)")
+	buildNumber := fs.String("build-number", "", "CFBundleVersion (required with --pkg; used for build lookup when no artifact is provided)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	groupIDs := fs.String("group", "", "Beta group ID(s) or name(s), comma-separated")
 	uploadOnly := fs.Bool("upload-only", false, "Upload the build without adding it to beta groups or submitting beta review")
@@ -100,7 +101,7 @@ func PublishTestFlightCommand() *ffcli.Command {
 		LongHelp: `Upload or local-build a binary, then optionally distribute it to TestFlight beta groups.
 
 Steps:
-1. Build locally with Xcode or upload an IPA (unless --build-id/--build-number is provided); macOS local builds export a PKG
+1. Build locally with Xcode or upload an IPA or macOS PKG (unless --build-id/--build-number is provided)
 2. Wait for processing when needed (--wait, --test-notes, or --submit)
 3. Stop and return the build metadata with --upload-only, or add the build to specified beta groups
 4. Optionally notify testers
@@ -108,6 +109,7 @@ Steps:
 
 Examples:
   asc publish testflight --app "123" --ipa app.ipa --upload-only --output json
+  asc publish testflight --app "123" --pkg MacApp.pkg --version 1.2.3 --build-number 42 --upload-only --output json
   asc publish testflight --app "123" --ipa app.ipa --upload-only --wait --output json
   asc publish testflight --app "123" --ipa app.ipa --group "GROUP_ID"
   asc publish testflight --app "123" --workspace App.xcworkspace --scheme App --version 1.2.3 --group "GROUP_ID"
@@ -130,6 +132,7 @@ Examples:
 
 			setFlags := collectSetFlags(fs)
 			ipaValue := strings.TrimSpace(*ipaPath)
+			pkgValue := strings.TrimSpace(*pkgPath)
 			buildIDValue := strings.TrimSpace(*buildID)
 			buildNumberValue := strings.TrimSpace(*buildNumber)
 			versionValue := strings.TrimSpace(*version)
@@ -158,14 +161,20 @@ Examples:
 				}
 			}
 
-			uploadMode := ipaValue != ""
+			if ipaValue != "" && pkgValue != "" {
+				return shared.UsageError("--ipa and --pkg are mutually exclusive")
+			}
+			uploadMode := ipaValue != "" || pkgValue != ""
 			switch {
 			case localBuildMode:
 				if err := validateLocalBuildSelectors(localBuild); err != nil {
 					return err
 				}
-				if uploadMode {
+				if ipaValue != "" {
 					return shared.UsageError("--ipa cannot be combined with --workspace or --project")
+				}
+				if pkgValue != "" {
+					return shared.UsageError("--pkg cannot be combined with --workspace or --project")
 				}
 				if buildIDValue != "" {
 					return shared.UsageError("--build-id cannot be combined with --workspace or --project")
@@ -175,14 +184,22 @@ Examples:
 				}
 			case uploadMode:
 				if buildIDValue != "" {
-					return shared.UsageError("--ipa and --build-id are mutually exclusive")
+					if ipaValue != "" {
+						return shared.UsageError("--ipa and --build-id are mutually exclusive")
+					}
+					return shared.UsageError("--pkg and --build-id are mutually exclusive")
+				}
+				if pkgValue != "" {
+					if err := validatePublishPKGMetadata(versionValue, buildNumberValue); err != nil {
+						return err
+					}
 				}
 			default:
 				if *uploadOnly {
-					return shared.UsageError("--upload-only requires --ipa, --workspace, or --project")
+					return shared.UsageError("--upload-only requires --ipa, --pkg, --workspace, or --project")
 				}
 				if buildIDValue == "" && buildNumberValue == "" {
-					return shared.UsageError("--ipa is required unless --build-id or --build-number is provided")
+					return shared.UsageError("--ipa or --pkg is required unless --build-id or --build-number is provided")
 				}
 				if buildIDValue != "" && buildNumberValue != "" {
 					return shared.UsageError("--build-id and --build-number are mutually exclusive when --ipa is not provided")
@@ -233,6 +250,10 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+			normalizedPlatform, err = validatePublishPrebuiltArtifactPlatform(ipaValue, pkgValue, normalizedPlatform, setFlags["platform"])
+			if err != nil {
+				return err
+			}
 			if localBuildMode {
 				if err := validateLocalBuildArtifactFlags(localBuild, setFlags, normalizedPlatform); err != nil {
 					return err
@@ -243,12 +264,15 @@ Examples:
 			uploadVersionValue := ""
 			uploadBuildNumberValue := ""
 			if uploadMode {
-				uploadFileInfo, err = validatePublishIPAPathFn(ipaValue)
-				if err != nil {
-					return fmt.Errorf("publish testflight: %w", err)
+				if pkgValue != "" {
+					uploadFileInfo, err = validatePublishPKGPathFn(pkgValue)
+					uploadVersionValue, uploadBuildNumberValue = versionValue, buildNumberValue
+				} else {
+					uploadFileInfo, err = validatePublishIPAPathFn(ipaValue)
+					if err == nil {
+						uploadVersionValue, uploadBuildNumberValue, err = shared.ResolveBundleInfoForIPA(ipaValue, *version, *buildNumber)
+					}
 				}
-
-				uploadVersionValue, uploadBuildNumberValue, err = shared.ResolveBundleInfoForIPA(ipaValue, *version, *buildNumber)
 				if err != nil {
 					return fmt.Errorf("publish testflight: %w", err)
 				}
@@ -319,11 +343,19 @@ Examples:
 				resolvedBuildNumberValue = localBuildResult.BuildNumber
 				mode = asc.PublishModeLocalBuild
 			} else if uploadMode {
-				uploadResult, err := uploadBuildAndWaitForIDFn(
+				uploadArtifact := uploadBuildAndWaitForIDFn
+				artifactPath := ipaValue
+				mode = asc.PublishModeIPAUpload
+				if pkgValue != "" {
+					uploadArtifact = uploadPKGBuildAndWaitForIDFn
+					artifactPath = pkgValue
+					mode = asc.PublishModePKGUpload
+				}
+				uploadResult, err := uploadArtifact(
 					requestCtx,
 					client,
 					resolvedPublishAppID,
-					ipaValue,
+					artifactPath,
 					uploadFileInfo,
 					uploadVersionValue,
 					uploadBuildNumberValue,
@@ -340,7 +372,6 @@ Examples:
 				uploaded = true
 				resolvedVersionValue = uploadResult.Version
 				resolvedBuildNumberValue = uploadResult.BuildNumber
-				mode = asc.PublishModeIPAUpload
 			} else if buildIDValue != "" {
 				buildResp, err = client.GetBuild(requestCtx, buildIDValue)
 				if err != nil {
@@ -482,14 +513,15 @@ Examples:
 	}
 }
 
-// PublishAppStoreCommand uploads an IPA, attaches it to an App Store version, and optionally submits it.
+// PublishAppStoreCommand uploads a prebuilt artifact or local build, attaches it to an App Store version, and optionally submits it.
 func PublishAppStoreCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("publish appstore", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
-	ipaPath := fs.String("ipa", "", "Path to .ipa file (required unless local-build mode is used)")
-	version := fs.String("version", "", "App Store version string (defaults to IPA version)")
-	buildNumber := fs.String("build-number", "", "CFBundleVersion (auto-extracted from IPA if not provided)")
+	ipaPath := fs.String("ipa", "", "Path to prebuilt .ipa file")
+	pkgPath := fs.String("pkg", "", "Path to prebuilt macOS .pkg file (requires --version and --build-number)")
+	version := fs.String("version", "", "App Store version string (defaults to IPA version; required with --pkg)")
+	buildNumber := fs.String("build-number", "", "CFBundleVersion (auto-extracted from IPA; required with --pkg)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	metadataDir := fs.String("metadata-dir", "", "Metadata directory with version/<version>/*.json files to apply after ensuring the App Store version")
 	submit := fs.Bool("submit", false, "Submit for review after attaching build")
@@ -508,7 +540,7 @@ func PublishAppStoreCommand() *ffcli.Command {
 		LongHelp: `Use this as the canonical high-level App Store publish command.
 
 Workflow:
-1. Build locally with Xcode or upload an IPA; macOS local builds export a PKG
+1. Build locally with Xcode or upload an IPA or macOS PKG
 2. Wait for build processing (if --wait)
 3. Find or create the App Store version
 4. Apply version localization metadata (if --metadata-dir)
@@ -522,6 +554,7 @@ sequence without uploading or submitting.
 
 Examples:
   asc publish appstore --app "123" --ipa app.ipa --version 1.2.3
+  asc publish appstore --app "123" --pkg MacApp.pkg --version 1.2.3 --build-number 42
   asc publish appstore --app "123" --ipa app.ipa --version 1.2.3 --metadata-dir ./metadata --submit --confirm
   asc publish appstore --app "123" --ipa app.ipa --version 1.2.3 --submit --dry-run
   asc publish appstore --app "123" --workspace App.xcworkspace --scheme App --version 1.2.3
@@ -544,6 +577,7 @@ Examples:
 
 			setFlags := collectSetFlags(fs)
 			ipaValue := strings.TrimSpace(*ipaPath)
+			pkgValue := strings.TrimSpace(*pkgPath)
 			versionValue := strings.TrimSpace(*version)
 			buildNumberValue := strings.TrimSpace(*buildNumber)
 			metadataDirValue := strings.TrimSpace(*metadataDir)
@@ -562,6 +596,9 @@ Examples:
 			if setFlags["metadata-dir"] && metadataDirValue == "" {
 				return shared.UsageError("--metadata-dir cannot be empty")
 			}
+			if ipaValue != "" && pkgValue != "" {
+				return shared.UsageError("--ipa and --pkg are mutually exclusive")
+			}
 			switch {
 			case localBuildMode:
 				if err := validateLocalBuildSelectors(localBuild); err != nil {
@@ -570,12 +607,19 @@ Examples:
 				if ipaValue != "" {
 					return shared.UsageError("--ipa cannot be combined with --workspace or --project")
 				}
+				if pkgValue != "" {
+					return shared.UsageError("--pkg cannot be combined with --workspace or --project")
+				}
 				if versionValue == "" {
 					return shared.UsageError("--version is required")
 				}
-			case ipaValue == "":
-				fmt.Fprintf(os.Stderr, "Error: --ipa is required\n\n")
-				return shared.MissingRequiredUsageError("--ipa")
+			case ipaValue == "" && pkgValue == "":
+				fmt.Fprintf(os.Stderr, "Error: --ipa or --pkg is required\n\n")
+				return shared.MissingRequiredUsageError("")
+			case pkgValue != "":
+				if err := validatePublishPKGMetadata(versionValue, buildNumberValue); err != nil {
+					return err
+				}
 			}
 			if *pollInterval <= 0 {
 				return shared.UsageError("--poll-interval must be greater than 0")
@@ -588,6 +632,10 @@ Examples:
 			if err != nil {
 				return shared.UsageError(err.Error())
 			}
+			normalizedPlatform, err = validatePublishPrebuiltArtifactPlatform(ipaValue, pkgValue, normalizedPlatform, setFlags["platform"])
+			if err != nil {
+				return err
+			}
 			if localBuildMode {
 				if err := validateLocalBuildArtifactFlags(localBuild, setFlags, normalizedPlatform); err != nil {
 					return err
@@ -595,13 +643,15 @@ Examples:
 			}
 
 			var fileInfo os.FileInfo
-			if ipaValue != "" {
-				fileInfo, err = validatePublishIPAPathFn(ipaValue)
-				if err != nil {
-					return fmt.Errorf("publish appstore: %w", err)
+			if ipaValue != "" || pkgValue != "" {
+				if pkgValue != "" {
+					fileInfo, err = validatePublishPKGPathFn(pkgValue)
+				} else {
+					fileInfo, err = validatePublishIPAPathFn(ipaValue)
+					if err == nil {
+						versionValue, buildNumberValue, err = shared.ResolveBundleInfoForIPA(ipaValue, *version, *buildNumber)
+					}
 				}
-
-				versionValue, buildNumberValue, err = shared.ResolveBundleInfoForIPA(ipaValue, *version, *buildNumber)
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
@@ -621,6 +671,9 @@ Examples:
 			platformValue := asc.Platform(normalizedPlatform)
 			timeoutOverride := *timeout > 0
 			mode := asc.PublishModeIPAUpload
+			if pkgValue != "" {
+				mode = asc.PublishModePKGUpload
+			}
 			var localBuildConfig publishLocalBuildConfig
 			timeoutValue := resolvePublishTimeout(*timeout)
 			newPublishRequestCtx := func() (context.Context, context.CancelFunc) {
@@ -693,7 +746,13 @@ Examples:
 				buildNumberValue = localBuildResult.BuildNumber
 				uploaded = localBuildResult.Uploaded
 			} else {
-				uploadResult, err := uploadBuildAndWaitForIDFn(requestCtx, client, resolvedPublishAppID, ipaValue, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval, timeoutValue, timeoutOverride)
+				uploadArtifact := uploadBuildAndWaitForIDFn
+				artifactPath := ipaValue
+				if pkgValue != "" {
+					uploadArtifact = uploadPKGBuildAndWaitForIDFn
+					artifactPath = pkgValue
+				}
+				uploadResult, err := uploadArtifact(requestCtx, client, resolvedPublishAppID, artifactPath, fileInfo, versionValue, buildNumberValue, platformValue, *pollInterval, timeoutValue, timeoutOverride)
 				if err != nil {
 					return fmt.Errorf("publish appstore: %w", err)
 				}
@@ -879,7 +938,7 @@ func plannedAppStorePublishResult(mode asc.PublishMode, version, buildNumber str
 		Uploaded:     false,
 		Attached:     false,
 		Submitted:    false,
-		Plan:         plannedAppStorePublishSteps(localBuildMode, localBuildConfig.PKGPath != "", wait, submit, applyMetadata),
+		Plan:         plannedAppStorePublishSteps(localBuildMode, mode == asc.PublishModePKGUpload || localBuildConfig.PKGPath != "", wait, submit, applyMetadata),
 	}
 
 	if !localBuildMode {
@@ -906,11 +965,11 @@ func plannedAppStorePublishResult(mode asc.PublishMode, version, buildNumber str
 	return result
 }
 
-func plannedAppStorePublishSteps(localBuildMode, pkgLocalBuild, wait, submit, applyMetadata bool) []asc.PublishPlanStep {
+func plannedAppStorePublishSteps(localBuildMode, pkgArtifact, wait, submit, applyMetadata bool) []asc.PublishPlanStep {
 	steps := make([]asc.PublishPlanStep, 0, 8)
 	if localBuildMode {
 		artifactName := "IPA"
-		if pkgLocalBuild {
+		if pkgArtifact {
 			artifactName = "PKG"
 		}
 		steps = append(
@@ -921,7 +980,7 @@ func plannedAppStorePublishSteps(localBuildMode, pkgLocalBuild, wait, submit, ap
 	}
 
 	artifactName := "IPA"
-	if pkgLocalBuild {
+	if pkgArtifact {
 		artifactName = "PKG"
 	}
 	steps = append(steps, newPublishPlanStep(publishPlanStepUploadBuild, "Upload the "+artifactName+" to App Store Connect and wait for the build record to appear."))
@@ -1066,6 +1125,34 @@ func findPublishBuildByNumber(ctx context.Context, client *asc.Client, appID, bu
 	}
 
 	return &asc.BuildResponse{Data: buildsResp.Data[0], Links: buildsResp.Links}, nil
+}
+
+func validatePublishPKGMetadata(version, buildNumber string) error {
+	missingFlags := make([]string, 0, 2)
+	if strings.TrimSpace(version) == "" {
+		missingFlags = append(missingFlags, "--version")
+	}
+	if strings.TrimSpace(buildNumber) == "" {
+		missingFlags = append(missingFlags, "--build-number")
+	}
+	if len(missingFlags) > 0 {
+		return shared.UsageErrorf("%s required for PKG uploads", strings.Join(missingFlags, " and "))
+	}
+	return nil
+}
+
+func validatePublishPrebuiltArtifactPlatform(ipaPath, pkgPath, platform string, platformWasSet bool) (string, error) {
+	if strings.TrimSpace(ipaPath) != "" && platform == string(asc.PlatformMacOS) {
+		fmt.Fprintln(os.Stderr, "Warning: --ipa with --platform MAC_OS is deprecated and will be removed in a future major release. Use --pkg with --version and --build-number for macOS uploads.")
+		return platform, nil
+	}
+	if strings.TrimSpace(pkgPath) == "" {
+		return platform, nil
+	}
+	if platformWasSet && platform != string(asc.PlatformMacOS) {
+		return "", shared.UsageErrorf("--platform %s does not match PKG platform MAC_OS", platform)
+	}
+	return string(asc.PlatformMacOS), nil
 }
 
 func resolvePublishTimeout(timeout time.Duration) time.Duration {

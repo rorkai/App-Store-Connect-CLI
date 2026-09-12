@@ -3706,7 +3706,7 @@ func TestPublishValidationErrors(t *testing.T) {
 		{
 			name:    "publish testflight missing ipa",
 			args:    []string{"publish", "testflight", "--app", "APP_123", "--group", "GROUP_ID"},
-			wantErr: "--ipa is required unless --build-id or --build-number is provided",
+			wantErr: "--ipa or --pkg is required unless --build-id or --build-number is provided",
 		},
 		{
 			name:    "publish testflight missing group",
@@ -3726,7 +3726,7 @@ func TestPublishValidationErrors(t *testing.T) {
 		{
 			name:    "publish testflight upload only requires upload source",
 			args:    []string{"publish", "testflight", "--app", "APP_123", "--build-number", "42", "--upload-only"},
-			wantErr: "--upload-only requires --ipa, --workspace, or --project",
+			wantErr: "--upload-only requires --ipa, --pkg, --workspace, or --project",
 		},
 		{
 			name:     "publish testflight upload only invalid value",
@@ -3774,7 +3774,7 @@ func TestPublishValidationErrors(t *testing.T) {
 		{
 			name:    "publish appstore missing ipa",
 			args:    []string{"publish", "appstore", "--app", "APP_123", "--version", "1.0.0"},
-			wantErr: "Error: --ipa is required",
+			wantErr: "Error: --ipa or --pkg is required",
 		},
 		{
 			name:    "publish appstore submit missing confirm",

@@ -1077,6 +1077,11 @@
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/86/e6/e4/86e6e45e-f2dd-abe2-e7df-87fa8450c769/AppIcon-0-0-1x_U007emarketing-0-11-0-85-220.png/512x512bb.jpg"
   },
   {
+    "app": "Mynu",
+    "link": "https://apps.apple.com/us/app/mynu/id6767801514?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/c0/0d/f5/c00df540-1a01-07b5-3676-cad11d54ea66/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
+  },
+  {
     "app": "Natus: Self-Discovery Journal",
     "link": "https://apps.apple.com/us/app/natus-self-discovery-journal/id6787200064?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/05/12/da/0512da31-1283-74a1-5c00-3cfba5034c21/AppIcon-0-0-1x_U007epad-0-1-85-220.png/512x512bb.jpg"
@@ -1654,6 +1659,11 @@
     "app": "Sparkler Room",
     "link": "https://apps.apple.com/us/app/sparkler-room/id6807456248?uo=4",
     "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/22/6a/06/226a06a5-0fe4-2264-8750-66d6d7d4be44/AppIcon-0-0-1x_U007ephone-0-1-85-220.png/512x512bb.jpg"
+  },
+  {
+    "app": "Speaker Cleaner: Sound Eject",
+    "link": "https://apps.apple.com/us/app/speaker-cleaner-sound-eject/id6808605832?uo=4",
+    "icon": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/1b/e2/a8/1be2a854-011a-cefe-f937-3298e10c0f2b/AppIcon-0-0-1x_U007emarketing-0-8-0-85-220.png/512x512bb.jpg"
   },
   {
     "app": "Speed Reading - WPM Arena",

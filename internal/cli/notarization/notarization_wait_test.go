@@ -16,13 +16,15 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
 
+const testNotarizationSubmissionID = "550e8400-e29b-41d4-a716-446655440000"
+
 func TestWaitForNotarizationRetriesTransientStatusFailures(t *testing.T) {
 	var mu sync.Mutex
 	attempts := 0
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.URL.Path != "/notary/v2/submissions/submission-1" {
-			t.Errorf("status request path = %q, want /notary/v2/submissions/submission-1", req.URL.Path)
+		if req.URL.Path != "/notary/v2/submissions/"+testNotarizationSubmissionID {
+			t.Errorf("status request path = %q, want /notary/v2/submissions/%s", req.URL.Path, testNotarizationSubmissionID)
 		}
 
 		mu.Lock()
@@ -52,7 +54,7 @@ func TestWaitForNotarizationRetriesTransientStatusFailures(t *testing.T) {
 	var resp *asc.NotarySubmissionStatusResponse
 	var waitErr error
 	stderr := captureNotarizationStderr(t, func() {
-		resp, waitErr = waitForNotarization(context.Background(), client, "submission-1", 5*time.Millisecond)
+		resp, waitErr = waitForNotarization(context.Background(), client, testNotarizationSubmissionID, 5*time.Millisecond)
 	})
 
 	if waitErr != nil {
@@ -92,7 +94,7 @@ func TestWaitForNotarizationFailsFastOnTerminalStatusError(t *testing.T) {
 
 	var waitErr error
 	captureNotarizationStderr(t, func() {
-		_, waitErr = waitForNotarization(context.Background(), client, "submission-1", 5*time.Millisecond)
+		_, waitErr = waitForNotarization(context.Background(), client, testNotarizationSubmissionID, 5*time.Millisecond)
 	})
 
 	if waitErr == nil {
@@ -131,7 +133,7 @@ func TestWaitForNotarizationReportsWaitDeadlineDuringInFlightStatusRequest(t *te
 
 	var waitErr error
 	captureNotarizationStderr(t, func() {
-		_, waitErr = waitForNotarization(ctx, client, "submission-1", 5*time.Millisecond)
+		_, waitErr = waitForNotarization(ctx, client, testNotarizationSubmissionID, 5*time.Millisecond)
 	})
 
 	if waitErr == nil {
@@ -160,7 +162,7 @@ func TestWaitForNotarizationReportsLastTransientFailureAtDeadline(t *testing.T) 
 
 	var waitErr error
 	captureNotarizationStderr(t, func() {
-		_, waitErr = waitForNotarization(ctx, client, "submission-1", 5*time.Millisecond)
+		_, waitErr = waitForNotarization(ctx, client, testNotarizationSubmissionID, 5*time.Millisecond)
 	})
 
 	if waitErr == nil {
@@ -191,7 +193,7 @@ func TestWaitForNotarizationReportsCancellationSeparatelyFromTimeout(t *testing.
 
 	var waitErr error
 	captureNotarizationStderr(t, func() {
-		_, waitErr = waitForNotarization(ctx, client, "submission-1", 5*time.Millisecond)
+		_, waitErr = waitForNotarization(ctx, client, testNotarizationSubmissionID, 5*time.Millisecond)
 	})
 
 	if waitErr == nil {
@@ -211,7 +213,7 @@ func writeNotaryStatus(t *testing.T, w http.ResponseWriter, status asc.NotarySub
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(asc.NotarySubmissionStatusResponse{
 		Data: asc.NotarySubmissionStatusData{
-			ID:   "submission-1",
+			ID:   testNotarizationSubmissionID,
 			Type: "submissions",
 			Attributes: asc.NotarySubmissionStatusAttributes{
 				Status: status,

@@ -91,7 +91,7 @@ func TestSelectSigningPullFilesChoosesDirectDistributionTarget(t *testing.T) {
 	files := []decryptedSigningFile{
 		{RelativePath: "certs/distribution/direct.cer", Plaintext: certificate.Raw},
 		{
-			RelativePath: "profiles/direct/direct.mobileprovision",
+			RelativePath: "profiles/direct/direct.provisionprofile",
 			Plaintext:    profile,
 			Metadata: signingpkg.EncryptedFileMetadata{
 				Version:           1,
@@ -107,7 +107,7 @@ func TestSelectSigningPullFilesChoosesDirectDistributionTarget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := signingPullRelativePaths(selected); !slices.Equal(got, []string{"certs/distribution/direct.cer", "profiles/direct/direct.mobileprovision"}) {
+	if got := signingPullRelativePaths(selected); !slices.Equal(got, []string{"certs/distribution/direct.cer", "profiles/direct/direct.provisionprofile"}) {
 		t.Fatalf("selected paths = %v", got)
 	}
 	if len(targets) != 1 || targets[0].ProfileType != "MAC_APP_DIRECT" {

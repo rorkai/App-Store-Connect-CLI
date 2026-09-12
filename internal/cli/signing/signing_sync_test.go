@@ -269,7 +269,8 @@ func TestSigningSyncCaseCollisionFailsBeforeProfileCreatePOST(t *testing.T) {
 			if err := os.WriteFile(path, []byte("existing"), 0o600); err != nil {
 				return err
 			}
-			planned := signingAssetRepositoryPaths(plan.Certificates, "IOS_APP_ADHOC", plan.ProfileName, "profile", nil)
+			profilePath := filepath.Join("profiles", profileDirectoryName("IOS_APP_ADHOC"), safeFileName(plan.ProfileName, "profile")+shared.ProvisioningProfileExtension("", "IOS_APP_ADHOC"))
+			planned := signingAssetRepositoryPathsForProfile(plan.Certificates, "IOS_APP_ADHOC", profilePath, nil)
 			return store.CheckEncryptedRepositoryPaths(planned)
 		},
 	})

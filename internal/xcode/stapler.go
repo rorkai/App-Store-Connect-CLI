@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 )
@@ -359,14 +360,15 @@ func ensureStaplerAvailable(ctx context.Context) error {
 	if runtimeGOOS != "darwin" {
 		return fmt.Errorf("stapler is supported on macOS only; current platform is %s", runtimeGOOS)
 	}
-	if _, err := lookPathFn("xcrun"); err != nil {
-		if errors.Is(err, exec.ErrNotFound) {
+	xcrunPath, err := trustedXcrunPathFn()
+	if err != nil {
+		if isTrustedXcodeToolUnavailable(err, "xcrun") {
 			return fmt.Errorf("xcrun not available; install Xcode and ensure the active developer directory is configured")
 		}
 		return &StaplerResolutionError{Err: err}
 	}
 
-	cmd := commandContextFn(ctx, "xcrun", "--find", "stapler")
+	cmd := commandContextFn(ctx, xcrunPath, "--find", "stapler")
 	var contextCancelSucceeded atomic.Bool
 	if cancel := cmd.Cancel; cancel != nil {
 		cmd.Cancel = func() error {
@@ -428,10 +430,29 @@ func ensureStaplerAvailable(ctx context.Context) error {
 		}
 		return commandErr
 	}
-	if strings.TrimSpace(stdout.String()) == "" {
-		return fmt.Errorf("xcrun did not resolve stapler")
+	pathValue, err := parseTrustedToolPath(stdout.String(), "stapler")
+	if err != nil {
+		return &StaplerResolutionError{Err: err}
+	}
+	if _, err := validateResolvedStaplerPathForOperation(ctx, pathValue); err != nil {
+		return &StaplerResolutionError{Err: err}
 	}
 	return nil
+}
+
+func validateResolvedStaplerPathForOperation(ctx context.Context, pathValue string) (string, error) {
+	if filepath.Clean(pathValue) == trustedStaplerPath {
+		return trustedStaplerPath, nil
+	}
+	developerDir, err := trustedDeveloperDirectory(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	developerDir, _, _, err = normalizeToolchainDeveloperDir(developerDir)
+	if err != nil {
+		return "", err
+	}
+	return validateResolvedStaplerPath(pathValue, developerDir)
 }
 
 // staplerOperationAttemptedCancellationError records that a stapler child was
@@ -643,7 +664,10 @@ func runStaplerOperation(ctx context.Context, operation StaplerOperation, path s
 }
 
 func runStaplerChildCommand(ctx context.Context, operation StaplerOperation, path string, logWriter io.Writer) (bool, bool, error) {
-	cmd := commandContextFn(ctx, "xcrun", "stapler", string(operation), path)
+	cmd, err := trustedXcodeCommand(ctx, "xcrun", []string{"stapler", string(operation), path}, nil)
+	if err != nil {
+		return false, false, err
+	}
 	if beforeStaplerCommandCancelFn != nil {
 		beforeStaplerCommandCancelFn(cmd)
 	}

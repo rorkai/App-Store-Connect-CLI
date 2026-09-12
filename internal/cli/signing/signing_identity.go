@@ -612,13 +612,13 @@ func normalizeIdentityProfileUUID(raw string) (string, error) {
 	return parsed.String(), nil
 }
 
-func signingAssetRepositoryPaths(certificates []asc.Resource[asc.CertificateAttributes], profileType, profileName, profileFallback string, artifacts *signingIdentityArtifacts) []string {
+func signingAssetRepositoryPathsForProfile(certificates []asc.Resource[asc.CertificateAttributes], profileType, profilePath string, artifacts *signingIdentityArtifacts) []string {
 	paths := make([]string, 0, len(certificates)+3)
 	certDir := certDirectoryName(profileType)
 	for _, certificate := range certificates {
 		paths = append(paths, filepath.Join("certs", certDir, safeFileName(certificate.Attributes.SerialNumber, certificate.ID)+".cer"))
 	}
-	paths = append(paths, filepath.Join("profiles", profileDirectoryName(profileType), safeFileName(profileName, profileFallback)+".mobileprovision"))
+	paths = append(paths, profilePath)
 	if artifacts != nil {
 		paths = append(paths, artifacts.IdentityPath, artifacts.BindingPath)
 	}
@@ -626,6 +626,12 @@ func signingAssetRepositoryPaths(certificates []asc.Resource[asc.CertificateAttr
 }
 
 func preflightSigningAssetDestinations(store *signingpkg.GitStore, plan profileCreatePlan, profileType string) error {
+	profileExtension := shared.ProvisioningProfileExtension("", profileType)
+	profilePath := filepath.Join("profiles", profileDirectoryName(profileType), safeFileName(plan.ProfileName, "profile")+profileExtension)
+	return preflightSigningAssetDestinationsForProfile(store, plan, profileType, profilePath)
+}
+
+func preflightSigningAssetDestinationsForProfile(store *signingpkg.GitStore, plan profileCreatePlan, profileType, profilePath string) error {
 	certDir := certDirectoryName(profileType)
 	for _, certificate := range plan.Certificates {
 		relPath := filepath.Join("certs", certDir, safeFileName(certificate.Attributes.SerialNumber, certificate.ID)+".cer")
@@ -633,8 +639,7 @@ func preflightSigningAssetDestinations(store *signingpkg.GitStore, plan profileC
 			return fmt.Errorf("preflight certificate destination: %w", err)
 		}
 	}
-	profileRelPath := filepath.Join("profiles", profileDirectoryName(profileType), safeFileName(plan.ProfileName, "profile")+".mobileprovision")
-	if err := store.CheckWriteEncryptedFile(profileRelPath); err != nil {
+	if err := store.CheckWriteEncryptedFile(profilePath); err != nil {
 		return fmt.Errorf("preflight profile destination: %w", err)
 	}
 	return nil

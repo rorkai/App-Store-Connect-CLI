@@ -21,6 +21,10 @@ Use these top-level workflows deliberately:
 
 In 1.0, the deprecated `asc release run` path was removed.
 
+`--ipa --platform MAC_OS` remains available for compatibility but is
+deprecated. Migrate macOS publishing to `--pkg` with explicit `--version` and
+`--build-number` values before the next major release.
+
 ## Workflows
 
 ### TestFlight workflow
@@ -40,6 +44,18 @@ This workflow:
 2. Distributes to specified beta groups
 
 Add `--wait` to wait for build processing before distribution.
+
+For a macOS PKG, provide the version and build number explicitly. The platform
+defaults to `MAC_OS` when `--pkg` is used:
+
+```bash  theme={null}
+asc publish testflight \
+  --app APP_ID \
+  --pkg /path/to/MacApp.pkg \
+  --version 1.2.0 \
+  --build-number 42 \
+  --group "External Testers"
+```
 
 For archive/export/upload/wait without distribution, use the upload-only mode.
 It returns the uploaded build ID without requiring or
@@ -74,11 +90,24 @@ asc publish appstore \
 
 This workflow:
 
-1. Uploads the IPA
+1. Uploads the IPA or PKG
 2. Finds or creates the matching App Store version
 3. Attaches the processed build
 4. Optionally submits for review with `--submit`
 5. Prints the resulting build/version/submission identifiers
+
+Use `--pkg` for a prebuilt macOS installer. PKG uploads require explicit
+`--version` and `--build-number` values and use `MAC_OS` automatically:
+
+```bash  theme={null}
+asc publish appstore \
+  --app APP_ID \
+  --pkg /path/to/MacApp.pkg \
+  --version 1.2.0 \
+  --build-number 42 \
+  --submit \
+  --confirm
+```
 
 ## TestFlight flags
 
@@ -87,7 +116,11 @@ This workflow:
 </ParamField>
 
 <ParamField path="--ipa" type="string">
-  Path to IPA file
+  Path to an iOS, tvOS, or visionOS IPA file
+</ParamField>
+
+<ParamField path="--pkg" type="string">
+  Path to a macOS PKG file
 </ParamField>
 
 <ParamField path="--group" type="string">
@@ -134,6 +167,16 @@ asc publish appstore \
   --confirm
 ```
 
+### Publish a macOS PKG
+
+```bash  theme={null}
+asc publish appstore \
+  --app 123456789 \
+  --pkg build/MacApp.pkg \
+  --version 1.2.0 \
+  --build-number 42
+```
+
 ### CI/CD integration
 
 ```yaml  theme={null}
@@ -163,6 +206,8 @@ Upload-only JSON can be extracted by workflows:
   "processingState": "VALID"
 }
 ```
+
+PKG uploads report `"mode": "pkg_upload"`.
 
 If `--wait` fails after the build record is known, the command still prints
 canonical partial structured output and exits nonzero:
