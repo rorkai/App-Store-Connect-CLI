@@ -138,6 +138,7 @@ func TestBuildReadinessReport_OverlapsSixIndependentReadGroups(t *testing.T) {
 		case "/v1/appStoreVersions/ver-1":
 			fmt.Fprint(w, `{
 				"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0"},"relationships":{
+					"app":{"data":{"type":"apps","id":"app-1"}},
 					"appStoreVersionLocalizations":{"data":[{"type":"appStoreVersionLocalizations","id":"ver-loc-1"}],"meta":{"paging":{"total":1,"limit":50}}},
 					"build":{"data":null},
 					"appStoreReviewDetail":{"data":null}
@@ -222,6 +223,9 @@ func TestBuildReadinessReport_CancelsSiblingCompoundReadOnHardError(t *testing.T
 			canceledOnce.Do(func() { close(appInfoCanceled) })
 			return nil, req.Context().Err()
 		case "/v1/appStoreVersions/ver-1":
+			if req.URL.Query().Get("include") == "app" {
+				return buildsJSONResponse(http.StatusOK, `{"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0"},"relationships":{"app":{"data":{"type":"apps","id":"app-1"}}}}}`)
+			}
 			<-appInfoStarted
 			return buildsJSONResponse(http.StatusBadRequest, `{"errors":[{"status":"400","code":"INVALID_REQUEST","title":"Invalid Request"}]}`)
 		default:
@@ -265,6 +269,7 @@ func TestBuildReadinessReport_SharedGateCapsNestedSubscriptionRequests(t *testin
 		case "/v1/appStoreVersions/ver-1":
 			return buildsJSONResponse(http.StatusOK, `{
 				"data":{"type":"appStoreVersions","id":"ver-1","attributes":{"platform":"IOS","versionString":"1.0"},"relationships":{
+					"app":{"data":{"type":"apps","id":"app-1"}},
 					"appStoreVersionLocalizations":{"data":[],"meta":{"paging":{"total":0,"limit":50}}},
 					"build":{"data":null},
 					"appStoreReviewDetail":{"data":null}
