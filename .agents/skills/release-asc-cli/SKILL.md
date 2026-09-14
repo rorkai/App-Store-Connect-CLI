@@ -65,7 +65,8 @@ After every published release, prepare the changelog update for the root `CHANGE
 - Use short, flat bullets under `New features`, `Improvements and fixes`, and `Breaking changes` as applicable; omit empty sections. Split unrelated changes into separate bullets and use domain subheadings for large releases.
 - Describe the concrete behavior and its user impact, usually in one or two sentences. Keep important features, fixes, limitations, confirmation requirements, output or exit-code changes, and actionable migration replacements.
 - Omit PR numbers, inline PR links, commit hashes, introductory paragraphs, and generic claims such as “improved reliability.” PRs are evidence for writing the notes, not visible labels in the notes.
-- Cover significant shipped changes individually. Group routine dependency, CI, test, and Wall of Apps updates where appropriate; the release and comparison links retain the complete source history.
+- Cover significant shipped changes individually. Group routine dependency, CI, and test updates where appropriate; the release and comparison links retain the complete source history.
+- Omit Wall of Apps membership churn, including app additions, removals, renames, icon changes, and routine metadata refreshes. Include only significant user-facing changes to the Wall of Apps feature or contribution workflow.
 - Use backticks for commands, flags, environment variables, and JSON. Do not invent detail to expand a short entry or remove compatibility details merely to shorten a bullet.
 
 Example entry from the published 5.1.0 release (illustrative excerpt, not its complete notes):
