@@ -7,9 +7,11 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/cmd"
 )
 
-// A guessed verb that never existed gets a curated task map, while a typo keeps
-// the nearest-match suggestion it already had. Both keep the error first and the
-// help pointer last on stderr.
+// A guess nothing can place gets the curated task map, while a typo and a
+// guessable verb keep the suggestions they already had. All of them keep the
+// error first and the help pointer last on stderr. Tokens the suggester now
+// answers (`builds latest`, `testflight groups invite`) are covered in
+// unknown_child_suggestions_test.go.
 func TestRunUnknownSubcommandTaskHints(t *testing.T) {
 	t.Setenv("ASC_BYPASS_KEYCHAIN", "1")
 
@@ -21,9 +23,9 @@ func TestRunUnknownSubcommandTaskHints(t *testing.T) {
 		wantAbsent   []string
 	}{
 		{
-			name:      "guessed verb on a curated group",
-			args:      []string{"builds", "latest"},
-			wantOrder: []string{"Error: unknown command `asc builds latest`", "Common tasks:", "For help:"},
+			name:      "unplaceable guess on a curated group",
+			args:      []string{"builds", "qqqqq"},
+			wantOrder: []string{"Error: unknown command `asc builds qqqqq`", "Common tasks:", "For help:"},
 			wantContains: []string{
 				"  list builds          asc builds list --app APP_ID\n",
 				// The canonical latest-build lookup, not a sorted single-result list.
@@ -37,9 +39,9 @@ func TestRunUnknownSubcommandTaskHints(t *testing.T) {
 			wantAbsent: []string{"Try:", "--sort -uploadedDate", "<", ">"},
 		},
 		{
-			name:      "guessed verb on a curated nested group",
-			args:      []string{"testflight", "groups", "invite"},
-			wantOrder: []string{"Error: unknown command `asc testflight groups invite`", "Common tasks:", "For help:"},
+			name:      "unplaceable guess on a curated nested group",
+			args:      []string{"testflight", "groups", "qqqqq"},
+			wantOrder: []string{"Error: unknown command `asc testflight groups qqqqq`", "Common tasks:", "For help:"},
 			wantContains: []string{
 				"  add testers     asc testflight groups add-testers --group GROUP_ID --email EMAIL\n",
 			},

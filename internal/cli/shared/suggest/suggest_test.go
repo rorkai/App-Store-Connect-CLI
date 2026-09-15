@@ -2,6 +2,7 @@ package suggest
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -117,17 +118,66 @@ func TestFlagsCapsSuggestionsAcrossMatchingStrategies(t *testing.T) {
 	}
 }
 
-func TestLevenshteinAndThresholdHelpers(t *testing.T) {
-	if d := levenshtein("apps", "apps"); d != 0 {
-		t.Fatalf("expected equal strings distance 0, got %d", d)
+func TestCommandsSubstringSuggestion(t *testing.T) {
+	got := Commands("phased", []string{"list", "phased-release", "release"})
+	if len(got) == 0 || got[0] != "phased-release" {
+		t.Fatalf("expected substring suggestion for phased-release, got %v", got)
 	}
-	if d := levenshtein("app", "apps"); d != 1 {
-		t.Fatalf("expected distance 1, got %d", d)
+	// Two characters are too little signal for a substring match.
+	if got := Commands("se", []string{"release", "phased-release"}); got != nil {
+		t.Fatalf("expected no substring suggestion for a two-character input, got %v", got)
+	}
+}
+
+func TestCommandsRanksPrefixBeforeSubstringBeforeEdits(t *testing.T) {
+	got := Commands("list", []string{"lits", "listen", "app-list-all"})
+	want := []string{"listen", "app-list-all", "lits"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("Commands() = %v, want %v", got, want)
+	}
+}
+
+func TestEditDistanceCountsAdjacentTranspositionOnce(t *testing.T) {
+	tests := []struct {
+		a, b string
+		want int
+	}{
+		{"apps", "apps", 0},
+		{"app", "apps", 1},
+		{"lsit", "list", 1},
+		{"lsits", "list", 2},
+		{"buidls", "builds", 1},
+		{"", "abc", 3},
+		{"abc", "", 3},
+		{"ca", "abc", 3},
+	}
+	for _, test := range tests {
+		if got := editDistance(test.a, test.b); got != test.want {
+			t.Fatalf("editDistance(%q, %q) = %d, want %d", test.a, test.b, got, test.want)
+		}
 	}
 	if !withinThreshold("apps", 1) || withinThreshold("apps", 2) {
 		t.Fatalf("unexpected threshold behavior for short command length")
 	}
-	if min := min3(3, 2, 4); min != 2 {
-		t.Fatalf("expected min3 to return 2, got %d", min)
+}
+
+// The unknown token is whatever the caller typed, so the ranker must stay
+// bounded by the command names it compares against rather than by that token.
+// A full edit-distance matrix over a token this long allocates a row per
+// character for every candidate.
+func TestCommandsStaysBoundedForAnOversizedInput(t *testing.T) {
+	candidates := []string{"list", "view", "create", "phased-release"}
+	huge := strings.Repeat("q", 200000)
+
+	if got := Commands(huge, candidates); got != nil {
+		t.Fatalf("Commands() = %v, want no suggestion for an oversized input", got)
+	}
+
+	perCandidate := testing.AllocsPerRun(1, func() {
+		_ = editDistance(huge, "phased-release")
+	})
+	// Three rolling rows, plus slack for the test harness itself.
+	if perCandidate > 10 {
+		t.Fatalf("editDistance allocated %v times for one candidate, want a handful of rolling rows", perCandidate)
 	}
 }

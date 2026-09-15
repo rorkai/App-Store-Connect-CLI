@@ -1422,8 +1422,8 @@ func TestRun_UnknownCommandSuggestionsAreBoundedAndTerminalSafe(t *testing.T) {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
 	tryBlock, _, found := strings.Cut(strings.TrimPrefix(stderr, "Error: unknown command `asc app`\nTry:\n"), "For help:\n")
-	if !found || strings.Count(strings.TrimSpace(tryBlock), "\n") != 1 {
-		t.Fatalf("suggestion count is not 2; stderr=%q", stderr)
+	if !found || strings.Count(strings.TrimSpace(tryBlock), "\n") != 2 {
+		t.Fatalf("suggestion count is not 3; stderr=%q", stderr)
 	}
 
 	_, hostileStderr := captureCommandOutput(t, func() {

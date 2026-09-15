@@ -4,6 +4,8 @@ import (
 	"flag"
 	"strings"
 	"testing"
+
+	"github.com/peterbourgon/ff/v3/ffcli"
 )
 
 // Rendered task maps shared with the older unknown-command tests so a table
@@ -34,16 +36,16 @@ func TestRun_UnknownChildAppendsCuratedTaskHints(t *testing.T) {
 	}{
 		{
 			name: "listed group without a near match",
-			args: []string{"builds", "latest"},
-			wantStderr: "Error: unknown command `asc builds latest`\n" +
+			args: []string{"builds", "qqqqq"},
+			wantStderr: "Error: unknown command `asc builds qqqqq`\n" +
 				buildsTaskHintBlock +
 				"For help:\n" +
 				"  asc builds --help\n",
 		},
 		{
 			name: "listed nested group without a near match",
-			args: []string{"testflight", "groups", "invite"},
-			wantStderr: "Error: unknown command `asc testflight groups invite`\n" +
+			args: []string{"testflight", "groups", "qqqqq"},
+			wantStderr: "Error: unknown command `asc testflight groups qqqqq`\n" +
 				"Common tasks:\n" +
 				"  list groups     asc testflight groups list --app APP_ID\n" +
 				"  view a group    asc testflight groups view --id GROUP_ID\n" +
@@ -136,46 +138,56 @@ func TestUnknownChildTaskHintsResolveToRealCommands(t *testing.T) {
 		}
 
 		for _, hint := range hints {
-			tokens := strings.Fields(hint.command)
-			if len(tokens) == 0 || tokens[0] != "asc" {
-				t.Fatalf("%q hint %q must start with `asc`", group, hint.command)
-			}
-			commandPath := []string{}
-			flagTokens := []string{}
-			for _, token := range tokens[1:] {
-				if strings.HasPrefix(token, "-") {
-					flagTokens = append(flagTokens, token)
-					continue
-				}
-				if len(flagTokens) == 0 {
-					commandPath = append(commandPath, token)
-				}
-			}
 			if !strings.HasPrefix(hint.command+" ", group+" ") {
 				t.Fatalf("%q hint %q must stay inside its group", group, hint.command)
 			}
+			assertHintInvocationResolves(t, root, group, hint.command)
+		}
+	}
+}
 
-			command := resolveCommandPath(root, commandPath)
-			if command == nil {
-				t.Fatalf("%q hint %q does not resolve to a command", group, hint.command)
-			}
-			if len(command.Subcommands) > 0 {
-				t.Fatalf("%q hint %q resolves to a group, not a runnable command", group, hint.command)
-			}
-			for _, token := range tokens {
-				if !isShellSafeHintToken(token) {
-					t.Fatalf("%q hint %q has shell-unsafe token %q", group, hint.command, token)
-				}
-			}
-			for _, token := range flagTokens {
-				if !strings.HasPrefix(token, "--") {
-					t.Fatalf("%q hint %q uses the short flag %q", group, hint.command, token)
-				}
-				name, _, _ := strings.Cut(strings.TrimPrefix(token, "--"), "=")
-				if lookupTaskHintFlag(command.FlagSet, name) == nil {
-					t.Fatalf("%q hint %q uses undefined flag --%s", group, hint.command, name)
-				}
-			}
+// assertHintInvocationResolves fails unless invocation is a copy-paste valid
+// `asc ...` call: it resolves to a real leaf command, every token is shell-safe,
+// and every flag is a long-form flag that command defines. label names the
+// table entry in failures.
+func assertHintInvocationResolves(t *testing.T, root *ffcli.Command, label, invocation string) {
+	t.Helper()
+
+	tokens := strings.Fields(invocation)
+	if len(tokens) == 0 || tokens[0] != "asc" {
+		t.Fatalf("%q hint %q must start with `asc`", label, invocation)
+	}
+	commandPath := []string{}
+	flagTokens := []string{}
+	for _, token := range tokens[1:] {
+		if strings.HasPrefix(token, "-") {
+			flagTokens = append(flagTokens, token)
+			continue
+		}
+		if len(flagTokens) == 0 {
+			commandPath = append(commandPath, token)
+		}
+	}
+
+	command := resolveCommandPath(root, commandPath)
+	if command == nil {
+		t.Fatalf("%q hint %q does not resolve to a command", label, invocation)
+	}
+	if len(command.Subcommands) > 0 {
+		t.Fatalf("%q hint %q resolves to a group, not a runnable command", label, invocation)
+	}
+	for _, token := range tokens {
+		if !isShellSafeHintToken(token) {
+			t.Fatalf("%q hint %q has shell-unsafe token %q", label, invocation, token)
+		}
+	}
+	for _, token := range flagTokens {
+		if !strings.HasPrefix(token, "--") {
+			t.Fatalf("%q hint %q uses the short flag %q", label, invocation, token)
+		}
+		name, _, _ := strings.Cut(strings.TrimPrefix(token, "--"), "=")
+		if lookupTaskHintFlag(command.FlagSet, name) == nil {
+			t.Fatalf("%q hint %q uses undefined flag --%s", label, invocation, name)
 		}
 	}
 }
