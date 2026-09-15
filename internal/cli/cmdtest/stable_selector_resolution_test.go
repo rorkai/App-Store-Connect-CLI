@@ -326,7 +326,7 @@ func TestIAPContentViewDoesNotSuppressNumericAmbiguity(t *testing.T) {
 	if runErr == nil {
 		t.Fatal("expected ambiguity error")
 	}
-	if !strings.Contains(runErr.Error(), "Use the explicit ASC ID to disambiguate") {
+	if !strings.Contains(runErr.Error(), "pass --iap-id with one of:") {
 		t.Fatalf("expected disambiguation guidance, got %v", runErr)
 	}
 	if requests != 2 {

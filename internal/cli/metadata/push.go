@@ -485,13 +485,13 @@ func resolveMetadataAppInfoID(
 		}
 	}
 	exampleCommand := buildExample(appID, version, platform, dir, exampleAppInfoID)
-	return "", shared.UsageErrorf(
-		"multiple app infos found for app %q (%s). Run `asc apps info list --app %q` to inspect candidates, then re-run with --app-info. Example: %s",
-		appID,
-		asc.FormatAppInfoCandidates(candidates),
-		appID,
-		exampleCommand,
-	)
+	return "", shared.AmbiguousUsageError(&shared.AmbiguousSelectionError{
+		Kind:        "app info",
+		Description: fmt.Sprintf("app %q", appID),
+		Flag:        "--app-info",
+		Candidates:  shared.AppInfoAmbiguousCandidates(candidates),
+		Hint:        fmt.Sprintf("Inspect them with `asc apps info list --app %q`. Example: %s", appID, exampleCommand),
+	})
 }
 
 func buildMetadataAppInfoExample(command, appID, version, platform, dir, appInfoID string) string {

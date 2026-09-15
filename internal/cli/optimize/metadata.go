@@ -52,7 +52,7 @@ func resolveSearchMetadata(ctx context.Context, appSelector, version, platform, 
 		return resolvedSearchMetadata{}, fmt.Errorf("version localization %q not found", locale)
 	}
 	if len(versionLocalizations.Data) > 1 {
-		return resolvedSearchMetadata{}, fmt.Errorf("multiple version localizations found for locale %q", locale)
+		return resolvedSearchMetadata{}, shared.AmbiguousLocalizationError("version localization", locale, shared.LocalizationCandidates(versionLocalizations.Data, func(attributes asc.AppStoreVersionLocalizationAttributes) string { return attributes.Locale }))
 	}
 
 	appInfoCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -77,7 +77,7 @@ func resolveSearchMetadata(ctx context.Context, appSelector, version, platform, 
 		return resolvedSearchMetadata{}, fmt.Errorf("app info localization %q not found", locale)
 	}
 	if len(appInfoLocalizations.Data) > 1 {
-		return resolvedSearchMetadata{}, fmt.Errorf("multiple app info localizations found for locale %q", locale)
+		return resolvedSearchMetadata{}, shared.AmbiguousLocalizationError("app info localization", locale, shared.LocalizationCandidates(appInfoLocalizations.Data, func(attributes asc.AppInfoLocalizationAttributes) string { return attributes.Locale }))
 	}
 
 	return resolvedSearchMetadata{
@@ -112,10 +112,5 @@ func resolveSearchAppInfoID(ctx context.Context, client *asc.Client, appID, appI
 	if resolvedID, ok := asc.AutoResolveAppInfoIDByVersionState(candidates, versionState); ok {
 		return resolvedID, nil
 	}
-	return "", fmt.Errorf(
-		"multiple app infos found for app %q (%s); run `asc apps info list --app %q` and re-run with --app-info",
-		appID,
-		asc.FormatAppInfoCandidates(candidates),
-		appID,
-	)
+	return "", shared.AmbiguousAppInfoError(appID, "--app-info", candidates)
 }

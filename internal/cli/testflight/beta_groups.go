@@ -1265,7 +1265,12 @@ Examples:
 						return fmt.Errorf("beta-groups add-testers: tester email %q not found for app %q", testerEmail, appID)
 					}
 					if len(resp.Data) > 1 {
-						return fmt.Errorf("beta-groups add-testers: multiple testers found for email %q; use --tester ID", testerEmail)
+						return fmt.Errorf("beta-groups add-testers: %w", &shared.AmbiguousSelectionError{
+							Kind:        "beta tester",
+							Description: fmt.Sprintf("email %q", testerEmail),
+							Flag:        "--tester",
+							Candidates:  shared.BetaTesterCandidates(resp.Data),
+						})
 					}
 					testerIDs = append(testerIDs, resp.Data[0].ID)
 				}

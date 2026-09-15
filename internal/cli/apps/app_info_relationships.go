@@ -114,7 +114,7 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			resolvedInfoID, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, infoIDValue)
+			resolvedInfoID, err := shared.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, infoIDValue, "--info-id")
 			if err != nil {
 				return fmt.Errorf("apps info relationships %s: %w", name, err)
 			}

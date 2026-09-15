@@ -49,7 +49,7 @@ func resolveAppID(ctx context.Context, client *asc.Client, appFlag string, confi
 			return "", fmt.Errorf("no app found for bundle ID %q", config.AppIdentifier)
 		}
 		if len(resp.Data) > 1 {
-			return "", fmt.Errorf("multiple apps found for bundle ID %q; use --app", config.AppIdentifier)
+			return "", shared.AmbiguousError("app", "--app", config.AppIdentifier, shared.AppCandidates(resp.Data))
 		}
 		return resp.Data[0].ID, nil
 	}

@@ -92,7 +92,20 @@ func findSandboxTesterByEmail(ctx context.Context, client *asc.Client, email str
 			return nil, err
 		}
 		if len(resp.Data) > 1 {
-			return nil, fmt.Errorf("multiple sandbox testers found for %q", strings.TrimSpace(email))
+			candidates := make([]shared.AmbiguousCandidate, 0, len(resp.Data))
+			for _, tester := range resp.Data {
+				candidates = append(candidates, shared.AmbiguousCandidate{
+					ID:    strings.TrimSpace(tester.ID),
+					Label: strings.TrimSpace(tester.Attributes.Email),
+					Extra: strings.TrimSpace(strings.TrimSpace(tester.Attributes.FirstName) + " " + strings.TrimSpace(tester.Attributes.LastName)),
+				})
+			}
+			return nil, &shared.AmbiguousSelectionError{
+				Kind:        "sandbox tester",
+				Description: fmt.Sprintf("email %q", strings.TrimSpace(email)),
+				Flag:        "--id",
+				Candidates:  candidates,
+			}
 		}
 		if len(resp.Data) == 1 {
 			return &asc.SandboxTesterResponse{Data: resp.Data[0], Links: resp.Links}, nil

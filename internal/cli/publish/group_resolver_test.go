@@ -136,16 +136,16 @@ func TestResolvePublishBetaGroupIDsFromList_AmbiguousName(t *testing.T) {
 		t.Fatal("expected error for ambiguous beta group name")
 	}
 	errMsg := err.Error()
-	if !strings.Contains(errMsg, `"qa" matches 2 beta groups`) {
+	if !strings.Contains(errMsg, `2 beta groups match "qa"; pass --group with one of:`) {
 		t.Fatalf("expected ambiguous header, got %v", err)
 	}
-	if !strings.Contains(errMsg, "GROUP_A (internal)") {
+	if !strings.Contains(errMsg, "GROUP_A  QA  internal") {
 		t.Fatalf("expected internal label for GROUP_A, got %v", err)
 	}
-	if !strings.Contains(errMsg, "GROUP_B (external)") {
+	if !strings.Contains(errMsg, "GROUP_B  QA  external") {
 		t.Fatalf("expected external label for GROUP_B, got %v", err)
 	}
-	if !strings.Contains(errMsg, "Use the group ID to disambiguate.") {
+	if !strings.Contains(errMsg, "pass --group with one of:") {
 		t.Fatalf("expected disambiguation hint, got %v", err)
 	}
 	if strings.Contains(errMsg, "--skip-internal") {

@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -198,31 +197,7 @@ func resolveSearchKeywordsVersionID(ctx context.Context, client *asc.Client, app
 		return candidates[0].ID, nil
 	}
 
-	if platform != "" {
-		return "", fmt.Errorf("multiple app store versions found for version %q and platform %q", version, platform)
-	}
-	platforms := candidateVersionPlatforms(candidates)
-	if len(platforms) > 1 {
-		return "", fmt.Errorf("multiple app store versions found for version %q on platforms %s; pass --platform", version, strings.Join(platforms, ", "))
-	}
-	return "", fmt.Errorf("multiple app store versions found for version %q on platform %s", version, strings.Join(platforms, ", "))
-}
-
-func candidateVersionPlatforms(candidates []asc.Resource[asc.AppStoreVersionAttributes]) []string {
-	seen := make(map[string]struct{}, len(candidates))
-	for _, candidate := range candidates {
-		platform := strings.TrimSpace(string(candidate.Attributes.Platform))
-		if platform == "" {
-			platform = "UNKNOWN"
-		}
-		seen[platform] = struct{}{}
-	}
-	platforms := make([]string, 0, len(seen))
-	for platform := range seen {
-		platforms = append(platforms, platform)
-	}
-	sort.Strings(platforms)
-	return platforms
+	return "", shared.AmbiguousAppStoreVersionError(version, platform, candidates, "--platform", "")
 }
 
 func resolveSearchKeywordsLocalizationID(ctx context.Context, client *asc.Client, versionID, locale string) (string, error) {
@@ -259,7 +234,7 @@ func resolveSearchKeywordsLocalizationID(ctx context.Context, client *asc.Client
 	case 1:
 		return candidates[0].ID, nil
 	default:
-		return "", fmt.Errorf("multiple version localizations found for locale %q", locale)
+		return "", shared.AmbiguousLocalizationError("version localization", locale, shared.LocalizationCandidates(candidates, func(attributes asc.AppStoreVersionLocalizationAttributes) string { return attributes.Locale }))
 	}
 }
 

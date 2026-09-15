@@ -270,12 +270,12 @@ func resolveMultipleAppInfoAgeRating(ctx context.Context, client *asc.Client, re
 	candidates := asc.AppInfoCandidates(result.response.Data)
 	ageRatingAppInfoID, ok := asc.AutoResolveAppInfoIDByVersionState(candidates, versionState)
 	if !ok {
-		return fmt.Errorf(
-			"failed to fetch age rating declaration: multiple app infos found for app %q (%s); run `asc apps info list --app %q` to inspect candidates and use the app-info based age-rating flow explicitly",
-			strings.TrimSpace(appID),
-			asc.FormatAppInfoCandidates(candidates),
-			strings.TrimSpace(appID),
-		)
+		return fmt.Errorf("failed to fetch age rating declaration: %w", &shared.AmbiguousSelectionError{
+			Kind:        "app info",
+			Description: fmt.Sprintf("app %q", strings.TrimSpace(appID)),
+			Candidates:  shared.AppInfoAmbiguousCandidates(candidates),
+			Hint:        fmt.Sprintf("Inspect them with `asc apps info list --app %q`, then read the declaration with `asc age-rating view --app-info-id <ID>`.", strings.TrimSpace(appID)),
+		})
 	}
 
 	resource, unique := selectAppInfoResource(result.response.Data, ageRatingAppInfoID)

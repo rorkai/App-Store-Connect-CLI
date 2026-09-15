@@ -327,10 +327,7 @@ func resolveVersionID(ctx context.Context, client *asc.Client, appID, version, p
 		return "", fmt.Errorf("app store version not found for version %q", version)
 	}
 	if len(resp.Data) > 1 {
-		if strings.TrimSpace(platform) != "" {
-			return "", fmt.Errorf("multiple app store versions found for version %q and platform %q (use --version-id)", version, platform)
-		}
-		return "", fmt.Errorf("multiple app store versions found for version %q (use --platform or --version-id)", version)
+		return "", shared.AmbiguousAppStoreVersionError(version, platform, resp.Data, "--platform", "--version-id")
 	}
 	return resp.Data[0].ID, nil
 }

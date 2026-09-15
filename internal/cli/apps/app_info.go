@@ -179,7 +179,7 @@ Examples:
 			defer cancel()
 
 			if appInfoMode {
-				appInfoIDValue, err := shared.ResolveAppInfoID(requestCtx, client, resolvedAppID, infoIDValue)
+				appInfoIDValue, err := shared.ResolveAppInfoIDWithFlag(requestCtx, client, resolvedAppID, infoIDValue, "--info-id")
 				if err != nil {
 					return fmt.Errorf("apps info view: %w", err)
 				}

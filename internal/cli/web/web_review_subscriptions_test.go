@@ -197,7 +197,7 @@ func TestFindReviewSubscriptionGroupRejectsAmbiguousReferenceName(t *testing.T) 
 	if err == nil {
 		t.Fatal("expected ambiguous group name to fail")
 	}
-	if !strings.Contains(err.Error(), "matches 2 subscription groups by name") {
+	if !strings.Contains(err.Error(), `2 subscription groups match "Premium" by name; pass --group-id with one of:`) {
 		t.Fatalf("expected ambiguity diagnostic, got %q", err)
 	}
 }
@@ -325,7 +325,7 @@ func TestWebReviewSubscriptionsAttachGroupRejectsAmbiguousSelectorBeforeMutation
 	if err == nil {
 		t.Fatal("expected ambiguous group selector error")
 	}
-	if !strings.Contains(err.Error(), "matches 2 subscription groups by name") {
+	if !strings.Contains(err.Error(), `2 subscription groups match "Premium" by name; pass --group-id with one of:`) {
 		t.Fatalf("expected ambiguity diagnostic, got %v", err)
 	}
 	diagnostic, ok := shared.DiagnosticFromError(err)
@@ -483,7 +483,7 @@ func TestWebReviewSubscriptionsAttachRejectsAmbiguousSelectorBeforeMutation(t *t
 	if err == nil {
 		t.Fatal("expected ambiguous selector error")
 	}
-	if !strings.Contains(err.Error(), "matches 2 subscriptions by name") {
+	if !strings.Contains(err.Error(), `2 subscriptions match "Monthly" by name; pass --subscription-id with one of:`) {
 		t.Fatalf("expected ambiguity diagnostic, got %v", err)
 	}
 	diagnostic, ok := shared.DiagnosticFromError(err)

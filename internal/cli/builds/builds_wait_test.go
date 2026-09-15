@@ -278,3 +278,42 @@ func TestWaitForBuildDiscoveryFailsAfterConsecutiveTransientLimit(t *testing.T) 
 		t.Fatalf("expected %d lookups, got %d", asc.DefaultMaxConsecutivePollFailures+1, calls)
 	}
 }
+
+// The --since build-number path reports later-page matches from the response's
+// pagination links, not from the fact that a second match was seen.
+func TestResolveBuildByNumberSelectionSinceReportsCandidatesWithoutClaimingLaterPages(t *testing.T) {
+	client := newBuildsWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/v1/builds" {
+			return nil, fmt.Errorf("unexpected path: %s", req.URL.Path)
+		}
+		return buildsWaitJSONResponse(http.StatusOK, `{"data":[
+			{"type":"builds","id":"build-ios","attributes":{"version":"42","uploadedDate":"2026-03-02T18:01:00Z","processingState":"VALID"}},
+			{"type":"builds","id":"build-macos","attributes":{"version":"42","uploadedDate":"2026-03-02T18:00:30Z","processingState":"VALID"}}
+		],"links":{}}`)
+	})
+
+	since := time.Date(2026, 3, 2, 17, 0, 0, 0, time.UTC)
+	_, err := resolveBuildByNumberSelectionSince(
+		context.Background(),
+		client,
+		"123456789",
+		"42",
+		"",
+		"IOS",
+		[]asc.BuildsOption{asc.WithBuildsVersion("42")},
+		&since,
+		false,
+	)
+	if err == nil {
+		t.Fatal("expected an ambiguity error for two matching builds")
+	}
+	message := err.Error()
+	for _, want := range []string{"pass --build-id with one of:", "build-ios", "build-macos"} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("expected %q in %q", want, message)
+		}
+	}
+	if strings.Contains(message, "later pages") {
+		t.Fatalf("no later pages exist for this response: %q", message)
+	}
+}

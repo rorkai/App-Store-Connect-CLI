@@ -66,13 +66,13 @@ func TestResolveBuildBetaGroupIDsFromList_AmbiguousName(t *testing.T) {
 		t.Fatal("expected ambiguous name error")
 	}
 	errMsg := err.Error()
-	if !strings.Contains(errMsg, `"Beta" matches 2 beta groups`) {
+	if !strings.Contains(errMsg, `2 beta groups match "Beta"; pass --group with one of:`) {
 		t.Fatalf("expected ambiguous header, got %v", err)
 	}
-	if !strings.Contains(errMsg, "group-1 (internal)") {
+	if !strings.Contains(errMsg, "group-1  Beta  internal") {
 		t.Fatalf("expected internal label for group-1, got %v", err)
 	}
-	if !strings.Contains(errMsg, "group-2 (external)") {
+	if !strings.Contains(errMsg, "group-2  Beta  external") {
 		t.Fatalf("expected external label for group-2, got %v", err)
 	}
 	if !strings.Contains(errMsg, "--skip-internal") {
@@ -111,13 +111,13 @@ func TestResolveBuildBetaGroupIDsFromList_AmbiguousNameSkipInternalStillAmbiguou
 		t.Fatal("expected ambiguous name error")
 	}
 	errMsg := err.Error()
-	if !strings.Contains(errMsg, `"Beta" matches 3 beta groups`) {
+	if !strings.Contains(errMsg, `3 beta groups match "Beta"; pass --group with one of:`) {
 		t.Fatalf("expected ambiguous header, got %v", err)
 	}
 	if strings.Contains(errMsg, "--skip-internal") {
 		t.Fatalf("did not expect --skip-internal hint once already applied, got %v", err)
 	}
-	if !strings.Contains(errMsg, "Use the group ID to disambiguate.") {
+	if !strings.Contains(errMsg, "pass --group with one of:") {
 		t.Fatalf("expected disambiguation hint, got %v", err)
 	}
 }

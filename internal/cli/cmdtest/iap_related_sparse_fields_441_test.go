@@ -278,8 +278,11 @@ func TestIAPPromotedPurchaseViewStableSelectorErrors441(t *testing.T) {
 				t.Fatal("expected ambiguity failure")
 			}
 		})
-		if requests != 2 || !strings.Contains(stderr, "Use the explicit ASC ID to disambiguate") {
+		if requests != 2 || !strings.Contains(stderr, `2 in-app purchases match "Premium" by name; pass --iap-id with one of:`) {
 			t.Fatalf("requests=%d stderr=%q", requests, stderr)
+		}
+		if !strings.Contains(stderr, "\n  iap-1  com.example.one  Premium\n  iap-2  com.example.two  Premium\n") {
+			t.Fatalf("expected candidate rows in stderr, got %q", stderr)
 		}
 	})
 

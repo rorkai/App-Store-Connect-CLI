@@ -212,7 +212,7 @@ func TestRunMetadataKeywordsAuditSuggestsAppInfoOverrideWhenResolutionIsAmbiguou
 		}
 	})
 
-	if !strings.Contains(stderr, `multiple app infos found for app "app-1"`) {
+	if !strings.Contains(stderr, `2 app infos match app "app-1"; pass --app-info with one of:`) {
 		t.Fatalf("expected ambiguous app-info stderr, got %q", stderr)
 	}
 	if !strings.Contains(stderr, "--app-info") {

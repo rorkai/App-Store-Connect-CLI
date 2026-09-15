@@ -144,7 +144,20 @@ func selectSigningIdentity(candidates []signingIdentity, fingerprint string) (*s
 	}
 	if requested == "" {
 		if len(candidates) > 1 {
-			return nil, fmt.Errorf("PKCS#12 contains multiple private identities; use --identity-sha256 to select one")
+			identityCandidates := make([]shared.AmbiguousCandidate, 0, len(candidates))
+			for _, candidate := range candidates {
+				label := ""
+				if candidate.Certificate != nil {
+					label = strings.TrimSpace(candidate.Certificate.Subject.CommonName)
+				}
+				identityCandidates = append(identityCandidates, shared.AmbiguousCandidate{ID: candidate.CertificateSHA256, Label: label})
+			}
+			return nil, &shared.AmbiguousSelectionError{
+				Kind:        "PKCS#12 private identity",
+				Description: "the identity file",
+				Flag:        "--identity-sha256",
+				Candidates:  identityCandidates,
+			}
 		}
 		selected := candidates[0]
 		return &selected, nil

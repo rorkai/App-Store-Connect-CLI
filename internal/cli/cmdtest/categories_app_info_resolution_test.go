@@ -54,7 +54,7 @@ func TestCategoriesSetFailsWhenAppInfoIsAmbiguous(t *testing.T) {
 		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 	for _, want := range []string{
-		`multiple app infos found for app "app-1"`,
+		`2 app infos match app "app-1"; pass --app-info with one of:`,
 		`asc apps info list --app "app-1"`,
 		"READY_FOR_DISTRIBUTION",
 		"REJECTED",

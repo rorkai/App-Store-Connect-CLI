@@ -117,11 +117,11 @@ func ResolveBetaGroupsFromList(inputGroups []string, groups *asc.BetaGroupsRespo
 					break
 				}
 
-				hint := "Use the group ID to disambiguate."
+				hint := ""
 				if opts.IncludeSkipInternalHint && !opts.SkipInternal && len(externalMatches) == 1 && len(externalMatches) < len(matches) {
-					hint = "Use the group ID to disambiguate, or --skip-internal to exclude internal groups."
+					hint = "Or pass --skip-internal to exclude internal groups."
 				}
-				return nil, fmt.Errorf("%s\n%s", formatAmbiguousBetaGroupError(group, matches, groupInternal), hint)
+				return nil, ambiguousBetaGroupError(group, matches, groupsByID, hint)
 			}
 		}
 
@@ -226,15 +226,25 @@ func filterExternalGroupIDs(matchIDs []string, internalByID map[string]bool) []s
 	return external
 }
 
-func formatAmbiguousBetaGroupError(name string, matchIDs []string, internalByID map[string]bool) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "%q matches %d beta groups:", name, len(matchIDs))
+func ambiguousBetaGroupError(name string, matchIDs []string, groupsByID map[string]asc.Resource[asc.BetaGroupAttributes], hint string) error {
+	candidates := make([]AmbiguousCandidate, 0, len(matchIDs))
 	for _, id := range matchIDs {
+		group := groupsByID[id]
 		kind := "external"
-		if internalByID[id] {
+		if group.Attributes.IsInternalGroup {
 			kind = "internal"
 		}
-		fmt.Fprintf(&b, "\n  %s (%s)", id, kind)
+		candidates = append(candidates, AmbiguousCandidate{
+			ID:    id,
+			Label: strings.TrimSpace(group.Attributes.Name),
+			Extra: kind,
+		})
 	}
-	return b.String()
+	return &AmbiguousSelectionError{
+		Kind:        "beta group",
+		Description: fmt.Sprintf("%q", name),
+		Flag:        "--group",
+		Candidates:  candidates,
+		Hint:        hint,
+	}
 }

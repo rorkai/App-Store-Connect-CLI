@@ -98,7 +98,7 @@ func TestAppSetupInfoSetPlanningFailuresDoNotMutate(t *testing.T) {
 					{"type":"appInfos","id":"info-2","attributes":{"state":"READY_FOR_SALE"}}
 				]}`,
 			}},
-			wantError: "multiple app infos found",
+			wantError: `2 app infos match app "app-1"; pass --app-info with one of:`,
 		},
 		{
 			name:      "create without name",
@@ -119,7 +119,7 @@ func TestAppSetupInfoSetPlanningFailuresDoNotMutate(t *testing.T) {
 				uri:          appSetupInfoLocalizationsURI,
 				responseBody: `{"data":[{"type":"appInfoLocalizations","id":"loc-1"},{"type":"appInfoLocalizations","id":"loc-2"}]}`,
 			}},
-			wantError: `multiple app info localizations found for locale "en-US"`,
+			wantError: `2 app info localizations match locale "en-US":`,
 		},
 	}
 

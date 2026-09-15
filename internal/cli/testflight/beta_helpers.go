@@ -94,10 +94,14 @@ func matchBetaGroupID(groups *asc.BetaGroupsResponse, group string) (string, err
 		}
 	}
 
-	matches := make([]string, 0, 1)
+	matches := make([]shared.AmbiguousCandidate, 0, 1)
 	for _, item := range groups.Data {
 		if strings.EqualFold(strings.TrimSpace(item.Attributes.Name), group) {
-			matches = append(matches, item.ID)
+			kind := "external"
+			if item.Attributes.IsInternalGroup {
+				kind = "internal"
+			}
+			matches = append(matches, shared.AmbiguousCandidate{ID: strings.TrimSpace(item.ID), Label: strings.TrimSpace(item.Attributes.Name), Extra: kind})
 		}
 	}
 
@@ -105,9 +109,9 @@ func matchBetaGroupID(groups *asc.BetaGroupsResponse, group string) (string, err
 	case 0:
 		return "", fmt.Errorf("beta group %q %w", group, errBetaGroupNotFound)
 	case 1:
-		return matches[0], nil
+		return matches[0].ID, nil
 	default:
-		return "", fmt.Errorf("multiple beta groups named %q; use group ID", group)
+		return "", shared.AmbiguousError("beta group", "--group", group, matches)
 	}
 }
 
@@ -121,7 +125,12 @@ func findBetaTesterIDByEmail(ctx context.Context, client *asc.Client, appID, ema
 		return "", errBetaTesterNotFound
 	}
 	if len(testers.Data) > 1 {
-		return "", fmt.Errorf("multiple beta testers found for %q", strings.TrimSpace(email))
+		return "", &shared.AmbiguousSelectionError{
+			Kind:        "beta tester",
+			Description: fmt.Sprintf("email %q", strings.TrimSpace(email)),
+			Candidates:  shared.BetaTesterCandidates(testers.Data),
+			Hint:        "This command selects testers by --email only; inspect the duplicates with `asc testflight beta-testers view --id <ID>`.",
+		}
 	}
 
 	return testers.Data[0].ID, nil

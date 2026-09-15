@@ -195,7 +195,7 @@ func TestResolveAppInfoID_ReturnsErrorWhenMultipleRemainAmbiguous(t *testing.T) 
 				{"type":"appInfos","id":"info-live","attributes":{"state":"READY_FOR_SALE"}},
 				{"type":"appInfos","id":"info-review","attributes":{"state":"IN_REVIEW"}}
 			]}`,
-			wantSubstrings: []string{`multiple app infos found for app "app-1"`, "READY_FOR_SALE", "IN_REVIEW"},
+			wantSubstrings: []string{`2 app infos match app "app-1"; pass --app-info with one of:`, "READY_FOR_SALE", "IN_REVIEW"},
 		},
 		{
 			name: "all live candidates",
@@ -203,7 +203,7 @@ func TestResolveAppInfoID_ReturnsErrorWhenMultipleRemainAmbiguous(t *testing.T) 
 				{"type":"appInfos","id":"info-1","attributes":{"state":"READY_FOR_SALE"}},
 				{"type":"appInfos","id":"info-2","attributes":{"state":"READY_FOR_DISTRIBUTION"}}
 			]}`,
-			wantSubstrings: []string{`multiple app infos found for app "app-1"`, "READY_FOR_SALE", "READY_FOR_DISTRIBUTION"},
+			wantSubstrings: []string{`2 app infos match app "app-1"; pass --app-info with one of:`, "READY_FOR_SALE", "READY_FOR_DISTRIBUTION"},
 		},
 		{
 			name: "multiple prepare for submission candidates",
@@ -211,7 +211,7 @@ func TestResolveAppInfoID_ReturnsErrorWhenMultipleRemainAmbiguous(t *testing.T) 
 				{"type":"appInfos","id":"info-ios","attributes":{"state":"PREPARE_FOR_SUBMISSION"}},
 				{"type":"appInfos","id":"info-macos","attributes":{"state":"PREPARE_FOR_SUBMISSION"}}
 			]}`,
-			wantSubstrings: []string{`multiple app infos found for app "app-1"`, "info-ios", "info-macos", "PREPARE_FOR_SUBMISSION"},
+			wantSubstrings: []string{`2 app infos match app "app-1"; pass --app-info with one of:`, "info-ios", "info-macos", "PREPARE_FOR_SUBMISSION"},
 		},
 	}
 

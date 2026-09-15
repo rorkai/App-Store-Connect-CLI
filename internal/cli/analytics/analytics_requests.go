@@ -632,7 +632,16 @@ Examples:
 					return fmt.Errorf("analytics download: segment %q not found for instance %q", strings.TrimSpace(*segmentID), strings.TrimSpace(*instanceID))
 				}
 			} else if len(segments) > 1 {
-				return fmt.Errorf("analytics download: multiple segments found; specify --segment-id")
+				candidates := make([]shared.AmbiguousCandidate, 0, len(segments))
+				for _, segment := range segments {
+					candidates = append(candidates, shared.AmbiguousCandidate{ID: strings.TrimSpace(segment.ID), Label: fmt.Sprintf("%d bytes", segment.Attributes.SizeInBytes), Extra: strings.TrimSpace(segment.Attributes.Checksum)})
+				}
+				return fmt.Errorf("analytics download: %w", &shared.AmbiguousSelectionError{
+					Kind:        "segment",
+					Description: fmt.Sprintf("instance %q", strings.TrimSpace(*instanceID)),
+					Flag:        "--segment-id",
+					Candidates:  candidates,
+				})
 			}
 
 			downloadURL := strings.TrimSpace(selectedSegment.Attributes.URL)

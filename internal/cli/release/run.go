@@ -411,7 +411,7 @@ func executePipeline(ctx context.Context, opts runOptions) (runResult, error) {
 				ResolvedID: foundID,
 			}, nil
 		default:
-			return stepOutcome{}, fmt.Errorf("ensure version: multiple app store versions found for version %q and platform %q", opts.Version, opts.Platform)
+			return stepOutcome{}, fmt.Errorf("ensure version: %w", shared.AmbiguousAppStoreVersionError(opts.Version, opts.Platform, versionResp.Data, "", ""))
 		}
 	}); err != nil {
 		return result, err

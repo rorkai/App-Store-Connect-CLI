@@ -232,7 +232,7 @@ func TestAppsRenameRejectsAmbiguousOrEmptyLocalizationIDsBeforeMutation(t *testi
 				{"type":"appInfoLocalizations","id":"loc-1","attributes":{"locale":"en-US"}},
 				{"type":"appInfoLocalizations","id":"loc-2","attributes":{"locale":"en-US"}}
 			]}`,
-			wantError: `multiple app info localizations found for locale "en-US"`,
+			wantError: `2 app info localizations match locale "en-US":`,
 		},
 		{
 			name:      "empty localization id",

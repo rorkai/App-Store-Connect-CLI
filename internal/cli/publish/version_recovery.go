@@ -37,7 +37,7 @@ func findOrCreatePublishAppStoreVersion(ctx context.Context, client *asc.Client,
 		case 1:
 			return &asc.AppStoreVersionResponse{Data: versions.Data[0]}, true, nil
 		default:
-			return nil, false, fmt.Errorf("multiple app store versions found for version %q and platform %q", version, platformValue)
+			return nil, false, shared.AmbiguousAppStoreVersionError(version, platformValue, versions.Data, "", "")
 		}
 	}
 

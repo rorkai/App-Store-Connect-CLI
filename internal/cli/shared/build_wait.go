@@ -214,7 +214,16 @@ func findPreReleaseVersionIDForBuildWait(ctx context.Context, client *asc.Client
 			continue
 		}
 		if len(ids) > 1 {
-			return "", fmt.Errorf("multiple pre-release versions found for version %q and platform %q", version, platform)
+			candidates := make([]AmbiguousCandidate, 0, len(ids))
+			for _, id := range ids {
+				candidates = append(candidates, AmbiguousCandidate{ID: id})
+			}
+			return "", &AmbiguousSelectionError{
+				Kind:        "pre-release version",
+				Description: fmt.Sprintf("version %q on platform %q", version, platform),
+				Candidates:  candidates,
+				Hint:        "Pass --build-id to wait for a specific build.",
+			}
 		}
 		noteEquivalentVersionMatch(requestedVersion, variant)
 		return ids[0], nil

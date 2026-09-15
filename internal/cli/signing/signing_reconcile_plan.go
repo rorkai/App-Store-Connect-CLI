@@ -281,7 +281,7 @@ func selectReconcileCertificateWithFingerprint(certificates []asc.Resource[asc.C
 			return nil, []string{"no eligible iOS distribution certificate matches the requested SHA-256"}
 		}
 		if len(matches) > 1 {
-			return nil, []string{"multiple eligible iOS distribution certificates match the requested SHA-256"}
+			return nil, []string{shared.AmbiguousError("eligible iOS distribution certificate", "--certificate", explicitSHA256, signingCertificateRefCandidates(matches)).Error()}
 		}
 		if explicitID != "" && matches[0].ID != explicitID {
 			return nil, []string{fmt.Sprintf("certificate %s does not match the requested SHA-256", explicitID)}
@@ -304,11 +304,12 @@ func selectReconcileCertificateWithFingerprint(certificates []asc.Resource[asc.C
 		return nil, []string{"no active unexpired iOS distribution certificate is available"}
 	}
 	if len(eligible) > 1 {
-		ids := make([]string, 0, len(eligible))
-		for _, certificate := range eligible {
-			ids = append(ids, certificate.ID)
-		}
-		return nil, []string{fmt.Sprintf("multiple eligible iOS distribution certificates (%s); select one with --certificate", strings.Join(ids, ","))}
+		return nil, []string{(&shared.AmbiguousSelectionError{
+			Kind:        "eligible iOS distribution certificate",
+			Description: "the signing request",
+			Flag:        "--certificate",
+			Candidates:  signingCertificateCandidates(eligible),
+		}).Error()}
 	}
 	selected, err := certificatePlanRef(eligible[0])
 	if err != nil {
@@ -929,4 +930,31 @@ func uniqueSortedStrings(values []string) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+func signingCertificateCandidates(certificates []asc.Resource[asc.CertificateAttributes]) []shared.AmbiguousCandidate {
+	candidates := make([]shared.AmbiguousCandidate, 0, len(certificates))
+	for _, certificate := range certificates {
+		candidates = append(candidates, shared.AmbiguousCandidate{
+			ID:    strings.TrimSpace(certificate.ID),
+			Label: strings.TrimSpace(certificate.Attributes.DisplayName),
+			Extra: strings.TrimSpace("expires " + strings.TrimSpace(certificate.Attributes.ExpirationDate)),
+		})
+	}
+	return candidates
+}
+
+func signingCertificateRefCandidates(refs []*signingCertificateRef) []shared.AmbiguousCandidate {
+	candidates := make([]shared.AmbiguousCandidate, 0, len(refs))
+	for _, ref := range refs {
+		if ref == nil {
+			continue
+		}
+		candidates = append(candidates, shared.AmbiguousCandidate{
+			ID:    strings.TrimSpace(ref.ID),
+			Label: strings.TrimSpace(ref.SHA256),
+			Extra: strings.TrimSpace("expires " + strings.TrimSpace(ref.ExpirationDate)),
+		})
+	}
+	return candidates
 }

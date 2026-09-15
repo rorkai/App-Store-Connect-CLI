@@ -64,7 +64,7 @@ func PlanAppInfoLocalizationUpsert(
 		}
 		plan.Attributes = buildAppInfoLocalizationAttributes(locale, values, false)
 	default:
-		return nil, fmt.Errorf("multiple app info localizations found for locale %q", locale)
+		return nil, AmbiguousLocalizationError("app info localization", locale, LocalizationCandidates(localizations.Data, func(attributes asc.AppInfoLocalizationAttributes) string { return attributes.Locale }))
 	}
 
 	return plan, nil

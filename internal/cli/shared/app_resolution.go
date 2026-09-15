@@ -27,7 +27,7 @@ func ResolveAppStoreVersionIDAndState(ctx context.Context, client *asc.Client, a
 		)
 	}
 	if len(resp.Data) > 1 {
-		return "", "", fmt.Errorf("multiple app store versions found for version %q and platform %q (use --version-id)", version, platform)
+		return "", "", AmbiguousAppStoreVersionError(version, platform, resp.Data, "", "--version-id")
 	}
 	return resp.Data[0].ID, asc.ResolveAppStoreVersionState(resp.Data[0].Attributes), nil
 }
@@ -59,8 +59,16 @@ func ResolveOwnedAppStoreVersionByID(ctx context.Context, client *asc.Client, ap
 	return resp.Data, nil
 }
 
-// ResolveAppInfoID resolves the app info ID, optionally using a provided override.
+// ResolveAppInfoID resolves the app info ID, optionally using a provided
+// override supplied through --app-info.
 func ResolveAppInfoID(ctx context.Context, client *asc.Client, appID, appInfoID string) (string, error) {
+	return ResolveAppInfoIDWithFlag(ctx, client, appID, appInfoID, "--app-info")
+}
+
+// ResolveAppInfoIDWithFlag resolves the app info ID, optionally using a
+// provided override. appInfoFlag names the command's override flag so an
+// ambiguity error can tell the caller which flag accepts one candidate ID.
+func ResolveAppInfoIDWithFlag(ctx context.Context, client *asc.Client, appID, appInfoID, appInfoFlag string) (string, error) {
 	if strings.TrimSpace(appInfoID) != "" {
 		return strings.TrimSpace(appInfoID), nil
 	}
@@ -78,8 +86,7 @@ func ResolveAppInfoID(ctx context.Context, client *asc.Client, appID, appInfoID 
 	if len(resp.Data) > 1 {
 		selected, reason := autoSelectEditableAppInfoID(resp)
 		if selected == "" {
-			candidates := asc.FormatAppInfoCandidates(asc.AppInfoCandidates(resp.Data))
-			return "", fmt.Errorf("multiple app infos found for app %q (%s); run `asc apps info list --app %q` to inspect candidates, then pass the explicit app info ID", appID, candidates, appID)
+			return "", AmbiguousAppInfoError(appID, appInfoFlag, asc.AppInfoCandidates(resp.Data))
 		}
 		fmt.Fprintf(os.Stderr, "Multiple app infos found for app %s, auto-selected %s (%s).\n", appID, selected, reason)
 		return selected, nil

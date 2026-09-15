@@ -275,13 +275,12 @@ func findReviewSubscription(subscriptions []webcore.ReviewSubscription, selector
 				Name:      strings.TrimSpace(match.Name),
 			})
 		}
-		return nil, fmt.Errorf("%q matches %d subscriptions by id:\n  %s\nUse the explicit ASC ID to disambiguate", selector, len(idMatches), strings.Join(func() []string {
-			lines := make([]string, 0, len(candidates))
-			for _, candidate := range candidates {
-				lines = append(lines, fmt.Sprintf("%s, productId=%s, name=%s", candidate.ID, candidate.ProductID, candidate.Name))
-			}
-			return lines
-		}(), "\n  "))
+		return nil, &shared.AmbiguousSelectionError{
+			Kind:        "subscription",
+			Description: fmt.Sprintf("%q by id", selector),
+			Flag:        "--subscription-id",
+			Candidates:  shared.ExactSelectorAmbiguousCandidates(candidates),
+		}
 	}
 
 	candidates := make([]shared.ExactSelectorCandidate, 0, len(subscriptions))
@@ -388,7 +387,8 @@ func withReviewSelectorDiagnostic(err error, parameter string) error {
 	// retain their existing classification. Only local selector-resolution
 	// failures are validation diagnostics.
 	lower := strings.ToLower(err.Error())
-	if !strings.Contains(lower, "selector") &&
+	if !shared.IsAmbiguousSelection(err) &&
+		!strings.Contains(lower, "selector") &&
 		!strings.Contains(lower, "not found") &&
 		!strings.Contains(lower, " matches ") &&
 		!strings.Contains(lower, "unexpected resource type") {

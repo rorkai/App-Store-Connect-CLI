@@ -34,10 +34,73 @@ type selectorAmbiguousError struct {
 	fieldName    string
 	selector     string
 	matches      []ExactSelectorCandidate
+	// flag overrides the default stable-selector flag named in the message.
+	flag string
 }
 
 func (e selectorAmbiguousError) Error() string {
-	return fmt.Sprintf("%s\nUse the explicit ASC ID to disambiguate", formatAmbiguousSelectorError(e.resourceName, e.fieldName, e.selector, e.matches))
+	return e.ambiguous().Error()
+}
+
+// Unwrap exposes the rendered ambiguity error so callers can detect stable
+// selector ambiguity with IsAmbiguousSelection and read the candidates.
+func (e selectorAmbiguousError) Unwrap() error { return e.ambiguous() }
+
+func (e selectorAmbiguousError) ambiguous() *AmbiguousSelectionError {
+	flag := strings.TrimSpace(e.flag)
+	if flag == "" {
+		flag = SelectorFlagForResource(e.resourceName)
+	}
+	return &AmbiguousSelectionError{
+		Kind:        e.resourceName,
+		Description: fmt.Sprintf("%q by %s", e.selector, e.fieldName),
+		Flag:        flag,
+		Candidates:  ExactSelectorAmbiguousCandidates(e.matches),
+	}
+}
+
+// SelectorFlagForResource names the stable-selector flag that accepts an
+// explicit ASC ID for a resource kind resolved by ResolveIAPID,
+// ResolveSubscriptionID, or ResolveExactSelectorCandidate. Commands that bind
+// a different flag wrap the resolver error with WithSelectorFlag.
+func SelectorFlagForResource(resourceName string) string {
+	switch strings.TrimSpace(resourceName) {
+	case "in-app purchase":
+		return "--iap-id"
+	case "subscription":
+		return "--subscription-id"
+	case "subscription group":
+		return "--group-id"
+	default:
+		return ""
+	}
+}
+
+// WithSelectorFlag names the flag that accepts an explicit ASC ID in an
+// ambiguous stable-selector error, for commands whose selector flag differs
+// from the default for the resource kind. Other errors pass through
+// unchanged.
+func WithSelectorFlag(err error, flag string) error {
+	var ambiguous selectorAmbiguousError
+	if !errors.As(err, &ambiguous) {
+		return err
+	}
+	ambiguous.flag = strings.TrimSpace(flag)
+	return ambiguous
+}
+
+// ExactSelectorAmbiguousCandidates converts selector matches into ambiguity
+// candidates (ID, product ID, name).
+func ExactSelectorAmbiguousCandidates(matches []ExactSelectorCandidate) []AmbiguousCandidate {
+	candidates := make([]AmbiguousCandidate, 0, len(matches))
+	for _, match := range matches {
+		candidates = append(candidates, AmbiguousCandidate{
+			ID:    strings.TrimSpace(match.ID),
+			Label: strings.TrimSpace(match.ProductID),
+			Extra: strings.TrimSpace(match.Name),
+		})
+	}
+	return candidates
 }
 
 func (e selectorAmbiguousError) Is(target error) bool {
@@ -436,32 +499,6 @@ func resolveUniqueSelectorCandidate(
 
 func shouldFallbackToRawNumericSelector(needsLookup bool, err error) bool {
 	return !needsLookup && !errors.Is(err, errSelectorAmbiguous)
-}
-
-func formatAmbiguousSelectorError(resourceName, fieldName, selector string, matches []ExactSelectorCandidate) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "%q matches %d %ss by %s:", selector, len(matches), resourceName, fieldName)
-	for _, match := range matches {
-		fmt.Fprintf(&b, "\n  %s", formatSelectorCandidate(match))
-	}
-	return b.String()
-}
-
-func formatSelectorCandidate(candidate ExactSelectorCandidate) string {
-	parts := make([]string, 0, 3)
-	if id := strings.TrimSpace(candidate.ID); id != "" {
-		parts = append(parts, id)
-	}
-	if productID := strings.TrimSpace(candidate.ProductID); productID != "" {
-		parts = append(parts, "productId="+productID)
-	}
-	if name := strings.TrimSpace(candidate.Name); name != "" {
-		parts = append(parts, "name="+name)
-	}
-	if len(parts) == 0 {
-		return "<empty candidate>"
-	}
-	return strings.Join(parts, ", ")
 }
 
 func isNumericSelectorID(value string) bool {

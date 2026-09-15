@@ -244,7 +244,7 @@ func TestTestFlightConfigExportLookupAmbiguousName(t *testing.T) {
 	if runErr == nil {
 		t.Fatal("expected ambiguous lookup error, got nil")
 	}
-	if !strings.Contains(runErr.Error(), `multiple apps found for name "Ambiguous App"`) {
+	if !strings.Contains(runErr.Error(), `2 apps match "Ambiguous App"; pass --app with one of:`) {
 		t.Fatalf("expected ambiguous name error, got %v", runErr)
 	}
 	if stdout != "" {

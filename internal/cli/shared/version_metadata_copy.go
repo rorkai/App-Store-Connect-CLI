@@ -181,7 +181,12 @@ func findSourceAppStoreVersion(
 		return nil, fmt.Errorf("source version %q not found for platform %s", versionValue, platformValue)
 	}
 	if len(matches) > 1 {
-		return nil, fmt.Errorf("source version %q is ambiguous for platform %s", versionValue, platformValue)
+		return nil, &AmbiguousSelectionError{
+			Kind:        "source app store version",
+			Description: fmt.Sprintf("version %q on platform %s", versionValue, platformValue),
+			Candidates:  AppStoreVersionCandidates(matches),
+			Hint:        "App Store Connect returned duplicate versions for this string; --copy-metadata-from cannot select between them.",
+		}
 	}
 
 	return &matches[0], nil

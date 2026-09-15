@@ -158,7 +158,7 @@ func TestFindOrCreatePublishAppStoreVersionRejectsMultipleExactMatches(t *testin
 	client := newPublishCommandTestClient(t)
 
 	_, err := findOrCreatePublishAppStoreVersion(context.Background(), client, "app-1", "1.2.3", asc.PlatformIOS)
-	if err == nil || !strings.Contains(err.Error(), "multiple app store versions found") {
+	if err == nil || !strings.Contains(err.Error(), `2 app store versions match version "1.2.3" on platform "IOS":`) {
 		t.Fatalf("expected multiple-match error, got %v", err)
 	}
 }

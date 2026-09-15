@@ -381,8 +381,11 @@ func TestMetadataPullRejectsAmbiguousVersionWithoutPlatform(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, `Error: --platform is required when multiple app store versions match --version "1.2.3"`) {
+	if !strings.Contains(stderr, `Error: 2 app store versions match version "1.2.3"; pass --platform with one of:`) {
 		t.Fatalf("expected ambiguous-version error, got %q", stderr)
+	}
+	if !strings.Contains(stderr, "\n  IOS     version version-ios\n  MAC_OS  version version-mac\n") {
+		t.Fatalf("expected platform candidates in stderr, got %q", stderr)
 	}
 }
 

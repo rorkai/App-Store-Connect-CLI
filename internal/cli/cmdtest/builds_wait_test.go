@@ -681,11 +681,11 @@ func TestBuildsWaitByBuildNumberRequiresUniqueMatch(t *testing.T) {
 	if runErr == nil {
 		t.Fatal("expected unique build-number lookup error")
 	}
-	if !strings.Contains(runErr.Error(), `multiple builds found for app 123456789 with build number "42"`) {
+	if !strings.Contains(runErr.Error(), `2 builds match build number "42" for platform IOS for app 123456789; pass --build-id with one of:`) {
 		t.Fatalf("expected ambiguity error, got %v", runErr)
 	}
-	if !strings.Contains(runErr.Error(), "add --version, or use --build-id") {
-		t.Fatalf("expected actionable ambiguity hint, got %v", runErr)
+	if !strings.Contains(runErr.Error(), "build-ios") || !strings.Contains(runErr.Error(), "build-macos") {
+		t.Fatalf("expected candidate build IDs in the ambiguity error, got %v", runErr)
 	}
 	if stdout != "" {
 		t.Fatalf("expected empty stdout on ambiguity error, got %q", stdout)
@@ -693,7 +693,7 @@ func TestBuildsWaitByBuildNumberRequiresUniqueMatch(t *testing.T) {
 	if !isUsageClassError(runErr) {
 		t.Fatalf("expected ambiguity to be a usage error, got %v", runErr)
 	}
-	assertUsageDiagnosticFirstLine(t, stderr, `multiple builds found for app 123456789 with build number "42" for platform IOS; add --version, or use --build-id`)
+	assertUsageDiagnosticFirstLine(t, stderr, `2 builds match build number "42" for platform IOS for app 123456789; pass --build-id with one of:`)
 }
 
 func TestBuildsWaitByBuildNumberDiscoveryPollsUntilTimeout(t *testing.T) {

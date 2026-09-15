@@ -165,7 +165,7 @@ func TestBuildsUploadRejectsMissingOrAmbiguousExactAppBeforeReservation(t *testi
 				{"type":"apps","id":"111","attributes":{"name":"Duplicate App","bundleId":"com.example.one"}},
 				{"type":"apps","id":"222","attributes":{"name":"Duplicate App","bundleId":"com.example.two"}}
 			]}`,
-			wantErr: `multiple apps found for name "Duplicate App" (111, 222); use --app with App Store Connect app ID`,
+			wantErr: "2 apps match \"Duplicate App\"; pass --app with one of:\n  111  Duplicate App  com.example.one\n  222  Duplicate App  com.example.two",
 		},
 	}
 

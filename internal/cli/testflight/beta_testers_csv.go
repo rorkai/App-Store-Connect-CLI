@@ -667,7 +667,16 @@ func (r *betaGroupResolver) Resolve(value string) (string, error) {
 	case 1:
 		return ids[0], nil
 	default:
-		return "", fmt.Errorf("multiple beta groups named %q; use group ID", trimmed)
+		candidates := make([]shared.AmbiguousCandidate, 0, len(ids))
+		for _, id := range ids {
+			candidates = append(candidates, shared.AmbiguousCandidate{ID: id, Label: r.byID[id]})
+		}
+		return "", &shared.AmbiguousSelectionError{
+			Kind:        "beta group",
+			Description: fmt.Sprintf("%q", trimmed),
+			Candidates:  candidates,
+			Hint:        "Use one of these group IDs in the CSV groups column instead of the name.",
+		}
 	}
 }
 

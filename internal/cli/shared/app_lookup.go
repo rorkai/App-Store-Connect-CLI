@@ -3,7 +3,6 @@ package shared
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
@@ -37,30 +36,30 @@ func ResolveAppIDWithExactLookup(ctx context.Context, client appLookupClient, ap
 		return strings.TrimSpace(byBundle.Data[0].ID), nil
 	}
 	if len(byBundle.Data) > 1 {
-		return "", fmt.Errorf("multiple apps found for bundle ID %q; use --app with App Store Connect app ID", resolved)
+		return "", AmbiguousError("app", "--app", resolved, AppCandidates(byBundle.Data))
 	}
 
-	nameMatchIDs, err := findExactAppNameMatches(ctx, client, resolved, true)
+	nameMatches, err := findExactAppNameMatches(ctx, client, resolved, true)
 	if err != nil {
 		return "", fmt.Errorf("resolve app by name: %w", err)
 	}
-	if len(nameMatchIDs) == 1 {
-		return nameMatchIDs[0], nil
+	if len(nameMatches) == 1 {
+		return nameMatches[0].ID, nil
 	}
-	if len(nameMatchIDs) > 1 {
-		return "", fmt.Errorf("multiple apps found for name %q (%s); use --app with App Store Connect app ID", resolved, strings.Join(nameMatchIDs, ", "))
+	if len(nameMatches) > 1 {
+		return "", AmbiguousError("app", "--app", resolved, nameMatches)
 	}
 
 	// ASC name filtering is fuzzy in practice; full-scan fallback preserves exact-name semantics.
-	nameMatchIDs, err = findExactAppNameMatches(ctx, client, resolved, false)
+	nameMatches, err = findExactAppNameMatches(ctx, client, resolved, false)
 	if err != nil {
 		return "", fmt.Errorf("resolve app by name: %w", err)
 	}
-	if len(nameMatchIDs) == 1 {
-		return nameMatchIDs[0], nil
+	if len(nameMatches) == 1 {
+		return nameMatches[0].ID, nil
 	}
-	if len(nameMatchIDs) > 1 {
-		return "", fmt.Errorf("multiple apps found for name %q (%s); use --app with App Store Connect app ID", resolved, strings.Join(nameMatchIDs, ", "))
+	if len(nameMatches) > 1 {
+		return "", AmbiguousError("app", "--app", resolved, nameMatches)
 	}
 
 	return "", fmt.Errorf("app %q not found (expected app ID, exact bundle ID, or exact app name)", resolved)
@@ -89,30 +88,30 @@ func ResolveAppIDWithLookup(ctx context.Context, client appLookupClient, appID s
 		return strings.TrimSpace(byBundle.Data[0].ID), nil
 	}
 	if len(byBundle.Data) > 1 {
-		return "", fmt.Errorf("multiple apps found for bundle ID %q; use --app with App Store Connect app ID", resolved)
+		return "", AmbiguousError("app", "--app", resolved, AppCandidates(byBundle.Data))
 	}
 
-	nameMatchIDs, err := findExactAppNameMatches(ctx, client, resolved, true)
+	nameMatches, err := findExactAppNameMatches(ctx, client, resolved, true)
 	if err != nil {
 		return "", fmt.Errorf("resolve app by name: %w", err)
 	}
-	if len(nameMatchIDs) == 1 {
-		return nameMatchIDs[0], nil
+	if len(nameMatches) == 1 {
+		return nameMatches[0].ID, nil
 	}
-	if len(nameMatchIDs) > 1 {
-		return "", fmt.Errorf("multiple apps found for name %q (%s); use --app with App Store Connect app ID", resolved, strings.Join(nameMatchIDs, ", "))
+	if len(nameMatches) > 1 {
+		return "", AmbiguousError("app", "--app", resolved, nameMatches)
 	}
 
 	// ASC name filtering is fuzzy in practice; full-scan fallback preserves exact-name semantics.
-	nameMatchIDs, err = findExactAppNameMatches(ctx, client, resolved, false)
+	nameMatches, err = findExactAppNameMatches(ctx, client, resolved, false)
 	if err != nil {
 		return "", fmt.Errorf("resolve app by name: %w", err)
 	}
-	if len(nameMatchIDs) == 1 {
-		return nameMatchIDs[0], nil
+	if len(nameMatches) == 1 {
+		return nameMatches[0].ID, nil
 	}
-	if len(nameMatchIDs) > 1 {
-		return "", fmt.Errorf("multiple apps found for name %q (%s); use --app with App Store Connect app ID", resolved, strings.Join(nameMatchIDs, ", "))
+	if len(nameMatches) > 1 {
+		return "", AmbiguousError("app", "--app", resolved, nameMatches)
 	}
 
 	// Backward compatibility: if no exact name match exists, keep legacy behavior
@@ -122,15 +121,15 @@ func ResolveAppIDWithLookup(ctx context.Context, client appLookupClient, appID s
 		return "", fmt.Errorf("resolve app by name: %w", err)
 	}
 	if len(fuzzyMatches) == 1 {
-		return fuzzyMatches[0], nil
+		return fuzzyMatches[0].ID, nil
 	}
 	if len(fuzzyMatches) > 1 {
-		return "", fmt.Errorf("multiple apps found for name %q (%s); use --app with App Store Connect app ID", resolved, strings.Join(fuzzyMatches, ", "))
+		return "", AmbiguousError("app", "--app", resolved, fuzzyMatches)
 	}
 	return "", fmt.Errorf("app %q not found (expected app ID, exact bundle ID, or exact app name)", resolved)
 }
 
-func findExactAppNameMatches(ctx context.Context, client appLookupClient, name string, useNameFilter bool) ([]string, error) {
+func findExactAppNameMatches(ctx context.Context, client appLookupClient, name string, useNameFilter bool) ([]AmbiguousCandidate, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || client == nil {
 		return nil, nil
@@ -150,7 +149,7 @@ func findExactAppNameMatches(ctx context.Context, client appLookupClient, name s
 	}
 
 	seen := map[string]struct{}{}
-	matchIDs := make([]string, 0, 1)
+	matches := make([]AmbiguousCandidate, 0, 1)
 	collect := func(resp *asc.AppsResponse) {
 		if resp == nil {
 			return
@@ -167,7 +166,7 @@ func findExactAppNameMatches(ctx context.Context, client appLookupClient, name s
 				continue
 			}
 			seen[id] = struct{}{}
-			matchIDs = append(matchIDs, id)
+			matches = append(matches, appCandidate(app))
 		}
 	}
 
@@ -189,11 +188,11 @@ func findExactAppNameMatches(ctx context.Context, client appLookupClient, name s
 		return nil, err
 	}
 
-	sort.Strings(matchIDs)
-	return matchIDs, nil
+	sortAmbiguousCandidatesByID(matches)
+	return matches, nil
 }
 
-func findFuzzyAppNameMatches(ctx context.Context, client appLookupClient, name string) ([]string, error) {
+func findFuzzyAppNameMatches(ctx context.Context, client appLookupClient, name string) ([]AmbiguousCandidate, error) {
 	name = strings.TrimSpace(name)
 	if name == "" || client == nil {
 		return nil, nil
@@ -208,7 +207,7 @@ func findFuzzyAppNameMatches(ctx context.Context, client appLookupClient, name s
 	}
 
 	seen := map[string]struct{}{}
-	ids := make([]string, 0, len(resp.Data))
+	matches := make([]AmbiguousCandidate, 0, len(resp.Data))
 	for _, app := range resp.Data {
 		id := strings.TrimSpace(app.ID)
 		if id == "" {
@@ -218,10 +217,10 @@ func findFuzzyAppNameMatches(ctx context.Context, client appLookupClient, name s
 			continue
 		}
 		seen[id] = struct{}{}
-		ids = append(ids, id)
+		matches = append(matches, appCandidate(app))
 	}
-	sort.Strings(ids)
-	return ids, nil
+	sortAmbiguousCandidatesByID(matches)
+	return matches, nil
 }
 
 // IsNumericAppID reports whether a value is a non-empty decimal app ID.

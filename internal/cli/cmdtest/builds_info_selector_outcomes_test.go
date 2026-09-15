@@ -152,5 +152,5 @@ func TestRun_BuildsInfoBuildNumberAmbiguousReturnsExitUsage(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	assertUsageDiagnosticFirstLine(t, stderr, `multiple builds found for app 123456789 with build number "42" for platform IOS; add --version, or use --build-id`)
+	assertUsageDiagnosticFirstLine(t, stderr, `2 builds match build number "42" for platform IOS for app 123456789; pass --build-id with one of:`)
 }

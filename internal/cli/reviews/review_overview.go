@@ -321,7 +321,7 @@ func resolveReviewVersion(ctx context.Context, client *asc.Client, appID, versio
 	}
 	if strings.TrimSpace(version) != "" {
 		if len(versions) > 1 {
-			return nil, fmt.Errorf("multiple app store versions found for version %q", strings.TrimSpace(version))
+			return nil, shared.AmbiguousAppStoreVersionError(version, platform, versions, "--platform", "--version-id")
 		}
 		versionContext := mapReviewVersion(versions[0])
 		return &versionContext, nil

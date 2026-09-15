@@ -176,7 +176,7 @@ func TestResolveAppIDWithLookup_AmbiguousName(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected ambiguous name error")
 	}
-	if !strings.Contains(err.Error(), "multiple apps found for name") {
+	if !strings.Contains(err.Error(), `2 apps match "My App"; pass --app with one of:`) {
 		t.Fatalf("expected ambiguous name error, got %v", err)
 	}
 }

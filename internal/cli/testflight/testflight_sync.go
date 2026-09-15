@@ -423,7 +423,19 @@ func filterBetaGroups(groups []asc.Resource[asc.BetaGroupAttributes], filter str
 	case 1:
 		return matches, nil
 	default:
-		return nil, fmt.Errorf("multiple beta groups named %q; use group ID", trimmed)
+		candidates := make([]shared.AmbiguousCandidate, 0, len(matches))
+		for _, group := range matches {
+			kind := "external"
+			if group.Attributes.IsInternalGroup {
+				kind = "internal"
+			}
+			candidates = append(candidates, shared.AmbiguousCandidate{
+				ID:    strings.TrimSpace(group.ID),
+				Label: strings.TrimSpace(group.Attributes.Name),
+				Extra: kind,
+			})
+		}
+		return nil, shared.AmbiguousError("beta group", "--group", trimmed, candidates)
 	}
 }
 

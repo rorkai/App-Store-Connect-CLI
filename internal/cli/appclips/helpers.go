@@ -195,7 +195,11 @@ func resolveAppClipID(ctx context.Context, client *asc.Client, appID string, app
 		return "", fmt.Errorf("no App Clip found for bundle ID %q", bundle)
 	}
 	if len(resp.Data) > 1 {
-		return "", fmt.Errorf("multiple App Clips found for bundle ID %q", bundle)
+		candidates := make([]shared.AmbiguousCandidate, 0, len(resp.Data))
+		for _, clip := range resp.Data {
+			candidates = append(candidates, shared.AmbiguousCandidate{ID: strings.TrimSpace(clip.ID), Label: strings.TrimSpace(clip.Attributes.BundleID)})
+		}
+		return "", shared.AmbiguousError("App Clip", "--app-clip-id", bundle, candidates)
 	}
 
 	return resp.Data[0].ID, nil

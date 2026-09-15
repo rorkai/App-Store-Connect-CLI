@@ -278,7 +278,7 @@ func TestResolveIAPID_WithAppContextDoesNotSuppressNumericAmbiguity(t *testing.T
 	if !errors.Is(err, errSelectorAmbiguous) {
 		t.Fatalf("expected ambiguous selector error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "Use the explicit ASC ID to disambiguate") {
+	if !strings.Contains(err.Error(), "pass --iap-id with one of:") {
 		t.Fatalf("expected disambiguation guidance, got %v", err)
 	}
 }
@@ -319,7 +319,7 @@ func TestResolveIAPID_AmbiguousExactNameFails(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected ambiguous error")
 	}
-	if !strings.Contains(err.Error(), "Use the explicit ASC ID to disambiguate") {
+	if !strings.Contains(err.Error(), "pass --iap-id with one of:") {
 		t.Fatalf("expected disambiguation guidance, got %v", err)
 	}
 }
@@ -458,7 +458,33 @@ func TestResolveSubscriptionID_WithAppContextDoesNotSuppressNumericAmbiguity(t *
 	if !errors.Is(err, errSelectorAmbiguous) {
 		t.Fatalf("expected ambiguous selector error, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "Use the explicit ASC ID to disambiguate") {
+	if !strings.Contains(err.Error(), "pass --subscription-id with one of:") {
 		t.Fatalf("expected disambiguation guidance, got %v", err)
+	}
+}
+
+func TestWithSelectorFlagRenamesAmbiguousSelectorFlag(t *testing.T) {
+	_, err := ResolveExactSelectorCandidate("Pro", "subscription", []ExactSelectorCandidate{
+		{ID: "sub-1", ProductID: "pro.monthly", Name: "Pro"},
+		{ID: "sub-2", ProductID: "pro.yearly", Name: "Pro"},
+	})
+	if !errors.Is(err, errSelectorAmbiguous) {
+		t.Fatalf("expected ambiguous selector error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "pass --subscription-id with one of:") {
+		t.Fatalf("expected default flag, got %v", err)
+	}
+
+	renamed := WithSelectorFlag(err, "--source-subscription-id")
+	if !errors.Is(renamed, errSelectorAmbiguous) {
+		t.Fatalf("renamed error must stay an ambiguous selector error, got %v", renamed)
+	}
+	if !strings.Contains(renamed.Error(), "pass --source-subscription-id with one of:") || !strings.Contains(renamed.Error(), "sub-1  pro.monthly  Pro") {
+		t.Fatalf("expected renamed flag and candidates, got %v", renamed)
+	}
+
+	other := errors.New("boom")
+	if got := WithSelectorFlag(other, "--x"); !errors.Is(got, other) {
+		t.Fatalf("non-selector errors must pass through, got %v", got)
 	}
 }

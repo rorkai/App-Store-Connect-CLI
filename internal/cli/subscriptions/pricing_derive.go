@@ -319,7 +319,11 @@ func resolveSubscriptionPriceDeriveLookupID(
 	if err := shared.RequireAppForStableSelector(appID, selector, flagName); err != nil {
 		return "", err
 	}
-	return shared.ResolveSubscriptionID(lookupCtx, client, appID, selector)
+	resolved, err := shared.ResolveSubscriptionID(lookupCtx, client, appID, selector)
+	if err != nil {
+		return "", shared.WithSelectorFlag(err, flagName)
+	}
+	return resolved, nil
 }
 
 func verifySubscriptionPriceDeriveResult(

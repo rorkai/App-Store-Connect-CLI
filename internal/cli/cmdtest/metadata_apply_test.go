@@ -541,7 +541,7 @@ func TestMetadataApplyDryRunSuggestsApplyCommandForAmbiguousAppInfos(t *testing.
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, `Error: multiple app infos found for app "app-1"`) {
+	if !strings.Contains(stderr, `Error: 2 app infos match app "app-1"; pass --app-info with one of:`) {
 		t.Fatalf("expected ambiguous app-info error, got %q", stderr)
 	}
 	if !strings.Contains(stderr, `asc apps info list --app "app-1"`) {
