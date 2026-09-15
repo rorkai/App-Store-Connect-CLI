@@ -17,13 +17,14 @@ import (
 )
 
 const (
-	developerAppGroupsListPath       = "/account/ios/identifiers/listApplicationGroups.action"
-	developerAppGroupsCreatePath     = "/account/ios/identifiers/addApplicationGroup.action"
-	developerAppGroupsDeletePath     = "/account/ios/identifiers/deleteApplicationGroup.action"
-	developerAppGroupsPageSize       = 500
-	developerAppGroupsCapabilityType = "APP_GROUPS"
-	developerBundleIDsListPageSize   = 200
-	developerBundleIDsListMaxPages   = 100
+	developerAppGroupsListPath        = "/account/ios/identifiers/listApplicationGroups.action"
+	developerAppGroupsCreatePath      = "/account/ios/identifiers/addApplicationGroup.action"
+	developerAppGroupsDeletePath      = "/account/ios/identifiers/deleteApplicationGroup.action"
+	developerAppGroupsPageSize        = 500
+	developerAppGroupsCapabilityType  = "APP_GROUPS"
+	developerAppGroupIdentifierPrefix = "group."
+	developerBundleIDsListPageSize    = 200
+	developerBundleIDsListMaxPages    = 100
 )
 
 var developerBundleIDsListIncludes = []string{
@@ -139,6 +140,98 @@ func (e *DeveloperAppGroupUnverifiedError) Error() string { return e.Err.Error()
 
 func (e *DeveloperAppGroupUnverifiedError) Unwrap() error { return e.Err }
 
+// ErrDeveloperPortalTeamNotSelected reports that no Developer Portal team is
+// selected for the session, which the operator fixes by authenticating or by
+// naming a team.
+var ErrDeveloperPortalTeamNotSelected = errors.New("developer portal team is not selected")
+
+// DeveloperPortalResultError reports that a Developer Portal legacy endpoint
+// answered with an explicit non-zero result code: the request reached the
+// portal and was refused.
+type DeveloperPortalResultError struct {
+	ResultCode int
+	RequestID  string
+	Message    string
+}
+
+func (e *DeveloperPortalResultError) Error() string {
+	if e.RequestID != "" {
+		return fmt.Sprintf("developer portal request failed (result code %d, request ID %s): %s", e.ResultCode, e.RequestID, e.Message)
+	}
+	return fmt.Sprintf("developer portal request failed (result code %d): %s", e.ResultCode, e.Message)
+}
+
+// DeveloperAppGroupNotFoundError reports that the named App Group does not
+// exist in the selected Developer Portal team.
+type DeveloperAppGroupNotFoundError struct {
+	GroupID string
+}
+
+func (e *DeveloperAppGroupNotFoundError) Error() string {
+	return fmt.Sprintf("app group %q not found in the selected Developer Portal team", e.GroupID)
+}
+
+// developerAppGroupResponseError marks a Developer Portal response the client
+// could not read completely, so telemetry separates an unusable upstream
+// response from a CLI defect. Transport failures, HTTP statuses, explicit
+// portal refusals, and failures that already classify themselves keep their
+// own meaning.
+func developerAppGroupResponseError(err error) error {
+	if err == nil {
+		return nil
+	}
+	var apiErr *APIError
+	var resultErr *DeveloperPortalResultError
+	var unreadable *DeveloperAppGroupUnreadableResponseError
+	var unverified *DeveloperAppGroupUnverifiedError
+	var inUse *DeveloperAppGroupInUseError
+	var notFound *DeveloperAppGroupNotFoundError
+	var identifier *DeveloperAppGroupIdentifierError
+	switch {
+	case errors.As(err, &apiErr),
+		errors.As(err, &resultErr),
+		errors.As(err, &unreadable),
+		errors.As(err, &unverified),
+		errors.As(err, &inUse),
+		errors.As(err, &notFound),
+		errors.As(err, &identifier),
+		errors.Is(err, ErrDeveloperPortalTeamNotSelected),
+		isAmbiguousDeveloperPortalWriteFailure(err):
+		return err
+	default:
+		return &DeveloperAppGroupUnreadableResponseError{Err: err}
+	}
+}
+
+// DeveloperAppGroupUnreadableResponseError marks an App Group mutation that
+// was abandoned before any write because Apple's Bundle ID response could not
+// be read completely. Nothing was sent, so the operator can retry once the
+// response is understood.
+type DeveloperAppGroupUnreadableResponseError struct {
+	Err error
+}
+
+func (e *DeveloperAppGroupUnreadableResponseError) Error() string { return e.Err.Error() }
+
+func (e *DeveloperAppGroupUnreadableResponseError) Unwrap() error { return e.Err }
+
+// DeveloperAppGroupIdentifierError is returned when an App Group identifier
+// was passed where Apple's opaque App Group resource ID is required. GroupID
+// carries the resource ID of the matching group when the team's listing
+// resolved one.
+type DeveloperAppGroupIdentifierError struct {
+	Given      string
+	GroupID    string
+	Identifier string
+}
+
+func (e *DeveloperAppGroupIdentifierError) Error() string {
+	if e.GroupID != "" {
+		return fmt.Sprintf("%q is the App Group identifier, not the opaque App Group resource ID; use %q instead (the ID column of 'asc web app-groups list')", e.Given, e.GroupID)
+	}
+	return fmt.Sprintf("%q is not an App Group resource ID in the selected Developer Portal team; pass the opaque ID from the ID column of 'asc web app-groups list'", e.Given)
+}
+
 // developerAppGroupsState is the raw APP_GROUPS capability state of a Bundle
 // ID. GroupIDs lists every group in the relationship data even when Apple
 // reports the capability disabled, because the Developer Portal still treats
@@ -200,9 +293,13 @@ func (c *Client) ListDeveloperAppGroups(ctx context.Context, options DeveloperAp
 	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("%w; %s", ErrDeveloperPortalTeamNotSelected, developerPortalAuthHint)
 	}
-	return c.listDeveloperAppGroupPages(ctx, teamID, options.Paginate, false)
+	result, err := c.listDeveloperAppGroupPages(ctx, teamID, options.Paginate, false)
+	if err != nil {
+		return nil, developerAppGroupResponseError(err)
+	}
+	return result, nil
 }
 
 // listDeveloperAppGroupPages reads the team's App Groups. With requireCollection
@@ -300,21 +397,21 @@ func (c *Client) DeleteDeveloperAppGroup(ctx context.Context, request DeveloperA
 	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("%w; %s", ErrDeveloperPortalTeamNotSelected, developerPortalAuthHint)
 	}
 
 	groups, err := c.listDeveloperAppGroupPages(ctx, teamID, true, true)
 	if err != nil {
-		return nil, err
+		return nil, developerAppGroupResponseError(err)
 	}
 	group, found := findDeveloperAppGroup(groups, request.GroupID)
 	if !found {
-		return nil, fmt.Errorf("app group %q not found in the selected Developer Portal team", request.GroupID)
+		return nil, &DeveloperAppGroupNotFoundError{GroupID: request.GroupID}
 	}
 
 	assignments, err := c.listDeveloperAppGroupAssignments(ctx, request.GroupID)
 	if err != nil {
-		return nil, err
+		return nil, developerAppGroupResponseError(err)
 	}
 	if len(assignments) > 0 {
 		return nil, &DeveloperAppGroupInUseError{GroupID: group.ID, Identifier: group.Identifier, Assignments: assignments}
@@ -614,6 +711,18 @@ func decodeStrictDeveloperRelationship(raw json.RawMessage) ([]developerResource
 	return relationship.Data, nil
 }
 
+// developerAppGroupAcceptedCreateError keeps an explicit portal refusal a
+// refusal while reporting a 2xx envelope that carries no verdict as an
+// accepted but unverified create: the group may already exist, so a blind
+// retry is unsafe.
+func developerAppGroupAcceptedCreateError(err error) error {
+	var resultErr *DeveloperPortalResultError
+	if errors.As(err, &resultErr) {
+		return err
+	}
+	return &DeveloperAppGroupUnverifiedError{Err: fmt.Errorf("developer portal accepted the create but %w", err)}
+}
+
 // CreateDeveloperAppGroup registers an App Group through Developer Portal.
 func (c *Client) CreateDeveloperAppGroup(ctx context.Context, request DeveloperAppGroupCreateRequest) (*DeveloperAppGroup, error) {
 	request.Name = strings.TrimSpace(request.Name)
@@ -632,7 +741,7 @@ func (c *Client) CreateDeveloperAppGroup(ctx context.Context, request DeveloperA
 	}
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return nil, fmt.Errorf("%w; %s", ErrDeveloperPortalTeamNotSelected, developerPortalAuthHint)
 	}
 
 	body, err := c.doDeveloperPortalLegacyFormRequest(ctx, developerAppGroupsCreatePath, url.Values{
@@ -645,16 +754,56 @@ func (c *Client) CreateDeveloperAppGroup(ctx context.Context, request DeveloperA
 	}
 	var response developerAppGroupCreateResponse
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse Developer Portal App Group create response: %w", err)
+		// The portal answered 2xx, so the group may already be registered; a
+		// retry is not safe until the operator re-reads the team's list.
+		return nil, &DeveloperAppGroupUnverifiedError{Err: fmt.Errorf("developer portal accepted the create but failed to parse Developer Portal App Group create response: %w", err)}
 	}
 	if err := validateDeveloperPortalLegacyResponse(response.developerPortalLegacyResponse); err != nil {
-		return nil, err
+		return nil, developerAppGroupAcceptedCreateError(err)
 	}
 	group, err := decodeDeveloperAppGroup(response.ApplicationGroup)
 	if err != nil {
-		return nil, err
+		return nil, &DeveloperAppGroupUnverifiedError{Err: fmt.Errorf("developer portal accepted the create but its receipt could not be read: %w", err)}
 	}
 	return &group, nil
+}
+
+// rejectDeveloperAppGroupIdentifier refuses the most common assignment
+// mistake before any write: passing the App Group identifier
+// ("group.com.example.shared") where Apple's opaque App Group resource ID is
+// required, which the portal can only answer with an unhelpful refusal.
+//
+// Only a value that cannot be confused with an opaque ID is examined, and only
+// against the team's own listing, so a team whose resource IDs happen to look
+// like identifiers is never refused. A listing that cannot be read leaves the
+// assignment to proceed exactly as before.
+func (c *Client) rejectDeveloperAppGroupIdentifier(ctx context.Context, groupID string) error {
+	if !strings.HasPrefix(groupID, developerAppGroupIdentifierPrefix) {
+		return nil
+	}
+	teamID := c.developerPortalTeamID()
+	if teamID == "" {
+		return nil
+	}
+	// Only a complete listing can prove the value is not a resource ID: a
+	// success envelope that is short or sparse may omit the very group that
+	// was named, so the strict read is required and any failure leaves the
+	// assignment to proceed.
+	groups, err := c.listDeveloperAppGroupPages(ctx, teamID, true, true)
+	if err != nil || groups == nil {
+		return nil
+	}
+	for _, group := range groups.Data {
+		if group.ID == groupID {
+			return nil
+		}
+	}
+	for _, group := range groups.Data {
+		if strings.EqualFold(group.Identifier, groupID) {
+			return &DeveloperAppGroupIdentifierError{Given: groupID, GroupID: group.ID, Identifier: group.Identifier}
+		}
+	}
+	return &DeveloperAppGroupIdentifierError{Given: groupID}
 }
 
 // AssignDeveloperAppGroup associates an App Group with a Bundle ID while
@@ -670,6 +819,9 @@ func (c *Client) AssignDeveloperAppGroup(ctx context.Context, request DeveloperA
 		return nil, fmt.Errorf("group id is required")
 	}
 	if err := c.ensureDeveloperPortalSession(ctx); err != nil {
+		return nil, err
+	}
+	if err := c.rejectDeveloperAppGroupIdentifier(ctx, request.GroupID); err != nil {
 		return nil, err
 	}
 	current, state, err := c.loadDeveloperBundleIDAppGroups(ctx, request.BundleID)
@@ -820,11 +972,14 @@ func (c *Client) loadDeveloperBundleIDAppGroups(ctx context.Context, bundleID st
 		return developerBundleIDResponse{}, developerAppGroupsState{}, err
 	}
 	if current.Data.ID != bundleID {
-		return developerBundleIDResponse{}, developerAppGroupsState{}, fmt.Errorf("cannot safely update Bundle ID %q: Developer Portal returned resource %q instead", bundleID, current.Data.ID)
+		return developerBundleIDResponse{}, developerAppGroupsState{}, &DeveloperAppGroupUnreadableResponseError{Err: fmt.Errorf("cannot safely update Bundle ID %q: Developer Portal returned resource %q instead", bundleID, current.Data.ID)}
 	}
 	state, err := developerBundleIDAppGroupsState(current)
 	if err != nil {
-		return developerBundleIDResponse{}, developerAppGroupsState{}, err
+		// Classify the fail-closed preflight so telemetry separates an
+		// unreadable Developer Portal response from an unclassified internal
+		// failure. No write was sent.
+		return developerBundleIDResponse{}, developerAppGroupsState{}, &DeveloperAppGroupUnreadableResponseError{Err: err}
 	}
 	return current, state, nil
 }
@@ -843,7 +998,7 @@ func (c *Client) verifyDeveloperAppGroups(ctx context.Context, bundleID string, 
 func (c *Client) primeDeveloperAppGroupCSRF(ctx context.Context) error {
 	teamID := c.developerPortalTeamID()
 	if teamID == "" {
-		return fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
+		return fmt.Errorf("%w; %s", ErrDeveloperPortalTeamNotSelected, developerPortalAuthHint)
 	}
 	c.clearDeveloperCSRFTokens()
 	body, err := c.doDeveloperPortalLegacyFormRequest(ctx, developerAppGroupsListPath, url.Values{
@@ -857,7 +1012,7 @@ func (c *Client) primeDeveloperAppGroupCSRF(ctx context.Context) error {
 	}
 	var response developerAppGroupsListResponse
 	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to parse Developer Portal App Groups response while priming CSRF: %w", err)
+		return &DeveloperAppGroupUnreadableResponseError{Err: fmt.Errorf("failed to parse Developer Portal App Groups response while priming CSRF: %w", err)}
 	}
 	if err := validateDeveloperPortalLegacyResponse(response.developerPortalLegacyResponse); err != nil {
 		return err
@@ -911,7 +1066,7 @@ func ValidateDeveloperAppGroupIdentifier(identifier string) error {
 
 func validateDeveloperPortalLegacyResponse(response developerPortalLegacyResponse) error {
 	if response.ResultCode == nil {
-		return fmt.Errorf("developer portal response is missing resultCode")
+		return &DeveloperAppGroupUnreadableResponseError{Err: fmt.Errorf("developer portal response is missing resultCode")}
 	}
 	if *response.ResultCode == 0 {
 		return nil
@@ -923,33 +1078,96 @@ func validateDeveloperPortalLegacyResponse(response developerPortalLegacyRespons
 	if message == "" {
 		message = "unknown Developer Portal error"
 	}
-	if response.RequestID != "" {
-		return fmt.Errorf("developer portal request failed (result code %d, request ID %s): %s", *response.ResultCode, response.RequestID, message)
+	return &DeveloperPortalResultError{ResultCode: *response.ResultCode, RequestID: response.RequestID, Message: message}
+}
+
+// developerAppGroupCapabilityReferences resolves the capability references an
+// App Group mutation has to PATCH back.
+//
+// Every App Group mutation replaces the complete bundleIdCapabilities
+// relationship, so a graph that cannot be read must abort before any write
+// rather than be rewritten as "no other capabilities". Apple's live Bundle ID
+// detail read selects fields that do not list bundleIdCapabilities, so the
+// response carries no resolved relationship at all - the member is absent, or
+// present with links only - while the complete capability graph arrives in
+// included. "asc web bundle-ids capabilities disable" already treats a present
+// included array as the completeness boundary in that form; App Group
+// mutations do the same instead of refusing every assignment. A relationship
+// that is present and explicitly unreadable (null or malformed data) still
+// aborts, and so does an unresolved relationship with no included array at
+// all.
+func developerAppGroupCapabilityReferences(current developerBundleIDResponse) ([]developerResource, error) {
+	rawRelationship, hasRelationship := current.Data.Relationships["bundleIdCapabilities"]
+	if hasRelationship && !developerRelationshipUnresolved(rawRelationship) {
+		references, err := decodeStrictDeveloperRelationship(rawRelationship)
+		if err != nil {
+			return nil, fmt.Errorf("cannot safely update Bundle ID %q: capability graph %w", current.Data.ID, err)
+		}
+		// developerBundleIDCapabilities drops references it cannot resolve; a
+		// PATCH built from that filtered graph would silently detach them, so
+		// reject every invalid reference before any write is computed.
+		for _, reference := range references {
+			if reference.Type != "bundleIdCapabilities" || strings.TrimSpace(reference.ID) == "" {
+				return nil, fmt.Errorf("cannot safely update Bundle ID %q: capability graph contains an invalid reference (type %q, id %q)", current.Data.ID, reference.Type, reference.ID)
+			}
+		}
+		return references, nil
 	}
-	return fmt.Errorf("developer portal request failed (result code %d): %s", *response.ResultCode, message)
+	if current.Included == nil {
+		return nil, fmt.Errorf("cannot safely update Bundle ID %q: Developer Portal returned neither a resolved capability relationship nor an included capability graph; inspect it with 'asc web bundle-ids view --bundle-id %s --output json' before retrying", current.Data.ID, current.Data.ID)
+	}
+	references := make([]developerResource, 0, len(current.Included))
+	for _, resource := range current.Included {
+		// An included resource with no type cannot be told apart from a
+		// capability, and developerBundleIDCapabilities would drop it from the
+		// replacement PATCH; the graph is unreadable rather than complete.
+		if strings.TrimSpace(resource.Type) == "" {
+			return nil, fmt.Errorf("cannot safely update Bundle ID %q: Developer Portal returned an included resource without a type", current.Data.ID)
+		}
+		if resource.Type != "bundleIdCapabilities" {
+			continue
+		}
+		// developerBundleIDCapabilities skips an included capability with no
+		// id, which would drop it from the replacement PATCH.
+		if strings.TrimSpace(resource.ID) == "" {
+			return nil, fmt.Errorf("cannot safely update Bundle ID %q: Developer Portal returned an included capability without an id", current.Data.ID)
+		}
+		references = append(references, developerResource{Type: resource.Type, ID: resource.ID})
+	}
+	return references, nil
+}
+
+// developerRelationshipUnresolved reports whether a JSON:API relationship
+// object states no linkage because Apple did not select it: a well-formed
+// object that carries links and no data member. A null value, a non-object, an
+// empty object, and anything carrying a data member are all handled by the
+// strict decoder instead, so a malformed relationship can never hand the
+// capability graph over to included.
+func developerRelationshipUnresolved(raw json.RawMessage) bool {
+	var members map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &members); err != nil || members == nil {
+		return false
+	}
+	if _, resolved := members["data"]; resolved {
+		return false
+	}
+	links, hasLinks := members["links"]
+	if !hasLinks {
+		return false
+	}
+	// A links member that is not itself a readable links object makes the
+	// whole relationship malformed rather than merely unselected, so the
+	// strict decoder handles it instead of the included fallback.
+	var linkMembers map[string]json.RawMessage
+	return json.Unmarshal(links, &linkMembers) == nil && linkMembers != nil
 }
 
 // developerBundleIDAppGroupsState reads the APP_GROUPS capability of a Bundle
 // ID: whether it is enabled and which groups it currently lists.
 func developerBundleIDAppGroupsState(current developerBundleIDResponse) (developerAppGroupsState, error) {
-	// Every App Group mutation PATCHes the complete bundleIdCapabilities
-	// relationship back, so an omitted or null graph must abort rather than be
-	// rewritten as "no other capabilities".
-	rawRelationship, ok := current.Data.Relationships["bundleIdCapabilities"]
-	if !ok {
-		return developerAppGroupsState{}, fmt.Errorf("cannot safely update Bundle ID %q: Developer Portal omitted its capability graph", current.Data.ID)
-	}
-	references, err := decodeStrictDeveloperRelationship(rawRelationship)
+	references, err := developerAppGroupCapabilityReferences(current)
 	if err != nil {
-		return developerAppGroupsState{}, fmt.Errorf("cannot safely update Bundle ID %q: capability graph %w", current.Data.ID, err)
-	}
-	// developerBundleIDCapabilities drops references it cannot resolve; a PATCH
-	// built from that filtered graph would silently detach them, so reject every
-	// invalid reference before any write is computed.
-	for _, reference := range references {
-		if reference.Type != "bundleIdCapabilities" || strings.TrimSpace(reference.ID) == "" {
-			return developerAppGroupsState{}, fmt.Errorf("cannot safely update Bundle ID %q: capability graph contains an invalid reference (type %q, id %q)", current.Data.ID, reference.Type, reference.ID)
-		}
+		return developerAppGroupsState{}, err
 	}
 	// developerBundleIDCapabilities lets the last included copy of an ID win, so
 	// conflicting duplicates must be rejected before the graph is rebuilt.

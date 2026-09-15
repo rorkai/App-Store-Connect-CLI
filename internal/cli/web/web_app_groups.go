@@ -5,6 +5,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -114,11 +117,11 @@ Example:
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
 			defer cancel()
 			if err != nil {
-				return withWebAuthHint(err, "web app-groups list")
+				return developerAppGroupError(err, "web app-groups list")
 			}
 			result, err := listDeveloperAppGroupsFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperAppGroupsListOptions{Paginate: *paginate})
 			if err != nil {
-				return withWebAuthHint(err, "web app-groups list")
+				return developerAppGroupError(err, "web app-groups list")
 			}
 			persistDeveloperPortalSession(session)
 			return shared.PrintOutputWithRenderers(
@@ -176,7 +179,7 @@ Example:
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
 			defer cancel()
 			if err != nil {
-				return withWebAuthHint(err, "web app-groups create")
+				return developerAppGroupError(err, "web app-groups create")
 			}
 			result, err := createDeveloperAppGroupFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperAppGroupCreateRequest{Name: resolvedName, Identifier: resolvedIdentifier})
 			// Persist after the create attempt so a later command without
@@ -184,10 +187,10 @@ Example:
 			// the group even when Apple's 2xx body is malformed.
 			persistDeveloperPortalSession(session)
 			if err != nil {
-				return withWebAuthHint(err, "web app-groups create")
+				return developerAppGroupError(err, "web app-groups create")
 			}
 			if result == nil {
-				return fmt.Errorf("web app-groups create failed: missing create result")
+				return developerAppGroupMissingResultError("web app-groups create", "create")
 			}
 			return shared.PrintOutputWithRenderers(
 				result,
@@ -248,14 +251,14 @@ Example:
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
 			defer cancel()
 			if err != nil {
-				return withWebAuthHint(err, "web app-groups assign")
+				return developerAppGroupError(err, "web app-groups assign")
 			}
 			result, err := assignDeveloperAppGroupFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperAppGroupAssignRequest{BundleID: resolvedBundleID, GroupID: resolvedGroupID})
 			if err != nil {
 				return developerAppGroupMutationError(session, err, "web app-groups assign")
 			}
 			if result == nil {
-				return fmt.Errorf("web app-groups assign failed: missing assign result")
+				return developerAppGroupMissingResultError("web app-groups assign", "assign")
 			}
 			persistDeveloperPortalSession(session)
 			warnDeveloperAppGroupProfileInvalidation(result.Changed)
@@ -318,14 +321,14 @@ Example:
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
 			defer cancel()
 			if err != nil {
-				return withWebAuthHint(err, "web app-groups unassign")
+				return developerAppGroupError(err, "web app-groups unassign")
 			}
 			result, err := unassignDeveloperAppGroupFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperAppGroupUnassignRequest{BundleID: resolvedBundleID, GroupID: resolvedGroupID})
 			if err != nil {
 				return developerAppGroupMutationError(session, err, "web app-groups unassign")
 			}
 			if result == nil {
-				return fmt.Errorf("web app-groups unassign failed: missing unassign result")
+				return developerAppGroupMissingResultError("web app-groups unassign", "unassign")
 			}
 			persistDeveloperPortalSession(session)
 			warnDeveloperAppGroupProfileInvalidation(result.Changed)
@@ -384,14 +387,14 @@ Example:
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
 			defer cancel()
 			if err != nil {
-				return withWebAuthHint(err, "web app-groups set")
+				return developerAppGroupError(err, "web app-groups set")
 			}
 			result, err := setDeveloperAppGroupsFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperAppGroupSetRequest{BundleID: resolvedBundleID, GroupIDs: []string(groupIDs)})
 			if err != nil {
 				return developerAppGroupMutationError(session, err, "web app-groups set")
 			}
 			if result == nil {
-				return fmt.Errorf("web app-groups set failed: missing set result")
+				return developerAppGroupMissingResultError("web app-groups set", "set")
 			}
 			persistDeveloperPortalSession(session)
 			warnDeveloperAppGroupProfileInvalidation(result.Changed)
@@ -445,14 +448,14 @@ Example:
 			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
 			defer cancel()
 			if err != nil {
-				return withWebAuthHint(err, "web app-groups delete")
+				return developerAppGroupError(err, "web app-groups delete")
 			}
 			result, err := deleteDeveloperAppGroupFn(requestCtx, newDeveloperPortalClient(session, portalFlags), webcore.DeveloperAppGroupDeleteRequest{GroupID: resolvedGroupID})
 			if err != nil {
 				return developerAppGroupMutationError(session, err, "web app-groups delete")
 			}
 			if result == nil {
-				return fmt.Errorf("web app-groups delete failed: missing delete result")
+				return developerAppGroupMissingResultError("web app-groups delete", "delete")
 			}
 			persistDeveloperPortalSession(session)
 			warnDeveloperAppGroupProfileInvalidation(result.Deleted)
@@ -462,9 +465,21 @@ Example:
 }
 
 // developerAppGroupMutationError keeps the auth hint behavior of every other
-// web command, and additionally warns when the portal accepted a write that
-// could not be verified, because the App ID may already have changed.
+// web command, converts a user-fixable App Group argument into the usage-error
+// contract, and additionally warns when the portal accepted a write that could
+// not be verified, because the App ID may already have changed. Every returned
+// failure carries a diagnostic code so no App Group failure is reported as an
+// unclassified internal error.
 func developerAppGroupMutationError(session *webcore.AuthSession, err error, command string) error {
+	var identifier *webcore.DeveloperAppGroupIdentifierError
+	if errors.As(err, &identifier) {
+		parameter := developerAppGroupIDParameter(command)
+		return shared.WithDiagnostic(
+			shared.UsageErrorf("%s is invalid: %s", parameter, identifier.Error()),
+			shared.DiagnosticInvalidInput,
+			parameter,
+		)
+	}
 	var unverified *webcore.DeveloperAppGroupUnverifiedError
 	if errors.As(err, &unverified) {
 		// Persist before returning so a later command without --developer-team
@@ -473,7 +488,105 @@ func developerAppGroupMutationError(session *webcore.AuthSession, err error, com
 		_, _ = fmt.Fprintln(os.Stderr, "Warning: the Developer Portal accepted the change but it could not be verified; assume it was applied.")
 		warnDeveloperAppGroupProfileInvalidation(true)
 	}
-	return withWebAuthHint(err, command)
+	return developerAppGroupError(err, command)
+}
+
+// developerAppGroupError renders an App Group failure the way every other web
+// command does and attaches the structured reason behind it. A failure that
+// already classifies itself keeps its own code and parameter, so an operator
+// mistake is never relabeled as an internal defect.
+func developerAppGroupError(err error, command string) error {
+	if err == nil {
+		return nil
+	}
+	rendered := withWebAuthHint(err, command)
+	if diagnostic, ok := shared.DiagnosticFromError(err); ok {
+		return shared.WithDiagnostic(rendered, diagnostic.Code, diagnostic.Parameter)
+	}
+	return shared.WithDiagnostic(rendered, developerAppGroupDiagnosticCode(err), "")
+}
+
+// developerAppGroupMissingResultError classifies a 2xx portal response that
+// produced no receipt. It is a CLI-side invariant failure, not an operator
+// mistake, so it keeps the internal_error code while still reporting one.
+func developerAppGroupMissingResultError(command, receipt string) error {
+	return shared.WithDiagnostic(
+		fmt.Errorf("%s failed: missing %s result", command, receipt),
+		shared.DiagnosticInternalError,
+		"",
+	)
+}
+
+// developerAppGroupIDParameter names the flag that carries the App Group
+// resource ID for a command, so a rejected value points at the flag the
+// operator typed.
+func developerAppGroupIDParameter(command string) string {
+	switch {
+	case strings.HasSuffix(command, "unassign"), strings.HasSuffix(command, "delete"):
+		return "--group-id"
+	default:
+		return "--group"
+	}
+}
+
+// developerAppGroupDiagnosticCode maps an App Group failure onto the bounded
+// diagnostic taxonomy. Unrecognized failures still report internal_error
+// explicitly instead of leaving the telemetry dimension empty.
+func developerAppGroupDiagnosticCode(err error) shared.DiagnosticCode {
+	var unverified *webcore.DeveloperAppGroupUnverifiedError
+	var inUse *webcore.DeveloperAppGroupInUseError
+	var unreadable *webcore.DeveloperAppGroupUnreadableResponseError
+	var notFound *webcore.DeveloperAppGroupNotFoundError
+	var resultErr *webcore.DeveloperPortalResultError
+	var apiErr *webcore.APIError
+	var urlErr *url.Error
+	// A failure the CLI already reports as a usage or validation problem keeps
+	// that meaning: it describes what the operator typed or the state they
+	// asked about, not a defect.
+	switch shared.ClassifyUsageError(err) {
+	case shared.UsageErrorMissingRequired:
+		return shared.DiagnosticRequiredInputMissing
+	case shared.UsageErrorInvalidValue, shared.UsageErrorOther:
+		return shared.DiagnosticInvalidInput
+	}
+	if shared.IsValidationError(err) {
+		return shared.DiagnosticStateNotReady
+	}
+	switch {
+	case errors.As(err, &notFound):
+		return shared.DiagnosticResourceNotFound
+	case errors.Is(err, webcore.ErrDeveloperPortalTeamNotSelected), errors.Is(err, errNoCachedWebSession):
+		return shared.DiagnosticAuthenticationRejected
+	case errors.As(err, &unverified):
+		return shared.DiagnosticStateNotReady
+	case errors.As(err, &inUse):
+		return shared.DiagnosticResourceConflict
+	case errors.As(err, &unreadable):
+		return shared.DiagnosticDependencyFailed
+	case errors.As(err, &resultErr):
+		return shared.DiagnosticRequestFailed
+	case errors.As(err, &apiErr):
+		switch apiErr.Status {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return shared.DiagnosticAuthenticationRejected
+		case http.StatusNotFound:
+			return shared.DiagnosticResourceNotFound
+		case http.StatusConflict:
+			return shared.DiagnosticResourceConflict
+		default:
+			return shared.DiagnosticRequestFailed
+		}
+	case errors.Is(err, webcore.ErrInvalidAppleAccountCredentials), errors.Is(err, shared.ErrMissingAuth):
+		return shared.DiagnosticAuthenticationRejected
+	case errors.As(err, &urlErr),
+		errors.Is(err, context.DeadlineExceeded),
+		errors.Is(err, context.Canceled),
+		errors.Is(err, io.ErrUnexpectedEOF),
+		errors.Is(err, io.EOF):
+		return shared.DiagnosticRequestFailed
+	default:
+		return shared.DiagnosticInternalError
+	}
 }
 
 func warnDeveloperAppGroupProfileInvalidation(changed bool) {

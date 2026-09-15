@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
+	"io"
 	"strings"
 	"testing"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -732,4 +735,182 @@ func stubWebAppGroupsDependencies(t *testing.T) (restoreFunctions func(), cleanu
 		deleteDeveloperAppGroupFn = originalDelete
 		persistWebSessionFn = originalPersist
 	}, cleanupSession
+}
+
+// TestWebAppGroupsAssignConvertsAppGroupIdentifierToUsageError proves the
+// identifier-for-resource-ID mistake exits with the usage contract and names
+// the flag, instead of an unclassified runtime failure.
+func TestWebAppGroupsAssignConvertsAppGroupIdentifierToUsageError(t *testing.T) {
+	restore, cleanup := stubWebAppGroupsDependencies(t)
+	defer cleanup()
+	defer restore()
+	assignDeveloperAppGroupFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupAssignRequest) (*webcore.DeveloperAppGroupAssignResult, error) {
+		return nil, &webcore.DeveloperAppGroupIdentifierError{Given: "group.com.example.shared", GroupID: "GROUP12345", Identifier: "group.com.example.shared"}
+	}
+	command := WebAppGroupsAssignCommand()
+	if err := command.FlagSet.Parse([]string{"--group", "group.com.example.shared", "--bundle-id", "bundle-1", "--confirm"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	var runErr error
+	stdout, stderr := captureWebCommandOutput(t, func() {
+		runErr = command.Exec(context.Background(), nil)
+	})
+	if runErr == nil {
+		t.Fatal("expected an error")
+	}
+	if !errors.Is(runErr, flag.ErrHelp) {
+		t.Fatalf("error %v does not follow the usage-error contract", runErr)
+	}
+	if stdout != "" {
+		t.Fatalf("expected empty stdout, got %q", stdout)
+	}
+	if !strings.Contains(stderr, "GROUP12345") || !strings.Contains(stderr, "asc web app-groups list") {
+		t.Fatalf("stderr %q does not tell the operator which resource ID to use", stderr)
+	}
+	diagnostic, ok := shared.DiagnosticFromError(runErr)
+	if !ok || diagnostic.Code != shared.DiagnosticInvalidInput || diagnostic.Parameter != "--group" {
+		t.Fatalf("diagnostic = %+v (found=%t), want invalid_input for --group", diagnostic, ok)
+	}
+}
+
+// TestWebAppGroupsAssignClassifiesEveryFailurePath keeps every assign failure
+// out of the unclassified internal_error bucket in telemetry.
+func TestWebAppGroupsAssignClassifiesEveryFailurePath(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		result   *webcore.DeveloperAppGroupAssignResult
+		wantCode shared.DiagnosticCode
+	}{
+		{name: "unreadable portal response", err: &webcore.DeveloperAppGroupUnreadableResponseError{Err: errors.New("cannot safely update Bundle ID \"bundle-1\"")}, wantCode: shared.DiagnosticDependencyFailed},
+		{name: "accepted but unverified", err: &webcore.DeveloperAppGroupUnverifiedError{Err: errors.New("verification failed")}, wantCode: shared.DiagnosticStateNotReady},
+		{name: "unauthorized", err: &webcore.APIError{Status: 401}, wantCode: shared.DiagnosticAuthenticationRejected},
+		{name: "missing resource", err: &webcore.APIError{Status: 404}, wantCode: shared.DiagnosticResourceNotFound},
+		{name: "conflict", err: &webcore.APIError{Status: 409}, wantCode: shared.DiagnosticResourceConflict},
+		{name: "portal server error", err: &webcore.APIError{Status: 503}, wantCode: shared.DiagnosticRequestFailed},
+		{name: "portal refusal envelope", err: &webcore.DeveloperPortalResultError{ResultCode: 1100, Message: "Access denied"}, wantCode: shared.DiagnosticRequestFailed},
+		{name: "deadline exceeded", err: fmt.Errorf("write failed: %w", context.DeadlineExceeded), wantCode: shared.DiagnosticRequestFailed},
+		{name: "dropped connection", err: fmt.Errorf("write failed: %w", io.EOF), wantCode: shared.DiagnosticRequestFailed},
+		{name: "unclassified portal failure", err: errors.New("portal rejected assign"), wantCode: shared.DiagnosticInternalError},
+		{name: "missing receipt", result: nil, wantCode: shared.DiagnosticInternalError},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			restore, cleanup := stubWebAppGroupsDependencies(t)
+			defer cleanup()
+			defer restore()
+			assignDeveloperAppGroupFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupAssignRequest) (*webcore.DeveloperAppGroupAssignResult, error) {
+				return test.result, test.err
+			}
+			command := WebAppGroupsAssignCommand()
+			if err := command.FlagSet.Parse([]string{"--group", "GROUP1", "--bundle-id", "bundle-1", "--confirm"}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			var runErr error
+			_, _ = captureWebCommandOutput(t, func() {
+				runErr = command.Exec(context.Background(), nil)
+			})
+			if runErr == nil {
+				t.Fatal("expected an error")
+			}
+			diagnostic, ok := shared.DiagnosticFromError(runErr)
+			if !ok {
+				t.Fatalf("error %v carries no diagnostic code", runErr)
+			}
+			if diagnostic.Code != test.wantCode {
+				t.Fatalf("diagnostic code = %q, want %q", diagnostic.Code, test.wantCode)
+			}
+		})
+	}
+}
+
+// TestWebAppGroupsClassifiesOperatorFailures keeps routine operator failures
+// out of the internal_error bucket and preserves a diagnostic the validator
+// already attached.
+func TestWebAppGroupsClassifiesOperatorFailures(t *testing.T) {
+	tests := []struct {
+		name      string
+		err       error
+		wantCode  shared.DiagnosticCode
+		wantParam string
+	}{
+		{
+			name:      "validator diagnostic is preserved",
+			err:       shared.WithDiagnostic(errors.New("--apple-id is unsupported"), shared.DiagnosticConflictingInput, "--apple-id"),
+			wantCode:  shared.DiagnosticConflictingInput,
+			wantParam: "--apple-id",
+		},
+		{
+			name:     "missing team selection",
+			err:      fmt.Errorf("%w; run 'asc web auth login'", webcore.ErrDeveloperPortalTeamNotSelected),
+			wantCode: shared.DiagnosticAuthenticationRejected,
+		},
+		{
+			name:     "missing App Group",
+			err:      &webcore.DeveloperAppGroupNotFoundError{GroupID: "GROUP1"},
+			wantCode: shared.DiagnosticResourceNotFound,
+		},
+		{
+			name:     "group still assigned",
+			err:      &webcore.DeveloperAppGroupInUseError{GroupID: "GROUP1", Assignments: []webcore.DeveloperAppGroupAssignment{{BundleID: "bundle-1"}}},
+			wantCode: shared.DiagnosticResourceConflict,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			restore, cleanup := stubWebAppGroupsDependencies(t)
+			defer cleanup()
+			defer restore()
+			deleteDeveloperAppGroupFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupDeleteRequest) (*asc.WebAppGroupDeleteResult, error) {
+				return nil, test.err
+			}
+			command := WebAppGroupsDeleteCommand()
+			if err := command.FlagSet.Parse([]string{"--group-id", "GROUP1", "--confirm"}); err != nil {
+				t.Fatalf("parse error: %v", err)
+			}
+			var runErr error
+			_, _ = captureWebCommandOutput(t, func() {
+				runErr = command.Exec(context.Background(), nil)
+			})
+			if runErr == nil {
+				t.Fatal("expected an error")
+			}
+			diagnostic, ok := shared.DiagnosticFromError(runErr)
+			if !ok {
+				t.Fatalf("error %v carries no diagnostic code", runErr)
+			}
+			if diagnostic.Code != test.wantCode || diagnostic.Parameter != test.wantParam {
+				t.Fatalf("diagnostic = %+v, want code %q parameter %q", diagnostic, test.wantCode, test.wantParam)
+			}
+		})
+	}
+}
+
+// TestWebAppGroupsPreservesUsageErrorClassification keeps a usage failure from
+// session resolution on exit code 2 with an input diagnostic.
+func TestWebAppGroupsPreservesUsageErrorClassification(t *testing.T) {
+	restore, cleanup := stubWebAppGroupsDependencies(t)
+	defer cleanup()
+	defer restore()
+	assignDeveloperAppGroupFn = func(context.Context, *webcore.Client, webcore.DeveloperAppGroupAssignRequest) (*webcore.DeveloperAppGroupAssignResult, error) {
+		return nil, shared.NewReportedUsageError(shared.UsageErrorInvalidValue, "ASC_WEB_SESSION is unset or empty")
+	}
+	command := WebAppGroupsAssignCommand()
+	if err := command.FlagSet.Parse([]string{"--group", "GROUP1", "--bundle-id", "bundle-1", "--confirm"}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	var runErr error
+	_, _ = captureWebCommandOutput(t, func() {
+		runErr = command.Exec(context.Background(), nil)
+	})
+	if runErr == nil {
+		t.Fatal("expected an error")
+	}
+	if kind := shared.ClassifyUsageError(runErr); kind != shared.UsageErrorInvalidValue {
+		t.Fatalf("usage kind = %q, want %q", kind, shared.UsageErrorInvalidValue)
+	}
+	diagnostic, ok := shared.DiagnosticFromError(runErr)
+	if !ok || diagnostic.Code != shared.DiagnosticInvalidInput {
+		t.Fatalf("diagnostic = %+v (found=%t), want invalid_input", diagnostic, ok)
+	}
 }
