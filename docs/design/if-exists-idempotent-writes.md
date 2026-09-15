@@ -67,8 +67,8 @@ Error codes keyed on, per command:
 | `review details-create` | `GET /v1/appStoreVersions/{id}/appStoreReviewDetail` | `STATE_ERROR.ALREADY_EXISTS`, `ENTITY_ERROR.RELATIONSHIP.INVALID`, `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | **Verified live** against app `6759231657` on 2026-09-15: creating a detail for a version that already has one returns 409 `STATE_ERROR.ALREADY_EXISTS` ("Resource already exists." / "The given app version already has an existing review."). The relationship and duplicate-attribute codes are kept as defensive alternates; every other `STATE_ERROR.*` keeps failing, and the read-back is the decisive check. |
 | `localizations create` / `update` / `metadata push` | `GET /v1/appStoreVersions/{id}/appStoreVersionLocalizations` filtered by locale | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` (detail "Entity with locale: ... already exists. Try updating.") | Detail text verified from developer forum threads 677931 and 776315; code to be confirmed with the PR2 fixture. |
 | `pricing availability create` | `GET /v1/apps/{id}/appAvailabilityV2` | `ENTITY_ERROR.RELATIONSHIP.INVALID`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | To be confirmed with the PR3 fixture; the CLI already maps this conflict to "app availability already exists" in `web apps availability create`. |
-| `bundle-ids capabilities add` | `GET /v1/bundleIds/{id}/bundleIdCapabilities` filtered by capability type | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | To be confirmed with the PR4 fixture. `ENTITY_ERROR.ATTRIBUTE.TYPE` (unsupported capability) is also a 409 and must keep failing. |
-| `review items add` | `GET /v1/reviewSubmissions/{id}/items` filtered by the linked resource | `ENTITY_ERROR.RELATIONSHIP.INVALID`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | To be confirmed with the PR4 fixture. `STATE_ERROR.*` (submission not editable) must keep failing. |
+| `bundle-ids capabilities add` | `GET /v1/bundleIds/{id}/bundleIdCapabilities`, paginated, matched case-insensitively on `capabilityType` | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | Codes not verified live; the read-back is the decisive check. `ENTITY_ERROR.ATTRIBUTE.TYPE` (a capability type Apple does not accept for the bundle ID) is also a 409, is not on the list, and keeps failing. |
+| `review items add` | `GET /v1/reviewSubmissions/{id}/items?include=<relationship>`, paginated, matched on the linked resource ID | `ENTITY_ERROR.RELATIONSHIP.INVALID`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS`, `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` | Codes not verified live; the read-back is the decisive check. `include=` is required, not `fields[]`: with `fields[]` alone Apple returns items carrying `links` only and no `relationships` key, as `internal/cli/submit/submit_create.go` already documents. A relationship pointer can also be non-nil with `"data":null`, so a real ID must match, and an item whose `state` is `REMOVED` is historical (the resource is detached) so it is skipped rather than taken as proof of presence. `STATE_ERROR.*` (submission not editable or already submitted) keeps failing. |
 
 Other Apple existence codes seen in this repository's fixtures, kept for
 reference when a later command needs them: bare `ENTITY_ERROR` with detail
@@ -112,8 +112,19 @@ codes is listed.
    `metadata push`.
 3. `if-exists-pricing`: `pricing availability create` (`update` routes to the
    availability edit path).
-4. `if-exists-capabilities`: `bundle-ids capabilities add` and `review items
-   add` (`skip` only).
+4. `if-exists-capabilities`: `bundle-ids capabilities add` (`skip`, and
+   `update` routing `--settings` to `PATCH /v1/bundleIdCapabilities/{id}`;
+   with no `--settings` there is nothing to apply, so `update` behaves like
+   `skip`) and `review items add` (`skip` only, because a submission item
+   carries no inputs to re-apply, so `update` is rejected as a usage error).
+
+   Neither resource has a detail endpoint: the OpenAPI snapshot exposes only
+   POST, PATCH and DELETE for `/v1/bundleIdCapabilities/{id}` and
+   `/v1/reviewSubmissionItems/{id}`. The collection item is therefore the only
+   representation Apple offers, and the printed single-resource envelope is
+   built around Apple's own resource object rather than re-read. Where a detail
+   endpoint does exist (`localizations create`, `review details-create`) the
+   convention re-reads instead of building an envelope.
 
 Not in this series, analyzed for follow-up: `review submissions-submit`
 (409 `STATE_ERROR` when the submission is not in a submittable state or has no

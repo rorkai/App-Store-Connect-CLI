@@ -120,6 +120,7 @@ func BundleIDsCapabilitiesAddCommand() *ffcli.Command {
 	bundleID := fs.String("bundle", "", "Bundle ID")
 	capability := fs.String("capability", "", "Capability type (e.g., ICLOUD, IN_APP_PURCHASE)")
 	settings := fs.String("settings", "", "Capability settings as a structure-validated JSON array (optional)")
+	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip, shared.IfExistsUpdate)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -133,7 +134,16 @@ strings are sent unchanged so values newer than Apple's published schema work.
 
 Examples:
   asc bundle-ids capabilities add --bundle "BUNDLE_ID" --capability ICLOUD
-  asc bundle-ids capabilities add --bundle "BUNDLE_ID" --capability ICLOUD --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_6","enabled":true}]}]'`,
+  asc bundle-ids capabilities add --bundle "BUNDLE_ID" --capability ICLOUD --settings '[{"key":"ICLOUD_VERSION","options":[{"key":"XCODE_6","enabled":true}]}]'
+  asc bundle-ids capabilities add --bundle "BUNDLE_ID" --capability ICLOUD --if-exists skip
+
+--if-exists controls what happens when App Store Connect answers 409 because
+the capability is already enabled on the bundle ID. fail (default) returns the
+error. skip reads the existing capability back, prints it, and exits 0 without
+changing it. update applies --settings to the existing capability with
+PATCH /v1/bundleIdCapabilities/{id}; with no --settings there is nothing to
+apply, so update behaves like skip. Any other 409, including a rejected
+capability type, keeps failing.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -156,6 +166,11 @@ Examples:
 				return shared.UsageErrorf("bundle-ids capabilities add: %v", err)
 			}
 
+			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate)
+			if err != nil {
+				return err
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("bundle-ids capabilities add: %w", err)
@@ -170,7 +185,29 @@ Examples:
 			}
 			resp, err := client.CreateBundleIDCapability(requestCtx, bundleValue, attrs)
 			if err != nil {
-				return fmt.Errorf("bundle-ids capabilities add: failed to create: %w", err)
+				existing, handled, resolveErr := shared.ResolveIfExistsConflict(ifExistsMode, err, capabilitiesAddExistsCodes, func() (*asc.BundleIDCapabilityResponse, bool, error) {
+					return findExistingBundleIDCapability(requestCtx, client, bundleValue, capabilityValue)
+				})
+				if resolveErr != nil {
+					return fmt.Errorf("bundle-ids capabilities add: failed to create: %w", resolveErr)
+				}
+				if !handled {
+					return fmt.Errorf("bundle-ids capabilities add: failed to create: %w", err)
+				}
+				resp = existing
+				outcome := "left unchanged"
+				if ifExistsMode == shared.IfExistsUpdate && len(settingsValue) > 0 {
+					updated, updateErr := client.UpdateBundleIDCapability(requestCtx, existing.Data.ID, asc.BundleIDCapabilityUpdateAttributes{
+						Settings: settingsValue,
+					})
+					if updateErr != nil {
+						return fmt.Errorf("bundle-ids capabilities add: update existing capability %s: %w", existing.Data.ID, updateErr)
+					}
+					resp = updated
+					outcome = "updated it in place"
+				}
+				fmt.Fprintf(os.Stderr, "bundle-ids capabilities add: capability %s already enabled on bundle ID %s as %s; %s (--if-exists %s)\n",
+					capabilityValue, bundleValue, existing.Data.ID, outcome, ifExistsMode)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
@@ -450,4 +487,45 @@ func validateCapabilitySettings(settings []asc.CapabilitySetting) error {
 		}
 	}
 	return nil
+}
+
+// capabilitiesAddExistsCodes lists the Apple 409 codes accepted as "this
+// capability is already enabled on the bundle ID" on
+// POST /v1/bundleIdCapabilities. ENTITY_ERROR.ATTRIBUTE.TYPE (a capability type
+// Apple does not accept for this bundle ID) is also a 409 and is not on the
+// list, so it keeps failing; the read-back is what finally proves existence.
+var capabilitiesAddExistsCodes = []string{
+	"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE",
+	"ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS",
+}
+
+// findExistingBundleIDCapability reads back the capability a 409 conflict
+// referred to, keyed by capability type. It reports found=false when the bundle
+// ID has no such capability so the caller can surface the original conflict.
+func findExistingBundleIDCapability(ctx context.Context, client *asc.Client, bundleID, capabilityType string) (*asc.BundleIDCapabilityResponse, bool, error) {
+	firstPage, err := client.GetBundleIDCapabilities(ctx, bundleID)
+	if err != nil {
+		return nil, false, err
+	}
+	allPages, err := asc.PaginateAll(ctx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
+		return client.GetBundleIDCapabilities(ctx, bundleID, asc.WithBundleIDCapabilitiesNextURL(nextURL))
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	capabilities, ok := allPages.(*asc.BundleIDCapabilitiesResponse)
+	if !ok {
+		return nil, false, fmt.Errorf("unexpected bundle ID capabilities response type: %T", allPages)
+	}
+	for _, candidate := range capabilities.Data {
+		if strings.EqualFold(strings.TrimSpace(candidate.Attributes.CapabilityType), capabilityType) {
+			// Apple exposes no GET /v1/bundleIdCapabilities/{id} (only POST,
+			// PATCH and DELETE), so the collection item is the only
+			// representation available and the single-resource envelope has to
+			// be built from it. Nothing is invented: the resource object is
+			// Apple's, verbatim.
+			return &asc.BundleIDCapabilityResponse{Data: candidate}, true, nil
+		}
+	}
+	return nil, false, nil
 }
