@@ -48,6 +48,9 @@ type AppStoreVersionDetailResult struct {
 	BuildVersion string                              `json:"buildVersion,omitempty"`
 	SubmissionID string                              `json:"submissionId,omitempty"`
 	MetadataCopy *AppStoreVersionMetadataCopySummary `json:"metadataCopy,omitempty"`
+	// IdempotentWriteReceipt is populated by versions create; view and
+	// update leave it empty so their output is unchanged.
+	IdempotentWriteReceipt
 }
 
 // AppStoreVersionMetadataCopySummary represents metadata carry-forward details during version creation.
