@@ -21,6 +21,10 @@ const (
 	relationshipList
 )
 
+// buildIDNotFoundHint tells an operator which ID --build-id expects when
+// App Store Connect does not know the build the flag named.
+const buildIDNotFoundHint = `--build-id expects a build ID (list them with: asc builds list --app "APP_ID")`
+
 var buildRelationshipKinds = map[string]relationshipKind{
 	"app":                    relationshipSingle,
 	"appStoreVersion":        relationshipSingle,
@@ -62,7 +66,7 @@ func BuildsRelationshipsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("links view", flag.ExitOnError)
 
 	selectors := bindBuildSelectorFlags(fs, buildSelectorFlagOptions{})
-	relType := fs.String("type", "", "Relationship type: "+strings.Join(buildRelationshipList(), ", "))
+	relType := fs.String("type", "", shared.RelationshipTypeFlagUsage(buildRelationshipList()))
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -90,13 +94,12 @@ Examples:
 
 			relationshipType := strings.TrimSpace(*relType)
 			if relationshipType == "" {
-				fmt.Fprintln(os.Stderr, "Error: --type is required")
-				return shared.MissingRequiredUsageError("--type")
+				return shared.MissingRelationshipTypeUsageError(buildRelationshipList())
 			}
 
 			kind, ok := buildRelationshipKinds[relationshipType]
 			if !ok {
-				fmt.Fprintf(os.Stderr, "Error: --type must be one of: %s\n", strings.Join(buildRelationshipList(), ", "))
+				shared.PrintInvalidRelationshipTypeError(relationshipType, buildRelationshipList())
 				return flag.ErrHelp
 			}
 
@@ -130,11 +133,28 @@ Examples:
 				}
 			}
 
+			// buildID stays empty when a next-page URL addressed the
+			// request, so a 404 then belongs to that URL rather than to a
+			// build ID. The --build-id hint applies only when that flag,
+			// rather than an --app selector, named the build.
+			parent := shared.RelationshipParent{
+				ResourceType: "builds",
+				Label:        "build",
+				ID:           buildID,
+			}
+			if strings.TrimSpace(selectors.value(selectors.buildID)) != "" {
+				parent.Hint = buildIDNotFoundHint
+			}
+			// Every page after the first is addressed by the previous
+			// response's next URL, so a 404 there belongs to that URL.
+			pageParent := parent
+			pageParent.ID = ""
+
 			switch kind {
 			case relationshipSingle:
 				resp, err := getBuildRelationship(requestCtx, client, relationshipType, buildID)
 				if err != nil {
-					return fmt.Errorf("builds links view: %w", err)
+					return fmt.Errorf("builds links view: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			case relationshipList:
@@ -148,10 +168,18 @@ Examples:
 					resp, err := shared.PaginateWithSpinner(
 						requestCtx,
 						func(ctx context.Context) (asc.PaginatedResponse, error) {
-							return getBuildRelationshipList(ctx, client, relationshipType, buildID, paginateOpts...)
+							page, err := getBuildRelationshipList(ctx, client, relationshipType, buildID, paginateOpts...)
+							if err != nil {
+								return nil, shared.DescribeRelationshipLookupFailure(err, relationshipType, parent)
+							}
+							return page, nil
 						},
 						func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-							return getBuildRelationshipList(ctx, client, relationshipType, buildID, asc.WithLinkagesNextURL(nextURL))
+							page, err := getBuildRelationshipList(ctx, client, relationshipType, buildID, asc.WithLinkagesNextURL(nextURL))
+							if err != nil {
+								return nil, shared.DescribeRelationshipLookupFailure(err, relationshipType, pageParent)
+							}
+							return page, nil
 						},
 					)
 					if err != nil {
@@ -162,7 +190,7 @@ Examples:
 
 				resp, err := getBuildRelationshipList(requestCtx, client, relationshipType, buildID, opts...)
 				if err != nil {
-					return fmt.Errorf("builds links view: %w", err)
+					return fmt.Errorf("builds links view: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			default:

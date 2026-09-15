@@ -21,6 +21,10 @@ const (
 	relationshipList
 )
 
+// preReleaseVersionIDNotFoundHint tells an operator which ID --id expects
+// when App Store Connect does not know the pre-release version it named.
+const preReleaseVersionIDNotFoundHint = `--id expects a pre-release version ID (list them with: asc testflight pre-release list --app "APP_ID")`
+
 var preReleaseRelationshipKinds = map[string]relationshipKind{
 	"app":    relationshipSingle,
 	"builds": relationshipList,
@@ -55,7 +59,7 @@ func PreReleaseVersionsRelationshipsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("relationships view", flag.ExitOnError)
 
 	versionID := fs.String("id", "", "Pre-release version ID")
-	relType := fs.String("type", "", "Relationship type: "+strings.Join(preReleaseRelationshipList(), ", "))
+	relType := fs.String("type", "", shared.RelationshipTypeFlagUsage(preReleaseRelationshipList()))
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -82,13 +86,12 @@ Examples:
 
 			relationshipType := strings.TrimSpace(*relType)
 			if relationshipType == "" {
-				fmt.Fprintln(os.Stderr, "Error: --type is required")
-				return shared.MissingRequiredUsageError("--type")
+				return shared.MissingRelationshipTypeUsageError(preReleaseRelationshipList())
 			}
 
 			kind, ok := preReleaseRelationshipKinds[relationshipType]
 			if !ok {
-				fmt.Fprintf(os.Stderr, "Error: --type must be one of: %s\n", strings.Join(preReleaseRelationshipList(), ", "))
+				shared.PrintInvalidRelationshipTypeError(relationshipType, preReleaseRelationshipList())
 				return flag.ErrHelp
 			}
 
@@ -112,11 +115,27 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			// A next-page URL replaces the version path in the request, so a
+			// 404 belongs to that URL rather than to --id.
+			parent := shared.RelationshipParent{
+				ResourceType: "preReleaseVersions",
+				Label:        "pre-release version",
+				ID:           versionValue,
+				Hint:         preReleaseVersionIDNotFoundHint,
+			}
+			if nextValue != "" {
+				parent.ID = ""
+			}
+			// Every page after the first is addressed by the previous
+			// response's next URL, so a 404 there belongs to that URL.
+			pageParent := parent
+			pageParent.ID = ""
+
 			switch kind {
 			case relationshipSingle:
 				resp, err := getPreReleaseRelationship(requestCtx, client, relationshipType, versionValue)
 				if err != nil {
-					return fmt.Errorf("pre-release-versions relationships view: %w", err)
+					return fmt.Errorf("pre-release-versions relationships view: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			case relationshipList:
@@ -129,10 +148,14 @@ Examples:
 					paginateOpts := append(opts, asc.WithLinkagesLimit(200))
 					firstPage, err := getPreReleaseRelationshipList(requestCtx, client, relationshipType, versionValue, paginateOpts...)
 					if err != nil {
-						return fmt.Errorf("pre-release-versions relationships view: failed to fetch: %w", err)
+						return fmt.Errorf("pre-release-versions relationships view: failed to fetch: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 					}
 					resp, err := asc.PaginateAll(requestCtx, firstPage, func(ctx context.Context, nextURL string) (asc.PaginatedResponse, error) {
-						return getPreReleaseRelationshipList(ctx, client, relationshipType, versionValue, asc.WithLinkagesNextURL(nextURL))
+						page, err := getPreReleaseRelationshipList(ctx, client, relationshipType, versionValue, asc.WithLinkagesNextURL(nextURL))
+						if err != nil {
+							return nil, shared.DescribeRelationshipLookupFailure(err, relationshipType, pageParent)
+						}
+						return page, nil
 					})
 					if err != nil {
 						return fmt.Errorf("pre-release-versions relationships view: %w", err)
@@ -142,7 +165,7 @@ Examples:
 
 				resp, err := getPreReleaseRelationshipList(requestCtx, client, relationshipType, versionValue, opts...)
 				if err != nil {
-					return fmt.Errorf("pre-release-versions relationships view: %w", err)
+					return fmt.Errorf("pre-release-versions relationships view: %w", shared.DescribeRelationshipLookupFailure(err, relationshipType, parent))
 				}
 				return shared.PrintOutput(resp, *output.Output, *output.Pretty)
 			default:

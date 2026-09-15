@@ -63,7 +63,7 @@ func TestBuildsParityValidationErrors(t *testing.T) {
 		{
 			name:    "builds links invalid type",
 			args:    []string{"builds", "links", "view", "--build-id", "BUILD_ID", "--type", "nope"},
-			wantErr: "--type must be one of",
+			wantErr: `--type "nope" is not a valid relationship type; must be one of`,
 		},
 		{
 			name:    "builds links invalid limit for single",
@@ -224,7 +224,7 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 		{
 			name:    "beta-groups relationships invalid type",
 			args:    []string{"testflight", "groups", "links", "view", "--group-id", "GROUP_ID", "--type", "nope"},
-			wantErr: "--type must be one of",
+			wantErr: `--type "nope" is not a valid relationship type; must be one of`,
 		},
 		{
 			name:    "beta-testers relationships missing type",
@@ -239,7 +239,7 @@ func TestTestFlightRelationshipsValidationErrors(t *testing.T) {
 		{
 			name:    "beta-testers relationships invalid type",
 			args:    []string{"testflight", "testers", "links", "view", "--tester-id", "TESTER_ID", "--type", "nope"},
-			wantErr: "--type must be one of",
+			wantErr: `--type "nope" is not a valid relationship type; must be one of`,
 		},
 		{
 			name:    "testers metrics missing tester-id",
@@ -317,7 +317,7 @@ func TestPreReleaseRelationshipsValidationErrors(t *testing.T) {
 		{
 			name:    "pre-release links invalid type",
 			args:    []string{"testflight", "pre-release", "links", "view", "--id", "PR_ID", "--type", "nope"},
-			wantErr: "--type must be one of",
+			wantErr: `--type "nope" is not a valid relationship type; must be one of`,
 		},
 		{
 			name:    "pre-release links invalid limit for single",
