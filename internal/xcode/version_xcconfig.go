@@ -785,11 +785,18 @@ func collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(
 		if budget != nil {
 			budget.add(path, identity)
 		}
-		nextStack := make(map[string][]os.FileInfo, len(stack)+1)
-		for key, infos := range stack {
-			nextStack[key] = append([]os.FileInfo(nil), infos...)
-		}
-		nextStack[pathKey] = append(nextStack[pathKey], identity)
+		// The stack is scoped to this depth-first visit. Mutate it in place and
+		// restore the entry when this node returns so a long include chain does
+		// not copy every ancestor map at every level.
+		previousStackInfos, hadStackEntry := stack[pathKey]
+		stack[pathKey] = append(previousStackInfos, identity)
+		defer func() {
+			if hadStackEntry {
+				stack[pathKey] = previousStackInfos
+				return
+			}
+			delete(stack, pathKey)
+		}()
 		var includeErrors []error
 		for _, include := range document.includes {
 			includePath, err := resolveXCConfigInclude(path, include)
@@ -804,7 +811,7 @@ func collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(
 			// checks. In particular, never stat an include before the authorization
 			// hook has accepted its lexical path. Optional missing includes are the
 			// one intentional not-exist case and are ignored after that check.
-			childErr, missingTarget := visit(includePath, nextStack, include.optional)
+			childErr, missingTarget := visit(includePath, stack, include.optional)
 			if childErr != nil {
 				if isXCConfigSourceGraphLimitError(childErr) {
 					return childErr, false
