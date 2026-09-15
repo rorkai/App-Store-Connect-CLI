@@ -25,7 +25,11 @@ Create-style commands gain one shared flag:
 - `skip` treats an existing resource as success. The command exits 0, leaves the
   resource unchanged, and reports that it already existed.
 - `update` routes the same inputs to the corresponding update/PATCH call on the
-  existing resource when one exists. Commands without a meaningful update
+  existing resource when one exists. When the invocation supplied nothing the
+  update call can carry (`versions create` without `--copyright` or
+  `--release-type`, `localizations create` with only `--locale`), `update`
+  resolves like `skip` instead of sending an empty PATCH that a non-editable
+  resource could reject. Commands without a meaningful update
   (`bundle-ids capabilities add`, `review items add`) reject `update` as a
   usage error (exit 2) and document `skip` as the idempotent form.
 
@@ -65,7 +69,7 @@ Error codes keyed on, per command:
 | --- | --- | --- | --- |
 | `versions create` | `GET /v1/apps/{id}/appStoreVersions?filter[versionString]=&filter[platform]=` | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` (source pointer `/data/attributes/versionString`, detail "The version number has been previously used.") | **Verified live** against app `6759231657` on 2026-09-15: re-creating the existing version string returns two errors, `errors[0]` = `ENTITY_ERROR.RELATIONSHIP.INVALID` ("You cannot create a new version of the App in the current state.", pointer `/data/relationships/app`) and `errors[1]` = the duplicate code above. A 409 carrying only the relationship rejection (a genuinely new version string the app cannot accept yet) has no duplicate code and keeps failing. |
 | `review details-create` | `GET /v1/appStoreVersions/{id}/appStoreReviewDetail` | `STATE_ERROR.ALREADY_EXISTS`, `ENTITY_ERROR.RELATIONSHIP.INVALID`, `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | **Verified live** against app `6759231657` on 2026-09-15: creating a detail for a version that already has one returns 409 `STATE_ERROR.ALREADY_EXISTS` ("Resource already exists." / "The given app version already has an existing review."). The relationship and duplicate-attribute codes are kept as defensive alternates; every other `STATE_ERROR.*` keeps failing, and the read-back is the decisive check. |
-| `localizations create` / `update` / `metadata push` | `GET /v1/appStoreVersions/{id}/appStoreVersionLocalizations` filtered by locale | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` (detail "Entity with locale: ... already exists. Try updating.") | Detail text verified from developer forum threads 677931 and 776315; code to be confirmed with the PR2 fixture. |
+| `localizations create` | `GET /v1/appStoreVersions/{id}/appStoreVersionLocalizations` matched on locale, then `GET /v1/appStoreVersionLocalizations/{id}` so Apple's own single-resource envelope is what gets printed | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` (pointer `/data/attributes/locale`, detail "Entity with locale: ... already exists. Try updating.") | Detail text reported in developer forum threads 677931 and 776315. Not verified live, since reproducing it is a mutation; the read-back is the decisive check. |
 | `pricing availability create` | `GET /v1/apps/{id}/appAvailabilityV2` | `ENTITY_ERROR.RELATIONSHIP.INVALID`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | To be confirmed with the PR3 fixture; the CLI already maps this conflict to "app availability already exists" in `web apps availability create`. |
 | `bundle-ids capabilities add` | `GET /v1/bundleIds/{id}/bundleIdCapabilities` filtered by capability type | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | To be confirmed with the PR4 fixture. `ENTITY_ERROR.ATTRIBUTE.TYPE` (unsupported capability) is also a 409 and must keep failing. |
 | `review items add` | `GET /v1/reviewSubmissions/{id}/items` filtered by the linked resource | `ENTITY_ERROR.RELATIONSHIP.INVALID`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | To be confirmed with the PR4 fixture. `STATE_ERROR.*` (submission not editable) must keep failing. |
@@ -94,6 +98,10 @@ codes is listed.
   details-create`) keep printing the envelope: on `skip` the existing resource's
   envelope from the read-back, on `update` the PATCH response. The envelope is
   not decorated, per the JSON output contract.
+- A command whose success path emits advice about the resource it just created
+  (for example `localizations create`'s submit-readiness warning) must suppress
+  that advice when `--if-exists` resolved a duplicate: nothing was created, and
+  the existing resource may already carry the fields the caller omitted.
 - In both cases `skip` and `update` write one diagnostic line to stderr, for
   example `review details-create: review detail DETAIL_ID already exists for
   version VERSION_ID; left unchanged (--if-exists skip)`, so table output on a
@@ -108,12 +116,24 @@ codes is listed.
    the receipt reports `updated` even when the version resource itself had
    nothing to PATCH), `review details-create` (`update` routes to
    `PATCH /v1/appStoreReviewDetails/{id}` with the same attributes).
-2. `if-exists-localizations`: `localizations create`/`update` and
-   `metadata push`.
+2. `if-exists-localizations`: `localizations create` (`update` routes to
+   `PATCH /v1/appStoreVersionLocalizations/{id}` with the same field flags).
+   `localizations update` is deliberately excluded: it is a pure PATCH that
+   already resolves the localization by locale and fails with its own
+   non-HTTP "no existing localization found" error when the locale is absent,
+   so its remaining 409s are state conflicts with nothing to key on.
 3. `if-exists-pricing`: `pricing availability create` (`update` routes to the
    availability edit path).
 4. `if-exists-capabilities`: `bundle-ids capabilities add` and `review items
    add` (`skip` only).
+
+`metadata push` moved to follow-up: every mutation in `push.go` already runs
+through `shared.RunReconciledMutation` with a field-matching read-back, so a
+duplicate-locale 409 only survives when the existing remote content differs from
+the plan. Making that configurable means threading the mode through
+`applyVersionLocalizations` and `applyAppInfoLocalizations` and adding a
+`skipped` status to the `ApplyAction` receipt, which is a receipt-schema change
+on a bulk command and belongs in its own change.
 
 Not in this series, analyzed for follow-up: `review submissions-submit`
 (409 `STATE_ERROR` when the submission is not in a submittable state or has no
