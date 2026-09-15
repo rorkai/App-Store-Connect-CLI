@@ -141,6 +141,25 @@ asc apps list --output json | jq '.data[0].id'
 asc apps view --id APP_ID > output.json 2> errors.log
 ```
 
+### Unknown Flags
+
+An unknown flag is a usage error: exit code `2`, nothing on stdout, and a
+diagnostic on stderr that names up to three flags the command actually defines
+under `Try:`. Suggestions come from the command's own flag set, so a suggested
+flag is always accepted by the command that printed it:
+
+```
+$ asc submit status --app <APP_ID>
+Error: unknown flag `--app` for `asc submit status`
+Try:
+  --id
+For help:
+  asc submit status --help
+```
+
+The flag value is never echoed, and a flag removed in 5.0 names its
+replacement instead (see [Migrate to 5.0](/migrate-to-5-0)).
+
 ### Credentials in Error Messages
 
 Errors never repeat the credential-bearing parts of a URL. Asset upload
