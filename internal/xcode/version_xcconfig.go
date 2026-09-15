@@ -641,7 +641,10 @@ func collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(
 	}
 	seen := make(map[string]bool)
 	type collectedIdentity struct {
-		path string
+		// key is the collected source's traversal key, which is its normalized
+		// spelling whenever an identity callback is in use. Keeping it lets the
+		// scans below compare normalized paths without normalizing again.
+		key  string
 		info os.FileInfo
 	}
 	var collected []collectedIdentity
@@ -705,7 +708,7 @@ func collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(
 		// against different bases and must still be traversed independently.
 		if identity != nil {
 			for _, entry := range collected {
-				if signingPathCaseEquivalent(entry.path, path) && entry.info != nil && os.SameFile(identity, entry.info) {
+				if signingPathCaseEquivalentNormalized(entry.key, pathKey) && entry.info != nil && os.SameFile(identity, entry.info) {
 					return nil, false
 				}
 			}
@@ -720,7 +723,7 @@ func collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(
 				return nil, false
 			}
 			for _, entry := range collected {
-				if traversalKey(entry.path) == pathKey && entry.info != nil && os.SameFile(identity, entry.info) {
+				if entry.key == pathKey && entry.info != nil && os.SameFile(identity, entry.info) {
 					return nil, false
 				}
 			}
@@ -780,7 +783,7 @@ func collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(
 		seen[pathKey] = true
 		paths = append(paths, path)
 		if identity != nil {
-			collected = append(collected, collectedIdentity{path: path, info: identity})
+			collected = append(collected, collectedIdentity{key: pathKey, info: identity})
 		}
 		if budget != nil {
 			budget.add(path, identity)
@@ -856,8 +859,15 @@ func collectXCConfigFilesWithHooksAndIdentityAndOptionalMissingLimitWithBudget(
 // two hard-linked files whose path operations must remain distinct. Unknown
 // filesystem metadata therefore keeps both spellings rather than coalescing.
 func signingPathCaseEquivalent(left, right string) bool {
-	left = normalizeSigningLexicalPath(left)
-	right = normalizeSigningLexicalPath(right)
+	return signingPathCaseEquivalentNormalized(normalizeSigningLexicalPath(left), normalizeSigningLexicalPath(right))
+}
+
+// signingPathCaseEquivalentNormalized answers the same question as
+// signingPathCaseEquivalent for two already normalized paths. An include
+// traversal compares one path against every ancestor or already collected
+// source, so normalizing each candidate once at its own visit keeps those
+// scans from re-normalizing the same paths on every comparison.
+func signingPathCaseEquivalentNormalized(left, right string) bool {
 	if left == right {
 		return true
 	}
@@ -991,12 +1001,15 @@ func resolveXCConfigSettingStateWithReaderAndIdentity(
 	lookup func(string) (string, bool),
 ) (xcconfigResolvedValue, bool, error) {
 	return resolveXCConfigSettingRecursiveWithReaderAndIdentity(
-		filepath.Clean(root), setting, make(map[string]bool), nil, base, read, stat, identify, observe, lookup,
+		filepath.Clean(root), setting, make(map[string]bool), new([]xcconfigResolutionPath), base, read, stat, identify, observe, lookup,
 	)
 }
 
 type xcconfigResolutionPath struct {
-	path string
+	// key is the ancestor's normalized path. The scan over the ancestors
+	// compares normalized spellings, so each ancestor is normalized once when
+	// it is pushed rather than once per comparison.
+	key  string
 	info os.FileInfo
 }
 
@@ -1004,7 +1017,7 @@ func resolveXCConfigSettingRecursiveWithReaderAndIdentity(
 	path string,
 	setting string,
 	stack map[string]bool,
-	stackPaths []xcconfigResolutionPath,
+	stackPaths *[]xcconfigResolutionPath,
 	resolved xcconfigResolvedValue,
 	read func(string) ([]byte, error),
 	stat func(string) (os.FileInfo, error),
@@ -1022,8 +1035,8 @@ func resolveXCConfigSettingRecursiveWithReaderAndIdentity(
 			return xcconfigResolvedValue{}, false, err
 		}
 		pathKey = normalizeSigningLexicalPath(path)
-		for _, entry := range stackPaths {
-			if identity != nil && entry.info != nil && signingPathCaseEquivalent(entry.path, path) && os.SameFile(identity, entry.info) {
+		for _, entry := range *stackPaths {
+			if identity != nil && entry.info != nil && signingPathCaseEquivalentNormalized(entry.key, pathKey) && os.SameFile(identity, entry.info) {
 				return resolved, false, nil
 			}
 		}
@@ -1039,12 +1052,23 @@ func resolveXCConfigSettingRecursiveWithReaderAndIdentity(
 	if err != nil {
 		return xcconfigResolvedValue{}, false, fmt.Errorf("parse %s: %w", path, err)
 	}
-	nextStack := clonePathSet(stack)
-	nextStack[pathKey] = true
-	nextStackPaths := append([]xcconfigResolutionPath(nil), stackPaths...)
-	if identify != nil && identity != nil {
-		nextStackPaths = append(nextStackPaths, xcconfigResolutionPath{path: path, info: identity})
+	// This file is an ancestor for the include recursion below and stops being
+	// one as soon as this call returns. Cloning the ancestor set and the
+	// ancestor path list per level made a deep include chain quadratic in
+	// allocations while detecting exactly the same cycles as a push/pop stack.
+	// The pathKey check above guarantees it is not already on the stack, so the
+	// entry this call pushed is the one it removes.
+	stack[pathKey] = true
+	pushedStackPath := identify != nil && identity != nil
+	if pushedStackPath {
+		*stackPaths = append(*stackPaths, xcconfigResolutionPath{key: pathKey, info: identity})
 	}
+	defer func() {
+		delete(stack, pathKey)
+		if pushedStackPath {
+			*stackPaths = (*stackPaths)[:len(*stackPaths)-1]
+		}
+	}()
 
 	type event struct {
 		line       int
@@ -1076,7 +1100,7 @@ func resolveXCConfigSettingRecursiveWithReaderAndIdentity(
 				}
 				return xcconfigResolvedValue{}, false, fmt.Errorf("read xcconfig include %s: %w", includePath, err)
 			}
-			included, _, err := resolveXCConfigSettingRecursiveWithReaderAndIdentity(includePath, setting, nextStack, nextStackPaths, resolved, read, stat, identify, observe, lookup)
+			included, _, err := resolveXCConfigSettingRecursiveWithReaderAndIdentity(includePath, setting, stack, stackPaths, resolved, read, stat, identify, observe, lookup)
 			if err != nil {
 				return xcconfigResolvedValue{}, false, err
 			}
@@ -1239,12 +1263,4 @@ func quoteXCConfigValue(value, quote string) string {
 	}
 	encoded.WriteString(quote)
 	return encoded.String()
-}
-
-func clonePathSet(source map[string]bool) map[string]bool {
-	clone := make(map[string]bool, len(source))
-	for key, value := range source {
-		clone[key] = value
-	}
-	return clone
 }

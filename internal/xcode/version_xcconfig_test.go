@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -199,6 +200,89 @@ func TestXCConfigCollectorBoundsSigningSourceGraph(t *testing.T) {
 	}, func(string) error { return nil }, nil, nil, nil, nil, signingPlanMaxFiles, nil)
 	if err == nil || !strings.Contains(err.Error(), "more than 4096 files") {
 		t.Fatalf("collectXCConfigFilesWithReader() error = %v, want aggregate source limit", err)
+	}
+}
+
+// TestXCConfigDeepIncludeTraversalAllocationsScaleLinearly pins the cost model
+// of both include walkers. The ancestor stack is pushed and popped per level,
+// so doubling the chain depth must roughly double the allocation count.
+// Copying that stack at every level made it quadruple instead, which turned a
+// signing plan over a deep include chain into minutes of work on a loaded
+// host.
+func TestXCConfigDeepIncludeTraversalAllocationsScaleLinearly(t *testing.T) {
+	const (
+		shallowDepth = 256
+		deepDepth    = 2 * shallowDepth
+		growthBudget = 2.5
+	)
+	// Allocation counts alone would miss a copied map, whose per-level cost is
+	// one growing allocation. Measure the allocated bytes as well.
+	measure := func(run func()) (allocations, bytes float64) {
+		var before, after runtime.MemStats
+		runtime.GC()
+		runtime.ReadMemStats(&before)
+		run()
+		runtime.ReadMemStats(&after)
+		return float64(after.Mallocs - before.Mallocs), float64(after.TotalAlloc - before.TotalAlloc)
+	}
+	walkers := []struct {
+		name string
+		walk func(depth int) func()
+	}{
+		{
+			name: "collector",
+			walk: func(depth int) func() {
+				root, read, identify := deepXCConfigIncludeChain(depth)
+				return func() {
+					files, err := collectXCConfigFilesWithHooksAndIdentity(root, read, identify)
+					if err != nil {
+						t.Fatalf("collectXCConfigFilesWithHooksAndIdentity() error = %v", err)
+					}
+					if len(files) != depth {
+						t.Fatalf("files = %d, want %d", len(files), depth)
+					}
+				}
+			},
+		},
+		{
+			name: "resolver",
+			walk: func(depth int) func() {
+				root, read, stat := deepXCConfigIncludeChain(depth)
+				return func() {
+					resolved, _, err := resolveXCConfigSettingStateWithReaderAndIdentity(
+						root, "CODE_SIGN_STYLE", xcconfigResolvedValue{}, read, stat, stat, nil, nil,
+					)
+					if err != nil {
+						t.Fatalf("resolveXCConfigSettingStateWithReaderAndIdentity() error = %v", err)
+					}
+					if resolved.value != "Manual" {
+						t.Fatalf("resolved value = %q, want Manual", resolved.value)
+					}
+				}
+			},
+		},
+	}
+	for _, walker := range walkers {
+		t.Run(walker.name, func(t *testing.T) {
+			shallowAllocations, shallowBytes := measure(walker.walk(shallowDepth))
+			deepAllocations, deepBytes := measure(walker.walk(deepDepth))
+			for _, metric := range []struct {
+				name    string
+				shallow float64
+				deep    float64
+			}{
+				{name: "allocations", shallow: shallowAllocations, deep: deepAllocations},
+				{name: "allocated bytes", shallow: shallowBytes, deep: deepBytes},
+			} {
+				if metric.shallow <= 0 {
+					t.Fatalf("depth %d %s = %.0f, want a positive baseline", shallowDepth, metric.name, metric.shallow)
+				}
+				if growth := metric.deep / metric.shallow; growth > growthBudget {
+					t.Fatalf("%s grew %.2fx from depth %d to depth %d (%.0f -> %.0f), want at most %.2fx: the include ancestor stack must be pushed and popped, not copied per level",
+						metric.name, growth, shallowDepth, deepDepth, metric.shallow, metric.deep, growthBudget)
+				}
+			}
+		})
 	}
 }
 
