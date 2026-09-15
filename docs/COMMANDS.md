@@ -25,7 +25,7 @@ asc <subcommand> [flags]
 
 - `--api-debug` - Enable HTTP debug logging to stderr (redacts sensitive values)
 - `--debug` - Enable debug logging to stderr
-- `--profile` - Use named authentication profile
+- `--profile` - Use named authentication profile (accepted before or after the command name)
 - `--report` - Report format for CI output (e.g., junit)
 - `--report-file` - Path to write CI report file
 - `--retry-log` - Enable retry logging to stderr (overrides ASC_RETRY_LOG/config when set)

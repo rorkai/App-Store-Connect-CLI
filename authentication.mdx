@@ -281,8 +281,9 @@ By default, `asc` warns and continues with a mixed credential. Use `--strict-aut
   ```
 
   ```bash Force a stored profile theme={null}
-  # Root flags appear before the command group.
+  # --profile is accepted on either side of the command.
   asc --profile "WorkApp" apps list
+  asc apps list --profile "WorkApp"
   ```
 
   ```bash Config or environment only theme={null}

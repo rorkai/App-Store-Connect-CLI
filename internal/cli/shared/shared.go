@@ -49,6 +49,12 @@ const (
 
 var ErrMissingAuth = errors.New("missing authentication")
 
+// RootProfileFlagName is the credential-profile selector bound by
+// BindRootFlags. Only the root flag set binds it, but it is accepted before or
+// after the command name, so surfaces that enumerate a command's accepted
+// flags offer it alongside the command's own flags.
+const RootProfileFlagName = "profile"
+
 var (
 	ascClientFactoryMu sync.RWMutex
 	ascClientFactory   = getASCClient
@@ -96,7 +102,7 @@ func BindRootFlags(fs *flag.FlagSet) {
 	debug.EnableBoolFlag()
 	apiDebug.EnableBoolFlag()
 
-	fs.StringVar(&selectedProfile, "profile", "", "Use named authentication profile")
+	fs.StringVar(&selectedProfile, RootProfileFlagName, "", "Use named authentication profile (accepted before or after the command name)")
 	fs.BoolVar(&strictAuth, "strict-auth", false, "Fail when credentials are resolved from multiple sources")
 	fs.Var(&retryLog, "retry-log", "Enable retry logging to stderr (overrides ASC_RETRY_LOG/config when set)")
 	fs.Var(&debug, "debug", "Enable debug logging to stderr")

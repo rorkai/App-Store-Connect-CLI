@@ -12,8 +12,15 @@ Use a named authentication profile stored in your keychain or config file.
 
 ```bash  theme={null}
 asc --profile production apps list
+asc apps list --profile production
 asc --profile staging builds upload --app "123456789" --ipa "MyApp.ipa"
 ```
+
+`--profile` is the one global flag accepted on either side of the command name:
+both forms above select the same credential. It still requires a value wherever
+it appears, and a value-less `--profile` exits with code `2`. Use the
+`--profile=NAME` spelling when the profile name is also a subcommand name, and
+note that the selector must come before any positional argument.
 
 **Environment variable**: `ASC_PROFILE`
 
@@ -141,12 +148,18 @@ Outputs the current CLI version. Useful for:
 
 ### Flag Placement
 
-Global flags must appear before the top-level command:
+Global flags must appear before the top-level command, except `--profile`, which
+is accepted anywhere the command's own flags are:
 
 ```bash  theme={null}
 # Correct
+asc --strict-auth apps list
 asc --profile production apps list
+asc apps list --profile production
 ```
+
+Any other global flag written after the command name is an unknown flag for
+that command: the CLI exits with code `2` and names the placement rule.
 
 ### Flag Priority
 
