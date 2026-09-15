@@ -49,13 +49,6 @@ func TestRunMetadataRequiredInputsAreConciseAndStructured(t *testing.T) {
 			wantParameter: "--app",
 		},
 		{
-			name:          "pull missing version",
-			args:          []string{"metadata", "pull", "--app", "app-1", "--dir", "./metadata"},
-			wantError:     "--version is required",
-			wantStderr:    "Error: --version is required\nFind versions:\n  asc versions list --app \"APP_ID\" --paginate\n",
-			wantParameter: "--version",
-		},
-		{
 			name:          "pull missing dir",
 			args:          []string{"metadata", "pull", "--app", "app-1", "--version", "1.2.3"},
 			wantError:     "--dir is required",

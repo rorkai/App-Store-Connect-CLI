@@ -2,6 +2,7 @@ package validate
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -54,7 +55,7 @@ func ValidateCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "validate",
-		ShortUsage: "asc validate --app \"APP_ID\" (--version-id \"VERSION_ID\" | --version \"VERSION\") [flags]",
+		ShortUsage: "asc validate --app \"APP_ID\" [--version-id \"VERSION_ID\" | --version \"VERSION\"] [flags]",
 		ShortHelp:  "Canonical App Store submission readiness report.",
 		LongHelp: `Validate pre-submission readiness for an App Store version.
 
@@ -91,6 +92,7 @@ Deep validation:
   Connect links. Deep validation never starts an interactive login.
 
 Examples:
+  asc validate --app "APP_ID"
   asc validate --app "APP_ID" --version-id "VERSION_ID"
   asc validate --app "APP_ID" --version "1.0.0" --platform IOS
   asc validate --app "APP_ID" --version-id "VERSION_ID" --platform IOS --output table
@@ -121,9 +123,6 @@ Subscriptions:
 			}
 			trimmedVersion := strings.TrimSpace(*version)
 			trimmedVersionID := strings.TrimSpace(*versionID)
-			if trimmedVersion == "" && trimmedVersionID == "" {
-				return shared.WithDiagnostic(shared.UsageError("--version or --version-id is required"), shared.DiagnosticRequiredInputMissing, "")
-			}
 			if trimmedVersion != "" && trimmedVersionID != "" {
 				return shared.WithDiagnostic(shared.UsageError("--version and --version-id are mutually exclusive"), shared.DiagnosticConflictingInput, "--version-id")
 			}
@@ -144,6 +143,25 @@ Subscriptions:
 					return shared.WithDiagnostic(fmt.Errorf("validate: %w", err), shared.DiagnosticInvalidInput, "--platform")
 				}
 				normalizedPlatform = value
+			}
+
+			if trimmedVersion == "" && trimmedVersionID == "" {
+				client, err := clientFactory()
+				if err != nil {
+					return fmt.Errorf("validate: %w", err)
+				}
+				resolveCtx, cancel := shared.ContextWithTimeout(ctx)
+				resolved, err := shared.ResolveAndAnnounceDefaultAppStoreVersion(resolveCtx, client, resolvedAppID, normalizedPlatform, "--version")
+				cancel()
+				if err != nil {
+					if errors.Is(err, flag.ErrHelp) {
+						return err
+					}
+					return fmt.Errorf("validate: %w", err)
+				}
+				trimmedVersion = resolved.VersionString
+				trimmedVersionID = resolved.ID
+				normalizedPlatform = resolved.Platform
 			}
 
 			return runValidate(ctx, validateOptions{

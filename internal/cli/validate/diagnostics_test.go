@@ -35,18 +35,6 @@ func TestValidationFailuresExposeStructuredDiagnostics(t *testing.T) {
 			wantParam: "--build-id",
 		},
 		{
-			name: "validate missing version selector",
-			command: func() interface {
-				ParseAndRun(context.Context, []string) error
-			} {
-				return ValidateCommand()
-			},
-			args:      []string{"--app", "app-1"},
-			wantError: "--version or --version-id is required",
-			wantCode:  shared.DiagnosticRequiredInputMissing,
-			wantParam: "",
-		},
-		{
 			name: "validate conflicting version selectors",
 			command: func() interface {
 				ParseAndRun(context.Context, []string) error

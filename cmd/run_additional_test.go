@@ -646,13 +646,13 @@ func TestRun_ValidateMissingRequiredFlagsReturnsUsage(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("expected empty stdout, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "--version or --version-id is required") {
-		t.Fatalf("expected missing version error, got %q", stderr)
+	if !strings.Contains(stderr, "--app is required (or set ASC_APP_ID)") {
+		t.Fatalf("expected missing app error, got %q", stderr)
 	}
 	if gotContext.ErrorKind != telemetry.ErrorKindMissingRequired || gotContext.FailureStage != telemetry.FailureStageValidation {
 		t.Fatalf("unexpected telemetry context: %+v", gotContext)
 	}
-	if gotContext.FailureParameter != "" || gotContext.OutcomeKind != telemetry.OutcomeUsageError {
+	if gotContext.FailureParameter != "--app" || gotContext.OutcomeKind != telemetry.OutcomeUsageError {
 		t.Fatalf("unexpected missing-parameter telemetry context: %+v", gotContext)
 	}
 	if gotContext.DiagnosticCode != string(shared.DiagnosticRequiredInputMissing) {
@@ -1555,39 +1555,6 @@ func TestRun_MetadataValidateBareVersionPreservesGlobalFlagRecovery(t *testing.T
 				t.Fatalf("stderr = %q, want %q", stderr, want)
 			}
 		})
-	}
-}
-
-func TestRun_MetadataPullMissingVersionPointsToDiscovery(t *testing.T) {
-	resetReportFlags(t)
-	originalEmitTelemetry := emitTelemetry
-	t.Cleanup(func() { emitTelemetry = originalEmitTelemetry })
-
-	var gotContext telemetry.EventContext
-	emitTelemetry = func(_ string, _ string, _ time.Duration, _ int, eventContext telemetry.EventContext) {
-		gotContext = eventContext
-	}
-	stdout, stderr := captureCommandOutput(t, func() {
-		if code := Run([]string{"metadata", "pull", "--app", "app-1", "--dir", "./metadata"}, "1.0.0"); code != ExitUsage {
-			t.Fatalf("exit code = %d, want %d", code, ExitUsage)
-		}
-	})
-
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	want := "Error: --version is required\n" +
-		"Find versions:\n" +
-		"  asc versions list --app \"APP_ID\" --paginate\n"
-	if stderr != want {
-		t.Fatalf("stderr = %q, want %q", stderr, want)
-	}
-	if gotContext.FailureParameter != "--version" ||
-		gotContext.DiagnosticCode != string(shared.DiagnosticRequiredInputMissing) ||
-		gotContext.ErrorKind != telemetry.ErrorKindMissingRequired ||
-		gotContext.FailureStage != telemetry.FailureStageValidation ||
-		gotContext.OutcomeKind != telemetry.OutcomeUsageError {
-		t.Fatalf("telemetry context = %+v, want missing --version validation", gotContext)
 	}
 }
 

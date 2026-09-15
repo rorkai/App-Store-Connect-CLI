@@ -36,7 +36,7 @@ func MetadataPullCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	appInfoID := fs.String("app-info", "", "App Info ID (optional override for apps with multiple app-infos)")
-	version := fs.String("version", "", "App version string (for example 1.2.3)")
+	version := fs.String("version", "", "App version string (for example 1.2.3); defaults to the app's editable version, else the live version")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	dir := fs.String("dir", "", "Output root directory (required)")
 	force := fs.Bool("force", false, "Overwrite existing metadata files in --dir")
@@ -45,13 +45,20 @@ func MetadataPullCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "pull",
-		ShortUsage: "asc metadata pull --app \"APP_ID\" --version \"1.2.3\" --dir \"./metadata\" [--app-info \"APP_INFO_ID\"] [flags]",
+		ShortUsage: "asc metadata pull --app \"APP_ID\" --dir \"./metadata\" [--version \"1.2.3\"] [--app-info \"APP_INFO_ID\"] [flags]",
 		ShortHelp:  "Pull metadata from App Store Connect into canonical files.",
 		LongHelp: `Pull metadata from App Store Connect into canonical files.
 
 Phase 1 supports localization metadata for app-info and app-store versions.
 
+When --version is omitted, the app's newest editable App Store version is used
+(PREPARE_FOR_SUBMISSION, DEVELOPER_REJECTED, REJECTED, METADATA_REJECTED,
+READY_FOR_REVIEW, WAITING_FOR_REVIEW, or INVALID_BINARY), falling back to the
+live version. The selected version is reported on stderr. Pass --platform when
+the app has candidate versions on more than one platform.
+
 Examples:
+  asc metadata pull --app "APP_ID" --dir "./metadata"
   asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata"
   asc metadata pull --app "APP_ID" --version "1.2.3" --platform IOS --dir "./metadata"
   asc metadata pull --app "APP_ID" --app-info "APP_INFO_ID" --version "1.2.3" --dir "./metadata"
@@ -69,9 +76,6 @@ Examples:
 			}
 
 			versionValue := strings.TrimSpace(*version)
-			if versionValue == "" {
-				return missingMetadataPullVersionError()
-			}
 
 			dirValue := strings.TrimSpace(*dir)
 			if dirValue == "" {
@@ -100,12 +104,27 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
-			versionIDValue, versionStateValue, err := resolveVersionID(requestCtx, client, resolvedAppID, versionValue, platformValue)
-			if err != nil {
-				if errors.Is(err, flag.ErrHelp) {
-					return err
+			var versionIDValue, versionStateValue string
+			if versionValue == "" {
+				resolved, err := shared.ResolveAndAnnounceDefaultAppStoreVersion(requestCtx, client, resolvedAppID, platformValue, "--version")
+				if err != nil {
+					if errors.Is(err, flag.ErrHelp) {
+						return err
+					}
+					return fmt.Errorf("metadata pull: %w", err)
 				}
-				return fmt.Errorf("metadata pull: %w", err)
+				versionValue = resolved.VersionString
+				versionIDValue = resolved.ID
+				versionStateValue = resolved.State
+				platformValue = resolved.Platform
+			} else {
+				versionIDValue, versionStateValue, err = resolveVersionID(requestCtx, client, resolvedAppID, versionValue, platformValue)
+				if err != nil {
+					if errors.Is(err, flag.ErrHelp) {
+						return err
+					}
+					return fmt.Errorf("metadata pull: %w", err)
+				}
 			}
 
 			appInfoIDValue, err := resolveMetadataPullAppInfoID(
@@ -216,18 +235,6 @@ Examples:
 			)
 		},
 	}
-}
-
-func missingMetadataPullVersionError() error {
-	const message = "--version is required"
-	fmt.Fprintln(os.Stderr, "Error: "+message)
-	fmt.Fprintln(os.Stderr, "Find versions:")
-	fmt.Fprintln(os.Stderr, `  asc versions list --app "APP_ID" --paginate`)
-	return shared.WithDiagnostic(
-		shared.NewReportedUsageError(shared.UsageErrorMissingRequired, message),
-		shared.DiagnosticRequiredInputMissing,
-		"--version",
-	)
 }
 
 func ensureNoExistingPullTargets(plans []WritePlan) error {

@@ -35,13 +35,6 @@ func TestMetadataPullValidationErrors(t *testing.T) {
 			wantConcise:   true,
 		},
 		{
-			name:          "missing version",
-			args:          []string{"metadata", "pull", "--app", "app-1", "--dir", "./metadata"},
-			wantStderr:    "Error: --version is required\nFind versions:\n  asc versions list --app \"APP_ID\" --paginate\n",
-			wantParameter: "--version",
-			wantConcise:   true,
-		},
-		{
 			name:          "missing dir",
 			args:          []string{"metadata", "pull", "--app", "app-1", "--version", "1.2.3"},
 			wantStderr:    "Error: --dir is required\n",

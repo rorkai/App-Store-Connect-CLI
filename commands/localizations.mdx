@@ -13,15 +13,28 @@ Localization commands manage App Store metadata for different languages and regi
 List localization metadata for an app or version.
 
 <ParamField path="--version" type="string">
-  App Store version ID (required for version localizations)
+  App Store version ID. When omitted for version localizations, the `--app`'s
+  newest editable App Store version (`PREPARE_FOR_SUBMISSION`,
+  `DEVELOPER_REJECTED`, `REJECTED`, `METADATA_REJECTED`, `READY_FOR_REVIEW`,
+  `WAITING_FOR_REVIEW`, or `INVALID_BINARY`) is used, falling back to the live
+  version. The selected version is reported on stderr. Ignored for `--next`
+  continuations, which already carry their version.
 </ParamField>
 
 <ParamField path="--app" type="string">
-  App Store Connect app ID (or `ASC_APP_ID` env, required for app-info localizations)
+  App Store Connect app ID (or `ASC_APP_ID` env). Required for app-info
+  localizations and for version localizations when `--version` is omitted.
 </ParamField>
 
 <ParamField path="--app-info" type="string">
   App Info ID (optional override)
+</ParamField>
+
+<ParamField path="--platform" type="string">
+  Platform used to pick the default version when `--version` is omitted:
+  `IOS`, `MAC_OS`, `TV_OS`, or `VISION_OS`. Required when the app has candidate
+  versions on more than one platform. Only valid with `--type version` and
+  without `--version` or `--next`.
 </ParamField>
 
 <ParamField path="--type" type="string" default="version">
@@ -55,6 +68,8 @@ List localization metadata for an app or version.
 
 ```bash  theme={null}
 asc localizations list --version "VERSION_ID"
+asc localizations list --app "APP_ID"
+asc localizations list --app "APP_ID" --platform IOS
 asc localizations list --app "APP_ID" --type app-info --app-info-fields kidsAgeBand
 asc localizations list --version "VERSION_ID" --locale "en-US,ja"
 asc localizations list --version "VERSION_ID" --paginate

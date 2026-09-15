@@ -36,16 +36,25 @@ asc metadata push --app "APP_ID" --version "1.2.3" --dir "./metadata"
 Pull metadata from App Store Connect into canonical files:
 
 ```bash  theme={null}
+asc metadata pull --app "APP_ID" --dir "./metadata"
 asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata"
 asc metadata pull --app "APP_ID" --version "1.2.3" --platform IOS --dir "./metadata"
 asc metadata pull --app "APP_ID" --version "1.2.3" --dir "./metadata" --force
 ```
 
+When `--version` is omitted, the app's newest editable App Store version
+(`PREPARE_FOR_SUBMISSION`, `DEVELOPER_REJECTED`, `REJECTED`,
+`METADATA_REJECTED`, `READY_FOR_REVIEW`, `WAITING_FOR_REVIEW`, or
+`INVALID_BINARY`) is used,
+falling back to the live version. The selected version is reported on stderr
+and its version string names the `version/<version>/` directory. Pass
+`--platform` when the app has candidate versions on more than one platform.
+
 **Flags:**
 
 * `--app` - App Store Connect app ID (or `ASC_APP_ID`)
-* `--version` - App version string (e.g., `1.2.3`) (required)
-* `--platform` - Optional platform: `IOS`, `MAC_OS`, `TV_OS`, or `VISION_OS`
+* `--version` - App version string (e.g., `1.2.3`); defaults to the editable version, else the live version
+* `--platform` - Optional platform: `IOS`, `MAC_OS`, `TV_OS`, or `VISION_OS`; also selects the default version
 * `--dir` - Output root directory (required)
 * `--force` - Overwrite existing metadata files in `--dir`
 * `--include` - Included metadata scopes (default: `localizations`)

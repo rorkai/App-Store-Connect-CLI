@@ -10,16 +10,25 @@ web session.
 ## Usage
 
 ```bash  theme={null}
-asc validate --app "APP_ID" --version "VERSION" [flags]
+asc validate --app "APP_ID" [flags]
 ```
 
-Pass exactly one version selector: `--version` or `--version-id`.
+Pass at most one version selector: `--version` or `--version-id`. When both
+are omitted, `validate` uses the app's newest editable App Store version
+(`PREPARE_FOR_SUBMISSION`, `DEVELOPER_REJECTED`, `REJECTED`,
+`METADATA_REJECTED`, `READY_FOR_REVIEW`, `WAITING_FOR_REVIEW`, or
+`INVALID_BINARY`) and falls back
+to the live version when no editable version exists. The selection is reported
+on stderr, for example
+`Using version 1.2.0 (PREPARE_FOR_SUBMISSION) for platform IOS; pass --version to override`.
+When candidate versions exist on more than one platform, pass `--platform`.
 
 ## Validate a version
 
 Check if a version is ready for submission:
 
 ```bash  theme={null}
+asc validate --app "123456789"
 asc validate --app "123456789" --version "1.2.0"
 asc validate --app "123456789" --version-id "VERSION_ID"
 ```
@@ -139,7 +148,8 @@ table or Markdown output. The ordinary output shape doesn't change when
 
 <ParamField path="--version" type="string">
   Version string to validate (for example, `1.2.0`). Mutually exclusive with
-  `--version-id`.
+  `--version-id`. When neither selector is passed, the app's newest editable
+  version is used, falling back to the live version.
 </ParamField>
 
 <ParamField path="--version-id" type="string">
@@ -148,8 +158,9 @@ table or Markdown output. The ordinary output shape doesn't change when
 
 <ParamField path="--platform" type="string">
   Platform used with `--version` when an app has the same version on more than
-  one platform. When used with `--version-id`, the selected version must match
-  this platform.
+  one platform, or to pick the default version when both selectors are omitted
+  and the app has candidates on more than one platform. When used with
+  `--version-id`, the selected version must match this platform.
 </ParamField>
 
 <ParamField path="--output" type="string">
