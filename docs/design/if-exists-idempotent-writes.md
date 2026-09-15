@@ -66,7 +66,7 @@ Error codes keyed on, per command:
 | `versions create` | `GET /v1/apps/{id}/appStoreVersions?filter[versionString]=&filter[platform]=` | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` (source pointer `/data/attributes/versionString`, detail "The version number has been previously used.") | **Verified live** against app `6759231657` on 2026-09-15: re-creating the existing version string returns two errors, `errors[0]` = `ENTITY_ERROR.RELATIONSHIP.INVALID` ("You cannot create a new version of the App in the current state.", pointer `/data/relationships/app`) and `errors[1]` = the duplicate code above. A 409 carrying only the relationship rejection (a genuinely new version string the app cannot accept yet) has no duplicate code and keeps failing. |
 | `review details-create` | `GET /v1/appStoreVersions/{id}/appStoreReviewDetail` | `STATE_ERROR.ALREADY_EXISTS`, `ENTITY_ERROR.RELATIONSHIP.INVALID`, `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | **Verified live** against app `6759231657` on 2026-09-15: creating a detail for a version that already has one returns 409 `STATE_ERROR.ALREADY_EXISTS` ("Resource already exists." / "The given app version already has an existing review."). The relationship and duplicate-attribute codes are kept as defensive alternates; every other `STATE_ERROR.*` keeps failing, and the read-back is the decisive check. |
 | `localizations create` / `update` / `metadata push` | `GET /v1/appStoreVersions/{id}/appStoreVersionLocalizations` filtered by locale | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` (detail "Entity with locale: ... already exists. Try updating.") | Detail text verified from developer forum threads 677931 and 776315; code to be confirmed with the PR2 fixture. |
-| `pricing availability create` | `GET /v1/apps/{id}/appAvailabilityV2` | `ENTITY_ERROR.RELATIONSHIP.INVALID`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | To be confirmed with the PR3 fixture; the CLI already maps this conflict to "app availability already exists" in `web apps availability create`. |
+| `pricing availability create` | `GET /v1/apps/{id}/appAvailabilityV2` | `ENTITY_ERROR.RELATIONSHIP.INVALID` (pointer `/data/relationships/app`), `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | `internal/asc/pricing_test.go` already replays a 409 `ENTITY_ERROR.RELATIONSHIP.INVALID` for `POST /v2/appAvailabilities`, and `web apps availability create` treats an existing record as this same condition. **This code is ambiguous on this endpoint**: Apple also returns it for the public-API bootstrap rejection, which is classified first (by its `territoryAvailabilities.territory` detail) and keeps its own remediation. The read-back is decisive either way, since the bootstrap rejection creates nothing. Detail text not verified live. |
 | `bundle-ids capabilities add` | `GET /v1/bundleIds/{id}/bundleIdCapabilities` filtered by capability type | `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | To be confirmed with the PR4 fixture. `ENTITY_ERROR.ATTRIBUTE.TYPE` (unsupported capability) is also a 409 and must keep failing. |
 | `review items add` | `GET /v1/reviewSubmissions/{id}/items` filtered by the linked resource | `ENTITY_ERROR.RELATIONSHIP.INVALID`, `ENTITY_ERROR.ATTRIBUTE.INVALID.ALREADY_EXISTS` | To be confirmed with the PR4 fixture. `STATE_ERROR.*` (submission not editable) must keep failing. |
 
@@ -110,8 +110,13 @@ codes is listed.
    `PATCH /v1/appStoreReviewDetails/{id}` with the same attributes).
 2. `if-exists-localizations`: `localizations create`/`update` and
    `metadata push`.
-3. `if-exists-pricing`: `pricing availability create` (`update` routes to the
-   availability edit path).
+3. `if-exists-pricing`: `pricing availability create`. `update` routes to the
+   same code path as `pricing availability edit`, through the exported
+   `shared.ApplyTerritoryAvailabilityUpdate`. Apple exposes no update operation
+   for `availableInNewTerritories`, so on `update` that flag is only verified
+   against the existing policy and a mismatch fails; `--territory` and
+   `--available` are applied. `skip` still pays for the territory-catalog fetch
+   the create performs before the POST.
 4. `if-exists-capabilities`: `bundle-ids capabilities add` and `review items
    add` (`skip` only).
 
