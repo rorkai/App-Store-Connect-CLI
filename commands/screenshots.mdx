@@ -197,6 +197,19 @@ List all screenshots for a version localization:
 asc screenshots list --version-localization "LOC_ID"
 ```
 
+With `--version` or `--version-id`, `--locale` is optional. Omit it to list every
+localization of the version. JSON output then fills a `localizations` array with
+one entry per locale and leaves the top-level `versionLocalizationId` and `sets`
+keys empty, and table output gains a leading `Locale` column:
+
+```bash  theme={null}
+# Every localization of the version
+asc screenshots list --app "123456789" --version "1.2.3"
+
+# One localization
+asc screenshots list --app "123456789" --version "1.2.3" --locale "en-US"
+```
+
 ### Check Screenshot Sizes
 
 Display supported screenshot dimensions and device types:

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
@@ -300,12 +301,12 @@ func AssetsScreenshotsListCommand() *ffcli.Command {
 	version := fs.String("version", "", "App Store version string (requires --app)")
 	versionID := fs.String("version-id", "", "App Store version ID")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (defaults to IOS with --version; with --version-id requires --app or ASC_APP_ID)")
-	locale := fs.String("locale", "", "Localization locale (required with --version or --version-id)")
+	locale := fs.String("locale", "", "Localization locale (optional with --version or --version-id; omit to list every localization of the version)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
 		Name:       "list",
-		ShortUsage: "asc screenshots list (--version-localization \"VERSION_LOCALIZATION_ID\" | --version-id \"VERSION_ID\" --locale \"LOCALE\" | --app \"APP_ID\" --version \"VERSION\" --locale \"LOCALE\")",
+		ShortUsage: "asc screenshots list (--version-localization \"VERSION_LOCALIZATION_ID\" | --version-id \"VERSION_ID\" [--locale \"LOCALE\"] | --app \"APP_ID\" --version \"VERSION\" [--locale \"LOCALE\"])",
 		ShortHelp:  "List screenshots for a localization.",
 		LongHelp: `List screenshots for a localization.
 
@@ -314,10 +315,17 @@ returned as data[].id by:
   asc localizations list --version "VERSION_ID" --output json --locale "en-US"
 It is not the locale code such as en-US.
 
+With --version or --version-id, --locale is optional. When it is omitted every
+localization of the version is listed: JSON output fills the "localizations"
+array with one entry per locale and leaves the top-level "versionLocalizationId"
+and "sets" keys empty, and table output gains a leading Locale column. Pass
+--locale to scope the listing to one localization.
+
 Examples:
   asc screenshots list --version-localization "VERSION_LOCALIZATION_ID"
   asc screenshots list --version-id "VERSION_ID" --locale "en-US"
-  asc screenshots list --app "123456789" --version "1.2.3" --locale "en-US"`,
+  asc screenshots list --app "123456789" --version "1.2.3" --locale "en-US"
+  asc screenshots list --app "123456789" --version "1.2.3"`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -376,7 +384,7 @@ func executeScreenshotListCommand(ctx context.Context, opts screenshotListComman
 	versionModeRequested := appValue != "" || versionValue != "" || versionIDValue != "" || platformValue != "" || localeValue != ""
 
 	if locID == "" && !versionModeRequested {
-		fmt.Fprintln(os.Stderr, "Error: choose a localization selector: --version-localization VERSION_LOCALIZATION_ID; --version-id VERSION_ID with --locale LOCALE; or (--app APP_ID or ASC_APP_ID) with --version VERSION and --locale LOCALE")
+		fmt.Fprintln(os.Stderr, "Error: choose a localization selector: --version-localization VERSION_LOCALIZATION_ID; --version-id VERSION_ID with optional --locale LOCALE; or (--app APP_ID or ASC_APP_ID) with --version VERSION and optional --locale LOCALE")
 		return nil, shared.MissingRequiredUsageError("")
 	}
 	if locID != "" && versionModeRequested {
@@ -392,10 +400,6 @@ func executeScreenshotListCommand(ctx context.Context, opts screenshotListComman
 		if versionValue == "" && versionIDValue == "" {
 			fmt.Fprintln(os.Stderr, "Error: --version or --version-id is required")
 			return nil, shared.MissingRequiredUsageError("")
-		}
-		if localeValue == "" {
-			fmt.Fprintln(os.Stderr, "Error: --locale is required with --version or --version-id")
-			return nil, shared.MissingRequiredUsageError("--locale")
 		}
 		if versionValue != "" || (versionIDValue != "" && platformValue != "") {
 			appValue = shared.ResolveAppID(appValue)
@@ -419,11 +423,13 @@ func executeScreenshotListCommand(ctx context.Context, opts screenshotListComman
 			normalizedPlatform = "IOS"
 		}
 
-		canonicalLocale, err := shared.CanonicalizeAppStoreLocalizationLocale(localeValue)
-		if err != nil {
-			return nil, shared.UsageError(err.Error())
+		if localeValue != "" {
+			canonicalLocale, err := shared.CanonicalizeAppStoreLocalizationLocale(localeValue)
+			if err != nil {
+				return nil, shared.UsageError(err.Error())
+			}
+			localeValue = canonicalLocale
 		}
-		localeValue = canonicalLocale
 	}
 
 	client, err := deps.GetClient()
@@ -455,6 +461,11 @@ func executeScreenshotListCommand(ctx context.Context, opts screenshotListComman
 		if listErr != nil {
 			return nil, fmt.Errorf("failed to fetch version localizations: %w", listErr)
 		}
+
+		if localeValue == "" {
+			return fetchScreenshotListForAllLocalizations(ctx, client, resolvedVersionID, localizations, deps.RequestContext)
+		}
+
 		for _, item := range localizations {
 			if strings.EqualFold(strings.TrimSpace(item.Attributes.Locale), localeValue) {
 				locID = strings.TrimSpace(item.ID)
@@ -462,11 +473,102 @@ func executeScreenshotListCommand(ctx context.Context, opts screenshotListComman
 			}
 		}
 		if locID == "" {
-			return nil, fmt.Errorf("no App Store version localization found for locale %q", localeValue)
+			return nil, screenshotVersionLocalizationLocaleError(resolvedVersionID, localeValue, localizations)
 		}
 	}
 
-	return fetchScreenshotList(ctx, client, locID, deps.RequestContext)
+	result, err := fetchScreenshotList(ctx, client, locID, deps.RequestContext)
+	if err != nil {
+		return nil, err
+	}
+	result.Locale = localeValue
+	return result, nil
+}
+
+// screenshotVersionLocalizationLocales returns the locales configured on a
+// version, sorted so diagnostics stay deterministic.
+func screenshotVersionLocalizationLocales(localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes]) []string {
+	locales := make([]string, 0, len(localizations))
+	for _, item := range localizations {
+		if locale := strings.TrimSpace(item.Attributes.Locale); locale != "" {
+			locales = append(locales, locale)
+		}
+	}
+	sort.Strings(locales)
+	return locales
+}
+
+func screenshotVersionWithoutLocalizationsError(versionID string) error {
+	return fmt.Errorf(
+		"no App Store version localizations found for version %s; create one with: asc localizations create --version %s --locale en-US",
+		versionID,
+		versionID,
+	)
+}
+
+func screenshotVersionLocalizationLocaleError(
+	versionID string,
+	locale string,
+	localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes],
+) error {
+	available := screenshotVersionLocalizationLocales(localizations)
+	if len(available) == 0 {
+		return screenshotVersionWithoutLocalizationsError(versionID)
+	}
+	return fmt.Errorf(
+		"no App Store version localization found for locale %q; available locales: %s",
+		locale,
+		strings.Join(available, ", "),
+	)
+}
+
+// fetchScreenshotListForAllLocalizations lists screenshots for every
+// localization of a version, in locale order, when no --locale is selected.
+func fetchScreenshotListForAllLocalizations(
+	ctx context.Context,
+	client *asc.Client,
+	versionID string,
+	localizations []asc.Resource[asc.AppStoreVersionLocalizationAttributes],
+	requestContext func(context.Context) (context.Context, context.CancelFunc),
+) (*asc.AppScreenshotListResult, error) {
+	ordered := make([]asc.Resource[asc.AppStoreVersionLocalizationAttributes], 0, len(localizations))
+	for _, item := range localizations {
+		if strings.TrimSpace(item.ID) == "" {
+			continue
+		}
+		ordered = append(ordered, item)
+	}
+	if len(ordered) == 0 {
+		return nil, screenshotVersionWithoutLocalizationsError(versionID)
+	}
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return strings.TrimSpace(ordered[i].Attributes.Locale) < strings.TrimSpace(ordered[j].Attributes.Locale)
+	})
+
+	fmt.Fprintf(
+		os.Stderr,
+		"Note: --locale not set; listing screenshots across all %d localizations of App Store version %s. Pass --locale to scope the listing to one localization.\n",
+		len(ordered),
+		versionID,
+	)
+
+	result := &asc.AppScreenshotListResult{
+		Sets:          []asc.AppScreenshotSetWithScreenshots{},
+		Localizations: make([]asc.AppScreenshotLocalizationListResult, 0, len(ordered)),
+	}
+	for _, item := range ordered {
+		localizationID := strings.TrimSpace(item.ID)
+		localeResult, err := fetchScreenshotList(ctx, client, localizationID, requestContext)
+		if err != nil {
+			return nil, err
+		}
+		result.Localizations = append(result.Localizations, asc.AppScreenshotLocalizationListResult{
+			Locale:                strings.TrimSpace(item.Attributes.Locale),
+			VersionLocalizationID: localizationID,
+			Sets:                  localeResult.Sets,
+		})
+	}
+	return result, nil
 }
 
 func fetchAllScreenshotVersionLocalizations(

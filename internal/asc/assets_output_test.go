@@ -325,3 +325,70 @@ func TestAssetPreviewAndDeleteRowsRemoveTerminalControls(t *testing.T) {
 	headers, rows = assetDeleteResultRows(&AssetDeleteResult{ID: "ASSET\x1bID", Deleted: true})
 	assertRowsAreInert(t, headers, rows)
 }
+
+func TestAppScreenshotListResultRowsAddLocaleColumnForAllLocalizationResults(t *testing.T) {
+	headers, rows := appScreenshotListResultRows(&AppScreenshotListResult{
+		Localizations: []AppScreenshotLocalizationListResult{
+			{
+				Locale:                "de-DE",
+				VersionLocalizationID: "loc-de",
+			},
+			{
+				Locale:                "en-US",
+				VersionLocalizationID: "loc-en",
+				Sets: []AppScreenshotSetWithScreenshots{{
+					Set: Resource[AppScreenshotSetAttributes]{
+						ID:         "set-en",
+						Attributes: AppScreenshotSetAttributes{ScreenshotDisplayType: "APP_IPHONE_65"},
+					},
+					Screenshots: []Resource[AppScreenshotAttributes]{{
+						ID:         "shot-en",
+						Attributes: AppScreenshotAttributes{FileName: "home.png", FileSize: 42},
+					}},
+				}},
+			},
+		},
+	})
+
+	wantHeaders := []string{"Locale", "Set ID", "Display Type", "Screenshot ID", "File Name", "File Size", "State"}
+	if len(headers) != len(wantHeaders) {
+		t.Fatalf("headers = %#v, want %#v", headers, wantHeaders)
+	}
+	for i, want := range wantHeaders {
+		if headers[i] != want {
+			t.Fatalf("headers = %#v, want %#v", headers, wantHeaders)
+		}
+	}
+	if len(rows) != 2 {
+		t.Fatalf("rows = %#v, want 2 rows", rows)
+	}
+	if rows[0][0] != "de-DE" || rows[0][1] != "" {
+		t.Fatalf("first row = %#v, want empty de-DE placeholder row", rows[0])
+	}
+	if rows[1][0] != "en-US" || rows[1][1] != "set-en" || rows[1][3] != "shot-en" || rows[1][4] != "home.png" {
+		t.Fatalf("second row = %#v, want en-US screenshot row", rows[1])
+	}
+}
+
+func TestAppScreenshotListResultLocaleRowsRemoveTerminalControls(t *testing.T) {
+	headers, rows := appScreenshotListResultRows(&AppScreenshotListResult{
+		Localizations: []AppScreenshotLocalizationListResult{{
+			Locale:                "en\x1bUS",
+			VersionLocalizationID: "LOC\x1bID",
+			Sets: []AppScreenshotSetWithScreenshots{{
+				Set: Resource[AppScreenshotSetAttributes]{
+					ID:         "SET\x1bID",
+					Attributes: AppScreenshotSetAttributes{ScreenshotDisplayType: "APP_IPHONE_67\u202e"},
+				},
+				Screenshots: []Resource[AppScreenshotAttributes]{{
+					ID: "SHOT\x1bID",
+					Attributes: AppScreenshotAttributes{
+						FileName:           hostileText,
+						AssetDeliveryState: &AssetDeliveryState{State: "COMPLETE\x07"},
+					},
+				}},
+			}},
+		}},
+	})
+	assertRowsAreInert(t, headers, rows)
+}
