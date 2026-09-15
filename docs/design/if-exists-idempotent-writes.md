@@ -99,6 +99,96 @@ codes is listed.
   version VERSION_ID; left unchanged (--if-exists skip)`, so table output on a
   TTY also shows what happened.
 
+### `metadata push`
+
+`metadata push` (and its `metadata apply` alias) is a bulk reconciler rather
+than a single create, so `--if-exists` applies per locale and only to the two
+create-style writes it issues:
+
+- `POST /v1/appStoreVersionLocalizations` (version scope)
+- `POST /v1/appInfoLocalizations` (app-info scope)
+
+Nothing else it issues can produce an existence conflict: the other writes are
+`PATCH`es on a resolved localization ID and a `DELETE` behind
+`--allow-deletes --confirm`. It also never creates the version, so `versions
+create`'s duplicate-`versionString` 409 is out of reach here: the version is
+resolved with `GET /v1/apps/{id}/appStoreVersions` and a missing version is an
+error before any mutation.
+
+A duplicate-locale 409 is rarer than the raw telemetry count suggests, because
+every mutation already runs through `shared.RunReconciledMutation` with a
+field-matching read-back. When the locale exists *and* already carries the
+planned fields, today's code reconciles the conflict into `action: reconcile`
+and exits 0. The 409 survives exactly when the locale is absent from the plan
+read and present at apply time with content that differs from the plan, which
+is the retry-after-partial-failure shape the telemetry is made of. That is the
+case `--if-exists` covers:
+
+- `skip` records the existing localization untouched and contributes to a new
+  `skipped` counter instead of `succeeded`:
+  `{"scope":"version","locale":"ja","action":"create","status":"skipped","localizationId":"loc-ja","alreadyExists":true,"ifExists":"skip"}`.
+- `update` routes the same desired fields to
+  `PATCH /v1/appStoreVersionLocalizations/{id}` or
+  `PATCH /v1/appInfoLocalizations/{id}` on the localization the read-back
+  found, then records `action: update` with `alreadyExists: true`. The body
+  carries only the fields the local file set; `locale` is immutable and is
+  never sent.
+
+The existence read-back reuses the command's own natural-key lookups
+(`readBackVersionLocalization` / `readBackAppInfoLocalization`) with no desired
+fields, so it asks only whether the locale is present in
+`GET /v1/appStoreVersions/{id}/appStoreVersionLocalizations` or
+`GET /v1/appInfos/{id}/appInfoLocalizations` (paginated, limit 200). A
+read-back that finds nothing leaves the 409 unchanged, and a 409 whose Apple
+code is not `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` never triggers it, and
+because `shared.IsIfExistsConflict` walks every entry in Apple's `errors[]`
+array, a duplicate code reported after a relationship rejection is still
+matched. Each resolved conflict writes one stderr line, for example
+`metadata push: version localization loc-ja for locale ja already exists;
+updated in place (--if-exists update)`.
+
+This section is the authority on the code for `metadata push`; it settles the
+"code to be confirmed with the PR2 fixture" note left on the shared
+`localizations create` / `update` / `metadata push` table row above, which the
+`localizations create` PR rewrites for its own half.
+
+#### Receipt change
+
+`ApplyAction` and `PushPlanResult` are the push command's own exported
+camelCase receipt, printed through the renderers registered in `push.go`
+rather than through `internal/asc/output_*.go`. The change is additive:
+
+| Field | Type | When present |
+| --- | --- | --- |
+| `actions[].alreadyExists` | bool | Only when `--if-exists` resolved a create conflict for that locale |
+| `actions[].ifExists` | string | Same, carrying the mode that resolved it (`skip` or `update`) |
+| `skipped` | int | Only when at least one action was skipped |
+
+`actions[].status` gains one further value, `skipped`, reusing
+`asc.IdempotentWriteActionSkipped` so the vocabulary matches the shared
+`IdempotentWriteReceipt`. No field is removed or renamed, every new key is
+`omitempty`, and a run under the default `--if-exists fail` produces
+byte-identical JSON; the table and markdown renderers print a `Skipped:` line
+only when the counter is non-zero.
+
+A skipped or updated duplicate also suppresses the submit-readiness "was
+created" warning for that locale, for the same reason as `localizations
+create`: nothing was created, and the existing localization may already carry
+the fields the local file omitted.
+
+#### Review-plan binding
+
+`metadata plan` / `metadata approve` / `metadata apply --review-dir` bind an
+apply to the exact reviewed options through a plan hash (see
+`docs/design/metadata-approval-workflow.md`). The conflict policy is part of
+those options: `--if-exists update` can PATCH a localization the reviewer never
+saw in the plan, so the normalized mode is recorded in `options.ifExists` and
+hashed. `metadata plan` therefore takes `--if-exists` as well, and applying an
+approved plan with a different mode fails with the existing
+"approved metadata plan drifted" usage error. `fail` renders as the empty
+string and is omitted, so plan artifacts written before this flag existed keep
+their hash and stay approvable.
+
 ### Series
 
 1. `if-exists-core`: shared flag and helpers, receipt fields, `versions create`

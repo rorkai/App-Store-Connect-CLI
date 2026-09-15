@@ -51,6 +51,22 @@ func ParseIfExistsMode(raw string, supported ...IfExistsMode) (IfExistsMode, err
 	return "", UsageErrorf("--%s must be one of %s (got %q)", ifExistsFlagName, strings.Join(modes, ", "), strings.TrimSpace(raw))
 }
 
+// ParseOptionalIfExistsMode is ParseIfExistsMode for a value that may legitimately
+// be absent: a PushExecutionOptions-style field an in-process caller left unset,
+// or a mode read back from an artifact written before --if-exists existed. An
+// absent value means fail, the historical behavior. A non-empty unsupported
+// value is still a usage error.
+//
+// Do not use this for a bound --if-exists flag value. BindIfExistsFlag defaults
+// the flag to fail, so an empty value there was supplied explicitly and
+// ParseIfExistsMode rejects it.
+func ParseOptionalIfExistsMode(raw string, supported ...IfExistsMode) (IfExistsMode, error) {
+	if strings.TrimSpace(raw) == "" {
+		return IfExistsFail, nil
+	}
+	return ParseIfExistsMode(raw, supported...)
+}
+
 func ifExistsModeNames(supported []IfExistsMode) []string {
 	modes := []string{string(IfExistsFail)}
 	for _, mode := range []IfExistsMode{IfExistsSkip, IfExistsUpdate} {

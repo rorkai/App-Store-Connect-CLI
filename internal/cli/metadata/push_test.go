@@ -167,7 +167,7 @@ func TestApplyAppInfoChangesIgnoresRemoteOnlyEmptyLocalization(t *testing.T) {
 		},
 	}
 	for _, allowDeletes := range []bool{false, true} {
-		actions, err := applyAppInfoChanges(context.Background(), nil, "appinfo-1", map[string]appInfoLocalPatch{}, remote, allowDeletes)
+		actions, err := applyAppInfoChanges(context.Background(), nil, "appinfo-1", map[string]appInfoLocalPatch{}, remote, allowDeletes, metadataIfExistsOptions{})
 		if err != nil || len(actions) != 0 {
 			t.Fatalf("allowDeletes=%t: expected empty remote locale no-op, actions=%+v err=%v", allowDeletes, actions, err)
 		}

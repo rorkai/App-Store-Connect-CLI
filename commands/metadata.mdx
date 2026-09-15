@@ -89,6 +89,7 @@ asc metadata push --app "APP_ID" --version "1.2.3" --dir "./metadata" --allow-de
 * `--dry-run` - Preview changes without mutating App Store Connect
 * `--allow-deletes` - Allow destructive delete operations (disables default locale fallback)
 * `--confirm` - Confirm destructive operations (required with `--allow-deletes`)
+* `--if-exists` - Behavior when a locale already exists: `fail` (default), `skip`, `update`
 * `--output` - Output format: `json`, `table`, `markdown`
 * `--pretty` - Pretty-print JSON output
 
@@ -97,6 +98,7 @@ asc metadata push --app "APP_ID" --version "1.2.3" --dir "./metadata" --allow-de
 * `default.json` fallback is applied only when `--allow-deletes` is not set
 * With `--allow-deletes`, remote locales missing locally are planned as deletes
 * Omitted fields are treated as no-op; they do not imply deletion
+* `--if-exists skip` records an existing locale as `status: skipped` and leaves it untouched; `--if-exists update` applies the planned fields to it instead. `fail` keeps today's behavior and reports the conflict.
 
 ### metadata validate
 
