@@ -38,8 +38,8 @@ Examples:
 func BetaGroupsAppGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app view", flag.ExitOnError)
 
-	groupID := fs.String("group-id", "", "Beta group ID")
-	aliasID := fs.String("id", "", "Beta group ID (alias of --group-id)")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "betaGroups", "Beta group ID")
+	aliasID := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID (alias of --group-id)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -114,8 +114,8 @@ Examples:
 func BetaGroupsRecruitmentCriteriaGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("beta-recruitment-criteria view", flag.ExitOnError)
 
-	groupID := fs.String("group-id", "", "Beta group ID")
-	aliasID := fs.String("id", "", "Beta group ID (alias of --group-id)")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "betaGroups", "Beta group ID")
+	aliasID := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID (alias of --group-id)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -190,8 +190,8 @@ Examples:
 func BetaGroupsRecruitmentCriterionCompatibleBuildCheckGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("beta-recruitment-criterion-compatible-build-check view", flag.ExitOnError)
 
-	groupID := fs.String("group-id", "", "Beta group ID")
-	aliasID := fs.String("id", "", "Beta group ID (alias of --group-id)")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "betaGroups", "Beta group ID")
+	aliasID := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID (alias of --group-id)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

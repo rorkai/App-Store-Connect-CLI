@@ -199,6 +199,40 @@ The CLI uses a type-safe output registry system (`internal/asc/output_registry.g
 
 Most commands automatically support all three formats without additional code.
 
+## Piping Resource Links Back In
+
+JSON reads print Apple's envelope unmodified, so every resource carries a
+`links.self` URL. Webhook deliveries and other tooling hand the same URLs
+around. The resource ID flags on the most-used commands accept that URL in
+place of the bare ID, so a `links.self` value can be passed straight back:
+
+```bash
+# Extract the self-link of the latest build and pass it to builds info
+LINK=$(asc builds list --app 123456789 --limit 1 --output json | jq -r '.data[0].links.self')
+asc builds info --build-id "$LINK"
+
+# Equivalent to
+asc builds info --build-id 2f1a3c4d-...
+```
+
+Rules:
+
+* Only `https://api.appstoreconnect.apple.com/v<n>/<type>/<id>` URLs are
+  accepted. Relationship and related-resource paths
+  (`/v1/builds/<id>/relationships/betaGroups`) are rejected so the intent
+  stays explicit.
+* A flag that names one resource type rejects a link of another type
+  (`--build-id` with an `appStoreVersions` link) with a usage error, exit code
+  `2`, before authentication or any request.
+* Bare IDs, bundle identifiers, product IDs, and names keep working
+  unchanged.
+
+Flags covered today: `--build-id`, `--app` (including `ASC_APP_ID`),
+`--version-id`, `--submission-id`, `--info-id`, `--localization-id`,
+`--subscription-id`, `--iap-id`, the `--id`/`--group` flags on `testflight groups`,
+`--id` on `apps`, `subscriptions`, `iap`, and `bundle-ids`, and `--bundle` on
+`bundle-ids capabilities`. Other ID flags still take bare IDs.
+
 ## Best Practices
 
 <CardGroup cols={2}>

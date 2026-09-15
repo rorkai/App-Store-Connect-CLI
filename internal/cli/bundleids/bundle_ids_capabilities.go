@@ -49,7 +49,7 @@ Examples:
 func BundleIDsCapabilitiesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	bundleID := fs.String("bundle", "", "Bundle ID")
+	bundleID := shared.BindResourceIDFlag(fs, "bundle", "bundleIds", "Bundle ID")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
 	output := shared.BindOutputFlags(fs)
@@ -117,7 +117,7 @@ Examples:
 func BundleIDsCapabilitiesAddCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("add", flag.ExitOnError)
 
-	bundleID := fs.String("bundle", "", "Bundle ID")
+	bundleID := shared.BindResourceIDFlag(fs, "bundle", "bundleIds", "Bundle ID")
 	capability := fs.String("capability", "", "Capability type (e.g., ICLOUD, IN_APP_PURCHASE)")
 	settings := fs.String("settings", "", "Capability settings as a structure-validated JSON array (optional)")
 	output := shared.BindOutputFlags(fs)

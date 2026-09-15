@@ -47,7 +47,7 @@ Examples:
 func IAPPriceSchedulesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("schedules view", flag.ExitOnError)
 
-	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
+	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	appID := addIAPLookupAppFlag(fs)
 	scheduleID := fs.String("schedule-id", "", "Price schedule ID")
 	include := fs.String("include", "", "Include relationships: baseTerritory,manualPrices,automaticPrices")
@@ -224,7 +224,7 @@ Examples:
 func IAPPriceSchedulesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("schedules create", flag.ExitOnError)
 
-	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
+	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	appID := fs.String("app", "", iapLookupAppUsage)
 	baseTerritory := fs.String("base-territory", "", "Base territory ID (e.g., USA)")
 	prices := fs.String("prices", "", "Manual prices: PRICE_POINT_ID[:START_DATE[:END_DATE]] entries")

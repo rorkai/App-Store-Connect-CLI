@@ -61,7 +61,7 @@ Examples:
 func TestFlightFeedbackViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	submissionID := fs.String("submission-id", "", "Feedback submission ID")
+	submissionID := shared.BindResourceIDFlag(fs, "submission-id", "betaFeedbackScreenshotSubmissions", "Feedback submission ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -88,7 +88,7 @@ Examples:
 func TestFlightFeedbackDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	submissionID := fs.String("submission-id", "", "Feedback submission ID")
+	submissionID := shared.BindResourceIDFlag(fs, "submission-id", "betaFeedbackScreenshotSubmissions", "Feedback submission ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
@@ -165,7 +165,7 @@ Examples:
 func TestFlightCrashesViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	submissionID := fs.String("submission-id", "", "Crash submission ID")
+	submissionID := shared.BindResourceIDFlag(fs, "submission-id", "betaFeedbackCrashSubmissions", "Crash submission ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -192,7 +192,7 @@ Examples:
 func TestFlightCrashesDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	submissionID := fs.String("submission-id", "", "Crash submission ID")
+	submissionID := shared.BindResourceIDFlag(fs, "submission-id", "betaFeedbackCrashSubmissions", "Crash submission ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
@@ -224,7 +224,7 @@ Examples:
 func TestFlightCrashesLogCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("log", flag.ExitOnError)
 
-	submissionID := fs.String("submission-id", "", "Crash submission ID")
+	submissionID := shared.BindResourceIDFlag(fs, "submission-id", "betaFeedbackCrashSubmissions", "Crash submission ID")
 	crashLogID := fs.String("crash-log-id", "", "Crash log ID")
 	output := shared.BindOutputFlags(fs)
 

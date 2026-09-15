@@ -1508,6 +1508,10 @@ func wrapCommandOutputValidation(cmd *ffcli.Command, parents []*ffcli.Command) {
 }
 
 func resolveAppID(appID string) string {
+	return appSelfLinkID(resolveRawAppID(appID))
+}
+
+func resolveRawAppID(appID string) string {
 	if appID != "" {
 		return appID
 	}
@@ -1519,6 +1523,21 @@ func resolveAppID(appID string) string {
 		return ""
 	}
 	return strings.TrimSpace(cfg.AppID)
+}
+
+// appSelfLinkID extracts the app ID from an apps self-link so every command
+// that resolves its app through ResolveAppID accepts a links.self value. Any
+// other value, including a self-link of another type, is left unchanged for
+// the caller's own validation and lookup.
+func appSelfLinkID(appID string) string {
+	if !looksLikeHTTPURL(strings.TrimSpace(appID)) {
+		return appID
+	}
+	id, err := ResourceIDFromValue(appID, "apps")
+	if err != nil {
+		return appID
+	}
+	return id
 }
 
 type timeoutParentContextKey struct{}

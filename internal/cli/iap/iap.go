@@ -272,7 +272,7 @@ Examples:
 func IAPGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	iapID := fs.String("id", "", "In-app purchase ID")
+	iapID := shared.BindResourceIDFlag(fs, "id", "inAppPurchases", "In-app purchase ID")
 	legacy := fs.Bool("legacy", false, "Use legacy v1 in-app purchase endpoint")
 	includeVersions := fs.Bool("include-versions", false, "Include related in-app purchase versions (v2 only)")
 	versionsLimit := fs.Int("versions-limit", 0, "Maximum included versions (1-50, v2 only)")
@@ -433,7 +433,7 @@ Examples:
 func IAPUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	iapID := fs.String("id", "", "In-app purchase ID")
+	iapID := shared.BindResourceIDFlag(fs, "id", "inAppPurchases", "In-app purchase ID")
 	refName := fs.String("ref-name", "", "Reference name")
 	familySharable := fs.Bool("family-sharable", false, "Enable Family Sharing (cannot be undone)")
 	output := shared.BindOutputFlags(fs)
@@ -493,7 +493,7 @@ Examples:
 func IAPDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	iapID := fs.String("id", "", "In-app purchase ID")
+	iapID := shared.BindResourceIDFlag(fs, "id", "inAppPurchases", "In-app purchase ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

@@ -21,6 +21,7 @@ func IAPPromotedPurchasesCommand() *ffcli.Command {
 			ProductSingular:    "an in-app purchase",
 			ProductPlural:      "in-app purchases",
 			OwnerIDFlag:        "iap-id",
+			OwnerIDType:        "inAppPurchases",
 			OwnerIDUsage:       "In-app purchase ID, product ID, or exact current name",
 			OwnerIDPlaceholder: "IAP_SELECTOR",
 			ResolveOwnerID: func(ctx context.Context, client *asc.Client, selector string) (string, error) {

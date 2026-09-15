@@ -41,7 +41,7 @@ Examples:
 func VersionsCustomerReviewsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("customer-reviews list", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID")
 	filters := reviews.BindReviewFilterFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")

@@ -177,7 +177,7 @@ Examples:
 func AppsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps view", flag.ExitOnError)
 
-	id := fs.String("id", "", "App Store Connect app ID")
+	id := shared.BindResourceIDFlag(fs, "id", "apps", "App Store Connect app ID")
 	appInfoFields := fs.String("app-info-fields", "", "Sparse fields for included app info records: kidsAgeBand (deprecated by Apple; prefer asc age-rating view)")
 	iapFields := fs.String("iap-fields", "", "Sparse fields for included in-app purchases: versions")
 	subscriptionGroupFields := fs.String("subscription-group-fields", "", "Sparse fields for included subscription groups: versions")
@@ -252,7 +252,7 @@ Examples:
 func AppsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps update", flag.ExitOnError)
 
-	id := fs.String("id", "", "App Store Connect app ID")
+	id := shared.BindResourceIDFlag(fs, "id", "apps", "App Store Connect app ID")
 	bundleID := fs.String("bundle-id", "", "Update bundle ID")
 	primaryLocale := fs.String("primary-locale", "", "Update primary locale (e.g., en-US)")
 	contentRights := fs.String("content-rights", "", "Content rights declaration: DOES_NOT_USE_THIRD_PARTY_CONTENT or USES_THIRD_PARTY_CONTENT")

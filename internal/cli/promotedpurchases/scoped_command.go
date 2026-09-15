@@ -18,13 +18,17 @@ import (
 // ScopedPromotedPurchasesCommandConfig customizes a promoted-purchases command tree
 // to a single product family while preserving the shared generic implementation.
 type ScopedPromotedPurchasesCommandConfig struct {
-	PathPrefix         string
-	ProductType        promotedPurchaseProductType
-	ProductSingular    string
-	ProductPlural      string
-	RootShortHelp      string
-	RootLongHelp       string
-	OwnerIDFlag        string
+	PathPrefix      string
+	ProductType     promotedPurchaseProductType
+	ProductSingular string
+	ProductPlural   string
+	RootShortHelp   string
+	RootLongHelp    string
+	OwnerIDFlag     string
+	// OwnerIDType is the App Store Connect resource type the owner flag names
+	// (for example "subscriptions"); when set, the flag also accepts that
+	// resource's API self-link.
+	OwnerIDType        string
 	OwnerIDUsage       string
 	OwnerIDPlaceholder string
 	ResolveOwnerID     func(context.Context, *asc.Client, string) (string, error)
@@ -203,7 +207,7 @@ func configureScopedPromotedPurchasesViewCommand(cmd *ffcli.Command, cfg ScopedP
 		ownerIDPlaceholder = "PRODUCT_ID"
 	}
 	if ownerIDFlag != "" {
-		bindStringFlagIfMissing(cmd.FlagSet, ownerIDFlag, cfg.OwnerIDUsage)
+		bindOwnerIDFlagIfMissing(cmd.FlagSet, ownerIDFlag, cfg.OwnerIDType, cfg.OwnerIDUsage)
 	}
 
 	if ownerIDFlag == "" {
@@ -315,6 +319,17 @@ func bindStringFlagIfMissing(fs *flag.FlagSet, name, usage string) {
 		return
 	}
 	fs.String(name, "", usage)
+}
+
+func bindOwnerIDFlagIfMissing(fs *flag.FlagSet, name, resourceType, usage string) {
+	if fs == nil || strings.TrimSpace(name) == "" || fs.Lookup(name) != nil {
+		return
+	}
+	if strings.TrimSpace(resourceType) == "" {
+		fs.String(name, "", usage)
+		return
+	}
+	shared.BindResourceIDFlag(fs, name, strings.TrimSpace(resourceType), usage)
 }
 
 func flagWasSet(fs *flag.FlagSet, name string) bool {

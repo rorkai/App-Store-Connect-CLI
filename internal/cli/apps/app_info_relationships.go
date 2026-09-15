@@ -83,8 +83,8 @@ type appInfoCategoryFetcher func(ctx context.Context, client *asc.Client, appInf
 func appsInfoCategoryRelationshipCommand(name, shortHelp string, fetch appInfoCategoryFetcher) *ffcli.Command {
 	fs := flag.NewFlagSet("apps info relationships "+name, flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	infoID := fs.String("info-id", "", "App Info ID (optional override)")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
+	infoID := shared.BindResourceIDFlag(fs, "info-id", "appInfos", "App Info ID (optional override)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

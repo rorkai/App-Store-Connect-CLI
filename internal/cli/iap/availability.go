@@ -41,7 +41,7 @@ func IAPAvailabilityGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing availability view", flag.ExitOnError)
 
 	appID := addIAPLookupAppFlag(fs)
-	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
+	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -89,7 +89,7 @@ func IAPAvailabilitySetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pricing availability set", flag.ExitOnError)
 
 	appID := addIAPLookupAppFlag(fs)
-	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
+	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	territories := shared.BindOnceCSVFlag(fs, "territories", "Territory inputs (comma-separated; accepts alpha-2, alpha-3, or exact English country names)")
 	availableInNew := fs.Bool("available-in-new-territories", false, "Include new territories automatically")
 	output := shared.BindOutputFlags(fs)

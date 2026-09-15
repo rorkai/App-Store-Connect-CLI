@@ -23,7 +23,7 @@ func IAPVersionLocalizationsCommand() *ffcli.Command {
 
 func IAPVersionLocalizationsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions localizations list", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "In-app purchase version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	include := fs.String("include", "", "Include relationship: version")
 	localizationFields := fs.String("localization-fields", "", "fields[inAppPurchaseLocalizations] (comma-separated)")
 	versionFields := fs.String("version-fields", "", "fields[inAppPurchaseVersions] (comma-separated)")
@@ -99,7 +99,7 @@ func IAPVersionLocalizationsListCommand() *ffcli.Command {
 
 func IAPVersionLocalizationsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions localizations create", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "In-app purchase version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	name := fs.String("name", "", "Localization name")
 	locale := fs.String("locale", "", "Locale (for example, en-US)")
 	description := fs.String("description", "", "Description")

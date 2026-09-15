@@ -1008,7 +1008,7 @@ func optionalBetaGroupCreateBool(value shared.OptionalBool) *bool {
 func BetaGroupsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	id := fs.String("id", "", "Beta group ID")
+	id := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -1049,7 +1049,7 @@ Examples:
 func BetaGroupsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	id := fs.String("id", "", "Beta group ID")
+	id := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID")
 	name := fs.String("name", "", "Beta group name")
 	publicLinkEnabled := fs.Bool("public-link-enabled", false, "Enable public link")
 	publicLinkLimitEnabled := fs.Bool("public-link-limit-enabled", false, "Enable public link limit")
@@ -1151,7 +1151,7 @@ Examples:
 func BetaGroupsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	id := fs.String("id", "", "Beta group ID")
+	id := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 
 	return &ffcli.Command{
@@ -1196,7 +1196,7 @@ Examples:
 func BetaGroupsAddTestersCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("add-testers", flag.ExitOnError)
 
-	group := fs.String("group", "", "Beta group ID")
+	group := shared.BindResourceIDFlag(fs, "group", "betaGroups", "Beta group ID")
 	tester := shared.BindOnceCSVFlag(fs, "tester", "Beta tester ID(s), comma-separated")
 	email := shared.BindOnceCSVFlag(fs, "email", "Beta tester email(s), comma-separated")
 
@@ -1296,7 +1296,7 @@ Examples:
 func BetaGroupsRemoveTestersCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("remove-testers", flag.ExitOnError)
 
-	group := fs.String("group", "", "Beta group ID")
+	group := shared.BindResourceIDFlag(fs, "group", "betaGroups", "Beta group ID")
 	tester := shared.BindOnceCSVFlag(fs, "tester", "Beta tester ID(s), comma-separated")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
 

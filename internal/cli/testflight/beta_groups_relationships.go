@@ -46,8 +46,8 @@ Examples:
 func BetaGroupsRelationshipsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("relationships view", flag.ExitOnError)
 
-	groupID := fs.String("group-id", "", "Beta group ID")
-	aliasID := fs.String("id", "", "Beta group ID (alias of --group-id)")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "betaGroups", "Beta group ID")
+	aliasID := shared.BindResourceIDFlag(fs, "id", "betaGroups", "Beta group ID (alias of --group-id)")
 	relType := fs.String("type", "", "Relationship type: "+strings.Join(relationshipTypeList(betaGroupRelationshipKinds), ", "))
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")

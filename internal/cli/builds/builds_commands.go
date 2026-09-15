@@ -24,7 +24,7 @@ const (
 func BuildsUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("upload", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID; IPA uploads also accept an exact bundle ID or exact name (required, or ASC_APP_ID env)")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID; IPA uploads also accept an exact bundle ID or exact name (required, or ASC_APP_ID env)")
 	ipaPath := fs.String("ipa", "", "Path to .ipa file (for iOS, tvOS, visionOS apps)")
 	pkgPath := fs.String("pkg", "", "Path to .pkg file (for macOS apps)")
 	version := fs.String("version", "", "CFBundleShortVersionString (e.g., 1.0.0, auto-extracted from IPA if not provided)")
@@ -542,7 +542,7 @@ func resolveBuildsListInclude(value string) ([]string, error) {
 func BuildsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (or ASC_APP_ID env)")
 	output := shared.BindOutputFlags(fs)
 	sort := fs.String("sort", "", "Sort by "+strings.Join(buildsListSortValues, ", "))
 	version := fs.String("version", "", "Filter by marketing version string (CFBundleShortVersionString)")
@@ -797,8 +797,8 @@ func mergeBuildRelationship(relationships json.RawMessage, key string, value map
 func BuildsInfoCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("builds info", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID")
-	appID := fs.String("app", "", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID, bundle ID, or exact app name (required when --build-id is not provided)")
 	latest := fs.Bool("latest", false, "Show details for the latest build in --app context")
 	version := fs.String("version", "", "Optional marketing version filter (CFBundleShortVersionString) for --app selectors")
 	buildNumber := fs.String("build-number", "", "Build number (CFBundleVersion) for --app unique lookup")

@@ -24,7 +24,7 @@ func IAPVersionImagesCommand() *ffcli.Command {
 
 func IAPVersionImagesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions images list", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "In-app purchase version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	imageFields := fs.String("image-fields", "", "fields[inAppPurchaseImages] (comma-separated)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -82,7 +82,7 @@ func IAPVersionImagesListCommand() *ffcli.Command {
 
 func IAPVersionImagesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions images create", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "In-app purchase version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "inAppPurchaseVersions", "In-app purchase version ID")
 	filePath := fs.String("file", "", "Path to image file")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{

@@ -63,7 +63,7 @@ Examples:
 func VersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions list", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID)")
 	version := fs.String("version", "", "Filter by version string (comma-separated)")
 	platform := fs.String("platform", "", "Filter by platform: IOS, MAC_OS, TV_OS, VISION_OS (comma-separated)")
 	state := fs.String("state", "", "Filter by state (comma-separated)")
@@ -329,8 +329,8 @@ func printAppStoreVersionsList(versions *asc.AppStoreVersionsResponse, includeSe
 func VersionsViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions view", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID")
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID)")
 	versionString := fs.String("version", "", "Version string used with --app")
 	platform := fs.String("platform", "IOS", "Platform used with --app and --version: IOS, MAC_OS, TV_OS, VISION_OS")
 	includeBuild := fs.Bool("include-build", false, "Include attached build information")
@@ -490,7 +490,7 @@ Examples:
 func VersionsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions create", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID)")
 	versionString := fs.String("version", "", "Version string (e.g., 1.0.0) (required)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
@@ -618,7 +618,7 @@ Examples:
 func VersionsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions update", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID (required)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	copyright := fs.String("copyright", "", "Copyright text (e.g., '2026 My Company')")
 	releaseType := fs.String("release-type", "", "Release type: MANUAL, AFTER_APPROVAL, SCHEDULED")
 	earliestReleaseDate := fs.String("earliest-release-date", "", "Earliest release date (ISO 8601, e.g., 2026-02-01T08:00:00+00:00)")
@@ -737,7 +737,7 @@ Examples:
 func VersionsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions delete", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID (required)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion (required)")
 	output := shared.BindOutputFlags(fs)
 
@@ -788,8 +788,8 @@ Examples:
 func VersionsAttachBuildCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions attach-build", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "App Store version ID (required)")
-	buildID := fs.String("build-id", "", "Build ID to attach (required)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (required)")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to attach (required)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

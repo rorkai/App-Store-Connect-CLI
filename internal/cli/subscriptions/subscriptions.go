@@ -104,7 +104,7 @@ Examples:
 func SubscriptionsGroupsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("groups list", flag.ExitOnError)
 
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -439,7 +439,7 @@ func SubscriptionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	groupID := fs.String("group-id", "", "Subscription group ID")
-	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env); lists subscriptions across all groups")
+	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env); lists subscriptions across all groups")
 	fields := fs.String("fields", "", "Sparse fields for subscriptions")
 	versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
 	include := fs.String("include", "", "Include relationships (supports versions)")
@@ -705,7 +705,7 @@ Examples:
 func SubscriptionsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	subID := fs.String("id", "", "Subscription ID")
+	subID := shared.BindResourceIDFlag(fs, "id", "subscriptions", "Subscription ID")
 	fields := fs.String("fields", "", "Sparse fields for subscriptions")
 	versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
 	include := fs.String("include", "", "Include relationships (supports versions)")
@@ -776,7 +776,7 @@ Examples:
 func SubscriptionsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	subID := fs.String("id", "", "Subscription ID")
+	subID := shared.BindResourceIDFlag(fs, "id", "subscriptions", "Subscription ID")
 	referenceName := fs.String("reference-name", "", "Reference name")
 	reviewNote := fs.String("review-note", "", "Review note for App Review")
 	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
@@ -903,7 +903,7 @@ func (i optionalInt) Value() int {
 func SubscriptionsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	subID := fs.String("id", "", "Subscription ID")
+	subID := shared.BindResourceIDFlag(fs, "id", "subscriptions", "Subscription ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
@@ -983,7 +983,7 @@ Examples:
 func SubscriptionsPricesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("prices list", flag.ExitOnError)
 
-	subID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	planType := fs.String("plan-type", "", "Filter by plan type: MONTHLY or UPFRONT")
 	territory := fs.String("territory", "", "Filter by territory (accepts alpha-2, alpha-3, or exact English country name; e.g., US, USA, United States)")
@@ -1368,7 +1368,7 @@ func subscriptionPriceMatchesTarget(price asc.Resource[asc.SubscriptionPriceAttr
 func SubscriptionsPricesAddCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("prices add", flag.ExitOnError)
 
-	subID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := fs.String("app", "", subscriptionLookupAppUsage)
 	pricePointID := fs.String("price-point", "", "Subscription price point ID")
 	tier := fs.Int("tier", 0, "Pricing tier number (mutually exclusive with --price-point and --price)")
@@ -1622,7 +1622,7 @@ func SubscriptionsAvailabilityViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability view", flag.ExitOnError)
 
 	availabilityID := fs.String("availability-id", "", "Subscription availability ID")
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	output := shared.BindOutputFlags(fs)
 
@@ -1688,7 +1688,7 @@ func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability available-territories", flag.ExitOnError)
 
 	availabilityID := fs.String("availability-id", "", "Subscription availability ID")
-	subscriptionID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
@@ -1798,7 +1798,7 @@ Examples:
 func SubscriptionsAvailabilityEditCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability edit", flag.ExitOnError)
 
-	subID := fs.String("subscription-id", "", "Subscription ID, product ID, or exact current name")
+	subID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	territories := fs.String("territories", "", "Territory IDs, comma-separated")
 	availableInNew := fs.Bool("available-in-new-territories", false, "Include new territories automatically")
