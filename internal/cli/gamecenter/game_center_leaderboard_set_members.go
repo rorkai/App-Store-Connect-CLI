@@ -42,7 +42,7 @@ Examples:
 func GameCenterLeaderboardSetMembersListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	setID := fs.String("set-id", "", "Game Center leaderboard set ID")
+	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -118,7 +118,7 @@ Examples:
 func GameCenterLeaderboardSetMembersSetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("set", flag.ExitOnError)
 
-	setID := fs.String("set-id", "", "Game Center leaderboard set ID")
+	setID := shared.BindResourceIDFlag(fs, "set-id", "gameCenterLeaderboardSets", "Game Center leaderboard set ID")
 	leaderboardIDs := shared.BindOnceCSVFlag(fs, "leaderboard-ids", "Comma-separated list of leaderboard IDs to set as members")
 	confirm := fs.Bool("confirm", false, "Confirm replacing all members (required)")
 	output := shared.BindOutputFlags(fs)

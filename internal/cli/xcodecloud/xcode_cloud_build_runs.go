@@ -11,7 +11,7 @@ import (
 )
 
 func xcodeCloudBuildRunsListFlags(fs *flag.FlagSet) (workflowID *string, sort *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
-	workflowID = fs.String("workflow-id", "", "Workflow ID to list build runs for")
+	workflowID = shared.BindResourceIDFlag(fs, "workflow-id", "ciWorkflows", "Workflow ID to list build runs for")
 	sort = fs.String("sort", "", "Sort by number or -number")
 	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next = fs.String("next", "", "Fetch next page using a links.next URL")
@@ -105,7 +105,7 @@ Examples:
 func XcodeCloudBuildRunsBuildsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("builds", flag.ExitOnError)
 
-	runID := fs.String("run-id", "", "Build run ID to list builds for")
+	runID := shared.BindResourceIDFlag(fs, "run-id", "ciBuildRuns", "Build run ID to list builds for")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

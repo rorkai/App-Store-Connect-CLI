@@ -40,7 +40,7 @@ Examples:
 func AnalyticsSegmentsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	segmentID := fs.String("segment-id", "", "Analytics report segment ID")
+	segmentID := shared.BindResourceIDFlag(fs, "segment-id", "analyticsReportSegments", "Analytics report segment ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

@@ -146,7 +146,7 @@ func IAPVersionLocalizationsCreateCommand() *ffcli.Command {
 
 func IAPVersionLocalizationsViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions localizations view", flag.ExitOnError)
-	id := fs.String("localization-id", "", "Localization ID")
+	id := shared.BindResourceIDFlag(fs, "localization-id", "inAppPurchaseLocalizations", "Localization ID")
 	include := fs.String("include", "", "Include relationship: version")
 	localizationFields := fs.String("localization-fields", "", "fields[inAppPurchaseLocalizations] (comma-separated)")
 	versionFields := fs.String("version-fields", "", "fields[inAppPurchaseVersions] (comma-separated)")
@@ -206,7 +206,7 @@ func flagSet(fs *flag.FlagSet, name string) bool {
 
 func IAPVersionLocalizationsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions localizations update", flag.ExitOnError)
-	id := fs.String("localization-id", "", "Localization ID")
+	id := shared.BindResourceIDFlag(fs, "localization-id", "inAppPurchaseLocalizations", "Localization ID")
 	name := fs.String("name", "", "Localization name")
 	clearName := fs.Bool("clear-name", false, "Clear the localization name")
 	description := fs.String("description", "", "Description")
@@ -264,7 +264,7 @@ func IAPVersionLocalizationsUpdateCommand() *ffcli.Command {
 
 func IAPVersionLocalizationsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("versions localizations delete", flag.ExitOnError)
-	id := fs.String("localization-id", "", "Localization ID")
+	id := shared.BindResourceIDFlag(fs, "localization-id", "inAppPurchaseLocalizations", "Localization ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{

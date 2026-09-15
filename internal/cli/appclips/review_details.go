@@ -86,7 +86,7 @@ Examples:
 func AppClipReviewDetailsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Default experience ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
 	urls := shared.BindOnceCSVFlag(fs, "url", "Invocation URL(s), comma-separated")
 	output := shared.BindOutputFlags(fs)
 

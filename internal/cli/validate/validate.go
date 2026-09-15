@@ -40,7 +40,7 @@ func ValidateCommand() *ffcli.Command {
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID)")
 	version := fs.String("version", "", "App Store version string")
-	versionID := fs.String("version-id", "", "App Store version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	strict := fs.Bool("strict", false, "Treat warnings as errors (exit non-zero)")
 	deep := fs.Bool("deep", false, "Verify blockers that require a cached Apple web session")

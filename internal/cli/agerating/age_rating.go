@@ -90,8 +90,8 @@ func AgeRatingViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("age-rating view", flag.ExitOnError)
 
 	appID := fs.String("app", os.Getenv("ASC_APP_ID"), "App ID (required unless --app-info-id or --version-id is provided)")
-	appInfoID := fs.String("app-info-id", "", "App info ID (optional)")
-	versionID := fs.String("version-id", "", "App Store version ID (optional)")
+	appInfoID := shared.BindResourceIDFlag(fs, "app-info-id", "appInfos", "App info ID (optional)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional)")
 	fields := fs.String("fields", "", "Sparse fields: socialMedia, socialMediaAgeRestricted")
 	output := shared.BindOutputFlags(fs)
 
@@ -154,8 +154,8 @@ func AgeRatingEditCommand() *ffcli.Command {
 
 	id := fs.String("id", "", "Age rating declaration ID (optional)")
 	appID := fs.String("app", os.Getenv("ASC_APP_ID"), "App ID (required unless --id, --app-info-id, or --version-id is provided)")
-	appInfoID := fs.String("app-info-id", "", "App info ID (optional)")
-	versionID := fs.String("version-id", "", "App Store version ID (optional)")
+	appInfoID := shared.BindResourceIDFlag(fs, "app-info-id", "appInfos", "App info ID (optional)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional)")
 	allNone := fs.Bool("all-none", false, "Set all ratings to NONE/false (safe default for apps with no objectionable content)")
 
 	// Boolean content descriptors

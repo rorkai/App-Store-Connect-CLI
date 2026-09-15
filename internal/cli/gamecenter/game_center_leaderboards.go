@@ -88,7 +88,7 @@ Examples:
 func GameCenterLeaderboardImagesUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("upload", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Game Center leaderboard localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterLeaderboardLocalizations", "Game Center leaderboard localization ID")
 	filePath := fs.String("file", "", "Path to image file")
 	output := shared.BindOutputFlags(fs)
 
@@ -343,7 +343,7 @@ func GameCenterLeaderboardsCreateCommand() *ffcli.Command {
 	submissionType := fs.String("submission-type", "", "Submission type: BEST_SCORE, MOST_RECENT_SCORE")
 	scoreRangeStart := fs.String("score-range-start", "", "Score range start (optional)")
 	scoreRangeEnd := fs.String("score-range-end", "", "Score range end (optional)")
-	groupID := fs.String("group-id", "", "Game Center group ID (v2 only)")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "gameCenterGroups", "Game Center group ID (v2 only)")
 	v2 := fs.Bool("v2", false, "Use v2 leaderboards endpoint")
 	output := shared.BindOutputFlags(fs)
 
@@ -787,7 +787,7 @@ Examples:
 func GameCenterLeaderboardReleasesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	leaderboardID := fs.String("leaderboard-id", "", "Game Center leaderboard ID")
+	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Game Center leaderboard ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -864,7 +864,7 @@ func GameCenterLeaderboardReleasesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	leaderboardID := fs.String("leaderboard-id", "", "Game Center leaderboard ID")
+	leaderboardID := shared.BindResourceIDFlag(fs, "leaderboard-id", "gameCenterLeaderboards", "Game Center leaderboard ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

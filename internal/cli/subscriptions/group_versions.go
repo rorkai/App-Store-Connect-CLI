@@ -75,7 +75,7 @@ Examples:
 // SubscriptionsGroupsVersionsCreateCommand creates a discrete version for a group.
 func SubscriptionsGroupsVersionsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("groups versions create", flag.ExitOnError)
-	groupID := fs.String("group-id", "", "Subscription group ID")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "subscriptionGroups", "Subscription group ID")
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name: "create", ShortUsage: `asc subscriptions groups versions create --group-id "GROUP_ID"`, ShortHelp: "Create a subscription group version.",
@@ -179,7 +179,7 @@ func bindSubscriptionGroupVersionFlags(fs *flag.FlagSet) (state, include, fields
 // SubscriptionsGroupsVersionsListCommand lists versions for a group.
 func SubscriptionsGroupsVersionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("groups versions list", flag.ExitOnError)
-	groupID := fs.String("group-id", "", "Subscription group ID")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "subscriptionGroups", "Subscription group ID")
 	state, include, fields, groupFields, localizationFields, limit, localizationsLimit, next, paginate := bindSubscriptionGroupVersionFlags(fs)
 	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
@@ -231,7 +231,7 @@ func SubscriptionsGroupsVersionsListCommand() *ffcli.Command {
 // SubscriptionsGroupsVersionsViewCommand retrieves a group version.
 func SubscriptionsGroupsVersionsViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("groups versions view", flag.ExitOnError)
-	versionID := fs.String("version-id", "", "Subscription group version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "subscriptionGroupVersions", "Subscription group version ID")
 	include := fs.String("include", "", "Include relationships: subscriptionGroup,localizations")
 	fields := fs.String("fields", "", "Version fields: version,state,subscriptionGroup,localizations")
 	groupFields := fs.String("group-fields", "", "Included group fields (comma-separated)")
@@ -288,10 +288,10 @@ func subscriptionsGroupsVersionLinkagesCommand(name string, groupOwned bool) *ff
 	var ownerID *string
 	requiredFlag := "--version-id"
 	if groupOwned {
-		ownerID = fs.String("group-id", "", "Subscription group ID")
+		ownerID = shared.BindResourceIDFlag(fs, "group-id", "subscriptionGroups", "Subscription group ID")
 		requiredFlag = "--group-id"
 	} else {
-		ownerID = fs.String("version-id", "", "Subscription group version ID")
+		ownerID = shared.BindResourceIDFlag(fs, "version-id", "subscriptionGroupVersions", "Subscription group version ID")
 	}
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")

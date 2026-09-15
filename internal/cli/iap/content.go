@@ -41,7 +41,7 @@ func IAPContentGetCommand() *ffcli.Command {
 
 	appID := addIAPLookupAppFlag(fs)
 	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
-	contentID := fs.String("content-id", "", "In-app purchase content ID")
+	contentID := shared.BindResourceIDFlag(fs, "content-id", "inAppPurchaseContents", "In-app purchase content ID")
 	iapFields := fs.String("iap-fields", "", "fields[inAppPurchases] for the included in-app purchase (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 

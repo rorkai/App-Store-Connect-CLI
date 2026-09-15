@@ -57,7 +57,7 @@ func AppsInfoViewCommand() *ffcli.Command {
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
 	infoID := shared.BindResourceIDFlag(fs, "info-id", "appInfos", "App Info ID (optional override)")
-	versionID := fs.String("version-id", "", "App Store version ID (optional override)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional override)")
 	version := fs.String("version", "", "App Store version string (optional)")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (required with --version)")
 	state := fs.String("state", "", "Filter by app store state(s), comma-separated")
@@ -250,7 +250,7 @@ func AppsInfoEditCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("apps info edit", flag.ExitOnError)
 
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env)")
-	versionID := fs.String("version-id", "", "App Store version ID (optional override)")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID (optional override)")
 	version := fs.String("version", "", "App Store version string (optional)")
 	platform := fs.String("platform", "", "Platform: IOS, MAC_OS, TV_OS, VISION_OS (required with --version)")
 	state := fs.String("state", "", "Filter by app store state(s), comma-separated")

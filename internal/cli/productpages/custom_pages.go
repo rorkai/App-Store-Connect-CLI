@@ -251,7 +251,7 @@ func normalizeCustomPagesVisible(value string) ([]string, error) {
 func CustomPagesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-pages view", flag.ExitOnError)
 
-	customPageID := fs.String("custom-page-id", "", "Custom product page ID")
+	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -342,7 +342,7 @@ Examples:
 func CustomPagesUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-pages update", flag.ExitOnError)
 
-	customPageID := fs.String("custom-page-id", "", "Custom product page ID")
+	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
 	name := fs.String("name", "", "Update page name")
 	var visible shared.OptionalBool
 	fs.Var(&visible, "visible", "Set visibility: true or false")
@@ -401,7 +401,7 @@ Examples:
 func CustomPagesDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-pages delete", flag.ExitOnError)
 
-	customPageID := fs.String("custom-page-id", "", "Custom product page ID")
+	customPageID := shared.BindResourceIDFlag(fs, "custom-page-id", "appCustomProductPages", "Custom product page ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

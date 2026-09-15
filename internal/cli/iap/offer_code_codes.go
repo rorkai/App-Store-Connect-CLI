@@ -44,7 +44,7 @@ Examples:
 func IAPOfferCodesCustomCodesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes custom-codes list", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -119,7 +119,7 @@ Examples:
 func IAPOfferCodesCustomCodesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes custom-codes view", flag.ExitOnError)
 
-	customCodeID := fs.String("custom-code-id", "", "Custom code ID")
+	customCodeID := shared.BindResourceIDFlag(fs, "custom-code-id", "inAppPurchaseOfferCodeCustomCodes", "Custom code ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -161,7 +161,7 @@ Examples:
 func IAPOfferCodesCustomCodesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes custom-codes create", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Offer code ID (required)")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID (required)")
 	customCode := fs.String("custom-code", "", "Custom code value (required)")
 	quantity := fs.Int("quantity", 0, "Number of codes to create (required, positive integer)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD)")
@@ -276,7 +276,7 @@ Examples:
 func IAPOfferCodesOneTimeCodesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes one-time-codes list", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -351,7 +351,7 @@ Examples:
 func IAPOfferCodesOneTimeCodesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes one-time-codes view", flag.ExitOnError)
 
-	oneTimeCodeID := fs.String("one-time-code-id", "", "One-time use code batch ID")
+	oneTimeCodeID := shared.BindResourceIDFlag(fs, "one-time-code-id", "inAppPurchaseOfferCodeOneTimeUseCodes", "One-time use code batch ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -393,7 +393,7 @@ Examples:
 func IAPOfferCodesOneTimeCodesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes one-time-codes create", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Offer code ID (required)")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID (required)")
 	quantity := fs.Int("quantity", 0, "Number of codes to generate (required, positive integer)")
 	expirationDate := fs.String("expiration-date", "", "Expiration date (YYYY-MM-DD) (required)")
 	environment := fs.String("environment", "", "Offer code environment: PRODUCTION or SANDBOX")
@@ -489,7 +489,7 @@ func normalizeIAPOfferCodeEnvironment(value string) (string, error) {
 func IAPOfferCodesOneTimeCodesValuesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes one-time-codes values", flag.ExitOnError)
 
-	oneTimeCodeID := fs.String("one-time-code-id", "", "One-time use code batch ID")
+	oneTimeCodeID := shared.BindResourceIDFlag(fs, "one-time-code-id", "inAppPurchaseOfferCodeOneTimeUseCodes", "One-time use code batch ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

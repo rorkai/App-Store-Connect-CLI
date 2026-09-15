@@ -21,7 +21,7 @@ var customPageMediaClientFactory = shared.GetASCClient
 func CustomPageLocalizationsScreenshotSetsUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations screenshot-sets upload", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	path := fs.String("path", "", "Path to screenshot file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
 	output := shared.BindOutputFlags(fs)
@@ -51,7 +51,7 @@ Examples:
 func CustomPageLocalizationsScreenshotSetsSyncCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations screenshot-sets sync", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	path := fs.String("path", "", "Path to screenshot file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
 	confirm := fs.Bool("confirm", false, "Confirm sync (deletes existing media in the matching set before upload)")
@@ -88,7 +88,7 @@ Examples:
 func CustomPageLocalizationsPreviewSetsUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations preview-sets upload", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	path := fs.String("path", "", "Path to preview file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
 	output := shared.BindOutputFlags(fs)
@@ -118,7 +118,7 @@ Examples:
 func CustomPageLocalizationsPreviewSetsSyncCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("custom-page-localizations preview-sets sync", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Custom product page localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appCustomProductPageLocalizations", "Custom product page localization ID")
 	path := fs.String("path", "", "Path to preview file or directory")
 	deviceType := fs.String("device-type", "", "Device type (e.g., IPHONE_65)")
 	confirm := fs.Bool("confirm", false, "Confirm sync (deletes existing media in the matching set before upload)")

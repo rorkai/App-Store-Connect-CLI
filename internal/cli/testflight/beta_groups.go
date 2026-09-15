@@ -249,7 +249,7 @@ func BetaGroupsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	buildID := fs.String("build-id", "", "List groups that contain this build ID")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "List groups that contain this build ID")
 	global := fs.Bool("global", false, "List beta groups across all apps (top-level endpoint)")
 	internal := fs.Bool("internal", false, "Filter to internal groups only")
 	external := fs.Bool("external", false, "Filter to external groups only")
@@ -811,7 +811,7 @@ type BuildGroupsListCommandConfig struct {
 func BuildGroupsListCommand(config BuildGroupsListCommandConfig) *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID whose TestFlight groups should be listed")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID whose TestFlight groups should be listed")
 	output := shared.BindOutputFlags(fs)
 
 	errorPrefix := strings.TrimSpace(config.ErrorPrefix)

@@ -40,7 +40,7 @@ Examples:
 func AppEventLocalizationScreenshotsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations screenshots list", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "App event localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -138,7 +138,7 @@ Examples:
 func AppEventLocalizationVideoClipsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations video-clips list", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "App event localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -213,7 +213,7 @@ Examples:
 func AppEventLocalizationScreenshotsRelationshipsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations screenshots-links", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "App event localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -288,7 +288,7 @@ Examples:
 func AppEventLocalizationVideoClipsRelationshipsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("localizations video-clips-links", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "App event localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "appEventLocalizations", "App event localization ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

@@ -33,7 +33,7 @@ func MetadataKeywordsAuditCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	appInfoID := fs.String("app-info", "", "App Info ID (optional override for apps with multiple app-infos)")
 	version := fs.String("version", "", "App version string (for example 1.2.3)")
-	versionID := fs.String("version-id", "", "App Store version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "appStoreVersions", "App Store version ID")
 	platform := fs.String("platform", "", "Optional platform: IOS, MAC_OS, TV_OS, or VISION_OS")
 	strict := fs.Bool("strict", false, "Treat warnings as errors (exit non-zero)")
 	blockedTermsFile := fs.String("blocked-terms-file", "", "Optional newline/comma-separated blocked terms file (supports # comments)")

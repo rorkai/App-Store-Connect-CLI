@@ -47,7 +47,7 @@ Examples:
 func SubscriptionsReviewScreenshotsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-screenshots view", flag.ExitOnError)
 
-	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
+	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "subscriptionAppStoreReviewScreenshots", "Review screenshot ID")
 	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
@@ -166,7 +166,7 @@ Examples:
 func SubscriptionsReviewScreenshotsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-screenshots update", flag.ExitOnError)
 
-	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
+	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "subscriptionAppStoreReviewScreenshots", "Review screenshot ID")
 	checksum := fs.String("checksum", "", "Source file checksum (MD5)")
 	var uploaded shared.OptionalBool
 	fs.Var(&uploaded, "uploaded", "Mark upload complete: true or false")
@@ -226,7 +226,7 @@ Examples:
 func SubscriptionsReviewScreenshotsDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("review-screenshots delete", flag.ExitOnError)
 
-	screenshotID := fs.String("screenshot-id", "", "Review screenshot ID")
+	screenshotID := shared.BindResourceIDFlag(fs, "screenshot-id", "subscriptionAppStoreReviewScreenshots", "Review screenshot ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 

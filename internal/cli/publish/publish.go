@@ -77,7 +77,7 @@ func PublishTestFlightCommand() *ffcli.Command {
 	appID := fs.String("app", "", "App Store Connect app ID (required, or ASC_APP_ID env)")
 	ipaPath := fs.String("ipa", "", "Path to prebuilt .ipa file")
 	pkgPath := fs.String("pkg", "", "Path to prebuilt macOS .pkg file (requires --version and --build-number)")
-	buildID := fs.String("build-id", "", "Existing build ID to distribute (skip upload)")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Existing build ID to distribute (skip upload)")
 	version := fs.String("version", "", "CFBundleShortVersionString (auto-extracted from IPA if not provided; required with --pkg)")
 	buildNumber := fs.String("build-number", "", "CFBundleVersion (required with --pkg; used for build lookup when no artifact is provided)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")

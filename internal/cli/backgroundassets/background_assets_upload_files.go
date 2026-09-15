@@ -47,7 +47,7 @@ Examples:
 func BackgroundAssetsUploadFilesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Background asset version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "backgroundAssetVersions", "Background asset version ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -121,7 +121,7 @@ Examples:
 func BackgroundAssetsUploadFilesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	uploadFileID := fs.String("upload-file-id", "", "Background asset upload file ID")
+	uploadFileID := shared.BindResourceIDFlag(fs, "upload-file-id", "backgroundAssetUploadFiles", "Background asset upload file ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -163,7 +163,7 @@ Examples:
 func BackgroundAssetsUploadFilesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	versionID := fs.String("version-id", "", "Background asset version ID")
+	versionID := shared.BindResourceIDFlag(fs, "version-id", "backgroundAssetVersions", "Background asset version ID")
 	filePath := fs.String("file", "", "Path to upload file")
 	assetType := fs.String("asset-type", "", "Asset type: "+strings.Join(backgroundAssetUploadFileAssetTypeValues, ", "))
 	checksum := fs.Bool("checksum", false, "Verify source file checksums before committing")
@@ -278,7 +278,7 @@ Examples:
 func BackgroundAssetsUploadFilesUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	uploadFileID := fs.String("upload-file-id", "", "Background asset upload file ID")
+	uploadFileID := shared.BindResourceIDFlag(fs, "upload-file-id", "backgroundAssetUploadFiles", "Background asset upload file ID")
 	uploaded := fs.String("uploaded", "", "Mark upload as complete (true/false)")
 	filePath := fs.String("file", "", "Path to file for checksum verification (requires --checksum)")
 	checksum := fs.Bool("checksum", false, "Verify source file checksums before committing")

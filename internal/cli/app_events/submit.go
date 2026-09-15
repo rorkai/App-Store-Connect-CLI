@@ -17,7 +17,7 @@ import (
 func AppEventsSubmitCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submit", flag.ExitOnError)
 
-	eventID := fs.String("event-id", "", "App event ID")
+	eventID := shared.BindResourceIDFlag(fs, "event-id", "appEvents", "App event ID")
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
 	platform := fs.String("platform", "IOS", "Platform: IOS, MAC_OS, TV_OS, VISION_OS")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required)")

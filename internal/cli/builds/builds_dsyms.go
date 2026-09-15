@@ -31,7 +31,7 @@ type dsymBundleInfo struct {
 func BuildsDsymsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("dsyms", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
 	appID := fs.String("app", "", "App ID, bundle ID, or app name (or ASC_APP_ID)")
 	version := fs.String("version", "", "App version string (e.g., 1.2.3)")
 	buildNumber := fs.String("build-number", "", "Build number (CFBundleVersion)")

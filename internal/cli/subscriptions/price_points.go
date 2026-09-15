@@ -331,7 +331,7 @@ func filterSubscriptionPricePoints(resp *asc.SubscriptionPricePointsResponse, pf
 func SubscriptionsPricePointsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("price-points view", flag.ExitOnError)
 
-	pricePointID := fs.String("price-point-id", "", "Subscription price point ID")
+	pricePointID := shared.BindResourceIDFlag(fs, "price-point-id", "subscriptionPricePoints", "Subscription price point ID")
 	fields := fs.String("fields", "", "Subscription price point fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
@@ -389,7 +389,7 @@ var subscriptionPricePointFields = subscriptionPricePointFieldsList()
 func buildSubscriptionPricePointEqualizationsCommand(name string, adjusted bool) *ffcli.Command {
 	flagSetName := "price-points " + name
 	fs := flag.NewFlagSet(flagSetName, flag.ExitOnError)
-	pricePointID := fs.String("price-point-id", "", "Subscription price point ID")
+	pricePointID := shared.BindResourceIDFlag(fs, "price-point-id", "subscriptionPricePoints", "Subscription price point ID")
 	territory := fs.String("territory", "", "Filter by territory IDs or names (comma-separated)")
 	// Comma-separated ID filters stay bare-ID: the self-link normalizer takes a
 	// single resource URL, so binding it here would accept one link but reject a

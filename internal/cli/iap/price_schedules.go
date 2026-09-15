@@ -49,7 +49,7 @@ func IAPPriceSchedulesGetCommand() *ffcli.Command {
 
 	iapID := shared.BindResourceIDFlag(fs, "iap-id", "inAppPurchases", "In-app purchase ID, product ID, or exact current name")
 	appID := addIAPLookupAppFlag(fs)
-	scheduleID := fs.String("schedule-id", "", "Price schedule ID")
+	scheduleID := shared.BindResourceIDFlag(fs, "schedule-id", "inAppPurchasePriceSchedules", "Price schedule ID")
 	include := fs.String("include", "", "Include relationships: baseTerritory,manualPrices,automaticPrices")
 	scheduleFields := fs.String("schedule-fields", "", "fields[inAppPurchasePriceSchedules] (comma-separated)")
 	territoryFields := fs.String("territory-fields", "", "fields[territories] (comma-separated)")
@@ -182,7 +182,7 @@ func normalizeIAPPriceScheduleInclude(value string) ([]string, error) {
 func IAPPriceSchedulesBaseTerritoryCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("schedules base-territory", flag.ExitOnError)
 
-	scheduleID := fs.String("schedule-id", "", "Price schedule ID")
+	scheduleID := shared.BindResourceIDFlag(fs, "schedule-id", "inAppPurchasePriceSchedules", "Price schedule ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -363,7 +363,7 @@ Examples:
 func IAPPriceSchedulesManualPricesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("schedules manual-prices", flag.ExitOnError)
 
-	scheduleID := fs.String("schedule-id", "", "Price schedule ID")
+	scheduleID := shared.BindResourceIDFlag(fs, "schedule-id", "inAppPurchasePriceSchedules", "Price schedule ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -452,7 +452,7 @@ Examples:
 func IAPPriceSchedulesAutomaticPricesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("schedules automatic-prices", flag.ExitOnError)
 
-	scheduleID := fs.String("schedule-id", "", "Price schedule ID")
+	scheduleID := shared.BindResourceIDFlag(fs, "schedule-id", "inAppPurchasePriceSchedules", "Price schedule ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

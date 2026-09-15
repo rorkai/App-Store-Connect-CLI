@@ -286,7 +286,7 @@ func CertificatesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
 	certificateType := fs.String("certificate-type", "", "Certificate type: "+strings.Join(shared.CertificateCreateTypeList(), ", "))
-	passTypeID := fs.String("pass-type-id", "", "Pass Type ID resource ID (required for PASS_TYPE_ID and PASS_TYPE_ID_WITH_NFC)")
+	passTypeID := shared.BindResourceIDFlag(fs, "pass-type-id", "passTypeIds", "Pass Type ID resource ID (required for PASS_TYPE_ID and PASS_TYPE_ID_WITH_NFC)")
 	csrPath := fs.String("csr", "", "CSR file path")
 	generateCSR := fs.Bool("generate-csr", false, "Generate a private key and CSR before creating the certificate")
 	keyOut := fs.String("key-out", "", "Private key output path for --generate-csr (PEM)")

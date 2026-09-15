@@ -158,7 +158,7 @@ func BuildsTestNotesViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
 	selectors := bindTestNotesBuildSelectorFlags(fs)
-	localizationID := fs.String("localization-id", "", "Localization ID (low-level escape hatch)")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "betaBuildLocalizations", "Localization ID (low-level escape hatch)")
 	locale := fs.String("locale", "", "Locale (e.g., en-US, required with build selectors)")
 	output := shared.BindOutputFlags(fs)
 
@@ -285,7 +285,7 @@ func BuildsTestNotesUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
 	selectors := bindTestNotesBuildSelectorFlags(fs)
-	localizationID := fs.String("localization-id", "", "Localization ID (low-level escape hatch)")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "betaBuildLocalizations", "Localization ID (low-level escape hatch)")
 	locale := fs.String("locale", "", "Locale (e.g., en-US, required with build selectors)")
 	whatsNew := fs.String("whats-new", "", "What to Test notes")
 	output := shared.BindOutputFlags(fs)
@@ -356,7 +356,7 @@ func BuildsTestNotesDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
 	selectors := bindTestNotesBuildSelectorFlags(fs)
-	localizationID := fs.String("localization-id", "", "Localization ID (low-level escape hatch)")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "betaBuildLocalizations", "Localization ID (low-level escape hatch)")
 	locale := fs.String("locale", "", "Locale (e.g., en-US, required with build selectors)")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)

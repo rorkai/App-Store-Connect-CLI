@@ -11,7 +11,7 @@ import (
 )
 
 func xcodeCloudActionsListFlags(fs *flag.FlagSet) (runID *string, limit *int, next *string, paginate *bool, output *string, pretty *bool) {
-	runID = fs.String("run-id", "", "Build run ID to get actions for (required)")
+	runID = shared.BindResourceIDFlag(fs, "run-id", "ciBuildRuns", "Build run ID to get actions for (required)")
 	limit = fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next = fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate = fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

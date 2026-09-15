@@ -438,7 +438,7 @@ Examples:
 func SubscriptionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	groupID := fs.String("group-id", "", "Subscription group ID")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "subscriptionGroups", "Subscription group ID")
 	appID := shared.BindResourceIDFlag(fs, "app", "apps", "App Store Connect app ID (or ASC_APP_ID env); lists subscriptions across all groups")
 	fields := fs.String("fields", "", "Sparse fields for subscriptions")
 	versionFields := fs.String("version-fields", "", "Sparse fields for included subscriptionVersions")
@@ -627,7 +627,7 @@ func listSubscriptionsForApp(ctx context.Context, client *asc.Client, appID stri
 func SubscriptionsCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	groupID := fs.String("group-id", "", "Subscription group ID")
+	groupID := shared.BindResourceIDFlag(fs, "group-id", "subscriptionGroups", "Subscription group ID")
 	referenceName := fs.String("reference-name", "", "Reference name")
 	productID := fs.String("product-id", "", "Product ID (e.g., com.example.sub)")
 	subscriptionPeriod := fs.String("subscription-period", "", "Subscription period: "+strings.Join(subscriptionPeriodValues, ", "))
@@ -1537,7 +1537,7 @@ equalized price matrix when repairing Apple's MISSING_METADATA state.`,
 func SubscriptionsPricesDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("prices delete", flag.ExitOnError)
 
-	priceID := fs.String("price-id", "", "Subscription price ID")
+	priceID := shared.BindResourceIDFlag(fs, "price-id", "subscriptionPrices", "Subscription price ID")
 	confirm := fs.Bool("confirm", false, "Confirm deletion")
 	output := shared.BindOutputFlags(fs)
 
@@ -1621,7 +1621,7 @@ Examples:
 func SubscriptionsAvailabilityViewCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability view", flag.ExitOnError)
 
-	availabilityID := fs.String("availability-id", "", "Subscription availability ID")
+	availabilityID := shared.BindResourceIDFlag(fs, "availability-id", "subscriptionAvailabilities", "Subscription availability ID")
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	output := shared.BindOutputFlags(fs)
@@ -1687,7 +1687,7 @@ Examples:
 func SubscriptionsAvailabilityAvailableTerritoriesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("availability available-territories", flag.ExitOnError)
 
-	availabilityID := fs.String("availability-id", "", "Subscription availability ID")
+	availabilityID := shared.BindResourceIDFlag(fs, "availability-id", "subscriptionAvailabilities", "Subscription availability ID")
 	subscriptionID := shared.BindResourceIDFlag(fs, "subscription-id", "subscriptions", "Subscription ID, product ID, or exact current name")
 	appID := addSubscriptionLookupAppFlag(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")

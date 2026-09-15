@@ -138,7 +138,7 @@ Examples:
 func IAPOfferCodesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes view", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -262,7 +262,7 @@ Examples:
 func IAPOfferCodesUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes update", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "inAppPurchaseOfferCodes", "Offer code ID")
 	var active shared.OptionalBool
 	fs.Var(&active, "active", "Set active status: true or false")
 	output := shared.BindOutputFlags(fs)

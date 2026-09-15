@@ -40,7 +40,7 @@ Examples:
 func AppClipDefaultExperienceReviewDetailRelationshipCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("app-store-review-detail", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Default experience ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -82,7 +82,7 @@ Examples:
 func AppClipDefaultExperienceReleaseWithAppStoreVersionRelationshipCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("release-with-app-store-version", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Default experience ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipDefaultExperiences", "Default experience ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

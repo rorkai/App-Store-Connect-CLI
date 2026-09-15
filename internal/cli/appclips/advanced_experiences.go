@@ -87,7 +87,7 @@ Examples:
 func AppClipAdvancedExperiencesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	appClipID := fs.String("app-clip-id", "", "App Clip ID")
+	appClipID := shared.BindResourceIDFlag(fs, "app-clip-id", "appClips", "App Clip ID")
 	action := fs.String("action", "", "Filter by action(s): OPEN, VIEW, PLAY (comma-separated)")
 	status := fs.String("status", "", "Filter by status(es), comma-separated")
 	placeStatus := fs.String("place-status", "", "Filter by place status(es), comma-separated")
@@ -181,7 +181,7 @@ Examples:
 func AppClipAdvancedExperiencesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Advanced experience ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipAdvancedExperiences", "Advanced experience ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -224,14 +224,14 @@ func AppClipAdvancedExperiencesCreateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
 	appID := fs.String("app", "", "App Store Connect app ID (or ASC_APP_ID env)")
-	appClipID := fs.String("app-clip-id", "", "App Clip ID")
+	appClipID := shared.BindResourceIDFlag(fs, "app-clip-id", "appClips", "App Clip ID")
 	bundleID := fs.String("bundle-id", "", "App Clip bundle ID (requires --app)")
 	link := fs.String("link", "", "Invocation URL (required)")
 	defaultLanguage := fs.String("default-language", "", "Default language (e.g., EN)")
 	isPoweredBy := fs.Bool("is-powered-by", false, "Powered by your app")
 	action := fs.String("action", "", "Action (OPEN, VIEW, PLAY)")
 	category := fs.String("category", "", "Business category")
-	headerImageID := fs.String("header-image-id", "", "Header image ID")
+	headerImageID := shared.BindResourceIDFlag(fs, "header-image-id", "appClipAdvancedExperienceImages", "Header image ID")
 	localizationIDs := shared.BindOnceCSVFlag(fs, "localization-id", "Existing localization ID(s), comma-separated")
 	var inlineLocalizationJSON inlineLocalizationFlag
 	fs.Var(&inlineLocalizationJSON, "inline-localization", "Inline localization as JSON with language, title, and optional subtitle (repeatable)")
@@ -389,14 +389,14 @@ Examples:
 func AppClipAdvancedExperiencesUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Advanced experience ID")
-	appClipID := fs.String("app-clip-id", "", "App Clip ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipAdvancedExperiences", "Advanced experience ID")
+	appClipID := shared.BindResourceIDFlag(fs, "app-clip-id", "appClips", "App Clip ID")
 	action := fs.String("action", "", "Action (OPEN, VIEW, PLAY)")
 	category := fs.String("category", "", "Business category")
 	defaultLanguage := fs.String("default-language", "", "Default language (e.g., EN)")
 	isPoweredBy := fs.Bool("is-powered-by", false, "Powered by your app")
 	removed := fs.Bool("removed", false, "Mark the experience as removed")
-	headerImageID := fs.String("header-image-id", "", "Header image ID")
+	headerImageID := shared.BindResourceIDFlag(fs, "header-image-id", "appClipAdvancedExperienceImages", "Header image ID")
 	localizationIDs := shared.BindOnceCSVFlag(fs, "localization-id", "Localization ID(s), comma-separated")
 	output := shared.BindOutputFlags(fs)
 
@@ -486,7 +486,7 @@ Examples:
 func AppClipAdvancedExperiencesDeleteCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("delete", flag.ExitOnError)
 
-	experienceID := fs.String("experience-id", "", "Advanced experience ID")
+	experienceID := shared.BindResourceIDFlag(fs, "experience-id", "appClipAdvancedExperiences", "Advanced experience ID")
 	confirm := fs.Bool("confirm", false, "Confirm removal")
 	output := shared.BindOutputFlags(fs)
 

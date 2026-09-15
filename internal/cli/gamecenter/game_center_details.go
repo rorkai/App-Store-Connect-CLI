@@ -212,8 +212,8 @@ func GameCenterDetailsUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("update", flag.ExitOnError)
 
 	detailID := fs.String("id", "", "Game Center detail ID")
-	gameCenterGroupID := fs.String("game-center-group-id", "", "Game Center group ID to associate")
-	defaultLeaderboardID := fs.String("default-leaderboard-id", "", "Default leaderboard ID")
+	gameCenterGroupID := shared.BindResourceIDFlag(fs, "game-center-group-id", "gameCenterGroups", "Game Center group ID to associate")
+	defaultLeaderboardID := shared.BindResourceIDFlag(fs, "default-leaderboard-id", "gameCenterLeaderboards", "Default leaderboard ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

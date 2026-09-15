@@ -223,7 +223,7 @@ Examples:
 func TestFlightReviewSubmitCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submit", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
 	confirm := fs.Bool("confirm", false, "Confirm submission")
 	output := shared.BindOutputFlags(fs)
 
@@ -361,7 +361,7 @@ Examples:
 func TestFlightReviewSubmissionsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("submissions list", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID to filter")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID to filter")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -552,7 +552,7 @@ Examples:
 func TestFlightBetaDetailsGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	buildID := fs.String("build-id", "", "Build ID")
+	buildID := shared.BindResourceIDFlag(fs, "build-id", "builds", "Build ID")
 	output := shared.BindOutputFlags(fs)
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")

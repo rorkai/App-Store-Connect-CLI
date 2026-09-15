@@ -42,7 +42,7 @@ Examples:
 func GameCenterLeaderboardSetImagesUploadCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("upload", flag.ExitOnError)
 
-	localizationID := fs.String("localization-id", "", "Leaderboard set localization ID")
+	localizationID := shared.BindResourceIDFlag(fs, "localization-id", "gameCenterLeaderboardSetLocalizations", "Leaderboard set localization ID")
 	filePath := fs.String("file", "", "Path to image file (PNG)")
 	output := shared.BindOutputFlags(fs)
 

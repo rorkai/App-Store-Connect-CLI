@@ -47,8 +47,8 @@ Examples:
 func XcodeCloudArtifactsListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("list", flag.ExitOnError)
 
-	actionID := fs.String("action-id", "", "Build action ID to list artifacts for")
-	runID := fs.String("run-id", "", "Build run ID to aggregate artifacts across all actions")
+	actionID := shared.BindResourceIDFlag(fs, "action-id", "ciBuildActions", "Build action ID to list artifacts for")
+	runID := shared.BindResourceIDFlag(fs, "run-id", "ciBuildRuns", "Build run ID to aggregate artifacts across all actions")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

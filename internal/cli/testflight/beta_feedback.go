@@ -225,7 +225,7 @@ func TestFlightCrashesLogCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("log", flag.ExitOnError)
 
 	submissionID := shared.BindResourceIDFlag(fs, "submission-id", "betaFeedbackCrashSubmissions", "Crash submission ID")
-	crashLogID := fs.String("crash-log-id", "", "Crash log ID")
+	crashLogID := shared.BindResourceIDFlag(fs, "crash-log-id", "betaCrashLogs", "Crash log ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{

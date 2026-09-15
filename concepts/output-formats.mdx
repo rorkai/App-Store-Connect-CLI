@@ -227,11 +227,26 @@ Rules:
 * Bare IDs, bundle identifiers, product IDs, and names keep working
   unchanged.
 
-Flags covered today: `--build-id`, `--app` (including `ASC_APP_ID`),
-`--version-id`, `--submission-id`, `--info-id`, `--localization-id`,
-`--subscription-id`, `--iap-id`, the `--id`/`--group` flags on `testflight groups`,
-`--id` on `apps`, `subscriptions`, `iap`, and `bundle-ids`, and `--bundle` on
-`bundle-ids capabilities`. Other ID flags still take bare IDs.
+Flags covered today: every single-value `--<resource>-id` flag that names an
+App Store Connect API resource, including `--build-id`, `--version-id`,
+`--webhook-id`, `--event-id`, `--experience-id`, `--custom-page-id`,
+`--experiment-id`, `--offer-code-id`, `--report-id`, `--run-id`,
+`--merchant-id`, `--pass-type-id`, `--review-id`, `--category-id`,
+`--mapping-id`, `--domain-id`, `--tester-id`, the Game Center ID flags, plus
+`--app` (including `ASC_APP_ID`), `--submission-id`, `--info-id`,
+`--localization-id`, `--subscription-id`, `--iap-id`, the `--id`/`--group`
+flags on `testflight groups`, `--id` on `apps`, `subscriptions`, `iap`, and
+`bundle-ids`, and `--bundle` on `bundle-ids capabilities`.
+
+Still bare-ID only, on purpose: comma-separated ID filters (they take a list,
+not one URL), `asc web` flags (Developer Portal and Iris IDs have no API
+self-link), flags that take an identifier rather than a resource ID (bundle
+identifiers, product IDs, Game Center vendor identifiers), credentials and
+local identifiers (the `--key-id` and `--issuer-id` flags on `asc auth`, the
+`--device-id` flag on `asc xcode install`, and the `asc storekit` flags), and
+the few flags whose resource type depends on another flag (`--item-id` on
+`asc review items add`, which follows `--item-type`, and `--product-id` on
+`asc iap promoted-purchases create`, which follows `--product-type`).
 
 ## Best Practices
 

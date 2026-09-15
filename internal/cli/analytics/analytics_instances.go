@@ -43,7 +43,7 @@ Examples:
 func AnalyticsInstancesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("view", flag.ExitOnError)
 
-	instanceID := fs.String("instance-id", "", "Analytics report instance ID")
+	instanceID := shared.BindResourceIDFlag(fs, "instance-id", "analyticsReportInstances", "Analytics report instance ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -90,7 +90,7 @@ Examples:
 func AnalyticsInstancesRelationshipsCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("links", flag.ExitOnError)
 
-	instanceID := fs.String("instance-id", "", "Analytics report instance ID")
+	instanceID := shared.BindResourceIDFlag(fs, "instance-id", "analyticsReportInstances", "Analytics report instance ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")

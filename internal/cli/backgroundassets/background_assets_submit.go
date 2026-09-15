@@ -26,7 +26,7 @@ func BackgroundAssetsSubmitCommand() *ffcli.Command {
 	assetPackIdentifiers := fs.String("asset-pack-identifier", "", "Comma-separated asset pack identifiers to submit")
 	backgroundAssetIDs := fs.String("background-asset-id", "", "Comma-separated background asset IDs to submit")
 	versionIDs := fs.String("version-id", "", "Comma-separated background asset version IDs to submit (skips lookup)")
-	submissionID := fs.String("review-submission-id", "", "Attach items to this existing review submission instead of creating a new one")
+	submissionID := shared.BindResourceIDFlag(fs, "review-submission-id", "reviewSubmissions", "Attach items to this existing review submission instead of creating a new one")
 	confirm := fs.Bool("confirm", false, "Confirm submission (required unless --dry-run)")
 	dryRun := fs.Bool("dry-run", false, "Preview the submission flow without mutating")
 	noSubmit := fs.Bool("no-submit", false, "Create the submission and attach items but do not submit; useful when chaining additional items")

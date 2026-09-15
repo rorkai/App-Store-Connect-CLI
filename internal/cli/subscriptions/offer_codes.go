@@ -188,7 +188,7 @@ func printSubscriptionOfferCodesFollowUps(resp *asc.SubscriptionOfferCodesRespon
 func SubscriptionsOfferCodesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes view", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "subscriptionOfferCodes", "Offer code ID")
 	subscriptionFields := fs.String("subscription-fields", "", "Included subscription fields (comma-separated)")
 	output := shared.BindOutputFlags(fs)
 
@@ -355,7 +355,7 @@ Examples:
 func SubscriptionsOfferCodesUpdateCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes update", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "subscriptionOfferCodes", "Offer code ID")
 	var active shared.OptionalBool
 	fs.Var(&active, "active", "Enable or disable the offer code: true or false")
 	output := shared.BindOutputFlags(fs)
@@ -442,7 +442,7 @@ Examples:
 func SubscriptionsOfferCodesOneTimeCodesListCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes one-time-codes list", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "subscriptionOfferCodes", "Offer code ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
@@ -517,7 +517,7 @@ Examples:
 func SubscriptionsOfferCodesOneTimeCodesGetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes one-time-codes view", flag.ExitOnError)
 
-	oneTimeCodeID := fs.String("batch-id", "", "One-time use code batch ID")
+	oneTimeCodeID := shared.BindResourceIDFlag(fs, "batch-id", "subscriptionOfferCodeOneTimeUseCodes", "One-time use code batch ID")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -559,7 +559,7 @@ Examples:
 func SubscriptionsOfferCodesPricesCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("offer-codes prices", flag.ExitOnError)
 
-	offerCodeID := fs.String("offer-code-id", "", "Offer code ID")
+	offerCodeID := shared.BindResourceIDFlag(fs, "offer-code-id", "subscriptionOfferCodes", "Offer code ID")
 	limit := fs.Int("limit", 0, "Maximum results per page (1-200)")
 	next := fs.String("next", "", "Fetch next page using a links.next URL")
 	paginate := fs.Bool("paginate", false, "Automatically fetch all pages (aggregate results)")
