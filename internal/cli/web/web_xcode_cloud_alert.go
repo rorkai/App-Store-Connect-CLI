@@ -19,6 +19,8 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -641,6 +643,10 @@ func postUsageAlertJSON(
 		return 0, fmt.Errorf("failed to marshal notification payload: %w", err)
 	}
 
+	// Name only the host: webhook paths commonly carry the secret.
+	if err := readonly.Check(ctx, http.MethodPost, urlsanitize.RedactURLHostForError(endpoint)); err != nil {
+		return 0, err
+	}
 	req, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
 	if err != nil {
 		return 0, fmt.Errorf("failed to build notification request: %w", err)

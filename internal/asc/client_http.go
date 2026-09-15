@@ -18,12 +18,16 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 )
 
 // newRequest creates a new HTTP request with JWT authentication
 func (c *Client) newRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
 	if err := validateAPIPath(path); err != nil {
+		return nil, err
+	}
+	if err := readonly.Check(ctx, method, readonly.Target(path)); err != nil {
 		return nil, err
 	}
 

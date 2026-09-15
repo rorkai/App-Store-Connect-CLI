@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 const (
@@ -216,7 +217,7 @@ func (c *Client) listDeveloperAppGroupPages(ctx context.Context, teamID string, 
 	seenGroupIDs := make(map[string]struct{})
 	firstTotalRecords := 0
 	for pageNumber := 1; ; pageNumber++ {
-		body, err := c.doDeveloperPortalLegacyFormRequest(ctx, developerAppGroupsListPath, url.Values{
+		body, err := c.doDeveloperPortalLegacyFormRequest(readonly.WithReadIntent(ctx), developerAppGroupsListPath, url.Values{
 			"teamId":     {teamID},
 			"pageNumber": {strconv.Itoa(pageNumber)},
 			"pageSize":   {strconv.Itoa(developerAppGroupsPageSize)},
@@ -846,7 +847,7 @@ func (c *Client) primeDeveloperAppGroupCSRF(ctx context.Context) error {
 		return fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
 	}
 	c.clearDeveloperCSRFTokens()
-	body, err := c.doDeveloperPortalLegacyFormRequest(ctx, developerAppGroupsListPath, url.Values{
+	body, err := c.doDeveloperPortalLegacyFormRequest(readonly.WithReadIntent(ctx), developerAppGroupsListPath, url.Values{
 		"teamId":     {teamID},
 		"pageNumber": {"1"},
 		"pageSize":   {strconv.Itoa(developerAppGroupsPageSize)},

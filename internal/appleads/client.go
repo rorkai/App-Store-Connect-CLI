@@ -16,6 +16,7 @@ import (
 	"unicode"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 const (
@@ -226,6 +227,9 @@ func (c *Client) Do(ctx context.Context, spec EndpointSpec, pathParams map[strin
 		contextKind = ContextOrg
 	}
 	retrySafe := spec.RetrySafe || spec.Method == http.MethodGet || spec.Method == http.MethodHead
+	if spec.ReadOnlyRequest() {
+		ctx = readonly.WithReadIntent(ctx)
+	}
 	return c.requestForVersion(ctx, version, spec.Method, path, query, body, contextKind, retrySafe)
 }
 
@@ -271,6 +275,9 @@ func (c *Client) requestForVersion(ctx context.Context, version APIVersion, meth
 }
 
 func (c *Client) requestOnce(ctx context.Context, version APIVersion, method, requestURL string, body json.RawMessage, contextHeader string, retrySafe bool, maxRetryDelay time.Duration) (RawResponse, error) {
+	if err := readonly.Check(ctx, method, readonly.Target(requestURL)); err != nil {
+		return nil, err
+	}
 	token, err := c.bearerToken(ctx)
 	if err != nil {
 		return nil, err

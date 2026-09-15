@@ -30,6 +30,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -88,6 +89,16 @@ func TestExitCodeFromError(t *testing.T) {
 			name:     "generic error returns generic error",
 			err:      errors.New("something went wrong"),
 			expected: ExitError,
+		},
+		{
+			name:     "read-only refusal returns read-only",
+			err:      &readonly.RefusedError{Source: readonly.EnvVar, Method: http.MethodPatch, Target: "/v1/apps/1"},
+			expected: ExitReadOnly,
+		},
+		{
+			name:     "wrapped read-only refusal returns read-only",
+			err:      fmt.Errorf("failed to update app: %w", &readonly.RefusedError{Source: readonly.EnvVar, Method: http.MethodPatch, Target: "/v1/apps/1"}),
+			expected: ExitReadOnly,
 		},
 		{
 			name:     "child exit code is preserved",
@@ -186,6 +197,9 @@ func TestExitCodeConstants(t *testing.T) {
 	}
 	if ExitConflict != 5 {
 		t.Errorf("ExitConflict = %d, want 5", ExitConflict)
+	}
+	if ExitReadOnly != 6 {
+		t.Errorf("ExitReadOnly = %d, want 6", ExitReadOnly)
 	}
 }
 

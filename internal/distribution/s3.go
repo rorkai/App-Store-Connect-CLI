@@ -22,6 +22,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
 	transporthttp "github.com/aws/smithy-go/transport/http"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 const (
@@ -164,6 +166,9 @@ func (store *S3Store) Ensure(ctx context.Context, input PutObject) (StoredObject
 	if decodeErr != nil || len(digest) != sha256.Size {
 		return StoredObject{}, fmt.Errorf("put object identity has invalid SHA-256")
 	}
+	if err := readonly.Check(ctx, http.MethodPut, store.objectTarget(input.Key)); err != nil {
+		return StoredObject{}, err
+	}
 	putCtx, putCancel := store.boundedRequestContext(ctx)
 	_, err = store.client.PutObject(putCtx, &s3.PutObjectInput{
 		Bucket:         aws.String(store.bucket),
@@ -217,6 +222,9 @@ func (store *S3Store) ReplaceCorrupt(ctx context.Context, input PutObject) (Stor
 	}
 	if err := ctx.Err(); err != nil {
 		return StoredObject{}, fmt.Errorf("conditionally replace corrupt object %q: %w", input.Key, err)
+	}
+	if err := readonly.Check(ctx, http.MethodPut, store.objectTarget(input.Key)); err != nil {
+		return StoredObject{}, err
 	}
 	putCtx, putCancel := store.boundedRequestContext(ctx)
 	_, err = store.client.PutObject(putCtx, &s3.PutObjectInput{
@@ -278,6 +286,12 @@ func (store *S3Store) mutationReconcileContext(ctx context.Context) (context.Con
 		boundedCancel()
 		baseCancel()
 	}
+}
+
+// objectTarget names an object for read-only refusals without the endpoint,
+// which may carry credentials or a private hostname.
+func (store *S3Store) objectTarget(key string) string {
+	return "s3://" + store.bucket + "/" + strings.TrimPrefix(key, "/")
 }
 
 func (store *S3Store) head(ctx context.Context, key string) (StoredObject, error) {

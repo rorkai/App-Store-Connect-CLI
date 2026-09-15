@@ -18,6 +18,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/auth"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 const (
@@ -167,13 +168,16 @@ func (c *Client) loadPrivateKey() (*ecdsa.PrivateKey, error) {
 }
 
 func (c *Client) request(ctx context.Context, method, path, contentType string, body []byte, response any) error {
-	token, err := c.signedToken()
-	if err != nil {
-		return err
-	}
 	requestURL, err := url.Parse(c.baseURL + "/" + strings.TrimLeft(path, "/"))
 	if err != nil {
 		return fmt.Errorf("build StoreKit request URL: %w", err)
+	}
+	if err := readonly.Check(ctx, method, readonly.Target(requestURL.String())); err != nil {
+		return err
+	}
+	token, err := c.signedToken()
+	if err != nil {
+		return err
 	}
 	var reader io.Reader
 	if body != nil {

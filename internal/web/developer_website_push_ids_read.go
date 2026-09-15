@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 const (
@@ -51,7 +53,7 @@ func (c *Client) listDeveloperWebsitePushIDsAfterSession(ctx context.Context) (*
 		return nil, fmt.Errorf("developer portal team is not selected; %s", developerPortalAuthHint)
 	}
 
-	body, err := c.doDeveloperPortalLegacyFormRequest(ctx, developerWebsitePushIDsListPath, url.Values{
+	body, err := c.doDeveloperPortalLegacyFormRequest(readonly.WithReadIntent(ctx), developerWebsitePushIDsListPath, url.Values{
 		"onlyCountLists": {"true"},
 		"pageSize":       {strconv.Itoa(developerWebsitePushIDsListPageSize)},
 		"pageNumber":     {"1"},

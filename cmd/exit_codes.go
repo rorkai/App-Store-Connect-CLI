@@ -7,6 +7,7 @@ import (
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	webcore "github.com/rudrankriyam/App-Store-Connect-CLI/internal/web"
 )
 
@@ -18,6 +19,7 @@ const (
 	ExitAuth     = 3 // Authentication failure (missing, unauthorized, forbidden)
 	ExitNotFound = 4 // Resource not found
 	ExitConflict = 5 // Conflict / resource already exists
+	ExitReadOnly = 6 // Read-only mode refused a mutating request
 
 	// HTTP 4xx range: 10 + (status - 400)
 	// Note: 404 and 409 are mapped to ExitNotFound and ExitConflict above.
@@ -45,6 +47,11 @@ func ExitCodeFromError(err error) int {
 	// Usage errors
 	if errors.Is(err, flag.ErrHelp) || shared.IsReportedUsageError(err) {
 		return ExitUsage
+	}
+
+	// Policy refusal from ASC_READ_ONLY / --read-only
+	if errors.Is(err, readonly.ErrRefused) {
+		return ExitReadOnly
 	}
 
 	// Well-known error types

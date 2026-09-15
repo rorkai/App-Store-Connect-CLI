@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 const analyticsAPIBaseURL = appStoreBaseURL + "/analytics/api/v1"
@@ -277,8 +279,11 @@ func (c *Client) analyticsBaseURL() string {
 	return baseURL
 }
 
+// doAnalyticsRequest sends an analytics query. The analytics API transports
+// every query as a POST whose body is the filter, so it is marked as a read
+// for read-only mode.
 func (c *Client) doAnalyticsRequest(ctx context.Context, path string, body any, referer string) ([]byte, error) {
-	return c.doRequestBase(ctx, c.analyticsBaseURL(), http.MethodPost, path, body, analyticsHeaders(referer))
+	return c.doRequestBase(readonly.WithReadIntent(ctx), c.analyticsBaseURL(), http.MethodPost, path, body, analyticsHeaders(referer))
 }
 
 // NormalizeAnalyticsFrequency validates analytics frequency values shared by the

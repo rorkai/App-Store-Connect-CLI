@@ -171,6 +171,25 @@ asc --debug=true apps list
 asc --debug=false apps list
 ```
 
+## Safety Flags
+
+### `--read-only`
+
+Refuse every mutating request (`POST`, `PATCH`, `PUT`, `DELETE`) before it is sent, for this invocation only.
+
+```bash  theme={null}
+asc --read-only apps list
+asc --read-only builds update --build-id "123" --uses-non-exempt-encryption=false
+# Error: --read-only is set; refusing PATCH /v1/builds/123
+# exit code 6
+```
+
+**Default**: `false`
+
+**Environment variable**: `ASC_READ_ONLY` (accepts `true/false`, `1/0`, `yes/no`, `y/n`, `on/off`)
+
+Read-only mode is enforced at the transport layer of every Apple-facing client, so it covers commands that never had a `--confirm` flag. Reads, local-only commands, and credential minting keep working. Either source enables the mode; neither can disable the other. See [Read-only mode](/concepts/read-only-mode) for the full contract.
+
 ## Environment Variables
 
 All global flags have corresponding environment variables for easier configuration in CI or development environments:
@@ -182,6 +201,7 @@ All global flags have corresponding environment variables for easier configurati
 | `--debug`       | `ASC_DEBUG`          | `true/false`                                   |
 | `--api-debug`   | `ASC_DEBUG`          | `api`                                          |
 | `--retry-log`   | `ASC_RETRY_LOG`      | `true/false`                                   |
+| `--read-only`   | `ASC_READ_ONLY`      | `true/false`, `1/0`, `yes/no`, `y/n`, `on/off` |
 
 ### Additional Environment Variables
 

@@ -27,6 +27,7 @@ func TestExitCodeConstantsMatch(t *testing.T) {
 		{"Auth", 3, func() int { return cmd.ExitAuth }},
 		{"NotFound", 4, func() int { return cmd.ExitNotFound }},
 		{"Conflict", 5, func() int { return cmd.ExitConflict }},
+		{"ReadOnly", 6, func() int { return cmd.ExitReadOnly }},
 	}
 
 	for _, tt := range tests {

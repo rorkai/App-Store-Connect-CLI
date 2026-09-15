@@ -210,6 +210,7 @@ Use `asc <command> --help` for subcommands and flags.
 - `--api-debug` - HTTP request/response logging (redacted)
 - `--debug` - Debug logging
 - `--profile` - Use a named authentication profile
+- `--read-only` - Refuse every mutating request before it is sent (see `ASC_READ_ONLY`)
 - `--report` - Report format for CI output
 - `--report-file` - Path to write CI report file
 - `--retry-log` - Enable retry logging
@@ -220,6 +221,7 @@ Use `asc <command> --help` for subcommands and flags.
 
 - `ASC_APP_ID` - Default app ID
 - `ASC_PROFILE` - Default auth profile
+- `ASC_READ_ONLY` - Refuse every mutating request; refusals exit `6`
 - `ASC_TIMEOUT`, `ASC_TIMEOUT_SECONDS` - Request timeout
 - `ASC_UPLOAD_TIMEOUT`, `ASC_UPLOAD_TIMEOUT_SECONDS` - Upload timeout
 - `ASC_DEBUG` - Debug output (`api` enables HTTP logs)

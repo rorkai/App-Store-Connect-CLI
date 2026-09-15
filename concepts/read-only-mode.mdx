@@ -1,0 +1,84 @@
+# Read-only mode
+
+> Guarantee that a session, CI job, or agent never writes to App Store Connect
+
+Read-only mode refuses every mutating request before it leaves the process. It exists for audits, reporting jobs, and agent sessions that must be able to run any `asc` command without the possibility of changing account state.
+
+## Enabling it
+
+Set the environment variable for a whole session or job:
+
+```bash  theme={null}
+export ASC_READ_ONLY=1
+asc apps list
+asc builds update --build-id "123" --uses-non-exempt-encryption=false
+# Error: ASC_READ_ONLY is set; refusing PATCH /v1/builds/123
+```
+
+Or pass the global flag for one invocation:
+
+```bash  theme={null}
+asc --read-only builds update --build-id "123" --uses-non-exempt-encryption=false
+# Error: --read-only is set; refusing PATCH /v1/builds/123
+```
+
+`ASC_READ_ONLY` accepts `true`, `1`, `yes`, `y`, or `on`. Either source enables the mode; neither can disable the other, so `ASC_READ_ONLY=1 asc --read-only=false ...` stays read-only.
+
+## What is refused
+
+Every `POST`, `PATCH`, `PUT`, and `DELETE` request is refused before it is sent, from every outbound client:
+
+* App Store Connect API requests, including asset and build upload operations
+* App Store Connect web session requests and Developer Portal requests
+* Notary API submissions and their S3 uploads
+* Apple Ads Campaign Management API writes
+* StoreKit retention messaging writes
+* Third-party writes issued by commands: Slack notifications, GitHub issue and pull request creation, Xcode Cloud usage alert webhooks, and ad hoc distribution publishing
+
+A `--confirm` command is refused when it issues its write, so `asc bundle-ids delete --id "ABC123" --confirm` exits 6 without sending anything. Commands whose `--confirm` only guards a local change, such as `asc auth export-to-config` or `asc notarization staple`, still run: the mode refuses remote writes, not local ones.
+
+The refusal is one line on stderr and the process exits with code `6`:
+
+```text  theme={null}
+Error: ASC_READ_ONLY is set; refusing DELETE /v1/bundleIds/ABC123
+```
+
+The target omits query strings, so signed upload URLs and filters never reach logs.
+
+## Workflows and subprocesses
+
+`asc workflow run` executes each step as a shell command, so read-only mode is propagated to the step environment as `ASC_READ_ONLY=1`, even when the session enabled it with `--read-only`. A step that invokes `asc` again is therefore refused the same way, and a step's own `env` block cannot override the variable.
+
+The propagation is an inherited environment variable, not a sandbox. A step's shell command can still clear it for a process it starts (`ASC_READ_ONLY=0 asc ...`), and a step that runs something other than `asc`, such as `curl -X POST`, never passes through these guards at all. Read-only mode is a guarantee about the requests `asc` itself makes; for a workflow file you do not trust, use a credential that cannot write.
+
+## What still works
+
+* `GET`, `HEAD`, and `OPTIONS` requests, including `--paginate`
+* Reads that Apple transports as `POST`: analytics queries, Apple Ads `find`, `query`, `search`, and report endpoints, and Developer Portal listings proxied with `X-HTTP-Method-Override: GET`
+* Credential handling: JWT minting is local, and Apple Ads token exchange, web sign-in, and team selection only establish a session
+* Local-only commands: `asc auth`, `asc schema`, `asc workflow validate`, `asc search`, file inspection, and similar
+* Anonymous CLI usage telemetry, which is controlled separately and never touches account state
+
+## Exit code and scripting
+
+Read-only refusals map to exit code `6`, distinct from authentication failures (`3`) and API conflicts (`5`), so scripts can tell "policy said no" from "Apple said no":
+
+```bash  theme={null}
+ASC_READ_ONLY=1 asc builds update --build-id "123" --uses-non-exempt-encryption=false
+case $? in
+  0) echo "unexpected: a write went through" ;;
+  6) echo "blocked by read-only mode" ;;
+  *) echo "other failure" ;;
+esac
+```
+
+See [Error Handling](/concepts/error-handling) for the full exit code table.
+
+## When to use it
+
+* Agent sessions (MCP servers, coding assistants) that are allowed to inspect but not change an account
+* Scheduled reporting and audit jobs
+* Reviewing your own workflow file, whose steps are `asc` commands, by running it against production credentials
+* Restricted CI stages that should only read TestFlight or App Store status
+
+Read-only mode complements, but does not replace, API key roles: a key with write access is still a key with write access. Prefer a read-only App Store Connect API key where Apple offers one and use `ASC_READ_ONLY` as the local guarantee.
