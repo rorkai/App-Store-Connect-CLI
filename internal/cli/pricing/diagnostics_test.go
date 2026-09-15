@@ -63,11 +63,13 @@ func TestPricingScheduleCreateInvalidInputExposesStructuredDiagnostics(t *testin
 			wantParam:  "--base-territory",
 		},
 		{
-			name:      "malformed start date",
-			args:      []string{"--app", "APP", "--price-point", "PP", "--base-territory", "USA", "--start-date", "03-01-2024"},
-			wantError: "pricing schedule create: --start-date must be in YYYY-MM-DD format",
-			wantCode:  shared.DiagnosticInvalidInput,
-			wantParam: "--start-date",
+			name:       "malformed start date",
+			args:       []string{"--app", "APP", "--price-point", "PP", "--base-territory", "USA", "--start-date", "03-01-2024"},
+			wantError:  "--start-date must be in YYYY-MM-DD format",
+			wantStderr: "Error: --start-date must be in YYYY-MM-DD format\n",
+			wantUsage:  true,
+			wantCode:   shared.DiagnosticInvalidInput,
+			wantParam:  "--start-date",
 		},
 	}
 
