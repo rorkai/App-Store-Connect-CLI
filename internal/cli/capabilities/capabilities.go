@@ -657,6 +657,13 @@ func capabilityRows() []Capability {
 			},
 		},
 		{
+			Area:       "automation",
+			Capability: "Raw authenticated API requests",
+			Status:     statusCLISupported,
+			Commands:   []string{"asc api"},
+			Notes:      []string{"asc api sends any GET, POST, PATCH, or DELETE operation in the embedded schema index through the CLI's authentication, retries, and error rendering, including relationships linkage reads without a dedicated command."},
+		},
+		{
 			Area:       "access",
 			Capability: "Users, invitations, actors, and devices",
 			Status:     statusCLISupported,

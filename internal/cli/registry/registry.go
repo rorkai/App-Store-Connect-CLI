@@ -17,6 +17,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/alternativedistribution"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/analytics"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/androidiosmapping"
+	apicmd "github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/api"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/app_events"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/appclips"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/apps"
@@ -193,6 +194,7 @@ func NewCatalog(version string) *Catalog {
 		commandFactory("game-center", "Manage Game Center resources in App Store Connect.", gamecenter.GameCenterCommand),
 		commandFactory("capabilities", "Show CLI, API, web-only, and public-API-limited capability coverage.", capabilities.Command),
 		commandFactory("schema", "Inspect App Store Connect API endpoint schemas at runtime.", schema.SchemaCommand),
+		commandFactory("api", "Send an authenticated raw request to the App Store Connect API.", apicmd.Command),
 		commandFactory("telemetry", "Manage CLI telemetry settings.", telemetrycmd.TelemetryCommand),
 		commandFactory("search", "Search asc commands and examples for agent-oriented command discovery.", func() *ffcli.Command {
 			return searchcmd.SearchCommand(catalog.All)

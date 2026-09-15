@@ -143,6 +143,11 @@ func withinThreshold(input string, dist int) bool {
 	}
 }
 
+// Distance returns the Levenshtein edit distance between a and b.
+func Distance(a, b string) int {
+	return levenshtein(a, b)
+}
+
 // levenshtein computes the Levenshtein distance between two strings.
 // For our command names (ASCII, short), this is fast enough.
 func levenshtein(a, b string) int {

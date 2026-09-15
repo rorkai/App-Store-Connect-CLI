@@ -146,6 +146,7 @@ asc <subcommand> [flags]
 - `version` - Print version information and exit.
 - `completion` - Print shell completion scripts.
 - `schema` - Inspect App Store Connect API endpoint schemas at runtime.
+- `api` - Send an authenticated raw request to the App Store Connect API.
 - `telemetry` - Manage CLI telemetry settings.
 
 ## Scripting Tips

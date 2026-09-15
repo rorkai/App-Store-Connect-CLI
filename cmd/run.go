@@ -367,7 +367,8 @@ func normalizeSpacedBooleanFlags(root *ffcli.Command, args []string) []string {
 // standard flag behavior these commands exposed before spaced bool recovery.
 func commandAcceptsPositionalPayload(commandPath []string) bool {
 	switch strings.Join(commandPath, " ") {
-	case "asc docs show",
+	case "asc api",
+		"asc docs show",
 		"asc schema",
 		"asc search",
 		"asc snitch",
