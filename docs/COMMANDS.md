@@ -155,6 +155,7 @@ asc <subcommand> [flags]
 - Use `--output json` for explicit machine-readable output.
 - Use `--paginate` on list commands to fetch all pages automatically.
 - Use `--limit` and `--next` for manual pagination control.
+- Any flag that takes a value accepts `@env:NAME` or `@file:PATH` to read it from the environment or a file; escape a literal leading `@` as `@@`. `--output` and the root `--profile`, `--report`, and `--report-file` are always read literally.
 - Prefer explicit flags and deterministic outputs in CI scripts.
 
 ## High-Signal Examples

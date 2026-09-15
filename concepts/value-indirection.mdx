@@ -1,0 +1,68 @@
+# Value Indirection
+
+> Pass any flag value from an environment variable or a file with `@env:NAME` and `@file:PATH`, keeping secrets and long text out of the command line.
+
+Every flag that takes a value accepts two indirection prefixes. They apply uniformly across commands, so you never need to check whether a particular flag has a `--*-file` variant.
+
+| Value | Resolves to |
+| --- | --- |
+| `@env:NAME` | The value of the environment variable `NAME` |
+| `@file:PATH` | The contents of `PATH`, with one trailing line ending removed |
+| `@@...` | A literal value that starts with `@` (the first `@` is dropped) |
+
+Values that start with `@` but not with `@env:`, `@file:`, or `@@` are passed through unchanged, so handles such as `--channel @username` keep working.
+
+## Why
+
+* Secrets such as webhook secrets and demo-account passwords stay out of `argv`, shell history, process listings, and agent transcripts.
+* Long text such as release notes or JSON bodies lives in a file instead of a quoted shell string.
+* Automation can hand values through the environment without templating the command line.
+
+## Examples
+
+```bash  theme={null}
+# Secret from the environment
+export WEBHOOK_SECRET="..."
+asc webhooks create --app "APP_ID" --name "Build Updates" \
+  --url "https://example.com/webhook" \
+  --secret @env:WEBHOOK_SECRET \
+  --events BUILD_UPLOAD_STATE_UPDATED --enabled true
+
+# Release notes from a file
+asc localizations update --id "LOCALIZATION_ID" --whats-new @file:./release-notes.txt
+
+# Inline form works too
+asc localizations update --id "LOCALIZATION_ID" --whats-new=@file:./release-notes.txt
+
+# A literal value that starts with @
+asc localizations update --id "LOCALIZATION_ID" --promotional-text @@channel
+```
+
+## Rules
+
+* Resolution happens once, before flag parsing. Repeated flags and comma-separated list flags receive the resolved text and validate it exactly as if you had typed it.
+* `@env:NAME` fails with a usage error (exit code 2) when `NAME` is unset or empty. The error names the variable, never its value.
+* `@file:PATH` resolves relative paths against the working directory. The file must be a regular file (not a symlink at the final path component), non-empty after trimming the trailing line ending, and at most 1 MiB. Missing or unreadable files fail with a usage error that names the flag and the path.
+* Only one trailing line ending (`\n` or a complete `\r\n` pair) is removed. Interior whitespace, additional trailing blank lines, and a lone trailing `\r` are preserved.
+* A boolean flag that takes no value (`--paginate`, `--confirm`, `--debug`) never consumes an indirect value: the following token stays a positional argument.
+* A flag that requires an explicit boolean value (`--enabled true`) does take a value token, so `--enabled @env:FEATURE_ON` resolves and then validates the resolved text like any other value.
+* `--output` is never resolved on any command, under either of its meanings (the format enum and the output path).
+* The root selectors `--profile`, `--report`, and `--report-file` are never resolved: they choose how `asc` itself runs and are read directly from the command line. The exclusion follows the flag's owner, not its name, so a command-local flag that happens to share a name resolves normally (for example `asc signing run --profile @env:PROFILE_PATH`).
+* Positional arguments and anything after `--` are never resolved.
+* `--help` always wins over indirection. Help output depends only on which command you named, so a help request drops indirect flag values instead of resolving them: `asc apps list --limit @env:LIMIT --help` prints help and exits 0 whether or not `LIMIT` is set or numeric, and a help request reads no environment variable and opens no file.
+* A literal value is unaffected by any of this. `asc apps list --limit=abc --help` still reports the invalid value, exactly as it did before indirection existed, because flags are parsed in command-line order.
+
+## Errors
+
+```text
+Error: --secret: environment variable WEBHOOK_SECRET is not set
+Error: --secret: environment variable WEBHOOK_SECRET is empty
+Error: --whats-new: cannot read file ./release-notes.txt: file does not exist
+Error: --whats-new: file ./release-notes.txt is empty
+```
+
+All indirection failures exit with code 2 and write nothing to stdout, so a missing secret never produces a partial request.
+
+## Telemetry
+
+Resolved values are never recorded. Anonymous usage telemetry carries command paths and, on failure, a flag name from a fixed allow-list; it has no field for flag values. See [Error Handling](/concepts/error-handling) for exit codes.

@@ -27,6 +27,7 @@
             "group": "Core Concepts",
             "pages": [
               "concepts/output-formats",
+              "concepts/value-indirection",
               "concepts/pagination",
               "concepts/error-handling",
               "concepts/workflows"
