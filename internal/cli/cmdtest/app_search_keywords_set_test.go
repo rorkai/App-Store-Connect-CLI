@@ -358,7 +358,7 @@ func TestAppsSearchKeywordsSetUsageErrors(t *testing.T) {
 		{
 			name:    "positional argument",
 			args:    []string{"apps", "search-keywords", "set", "unexpected", "--app", "app-1", "--version", "1.2.3", "--locale", "en-US", "--keywords", "one,two", "--confirm"},
-			wantErr: "does not accept positional arguments",
+			wantErr: `unexpected argument "unexpected"`,
 		},
 		{
 			name:    "invalid output before mutation",
