@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -673,8 +674,9 @@ func TestPaginateAll_BuildsPreservesIncluded(t *testing.T) {
 	}
 }
 
-func TestMergeRawJSONArrayDeduplicatesJSONAPIResourcesByIdentity(t *testing.T) {
-	merged, err := mergeRawJSONArray(
+func TestRawJSONArrayAccumulatorDeduplicatesJSONAPIResourcesByIdentity(t *testing.T) {
+	acc := &rawJSONArrayAccumulator{}
+	payloads := []json.RawMessage{
 		json.RawMessage(`[
 			{"type":"betaGroups","id":"group-a","attributes":{"name":"Alpha"}},
 			{"type":"apps","id":"shared-id"}
@@ -684,9 +686,16 @@ func TestMergeRawJSONArrayDeduplicatesJSONAPIResourcesByIdentity(t *testing.T) {
 			{"type":"betaGroups","id":"group-b","attributes":{"name":"Bravo"}},
 			{"type":"builds","id":"shared-id"}
 		]`),
-	)
+	}
+	for i, payload := range payloads {
+		if err := acc.add(payload); err != nil {
+			t.Fatalf("add payload %d: %v", i+1, err)
+		}
+	}
+
+	merged, err := acc.merged()
 	if err != nil {
-		t.Fatalf("mergeRawJSONArray() error: %v", err)
+		t.Fatalf("merged() error: %v", err)
 	}
 
 	var included []struct {
@@ -709,6 +718,95 @@ func TestMergeRawJSONArrayDeduplicatesJSONAPIResourcesByIdentity(t *testing.T) {
 		included[2].Type != "betaGroups" || included[2].ID != "group-b" ||
 		included[3].Type != "builds" || included[3].ID != "shared-id" {
 		t.Fatalf("expected stable order with type-scoped identities, got %+v", included)
+	}
+}
+
+func TestPaginateAll_MergesOverlappingIncludedAcrossPages(t *testing.T) {
+	const totalPages = 3
+
+	// Every page sideloads the same app plus its own pre-release version, so the
+	// shared app must appear once with the representation from the first page.
+	makePage := func(page int) *BuildsResponse {
+		links := Links{}
+		if page < totalPages {
+			links.Next = fmt.Sprintf("page=%d", page+1)
+		}
+		return &BuildsResponse{
+			Data: []Resource[BuildAttributes]{
+				{Type: ResourceTypeBuilds, ID: fmt.Sprintf("build-%d", page)},
+			},
+			Included: json.RawMessage(fmt.Sprintf(`[
+				{"type":"apps","id":"app-1","attributes":{"name":"App from page %d"}},
+				{"type":"preReleaseVersions","id":"prv-%d","attributes":{"version":"1.0.%d"}}
+			]`, page, page, page)),
+			Links: links,
+		}
+	}
+
+	result, err := PaginateAll(context.Background(), makePage(1), func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
+		page, err := parseMockPageNum(nextURL)
+		if err != nil {
+			return nil, err
+		}
+		return makePage(page), nil
+	})
+	if err != nil {
+		t.Fatalf("PaginateAll() error: %v", err)
+	}
+
+	builds, ok := result.(*BuildsResponse)
+	if !ok {
+		t.Fatalf("expected *BuildsResponse, got %T", result)
+	}
+	if len(builds.Data) != totalPages {
+		t.Fatalf("expected %d builds, got %d", totalPages, len(builds.Data))
+	}
+
+	var included []struct {
+		Type       string `json:"type"`
+		ID         string `json:"id"`
+		Attributes struct {
+			Name string `json:"name"`
+		} `json:"attributes"`
+	}
+	if err := json.Unmarshal(builds.Included, &included); err != nil {
+		t.Fatalf("decode merged included payload: %v", err)
+	}
+
+	wantIdentities := []string{"apps/app-1", "preReleaseVersions/prv-1", "preReleaseVersions/prv-2", "preReleaseVersions/prv-3"}
+	gotIdentities := make([]string, 0, len(included))
+	for _, resource := range included {
+		gotIdentities = append(gotIdentities, resource.Type+"/"+resource.ID)
+	}
+	if !slices.Equal(gotIdentities, wantIdentities) {
+		t.Fatalf("expected included identities %v, got %v", wantIdentities, gotIdentities)
+	}
+	if included[0].Attributes.Name != "App from page 1" {
+		t.Fatalf("expected the first page's app representation to win, got %q", included[0].Attributes.Name)
+	}
+}
+
+func TestPaginateAll_SinglePageIncludedRetainedVerbatim(t *testing.T) {
+	payload := json.RawMessage(`[{"type":"apps","id":"app-1"}]`)
+	firstPage := &BuildsResponse{
+		Data:     []Resource[BuildAttributes]{{Type: ResourceTypeBuilds, ID: "build-1"}},
+		Included: payload,
+	}
+
+	result, err := PaginateAll(context.Background(), firstPage, func(ctx context.Context, nextURL string) (PaginatedResponse, error) {
+		t.Fatalf("unexpected fetch of %q for a single page", nextURL)
+		return nil, nil
+	})
+	if err != nil {
+		t.Fatalf("PaginateAll() error: %v", err)
+	}
+
+	builds, ok := result.(*BuildsResponse)
+	if !ok {
+		t.Fatalf("expected *BuildsResponse, got %T", result)
+	}
+	if string(builds.Included) != string(payload) {
+		t.Fatalf("expected included payload %s to be preserved, got %s", payload, builds.Included)
 	}
 }
 
