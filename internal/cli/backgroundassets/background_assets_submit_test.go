@@ -4,8 +4,10 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
 type fakeSubmitClient struct {
@@ -275,6 +277,56 @@ func TestFetchAlreadyAttachedBackgroundAssetVersions(t *testing.T) {
 	}
 	if _, ok := attached["ver-removed"]; ok {
 		t.Errorf("expected REMOVED item ver-removed to be excluded")
+	}
+}
+
+func TestBackgroundAssetSubmitRequestContextSurvivesExpiredRequestDeadline(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "30s")
+
+	expired, cancelExpired := shared.ContextWithTimeoutDuration(context.Background(), time.Nanosecond)
+	defer cancelExpired()
+	<-expired.Done()
+
+	requestCtx, cancel := backgroundAssetSubmitRequestContext(expired)
+	defer cancel()
+	if err := requestCtx.Err(); err != nil {
+		t.Fatalf("rollback and submit must stay possible after an earlier deadline expired, got %v", err)
+	}
+	if _, ok := requestCtx.Deadline(); !ok {
+		t.Error("request context should still carry its own deadline")
+	}
+}
+
+func TestBackgroundAssetSubmitRequestContextIsIndependentPerRequest(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "30s")
+
+	first, cancelFirst := backgroundAssetSubmitRequestContext(context.Background())
+	cancelFirst()
+	if first.Err() == nil {
+		t.Fatal("first request context should be done after its own cancel")
+	}
+
+	second, cancelSecond := backgroundAssetSubmitRequestContext(context.Background())
+	defer cancelSecond()
+	if err := second.Err(); err != nil {
+		t.Fatalf("a later request must get a fresh budget, got %v", err)
+	}
+}
+
+func TestBackgroundAssetSubmitRequestContextHonorsParentCancellation(t *testing.T) {
+	t.Setenv("ASC_TIMEOUT", "30s")
+
+	parent, cancelParent := context.WithCancel(context.Background())
+	defer cancelParent()
+
+	requestCtx, cancel := backgroundAssetSubmitRequestContext(parent)
+	defer cancel()
+	cancelParent()
+
+	select {
+	case <-requestCtx.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("request context should be cancelled when the caller cancels")
 	}
 }
 

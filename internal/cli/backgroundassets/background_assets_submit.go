@@ -166,9 +166,15 @@ Examples:
 					result.SkippedAlreadyAttached = append(result.SkippedAlreadyAttached, item)
 					continue
 				}
-				if _, err := client.CreateReviewSubmissionItem(requestCtx, currentSubmissionID, asc.ReviewSubmissionItemTypeBackgroundAssetVersion, item.BackgroundAssetVersionID); err != nil {
+				attachCtx, attachCancel := backgroundAssetSubmitRequestContext(ctx)
+				_, err := client.CreateReviewSubmissionItem(attachCtx, currentSubmissionID, asc.ReviewSubmissionItemTypeBackgroundAssetVersion, item.BackgroundAssetVersionID)
+				attachCancel()
+				if err != nil {
 					if createdHere {
-						if _, cancelErr := client.CancelReviewSubmission(requestCtx, currentSubmissionID); cancelErr == nil {
+						rollbackCtx, rollbackCancel := backgroundAssetSubmitRequestContext(ctx)
+						_, cancelErr := client.CancelReviewSubmission(rollbackCtx, currentSubmissionID)
+						rollbackCancel()
+						if cancelErr == nil {
 							return fmt.Errorf("background-assets submit: attach version %q (index %d, %d already attached) to submission %q failed; rolled back the submission: %w", item.BackgroundAssetVersionID, i, result.AttachedItems, currentSubmissionID, err)
 						} else {
 							return fmt.Errorf("background-assets submit: attach version %q (index %d, %d already attached) to submission %q failed; rollback also failed (submission %q is leaked with %d partial item(s)): %w", item.BackgroundAssetVersionID, i, result.AttachedItems, currentSubmissionID, currentSubmissionID, result.AttachedItems, errors.Join(err, cancelErr))
@@ -184,7 +190,9 @@ Examples:
 				return shared.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
-			submitResp, err := client.SubmitReviewSubmission(requestCtx, currentSubmissionID)
+			submitCtx, submitCancel := backgroundAssetSubmitRequestContext(ctx)
+			defer submitCancel()
+			submitResp, err := client.SubmitReviewSubmission(submitCtx, currentSubmissionID)
 			if err != nil {
 				return fmt.Errorf("background-assets submit: submit review submission %q: %w", currentSubmissionID, err)
 			}
@@ -198,6 +206,15 @@ Examples:
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+// backgroundAssetSubmitRequestContext bounds one mutation in the submit flow
+// with its own budget derived from the un-deadlined parent. Attaching many
+// items is then not capped by a single shared deadline, and neither the
+// rollback nor the final submit inherits a deadline that an earlier request
+// already exhausted. Parent cancellation (Ctrl-C) still propagates.
+func backgroundAssetSubmitRequestContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return shared.ContextWithTimeout(shared.ContextWithoutTimeout(ctx))
 }
 
 type backgroundAssetsSubmitResult struct {
