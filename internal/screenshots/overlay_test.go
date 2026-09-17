@@ -57,18 +57,22 @@ func TestResumeSkipRequiresMatchingHashAndOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	fingerprint := FingerprintFrameResume(FrameResumeFingerprint{SourceHash: hash, Device: "iphone-air", Title: "Home"})
-	state := FrameResumeState{Files: map[string]string{output: fingerprint}}
-	if ResumeSkip(state, output, fingerprint) {
+	stored := FrameResult{Path: output, Device: "iphone-air", Width: 20, Height: 40, FramePath: "frame"}
+	state := FrameResumeState{Files: map[string]FrameResumeEntry{
+		output: {Fingerprint: fingerprint, Result: stored},
+	}}
+	if _, ok := ResumeEntry(state, output, fingerprint); ok {
 		t.Fatal("missing output must not skip")
 	}
 	if err := os.WriteFile(output, []byte("framed"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if !ResumeSkip(state, output, fingerprint) {
-		t.Fatal("matching fingerprint and output should skip")
+	got, ok := ResumeEntry(state, output, fingerprint)
+	if !ok || !got.Skipped || got.Width != 20 || got.FramePath != "frame" {
+		t.Fatalf("resume entry = %+v ok=%v", got, ok)
 	}
 	changed := FingerprintFrameResume(FrameResumeFingerprint{SourceHash: hash, Device: "iphone-air", Title: "Other"})
-	if ResumeSkip(state, output, changed) {
+	if _, ok := ResumeEntry(state, output, changed); ok {
 		t.Fatal("changed title must not skip")
 	}
 	path := FrameResumeStateRel
@@ -81,7 +85,7 @@ func TestResumeSkipRequiresMatchingHashAndOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	loaded, err := LoadFrameResumeState(root, path)
-	if err != nil || loaded.Files[output] != fingerprint {
+	if err != nil || loaded.Files[output].Fingerprint != fingerprint || loaded.Files[output].Result.Width != 20 {
 		t.Fatalf("loaded = %+v err=%v", loaded, err)
 	}
 }
@@ -104,7 +108,9 @@ func TestSaveFrameResumeStateRejectsSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
-	err = SaveFrameResumeState(root, FrameResumeStateRel, FrameResumeState{Files: map[string]string{"out": "fp"}})
+	err = SaveFrameResumeState(root, FrameResumeStateRel, FrameResumeState{Files: map[string]FrameResumeEntry{
+		"out": {Fingerprint: "fp"},
+	}})
 	if err == nil {
 		t.Fatal("expected symlink state file to be rejected")
 	}

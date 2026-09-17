@@ -288,16 +288,22 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 					return err
 				}
 				defer root.Close()
-				state, err := screenshots.LoadFrameResumeState(root, screenshots.FrameResumeStateRel)
+				var skipped *screenshots.FrameResult
+				err = screenshots.WithFrameResumeLock(ctx, root, func() error {
+					state, loadErr := screenshots.LoadFrameResumeState(root, screenshots.FrameResumeStateRel)
+					if loadErr != nil {
+						return fmt.Errorf("screenshots frame: read resume state: %w", loadErr)
+					}
+					if result, ok := screenshots.ResumeEntry(state, outPath, fingerprint); ok {
+						skipped = &result
+					}
+					return nil
+				})
 				if err != nil {
-					return fmt.Errorf("screenshots frame: read resume state: %w", err)
+					return err
 				}
-				if screenshots.ResumeSkip(state, outPath, fingerprint) {
-					return shared.PrintOutput(&screenshots.FrameResult{
-						Path:    outPath,
-						Device:  string(deviceVal),
-						Skipped: true,
-					}, *output.Output, *output.Pretty)
+				if skipped != nil {
+					return shared.PrintOutput(skipped, *output.Output, *output.Pretty)
 				}
 				result, err := shotsFrameFn(timeoutCtx, screenshots.FrameRequest{
 					InputPath:  absInput,
@@ -309,7 +315,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				if err != nil {
 					return fmt.Errorf("screenshots frame: %w", err)
 				}
-				if err := recordFrameResume(outPath, fingerprint); err != nil {
+				if err := recordFrameResume(ctx, outPath, fingerprint, result); err != nil {
 					return err
 				}
 				return shared.PrintOutput(result, *output.Output, *output.Pretty)
@@ -365,21 +371,31 @@ func frameResumeRoot() (rootfs.Root, error) {
 	return root, nil
 }
 
-func recordFrameResume(outputPath, fingerprint string) error {
+func recordFrameResume(ctx context.Context, outputPath, fingerprint string, result *screenshots.FrameResult) error {
+	if result == nil {
+		return fmt.Errorf("screenshots frame: resume result is required")
+	}
 	root, err := frameResumeRoot()
 	if err != nil {
 		return err
 	}
 	defer root.Close()
-	state, err := screenshots.LoadFrameResumeState(root, screenshots.FrameResumeStateRel)
-	if err != nil {
-		return fmt.Errorf("screenshots frame: read resume state: %w", err)
-	}
-	state.Files[outputPath] = fingerprint
-	if err := screenshots.SaveFrameResumeState(root, screenshots.FrameResumeStateRel, state); err != nil {
-		return fmt.Errorf("screenshots frame: write resume state: %w", err)
-	}
-	return nil
+	stored := *result
+	stored.Skipped = false
+	return screenshots.WithFrameResumeLock(ctx, root, func() error {
+		state, err := screenshots.LoadFrameResumeState(root, screenshots.FrameResumeStateRel)
+		if err != nil {
+			return fmt.Errorf("screenshots frame: read resume state: %w", err)
+		}
+		state.Files[outputPath] = screenshots.FrameResumeEntry{
+			Fingerprint: fingerprint,
+			Result:      stored,
+		}
+		if err := screenshots.SaveFrameResumeState(root, screenshots.FrameResumeStateRel, state); err != nil {
+			return fmt.Errorf("screenshots frame: write resume state: %w", err)
+		}
+		return nil
+	})
 }
 
 func resolveOutputPath(explicitPath, outputDir, name, inputPath, device string) (string, error) {

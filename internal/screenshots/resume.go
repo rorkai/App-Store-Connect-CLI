@@ -1,6 +1,7 @@
 package screenshots
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -11,9 +12,14 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
-// FrameResumeState records source hashes for completed framed outputs.
+type FrameResumeEntry struct {
+	Fingerprint string      `json:"fingerprint"`
+	Result      FrameResult `json:"result"`
+}
+
+// FrameResumeState records completed framed outputs.
 type FrameResumeState struct {
-	Files map[string]string `json:"files"`
+	Files map[string]FrameResumeEntry `json:"files"`
 }
 
 // FrameResumeStateRel is the repo-local resume file.
@@ -37,14 +43,14 @@ func LoadFrameResumeState(root rootfs.Root, name string) (FrameResumeState, erro
 		return FrameResumeState{}, err
 	}
 	if !found {
-		return FrameResumeState{Files: map[string]string{}}, nil
+		return FrameResumeState{Files: map[string]FrameResumeEntry{}}, nil
 	}
 	var state FrameResumeState
 	if err := json.Unmarshal(data, &state); err != nil {
 		return FrameResumeState{}, err
 	}
 	if state.Files == nil {
-		state.Files = map[string]string{}
+		state.Files = map[string]FrameResumeEntry{}
 	}
 	return state, nil
 }
@@ -53,7 +59,7 @@ func LoadFrameResumeState(root rootfs.Root, name string) (FrameResumeState, erro
 // at the destination.
 func SaveFrameResumeState(root rootfs.Root, name string, state FrameResumeState) error {
 	if state.Files == nil {
-		state.Files = map[string]string{}
+		state.Files = map[string]FrameResumeEntry{}
 	}
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
@@ -93,16 +99,35 @@ func FingerprintFrameResume(fp FrameResumeFingerprint) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// ResumeSkip reports whether output can be skipped because its recorded
-// fingerprint still matches and the framed file exists.
-func ResumeSkip(state FrameResumeState, outputPath, fingerprint string) bool {
-	if state.Files == nil || fingerprint == "" {
-		return false
+const frameResumeLockName = ".asc-screenshots-frame.lock"
+
+// WithFrameResumeLock serializes resume-state read-modify-write for one
+// working tree.
+func WithFrameResumeLock(ctx context.Context, root rootfs.Root, fn func() error) error {
+	release, err := acquireMatrixNamedLock(ctx, root, frameResumeLockName)
+	if err != nil {
+		return err
 	}
-	recorded, ok := state.Files[outputPath]
-	if !ok || recorded != fingerprint {
-		return false
+	defer func() { _ = release() }()
+	return fn()
+}
+
+// ResumeEntry returns the stored frame result when the fingerprint still
+// matches and the framed file exists.
+func ResumeEntry(state FrameResumeState, outputPath, fingerprint string) (FrameResult, bool) {
+	if state.Files == nil || fingerprint == "" {
+		return FrameResult{}, false
+	}
+	entry, ok := state.Files[outputPath]
+	if !ok || entry.Fingerprint != fingerprint {
+		return FrameResult{}, false
 	}
 	info, err := os.Stat(outputPath)
-	return err == nil && !info.IsDir()
+	if err != nil || info.IsDir() {
+		return FrameResult{}, false
+	}
+	result := entry.Result
+	result.Path = outputPath
+	result.Skipped = true
+	return result, true
 }
