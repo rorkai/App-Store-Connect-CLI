@@ -285,11 +285,6 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--resume")
 			}
 			if *resume && inputSet {
-				hash, err := screenshots.HashFile(absInput)
-				if err != nil {
-					return fmt.Errorf("screenshots frame: hash input: %w", err)
-				}
-				fingerprint := frameResumeFingerprint(hash, string(deviceVal), overlayHash, canvasOpts)
 				root, err := frameResumeRoot()
 				if err != nil {
 					return err
@@ -297,6 +292,11 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				defer root.Close()
 				var framed *screenshots.FrameResult
 				err = screenshots.WithFrameResumeLock(timeoutCtx, root, func() error {
+					hash, hashErr := screenshots.HashFile(absInput)
+					if hashErr != nil {
+						return fmt.Errorf("screenshots frame: hash input: %w", hashErr)
+					}
+					fingerprint := frameResumeFingerprint(hash, string(deviceVal), overlayHash, canvasOpts)
 					state, loadErr := screenshots.LoadFrameResumeState(root, screenshots.FrameResumeStateRel)
 					if loadErr != nil {
 						return fmt.Errorf("screenshots frame: read resume state: %w", loadErr)
