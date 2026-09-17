@@ -85,8 +85,16 @@ type FrameResumeFingerprint struct {
 }
 
 // FingerprintFrameResume hashes every input that changes the framed image.
+const (
+	// frameResumeSchema changes when framed output generation changes without
+	// a corresponding Koubou pin bump.
+	frameResumeSchema = "1"
+)
+
 func FingerprintFrameResume(fp FrameResumeFingerprint) string {
 	sum := sha256.Sum256([]byte(strings.Join([]string{
+		frameResumeSchema,
+		pinnedKoubouVersion,
 		fp.SourceHash,
 		fp.Device,
 		fp.Title,
