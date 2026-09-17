@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 
@@ -58,7 +60,15 @@ func ParseOverlayConfig(data []byte) (OverlayConfig, error) {
 	if err := decoder.Decode(&config); err != nil {
 		return OverlayConfig{}, fmt.Errorf("parse overlay config: %w", err)
 	}
-	return config, nil
+	var trailing struct{}
+	err := decoder.Decode(&trailing)
+	if errors.Is(err, io.EOF) {
+		return config, nil
+	}
+	if err != nil {
+		return OverlayConfig{}, fmt.Errorf("parse overlay config: %w", err)
+	}
+	return OverlayConfig{}, fmt.Errorf("parse overlay config: unexpected trailing value")
 }
 
 // MatchOverlay selects the first data entry whose filter is a substring of

@@ -13,6 +13,9 @@ func TestParseOverlayConfigRejectsUnknownFields(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected unknown overlay field to be rejected")
 	}
+	if _, err := ParseOverlayConfig([]byte(`{"default":{"title":"A"}}{"default":{"title":"B"}}`)); err == nil {
+		t.Fatal("expected trailing overlay JSON to be rejected")
+	}
 }
 
 func TestMatchOverlayPrefersFilterThenDefault(t *testing.T) {
