@@ -26,6 +26,8 @@ var watchUnsupportedFrameFlags = []string{
 	"name",
 	"output-dir",
 	"output-path",
+	"overlay-config",
+	"resume",
 	"subtitle",
 	"subtitle-color",
 	"title",
@@ -47,11 +49,13 @@ func ShotsFrameCommand() *ffcli.Command {
 		string(screenshots.DefaultFrameDevice()),
 		fmt.Sprintf("Frame device: %s", strings.Join(screenshots.FrameDeviceValues(), ", ")),
 	)
-	title := fs.String("title", "", "Title text overlay (canvas mode only, e.g. --device mac)")
-	subtitle := fs.String("subtitle", "", "Subtitle text overlay (canvas mode only, e.g. --device mac)")
+	title := fs.String("title", "", "Title text overlay")
+	subtitle := fs.String("subtitle", "", "Subtitle or keyword text overlay")
 	bgColor := fs.String("bg-color", "", "Solid background color in canvas mode (e.g. #1a1a2e); defaults to dark gradient")
-	titleColor := fs.String("title-color", "", "Title text color in canvas mode (e.g. #000000); defaults to #ffffff")
-	subtitleColor := fs.String("subtitle-color", "", "Subtitle text color in canvas mode (e.g. #333333); defaults to #aaaaaa")
+	titleColor := fs.String("title-color", "", "Title text color (e.g. #000000); defaults to #ffffff")
+	subtitleColor := fs.String("subtitle-color", "", "Subtitle text color (e.g. #333333); defaults to #aaaaaa")
+	overlayConfig := fs.String("overlay-config", "", "JSON overlay config with default and data[] title, keyword, and background entries")
+	resume := fs.Bool("resume", false, "Skip framing when the source hash matches .asc/reports/screenshots-frame/state.json")
 	output := shared.BindOutputFlags(fs)
 	watch := fs.Bool("watch", false, "Watch config and asset files for changes, auto-regenerate (requires --config)")
 	watchDebounce := fs.Duration("watch-debounce", 500*time.Millisecond, "Debounce delay between change detection and regeneration")
@@ -193,17 +197,14 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				canvasParameters = append(canvasParameters, "--subtitle-color")
 			}
 			hasCanvasFlags := len(canvasParameters) > 0
+			hasTextFlags := strings.TrimSpace(*title) != "" || strings.TrimSpace(*subtitle) != "" || strings.TrimSpace(*titleColor) != "" || strings.TrimSpace(*subtitleColor) != ""
 			if hasCanvasFlags && configSet {
 				fmt.Fprintf(os.Stderr, "Error: --title, --subtitle, --bg-color, --title-color, --subtitle-color cannot be used with --config; set these in the YAML config instead\n")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--config")
 			}
-			if hasCanvasFlags && !screenshots.IsCanvasDevice(deviceVal) {
-				fmt.Fprintf(os.Stderr, "Error: --title, --subtitle, --bg-color, --title-color, --subtitle-color only apply to canvas devices (e.g. --device mac)\n")
-				parameter := ""
-				if len(canvasParameters) == 1 {
-					parameter = canvasParameters[0]
-				}
-				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, parameter)
+			if strings.TrimSpace(*bgColor) != "" && !screenshots.IsCanvasDevice(deviceVal) {
+				fmt.Fprintln(os.Stderr, "Error: --bg-color only applies to canvas devices (e.g. --device mac)")
+				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--bg-color")
 			}
 
 			absInput := ""
@@ -229,7 +230,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			defer cancel()
 
 			var canvasOpts *screenshots.CanvasOptions
-			if hasCanvasFlags && screenshots.IsCanvasDevice(deviceVal) {
+			if hasTextFlags || (strings.TrimSpace(*bgColor) != "" && screenshots.IsCanvasDevice(deviceVal)) {
 				canvasOpts = &screenshots.CanvasOptions{
 					Title:         strings.TrimSpace(*title),
 					Subtitle:      strings.TrimSpace(*subtitle),
@@ -237,6 +238,62 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 					TitleColor:    strings.TrimSpace(*titleColor),
 					SubtitleColor: strings.TrimSpace(*subtitleColor),
 				}
+			}
+
+			if strings.TrimSpace(*overlayConfig) != "" {
+				if configSet {
+					fmt.Fprintln(os.Stderr, "Error: --overlay-config cannot be used with --config")
+					return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--overlay-config")
+				}
+				loaded, err := screenshots.LoadOverlayConfig(*overlayConfig)
+				if err != nil {
+					return fmt.Errorf("screenshots frame: %w", err)
+				}
+				matched := screenshots.OverlayToCanvas(screenshots.MatchOverlay(loaded, absInput))
+				if canvasOpts == nil {
+					canvasOpts = &screenshots.CanvasOptions{}
+				}
+				if canvasOpts.Title == "" {
+					canvasOpts.Title = matched.Title
+				}
+				if canvasOpts.Subtitle == "" {
+					canvasOpts.Subtitle = matched.Subtitle
+				}
+				if canvasOpts.BGColor == "" {
+					canvasOpts.BGColor = matched.BGColor
+				}
+			}
+
+			if *resume && inputSet {
+				hash, err := screenshots.HashFile(absInput)
+				if err != nil {
+					return fmt.Errorf("screenshots frame: hash input: %w", err)
+				}
+				state, err := screenshots.LoadFrameResumeState(screenshots.FrameResumeStateRel)
+				if err != nil {
+					return fmt.Errorf("screenshots frame: read resume state: %w", err)
+				}
+				if screenshots.ResumeSkip(state, outPath, hash) {
+					return shared.PrintOutput(&screenshots.FrameResult{
+						Path:    outPath,
+						Device:  string(deviceVal),
+						Skipped: true,
+					}, *output.Output, *output.Pretty)
+				}
+				result, err := shotsFrameFn(timeoutCtx, screenshots.FrameRequest{
+					InputPath:  absInput,
+					OutputPath: outPath,
+					Device:     string(deviceVal),
+					ConfigPath: configVal,
+					Canvas:     canvasOpts,
+				})
+				if err != nil {
+					return fmt.Errorf("screenshots frame: %w", err)
+				}
+				if err := recordFrameResume(outPath, hash); err != nil {
+					return err
+				}
+				return shared.PrintOutput(result, *output.Output, *output.Pretty)
 			}
 
 			result, err := shotsFrameFn(timeoutCtx, screenshots.FrameRequest{
@@ -253,6 +310,18 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
 		},
 	}
+}
+
+func recordFrameResume(outputPath, inputHash string) error {
+	state, err := screenshots.LoadFrameResumeState(screenshots.FrameResumeStateRel)
+	if err != nil {
+		return fmt.Errorf("screenshots frame: read resume state: %w", err)
+	}
+	state.Files[outputPath] = inputHash
+	if err := screenshots.SaveFrameResumeState(screenshots.FrameResumeStateRel, state); err != nil {
+		return fmt.Errorf("screenshots frame: write resume state: %w", err)
+	}
+	return nil
 }
 
 func resolveOutputPath(explicitPath, outputDir, name, inputPath, device string) (string, error) {
