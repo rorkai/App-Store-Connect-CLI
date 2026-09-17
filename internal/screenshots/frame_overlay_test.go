@@ -7,6 +7,16 @@ import (
 	"testing"
 )
 
+func TestValidateFrameCanvasAllowsBezelText(t *testing.T) {
+	spec := frameDeviceKoubouSpecs[FrameDeviceIPhoneAir]
+	if err := validateFrameCanvas(spec, &CanvasOptions{Title: "Home", Subtitle: "Fast"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateFrameCanvas(spec, &CanvasOptions{BGColor: "#111111"}); err == nil {
+		t.Fatal("expected bezel background to be rejected")
+	}
+}
+
 func TestBezelConfigIncludesTitleOverlay(t *testing.T) {
 	dir := t.TempDir()
 	input := filepath.Join(dir, "home.png")

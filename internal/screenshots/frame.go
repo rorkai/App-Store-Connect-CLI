@@ -135,6 +135,16 @@ type CanvasOptions struct {
 
 func (o CanvasOptions) hasText() bool { return o.Title != "" || o.Subtitle != "" }
 
+func validateFrameCanvas(spec frameDeviceKoubouSpec, canvas *CanvasOptions) error {
+	if canvas == nil || spec.Canvas {
+		return nil
+	}
+	if strings.TrimSpace(canvas.BGColor) != "" {
+		return fmt.Errorf("background overlays require a canvas device")
+	}
+	return nil
+}
+
 func bezelContentItems(absInputPath string, scale float64, opts *CanvasOptions) []koubouDefaultContentItem {
 	if opts == nil {
 		opts = &CanvasOptions{}
@@ -584,8 +594,8 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 		if !ok {
 			return nil, fmt.Errorf("no Koubou mapping configured for device %q", device)
 		}
-		if req.Canvas != nil && !spec.Canvas {
-			return nil, fmt.Errorf("canvas options require a canvas device; %q uses a device bezel", device)
+		if err := validateFrameCanvas(spec, req.Canvas); err != nil {
+			return nil, err
 		}
 
 		absInputPath, err := filepath.Abs(inputPath)
