@@ -1,6 +1,7 @@
 package screenshots
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -51,8 +52,10 @@ func LoadOverlayConfig(path string) (OverlayConfig, string, error) {
 
 // ParseOverlayConfig validates overlay JSON bytes.
 func ParseOverlayConfig(data []byte) (OverlayConfig, error) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
 	var config OverlayConfig
-	if err := json.Unmarshal(data, &config); err != nil {
+	if err := decoder.Decode(&config); err != nil {
 		return OverlayConfig{}, fmt.Errorf("parse overlay config: %w", err)
 	}
 	return config, nil

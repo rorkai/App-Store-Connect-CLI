@@ -8,6 +8,13 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
+func TestParseOverlayConfigRejectsUnknownFields(t *testing.T) {
+	_, err := ParseOverlayConfig([]byte(`{"default":{"titel":"Nope"}}`))
+	if err == nil {
+		t.Fatal("expected unknown overlay field to be rejected")
+	}
+}
+
 func TestMatchOverlayPrefersFilterThenDefault(t *testing.T) {
 	config := OverlayConfig{
 		Default: OverlayEntry{Title: "App", Keyword: "ship", Background: "#111111"},

@@ -267,6 +267,14 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				}
 			}
 
+			if canvasOpts != nil && canvasOpts.TitleColor != "" && canvasOpts.Title == "" {
+				fmt.Fprintln(os.Stderr, "Error: --title-color requires --title")
+				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--title-color")
+			}
+			if canvasOpts != nil && canvasOpts.SubtitleColor != "" && canvasOpts.Subtitle == "" {
+				fmt.Fprintln(os.Stderr, "Error: --subtitle-color requires --subtitle")
+				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--subtitle-color")
+			}
 			if canvasOpts != nil && strings.TrimSpace(canvasOpts.BGColor) != "" && !screenshots.IsCanvasDevice(deviceVal) {
 				fmt.Fprintln(os.Stderr, "Error: background overlays only apply to canvas devices (e.g. --device mac)")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--overlay-config")
