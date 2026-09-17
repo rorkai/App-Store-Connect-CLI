@@ -35,7 +35,7 @@ func TestLoadOverlayConfigGolden(t *testing.T) {
 	if err := os.WriteFile(path, []byte(raw), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	config, err := LoadOverlayConfig(path)
+	config, _, err := LoadOverlayConfig(path)
 	if err != nil {
 		t.Fatal(err)
 	}

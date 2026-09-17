@@ -1,11 +1,14 @@
 package screenshots
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 // OverlayEntry is one title and keyword overlay.
@@ -22,12 +25,32 @@ type OverlayConfig struct {
 	Data    []OverlayEntry `json:"data"`
 }
 
-// LoadOverlayConfig reads and validates an overlay JSON file.
-func LoadOverlayConfig(path string) (OverlayConfig, error) {
-	data, err := os.ReadFile(path)
+// LoadOverlayConfig reads and validates an overlay JSON file without following
+// a symlink at the final path. The returned hash is of those exact bytes.
+func LoadOverlayConfig(path string) (OverlayConfig, string, error) {
+	absolute, err := filepath.Abs(path)
 	if err != nil {
-		return OverlayConfig{}, fmt.Errorf("read overlay config: %w", err)
+		return OverlayConfig{}, "", fmt.Errorf("read overlay config: %w", err)
 	}
+	root, err := rootfs.New(filepath.Dir(absolute))
+	if err != nil {
+		return OverlayConfig{}, "", fmt.Errorf("read overlay config: %w", err)
+	}
+	defer root.Close()
+	data, err := root.ReadFile(filepath.Base(absolute))
+	if err != nil {
+		return OverlayConfig{}, "", fmt.Errorf("read overlay config: %w", err)
+	}
+	config, err := ParseOverlayConfig(data)
+	if err != nil {
+		return OverlayConfig{}, "", err
+	}
+	sum := sha256.Sum256(data)
+	return config, hex.EncodeToString(sum[:]), nil
+}
+
+// ParseOverlayConfig validates overlay JSON bytes.
+func ParseOverlayConfig(data []byte) (OverlayConfig, error) {
 	var config OverlayConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		return OverlayConfig{}, fmt.Errorf("parse overlay config: %w", err)
