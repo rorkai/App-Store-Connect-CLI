@@ -41,6 +41,7 @@ func LocalizationsUpdateCommand() *ffcli.Command {
 	marketingURL := fs.String("marketing-url", "", "Marketing URL (version)")
 
 	output := shared.BindOutputFlags(fs)
+	ifExists := shared.BindIfExistsFlag(fs, shared.IfExistsSkip, shared.IfExistsUpdate)
 
 	return &ffcli.Command{
 		Name:       "update",
@@ -74,6 +75,13 @@ For app-info localizations (name, subtitle, privacy URLs):
 For version localizations (description, keywords, whatsNew):
   asc localizations update --id "LOCALIZATION_ID" --description "Simplified Chinese description"
   asc localizations update --version "VERSION_ID" --locale "zh-Hans" --description "Simplified Chinese description"
+  asc localizations update --version "VERSION_ID" --locale "ja" --description "Updated" --if-exists skip
+
+--if-exists controls a 409 whose code is ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE
+("Entity with locale: ... already exists. Try updating."). fail (default)
+returns that conflict unchanged. skip reads the localization back and exits 0
+without applying fields. update sends the same field write again. Any other
+409, including a state conflict, keeps failing.
 
 At least one field flag must be provided.`,
 		FlagSet:   fs,
@@ -102,6 +110,11 @@ At least one field flag must be provided.`,
 				}
 			}
 
+			ifExistsMode, err := shared.ParseIfExistsMode(*ifExists, shared.IfExistsSkip, shared.IfExistsUpdate)
+			if err != nil {
+				return err
+			}
+
 			switch normalizedType {
 			case shared.LocalizationTypeAppInfo:
 				return updateAppInfoLocalization(ctx, updateAppInfoParams{
@@ -115,6 +128,7 @@ At least one field flag must be provided.`,
 					privacyChoicesURL: *privacyChoicesURL,
 					privacyPolicyText: *privacyPolicyText,
 					output:            output,
+					ifExists:          ifExistsMode,
 				})
 			case shared.LocalizationTypeVersion:
 				return updateVersionLocalization(ctx, updateVersionParams{
@@ -128,6 +142,7 @@ At least one field flag must be provided.`,
 					supportURL:      *supportURL,
 					marketingURL:    *marketingURL,
 					output:          output,
+					ifExists:        ifExistsMode,
 				})
 			default:
 				return fmt.Errorf("localizations update: unsupported type %q", normalizedType)
@@ -141,6 +156,7 @@ type updateAppInfoParams struct {
 	appID, appInfoID, locale                                               string
 	name, subtitle, privacyPolicyURL, privacyChoicesURL, privacyPolicyText string
 	output                                                                 shared.OutputFlags
+	ifExists                                                               shared.IfExistsMode
 }
 
 func updateAppInfoLocalization(ctx context.Context, p updateAppInfoParams) error {
@@ -200,17 +216,39 @@ func updateAppInfoLocalization(ctx context.Context, p updateAppInfoParams) error
 
 	resp, err := client.UpdateAppInfoLocalization(requestCtx, localizationID, attrs)
 	if err != nil {
-		selector := p.locale
-		if selector == "" {
-			selector = localizationID
+		resolved, handled, resolveErr := resolveLocalizationUpdate(p.ifExists, err, func() (*asc.AppInfoLocalizationResponse, bool, error) {
+			got, getErr := client.GetAppInfoLocalization(requestCtx, localizationID)
+			if getErr != nil {
+				if asc.IsNotFound(getErr) {
+					return nil, false, nil
+				}
+				return nil, false, getErr
+			}
+			if got == nil || strings.TrimSpace(got.Data.ID) == "" {
+				return nil, false, nil
+			}
+			return got, true, nil
+		}, func() (*asc.AppInfoLocalizationResponse, error) {
+			return client.UpdateAppInfoLocalization(requestCtx, localizationID, attrs)
+		})
+		if resolveErr != nil || !handled {
+			if resolveErr != nil {
+				err = resolveErr
+			}
+			selector := p.locale
+			if selector == "" {
+				selector = localizationID
+			}
+			return fmt.Errorf(
+				"localizations update: update app-info localization %q via PATCH /v1/appInfoLocalizations/%s (fields: %s): %w",
+				selector,
+				localizationID,
+				formatAttemptedFields(appInfoAttemptedFields(p)),
+				err,
+			)
 		}
-		return fmt.Errorf(
-			"localizations update: update app-info localization %q via PATCH /v1/appInfoLocalizations/%s (fields: %s): %w",
-			selector,
-			localizationID,
-			formatAttemptedFields(appInfoAttemptedFields(p)),
-			err,
-		)
+		resp = resolved
+		fmt.Fprintf(os.Stderr, "localizations update: app-info localization %s already exists; %s (--if-exists %s)\n", resolved.Data.ID, localizationUpdateOutcome(p.ifExists), p.ifExists)
 	}
 
 	return shared.PrintOutput(resp, *p.output.Output, *p.output.Pretty)
@@ -225,6 +263,7 @@ type updateVersionParams struct {
 	versionID, locale                                                          string
 	description, keywords, whatsNew, promotionalText, supportURL, marketingURL string
 	output                                                                     shared.OutputFlags
+	ifExists                                                                   shared.IfExistsMode
 }
 
 func updateVersionLocalization(ctx context.Context, p updateVersionParams) error {
@@ -279,17 +318,39 @@ func updateVersionLocalization(ctx context.Context, p updateVersionParams) error
 
 	resp, err := client.UpdateAppStoreVersionLocalization(requestCtx, localizationID, attrs)
 	if err != nil {
-		selector := p.locale
-		if selector == "" {
-			selector = localizationID
+		resolved, handled, resolveErr := resolveLocalizationUpdate(p.ifExists, err, func() (*asc.AppStoreVersionLocalizationResponse, bool, error) {
+			got, getErr := client.GetAppStoreVersionLocalization(requestCtx, localizationID)
+			if getErr != nil {
+				if asc.IsNotFound(getErr) {
+					return nil, false, nil
+				}
+				return nil, false, getErr
+			}
+			if got == nil || strings.TrimSpace(got.Data.ID) == "" {
+				return nil, false, nil
+			}
+			return got, true, nil
+		}, func() (*asc.AppStoreVersionLocalizationResponse, error) {
+			return client.UpdateAppStoreVersionLocalization(requestCtx, localizationID, attrs)
+		})
+		if resolveErr != nil || !handled {
+			if resolveErr != nil {
+				err = resolveErr
+			}
+			selector := p.locale
+			if selector == "" {
+				selector = localizationID
+			}
+			return fmt.Errorf(
+				"localizations update: update version localization %q via PATCH /v1/appStoreVersionLocalizations/%s (fields: %s): %w",
+				selector,
+				localizationID,
+				formatAttemptedFields(versionAttemptedFields(p)),
+				err,
+			)
 		}
-		return fmt.Errorf(
-			"localizations update: update version localization %q via PATCH /v1/appStoreVersionLocalizations/%s (fields: %s): %w",
-			selector,
-			localizationID,
-			formatAttemptedFields(versionAttemptedFields(p)),
-			err,
-		)
+		resp = resolved
+		fmt.Fprintf(os.Stderr, "localizations update: version localization %s already exists; %s (--if-exists %s)\n", resolved.Data.ID, localizationUpdateOutcome(p.ifExists), p.ifExists)
 	}
 
 	return shared.PrintOutput(resp, *p.output.Output, *p.output.Pretty)
@@ -349,4 +410,35 @@ func formatAttemptedFields(fields []string) string {
 	values := append([]string(nil), fields...)
 	sort.Strings(values)
 	return strings.Join(values, ", ")
+}
+
+// localizationUpdateExistsCodes is the Apple 409 code for a locale that already
+// exists. The detail "Entity with locale: 'ja' already exists. Try updating."
+// is the recorded duplicate-locale body; a state 409 is not in this list.
+var localizationUpdateExistsCodes = []string{"ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE"}
+
+func localizationUpdateOutcome(mode shared.IfExistsMode) string {
+	if mode == shared.IfExistsUpdate {
+		return "updated"
+	}
+	return "left unchanged"
+}
+
+func resolveLocalizationUpdate[T any](mode shared.IfExistsMode, updateErr error, lookup func() (T, bool, error), retry func() (T, error)) (T, bool, error) {
+	var zero T
+	existing, handled, err := shared.ResolveIfExistsConflict(mode, updateErr, localizationUpdateExistsCodes, lookup)
+	if err != nil || !handled {
+		if err == nil {
+			err = updateErr
+		}
+		return zero, false, err
+	}
+	if mode != shared.IfExistsUpdate {
+		return existing, true, nil
+	}
+	updated, err := retry()
+	if err != nil {
+		return zero, false, err
+	}
+	return updated, true, nil
 }

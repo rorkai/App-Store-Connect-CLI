@@ -281,6 +281,13 @@ Update localization metadata.
   Localization type: `version` (default) or `app-info`
 </ParamField>
 
+<ParamField path="--if-exists" type="string" default="fail">
+  `fail`, `skip`, or `update` when Apple returns 409
+  `ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE` because the locale already exists.
+  `fail` is unchanged. `skip` reads the localization back and leaves it.
+  `update` sends the same field write again. Other 409s still fail.
+</ParamField>
+
 <ParamField path="--locale" type="string" required>
   Exact App Store Connect locale value to update
 </ParamField>
