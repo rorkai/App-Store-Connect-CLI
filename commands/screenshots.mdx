@@ -59,7 +59,7 @@ asc screenshots frame --input ./screenshots/raw/home.png --device iphone-air
 * `--subtitle` - Overlay subtitle or keyword text
 * `--title-color` - Title text color (hex format)
 * `--overlay-config` - JSON file with `default` and `data[]` entries (`filter`, `title`, `keyword`, `background`)
-* `--resume` - Skip an unchanged input whose source hash is recorded in `.asc/reports/screenshots-frame/state.json`
+* `--resume` - Skip an unchanged input when the source and render settings still match `.asc/reports/screenshots-frame/state.json`
 
 `--bg-color` applies to canvas devices such as `mac`. Title and subtitle overlays apply to every supported device. Koubou 0.18.1 does not ship iPad, Apple Watch, or Apple TV frames, so those device names are usage errors that list the supported set. Frame colors are part of the pinned frame name (for example Light Gold or Silver) rather than a separate catalog.
 * `--subtitle-color` - Subtitle text color (hex format)

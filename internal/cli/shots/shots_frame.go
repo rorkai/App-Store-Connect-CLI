@@ -264,16 +264,24 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				}
 			}
 
+			if *resume && configSet {
+				fmt.Fprintln(os.Stderr, "Error: --resume cannot be used with --config")
+				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--resume")
+			}
 			if *resume && inputSet {
 				hash, err := screenshots.HashFile(absInput)
 				if err != nil {
 					return fmt.Errorf("screenshots frame: hash input: %w", err)
 				}
+				fingerprint, err := frameResumeFingerprint(hash, string(deviceVal), canvasOpts, *overlayConfig)
+				if err != nil {
+					return err
+				}
 				state, err := screenshots.LoadFrameResumeState(screenshots.FrameResumeStateRel)
 				if err != nil {
 					return fmt.Errorf("screenshots frame: read resume state: %w", err)
 				}
-				if screenshots.ResumeSkip(state, outPath, hash) {
+				if screenshots.ResumeSkip(state, outPath, fingerprint) {
 					return shared.PrintOutput(&screenshots.FrameResult{
 						Path:    outPath,
 						Device:  string(deviceVal),
@@ -290,7 +298,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				if err != nil {
 					return fmt.Errorf("screenshots frame: %w", err)
 				}
-				if err := recordFrameResume(outPath, hash); err != nil {
+				if err := recordFrameResume(outPath, fingerprint); err != nil {
 					return err
 				}
 				return shared.PrintOutput(result, *output.Output, *output.Pretty)
@@ -312,12 +320,34 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 	}
 }
 
-func recordFrameResume(outputPath, inputHash string) error {
+func frameResumeFingerprint(sourceHash, device string, canvas *screenshots.CanvasOptions, overlayPath string) (string, error) {
+	fp := screenshots.FrameResumeFingerprint{
+		SourceHash: sourceHash,
+		Device:     device,
+	}
+	if canvas != nil {
+		fp.Title = canvas.Title
+		fp.Subtitle = canvas.Subtitle
+		fp.TitleColor = canvas.TitleColor
+		fp.SubtitleColor = canvas.SubtitleColor
+		fp.Background = canvas.BGColor
+	}
+	if strings.TrimSpace(overlayPath) != "" {
+		overlayHash, err := screenshots.HashFile(overlayPath)
+		if err != nil {
+			return "", fmt.Errorf("screenshots frame: hash overlay config: %w", err)
+		}
+		fp.OverlayHash = overlayHash
+	}
+	return screenshots.FingerprintFrameResume(fp), nil
+}
+
+func recordFrameResume(outputPath, fingerprint string) error {
 	state, err := screenshots.LoadFrameResumeState(screenshots.FrameResumeStateRel)
 	if err != nil {
 		return fmt.Errorf("screenshots frame: read resume state: %w", err)
 	}
-	state.Files[outputPath] = inputHash
+	state.Files[outputPath] = fingerprint
 	if err := screenshots.SaveFrameResumeState(screenshots.FrameResumeStateRel, state); err != nil {
 		return fmt.Errorf("screenshots frame: write resume state: %w", err)
 	}

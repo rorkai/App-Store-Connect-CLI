@@ -54,25 +54,27 @@ func TestResumeSkipRequiresMatchingHashAndOutput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	state := FrameResumeState{Files: map[string]string{output: hash}}
-	if ResumeSkip(state, output, hash) {
+	fingerprint := FingerprintFrameResume(FrameResumeFingerprint{SourceHash: hash, Device: "iphone-air", Title: "Home"})
+	state := FrameResumeState{Files: map[string]string{output: fingerprint}}
+	if ResumeSkip(state, output, fingerprint) {
 		t.Fatal("missing output must not skip")
 	}
 	if err := os.WriteFile(output, []byte("framed"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if !ResumeSkip(state, output, hash) {
-		t.Fatal("matching hash and output should skip")
+	if !ResumeSkip(state, output, fingerprint) {
+		t.Fatal("matching fingerprint and output should skip")
 	}
-	if ResumeSkip(state, output, "other") {
-		t.Fatal("changed source must not skip")
+	changed := FingerprintFrameResume(FrameResumeFingerprint{SourceHash: hash, Device: "iphone-air", Title: "Other"})
+	if ResumeSkip(state, output, changed) {
+		t.Fatal("changed title must not skip")
 	}
 	path := filepath.Join(dir, FrameResumeStateRel)
 	if err := SaveFrameResumeState(path, state); err != nil {
 		t.Fatal(err)
 	}
 	loaded, err := LoadFrameResumeState(path)
-	if err != nil || loaded.Files[output] != hash {
+	if err != nil || loaded.Files[output] != fingerprint {
 		t.Fatalf("loaded = %+v err=%v", loaded, err)
 	}
 }

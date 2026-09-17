@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // FrameResumeState records source hashes for completed framed outputs.
@@ -62,14 +63,41 @@ func SaveFrameResumeState(path string, state FrameResumeState) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
+// FrameResumeFingerprint is the render-affecting resume key.
+type FrameResumeFingerprint struct {
+	SourceHash    string
+	Device        string
+	Title         string
+	Subtitle      string
+	TitleColor    string
+	SubtitleColor string
+	Background    string
+	OverlayHash   string
+}
+
+// FingerprintFrameResume hashes every input that changes the framed image.
+func FingerprintFrameResume(fp FrameResumeFingerprint) string {
+	sum := sha256.Sum256([]byte(strings.Join([]string{
+		fp.SourceHash,
+		fp.Device,
+		fp.Title,
+		fp.Subtitle,
+		fp.TitleColor,
+		fp.SubtitleColor,
+		fp.Background,
+		fp.OverlayHash,
+	}, "\x00")))
+	return hex.EncodeToString(sum[:])
+}
+
 // ResumeSkip reports whether output can be skipped because its recorded
-// source hash still matches inputHash.
-func ResumeSkip(state FrameResumeState, outputPath, inputHash string) bool {
-	if state.Files == nil || inputHash == "" {
+// fingerprint still matches and the framed file exists.
+func ResumeSkip(state FrameResumeState, outputPath, fingerprint string) bool {
+	if state.Files == nil || fingerprint == "" {
 		return false
 	}
 	recorded, ok := state.Files[outputPath]
-	if !ok || recorded != inputHash {
+	if !ok || recorded != fingerprint {
 		return false
 	}
 	info, err := os.Stat(outputPath)
