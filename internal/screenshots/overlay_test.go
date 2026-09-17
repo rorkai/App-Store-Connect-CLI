@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 func TestMatchOverlayPrefersFilterThenDefault(t *testing.T) {
@@ -69,12 +71,48 @@ func TestResumeSkipRequiresMatchingHashAndOutput(t *testing.T) {
 	if ResumeSkip(state, output, changed) {
 		t.Fatal("changed title must not skip")
 	}
-	path := filepath.Join(dir, FrameResumeStateRel)
-	if err := SaveFrameResumeState(path, state); err != nil {
+	path := FrameResumeStateRel
+	root, err := rootfs.New(dir)
+	if err != nil {
 		t.Fatal(err)
 	}
-	loaded, err := LoadFrameResumeState(path)
+	defer root.Close()
+	if err := SaveFrameResumeState(root, path, state); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadFrameResumeState(root, path)
 	if err != nil || loaded.Files[output] != fingerprint {
 		t.Fatalf("loaded = %+v err=%v", loaded, err)
+	}
+}
+
+func TestSaveFrameResumeStateRejectsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside.json")
+	if err := os.WriteFile(outside, []byte("secret"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, ".asc/reports/screenshots-frame"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, FrameResumeStateRel)
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+	root, err := rootfs.New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	err = SaveFrameResumeState(root, FrameResumeStateRel, FrameResumeState{Files: map[string]string{"out": "fp"}})
+	if err == nil {
+		t.Fatal("expected symlink state file to be rejected")
+	}
+	data, err := os.ReadFile(outside)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "secret" {
+		t.Fatalf("symlink write changed outside file to %q", data)
 	}
 }

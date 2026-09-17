@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
 // FrameResumeState records source hashes for completed framed outputs.
@@ -27,15 +29,15 @@ func HashFile(path string) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-// LoadFrameResumeState reads state, returning an empty map when the file is
-// missing.
-func LoadFrameResumeState(path string) (FrameResumeState, error) {
-	data, err := os.ReadFile(path)
+// LoadFrameResumeState reads state through root, returning an empty map when
+// the file is missing. The path must stay inside the operator-selected root.
+func LoadFrameResumeState(root rootfs.Root, name string) (FrameResumeState, error) {
+	data, found, err := root.ReadFileOptional(name)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return FrameResumeState{Files: map[string]string{}}, nil
-		}
 		return FrameResumeState{}, err
+	}
+	if !found {
+		return FrameResumeState{Files: map[string]string{}}, nil
 	}
 	var state FrameResumeState
 	if err := json.Unmarshal(data, &state); err != nil {
@@ -47,11 +49,9 @@ func LoadFrameResumeState(path string) (FrameResumeState, error) {
 	return state, nil
 }
 
-// SaveFrameResumeState writes state atomically enough for a local report.
-func SaveFrameResumeState(path string, state FrameResumeState) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
+// SaveFrameResumeState writes state beneath root without following a symlink
+// at the destination.
+func SaveFrameResumeState(root rootfs.Root, name string, state FrameResumeState) error {
 	if state.Files == nil {
 		state.Files = map[string]string{}
 	}
@@ -60,7 +60,10 @@ func SaveFrameResumeState(path string, state FrameResumeState) error {
 		return err
 	}
 	data = append(data, '\n')
-	return os.WriteFile(path, data, 0o644)
+	if err := root.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+		return err
+	}
+	return root.WriteFile(name, data, 0o644)
 }
 
 // FrameResumeFingerprint is the render-affecting resume key.

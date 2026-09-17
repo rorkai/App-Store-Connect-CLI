@@ -13,6 +13,7 @@ import (
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/screenshots"
 )
 
@@ -264,6 +265,11 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				}
 			}
 
+			if canvasOpts != nil && strings.TrimSpace(canvasOpts.BGColor) != "" && !screenshots.IsCanvasDevice(deviceVal) {
+				fmt.Fprintln(os.Stderr, "Error: background overlays only apply to canvas devices (e.g. --device mac)")
+				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--overlay-config")
+			}
+
 			if *resume && configSet {
 				fmt.Fprintln(os.Stderr, "Error: --resume cannot be used with --config")
 				return shared.WithDiagnostic(flag.ErrHelp, shared.DiagnosticConflictingInput, "--resume")
@@ -277,7 +283,12 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				if err != nil {
 					return err
 				}
-				state, err := screenshots.LoadFrameResumeState(screenshots.FrameResumeStateRel)
+				root, err := frameResumeRoot()
+				if err != nil {
+					return err
+				}
+				defer root.Close()
+				state, err := screenshots.LoadFrameResumeState(root, screenshots.FrameResumeStateRel)
 				if err != nil {
 					return fmt.Errorf("screenshots frame: read resume state: %w", err)
 				}
@@ -342,13 +353,30 @@ func frameResumeFingerprint(sourceHash, device string, canvas *screenshots.Canva
 	return screenshots.FingerprintFrameResume(fp), nil
 }
 
+func frameResumeRoot() (rootfs.Root, error) {
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		return rootfs.Root{}, fmt.Errorf("screenshots frame: resolve resume root: %w", err)
+	}
+	root, err := rootfs.New(workingDirectory)
+	if err != nil {
+		return rootfs.Root{}, fmt.Errorf("screenshots frame: resolve resume root: %w", err)
+	}
+	return root, nil
+}
+
 func recordFrameResume(outputPath, fingerprint string) error {
-	state, err := screenshots.LoadFrameResumeState(screenshots.FrameResumeStateRel)
+	root, err := frameResumeRoot()
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	state, err := screenshots.LoadFrameResumeState(root, screenshots.FrameResumeStateRel)
 	if err != nil {
 		return fmt.Errorf("screenshots frame: read resume state: %w", err)
 	}
 	state.Files[outputPath] = fingerprint
-	if err := screenshots.SaveFrameResumeState(screenshots.FrameResumeStateRel, state); err != nil {
+	if err := screenshots.SaveFrameResumeState(root, screenshots.FrameResumeStateRel, state); err != nil {
 		return fmt.Errorf("screenshots frame: write resume state: %w", err)
 	}
 	return nil
