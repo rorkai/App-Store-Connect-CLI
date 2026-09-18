@@ -772,7 +772,7 @@ func (c *Client) doStream(ctx context.Context, path string, accept string) (*htt
 		req.Header.Set("Accept", accept)
 	}
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := doStreamingRequest(c.httpClient, req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -796,8 +796,7 @@ func (c *Client) doStreamNoAuth(ctx context.Context, rawURL, accept string) (*ht
 		req.Header.Set("Accept", accept)
 	}
 
-	client := clientWithoutRedirects(c.httpClient)
-	resp, err := client.Do(req)
+	resp, err := doStreamingRequest(clientWithoutRedirects(c.httpClient), req)
 	if err != nil {
 		return nil, newSanitizedNoAuthStreamError("download request", rawURL, err)
 	}
