@@ -581,6 +581,8 @@ func registerAllOutputRenderers() {
 	registerRows(signingFetchResultRows)
 	registerRows(signingSyncRows)
 	registerRows(signingKeychainInstallRows)
+	registerRows(signingKeychainActionRows)
+	registerRows(signingKeychainListRows)
 	registerRows(xcodeTestResultRows)
 	registerRows(xcodeSigningPlanOutputRows)
 	registerRows(xcodeSigningApplyOutputRows)
