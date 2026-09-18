@@ -217,6 +217,9 @@ func executeCustomPagePreviewUpload(
 	if err != nil {
 		return nil, err
 	}
+	if err := assets.ValidatePreviewFiles(files, true); err != nil {
+		return nil, err
+	}
 
 	client, err := customPageMediaClientFactory()
 	if err != nil {

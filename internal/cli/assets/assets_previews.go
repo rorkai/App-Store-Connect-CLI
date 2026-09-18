@@ -833,6 +833,12 @@ func detectPreviewMimeType(path string) (string, error) {
 	}
 }
 
+// ValidatePreviewFiles checks preview capacity, image contents, and extension
+// before any destructive sync. enforceCapacity rejects more than three files.
+func ValidatePreviewFiles(files []string, enforceCapacity bool) error {
+	return validatePreviewFiles(files, enforceCapacity)
+}
+
 func validatePreviewFiles(files []string, enforceCapacity bool) error {
 	if enforceCapacity && len(files) > maxPreviewsPerSet {
 		return fmt.Errorf("preview sets accept at most %d files; got %d", maxPreviewsPerSet, len(files))
