@@ -70,6 +70,8 @@ commands.
 Examples:
   asc xcode inject --manifest .asc/deployment.json --set version=1.3.0 --overwrite
   asc xcode build --project App.xcodeproj --scheme App --destination 'platform=iOS Simulator,name=iPhone 17 Pro Max,OS=27.0' --no-code-signing --output json
+  asc xcode test-destinations --platform iOS --available-only --output json
+  asc xcode test junit --xcresult ./Test.xcresult --report-file ./junit.xml --output json
   asc xcode archive --workspace App.xcworkspace --scheme App --archive-path .asc/artifacts/App.xcarchive --output json
   asc xcode export --archive-path .asc/artifacts/App.xcarchive --ipa-path .asc/artifacts/App.ipa --output json
   asc xcode export --archive-path .asc/artifacts/MacApp.xcarchive --pkg-path .asc/artifacts/MacApp.pkg --output json
@@ -86,6 +88,7 @@ Examples:
 			XcodeInjectCommand(),
 			XcodeBuildCommand(),
 			XcodeTestCommand(),
+			XcodeTestDestinationsCommand(),
 			XcodeArchiveCommand(),
 			XcodeExportCommand(),
 			XcodeInstallCommand(),

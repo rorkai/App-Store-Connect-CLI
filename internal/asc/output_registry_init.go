@@ -228,6 +228,8 @@ func registerAllOutputRenderers() {
 	registerRows(buildsNextBuildNumberRows)
 	registerRows(dsymDownloadResultRows)
 	registerRows(buildWaitResultRows)
+	registerRows(xcodeJUnitResultRows)
+	registerRows(xcodeTestDestinationsRows)
 	registerRowsWithSingleResourceAdapter(buildUploadFilesRows)
 	registerDirect(func(v *AppClipDomainStatusResult, render func([]string, [][]string)) error {
 		h, r := appClipDomainStatusMainRows(v)
