@@ -31,6 +31,11 @@ COMMAND_PASSTHROUGH_RE = re.compile(r"(?:^|\s)--\s+<[^>]+>")
 REQUIRED_FLAGS_BY_COMMAND: dict[tuple[str, ...], set[str]] = {
     ("submit", "create"): {"--build", "--confirm"},
 }
+# `--profile` is the one root-owned selector the CLI relocates when it is
+# written after the command name (cmd/profile_flag_hoist.go), so documented
+# examples may place it among a command's own flags. Every other global flag
+# must still precede the top-level command.
+GLOBAL_FLAGS_ACCEPTED_AFTER_COMMAND = {"--profile"}
 REQUIRED_FLAGS_BEFORE_PASSTHROUGH_BY_COMMAND: dict[tuple[str, ...], set[str]] = {
     ("signing", "run"): {"--identity", "--profile"},
 }
@@ -701,6 +706,45 @@ def validate_example(
                 i += 1
                 continue
             if flag in root.flags:
+                if flag in GLOBAL_FLAGS_ACCEPTED_AFTER_COMMAND:
+                    # The runtime relocation stops at the first positional
+                    # argument, whatever the command's own flag style, so a
+                    # trailing selector there is an unknown flag at runtime.
+                    if saw_positional:
+                        errors.append(
+                            f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
+                            f"global flag {flag!r} appears after positional arguments in {example.raw!r}"
+                        )
+                        return errors
+                    i += 1
+                    if not separator and not root.flags.get(flag, False):
+                        if i >= len(tokens) or tokens[i].startswith("--"):
+                            errors.append(
+                                f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
+                                f"missing value for flag {flag!r} in {example.raw!r}"
+                            )
+                            return errors
+                        # A separated value that names a subcommand is a
+                        # misplaced command name at runtime, not a profile
+                        # name; the inline spelling disambiguates it.
+                        if tokens[i] in current.subcommands:
+                            errors.append(
+                                f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
+                                f"value {tokens[i]!r} for global flag {flag!r} names a subcommand of "
+                                f"{' '.join(current.path)!r}; use {flag}=NAME in {example.raw!r}"
+                            )
+                            return errors
+                        i += 1
+                    # The runtime relocates the selector into the root flag
+                    # run, so command-path resolution continues past it.
+                    while i < len(tokens) and current.subcommands and tokens[i] in current.subcommands:
+                        current_path = (*current_path, tokens[i])
+                        current = index[current_path]
+                        i += 1
+                    style = usage_position_style(current)
+                    if current.path == ("workflow", "run"):
+                        style = "positionals_and_flags"
+                    continue
                 errors.append(
                     f"{example.path.relative_to(example.path.parents[1])}:{example.line_number}: "
                     f"global flag {flag!r} must appear before the top-level command in {example.raw!r}"

@@ -30,7 +30,7 @@ Do not memorize flags. Always use `--help` for the current interface.
 - Output formats: `--output json|table|markdown` and `--pretty` for readable JSON.
 - `ASC_DEFAULT_OUTPUT` can pin the default output mode across contexts.
 - Destructive operations require `--confirm`.
-- Profiles: `--profile "NAME"` and `--strict-auth` for auth resolution safety.
+- Profiles: `--profile "NAME"` and `--strict-auth` for auth resolution safety. `--profile` is accepted before or after the command name; every other global flag must come before it.
 - Debugging: `--debug`, `--api-debug`, `--retry-log`.
 
 ## Quick Lookup
@@ -210,7 +210,7 @@ Use `asc <command> --help` for subcommands and flags.
 
 - `--api-debug` - HTTP request/response logging (redacted)
 - `--debug` - Debug logging
-- `--profile` - Use a named authentication profile
+- `--profile` - Use a named authentication profile (accepted before or after the command name)
 - `--report` - Report format for CI output
 - `--report-file` - Path to write CI report file
 - `--retry-log` - Enable retry logging

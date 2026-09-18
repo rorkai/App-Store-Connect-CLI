@@ -147,6 +147,20 @@ func printConciseUnknownFlag(root *ffcli.Command, analysis invocationAnalysis, c
 	if printRemovedFlagHint(os.Stderr, commandName, flagName, analysis.command.FlagSet) {
 		return
 	}
+	if name, ok := flagLookupName(flagName); ok && name == rootProfileFlagName &&
+		root != nil && root.FlagSet != nil && root.FlagSet.Lookup(name) != nil {
+		// `--profile` is accepted after the command name, so it is never an
+		// unknown flag there and placement is never the failure. It only
+		// reaches this path when no profile name could be read from the
+		// invocation, so report exactly that.
+		fmt.Fprintf(
+			os.Stderr,
+			"Error: `%s` needs a profile name; pass `--%s=NAME`.\nFor help:\n  asc --help\n",
+			shared.SanitizeTerminal(flagName),
+			rootProfileFlagName,
+		)
+		return
+	}
 	fmt.Fprintf(os.Stderr, "Error: %s\n", unknownFlagError(analysis, commandName))
 	if printMetadataValidateFlagRecovery(flagName, commandName, analysis, args) {
 		return

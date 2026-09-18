@@ -44,6 +44,10 @@ func Run(args []string, versionInfo string) int {
 	}
 
 	root := rootCommandForArgs(versionInfo, args)
+	// The credential profile is a root-owned selector, so relocate a misplaced
+	// `--profile` before anything else reads the argv. Running it first also
+	// keeps spaced boolean recovery working for the flags that follow it.
+	args = hoistRootProfileFlag(root, args)
 	args = normalizeSpacedBooleanFlags(root, args)
 	analysis := analyzeInvocation(root, args)
 	runCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt)
