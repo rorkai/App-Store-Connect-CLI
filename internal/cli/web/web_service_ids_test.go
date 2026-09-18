@@ -41,7 +41,7 @@ func TestWebServiceIDsCreateRequiresConfirm(t *testing.T) {
 
 func TestWebServiceIDsCommandHierarchy(t *testing.T) {
 	command := WebServiceIDsCommand()
-	want := []string{"list", "view", "create", "rename", "delete"}
+	want := []string{"list", "view", "create", "rename", "delete", "domains"}
 	if len(command.Subcommands) != len(want) {
 		t.Fatalf("subcommands = %d, want %d", len(command.Subcommands), len(want))
 	}
@@ -49,6 +49,30 @@ func TestWebServiceIDsCommandHierarchy(t *testing.T) {
 		if command.Subcommands[index].Name != name || command.Subcommands[index].UsageFunc == nil {
 			t.Fatalf("subcommand %d = %+v, want %q with usage", index, command.Subcommands[index], name)
 		}
+	}
+}
+
+func TestWebServiceIDsDomainsSetRefusesBeforeAnyRequest(t *testing.T) {
+	command := WebServiceIDsDomainsSetCommand()
+	if err := command.FlagSet.Parse([]string{
+		"--service-id", "service-1",
+		"--domain", "example.com",
+		"--return-url", "https://example.com/callback",
+		"--confirm",
+	}); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	stdout, stderr := captureWebCommandOutput(t, func() {
+		err := command.Exec(context.Background(), command.FlagSet.Args())
+		if err == nil || errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected a non-usage refusal, got %v", err)
+		}
+	})
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	if !strings.Contains(stderr, "no accepted write request has been captured") {
+		t.Fatalf("stderr = %q", stderr)
 	}
 }
 

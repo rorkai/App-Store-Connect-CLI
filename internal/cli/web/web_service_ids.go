@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -50,8 +51,9 @@ cookie-authenticated Developer Portal. These private resources are represented
 by Apple's bundleIds endpoint with platform=SERVICES and are not part of the
 public App Store Connect Bundle ID API.
 
-Capability configuration, Sign in with Apple domains, Website Push IDs, and
-iCloud containers are separate workflows and are not changed by these commands.
+Capability configuration, Website Push IDs, and iCloud containers are separate
+workflows. domains set validates a Sign in with Apple domain update and then
+stops, because that write request has not been captured.
 
 `,
 		FlagSet:   fs,
@@ -62,6 +64,7 @@ iCloud containers are separate workflows and are not changed by these commands.
 			WebServiceIDsCreateCommand(),
 			WebServiceIDsRenameCommand(),
 			WebServiceIDsDeleteCommand(),
+			WebServiceIDsDomainsCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -486,6 +489,81 @@ func renderDeveloperServiceIDMutationTable(result *asc.WebServiceIDMutationResul
 func renderDeveloperServiceIDMutationMarkdown(result *asc.WebServiceIDMutationResult) error {
 	asc.RenderMarkdown(webServiceIDMutationHeaders(), webServiceIDMutationRows(result))
 	return nil
+}
+
+// WebServiceIDsDomainsCommand groups Sign in with Apple domain configuration.
+func WebServiceIDsDomainsCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("web service-ids domains", flag.ExitOnError)
+	return &ffcli.Command{
+		Name:       "domains",
+		ShortUsage: "asc web service-ids domains <subcommand> [flags]",
+		ShortHelp:  "Sign in with Apple domain configuration for a Services ID.",
+		LongHelp: `Sign in with Apple domain configuration for a Services ID.
+
+The set command validates its flags and then stops. No accepted domain write
+request has been captured, so it does not call Apple.
+`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Subcommands: []*ffcli.Command{
+			WebServiceIDsDomainsSetCommand(),
+		},
+		Exec: func(ctx context.Context, args []string) error {
+			return flag.ErrHelp
+		},
+	}
+}
+
+// WebServiceIDsDomainsSetCommand refuses a domain update until the request is captured.
+func WebServiceIDsDomainsSetCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("web service-ids domains set", flag.ExitOnError)
+	serviceID := fs.String("service-id", "", "Services ID resource ID")
+	domain := fs.String("domain", "", "Domain to associate, comma-separated")
+	returnURL := fs.String("return-url", "", "Return URL, comma-separated")
+	confirm := fs.Bool("confirm", false, "Confirm the domain update")
+	_ = bindWebSessionFlags(fs)
+	_ = bindDeveloperPortalFlags(fs)
+	_ = shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "set",
+		ShortUsage: "asc web service-ids domains set --service-id ID --domain DOMAIN --return-url URL --confirm",
+		ShortHelp:  "Refuse a Sign in with Apple domain update until a write request is captured.",
+		LongHelp: `Validate a Sign in with Apple domain update and stop.
+
+No accepted domain write request has been captured. The command checks
+--service-id, --domain, --return-url, and --confirm, then returns an error. It
+does not open a session and does not call Apple.
+
+Examples:
+  asc web service-ids domains set --service-id "SERVICE_ID" --domain "example.com" --return-url "https://example.com/callback" --confirm
+`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageError("web service-ids domains set does not accept positional arguments")
+			}
+			if strings.TrimSpace(*serviceID) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --service-id is required")
+				return shared.MissingRequiredUsageError("--service-id")
+			}
+			if strings.TrimSpace(*domain) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --domain is required")
+				return shared.MissingRequiredUsageError("--domain")
+			}
+			if strings.TrimSpace(*returnURL) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --return-url is required")
+				return shared.MissingRequiredUsageError("--return-url")
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
+				return shared.MissingRequiredUsageError("--confirm")
+			}
+			fmt.Fprintln(os.Stderr, "Error: web service-ids domains set is not available: no accepted write request has been captured")
+			return errors.New("web service-ids domains set is not available: no accepted write request has been captured")
+		},
+	}
 }
 
 func webServiceIDMutationHeaders() []string {

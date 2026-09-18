@@ -454,7 +454,9 @@ the App Store Connect web-client source captured for issue #2299:
   retried automatically.
 - Services ID lifecycle support is private-only because the public OpenAPI
   `BundleIdPlatform` enum does not include `SERVICES`. Capability graph
-  mutation and Sign in with Apple domain configuration remain uncaptured.
+  mutation remains uncaptured. `asc web service-ids domains set` validates
+  `--service-id`, `--domain`, `--return-url`, and `--confirm`, then stops. It
+  does not open a session or send a domain write.
   Website Push ID lifecycle and iCloud container reads use the separate
   captured workflows documented below.
 
