@@ -15,6 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/urlsanitize"
 )
 
@@ -246,6 +247,9 @@ func executeUploadOperation(ctx context.Context, file *os.File, task uploadTask,
 		requestCtx, cancel := context.WithTimeout(ctx, ResolveUploadTimeout())
 		defer cancel()
 
+		if err := readonly.Check(requestCtx, method, readonly.Target(task.op.URL)); err != nil {
+			return struct{}{}, err
+		}
 		reader := io.NewSectionReader(file, task.op.Offset, task.op.Length)
 		req, err := http.NewRequestWithContext(requestCtx, method, task.op.URL, reader)
 		if err != nil {

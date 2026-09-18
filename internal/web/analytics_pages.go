@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 )
 
 const analyticsV2BaseURL = appStoreBaseURL + "/analytics/api/v2"
@@ -278,8 +280,10 @@ func (c *Client) analyticsV2BaseURL() string {
 	return baseURL
 }
 
+// doAnalyticsV2Request sends a v2 analytics query; like v1 it is a POST-shaped
+// read, so it is marked as a read for read-only mode.
 func (c *Client) doAnalyticsV2Request(ctx context.Context, path string, body any, referer string) ([]byte, error) {
-	return c.doRequestBase(ctx, c.analyticsV2BaseURL(), http.MethodPost, path, body, analyticsHeaders(referer))
+	return c.doRequestBase(readonly.WithReadIntent(ctx), c.analyticsV2BaseURL(), http.MethodPost, path, body, analyticsHeaders(referer))
 }
 
 // GetAnalyticsSettings loads the shared analytics settings payload.

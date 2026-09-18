@@ -320,6 +320,14 @@ Configure retry behavior and debug logging.
   * Set to `api` for HTTP request/response logging (redacts sensitive values)
 </ParamField>
 
+## Safety variables
+
+<ParamField path="ASC_READ_ONLY" type="boolean">
+  Refuse every mutating request (`POST`, `PATCH`, `PUT`, `DELETE`) before it is sent
+
+  Set to `true`, `1`, `yes`, `y`, or `on` to enable. Equivalent to the global `--read-only` flag; refusals exit with code `6`. See [Read-only mode](/concepts/read-only-mode).
+</ParamField>
+
 ## Output variables
 
 Configure default output formats.

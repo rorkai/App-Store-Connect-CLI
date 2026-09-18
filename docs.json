@@ -29,6 +29,7 @@
               "concepts/output-formats",
               "concepts/pagination",
               "concepts/error-handling",
+              "concepts/read-only-mode",
               "concepts/workflows"
             ]
           },

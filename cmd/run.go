@@ -18,6 +18,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/install"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared/errfmt"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/readonly"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/telemetry"
 )
 
@@ -32,6 +33,9 @@ var (
 // It returns the intended process exit code.
 func Run(args []string, versionInfo string) int {
 	defer shared.CleanupTempPrivateKeys()
+	// --read-only is per invocation: clear it on return so an embedded or
+	// test caller's next Run starts from the environment alone.
+	defer readonly.SetFlagEnabled(false)
 	// A command may register a structured report for the root runner. Clear
 	// any report left by a direct command test or an interrupted prior run.
 	shared.ConsumeJUnitReport()

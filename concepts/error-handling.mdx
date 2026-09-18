@@ -23,6 +23,7 @@ echo $?  # 0 = success
 | `3`  | Authentication failure | Missing credentials, invalid API key, or permission denied      |
 | `4`  | Resource not found     | App, build, or resource does not exist                          |
 | `5`  | Conflict               | Resource already exists or version conflict                     |
+| `6`  | Read-only refusal      | `ASC_READ_ONLY` or `--read-only` blocked a mutating request     |
 
 ### HTTP Status Mapping
 
