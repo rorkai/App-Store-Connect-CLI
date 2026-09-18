@@ -23,6 +23,7 @@ const (
 	DiagnosticResourceNotFound        DiagnosticCode = "resource_not_found"
 	DiagnosticResourceConflict        DiagnosticCode = "resource_conflict"
 	DiagnosticStateNotReady           DiagnosticCode = "state_not_ready"
+	DiagnosticDSYMNotReady            DiagnosticCode = "dsym_not_ready"
 	DiagnosticDependencyFailed        DiagnosticCode = "dependency_failed"
 	DiagnosticRequestFailed           DiagnosticCode = "request_failed"
 	DiagnosticInternalError           DiagnosticCode = "internal_error"
@@ -98,6 +99,7 @@ func IsKnownDiagnosticCode(code DiagnosticCode) bool {
 		DiagnosticResourceNotFound,
 		DiagnosticResourceConflict,
 		DiagnosticStateNotReady,
+		DiagnosticDSYMNotReady,
 		DiagnosticDependencyFailed,
 		DiagnosticRequestFailed,
 		DiagnosticInternalError:

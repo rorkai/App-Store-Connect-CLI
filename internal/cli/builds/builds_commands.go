@@ -433,7 +433,8 @@ Examples:
   asc builds build-beta-detail view --app "123456789" --latest
   asc builds links view --app "123456789" --latest --type "app"
   asc builds metrics beta-usages --app "123456789" --latest
-  asc builds dsyms --build-id "BUILD_ID" --output-dir "./dsyms"`,
+  asc builds dsyms --build-id "BUILD_ID" --output-dir "./dsyms"
+  asc builds dsyms --app "123456789" --version live --wait`,
 		FlagSet:   fs,
 		UsageFunc: shared.VisibleUsageFunc,
 		Subcommands: []*ffcli.Command{

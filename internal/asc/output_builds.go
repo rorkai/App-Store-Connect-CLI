@@ -91,19 +91,25 @@ type BuildExpireAllResult struct {
 
 // DSYMDownloadResult is the structured output for dSYM downloads.
 type DSYMDownloadResult struct {
-	BuildID     string             `json:"buildId"`
+	BuildID     string             `json:"buildId,omitempty"`
 	Version     string             `json:"version,omitempty"`
 	BuildNumber string             `json:"buildNumber,omitempty"`
 	Dir         string             `json:"dir"`
+	Status      string             `json:"status,omitempty"`
 	Files       []DSYMDownloadFile `json:"files"`
 }
 
 // DSYMDownloadFile describes one downloaded dSYM file.
 type DSYMDownloadFile struct {
-	BundleID string `json:"bundleId,omitempty"`
-	FileName string `json:"fileName"`
-	FilePath string `json:"filePath"`
-	FileSize int64  `json:"fileSize"`
+	BuildID     string `json:"buildId,omitempty"`
+	Version     string `json:"version,omitempty"`
+	BuildNumber string `json:"buildNumber,omitempty"`
+	BundleID    string `json:"bundleId,omitempty"`
+	FileName    string `json:"fileName"`
+	FilePath    string `json:"filePath"`
+	FileSize    int64  `json:"fileSize"`
+	SHA256      string `json:"sha256,omitempty"`
+	Skipped     bool   `json:"skipped,omitempty"`
 }
 
 // BuildWaitResult represents CLI output for builds wait: the resolved build
@@ -399,15 +405,33 @@ func buildsNextBuildNumberRows(result *BuildsNextBuildNumberResult) ([]string, [
 
 func dsymDownloadResultRows(result *DSYMDownloadResult) ([]string, [][]string) {
 	headers := []string{"Build ID", "Bundle ID", "File Name", "File Size", "Dir"}
+	includeSHA := false
+	for _, file := range result.Files {
+		if file.SHA256 != "" {
+			includeSHA = true
+			break
+		}
+	}
+	if includeSHA {
+		headers = append(headers, "SHA-256")
+	}
 	rows := make([][]string, 0, len(result.Files))
 	for _, file := range result.Files {
-		rows = append(rows, []string{
-			result.BuildID,
+		buildID := file.BuildID
+		if buildID == "" {
+			buildID = result.BuildID
+		}
+		row := []string{
+			buildID,
 			file.BundleID,
 			file.FileName,
 			fmt.Sprintf("%d", file.FileSize),
 			result.Dir,
-		})
+		}
+		if includeSHA {
+			row = append(row, file.SHA256)
+		}
+		rows = append(rows, row)
 	}
 	return headers, rows
 }
