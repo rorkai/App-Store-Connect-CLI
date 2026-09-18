@@ -236,6 +236,11 @@ Examples:
 					if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 						return shared.UsageError(err.Error())
 					}
+					normalizedNotes, normalizeErr := shared.NormalizeTestNotesForCommand(os.Stderr, testNotesValue)
+					if normalizeErr != nil {
+						return normalizeErr
+					}
+					testNotesValue = normalizedNotes
 				}
 			}
 

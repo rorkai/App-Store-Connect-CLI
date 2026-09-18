@@ -189,6 +189,11 @@ Examples:
 				if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 					return fmt.Errorf("builds upload: %w", err)
 				}
+				normalizedNotes, normalizeErr := shared.NormalizeTestNotesForCommand(os.Stderr, testNotesValue)
+				if normalizeErr != nil {
+					return fmt.Errorf("builds upload: %w", normalizeErr)
+				}
+				testNotesValue = normalizedNotes
 			}
 			if (*wait || testNotesValue != "") && *pollInterval <= 0 {
 				return fmt.Errorf("builds upload: --poll-interval must be greater than 0")

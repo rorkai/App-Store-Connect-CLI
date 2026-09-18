@@ -3,12 +3,92 @@ package shared
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
+
+// TestNotesNormalization reports the What to Test text that will be stored and
+// which characters App Store Connect rejects were dropped to reach it.
+type TestNotesNormalization struct {
+	Notes                 string
+	Changed               bool
+	RemovedAngleBrackets  bool
+	RemovedCombiningMarks bool
+}
+
+// Notice returns a single-line operator notice for a normalization that
+// changed the stored text, or an empty string when the text was kept as
+// submitted. It never includes the notes themselves.
+func (n TestNotesNormalization) Notice() string {
+	if !n.Changed {
+		return ""
+	}
+	notice := "Notice: What to Test notes were normalized (Unicode NFC) before sending"
+	switch {
+	case n.RemovedAngleBrackets && n.RemovedCombiningMarks:
+		notice += `; removed "<" characters and combining marks`
+	case n.RemovedAngleBrackets:
+		notice += `; removed "<" characters`
+	case n.RemovedCombiningMarks:
+		notice += "; removed combining marks"
+	}
+	return notice + "."
+}
+
+// NormalizeTestNotes rewrites What to Test notes into the form App Store
+// Connect accepts: NFC-composed text without "<" characters or leftover
+// nonspacing marks. Notes that keep no usable character are a usage failure so
+// the caller never sends a request Apple is certain to reject.
+func NormalizeTestNotes(notes string) (TestNotesNormalization, error) {
+	trimmed := strings.TrimSpace(notes)
+
+	var builder strings.Builder
+	builder.Grow(len(trimmed))
+	var normalization TestNotesNormalization
+	for _, r := range norm.NFC.String(trimmed) {
+		switch {
+		case r == '<':
+			normalization.RemovedAngleBrackets = true
+		case unicode.Is(unicode.Mn, r):
+			normalization.RemovedCombiningMarks = true
+		default:
+			builder.WriteRune(r)
+		}
+	}
+
+	normalized := strings.TrimSpace(builder.String())
+	if normalized == "" {
+		return TestNotesNormalization{}, classifiedUsageError{
+			kind:    UsageErrorInvalidValue,
+			message: `What to Test notes are invalid: no text remains after removing "<" characters and combining marks`,
+		}
+	}
+
+	normalization.Notes = normalized
+	normalization.Changed = normalized != trimmed
+	return normalization, nil
+}
+
+// NormalizeTestNotesForCommand normalizes What to Test notes for a command,
+// writing the one-line notice or the usage diagnostic to w. It returns the text
+// the caller must submit and store in any retry payload.
+func NormalizeTestNotesForCommand(w io.Writer, notes string) (string, error) {
+	normalization, err := NormalizeTestNotes(notes)
+	if err != nil {
+		fmt.Fprintf(w, "Error: %s\n", err.Error())
+		return "", err
+	}
+	if notice := normalization.Notice(); notice != "" {
+		fmt.Fprintln(w, notice)
+	}
+	return normalization.Notes, nil
+}
 
 // UpsertBetaBuildLocalization creates or updates a beta build localization.
 func UpsertBetaBuildLocalization(ctx context.Context, client *asc.Client, buildID, locale, notes string) (*asc.BetaBuildLocalizationResponse, error) {
@@ -17,6 +97,12 @@ func UpsertBetaBuildLocalization(ctx context.Context, client *asc.Client, buildI
 	if localeValue == "" || notesValue == "" {
 		return nil, fmt.Errorf("locale and notes are required")
 	}
+
+	normalization, err := NormalizeTestNotes(notesValue)
+	if err != nil {
+		return nil, err
+	}
+	notesValue = normalization.Notes
 
 	resp, err := client.GetBetaBuildLocalizations(
 		ctx, buildID,

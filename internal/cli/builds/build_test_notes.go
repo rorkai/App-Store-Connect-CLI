@@ -257,6 +257,10 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --whats-new is required")
 				return shared.MissingRequiredUsageError("--whats-new")
 			}
+			whatsNewValue, normalizeErr := shared.NormalizeTestNotesForCommand(os.Stderr, whatsNewValue)
+			if normalizeErr != nil {
+				return fmt.Errorf("builds test-notes create: %w", normalizeErr)
+			}
 
 			client, err := shared.GetASCClient()
 			if err != nil {
@@ -319,6 +323,10 @@ Examples:
 			if whatsNewValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: at least one update flag is required")
 				return shared.MissingRequiredUsageError("--whats-new")
+			}
+			whatsNewValue, normalizeErr := shared.NormalizeTestNotesForCommand(os.Stderr, whatsNewValue)
+			if normalizeErr != nil {
+				return fmt.Errorf("builds test-notes update: %w", normalizeErr)
 			}
 
 			client, err := shared.GetASCClient()
