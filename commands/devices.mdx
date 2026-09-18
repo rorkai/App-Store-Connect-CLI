@@ -103,6 +103,13 @@ asc devices register --name "My Mac" --udid-from-system --platform MAC_OS
 
 **Note:** `--udid` and `--udid-from-system` are mutually exclusive.
 
+Use `--via-url` when a remote tester cannot copy a UDID. The command prints a loopback URL and a registration hint on stderr. The profile is unsigned, so iOS shows it as Not Verified. Reach the phone through a tunnel or LAN address passed as `--public-url`. Without `--confirm`, devices are written to a tab-separated `--output-file` that `devices register-batch` can read. `--listen` stays on a loopback address unless you explicitly bind another host.
+
+```bash theme={null}
+asc devices register --via-url --output-file ./devices.tsv --ttl 30m
+asc devices register --via-url --confirm --platform IOS --public-url "https://tunnel.example"
+```
+
 ### devices update
 
 Update a device:

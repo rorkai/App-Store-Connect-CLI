@@ -263,8 +263,14 @@ func DevicesRegisterCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("register", flag.ExitOnError)
 
 	name := fs.String("name", "", "Device name")
-	udid := fs.String("udid", "", "Device UDID (required unless --udid-from-system)")
+	udid := fs.String("udid", "", "Device UDID (required unless --udid-from-system or --via-url)")
 	udidFromSystem := fs.Bool("udid-from-system", false, "Use local macOS hardware UUID as UDID (macOS only)")
+	viaURL := fs.Bool("via-url", false, "Collect a remote device UDID from a registration URL")
+	listen := fs.String("listen", "127.0.0.1:0", "Loopback address for the registration server")
+	publicURL := fs.String("public-url", "", "Externally reachable URL printed in the profile and QR code")
+	ttl := fs.Duration("ttl", 30*time.Minute, "How long to wait for device callbacks")
+	outputFile := fs.String("output-file", "", "Collect-only TSV for register-batch when --confirm is not set")
+	confirm := fs.Bool("confirm", false, "Register collected devices in App Store Connect")
 	platform := fs.String("platform", "", "Device platform: "+strings.Join(devicePlatformList(), ", "))
 	output := shared.BindOutputFlags(fs)
 
@@ -276,11 +282,53 @@ func DevicesRegisterCommand() *ffcli.Command {
 
 Examples:
   asc devices register --name "iPhone 15" --udid "UDID" --platform IOS
-  asc devices register --name "My Mac" --udid-from-system --platform MAC_OS`,
+  asc devices register --name "My Mac" --udid-from-system --platform MAC_OS
+  asc devices register --via-url --output-file ./devices.tsv`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			nameValue := strings.TrimSpace(*name)
+			if *viaURL {
+				if strings.TrimSpace(*udid) != "" || *udidFromSystem {
+					return shared.UsageError("--via-url cannot be combined with --udid or --udid-from-system")
+				}
+				platformValue := strings.TrimSpace(*platform)
+				if platformValue == "" {
+					platformValue = "IOS"
+				}
+				platformValue, err := normalizeDevicePlatform(platformValue)
+				if err != nil {
+					return fmt.Errorf("devices register: %w", shared.UsageError(err.Error()))
+				}
+				if !*confirm && strings.TrimSpace(*outputFile) == "" {
+					fmt.Fprintln(os.Stderr, "Error: --output-file is required without --confirm")
+					return shared.MissingRequiredUsageError("--output-file")
+				}
+				var client *asc.Client
+				if *confirm {
+					created, err := shared.GetASCClient()
+					if err != nil {
+						return fmt.Errorf("devices register: %w", err)
+					}
+					client = created
+				}
+				result, err := serveDeviceRegistration(ctx, deviceURLServeOptions{
+					Listen:         strings.TrimSpace(*listen),
+					ListenExplicit: listenExplicit(fs),
+					PublicURL:      strings.TrimSpace(*publicURL),
+					TTL:            *ttl,
+					Platform:       platformValue,
+					Confirm:        *confirm,
+					OutputFile:     strings.TrimSpace(*outputFile),
+					Client:         client,
+				})
+				if result != nil {
+					if printErr := shared.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil && err == nil {
+						return printErr
+					}
+				}
+				return err
+			}
 			if nameValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --name is required")
 				return shared.MissingRequiredUsageError("--name")
