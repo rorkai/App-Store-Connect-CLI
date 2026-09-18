@@ -148,6 +148,7 @@ func syncPushCommand() *ffcli.Command {
 	certType := fs.String("certificate-type", "", "Certificate type filter (optional)")
 	deviceIDs := fs.String("device", "", "Device ID(s), comma-separated (requires --create-missing; required for development profiles)")
 	createMissing := fs.Bool("create-missing", false, "Create missing profiles")
+	createMissingCertificate := fs.Bool("create-missing-certificate", false, "Create a certificate when none are active, then create the profile")
 	identityPath := fs.String("identity", "", "Protected PKCS#12 signing identity file")
 	privateKeyPath := fs.String("private-key", "", "Protected RSA or EC private key PEM file")
 	identitySHA256 := fs.String("identity-sha256", "", "SHA-256 certificate fingerprint selecting a PKCS#12 identity or the ASC certificate for --private-key")
@@ -211,8 +212,14 @@ func syncPushCommand() *ffcli.Command {
 			if strings.TrimSpace(*identitySHA256) != "" && identityInput == "" && privateKeyInput == "" {
 				return shared.UsageError("--identity-sha256 requires --identity or --private-key")
 			}
-			if strings.TrimSpace(*identityPasswordFile) != "" && identityInput == "" {
+			if strings.TrimSpace(*identityPasswordFile) != "" && identityInput == "" && !*createMissingCertificate {
 				return shared.UsageError("--identity-password-file requires --identity")
+			}
+			if *createMissingCertificate && !*createMissing {
+				return shared.UsageError("--create-missing-certificate requires --create-missing")
+			}
+			if *createMissingCertificate && strings.TrimSpace(*identityPasswordFile) == "" {
+				return shared.MissingRequiredUsageError("--identity-password-file")
 			}
 			if privateKeyInput != "" && strings.TrimSpace(*identitySHA256) == "" {
 				return shared.UsageError("--identity-sha256 is required with --private-key to select one App Store Connect certificate")
@@ -309,16 +316,44 @@ func syncPushCommand() *ffcli.Command {
 			})
 			var identityArtifacts *signingIdentityArtifacts
 
+			var createdIdentity createdSigningIdentity
+			var certificateRequest signingCertificateCreateRequest
+			if *createMissingCertificate {
+				passwordBytes, readErr := readProtectedSecretFile(*identityPasswordFile, "identity password")
+				if readErr != nil {
+					return fmt.Errorf("signing sync push: identity password: %w", readErr)
+				}
+				certificateRequest = signingCertificateCreateRequest{
+					KeyPath:  filepath.Join(tmpDir, "created.key"),
+					CSRPath:  filepath.Join(tmpDir, "created.csr"),
+					P12Path:  filepath.Join(tmpDir, "created.p12"),
+					Password: passwordBytes,
+				}
+			}
 			profile, certs, created, err := resolveSigningAssets(
 				requestCtx,
 				client,
 				signingAssetsOptions{
-					BundleIDResourceID: bundleIDResp.Data.ID,
-					BundleIdentifier:   bundle,
-					ProfileType:        profType,
-					CertificateType:    *certType,
-					DeviceIDs:          shared.SplitCSV(*deviceIDs),
-					CreateMissing:      *createMissing,
+					BundleIDResourceID:       bundleIDResp.Data.ID,
+					BundleIdentifier:         bundle,
+					ProfileType:              profType,
+					CertificateType:          *certType,
+					DeviceIDs:                shared.SplitCSV(*deviceIDs),
+					CreateMissing:            *createMissing,
+					CreateMissingCertificate: *createMissingCertificate,
+					CertificateCreate:        certificateRequest,
+					CreatedIdentity:          &createdIdentity,
+					AfterCertificateCreate: func(created createdSigningIdentity) error {
+						if identity != nil {
+							return nil
+						}
+						loaded, loadErr := loadPKCS12Identity(created.P12Path, string(certificateRequest.Password), requestedFingerprint)
+						if loadErr != nil {
+							return loadErr
+						}
+						identity = loaded
+						return nil
+					},
 					BeforeCreate: func(plan profileCreatePlan) error {
 						if identity != nil {
 							if err := preflightIdentityForProfileCreate(identity, plan, pass, time.Now()); err != nil {

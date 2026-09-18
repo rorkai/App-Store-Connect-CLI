@@ -470,6 +470,7 @@ var knownFailureParameters = map[string]struct{}{
 	"iap-version-fields":                {},
 	"iap-id":                            {},
 	"id":                                {},
+	"identity-password-file":            {},
 	"identifier":                        {},
 	"ids":                               {},
 	"image-id":                          {},

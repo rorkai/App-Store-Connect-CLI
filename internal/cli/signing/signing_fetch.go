@@ -39,6 +39,12 @@ func SigningFetchCommand() *ffcli.Command {
 	certType := fs.String("certificate-type", "", "Certificate type filter (optional)")
 	outputPath := fs.String("output", "./signing", "Output directory for signing files")
 	createMissing := fs.Bool("create-missing", false, "Create missing profiles")
+	createMissingCertificate := fs.Bool("create-missing-certificate", false, "Create a certificate when none are active, then create the profile")
+	identityPasswordFile := fs.String("identity-password-file", "", "Protected 0600 file containing the PKCS#12 password")
+	keyOut := fs.String("key-out", "", "Private key output path (default: <output>/<type>.key)")
+	csrOut := fs.String("csr-out", "", "CSR output path (default: <output>/<type>.csr)")
+	p12Out := fs.String("p12-out", "", "PKCS#12 output path (default: <output>/<type>.p12)")
+	force := fs.Bool("force", false, "Replace existing key, CSR, and p12 output files")
 	output := shared.BindOutputFlagsWith(fs, "format", shared.DefaultOutputFormat(), "Output format for metadata: json, table, markdown")
 
 	return &ffcli.Command{
@@ -56,11 +62,14 @@ profiles continue to use .mobileprovision files.
 With --create-missing, it will create a new profile if none exist for the
 specified configuration. Devices are only applied to profiles this command
 creates, so --device without --create-missing is rejected with a usage error.
+--create-missing-certificate also creates a key, CSR, certificate, and
+password-protected .p12 when no active certificate exists. It requires
+--create-missing and --identity-password-file.
 
 Examples:
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --output ./signing
   asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_DEVELOPMENT --create-missing --device "DEVICE1,DEVICE2"
-  asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --create-missing`,
+  asc signing fetch --bundle-id com.example.app --profile-type IOS_APP_STORE --create-missing --create-missing-certificate --identity-password-file ./secrets/p12-password`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -78,6 +87,14 @@ Examples:
 			profType = strings.ToUpper(profType)
 			if err := rejectDeviceWithoutCreateMissing(*deviceIDs, *createMissing); err != nil {
 				return err
+			}
+			if *createMissingCertificate && !*createMissing {
+				fmt.Fprintln(os.Stderr, "Error: --create-missing-certificate requires --create-missing")
+				return shared.UsageError("--create-missing-certificate requires --create-missing")
+			}
+			if *createMissingCertificate && strings.TrimSpace(*identityPasswordFile) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --identity-password-file is required")
+				return shared.MissingRequiredUsageError("--identity-password-file")
 			}
 			if *createMissing && isDevelopmentProfile(profType) && strings.TrimSpace(*deviceIDs) == "" {
 				fmt.Fprintln(os.Stderr, "Error: --device is required for development profiles")
@@ -131,22 +148,67 @@ Examples:
 			}
 			result.BundleIDResource = bundleIDResp.Data.ID
 
+			var password []byte
+			if *createMissingCertificate {
+				password, err = readProtectedSecretFile(*identityPasswordFile, "identity password")
+				if err != nil {
+					return fmt.Errorf("signing fetch: %w", err)
+				}
+				defer clear(password)
+			}
+			certSlug := "distribution"
+			if isDevelopmentProfile(profType) {
+				certSlug = "development"
+			}
+			keyPath := firstNonEmpty(*keyOut, filepath.Join(outputDir, certSlug+".key"))
+			csrPath := firstNonEmpty(*csrOut, filepath.Join(outputDir, certSlug+".csr"))
+			p12Path := firstNonEmpty(*p12Out, filepath.Join(outputDir, certSlug+".p12"))
+			var createdIdentity createdSigningIdentity
+			createdFlag := false
+
+			if *createMissingCertificate {
+				if err := prepareOutputDir(); err != nil {
+					return fmt.Errorf("signing fetch: %w", err)
+				}
+			}
 			profile, certs, created, err := resolveSigningAssets(
 				requestCtx,
 				client,
 				signingAssetsOptions{
-					BundleIDResourceID: bundleIDResp.Data.ID,
-					BundleIdentifier:   bundle,
-					ProfileType:        profType,
-					CertificateType:    *certType,
-					DeviceIDs:          shared.SplitCSV(*deviceIDs),
-					CreateMissing:      *createMissing,
+					BundleIDResourceID:       bundleIDResp.Data.ID,
+					BundleIdentifier:         bundle,
+					ProfileType:              profType,
+					CertificateType:          *certType,
+					DeviceIDs:                shared.SplitCSV(*deviceIDs),
+					CreateMissing:            *createMissing,
+					CreateMissingCertificate: *createMissingCertificate,
+					CertificateCreate: signingCertificateCreateRequest{
+						KeyPath:  keyPath,
+						CSRPath:  csrPath,
+						P12Path:  p12Path,
+						Password: password,
+						Force:    *force,
+					},
+					CreatedIdentity: &createdIdentity,
 					BeforeCreate: func(plan profileCreatePlan) error {
 						return preflightOutput(plan.ProfileName, "", plan.Certificates)
 					},
 				},
 			)
+			createdFlag = createdIdentity.CertificateID != ""
 			if err != nil {
+				if createdFlag {
+					applyCreatedIdentity(result, createdIdentity, true)
+					metadataPath := filepath.Join(outputDir, "profiles.json")
+					_ = writeSigningProfilesMetadata(metadataPath, signingProfilesMetadata{
+						CertificateID:     createdIdentity.CertificateID,
+						CertificateSHA256: createdIdentity.CertificateSHA256,
+						P12Path:           createdIdentity.P12Path,
+						PrivateKeyPath:    createdIdentity.PrivateKeyPath,
+					})
+					result.ProfilesMetadataPath = metadataPath
+					_ = shared.PrintOutput(result, *output.Output, *output.Pretty)
+				}
 				return fmt.Errorf("signing fetch: %w", err)
 			}
 			result.CertificateIDs = extractIDs(certs.Data)
@@ -177,6 +239,28 @@ Examples:
 					return fmt.Errorf("signing fetch: write certificate: %w", err)
 				}
 				result.CertificateFiles = append(result.CertificateFiles, certPath)
+			}
+			if createdFlag || *createMissingCertificate {
+				applyCreatedIdentity(result, createdIdentity, createdFlag)
+				if !createdFlag {
+					falseValue := false
+					result.CertificateCreated = &falseValue
+				}
+				metadataPath := filepath.Join(outputDir, "profiles.json")
+				certificateID := ""
+				if len(result.CertificateIDs) > 0 {
+					certificateID = result.CertificateIDs[0]
+				}
+				if err := writeSigningProfilesMetadata(metadataPath, signingProfilesMetadata{
+					CertificateID:     certificateID,
+					CertificateSHA256: createdIdentity.CertificateSHA256,
+					P12Path:           createdIdentity.P12Path,
+					PrivateKeyPath:    createdIdentity.PrivateKeyPath,
+					ProfilePath:       profilePath,
+				}); err != nil {
+					return fmt.Errorf("signing fetch: write profiles.json: %w", err)
+				}
+				result.ProfilesMetadataPath = metadataPath
 			}
 
 			return shared.PrintOutput(result, *output.Output, *output.Pretty)
@@ -257,13 +341,17 @@ type signingAssetsOptions struct {
 	// ProfileName overrides the default name for a profile created by this
 	// resolution. Batch callers use a deterministic target-scoped name while
 	// single-target callers retain the historical profile type/date name.
-	ProfileName       string
-	CertificateType   string
-	DeviceIDs         []string
-	CreateMissing     bool
-	BeforeCreate      func(profileCreatePlan) error
-	CreateContext     func() (context.Context, context.CancelFunc)
-	CertificateFilter func(asc.Resource[asc.CertificateAttributes]) bool
+	ProfileName              string
+	CertificateType          string
+	DeviceIDs                []string
+	CreateMissing            bool
+	CreateMissingCertificate bool
+	CertificateCreate        signingCertificateCreateRequest
+	CreatedIdentity          *createdSigningIdentity
+	AfterCertificateCreate   func(createdSigningIdentity) error
+	BeforeCreate             func(profileCreatePlan) error
+	CreateContext            func() (context.Context, context.CancelFunc)
+	CertificateFilter        func(asc.Resource[asc.CertificateAttributes]) bool
 }
 
 // profileCreatePlan describes the profile that is about to be created so callers
@@ -315,8 +403,11 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 	}
 
 	certificates, err := findCertificates(ctx, client, options.ProfileType, certificateType)
-	if err != nil {
+	if err != nil && (!options.CreateMissingCertificate || !noSigningCertificates(err)) {
 		return nil, nil, false, err
+	}
+	if certificates == nil {
+		certificates = &asc.CertificatesResponse{}
 	}
 	fetchedCertificateCount := len(certificates.Data)
 	certificates.Data = filterSigningCertificates(certificates.Data, options.CertificateFilter)
@@ -325,10 +416,34 @@ func resolveSigningAssets(ctx context.Context, client *asc.Client, options signi
 	}
 	certificates.Data = certificatesForProfileCreation(certificates.Data, options.ProfileType, time.Now())
 	if len(certificates.Data) == 0 {
-		return nil, nil, false, fmt.Errorf(
-			"no active, unexpired certificates available to create %s profile",
-			options.ProfileType,
-		)
+		if !options.CreateMissingCertificate {
+			return nil, nil, false, fmt.Errorf(
+				"no active, unexpired certificates available to create %s profile",
+				options.ProfileType,
+			)
+		}
+		primaryType, typeErr := primarySigningCertificateType(options.ProfileType, options.CertificateType)
+		if typeErr != nil {
+			return nil, nil, false, typeErr
+		}
+		request := options.CertificateCreate
+		request.CertificateType = primaryType
+		created, identity, createErr := createMissingSigningCertificate(ctx, client, request)
+		if createErr != nil {
+			if options.CreatedIdentity != nil {
+				*options.CreatedIdentity = identity
+			}
+			return nil, nil, false, createErr
+		}
+		if options.CreatedIdentity != nil {
+			*options.CreatedIdentity = identity
+		}
+		if options.AfterCertificateCreate != nil {
+			if err := options.AfterCertificateCreate(identity); err != nil {
+				return nil, nil, false, err
+			}
+		}
+		certificates.Data = []asc.Resource[asc.CertificateAttributes]{created}
 	}
 	profileName := strings.TrimSpace(options.ProfileName)
 	if profileName == "" {
