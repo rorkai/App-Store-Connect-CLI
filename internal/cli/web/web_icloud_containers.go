@@ -2,10 +2,12 @@ package web
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -28,15 +30,15 @@ func WebICloudContainersCommand() *ffcli.Command {
 		ShortHelp:  "Read iCloud containers via a Developer Portal web session.",
 		LongHelp: `Read iCloud containers through the selected Apple Developer team.
 
-This command is read-only. Apple currently accepts a bounded 1000-resource
-collection request for this web-session endpoint; the command does not expose a
---paginate flag. Use --output json when the complete Apple response envelope,
-including links and metadata, is needed.
+List reads a bounded first page and does not expose --paginate. create
+validates its flags and then stops. No iCloud container write request has been
+captured, so create does not call Apple.
 `,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
 			WebICloudContainersListCommand(),
+			WebICloudContainersCreateCommand(),
 		},
 		Exec: func(ctx context.Context, args []string) error {
 			return flag.ErrHelp
@@ -154,6 +156,55 @@ func renderDeveloperICloudContainersMarkdown(result *webcore.DeveloperICloudCont
 }
 
 // Shared output warns for links.next; this covers totals without a next link.
+// WebICloudContainersCreateCommand validates a create request and refuses it.
+// The Developer Portal list response does not establish a create body, so this
+// command does not send one.
+func WebICloudContainersCreateCommand() *ffcli.Command {
+	fs := flag.NewFlagSet("web icloud-containers create", flag.ExitOnError)
+	identifier := fs.String("identifier", "", "iCloud container identifier (for example iCloud.com.example.app)")
+	name := fs.String("name", "", "Container display name")
+	confirm := fs.Bool("confirm", false, "Confirm creation")
+	_ = bindWebSessionFlags(fs)
+	_ = bindDeveloperPortalFlags(fs)
+	_ = shared.BindOutputFlags(fs)
+
+	return &ffcli.Command{
+		Name:       "create",
+		ShortUsage: "asc web icloud-containers create --identifier ID --name NAME --confirm",
+		ShortHelp:  "Refuse iCloud container creation until a write request is captured.",
+		LongHelp: `Validate an iCloud container create request and stop.
+
+No accepted create request has been captured. The command checks --identifier,
+--name, and --confirm, then returns an error. It does not open a session and
+does not call Apple.
+
+Examples:
+  asc web icloud-containers create --identifier "iCloud.com.example.app" --name "Example" --confirm
+`,
+		FlagSet:   fs,
+		UsageFunc: shared.DefaultUsageFunc,
+		Exec: func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return shared.UsageError("web icloud-containers create does not accept positional arguments")
+			}
+			if strings.TrimSpace(*identifier) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --identifier is required")
+				return shared.MissingRequiredUsageError("--identifier")
+			}
+			if strings.TrimSpace(*name) == "" {
+				fmt.Fprintln(os.Stderr, "Error: --name is required")
+				return shared.MissingRequiredUsageError("--name")
+			}
+			if !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
+				return shared.MissingRequiredUsageError("--confirm")
+			}
+			fmt.Fprintln(os.Stderr, "Error: web icloud-containers create is not available: no accepted write request has been captured")
+			return errors.New("web icloud-containers create is not available: no accepted write request has been captured")
+		},
+	}
+}
+
 func warnICloudContainerPagingTotal(result *webcore.DeveloperICloudContainersListResult) {
 	if result.GetLinks().Next != "" {
 		return
