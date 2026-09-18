@@ -2,7 +2,9 @@ package signing
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,6 +20,13 @@ import (
 )
 
 const deviceWithoutCreateMissingError = "--device requires --create-missing because device IDs are only applied to profiles this command creates"
+
+// maxProfileNameLength is the issue #2520 proposed guard. The OpenAPI snapshot
+// has no maxLength; generated names stay within 64 and explicit --name values
+// longer than that are rejected before any API call.
+const maxProfileNameLength = 64
+
+const profileNameHashSuffixLen = 6
 
 // rejectDeviceWithoutCreateMissing fails before any App Store Connect call when
 // device IDs were supplied but could never be applied.
@@ -588,7 +597,35 @@ func profileCreateName(profileType string, now time.Time) string {
 // same filename-safe component as repository paths so direct callers cannot
 // introduce separators into the API name either.
 func profileCreateNameForTarget(profileType, bundleIdentifier string, now time.Time) string {
-	return fmt.Sprintf("%s-%s", profileCreateName(profileType, now), safeFileName(bundleIdentifier, "target"))
+	prefix := profileCreateName(profileType, now)
+	component := safeFileName(bundleIdentifier, "target")
+	full := prefix + "-" + component
+	if len(full) <= maxProfileNameLength {
+		return full
+	}
+	hash := profileNameHash(bundleIdentifier)
+	budget := maxProfileNameLength - len(prefix) - len(hash) - 2
+	if budget < 1 {
+		budget = 1
+	}
+	if len(component) > budget {
+		component = component[:budget]
+	}
+	return prefix + "-" + component + "-" + hash
+}
+
+func profileNameHash(value string) string {
+	sum := sha256.Sum256([]byte(value))
+	return hex.EncodeToString(sum[:])[:profileNameHashSuffixLen]
+}
+
+// ValidateProfileNameLength reports a usage error when an explicit profile
+// name exceeds the generated-name guard.
+func ValidateProfileNameLength(name string) error {
+	if len(name) <= maxProfileNameLength {
+		return nil
+	}
+	return fmt.Errorf("profile name must be at most %d characters; got %d", maxProfileNameLength, len(name))
 }
 
 func isDevelopmentProfile(profileType string) bool {
