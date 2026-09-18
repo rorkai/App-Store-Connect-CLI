@@ -441,6 +441,7 @@ var knownFailureParameters = map[string]struct{}{
 	"dry-run":                           {},
 	"duration":                          {},
 	"end-date":                          {},
+	"entitlements":                      {},
 	"eligibility-last-subscribed-min":   {},
 	"eligibility-paid-months":           {},
 	"email":                             {},

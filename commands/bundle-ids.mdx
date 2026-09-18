@@ -147,6 +147,15 @@ asc bundle-ids profiles list --id "BUNDLE_ID"
 
 Manage app capabilities for a bundle ID.
 
+### Reconcile from entitlements
+
+Plan or apply the public-API capabilities implied by an entitlements file. Sub-feature settings already enabled, such as broadcast push, are kept. Unknown keys are a usage error unless `--ignore-unknown` is set.
+
+```bash theme={null}
+asc bundle-ids capabilities reconcile plan --bundle "BUNDLE_ID" --entitlements ./App/App.entitlements
+asc bundle-ids capabilities reconcile apply --bundle "BUNDLE_ID" --entitlements ./App/App.entitlements --confirm
+```
+
 ### List Capabilities
 
 List all capabilities for a bundle ID:
