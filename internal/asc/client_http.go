@@ -763,7 +763,20 @@ func validateAnalyticsDownloadURL(downloadURL string) error {
 	return fmt.Errorf("rejected analytics download URL from untrusted host %q", parsedURL.Host)
 }
 
+// httpClientForBodyDownload clears Client.Timeout. That timeout also covers
+// reading the response body, so it aborts a large download even when the
+// request context allows longer. The caller context remains the bound.
+func httpClientForBodyDownload(client *http.Client) *http.Client {
+	if client == nil || client.Timeout <= 0 {
+		return client
+	}
+	clone := *client
+	clone.Timeout = 0
+	return &clone
+}
+
 func (c *Client) doStream(ctx context.Context, path string, accept string) (*http.Response, error) {
+	httpClient := httpClientForBodyDownload(c.httpClient)
 	req, err := c.newRequest(ctx, "GET", path, nil)
 	if err != nil {
 		return nil, err
@@ -772,7 +785,7 @@ func (c *Client) doStream(ctx context.Context, path string, accept string) (*htt
 		req.Header.Set("Accept", accept)
 	}
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
@@ -796,7 +809,7 @@ func (c *Client) doStreamNoAuth(ctx context.Context, rawURL, accept string) (*ht
 		req.Header.Set("Accept", accept)
 	}
 
-	client := clientWithoutRedirects(c.httpClient)
+	client := clientWithoutRedirects(httpClientForBodyDownload(c.httpClient))
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, newSanitizedNoAuthStreamError("download request", rawURL, err)

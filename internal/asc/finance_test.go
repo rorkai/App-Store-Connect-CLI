@@ -3,9 +3,11 @@ package asc
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
 )
 
 func TestBuildFinanceReportQuery(t *testing.T) {
@@ -31,6 +33,38 @@ func TestBuildFinanceReportQuery(t *testing.T) {
 	}
 	if got := values.Get("filter[reportDate]"); got != "2025-12" {
 		t.Fatalf("expected reportDate filter, got %q", got)
+	}
+}
+
+func TestDownloadFinanceReportSurvivesShortClientTimeout(t *testing.T) {
+	client := newTestClient(t, func(req *http.Request) {
+		select {
+		case <-time.After(150 * time.Millisecond):
+		case <-req.Context().Done():
+			t.Errorf("download context ended before the body was ready: %v", req.Context().Err())
+		}
+	}, rawResponse("gzdata"))
+	client.httpClient.Timeout = 40 * time.Millisecond
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	download, err := client.DownloadFinanceReport(ctx, FinanceReportParams{
+		VendorNumber: "12345678",
+		ReportType:   FinanceReportTypeFinancial,
+		RegionCode:   "US",
+		ReportDate:   "2025-12",
+	})
+	if err != nil {
+		t.Fatalf("DownloadFinanceReport() error = %v", err)
+	}
+	defer download.Body.Close()
+	body, err := io.ReadAll(download.Body)
+	if err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	if string(body) != "gzdata" {
+		t.Fatalf("body = %q", body)
 	}
 }
 

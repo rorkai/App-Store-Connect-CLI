@@ -159,7 +159,9 @@ Examples:
 
 				fmt.Fprintf(os.Stderr, "Downloading dSYM for %s...\n", displayBundleID(bundle.BundleID, i))
 
-				size, err := downloadDSYM(requestCtx, *bundle.DSYMURL, filePath)
+				downloadCtx, downloadCancel := shared.ContextWithDownloadTimeout(ctx)
+				size, err := downloadDSYM(downloadCtx, *bundle.DSYMURL, filePath)
+				downloadCancel()
 				if err != nil {
 					return fmt.Errorf("builds dsyms: failed to download %s: %w", fileName, err)
 				}

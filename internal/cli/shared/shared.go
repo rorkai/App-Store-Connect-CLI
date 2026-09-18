@@ -1880,6 +1880,13 @@ func ContextWithUploadTimeout(ctx context.Context) (context.Context, context.Can
 	return contextWithUploadTimeout(ctx)
 }
 
+// ContextWithDownloadTimeout bounds a streamed download, including the body
+// copy. Client and request timeouts also cover that copy, so the short request
+// budget aborts a large report mid-transfer. Downloads use the upload budget.
+func ContextWithDownloadTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	return contextWithUploadTimeout(ctx)
+}
+
 func ContextWithoutTimeout(ctx context.Context) context.Context {
 	return contextWithoutTimeout(ctx)
 }
