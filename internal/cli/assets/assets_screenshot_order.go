@@ -48,6 +48,11 @@ func uploadScreenshotsWithOrderStateWithOpenedFiles(ctx context.Context, client 
 		OrderedIDs: append([]string(nil), orderedIDs...),
 	}
 
+	concurrency := screenshotUploadConcurrencyFromContext(ctx)
+	if concurrency > 1 && len(files) > 1 {
+		return uploadScreenshotsConcurrently(ctx, client, setID, progress, files, sourceRootPath, openedFiles, syncIfNoNew, syncAfterUpload, concurrency)
+	}
+
 	for idx, filePath := range files {
 		var item asc.AssetUploadResultItem
 		var pending screenshotPendingAsset

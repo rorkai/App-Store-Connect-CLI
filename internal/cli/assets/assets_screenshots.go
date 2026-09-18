@@ -607,6 +607,7 @@ func AssetsScreenshotsUploadCommand() *ffcli.Command {
 	confirm := fs.Bool("confirm", false, "Confirm the deletions performed by --replace (required with --replace)")
 	dryRun := fs.Bool("dry-run", false, "Show what would be uploaded, skipped, or deleted without making changes")
 	maxScreenshots := fs.Int("max-screenshots", 0, "Upload only the first N sorted screenshots per set; must be 10 or less")
+	concurrency := fs.Int("concurrency", defaultScreenshotUploadConcurrency, "Parallel screenshot uploads within a set (1-8)")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -647,6 +648,10 @@ Examples:
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			if *concurrency < 1 || *concurrency > 8 {
+				return shared.UsageError("screenshots upload: --concurrency must be between 1 and 8")
+			}
+			ctx = withScreenshotUploadConcurrency(ctx, *concurrency)
 			resumePath := strings.TrimSpace(*resume)
 			if resumePath != "" {
 				if strings.TrimSpace(*localizationID) != "" ||

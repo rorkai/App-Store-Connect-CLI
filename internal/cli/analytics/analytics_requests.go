@@ -458,64 +458,75 @@ Examples:
 			}
 
 			foundInstance := false
-			for _, report := range reports {
-				instances, err := fetchAnalyticsReportInstances(ctx, client, report.ID, instanceOpts...)
+			if strings.TrimSpace(*instanceID) == "" {
+				collected, instanceCount, err := collectAnalyticsReports(ctx, client, reports, instanceOpts, *includeSegments, processingDateFilter)
 				if err != nil {
-					return fmt.Errorf("analytics view: failed to fetch instances: %w", err)
+					return err
 				}
-
-				reportResult := asc.AnalyticsReportGetReport{
-					ID:          report.ID,
-					ReportType:  report.Attributes.ReportType,
-					Name:        report.Attributes.Name,
-					Category:    report.Attributes.Category,
-					Granularity: report.Attributes.Granularity,
+				result.Data = collected
+				if processingDateFilter == "" && len(granularities) == 0 && instanceCount > 20 {
+					fmt.Fprintf(os.Stderr, "analytics view: fetched %d instances without --processing-date or --granularity; narrow the query to avoid a full fan-out\n", instanceCount)
 				}
+			} else {
+				for _, report := range reports {
+					instances, err := fetchAnalyticsReportInstances(ctx, client, report.ID, instanceOpts...)
+					if err != nil {
+						return fmt.Errorf("analytics view: failed to fetch instances: %w", err)
+					}
 
-				for _, instance := range instances {
-					if strings.TrimSpace(*instanceID) != "" && instance.ID != strings.TrimSpace(*instanceID) {
+					reportResult := asc.AnalyticsReportGetReport{
+						ID:          report.ID,
+						ReportType:  report.Attributes.ReportType,
+						Name:        report.Attributes.Name,
+						Category:    report.Attributes.Category,
+						Granularity: report.Attributes.Granularity,
+					}
+
+					for _, instance := range instances {
+						if strings.TrimSpace(*instanceID) != "" && instance.ID != strings.TrimSpace(*instanceID) {
+							continue
+						}
+						instanceResult := asc.AnalyticsReportGetInstance{
+							ID:             instance.ID,
+							ReportDate:     instance.Attributes.ReportDate,
+							ProcessingDate: instance.Attributes.ProcessingDate,
+							Granularity:    instance.Attributes.Granularity,
+							Version:        instance.Attributes.Version,
+						}
+
+						if *includeSegments {
+							segments, err := fetchAnalyticsReportSegments(ctx, client, instance.ID)
+							if err != nil {
+								return fmt.Errorf("analytics view: failed to fetch segments: %w", err)
+							}
+							for _, segment := range segments {
+								instanceResult.Segments = append(instanceResult.Segments, asc.AnalyticsReportGetSegment{
+									ID:                segment.ID,
+									DownloadURL:       segment.Attributes.URL,
+									Checksum:          segment.Attributes.Checksum,
+									SizeInBytes:       segment.Attributes.SizeInBytes,
+									URLExpirationDate: segment.Attributes.URLExpirationDate,
+								})
+							}
+						}
+
+						reportResult.Instances = append(reportResult.Instances, instanceResult)
+					}
+
+					if strings.TrimSpace(*instanceID) != "" {
+						if len(reportResult.Instances) > 0 {
+							result.Data = append(result.Data, reportResult)
+							foundInstance = true
+							break
+						}
 						continue
 					}
-					instanceResult := asc.AnalyticsReportGetInstance{
-						ID:             instance.ID,
-						ReportDate:     instance.Attributes.ReportDate,
-						ProcessingDate: instance.Attributes.ProcessingDate,
-						Granularity:    instance.Attributes.Granularity,
-						Version:        instance.Attributes.Version,
+
+					if processingDateFilter != "" && len(reportResult.Instances) == 0 {
+						continue
 					}
-
-					if *includeSegments {
-						segments, err := fetchAnalyticsReportSegments(ctx, client, instance.ID)
-						if err != nil {
-							return fmt.Errorf("analytics view: failed to fetch segments: %w", err)
-						}
-						for _, segment := range segments {
-							instanceResult.Segments = append(instanceResult.Segments, asc.AnalyticsReportGetSegment{
-								ID:                segment.ID,
-								DownloadURL:       segment.Attributes.URL,
-								Checksum:          segment.Attributes.Checksum,
-								SizeInBytes:       segment.Attributes.SizeInBytes,
-								URLExpirationDate: segment.Attributes.URLExpirationDate,
-							})
-						}
-					}
-
-					reportResult.Instances = append(reportResult.Instances, instanceResult)
+					result.Data = append(result.Data, reportResult)
 				}
-
-				if strings.TrimSpace(*instanceID) != "" {
-					if len(reportResult.Instances) > 0 {
-						result.Data = append(result.Data, reportResult)
-						foundInstance = true
-						break
-					}
-					continue
-				}
-
-				if processingDateFilter != "" && len(reportResult.Instances) == 0 {
-					continue
-				}
-				result.Data = append(result.Data, reportResult)
 			}
 
 			if strings.TrimSpace(*instanceID) != "" && !foundInstance {
