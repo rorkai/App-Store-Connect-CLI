@@ -79,6 +79,7 @@ type BuildExpireAllFailure struct {
 type BuildExpireAllResult struct {
 	DryRun              bool                    `json:"dryRun"`
 	AppID               string                  `json:"appId"`
+	Version             *string                 `json:"version,omitempty"`
 	OlderThan           *string                 `json:"olderThan,omitempty"`
 	KeepLatest          *int                    `json:"keepLatest,omitempty"`
 	SelectedCount       int                     `json:"selectedCount"`
