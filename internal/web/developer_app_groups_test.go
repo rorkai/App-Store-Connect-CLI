@@ -2120,6 +2120,52 @@ func TestAssignDeveloperAppGroupRejectsAppGroupIdentifierArgument(t *testing.T) 
 	})
 }
 
+func TestUnassignAndSetRejectAppGroupIdentifierBeforeWrite(t *testing.T) {
+	listing := developerAppGroupsListFixture("GROUP12345")
+	tests := []struct {
+		name string
+		run  func(*Client) error
+	}{
+		{
+			name: "unassign",
+			run: func(client *Client) error {
+				_, err := client.UnassignDeveloperAppGroup(context.Background(), DeveloperAppGroupUnassignRequest{BundleID: "bundle-1", GroupID: "group.com.example.GROUP12345"})
+				return err
+			},
+		},
+		{
+			name: "set",
+			run: func(client *Client) error {
+				_, err := client.SetDeveloperAppGroups(context.Background(), DeveloperAppGroupSetRequest{BundleID: "bundle-1", GroupIDs: []string{"GROUP12345", "group.com.example.GROUP12345"}})
+				return err
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := newDeveloperAppGroupsTestClient(t, func(requestNumber int, request *http.Request) (*http.Response, error) {
+				switch requestNumber {
+				case 1:
+					return assertDeveloperPortalBootstrap(t, request), nil
+				case 2:
+					return developerPortalTestResponse(http.StatusOK, listing, nil), nil
+				default:
+					t.Fatalf("identifier refusal must not lead to request %d (%s %s)", requestNumber, request.Method, request.URL.Path)
+					return nil, nil
+				}
+			})
+			err := test.run(client)
+			var identifierErr *DeveloperAppGroupIdentifierError
+			if !errors.As(err, &identifierErr) {
+				t.Fatalf("expected an App Group identifier error, got %v", err)
+			}
+			if identifierErr.GroupID != "GROUP12345" {
+				t.Fatalf("identifier error did not resolve the resource ID: %+v", identifierErr)
+			}
+		})
+	}
+}
+
 // TestAssignDeveloperAppGroupKeepsAssigningOnIncompleteListing proves the
 // identifier refusal needs a complete listing: a success envelope that omits
 // its record count could be missing the very group that was named, so the

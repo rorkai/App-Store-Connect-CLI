@@ -819,6 +819,15 @@ func (c *Client) rejectDeveloperAppGroupIdentifier(ctx context.Context, groupID 
 	return &DeveloperAppGroupIdentifierError{Given: groupID}
 }
 
+func (c *Client) rejectDeveloperAppGroupIdentifiers(ctx context.Context, groupIDs []string) error {
+	for _, groupID := range groupIDs {
+		if err := c.rejectDeveloperAppGroupIdentifier(ctx, groupID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // AssignDeveloperAppGroup associates an App Group with a Bundle ID while
 // preserving Apple's complete current capability graph. The result is verified
 // by re-reading the Bundle ID.
@@ -872,6 +881,9 @@ func (c *Client) UnassignDeveloperAppGroup(ctx context.Context, request Develope
 	if err := c.ensureDeveloperPortalSession(ctx); err != nil {
 		return nil, developerAppGroupResponseError(err)
 	}
+	if err := c.rejectDeveloperAppGroupIdentifier(ctx, request.GroupID); err != nil {
+		return nil, err
+	}
 	current, state, err := c.loadDeveloperBundleIDAppGroups(ctx, request.BundleID)
 	if err != nil {
 		return nil, err
@@ -906,6 +918,9 @@ func (c *Client) SetDeveloperAppGroups(ctx context.Context, request DeveloperApp
 	}
 	if err := c.ensureDeveloperPortalSession(ctx); err != nil {
 		return nil, developerAppGroupResponseError(err)
+	}
+	if err := c.rejectDeveloperAppGroupIdentifiers(ctx, desired); err != nil {
+		return nil, err
 	}
 	current, state, err := c.loadDeveloperBundleIDAppGroups(ctx, request.BundleID)
 	if err != nil {
