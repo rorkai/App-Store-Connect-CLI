@@ -20,6 +20,7 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/app_events"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/appclips"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/apps"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/artifacts"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/auth"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/backgroundassets"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/buildbundles"
@@ -161,6 +162,8 @@ func NewCatalog(version string) *Catalog {
 		commandFactory("workflow", "Run multi-step automation workflows.", workflow.WorkflowCommand),
 		commandFactory("xcode", "Local Xcode build/archive/export and signing-settings helpers.", xcode.XcodeCommand),
 		commandFactory("distribute", "Plan, execute, inspect, and publish iOS distribution artifacts.", distribute.DistributeCommand),
+		commandFactory("ipa-info", "Inspect a local IPA without contacting App Store Connect.", artifacts.IPAInfoCommand),
+		commandFactory("pkg-info", "Inspect a local flat component package without contacting Apple.", artifacts.PKGInfoCommand),
 		commandFactory("versions", "Manage App Store versions.", versions.VersionsCommand),
 		commandFactory("product-pages", "Manage custom product pages and product page experiments.", productpages.ProductPagesCommand),
 		commandFactory("routing-coverage", "Manage routing app coverage files.", routingcoverage.RoutingCoverageCommand),

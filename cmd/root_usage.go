@@ -45,6 +45,7 @@ var rootUsageGroups = []rootCommandGroup{
 		commands: []string{
 			"testflight", "builds", "build-bundles",
 			"build-localizations", "xcode", "distribute",
+			"ipa-info", "pkg-info",
 			"sandbox",
 		},
 	},
