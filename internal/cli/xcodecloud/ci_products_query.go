@@ -180,6 +180,13 @@ func ciProductsFlagProvided(fs *flag.FlagSet, name string) bool {
 	return provided
 }
 
+func addCiProductsValue(values []string, value string) []string {
+	if containsCiProductsValue(values, value) {
+		return values
+	}
+	return append(values, value)
+}
+
 func containsCiProductsValue(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {

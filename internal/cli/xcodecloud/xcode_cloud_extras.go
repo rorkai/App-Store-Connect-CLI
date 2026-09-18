@@ -2,6 +2,7 @@ package xcodecloud
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"strings"
@@ -376,6 +377,14 @@ func xcodeCloudProductsList(ctx context.Context, flags ciProductsListFlags) erro
 		return shared.UsageError("xcode-cloud products: --primary-repositories-limit requires --include primaryRepositories")
 	}
 
+	hydrateBundleIDs := shouldHydrateCiProductBundleIDs(*flags.output)
+	// Continuation pages replay the server-supplied query verbatim, so the app
+	// include can only be added when this command builds the query itself.
+	if hydrateBundleIDs && next == "" {
+		include = addCiProductsValue(include, "app")
+		appFields = addCiProductsValue(appFields, "bundleId")
+	}
+
 	resolvedAppID := shared.ResolveAppID(*flags.appID)
 	buildOptions := func(appID string) []asc.CiProductsOption {
 		opts := []asc.CiProductsOption{
@@ -431,8 +440,8 @@ func xcodeCloudProductsList(ctx context.Context, flags ciProductsListFlags) erro
 		if !ok {
 			return fmt.Errorf("xcode-cloud products: unexpected response type %T", paginatedResp)
 		}
-		if shouldHydrateCiProductBundleIDs(*flags.output) {
-			if err := hydrateCiProductBundleIDs(requestCtx, client, resp); err != nil {
+		if hydrateBundleIDs {
+			if err := hydrateCiProductBundleIDs(requestCtx, client, resp, include); err != nil {
 				return fmt.Errorf("xcode-cloud products: %w", err)
 			}
 		}
@@ -444,8 +453,8 @@ func xcodeCloudProductsList(ctx context.Context, flags ciProductsListFlags) erro
 	if err != nil {
 		return fmt.Errorf("xcode-cloud products: %w", err)
 	}
-	if shouldHydrateCiProductBundleIDs(*flags.output) {
-		if err := hydrateCiProductBundleIDs(requestCtx, client, resp); err != nil {
+	if hydrateBundleIDs {
+		if err := hydrateCiProductBundleIDs(requestCtx, client, resp, include); err != nil {
 			return fmt.Errorf("xcode-cloud products: %w", err)
 		}
 	}
@@ -462,8 +471,47 @@ func shouldHydrateCiProductBundleIDs(output string) bool {
 	}
 }
 
-func hydrateCiProductBundleIDs(ctx context.Context, client *asc.Client, resp *asc.CiProductsResponse) error {
-	if client == nil || resp == nil {
+// hydrateCiProductBundleIDs fills missing product bundle IDs from included apps
+// when the list query asked for them. A paginated next URL is server-supplied
+// and may omit that include, so any product still missing a bundle ID falls
+// back to a per-product lookup.
+func hydrateCiProductBundleIDs(ctx context.Context, client *asc.Client, resp *asc.CiProductsResponse, include []string) error {
+	if resp == nil {
+		return nil
+	}
+	if shared.HasInclude(include, "app") {
+		if err := hydrateCiProductBundleIDsFromIncluded(resp); err != nil {
+			return err
+		}
+	}
+	// A later page can replay a server next URL that dropped include=app.
+	// Products already filled from included are skipped; the rest still look up.
+	return hydrateCiProductBundleIDsFromRelatedApps(ctx, client, resp)
+}
+
+func hydrateCiProductBundleIDsFromIncluded(resp *asc.CiProductsResponse) error {
+	bundleIDs, err := includedAppBundleIDs(resp.Included)
+	if err != nil {
+		return err
+	}
+
+	for i := range resp.Data {
+		if strings.TrimSpace(resp.Data[i].Attributes.BundleID) != "" {
+			continue
+		}
+
+		appID := ciProductAppID(resp.Data[i].Relationships)
+		if appID == "" {
+			continue
+		}
+		resp.Data[i].Attributes.BundleID = bundleIDs[appID]
+	}
+
+	return nil
+}
+
+func hydrateCiProductBundleIDsFromRelatedApps(ctx context.Context, client *asc.Client, resp *asc.CiProductsResponse) error {
+	if client == nil {
 		return nil
 	}
 
@@ -486,6 +534,43 @@ func hydrateCiProductBundleIDs(ctx context.Context, client *asc.Client, resp *as
 	}
 
 	return nil
+}
+
+func includedAppBundleIDs(included json.RawMessage) (map[string]string, error) {
+	if len(included) == 0 {
+		return nil, nil
+	}
+
+	var records []struct {
+		Type       asc.ResourceType `json:"type"`
+		ID         string           `json:"id"`
+		Attributes struct {
+			BundleID string `json:"bundleId"`
+		} `json:"attributes"`
+	}
+	if err := json.Unmarshal(included, &records); err != nil {
+		return nil, fmt.Errorf("parse included resources: %w", err)
+	}
+
+	bundleIDs := make(map[string]string, len(records))
+	for _, record := range records {
+		if record.Type != asc.ResourceTypeApps {
+			continue
+		}
+		id := strings.TrimSpace(record.ID)
+		if id == "" {
+			continue
+		}
+		bundleIDs[id] = strings.TrimSpace(record.Attributes.BundleID)
+	}
+	return bundleIDs, nil
+}
+
+func ciProductAppID(relationships *asc.CiProductRelationships) string {
+	if relationships == nil || relationships.App == nil || relationships.App.Data == nil {
+		return ""
+	}
+	return strings.TrimSpace(relationships.App.Data.ID)
 }
 
 func xcodeCloudVersionListFlags(fs *flag.FlagSet) (limit *int, next *string, paginate *bool, output *string, pretty *bool) {
