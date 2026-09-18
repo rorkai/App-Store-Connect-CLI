@@ -12,10 +12,22 @@ type AppScreenshotSetWithScreenshots struct {
 	Screenshots []Resource[AppScreenshotAttributes]  `json:"screenshots"`
 }
 
-// AppScreenshotListResult represents screenshot list output by localization.
-type AppScreenshotListResult struct {
+// AppScreenshotLocalizationListResult groups one App Store version
+// localization with its screenshot sets.
+type AppScreenshotLocalizationListResult struct {
+	Locale                string                            `json:"locale"`
 	VersionLocalizationID string                            `json:"versionLocalizationId"`
 	Sets                  []AppScreenshotSetWithScreenshots `json:"sets"`
+}
+
+// AppScreenshotListResult represents screenshot list output by localization.
+// Localizations is populated instead of VersionLocalizationID and Sets when a
+// caller lists every localization of a version without selecting a locale.
+type AppScreenshotListResult struct {
+	VersionLocalizationID string                                `json:"versionLocalizationId"`
+	Locale                string                                `json:"locale,omitempty"`
+	Sets                  []AppScreenshotSetWithScreenshots     `json:"sets"`
+	Localizations         []AppScreenshotLocalizationListResult `json:"localizations,omitempty"`
 }
 
 // AppScreenshotSetListResult represents screenshot sets and their screenshots
@@ -192,7 +204,30 @@ func appPreviewsRows(resp *AppPreviewsResponse) ([]string, [][]string) {
 }
 
 func appScreenshotListResultRows(result *AppScreenshotListResult) ([]string, [][]string) {
-	return appScreenshotSetsWithScreenshotsRows(result.Sets)
+	if len(result.Localizations) == 0 {
+		return appScreenshotSetsWithScreenshotsRows(result.Sets)
+	}
+	return appScreenshotLocalizationListResultRows(result.Localizations)
+}
+
+func appScreenshotLocalizationListResultRows(localizations []AppScreenshotLocalizationListResult) ([]string, [][]string) {
+	setHeaders, _ := appScreenshotSetsWithScreenshotsRows(nil)
+	headers := append([]string{"Locale"}, setHeaders...)
+	var rows [][]string
+	for _, localization := range localizations {
+		locale := SanitizeTerminalText(localization.Locale)
+		_, setRows := appScreenshotSetsWithScreenshotsRows(localization.Sets)
+		if len(setRows) == 0 {
+			placeholder := make([]string, len(headers))
+			placeholder[0] = locale
+			rows = append(rows, placeholder)
+			continue
+		}
+		for _, setRow := range setRows {
+			rows = append(rows, append([]string{locale}, setRow...))
+		}
+	}
+	return headers, rows
 }
 
 func appScreenshotSetListResultRows(result *AppScreenshotSetListResult) ([]string, [][]string) {

@@ -195,11 +195,6 @@ func TestExecuteScreenshotListCommandValidatesSelectorModesBeforeAuth(t *testing
 			opts:    screenshotListCommandOptions{Version: "1.0", Locale: "en-US"},
 			wantErr: "--app is required with --version",
 		},
-		{
-			name:    "version selector requires locale",
-			opts:    screenshotListCommandOptions{VersionID: "version-1"},
-			wantErr: "--locale is required with --version or --version-id",
-		},
 	}
 
 	for _, tt := range tests {
@@ -291,5 +286,132 @@ func TestAssetsScreenshotsListPlatformHelpExplainsSelectorSpecificAppRequirement
 		if !strings.Contains(platformFlag.Usage, want) {
 			t.Fatalf("--platform help = %q, want substring %q", platformFlag.Usage, want)
 		}
+	}
+}
+
+func TestExecuteScreenshotListCommandWithoutLocaleListsEveryLocalization(t *testing.T) {
+	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}},{"type":"appStoreVersionLocalizations","id":"loc-de","attributes":{"locale":"de-DE"}}],"links":{}}`)
+		case "/v1/appStoreVersionLocalizations/loc-en/appScreenshotSets":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appScreenshotSets","id":"set-en","attributes":{"screenshotDisplayType":"APP_IPHONE_65"}}],"links":{}}`)
+		case "/v1/appScreenshotSets/set-en/appScreenshots":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appScreenshots","id":"shot-en","attributes":{"fileName":"home.png","fileSize":42}}],"links":{}}`)
+		case "/v1/appStoreVersionLocalizations/loc-de/appScreenshotSets":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[],"links":{}}`)
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			http.Error(w, "unexpected request", http.StatusNotFound)
+		}
+	}))
+
+	var (
+		result *asc.AppScreenshotListResult
+		err    error
+	)
+	stdout, stderr := captureOutput(t, func() {
+		result, err = executeScreenshotListCommand(context.Background(), screenshotListCommandOptions{
+			VersionID: "version-1",
+		}, screenshotListDependencies{
+			GetClient:      func() (*asc.Client, error) { return client, nil },
+			RequestContext: shared.ContextWithTimeout,
+		})
+	})
+	if err != nil {
+		t.Fatalf("executeScreenshotListCommand() error: %v", err)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+	if !strings.Contains(stderr, "--locale not set") || !strings.Contains(stderr, "2 localizations") {
+		t.Fatalf("stderr = %q, want all-localization note", stderr)
+	}
+	if result.VersionLocalizationID != "" {
+		t.Fatalf("version localization ID = %q, want empty in all-localization mode", result.VersionLocalizationID)
+	}
+	if len(result.Sets) != 0 {
+		t.Fatalf("sets = %#v, want empty in all-localization mode", result.Sets)
+	}
+	if len(result.Localizations) != 2 {
+		t.Fatalf("localizations = %#v, want 2 entries", result.Localizations)
+	}
+	first := result.Localizations[0]
+	if first.Locale != "de-DE" || first.VersionLocalizationID != "loc-de" || len(first.Sets) != 0 {
+		t.Fatalf("first localization = %#v, want de-DE/loc-de without sets", first)
+	}
+	second := result.Localizations[1]
+	if second.Locale != "en-US" || second.VersionLocalizationID != "loc-en" {
+		t.Fatalf("second localization = %#v, want en-US/loc-en", second)
+	}
+	if len(second.Sets) != 1 || len(second.Sets[0].Screenshots) != 1 || second.Sets[0].Screenshots[0].ID != "shot-en" {
+		t.Fatalf("en-US sets = %#v, want set-en with shot-en", second.Sets)
+	}
+}
+
+func TestExecuteScreenshotListCommandWithoutLocaleReportsMissingLocalizations(t *testing.T) {
+	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[],"links":{}}`)
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			http.Error(w, "unexpected request", http.StatusNotFound)
+		}
+	}))
+
+	_, err := executeScreenshotListCommand(context.Background(), screenshotListCommandOptions{
+		VersionID: "version-1",
+	}, screenshotListDependencies{
+		GetClient:      func() (*asc.Client, error) { return client, nil },
+		RequestContext: shared.ContextWithTimeout,
+	})
+	if err == nil {
+		t.Fatal("executeScreenshotListCommand() error = nil, want no-localization error")
+	}
+	if !strings.Contains(err.Error(), "no App Store version localizations found for version") {
+		t.Fatalf("error = %v, want no-localization diagnostic", err)
+	}
+	if !strings.Contains(err.Error(), "asc localizations create") {
+		t.Fatalf("error = %v, want localization creation guidance", err)
+	}
+}
+
+func TestExecuteScreenshotListCommandEnumeratesAvailableLocalesWhenLocaleIsMissing(t *testing.T) {
+	client := newAssetsUploadTestServerClient(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.Path {
+		case "/v1/appStoreVersions/version-1/appStoreVersionLocalizations":
+			writeAssetsTestJSON(w, http.StatusOK, `{"data":[{"type":"appStoreVersionLocalizations","id":"loc-en","attributes":{"locale":"en-US"}},{"type":"appStoreVersionLocalizations","id":"loc-de","attributes":{"locale":"de-DE"}}],"links":{}}`)
+		default:
+			t.Errorf("unexpected request: %s %s", req.Method, req.URL.String())
+			http.Error(w, "unexpected request", http.StatusNotFound)
+		}
+	}))
+
+	_, err := executeScreenshotListCommand(context.Background(), screenshotListCommandOptions{
+		VersionID: "version-1",
+		Locale:    "ja",
+	}, screenshotListDependencies{
+		GetClient:      func() (*asc.Client, error) { return client, nil },
+		RequestContext: shared.ContextWithTimeout,
+	})
+	if err == nil {
+		t.Fatal("executeScreenshotListCommand() error = nil, want locale enumeration error")
+	}
+	if !strings.Contains(err.Error(), `no App Store version localization found for locale "ja"`) {
+		t.Fatalf("error = %v, want missing locale diagnostic", err)
+	}
+	if !strings.Contains(err.Error(), "available locales: de-DE, en-US") {
+		t.Fatalf("error = %v, want sorted available locales", err)
+	}
+}
+
+func TestAssetsScreenshotsListLocaleHelpDocumentsAllLocalizationDefault(t *testing.T) {
+	localeFlag := AssetsScreenshotsListCommand().FlagSet.Lookup("locale")
+	if localeFlag == nil {
+		t.Fatal("--locale flag not found")
+	}
+	if !strings.Contains(localeFlag.Usage, "omit to list every localization") {
+		t.Fatalf("--locale help = %q, want all-localization default documented", localeFlag.Usage)
 	}
 }
