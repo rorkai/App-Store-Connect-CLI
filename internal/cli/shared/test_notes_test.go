@@ -1,12 +1,106 @@
 package shared
 
 import (
+	"bytes"
 	"errors"
+	"flag"
 	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
 )
+
+func TestNormalizeTestNotesComposesNFCAndDropsRejectedRunes(t *testing.T) {
+	// "q" has no precomposed form with U+0301, so NFC leaves the mark behind.
+	normalization, err := NormalizeTestNotes("  Cafe\u0301 <b q\u0301  ")
+	if err != nil {
+		t.Fatalf("NormalizeTestNotes() error = %v", err)
+	}
+	if normalization.Notes != "Café b q" {
+		t.Fatalf("normalized notes = %q, want %q", normalization.Notes, "Café b q")
+	}
+	if !normalization.Changed || !normalization.RemovedAngleBrackets || !normalization.RemovedCombiningMarks {
+		t.Fatalf("normalization flags = %#v, want every flag set", normalization)
+	}
+	notice := normalization.Notice()
+	if !strings.Contains(notice, "normalized") || strings.Count(notice, "\n") != 0 {
+		t.Fatalf("notice = %q, want a single-line normalization notice", notice)
+	}
+	if strings.Contains(notice, "Caf") {
+		t.Fatalf("notice echoed the notes: %q", notice)
+	}
+}
+
+func TestNormalizeTestNotesLeavesAcceptedTextUnchanged(t *testing.T) {
+	normalization, err := NormalizeTestNotes("Test the new export flow")
+	if err != nil {
+		t.Fatalf("NormalizeTestNotes() error = %v", err)
+	}
+	if normalization.Notes != "Test the new export flow" {
+		t.Fatalf("normalized notes = %q, want the input unchanged", normalization.Notes)
+	}
+	if normalization.Changed || normalization.Notice() != "" {
+		t.Fatalf("accepted text reported a change: %#v notice=%q", normalization, normalization.Notice())
+	}
+}
+
+func TestNormalizeTestNotesIsIdempotent(t *testing.T) {
+	first, err := NormalizeTestNotes("Cafe\u0301 <b q\u0301")
+	if err != nil {
+		t.Fatalf("NormalizeTestNotes() error = %v", err)
+	}
+	second, err := NormalizeTestNotes(first.Notes)
+	if err != nil {
+		t.Fatalf("NormalizeTestNotes(normalized) error = %v", err)
+	}
+	if second.Notes != first.Notes || second.Changed {
+		t.Fatalf("second pass = %#v, want %q unchanged", second, first.Notes)
+	}
+}
+
+func TestNormalizeTestNotesRejectsTextWithNothingLeft(t *testing.T) {
+	for _, notes := range []string{"<", " \u0301 ", "<<\u0301\u0301"} {
+		normalization, err := NormalizeTestNotes(notes)
+		if err == nil {
+			t.Fatalf("NormalizeTestNotes(%q) error = nil, want usage failure", notes)
+		}
+		if normalization.Notes != "" {
+			t.Fatalf("NormalizeTestNotes(%q) notes = %q, want empty", notes, normalization.Notes)
+		}
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("NormalizeTestNotes(%q) error = %v, want usage-class error", notes, err)
+		}
+		if got := ClassifyUsageError(err); got != UsageErrorInvalidValue {
+			t.Fatalf("ClassifyUsageError() = %q, want %q", got, UsageErrorInvalidValue)
+		}
+	}
+}
+
+func TestNormalizeTestNotesForCommandWritesNoticeOnlyWhenTextChanged(t *testing.T) {
+	var changedOut bytes.Buffer
+	notes, err := NormalizeTestNotesForCommand(&changedOut, "Cafe\u0301 <b q\u0301")
+	if err != nil {
+		t.Fatalf("NormalizeTestNotesForCommand() error = %v", err)
+	}
+	if notes != "Café b q" {
+		t.Fatalf("notes = %q, want %q", notes, "Café b q")
+	}
+	if !strings.Contains(changedOut.String(), "normalized") {
+		t.Fatalf("diagnostics = %q, want a normalization notice", changedOut.String())
+	}
+
+	var unchangedOut bytes.Buffer
+	notes, err = NormalizeTestNotesForCommand(&unchangedOut, "Test the new export flow")
+	if err != nil {
+		t.Fatalf("NormalizeTestNotesForCommand() error = %v", err)
+	}
+	if notes != "Test the new export flow" {
+		t.Fatalf("notes = %q, want the input unchanged", notes)
+	}
+	if unchangedOut.String() != "" {
+		t.Fatalf("diagnostics = %q, want empty output for accepted text", unchangedOut.String())
+	}
+}
 
 func TestNewTestNotesRecoveryErrorSeparatesHumanAndMachineRecovery(t *testing.T) {
 	cause := errors.New("server rejected notes\x1b[31m\nforged line")

@@ -823,11 +823,16 @@ func TestPublishTestFlightUploadTestNotesFailurePreservesStructuredRecoveryConte
 			}
 			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"betaGroups","id":"group-1","attributes":{"name":"External","isInternalGroup":false}}]}`)
 		case 2:
+			if req.Method != http.MethodGet || req.URL.Path != "/v1/betaAppLocalizations" {
+				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
+			}
+			return publishCommandJSONResponse(http.StatusOK, `{"data":[{"type":"betaAppLocalizations","id":"bal-1","attributes":{"locale":"en-US"}}]}`)
+		case 3:
 			if req.Method != http.MethodGet || req.URL.Path != "/v1/builds/build-123/betaBuildLocalizations" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}
 			return publishCommandJSONResponse(http.StatusOK, `{"data":[]}`)
-		case 3:
+		case 4:
 			if req.Method != http.MethodPost || req.URL.Path != "/v1/betaBuildLocalizations" {
 				t.Fatalf("unexpected request %d: %s %s", requestCount, req.Method, req.URL.String())
 			}

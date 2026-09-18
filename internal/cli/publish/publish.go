@@ -236,6 +236,11 @@ Examples:
 					if err := shared.ValidateBuildLocalizationLocale(localeValue); err != nil {
 						return shared.UsageError(err.Error())
 					}
+					normalizedNotes, normalizeErr := shared.NormalizeTestNotesForCommand(os.Stderr, testNotesValue)
+					if normalizeErr != nil {
+						return normalizeErr
+					}
+					testNotesValue = normalizedNotes
 				}
 			}
 
@@ -437,7 +442,8 @@ Examples:
 			}
 
 			if testNotesValue != "" {
-				if _, err := shared.UpsertBetaBuildLocalization(requestCtx, client, buildResp.Data.ID, localeValue, testNotesValue); err != nil {
+				upsertOpts := shared.UpsertBetaBuildLocalizationOptions{AppID: resolvedPublishAppID}
+				if _, err := shared.UpsertBetaBuildLocalization(requestCtx, client, buildResp.Data.ID, localeValue, testNotesValue, upsertOpts); err != nil {
 					recoveryErr := shared.NewTestNotesRecoveryError(buildResp.Data.ID, localeValue, testNotesValue, err)
 					result.Recovery = recoveryErr.Recovery()
 					return reportPartialFailure(publishFailureStageTestNotes, fmt.Errorf("publish testflight: %w", recoveryErr))

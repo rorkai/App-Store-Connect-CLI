@@ -262,6 +262,7 @@ func TestBuildsUploadTestNotesWritesBeforeProcessingCompletes(t *testing.T) {
 
 	buildReads := 0
 	localizationCreated := false
+	appLocalizationCreated := false
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/apps/123456789":
@@ -282,6 +283,14 @@ func TestBuildsUploadTestNotesWritesBeforeProcessingCompletes(t *testing.T) {
 				return nil, http.ErrUseLastResponse
 			}
 			return jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"PROCESSING"}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/betaAppLocalizations":
+			if got := req.URL.Query().Get("filter[app]"); got != "123456789" {
+				t.Fatalf("expected filter[app]=123456789, got %q", got)
+			}
+			return jsonResponse(http.StatusOK, `{"data":[]}`)
+		case req.Method == http.MethodPost && req.URL.Path == "/v1/betaAppLocalizations":
+			appLocalizationCreated = true
+			return jsonResponse(http.StatusCreated, `{"data":{"type":"betaAppLocalizations","id":"bal-1","attributes":{"locale":"en-US"}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1/betaBuildLocalizations":
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/betaBuildLocalizations":
@@ -318,6 +327,9 @@ func TestBuildsUploadTestNotesWritesBeforeProcessingCompletes(t *testing.T) {
 	}
 	if buildReads != 1 {
 		t.Fatalf("expected one build read for discovery, got %d", buildReads)
+	}
+	if !appLocalizationCreated {
+		t.Fatal("expected the missing TestFlight app localization to be created")
 	}
 	if !localizationCreated {
 		t.Fatal("expected beta build localization to be created")
@@ -358,6 +370,8 @@ func TestBuildsUploadTestNotesFailurePreservesDiscoveredBuildRecoveryContext(t *
 			return jsonResponse(http.StatusOK, `{"data":{"type":"buildUploads","id":"upload-1","relationships":{"build":{"data":{"type":"builds","id":"build-1"}}}}}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1":
 			return jsonResponse(http.StatusOK, `{"data":{"type":"builds","id":"build-1","attributes":{"version":"42","processingState":"PROCESSING"}}}`)
+		case req.Method == http.MethodGet && req.URL.Path == "/v1/betaAppLocalizations":
+			return jsonResponse(http.StatusOK, `{"data":[{"type":"betaAppLocalizations","id":"bal-1","attributes":{"locale":"en-US"}}]}`)
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/builds/build-1/betaBuildLocalizations":
 			return jsonResponse(http.StatusOK, `{"data":[]}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/betaBuildLocalizations":
