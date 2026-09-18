@@ -1,6 +1,10 @@
 package shared
 
-import "strings"
+import (
+	"fmt"
+	"os"
+	"strings"
+)
 
 // certificateTypeValues mirrors the CertificateType enum in
 // docs/openapi/latest.json. App Store Connect rejects any other value, so the
@@ -48,35 +52,39 @@ func CanonicalCertificateType(value string) (string, bool) {
 }
 
 // applePayCertificateTypePrefix marks the certificate types Apple issues against
-// a merchant ID. They are valid CertificateType values, so list and filter paths
-// accept them, but creating one requires a merchantId relationship the CLI does
-// not send yet.
+// a merchant ID. Creating one requires the merchantId relationship in
+// CertificateCreateRequest.
 const applePayCertificateTypePrefix = "APPLE_PAY"
 
-// isApplePayCertificateType reports whether the canonical certificate type is one
+// IsApplePayCertificateType reports whether the canonical certificate type is one
 // of the Apple Pay types.
-func isApplePayCertificateType(certificateType string) bool {
+func IsApplePayCertificateType(certificateType string) bool {
 	return strings.HasPrefix(certificateType, applePayCertificateTypePrefix)
 }
 
-// CertificateCreateTypeList returns the certificate types asc certificates create
-// can actually create: the full enum minus the Apple Pay types. Use it for create
-// help text and diagnostics so both discovery paths agree with what the command
-// accepts. Read paths such as certificates list stay unfiltered and keep
-// accepting every enum value.
-func CertificateCreateTypeList() []string {
-	values := make([]string, 0, len(certificateTypeValues))
+// ApplePayCertificateTypeList returns the certificate types that require a
+// merchantId relationship.
+func ApplePayCertificateTypeList() []string {
+	values := make([]string, 0, 4)
 	for _, value := range certificateTypeValues {
-		if isApplePayCertificateType(value) {
-			continue
+		if IsApplePayCertificateType(value) {
+			values = append(values, value)
 		}
-		values = append(values, value)
 	}
 	return values
 }
 
+// CertificateCreateTypeList returns the certificate types asc certificates create
+// can create. Use it for create help text and diagnostics so both discovery paths
+// agree with what the command accepts.
+func CertificateCreateTypeList() []string {
+	values := make([]string, len(certificateTypeValues))
+	copy(values, certificateTypeValues)
+	return values
+}
+
 // ValidateCertificateCreateType returns the canonical certificate type for value,
-// or a usage-class error when the certificate cannot be created by this CLI.
+// or a usage-class error when the value is not a CertificateType.
 func ValidateCertificateCreateType(flagName, value string) (string, error) {
 	canonical, ok := CanonicalCertificateType(value)
 	if !ok {
@@ -87,12 +95,25 @@ func ValidateCertificateCreateType(flagName, value string) (string, error) {
 			strings.TrimSpace(value),
 		)
 	}
-	if isApplePayCertificateType(canonical) {
-		return "", UsageErrorf(
-			"%s %s needs a merchant ID relationship that asc certificates create does not support yet; inspect existing Apple Pay certificates with 'asc merchant-ids certificates list --merchant-id MERCHANT_ID' and create new ones in the Apple Developer portal",
-			flagName,
-			canonical,
-		)
-	}
 	return canonical, nil
+}
+
+// ValidateCertificateCreateMerchantID enforces the merchantId relationship rules
+// for POST /v1/certificates: the Apple Pay types require it, every other type
+// must not send it. Callers must run this before side effects such as writing a
+// private key or CSR.
+func ValidateCertificateCreateMerchantID(certificateType, merchantID string) error {
+	merchantID = strings.TrimSpace(merchantID)
+	switch {
+	case IsApplePayCertificateType(certificateType) && merchantID == "":
+		fmt.Fprintf(os.Stderr, "Error: --merchant-id is required with --certificate-type %s\n", certificateType)
+		return MissingRequiredUsageError("--merchant-id")
+	case !IsApplePayCertificateType(certificateType) && merchantID != "":
+		return UsageErrorf(
+			"--merchant-id can only be used with --certificate-type %s",
+			strings.Join(ApplePayCertificateTypeList(), ", "),
+		)
+	default:
+		return nil
+	}
 }

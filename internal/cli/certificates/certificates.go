@@ -281,12 +281,68 @@ Examples:
 	}
 }
 
+// certificateCreateSpec describes an entry point for POST /v1/certificates.
+// asc certificates create exposes the full surface, while the merchant ID
+// variant scopes every request to one merchant.
+type certificateCreateSpec struct {
+	commandPath      string
+	shortUsage       string
+	shortHelp        string
+	longHelp         string
+	certificateTypes []string
+	supportsPassType bool
+	requireMerchant  bool
+	merchantIDUsage  string
+}
+
 // CertificatesCreateCommand returns the certificates create subcommand.
 func CertificatesCreateCommand() *ffcli.Command {
+	return newCertificateCreateCommand(certificateCreateSpec{
+		commandPath:      "certificates create",
+		shortUsage:       "asc certificates create --certificate-type TYPE [--pass-type-id ID] [--merchant-id ID] (--csr ./cert.csr | --generate-csr --key-out ./cert.key --csr-out ./cert.csr)",
+		shortHelp:        "Create a signing certificate.",
+		certificateTypes: shared.CertificateCreateTypeList(),
+		supportsPassType: true,
+		merchantIDUsage:  "Merchant ID resource ID (required for the APPLE_PAY certificate types)",
+		longHelp: `Create a signing certificate.
+
+Examples:
+  asc certificates create --certificate-type IOS_DISTRIBUTION --csr "./cert.csr"
+  asc certificates create --certificate-type PASS_TYPE_ID --pass-type-id "PASS_TYPE_ID" --csr "./pass.csr"
+  asc certificates create --certificate-type APPLE_PAY_MERCHANT_IDENTITY --merchant-id "MERCHANT_ID" --csr "./merchant.csr"
+  asc certificates create --certificate-type IOS_DISTRIBUTION --generate-csr --key-out "./signing/dist.key" --csr-out "./signing/dist.csr"`,
+	})
+}
+
+// MerchantIDCertificatesCreateCommand returns the merchant ID scoped certificate
+// create subcommand. It lives here so the CSR generation and relationship
+// validation have a single implementation.
+func MerchantIDCertificatesCreateCommand() *ffcli.Command {
+	return newCertificateCreateCommand(certificateCreateSpec{
+		commandPath: "merchant-ids certificates create",
+		shortUsage:  "asc merchant-ids certificates create --merchant-id \"MERCHANT_ID\" --certificate-type TYPE (--csr ./merchant.csr | --generate-csr --key-out ./merchant.key --csr-out ./merchant.csr)",
+		shortHelp:   "Create a certificate for a merchant ID.",
+		// Every certificate created against a merchant ID is an Apple Pay type.
+		certificateTypes: shared.ApplePayCertificateTypeList(),
+		requireMerchant:  true,
+		merchantIDUsage:  "Merchant ID",
+		longHelp: `Create a certificate for a merchant ID.
+
+Examples:
+  asc merchant-ids certificates create --merchant-id "MERCHANT_ID" --certificate-type APPLE_PAY_MERCHANT_IDENTITY --csr "./merchant.csr"
+  asc merchant-ids certificates create --merchant-id "MERCHANT_ID" --certificate-type APPLE_PAY_RSA --generate-csr --key-out "./signing/merchant.key" --csr-out "./signing/merchant.csr"`,
+	})
+}
+
+func newCertificateCreateCommand(spec certificateCreateSpec) *ffcli.Command {
 	fs := flag.NewFlagSet("create", flag.ExitOnError)
 
-	certificateType := fs.String("certificate-type", "", "Certificate type: "+strings.Join(shared.CertificateCreateTypeList(), ", "))
-	passTypeID := fs.String("pass-type-id", "", "Pass Type ID resource ID (required for PASS_TYPE_ID and PASS_TYPE_ID_WITH_NFC)")
+	certificateType := fs.String("certificate-type", "", "Certificate type: "+strings.Join(spec.certificateTypes, ", "))
+	var passTypeID *string
+	if spec.supportsPassType {
+		passTypeID = fs.String("pass-type-id", "", "Pass Type ID resource ID (required for PASS_TYPE_ID and PASS_TYPE_ID_WITH_NFC)")
+	}
+	merchantID := fs.String("merchant-id", "", spec.merchantIDUsage)
 	csrPath := fs.String("csr", "", "CSR file path")
 	generateCSR := fs.Bool("generate-csr", false, "Generate a private key and CSR before creating the certificate")
 	keyOut := fs.String("key-out", "", "Private key output path for --generate-csr (PEM)")
@@ -303,38 +359,48 @@ func CertificatesCreateCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "create",
-		ShortUsage: "asc certificates create --certificate-type TYPE [--pass-type-id ID] (--csr ./cert.csr | --generate-csr --key-out ./cert.key --csr-out ./cert.csr)",
-		ShortHelp:  "Create a signing certificate.",
-		LongHelp: `Create a signing certificate.
-
-Examples:
-  asc certificates create --certificate-type IOS_DISTRIBUTION --csr "./cert.csr"
-  asc certificates create --certificate-type PASS_TYPE_ID --pass-type-id "PASS_TYPE_ID" --csr "./pass.csr"
-  asc certificates create --certificate-type IOS_DISTRIBUTION --generate-csr --key-out "./signing/dist.key" --csr-out "./signing/dist.csr"`,
-		FlagSet:   fs,
-		UsageFunc: shared.DefaultUsageFunc,
+		ShortUsage: spec.shortUsage,
+		ShortHelp:  spec.shortHelp,
+		LongHelp:   spec.longHelp,
+		FlagSet:    fs,
+		UsageFunc:  shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
+			merchantIDValue := strings.TrimSpace(*merchantID)
+			if spec.requireMerchant && merchantIDValue == "" {
+				fmt.Fprintln(os.Stderr, "Error: --merchant-id is required")
+				return shared.MissingRequiredUsageError("--merchant-id")
+			}
 			certificateValue := strings.ToUpper(strings.TrimSpace(*certificateType))
 			if certificateValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --certificate-type is required")
 				return shared.MissingRequiredUsageError("--certificate-type")
 			}
-			// Rejects unknown types and the Apple Pay types this command cannot
-			// create, before --generate-csr writes a private key and CSR for a
-			// request App Store Connect will refuse.
+			// Every relationship check runs before --generate-csr writes a
+			// private key and CSR for a request App Store Connect would refuse.
 			canonicalCertificateType, err := shared.ValidateCertificateCreateType("--certificate-type", certificateValue)
 			if err != nil {
 				return err
 			}
 			certificateValue = canonicalCertificateType
-			passTypeIDValue := strings.TrimSpace(*passTypeID)
-			isPassTypeCertificate := certificateValue == "PASS_TYPE_ID" || certificateValue == "PASS_TYPE_ID_WITH_NFC"
-			if isPassTypeCertificate && passTypeIDValue == "" {
-				fmt.Fprintf(os.Stderr, "Error: --pass-type-id is required with --certificate-type %s\n", certificateValue)
-				return shared.MissingRequiredUsageError("--pass-type-id")
+			passTypeIDValue := ""
+			if passTypeID != nil {
+				passTypeIDValue = strings.TrimSpace(*passTypeID)
 			}
-			if !isPassTypeCertificate && passTypeIDValue != "" {
-				return shared.UsageError("--pass-type-id can only be used with --certificate-type PASS_TYPE_ID or PASS_TYPE_ID_WITH_NFC")
+			if passTypeIDValue != "" && merchantIDValue != "" {
+				return shared.UsageError("--merchant-id cannot be used with --pass-type-id")
+			}
+			if err := shared.ValidateCertificateCreateMerchantID(certificateValue, merchantIDValue); err != nil {
+				return err
+			}
+			isPassTypeCertificate := certificateValue == "PASS_TYPE_ID" || certificateValue == "PASS_TYPE_ID_WITH_NFC"
+			if spec.supportsPassType {
+				if isPassTypeCertificate && passTypeIDValue == "" {
+					fmt.Fprintf(os.Stderr, "Error: --pass-type-id is required with --certificate-type %s\n", certificateValue)
+					return shared.MissingRequiredUsageError("--pass-type-id")
+				}
+				if !isPassTypeCertificate && passTypeIDValue != "" {
+					return shared.UsageError("--pass-type-id can only be used with --certificate-type PASS_TYPE_ID or PASS_TYPE_ID_WITH_NFC")
+				}
 			}
 			csrValue := strings.TrimSpace(*csrPath)
 
@@ -367,11 +433,11 @@ Examples:
 					Force:              *force,
 				})
 				if err != nil {
-					return fmt.Errorf("certificates create: generate csr: %w", err)
+					return fmt.Errorf("%s: generate csr: %w", spec.commandPath, err)
 				}
 				csrContent, err = encodeCSRContent(csrPEM)
 				if err != nil {
-					return fmt.Errorf("certificates create: generate csr: %w", err)
+					return fmt.Errorf("%s: generate csr: %w", spec.commandPath, err)
 				}
 			} else {
 				if csrCreateOnlyFlagsSet(fs) {
@@ -385,13 +451,13 @@ Examples:
 				var err error
 				csrContent, err = readCSRContent(csrValue)
 				if err != nil {
-					return fmt.Errorf("certificates create: %w", err)
+					return fmt.Errorf("%s: %w", spec.commandPath, err)
 				}
 			}
 
 			client, err := getCertificatesASCClient()
 			if err != nil {
-				return fmt.Errorf("certificates create: %w", err)
+				return fmt.Errorf("%s: %w", spec.commandPath, err)
 			}
 
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
@@ -401,10 +467,13 @@ Examples:
 			if passTypeIDValue != "" {
 				createOpts = append(createOpts, asc.WithCertificatePassTypeID(passTypeIDValue))
 			}
+			if merchantIDValue != "" {
+				createOpts = append(createOpts, asc.WithCertificateMerchantID(merchantIDValue))
+			}
 
 			resp, err := client.CreateCertificate(requestCtx, csrContent, certificateValue, createOpts...)
 			if err != nil {
-				return fmt.Errorf("certificates create: failed to create: %w", err)
+				return fmt.Errorf("%s: failed to create: %w", spec.commandPath, err)
 			}
 
 			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
