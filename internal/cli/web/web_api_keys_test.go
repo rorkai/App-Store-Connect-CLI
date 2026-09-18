@@ -307,6 +307,34 @@ func TestDownloadWebAPIKeyWithRetryRetriesPropagationErrors(t *testing.T) {
 	}
 }
 
+func TestDownloadWebAPIKeyWithRetryDoesNotRetryTransportFailure(t *testing.T) {
+	originalDownload := downloadWebAPIKeyFn
+	originalWait := waitWebAPIKeyRetryFn
+	t.Cleanup(func() {
+		downloadWebAPIKeyFn = originalDownload
+		waitWebAPIKeyRetryFn = originalWait
+	})
+
+	attempts := 0
+	downloadWebAPIKeyFn = func(ctx context.Context, client *webcore.Client, keyID string) ([]byte, error) {
+		attempts++
+		return nil, fmt.Errorf("read body: connection reset")
+	}
+	waits := 0
+	waitWebAPIKeyRetryFn = func(ctx context.Context, delay time.Duration) error {
+		waits++
+		return nil
+	}
+
+	_, err := downloadWebAPIKeyWithRetry(context.Background(), &webcore.Client{}, "ABC123XYZ")
+	if err == nil || !strings.Contains(err.Error(), "connection reset") {
+		t.Fatalf("expected transport error, got %v", err)
+	}
+	if attempts != 1 || waits != 0 {
+		t.Fatalf("expected one attempt and no waits, got %d attempts and %d waits", attempts, waits)
+	}
+}
+
 func TestDownloadWebAPIKeyWithRetryDoesNotRetryInvalidResponse(t *testing.T) {
 	originalDownload := downloadWebAPIKeyFn
 	originalWait := waitWebAPIKeyRetryFn
