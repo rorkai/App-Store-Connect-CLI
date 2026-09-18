@@ -34,6 +34,9 @@ type Event struct {
 	DiagnosticCode   *string          `json:"diagnostic_code,omitempty"`
 	OutcomeKind      OutcomeKind      `json:"outcome_kind,omitempty"`
 	HTTPStatus       *int             `json:"http_status,omitempty"`
+	// AttemptedChild is set only on schema v5. It is an allowlisted verb or
+	// "other", never the raw token.
+	AttemptedChild *string `json:"attempted_child,omitempty"`
 }
 
 type OutcomeKind string
@@ -60,6 +63,19 @@ const (
 	InvocationShapeGroupWithFlags InvocationShape = "group_with_flags"
 	InvocationShapeUnknownChild   InvocationShape = "unknown_child"
 )
+
+const schemaVersionV5 uint8 = 5
+
+// attemptedChildAllowlist is the only set of unknown-subcommand tokens that
+// may appear on the wire. Anything else, including IDs, paths, and flags, is
+// recorded as "other".
+var attemptedChildAllowlist = map[string]struct{}{
+	"list": {}, "get": {}, "view": {}, "show": {}, "create": {}, "add": {},
+	"update": {}, "edit": {}, "set": {}, "delete": {}, "remove": {}, "rm": {},
+	"download": {}, "upload": {}, "push": {}, "pull": {}, "sync": {}, "fetch": {},
+	"status": {}, "info": {}, "run": {}, "start": {}, "stop": {}, "install": {},
+	"help": {},
+}
 
 type ErrorKind string
 
@@ -93,6 +109,9 @@ type EventContext struct {
 	OutcomeKind      OutcomeKind
 	HTTPStatus       int
 	PublicStorefront bool
+	// AttemptedChild is the raw unknown subcommand token. BuildEventWithContext
+	// classifies it; the wire value is never this raw token.
+	AttemptedChild string
 }
 
 // processSessionID groups events from one CLI process without linking separate
@@ -133,7 +152,7 @@ func BuildEventWithContext(
 
 	return Event{
 		EventID:          uuid.NewString(),
-		SchemaVersion:    4,
+		SchemaVersion:    schemaVersionV5,
 		ASCVersion:       strings.TrimSpace(version),
 		OS:               runtime.GOOS,
 		Arch:             runtime.GOARCH,
@@ -154,7 +173,34 @@ func BuildEventWithContext(
 		DiagnosticCode:   optionalDiagnosticCode(eventContext.DiagnosticCode, exitCode),
 		OutcomeKind:      eventContext.OutcomeKind,
 		HTTPStatus:       optionalHTTPStatus(eventContext.HTTPStatus),
+		AttemptedChild:   attemptedChildForShape(eventContext.InvocationShape, eventContext.AttemptedChild),
 	}, true
+}
+
+// ClassifyAttemptedChild maps an unknown subcommand token to an allowlisted
+// verb or "other". It never returns the raw token.
+func ClassifyAttemptedChild(token string) string {
+	token = strings.ToLower(strings.TrimSpace(token))
+	if token == "" || strings.HasPrefix(token, "-") || strings.ContainsAny(token, "/\\.= ") {
+		return "other"
+	}
+	for _, r := range token {
+		if r < 'a' || r > 'z' {
+			return "other"
+		}
+	}
+	if _, ok := attemptedChildAllowlist[token]; !ok {
+		return "other"
+	}
+	return token
+}
+
+func attemptedChildForShape(shape InvocationShape, token string) *string {
+	if shape != InvocationShapeUnknownChild {
+		return nil
+	}
+	classified := ClassifyAttemptedChild(token)
+	return &classified
 }
 
 func normalizeEventContext(eventContext EventContext, exitCode int) EventContext {
@@ -303,18 +349,33 @@ func sanitizeHTTPStatus(status int) int {
 // nullable schema-v4 fields are present even when their value is null.
 func (event Event) MarshalJSON() ([]byte, error) {
 	type eventAlias Event
-	if event.SchemaVersion != 4 {
+	switch event.SchemaVersion {
+	case 4:
+		return json.Marshal(struct {
+			eventAlias
+			HTTPStatus     *int    `json:"http_status"`
+			DiagnosticCode *string `json:"diagnostic_code"`
+			AttemptedChild *string `json:"-"`
+		}{
+			eventAlias:     eventAlias(event),
+			HTTPStatus:     event.HTTPStatus,
+			DiagnosticCode: event.DiagnosticCode,
+		})
+	case schemaVersionV5:
+		return json.Marshal(struct {
+			eventAlias
+			HTTPStatus     *int    `json:"http_status"`
+			DiagnosticCode *string `json:"diagnostic_code"`
+			AttemptedChild *string `json:"attempted_child"`
+		}{
+			eventAlias:     eventAlias(event),
+			HTTPStatus:     event.HTTPStatus,
+			DiagnosticCode: event.DiagnosticCode,
+			AttemptedChild: event.AttemptedChild,
+		})
+	default:
 		return json.Marshal(eventAlias(event))
 	}
-	return json.Marshal(struct {
-		eventAlias
-		HTTPStatus     *int    `json:"http_status"`
-		DiagnosticCode *string `json:"diagnostic_code"`
-	}{
-		eventAlias:     eventAlias(event),
-		HTTPStatus:     event.HTTPStatus,
-		DiagnosticCode: event.DiagnosticCode,
-	})
 }
 
 func sanitizeFailureParameter(parameter string) string {

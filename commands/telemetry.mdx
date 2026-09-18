@@ -91,7 +91,7 @@ The CLI sends a single best-effort JSON event after command completion:
 ```json
 {
   "event_id": "2d2f86dd-6d75-4a6f-b97f-a6ce15d4bc79",
-  "schema_version": 4,
+  "schema_version": 5,
   "asc_version": "1.13.0",
   "os": "darwin",
   "arch": "arm64",
@@ -111,13 +111,20 @@ The CLI sends a single best-effort JSON event after command completion:
   "failure_parameter": null,
   "diagnostic_code": null,
   "outcome_kind": "success",
-  "http_status": null
+  "http_status": null,
+  "attempted_child": null
 }
 ```
 
 Raw command arguments never enter event construction. `command_path` comes only
 from the CLI's registered command tree, so flag values and positional values
-cannot become telemetry dimensions. `session_id` is reused only within one CLI
+cannot become telemetry dimensions. Schema v5 adds `attempted_child` only for
+`unknown_child` events: the lowercased token is recorded when it is one of
+`list`, `get`, `view`, `show`, `create`, `add`, `update`, `edit`, `set`,
+`delete`, `remove`, `rm`, `download`, `upload`, `push`, `pull`, `sync`,
+`fetch`, `status`, `info`, `run`, `start`, `stop`, `install`, or `help`.
+Every other token, including IDs, paths, and flags, is recorded as `other`.
+Leaf and group events set `attempted_child` to `null`. `session_id` is reused only within one CLI
 process and changes the next time `asc` starts.
 
 `invocation_shape` is one of `leaf`, `bare_group`, `group_with_flags`, or

@@ -45,7 +45,7 @@ func TestRun_BuiltBinaryEmitsSchemaV4Payload(t *testing.T) {
 	if err := json.Unmarshal(record.Event, &event); err != nil {
 		t.Fatalf("decode built CLI telemetry event: %v", err)
 	}
-	if event.SchemaVersion != 4 || event.OutcomeKind != telemetry.OutcomeUsageError {
+	if event.SchemaVersion != 5 || event.OutcomeKind != telemetry.OutcomeUsageError {
 		t.Fatalf("unexpected schema-v4 payload: %+v", event)
 	}
 	if event.FailureParameter == nil || *event.FailureParameter != "--build-id" {
