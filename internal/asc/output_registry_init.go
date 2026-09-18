@@ -166,6 +166,7 @@ func registerAllOutputRenderers() {
 	registerRows(inAppPurchaseContentRows)
 	registerRows(inAppPurchasePriceScheduleRows)
 	registerRows(inAppPurchaseReviewScreenshotRows)
+	registerDirect(inAppPurchaseImportTables)
 	registerRowsWithSingleResourceAdapter(appEventsRows)
 	registerRowsWithSingleResourceAdapter(appEventLocalizationsRows)
 	registerRowsWithSingleResourceAdapter(appEventScreenshotsRows)

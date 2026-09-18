@@ -48,6 +48,7 @@ Examples:
   asc iap pricing summary --app "APP_ID"
   asc iap view --id "IAP_ID"
   asc iap create --app "APP_ID" --type CONSUMABLE --ref-name "Pro" --product-id "com.example.pro"
+  asc iap import --app "APP_ID" --file "./iap.json" --confirm
   asc iap setup --app "APP_ID" --type NON_CONSUMABLE --reference-name "Pro Lifetime" --product-id "com.example.lifetime" --price "3.99" --base-territory "United States"
   asc iap update --id "IAP_ID" --ref-name "New Name"
   asc iap delete --id "IAP_ID" --confirm
@@ -65,6 +66,7 @@ Examples:
 			IAPPricingCommand(),
 			IAPGetCommand(),
 			IAPCreateCommand(),
+			IAPImportCommand(),
 			IAPSetupCommand(),
 			IAPUpdateCommand(),
 			IAPDeleteCommand(),
