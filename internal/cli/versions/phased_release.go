@@ -163,6 +163,7 @@ func PhasedReleaseUpdateCommand() *ffcli.Command {
 
 	phasedID := fs.String("id", "", "Phased release ID (required)")
 	state := fs.String("state", "", "New state: ACTIVE, PAUSED, COMPLETE (required)")
+	confirm := fs.Bool("confirm", false, "Confirm COMPLETE, which releases the update to all users immediately")
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -174,12 +175,12 @@ func PhasedReleaseUpdateCommand() *ffcli.Command {
 States:
   ACTIVE   - Resume or continue the phased rollout
   PAUSED   - Pause the rollout (users who already have the update keep it)
-  COMPLETE - Release to all users immediately
+  COMPLETE - Release to all users immediately (requires --confirm)
 
 Examples:
   asc versions phased-release update --id "PHASED_ID" --state PAUSED
   asc versions phased-release update --id "PHASED_ID" --state ACTIVE
-  asc versions phased-release update --id "PHASED_ID" --state COMPLETE`,
+  asc versions phased-release update --id "PHASED_ID" --state COMPLETE --confirm`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
@@ -199,6 +200,10 @@ Examples:
 			if !ok || stateValue == "INACTIVE" {
 				fmt.Fprintf(os.Stderr, "Error: --state must be one of: %s\n", strings.Join(validUpdateStates, ", "))
 				return flag.ErrHelp
+			}
+			if stateValue == "COMPLETE" && !*confirm {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required to set phased release state COMPLETE")
+				return shared.MissingRequiredUsageError("--confirm")
 			}
 
 			client, err := shared.GetASCClient()
