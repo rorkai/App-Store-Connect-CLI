@@ -23,6 +23,7 @@ func syncRotatePasswordCommand() *ffcli.Command {
 	passwordFile := fs.String("password-file", "", "Protected file containing the current repository encryption password (required)")
 	newPasswordFile := fs.String("new-password-file", "", "Protected file containing the new repository encryption password (required)")
 	branch := fs.String("branch", "main", "Git branch")
+	storage := fs.String("storage", signingSyncStorageGit, "Encrypted artifact storage (only "+signingSyncStorageGit+" supports password rotation)")
 	confirm := fs.Bool("confirm", false, "Confirm that the previous password will no longer decrypt the branch head")
 	output := shared.BindOutputFlags(fs)
 
@@ -54,6 +55,13 @@ Example:
 				return shared.UsageError(err.Error())
 			}
 
+			selectedStorage := strings.ToLower(strings.TrimSpace(*storage))
+			if selectedStorage == "" {
+				selectedStorage = signingSyncStorageGit
+			}
+			if selectedStorage != signingSyncStorageGit {
+				return shared.UsageErrorf("signing sync rotate-password supports only --storage %s", signingSyncStorageGit)
+			}
 			repo := strings.TrimSpace(*repoURL)
 			if repo == "" {
 				return shared.UsageError("--repo is required")

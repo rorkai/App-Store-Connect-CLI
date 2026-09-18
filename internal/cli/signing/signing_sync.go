@@ -64,6 +64,11 @@ the same verified signing files.
 Native macOS profile types use .provisionprofile paths; iOS and tvOS profile
 types retain .mobileprovision. Existing legacy profile paths remain readable.
 
+Push and pull can keep the same encrypted artifacts in GitLab Secure Files or
+AWS Secrets Manager instead of git. Encryption, path checks, and size limits
+are unchanged; only the transport differs, and the remote stores hold
+ciphertext only. Password rotation remains git-only.
+
 Examples:
   asc signing sync push --bundle-id com.example.app --profile-type IOS_APP_STORE \
     --repo git@github.com:team/certs.git --password-file ~/.config/asc/signing-sync-password
@@ -75,7 +80,14 @@ Examples:
     --output-dir ./signing
 
   asc signing sync pull --repo git@github.com:team/certs.git --bundle-id com.example.app \
-    --profile-type IOS_APP_STORE --password-file ~/.config/asc/signing-sync-password --output-dir ./signing`,
+    --profile-type IOS_APP_STORE --password-file ~/.config/asc/signing-sync-password --output-dir ./signing
+
+  asc signing sync push --bundle-id com.example.app --profile-type IOS_APP_STORE \
+    --storage gitlab-secure-files --gitlab-project 1234 --prefix asc-signing \
+    --gitlab-token-file ~/.config/asc/gitlab-token --password-file ~/.config/asc/signing-sync-password
+
+  asc signing sync pull --storage aws-secrets-manager --region us-east-1 --prefix asc-signing \
+    --password-file ~/.config/asc/signing-sync-password --output-dir ./signing`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{
@@ -142,7 +154,7 @@ func syncPushCommand() *ffcli.Command {
 	bundleID := fs.String("bundle-id", "", "Bundle identifier (required unless --targets-file is used)")
 	targetsFile := fs.String("targets-file", "", "Command-root-relative JSON file containing 1-32 bundle targets (mutually exclusive with --bundle-id)")
 	profileType := fs.String("profile-type", "", "Profile type: IOS_APP_STORE, IOS_APP_DEVELOPMENT, etc. (required)")
-	repoURL := fs.String("repo", "", "Git repo URL for encrypted storage (required)")
+	repoURL := fs.String("repo", "", "Git repo URL for encrypted storage (required with --storage git)")
 	passwordFile := fs.String("password-file", "", "Protected file containing the repository encryption password (or set ASC_SIGNING_SYNC_PASSWORD)")
 	branch := fs.String("branch", "main", "Git branch")
 	certType := fs.String("certificate-type", "", "Certificate type filter (optional)")
@@ -152,6 +164,7 @@ func syncPushCommand() *ffcli.Command {
 	privateKeyPath := fs.String("private-key", "", "Protected RSA or EC private key PEM file")
 	identitySHA256 := fs.String("identity-sha256", "", "SHA-256 certificate fingerprint selecting a PKCS#12 identity or the ASC certificate for --private-key")
 	identityPasswordFile := fs.String("identity-password-file", "", "Protected file containing the source PKCS#12 password")
+	storageFlags := bindSigningSyncStorageFlags(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -194,8 +207,9 @@ func syncPushCommand() *ffcli.Command {
 				return shared.UsageError("--profile-type is required")
 			}
 			repo := strings.TrimSpace(*repoURL)
-			if repo == "" {
-				return shared.UsageError("--repo is required")
+			storageSelection, err := parseSigningSyncStorage(fs, storageFlags, repo, *branch)
+			if err != nil {
+				return err
 			}
 			if err := rejectDeviceWithoutCreateMissing(*deviceIDs, *createMissing); err != nil {
 				return err
@@ -248,6 +262,11 @@ func syncPushCommand() *ffcli.Command {
 				return fmt.Errorf("signing sync push: signing identity: %w", err)
 			}
 
+			transport, err := storageSelection.transport(ctx)
+			if err != nil {
+				return err
+			}
+
 			client, err := shared.GetASCClient()
 			if err != nil {
 				return fmt.Errorf("signing sync push: %w", err)
@@ -261,6 +280,7 @@ func syncPushCommand() *ffcli.Command {
 				// would fail valid multi-target runs and, with --create-missing,
 				// could abandon created profiles before publication.
 				result, batchErr := runSigningSyncBatchForCommand(ctx, client, signingSyncBatchOptions{
+					Transport:       transport,
 					RepoURL:         repo,
 					Branch:          *branch,
 					Password:        pass,
@@ -293,19 +313,11 @@ func syncPushCommand() *ffcli.Command {
 				return fmt.Errorf("signing sync push: create temp dir: %w", err)
 			}
 
-			store := &signingpkg.GitStore{
-				RepoURL:  repo,
-				LocalDir: tmpDir,
-				Branch:   *branch,
-			}
+			store := newSigningSyncStore(transport, tmpDir, repo, *branch)
 			defer func() { _ = store.Cleanup() }()
 
 			prepareRepository := onceAfterSuccess(func() error {
-				fmt.Fprintln(os.Stderr, "Cloning signing repo...")
-				if err := store.Clone(ctx, true); err != nil {
-					return err
-				}
-				return nil
+				return transport.Fetch(ctx, store, true)
 			})
 			var identityArtifacts *signingIdentityArtifacts
 
@@ -447,10 +459,9 @@ func syncPushCommand() *ffcli.Command {
 				fmt.Fprintf(os.Stderr, "  Encrypted %s\n", identityArtifacts.BindingPath)
 			}
 
-			// Commit and push.
+			// Publish every encrypted artifact through the selected storage.
 			commitMsg := fmt.Sprintf("Update signing assets for %s (%s)", bundle, profType)
-			fmt.Fprintln(os.Stderr, "Pushing to git...")
-			if err := store.CommitAndPush(ctx, commitMsg); err != nil {
+			if err := transport.Publish(ctx, store, commitMsg); err != nil {
 				return fmt.Errorf("signing sync push: %w", err)
 			}
 
@@ -458,7 +469,7 @@ func syncPushCommand() *ffcli.Command {
 
 			result := SyncResult{
 				Operation:       "push",
-				RepoURL:         sanitizeRepoURLForOutput(repo),
+				RepoURL:         transport.Locator(),
 				BundleID:        bundle,
 				ProfileType:     profType,
 				Files:           files,
@@ -476,13 +487,14 @@ func syncPushCommand() *ffcli.Command {
 func syncPullCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("pull", flag.ExitOnError)
 
-	repoURL := fs.String("repo", "", "Git repo URL (required)")
+	repoURL := fs.String("repo", "", "Git repo URL (required with --storage git)")
 	bundleID := fs.String("bundle-id", "", "Decrypt only one bundle target (requires --profile-type; mutually exclusive with --targets-file)")
 	targetsFile := fs.String("targets-file", "", "Decrypt only the 1-32 bundle targets in a root-relative JSON file (requires --profile-type; mutually exclusive with --bundle-id)")
 	profileType := fs.String("profile-type", "", "Profile type for --bundle-id or --targets-file")
 	passwordFile := fs.String("password-file", "", "Protected file containing the repository encryption password (or set ASC_SIGNING_SYNC_PASSWORD)")
 	branch := fs.String("branch", "main", "Git branch")
 	outputDir := fs.String("output-dir", "./signing", "Output directory for decrypted files")
+	storageFlags := bindSigningSyncStorageFlags(fs)
 	output := shared.BindOutputFlags(fs)
 
 	return &ffcli.Command{
@@ -497,13 +509,11 @@ func syncPullCommand() *ffcli.Command {
 			}
 
 			repo := strings.TrimSpace(*repoURL)
-			if repo == "" {
-				return shared.UsageError("--repo is required")
+			storageSelection, err := parseSigningSyncStorage(fs, storageFlags, repo, *branch)
+			if err != nil {
+				return err
 			}
-			provided := make(map[string]bool)
-			fs.Visit(func(flag *flag.Flag) {
-				provided[flag.Name] = true
-			})
+			provided := providedSigningSyncFlags(fs)
 			bundle := strings.TrimSpace(*bundleID)
 			profile := strings.ToUpper(strings.TrimSpace(*profileType))
 			bundleProvided := provided["bundle-id"]
@@ -556,21 +566,21 @@ func syncPullCommand() *ffcli.Command {
 				outDir = "./signing"
 			}
 
-			// Clone git repo.
+			transport, err := storageSelection.transport(ctx)
+			if err != nil {
+				return err
+			}
+
+			// Fetch the encrypted artifacts into an isolated working tree.
 			tmpDir, err := os.MkdirTemp("", "asc-signing-sync-*")
 			if err != nil {
 				return fmt.Errorf("signing sync pull: create temp dir: %w", err)
 			}
 
-			store := &signingpkg.GitStore{
-				RepoURL:  repo,
-				LocalDir: tmpDir,
-				Branch:   *branch,
-			}
+			store := newSigningSyncStore(transport, tmpDir, repo, *branch)
 			defer func() { _ = store.Cleanup() }()
 
-			fmt.Fprintln(os.Stderr, "Cloning signing repo...")
-			if err := store.Clone(ctx, false); err != nil {
+			if err := transport.Fetch(ctx, store, false); err != nil {
 				return fmt.Errorf("signing sync pull: %w", err)
 			}
 
@@ -587,7 +597,7 @@ func syncPullCommand() *ffcli.Command {
 				fmt.Fprintln(os.Stderr, "No encrypted signing files found in repo")
 				result := SyncResult{
 					Operation: "pull",
-					RepoURL:   sanitizeRepoURLForOutput(repo),
+					RepoURL:   transport.Locator(),
 					Files:     []string{},
 				}
 				return shared.PrintOutput(&result, *output.Output, *output.Pretty)
@@ -639,7 +649,7 @@ func syncPullCommand() *ffcli.Command {
 
 			result := SyncResult{
 				Operation:       "pull",
-				RepoURL:         sanitizeRepoURLForOutput(repo),
+				RepoURL:         transport.Locator(),
 				Files:           files,
 				IdentityPresent: identityPresent,
 				SensitiveFiles:  sensitiveFiles,
