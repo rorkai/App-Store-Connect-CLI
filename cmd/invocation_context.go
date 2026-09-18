@@ -160,24 +160,11 @@ func printConciseUnknownFlag(root *ffcli.Command, analysis invocationAnalysis, c
 		return
 	}
 
-	visibleFlags := shared.VisibleHelpFlags(analysis.command.FlagSet)
-	candidates := make([]string, 0, len(visibleFlags))
-	for _, item := range visibleFlags {
-		if isDeprecatedFlagHelp(item.Usage) {
-			continue
-		}
-		candidates = append(candidates, item.Name)
-	}
-	suggestions := suggest.Flags(strings.TrimLeft(flagName, "-"), candidates)
-	if len(suggestions) > 2 {
-		suggestions = suggestions[:2]
-	}
-	if len(suggestions) > 0 {
-		fmt.Fprintln(os.Stderr, "Try:")
-		for _, suggestion := range suggestions {
-			fmt.Fprintf(os.Stderr, "  --%s\n", shared.SanitizeTerminal(suggestion))
-		}
-	}
+	printFlagSuggestions(os.Stderr, unknownFlagSuggestions(
+		analysis.command.FlagSet,
+		flagName,
+		unknownFlagSuggestionOptions{allowSelectorFallback: true},
+	))
 	fmt.Fprintln(os.Stderr, "For help:")
 	fmt.Fprintf(os.Stderr, "  %s --help\n", commandName)
 }
