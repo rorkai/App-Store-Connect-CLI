@@ -125,6 +125,10 @@ Examples:
 			defer cancel()
 
 			var buildResp *asc.BuildResponse
+			failureContext := shared.BuildProcessingFailureContext{
+				ShortVersion: versionValue,
+				Platform:     normalizedPlatform,
+			}
 			if buildValue != "" {
 				buildResp = &asc.BuildResponse{
 					Data: asc.Resource[asc.BuildAttributes]{
@@ -136,6 +140,7 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("builds wait: %w", err)
 				}
+				failureContext.AppID = lookupAppID
 
 				selector := appBuildWaitSelector{
 					Latest:      *latest,
@@ -156,7 +161,7 @@ Examples:
 			}
 
 			waitBuildID := buildResp.Data.ID
-			buildResp, err = waitForBuildProcessingState(requestCtx, client, buildResp.Data.ID, *pollInterval, *failOnInvalid)
+			buildResp, err = waitForBuildProcessingState(requestCtx, client, buildResp.Data.ID, *pollInterval, *failOnInvalid, failureContext)
 			if err != nil {
 				if requestCtx.Err() != nil && errors.Is(err, context.DeadlineExceeded) {
 					return fmt.Errorf("builds wait: timed out waiting for build %s after %s", waitBuildID, (*timeout).Round(time.Second))
@@ -300,6 +305,7 @@ func waitForBuildProcessingState(
 	buildID string,
 	pollInterval time.Duration,
 	failOnInvalid bool,
+	failure shared.BuildProcessingFailureContext,
 ) (*asc.BuildResponse, error) {
 	started := time.Now()
 
@@ -325,13 +331,67 @@ func waitForBuildProcessingState(
 		case asc.BuildProcessingStateValid:
 			return buildResp, true, nil
 		case asc.BuildProcessingStateFailed:
-			return nil, false, fmt.Errorf("build processing failed with state %s", state)
+			return nil, false, buildProcessingFailureError(ctx, client, buildID, buildResp, state, failure)
 		case asc.BuildProcessingStateInvalid:
 			if failOnInvalid {
-				return nil, false, fmt.Errorf("build processing failed with state %s", state)
+				return nil, false, buildProcessingFailureError(ctx, client, buildID, buildResp, state, failure)
 			}
 			return buildResp, true, nil
 		}
 		return nil, false, nil
 	}, asc.PollOptions{Tolerate: asc.IsTransientWaitError})
+}
+
+func buildProcessingFailureError(
+	ctx context.Context,
+	client *asc.Client,
+	buildID string,
+	buildResp *asc.BuildResponse,
+	state string,
+	failure shared.BuildProcessingFailureContext,
+) error {
+	baseErr := fmt.Errorf("build processing failed with state %s", state)
+	failure.BuildID = strings.TrimSpace(buildID)
+	if buildResp != nil {
+		failure.BundleVersion = strings.TrimSpace(buildResp.Data.Attributes.Version)
+	}
+	resolveBuildProcessingFailureContext(ctx, client, buildID, &failure)
+
+	return shared.EnrichBuildProcessingFailure(ctx, client, failure, baseErr)
+}
+
+// resolveBuildProcessingFailureContext describes the failed build from App
+// Store Connect itself, so --build-id waits can match the upload the build
+// came from and selectors cannot mismatch it. Every lookup is best effort: an
+// unresolved field only means the wait reports the processing state without
+// added details.
+func resolveBuildProcessingFailureContext(
+	ctx context.Context,
+	client *asc.Client,
+	buildID string,
+	failure *shared.BuildProcessingFailureContext,
+) {
+	if client == nil {
+		return
+	}
+
+	if strings.TrimSpace(failure.AppID) == "" {
+		if app, err := client.GetBuildApp(ctx, buildID); err == nil && app != nil {
+			failure.AppID = strings.TrimSpace(app.Data.ID)
+		}
+	}
+
+	// App Store Connect treats spellings such as "1.2" and "1.2.0" as the same
+	// train but stores only the uploaded one, so the build's own pre-release
+	// version wins over the spelling the selector asked for.
+	preRelease, err := client.GetBuildPreReleaseVersion(ctx, buildID)
+	if err != nil || preRelease == nil {
+		return
+	}
+	if version := strings.TrimSpace(preRelease.Data.Attributes.Version); version != "" {
+		failure.ShortVersion = version
+	}
+	if platform := strings.TrimSpace(string(preRelease.Data.Attributes.Platform)); platform != "" {
+		failure.Platform = platform
+	}
 }

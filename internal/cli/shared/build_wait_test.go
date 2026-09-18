@@ -271,6 +271,30 @@ func TestWaitForBuildByNumberOrUploadFailureIncludesProcessingDiagnostics(t *tes
 	}
 }
 
+func TestEnrichBuildProcessingFailureSkipsLookupWithoutBundleVersion(t *testing.T) {
+	diagnosticsCalls := 0
+	t.Cleanup(SetBuildUploadFailureDiagnosticsForTesting(func(context.Context, *asc.Client, string, *asc.BuildUploadResponse) (string, error) {
+		diagnosticsCalls++
+		return "processing details", nil
+	}))
+
+	client := newBuildWaitTestClient(t, func(req *http.Request) (*http.Response, error) {
+		return nil, fmt.Errorf("unexpected request: %s", req.URL.Path)
+	})
+
+	baseErr := errors.New("build processing failed with state FAILED")
+	err := EnrichBuildProcessingFailure(context.Background(), client, BuildProcessingFailureContext{AppID: "app-1"}, baseErr)
+	if !errors.Is(err, baseErr) {
+		t.Fatalf("error = %v, want the base error", err)
+	}
+	if got := err.Error(); got != baseErr.Error() {
+		t.Fatalf("error = %q, want %q", got, baseErr.Error())
+	}
+	if diagnosticsCalls != 0 {
+		t.Fatalf("diagnostics lookups = %d, want 0", diagnosticsCalls)
+	}
+}
+
 func TestBuildUploadFailureErrorIncludesRecoveryGuidance(t *testing.T) {
 	tests := []struct {
 		name        string

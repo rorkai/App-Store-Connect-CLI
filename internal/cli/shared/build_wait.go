@@ -414,6 +414,124 @@ func missingUsageDescriptionKeys(details []asc.StateDetail) []string {
 	return result
 }
 
+// BuildProcessingFailureContext identifies the artifact behind a build that
+// finished processing in a failure state, so the upload it came from can be
+// matched even when the caller selected the build by ID alone.
+type BuildProcessingFailureContext struct {
+	AppID         string
+	BuildID       string
+	BundleVersion string
+	ShortVersion  string
+	Platform      string
+}
+
+// EnrichBuildProcessingFailure appends the App Store Connect processing
+// details of the originating build upload to a terminal build-processing
+// error. The base error is returned unchanged when no upload matches or no
+// details are available, so a failed lookup never masks the state error.
+func EnrichBuildProcessingFailure(ctx context.Context, client *asc.Client, failure BuildProcessingFailureContext, baseErr error) error {
+	if baseErr == nil {
+		return nil
+	}
+
+	upload, err := findBuildUploadForProcessingFailure(ctx, client, failure)
+	if err != nil || upload == nil {
+		return baseErr
+	}
+	return enrichBuildUploadFailure(ctx, client, strings.TrimSpace(failure.AppID), upload, baseErr)
+}
+
+const buildProcessingFailureLookupLimit = 200
+
+// findBuildUploadForProcessingFailure resolves the upload that produced a
+// failed build, preferring the upload App Store Connect links to the build
+// itself so a later retry of the same build number cannot be reported instead.
+func findBuildUploadForProcessingFailure(ctx context.Context, client *asc.Client, failure BuildProcessingFailureContext) (*asc.BuildUploadResponse, error) {
+	if client == nil {
+		return nil, nil
+	}
+
+	appID := strings.TrimSpace(failure.AppID)
+	bundleVersion := strings.TrimSpace(failure.BundleVersion)
+	if appID == "" || bundleVersion == "" {
+		return nil, nil
+	}
+
+	if uploadID := linkedBuildUploadID(ctx, client, appID, strings.TrimSpace(failure.BuildID), bundleVersion); uploadID != "" {
+		if upload, err := client.GetBuildUpload(ctx, uploadID); err == nil && upload != nil {
+			return upload, nil
+		}
+	}
+	return findBuildUploadByVersion(ctx, client, appID, bundleVersion, strings.TrimSpace(failure.ShortVersion), strings.TrimSpace(failure.Platform))
+}
+
+// linkedBuildUploadID resolves the upload a build was created from. It returns
+// an empty ID when the linkage is unavailable, leaving the version-matched
+// lookup as the fallback.
+func linkedBuildUploadID(ctx context.Context, client *asc.Client, appID, buildID, bundleVersion string) string {
+	if buildID == "" {
+		return ""
+	}
+
+	builds, err := client.GetBuilds(
+		ctx, appID,
+		asc.WithBuildsVersion(bundleVersion),
+		asc.WithBuildsInclude([]string{"buildUpload"}),
+		asc.WithBuildsLimit(buildProcessingFailureLookupLimit),
+	)
+	if err != nil {
+		return ""
+	}
+	for _, build := range builds.Data {
+		if strings.TrimSpace(build.ID) != buildID {
+			continue
+		}
+		uploadID, err := buildUploadIDForBuild(build)
+		if err != nil {
+			return ""
+		}
+		return uploadID
+	}
+	return ""
+}
+
+// findBuildUploadByVersion matches an upload by the artifact identity it was
+// uploaded with. Processing details are reported per app, build number,
+// marketing version, and platform, so any upload matching all four describes
+// the same artifact as the build; an incomplete identity is left unmatched
+// rather than guessed. The lookup stays on the first page because these
+// filters already narrow the result to one artifact.
+func findBuildUploadByVersion(ctx context.Context, client *asc.Client, appID, bundleVersion, shortVersion, platform string) (*asc.BuildUploadResponse, error) {
+	if shortVersion == "" || platform == "" {
+		return nil, nil
+	}
+
+	uploads, err := client.GetBuildUploads(
+		ctx, appID,
+		asc.WithBuildUploadsCFBundleVersions([]string{bundleVersion}),
+		asc.WithBuildUploadsCFBundleShortVersionStrings([]string{shortVersion}),
+		asc.WithBuildUploadsPlatforms([]string{platform}),
+		asc.WithBuildUploadsSort("-uploadedDate"),
+		asc.WithBuildUploadsLimit(buildProcessingFailureLookupLimit),
+	)
+	if err != nil {
+		return nil, err
+	}
+	for _, upload := range uploads.Data {
+		if strings.TrimSpace(upload.Attributes.CFBundleVersion) != bundleVersion {
+			continue
+		}
+		if strings.TrimSpace(upload.Attributes.CFBundleShortVersionString) != shortVersion {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(string(upload.Attributes.Platform)), platform) {
+			continue
+		}
+		return &asc.BuildUploadResponse{Data: upload}, nil
+	}
+	return nil, nil
+}
+
 func enrichBuildUploadFailure(ctx context.Context, client *asc.Client, appID string, upload *asc.BuildUploadResponse, baseErr error) error {
 	if baseErr == nil {
 		return nil
