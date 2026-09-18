@@ -79,7 +79,7 @@ Examples:
   asc xcode version view
   asc xcode version bump --type patch
   asc xcode version edit --version "1.3.0" --build-number "42"
-  asc xcode signing plan --project App.xcodeproj --settings-file .asc/xcode-signing.json`,
+  asc xcode signing plan --project ./App.xcodeproj --profile ./signing/App.mobileprovision --configuration Release`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
 		Subcommands: []*ffcli.Command{

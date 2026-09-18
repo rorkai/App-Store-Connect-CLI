@@ -19,6 +19,34 @@ var (
 	runApplySigningPlan      = localxcode.ApplySigningPlan
 )
 
+type stringListFlag []string
+
+func (f *stringListFlag) String() string {
+	if f == nil {
+		return ""
+	}
+	return strings.Join(*f, ",")
+}
+
+func (f *stringListFlag) Set(value string) error {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return fmt.Errorf("value must not be empty")
+	}
+	*f = append(*f, trimmed)
+	return nil
+}
+
+func normalizeSigningExportMethod(value string) (string, error) {
+	method := strings.ToLower(strings.TrimSpace(value))
+	switch method {
+	case "", "app-store", "ad-hoc", "development", "developer-id", "enterprise":
+		return method, nil
+	default:
+		return "", fmt.Errorf("--export-method must be app-store, ad-hoc, development, developer-id, or enterprise")
+	}
+}
+
 // XcodeSigningCommand returns the local Xcode signing-settings
 // plan/apply command group. It edits only project build settings; credentials,
 // profiles, and certificates remain owned by the asc signing commands.
@@ -56,7 +84,14 @@ Examples:
 func xcodeSigningPlanCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("plan", flag.ExitOnError)
 	project := fs.String("project", "", "Path to the .xcodeproj to plan (required)")
-	settingsFile := fs.String("settings-file", "", "Strict JSON signing settings manifest (required)")
+	settingsFile := fs.String("settings-file", "", "Strict JSON signing settings manifest; required unless --profile is set")
+	var profiles stringListFlag
+	fs.Var(&profiles, "profile", "Provisioning profile to infer signing settings from (repeatable .mobileprovision or .provisionprofile)")
+	configuration := fs.String("configuration", "", "Limit inference to one build configuration")
+	exportMethod := fs.String("export-method", "", "Export method: app-store, ad-hoc, development, developer-id, or enterprise")
+	exportOptionsOut := fs.String("export-options-out", "", "Write ExportOptions.plist for the inferred profiles")
+	var skipTargets stringListFlag
+	fs.Var(&skipTargets, "skip-target", "Target that may remain unmatched without blocking the plan (repeatable)")
 	stateDir := fs.String("state-dir", ".asc/xcode/signing", "Directory for plan and receipt artifacts")
 	allowExternalXCConfig := fs.Bool("allow-external-xcconfig", false, "Allow updating xcconfig files outside the project directory")
 	overwrite := fs.Bool("overwrite", false, "Replace an existing plan artifact")
@@ -64,19 +99,23 @@ func xcodeSigningPlanCommand() *ffcli.Command {
 
 	return &ffcli.Command{
 		Name:       "plan",
-		ShortUsage: "asc xcode signing plan --project PATH --settings-file PATH [flags]",
+		ShortUsage: "asc xcode signing plan --project PATH (--settings-file PATH | --profile PATH) [flags]",
 		ShortHelp:  "Resolve signing settings and write a plan.",
 		LongHelp: `Resolve signing settings and write a plan.
 
 The settings file must contain schemaVersion 1 and explicit target,
-configuration, and allowlisted signing-setting values. A representable blocked
-plan is written with ready=false and explains the blocker without changing the
+configuration, and allowlisted signing-setting values. Pass one or more
+--profile files to infer CODE_SIGN_STYLE, DEVELOPMENT_TEAM, CODE_SIGN_IDENTITY,
+and PROVISIONING_PROFILE_SPECIFIER from each target's bundle identifier.
+--settings-file overrides inferred values. A representable blocked plan is
+written with ready=false and explains the blocker without changing the
 project. Any unauthorized external xcconfig prevents artifact publication
 because its contents cannot be safely inventoried; pass
 --allow-external-xcconfig to authorize reading it.
 
 Examples:
   asc xcode signing plan --project ./App.xcodeproj --settings-file .asc/xcode-signing.json
+  asc xcode signing plan --project ./App.xcodeproj --profile ./signing/App.mobileprovision --configuration Release
   asc xcode signing plan --project ./App.xcodeproj --settings-file .asc/xcode-signing.json --overwrite --output markdown`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -88,9 +127,13 @@ Examples:
 				fmt.Fprintln(os.Stderr, "Error: --project is required")
 				return shared.MissingRequiredUsageError("--project")
 			}
-			if strings.TrimSpace(*settingsFile) == "" {
+			if strings.TrimSpace(*settingsFile) == "" && len(profiles) == 0 {
 				fmt.Fprintln(os.Stderr, "Error: --settings-file is required")
 				return shared.MissingRequiredUsageError("--settings-file")
+			}
+			method, err := normalizeSigningExportMethod(*exportMethod)
+			if err != nil {
+				return shared.UsageError(err.Error())
 			}
 			// An explicitly empty value must not fall back to the flag default;
 			// silently relocating the plan and receipt would hide where the
@@ -104,6 +147,10 @@ Examples:
 			plan, err := runBuildSigningPlan(localxcode.SigningPlanOptions{
 				ProjectPath:           strings.TrimSpace(*project),
 				SettingsFilePath:      strings.TrimSpace(*settingsFile),
+				ProfilePaths:          []string(profiles),
+				Configuration:         strings.TrimSpace(*configuration),
+				ExportMethod:          method,
+				SkipTargets:           []string(skipTargets),
 				StateDir:              strings.TrimSpace(*stateDir),
 				AllowExternalXCConfig: *allowExternalXCConfig,
 			})
@@ -115,6 +162,11 @@ Examples:
 			}
 			if err := writeSigningPlanArtifact(plan, *overwrite); err != nil {
 				return fmt.Errorf("xcode signing plan: %w", err)
+			}
+			if strings.TrimSpace(*exportOptionsOut) != "" {
+				if err := localxcode.WriteSigningExportOptions(strings.TrimSpace(*exportOptionsOut), plan.ExportOptions); err != nil {
+					return fmt.Errorf("xcode signing plan: %w", err)
+				}
 			}
 			for _, warning := range plan.Warnings {
 				fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)

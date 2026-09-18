@@ -496,3 +496,30 @@ func TestXcodeSigningPlanRejectsEmptyStateDir(t *testing.T) {
 		}
 	}
 }
+
+func TestXcodeSigningPlanRequiresSettingsOrProfile(t *testing.T) {
+	command := xcodeSigningPlanCommand()
+	command.FlagSet.SetOutput(io.Discard)
+	if err := command.FlagSet.Parse([]string{"--project", "App.xcodeproj", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	err := command.Exec(context.Background(), nil)
+	if !isUsageError(err) {
+		t.Fatalf("expected usage error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "--settings-file") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestXcodeSigningPlanRejectsUnknownExportMethod(t *testing.T) {
+	command := xcodeSigningPlanCommand()
+	command.FlagSet.SetOutput(io.Discard)
+	if err := command.FlagSet.Parse([]string{"--project", "App.xcodeproj", "--profile", "App.mobileprovision", "--export-method", "side-load", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	err := command.Exec(context.Background(), nil)
+	if !isUsageError(err) {
+		t.Fatalf("expected usage error, got %v", err)
+	}
+}
