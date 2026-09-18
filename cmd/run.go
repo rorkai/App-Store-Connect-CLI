@@ -137,6 +137,19 @@ func Run(args []string, versionInfo string) int {
 		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, flag.ErrHelp))
 		return ExitUsage
 	}
+	// A flag-only leaf command cannot use a bare operand. Reject it here, before
+	// the command runs, so `asc apps view 123` names the stray token and the
+	// flag it belongs to instead of dropping it silently or reporting only the
+	// missing flag.
+	if operands := strayPositionalOperands(analysis, commandName); len(operands) > 0 {
+		printStrayPositionalOperands(commandName, operands, analysis.command.FlagSet)
+		if err := writeUsageJUnitReport(commandName, strayPositionalError(operands)); err != nil {
+			printUsageJUnitReportFailure(commandName, versionInfo, analysis, err)
+			return ExitError
+		}
+		emitImmediateTelemetry(args, root, versionInfo, validationFailureContext(analysis, flag.ErrHelp))
+		return ExitUsage
+	}
 
 	runUsageOutput := &bytes.Buffer{}
 	restoreRunUsageOutput := redirectCommandFlagOutput(analysis.command, runUsageOutput)

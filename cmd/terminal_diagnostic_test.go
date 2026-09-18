@@ -51,7 +51,7 @@ func TestRun_UsageErrorSanitizesCommandArguments(t *testing.T) {
 	if stdout != "" {
 		t.Fatalf("stdout = %q, want empty", stdout)
 	}
-	assertSafeTerminalDiagnostic(t, stderr, "Error: unexpected argument(s): bad[31m  command\n")
+	assertSafeTerminalDiagnostic(t, stderr, "Error: unexpected argument \"bad[31m  command\"\n")
 	if strings.ContainsAny(stderr, "\x1b\r") {
 		t.Fatalf("stderr contains raw terminal control bytes: %q", stderr)
 	}
