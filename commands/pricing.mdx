@@ -211,14 +211,17 @@ Create an app price schedule.
   Base territory code (e.g., USA)
 </ParamField>
 
-<ParamField path="--start-date" type="string" required>
-  Start date (YYYY-MM-DD)
+<ParamField path="--start-date" type="string" default="today (UTC)">
+  Start date (YYYY-MM-DD). Defaults to today's date in UTC when omitted, and the
+  chosen date is printed on stderr. Apple requires the start date to be today or
+  later. A malformed value is a usage error (exit 2).
 </ParamField>
 
 **Examples:**
 
 ```bash  theme={null}
-asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"
+asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "YYYY-MM-DD"
+asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "USA"
 ```
 
 ***
@@ -360,7 +363,7 @@ asc pricing price-points --app "123456789" --territory "USA" --output json
 ### Create a price schedule
 
 ```bash  theme={null}
-asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "2024-03-01"
+asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "USA" --start-date "YYYY-MM-DD"
 ```
 
 ### Edit app availability

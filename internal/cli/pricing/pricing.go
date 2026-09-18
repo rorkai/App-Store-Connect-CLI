@@ -36,8 +36,8 @@ Examples:
   asc pricing tiers --app "123456789" --territory "US"
   asc pricing schedule view --app "123456789"
   asc pricing schedule view --id "SCHEDULE_ID"
-  asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "United States" --start-date "2024-03-01"
-  asc pricing schedule create --app "123456789" --free --base-territory "US" --start-date "2024-03-01"
+  asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "United States" --start-date "YYYY-MM-DD"
+  asc pricing schedule create --app "123456789" --free --base-territory "US" --start-date "YYYY-MM-DD"
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID"
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID"
   asc pricing availability view --app "123456789"
@@ -318,8 +318,8 @@ func PricingScheduleCommand() *ffcli.Command {
 Examples:
   asc pricing schedule view --app "123456789"
   asc pricing schedule view --id "SCHEDULE_ID"
-  asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --start-date "2024-03-01"
-  asc pricing schedule create --app "123456789" --free --base-territory "US" --start-date "2024-03-01"
+  asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --start-date "YYYY-MM-DD"
+  asc pricing schedule create --app "123456789" --free --base-territory "US" --start-date "YYYY-MM-DD"
   asc pricing schedule manual-prices --schedule "SCHEDULE_ID"
   asc pricing schedule automatic-prices --schedule "SCHEDULE_ID"`,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -401,12 +401,17 @@ func PricingScheduleCreateCommand() *ffcli.Command {
 		ShortHelp:   "Create an app price schedule.",
 		LongHelp: `Create an app price schedule.
 
+--start-date defaults to today's date in UTC when omitted, and the chosen date
+is printed on stderr. Apple requires the start date to be today or later.
+
 Examples:
-  asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "United States" --start-date "2024-03-01"
-  asc pricing schedule create --app "123456789" --free --base-territory "US" --start-date "2024-03-01"`,
-		ErrorPrefix:          "pricing schedule create",
-		StartDateHelp:        "Start date (YYYY-MM-DD)",
-		RequireBaseTerritory: true,
+  asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "United States" --start-date "YYYY-MM-DD"
+  asc pricing schedule create --app "123456789" --price-point "PRICE_POINT_ID" --base-territory "United States"
+  asc pricing schedule create --app "123456789" --free --base-territory "US" --start-date "YYYY-MM-DD"`,
+		ErrorPrefix:           "pricing schedule create",
+		StartDateHelp:         "Start date (YYYY-MM-DD, default: today in UTC; Apple requires today or later)",
+		StartDateDefaultToday: true,
+		RequireBaseTerritory:  true,
 	})
 }
 
