@@ -107,8 +107,20 @@ func (r *RunResult) ensureHooks() *HooksResult {
 	return r.Hooks
 }
 
+// errorHookGrace bounds the error hook when the run context is already done, so
+// an interrupted or timed-out run still gets its cleanup and notification hook
+// without hanging past the interrupt.
+const errorHookGrace = 30 * time.Second
+
 func recordErrorHook(ctx context.Context, command string, env map[string]string, opts RunOptions, result *RunResult) {
-	ehr, hookErr := runHookAndRecord(ctx, command, env, opts.DryRun, opts.Stdout, opts.Stderr)
+	hookCtx := ctx
+	if ctx.Err() != nil {
+		var cancel context.CancelFunc
+		hookCtx, cancel = context.WithTimeout(context.WithoutCancel(ctx), errorHookGrace)
+		defer cancel()
+	}
+
+	ehr, hookErr := runHookAndRecord(hookCtx, command, env, opts.DryRun, opts.Stdout, opts.Stderr)
 	if ehr == nil {
 		return
 	}
