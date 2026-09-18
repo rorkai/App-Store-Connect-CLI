@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -115,18 +116,21 @@ type localMetadataBundle struct {
 }
 
 type localPlanFields struct {
-	setFields map[string]string
+	setFields   map[string]string
+	clearFields map[string]struct{}
 }
 
 type appInfoLocalPatch struct {
 	localization AppInfoLocalization
 	setFields    map[string]string
+	clearFields  map[string]struct{}
 }
 
 type versionLocalPatch struct {
 	localization       VersionLocalization
 	createLocalization VersionLocalization
 	setFields          map[string]string
+	clearFields        map[string]struct{}
 }
 
 type metadataMutationCommandConfig struct {
@@ -558,18 +562,23 @@ func readAppInfoLocalizationPatchFromFile(path string) (appInfoLocalPatch, error
 	}
 
 	setFields := make(map[string]string)
+	clearFields := make(map[string]struct{})
 	loc := AppInfoLocalization{}
 	for key, rawValue := range raw {
 		canonicalKey, err := canonicalStringFieldPatchKey(key, appInfoPlanFields)
 		if err != nil {
 			return appInfoLocalPatch{}, err
 		}
-		if _, exists := setFields[canonicalKey]; exists {
+		if fieldPatchAlreadyDecoded(canonicalKey, setFields, clearFields) {
 			return appInfoLocalPatch{}, fmt.Errorf("json: duplicate field %q", canonicalKey)
 		}
-		value, err := decodeStringFieldPatch(canonicalKey, rawValue)
+		value, clear, err := decodeStringFieldPatch(canonicalKey, rawValue)
 		if err != nil {
 			return appInfoLocalPatch{}, err
+		}
+		if clear {
+			clearFields[canonicalKey] = struct{}{}
+			continue
 		}
 		setFields[canonicalKey] = value
 		switch canonicalKey {
@@ -586,13 +595,14 @@ func readAppInfoLocalizationPatchFromFile(path string) (appInfoLocalPatch, error
 		}
 	}
 
-	if len(setFields) == 0 {
+	if len(setFields) == 0 && len(clearFields) == 0 {
 		return appInfoLocalPatch{}, fmt.Errorf("at least one app-info field is required")
 	}
 
 	return appInfoLocalPatch{
 		localization: NormalizeAppInfoLocalization(loc),
 		setFields:    setFields,
+		clearFields:  clearFields,
 	}, nil
 }
 
@@ -608,18 +618,23 @@ func readVersionLocalizationPatchFromFile(path string) (versionLocalPatch, error
 	}
 
 	setFields := make(map[string]string)
+	clearFields := make(map[string]struct{})
 	loc := VersionLocalization{}
 	for key, rawValue := range raw {
 		canonicalKey, err := canonicalStringFieldPatchKey(key, versionPlanFields)
 		if err != nil {
 			return versionLocalPatch{}, err
 		}
-		if _, exists := setFields[canonicalKey]; exists {
+		if fieldPatchAlreadyDecoded(canonicalKey, setFields, clearFields) {
 			return versionLocalPatch{}, fmt.Errorf("json: duplicate field %q", canonicalKey)
 		}
-		value, err := decodeStringFieldPatch(canonicalKey, rawValue)
+		value, clear, err := decodeStringFieldPatch(canonicalKey, rawValue)
 		if err != nil {
 			return versionLocalPatch{}, err
+		}
+		if clear {
+			clearFields[canonicalKey] = struct{}{}
+			continue
 		}
 		setFields[canonicalKey] = value
 		switch canonicalKey {
@@ -638,7 +653,7 @@ func readVersionLocalizationPatchFromFile(path string) (versionLocalPatch, error
 		}
 	}
 
-	if len(setFields) == 0 {
+	if len(setFields) == 0 && len(clearFields) == 0 {
 		return versionLocalPatch{}, fmt.Errorf("at least one version metadata field is required")
 	}
 
@@ -650,6 +665,7 @@ func readVersionLocalizationPatchFromFile(path string) (versionLocalPatch, error
 	return versionLocalPatch{
 		localization: normalized,
 		setFields:    setFields,
+		clearFields:  clearFields,
 	}, nil
 }
 
@@ -667,20 +683,50 @@ func canonicalStringFieldPatchKey(field string, allowed []string) (string, error
 	return "", fmt.Errorf("json: unknown field %q", field)
 }
 
-func decodeStringFieldPatch(field string, raw json.RawMessage) (string, error) {
+// clearableMetadataFields lists the localization attributes App Store Connect
+// models as nullable and that a metadata file may clear with an explicit null.
+var clearableMetadataFields = map[string]struct{}{
+	"subtitle":         {},
+	"privacyPolicyUrl": {},
+	"promotionalText":  {},
+}
+
+func fieldPatchAlreadyDecoded(field string, setFields map[string]string, clearFields map[string]struct{}) bool {
+	if _, exists := setFields[field]; exists {
+		return true
+	}
+	_, cleared := clearFields[field]
+	return cleared
+}
+
+// decodeStringFieldPatch reports whether the field is explicitly cleared with a
+// JSON null. An empty string never clears a field, so template values written by
+// `asc metadata init` cannot wipe remote text.
+func decodeStringFieldPatch(field string, raw json.RawMessage) (string, bool, error) {
+	if isJSONNull(raw) {
+		if _, clearable := clearableMetadataFields[field]; !clearable {
+			return "", false, fmt.Errorf("field %q cannot be null; omit the key to leave the remote value unchanged", field)
+		}
+		return "", true, nil
+	}
+
 	var value string
 	if err := json.Unmarshal(raw, &value); err != nil {
-		return "", err
+		return "", false, err
 	}
 
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "__ASC_DELETE__" {
-		return "", fmt.Errorf("field %q uses unsupported clear token __ASC_DELETE__; omit the key to keep the remote value", field)
+		return "", false, fmt.Errorf("field %q uses unsupported clear token __ASC_DELETE__; omit the key to keep the remote value", field)
 	}
 	if trimmed == "" {
-		return "", fmt.Errorf("field %q cannot be empty; omit the key to leave the remote value unchanged", field)
+		return "", false, fmt.Errorf("field %q cannot be empty; omit the key to leave the remote value unchanged", field)
 	}
-	return trimmed, nil
+	return trimmed, false, nil
+}
+
+func isJSONNull(raw json.RawMessage) bool {
+	return string(bytes.TrimSpace(raw)) == "null"
 }
 
 func applyDefaultAppInfoFallback(
@@ -737,6 +783,7 @@ func cloneAppInfoLocalPatch(patch appInfoLocalPatch) appInfoLocalPatch {
 	return appInfoLocalPatch{
 		localization: patch.localization,
 		setFields:    cloneStringMap(patch.setFields),
+		clearFields:  cloneFieldSet(patch.clearFields),
 	}
 }
 
@@ -745,6 +792,7 @@ func cloneVersionLocalPatch(patch versionLocalPatch) versionLocalPatch {
 		localization:       patch.localization,
 		createLocalization: patch.createLocalization,
 		setFields:          cloneStringMap(patch.setFields),
+		clearFields:        cloneFieldSet(patch.clearFields),
 	}
 }
 
@@ -773,11 +821,43 @@ func cloneStringMap(source map[string]string) map[string]string {
 	return result
 }
 
+func cloneFieldSet(source map[string]struct{}) map[string]struct{} {
+	result := make(map[string]struct{}, len(source))
+	for field := range source {
+		result[field] = struct{}{}
+	}
+	return result
+}
+
+// nullableLocalizationPayload sends set values as strings and cleared fields as
+// JSON null, leaving every other field untouched.
+func nullableLocalizationPayload(setFields map[string]string, clearFields map[string]struct{}) map[string]asc.NullableString {
+	fields := make(map[string]asc.NullableString, len(setFields)+len(clearFields))
+	for field, value := range setFields {
+		fields[field] = asc.NullableString{Value: &value}
+	}
+	for field := range clearFields {
+		fields[field] = asc.NullableString{}
+	}
+	return fields
+}
+
+// desiredLocalizationFields describes the intended end state, where a cleared
+// field is expected to read back as empty.
+func desiredLocalizationFields(setFields map[string]string, clearFields map[string]struct{}) map[string]string {
+	desired := cloneStringMap(setFields)
+	for field := range clearFields {
+		desired[field] = ""
+	}
+	return desired
+}
+
 func appInfoToPlanFields(values map[string]appInfoLocalPatch) map[string]localPlanFields {
 	result := make(map[string]localPlanFields, len(values))
 	for locale, value := range values {
 		result[locale] = localPlanFields{
-			setFields: cloneStringMap(value.setFields),
+			setFields:   cloneStringMap(value.setFields),
+			clearFields: cloneFieldSet(value.clearFields),
 		}
 	}
 	return result
@@ -787,7 +867,8 @@ func versionToPlanFields(values map[string]versionLocalPatch) map[string]localPl
 	result := make(map[string]localPlanFields, len(values))
 	for locale, value := range values {
 		result[locale] = localPlanFields{
-			setFields: cloneStringMap(value.setFields),
+			setFields:   cloneStringMap(value.setFields),
+			clearFields: cloneFieldSet(value.clearFields),
 		}
 	}
 	return result
@@ -902,7 +983,7 @@ func applyAppInfoChanges(
 		}
 
 		remoteFields := cloneStringMap(remoteState.fields)
-		adds, updates := countIntentChanges(appInfoPlanFields, localPatch.setFields, remoteFields)
+		adds, updates := countIntentChanges(appInfoPlanFields, localPatch.setFields, localPatch.clearFields, remoteFields)
 		if adds == 0 && updates == 0 {
 			continue
 		}
@@ -936,22 +1017,27 @@ func applyAppInfoChanges(
 				actions = append(actions, successfulMetadataAction(appInfoDirName, locale, "", action, id))
 			}
 		case remoteExists:
+			desired := desiredLocalizationFields(localPatch.setFields, localPatch.clearFields)
 			id, action, err := runMetadataMutation(
 				ctx, "update",
 				func(requestCtx context.Context) (string, error) {
-					resp, mutationErr := client.UpdateAppInfoLocalizationFields(requestCtx, remoteState.id, cloneStringMap(localPatch.setFields))
+					resp, mutationErr := client.UpdateAppInfoLocalizationNullableFields(
+						requestCtx,
+						remoteState.id,
+						nullableLocalizationPayload(localPatch.setFields, localPatch.clearFields),
+					)
 					if mutationErr != nil {
 						return "", mutationErr
 					}
 					return resp.Data.ID, nil
 				},
 				func(readbackCtx context.Context) (string, bool, error) {
-					return readBackAppInfoLocalization(readbackCtx, client, appInfoID, locale, localPatch.setFields)
+					return readBackAppInfoLocalization(readbackCtx, client, appInfoID, locale, desired)
 				},
 			)
 			if err != nil {
-				actions = append(actions, failedMetadataAction(appInfoDirName, locale, "", "update", remoteState.id, localPatch.setFields, err))
-				applyErrors = append(applyErrors, newMetadataMutationActionError(fmt.Errorf("update app-info localization %s (fields: %s): %w", locale, formatAttemptedFieldMap(appInfoPlanFields, localPatch.setFields), err)))
+				actions = append(actions, failedMetadataAction(appInfoDirName, locale, "", "update", remoteState.id, desired, err))
+				applyErrors = append(applyErrors, newMetadataMutationActionError(fmt.Errorf("update app-info localization %s (fields: %s): %w", locale, formatAttemptedFieldMap(appInfoPlanFields, desired), err)))
 			} else {
 				actions = append(actions, successfulMetadataAction(appInfoDirName, locale, "", action, id))
 			}
@@ -1038,7 +1124,7 @@ func applyVersionChanges(
 		}
 
 		remoteFields := cloneStringMap(remoteState.fields)
-		adds, updates := countIntentChanges(versionPlanFields, localPatch.setFields, remoteFields)
+		adds, updates := countIntentChanges(versionPlanFields, localPatch.setFields, localPatch.clearFields, remoteFields)
 		if adds == 0 && updates == 0 {
 			continue
 		}
@@ -1070,22 +1156,27 @@ func applyVersionChanges(
 				actions = append(actions, successfulMetadataAction(versionDirName, locale, version, action, id))
 			}
 		case remoteExists:
+			desired := desiredLocalizationFields(localPatch.setFields, localPatch.clearFields)
 			id, action, err := runMetadataMutation(
 				ctx, "update",
 				func(requestCtx context.Context) (string, error) {
-					resp, mutationErr := client.UpdateAppStoreVersionLocalizationFields(requestCtx, remoteState.id, cloneStringMap(localPatch.setFields))
+					resp, mutationErr := client.UpdateAppStoreVersionLocalizationNullableFields(
+						requestCtx,
+						remoteState.id,
+						nullableLocalizationPayload(localPatch.setFields, localPatch.clearFields),
+					)
 					if mutationErr != nil {
 						return "", mutationErr
 					}
 					return resp.Data.ID, nil
 				},
 				func(readbackCtx context.Context) (string, bool, error) {
-					return readBackVersionLocalization(readbackCtx, client, versionID, locale, localPatch.setFields)
+					return readBackVersionLocalization(readbackCtx, client, versionID, locale, desired)
 				},
 			)
 			if err != nil {
-				actions = append(actions, failedMetadataAction(versionDirName, locale, version, "update", remoteState.id, localPatch.setFields, err))
-				applyErrors = append(applyErrors, newMetadataMutationActionError(fmt.Errorf("update version localization %s (fields: %s): %w", locale, formatAttemptedFieldMap(versionPlanFields, localPatch.setFields), err)))
+				actions = append(actions, failedMetadataAction(versionDirName, locale, version, "update", remoteState.id, desired, err))
+				applyErrors = append(applyErrors, newMetadataMutationActionError(fmt.Errorf("update version localization %s (fields: %s): %w", locale, formatAttemptedFieldMap(versionPlanFields, desired), err)))
 			} else {
 				actions = append(actions, successfulMetadataAction(versionDirName, locale, version, action, id))
 			}
@@ -1110,14 +1201,18 @@ func canceledAppInfoAction(
 		}
 		return ApplyAction{}, false
 	}
-	adds, updates := countIntentChanges(appInfoPlanFields, localPatch.setFields, remoteState.fields)
+	adds, updates := countIntentChanges(appInfoPlanFields, localPatch.setFields, localPatch.clearFields, remoteState.fields)
 	if adds == 0 && updates == 0 {
 		return ApplyAction{}, false
 	}
 	if !remoteExists {
 		return failedMetadataAction(appInfoDirName, locale, "", "create", "", appInfoFields(localPatch.localization), err), true
 	}
-	return failedMetadataAction(appInfoDirName, locale, "", "update", remoteState.id, localPatch.setFields, err), true
+	return failedMetadataAction(
+		appInfoDirName, locale, "", "update", remoteState.id,
+		desiredLocalizationFields(localPatch.setFields, localPatch.clearFields),
+		err,
+	), true
 }
 
 func canceledVersionAction(
@@ -1136,14 +1231,18 @@ func canceledVersionAction(
 		}
 		return ApplyAction{}, false
 	}
-	adds, updates := countIntentChanges(versionPlanFields, localPatch.setFields, remoteState.fields)
+	adds, updates := countIntentChanges(versionPlanFields, localPatch.setFields, localPatch.clearFields, remoteState.fields)
 	if adds == 0 && updates == 0 {
 		return ApplyAction{}, false
 	}
 	if !remoteExists {
 		return failedMetadataAction(versionDirName, locale, version, "create", "", versionFields(effectiveVersionCreateLocalization(localPatch)), err), true
 	}
-	return failedMetadataAction(versionDirName, locale, version, "update", remoteState.id, localPatch.setFields, err), true
+	return failedMetadataAction(
+		versionDirName, locale, version, "update", remoteState.id,
+		desiredLocalizationFields(localPatch.setFields, localPatch.clearFields),
+		err,
+	), true
 }
 
 func hasTrackedRemoteFields(fields []string, values map[string]string) bool {
@@ -1298,15 +1397,21 @@ func metadataFieldsMatch(remote, desired map[string]string) bool {
 	return true
 }
 
-func countIntentChanges(fields []string, localSet map[string]string, remote map[string]string) (int, int) {
+func countIntentChanges(fields []string, localSet map[string]string, localClears map[string]struct{}, remote map[string]string) (int, int) {
 	adds := 0
 	updates := 0
 	for _, field := range fields {
+		remoteValue, remoteHasField := remote[field]
+		if _, cleared := localClears[field]; cleared {
+			if remoteHasField {
+				updates++
+			}
+			continue
+		}
 		localValue, localHasField := localSet[field]
 		if !localHasField {
 			continue
 		}
-		remoteValue, remoteHasField := remote[field]
 		switch {
 		case !remoteHasField:
 			adds++
@@ -1514,12 +1619,27 @@ func buildScopePlan(
 		for _, field := range fields {
 			localValue, localHasField := localValues.setFields[field]
 			remoteValue, remoteHasField := remoteValues[field]
-			if !localHasField {
+			_, localClearsField := localValues.clearFields[field]
+			if !localHasField && !localClearsField {
 				continue
 			}
 
 			itemKey := buildPlanKey(scope, version, locale, field)
 			switch {
+			case localClearsField:
+				if !remoteHasField {
+					continue
+				}
+				updates = append(updates, PlanItem{
+					Key:     itemKey,
+					Scope:   scope,
+					Locale:  locale,
+					Version: version,
+					Field:   field,
+					Reason:  "field cleared locally",
+					From:    remoteValue,
+				})
+				localeChanged = true
 			case !remoteHasField && localHasField:
 				adds = append(adds, PlanItem{
 					Key:     itemKey,

@@ -28,7 +28,9 @@ func LocalizationsUpdateCommand() *ffcli.Command {
 	// App-info fields
 	name := fs.String("name", "", "App name (app-info)")
 	subtitle := fs.String("subtitle", "", "App subtitle (app-info)")
+	clearSubtitle := fs.Bool("clear-subtitle", false, "Clear the app subtitle (app-info)")
 	privacyPolicyURL := fs.String("privacy-policy-url", "", "Privacy policy URL (app-info)")
+	clearPrivacyPolicyURL := fs.Bool("clear-privacy-policy-url", false, "Clear the privacy policy URL (app-info)")
 	privacyChoicesURL := fs.String("privacy-choices-url", "", "Privacy choices URL (app-info)")
 	privacyPolicyText := fs.String("privacy-policy-text", "", "Privacy policy text (app-info)")
 
@@ -37,6 +39,7 @@ func LocalizationsUpdateCommand() *ffcli.Command {
 	keywords := fs.String("keywords", "", "Search keywords (version)")
 	whatsNew := fs.String("whats-new", "", "What's new text (version)")
 	promotionalText := fs.String("promotional-text", "", "Promotional text (version)")
+	clearPromotionalText := fs.Bool("clear-promotional-text", false, "Clear the promotional text (version)")
 	supportURL := fs.String("support-url", "", "Support URL (version)")
 	marketingURL := fs.String("marketing-url", "", "Marketing URL (version)")
 
@@ -75,6 +78,14 @@ For version localizations (description, keywords, whatsNew):
   asc localizations update --id "LOCALIZATION_ID" --description "Simplified Chinese description"
   asc localizations update --version "VERSION_ID" --locale "zh-Hans" --description "Simplified Chinese description"
 
+To clear optional listing text that App Store Connect models as nullable:
+  asc localizations update --type app-info --id "LOCALIZATION_ID" --clear-subtitle
+  asc localizations update --app "APP_ID" --type app-info --locale "ar-SA" --clear-privacy-policy-url
+  asc localizations update --version "VERSION_ID" --locale "zh-Hans" --clear-promotional-text
+
+Each --clear-* flag rejects the matching set flag, and a clear flag alone is a
+valid update. An empty or omitted set flag never clears a field.
+
 At least one field flag must be provided.`,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -87,6 +98,9 @@ At least one field flag must be provided.`,
 			normalizedType, err := shared.NormalizeLocalizationType(*locType)
 			if err != nil {
 				return fmt.Errorf("localizations update: %w", err)
+			}
+			if err := validateClearFlags(fs, normalizedType); err != nil {
+				return err
 			}
 
 			localeValue := ""
@@ -105,29 +119,32 @@ At least one field flag must be provided.`,
 			switch normalizedType {
 			case shared.LocalizationTypeAppInfo:
 				return updateAppInfoLocalization(ctx, updateAppInfoParams{
-					localizationID:    localizationIDValue,
-					appID:             *appID,
-					appInfoID:         *appInfoID,
-					locale:            localeValue,
-					name:              *name,
-					subtitle:          *subtitle,
-					privacyPolicyURL:  *privacyPolicyURL,
-					privacyChoicesURL: *privacyChoicesURL,
-					privacyPolicyText: *privacyPolicyText,
-					output:            output,
+					localizationID:        localizationIDValue,
+					appID:                 *appID,
+					appInfoID:             *appInfoID,
+					locale:                localeValue,
+					name:                  *name,
+					subtitle:              *subtitle,
+					privacyPolicyURL:      *privacyPolicyURL,
+					privacyChoicesURL:     *privacyChoicesURL,
+					privacyPolicyText:     *privacyPolicyText,
+					clearSubtitle:         *clearSubtitle,
+					clearPrivacyPolicyURL: *clearPrivacyPolicyURL,
+					output:                output,
 				})
 			case shared.LocalizationTypeVersion:
 				return updateVersionLocalization(ctx, updateVersionParams{
-					localizationID:  localizationIDValue,
-					versionID:       *versionID,
-					locale:          localeValue,
-					description:     *description,
-					keywords:        *keywords,
-					whatsNew:        *whatsNew,
-					promotionalText: *promotionalText,
-					supportURL:      *supportURL,
-					marketingURL:    *marketingURL,
-					output:          output,
+					localizationID:       localizationIDValue,
+					versionID:            *versionID,
+					locale:               localeValue,
+					description:          *description,
+					keywords:             *keywords,
+					whatsNew:             *whatsNew,
+					promotionalText:      *promotionalText,
+					supportURL:           *supportURL,
+					marketingURL:         *marketingURL,
+					clearPromotionalText: *clearPromotionalText,
+					output:               output,
 				})
 			default:
 				return fmt.Errorf("localizations update: unsupported type %q", normalizedType)
@@ -136,16 +153,66 @@ At least one field flag must be provided.`,
 	}
 }
 
+// clearFlagRules pairs each clear flag with the set flag it excludes and the
+// localization type that supports it.
+var clearFlagRules = []struct {
+	clearFlag          string
+	setFlag            string
+	supportedLocType   string
+	supportedTypeLabel string
+}{
+	{clearFlag: "clear-subtitle", setFlag: "subtitle", supportedLocType: shared.LocalizationTypeAppInfo, supportedTypeLabel: "app-info"},
+	{clearFlag: "clear-privacy-policy-url", setFlag: "privacy-policy-url", supportedLocType: shared.LocalizationTypeAppInfo, supportedTypeLabel: "app-info"},
+	{clearFlag: "clear-promotional-text", setFlag: "promotional-text", supportedLocType: shared.LocalizationTypeVersion, supportedTypeLabel: "version"},
+}
+
+func validateClearFlags(fs *flag.FlagSet, normalizedType string) error {
+	for _, rule := range clearFlagRules {
+		if !flagProvided(fs, rule.clearFlag) {
+			continue
+		}
+		if normalizedType != rule.supportedLocType {
+			return shared.UsageErrorf(
+				"localizations update: --%s requires --type %s",
+				rule.clearFlag,
+				rule.supportedTypeLabel,
+			)
+		}
+		if flagProvided(fs, rule.setFlag) {
+			return shared.UsageErrorf(
+				"localizations update: --%s and --%s are mutually exclusive",
+				rule.setFlag,
+				rule.clearFlag,
+			)
+		}
+	}
+	return nil
+}
+
+func flagProvided(fs *flag.FlagSet, name string) bool {
+	if fs == nil {
+		return false
+	}
+	provided := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			provided = true
+		}
+	})
+	return provided
+}
+
 type updateAppInfoParams struct {
 	localizationID                                                         string
 	appID, appInfoID, locale                                               string
 	name, subtitle, privacyPolicyURL, privacyChoicesURL, privacyPolicyText string
+	clearSubtitle, clearPrivacyPolicyURL                                   bool
 	output                                                                 shared.OutputFlags
 }
 
 func updateAppInfoLocalization(ctx context.Context, p updateAppInfoParams) error {
 	if !hasAnyAppInfoField(p) {
-		fmt.Fprintln(os.Stderr, "Error: at least one app-info field is required (--name, --subtitle, --privacy-policy-url, --privacy-choices-url, --privacy-policy-text)")
+		fmt.Fprintln(os.Stderr, "Error: at least one app-info field is required (--name, --subtitle, --privacy-policy-url, --privacy-choices-url, --privacy-policy-text, --clear-subtitle, --clear-privacy-policy-url)")
 		return shared.MissingRequiredUsageError("")
 	}
 
@@ -190,15 +257,7 @@ func updateAppInfoLocalization(ctx context.Context, p updateAppInfoParams) error
 		}
 	}
 
-	attrs := asc.AppInfoLocalizationAttributes{
-		Name:              p.name,
-		Subtitle:          p.subtitle,
-		PrivacyPolicyURL:  p.privacyPolicyURL,
-		PrivacyChoicesURL: p.privacyChoicesURL,
-		PrivacyPolicyText: p.privacyPolicyText,
-	}
-
-	resp, err := client.UpdateAppInfoLocalization(requestCtx, localizationID, attrs)
+	resp, err := patchAppInfoLocalization(requestCtx, client, localizationID, p)
 	if err != nil {
 		selector := p.locale
 		if selector == "" {
@@ -216,20 +275,65 @@ func updateAppInfoLocalization(ctx context.Context, p updateAppInfoParams) error
 	return shared.PrintOutput(resp, *p.output.Output, *p.output.Pretty)
 }
 
+// patchAppInfoLocalization sends nullable attributes when the caller clears a
+// field so the request encodes JSON null, and otherwise keeps the omitempty
+// attribute payload used by set-only updates.
+func patchAppInfoLocalization(ctx context.Context, client *asc.Client, localizationID string, p updateAppInfoParams) (*asc.AppInfoLocalizationResponse, error) {
+	if p.clearSubtitle || p.clearPrivacyPolicyURL {
+		fields := setLocalizationFields(map[string]string{
+			"name":              p.name,
+			"subtitle":          p.subtitle,
+			"privacyPolicyUrl":  p.privacyPolicyURL,
+			"privacyChoicesUrl": p.privacyChoicesURL,
+			"privacyPolicyText": p.privacyPolicyText,
+		})
+		if p.clearSubtitle {
+			fields["subtitle"] = asc.NullableString{}
+		}
+		if p.clearPrivacyPolicyURL {
+			fields["privacyPolicyUrl"] = asc.NullableString{}
+		}
+		return client.UpdateAppInfoLocalizationNullableFields(ctx, localizationID, fields)
+	}
+
+	return client.UpdateAppInfoLocalization(ctx, localizationID, asc.AppInfoLocalizationAttributes{
+		Name:              p.name,
+		Subtitle:          p.subtitle,
+		PrivacyPolicyURL:  p.privacyPolicyURL,
+		PrivacyChoicesURL: p.privacyChoicesURL,
+		PrivacyPolicyText: p.privacyPolicyText,
+	})
+}
+
+// setLocalizationFields keeps the omitempty semantics of the attribute structs:
+// only non-empty values reach the request payload.
+func setLocalizationFields(values map[string]string) map[string]asc.NullableString {
+	fields := make(map[string]asc.NullableString, len(values))
+	for field, value := range values {
+		if value == "" {
+			continue
+		}
+		fields[field] = asc.NullableString{Value: &value}
+	}
+	return fields
+}
+
 func hasAnyAppInfoField(p updateAppInfoParams) bool {
-	return p.name != "" || p.subtitle != "" || p.privacyPolicyURL != "" || p.privacyChoicesURL != "" || p.privacyPolicyText != ""
+	return p.name != "" || p.subtitle != "" || p.privacyPolicyURL != "" || p.privacyChoicesURL != "" ||
+		p.privacyPolicyText != "" || p.clearSubtitle || p.clearPrivacyPolicyURL
 }
 
 type updateVersionParams struct {
 	localizationID                                                             string
 	versionID, locale                                                          string
 	description, keywords, whatsNew, promotionalText, supportURL, marketingURL string
+	clearPromotionalText                                                       bool
 	output                                                                     shared.OutputFlags
 }
 
 func updateVersionLocalization(ctx context.Context, p updateVersionParams) error {
 	if !hasAnyVersionField(p) {
-		fmt.Fprintln(os.Stderr, "Error: at least one version field is required (--description, --keywords, --whats-new, --promotional-text, --support-url, --marketing-url)")
+		fmt.Fprintln(os.Stderr, "Error: at least one version field is required (--description, --keywords, --whats-new, --promotional-text, --support-url, --marketing-url, --clear-promotional-text)")
 		return shared.MissingRequiredUsageError("")
 	}
 
@@ -277,7 +381,7 @@ func updateVersionLocalization(ctx context.Context, p updateVersionParams) error
 		}
 	}
 
-	resp, err := client.UpdateAppStoreVersionLocalization(requestCtx, localizationID, attrs)
+	resp, err := patchVersionLocalization(requestCtx, client, localizationID, p, attrs)
 	if err != nil {
 		selector := p.locale
 		if selector == "" {
@@ -295,8 +399,34 @@ func updateVersionLocalization(ctx context.Context, p updateVersionParams) error
 	return shared.PrintOutput(resp, *p.output.Output, *p.output.Pretty)
 }
 
+// patchVersionLocalization sends nullable attributes when the caller clears a
+// field so the request encodes JSON null, and otherwise keeps the omitempty
+// attribute payload used by set-only updates.
+func patchVersionLocalization(
+	ctx context.Context,
+	client *asc.Client,
+	localizationID string,
+	p updateVersionParams,
+	attrs asc.AppStoreVersionLocalizationAttributes,
+) (*asc.AppStoreVersionLocalizationResponse, error) {
+	if p.clearPromotionalText {
+		fields := setLocalizationFields(map[string]string{
+			"description":  p.description,
+			"keywords":     p.keywords,
+			"whatsNew":     p.whatsNew,
+			"supportUrl":   p.supportURL,
+			"marketingUrl": p.marketingURL,
+		})
+		fields["promotionalText"] = asc.NullableString{}
+		return client.UpdateAppStoreVersionLocalizationNullableFields(ctx, localizationID, fields)
+	}
+
+	return client.UpdateAppStoreVersionLocalization(ctx, localizationID, attrs)
+}
+
 func hasAnyVersionField(p updateVersionParams) bool {
-	return p.description != "" || p.keywords != "" || p.whatsNew != "" || p.promotionalText != "" || p.supportURL != "" || p.marketingURL != ""
+	return p.description != "" || p.keywords != "" || p.whatsNew != "" || p.promotionalText != "" ||
+		p.supportURL != "" || p.marketingURL != "" || p.clearPromotionalText
 }
 
 func appInfoAttemptedFields(p updateAppInfoParams) []string {
@@ -304,10 +434,10 @@ func appInfoAttemptedFields(p updateAppInfoParams) []string {
 	if p.name != "" {
 		fields = append(fields, "name")
 	}
-	if p.subtitle != "" {
+	if p.subtitle != "" || p.clearSubtitle {
 		fields = append(fields, "subtitle")
 	}
-	if p.privacyPolicyURL != "" {
+	if p.privacyPolicyURL != "" || p.clearPrivacyPolicyURL {
 		fields = append(fields, "privacyPolicyUrl")
 	}
 	if p.privacyChoicesURL != "" {
@@ -330,7 +460,7 @@ func versionAttemptedFields(p updateVersionParams) []string {
 	if p.marketingURL != "" {
 		fields = append(fields, "marketingUrl")
 	}
-	if p.promotionalText != "" {
+	if p.promotionalText != "" || p.clearPromotionalText {
 		fields = append(fields, "promotionalText")
 	}
 	if p.supportURL != "" {
