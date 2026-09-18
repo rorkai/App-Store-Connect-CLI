@@ -591,18 +591,31 @@ Examples:
 			requestCtx, cancel := shared.ContextWithTimeout(ctx)
 			defer cancel()
 
+			action := asc.BetaGroupTestersActionAdded
 			if err := client.AddBetaTesterToGroups(requestCtx, testerID, groupIDs); err != nil {
-				return fmt.Errorf("beta-testers add-groups: failed to add groups: %w", err)
+				alreadySatisfied, verificationErr := betaTesterGroupConflictAlreadySatisfied(ctx, client, testerID, groupIDs, err)
+				if verificationErr != nil {
+					return fmt.Errorf("beta-testers add-groups: failed to add groups: %w (failed to verify beta group membership: %w)", err, verificationErr)
+				}
+				if !alreadySatisfied {
+					return fmt.Errorf("beta-testers add-groups: failed to add groups: %w", err)
+				}
+				action = asc.BetaGroupTestersActionSkipped
 			}
 
 			result := &asc.BetaTesterGroupsUpdateResult{
 				TesterID: testerID,
 				GroupIDs: groupIDs,
-				Action:   "added",
+				Action:   action,
 			}
 
 			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
 				return err
+			}
+
+			if action == asc.BetaGroupTestersActionSkipped {
+				fmt.Fprintf(os.Stderr, "Skipped: tester %s already in %d group(s)\n", testerID, len(groupIDs))
+				return nil
 			}
 
 			fmt.Fprintf(os.Stderr, "Successfully added tester %s to %d group(s)\n", testerID, len(groupIDs))
