@@ -12,6 +12,12 @@ asc migrate export --app "APP_ID" --version-id "VERSION_ID" --output-dir ./fastl
 asc migrate validate --fastlane-dir ./fastlane
 ```
 
+App Clip default-experience files live under `metadata/<locale>/app_clip/` and `metadata/app_clip/action.txt`. App Preview videos live under `app_previews/<locale>/<device_type>/`. `asc metadata pull` and `asc metadata push` use this same canonical layout.
+
+```bash theme={null}
+asc migrate import --skip-app-clip --skip-previews --dry-run
+```
+
 ## Subcommands
 
 * `import` - Import metadata from fastlane directory structure

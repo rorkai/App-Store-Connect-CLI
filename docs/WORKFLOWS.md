@@ -6,6 +6,8 @@ Use the high-level workflow surfaces deliberately:
 - `asc publish testflight`: canonical high-level TestFlight publish path
 - `asc workflow`: user-defined orchestration for repo-specific pipelines
 
+Canonical metadata round-trips, including App Clip files under `metadata/app_clip/` and preview videos under `app_previews/`, are shared by `asc migrate` and `asc metadata pull` / `asc metadata push`.
+
 `asc workflow` lets you compose existing `asc` commands and shell commands into
 repeatable release pipelines once you know which top-level path you want.
 

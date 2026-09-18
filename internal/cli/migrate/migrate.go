@@ -58,6 +58,8 @@ func MigrateImportCommand() *ffcli.Command {
 	dryRun := fs.Bool("dry-run", false, "Preview changes without uploading")
 	confirm := fs.Bool("confirm", false, "Confirm uploading the imported metadata and screenshots (required unless --dry-run)")
 	skipScreenshots := fs.Bool("skip-screenshots", false, "Skip screenshot discovery and upload")
+	skipAppClip := fs.Bool("skip-app-clip", false, "Skip App Clip metadata and header images")
+	skipPreviews := fs.Bool("skip-previews", false, "Skip App Preview videos")
 	allowExternalMetadata := fs.Bool("allow-external-metadata", false, "Trust Deliverfile metadata paths and symlinks outside the selected Fastlane directory")
 	allowExternalScreenshots := fs.Bool("allow-external-screenshots", false, "Trust Deliverfile screenshot paths and symlinks outside the selected Fastlane directory")
 	allowSymlinkedDeliverfile := fs.Bool("allow-symlinked-deliverfile", false, "Trust and follow a symlinked Deliverfile")
@@ -94,6 +96,15 @@ or conventional metadata/ and screenshots/ directories:
   │   │   ├── demo_password.txt
   │   │   ├── demo_required.txt
   │   │   └── notes.txt
+  │   │   └── app_clip/
+  │   │       ├── subtitle.txt
+  │   │       └── header_image.png
+  │   └── app_clip/action.txt
+  ├── app_previews/
+  │   └── en-US/
+  │       └── iphone_65/
+  │           ├── preview.mp4
+  │           └── preview.poster_frame.txt
   ├── screenshots/
   │   ├── en-US/
   │   │   ├── iphone_65_1.png
@@ -175,6 +186,23 @@ Examples:
 				}
 
 				reviewInfo, err = readFastlaneReviewInformation(metadataDir)
+				if err != nil {
+					return fmt.Errorf("migrate import: %w", err)
+				}
+			}
+			var appClip *AppClipLayout
+			if metadataDir != "" && !*skipAppClip {
+				layout, present, err := readAppClipLayout(metadataDir)
+				if err != nil {
+					return fmt.Errorf("migrate import: %w", err)
+				}
+				if present {
+					appClip = &layout
+				}
+			}
+			var previews []PreviewLayout
+			if fastlaneRoot := strings.TrimSpace(*fastlaneDir); fastlaneRoot != "" && !*skipPreviews {
+				previews, err = readPreviewLayout(fastlaneRoot)
 				if err != nil {
 					return fmt.Errorf("migrate import: %w", err)
 				}
@@ -262,6 +290,8 @@ Examples:
 				AppInfoFiles:         appInfoFiles,
 				ReviewInformation:    reviewInfo,
 				ScreenshotPlan:       screenshotPlan,
+				AppClip:              appClip,
+				Previews:             previews,
 				Skipped:              skipped,
 			}
 
@@ -650,6 +680,8 @@ type MigrateImportResult struct {
 	AppInfoFiles         []LocalizationFilePlan        `json:"appInfoFiles,omitempty"`
 	ReviewInformation    *ReviewInformation            `json:"reviewInformation,omitempty"`
 	ScreenshotPlan       []ScreenshotPlan              `json:"screenshotPlan,omitempty"`
+	AppClip              *AppClipLayout                `json:"appClip,omitempty"`
+	Previews             []PreviewLayout               `json:"previews,omitempty"`
 	Skipped              []SkippedItem                 `json:"skipped,omitempty"`
 	Uploaded             []LocalizationUploadItem      `json:"uploaded,omitempty"`
 	AppInfoUploaded      []LocalizationUploadItem      `json:"appInfoUploaded,omitempty"`
@@ -1118,6 +1150,12 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("migrate validate: %w", err)
 				}
+				if _, _, err := readAppClipLayout(metadataDir); err != nil {
+					return fmt.Errorf("migrate validate: %w", err)
+				}
+			}
+			if _, err := readPreviewLayout(*fastlaneDir); err != nil {
+				return fmt.Errorf("migrate validate: %w", err)
 			}
 
 			// Validate and collect issues
