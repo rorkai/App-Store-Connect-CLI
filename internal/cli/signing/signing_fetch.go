@@ -39,6 +39,9 @@ func SigningFetchCommand() *ffcli.Command {
 	certType := fs.String("certificate-type", "", "Certificate type filter (optional)")
 	outputPath := fs.String("output", "./signing", "Output directory for signing files")
 	createMissing := fs.Bool("create-missing", false, "Create missing profiles")
+	deleteStale := fs.Bool("delete-stale-profiles", false, "Delete expired or invalid profiles for this bundle ID and profile type before matching")
+	confirm := fs.Bool("confirm", false, "Confirm deletion of stale profiles")
+	dryRun := fs.Bool("dry-run", false, "Print the stale-profile deletion plan without deleting")
 	output := shared.BindOutputFlagsWith(fs, "format", shared.DefaultOutputFormat(), "Output format for metadata: json, table, markdown")
 
 	return &ffcli.Command{
@@ -76,6 +79,10 @@ Examples:
 				return shared.MissingRequiredUsageError("--profile-type")
 			}
 			profType = strings.ToUpper(profType)
+			if *deleteStale && !*confirm && !*dryRun {
+				fmt.Fprintln(os.Stderr, "Error: --confirm is required with --delete-stale-profiles")
+				return shared.MissingRequiredUsageError("--confirm")
+			}
 			if err := rejectDeviceWithoutCreateMissing(*deviceIDs, *createMissing); err != nil {
 				return err
 			}
@@ -131,6 +138,16 @@ Examples:
 			}
 			result.BundleIDResource = bundleIDResp.Data.ID
 
+			var deleteErr error
+			if *deleteStale {
+				deleted, err := deleteStaleSigningProfiles(requestCtx, client, bundleIDResp.Data.ID, profType, *dryRun)
+				result.DeletedProfiles = deleted
+				deleteErr = err
+				if *dryRun {
+					fmt.Fprintf(os.Stderr, "Dry run: would delete %d stale profile(s)\n", len(deleted))
+				}
+			}
+
 			profile, certs, created, err := resolveSigningAssets(
 				requestCtx,
 				client,
@@ -179,7 +196,13 @@ Examples:
 				result.CertificateFiles = append(result.CertificateFiles, certPath)
 			}
 
-			return shared.PrintOutput(result, *output.Output, *output.Pretty)
+			if err := shared.PrintOutput(result, *output.Output, *output.Pretty); err != nil {
+				return err
+			}
+			if deleteErr != nil {
+				return fmt.Errorf("signing fetch: stale profile deletion failed: %w", deleteErr)
+			}
+			return nil
 		},
 	}
 }
@@ -452,6 +475,72 @@ func resolveSigningCertificateTypes(profileType, raw string) (string, error) {
 	return strings.Join(certificateTypes, ","), nil
 }
 
+func profileExpirationPassed(value string, now time.Time) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		parsed, err = time.Parse("2006-01-02", value)
+		if err != nil {
+			return false
+		}
+	}
+	return parsed.Before(now)
+}
+
+func profileIsStale(profile asc.Resource[asc.ProfileAttributes], profileType string, now time.Time) bool {
+	if !strings.EqualFold(strings.TrimSpace(profile.Attributes.ProfileType), profileType) {
+		return false
+	}
+	if profile.Attributes.ProfileState == asc.ProfileStateInvalid {
+		return true
+	}
+	return profileExpirationPassed(profile.Attributes.ExpirationDate, now)
+}
+
+func deleteStaleSigningProfiles(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string, dryRun bool) ([]asc.DeletedStaleProfile, error) {
+	var deleted []asc.DeletedStaleProfile
+	var deleteErr error
+	next := ""
+	seen := make(map[string]struct{})
+	now := time.Now()
+	for page := 0; page < 20; page++ {
+		profiles, err := client.GetBundleIDProfiles(ctx, bundleIDResourceID, asc.WithBundleIDProfilesNextURL(next))
+		if err != nil {
+			return deleted, err
+		}
+		for _, profile := range profiles.Data {
+			if !profileIsStale(profile, profileType, now) {
+				continue
+			}
+			item := asc.DeletedStaleProfile{
+				ID:             profile.ID,
+				Name:           profile.Attributes.Name,
+				ExpirationDate: profile.Attributes.ExpirationDate,
+				State:          string(profile.Attributes.ProfileState),
+			}
+			deleted = append(deleted, item)
+			if dryRun {
+				continue
+			}
+			if err := client.DeleteProfile(ctx, profile.ID); err != nil && deleteErr == nil {
+				deleteErr = err
+			}
+		}
+		if strings.TrimSpace(profiles.Links.Next) == "" || profiles.Links.Next == next {
+			break
+		}
+		if _, repeated := seen[profiles.Links.Next]; repeated {
+			break
+		}
+		seen[profiles.Links.Next] = struct{}{}
+		next = profiles.Links.Next
+	}
+	return deleted, deleteErr
+}
+
 func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourceID, profileType string) ([]asc.Resource[asc.ProfileAttributes], error) {
 	var matches []asc.Resource[asc.ProfileAttributes]
 	next := ""
@@ -469,6 +558,9 @@ func findActiveProfiles(ctx context.Context, client *asc.Client, bundleIDResourc
 
 		for _, profile := range profiles.Data {
 			if profile.Attributes.ProfileState != asc.ProfileStateActive {
+				continue
+			}
+			if profileExpirationPassed(profile.Attributes.ExpirationDate, time.Now()) {
 				continue
 			}
 			if strings.EqualFold(strings.TrimSpace(profile.Attributes.ProfileType), profileType) {

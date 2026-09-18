@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/peterbourgon/ff/v3/ffcli"
 
@@ -62,6 +63,8 @@ func ProfilesListCommand() *ffcli.Command {
 	ids := fs.String("id", "", "Filter by profile ID(s), comma-separated")
 	profileType := fs.String("profile-type", "", "Filter by profile type(s), comma-separated")
 	profileState := fs.String("profile-state", "", "Filter by profile state(s): ACTIVE, INVALID (default: ACTIVE,INVALID)")
+	includeStale := fs.Bool("include-stale", false, "Annotate expired profiles in table and markdown output")
+	staleOnly := fs.Bool("stale-only", false, "Show only expired or invalid profiles")
 	sort := fs.String("sort", "", "Sort by: "+strings.Join(profileSortList(), ", "))
 	fields := fs.String("fields", "", "Fields to include: "+strings.Join(profileFieldsList(), ", "))
 	bundleIDFields := fs.String("bundle-id-fields", "", "Bundle ID fields to include: "+strings.Join(profileBundleIDFieldsList(), ", "))
@@ -254,7 +257,7 @@ Examples:
 					return fmt.Errorf("profiles list: %w", err)
 				}
 
-				return shared.PrintOutput(paginated, *output.Output, *output.Pretty)
+				return printProfilesList(paginated, *output.Output, *output.Pretty, *includeStale, *staleOnly)
 			}
 
 			resp, err := client.GetProfiles(requestCtx, opts...)
@@ -262,9 +265,84 @@ Examples:
 				return fmt.Errorf("profiles list: failed to fetch: %w", err)
 			}
 
-			return shared.PrintOutput(resp, *output.Output, *output.Pretty)
+			return printProfilesList(resp, *output.Output, *output.Pretty, *includeStale, *staleOnly)
 		},
 	}
+}
+
+func printProfilesList(resp asc.PaginatedResponse, format string, pretty, includeStale, staleOnly bool) error {
+	profiles, ok := resp.(*asc.ProfilesResponse)
+	if ok && profiles != nil && staleOnly {
+		now := time.Now()
+		filtered := make([]asc.Resource[asc.ProfileAttributes], 0, len(profiles.Data))
+		for _, item := range profiles.Data {
+			if signingProfileIsStale(item, now) {
+				filtered = append(filtered, item)
+			}
+		}
+		profiles.Data = filtered
+	}
+	normalized := shared.NormalizeOutputFormat(format)
+	if includeStale && (normalized == "table" || normalized == "markdown" || normalized == "md") && profiles != nil {
+		return shared.PrintOutputWithRenderers(profiles, format, pretty, func() error {
+			return printProfilesStaleTable(profiles)
+		}, func() error {
+			return printProfilesStaleMarkdown(profiles)
+		})
+	}
+	return shared.PrintOutput(resp, format, pretty)
+}
+
+func signingProfileIsStale(profile asc.Resource[asc.ProfileAttributes], now time.Time) bool {
+	if profile.Attributes.ProfileState == asc.ProfileStateInvalid {
+		return true
+	}
+	return profileExpirationPassed(profile.Attributes.ExpirationDate, now)
+}
+
+func profileExpirationPassed(value string, now time.Time) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		parsed, err = time.Parse("2006-01-02", value)
+		if err != nil {
+			return false
+		}
+	}
+	return parsed.Before(now)
+}
+
+func printProfilesStaleTable(resp *asc.ProfilesResponse) error {
+	shared.RenderSection("Profiles", profileStaleHeaders(), profileStaleRows(resp), false)
+	return nil
+}
+
+func printProfilesStaleMarkdown(resp *asc.ProfilesResponse) error {
+	shared.RenderSection("Profiles", profileStaleHeaders(), profileStaleRows(resp), true)
+	return nil
+}
+
+func profileStaleHeaders() []string {
+	return []string{"ID", "Name", "Type", "State", "Expiration", "Stale"}
+}
+
+func profileStaleRows(resp *asc.ProfilesResponse) [][]string {
+	rows := make([][]string, 0, len(resp.Data))
+	now := time.Now()
+	for _, item := range resp.Data {
+		rows = append(rows, []string{
+			item.ID,
+			item.Attributes.Name,
+			item.Attributes.ProfileType,
+			string(item.Attributes.ProfileState),
+			item.Attributes.ExpirationDate,
+			fmt.Sprintf("%t", signingProfileIsStale(item, now)),
+		})
+	}
+	return rows
 }
 
 func profilesListFlagWasProvided(fs *flag.FlagSet, name string) bool {
