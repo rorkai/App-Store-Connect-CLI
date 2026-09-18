@@ -11,6 +11,7 @@ import (
 	"github.com/peterbourgon/ff/v3/ffcli"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/asc"
+	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/ascterritory"
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/cli/shared"
 )
 
@@ -226,7 +227,7 @@ func IAPPriceSchedulesCreateCommand() *ffcli.Command {
 
 	iapID := fs.String("iap-id", "", "In-app purchase ID, product ID, or exact current name")
 	appID := fs.String("app", "", iapLookupAppUsage)
-	baseTerritory := fs.String("base-territory", "", "Base territory ID (e.g., USA)")
+	baseTerritory := fs.String("base-territory", "", "Base territory: alpha-2, alpha-3, or English country name (e.g., US, USA, United States)")
 	prices := fs.String("prices", "", "Manual prices: PRICE_POINT_ID[:START_DATE[:END_DATE]] entries")
 	tier := fs.Int("tier", 0, "Pricing tier number (use instead of --prices for single-price schedule)")
 	price := fs.String("price", "", "Customer price (use instead of --prices for single-price schedule)")
@@ -256,6 +257,10 @@ Examples:
 			if baseTerritoryValue == "" {
 				fmt.Fprintln(os.Stderr, "Error: --base-territory is required")
 				return shared.MissingRequiredUsageError("--base-territory")
+			}
+			baseTerritoryValue, err := ascterritory.Normalize(baseTerritoryValue)
+			if err != nil {
+				return shared.UsageError(err.Error())
 			}
 
 			tierValue := *tier
