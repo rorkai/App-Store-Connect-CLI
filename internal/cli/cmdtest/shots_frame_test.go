@@ -857,55 +857,21 @@ func TestShotsFrame_MacDeviceSubtitleOnly(t *testing.T) {
 	}
 }
 
-func TestShotsFrame_CanvasFlagsRejectNonCanvasDevice(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{
-			name: "title on iphone",
-			args: []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--title", "Hello"},
-		},
-		{
-			name: "bg-color on iphone",
-			args: []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--bg-color", "#fff"},
-		},
-		{
-			name: "title-color on iphone",
-			args: []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--title-color", "#000"},
-		},
-		{
-			name: "subtitle on iphone",
-			args: []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--subtitle", "Tagline"},
-		},
-		{
-			name: "subtitle-color on iphone",
-			args: []string{"screenshots", "frame", "--input", "/tmp/raw.png", "--subtitle-color", "#333"},
-		},
-	}
+func TestShotsFrame_BGColorRejectsNonCanvasDevice(t *testing.T) {
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			root := RootCommand("1.2.3")
-			root.FlagSet.SetOutput(io.Discard)
-
-			stdout, stderr := captureOutput(t, func() {
-				if err := root.Parse(test.args); err != nil {
-					t.Fatalf("parse error: %v", err)
-				}
-				err := root.Run(context.Background())
-				if !errors.Is(err, flag.ErrHelp) {
-					t.Fatalf("expected ErrHelp, got %v", err)
-				}
-			})
-
-			if stdout != "" {
-				t.Fatalf("expected empty stdout, got %q", stdout)
-			}
-			if !strings.Contains(stderr, "only apply to canvas devices") {
-				t.Fatalf("expected canvas device error, got %q", stderr)
-			}
-		})
+	_, stderr := captureOutput(t, func() {
+		if err := root.Parse([]string{"screenshots", "frame", "--input", "/tmp/raw.png", "--bg-color", "#fff"}); err != nil {
+			t.Fatalf("parse error: %v", err)
+		}
+		err := root.Run(context.Background())
+		if !errors.Is(err, flag.ErrHelp) {
+			t.Fatalf("expected ErrHelp, got %v", err)
+		}
+	})
+	if !strings.Contains(stderr, "--bg-color only applies to canvas devices") {
+		t.Fatalf("expected bg-color error, got %q", stderr)
 	}
 }
 
@@ -1248,6 +1214,48 @@ func frameResultWithWrittenPNG(t *testing.T, outputPath string, result screensho
 		result.Height = height
 	}
 	return &result
+}
+
+func TestShotsFrame_ResumeSkipsUnchangedInput(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	rawPath := filepath.Join(dir, "raw.png")
+	writeFramePNG(t, rawPath, makeRawImage(20, 40))
+	outputDir := filepath.Join(dir, "framed")
+	calls := 0
+	installMockFrame(t, func(_ context.Context, req screenshots.FrameRequest) (*screenshots.FrameResult, error) {
+		calls++
+		if req.Canvas == nil || req.Canvas.Title != "Home" {
+			t.Fatalf("canvas = %+v", req.Canvas)
+		}
+		return frameResultWithWrittenPNG(t, req.OutputPath, screenshots.FrameResult{
+			Path:   req.OutputPath,
+			Device: req.Device,
+		}), nil
+	})
+
+	run := func() {
+		root := RootCommand("1.2.3")
+		root.FlagSet.SetOutput(io.Discard)
+		if err := root.Parse([]string{
+			"screenshots", "frame",
+			"--input", rawPath,
+			"--output-dir", outputDir,
+			"--title", "Home",
+			"--resume",
+			"--output", "json",
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err := root.Run(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run()
+	run()
+	if calls != 1 {
+		t.Fatalf("frame calls = %d, want 1 on resume", calls)
+	}
 }
 
 func writeFramePNG(t *testing.T, path string, img image.Image) {
