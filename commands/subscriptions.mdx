@@ -828,11 +828,13 @@ asc subscriptions pricing monthly-commitment enable \
   --subscription-id "SUB_ID" \
   --price "9.99" \
   --price-territory "Norway" \
-  --territories "Norway,Germany,France"
+  --territories "Norway,Germany,France" \
+  --confirm
 
 asc subscriptions pricing monthly-commitment disable \
   --subscription-id "SUB_ID" \
-  --territories "Norway"
+  --territories "Norway" \
+  --confirm
 
 asc subscriptions pricing monthly-commitment list \
   --subscription-id "SUB_ID"
@@ -850,6 +852,8 @@ asc subscriptions pricing monthly-commitment list \
 
 Current CLI behavior:
 
+* Requires `--confirm` on `enable` and `disable` because both change billing
+  availability; the check runs after flag validation and before any API call.
 * Validates that the subscription is `ONE_YEAR` for `enable`.
 * Treats `--price` as the monthly customer price and checks the 12-payment total
   against the upfront annual price: total must be `>= upfront` and `<= 1.5x
