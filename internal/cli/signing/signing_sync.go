@@ -140,6 +140,8 @@ func syncPushCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("push", flag.ExitOnError)
 
 	bundleID := fs.String("bundle-id", "", "Bundle identifier (required unless --targets-file is used)")
+	matchExtensions := fs.Bool("match-extensions", false, "Also include registered bundle IDs that extend --bundle-id")
+	strictMatch := fs.Bool("strict-match-identifier", false, "Include only the exact --bundle-id")
 	targetsFile := fs.String("targets-file", "", "Command-root-relative JSON file containing 1-32 bundle targets (mutually exclusive with --bundle-id)")
 	profileType := fs.String("profile-type", "", "Profile type: IOS_APP_STORE, IOS_APP_DEVELOPMENT, etc. (required)")
 	repoURL := fs.String("repo", "", "Git repo URL for encrypted storage (required)")
@@ -176,6 +178,9 @@ func syncPushCommand() *ffcli.Command {
 			}
 			if bundle != "" && hasTargetsPath {
 				return shared.UsageError("--bundle-id and --targets-file are mutually exclusive")
+			}
+			if *matchExtensions && *strictMatch {
+				return shared.UsageError("--match-extensions and --strict-match-identifier are mutually exclusive")
 			}
 			var targetBundles []string
 			if hasTargetsPath {
@@ -252,8 +257,20 @@ func syncPushCommand() *ffcli.Command {
 			if err != nil {
 				return fmt.Errorf("signing sync push: %w", err)
 			}
+			if *matchExtensions && !hasTargetsPath {
+				requestCtx, cancel := shared.ContextWithTimeout(ctx)
+				expanded, expandErr := listSigningBundleIDs(requestCtx, client, bundle, true)
+				cancel()
+				if expandErr != nil {
+					return fmt.Errorf("signing sync push: %w", expandErr)
+				}
+				targetBundles = make([]string, 0, len(expanded))
+				for _, item := range expanded {
+					targetBundles = append(targetBundles, strings.TrimSpace(item.Attributes.Identifier))
+				}
+			}
 
-			if hasTargetsPath {
+			if hasTargetsPath || len(targetBundles) > 1 {
 				// The batch spans one lookup, asset resolution, and optional
 				// profile creation per target plus the Git clone and push, so it
 				// receives the command context and applies its own per-request

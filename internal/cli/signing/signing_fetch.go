@@ -39,6 +39,8 @@ func SigningFetchCommand() *ffcli.Command {
 	certType := fs.String("certificate-type", "", "Certificate type filter (optional)")
 	outputPath := fs.String("output", "./signing", "Output directory for signing files")
 	createMissing := fs.Bool("create-missing", false, "Create missing profiles")
+	matchExtensions := fs.Bool("match-extensions", false, "Also fetch profiles for registered bundle IDs that extend this identifier")
+	strictMatch := fs.Bool("strict-match-identifier", false, "Fetch only the exact bundle identifier")
 	output := shared.BindOutputFlagsWith(fs, "format", shared.DefaultOutputFormat(), "Output format for metadata: json, table, markdown")
 
 	return &ffcli.Command{
@@ -76,6 +78,9 @@ Examples:
 				return shared.MissingRequiredUsageError("--profile-type")
 			}
 			profType = strings.ToUpper(profType)
+			if *matchExtensions && *strictMatch {
+				return shared.UsageError("--match-extensions and --strict-match-identifier are mutually exclusive")
+			}
 			if err := rejectDeviceWithoutCreateMissing(*deviceIDs, *createMissing); err != nil {
 				return err
 			}
@@ -125,10 +130,14 @@ Examples:
 				OutputPath:  outputDir,
 			}
 
-			bundleIDResp, err := findBundleID(requestCtx, client, bundle)
+			bundleIDs, err := listSigningBundleIDs(requestCtx, client, bundle, *matchExtensions && !*strictMatch)
 			if err != nil {
 				return fmt.Errorf("signing fetch: %w", err)
 			}
+			if len(bundleIDs) > 1 {
+				return fetchMatchedSigningBundles(requestCtx, client, bundleIDs, profType, outputDir, *certType, shared.SplitCSV(*deviceIDs), *createMissing, *output.Output, *output.Pretty, preflightOutput)
+			}
+			bundleIDResp := &asc.BundleIDResponse{Data: bundleIDs[0]}
 			result.BundleIDResource = bundleIDResp.Data.ID
 
 			profile, certs, created, err := resolveSigningAssets(
@@ -184,6 +193,114 @@ Examples:
 	}
 }
 
+type signingFetchBatchResult struct {
+	MatchedBundleIDs []string                 `json:"matchedBundleIds"`
+	Results          []asc.SigningFetchResult `json:"results"`
+	Failures         []string                 `json:"failures,omitempty"`
+}
+
+func fetchMatchedSigningBundles(
+	ctx context.Context,
+	client *asc.Client,
+	bundleIDs []asc.Resource[asc.BundleIDAttributes],
+	profType, outputDir, certType string,
+	deviceIDs []string,
+	createMissing bool,
+	outputFormat string,
+	pretty bool,
+	preflightOutput func(profileName, profileID string, certificates []asc.Resource[asc.CertificateAttributes]) error,
+) error {
+	batch := signingFetchBatchResult{
+		MatchedBundleIDs: make([]string, 0, len(bundleIDs)),
+		Results:          make([]asc.SigningFetchResult, 0, len(bundleIDs)),
+	}
+	var failed bool
+	for _, item := range bundleIDs {
+		identifier := strings.TrimSpace(item.Attributes.Identifier)
+		batch.MatchedBundleIDs = append(batch.MatchedBundleIDs, identifier)
+		profile, certs, created, err := resolveSigningAssets(ctx, client, signingAssetsOptions{
+			BundleIDResourceID: item.ID,
+			BundleIdentifier:   identifier,
+			ProfileType:        profType,
+			CertificateType:    certType,
+			DeviceIDs:          deviceIDs,
+			CreateMissing:      createMissing,
+			BeforeCreate: func(plan profileCreatePlan) error {
+				return preflightOutput(plan.ProfileName, "", plan.Certificates)
+			},
+		})
+		if err != nil {
+			failed = true
+			batch.Failures = append(batch.Failures, fmt.Sprintf("%s: %v", identifier, err))
+			continue
+		}
+		result := asc.SigningFetchResult{
+			BundleID:         identifier,
+			BundleIDResource: item.ID,
+			ProfileType:      profType,
+			ProfileID:        profile.Data.ID,
+			CertificateIDs:   extractIDs(certs.Data),
+			OutputPath:       outputDir,
+			Created:          created,
+		}
+		if err := preflightOutput(profile.Data.Attributes.Name, profile.Data.ID, certs.Data); err != nil {
+			failed = true
+			batch.Failures = append(batch.Failures, fmt.Sprintf("%s: %v", identifier, err))
+			continue
+		}
+		profilePath := profileOutputPath(outputDir, profile.Data.Attributes.Name, profile.Data.ID, profType)
+		profileContent, err := decodeBase64Content("profile", profile.Data.Attributes.ProfileContent)
+		if err != nil {
+			failed = true
+			batch.Failures = append(batch.Failures, fmt.Sprintf("%s: %v", identifier, err))
+			continue
+		}
+		if err := shared.WriteProfileFile(profilePath, profileContent); err != nil {
+			failed = true
+			batch.Failures = append(batch.Failures, fmt.Sprintf("%s: %v", identifier, err))
+			continue
+		}
+		result.ProfileFile = profilePath
+		written := []string{profilePath}
+		targetFailed := false
+		for _, cert := range certs.Data {
+			certPath := certificateOutputPath(outputDir, cert)
+			certContent, err := decodeBase64Content("certificate", cert.Attributes.CertificateContent)
+			if err != nil {
+				targetFailed = true
+				batch.Failures = append(batch.Failures, fmt.Sprintf("%s: %v", identifier, err))
+				break
+			}
+			if err := writeBinaryFile(certPath, certContent); err != nil {
+				targetFailed = true
+				batch.Failures = append(batch.Failures, fmt.Sprintf("%s: %v", identifier, err))
+				break
+			}
+			written = append(written, certPath)
+			result.CertificateFiles = append(result.CertificateFiles, certPath)
+		}
+		if targetFailed {
+			failed = true
+			removeSigningFiles(written)
+			continue
+		}
+		batch.Results = append(batch.Results, result)
+	}
+	if err := shared.PrintOutput(&batch, outputFormat, pretty); err != nil {
+		return err
+	}
+	if failed {
+		return fmt.Errorf("signing fetch: %d bundle ID(s) failed", len(batch.Failures))
+	}
+	return nil
+}
+
+func removeSigningFiles(paths []string) {
+	for _, path := range paths {
+		_ = os.Remove(path)
+	}
+}
+
 func validateBundleIDMatchesApp(ctx context.Context, client *asc.Client, appID, bundleID string) error {
 	app, err := client.GetApp(ctx, appID)
 	if err != nil {
@@ -193,6 +310,60 @@ func validateBundleIDMatchesApp(ctx context.Context, client *asc.Client, appID, 
 		return fmt.Errorf("bundle ID %s does not match app %s (expected %s)", bundleID, appID, app.Data.Attributes.BundleID)
 	}
 	return nil
+}
+
+func bundleIdentifierMatches(parent, candidate string, matchExtensions bool) bool {
+	parent = strings.TrimSpace(parent)
+	candidate = strings.TrimSpace(candidate)
+	if parent == "" || candidate == "" {
+		return false
+	}
+	if strings.EqualFold(parent, candidate) {
+		return true
+	}
+	if !matchExtensions || strings.Contains(parent, "*") {
+		return false
+	}
+	return strings.HasPrefix(strings.ToLower(candidate), strings.ToLower(parent)+".")
+}
+
+func listSigningBundleIDs(ctx context.Context, client *asc.Client, identifier string, matchExtensions bool) ([]asc.Resource[asc.BundleIDAttributes], error) {
+	exact, err := findBundleID(ctx, client, identifier)
+	if err != nil {
+		return nil, err
+	}
+	matched := []asc.Resource[asc.BundleIDAttributes]{exact.Data}
+	if !matchExtensions || strings.Contains(identifier, "*") {
+		return matched, nil
+	}
+
+	next := ""
+	seen := map[string]struct{}{exact.Data.ID: {}}
+	for page := 0; page < 20; page++ {
+		opts := []asc.BundleIDsOption{asc.WithBundleIDsLimit(200)}
+		if next != "" {
+			opts = []asc.BundleIDsOption{asc.WithBundleIDsNextURL(next)}
+		}
+		resp, err := client.GetBundleIDs(ctx, opts...)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range resp.Data {
+			if _, exists := seen[item.ID]; exists {
+				continue
+			}
+			if !bundleIdentifierMatches(identifier, item.Attributes.Identifier, true) {
+				continue
+			}
+			seen[item.ID] = struct{}{}
+			matched = append(matched, item)
+		}
+		if resp.Links.Next == "" {
+			break
+		}
+		next = resp.Links.Next
+	}
+	return matched, nil
 }
 
 func findBundleID(ctx context.Context, client *asc.Client, identifier string) (*asc.BundleIDResponse, error) {
