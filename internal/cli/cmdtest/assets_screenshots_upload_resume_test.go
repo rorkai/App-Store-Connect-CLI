@@ -323,7 +323,6 @@ func TestRunScreenshotsUploadFanoutPrintsPartialResultsOnLocaleFailure(t *testin
 		http.DefaultTransport = originalTransport
 	})
 
-	createCount := 0
 	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		switch {
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appStoreVersions/version-1":
@@ -343,16 +342,37 @@ func TestRunScreenshotsUploadFanoutPrintsPartialResultsOnLocaleFailure(t *testin
 		case req.Method == http.MethodGet && req.URL.Path == "/v1/appScreenshotSets/set-fr/appScreenshots":
 			return screenshotsUploadJSONResponse(http.StatusOK, `{"data":[],"links":{}}`)
 		case req.Method == http.MethodPost && req.URL.Path == "/v1/appScreenshots":
-			createCount++
-			switch createCount {
-			case 1:
+			var payload struct {
+				Data struct {
+					Type       string `json:"type"`
+					Attributes struct {
+						FileName string `json:"fileName"`
+						FileSize int64  `json:"fileSize"`
+					} `json:"attributes"`
+					Relationships struct {
+						AppScreenshotSet struct {
+							Data struct {
+								ID string `json:"id"`
+							} `json:"data"`
+						} `json:"appScreenshotSet"`
+					} `json:"relationships"`
+				} `json:"data"`
+			}
+			if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+				t.Fatalf("decode screenshot create request: %v", err)
+			}
+			if payload.Data.Type != "appScreenshots" {
+				t.Fatalf("expected screenshot create type appScreenshots, got %q", payload.Data.Type)
+			}
+			switch {
+			case payload.Data.Relationships.AppScreenshotSet.Data.ID == "set-en" && payload.Data.Attributes.FileName == "01-home.png" && payload.Data.Attributes.FileSize == int64(enSize):
 				return screenshotsUploadJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-en-1","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-en-1","length":%d,"offset":0}]}}}`, enSize))
-			case 2:
+			case payload.Data.Relationships.AppScreenshotSet.Data.ID == "set-fr" && payload.Data.Attributes.FileName == "01-home.png" && payload.Data.Attributes.FileSize == int64(frFirstSize):
 				return screenshotsUploadJSONResponse(http.StatusCreated, fmt.Sprintf(`{"data":{"type":"appScreenshots","id":"new-fr-1","attributes":{"uploadOperations":[{"method":"PUT","url":"https://upload.example/new-fr-1","length":%d,"offset":0}]}}}`, frFirstSize))
-			case 3:
+			case payload.Data.Relationships.AppScreenshotSet.Data.ID == "set-fr" && payload.Data.Attributes.FileName == "02-settings.png" && payload.Data.Attributes.FileSize > 0:
 				return screenshotsUploadJSONResponse(http.StatusInternalServerError, `{"errors":[{"status":"500","code":"INTERNAL_ERROR","detail":"upload create failed"}]}`)
 			default:
-				t.Fatalf("unexpected extra screenshot create: %d", createCount)
+				t.Fatalf("unexpected screenshot create request: %#v", payload.Data)
 				return nil, nil
 			}
 		case req.Method == http.MethodPut && req.URL.Host == "upload.example":
