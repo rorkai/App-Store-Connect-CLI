@@ -39,3 +39,13 @@ func TestBezelConfigIncludesTitleOverlay(t *testing.T) {
 		t.Fatalf("phone frame config missing overlay text:\n%s", text)
 	}
 }
+
+func TestBezelSubtitleOnlyUsesSoloPosition(t *testing.T) {
+	items := bezelContentItems("/tmp/input.png", 1, &CanvasOptions{Subtitle: "Fast"})
+	if len(items) < 2 {
+		t.Fatalf("bezel content items = %#v", items)
+	}
+	if items[0].Content != "Fast" || items[0].Position[1] != canvasSubtitleSoloY {
+		t.Fatalf("subtitle-only item = %#v, want Y %q", items[0], canvasSubtitleSoloY)
+	}
+}

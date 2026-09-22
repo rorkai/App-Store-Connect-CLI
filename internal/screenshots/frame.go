@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -170,10 +171,14 @@ func bezelContentItems(absInputPath string, scale float64, opts *CanvasOptions) 
 		if color == "" {
 			color = canvasDefaultSubtitleColor
 		}
+		subtitleY := canvasSubtitleY
+		if opts.Title == "" {
+			subtitleY = canvasSubtitleSoloY
+		}
 		items = append(items, koubouDefaultContentItem{
 			Type:      "text",
 			Content:   opts.Subtitle,
-			Position:  [2]string{"50%", canvasSubtitleY},
+			Position:  [2]string{"50%", subtitleY},
 			Size:      canvasSubtitleFontSize,
 			Color:     color,
 			Alignment: "center",
@@ -254,6 +259,50 @@ func (input *matrixPreparedFrameInput) close() error {
 	}
 	cleanupErr = errors.Join(cleanupErr, input.root.Close())
 	return cleanupErr
+}
+
+// FrameInputSnapshot is a bounded, regular-file copy of a frame input. The
+// copy stays protected until Close, so hashing it and handing its path to an
+// external renderer describe the same bytes.
+type FrameInputSnapshot struct {
+	input     *matrixPreparedFrameInput
+	closeOnce sync.Once
+	closeErr  error
+}
+
+// OpenFrameInputSnapshot validates and copies inputPath into a private,
+// protected staging file.
+func OpenFrameInputSnapshot(ctx context.Context, inputPath string) (*FrameInputSnapshot, error) {
+	input, err := prepareMatrixFrameInput(ctx, inputPath)
+	if err != nil {
+		return nil, err
+	}
+	return &FrameInputSnapshot{input: input}, nil
+}
+
+// Path returns the protected path suitable for a renderer invocation.
+func (snapshot *FrameInputSnapshot) Path() string {
+	if snapshot == nil || snapshot.input == nil {
+		return ""
+	}
+	return snapshot.input.path
+}
+
+// SourceHash returns the SHA-256 digest of the exact bytes in Path.
+func (snapshot *FrameInputSnapshot) SourceHash() string {
+	if snapshot == nil || snapshot.input == nil {
+		return ""
+	}
+	return hex.EncodeToString(snapshot.input.digest[:])
+}
+
+// Close releases the protected staging file and its private directory.
+func (snapshot *FrameInputSnapshot) Close() error {
+	if snapshot == nil || snapshot.input == nil {
+		return nil
+	}
+	snapshot.closeOnce.Do(func() { snapshot.closeErr = snapshot.input.close() })
+	return snapshot.closeErr
 }
 
 func (input *matrixPreparedFrameInput) verify(ctx context.Context) error {

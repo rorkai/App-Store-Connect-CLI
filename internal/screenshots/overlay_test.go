@@ -1,8 +1,11 @@
 package screenshots
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
@@ -100,6 +103,42 @@ func TestResumeSkipRequiresMatchingHashAndOutput(t *testing.T) {
 	}
 }
 
+func TestResumeFingerprintInvalidatesLegacySchema(t *testing.T) {
+	dir := t.TempDir()
+	output := filepath.Join(dir, "out.png")
+	if err := os.WriteFile(output, []byte("framed"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fingerprintInput := FrameResumeFingerprint{
+		SourceHash: "source",
+		Device:     "iphone-air",
+		Subtitle:   "keyword",
+	}
+	legacySum := sha256.Sum256([]byte(strings.Join([]string{
+		"1",
+		pinnedKoubouVersion,
+		fingerprintInput.SourceHash,
+		fingerprintInput.Device,
+		fingerprintInput.Title,
+		fingerprintInput.Subtitle,
+		fingerprintInput.TitleColor,
+		fingerprintInput.SubtitleColor,
+		fingerprintInput.Background,
+		fingerprintInput.OverlayHash,
+	}, "\x00")))
+	legacyFingerprint := hex.EncodeToString(legacySum[:])
+	currentFingerprint := FingerprintFrameResume(fingerprintInput)
+	if currentFingerprint == legacyFingerprint {
+		t.Fatal("resume fingerprint did not change after schema bump")
+	}
+	state := FrameResumeState{Files: map[string]FrameResumeEntry{
+		output: {Fingerprint: legacyFingerprint, Result: FrameResult{Path: output}},
+	}}
+	if _, ok := ResumeEntry(state, output, currentFingerprint); ok {
+		t.Fatal("legacy resume state must not be reused after fingerprint schema change")
+	}
+}
+
 func TestSaveFrameResumeStateRejectsSymlink(t *testing.T) {
 	dir := t.TempDir()
 	outside := filepath.Join(t.TempDir(), "outside.json")
@@ -130,5 +169,74 @@ func TestSaveFrameResumeStateRejectsSymlink(t *testing.T) {
 	}
 	if string(data) != "secret" {
 		t.Fatalf("symlink write changed outside file to %q", data)
+	}
+}
+
+func TestHashFileRejectsOversizedInput(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "oversized.png")
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Truncate(maxMatrixArtifactBytes + 1); err != nil {
+		_ = file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := HashFile(path); err == nil {
+		t.Fatal("expected oversized input to be rejected")
+	}
+}
+
+func TestResumeEntryRejectsSymlinkOutput(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "target.png")
+	if err := os.WriteFile(target, []byte("framed"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "link.png")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	entry := FrameResumeEntry{Fingerprint: "fp", Result: FrameResult{Path: link}}
+	state := FrameResumeState{Files: map[string]FrameResumeEntry{link: entry}}
+	if _, ok := ResumeEntry(state, link, "fp"); ok {
+		t.Fatal("symlinked output must not be resumable")
+	}
+	if _, err := os.Lstat(link); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOpenFrameInputSnapshotPinsBytes(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "input.png")
+	writeFrameTestPNG(t, inputPath, makeFrameTestImage(20, 40))
+	original, err := os.ReadFile(inputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := OpenFrameInputSnapshot(t.Context(), inputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := snapshot.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	if snapshot.SourceHash() == "" || snapshot.Path() == "" {
+		t.Fatal("snapshot did not expose a path and digest")
+	}
+	writeFrameTestPNG(t, inputPath, makeFrameTestImage(30, 50))
+	pinned, err := os.ReadFile(snapshot.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(pinned) != string(original) {
+		t.Fatal("snapshot bytes changed after source replacement")
 	}
 }

@@ -1,6 +1,7 @@
 package cmdtest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -1255,6 +1256,54 @@ func TestShotsFrame_ResumeSkipsUnchangedInput(t *testing.T) {
 	run()
 	if calls != 1 {
 		t.Fatalf("frame calls = %d, want 1 on resume", calls)
+	}
+}
+
+func TestShotsFrame_ResumeUsesPinnedInput(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	rawPath := filepath.Join(dir, "raw.png")
+	writeFramePNG(t, rawPath, makeRawImage(20, 40))
+	original, err := os.ReadFile(rawPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outputPath := filepath.Join(dir, "framed.png")
+	installMockFrame(t, func(_ context.Context, req screenshots.FrameRequest) (*screenshots.FrameResult, error) {
+		pinned, err := os.ReadFile(req.InputPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(pinned, original) {
+			t.Fatal("renderer received bytes different from the fingerprinted input")
+		}
+		writeFramePNG(t, rawPath, makeRawImage(30, 50))
+		stillPinned, err := os.ReadFile(req.InputPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(stillPinned, original) {
+			t.Fatal("pinned renderer input changed after the source was replaced")
+		}
+		return frameResultWithWrittenPNG(t, req.OutputPath, screenshots.FrameResult{
+			Path:   req.OutputPath,
+			Device: req.Device,
+		}), nil
+	})
+
+	root := RootCommand("1.2.3")
+	root.FlagSet.SetOutput(io.Discard)
+	if err := root.Parse([]string{
+		"screenshots", "frame",
+		"--input", rawPath,
+		"--output-path", outputPath,
+		"--resume",
+		"--output", "json",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := root.Run(context.Background()); err != nil {
+		t.Fatal(err)
 	}
 }
 

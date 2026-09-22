@@ -27,12 +27,20 @@ const FrameResumeStateRel = ".asc/reports/screenshots-frame/state.json"
 
 // HashFile returns the SHA-256 hex digest of path.
 func HashFile(path string) (string, error) {
-	data, err := os.ReadFile(path)
+	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:]), nil
+	root, err := rootfs.New(filepath.Dir(absolute))
+	if err != nil {
+		return "", err
+	}
+	defer root.Close()
+	artifact, err := inspectMatrixArtifactWithContext(context.Background(), root, root.Path(), filepath.Join(root.Path(), filepath.Base(absolute)))
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(artifact.digest[:]), nil
 }
 
 // LoadFrameResumeState reads state through root, returning an empty map when
@@ -88,7 +96,7 @@ type FrameResumeFingerprint struct {
 const (
 	// frameResumeSchema changes when framed output generation changes without
 	// a corresponding Koubou pin bump.
-	frameResumeSchema = "1"
+	frameResumeSchema = "2"
 )
 
 func FingerprintFrameResume(fp FrameResumeFingerprint) string {
@@ -130,8 +138,8 @@ func ResumeEntry(state FrameResumeState, outputPath, fingerprint string) (FrameR
 	if !ok || entry.Fingerprint != fingerprint {
 		return FrameResult{}, false
 	}
-	info, err := os.Stat(outputPath)
-	if err != nil || info.IsDir() {
+	info, err := os.Lstat(outputPath)
+	if err != nil || !info.Mode().IsRegular() {
 		return FrameResult{}, false
 	}
 	result := entry.Result

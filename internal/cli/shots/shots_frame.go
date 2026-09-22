@@ -2,6 +2,7 @@ package shots
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -292,28 +293,31 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 				defer root.Close()
 				var framed *screenshots.FrameResult
 				err = screenshots.WithFrameResumeLock(timeoutCtx, root, func() error {
-					hash, hashErr := screenshots.HashFile(absInput)
-					if hashErr != nil {
-						return fmt.Errorf("screenshots frame: hash input: %w", hashErr)
+					snapshot, snapshotErr := screenshots.OpenFrameInputSnapshot(timeoutCtx, absInput)
+					if snapshotErr != nil {
+						return fmt.Errorf("screenshots frame: snapshot input: %w", snapshotErr)
 					}
-					fingerprint := frameResumeFingerprint(hash, string(deviceVal), overlayHash, canvasOpts)
+					finishSnapshot := func(primary error) error {
+						return errors.Join(primary, snapshot.Close())
+					}
+					fingerprint := frameResumeFingerprint(snapshot.SourceHash(), string(deviceVal), overlayHash, canvasOpts)
 					state, loadErr := screenshots.LoadFrameResumeState(root, screenshots.FrameResumeStateRel)
 					if loadErr != nil {
-						return fmt.Errorf("screenshots frame: read resume state: %w", loadErr)
+						return finishSnapshot(fmt.Errorf("screenshots frame: read resume state: %w", loadErr))
 					}
 					if result, ok := screenshots.ResumeEntry(state, outPath, fingerprint); ok {
 						framed = &result
-						return nil
+						return finishSnapshot(nil)
 					}
 					result, frameErr := shotsFrameFn(timeoutCtx, screenshots.FrameRequest{
-						InputPath:  absInput,
+						InputPath:  snapshot.Path(),
 						OutputPath: outPath,
 						Device:     string(deviceVal),
 						ConfigPath: configVal,
 						Canvas:     canvasOpts,
 					})
 					if frameErr != nil {
-						return fmt.Errorf("screenshots frame: %w", frameErr)
+						return finishSnapshot(fmt.Errorf("screenshots frame: %w", frameErr))
 					}
 					stored := *result
 					stored.Skipped = false
@@ -322,10 +326,10 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 						Result:      stored,
 					}
 					if saveErr := screenshots.SaveFrameResumeState(root, screenshots.FrameResumeStateRel, state); saveErr != nil {
-						return fmt.Errorf("screenshots frame: write resume state: %w", saveErr)
+						return finishSnapshot(fmt.Errorf("screenshots frame: write resume state: %w", saveErr))
 					}
 					framed = result
-					return nil
+					return finishSnapshot(nil)
 				})
 				if err != nil {
 					return err
