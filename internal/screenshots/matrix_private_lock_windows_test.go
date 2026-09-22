@@ -27,6 +27,19 @@ func TestRetainedDACLHandleRejectsPreopenedDeleteHandle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UTF16PtrFromString() error: %v", err)
 	}
+	exactHandle, err := windows.CreateFile(
+		name,
+		windows.GENERIC_READ,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
+		nil,
+		windows.OPEN_EXISTING,
+		windows.FILE_ATTRIBUTE_NORMAL,
+		0,
+	)
+	if err != nil {
+		t.Fatalf("CreateFile(read) error: %v", err)
+	}
+	exactFile := os.NewFile(uintptr(exactHandle), path)
 	deleteHandle, err := windows.CreateFile(
 		name,
 		windows.DELETE|windows.SYNCHRONIZE,
@@ -37,16 +50,16 @@ func TestRetainedDACLHandleRejectsPreopenedDeleteHandle(t *testing.T) {
 		0,
 	)
 	if err != nil {
+		_ = exactFile.Close()
 		t.Fatalf("CreateFile(DELETE) error: %v", err)
-	}
-	exactFile, err := os.Open(path)
-	if err != nil {
-		t.Fatalf("open exact input: %v", err)
 	}
 	retained, err := lockMatrixPrivateAttemptFileRetained(exactFile)
 	if err == nil {
 		_ = closeMatrixPrivateAttemptDACLHandle(retained)
 		t.Fatal("lockMatrixPrivateAttemptFileRetained() accepted preopened DELETE handle")
+	}
+	if !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
+		t.Fatalf("lock error = %v, want sharing violation", err)
 	}
 	if err := windows.CloseHandle(deleteHandle); err != nil {
 		t.Fatalf("close DELETE handle: %v", err)
@@ -66,6 +79,20 @@ func TestDirectoryDACLHandleRejectsPreopenedDeleteHandle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UTF16PtrFromString() error: %v", err)
 	}
+	exactHandle, err := windows.CreateFile(
+		name,
+		windows.READ_CONTROL|windows.FILE_READ_ATTRIBUTES|windows.SYNCHRONIZE,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
+		nil,
+		windows.OPEN_EXISTING,
+		windows.FILE_FLAG_BACKUP_SEMANTICS,
+		0,
+	)
+	if err != nil {
+		t.Fatalf("CreateFile(read directory) error: %v", err)
+	}
+	exactFile := os.NewFile(uintptr(exactHandle), path)
+	defer exactFile.Close()
 	deleteHandle, err := windows.CreateFile(
 		name,
 		windows.DELETE|windows.SYNCHRONIZE,
@@ -78,16 +105,13 @@ func TestDirectoryDACLHandleRejectsPreopenedDeleteHandle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateFile(DELETE) error: %v", err)
 	}
-	root, err := os.OpenRoot(path)
-	if err != nil {
-		_ = windows.CloseHandle(deleteHandle)
-		t.Fatalf("open scratch root: %v", err)
-	}
-	defer root.Close()
-	retained, err := lockMatrixPrivateAttemptDirectoryRetained(root)
+	retained, err := openMatrixDirectoryForDACL(exactFile)
 	if err == nil {
-		_ = closeMatrixPrivateAttemptDACLHandle(retained)
-		t.Fatal("lockMatrixPrivateAttemptDirectoryRetained() accepted preopened DELETE handle")
+		_ = windows.CloseHandle(retained)
+		t.Fatal("openMatrixDirectoryForDACL() accepted preopened DELETE handle")
+	}
+	if !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
+		t.Fatalf("directory lock error = %v, want sharing violation", err)
 	}
 	if err := windows.CloseHandle(deleteHandle); err != nil {
 		t.Fatalf("close DELETE handle: %v", err)
