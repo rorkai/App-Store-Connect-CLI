@@ -150,7 +150,7 @@ func reopenMatrixFileForDACL(file *os.File) (windows.Handle, error) {
 	handle, _, callErr := matrixReOpenFile.Call(
 		file.Fd(),
 		uintptr(windows.READ_CONTROL|windows.WRITE_DAC),
-		uintptr(windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE),
+		uintptr(windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE),
 		0,
 	)
 	if reopened := windows.Handle(handle); reopened != windows.InvalidHandle {
@@ -173,7 +173,7 @@ func openMatrixDirectoryForDACL(file *os.File) (windows.Handle, error) {
 	handle, err := windows.CreateFile(
 		name,
 		windows.READ_CONTROL|windows.WRITE_DAC,
-		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE,
 		nil,
 		windows.OPEN_EXISTING,
 		windows.FILE_FLAG_BACKUP_SEMANTICS|windows.FILE_FLAG_OPEN_REPARSE_POINT,

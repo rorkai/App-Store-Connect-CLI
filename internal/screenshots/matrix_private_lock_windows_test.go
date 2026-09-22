@@ -7,17 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"unsafe"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	"golang.org/x/sys/windows"
 )
 
-func TestRetainedDACLHandleRestoresAfterPathRename(t *testing.T) {
-	if windowsProcessTokenBypassesDACLs(t) {
-		t.Skip("current Windows token bypasses DACLs")
-	}
-
+func TestRetainedDACLHandleRejectsPreopenedDeleteHandle(t *testing.T) {
 	directory := t.TempDir()
 	path := filepath.Join(directory, "input.png")
 	file, err := createMatrixOwnerOnlyFile(path)
@@ -44,37 +39,61 @@ func TestRetainedDACLHandleRestoresAfterPathRename(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateFile(DELETE) error: %v", err)
 	}
-	defer windows.CloseHandle(deleteHandle)
-
 	exactFile, err := os.Open(path)
 	if err != nil {
 		t.Fatalf("open exact input: %v", err)
 	}
 	retained, err := lockMatrixPrivateAttemptFileRetained(exactFile)
+	if err == nil {
+		_ = closeMatrixPrivateAttemptDACLHandle(retained)
+		t.Fatal("lockMatrixPrivateAttemptFileRetained() accepted preopened DELETE handle")
+	}
+	if err := windows.CloseHandle(deleteHandle); err != nil {
+		t.Fatalf("close DELETE handle: %v", err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("original file after rejected lock: %v", err)
+	}
+}
+
+func TestDirectoryDACLHandleRejectsPreopenedDeleteHandle(t *testing.T) {
+	directory := t.TempDir()
+	path := filepath.Join(directory, "scratch")
+	if err := os.Mkdir(path, 0o700); err != nil {
+		t.Fatalf("create scratch directory: %v", err)
+	}
+	name, err := windows.UTF16PtrFromString(path)
 	if err != nil {
-		t.Fatalf("lockMatrixPrivateAttemptFileRetained() error: %v", err)
+		t.Fatalf("UTF16PtrFromString() error: %v", err)
 	}
-	defer closeMatrixPrivateAttemptDACLHandle(retained)
-
-	renamedPath := filepath.Join(directory, "renamed.png")
-	if err := renameWindowsHandle(deleteHandle, filepath.Base(renamedPath)); err != nil {
-		t.Fatalf("rename through pre-lock handle: %v", err)
+	deleteHandle, err := windows.CreateFile(
+		name,
+		windows.DELETE|windows.SYNCHRONIZE,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
+		nil,
+		windows.OPEN_EXISTING,
+		windows.FILE_FLAG_BACKUP_SEMANTICS,
+		0,
+	)
+	if err != nil {
+		t.Fatalf("CreateFile(DELETE) error: %v", err)
 	}
-	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("old path stat error = %v, want not-exist", err)
+	root, err := os.OpenRoot(path)
+	if err != nil {
+		_ = windows.CloseHandle(deleteHandle)
+		t.Fatalf("open scratch root: %v", err)
 	}
-	if file, err := os.OpenFile(renamedPath, os.O_WRONLY, 0); err == nil {
-		_ = file.Close()
-		t.Fatal("locked file remained writable after its pathname moved")
+	defer root.Close()
+	retained, err := lockMatrixPrivateAttemptDirectoryRetained(root)
+	if err == nil {
+		_ = closeMatrixPrivateAttemptDACLHandle(retained)
+		t.Fatal("lockMatrixPrivateAttemptDirectoryRetained() accepted preopened DELETE handle")
 	}
-
-	if err := unlockMatrixPrivateAttemptFileRetained(retained); err != nil {
-		t.Fatalf("unlockMatrixPrivateAttemptFileRetained() error: %v", err)
+	if err := windows.CloseHandle(deleteHandle); err != nil {
+		t.Fatalf("close DELETE handle: %v", err)
 	}
-	if file, err := os.OpenFile(renamedPath, os.O_WRONLY, 0); err != nil {
-		t.Fatalf("renamed file was not restored through retained handle: %v", err)
-	} else if err := file.Close(); err != nil {
-		t.Fatalf("close restored file: %v", err)
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("original directory after rejected lock: %v", err)
 	}
 }
 
@@ -159,28 +178,4 @@ func TestVerifyMatrixDirectoryDACLHandleIdentityRejectsDifferentDirectory(t *tes
 	if err := verifyMatrixDirectoryDACLHandleIdentity(expected, actual); err == nil {
 		t.Fatal("different directory handle passed identity verification")
 	}
-}
-
-type matrixTestFileRenameInformation struct {
-	ReplaceIfExists uint32
-	RootDirectory   windows.Handle
-	FileNameLength  uint32
-	FileName        [1]uint16
-}
-
-func renameWindowsHandle(handle windows.Handle, name string) error {
-	newName, err := windows.UTF16FromString(name)
-	if err != nil {
-		return err
-	}
-	fileNameLen := len(newName)*2 - 2
-	var renameInfo matrixTestFileRenameInformation
-	bufferSize := int(unsafe.Offsetof(renameInfo.FileName)) + fileNameLen
-	buffer := make([]byte, bufferSize)
-	info := (*matrixTestFileRenameInformation)(unsafe.Pointer(&buffer[0]))
-	info.ReplaceIfExists = windows.FILE_RENAME_REPLACE_IF_EXISTS | windows.FILE_RENAME_POSIX_SEMANTICS
-	info.FileNameLength = uint32(fileNameLen)
-	copy((*[windows.MAX_LONG_PATH]uint16)(unsafe.Pointer(&info.FileName[0]))[:fileNameLen/2:fileNameLen/2], newName)
-	var ioStatus windows.IO_STATUS_BLOCK
-	return windows.NtSetInformationFile(handle, &ioStatus, &buffer[0], uint32(bufferSize), windows.FileRenameInformation)
 }
