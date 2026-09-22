@@ -212,7 +212,8 @@ func TestCopyFileAtomicallyPublishesRegularDestination(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := info.Mode().Perm(); got != 0o600 {
+	// Windows reports synthetic permission bits; the DACL tests cover access there.
+	if got := info.Mode().Perm(); runtime.GOOS != "windows" && got != 0o600 {
 		t.Fatalf("destination mode = %#o, want %#o", got, 0o600)
 	}
 }

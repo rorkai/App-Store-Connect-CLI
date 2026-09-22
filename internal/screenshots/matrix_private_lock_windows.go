@@ -19,7 +19,6 @@ var matrixReOpenFile = windows.NewLazySystemDLL("kernel32.dll").NewProc("ReOpenF
 // may only have the read-only access that the lock intentionally grants.
 type matrixPrivateAttemptDACLHandle struct {
 	handle windows.Handle
-	file   *os.File
 	open   bool
 }
 
@@ -35,10 +34,6 @@ func (handle *matrixPrivateAttemptDACLHandle) close() error {
 			handle.handle = windows.InvalidHandle
 			handle.open = false
 		}
-	}
-	if handle.file != nil {
-		closeErr = errors.Join(closeErr, handle.file.Close())
-		handle.file = nil
 	}
 	return closeErr
 }
@@ -114,9 +109,14 @@ func lockMatrixPrivateAttemptFileRetained(file *os.File) (*matrixPrivateAttemptD
 	if err != nil {
 		return nil, errors.Join(err, file.Close())
 	}
-	retained := &matrixPrivateAttemptDACLHandle{handle: handle, file: file, open: true}
+	retained := &matrixPrivateAttemptDACLHandle{handle: handle, open: true}
 	if err := retained.set("D:P(A;;GR;;;OW)", "set private matrix attempt file access control"); err != nil {
-		return nil, errors.Join(err, finalizeMatrixPrivateAttemptDACLHandle(retained))
+		return nil, errors.Join(err, unlockMatrixPrivateAttemptFileRetained(retained), file.Close(), finalizeMatrixPrivateAttemptDACLHandle(retained))
+	}
+	// The original creation handle can deny path-based readers on Windows.
+	// The reopened WRITE_DAC handle keeps the exact file pinned for restoration.
+	if err := file.Close(); err != nil {
+		return nil, errors.Join(err, unlockMatrixPrivateAttemptFileRetained(retained), finalizeMatrixPrivateAttemptDACLHandle(retained))
 	}
 	return retained, nil
 }
