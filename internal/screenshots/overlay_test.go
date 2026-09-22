@@ -1,12 +1,16 @@
 package screenshots
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
@@ -55,6 +59,24 @@ func TestLoadOverlayConfigGolden(t *testing.T) {
 	got := OverlayToCanvas(MatchOverlay(config, "paywall.png"))
 	if got.Title != "Upgrade" || got.Subtitle != "Plus" || got.BGColor != "#140f2d" {
 		t.Fatalf("golden overlay = %+v", got)
+	}
+}
+
+func TestLoadOverlayConfigRejectsOversizedInput(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "overlay.json")
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Truncate(maxOverlayConfigBytes + 1); err != nil {
+		_ = file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := LoadOverlayConfig(path); err == nil || !strings.Contains(err.Error(), "size limit") {
+		t.Fatalf("LoadOverlayConfig() error = %v, want size limit", err)
 	}
 }
 
@@ -172,6 +194,115 @@ func TestSaveFrameResumeStateRejectsSymlink(t *testing.T) {
 	}
 }
 
+func TestLoadFrameResumeStateRejectsOversizedInput(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, FrameResumeStateRel)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Truncate(maxFrameResumeStateBytes + 1); err != nil {
+		_ = file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	root, err := rootfs.New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if _, err := LoadFrameResumeState(root, FrameResumeStateRel); err == nil || !strings.Contains(err.Error(), "size limit") {
+		t.Fatalf("LoadFrameResumeState() error = %v, want size limit", err)
+	}
+}
+
+func TestSaveFrameResumeStateRejectsOversizedOutput(t *testing.T) {
+	dir := t.TempDir()
+	root, err := rootfs.New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	state := FrameResumeState{Files: map[string]FrameResumeEntry{
+		"out.png": {Fingerprint: strings.Repeat("x", maxFrameResumeStateBytes)},
+	}}
+	if err := SaveFrameResumeState(root, FrameResumeStateRel, state); err == nil || !strings.Contains(err.Error(), "size limit") {
+		t.Fatalf("SaveFrameResumeState() error = %v, want size limit", err)
+	}
+	if _, err := os.Lstat(filepath.Join(dir, ".asc")); !os.IsNotExist(err) {
+		t.Fatalf(".asc stat error = %v, want not-exist", err)
+	}
+}
+
+func TestWithFrameResumeLockKeepsPersistentLegacyLock(t *testing.T) {
+	dir := t.TempDir()
+	root, err := rootfs.New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if err := WithFrameResumeLock(context.Background(), root, func() error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Lstat(filepath.Join(dir, frameResumeLockName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.Mode().IsRegular() {
+		t.Fatalf("lock mode = %v, want regular file", info.Mode())
+	}
+}
+
+func TestWithFrameResumeLockHonorsLegacyLock(t *testing.T) {
+	dir := t.TempDir()
+	root, err := rootfs.New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	release, err := acquireMatrixNamedLock(context.Background(), root, frameResumeLockName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := release(); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	err = WithFrameResumeLock(ctx, root, func() error {
+		t.Fatal("callback ran while the legacy lock was held")
+		return nil
+	})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("WithFrameResumeLock() error = %v, want context deadline", err)
+	}
+}
+
+func TestWithFrameResumeLockCanceledContextDoesNotCreateStateDirectory(t *testing.T) {
+	dir := t.TempDir()
+	root, err := rootfs.New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := WithFrameResumeLock(ctx, root, func() error { return nil }); !errors.Is(err, context.Canceled) {
+		t.Fatalf("WithFrameResumeLock() error = %v, want context canceled", err)
+	}
+	if _, err := os.Lstat(filepath.Join(dir, ".asc")); !os.IsNotExist(err) {
+		t.Fatalf(".asc stat error = %v, want not-exist", err)
+	}
+}
+
 func TestHashFileRejectsOversizedInput(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "oversized.png")
@@ -191,7 +322,7 @@ func TestHashFileRejectsOversizedInput(t *testing.T) {
 	}
 }
 
-func TestResumeEntryRejectsSymlinkOutput(t *testing.T) {
+func TestResumeEntryRejectsSymlinkOutputForMatchingAndStaleState(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target.png")
 	if err := os.WriteFile(target, []byte("framed"), 0o644); err != nil {
@@ -203,8 +334,25 @@ func TestResumeEntryRejectsSymlinkOutput(t *testing.T) {
 	}
 	entry := FrameResumeEntry{Fingerprint: "fp", Result: FrameResult{Path: link}}
 	state := FrameResumeState{Files: map[string]FrameResumeEntry{link: entry}}
-	if _, ok := ResumeEntry(state, link, "fp"); ok {
-		t.Fatal("symlinked output must not be resumable")
+	for _, test := range []struct {
+		name        string
+		fingerprint string
+	}{
+		{name: "matching", fingerprint: "fp"},
+		{name: "stale", fingerprint: "stale"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, ok := ResumeEntry(state, link, test.fingerprint); ok {
+				t.Fatal("symlinked output must not be resumable")
+			}
+			contents, err := os.ReadFile(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(contents) != "framed" {
+				t.Fatalf("symlink target changed to %q", contents)
+			}
+		})
 	}
 	if _, err := os.Lstat(link); err != nil {
 		t.Fatal(err)
@@ -238,5 +386,32 @@ func TestOpenFrameInputSnapshotPinsBytes(t *testing.T) {
 	}
 	if string(pinned) != string(original) {
 		t.Fatal("snapshot bytes changed after source replacement")
+	}
+}
+
+func TestOpenFrameInputSnapshotRejectsReplacementBetweenLocks(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the replacement seam relies on Unix rename semantics")
+	}
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "input.png")
+	writeFrameTestPNG(t, inputPath, makeFrameTestImage(20, 40))
+
+	previous := matrixFrameInputAfterFileLockForTest
+	matrixFrameInputAfterFileLockForTest = func(path string) {
+		if err := os.Rename(path, path+".original"); err != nil {
+			t.Errorf("rename prepared input: %v", err)
+			return
+		}
+		writeFrameTestPNG(t, path, makeFrameTestImage(30, 50))
+	}
+	t.Cleanup(func() { matrixFrameInputAfterFileLockForTest = previous })
+
+	snapshot, err := OpenFrameInputSnapshot(t.Context(), inputPath)
+	if err == nil {
+		if snapshot != nil {
+			_ = snapshot.Close()
+		}
+		t.Fatal("OpenFrameInputSnapshot() error = nil, want replacement rejection")
 	}
 }

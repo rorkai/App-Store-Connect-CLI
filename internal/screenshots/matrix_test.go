@@ -5037,6 +5037,10 @@ func TestFrameIntoRootRejectsSymlinkedInputBeforeKoubou(t *testing.T) {
 	outsidePath := filepath.Join(dir, "outside.png")
 	writeMinimalPNG(t, inputPath, 200, 300)
 	writeMinimalPNG(t, outsidePath, 200, 300)
+	outsideBefore, err := os.Stat(outsidePath)
+	if err != nil {
+		t.Fatalf("stat outside input before replacement: %v", err)
+	}
 	previous := matrixFrameInputBeforeCopyForTest
 	called := false
 	matrixFrameInputBeforeCopyForTest = func(path string) {
@@ -5075,6 +5079,13 @@ func TestFrameIntoRootRejectsSymlinkedInputBeforeKoubou(t *testing.T) {
 	}
 	if _, statErr := os.Lstat(filepath.Join(destinationPath, "home.png")); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("destination stat error = %v, want no publication", statErr)
+	}
+	outsideAfter, err := os.Stat(outsidePath)
+	if err != nil {
+		t.Fatalf("stat outside input after replacement: %v", err)
+	}
+	if outsideAfter.Mode().Perm() != outsideBefore.Mode().Perm() {
+		t.Fatalf("outside input mode changed from %v to %v", outsideBefore.Mode().Perm(), outsideAfter.Mode().Perm())
 	}
 }
 
@@ -5630,9 +5641,11 @@ func TestLockMatrixPrivateAttemptChildRejectsReplacementAtLockBoundary(t *testin
 	previous := matrixPrivateAttemptBeforeChildLockForTest
 	var swapErr error
 	matrixPrivateAttemptBeforeChildLockForTest = func(path string) {
-		if swapErr = unlockMatrixPrivateAttemptParent(attempt.parent); swapErr != nil {
+		if swapErr = unlockMatrixPrivateAttemptParentRetained(attempt.parentDACL, attempt.parent); swapErr != nil {
 			return
 		}
+		attempt.parentDACL = nil
+		attempt.parentLocked = false
 		if swapErr = os.Rename(path, originalPath); swapErr != nil {
 			return
 		}
@@ -5642,7 +5655,8 @@ func TestLockMatrixPrivateAttemptChildRejectsReplacementAtLockBoundary(t *testin
 		if swapErr = os.WriteFile(replacementSentinel, []byte("replacement must survive"), 0o600); swapErr != nil {
 			return
 		}
-		swapErr = lockMatrixPrivateAttemptParent(attempt.parent)
+		attempt.parentDACL, swapErr = lockMatrixPrivateAttemptParentRetained(attempt.parent)
+		attempt.parentLocked = swapErr == nil
 	}
 	t.Cleanup(func() {
 		matrixPrivateAttemptBeforeChildLockForTest = previous

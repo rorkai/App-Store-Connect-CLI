@@ -28,6 +28,8 @@ type OverlayConfig struct {
 	Data    []OverlayEntry `json:"data"`
 }
 
+const maxOverlayConfigBytes = 1 << 20
+
 // LoadOverlayConfig reads and validates an overlay JSON file without following
 // a symlink at the final path. The returned hash is of those exact bytes.
 func LoadOverlayConfig(path string) (OverlayConfig, string, error) {
@@ -40,7 +42,7 @@ func LoadOverlayConfig(path string) (OverlayConfig, string, error) {
 		return OverlayConfig{}, "", fmt.Errorf("read overlay config: %w", err)
 	}
 	defer root.Close()
-	data, err := root.ReadFile(filepath.Base(absolute))
+	data, err := root.ReadFileLimited(filepath.Base(absolute), maxOverlayConfigBytes)
 	if err != nil {
 		return OverlayConfig{}, "", fmt.Errorf("read overlay config: %w", err)
 	}

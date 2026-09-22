@@ -153,6 +153,93 @@ func TestDisplayTypeForDimensions_Mac(t *testing.T) {
 	}
 }
 
+func TestCopyFileRejectsSymlinkDestinationWithoutMutatingTarget(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "generated.png")
+	if err := os.WriteFile(source, []byte("generated"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(t.TempDir(), "target.png")
+	if err := os.WriteFile(target, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(dir, "framed.png")
+	if err := os.Symlink(target, destination); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := copyFile(source, destination); err == nil {
+		t.Fatal("copyFile() error = nil, want symlink destination rejection")
+	}
+	contents, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(contents) != "keep" {
+		t.Fatalf("symlink target changed to %q", contents)
+	}
+	info, err := os.Lstat(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("destination mode = %v, want symlink preserved", info.Mode())
+	}
+}
+
+func TestCopyFileAtomicallyPublishesRegularDestination(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "generated.png")
+	destination := filepath.Join(dir, "framed.png")
+	if err := os.WriteFile(source, []byte("generated"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(destination, []byte("old"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := copyFile(source, destination); err != nil {
+		t.Fatalf("copyFile() error = %v", err)
+	}
+	contents, err := os.ReadFile(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(contents) != "generated" {
+		t.Fatalf("destination contents = %q, want generated", contents)
+	}
+	info, err := os.Stat(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("destination mode = %#o, want %#o", got, 0o600)
+	}
+}
+
+func TestCopyFileRejectsOversizedSourceWithoutReplacingDestination(t *testing.T) {
+	dir := t.TempDir()
+	source := filepath.Join(dir, "generated.png")
+	destination := filepath.Join(dir, "framed.png")
+	if err := os.WriteFile(source, []byte("oversized"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(destination, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := copyFileWithLimit(source, destination, 4); err == nil {
+		t.Fatal("copyFileWithLimit() error = nil, want size-limit rejection")
+	}
+	contents, err := os.ReadFile(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(contents) != "keep" {
+		t.Fatalf("destination contents = %q, want original contents", contents)
+	}
+}
+
 func TestParseKoubouConfigMetadata(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "frame.yaml")
 	config := `project:
