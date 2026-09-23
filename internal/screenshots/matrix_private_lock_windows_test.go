@@ -7,160 +7,157 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"unsafe"
 
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 	"golang.org/x/sys/windows"
 )
 
-func TestRetainedDACLHandleBlocksRenameThroughPreopenedDeleteHandle(t *testing.T) {
+func TestPrivateFileCreationBlocksDeleteAccessAcrossDACLLockHandoff(t *testing.T) {
 	directory := t.TempDir()
 	path := filepath.Join(directory, "input.png")
 	file, err := createMatrixOwnerOnlyFile(path)
 	if err != nil {
 		t.Fatalf("createMatrixOwnerOnlyFile() error: %v", err)
 	}
-	if err := file.Close(); err != nil {
-		t.Fatalf("close input: %v", err)
-	}
-
-	name, err := windows.UTF16PtrFromString(path)
+	fileInfo, err := file.Stat()
 	if err != nil {
-		t.Fatalf("UTF16PtrFromString() error: %v", err)
-	}
-	exactHandle, err := windows.CreateFile(
-		name,
-		windows.GENERIC_READ,
-		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
-		nil,
-		windows.OPEN_EXISTING,
-		windows.FILE_ATTRIBUTE_NORMAL,
-		0,
-	)
-	if err != nil {
-		t.Fatalf("CreateFile(read) error: %v", err)
-	}
-	exactFile := os.NewFile(uintptr(exactHandle), path)
-	fileInfo, err := exactFile.Stat()
-	if err != nil {
-		_ = exactFile.Close()
 		t.Fatalf("stat input handle: %v", err)
 	}
-	deleteHandle, err := windows.CreateFile(
-		name,
-		windows.DELETE|windows.SYNCHRONIZE,
-		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
-		nil,
-		windows.OPEN_EXISTING,
-		windows.FILE_ATTRIBUTE_NORMAL,
-		0,
-	)
+	if _, err := os.ReadFile(path); err != nil {
+		_ = file.Close()
+		t.Fatalf("read through path while creation handle is live: %v", err)
+	}
+	assertMatrixTestDeleteOpenBlocked(t, path, false, true)
+
+	retained, err := lockMatrixPrivateAttemptFileRetained(file)
 	if err != nil {
-		_ = exactFile.Close()
-		t.Fatalf("CreateFile(DELETE) error: %v", err)
+		t.Fatalf("lockMatrixPrivateAttemptFileRetained() error: %v", err)
 	}
-	defer windows.CloseHandle(deleteHandle)
-	parentHandle := openMatrixTestRenameParent(t, directory)
-	defer windows.CloseHandle(parentHandle)
-	if err := renameWindowsHandle(deleteHandle, parentHandle, "before-lock.png"); err != nil {
-		t.Fatalf("pre-lock rename through DELETE handle: %v", err)
+	if _, err := os.ReadFile(path); err != nil {
+		t.Fatalf("read after retained DACL lock: %v", err)
 	}
-	if err := renameWindowsHandle(deleteHandle, parentHandle, "input.png"); err != nil {
-		t.Fatalf("restore pre-lock file name: %v", err)
+	assertMatrixTestDeleteOpenBlocked(t, path, false, false)
+	if err := unlockMatrixPrivateAttemptFileRetained(retained); err != nil {
+		t.Fatalf("unlockMatrixPrivateAttemptFileRetained() error: %v", err)
 	}
-	retained, err := lockMatrixPrivateAttemptFileRetained(exactFile)
+	if err := closeMatrixPrivateAttemptDACLHandle(retained); err != nil {
+		t.Fatalf("close retained file DACL handle: %v", err)
+	}
+	deleteHandle, err := openMatrixTestDeleteHandle(path, false)
 	if err != nil {
-		if !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
-			t.Fatalf("lockMatrixPrivateAttemptFileRetained() error = %v, want sharing violation or locked handle", err)
-		}
-		assertMatrixTestPathStillNamesFile(t, path, fileInfo)
-		return
+		t.Fatalf("open DELETE after the retained lock is released: %v", err)
 	}
-	defer func() {
-		if err := unlockMatrixPrivateAttemptFileRetained(retained); err != nil {
-			t.Errorf("unlockMatrixPrivateAttemptFileRetained() error: %v", err)
-		}
-		if err := closeMatrixPrivateAttemptDACLHandle(retained); err != nil {
-			t.Errorf("close retained file DACL handle: %v", err)
-		}
-	}()
-	if err := renameWindowsHandle(deleteHandle, parentHandle, "renamed.png"); err == nil {
-		t.Fatal("preopened DELETE handle renamed file while retained DACL lock was active")
-	}
+	_ = windows.CloseHandle(deleteHandle)
 	assertMatrixTestPathStillNamesFile(t, path, fileInfo)
 }
 
-func TestDirectoryDACLHandleBlocksRenameThroughPreopenedDeleteHandle(t *testing.T) {
-	directory := t.TempDir()
-	path := filepath.Join(directory, "scratch")
-	if err := createMatrixOwnerOnlyDirectory(path); err != nil {
-		t.Fatalf("createMatrixOwnerOnlyDirectory() error: %v", err)
-	}
-	directoryInfo, err := os.Stat(path)
+func TestPrivateAttemptDirectoriesBlockDeleteAccessFromCreationThroughProvider(t *testing.T) {
+	attempt, err := createMatrixPrivateAttemptRoot()
 	if err != nil {
-		t.Fatalf("stat scratch directory: %v", err)
+		t.Fatalf("createMatrixPrivateAttemptRoot() error: %v", err)
 	}
-	name, err := windows.UTF16PtrFromString(path)
-	if err != nil {
-		t.Fatalf("UTF16PtrFromString() error: %v", err)
-	}
-	exactHandle, err := windows.CreateFile(
-		name,
-		windows.READ_CONTROL|windows.FILE_READ_ATTRIBUTES|windows.SYNCHRONIZE,
-		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
-		nil,
-		windows.OPEN_EXISTING,
-		windows.FILE_FLAG_BACKUP_SEMANTICS,
-		0,
-	)
-	if err != nil {
-		t.Fatalf("CreateFile(read directory) error: %v", err)
-	}
-	exactFile := os.NewFile(uintptr(exactHandle), path)
-	defer exactFile.Close()
-	deleteHandle, err := windows.CreateFile(
-		name,
-		windows.DELETE|windows.SYNCHRONIZE,
-		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
-		nil,
-		windows.OPEN_EXISTING,
-		windows.FILE_FLAG_BACKUP_SEMANTICS,
-		0,
-	)
-	if err != nil {
-		t.Fatalf("CreateFile(DELETE) error: %v", err)
-	}
-	defer windows.CloseHandle(deleteHandle)
-	parentHandle := openMatrixTestRenameParent(t, directory)
-	defer windows.CloseHandle(parentHandle)
-	if err := renameWindowsHandle(deleteHandle, parentHandle, "before-lock"); err != nil {
-		t.Fatalf("pre-lock rename through DELETE handle: %v", err)
-	}
-	if err := renameWindowsHandle(deleteHandle, parentHandle, "scratch"); err != nil {
-		t.Fatalf("restore pre-lock directory name: %v", err)
-	}
-	daclHandle, err := openMatrixDirectoryForDACL(exactFile)
-	if err != nil {
-		if !errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
-			t.Fatalf("openMatrixDirectoryForDACL() error = %v, want sharing violation or locked handle", err)
+	attemptOpen := true
+	var outputRoot rootfs.Root
+	outputOpen := false
+	t.Cleanup(func() {
+		if outputOpen {
+			_ = outputRoot.Close()
 		}
-		assertMatrixTestPathStillNamesFile(t, path, directoryInfo)
-		return
-	}
-	retained := &matrixPrivateAttemptDACLHandle{handle: daclHandle, open: true}
-	if err := retained.set("D:P(A;;GRGX;;;OW)", "set private matrix attempt directory access control"); err != nil {
-		_ = closeMatrixPrivateAttemptDACLHandle(retained)
-		t.Fatalf("set private matrix attempt directory access control: %v", err)
-	}
-	defer func() {
-		if err := restoreMatrixPrivateAttemptDirectory(retained, nil); err != nil {
-			t.Errorf("restore retained directory DACL: %v", err)
+		if attemptOpen {
+			_ = cleanupMatrixPrivateAttemptForExecution(&attempt)
+			_ = closeMatrixPrivateAttemptForExecution(&attempt)
 		}
-	}()
-	if err := renameWindowsHandle(deleteHandle, parentHandle, "replacement"); err == nil {
-		t.Fatal("preopened DELETE handle renamed directory while retained DACL lock was active")
+	})
+	for _, root := range []*os.Root{attempt.grandparent, attempt.parent, attempt.pinned} {
+		file, err := root.Open(".")
+		if err != nil {
+			t.Fatalf("open rooted directory while its creation handle is live: %v", err)
+		}
+		if err := file.Close(); err != nil {
+			t.Fatalf("close rooted directory probe: %v", err)
+		}
 	}
-	assertMatrixTestPathStillNamesFile(t, path, directoryInfo)
+	outputRoot, err = openMatrixPrivateAttemptOutputRoot(&attempt)
+	if err != nil {
+		t.Fatalf("openMatrixPrivateAttemptOutputRoot() error: %v", err)
+	}
+	outputOpen = true
+	outputPath := filepath.Join(attempt.path, "output")
+	assertMatrixTestDeleteOpenBlocked(t, filepath.Dir(attempt.path), true, false)
+	assertMatrixTestDeleteOpenBlocked(t, attempt.namespacePath, true, false)
+	assertMatrixTestDeleteOpenBlocked(t, attempt.path, true, true)
+	assertMatrixTestDeleteOpenBlocked(t, outputPath, true, true)
+	if err := lockMatrixPrivateAttemptChild(&attempt); err != nil {
+		t.Fatalf("lockMatrixPrivateAttemptChild() error: %v", err)
+	}
+	assertMatrixTestDeleteOpenBlocked(t, attempt.path, true, false)
+	assertMatrixTestDeleteOpenBlocked(t, outputPath, true, true)
+	if err := outputRoot.WriteFile("provider.txt", []byte("provider output"), 0o600); err != nil {
+		t.Fatalf("provider write through output root after directory locks: %v", err)
+	}
+	if data, err := os.ReadFile(filepath.Join(outputPath, "provider.txt")); err != nil || string(data) != "provider output" {
+		t.Fatalf("read provider output through path = %q, %v", data, err)
+	}
+	if err := outputRoot.Close(); err != nil {
+		t.Fatalf("close provider output root: %v", err)
+	}
+	outputOpen = false
+	if err := cleanupMatrixPrivateAttemptForExecution(&attempt); err != nil {
+		t.Fatalf("cleanupMatrixPrivateAttemptForExecution() error: %v", err)
+	}
+	if err := closeMatrixPrivateAttemptForExecution(&attempt); err != nil {
+		t.Fatalf("closeMatrixPrivateAttemptForExecution() error: %v", err)
+	}
+	attemptOpen = false
+	if _, err := os.Stat(attempt.path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("private attempt path after cleanup error = %v, want not-exist", err)
+	}
+	if _, err := os.Stat(attempt.namespacePath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("private namespace path after cleanup error = %v, want not-exist", err)
+	}
+}
+
+func TestRemoveMatrixPrivateCreatedEntryReportsReplacement(t *testing.T) {
+	root, err := os.OpenRoot(t.TempDir())
+	if err != nil {
+		t.Fatalf("os.OpenRoot() error: %v", err)
+	}
+	defer root.Close()
+
+	original, err := createMatrixPrivateAttemptDirectoryInRootRetained(root, "entry", "entry")
+	if err != nil {
+		t.Fatalf("create original entry: %v", err)
+	}
+	originalInfo, err := original.Stat()
+	if err != nil {
+		_ = original.Close()
+		t.Fatalf("stat original entry: %v", err)
+	}
+	if err := original.Close(); err != nil {
+		t.Fatalf("close original entry: %v", err)
+	}
+	if err := root.Remove("entry"); err != nil {
+		t.Fatalf("remove original entry: %v", err)
+	}
+	replacement, err := createMatrixPrivateAttemptDirectoryInRootRetained(root, "entry", "entry")
+	if err != nil {
+		t.Fatalf("create replacement entry: %v", err)
+	}
+	if err := replacement.Close(); err != nil {
+		t.Fatalf("close replacement entry: %v", err)
+	}
+
+	err = removeMatrixPrivateCreatedEntry(root, "entry", originalInfo)
+	if !errors.Is(err, errMatrixPrivateAttemptCleanupUncertain) {
+		t.Fatalf("removeMatrixPrivateCreatedEntry() error = %v, want cleanup uncertainty", err)
+	}
+	current, err := root.Stat("entry")
+	if err != nil {
+		t.Fatalf("stat replacement entry: %v", err)
+	}
+	if os.SameFile(originalInfo, current) {
+		t.Fatal("replacement entry has the original identity")
+	}
 }
 
 func assertMatrixTestPathStillNamesFile(t *testing.T, path string, expected os.FileInfo) {
@@ -174,49 +171,40 @@ func assertMatrixTestPathStillNamesFile(t *testing.T, path string, expected os.F
 	}
 }
 
-type matrixTestFileRenameInformation struct {
-	ReplaceIfExists uint32
-	RootDirectory   windows.Handle
-	FileNameLength  uint32
-	FileName        [1]uint16
+func assertMatrixTestDeleteOpenBlocked(t *testing.T, path string, directory, requireSharingViolation bool) {
+	t.Helper()
+	handle, err := openMatrixTestDeleteHandle(path, directory)
+	if err == nil {
+		_ = windows.CloseHandle(handle)
+		t.Fatalf("opened DELETE handle for protected path %q", path)
+	}
+	if errors.Is(err, windows.ERROR_SHARING_VIOLATION) {
+		return
+	}
+	if !requireSharingViolation && errors.Is(err, windows.ERROR_ACCESS_DENIED) {
+		return
+	}
+	t.Fatalf("open DELETE handle for %q error = %v, want sharing violation", path, err)
 }
 
-func openMatrixTestRenameParent(t *testing.T, path string) windows.Handle {
-	t.Helper()
+func openMatrixTestDeleteHandle(path string, directory bool) (windows.Handle, error) {
 	name, err := windows.UTF16PtrFromString(path)
 	if err != nil {
-		t.Fatalf("UTF16PtrFromString(rename parent) error: %v", err)
+		return windows.InvalidHandle, err
 	}
-	handle, err := windows.CreateFile(
+	flags := uint32(windows.FILE_ATTRIBUTE_NORMAL)
+	if directory {
+		flags = windows.FILE_FLAG_BACKUP_SEMANTICS
+	}
+	return windows.CreateFile(
 		name,
-		windows.FILE_WRITE_DATA|windows.FILE_APPEND_DATA|windows.FILE_READ_ATTRIBUTES|windows.SYNCHRONIZE,
+		windows.DELETE|windows.SYNCHRONIZE,
 		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
 		nil,
 		windows.OPEN_EXISTING,
-		windows.FILE_FLAG_BACKUP_SEMANTICS,
+		flags,
 		0,
 	)
-	if err != nil {
-		t.Fatalf("open rename parent: %v", err)
-	}
-	return handle
-}
-
-func renameWindowsHandle(handle, parent windows.Handle, name string) error {
-	newName, err := windows.UTF16FromString(name)
-	if err != nil {
-		return err
-	}
-	fileNameLen := len(newName)*2 - 2
-	var renameInfo matrixTestFileRenameInformation
-	bufferSize := int(unsafe.Offsetof(renameInfo.FileName)) + fileNameLen
-	buffer := make([]byte, bufferSize)
-	info := (*matrixTestFileRenameInformation)(unsafe.Pointer(&buffer[0]))
-	info.RootDirectory = parent
-	info.FileNameLength = uint32(fileNameLen)
-	copy((*[windows.MAX_LONG_PATH]uint16)(unsafe.Pointer(&info.FileName[0]))[:fileNameLen/2:fileNameLen/2], newName)
-	var ioStatus windows.IO_STATUS_BLOCK
-	return windows.NtSetInformationFile(handle, &ioStatus, &buffer[0], uint32(bufferSize), windows.FileRenameInformation)
 }
 
 func TestRetainedDACLHandleDoesNotFollowReparsePoint(t *testing.T) {

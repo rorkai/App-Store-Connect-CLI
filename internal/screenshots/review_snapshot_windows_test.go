@@ -62,8 +62,12 @@ func TestCreateMatrixPrivateScratchWindowsOwnerOnlyAtCreation(t *testing.T) {
 	}
 	defer parent.Close()
 	childName := ".asc-matrix-test-child"
-	if err := createMatrixPrivateAttemptChild(parent, parentPath, childName); err != nil {
-		t.Fatalf("createMatrixPrivateAttemptChild() error: %v", err)
+	childCreator, err := createMatrixPrivateAttemptChildRetained(parent, parentPath, childName)
+	if err != nil {
+		t.Fatalf("createMatrixPrivateAttemptChildRetained() error: %v", err)
+	}
+	if err := childCreator.Close(); err != nil {
+		t.Fatalf("close child creation handle: %v", err)
 	}
 	childPath := filepath.Join(parentPath, childName)
 	childRoot, err := parent.OpenRoot(childName)
@@ -180,14 +184,18 @@ func TestMatrixPrivateWindowsLocksPathBasedProviderInputs(t *testing.T) {
 	closed := false
 	t.Cleanup(func() {
 		if !closed {
-			_ = cleanupMatrixPrivateAttemptForExecution(attempt)
-			_ = closeMatrixPrivateAttemptForExecution(attempt)
+			_ = cleanupMatrixPrivateAttemptForExecution(&attempt)
+			_ = closeMatrixPrivateAttemptForExecution(&attempt)
 		}
 	})
 
 	outputPath := filepath.Join(attempt.path, "output")
-	if err := createMatrixPrivateAttemptOutputDirInRoot(attempt.pinned); err != nil {
-		t.Fatalf("createMatrixPrivateAttemptOutputDirInRoot() error: %v", err)
+	outputCreator, err := createMatrixPrivateAttemptOutputDirInRootRetained(attempt.pinned)
+	if err != nil {
+		t.Fatalf("createMatrixPrivateAttemptOutputDirInRootRetained() error: %v", err)
+	}
+	if err := outputCreator.Close(); err != nil {
+		t.Fatalf("close output creation handle: %v", err)
 	}
 	configPath := filepath.Join(attempt.path, "frame.yaml")
 	configFile, err := createMatrixPrivateAttemptFileInRoot(attempt.pinned, "frame.yaml", configPath)
@@ -219,10 +227,10 @@ func TestMatrixPrivateWindowsLocksPathBasedProviderInputs(t *testing.T) {
 		t.Fatalf("write nested provider output: %v", err)
 	}
 
-	if err := cleanupMatrixPrivateAttemptForExecution(attempt); err != nil {
+	if err := cleanupMatrixPrivateAttemptForExecution(&attempt); err != nil {
 		t.Fatalf("cleanupMatrixPrivateAttemptForExecution() error: %v", err)
 	}
-	if err := closeMatrixPrivateAttemptForExecution(attempt); err != nil {
+	if err := closeMatrixPrivateAttemptForExecution(&attempt); err != nil {
 		t.Fatalf("closeMatrixPrivateAttemptForExecution() error: %v", err)
 	}
 	closed = true
@@ -234,8 +242,8 @@ func TestMatrixPrivateWindowsOwnerOnlyRejectsRestrictedToken(t *testing.T) {
 		t.Fatalf("createMatrixPrivateAttemptRoot() error: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = cleanupMatrixPrivateAttemptForExecution(attempt)
-		_ = closeMatrixPrivateAttemptForExecution(attempt)
+		_ = cleanupMatrixPrivateAttemptForExecution(&attempt)
+		_ = closeMatrixPrivateAttemptForExecution(&attempt)
 	})
 
 	path := filepath.Join(attempt.path, "owner-only.txt")
@@ -299,13 +307,17 @@ func TestMatrixPrivateWindowsRootedObjectsRejectRestrictedToken(t *testing.T) {
 		t.Fatalf("createMatrixPrivateAttemptRoot() error: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = cleanupMatrixPrivateAttemptForExecution(attempt)
-		_ = closeMatrixPrivateAttemptForExecution(attempt)
+		_ = cleanupMatrixPrivateAttemptForExecution(&attempt)
+		_ = closeMatrixPrivateAttemptForExecution(&attempt)
 	})
 
 	outputPath := filepath.Join(attempt.path, "output")
-	if err := createMatrixPrivateAttemptOutputDirInRoot(attempt.pinned); err != nil {
+	outputCreator, err := createMatrixPrivateAttemptOutputDirInRootRetained(attempt.pinned)
+	if err != nil {
 		t.Fatalf("create rooted output directory: %v", err)
+	}
+	if err := outputCreator.Close(); err != nil {
+		t.Fatalf("close rooted output creation handle: %v", err)
 	}
 	configPath := filepath.Join(attempt.path, "frame.yaml")
 	configFile, err := createMatrixPrivateAttemptFileInRoot(attempt.pinned, "frame.yaml", configPath)

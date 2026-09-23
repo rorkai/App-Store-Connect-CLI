@@ -5433,6 +5433,9 @@ func TestCreateMatrixPrivateAttemptRootRejectsParentReplacementBeforeOpen(t *tes
 }
 
 func TestCreateMatrixPrivateAttemptRootRejectsChildReplacementBeforeOpen(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows no-delete-share creator prevents child replacement before open")
+	}
 	var parentPath, originalPath, replacementSentinel string
 	var swapErr error
 	previousParent := matrixPrivateAttemptParentCreatedForTest
@@ -5480,6 +5483,9 @@ func TestCreateMatrixPrivateAttemptRootRejectsChildReplacementBeforeOpen(t *test
 }
 
 func TestCreateMatrixPrivateAttemptRootRejectsReplacementBetweenRootAndChildOpen(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows no-delete-share creator prevents child replacement while opening roots")
+	}
 	var parentPath string
 	var originalPath string
 	var replacementSentinel string
@@ -5533,6 +5539,9 @@ func TestCreateMatrixPrivateAttemptRootRejectsReplacementBetweenRootAndChildOpen
 }
 
 func TestCreateMatrixPrivateAttemptRootRejectsReplacementBeforeInitialPin(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows no-delete-share creator prevents child replacement before pinning")
+	}
 	var parentPath, originalPath, replacementPath, replacementSentinel string
 	var swapErr error
 	previousParentCreated := matrixPrivateAttemptParentCreatedForTest
@@ -5632,6 +5641,9 @@ func TestCreateMatrixPrivateAttemptRootRejectsReplacementBeforeParentLock(t *tes
 }
 
 func TestLockMatrixPrivateAttemptChildRejectsReplacementAtLockBoundary(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows no-delete-share creator prevents child replacement at the lock boundary")
+	}
 	attempt, err := createMatrixPrivateAttemptRoot()
 	if err != nil {
 		t.Fatalf("createMatrixPrivateAttemptRoot() error: %v", err)
@@ -5684,10 +5696,10 @@ func TestCleanupMatrixPrivateAttemptRemovesNamespace(t *testing.T) {
 		t.Fatalf("createMatrixPrivateAttemptRoot() error: %v", err)
 	}
 	namespace := filepath.Dir(filepath.Dir(attempt.path))
-	if err := cleanupMatrixPrivateAttemptForExecution(attempt); err != nil {
+	if err := cleanupMatrixPrivateAttemptForExecution(&attempt); err != nil {
 		t.Fatalf("cleanupMatrixPrivateAttemptForExecution() error = %v", err)
 	}
-	if err := closeMatrixPrivateAttemptForExecution(attempt); err != nil {
+	if err := closeMatrixPrivateAttemptForExecution(&attempt); err != nil {
 		t.Fatalf("closeMatrixPrivateAttemptForExecution() error = %v", err)
 	}
 	if _, err := os.Lstat(namespace); !errors.Is(err, os.ErrNotExist) {

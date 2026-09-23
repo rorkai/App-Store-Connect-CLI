@@ -25,12 +25,21 @@ func createMatrixPrivateAttemptParent() (string, error) {
 	return parent, nil
 }
 
-func createMatrixPrivateAttemptChild(parent *os.Root, _ string, name string) error {
-	return parent.Mkdir(name, 0o700)
+func createMatrixPrivateAttemptParentWithHandles() (string, *os.File, *os.File, error) {
+	path, err := createMatrixPrivateAttemptParent()
+	return path, nil, nil, err
 }
 
-func createMatrixPrivateAttemptOutputDirInRoot(parent *os.Root) error {
-	return parent.Mkdir("output", 0o700)
+func createMatrixPrivateAttemptDirectoryInRootRetained(parent *os.Root, name, _ string) (*os.File, error) {
+	return nil, parent.Mkdir(name, 0o700)
+}
+
+func createMatrixPrivateAttemptChildRetained(parent *os.Root, parentPath, name string) (*os.File, error) {
+	return createMatrixPrivateAttemptDirectoryInRootRetained(parent, name, filepath.Join(parentPath, name))
+}
+
+func createMatrixPrivateAttemptOutputDirInRootRetained(parent *os.Root) (*os.File, error) {
+	return nil, parent.Mkdir("output", 0o700)
 }
 
 func createMatrixPrivateAttemptOutputDir(workDir string) error {
@@ -71,6 +80,15 @@ func lockMatrixPrivateAttemptDirectoryRetained(root *os.Root) (*matrixPrivateAtt
 		return nil, err
 	}
 	return &matrixPrivateAttemptDACLHandle{locked: true}, nil
+}
+
+func lockMatrixPrivateAttemptDirectoryCreated(file *os.File, root *os.Root) (*matrixPrivateAttemptDACLHandle, error) {
+	if file != nil {
+		if err := file.Close(); err != nil {
+			return nil, err
+		}
+	}
+	return lockMatrixPrivateAttemptDirectoryRetained(root)
 }
 
 func unlockMatrixPrivateAttemptFileRetained(handle *matrixPrivateAttemptDACLHandle) error {

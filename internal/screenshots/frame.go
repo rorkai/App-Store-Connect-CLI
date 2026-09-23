@@ -262,8 +262,8 @@ func (input *matrixPreparedFrameInput) close() error {
 		cleanupErr = errors.Join(cleanupErr, finalizeMatrixPrivateAttemptFile(input.fileDACL))
 	}
 	if input.attempt != nil {
-		cleanupErr = errors.Join(cleanupErr, cleanupMatrixPrivateAttemptForExecution(*input.attempt))
-		cleanupErr = errors.Join(cleanupErr, closeMatrixPrivateAttemptForExecution(*input.attempt))
+		cleanupErr = errors.Join(cleanupErr, cleanupMatrixPrivateAttemptForExecution(input.attempt))
+		cleanupErr = errors.Join(cleanupErr, closeMatrixPrivateAttemptForExecution(input.attempt))
 		return cleanupErr
 	}
 	cleanupErr = errors.Join(cleanupErr, cleanupMatrixProviderScratch(input.anchor, filepath.Dir(input.path)))
@@ -725,41 +725,35 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 			}
 		}
 
-		var generatedConfigPath, generatedWorkDir string
+		var generatedConfigPath string
 		var generatedMetadata frameExecutionMetadata
-		if rootedOutput == nil {
-			generatedConfigPath, generatedMetadata, generatedWorkDir, err = createDefaultKoubouConfig(absInputPath, spec, req.Canvas)
-			if err != nil {
-				return nil, err
+		generatedWorkAttempt, err = createMatrixPrivateAttemptRoot()
+		if err != nil {
+			if rootedOutput == nil {
+				return nil, fmt.Errorf("create temp config directory: %w", err)
 			}
-			defer func() { _ = os.RemoveAll(generatedWorkDir) }()
-		} else {
-			generatedWorkAttempt, err = createMatrixPrivateAttemptRoot()
-			if err != nil {
-				return nil, fmt.Errorf("create Koubou work directory: %w", err)
-			}
-			generatedWorkDir = generatedWorkAttempt.path
-			generatedConfigPath, generatedMetadata, err = createDefaultKoubouConfigAtRoot(absInputPath, spec, req.Canvas, generatedWorkDir, generatedWorkAttempt.pinned)
-			if err != nil {
-				cleanupErr := cleanupMatrixPrivateAttemptForExecution(generatedWorkAttempt)
-				closeErr := closeMatrixPrivateAttemptForExecution(generatedWorkAttempt)
-				return nil, errors.Join(err, cleanupErr, closeErr)
-			}
-			generatedWorkRoot = &generatedWorkAttempt.root
-			if err := lockMatrixPrivateAttemptChild(&generatedWorkAttempt); err != nil {
-				cleanupErr := cleanupMatrixPrivateAttemptForExecution(generatedWorkAttempt)
-				closeErr := closeMatrixPrivateAttemptForExecution(generatedWorkAttempt)
-				return nil, errors.Join(fmt.Errorf("lock Koubou work directory: %w", err), cleanupErr, closeErr)
-			}
-			defer func() {
-				cleanupErr := cleanupMatrixPrivateAttemptForExecution(generatedWorkAttempt)
-				closeErr := closeMatrixPrivateAttemptForExecution(generatedWorkAttempt)
-				if resourceErr := errors.Join(cleanupErr, closeErr); resourceErr != nil {
-					result = nil
-					returnErr = errors.Join(returnErr, resourceErr)
-				}
-			}()
+			return nil, fmt.Errorf("create Koubou work directory: %w", err)
 		}
+		generatedConfigPath, generatedMetadata, err = createDefaultKoubouConfigAtRoot(absInputPath, spec, req.Canvas, generatedWorkAttempt.path, &generatedWorkAttempt)
+		if err != nil {
+			cleanupErr := cleanupMatrixPrivateAttemptForExecution(&generatedWorkAttempt)
+			closeErr := closeMatrixPrivateAttemptForExecution(&generatedWorkAttempt)
+			return nil, errors.Join(err, cleanupErr, closeErr)
+		}
+		generatedWorkRoot = &generatedWorkAttempt.root
+		if err := lockMatrixPrivateAttemptChild(&generatedWorkAttempt); err != nil {
+			cleanupErr := cleanupMatrixPrivateAttemptForExecution(&generatedWorkAttempt)
+			closeErr := closeMatrixPrivateAttemptForExecution(&generatedWorkAttempt)
+			return nil, errors.Join(fmt.Errorf("lock Koubou work directory: %w", err), cleanupErr, closeErr)
+		}
+		defer func() {
+			cleanupErr := cleanupMatrixPrivateAttemptForExecution(&generatedWorkAttempt)
+			closeErr := closeMatrixPrivateAttemptForExecution(&generatedWorkAttempt)
+			if resourceErr := errors.Join(cleanupErr, closeErr); resourceErr != nil {
+				result = nil
+				returnErr = errors.Join(returnErr, resourceErr)
+			}
+		}()
 		configPath = generatedConfigPath
 		metadata = generatedMetadata
 	} else {
@@ -795,16 +789,18 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 		if matrixFrameWorkRootBeforeReadForTest != nil {
 			matrixFrameWorkRootBeforeReadForTest(generatedWorkRoot.Path())
 		}
-		verifiedWorkRoot, verifyErr := generatedWorkRoot.OpenRoot()
-		if verifyErr != nil {
-			return nil, fmt.Errorf("koubou work directory changed during generation: %w", verifyErr)
-		}
-		if closeErr := verifiedWorkRoot.Close(); closeErr != nil {
-			return nil, fmt.Errorf("verify Koubou work directory: %w", closeErr)
-		}
-		generatedRelativePath, err = relativeMatrixOutputPath(generatedWorkRoot.Path(), generatedPath)
-		if err != nil {
-			return nil, fmt.Errorf("koubou output escapes rooted work directory: %w", err)
+		if rootedOutput != nil {
+			verifiedWorkRoot, verifyErr := generatedWorkRoot.OpenRoot()
+			if verifyErr != nil {
+				return nil, fmt.Errorf("koubou work directory changed during generation: %w", verifyErr)
+			}
+			if closeErr := verifiedWorkRoot.Close(); closeErr != nil {
+				return nil, fmt.Errorf("verify Koubou work directory: %w", closeErr)
+			}
+			generatedRelativePath, err = relativeMatrixOutputPath(generatedWorkRoot.Path(), generatedPath)
+			if err != nil {
+				return nil, fmt.Errorf("koubou output escapes rooted work directory: %w", err)
+			}
 		}
 	}
 
@@ -933,17 +929,16 @@ func createDefaultKoubouConfigAt(
 	return createDefaultKoubouConfigAtRoot(absInputPath, spec, canvas, workDir, nil)
 }
 
-// createDefaultKoubouConfigAtRoot is the matrix-only variant of
-// createDefaultKoubouConfigAt. When workRoot is non-nil, all generated
-// directories and files are created relative to the already-pinned attempt
-// root. The path arguments remain only for the external Koubou contract and
-// diagnostics; they are not used to resolve the generated objects.
+// createDefaultKoubouConfigAtRoot creates generated directories and files
+// relative to the already-pinned attempt root. The path arguments remain only
+// for the external Koubou contract and diagnostics; they are not used to
+// resolve the generated objects.
 func createDefaultKoubouConfigAtRoot(
 	absInputPath string,
 	spec frameDeviceKoubouSpec,
 	canvas *CanvasOptions,
 	workDir string,
-	workRoot *os.Root,
+	workAttempt *matrixPrivateAttemptRoot,
 ) (string, frameExecutionMetadata, error) {
 	if strings.TrimSpace(workDir) == "" {
 		return "", frameExecutionMetadata{}, errors.New("koubou work directory is required")
@@ -951,8 +946,10 @@ func createDefaultKoubouConfigAtRoot(
 
 	kouOutputDir := filepath.Join(workDir, "output")
 	var outputErr error
-	if workRoot != nil {
-		outputErr = createMatrixPrivateAttemptOutputDirInRoot(workRoot)
+	var workRoot *os.Root
+	if workAttempt != nil {
+		workRoot = workAttempt.pinned
+		workAttempt.outputCreator, outputErr = createMatrixPrivateAttemptOutputDirInRootRetained(workRoot)
 	} else {
 		outputErr = createMatrixPrivateAttemptOutputDir(workDir)
 	}
@@ -1088,12 +1085,20 @@ func createDefaultKoubouConfigAtRoot(
 		_ = configFile.Close()
 		return "", frameExecutionMetadata{}, fmt.Errorf("write default Koubou YAML: %w", writeErr)
 	}
-	if err := lockMatrixPrivateAttemptFileHandle(configFile); err != nil {
-		_ = configFile.Close()
-		return "", frameExecutionMetadata{}, fmt.Errorf("protect default Koubou YAML: %w", err)
-	}
-	if err := configFile.Close(); err != nil {
-		return "", frameExecutionMetadata{}, fmt.Errorf("close default Koubou YAML: %w", err)
+	if workAttempt != nil {
+		configDACL, err := lockMatrixPrivateAttemptFileRetained(configFile)
+		if err != nil {
+			return "", frameExecutionMetadata{}, fmt.Errorf("protect default Koubou YAML: %w", err)
+		}
+		workAttempt.fileDACLs = append(workAttempt.fileDACLs, configDACL)
+	} else {
+		if err := lockMatrixPrivateAttemptFileHandle(configFile); err != nil {
+			_ = configFile.Close()
+			return "", frameExecutionMetadata{}, fmt.Errorf("protect default Koubou YAML: %w", err)
+		}
+		if err := configFile.Close(); err != nil {
+			return "", frameExecutionMetadata{}, fmt.Errorf("close default Koubou YAML: %w", err)
+		}
 	}
 
 	metadata := frameExecutionMetadata{

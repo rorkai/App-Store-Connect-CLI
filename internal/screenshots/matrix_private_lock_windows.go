@@ -90,6 +90,20 @@ func lockMatrixPrivateAttemptDirectoryRetained(root *os.Root) (*matrixPrivateAtt
 	return retained, nil
 }
 
+func lockMatrixPrivateAttemptDirectoryCreated(file *os.File, root *os.Root) (*matrixPrivateAttemptDACLHandle, error) {
+	if file == nil {
+		return lockMatrixPrivateAttemptDirectoryRetained(root)
+	}
+	retained, err := lockMatrixPrivateAttemptDirectoryRetained(root)
+	if err != nil {
+		return nil, errors.Join(err, file.Close())
+	}
+	if err := file.Close(); err != nil {
+		return nil, errors.Join(err, finalizeMatrixPrivateAttemptDirectory(retained, root))
+	}
+	return retained, nil
+}
+
 func unlockMatrixPrivateAttemptDirectoryRetained(handle *matrixPrivateAttemptDACLHandle, _ *os.Root) error {
 	if handle == nil || !handle.open || handle.handle == windows.InvalidHandle {
 		return nil

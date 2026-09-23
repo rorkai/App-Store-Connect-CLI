@@ -2,6 +2,7 @@ package screenshots
 
 import (
 	"context"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -498,6 +499,12 @@ func TestFrame_InputModeCleansTemporaryKoubouDirectory(t *testing.T) {
 	installFrameTestMockKou(t, kouFixturePath, filepath.Join(t.TempDir(), "kou-out", "framed.png"))
 
 	before := listFrameTempWorkDirs(t)
+	previousWorkRootHook := matrixFrameWorkRootBeforeReadForTest
+	var generatedWorkRoot string
+	matrixFrameWorkRootBeforeReadForTest = func(path string) {
+		generatedWorkRoot = path
+	}
+	t.Cleanup(func() { matrixFrameWorkRootBeforeReadForTest = previousWorkRootHook })
 	outputPath := filepath.Join(t.TempDir(), "framed", "home.png")
 	result, err := Frame(context.Background(), FrameRequest{
 		InputPath:  rawPath,
@@ -509,6 +516,12 @@ func TestFrame_InputModeCleansTemporaryKoubouDirectory(t *testing.T) {
 	}
 	if _, err := os.Stat(result.Path); err != nil {
 		t.Fatalf("expected output file at %q: %v", result.Path, err)
+	}
+	if generatedWorkRoot == "" {
+		t.Fatal("direct Frame() did not use the pinned Koubou work root")
+	}
+	if _, err := os.Stat(generatedWorkRoot); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("direct Frame() work root stat error = %v, want cleaned up", err)
 	}
 
 	for _, dir := range listFrameTempWorkDirs(t) {
@@ -742,7 +755,7 @@ func TestCreateDefaultKoubouConfig_CanvasCustomColors(t *testing.T) {
 func listFrameTempWorkDirs(t *testing.T) []string {
 	t.Helper()
 
-	pattern := filepath.Join(os.TempDir(), "asc-shots-kou-*")
+	pattern := filepath.Join(os.TempDir(), ".asc-matrix-attempt-ns-*")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		t.Fatalf("filepath.Glob(%q) error: %v", pattern, err)

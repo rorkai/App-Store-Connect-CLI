@@ -108,12 +108,12 @@ func createMatrixOwnerOnlyObjectInRoot(parent *os.Root, name, displayPath string
 	var handle windows.Handle
 	if err := windows.NtCreateFile(
 		&handle,
-		windows.FILE_GENERIC_READ|windows.FILE_GENERIC_WRITE|windows.DELETE|windows.SYNCHRONIZE,
+		windows.FILE_GENERIC_READ|windows.FILE_GENERIC_WRITE|windows.READ_CONTROL|windows.WRITE_DAC|windows.SYNCHRONIZE,
 		objectAttributes,
 		&windows.IO_STATUS_BLOCK{},
 		nil,
 		0,
-		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE,
 		windows.FILE_CREATE,
 		options,
 		0,
@@ -125,11 +125,15 @@ func createMatrixOwnerOnlyObjectInRoot(parent *os.Root, name, displayPath string
 }
 
 func createMatrixOwnerOnlyDirectoryInRoot(parent *os.Root, name string) error {
-	file, err := createMatrixOwnerOnlyObjectInRoot(parent, name, name, true)
+	file, err := createMatrixOwnerOnlyDirectoryInRootRetained(parent, name)
 	if err != nil {
 		return err
 	}
 	return file.Close()
+}
+
+func createMatrixOwnerOnlyDirectoryInRootRetained(parent *os.Root, name string) (*os.File, error) {
+	return createMatrixOwnerOnlyObjectInRoot(parent, name, name, true)
 }
 
 func createMatrixOwnerOnlyFileInRoot(parent *os.Root, name, displayPath string) (*os.File, error) {
@@ -147,8 +151,8 @@ func createMatrixOwnerOnlyFile(path string) (*os.File, error) {
 	}
 	handle, err := windows.CreateFile(
 		name,
-		windows.GENERIC_WRITE,
-		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
+		windows.GENERIC_WRITE|windows.READ_CONTROL|windows.WRITE_DAC,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE,
 		security,
 		windows.CREATE_NEW,
 		windows.FILE_ATTRIBUTE_NORMAL,
@@ -165,31 +169,107 @@ func createMatrixPrivateScratchDir(prefix string) (string, error) {
 }
 
 func createMatrixPrivateAttemptParent() (string, error) {
-	namespace, err := createMatrixPrivateScratchDir(".asc-matrix-attempt-ns-")
+	parentPath, namespace, parent, err := createMatrixPrivateAttemptParentWithHandles()
 	if err != nil {
 		return "", err
 	}
-	parent := filepath.Join(namespace, "parent")
-	if err := createMatrixOwnerOnlyDirectory(parent); err != nil {
-		_ = os.RemoveAll(namespace)
-		return "", err
-	}
-	return parent, nil
+	return parentPath, errors.Join(namespace.Close(), parent.Close())
 }
 
-func createMatrixPrivateAttemptChild(parent *os.Root, parentPath, name string) error {
-	if err := createMatrixOwnerOnlyDirectoryInRoot(parent, name); err != nil {
-		return fmt.Errorf("create rooted private attempt child %s: %w", filepath.Join(parentPath, name), err)
+func createMatrixPrivateAttemptParentWithHandles() (string, *os.File, *os.File, error) {
+	tempRoot, err := os.OpenRoot(os.TempDir())
+	if err != nil {
+		return "", nil, nil, err
 	}
-	return nil
+	defer tempRoot.Close()
+	for attempt := 0; attempt < matrixOwnerOnlyRandomNameAttempts; attempt++ {
+		var suffix [16]byte
+		if _, err := rand.Read(suffix[:]); err != nil {
+			return "", nil, nil, fmt.Errorf("generate private matrix namespace: %w", err)
+		}
+		name := ".asc-matrix-attempt-ns-" + hex.EncodeToString(suffix[:])
+		namespacePath := filepath.Join(os.TempDir(), name)
+		namespace, err := createMatrixOwnerOnlyObjectInRoot(tempRoot, name, namespacePath, true)
+		if errors.Is(err, windows.ERROR_ALREADY_EXISTS) || errors.Is(err, windows.ERROR_FILE_EXISTS) {
+			continue
+		}
+		if err != nil {
+			return "", nil, nil, fmt.Errorf("create private matrix namespace: %w", err)
+		}
+		namespaceRoot, err := os.OpenRoot(namespacePath)
+		if err != nil {
+			namespaceID, identityErr := namespace.Stat()
+			closeErr := namespace.Close()
+			cleanupErr := removeMatrixPrivateCreatedEntry(tempRoot, name, namespaceID)
+			return "", nil, nil, errors.Join(err, identityErr, closeErr, cleanupErr)
+		}
+		parent, err := createMatrixPrivateAttemptDirectoryInRootRetained(namespaceRoot, "parent", filepath.Join(namespacePath, "parent"))
+		var parentID os.FileInfo
+		var parentStatErr error
+		if parent != nil {
+			parentID, parentStatErr = parent.Stat()
+		}
+		if err != nil || parentStatErr != nil {
+			var parentCloseErr error
+			if parent != nil {
+				parentCloseErr = parent.Close()
+			}
+			parentCleanupErr := removeMatrixPrivateCreatedEntry(namespaceRoot, "parent", parentID)
+			namespaceCloseErr := namespaceRoot.Close()
+			namespaceID, identityErr := namespace.Stat()
+			namespaceCreatorCloseErr := namespace.Close()
+			namespaceCleanupErr := removeMatrixPrivateCreatedEntry(tempRoot, name, namespaceID)
+			return "", nil, nil, errors.Join(err, parentStatErr, parentCloseErr, parentCleanupErr, namespaceCloseErr, identityErr, namespaceCreatorCloseErr, namespaceCleanupErr)
+		}
+		if closeErr := namespaceRoot.Close(); closeErr != nil {
+			parentCloseErr := parent.Close()
+			cleanupRoot, openErr := os.OpenRoot(namespacePath)
+			var parentCleanupErr, cleanupRootCloseErr error
+			if openErr == nil {
+				parentCleanupErr = removeMatrixPrivateCreatedEntry(cleanupRoot, "parent", parentID)
+				cleanupRootCloseErr = cleanupRoot.Close()
+			}
+			namespaceID, identityErr := namespace.Stat()
+			namespaceCreatorCloseErr := namespace.Close()
+			namespaceCleanupErr := removeMatrixPrivateCreatedEntry(tempRoot, name, namespaceID)
+			return "", nil, nil, errors.Join(closeErr, parentCloseErr, openErr, parentCleanupErr, cleanupRootCloseErr, identityErr, namespaceCreatorCloseErr, namespaceCleanupErr)
+		}
+		return filepath.Join(namespacePath, "parent"), namespace, parent, nil
+	}
+	return "", nil, nil, errors.New("create private matrix namespace: random-name collision limit exceeded")
+}
+
+func removeMatrixPrivateCreatedEntry(parent *os.Root, name string, identity os.FileInfo) error {
+	if parent == nil || identity == nil {
+		return nil
+	}
+	current, err := parent.Lstat(name)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(identity, current) {
+		return errors.Join(errMatrixPrivateAttemptCleanupUncertain, errors.New("private matrix created entry identity changed before cleanup"))
+	}
+	return parent.Remove(name)
+}
+
+func createMatrixPrivateAttemptDirectoryInRootRetained(parent *os.Root, name, displayPath string) (*os.File, error) {
+	return createMatrixOwnerOnlyObjectInRoot(parent, name, displayPath, true)
+}
+
+func createMatrixPrivateAttemptChildRetained(parent *os.Root, parentPath, name string) (*os.File, error) {
+	return createMatrixPrivateAttemptDirectoryInRootRetained(parent, name, filepath.Join(parentPath, name))
 }
 
 func createMatrixPrivateAttemptOutputDir(workDir string) error {
 	return createMatrixOwnerOnlyDirectory(filepath.Join(workDir, "output"))
 }
 
-func createMatrixPrivateAttemptOutputDirInRoot(parent *os.Root) error {
-	return createMatrixOwnerOnlyDirectoryInRoot(parent, "output")
+func createMatrixPrivateAttemptOutputDirInRootRetained(parent *os.Root) (*os.File, error) {
+	return createMatrixPrivateAttemptDirectoryInRootRetained(parent, "output", "output")
 }
 
 func createMatrixPrivateAttemptFile(path string) (*os.File, error) {
