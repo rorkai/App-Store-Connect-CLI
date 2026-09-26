@@ -288,7 +288,39 @@ Examples:
 		UsageFunc: shared.DefaultUsageFunc,
 		Exec: func(ctx context.Context, args []string) error {
 			nameValue := strings.TrimSpace(*name)
+			if !*viaURL {
+				var unused string
+				fs.Visit(func(f *flag.Flag) {
+					switch f.Name {
+					case "listen", "public-url", "ttl", "output-file", "confirm":
+						if unused == "" {
+							unused = f.Name
+						}
+					}
+				})
+				if unused != "" {
+					return shared.UsageErrorf("--%s requires --via-url", unused)
+				}
+			}
 			if *viaURL {
+				if len(args) > 0 {
+					return shared.UsageError("devices register --via-url does not accept positional arguments")
+				}
+				if _, err := shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
+					return err
+				}
+				options := deviceURLServeOptions{
+					Name:           nameValue,
+					Listen:         strings.TrimSpace(*listen),
+					ListenExplicit: listenExplicit(fs),
+					PublicURL:      strings.TrimSpace(*publicURL),
+					TTL:            *ttl,
+					Confirm:        *confirm,
+					OutputFile:     strings.TrimSpace(*outputFile),
+				}
+				if err := validateDeviceURLServeOptions(options); err != nil {
+					return err
+				}
 				if strings.TrimSpace(*udid) != "" || *udidFromSystem {
 					return shared.UsageError("--via-url cannot be combined with --udid or --udid-from-system")
 				}
@@ -312,16 +344,9 @@ Examples:
 					}
 					client = created
 				}
-				result, err := serveDeviceRegistration(ctx, deviceURLServeOptions{
-					Listen:         strings.TrimSpace(*listen),
-					ListenExplicit: listenExplicit(fs),
-					PublicURL:      strings.TrimSpace(*publicURL),
-					TTL:            *ttl,
-					Platform:       platformValue,
-					Confirm:        *confirm,
-					OutputFile:     strings.TrimSpace(*outputFile),
-					Client:         client,
-				})
+				options.Platform = platformValue
+				options.Client = client
+				result, err := serveDeviceRegistration(ctx, options)
 				if result != nil {
 					if printErr := shared.PrintOutput(result, *output.Output, *output.Pretty); printErr != nil && err == nil {
 						return printErr
