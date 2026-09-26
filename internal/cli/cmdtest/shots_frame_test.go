@@ -1207,6 +1207,11 @@ func frameResultWithWrittenPNG(t *testing.T, outputPath string, result screensho
 	}
 
 	writeFramePNG(t, path, makeRawImage(width, height))
+	var err error
+	result.OutputHash, err = screenshots.HashFile(t.Context(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	result.Path = path
 	if result.Width == 0 {
@@ -1258,6 +1263,14 @@ func TestShotsFrame_ResumeSkipsUnchangedInput(t *testing.T) {
 	if calls != 1 {
 		t.Fatalf("frame calls = %d, want 1 on resume", calls)
 	}
+	// A render without --resume (or another tool) can replace the output
+	// while the source and recorded render settings remain unchanged.
+	outputPath := filepath.Join(outputDir, "raw-iphone-air.png")
+	writeFramePNG(t, outputPath, makeRawImage(30, 50))
+	run()
+	if calls != 2 {
+		t.Fatalf("frame calls = %d, want 2 after output replacement", calls)
+	}
 }
 
 func TestShotsFrameResumeRerenderRejectsSymlinkOutput(t *testing.T) {
@@ -1293,7 +1306,7 @@ func TestShotsFrameResumeRerenderRejectsSymlinkOutput(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { _ = resumeRoot.Close() })
-			sourceHash, err := screenshots.HashFile(inputPath)
+			sourceHash, err := screenshots.HashFile(t.Context(), inputPath)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1468,4 +1481,33 @@ func makeRawImage(width, height int) image.Image {
 		}
 	}
 	return img
+}
+
+func TestShotsFrameResumeRejectsReplacedPublication(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	input := filepath.Join(dir, "raw.png")
+	output := filepath.Join(dir, "framed.png")
+	writeFramePNG(t, input, makeRawImage(20, 40))
+	calls := 0
+	installMockFrame(t, func(_ context.Context, req screenshots.FrameRequest) (*screenshots.FrameResult, error) {
+		calls++
+		result := frameResultWithWrittenPNG(t, req.OutputPath, screenshots.FrameResult{Device: req.Device})
+		if calls == 1 {
+			writeFramePNG(t, req.OutputPath, makeRawImage(30, 50))
+		}
+		return result, nil
+	})
+	for range 2 {
+		root := RootCommand("1.2.3")
+		if err := root.Parse([]string{"screenshots", "frame", "--input", input, "--output-path", output, "--resume", "--output", "json"}); err != nil {
+			t.Fatal(err)
+		}
+		if err := root.Run(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("frame calls = %d, want 2 after publication was replaced", calls)
+	}
 }

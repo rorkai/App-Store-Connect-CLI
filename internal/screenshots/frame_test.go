@@ -169,7 +169,7 @@ func TestCopyFileRejectsSymlinkDestinationWithoutMutatingTarget(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := copyFile(source, destination); err == nil {
+	if _, err := copyFileWithLimit(t.Context(), source, destination, maxMatrixArtifactBytes); err == nil {
 		t.Fatal("copyFile() error = nil, want symlink destination rejection")
 	}
 	contents, err := os.ReadFile(target)
@@ -199,7 +199,7 @@ func TestCopyFileAtomicallyPublishesRegularDestination(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := copyFile(source, destination); err != nil {
+	if _, err := copyFileWithLimit(t.Context(), source, destination, maxMatrixArtifactBytes); err != nil {
 		t.Fatalf("copyFile() error = %v", err)
 	}
 	contents, err := os.ReadFile(destination)
@@ -230,7 +230,7 @@ func TestCopyFileRejectsOversizedSourceWithoutReplacingDestination(t *testing.T)
 		t.Fatal(err)
 	}
 
-	if err := copyFileWithLimit(source, destination, 4); err == nil {
+	if _, err := copyFileWithLimit(t.Context(), source, destination, 4); err == nil {
 		t.Fatal("copyFileWithLimit() error = nil, want size-limit rejection")
 	}
 	contents, err := os.ReadFile(destination)
@@ -516,6 +516,13 @@ func TestFrame_InputModeCleansTemporaryKoubouDirectory(t *testing.T) {
 	}
 	if _, err := os.Stat(result.Path); err != nil {
 		t.Fatalf("expected output file at %q: %v", result.Path, err)
+	}
+	outputHash, err := HashFile(t.Context(), result.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.OutputHash != outputHash {
+		t.Fatalf("published output hash = %q, want %q", result.OutputHash, outputHash)
 	}
 	if generatedWorkRoot == "" {
 		t.Fatal("direct Frame() did not use the pinned Koubou work root")

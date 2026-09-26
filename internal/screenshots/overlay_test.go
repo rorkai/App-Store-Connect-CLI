@@ -87,7 +87,7 @@ func TestResumeSkipRequiresMatchingHashAndOutput(t *testing.T) {
 	if err := os.WriteFile(input, []byte("png"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	hash, err := HashFile(input)
+	hash, err := HashFile(t.Context(), input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,18 +96,28 @@ func TestResumeSkipRequiresMatchingHashAndOutput(t *testing.T) {
 	state := FrameResumeState{Files: map[string]FrameResumeEntry{
 		output: {Fingerprint: fingerprint, Result: stored},
 	}}
-	if _, ok := ResumeEntry(state, output, fingerprint); ok {
+	if _, ok := ResumeEntry(t.Context(), state, output, fingerprint); ok {
 		t.Fatal("missing output must not skip")
 	}
 	if err := os.WriteFile(output, []byte("framed"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got, ok := ResumeEntry(state, output, fingerprint)
+	if _, ok := ResumeEntry(t.Context(), state, output, fingerprint); ok {
+		t.Fatal("legacy output without a recorded hash must not skip")
+	}
+	outputHash, err := HashFile(t.Context(), output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry := state.Files[output]
+	entry.OutputHash = outputHash
+	state.Files[output] = entry
+	got, ok := ResumeEntry(t.Context(), state, output, fingerprint)
 	if !ok || !got.Skipped || got.Width != 20 || got.FramePath != "frame" {
 		t.Fatalf("resume entry = %+v ok=%v", got, ok)
 	}
 	changed := FingerprintFrameResume(FrameResumeFingerprint{SourceHash: hash, Device: "iphone-air", Title: "Other"})
-	if _, ok := ResumeEntry(state, output, changed); ok {
+	if _, ok := ResumeEntry(t.Context(), state, output, changed); ok {
 		t.Fatal("changed title must not skip")
 	}
 	path := FrameResumeStateRel
@@ -156,7 +166,7 @@ func TestResumeFingerprintInvalidatesLegacySchema(t *testing.T) {
 	state := FrameResumeState{Files: map[string]FrameResumeEntry{
 		output: {Fingerprint: legacyFingerprint, Result: FrameResult{Path: output}},
 	}}
-	if _, ok := ResumeEntry(state, output, currentFingerprint); ok {
+	if _, ok := ResumeEntry(t.Context(), state, output, currentFingerprint); ok {
 		t.Fatal("legacy resume state must not be reused after fingerprint schema change")
 	}
 }
@@ -317,7 +327,7 @@ func TestHashFileRejectsOversizedInput(t *testing.T) {
 	if err := file.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := HashFile(path); err == nil {
+	if _, err := HashFile(t.Context(), path); err == nil {
 		t.Fatal("expected oversized input to be rejected")
 	}
 }
@@ -332,7 +342,11 @@ func TestResumeEntryRejectsSymlinkOutputForMatchingAndStaleState(t *testing.T) {
 	if err := os.Symlink(target, link); err != nil {
 		t.Fatal(err)
 	}
-	entry := FrameResumeEntry{Fingerprint: "fp", Result: FrameResult{Path: link}}
+	outputHash, err := HashFile(t.Context(), target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry := FrameResumeEntry{Fingerprint: "fp", OutputHash: outputHash, Result: FrameResult{Path: link}}
 	state := FrameResumeState{Files: map[string]FrameResumeEntry{link: entry}}
 	for _, test := range []struct {
 		name        string
@@ -342,7 +356,7 @@ func TestResumeEntryRejectsSymlinkOutputForMatchingAndStaleState(t *testing.T) {
 		{name: "stale", fingerprint: "stale"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if _, ok := ResumeEntry(state, link, test.fingerprint); ok {
+			if _, ok := ResumeEntry(t.Context(), state, link, test.fingerprint); ok {
 				t.Fatal("symlinked output must not be resumable")
 			}
 			contents, err := os.ReadFile(target)
@@ -413,5 +427,17 @@ func TestOpenFrameInputSnapshotRejectsReplacementBetweenLocks(t *testing.T) {
 			_ = snapshot.Close()
 		}
 		t.Fatal("OpenFrameInputSnapshot() error = nil, want replacement rejection")
+	}
+}
+
+func TestHashFileHonorsCancellation(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "output.png")
+	if err := os.WriteFile(path, []byte("framed"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := HashFile(ctx, path); !errors.Is(err, context.Canceled) {
+		t.Fatalf("HashFile error = %v, want context cancellation", err)
 	}
 }

@@ -504,6 +504,7 @@ func finalizeMatrixPrivateAttemptFile(handle *matrixPrivateAttemptDACLHandle) er
 
 // FrameResult is the structured output for one composed frame image.
 type FrameResult struct {
+	OutputHash   string `json:"-"` // Digest of bytes published by this render.
 	Path         string `json:"path"`
 	FramePath    string `json:"frame_path"`
 	Device       string `json:"device"`
@@ -805,6 +806,7 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 	}
 
 	finalPath := generatedPath
+	var outputHash string
 	var rootedOutputPath string
 	if outputPath != "" {
 		absOutputPath, err := filepath.Abs(outputPath)
@@ -815,7 +817,8 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 			if err := os.MkdirAll(filepath.Dir(absOutputPath), 0o755); err != nil {
 				return nil, fmt.Errorf("create output directory: %w", err)
 			}
-			if err := copyFile(generatedPath, absOutputPath); err != nil {
+			outputHash, err = copyFileWithLimit(ctx, generatedPath, absOutputPath, maxMatrixArtifactBytes)
+			if err != nil {
 				return nil, err
 			}
 		} else {
@@ -840,7 +843,8 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 				reader:    &matrixContextReader{ctx: ctx, reader: sourceFile},
 				remaining: maxMatrixArtifactBytes,
 			}
-			written, writeErr := rootedOutput.WriteFromPreservingMode(rootedOutputPath, limited, 0o644)
+			hasher := sha256.New()
+			written, writeErr := rootedOutput.WriteFromPreservingMode(rootedOutputPath, io.TeeReader(limited, hasher), 0o644)
 			closeErr := sourceFile.Close()
 			if writeErr != nil {
 				return nil, errors.Join(fmt.Errorf("publish framed screenshot: %w", writeErr), closeErr)
@@ -851,6 +855,7 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 			if closeErr != nil {
 				return nil, fmt.Errorf("close generated screenshot: %w", closeErr)
 			}
+			outputHash = hex.EncodeToString(hasher.Sum(nil))
 			absOutputPath = filepath.Join(rootedOutput.Path(), rootedOutputPath)
 		}
 		finalPath = absOutputPath
@@ -884,6 +889,7 @@ func frame(ctx context.Context, req FrameRequest, rootedOutput *rootfs.Root) (re
 	normalized := dimensions.Width == metadata.UploadWidth && dimensions.Height == metadata.UploadHeight
 	absFinalPath, _ := filepath.Abs(finalPath)
 	return &FrameResult{
+		OutputHash:   outputHash,
 		Path:         absFinalPath,
 		FramePath:    metadata.FrameRef,
 		Device:       resultDevice,
@@ -1575,49 +1581,46 @@ func (reader *matrixArtifactLimitReader) Read(buffer []byte) (int, error) {
 	return n, err
 }
 
-func copyFile(sourcePath, destinationPath string) error {
-	return copyFileWithLimit(sourcePath, destinationPath, maxMatrixArtifactBytes)
-}
-
-func copyFileWithLimit(sourcePath, destinationPath string, limit int64) (returnErr error) {
+func copyFileWithLimit(ctx context.Context, sourcePath, destinationPath string, limit int64) (digest string, returnErr error) {
 	sourceFile, err := os.Open(sourcePath)
 	if err != nil {
-		return fmt.Errorf("open generated screenshot: %w", err)
+		return "", fmt.Errorf("open generated screenshot: %w", err)
 	}
 	defer func() {
 		returnErr = errors.Join(returnErr, sourceFile.Close())
 	}()
 	sourceInfo, err := sourceFile.Stat()
 	if err != nil {
-		return fmt.Errorf("inspect generated screenshot: %w", err)
+		return "", fmt.Errorf("inspect generated screenshot: %w", err)
 	}
 	if !sourceInfo.Mode().IsRegular() {
-		return errors.New("generated screenshot is not a regular file")
+		return "", errors.New("generated screenshot is not a regular file")
 	}
 	if sourceInfo.Size() > limit {
-		return errors.New("framed screenshot exceeds the artifact size limit")
+		return "", errors.New("framed screenshot exceeds the artifact size limit")
 	}
 
 	absoluteDestination, err := filepath.Abs(destinationPath)
 	if err != nil {
-		return fmt.Errorf("resolve final screenshot: %w", err)
+		return "", fmt.Errorf("resolve final screenshot: %w", err)
 	}
 	destinationRoot, err := rootfs.New(filepath.Dir(absoluteDestination))
 	if err != nil {
-		return fmt.Errorf("open final screenshot root: %w", err)
+		return "", fmt.Errorf("open final screenshot root: %w", err)
 	}
 	defer func() {
 		returnErr = errors.Join(returnErr, destinationRoot.Close())
 	}()
 	relativeDestination, err := filepath.Rel(destinationRoot.Path(), absoluteDestination)
 	if err != nil {
-		return fmt.Errorf("resolve final screenshot path: %w", err)
+		return "", fmt.Errorf("resolve final screenshot path: %w", err)
 	}
-	limited := &matrixArtifactLimitReader{reader: sourceFile, remaining: limit}
-	if _, err := destinationRoot.WriteFromPreservingMode(relativeDestination, limited, 0o644); err != nil {
-		return fmt.Errorf("publish final screenshot: %w", err)
+	limited := &matrixArtifactLimitReader{reader: &matrixContextReader{ctx: ctx, reader: sourceFile}, remaining: limit}
+	hasher := sha256.New()
+	if _, err := destinationRoot.WriteFromPreservingMode(relativeDestination, io.TeeReader(limited, hasher), 0o644); err != nil {
+		return "", fmt.Errorf("publish final screenshot: %w", err)
 	}
-	return nil
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 func resetKoubouVersionCacheForTest() {

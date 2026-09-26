@@ -16,6 +16,7 @@ import (
 
 type FrameResumeEntry struct {
 	Fingerprint string      `json:"fingerprint"`
+	OutputHash  string      `json:"outputHash"`
 	Result      FrameResult `json:"result"`
 }
 
@@ -33,7 +34,7 @@ const (
 )
 
 // HashFile returns the SHA-256 hex digest of path.
-func HashFile(path string) (digest string, returnErr error) {
+func HashFile(ctx context.Context, path string) (digest string, returnErr error) {
 	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return "", err
@@ -45,7 +46,7 @@ func HashFile(path string) (digest string, returnErr error) {
 	defer func() {
 		returnErr = errors.Join(returnErr, root.Close())
 	}()
-	artifact, err := inspectMatrixArtifactWithContext(context.Background(), root, root.Path(), filepath.Join(root.Path(), filepath.Base(absolute)))
+	artifact, err := inspectMatrixArtifactWithContext(ctx, root, root.Path(), filepath.Join(root.Path(), filepath.Base(absolute)))
 	if err != nil {
 		return "", err
 	}
@@ -150,17 +151,21 @@ func WithFrameResumeLock(ctx context.Context, root rootfs.Root, fn func() error)
 }
 
 // ResumeEntry returns the stored frame result when the fingerprint still
-// matches and the framed file exists.
-func ResumeEntry(state FrameResumeState, outputPath, fingerprint string) (FrameResult, bool) {
+// matches and the framed file still contains the completed render's bytes.
+func ResumeEntry(ctx context.Context, state FrameResumeState, outputPath, fingerprint string) (FrameResult, bool) {
 	if state.Files == nil || fingerprint == "" {
 		return FrameResult{}, false
 	}
 	entry, ok := state.Files[outputPath]
-	if !ok || entry.Fingerprint != fingerprint {
+	if !ok || entry.Fingerprint != fingerprint || entry.OutputHash == "" {
 		return FrameResult{}, false
 	}
 	info, err := os.Lstat(outputPath)
 	if err != nil || !info.Mode().IsRegular() {
+		return FrameResult{}, false
+	}
+	outputHash, err := HashFile(ctx, outputPath)
+	if err != nil || outputHash != entry.OutputHash {
 		return FrameResult{}, false
 	}
 	result := entry.Result

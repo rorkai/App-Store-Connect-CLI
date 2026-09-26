@@ -305,7 +305,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 					if loadErr != nil {
 						return finishSnapshot(fmt.Errorf("screenshots frame: read resume state: %w", loadErr))
 					}
-					if result, ok := screenshots.ResumeEntry(state, outPath, fingerprint); ok {
+					if result, ok := screenshots.ResumeEntry(timeoutCtx, state, outPath, fingerprint); ok {
 						framed = &result
 						return finishSnapshot(nil)
 					}
@@ -323,6 +323,7 @@ framed screenshots whenever the YAML config or referenced raw assets change.`,
 					stored.Skipped = false
 					state.Files[outPath] = screenshots.FrameResumeEntry{
 						Fingerprint: fingerprint,
+						OutputHash:  result.OutputHash,
 						Result:      stored,
 					}
 					if saveErr := screenshots.SaveFrameResumeState(root, screenshots.FrameResumeStateRel, state); saveErr != nil {
