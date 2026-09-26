@@ -135,3 +135,9 @@ func DisableControllingTTYForTesting() func() {
 		openTTYFn = previous
 	}
 }
+
+func SetSetDeveloperServiceIDDomains(fn func(context.Context, *webcore.Client, webcore.DeveloperServiceIDDomainsSetRequest) (*asc.WebServiceIDMutationResult, error)) func() {
+	previous := setDeveloperServiceIDDomainsFn
+	setDeveloperServiceIDDomainsFn = fn
+	return func() { setDeveloperServiceIDDomainsFn = previous }
+}

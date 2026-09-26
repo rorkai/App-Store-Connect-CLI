@@ -587,8 +587,8 @@ func capabilityRows() []Capability {
 			Status:       statusWebSession,
 			Commands:     []string{"asc web service-ids", "asc web service-ids domains set"},
 			APIResources: []string{"bundleIds"},
-			Notes:        []string{"Services ID list, view, create, rename, and delete use the captured Developer Portal web-session bundleIds contract filtered to platform=SERVICES. domains set validates its flags and then stops. No accepted Sign in with Apple domain write request has been captured, so it does not open a session or call Apple."},
-			NextAction:   "Use asc web service-ids list, view, create, rename, or delete. Do not treat domains set as a successful domain write.",
+			Notes:        []string{"Services ID list, view, create, rename, and delete use the captured Developer Portal web-session bundleIds contract filtered to platform=SERVICES. domains set replaces and verifies domain and return URL lists on an already configured Sign in with Apple Services ID, preserving the primary App ID."},
+			NextAction:   "Use the lifecycle commands to manage Services IDs. Use domains set with complete --domain and --return-url lists and --confirm after configuring Sign in with Apple in Developer Portal.",
 		},
 		{
 			Area:       "signing",

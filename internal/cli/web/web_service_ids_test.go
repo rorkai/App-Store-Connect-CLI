@@ -52,30 +52,6 @@ func TestWebServiceIDsCommandHierarchy(t *testing.T) {
 	}
 }
 
-func TestWebServiceIDsDomainsSetRefusesBeforeAnyRequest(t *testing.T) {
-	command := WebServiceIDsDomainsSetCommand()
-	if err := command.FlagSet.Parse([]string{
-		"--service-id", "service-1",
-		"--domain", "example.com",
-		"--return-url", "https://example.com/callback",
-		"--confirm",
-	}); err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	stdout, stderr := captureWebCommandOutput(t, func() {
-		err := command.Exec(context.Background(), command.FlagSet.Args())
-		if err == nil || errors.Is(err, flag.ErrHelp) {
-			t.Fatalf("expected a non-usage refusal, got %v", err)
-		}
-	})
-	if stdout != "" {
-		t.Fatalf("stdout = %q, want empty", stdout)
-	}
-	if !strings.Contains(stderr, "no accepted write request has been captured") {
-		t.Fatalf("stderr = %q", stderr)
-	}
-}
-
 func TestWebServiceIDsCommandsAreRegistered(t *testing.T) {
 	commands := []*ffcli.Command{
 		WebServiceIDsCommand(),

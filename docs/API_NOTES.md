@@ -368,7 +368,7 @@ the App Store Connect web-client source captured for issue #2299:
 ## Developer Portal session (web session)
 
 - Bundle IDs, Services IDs, Website Push IDs, App Groups, and agreements share one Developer Portal session helper: `POST /services-account/QH65B2/account/listTeams.action` bootstraps CSRF and the team list, then later portal requests carry the selected `teamId` through each endpoint's captured body or session context. Same-origin redirects are enforced; cookies and CSRF tokens are never written to stdout, stderr, or debug logs.
-- `--developer-team` (ID, or exact team name) is accepted only on Developer Portal-backed commands (`web bundle-ids list`, `web bundle-ids view`, `web bundle-ids capabilities enable`, `web bundle-ids capabilities disable`, every `web website-push-ids`, `web service-ids` and `web app-groups` subcommand except the unavailable `web service-ids domains set`, and `web agreements`). It is not a global web-session flag. There is no `ASC_DEVELOPER_TEAM` env fallback; `--apple-id` / `--provider-id` likewise have none.
+- `--developer-team` (ID, or exact team name) is accepted only on Developer Portal-backed commands (`web bundle-ids list`, `web bundle-ids view`, `web bundle-ids capabilities enable`, `web bundle-ids capabilities disable`, every `web website-push-ids`, `web service-ids` and `web app-groups` subcommand, and `web agreements`). It is not a global web-session flag. There is no `ASC_DEVELOPER_TEAM` env fallback; `--apple-id` / `--provider-id` likewise have none.
 - Team resolution: an explicit `--developer-team` wins (case-insensitive ID, then exact name) and fails closed with the available IDs and names if nothing matches. Without a selector, a previously persisted team ID is reused when it is still in the list; otherwise the selected App Store Connect provider is matched by public provider ID, then exact name, then a name-prefix heuristic only when exactly one team matches. A single remaining team is used. Multiple unmatched teams fail closed and ask for `--developer-team`. The resolved team ID is stored in the web session cache next to the provider selection; a new `--developer-team` value overrides and re-persists. `asc web auth status` reports it as additive `developerTeamId`.
 - App Groups mutations still refresh CSRF from `listApplicationGroups.action` in that endpoint's scope after the shared bootstrap. Bundle ID capability and App Group assign/set/unassign paths select `bundleIdCapabilities` in `fields[bundleIds]`, request `limit[bundleIdCapabilities]=50`, skip already-satisfied writes, and abort rather than rewrite an incomplete graph. The selected relationship must resolve a `data` collection; `included` alone is not treated as proof of ownership or completeness. A continuation link, inconsistent paging total, or a full 50-item page without an exact total is also rejected. `asc web bundle-ids capabilities disable` sends one exact-resource `PATCH` with the preserved capability payload, then performs one verification read using the original command context. The read must resolve the same complete ownership graph, the same Bundle ID, and every pre-existing unrelated capability resource; success requires either the same target resource IDs with `enabled:false` for every target or complete removal of all target resources by Apple. Conflicting included representations and capabilities outside the resolved relationship are rejected. HTTP 408, 5xx, and transport failures get at most one settling read under the original deadline. A proven disabled state returns the normal receipt; an unverified state returns an error. No PATCH is retried. The public schema supports the field and limit parameters; their acceptance by the private proxy remains live-unverified.
 
@@ -453,10 +453,23 @@ the App Store Connect web-client source captured for issue #2299:
   failed post-read is an unverified outcome; no Services ID mutation is
   retried automatically.
 - Services ID lifecycle support is private-only because the public OpenAPI
-  `BundleIdPlatform` enum does not include `SERVICES`. Capability graph
-  mutation remains uncaptured. `asc web service-ids domains set` validates
-  `--service-id`, `--domain`, `--return-url`, and `--confirm`, then stops. It
-  does not open a session or send a domain write.
+  `BundleIdPlatform` enum does not include `SERVICES`.
+- `asc web service-ids domains set` replaces complete domain and return URL
+  lists on an already enabled Sign in with Apple Services ID. The primary App ID
+  must already be configured; this command does not enable or re-parent it.
+  The 2026-09-26 browser capture accepted `PATCH /services-account/v1/bundleIds/{id}`
+  with an ID-less `bundleIdCapabilities` child linked to capability `APPLE_ID_AUTH`
+  and its existing `appConsentBundleId`. Its `inputs` use keys
+  `APPLE_ID_AUTH_WEB_DOMAIN` and `APPLE_ID_AUTH_WEB_RETURN_URL`, with `values`
+  arrays of `{ "value": "..." }` objects. Other capability inputs/settings and
+  parent relationships are preserved. A separate detail read must confirm the
+  resulting state; ambiguous writes are never retried automatically.
+  The captured detail response reported `paging.total=0` with
+  `limit=2147483647` despite populated capability linkage. This specific
+  placeholder is accepted only with resolved references and no next page;
+  positive count mismatches and missing or unreferenced included capabilities fail.
+  The browser write and persistent readback were verified on disposable identifiers,
+  which were deleted afterward. CLI-to-Apple verification remains pending.
   Website Push ID lifecycle and iCloud container reads use the separate
   captured workflows documented below.
 

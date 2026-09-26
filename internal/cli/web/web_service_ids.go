@@ -2,7 +2,6 @@ package web
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -35,6 +34,10 @@ var deleteDeveloperServiceIDFn = func(ctx context.Context, client *webcore.Clien
 	return client.DeleteDeveloperServiceID(ctx, request)
 }
 
+var setDeveloperServiceIDDomainsFn = func(ctx context.Context, client *webcore.Client, request webcore.DeveloperServiceIDDomainsSetRequest) (*asc.WebServiceIDMutationResult, error) {
+	return client.SetDeveloperServiceIDDomains(ctx, request)
+}
+
 // WebServiceIDsCommand returns the private Developer Portal Services ID
 // command group. Services IDs use Apple's private bundleIds endpoint with the
 // SERVICES platform and are distinct from public App Store Connect Bundle IDs.
@@ -52,8 +55,8 @@ by Apple's bundleIds endpoint with platform=SERVICES and are not part of the
 public App Store Connect Bundle ID API.
 
 Capability configuration, Website Push IDs, and iCloud containers are separate
-workflows. domains set validates a Sign in with Apple domain update and then
-stops, because that write request has not been captured.
+workflows. domains set replaces the domain and return URL lists of an already
+configured Sign in with Apple Services ID and verifies the saved values.
 
 `,
 		FlagSet:   fs,
@@ -500,8 +503,8 @@ func WebServiceIDsDomainsCommand() *ffcli.Command {
 		ShortHelp:  "Sign in with Apple domain configuration for a Services ID.",
 		LongHelp: `Sign in with Apple domain configuration for a Services ID.
 
-The set command validates its flags and then stops. No accepted domain write
-request has been captured, so it does not call Apple.
+The set command replaces complete domain and return URL lists while preserving
+the existing primary App ID and Sign in with Apple enabled state.
 `,
 		FlagSet:   fs,
 		UsageFunc: shared.DefaultUsageFunc,
@@ -514,25 +517,33 @@ request has been captured, so it does not call Apple.
 	}
 }
 
-// WebServiceIDsDomainsSetCommand refuses a domain update until the request is captured.
+// WebServiceIDsDomainsSetCommand updates and verifies configured Services ID domains.
 func WebServiceIDsDomainsSetCommand() *ffcli.Command {
 	fs := flag.NewFlagSet("web service-ids domains set", flag.ExitOnError)
 	serviceID := fs.String("service-id", "", "Services ID resource ID")
-	domain := fs.String("domain", "", "Domain to associate, comma-separated")
-	returnURL := fs.String("return-url", "", "Return URL, comma-separated")
-	confirm := fs.Bool("confirm", false, "Confirm the domain update")
-
+	domain := fs.String("domain", "", "Complete comma-separated list of DNS hostnames")
+	returnURL := fs.String("return-url", "", "Complete comma-separated list of HTTPS return URLs")
+	confirm := fs.Bool("confirm", false, "Confirm replacing the domain and return URL lists")
+	authFlags := bindWebSessionFlags(fs)
+	portalFlags := bindDeveloperPortalFlags(fs)
+	output := shared.BindOutputFlags(fs)
 	return &ffcli.Command{
 		Name:       "set",
-		ShortUsage: "asc web service-ids domains set --service-id ID --domain DOMAIN --return-url URL --confirm",
-		ShortHelp:  "Refuse a Sign in with Apple domain update until a write request is captured.",
-		LongHelp: `Validate a Sign in with Apple domain update and stop.
+		ShortUsage: "asc web service-ids domains set --service-id ID --domain DOMAIN --return-url URL --confirm [flags]",
+		ShortHelp:  "Replace Sign in with Apple domains and return URLs for a Services ID.",
+		LongHelp: `Replace the complete domain and return URL lists of a Services ID.
 
-No accepted domain write request has been captured. The command checks
---service-id, --domain, --return-url, and --confirm, then returns an error. It
-does not open a session and does not call Apple.
+Sign in with Apple must already be enabled with a primary App ID configured in
+Developer Portal. The command preserves that association and other capabilities.
+Domains must be ASCII DNS hostnames (use punycode for international names).
+Return URLs must use HTTPS, contain no credentials or fragments, and use a host
+listed in --domain. Both lists must be non-empty; include values you want to keep.
 
-Examples:
+--confirm is required. Success requires a fresh read confirming the saved state.
+An ambiguous write or failed readback is an unknown outcome; inspect the Services
+ID before retrying. This private Apple endpoint can change without notice.
+
+Example:
   asc web service-ids domains set --service-id "SERVICE_ID" --domain "example.com" --return-url "https://example.com/callback" --confirm
 `,
 		FlagSet:   fs,
@@ -541,24 +552,44 @@ Examples:
 			if len(args) > 0 {
 				return shared.UsageError("web service-ids domains set does not accept positional arguments")
 			}
-			if strings.TrimSpace(*serviceID) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --service-id is required")
-				return shared.MissingRequiredUsageError("--service-id")
-			}
-			if strings.TrimSpace(*domain) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --domain is required")
-				return shared.MissingRequiredUsageError("--domain")
-			}
-			if strings.TrimSpace(*returnURL) == "" {
-				fmt.Fprintln(os.Stderr, "Error: --return-url is required")
-				return shared.MissingRequiredUsageError("--return-url")
+			request, err := webcore.NormalizeDeveloperServiceIDDomainsSetRequest(webcore.DeveloperServiceIDDomainsSetRequest{
+				ServiceID: *serviceID, Domains: strings.Split(*domain, ","), ReturnURLs: strings.Split(*returnURL, ","),
+			})
+			if err != nil {
+				return shared.UsageError(err.Error())
 			}
 			if !*confirm {
-				fmt.Fprintln(os.Stderr, "Error: --confirm is required")
 				return shared.MissingRequiredUsageError("--confirm")
 			}
-			fmt.Fprintln(os.Stderr, "Error: web service-ids domains set is not available: no accepted write request has been captured")
-			return shared.NewReportedError(errors.New("web service-ids domains set is not available: no accepted write request has been captured"))
+			if err = validateDeveloperPortalFlags(portalFlags); err != nil {
+				return err
+			}
+			if _, err = shared.ValidateOutputFormat(*output.Output, *output.Pretty); err != nil {
+				return shared.UsageError(err.Error())
+			}
+			session, requestCtx, cancel, err := resolveWebSessionForCommand(ctx, authFlags)
+			defer cancel()
+			if err != nil {
+				return withWebAuthHint(err, "web service-ids domains set")
+			}
+			var result *asc.WebServiceIDMutationResult
+			err = withWebSpinner("Updating Services ID domains", func() error {
+				var writeErr error
+				result, writeErr = setDeveloperServiceIDDomainsFn(requestCtx, newDeveloperPortalClient(session, portalFlags), request)
+				return writeErr
+			})
+			persistDeveloperPortalSession(session)
+			if err != nil {
+				return withWebAuthHint(err, "web service-ids domains set")
+			}
+			if result == nil {
+				return fmt.Errorf("web service-ids domains set failed: missing update result")
+			}
+			return shared.PrintOutputWithRenderers(
+				result, *output.Output, *output.Pretty,
+				func() error { return renderDeveloperServiceIDMutationTable(result) },
+				func() error { return renderDeveloperServiceIDMutationMarkdown(result) },
+			)
 		},
 	}
 }
