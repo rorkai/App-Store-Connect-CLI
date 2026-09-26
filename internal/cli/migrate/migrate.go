@@ -590,6 +590,10 @@ Examples:
 				return fmt.Errorf("migrate export: %w", err)
 			}
 			defer root.Close()
+			assetExport, err := storeassets.PrepareExport(root, assetPlan, storeassets.ExportOptions{AppID: resolvedAppID, VersionID: strings.TrimSpace(*versionID), MetadataPrefix: "metadata", Clip: true, Previews: true, Overwrite: true})
+			if err != nil {
+				return fmt.Errorf("migrate export: %w", err)
+			}
 			if err := root.MkdirAll("metadata", 0o755); err != nil {
 				return fmt.Errorf("migrate export: failed to create directory: %w", err)
 			}
@@ -667,7 +671,10 @@ Examples:
 				}
 			}
 
-			assetFiles, exportErr := storeassets.WriteExport(ctx, root, assetPlan, true)
+			assetFiles, cleanupWarnings, exportErr := assetExport.Write(ctx)
+			for _, warning := range cleanupWarnings {
+				fmt.Fprintln(os.Stderr, "Warning:", warning)
+			}
 			totalFiles += len(assetFiles)
 			result := &MigrateExportResult{
 				VersionID:  strings.TrimSpace(*versionID),

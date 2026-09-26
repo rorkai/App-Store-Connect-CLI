@@ -23,13 +23,13 @@ func TestAppClipLayoutRejectsSymlinkedNestedFolder(t *testing.T) {
 	}
 }
 
-func TestAppClipLayoutEmptyFolderIsPresent(t *testing.T) {
+func TestAppClipLayoutEmptyFolderDoesNotRequestImport(t *testing.T) {
 	metadata := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(metadata, "app_clip"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, present, err := readAppClipLayout(metadata); err != nil || !present {
-		t.Fatalf("present=%v err=%v; empty folder still requests an App Clip", present, err)
+	if _, present, err := readAppClipLayout(metadata); err != nil || present {
+		t.Fatalf("present=%v err=%v; empty folder must not request an App Clip", present, err)
 	}
 }
 

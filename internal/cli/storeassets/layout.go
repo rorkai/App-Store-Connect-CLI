@@ -15,8 +15,8 @@ import (
 	"github.com/rudrankriyam/App-Store-Connect-CLI/internal/rootfs"
 )
 
-// ReadAppClip reads only files below the selected metadata root. Folder presence
-// is significant even when all optional fields are empty.
+// ReadAppClip reads only files below the selected metadata root. A canonical
+// asset file expresses intent; empty folders left by exports do not.
 func ReadAppClip(metadataDir string) (layout AppClipLayout, present bool, err error) {
 	layout = AppClipLayout{Subtitles: map[string]string{}, HeaderImages: map[string]string{}}
 	root, err := rootfs.New(metadataDir)
@@ -33,10 +33,6 @@ func ReadAppClip(metadataDir string) (layout AppClipLayout, present bool, err er
 	if errors.Is(err, os.ErrNotExist) {
 		return layout, false, nil
 	}
-	if err != nil {
-		return layout, false, err
-	}
-	_, present, err = readDirOptional(root, "app_clip")
 	if err != nil {
 		return layout, false, err
 	}
@@ -64,7 +60,6 @@ func ReadAppClip(metadataDir string) (layout AppClipLayout, present bool, err er
 		if !exists {
 			continue
 		}
-		present = true
 		locale, err := shared.CanonicalizeAppStoreLocalizationLocale(entry.Name())
 		if err != nil {
 			return layout, true, err
@@ -77,6 +72,7 @@ func ReadAppClip(metadataDir string) (layout AppClipLayout, present bool, err er
 			return layout, true, err
 		}
 		if exists {
+			present = true
 			layout.Subtitles[locale] = subtitle
 		}
 		header := filepath.Join(clipDir, "header_image.png")
@@ -90,6 +86,7 @@ func ReadAppClip(metadataDir string) (layout AppClipLayout, present bool, err er
 			if !info.Mode().IsRegular() {
 				return layout, true, fmt.Errorf("header must be a regular file")
 			}
+			present = true
 			layout.HeaderImages[locale] = filepath.Join(root.Path(), header)
 		} else if !errors.Is(err, os.ErrNotExist) {
 			return layout, true, err

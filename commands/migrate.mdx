@@ -57,6 +57,24 @@ Imports compare an existing App Clip header with its delivered PNG when the
 source checksum differs and delivery is available. Unchanged exported headers
 keep their existing ID; edited headers still replace the old image.
 
+On macOS and Linux, exports record the selected app, version, asset scopes, and
+file hashes in `.asc/store-assets-export.json` beneath the output directory.
+A successful repeat export removes recorded, unchanged files that are no longer
+remote, including videos, poster sidecars, and ordering files. Unselected files are preserved. Locally edited and unrecorded legacy files
+are preserved with warnings. Keep the
+inventory with the exported tree; a destination owned by another app, version,
+or layout requires a separate output directory. Empty asset directories and
+unrelated files do not request an App Clip; an explicit empty `subtitle.txt`
+still does.
+
+A partial export retains prior and pending ownership for retry. A replacement
+may be absent if publication fails after safe removal; the inventory is recovery
+evidence and must not be deleted. Metadata pulls still require `--force` to
+replace existing requested files, including when resuming a partial export. Migrate exports retain their existing overwrite
+behavior. Windows exports warn that owned cleanup is unavailable; an existing
+inventory that needs an update fails before output writes. Repeated Windows
+exports do not guarantee removal of stale assets.
+
 For canonical JSON metadata, opt into the same asset folders with
 `asc metadata pull --include localizations,app-clip,previews` and
 `asc metadata push --include localizations,app-clip,previews`. Paths are relative to

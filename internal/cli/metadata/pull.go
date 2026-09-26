@@ -218,7 +218,8 @@ Examples:
 				return err
 			}
 			defer assetRoot.Close()
-			if err := storeassets.CheckExportTargets(assetRoot, assetFiles, *force); err != nil {
+			assetExport, err := storeassets.PrepareExport(assetRoot, assetFiles, storeassets.ExportOptions{AppID: resolvedAppID, VersionID: versionIDValue, MetadataPrefix: ".", Clip: includesScope(includes, "app-clip"), Previews: includesScope(includes, "previews"), Overwrite: *force})
+			if err != nil {
 				return fmt.Errorf("metadata pull: %w", err)
 			}
 
@@ -236,7 +237,10 @@ Examples:
 				files = append(files, plan.Path)
 			}
 
-			assetWritten, assetErr := storeassets.WriteExport(ctx, assetRoot, assetFiles, *force)
+			assetWritten, cleanupWarnings, assetErr := assetExport.Write(ctx)
+			for _, warning := range cleanupWarnings {
+				fmt.Fprintln(os.Stderr, "Warning:", warning)
+			}
 			for _, path := range assetWritten {
 				parts := strings.Split(filepath.ToSlash(path), "/")
 				if len(parts) > 1 {
