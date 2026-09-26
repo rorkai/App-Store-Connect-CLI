@@ -179,7 +179,7 @@ asc screenshots delete --id "SCREENSHOT_ID" --confirm
     asc screenshots capture \
       --bundle-id "com.example.myapp" \
       --name "home-screen" \
-      --output "./screenshots/raw"
+      --output-dir "./screenshots/raw"
     ```
 
     This captures from the currently running simulator.
@@ -192,7 +192,7 @@ asc screenshots delete --id "SCREENSHOT_ID" --confirm
     asc screenshots frame \
       --input "./screenshots/raw/home-screen.png" \
       --device "iphone-air" \
-      --output "./screenshots/framed"
+      --output-dir "./screenshots/framed"
     ```
 
     See available device frames:
@@ -340,7 +340,7 @@ for screen in home features settings details; do
   asc screenshots capture \
     --bundle-id "$BUNDLE_ID" \
     --name "$screen" \
-    --output "./screenshots/raw"
+    --output-dir "./screenshots/raw"
 done
 
 # 4. Frame screenshots
@@ -350,7 +350,7 @@ for raw_file in screenshots/raw/*.png; do
   asc screenshots frame \
     --input "$raw_file" \
     --device "iphone-air" \
-    --output "./screenshots/framed/$filename"
+    --output-path "./screenshots/framed/$filename"
 done
 
 # 5. Copy to upload directories

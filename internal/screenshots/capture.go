@@ -116,8 +116,8 @@ func captureWithRootProvider(ctx context.Context, req CaptureRequest, destinatio
 		return nil, fmt.Errorf("create capture scratch directory: %w", err)
 	}
 	defer func() {
-		cleanupErr := cleanupMatrixPrivateAttemptForExecution(scratchAttempt)
-		closeErr := closeMatrixPrivateAttemptForExecution(scratchAttempt)
+		cleanupErr := cleanupMatrixPrivateAttemptForExecution(&scratchAttempt)
+		closeErr := closeMatrixPrivateAttemptForExecution(&scratchAttempt)
 		if resourceErr := errors.Join(cleanupErr, closeErr); resourceErr != nil {
 			result = nil
 			returnErr = errors.Join(returnErr, resourceErr)

@@ -750,11 +750,17 @@ type matrixPrivateAttemptRoot struct {
 	parent            *os.Root
 	pinned            *os.Root
 	child             *os.Root
+	childCreator      *os.File
+	outputCreator     *os.File
+	fileDACLs         []*matrixPrivateAttemptDACLHandle
 	parentID          os.FileInfo
 	identity          os.FileInfo
 	namespaceID       os.FileInfo
 	namespacePath     string
 	output            *rootfs.Root
+	grandparentDACL   *matrixPrivateAttemptDACLHandle
+	parentDACL        *matrixPrivateAttemptDACLHandle
+	childDACL         *matrixPrivateAttemptDACLHandle
 	parentLocked      bool
 	childLocked       bool
 	grandparentLocked bool
@@ -803,24 +809,72 @@ func matrixPrivateAttemptConstructionFailure(primary, cleanupErr error, uncertai
 	return errors.Join(errs...)
 }
 
-// lockMatrixPrivateAttemptParent removes the directory-entry mutation rights
+// lockMatrixPrivateAttemptParentRetained removes the directory-entry mutation rights
 // needed to rename or replace the provider's destination. The child remains
 // writable, so legacy path-based adapters can create their files, but a same
 // user rename+symlink swap cannot redirect those writes outside the pinned
 // child root. The platform helper applies a real protected DACL on Windows;
 // mode bits alone are not a confidentiality or identity boundary there.
-func lockMatrixPrivateAttemptParent(parent *os.Root) error {
+func lockMatrixPrivateAttemptParentRetained(parent *os.Root) (*matrixPrivateAttemptDACLHandle, error) {
 	if parent == nil {
-		return errors.New("private matrix attempt parent is unavailable")
+		return nil, errors.New("private matrix attempt parent is unavailable")
 	}
-	return lockMatrixPrivateAttemptDirectory(parent)
+	return lockMatrixPrivateAttemptDirectoryRetained(parent)
 }
 
-func unlockMatrixPrivateAttemptParent(parent *os.Root) error {
-	if parent == nil {
+func restoreMatrixPrivateAttemptDirectory(handle *matrixPrivateAttemptDACLHandle, root *os.Root) error {
+	if err := unlockMatrixPrivateAttemptDirectoryRetained(handle, root); err != nil {
+		// Keep the retained WRITE_DAC handle open so the final close path can
+		// retry a transient restoration failure.
+		return err
+	}
+	return closeMatrixPrivateAttemptDACLHandle(handle)
+}
+
+type matrixPrivateAttemptDirectoryUnlockFunc func(*matrixPrivateAttemptDACLHandle, *os.Root) error
+
+type matrixPrivateAttemptDACLHandleCloseFunc func(*matrixPrivateAttemptDACLHandle) error
+
+func finalizeMatrixPrivateAttemptDACLHandle(handle *matrixPrivateAttemptDACLHandle) error {
+	return finalizeMatrixPrivateAttemptDACLHandleWith(handle, closeMatrixPrivateAttemptDACLHandle)
+}
+
+func finalizeMatrixPrivateAttemptDACLHandleWith(handle *matrixPrivateAttemptDACLHandle, closeHandle matrixPrivateAttemptDACLHandleCloseFunc) error {
+	firstErr := closeHandle(handle)
+	if firstErr == nil {
 		return nil
 	}
-	return unlockMatrixPrivateAttemptDirectory(parent)
+	return errors.Join(firstErr, closeHandle(handle))
+}
+
+func retryMatrixPrivateAttemptDirectoryRestore(handle *matrixPrivateAttemptDACLHandle, root *os.Root) error {
+	return retryMatrixPrivateAttemptDirectoryRestoreWith(handle, root, unlockMatrixPrivateAttemptDirectoryRetained)
+}
+
+func retryMatrixPrivateAttemptDirectoryRestoreWith(handle *matrixPrivateAttemptDACLHandle, root *os.Root, unlock matrixPrivateAttemptDirectoryUnlockFunc) error {
+	firstErr := unlock(handle, root)
+	if firstErr == nil {
+		return finalizeMatrixPrivateAttemptDACLHandle(handle)
+	}
+	if retryErr := unlock(handle, root); retryErr != nil {
+		return errors.Join(firstErr, retryErr)
+	}
+	return finalizeMatrixPrivateAttemptDACLHandle(handle)
+}
+
+// finalizeMatrixPrivateAttemptDirectory is for construction failures that do
+// not return an attempt with a later close phase. Retry a transient restore
+// once, then close the retained handle even if the directory is still locked.
+func finalizeMatrixPrivateAttemptDirectory(handle *matrixPrivateAttemptDACLHandle, root *os.Root) error {
+	restoreErr := retryMatrixPrivateAttemptDirectoryRestore(handle, root)
+	if restoreErr == nil {
+		return nil
+	}
+	return errors.Join(restoreErr, finalizeMatrixPrivateAttemptDACLHandle(handle))
+}
+
+func unlockMatrixPrivateAttemptParentRetained(handle *matrixPrivateAttemptDACLHandle, parent *os.Root) error {
+	return restoreMatrixPrivateAttemptDirectory(handle, parent)
 }
 
 func lockMatrixPrivateAttemptChild(attempt *matrixPrivateAttemptRoot) error {
@@ -830,9 +884,13 @@ func lockMatrixPrivateAttemptChild(attempt *matrixPrivateAttemptRoot) error {
 	if matrixPrivateAttemptBeforeChildLockForTest != nil {
 		matrixPrivateAttemptBeforeChildLockForTest(attempt.path)
 	}
-	if err := lockMatrixPrivateAttemptDirectory(attempt.pinned); err != nil {
+	creator := attempt.childCreator
+	attempt.childCreator = nil
+	handle, err := lockMatrixPrivateAttemptDirectoryCreated(creator, attempt.pinned)
+	if err != nil {
 		return err
 	}
+	attempt.childDACL = handle
 	attempt.childLocked = true
 	if err := verifyMatrixPrivateAttemptChildIdentity(attempt); err != nil {
 		unlockErr := unlockMatrixPrivateAttemptChild(attempt)
@@ -919,9 +977,10 @@ func unlockMatrixPrivateAttemptChild(attempt *matrixPrivateAttemptRoot) error {
 	if attempt.pinned == nil {
 		return errors.New("private matrix attempt root is unavailable")
 	}
-	if err := unlockMatrixPrivateAttemptDirectory(attempt.pinned); err != nil {
+	if err := restoreMatrixPrivateAttemptDirectory(attempt.childDACL, attempt.pinned); err != nil {
 		return err
 	}
+	attempt.childDACL = nil
 	attempt.childLocked = false
 	return nil
 }
@@ -931,10 +990,30 @@ func unlockMatrixPrivateAttemptChild(attempt *matrixPrivateAttemptRoot) error {
 // existing adapter contracts, but they no longer sit below user-selected
 // artifact roots where another process could replace an attempt directory and
 // redirect pathname-based writes outside the selected root.
-func createMatrixPrivateAttemptRoot() (matrixPrivateAttemptRoot, error) {
-	parentPath, err := createMatrixPrivateAttemptParent()
+func createMatrixPrivateAttemptRoot() (result matrixPrivateAttemptRoot, returnErr error) {
+	parentPath, grandparentCreator, parentCreator, err := createMatrixPrivateAttemptParentWithHandles()
 	if err != nil {
 		return matrixPrivateAttemptRoot{}, err
+	}
+	var childCreator *os.File
+	defer func() {
+		for _, file := range []*os.File{childCreator, parentCreator, grandparentCreator} {
+			if file != nil {
+				returnErr = errors.Join(returnErr, file.Close())
+			}
+		}
+	}()
+	cleanupMatrixPrivateAttemptConstruction := func(parent, grandparent, pinned *os.Root, identity, parentID os.FileInfo) error {
+		var creatorErr error
+		for _, file := range []*os.File{childCreator, parentCreator, grandparentCreator} {
+			if file != nil {
+				creatorErr = errors.Join(creatorErr, file.Close())
+			}
+		}
+		childCreator = nil
+		parentCreator = nil
+		grandparentCreator = nil
+		return errors.Join(creatorErr, cleanupMatrixPrivateAttemptConstructionAfterHandles(parent, grandparent, pinned, identity, parentID))
 	}
 	createdParentID, err := os.Lstat(parentPath)
 	if err != nil || !createdParentID.IsDir() {
@@ -979,7 +1058,8 @@ func createMatrixPrivateAttemptRoot() (matrixPrivateAttemptRoot, error) {
 		cleanupErr := cleanupMatrixPrivateAttemptConstruction(parent, grandparent, nil, nil, parentID)
 		return matrixPrivateAttemptRoot{}, matrixPrivateAttemptConstructionFailure(err, cleanupErr, false, parent, grandparent)
 	}
-	if err := createMatrixPrivateAttemptChild(parent, parentPath, name); err != nil {
+	childCreator, err = createMatrixPrivateAttemptChildRetained(parent, parentPath, name)
+	if err != nil {
 		cleanupErr := cleanupMatrixPrivateAttemptConstruction(parent, grandparent, nil, nil, parentID)
 		return matrixPrivateAttemptRoot{}, matrixPrivateAttemptConstructionFailure(err, cleanupErr, false, parent, grandparent)
 	}
@@ -1071,18 +1151,24 @@ func createMatrixPrivateAttemptRoot() (matrixPrivateAttemptRoot, error) {
 		constructionErr := matrixPrivateAttemptConstructionFailure(err, cleanupErr, false, pinned, anchoredChild, parent, grandparent)
 		return matrixPrivateAttemptRoot{}, errors.Join(constructionErr, closeErr, root.Close())
 	}
-	if err := lockMatrixPrivateAttemptParent(parent); err != nil {
+	parentCreationHandle := parentCreator
+	parentCreator = nil
+	parentDACL, err := lockMatrixPrivateAttemptDirectoryCreated(parentCreationHandle, parent)
+	if err != nil {
 		childCloseErr := reopenedChild.Close()
 		cleanupErr := cleanupMatrixPrivateAttemptConstruction(parent, grandparent, pinned, pinnedID, parentID)
 		closeErr := errors.Join(childCloseErr, pinned.Close(), root.Close(), anchoredChild.Close(), parent.Close(), grandparent.Close())
-		return matrixPrivateAttemptRoot{}, errors.Join(err, cleanupErr, closeErr)
+		return matrixPrivateAttemptRoot{}, matrixPrivateAttemptConstructionFailure(err, errors.Join(cleanupErr, closeErr), false)
 	}
-	if err := lockMatrixPrivateAttemptDirectory(grandparent); err != nil {
-		unlockErr := unlockMatrixPrivateAttemptParent(parent)
+	grandparentCreationHandle := grandparentCreator
+	grandparentCreator = nil
+	grandparentDACL, err := lockMatrixPrivateAttemptDirectoryCreated(grandparentCreationHandle, grandparent)
+	if err != nil {
+		unlockErr := finalizeMatrixPrivateAttemptDirectory(parentDACL, parent)
 		childCloseErr := reopenedChild.Close()
 		cleanupErr := cleanupMatrixPrivateAttemptConstruction(parent, grandparent, pinned, pinnedID, parentID)
 		closeErr := errors.Join(childCloseErr, pinned.Close(), root.Close(), anchoredChild.Close(), parent.Close(), grandparent.Close())
-		return matrixPrivateAttemptRoot{}, errors.Join(err, unlockErr, cleanupErr, closeErr)
+		return matrixPrivateAttemptRoot{}, matrixPrivateAttemptConstructionFailure(err, errors.Join(unlockErr, cleanupErr, closeErr), false)
 	}
 	currentParentEntry, parentEntryErr := grandparent.Lstat(parentName)
 	currentParentID, parentStatErr := parent.Stat(".")
@@ -1095,30 +1181,51 @@ func createMatrixPrivateAttemptRoot() (matrixPrivateAttemptRoot, error) {
 		validatedChildCloseErr = validatedChild.Close()
 	}
 	if parentEntryErr != nil || parentStatErr != nil || childEntryErr != nil || childOpenErr != nil || validatedChildCloseErr != nil || !os.SameFile(createdParentID, currentParentEntry) || !os.SameFile(createdParentID, currentParentID) || !os.SameFile(pinnedID, currentChildEntry) || !os.SameFile(pinnedID, validatedChildID) {
-		identityErr := errors.New("private matrix attempt root changed before parent lock")
-		unlockErr := errors.Join(unlockMatrixPrivateAttemptDirectory(grandparent), unlockMatrixPrivateAttemptParent(parent))
+		identityErr := errors.Join(
+			errors.New("private matrix attempt root changed before parent lock"),
+			parentEntryErr,
+			parentStatErr,
+			childEntryErr,
+			childOpenErr,
+			validatedChildCloseErr,
+		)
+		unlockErr := errors.Join(
+			finalizeMatrixPrivateAttemptDirectory(grandparentDACL, grandparent),
+			finalizeMatrixPrivateAttemptDirectory(parentDACL, parent),
+		)
 		cleanupErr := cleanupMatrixPrivateAttemptConstruction(parent, grandparent, pinned, pinnedID, parentID)
 		closeErr := errors.Join(reopenedChild.Close(), pinned.Close(), root.Close(), anchoredChild.Close(), parent.Close(), grandparent.Close())
-		return matrixPrivateAttemptRoot{}, errors.Join(identityErr, unlockErr, cleanupErr, closeErr)
+		return matrixPrivateAttemptRoot{}, matrixPrivateAttemptConstructionFailure(identityErr, errors.Join(unlockErr, cleanupErr, closeErr), false)
 	}
 	closeErr := reopenedChild.Close()
 	if closeErr != nil {
-		unlockErr := errors.Join(unlockMatrixPrivateAttemptDirectory(grandparent), unlockMatrixPrivateAttemptParent(parent))
+		unlockErr := errors.Join(
+			finalizeMatrixPrivateAttemptDirectory(grandparentDACL, grandparent),
+			finalizeMatrixPrivateAttemptDirectory(parentDACL, parent),
+		)
 		cleanupErr := cleanupMatrixPrivateAttemptConstruction(parent, grandparent, pinned, pinnedID, parentID)
-		return matrixPrivateAttemptRoot{}, errors.Join(closeErr, unlockErr, cleanupErr, pinned.Close(), root.Close(), anchoredChild.Close(), parent.Close(), grandparent.Close())
+		cleanupFailure := errors.Join(unlockErr, cleanupErr, pinned.Close(), root.Close(), anchoredChild.Close(), parent.Close(), grandparent.Close())
+		return matrixPrivateAttemptRoot{}, matrixPrivateAttemptConstructionFailure(closeErr, cleanupFailure, false)
 	}
 	namespaceID, namespaceErr := grandparent.Stat(".")
 	if namespaceErr != nil {
-		unlockErr := errors.Join(unlockMatrixPrivateAttemptDirectory(grandparent), unlockMatrixPrivateAttemptParent(parent))
+		unlockErr := errors.Join(
+			finalizeMatrixPrivateAttemptDirectory(grandparentDACL, grandparent),
+			finalizeMatrixPrivateAttemptDirectory(parentDACL, parent),
+		)
 		cleanupErr := cleanupMatrixPrivateAttemptConstruction(parent, grandparent, pinned, pinnedID, parentID)
-		return matrixPrivateAttemptRoot{}, errors.Join(namespaceErr, unlockErr, cleanupErr, pinned.Close(), root.Close(), anchoredChild.Close(), parent.Close(), grandparent.Close())
+		cleanupFailure := errors.Join(unlockErr, cleanupErr, pinned.Close(), root.Close(), anchoredChild.Close(), parent.Close(), grandparent.Close())
+		return matrixPrivateAttemptRoot{}, matrixPrivateAttemptConstructionFailure(namespaceErr, cleanupFailure, false)
 	}
-	return matrixPrivateAttemptRoot{
+	result = matrixPrivateAttemptRoot{
 		root: root, path: path, grandparent: grandparent,
-		parent: parent, pinned: pinned, child: anchoredChild, parentID: parentID, identity: identity,
+		parent: parent, pinned: pinned, child: anchoredChild, childCreator: childCreator, parentID: parentID, identity: identity,
 		namespaceID: namespaceID, namespacePath: grandparent.Name(),
+		grandparentDACL: grandparentDACL, parentDACL: parentDACL,
 		parentLocked: true, grandparentLocked: true,
-	}, nil
+	}
+	childCreator = nil
+	return result, nil
 }
 
 // openMatrixPrivateAttemptOutputRoot creates and pins the writable directory
@@ -1131,9 +1238,11 @@ func openMatrixPrivateAttemptOutputRoot(attempt *matrixPrivateAttemptRoot) (root
 	if attempt == nil || attempt.pinned == nil {
 		return rootfs.Root{}, errors.New("private matrix attempt root is unavailable")
 	}
-	if err := createMatrixPrivateAttemptOutputDirInRoot(attempt.pinned); err != nil {
+	outputCreator, err := createMatrixPrivateAttemptOutputDirInRootRetained(attempt.pinned)
+	if err != nil {
 		return rootfs.Root{}, err
 	}
+	attempt.outputCreator = outputCreator
 	outputPath := filepath.Join(attempt.path, "output")
 	if matrixPrivateAttemptOutputBeforeRootForTest != nil {
 		matrixPrivateAttemptOutputBeforeRootForTest(outputPath)
@@ -1175,7 +1284,7 @@ func openMatrixPrivateAttemptOutputRoot(attempt *matrixPrivateAttemptRoot) (root
 	return output, nil
 }
 
-func cleanupMatrixPrivateAttemptConstruction(parent, grandparent, pinned *os.Root, identity, parentID os.FileInfo) error {
+func cleanupMatrixPrivateAttemptConstructionAfterHandles(parent, grandparent, pinned *os.Root, identity, parentID os.FileInfo) error {
 	var cleanupErr error
 	if pinned != nil {
 		entries, err := fs.ReadDir(pinned.FS(), ".")
@@ -1224,24 +1333,40 @@ func (attempt matrixPrivateAttemptRoot) matrixPrivateAttemptRootIsStable() error
 	return opened.Close()
 }
 
-func (attempt matrixPrivateAttemptRoot) cleanup() error {
+func (attempt *matrixPrivateAttemptRoot) cleanup() error {
+	if attempt == nil {
+		return nil
+	}
 	if attempt.grandparent == nil || attempt.parent == nil || attempt.child == nil || attempt.identity == nil {
 		return nil
 	}
+	var restoreErr error
 	if attempt.childLocked {
-		if err := unlockMatrixPrivateAttemptChild(&attempt); err != nil {
-			return err
-		}
+		restoreErr = errors.Join(restoreErr, retryMatrixPrivateAttemptDirectoryRestore(attempt.childDACL, attempt.pinned))
 	}
 	if attempt.parentLocked {
-		if err := unlockMatrixPrivateAttemptParent(attempt.parent); err != nil {
-			return err
-		}
+		restoreErr = errors.Join(restoreErr, retryMatrixPrivateAttemptDirectoryRestore(attempt.parentDACL, attempt.parent))
 	}
 	if attempt.grandparentLocked {
-		if err := unlockMatrixPrivateAttemptDirectory(attempt.grandparent); err != nil {
-			return err
-		}
+		restoreErr = errors.Join(restoreErr, retryMatrixPrivateAttemptDirectoryRestore(attempt.grandparentDACL, attempt.grandparent))
+	}
+	if restoreErr != nil {
+		return restoreErr
+	}
+	for index, handle := range attempt.fileDACLs {
+		restoreErr = errors.Join(restoreErr, finalizeMatrixPrivateAttemptFile(handle))
+		attempt.fileDACLs[index] = nil
+	}
+	if attempt.outputCreator != nil {
+		restoreErr = errors.Join(restoreErr, attempt.outputCreator.Close())
+		attempt.outputCreator = nil
+	}
+	if attempt.childCreator != nil {
+		restoreErr = errors.Join(restoreErr, attempt.childCreator.Close())
+		attempt.childCreator = nil
+	}
+	if restoreErr != nil {
+		return restoreErr
 	}
 	// Remove entries through the held child descriptor, so a rename cannot
 	// redirect recursive cleanup to an unrelated directory.
@@ -1267,8 +1392,25 @@ func (attempt matrixPrivateAttemptRoot) cleanup() error {
 	return removeMatrixExpectedEntry(attempt.grandparent, attempt.parentID, nil)
 }
 
-func (attempt matrixPrivateAttemptRoot) close() error {
+func (attempt *matrixPrivateAttemptRoot) close() error {
+	if attempt == nil {
+		return nil
+	}
 	var closeErr error
+	closeErr = errors.Join(closeErr, finalizeMatrixPrivateAttemptDirectory(attempt.childDACL, attempt.pinned))
+	closeErr = errors.Join(closeErr, finalizeMatrixPrivateAttemptDirectory(attempt.parentDACL, attempt.parent))
+	closeErr = errors.Join(closeErr, finalizeMatrixPrivateAttemptDirectory(attempt.grandparentDACL, attempt.grandparent))
+	for index, handle := range attempt.fileDACLs {
+		closeErr = errors.Join(closeErr, finalizeMatrixPrivateAttemptFile(handle))
+		attempt.fileDACLs[index] = nil
+	}
+	for _, file := range []*os.File{attempt.outputCreator, attempt.childCreator} {
+		if file != nil {
+			closeErr = errors.Join(closeErr, file.Close())
+		}
+	}
+	attempt.outputCreator = nil
+	attempt.childCreator = nil
 	if attempt.child != nil {
 		closeErr = errors.Join(closeErr, attempt.child.Close())
 	}
@@ -1339,7 +1481,10 @@ func removeEmptyMatrixPrivateAttemptNamespace(path string, identity os.FileInfo)
 	return removeErr
 }
 
-func cleanupMatrixPrivateAttemptForExecution(attempt matrixPrivateAttemptRoot) error {
+func cleanupMatrixPrivateAttemptForExecution(attempt *matrixPrivateAttemptRoot) error {
+	if attempt == nil {
+		return nil
+	}
 	err := attempt.cleanup()
 	if matrixPrivateAttemptCleanupForTest != nil {
 		err = errors.Join(err, matrixPrivateAttemptCleanupForTest(attempt.path))
@@ -1347,7 +1492,10 @@ func cleanupMatrixPrivateAttemptForExecution(attempt matrixPrivateAttemptRoot) e
 	return err
 }
 
-func closeMatrixPrivateAttemptForExecution(attempt matrixPrivateAttemptRoot) error {
+func closeMatrixPrivateAttemptForExecution(attempt *matrixPrivateAttemptRoot) error {
+	if attempt == nil {
+		return nil
+	}
 	err := attempt.close()
 	if matrixPrivateAttemptCloseForTest != nil {
 		err = errors.Join(err, matrixPrivateAttemptCloseForTest(attempt.path))
@@ -2593,8 +2741,8 @@ func executeMatrixCellAttempt(ctx context.Context, cell MatrixCell, base *Plan, 
 		return matrixPrivateAttemptConstructionResult("execution", "temporary output directory could not be created", err)
 	}
 	defer func() {
-		cleanupErr := cleanupMatrixPrivateAttemptForExecution(attemptRoot)
-		closeErr := closeMatrixPrivateAttemptForExecution(attemptRoot)
+		cleanupErr := cleanupMatrixPrivateAttemptForExecution(&attemptRoot)
+		closeErr := closeMatrixPrivateAttemptForExecution(&attemptRoot)
 		joinMatrixAttemptResourceErrors(&attempt, &returnErr, errors.Join(cleanupErr, closeErr))
 	}()
 	attemptDir := attemptRoot.path
@@ -2750,8 +2898,8 @@ func executeMatrixCellAttempt(ctx context.Context, cell MatrixCell, base *Plan, 
 		return attempt, constructionErr
 	}
 	defer func() {
-		cleanupErr := cleanupMatrixPrivateAttemptForExecution(frameAttemptRoot)
-		closeErr := closeMatrixPrivateAttemptForExecution(frameAttemptRoot)
+		cleanupErr := cleanupMatrixPrivateAttemptForExecution(&frameAttemptRoot)
+		closeErr := closeMatrixPrivateAttemptForExecution(&frameAttemptRoot)
 		joinMatrixAttemptResourceErrors(&attempt, &returnErr, errors.Join(cleanupErr, closeErr))
 	}()
 	frameAttemptDir := frameAttemptRoot.path

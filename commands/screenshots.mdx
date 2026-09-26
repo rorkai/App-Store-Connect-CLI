@@ -54,16 +54,23 @@ asc screenshots frame --input ./screenshots/raw/home.png --device iphone-air
 
 * `--input` - Path to raw screenshot PNG
 * `--device` - Frame device profile
-* `--output` - Output path for framed image
+* `--output-path` - Exact output path for the framed PNG
+* `--output-dir` - Output directory when `--output-path` is not set
+* `--output` - Output format (`json`, `table`, or `markdown`)
 * `--title` - Overlay title text
-* `--subtitle` - Overlay subtitle text
+* `--subtitle` - Overlay subtitle or keyword text
 * `--title-color` - Title text color (hex format)
 * `--subtitle-color` - Subtitle text color (hex format)
+* `--bg-color` - Canvas background color for supported devices such as `mac`
+* `--overlay-config` - JSON file with `default` and `data[]` entries (`filter`, `title`, `keyword`, `background`). `background` applies only to canvas devices such as `mac`.
+* `--resume` - Skip an unchanged input when the source and render settings still match `.asc/reports/screenshots-frame/state.json`
+
+`--bg-color` applies to canvas devices such as `mac`. Title and subtitle overlays apply to every supported device. Koubou 0.18.1 does not ship iPad, Apple Watch, or Apple TV frames, so those device names are usage errors that list the supported set. Frame colors are part of the pinned frame name (for example Light Gold or Silver) rather than a separate catalog.
 
 **Requirements:**
 
-* Koubou CLI tool (version 0.14.0 or higher)
-* Install via: `brew install koubou` or download from [releases](https://github.com/rudrankriyam/koubou/releases)
+* Koubou CLI tool (version 0.18.1 exactly)
+* Install via: `pip install koubou==0.18.1` or download the matching version from [releases](https://github.com/rudrankriyam/koubou/releases)
 
 ### Review Workflow
 

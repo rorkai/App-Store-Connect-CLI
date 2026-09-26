@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -5037,6 +5038,10 @@ func TestFrameIntoRootRejectsSymlinkedInputBeforeKoubou(t *testing.T) {
 	outsidePath := filepath.Join(dir, "outside.png")
 	writeMinimalPNG(t, inputPath, 200, 300)
 	writeMinimalPNG(t, outsidePath, 200, 300)
+	outsideBefore, err := os.Stat(outsidePath)
+	if err != nil {
+		t.Fatalf("stat outside input before replacement: %v", err)
+	}
 	previous := matrixFrameInputBeforeCopyForTest
 	called := false
 	matrixFrameInputBeforeCopyForTest = func(path string) {
@@ -5075,6 +5080,13 @@ func TestFrameIntoRootRejectsSymlinkedInputBeforeKoubou(t *testing.T) {
 	}
 	if _, statErr := os.Lstat(filepath.Join(destinationPath, "home.png")); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("destination stat error = %v, want no publication", statErr)
+	}
+	outsideAfter, err := os.Stat(outsidePath)
+	if err != nil {
+		t.Fatalf("stat outside input after replacement: %v", err)
+	}
+	if outsideAfter.Mode().Perm() != outsideBefore.Mode().Perm() {
+		t.Fatalf("outside input mode changed from %v to %v", outsideBefore.Mode().Perm(), outsideAfter.Mode().Perm())
 	}
 }
 
@@ -5422,6 +5434,9 @@ func TestCreateMatrixPrivateAttemptRootRejectsParentReplacementBeforeOpen(t *tes
 }
 
 func TestCreateMatrixPrivateAttemptRootRejectsChildReplacementBeforeOpen(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows no-delete-share creator prevents child replacement before open")
+	}
 	var parentPath, originalPath, replacementSentinel string
 	var swapErr error
 	previousParent := matrixPrivateAttemptParentCreatedForTest
@@ -5469,6 +5484,9 @@ func TestCreateMatrixPrivateAttemptRootRejectsChildReplacementBeforeOpen(t *test
 }
 
 func TestCreateMatrixPrivateAttemptRootRejectsReplacementBetweenRootAndChildOpen(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows no-delete-share creator prevents child replacement while opening roots")
+	}
 	var parentPath string
 	var originalPath string
 	var replacementSentinel string
@@ -5522,6 +5540,9 @@ func TestCreateMatrixPrivateAttemptRootRejectsReplacementBetweenRootAndChildOpen
 }
 
 func TestCreateMatrixPrivateAttemptRootRejectsReplacementBeforeInitialPin(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows no-delete-share creator prevents child replacement before pinning")
+	}
 	var parentPath, originalPath, replacementPath, replacementSentinel string
 	var swapErr error
 	previousParentCreated := matrixPrivateAttemptParentCreatedForTest
@@ -5621,6 +5642,9 @@ func TestCreateMatrixPrivateAttemptRootRejectsReplacementBeforeParentLock(t *tes
 }
 
 func TestLockMatrixPrivateAttemptChildRejectsReplacementAtLockBoundary(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows no-delete-share creator prevents child replacement at the lock boundary")
+	}
 	attempt, err := createMatrixPrivateAttemptRoot()
 	if err != nil {
 		t.Fatalf("createMatrixPrivateAttemptRoot() error: %v", err)
@@ -5630,9 +5654,11 @@ func TestLockMatrixPrivateAttemptChildRejectsReplacementAtLockBoundary(t *testin
 	previous := matrixPrivateAttemptBeforeChildLockForTest
 	var swapErr error
 	matrixPrivateAttemptBeforeChildLockForTest = func(path string) {
-		if swapErr = unlockMatrixPrivateAttemptParent(attempt.parent); swapErr != nil {
+		if swapErr = unlockMatrixPrivateAttemptParentRetained(attempt.parentDACL, attempt.parent); swapErr != nil {
 			return
 		}
+		attempt.parentDACL = nil
+		attempt.parentLocked = false
 		if swapErr = os.Rename(path, originalPath); swapErr != nil {
 			return
 		}
@@ -5642,7 +5668,8 @@ func TestLockMatrixPrivateAttemptChildRejectsReplacementAtLockBoundary(t *testin
 		if swapErr = os.WriteFile(replacementSentinel, []byte("replacement must survive"), 0o600); swapErr != nil {
 			return
 		}
-		swapErr = lockMatrixPrivateAttemptParent(attempt.parent)
+		attempt.parentDACL, swapErr = lockMatrixPrivateAttemptParentRetained(attempt.parent)
+		attempt.parentLocked = swapErr == nil
 	}
 	t.Cleanup(func() {
 		matrixPrivateAttemptBeforeChildLockForTest = previous
@@ -5670,10 +5697,10 @@ func TestCleanupMatrixPrivateAttemptRemovesNamespace(t *testing.T) {
 		t.Fatalf("createMatrixPrivateAttemptRoot() error: %v", err)
 	}
 	namespace := filepath.Dir(filepath.Dir(attempt.path))
-	if err := cleanupMatrixPrivateAttemptForExecution(attempt); err != nil {
+	if err := cleanupMatrixPrivateAttemptForExecution(&attempt); err != nil {
 		t.Fatalf("cleanupMatrixPrivateAttemptForExecution() error = %v", err)
 	}
-	if err := closeMatrixPrivateAttemptForExecution(attempt); err != nil {
+	if err := closeMatrixPrivateAttemptForExecution(&attempt); err != nil {
 		t.Fatalf("closeMatrixPrivateAttemptForExecution() error = %v", err)
 	}
 	if _, err := os.Lstat(namespace); !errors.Is(err, os.ErrNotExist) {
@@ -5751,6 +5778,7 @@ func TestCreateMatrixPrivateAttemptRootEarlyFailuresPreserveReplacements(t *test
 					var parentPath string
 					var originalPath, replacementPath, replacementSentinel string
 					var swapErr error
+					var renameBlocked bool
 					previousParentCreated := matrixPrivateAttemptParentCreatedForTest
 					previousOperation := matrixPrivateAttemptOperationForTest
 					matrixPrivateAttemptParentCreatedForTest = func(path string) { parentPath = path }
@@ -5764,6 +5792,11 @@ func TestCreateMatrixPrivateAttemptRootEarlyFailuresPreserveReplacements(t *test
 						}
 						originalPath = target + "-original"
 						if err := os.Rename(target, originalPath); err != nil {
+							if runtime.GOOS == "windows" && errors.Is(err, syscall.Errno(32)) {
+								// Creation handles deny delete sharing until cleanup.
+								renameBlocked = true
+								return errors.New("injected matrix private attempt construction failure")
+							}
 							swapErr = err
 							return swapErr
 						}
@@ -5802,6 +5835,22 @@ func TestCreateMatrixPrivateAttemptRootEarlyFailuresPreserveReplacements(t *test
 					}
 					if swapErr != nil {
 						t.Fatalf("replace construction path: %v", swapErr)
+					}
+					if runtime.GOOS == "windows" {
+						if !renameBlocked {
+							t.Fatal("construction handle did not block directory rename")
+						}
+						if _, statErr := os.Stat(originalPath); !errors.Is(statErr, os.ErrNotExist) {
+							t.Fatalf("rename destination exists after blocked rename: %v", statErr)
+						}
+						_, statErr := os.Stat(parentPath)
+						if tc.uncertain && statErr != nil {
+							t.Fatalf("unverified original directory was not preserved: %v", statErr)
+						}
+						if !tc.uncertain && !errors.Is(statErr, os.ErrNotExist) {
+							t.Fatalf("verified original directory was not cleaned: %v", statErr)
+						}
+						return
 					}
 					if replacementPath == "" {
 						t.Fatal("replacement path was not created")
@@ -5971,16 +6020,24 @@ func TestMatrixAttemptCleanupPreservesReplacedPrivateRoot(t *testing.T) {
 			}
 			var replacementSentinel string
 			var originalAttemptPath string
+			var blockedPath string
 			replace := func(path string) error {
 				// The production parent is mutation-locked while providers run.
 				// Explicitly restore the test fixture's owner write bit here so
 				// this test continues to exercise cleanup after an adversarial
 				// replacement rather than the provider-destination guard.
-				if err := os.Chmod(filepath.Dir(path), 0o700); err != nil {
-					return err
+				if runtime.GOOS != "windows" {
+					if err := os.Chmod(filepath.Dir(path), 0o700); err != nil {
+						return err
+					}
 				}
 				originalAttemptPath = path + "-original"
 				if err := os.Rename(path, originalAttemptPath); err != nil {
+					if runtime.GOOS == "windows" && errors.Is(err, syscall.Errno(32)) {
+						blockedPath = path
+						writeMatrixPNG(t, filepath.Join(path, "home.png"))
+						return nil
+					}
 					return err
 				}
 				if err := os.Mkdir(path, 0o700); err != nil {
@@ -6018,6 +6075,17 @@ func TestMatrixAttemptCleanupPreservesReplacedPrivateRoot(t *testing.T) {
 			_, _ = executeMatrixCellAttempt(context.Background(), cell, base, matrixPlan, deps, matrixOutputRoots{
 				raw: rawRoot, rawPath: rawDir, framed: framedRoot, framedPath: framedDir, hasFramed: tc.frame,
 			})
+			if runtime.GOOS == "windows" {
+				if blockedPath == "" {
+					t.Fatal("provider directory rename was not blocked")
+				}
+				for _, path := range []string{blockedPath, originalAttemptPath} {
+					if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+						t.Fatalf("protected attempt was not cleaned: %s: %v", path, err)
+					}
+				}
+				return
+			}
 			if replacementSentinel == "" {
 				t.Fatal("replacement callback did not run")
 			}
