@@ -103,7 +103,7 @@ asc devices register --name "My Mac" --udid-from-system --platform MAC_OS
 
 **Note:** `--udid` and `--udid-from-system` are mutually exclusive.
 
-Use `--via-url` when a remote tester cannot copy a UDID. The command prints a loopback URL and a registration hint on stderr. The profile is unsigned, so iOS shows it as Not Verified. Use a trusted HTTPS tunnel for remote iOS devices and pass its base URL as `--public-url`. If using a LAN address, the listener must also bind an interface the device can reach with an explicit `--listen`. Without `--confirm`, devices are written to a tab-separated `--output-file` that `devices register-batch` can read. `--listen` stays on a loopback address unless you explicitly bind another host.
+Use `--via-url` when a remote tester cannot copy a UDID. The command prints a loopback URL and a registration hint on stderr. The profile is unsigned, so iOS shows it as Not Verified. Use a trusted HTTPS tunnel for remote iOS devices and pass its origin URL (without a path prefix) as `--public-url`. If using a LAN address, the listener must also bind an interface the device can reach with an explicit `--listen`. Without `--confirm`, devices are written to a tab-separated `--output-file` that `devices register-batch` can read. `--listen` stays on a loopback address unless you explicitly bind another host.
 
 The registration URL is a bearer credential: share it only with intended testers. Signed CMS callbacks are checked for signature integrity, but this command does not validate an Apple device certificate chain or attest device identity. The URL remains usable until the server stops. API failures can be retried without restarting the session; successful registrations are deduplicated.
 

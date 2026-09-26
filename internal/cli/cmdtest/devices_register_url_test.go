@@ -20,6 +20,7 @@ func TestDevicesRegisterURLValidation(t *testing.T) {
 		{"negative ttl", []string{"--via-url", "--ttl", "-1s"}, "--ttl"},
 		{"relative public url", []string{"--via-url", "--public-url", "phone"}, "--public-url"},
 		{"public url query", []string{"--via-url", "--public-url", "https://example.com/?foo=bar"}, "--public-url"},
+		{"public url path", []string{"--via-url", "--public-url", "https://example.com/asc"}, "--public-url"},
 		{"unused listen", []string{"--listen", "127.0.0.1:0", "--name", "phone", "--udid", "123", "--platform", "IOS"}, "--listen requires --via-url"},
 		{"output with confirm", []string{"--via-url", "--confirm"}, "--output-file cannot"},
 	} {
@@ -47,13 +48,16 @@ func TestDevicesRegisterURLValidation(t *testing.T) {
 func TestDevicesRegisterURLTableOutput(t *testing.T) {
 	root := RootCommand("test")
 	path := filepath.Join(t.TempDir(), "devices.tsv")
-	if err := root.Parse([]string{"devices", "register", "--via-url", "--ttl", "1ms", "--output-file", path, "--output", "table"}); err != nil {
+	if err := root.Parse([]string{"devices", "register", "--via-url", "--ttl", "1ms", "--output-file", path, "--output", "table", "--public-url", "https://tunnel.example/"}); err != nil {
 		t.Fatal(err)
 	}
 	var runErr error
 	stdout, _ := captureOutput(t, func() { runErr = root.Run(context.Background()) })
 	if runErr != nil {
 		t.Fatal(runErr)
+	}
+	if !strings.Contains(stdout, "https://tunnel.example/enroll?") {
+		t.Fatalf("root public URL did not generate the enrollment route: %s", stdout)
 	}
 	if !strings.Contains(stdout, "Output File") || !strings.Contains(stdout, path) {
 		t.Fatalf("missing collection receipt: %s", stdout)

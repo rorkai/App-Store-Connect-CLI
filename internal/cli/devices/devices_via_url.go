@@ -454,6 +454,9 @@ func validateDeviceURLServeOptions(options deviceURLServeOptions) error {
 		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" || parsed.Opaque != "" {
 			return shared.UsageError("--public-url must be an absolute HTTP(S) base URL without credentials, query, or fragment")
 		}
+		if parsed.Path != "" && parsed.Path != "/" {
+			return shared.UsageError("--public-url must not contain a path prefix")
+		}
 	}
 	return nil
 }
