@@ -522,6 +522,7 @@ var knownFailureParameters = map[string]struct{}{
 	"os-version-filter":                 {},
 	"output":                            {},
 	"output-dir":                        {},
+	"output-file":                       {},
 	"output-path":                       {},
 	"p12-out":                           {},
 	"package-id":                        {},
